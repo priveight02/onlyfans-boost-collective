@@ -6,11 +6,9 @@ import Contact from "@/components/Contact";
 const Index = () => {
   return (
     <div className="min-h-screen">
-      <div className="pt-[104px]">
-        <Hero />
-        <Services />
-        <Contact />
-      </div>
+      <Hero />
+      <Services />
+      <Contact />
     </div>
   );
 };
