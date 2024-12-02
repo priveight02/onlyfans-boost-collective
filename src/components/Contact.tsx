@@ -42,8 +42,8 @@ const Contact = () => {
           
           {/* Contact Us label */}
           <div className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 top-0">
-            <div className="bg-gradient-to-r from-primary-light/30 via-primary/20 to-primary-light/30 backdrop-blur-md px-8 py-2 rounded-full shadow-lg border border-primary/10">
-              <span className="text-primary/90 font-medium bg-gradient-to-r from-primary via-primary-accent to-primary bg-clip-text text-transparent">
+            <div className="bg-gradient-to-r from-primary-light/40 via-white/60 to-primary-light/40 backdrop-blur-md px-8 py-2 rounded-full shadow-lg border border-white/20 transition-all duration-300 hover:from-primary-light/50 hover:via-white/70 hover:to-primary-light/50">
+              <span className="text-primary font-medium">
                 Contact Us
               </span>
             </div>
@@ -51,7 +51,6 @@ const Contact = () => {
         </div>
       </div>
       
-      {/* Background decoration */}
       <div className="absolute inset-0 bg-gradient-to-b from-primary-light/5 to-primary-light/10">
         <div className="absolute inset-0 bg-grid-primary/[0.02] bg-[size:20px_20px]" />
       </div>
@@ -177,4 +176,3 @@ const Contact = () => {
 };
 
 export default Contact;
-
