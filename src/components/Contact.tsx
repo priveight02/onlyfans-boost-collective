@@ -37,10 +37,20 @@ const Contact = () => {
     <section id="contact" className="py-24 relative">
       {/* Decorative top separator */}
       <div className="absolute -top-8 left-0 w-full">
-        <div className="w-full border-t border-primary/20" />
-        <div className="w-full flex justify-center -mt-3">
-          <div className="bg-primary/10 backdrop-blur-sm px-8 py-2 rounded-xl shadow-lg border border-primary/5">
-            <span className="text-primary/80 font-medium">Contact Us</span>
+        <div className="relative w-full">
+          {/* Gradient line */}
+          <div className="absolute inset-0 w-full h-[1px] bg-gradient-to-r from-transparent via-primary/20 to-transparent" />
+          
+          {/* Blurred overlay for depth */}
+          <div className="absolute inset-0 w-full h-[2px] bg-white/20 blur-sm" />
+          
+          {/* Contact Us label */}
+          <div className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 top-0">
+            <div className="bg-gradient-to-r from-primary-light/30 via-primary/20 to-primary-light/30 backdrop-blur-md px-8 py-2 rounded-full shadow-lg border border-primary/10">
+              <span className="text-primary/90 font-medium bg-gradient-to-r from-primary via-primary-accent to-primary bg-clip-text text-transparent">
+                Contact Us
+              </span>
+            </div>
           </div>
         </div>
       </div>
