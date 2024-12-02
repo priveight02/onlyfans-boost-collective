@@ -8,6 +8,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 
+const FAQ = () => {
 const faqs = [
   {
     question: "What does your agency offer?",
@@ -35,7 +36,6 @@ const faqs = [
   }
 ];
 
-const FAQ = () => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-primary-light/20">
       <BackButton />
@@ -45,9 +45,10 @@ const FAQ = () => {
           <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTQ0MCIgaGVpZ2h0PSI1MDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PGxpbmVhckdyYWRpZW50IHgxPSIwJSIgeTE9IjAlIiB4Mj0iMTAwJSIgeTI9IjEwMCUiIGlkPSJhIj48c3RvcCBzdG9wLWNvbG9yPSIjRkZGIiBzdG9wLW9wYWNpdHk9Ii4yNSIgb2Zmc2V0PSIwJSIvPjxzdG9wIHN0b3AtY29sb3I9IiNGRkYiIHN0b3Atb3BhY2l0eT0iMCIgb2Zmc2V0PSIxMDAlIi8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHBhdGggZD0iTTAgMGgxNDQwdjE4N0wxNzIuOCA0NjEuOCAwIDIyN3oiIGZpbGw9InVybCgjYSkiIGZpbGwtcnVsZT0iZXZlbm9kZCIgZmlsbC1vcGFjaXR5PSIuNCIvPjwvc3ZnPg==')] bg-cover bg-center opacity-50" />
           <div className="absolute inset-0 bg-grid-white/[0.05] bg-[size:20px_20px]" />
           <div className="absolute inset-0 bg-gradient-to-b from-transparent to-[#9b87f5]/20" />
-          {/* Add decorative shapes */}
-          <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-white/10 rounded-full blur-3xl" />
-          <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-white/10 rounded-full blur-3xl" />
+          {/* Decorative shapes */}
+          <div className="absolute top-1/3 left-1/3 w-88 h-88 bg-white/10 rounded-full blur-3xl transform rotate-90" />
+          <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-white/10 rounded-full blur-3xl" />
+          <div className="absolute top-1/2 left-2/3 w-80 h-80 bg-white/10 rounded-full blur-3xl transform -rotate-90" />
         </div>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
           <HelpCircle className="h-16 w-16 mx-auto mb-6 text-white animate-bounce" />
@@ -59,7 +60,6 @@ const FAQ = () => {
           </p>
         </div>
       </div>
-
       {/* FAQ Section */}
       <section className="py-24">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
