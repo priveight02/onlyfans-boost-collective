@@ -3,13 +3,12 @@ import { motion } from "framer-motion";
 
 const Hero = () => {
   return (
-    <div className="relative flex items-center bg-gradient-to-br from-[#7a66d5] via-[#c3b9ef] to-[#b59be0] overflow-hidden py-32">
+    <div className="relative flex items-center bg-gradient-to-br from-[#b17acc] via-[#e6c3f5] to-[#dba4e3] overflow-hidden py-32">
       <div className="absolute inset-0">
         <div className="absolute inset-0 bg-black/5 mix-blend-multiply" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
         
         {/* Animated background patterns */}
-        <div className="absolute inset-0 overflow-hidden">
           <motion.div
             animate={{
               x: [0, -100, 0],
@@ -42,7 +41,7 @@ const Hero = () => {
               backgroundSize: '300px 300px',
             }}
           />
-        </div>
+
       </div>
       
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
@@ -100,7 +99,7 @@ const Hero = () => {
               repeat: Infinity,
               ease: "linear"
             }}
-            className="absolute top-1/4 left-1/4 w-96 h-96 bg-[#c3b9ef]/30 rounded-full mix-blend-multiply filter blur-xl"
+            className="absolute top-1/4 left-1/4 w-96 h-96 bg-[#e6c3f5]/30 rounded-full mix-blend-multiply filter blur-xl"
           />
           <motion.div 
             animate={{ 
@@ -113,7 +112,7 @@ const Hero = () => {
               repeat: Infinity,
               ease: "linear"
             }}
-            className="absolute top-1/3 right-1/4 w-96 h-96 bg-[#b59be0]/30 rounded-full mix-blend-multiply filter blur-xl"
+            className="absolute top-1/3 right-1/4 w-96 h-96 bg-[#dba4e3]/30 rounded-full mix-blend-multiply filter blur-xl"
           />
           <motion.div 
             animate={{ 
@@ -126,7 +125,7 @@ const Hero = () => {
               repeat: Infinity,
               ease: "linear"
             }}
-            className="absolute bottom-1/4 left-1/3 w-96 h-96 bg-[#d2cce7]/30 rounded-full mix-blend-multiply filter blur-xl"
+            className="absolute bottom-1/4 left-1/3 w-96 h-96 bg-[#e8d5f0]/30 rounded-full mix-blend-multiply filter blur-xl"
           />
         </div>
       </div>
