@@ -54,6 +54,10 @@ export default {
         "float-reverse": {
           "0%, 100%": { transform: "translateY(0)" },
           "50%": { transform: "translateY(20px)" }
+        },
+        gradient: {
+          "0%": { "background-position": "200% 0" },
+          "100%": { "background-position": "-200% 0" }
         }
       },
       animation: {

@@ -64,8 +64,11 @@ const Contact = () => {
           transition={{ duration: 0.5 }}
           className="max-w-2xl mx-auto text-center mb-16"
         >
-          <h2 className="text-4xl md:text-5xl font-bold font-heading mb-6 bg-clip-text text-transparent bg-gradient-to-r from-primary via-primary-accent to-primary">
-            Get in Touch
+          <h2 className="text-4xl md:text-5xl font-bold font-heading mb-6 relative">
+            <span className="absolute inset-0 bg-gradient-to-r from-primary via-primary-accent to-primary bg-[length:200%_100%] bg-clip-text text-transparent animate-[gradient_8s_linear_infinite]">
+              Get in Touch
+            </span>
+            <span className="invisible">Get in Touch</span>
           </h2>
           <p className="text-lg text-gray-600">
             Ready to take your career to the next level? Contact us today and unlock your full potential.
