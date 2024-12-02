@@ -37,11 +37,12 @@ const faqs = [
 
 const FAQ = () => {
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-gradient-to-b from-white to-primary-light/20">
       <BackButton />
       {/* Hero Section */}
-      <div className="relative py-24 bg-gradient-to-r from-primary to-primary-accent">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+      <div className="relative py-20 bg-gradient-to-r from-primary to-primary-accent overflow-hidden">
+        <div className="absolute inset-0 bg-[url('/placeholder.svg')] opacity-10 bg-repeat"></div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
           <HelpCircle className="h-16 w-16 mx-auto mb-6 text-white animate-bounce" />
           <h1 className="text-4xl md:text-6xl font-bold text-white mb-6 font-heading animate-fade-in">
             Frequently Asked Questions
@@ -55,18 +56,18 @@ const FAQ = () => {
       {/* FAQ Section */}
       <section className="py-24">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-          <Accordion type="single" collapsible className="space-y-4">
+          <Accordion type="single" collapsible className="space-y-6">
             {faqs.map((faq, index) => (
               <AccordionItem 
                 key={index} 
                 value={`item-${index}`}
-                className="animate-fade-in"
+                className="animate-fade-in bg-white rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 border-none"
                 style={{ animationDelay: `${index * 100}ms` }}
               >
-                <AccordionTrigger className="text-left text-primary hover:text-primary-accent">
+                <AccordionTrigger className="px-6 py-4 text-left text-lg font-medium text-primary hover:text-primary-accent transition-colors duration-200">
                   {faq.question}
                 </AccordionTrigger>
-                <AccordionContent className="text-gray-600">
+                <AccordionContent className="px-6 pb-4 text-gray-600 leading-relaxed">
                   {faq.answer}
                 </AccordionContent>
               </AccordionItem>
@@ -76,7 +77,7 @@ const FAQ = () => {
       </section>
 
       {/* CTA Section */}
-      <section className="py-24 bg-gray-50">
+      <section className="py-24 bg-gradient-to-b from-primary-light/20 to-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-3xl md:text-4xl font-bold text-primary mb-6 font-heading animate-fade-in">
             Still Have Questions?
@@ -86,7 +87,7 @@ const FAQ = () => {
           </p>
           <a
             href="/contact"
-            className="inline-flex items-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-primary hover:bg-primary-accent transition-colors duration-200 animate-fade-in"
+            className="inline-flex items-center px-8 py-4 border border-transparent text-lg font-medium rounded-xl text-white bg-primary hover:bg-primary-accent transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl animate-fade-in"
           >
             Contact Us
           </a>
