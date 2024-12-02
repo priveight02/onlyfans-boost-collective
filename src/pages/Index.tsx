@@ -5,16 +5,11 @@ import Contact from "@/components/Contact";
 
 const Index = () => {
   return (
-    <>
-      <Navigation />
-      <div className="min-h-screen">
-        <main>
-          <Hero />
-          <Services />
-          <Contact />
-        </main>
-      </div>
-    </>
+    <div className="min-h-screen">
+      <Hero />
+      <Services />
+      <Contact />
+    </div>
   );
 };
 
