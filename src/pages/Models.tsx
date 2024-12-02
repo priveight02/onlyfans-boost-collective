@@ -1,4 +1,6 @@
-import { Star, TrendingUp, Award, Users, DollarSign, Instagram } from "lucide-react";
+import { Star, TrendingUp, Award, Users, DollarSign, Instagram, Send } from "lucide-react";
+import { useState } from "react";
+import { useToast } from "@/hooks/use-toast";
 import {
   Carousel,
   CarouselContent,
@@ -56,6 +58,35 @@ const models = [
 ];
 
 const Models = () => {
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    message: "",
+  });
+  
+  const { toast } = useToast();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Create mailto link with form data
+    const subject = `Model Inquiry from ${formData.name}`;
+    const body = `Name: ${formData.name}\nEmail: ${formData.email}\n\nMessage:\n${formData.message}`;
+    const mailtoLink = `mailto:protekticorp@proton.me?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    
+    // Open default email client
+    window.location.href = mailtoLink;
+    
+    // Show success message
+    toast({
+      title: "Email client opened!",
+      description: "Please send the pre-filled email to complete your message submission.",
+    });
+    
+    // Reset form
+    setFormData({ name: "", email: "", message: "" });
+  };
+
   return (
     <div className="min-h-screen pt-16">
       {/* Hero Section */}
@@ -134,19 +165,64 @@ const Models = () => {
         </div>
       </section>
 
-      {/* Call to Action */}
-      <section className="py-16 bg-gradient-to-r from-purple-600 to-pink-500">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-3xl font-bold text-white mb-6">Ready to Transform Your Career?</h2>
-          <p className="text-xl text-white/90 mb-8 max-w-2xl mx-auto">
-            Join our community of successful creators and take your content to the next level.
+      {/* Contact Form */}
+      <section className="py-16 bg-white">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="text-3xl font-bold text-center mb-8">Get in Touch</h2>
+          <p className="text-center text-gray-600 mb-8">
+            Interested in working with us? Send us a message and we'll get back to you shortly.
           </p>
-          <a
-            href="/join"
-            className="inline-block bg-white text-purple-600 px-8 py-3 rounded-full font-semibold hover:bg-gray-100 transition-colors"
-          >
-            Apply Now
-          </a>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div>
+              <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+                Name
+              </label>
+              <input
+                type="text"
+                id="name"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                required
+              />
+            </div>
+            
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                Email
+              </label>
+              <input
+                type="email"
+                id="email"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                required
+              />
+            </div>
+            
+            <div>
+              <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-1">
+                Message
+              </label>
+              <textarea
+                id="message"
+                value={formData.message}
+                onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+                rows={4}
+                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                required
+              />
+            </div>
+
+            <button
+              type="submit"
+              className="w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-primary hover:bg-primary-accent transition-colors duration-200"
+            >
+              Send Message
+              <Send className="ml-2 h-5 w-5" />
+            </button>
+          </form>
         </div>
       </section>
     </div>
