@@ -10,6 +10,7 @@ import Models from "./pages/Models";
 import Join from "./pages/Join";
 import Contact from "./pages/Contact";
 import FAQ from "./pages/FAQ";
+import Auth from "./pages/Auth";
 
 const queryClient = new QueryClient();
 
@@ -27,6 +28,7 @@ const App = () => (
           <Route path="/join" element={<Join />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/faq" element={<FAQ />} />
+          <Route path="/auth" element={<Auth />} />
         </Routes>
       </BrowserRouter>
     </TooltipProvider>

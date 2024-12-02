@@ -1,11 +1,14 @@
 import { useState } from "react";
-import { Menu, X } from "lucide-react";
+import { Menu, X, LogIn } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import TopBanner from "./TopBanner";
+import { Button } from "./ui/button";
+import { useAuth } from "@/hooks/useAuth";
 
 const Navigation = () => {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
+  const { user, logout } = useAuth();
 
   const menuItems = [
     { name: "Home", href: "/" },
@@ -44,6 +47,22 @@ const Navigation = () => {
                   {item.name}
                 </Link>
               ))}
+              {user ? (
+                <Button
+                  variant="outline"
+                  onClick={logout}
+                  className="ml-4"
+                >
+                  Logout
+                </Button>
+              ) : (
+                <Link to="/auth">
+                  <Button className="ml-4">
+                    <LogIn className="mr-2 h-4 w-4" />
+                    Login
+                  </Button>
+                </Link>
+              )}
             </div>
 
             {/* Mobile menu button */}
@@ -75,6 +94,22 @@ const Navigation = () => {
                     {item.name}
                   </Link>
                 ))}
+                {user ? (
+                  <Button
+                    variant="outline"
+                    onClick={logout}
+                    className="w-full mt-2"
+                  >
+                    Logout
+                  </Button>
+                ) : (
+                  <Link to="/auth" className="block" onClick={() => setIsOpen(false)}>
+                    <Button className="w-full mt-2">
+                      <LogIn className="mr-2 h-4 w-4" />
+                      Login
+                    </Button>
+                  </Link>
+                )}
               </div>
             </div>
           )}
