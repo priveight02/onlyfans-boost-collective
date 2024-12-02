@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Menu, X, LogIn } from "lucide-react";
+import { Menu, X, LogIn, LogOut } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import TopBanner from "./TopBanner";
 import { Button } from "./ui/button";
@@ -49,15 +49,19 @@ const Navigation = () => {
               ))}
               {user ? (
                 <Button
-                  variant="outline"
+                  variant="ghost"
                   onClick={logout}
-                  className="ml-4"
+                  className="text-gray-700 hover:text-primary-accent hover:bg-transparent"
                 >
+                  <LogOut className="mr-2 h-4 w-4" />
                   Logout
                 </Button>
               ) : (
                 <Link to="/auth">
-                  <Button className="ml-4">
+                  <Button
+                    variant="ghost"
+                    className="text-gray-700 hover:text-primary-accent hover:bg-transparent"
+                  >
                     <LogIn className="mr-2 h-4 w-4" />
                     Login
                   </Button>
@@ -96,15 +100,22 @@ const Navigation = () => {
                 ))}
                 {user ? (
                   <Button
-                    variant="outline"
-                    onClick={logout}
-                    className="w-full mt-2"
+                    variant="ghost"
+                    onClick={() => {
+                      logout();
+                      setIsOpen(false);
+                    }}
+                    className="w-full justify-start text-gray-700 hover:text-primary-accent hover:bg-transparent"
                   >
+                    <LogOut className="mr-2 h-4 w-4" />
                     Logout
                   </Button>
                 ) : (
                   <Link to="/auth" className="block" onClick={() => setIsOpen(false)}>
-                    <Button className="w-full mt-2">
+                    <Button
+                      variant="ghost"
+                      className="w-full justify-start text-gray-700 hover:text-primary-accent hover:bg-transparent"
+                    >
                       <LogIn className="mr-2 h-4 w-4" />
                       Login
                     </Button>
