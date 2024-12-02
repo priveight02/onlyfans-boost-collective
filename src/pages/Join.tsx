@@ -35,7 +35,7 @@ const Join = () => {
   };
 
   return (
-    <div className="min-h-screen pt-16">
+    <div className="min-h-screen">
       <BackButton />
       {/* Hero Section */}
       <div className="relative py-24 bg-gradient-to-r from-primary to-primary-accent">

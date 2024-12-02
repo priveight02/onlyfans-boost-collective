@@ -73,7 +73,7 @@ const Auth = () => {
       </div>
 
       {/* Content */}
-      <div className="relative min-h-screen pt-24 pb-12 px-4">
+      <div className="relative min-h-screen pt-16 pb-12 px-4">
         <BackButton />
         
         <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-12 items-center">
