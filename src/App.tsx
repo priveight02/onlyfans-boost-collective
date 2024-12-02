@@ -22,18 +22,16 @@ const AppRoutes = () => {
   return (
     <>
       <Navigation />
-      <div className={isHomePage ? "" : "mt-[104px]"}>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/about" element={<About />} />
-          <Route path="/services" element={<Services />} />
-          <Route path="/models" element={<Models />} />
-          <Route path="/join" element={<Join />} />
-          <Route path="/contact" element={<Contact />} />
-          <Route path="/faq" element={<FAQ />} />
-          <Route path="/auth" element={<Auth />} />
-        </Routes>
-      </div>
+      <Routes>
+        <Route path="/" element={<Index />} />
+        <Route path="/about" element={<About />} />
+        <Route path="/services" element={<Services />} />
+        <Route path="/models" element={<Models />} />
+        <Route path="/join" element={<Join />} />
+        <Route path="/contact" element={<Contact />} />
+        <Route path="/faq" element={<FAQ />} />
+        <Route path="/auth" element={<Auth />} />
+      </Routes>
     </>
   );
 };
