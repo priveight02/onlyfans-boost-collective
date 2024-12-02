@@ -8,8 +8,11 @@ const Services = () => {
     <div className="min-h-screen">
       <BackButton />
       {/* Hero Section */}
-      <div className="relative py-24 bg-gradient-to-r from-[#9b87f5] to-[#7E69AB] overflow-hidden">
-        <div className="absolute inset-0 bg-grid-white/[0.1] bg-[size:20px_20px]" />
+      <div className="relative py-24 overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-r from-[#9b87f5] to-[#7E69AB]">
+          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTQ0MCIgaGVpZ2h0PSI1MDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PGxpbmVhckdyYWRpZW50IHgxPSI1MCUiIHkxPSIwJSIgeDI9IjUwJSIgeTI9IjEwMCUiIGlkPSJhIj48c3RvcCBzdG9wLWNvbG9yPSIjRkZGIiBzdG9wLW9wYWNpdHk9Ii4yNSIgb2Zmc2V0PSIwJSIvPjxzdG9wIHN0b3AtY29sb3I9IiNGRkYiIHN0b3Atb3BhY2l0eT0iMCIgb2Zmc2V0PSIxMDAlIi8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHBhdGggZD0iTTAgMGgxNDQwdjUwMEw3MjAgMjUwIDAgNTAweiIgZmlsbD0idXJsKCNhKSIgZmlsbC1ydWxlPSJldmVub2RkIiBmaWxsLW9wYWNpdHk9Ii40Ii8+PC9zdmc+')] bg-cover bg-center opacity-50" />
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent to-[#9b87f5]/20" />
+        </div>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
           <h1 className="text-4xl md:text-6xl font-bold text-white mb-6 font-heading animate-fade-in">
             Elevate Your OnlyFans Success
