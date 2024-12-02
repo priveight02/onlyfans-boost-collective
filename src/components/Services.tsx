@@ -64,7 +64,6 @@ const item = {
 const Services = () => {
   return (
     <section id="services" className="py-8 pb-16 bg-gradient-to-b from-gray-50 to-white relative overflow-hidden">
-      {/* Background Decoration */}
       <div className="absolute inset-y-8 inset-x-0 bg-grid-primary/[0.02] bg-[size:20px_20px]" />
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
@@ -77,17 +76,16 @@ const Services = () => {
         >
           <h2 className="text-4xl md:text-5xl font-bold font-heading mb-6 relative">
             <span className="absolute inset-0 bg-gradient-to-r from-primary via-primary-accent to-primary bg-[length:200%_100%] bg-clip-text text-transparent animate-[gradient_15s_linear_infinite]">
-              Premier OnlyFans Management Services
+              Premium OnlyFans Management Services
             </span>
-            <span className="invisible">Premier OnlyFans Management Services</span>
+            <span className="invisible">Premium OnlyFans Management Services</span>
           </h2>
 
-          <p className="text-lg text-gray-600 max-w-3xl mx-auto">
+          <p className="text-lg text-gray-600 mt-12 max-w-3xl mx-auto">
             Comprehensive solutions designed to elevate your OnlyFans presence and maximize your success in the competitive digital space.
           </p>
         </motion.div>
         
-        {/* Services Grid */}
         <motion.div 
           variants={container}
           initial="hidden"

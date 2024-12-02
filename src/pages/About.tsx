@@ -44,8 +44,11 @@ const About = () => {
       <section className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-3xl mx-auto text-center">
-            <h2 className="text-3xl md:text-4xl font-bold text-primary mb-6 font-heading">
-              Our Mission
+            <h2 className="text-3xl md:text-4xl font-bold mb-6 font-heading relative">
+              <span className="absolute inset-0 bg-gradient-to-r from-primary via-primary-accent to-primary bg-[length:200%_100%] bg-clip-text text-transparent animate-[gradient_15s_linear_infinite]">
+                Our Mission
+              </span>
+              <span className="invisible">Our Mission</span>
             </h2>
             <p className="text-lg text-gray-600 mb-8">
               We're dedicated to empowering content creators with the tools, strategies, and support they need to build successful careers in the digital space. Our comprehensive approach combines industry expertise with personalized attention to help you reach your full potential.
