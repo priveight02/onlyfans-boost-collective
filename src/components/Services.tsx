@@ -63,7 +63,7 @@ const item = {
 
 const Services = () => {
   return (
-    <section id="services" className="py-8 bg-gradient-to-b from-gray-50 to-white relative overflow-hidden">
+    <section id="services" className="py-8 pb-16 bg-gradient-to-b from-gray-50 to-white relative overflow-hidden">
       {/* Background Decoration */}
       <div className="absolute inset-y-8 inset-x-0 bg-grid-primary/[0.02] bg-[size:20px_20px]" />
       
@@ -93,7 +93,7 @@ const Services = () => {
           initial="hidden"
           whileInView="show"
           viewport={{ once: true }}
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-8"
         >
           {services.map((service, index) => (
             <motion.div
