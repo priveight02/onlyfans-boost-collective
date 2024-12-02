@@ -1,47 +1,15 @@
-import { models } from '@/data/models';
-import HeroSection from '@/components/models/HeroSection';
-import StatsSection from '@/components/models/StatsSection';
-import ModelCard from '@/components/models/ModelCard';
-import ContactForm from '@/components/models/ContactForm';
-import TestimonialsCarousel from '@/components/models/TestimonialsCarousel';
-import BackButton from "@/components/BackButton";
-import {
-  Carousel,
-  CarouselContent,
-  CarouselItem,
-  CarouselNext,
-  CarouselPrevious,
-} from "@/components/ui/carousel";
+import Navigation from "@/components/Navigation";
 
 const Models = () => {
   return (
-    <div className="min-h-screen pt-16">
-      <BackButton />
-      <HeroSection />
-      <StatsSection />
-      
-      {/* Featured Models Carousel */}
-      <section className="py-24 bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl font-bold text-center mb-16 animate-fade-in">Featured Success Stories</h2>
-          <Carousel className="w-full max-w-5xl mx-auto">
-            <CarouselContent>
-              {models.map((model) => (
-                <CarouselItem key={model.name} className="md:basis-1/2 lg:basis-1/3">
-                  <ModelCard model={model} />
-                </CarouselItem>
-              ))}
-            </CarouselContent>
-            <CarouselPrevious className="hover:scale-110 transition-transform duration-200" />
-            <CarouselNext className="hover:scale-110 transition-transform duration-200" />
-          </Carousel>
-        </div>
-      </section>
-
-      {/* Testimonials Section */}
-      <TestimonialsCarousel />
-
-      <ContactForm />
+    <div className="min-h-screen">
+      <Navigation />
+      <div className="container mx-auto px-4 py-8">
+        <h1 className="text-4xl font-bold mb-6">Our Models</h1>
+        <p>Welcome to the Models page where you can find information about our talented models.</p>
+        <p>Here you will see their profiles, availability, and how to book a session with them.</p>
+        <p>Feel free to browse and learn more about each model!</p>
+      </div>
     </div>
   );
 };
