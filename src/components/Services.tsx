@@ -75,14 +75,18 @@ const Services = () => {
           transition={{ duration: 0.5 }}
           className="text-center mb-16"
         >
-          <h2 className="text-4xl md:text-5xl font-bold text-primary font-heading mb-6 bg-clip-text text-transparent bg-gradient-to-r from-primary via-primary-accent to-primary">
-            Premier OnlyFans Management Services
+          <h2 className="text-4xl md:text-5xl font-bold font-heading mb-6 relative">
+            <span className="absolute inset-0 bg-gradient-to-r from-primary via-primary-accent to-primary bg-[length:200%_100%] bg-clip-text text-transparent animate-[gradient_8s_linear_infinite]">
+              Premier OnlyFans Management Services
+            </span>
+            <span className="invisible">Premier OnlyFans Management Services</span>
           </h2>
           <p className="text-lg text-gray-600 max-w-3xl mx-auto">
             Comprehensive solutions designed to elevate your OnlyFans presence and maximize your success in the competitive digital space.
           </p>
         </motion.div>
         
+        {/* Services Grid */}
         <motion.div 
           variants={container}
           initial="hidden"
