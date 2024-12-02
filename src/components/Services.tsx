@@ -33,12 +33,6 @@ const services = [
     highlight: "Real-time performance tracking"
   },
   {
-    title: "24/7 Support",
-    description: "Round-the-clock support from our dedicated team of OnlyFans management experts. We're here whenever you need us.",
-    icon: HeartHandshake,
-    highlight: "Always available support"
-  },
-  {
     title: "Fan Engagement",
     description: "Proven strategies to increase engagement, maintain loyal subscribers, and maximize your earning potential.",
     icon: MessageSquare,
@@ -93,20 +87,20 @@ const Services = () => {
           initial="hidden"
           whileInView="show"
           viewport={{ once: true }}
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-8"
         >
           {services.map((service) => (
             <motion.div
               key={service.title}
               variants={item}
-              className="bg-white p-8 rounded-lg shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 group"
+              className="bg-white p-6 rounded-lg shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 group"
             >
-              <div className="w-12 h-12 bg-primary-light rounded-lg flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+              <div className="w-12 h-12 bg-primary-light rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                 <service.icon className="h-6 w-6 text-primary-accent" />
               </div>
-              <h3 className="text-xl font-bold text-primary mb-2">{service.title}</h3>
-              <p className="text-gray-600 mb-4">{service.description}</p>
-              <p className="text-primary-accent font-semibold">{service.highlight}</p>
+              <h3 className="text-xl font-bold text-primary mb-3">{service.title}</h3>
+              <p className="text-gray-600 mb-4 text-sm">{service.description}</p>
+              <p className="text-primary-accent font-semibold text-sm">{service.highlight}</p>
             </motion.div>
           ))}
         </motion.div>
