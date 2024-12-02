@@ -112,8 +112,7 @@ const Models = () => {
                       alt={model.name}
                       className="w-32 h-32 rounded-full mx-auto mb-4 object-cover"
                     />
-                    <h3 className="text-xl font-bold text-gray-900 mb-2">{model.name}</h3>
-                    <p className="text-purple-500 font-medium mb-2">{model.instagramHandle}</p>
+                    <h3 className="text-xl font-bold text-gray-900 mb-4">{model.name}</h3>
                     <div className="flex items-center justify-center mb-4">
                       {[...Array(5)].map((_, i) => (
                         <Star key={i} className="h-5 w-5 text-yellow-400 fill-current" />
