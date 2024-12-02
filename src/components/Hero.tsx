@@ -3,10 +3,10 @@ import { motion } from "framer-motion";
 
 const Hero = () => {
   return (
-    <div className="relative flex items-center bg-gradient-to-br from-[#2A2F3C] via-[#363B4A] to-primary-accent overflow-hidden py-32">
+    <div className="relative flex items-center bg-gradient-to-br from-[#3B4254] via-[#4B5369] to-[#9b87f5] overflow-hidden py-32">
       <div className="absolute inset-0">
-        <div className="absolute inset-0 bg-black/30 mix-blend-multiply" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+        <div className="absolute inset-0 bg-black/20 mix-blend-multiply" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
       </div>
       
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
