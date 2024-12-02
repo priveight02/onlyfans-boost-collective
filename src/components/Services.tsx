@@ -63,7 +63,7 @@ const item = {
 
 const Services = () => {
   return (
-    <section id="services" className="py-24 bg-gradient-to-b from-gray-50 to-white relative overflow-hidden">
+    <section id="services" className="py-16 bg-gradient-to-b from-gray-50 to-white relative overflow-hidden">
       {/* Background Decoration */}
       <div className="absolute inset-0 bg-grid-primary/[0.02] bg-[size:20px_20px]" />
       
@@ -73,9 +73,8 @@ const Services = () => {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.5 }}
-          className="text-center mb-16"
+          className="text-center mb-12"
         >
-
           <h2 className="text-4xl md:text-5xl font-bold font-heading mb-6 relative">
             <span className="absolute inset-0 bg-gradient-to-r from-primary via-primary-accent to-primary bg-[length:200%_100%] bg-clip-text text-transparent animate-[gradient_15s_linear_infinite]">
               Premier OnlyFans Management Services
