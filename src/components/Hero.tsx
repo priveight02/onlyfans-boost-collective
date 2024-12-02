@@ -3,10 +3,10 @@ import { motion } from "framer-motion";
 
 const Hero = () => {
   return (
-    <div className="relative flex items-center bg-gradient-to-br from-[#3B4254] via-[#4B5369] to-[#9b87f5] overflow-hidden py-32">
+    <div className="relative flex items-center bg-gradient-to-br from-[#4B5EAD] via-[#6B7AC5] to-[#9b87f5] overflow-hidden py-32">
       <div className="absolute inset-0">
-        <div className="absolute inset-0 bg-black/20 mix-blend-multiply" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+        <div className="absolute inset-0 bg-black/10 mix-blend-multiply" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
       </div>
       
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
@@ -56,41 +56,41 @@ const Hero = () => {
           <motion.div 
             animate={{ 
               scale: [1, 1.2, 1],
-              opacity: [0.3, 0.5, 0.3],
+              opacity: [0.2, 0.4, 0.2],
               rotate: [0, 180, 360]
+            }}
+            transition={{ 
+              duration: 20,
+              repeat: Infinity,
+              ease: "linear"
+            }}
+            className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-300/20 rounded-full mix-blend-multiply filter blur-xl"
+          />
+          <motion.div 
+            animate={{ 
+              scale: [1.2, 1, 1.2],
+              opacity: [0.3, 0.5, 0.3],
+              rotate: [360, 180, 0]
             }}
             transition={{ 
               duration: 15,
               repeat: Infinity,
               ease: "linear"
             }}
-            className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary-accent/20 rounded-full mix-blend-multiply filter blur-xl animate-float"
-          />
-          <motion.div 
-            animate={{ 
-              scale: [1.2, 1, 1.2],
-              opacity: [0.4, 0.6, 0.4],
-              rotate: [360, 180, 0]
-            }}
-            transition={{ 
-              duration: 12,
-              repeat: Infinity,
-              ease: "linear"
-            }}
-            className="absolute top-1/3 right-1/4 w-96 h-96 bg-purple-300/20 rounded-full mix-blend-multiply filter blur-xl animate-float-delayed"
+            className="absolute top-1/3 right-1/4 w-96 h-96 bg-purple-200/20 rounded-full mix-blend-multiply filter blur-xl"
           />
           <motion.div 
             animate={{ 
               scale: [1, 1.3, 1],
-              opacity: [0.3, 0.5, 0.3],
+              opacity: [0.2, 0.4, 0.2],
               rotate: [0, -180, -360]
             }}
             transition={{ 
-              duration: 18,
+              duration: 25,
               repeat: Infinity,
               ease: "linear"
             }}
-            className="absolute bottom-1/4 left-1/3 w-96 h-96 bg-pink-300/20 rounded-full mix-blend-multiply filter blur-xl animate-float-reverse"
+            className="absolute bottom-1/4 left-1/3 w-96 h-96 bg-indigo-200/20 rounded-full mix-blend-multiply filter blur-xl"
           />
         </div>
       </div>
