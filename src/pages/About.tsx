@@ -35,10 +35,10 @@ const About = () => {
           <div className="absolute inset-0 bg-grid-white/[0.05] bg-[size:20px_20px]" />
           <div className="absolute inset-0 bg-gradient-to-b from-transparent to-[#9b87f5]/20" />
           {/* Decorative shapes with smooth transitions */}
-          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-white/20 rounded-full blur-2xl transform rotate-45 transition-transform duration-1000 ease-in-out hover:rotate-90" />
-          <div className="absolute bottom-1/3 right-1/3 w-80 h-80 bg-white/25 rounded-full blur-2xl transform -rotate-12 transition-transform duration-1000 ease-in-out hover:-rotate-45" />
-          <div className="absolute top-1/2 right-1/4 w-72 h-72 bg-white/20 rounded-full blur-2xl transform rotate-180 transition-transform duration-1000 ease-in-out hover:rotate-225" />
-          <div className="absolute bottom-1/4 left-1/3 w-64 h-64 bg-white/30 rounded-full blur-xl animate-pulse" />
+          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-white/15 rounded-full blur-3xl transform rotate-45 transition-transform duration-1000 ease-in-out hover:rotate-90" />
+          <div className="absolute bottom-1/3 right-1/3 w-80 h-80 bg-white/15 rounded-full blur-3xl transform -rotate-12 transition-transform duration-1000 ease-in-out hover:-rotate-45" />
+          <div className="absolute top-1/2 right-1/4 w-72 h-72 bg-white/15 rounded-full blur-3xl transform rotate-180 transition-transform duration-1000 ease-in-out hover:rotate-225" />
+          <div className="absolute bottom-1/4 left-1/3 w-64 h-64 bg-white/20 rounded-full blur-2xl animate-pulse" />
         </div>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
           <h1 className="text-4xl md:text-6xl font-bold text-white mb-6 font-heading animate-fade-in">
