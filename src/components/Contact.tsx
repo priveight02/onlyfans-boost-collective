@@ -152,7 +152,7 @@ const Contact = () => {
             }}
             whileTap={{ scale: 0.98 }}
             type="submit"
-            className="w-full flex items-center justify-center px-8 py-4 text-lg font-medium rounded-lg text-white bg-gradient-to-r from-primary/90 via-primary-accent/90 to-primary/90 backdrop-blur-sm hover:opacity-95 transition-all duration-300 shadow-xl hover:shadow-2xl hover:shadow-primary/20 border border-white/10"
+            className="w-full flex items-center justify-center px-8 py-4 text-lg font-medium rounded-lg text-white bg-gradient-to-r from-[#9b87f5]/80 via-[#7E69AB]/80 to-[#9b87f5]/80 hover:from-[#9b87f5]/90 hover:via-[#7E69AB]/90 hover:to-[#9b87f5]/90 backdrop-blur-sm transition-all duration-300 shadow-xl hover:shadow-2xl hover:shadow-primary-accent/20 border border-white/10"
           >
             <span className="relative flex items-center gap-2">
               <span className="relative z-10">Send Message</span>
