@@ -1,14 +1,16 @@
 import { useState } from "react";
 import { Menu, X } from "lucide-react";
+import { Link, useLocation } from "react-router-dom";
 
 const Navigation = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const location = useLocation();
 
   const menuItems = [
-    { name: "Home", href: "#" },
-    { name: "About", href: "#about" },
-    { name: "Services", href: "#services" },
-    { name: "Contact", href: "#contact" },
+    { name: "Home", href: "/" },
+    { name: "About", href: "/about" },
+    { name: "Services", href: "/services" },
+    { name: "Contact", href: "/contact" },
   ];
 
   return (
@@ -16,19 +18,25 @@ const Navigation = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex items-center">
-            <span className="text-xl font-heading font-bold text-primary">AGENCY</span>
+            <Link to="/" className="text-xl font-heading font-bold text-primary">
+              AGENCY
+            </Link>
           </div>
           
           {/* Desktop menu */}
           <div className="hidden md:flex items-center space-x-8">
             {menuItems.map((item) => (
-              <a
+              <Link
                 key={item.name}
-                href={item.href}
-                className="text-gray-700 hover:text-primary-accent transition-colors duration-200"
+                to={item.href}
+                className={`transition-colors duration-200 ${
+                  location.pathname === item.href
+                    ? "text-primary-accent"
+                    : "text-gray-700 hover:text-primary-accent"
+                }`}
               >
                 {item.name}
-              </a>
+              </Link>
             ))}
           </div>
 
@@ -48,14 +56,18 @@ const Navigation = () => {
           <div className="md:hidden">
             <div className="pt-2 pb-3 space-y-1">
               {menuItems.map((item) => (
-                <a
+                <Link
                   key={item.name}
-                  href={item.href}
-                  className="block px-3 py-2 text-gray-700 hover:text-primary-accent"
+                  to={item.href}
+                  className={`block px-3 py-2 ${
+                    location.pathname === item.href
+                      ? "text-primary-accent"
+                      : "text-gray-700 hover:text-primary-accent"
+                  }`}
                   onClick={() => setIsOpen(false)}
                 >
                   {item.name}
-                </a>
+                </Link>
               ))}
             </div>
           </div>
