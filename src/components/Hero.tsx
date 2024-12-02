@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 
 const Hero = () => {
   return (
-    <div className="relative flex items-center bg-gradient-to-br from-[#b17acc] via-[#e6c3f5] to-[#dba4e3] overflow-hidden py-32">
+    <div className="relative flex items-center bg-gradient-to-br from-[#9b87f5] via-[#D6BCFA] to-[#dba4e3] overflow-hidden py-32">
       <div className="absolute inset-0">
         <div className="absolute inset-0 bg-black/5 mix-blend-multiply" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
@@ -99,7 +99,7 @@ const Hero = () => {
               repeat: Infinity,
               ease: "linear"
             }}
-            className="absolute top-1/4 left-1/4 w-96 h-96 bg-[#e6c3f5]/30 rounded-full mix-blend-multiply filter blur-xl"
+            className="absolute top-1/4 left-1/4 w-96 h-96 bg-[#D6BCFA]/30 rounded-full mix-blend-multiply filter blur-xl"
           />
           <motion.div 
             animate={{ 
@@ -112,7 +112,7 @@ const Hero = () => {
               repeat: Infinity,
               ease: "linear"
             }}
-            className="absolute top-1/3 right-1/4 w-96 h-96 bg-[#dba4e3]/30 rounded-full mix-blend-multiply filter blur-xl"
+            className="absolute top-1/3 right-1/4 w-96 h-96 bg-[#9b87f5]/30 rounded-full mix-blend-multiply filter blur-xl"
           />
           <motion.div 
             animate={{ 
@@ -125,7 +125,7 @@ const Hero = () => {
               repeat: Infinity,
               ease: "linear"
             }}
-            className="absolute bottom-1/4 left-1/3 w-96 h-96 bg-[#e8d5f0]/30 rounded-full mix-blend-multiply filter blur-xl"
+            className="absolute bottom-1/4 left-1/3 w-96 h-96 bg-[#dba4e3]/30 rounded-full mix-blend-multiply filter blur-xl"
           />
         </div>
       </div>
