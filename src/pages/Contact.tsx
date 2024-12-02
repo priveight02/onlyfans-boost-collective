@@ -1,9 +1,11 @@
 import { Mail, MessageSquare } from "lucide-react";
 import Contact from "@/components/Contact";
+import BackButton from "@/components/BackButton";
 
 const ContactPage = () => {
   return (
     <div className="min-h-screen pt-16">
+      <BackButton />
       {/* Hero Section */}
       <div className="relative py-24 bg-gradient-to-r from-primary to-primary-accent">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">

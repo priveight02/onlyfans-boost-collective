@@ -1,4 +1,5 @@
 import { Award, Users, TrendingUp, HeartHandshake, CheckCircle } from "lucide-react";
+import BackButton from "@/components/BackButton";
 
 const About = () => {
   const benefits = [
@@ -26,6 +27,7 @@ const About = () => {
 
   return (
     <div className="min-h-screen">
+      <BackButton />
       {/* Hero Section */}
       <div className="relative py-24 bg-gradient-to-r from-primary to-primary-accent">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">

@@ -1,4 +1,5 @@
 import { Camera, Users, TrendingUp, HeartHandshake, MessageSquare, DollarSign, Megaphone } from "lucide-react";
+import BackButton from "@/components/BackButton";
 
 const services = [
   {
@@ -41,7 +42,7 @@ const services = [
 const Services = () => {
   return (
     <div className="min-h-screen pt-16">
-      {/* Hero Section */}
+      <BackButton />
       <div className="relative py-24 bg-gradient-to-r from-primary to-primary-accent">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h1 className="text-4xl md:text-6xl font-bold text-white mb-6 font-heading">

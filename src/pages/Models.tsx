@@ -4,6 +4,7 @@ import StatsSection from '@/components/models/StatsSection';
 import ModelCard from '@/components/models/ModelCard';
 import ContactForm from '@/components/models/ContactForm';
 import TestimonialsCarousel from '@/components/models/TestimonialsCarousel';
+import BackButton from "@/components/BackButton";
 import {
   Carousel,
   CarouselContent,
@@ -15,6 +16,7 @@ import {
 const Models = () => {
   return (
     <div className="min-h-screen pt-16">
+      <BackButton />
       <HeroSection />
       <StatsSection />
       
