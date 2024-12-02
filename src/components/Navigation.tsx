@@ -20,12 +20,8 @@ const Navigation = () => {
     { name: "FAQ", href: "/faq" },
   ];
 
-  // Only apply fixed positioning on the main page
-  const isMainPage = location.pathname === "/";
-  const navigationClass = isMainPage ? "fixed w-full z-50" : "w-full z-50";
-
   return (
-    <div className={navigationClass}>
+    <div className="fixed w-full z-50">
       <TopBanner />
       <nav className="bg-white/90 backdrop-blur-sm shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
