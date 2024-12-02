@@ -9,9 +9,9 @@ const Navigation = () => {
   const menuItems = [
     { name: "Home", href: "/" },
     { name: "About", href: "/about" },
-    { name: "Services", href: "/services" },
-    { name: "Models", href: "/models" },
-    { name: "Join", href: "/join" },
+    { name: "OF Services", href: "/services" },
+    { name: "Our Models", href: "/models" },
+    { name: "Join OF Agency", href: "/join" },
     { name: "Contact", href: "/contact" },
     { name: "FAQ", href: "/faq" },
   ];
@@ -22,7 +22,7 @@ const Navigation = () => {
         <div className="flex justify-between h-16">
           <div className="flex items-center">
             <Link to="/" className="text-xl font-heading font-bold text-primary">
-              AGENCY
+              OFM AGENCY
             </Link>
           </div>
           

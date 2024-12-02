@@ -22,7 +22,7 @@ const Hero = () => {
             transition={{ duration: 0.8, delay: 0.2 }}
             className="text-4xl md:text-6xl font-bold text-white mb-6 font-heading tracking-tight"
           >
-            Unlock Your Full Potential
+            Premier OnlyFans Management Agency
           </motion.h1>
           
           <motion.p 
@@ -31,7 +31,7 @@ const Hero = () => {
             transition={{ duration: 0.8, delay: 0.4 }}
             className="text-xl md:text-2xl text-white/90 mb-8 max-w-2xl mx-auto leading-relaxed"
           >
-            We help content creators grow their brand, maximize earnings, and succeed in the competitive digital space.
+            Expert OnlyFans management services to help content creators maximize earnings, grow their brand, and dominate the competitive digital space.
           </motion.p>
           
           <motion.div
@@ -43,7 +43,7 @@ const Hero = () => {
               href="#contact"
               className="group inline-flex items-center px-8 py-3 text-lg font-medium rounded-full bg-white text-primary hover:bg-primary-light transition-all duration-300 transform hover:scale-105"
             >
-              Get Started
+              Start Your OnlyFans Journey
               <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform duration-300" />
             </a>
           </motion.div>
