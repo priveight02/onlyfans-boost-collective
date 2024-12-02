@@ -69,9 +69,9 @@ const Services = () => {
       {/* Background Decoration */}
       <div className="absolute inset-y-8 inset-x-0 bg-grid-primary/[0.02] bg-[size:20px_20px]" />
       
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
-        <div className="text-center mb-16 -mt-4">
-          <h2 className="text-3xl md:text-4xl font-bold text-primary font-heading mb-4">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative -mt-4">
+        <div className="text-center mb-16">
+          <h2 className="text-4xl md:text-5xl font-bold text-primary font-heading mb-4">
             <span className="absolute inset-0 bg-gradient-to-r from-primary via-primary-accent to-primary bg-[length:200%_100%] bg-clip-text text-transparent animate-[gradient_15s_linear_infinite]">
               Premier OnlyFans Management Services
             </span>
