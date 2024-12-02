@@ -22,7 +22,7 @@ const Navigation = () => {
         <div className="flex justify-between h-16">
           <div className="flex items-center">
             <Link to="/" className="text-xl font-heading font-bold text-primary">
-              AGENCY
+              OFM AGENCY
             </Link>
           </div>
           
@@ -34,7 +34,7 @@ const Navigation = () => {
                 to={item.href}
                 className={`transition-colors duration-200 ${
                   location.pathname === item.href
-                    ? "text-primary-accent"
+                    ? "text-primary-accent font-medium"
                     : "text-gray-700 hover:text-primary-accent"
                 }`}
               >
@@ -64,7 +64,7 @@ const Navigation = () => {
                   to={item.href}
                   className={`block px-3 py-2 ${
                     location.pathname === item.href
-                      ? "text-primary-accent"
+                      ? "text-primary-accent font-medium"
                       : "text-gray-700 hover:text-primary-accent"
                   }`}
                   onClick={() => setIsOpen(false)}
