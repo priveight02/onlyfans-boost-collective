@@ -7,7 +7,7 @@ const TopBanner = () => {
   if (!isVisible) return null;
 
   return (
-    <div className="bg-primary-accent text-white py-2 relative animate-fade-in">
+    <div className="bg-primary-accent text-white py-2">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-sm">
         <span className="font-medium">
           🎉 Special Offer: Sign up this month and get 30% more exposure! Limited time only.
