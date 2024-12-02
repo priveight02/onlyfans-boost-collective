@@ -1,4 +1,4 @@
-import { Mail, Phone, MessageSquare } from "lucide-react";
+import { Mail, MessageSquare } from "lucide-react";
 import Contact from "@/components/Contact";
 
 const ContactPage = () => {
@@ -19,16 +19,11 @@ const ContactPage = () => {
       {/* Contact Methods */}
       <section className="py-16 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div className="flex flex-col items-center p-6 bg-white rounded-lg shadow-sm">
               <Mail className="h-8 w-8 text-primary-accent mb-4" />
               <h3 className="text-lg font-bold text-primary mb-2">Email Us</h3>
-              <p className="text-gray-600 text-center">support@agency.com</p>
-            </div>
-            <div className="flex flex-col items-center p-6 bg-white rounded-lg shadow-sm">
-              <Phone className="h-8 w-8 text-primary-accent mb-4" />
-              <h3 className="text-lg font-bold text-primary mb-2">Call Us</h3>
-              <p className="text-gray-600 text-center">+1 (555) 123-4567</p>
+              <p className="text-gray-600 text-center">protekticorp@proton.me</p>
             </div>
             <div className="flex flex-col items-center p-6 bg-white rounded-lg shadow-sm">
               <MessageSquare className="h-8 w-8 text-primary-accent mb-4" />
