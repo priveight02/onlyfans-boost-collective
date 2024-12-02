@@ -6,9 +6,12 @@ import Contact from "@/components/Contact";
 const Index = () => {
   return (
     <div className="min-h-screen">
-      <Hero />
-      <Services />
-      <Contact />
+      <Navigation />
+      <div className="pt-[104px]"> {/* Added padding to account for fixed navigation + banner */}
+        <Hero />
+        <Services />
+        <Contact />
+      </div>
     </div>
   );
 };
