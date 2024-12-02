@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 
 const Hero = () => {
   return (
-    <div className="relative min-h-[85vh] flex items-center bg-gradient-to-br from-primary via-primary to-primary-accent overflow-hidden">
+    <div className="relative flex items-center bg-gradient-to-br from-primary via-primary to-primary-accent overflow-hidden py-32">
       <div className="absolute inset-0">
         <div className="absolute inset-0 bg-black/40 mix-blend-multiply" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />

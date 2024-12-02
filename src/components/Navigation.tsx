@@ -21,7 +21,7 @@ const Navigation = () => {
   ];
 
   return (
-    <div className="fixed w-full z-50">
+    <div className="w-full">
       <TopBanner />
       <nav className="bg-white/90 backdrop-blur-sm shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
