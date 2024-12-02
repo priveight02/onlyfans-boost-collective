@@ -61,9 +61,9 @@ const Contact = () => {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.5 }}
-          className="max-w-2xl mx-auto text-center mb-4"
+          className="max-w-2xl mx-auto text-center mb-2"
         >
-          <h2 className="text-4xl md:text-5xl font-bold font-heading -mt-4 relative">
+          <h2 className="text-4xl md:text-5xl font-bold font-heading -mt-8 relative">
             <span className="absolute inset-0 bg-gradient-to-r from-primary via-primary-accent to-primary bg-[length:200%_100%] bg-clip-text text-transparent animate-[gradient_15s_linear_infinite]">
               Get in Touch
             </span>
