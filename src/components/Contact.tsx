@@ -36,10 +36,10 @@ const Contact = () => {
   return (
     <section id="contact" className="py-24 relative">
       {/* Decorative top separator */}
-      <div className="absolute top-0 left-0 w-full overflow-hidden">
-        <div className="w-full h-24 bg-gradient-to-b from-white to-transparent" />
-        <div className="w-full flex justify-center">
-          <div className="bg-primary/10 backdrop-blur-sm px-8 py-2 rounded-b-xl shadow-lg">
+      <div className="absolute -top-8 left-0 w-full">
+        <div className="w-full border-t border-primary/20" />
+        <div className="w-full flex justify-center -mt-3">
+          <div className="bg-primary/10 backdrop-blur-sm px-8 py-2 rounded-xl shadow-lg border border-primary/5">
             <span className="text-primary/80 font-medium">Contact Us</span>
           </div>
         </div>
