@@ -1,4 +1,4 @@
-import { Camera, Users, TrendingUp, HeartHandshake, MessageSquare, DollarSign, Megaphone } from "lucide-react";
+import { Camera, Users, TrendingUp, MessageSquare, DollarSign, Megaphone } from "lucide-react";
 import { motion } from "framer-motion";
 
 const services = [
@@ -36,13 +36,6 @@ const services = [
     icon: TrendingUp,
     highlight: "Real-time performance tracking",
     color: "from-blue-400/20 to-cyan-400/20"
-  },
-  {
-    title: "24/7 Support",
-    description: "Round-the-clock support from our dedicated team of OnlyFans management experts. We're here whenever you need us.",
-    icon: HeartHandshake,
-    highlight: "Always available support",
-    color: "from-violet-400/20 to-purple-400/20"
   },
   {
     title: "Fan Engagement",
