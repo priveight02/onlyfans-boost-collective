@@ -40,7 +40,7 @@ const FAQ = () => {
     <div className="min-h-screen bg-gradient-to-b from-white to-primary-light/20">
       <BackButton />
       {/* Hero Section */}
-      <div className="relative py-20 bg-gradient-to-r from-primary to-primary-accent overflow-hidden">
+      <div className="relative py-20 bg-gradient-to-r from-[#9b87f5] to-[#7E69AB] overflow-hidden">
         <div className="absolute inset-0 bg-[url('/placeholder.svg')] opacity-10 bg-repeat"></div>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
           <HelpCircle className="h-16 w-16 mx-auto mb-6 text-white animate-bounce" />

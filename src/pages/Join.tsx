@@ -38,7 +38,7 @@ const Join = () => {
     <div className="min-h-screen">
       <BackButton />
       {/* Hero Section */}
-      <div className="relative py-24 bg-gradient-to-r from-primary to-primary-accent">
+      <div className="relative py-24 bg-gradient-to-r from-[#9b87f5] to-[#7E69AB]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h1 className="text-4xl md:text-6xl font-bold text-white mb-6 font-heading">
             Join Our Agency

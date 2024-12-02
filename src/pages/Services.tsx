@@ -8,7 +8,7 @@ const Services = () => {
     <div className="min-h-screen">
       <BackButton />
       {/* Hero Section */}
-      <div className="relative py-24 bg-gradient-to-r from-primary to-primary-accent overflow-hidden">
+      <div className="relative py-24 bg-gradient-to-r from-[#9b87f5] to-[#7E69AB] overflow-hidden">
         <div className="absolute inset-0 bg-grid-white/[0.1] bg-[size:20px_20px]" />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
           <h1 className="text-4xl md:text-6xl font-bold text-white mb-6 font-heading animate-fade-in">
@@ -29,8 +29,11 @@ const Services = () => {
       <section className="py-24 bg-gradient-to-b from-gray-50 to-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-primary font-heading mb-4">
-              Premium OnlyFans Management Services
+            <h2 className="text-3xl md:text-4xl font-bold font-heading mb-4 relative">
+              <span className="absolute inset-0 bg-gradient-to-r from-[#9b87f5] via-[#D6BCFA] to-[#9b87f5] bg-[length:200%_100%] bg-clip-text text-transparent animate-[gradient_15s_linear_infinite]">
+                Premium OnlyFans Management Services
+              </span>
+              <span className="invisible">Premium OnlyFans Management Services</span>
             </h2>
             <p className="text-gray-600 max-w-2xl mx-auto">
               We provide comprehensive solutions designed to maximize your earnings and grow your OnlyFans presence.

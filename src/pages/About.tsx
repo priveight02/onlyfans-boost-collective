@@ -29,7 +29,7 @@ const About = () => {
     <div className="min-h-screen">
       <BackButton />
       {/* Hero Section */}
-      <div className="relative py-24 bg-gradient-to-r from-primary to-primary-accent">
+      <div className="relative py-24 bg-gradient-to-r from-[#9b87f5] to-[#7E69AB]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h1 className="text-4xl md:text-6xl font-bold text-white mb-6 font-heading">
             About Our Agency
@@ -45,7 +45,7 @@ const About = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-3xl mx-auto text-center">
             <h2 className="text-3xl md:text-4xl font-bold mb-6 font-heading relative">
-              <span className="absolute inset-0 bg-gradient-to-r from-primary via-primary-accent to-primary bg-[length:200%_100%] bg-clip-text text-transparent animate-[gradient_15s_linear_infinite]">
+              <span className="absolute inset-0 bg-gradient-to-r from-[#9b87f5] via-[#D6BCFA] to-[#9b87f5] bg-[length:200%_100%] bg-clip-text text-transparent animate-[gradient_15s_linear_infinite]">
                 Our Mission
               </span>
               <span className="invisible">Our Mission</span>
