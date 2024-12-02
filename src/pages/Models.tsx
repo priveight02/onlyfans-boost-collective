@@ -15,7 +15,7 @@ import {
 
 const Models = () => {
   return (
-    <div className="min-h-screen pt-16">
+    <div className="min-h-screen">
       <BackButton />
       <HeroSection />
       <StatsSection />
