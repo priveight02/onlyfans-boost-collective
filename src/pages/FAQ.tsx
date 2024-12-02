@@ -1,12 +1,12 @@
 import { useState } from "react";
+import { HelpCircle } from 'lucide-react';
+import BackButton from "@/components/BackButton";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { HelpCircle } from 'lucide-react';
-import BackButton from "@/components/BackButton";
 
 const faqs = [
   {
@@ -43,6 +43,7 @@ const FAQ = () => {
       <div className="relative py-20 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-r from-[#9b87f5] to-[#7E69AB]">
           <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTQ0MCIgaGVpZ2h0PSI1MDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PGxpbmVhckdyYWRpZW50IHgxPSIwJSIgeTE9IjEwMCUiIHgyPSIxMDAlIiB5Mj0iMCUiIGlkPSJhIj48c3RvcCBzdG9wLWNvbG9yPSIjRkZGIiBzdG9wLW9wYWNpdHk9Ii4yNSIgb2Zmc2V0PSIwJSIvPjxzdG9wIHN0b3AtY29sb3I9IiNGRkYiIHN0b3Atb3BhY2l0eT0iMCIgb2Zmc2V0PSIxMDAlIi8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHBhdGggZD0iTTAgNTAwaDE0NDBWMzEzbC0xMjY3LjItMjc0LjhMMCA0NzN6IiBmaWxsPSJ1cmwoI2EpIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiIGZpbGwtb3BhY2l0eT0iLjQiLz48L3N2Zz4=')] bg-cover bg-center opacity-50" />
+          <div className="absolute inset-0 bg-grid-white/[0.05] bg-[size:20px_20px]" />
           <div className="absolute inset-0 bg-gradient-to-b from-transparent to-[#9b87f5]/20" />
         </div>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
