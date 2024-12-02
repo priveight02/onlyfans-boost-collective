@@ -36,7 +36,14 @@ const Contact = () => {
   return (
     <section id="contact" className="py-24 relative">
       {/* Decorative top separator */}
-      <div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-b from-white to-transparent pointer-events-none" />
+      <div className="absolute top-0 left-0 w-full overflow-hidden">
+        <div className="w-full h-24 bg-gradient-to-b from-white to-transparent" />
+        <div className="w-full flex justify-center">
+          <div className="bg-primary/10 backdrop-blur-sm px-8 py-2 rounded-b-xl shadow-lg">
+            <span className="text-primary/80 font-medium">Contact Us</span>
+          </div>
+        </div>
+      </div>
       
       {/* Background decoration */}
       <div className="absolute inset-0 bg-gradient-to-b from-primary-light/5 to-primary-light/10">
@@ -132,13 +139,25 @@ const Contact = () => {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5, delay: 0.6 }}
-            whileHover={{ scale: 1.02 }}
+            whileHover={{ 
+              scale: 1.02,
+              backgroundColor: "rgba(155, 135, 245, 0.9)",
+              boxShadow: "0 8px 32px -8px rgba(155, 135, 245, 0.4)"
+            }}
             whileTap={{ scale: 0.98 }}
             type="submit"
-            className="w-full flex items-center justify-center px-8 py-4 text-lg font-medium rounded-lg text-white bg-gradient-to-r from-primary via-primary-accent to-primary hover:opacity-90 transition-all duration-200 shadow-xl hover:shadow-2xl"
+            className="w-full flex items-center justify-center px-8 py-4 text-lg font-medium rounded-lg text-white bg-gradient-to-r from-primary/90 via-primary-accent/90 to-primary/90 backdrop-blur-sm hover:opacity-95 transition-all duration-300 shadow-xl hover:shadow-2xl hover:shadow-primary/20 border border-white/10"
           >
-            Send Message
-            <Send className="ml-2 h-5 w-5" />
+            <span className="relative flex items-center gap-2">
+              <span className="relative z-10">Send Message</span>
+              <Send className="h-5 w-5 relative z-10" />
+              <motion.div
+                className="absolute inset-0 bg-white/10 rounded-full"
+                initial={{ scale: 0, opacity: 0 }}
+                whileHover={{ scale: 1.5, opacity: 0.2 }}
+                transition={{ duration: 0.3 }}
+              />
+            </span>
           </motion.button>
         </motion.form>
       </div>
