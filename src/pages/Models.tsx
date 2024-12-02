@@ -3,6 +3,7 @@ import HeroSection from '@/components/models/HeroSection';
 import StatsSection from '@/components/models/StatsSection';
 import ModelCard from '@/components/models/ModelCard';
 import ContactForm from '@/components/models/ContactForm';
+import TestimonialsCarousel from '@/components/models/TestimonialsCarousel';
 import {
   Carousel,
   CarouselContent,
@@ -34,6 +35,9 @@ const Models = () => {
           </Carousel>
         </div>
       </section>
+
+      {/* Testimonials Section */}
+      <TestimonialsCarousel />
 
       <ContactForm />
     </div>

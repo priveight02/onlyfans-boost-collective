@@ -5,6 +5,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { HelpCircle } from 'lucide-react';
 
 const faqs = [
   {
@@ -39,10 +40,11 @@ const FAQ = () => {
       {/* Hero Section */}
       <div className="relative py-24 bg-gradient-to-r from-primary to-primary-accent">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h1 className="text-4xl md:text-6xl font-bold text-white mb-6 font-heading">
+          <HelpCircle className="h-16 w-16 mx-auto mb-6 text-white animate-bounce" />
+          <h1 className="text-4xl md:text-6xl font-bold text-white mb-6 font-heading animate-fade-in">
             Frequently Asked Questions
           </h1>
-          <p className="text-xl text-white/90 max-w-2xl mx-auto">
+          <p className="text-xl text-white/90 max-w-2xl mx-auto animate-fade-in">
             Find answers to common questions about our services and how we can help you succeed.
           </p>
         </div>
@@ -53,7 +55,12 @@ const FAQ = () => {
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
           <Accordion type="single" collapsible className="space-y-4">
             {faqs.map((faq, index) => (
-              <AccordionItem key={index} value={`item-${index}`}>
+              <AccordionItem 
+                key={index} 
+                value={`item-${index}`}
+                className="animate-fade-in"
+                style={{ animationDelay: `${index * 100}ms` }}
+              >
                 <AccordionTrigger className="text-left text-primary hover:text-primary-accent">
                   {faq.question}
                 </AccordionTrigger>
@@ -69,15 +76,15 @@ const FAQ = () => {
       {/* CTA Section */}
       <section className="py-24 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-3xl md:text-4xl font-bold text-primary mb-6 font-heading">
+          <h2 className="text-3xl md:text-4xl font-bold text-primary mb-6 font-heading animate-fade-in">
             Still Have Questions?
           </h2>
-          <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
+          <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto animate-fade-in">
             Contact us anytime. Our team is here to help you succeed.
           </p>
           <a
             href="/contact"
-            className="inline-flex items-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-primary hover:bg-primary-accent transition-colors duration-200"
+            className="inline-flex items-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-primary hover:bg-primary-accent transition-colors duration-200 animate-fade-in"
           >
             Contact Us
           </a>
