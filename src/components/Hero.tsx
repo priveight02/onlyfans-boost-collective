@@ -3,10 +3,10 @@ import { motion } from "framer-motion";
 
 const Hero = () => {
   return (
-    <div className="relative min-h-[85vh] flex items-center bg-gradient-to-br from-primary via-primary to-primary-accent overflow-hidden">
+    <div className="relative min-h-[85vh] flex items-center bg-gradient-to-br from-purple-100 via-pink-50 to-purple-200 overflow-hidden">
       <div className="absolute inset-0">
-        <div className="absolute inset-0 bg-black/40 mix-blend-multiply" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+        <div className="absolute inset-0 bg-white/10 mix-blend-overlay" />
+        <div className="absolute inset-0 bg-gradient-to-t from-white/40 to-transparent" />
       </div>
       
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
@@ -20,7 +20,7 @@ const Hero = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
-            className="text-4xl md:text-6xl font-bold text-white mb-6 font-heading tracking-tight"
+            className="text-4xl md:text-6xl font-bold text-primary mb-6 font-heading tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-pink-500"
           >
             Unlock Your Full Potential
           </motion.h1>
@@ -29,7 +29,7 @@ const Hero = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.4 }}
-            className="text-xl md:text-2xl text-white/90 mb-8 max-w-2xl mx-auto leading-relaxed"
+            className="text-xl md:text-2xl text-gray-700 mb-8 max-w-2xl mx-auto leading-relaxed"
           >
             We help content creators grow their brand, maximize earnings, and succeed in the competitive digital space.
           </motion.p>
@@ -41,7 +41,7 @@ const Hero = () => {
           >
             <a
               href="#contact"
-              className="group inline-flex items-center px-8 py-3 text-lg font-medium rounded-full bg-white text-primary hover:bg-primary-light transition-all duration-300 transform hover:scale-105"
+              className="group inline-flex items-center px-8 py-3 text-lg font-medium rounded-full bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
             >
               Get Started
               <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform duration-300" />
@@ -64,7 +64,7 @@ const Hero = () => {
               repeat: Infinity,
               ease: "linear"
             }}
-            className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary-accent/20 rounded-full mix-blend-multiply filter blur-xl animate-float"
+            className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-300/20 rounded-full mix-blend-multiply filter blur-xl animate-float"
           />
           <motion.div 
             animate={{ 
@@ -77,7 +77,7 @@ const Hero = () => {
               repeat: Infinity,
               ease: "linear"
             }}
-            className="absolute top-1/3 right-1/4 w-96 h-96 bg-purple-300/20 rounded-full mix-blend-multiply filter blur-xl animate-float-delayed"
+            className="absolute top-1/3 right-1/4 w-96 h-96 bg-pink-300/20 rounded-full mix-blend-multiply filter blur-xl animate-float-delayed"
           />
           <motion.div 
             animate={{ 
@@ -90,7 +90,7 @@ const Hero = () => {
               repeat: Infinity,
               ease: "linear"
             }}
-            className="absolute bottom-1/4 left-1/3 w-96 h-96 bg-pink-300/20 rounded-full mix-blend-multiply filter blur-xl animate-float-reverse"
+            className="absolute bottom-1/4 left-1/3 w-96 h-96 bg-purple-200/20 rounded-full mix-blend-multiply filter blur-xl animate-float-reverse"
           />
         </div>
       </div>
