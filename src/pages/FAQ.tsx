@@ -61,14 +61,25 @@ const FAQ = () => {
               <AccordionItem 
                 key={index} 
                 value={`item-${index}`}
-                className="animate-fade-in bg-white rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 border-none"
-                style={{ animationDelay: `${index * 100}ms` }}
+                className="group animate-fade-in bg-white rounded-lg shadow-md hover:shadow-xl transition-all duration-500 border-none transform hover:-translate-y-1"
+                style={{ 
+                  animationDelay: `${index * 100}ms`,
+                  transform: "perspective(1000px)",
+                }}
               >
-                <AccordionTrigger className="px-6 py-4 text-left text-lg font-medium text-primary hover:text-primary-accent transition-colors duration-200">
-                  {faq.question}
+                <AccordionTrigger 
+                  className="px-6 py-4 text-left text-lg font-medium text-primary group-hover:text-primary-accent transition-all duration-300 ease-out"
+                >
+                  <div className="flex items-center w-full group-hover:translate-x-1 transition-transform duration-300">
+                    {faq.question}
+                  </div>
                 </AccordionTrigger>
-                <AccordionContent className="px-6 pb-4 text-gray-600 leading-relaxed">
-                  {faq.answer}
+                <AccordionContent 
+                  className="overflow-hidden transition-all duration-500 ease-in-out"
+                >
+                  <div className="px-6 pb-4 text-gray-600 leading-relaxed transform transition-all duration-500 ease-out hover:text-gray-800">
+                    {faq.answer}
+                  </div>
                 </AccordionContent>
               </AccordionItem>
             ))}
