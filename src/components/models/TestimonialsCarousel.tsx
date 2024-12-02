@@ -29,12 +29,7 @@ const TestimonialsCarousel = () => {
   return (
     <section className="py-24 bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <h2 className="text-3xl font-bold text-center mb-16 relative">
-          <span className="absolute inset-0 bg-gradient-to-r from-primary via-primary-accent to-primary bg-[length:200%_100%] bg-clip-text text-transparent animate-[gradient_15s_linear_infinite]">
-            Get in Touch
-          </span>
-          <span className="invisible">Get in Touch</span>
-        </h2>
+        <h2 className="text-3xl font-bold text-center mb-16">What Our Models Say</h2>
         
         <Carousel className="w-full max-w-4xl mx-auto">
           <CarouselContent>
