@@ -15,21 +15,17 @@ const Contact = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Create mailto link with form data
     const subject = `Contact Form Submission from ${formData.name}`;
     const body = `Name: ${formData.name}\nEmail: ${formData.email}\n\nMessage:\n${formData.message}`;
     const mailtoLink = `mailto:protekticorp@proton.me?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     
-    // Open default email client
     window.location.href = mailtoLink;
     
-    // Show success message
     toast({
       title: "Email client opened!",
       description: "Please send the pre-filled email to complete your message submission.",
     });
     
-    // Reset form
     setFormData({ name: "", email: "", message: "" });
   };
 
