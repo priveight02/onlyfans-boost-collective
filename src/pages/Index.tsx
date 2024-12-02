@@ -6,8 +6,7 @@ import Contact from "@/components/Contact";
 const Index = () => {
   return (
     <div className="min-h-screen">
-      <Navigation />
-      <div className="pt-[104px]"> {/* Added padding to account for fixed navigation + banner */}
+      <div className="pt-[104px]">
         <Hero />
         <Services />
         <Contact />
