@@ -33,6 +33,12 @@ const services = [
     highlight: "Real-time performance tracking"
   },
   {
+    title: "24/7 Support",
+    description: "Round-the-clock support from our dedicated team of OnlyFans management experts. We're here whenever you need us.",
+    icon: HeartHandshake,
+    highlight: "Always available support"
+  },
+  {
     title: "Fan Engagement",
     description: "Proven strategies to increase engagement, maintain loyal subscribers, and maximize your earning potential.",
     icon: MessageSquare,
@@ -57,50 +63,36 @@ const item = {
 
 const Services = () => {
   return (
-    <section id="services" className="py-12 bg-gradient-to-b from-gray-50 to-white relative overflow-hidden">
-      {/* Background Decoration */}
-      <div className="absolute inset-0 bg-grid-primary/[0.02] bg-[size:20px_20px]" />
-      
+    <section className="py-24 bg-gradient-to-b from-gray-50 to-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.5 }}
-          className="text-center mb-8"
-        >
-          <h2 className="text-4xl md:text-5xl font-bold font-heading mb-6 relative">
-            <span className="absolute inset-0 bg-gradient-to-r from-primary via-primary-accent to-primary bg-[length:200%_100%] bg-clip-text text-transparent animate-[gradient_15s_linear_infinite]">
-              Premier OnlyFans Management Services
-            </span>
-            <span className="invisible">Premier OnlyFans Management Services</span>
+        <div className="text-center mb-16">
+          <h2 className="text-3xl md:text-4xl font-bold text-primary font-heading mb-4">
+            Premium OnlyFans Management Services
           </h2>
-
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            Comprehensive solutions designed to maximize your earnings and grow your OnlyFans presence.
+          <p className="text-gray-600 max-w-2xl mx-auto">
+            We provide comprehensive solutions designed to maximize your earnings and grow your OnlyFans presence.
           </p>
-        </motion.div>
-
-        {/* Services Grid */}
+        </div>
+        
         <motion.div 
           variants={container}
           initial="hidden"
           whileInView="show"
           viewport={{ once: true }}
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-8"
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
         >
           {services.map((service) => (
             <motion.div
               key={service.title}
               variants={item}
-              className="bg-white p-6 rounded-lg shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 group"
+              className="bg-white p-8 rounded-lg shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 group"
             >
-              <div className="w-12 h-12 bg-primary-light rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+              <div className="w-12 h-12 bg-primary-light rounded-lg flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
                 <service.icon className="h-6 w-6 text-primary-accent" />
               </div>
-              <h3 className="text-xl font-bold text-primary mb-3">{service.title}</h3>
-              <p className="text-gray-600 mb-4 text-sm">{service.description}</p>
-              <p className="text-primary-accent font-semibold text-sm">{service.highlight}</p>
+              <h3 className="text-xl font-bold text-primary mb-2">{service.title}</h3>
+              <p className="text-gray-600 mb-4">{service.description}</p>
+              <p className="text-primary-accent font-semibold">{service.highlight}</p>
             </motion.div>
           ))}
         </motion.div>
