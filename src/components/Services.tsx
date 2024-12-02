@@ -75,7 +75,7 @@ const Services = () => {
           transition={{ duration: 0.5 }}
           className="text-center mb-12"
         >
-          <h2 className="text-3xl md:text-4xl font-bold font-heading mb-6 relative">
+          <h2 className="text-3xl md:text-[2.75rem] font-bold font-heading mb-6 relative">
             <span className="absolute inset-0 bg-gradient-to-r from-primary via-primary-accent to-primary bg-[length:200%_100%] bg-clip-text text-transparent animate-[gradient_15s_linear_infinite]">
               Premier OnlyFans Management Services
             </span>
