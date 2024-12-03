@@ -8,16 +8,17 @@ const Hero = () => {
         <div className="absolute inset-0 bg-black/10 mix-blend-multiply" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
         
-        {/* Animated background patterns with reduced animation speed for mobile */}
+        {/* Smoother background patterns with longer duration and ease functions */}
         <motion.div
           animate={{
             x: [0, -50, 0],
             y: [0, -25, 0],
           }}
           transition={{
-            duration: 40,
+            duration: 60, // Increased from 40
             repeat: Infinity,
-            ease: "linear"
+            ease: "easeInOut", // Changed from linear
+            times: [0, 0.5, 1] // Added to make the animation more natural
           }}
           className="absolute inset-0 opacity-20"
           style={{
@@ -31,9 +32,10 @@ const Hero = () => {
             y: [0, 25, 0],
           }}
           transition={{
-            duration: 35,
+            duration: 55, // Increased from 35
             repeat: Infinity,
-            ease: "linear"
+            ease: "easeInOut", // Changed from linear
+            times: [0, 0.5, 1] // Added to make the animation more natural
           }}
           className="absolute inset-0 opacity-10"
           style={{
@@ -84,7 +86,7 @@ const Hero = () => {
         </motion.div>
       </div>
 
-      {/* Enhanced animated background elements with reduced animation speed */}
+      {/* Enhanced animated background elements with smoother transitions */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -inset-[10px] opacity-60">
           <motion.div 
@@ -94,9 +96,10 @@ const Hero = () => {
               rotate: [0, 180, 360]
             }}
             transition={{ 
-              duration: 30,
+              duration: 45, // Increased from 30
               repeat: Infinity,
-              ease: "linear"
+              ease: "easeInOut", // Changed from linear
+              times: [0, 0.5, 1]
             }}
             className="absolute top-1/4 left-1/4 w-96 h-96 bg-[#D6BCFA]/40 rounded-full mix-blend-multiply filter blur-xl"
           />
@@ -107,9 +110,10 @@ const Hero = () => {
               rotate: [360, 180, 0]
             }}
             transition={{ 
-              duration: 25,
+              duration: 40, // Increased from 25
               repeat: Infinity,
-              ease: "linear"
+              ease: "easeInOut", // Changed from linear
+              times: [0, 0.5, 1]
             }}
             className="absolute top-1/3 right-1/4 w-96 h-96 bg-[#9b87f5]/40 rounded-full mix-blend-multiply filter blur-xl"
           />
@@ -120,9 +124,10 @@ const Hero = () => {
               rotate: [0, -180, -360]
             }}
             transition={{ 
-              duration: 35,
+              duration: 50, // Increased from 35
               repeat: Infinity,
-              ease: "linear"
+              ease: "easeInOut", // Changed from linear
+              times: [0, 0.5, 1]
             }}
             className="absolute bottom-1/4 left-1/3 w-96 h-96 bg-[#dba4e3]/40 rounded-full mix-blend-multiply filter blur-xl"
           />
