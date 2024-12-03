@@ -8,17 +8,17 @@ const Hero = () => {
         <div className="absolute inset-0 bg-black/10 mix-blend-multiply" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
         
-        {/* Smoother background patterns with longer duration and ease functions */}
+        {/* Ultra-smooth background patterns with optimized animations */}
         <motion.div
           animate={{
             x: [0, -50, 0],
             y: [0, -25, 0],
           }}
           transition={{
-            duration: 60, // Increased from 40
+            duration: 90, // Increased for ultra-smooth motion
             repeat: Infinity,
-            ease: "easeInOut", // Changed from linear
-            times: [0, 0.5, 1] // Added to make the animation more natural
+            ease: [0.4, 0.0, 0.2, 1], // Custom easing for fluid motion
+            times: [0, 0.5, 1]
           }}
           className="absolute inset-0 opacity-20"
           style={{
@@ -32,10 +32,10 @@ const Hero = () => {
             y: [0, 25, 0],
           }}
           transition={{
-            duration: 55, // Increased from 35
+            duration: 85, // Increased for ultra-smooth motion
             repeat: Infinity,
-            ease: "easeInOut", // Changed from linear
-            times: [0, 0.5, 1] // Added to make the animation more natural
+            ease: [0.4, 0.0, 0.2, 1], // Custom easing for fluid motion
+            times: [0, 0.5, 1]
           }}
           className="absolute inset-0 opacity-10"
           style={{
@@ -56,7 +56,7 @@ const Hero = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
-            className="text-4xl md:text-6xl font-bold text-white mb-6 font-heading tracking-tight drop-shadow-lg"
+            className="text-4xl md:text-6xl font-bold text-white mb-6 font-heading tracking-tight drop-shadow-lg [text-wrap:balance] leading-[1.1]"
           >
             Unlock Your Full Potential
           </motion.h1>
@@ -65,7 +65,7 @@ const Hero = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.4 }}
-            className="text-xl md:text-2xl text-white mb-8 max-w-2xl mx-auto leading-relaxed font-medium drop-shadow-md bg-black/10 backdrop-blur-sm rounded-lg px-4 py-2"
+            className="text-xl md:text-2xl text-white mb-8 max-w-2xl mx-auto leading-relaxed font-medium drop-shadow-md bg-black/10 backdrop-blur-sm rounded-lg px-6 py-3 [text-wrap:balance]"
           >
             We help content creators grow their brand, maximize earnings, and succeed in the competitive digital space.
           </motion.p>
@@ -77,16 +77,16 @@ const Hero = () => {
           >
             <a
               href="#contact"
-              className="group inline-flex items-center px-8 py-3 text-lg font-medium rounded-full bg-white text-primary hover:bg-primary-light transition-all duration-300 transform hover:scale-105 shadow-lg"
+              className="group inline-flex items-center px-8 py-3 text-lg font-medium rounded-full bg-white text-primary hover:bg-primary-light transition-all duration-500 transform hover:scale-105 shadow-lg"
             >
               Get Started
-              <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform duration-300" />
+              <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform duration-500" />
             </a>
           </motion.div>
         </motion.div>
       </div>
 
-      {/* Enhanced animated background elements with smoother transitions */}
+      {/* Ultra-smooth animated background elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -inset-[10px] opacity-60">
           <motion.div 
@@ -96,9 +96,9 @@ const Hero = () => {
               rotate: [0, 180, 360]
             }}
             transition={{ 
-              duration: 45, // Increased from 30
+              duration: 75, // Increased for ultra-smooth motion
               repeat: Infinity,
-              ease: "easeInOut", // Changed from linear
+              ease: [0.4, 0.0, 0.2, 1], // Custom easing for fluid motion
               times: [0, 0.5, 1]
             }}
             className="absolute top-1/4 left-1/4 w-96 h-96 bg-[#D6BCFA]/40 rounded-full mix-blend-multiply filter blur-xl"
@@ -110,9 +110,9 @@ const Hero = () => {
               rotate: [360, 180, 0]
             }}
             transition={{ 
-              duration: 40, // Increased from 25
+              duration: 70, // Increased for ultra-smooth motion
               repeat: Infinity,
-              ease: "easeInOut", // Changed from linear
+              ease: [0.4, 0.0, 0.2, 1], // Custom easing for fluid motion
               times: [0, 0.5, 1]
             }}
             className="absolute top-1/3 right-1/4 w-96 h-96 bg-[#9b87f5]/40 rounded-full mix-blend-multiply filter blur-xl"
@@ -124,9 +124,9 @@ const Hero = () => {
               rotate: [0, -180, -360]
             }}
             transition={{ 
-              duration: 50, // Increased from 35
+              duration: 80, // Increased for ultra-smooth motion
               repeat: Infinity,
-              ease: "easeInOut", // Changed from linear
+              ease: [0.4, 0.0, 0.2, 1], // Custom easing for fluid motion
               times: [0, 0.5, 1]
             }}
             className="absolute bottom-1/4 left-1/3 w-96 h-96 bg-[#dba4e3]/40 rounded-full mix-blend-multiply filter blur-xl"
