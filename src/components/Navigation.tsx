@@ -1,14 +1,18 @@
 import { useState } from "react";
-import { Menu, X, LogIn, LogOut } from "lucide-react";
+import { Menu, X, LogIn, LogOut, Shield } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import TopBanner from "./TopBanner";
 import { Button } from "./ui/button";
 import { useAuth } from "@/hooks/useAuth";
 
+const ADMIN_EMAIL = "laflare18@protonmail.com";
+
 const Navigation = () => {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
   const { user, logout } = useAuth();
+
+  const isAdmin = user?.email === ADMIN_EMAIL;
 
   const menuItems = [
     { name: "Home", href: "/" },
@@ -17,6 +21,7 @@ const Navigation = () => {
     { name: "Models", href: "/models" },
     { name: "Join", href: "/join" },
     { name: "FAQ", href: "/faq" },
+    ...(isAdmin ? [{ name: "Admin", href: "/admin", icon: Shield }] : []),
   ];
 
   return (
@@ -41,12 +46,13 @@ const Navigation = () => {
                 <Link
                   key={item.name}
                   to={item.href}
-                  className={`transition-colors duration-200 ${
+                  className={`transition-colors duration-200 flex items-center gap-2 ${
                     location.pathname === item.href
                       ? "text-primary-accent font-medium"
                       : "text-gray-700 hover:text-primary-accent"
                   }`}
                 >
+                  {item.icon && <item.icon className="h-4 w-4" />}
                   {item.name}
                 </Link>
               ))}
@@ -95,9 +101,10 @@ const Navigation = () => {
                       location.pathname === item.href
                         ? "text-primary-accent font-medium"
                         : "text-gray-700 hover:text-primary-accent"
-                    }`}
+                    } flex items-center gap-2`}
                     onClick={() => setIsOpen(false)}
                   >
+                    {item.icon && <item.icon className="h-4 w-4" />}
                     {item.name}
                   </Link>
                 ))}
