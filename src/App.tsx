@@ -9,7 +9,6 @@ import About from "./pages/About";
 import Services from "./pages/Services";
 import Models from "./pages/Models";
 import Join from "./pages/Join";
-import Contact from "./pages/Contact";
 import FAQ from "./pages/FAQ";
 import Auth from "./pages/Auth";
 
@@ -28,7 +27,6 @@ const App = () => (
           <Route path="/services" element={<Services />} />
           <Route path="/models" element={<Models />} />
           <Route path="/join" element={<Join />} />
-          <Route path="/contact" element={<Contact />} />
           <Route path="/faq" element={<FAQ />} />
           <Route path="/auth" element={<Auth />} />
         </Routes>
