@@ -6,6 +6,7 @@ import AdminDashboard from "@/components/admin/AdminDashboard";
 import AdminUsers from "@/components/admin/AdminUsers";
 import AdminSecurity from "@/components/admin/AdminSecurity";
 import { Shield } from "lucide-react";
+import { toast } from "sonner";
 
 const ADMIN_EMAIL = "laflare18@protonmail.com";
 
@@ -14,10 +15,21 @@ const Admin = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!user || user.email !== ADMIN_EMAIL) {
-      console.log("Unauthorized access attempt to admin panel");
-      navigate("/");
+    if (!user) {
+      console.log("No user found, redirecting to login");
+      toast.error("Please login to access the admin panel");
+      navigate("/auth");
+      return;
     }
+
+    if (user.email !== ADMIN_EMAIL) {
+      console.log("Unauthorized access attempt:", user.email);
+      toast.error("You don't have permission to access the admin panel");
+      navigate("/");
+      return;
+    }
+
+    console.log("Admin access granted for:", user.email);
   }, [user, navigate]);
 
   if (!user || user.email !== ADMIN_EMAIL) {

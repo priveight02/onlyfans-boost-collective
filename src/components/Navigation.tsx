@@ -1,18 +1,28 @@
 import { useState } from "react";
 import { Menu, X, LogIn, LogOut, Shield } from "lucide-react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import TopBanner from "./TopBanner";
 import { Button } from "./ui/button";
 import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
 
 const ADMIN_EMAIL = "laflare18@protonmail.com";
 
 const Navigation = () => {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
   const { user, logout } = useAuth();
 
   const isAdmin = user?.email === ADMIN_EMAIL;
+
+  const handleAdminAccess = () => {
+    if (isAdmin) {
+      navigate("/admin");
+    } else {
+      toast.error("You don't have permission to access the admin panel");
+    }
+  };
 
   const menuItems = [
     { name: "Home", href: "/" },
@@ -21,8 +31,15 @@ const Navigation = () => {
     { name: "Models", href: "/models" },
     { name: "Join", href: "/join" },
     { name: "FAQ", href: "/faq" },
-    ...(isAdmin ? [{ name: "Admin", href: "/admin", icon: Shield }] : []),
+    ...(isAdmin ? [{ 
+      name: "Admin", 
+      href: "/admin", 
+      icon: Shield,
+      onClick: handleAdminAccess 
+    }] : []),
   ];
+
+  // ... keep existing code (mobile menu state and JSX structure)
 
   return (
     <div className="w-full">
@@ -43,9 +60,16 @@ const Navigation = () => {
             {/* Desktop menu */}
             <div className="hidden md:flex items-center space-x-8">
               {menuItems.map((item) => (
-                <Link
+                <button
                   key={item.name}
-                  to={item.href}
+                  onClick={() => {
+                    if (item.onClick) {
+                      item.onClick();
+                    } else {
+                      navigate(item.href);
+                    }
+                    setIsOpen(false);
+                  }}
                   className={`transition-colors duration-200 flex items-center gap-2 ${
                     location.pathname === item.href
                       ? "text-primary-accent font-medium"
@@ -54,7 +78,7 @@ const Navigation = () => {
                 >
                   {item.icon && <item.icon className="h-4 w-4" />}
                   {item.name}
-                </Link>
+                </button>
               ))}
               {user ? (
                 <Button
@@ -94,19 +118,25 @@ const Navigation = () => {
             <div className="md:hidden">
               <div className="pt-2 pb-3 space-y-1">
                 {menuItems.map((item) => (
-                  <Link
+                  <button
                     key={item.name}
-                    to={item.href}
-                    className={`block px-3 py-2 ${
+                    onClick={() => {
+                      if (item.onClick) {
+                        item.onClick();
+                      } else {
+                        navigate(item.href);
+                      }
+                      setIsOpen(false);
+                    }}
+                    className={`block w-full text-left px-3 py-2 ${
                       location.pathname === item.href
                         ? "text-primary-accent font-medium"
                         : "text-gray-700 hover:text-primary-accent"
                     } flex items-center gap-2`}
-                    onClick={() => setIsOpen(false)}
                   >
                     {item.icon && <item.icon className="h-4 w-4" />}
                     {item.name}
-                  </Link>
+                  </button>
                 ))}
                 {user ? (
                   <Button
