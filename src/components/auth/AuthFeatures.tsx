@@ -1,4 +1,4 @@
-import { Feature, Stat } from "./AuthTypes";
+import type { Feature, Stat } from "./AuthTypes";
 
 const Feature = ({ icon, title, description }: Feature) => (
   <div className="flex items-start space-x-3">
