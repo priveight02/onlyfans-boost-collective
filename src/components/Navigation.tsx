@@ -31,8 +31,10 @@ const Navigation = () => {
 
   const handleAdminAccess = () => {
     if (isAdmin) {
+      console.log("Admin access granted, redirecting to passphrase page");
       navigate("/admin-passphrase");
     } else {
+      console.log("Unauthorized admin access attempt");
       toast.error("You don't have permission to access the admin panel");
     }
   };
