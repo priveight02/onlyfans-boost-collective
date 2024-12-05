@@ -9,12 +9,9 @@ import { toast } from "sonner";
 const ADMIN_EMAIL = "laflare18@protonmail.com";
 
 // Define types for our menu items
-type BaseMenuItem = {
+type MenuItem = {
   name: string;
   href: string;
-};
-
-type MenuItem = BaseMenuItem & {
   icon?: typeof Shield;
   onClick?: () => void;
 };
@@ -30,13 +27,8 @@ const Navigation = () => {
   console.log("Is admin:", isAdmin);
 
   const handleAdminAccess = () => {
-    if (isAdmin) {
-      console.log("Admin access granted, redirecting to passphrase page");
-      navigate("/admin-passphrase");
-    } else {
-      console.log("Unauthorized admin access attempt");
-      toast.error("You don't have permission to access the admin panel");
-    }
+    console.log("Admin access requested");
+    navigate("/admin-passphrase");
   };
 
   // Define menu items based on user authorization

@@ -23,9 +23,19 @@ const AdminPassphrase = () => {
   };
 
   useEffect(() => {
+    console.log("AdminPassphrase: Checking authorization");
+    console.log("Current user:", user?.email);
+    
     // Check if user is authorized
-    if (!user || user.email !== ADMIN_EMAIL) {
-      console.log("Unauthorized access attempt to passphrase page");
+    if (!user) {
+      console.log("No user found, redirecting to login");
+      toast.error("Please login to access the admin panel");
+      navigate("/auth");
+      return;
+    }
+
+    if (user.email !== ADMIN_EMAIL) {
+      console.log("Unauthorized user attempted access:", user.email);
       toast.error("You don't have permission to access this page");
       navigate("/");
       return;
@@ -36,7 +46,7 @@ const AdminPassphrase = () => {
     if (attempts.count >= MAX_ATTEMPTS) {
       const timeElapsed = Date.now() - attempts.timestamp;
       if (timeElapsed < BLOCK_DURATION) {
-        console.log("Blocked user attempted to access passphrase page");
+        console.log("Blocked user attempted access");
         toast.error("You have been blocked from accessing the admin panel due to too many failed attempts");
         navigate("/");
         return;
@@ -45,6 +55,8 @@ const AdminPassphrase = () => {
         localStorage.setItem("adminAttempts", JSON.stringify({ count: 0, timestamp: Date.now() }));
       }
     }
+
+    console.log("Authorization check passed for admin user");
   }, [user, navigate]);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -76,6 +88,11 @@ const AdminPassphrase = () => {
       }
     }
   };
+
+  // Only render the form if the user is authorized
+  if (!user || user.email !== ADMIN_EMAIL) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-primary-light to-primary/10 pt-20 px-4">
