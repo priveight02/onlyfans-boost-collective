@@ -8,6 +8,17 @@ import { toast } from "sonner";
 
 const ADMIN_EMAIL = "laflare18@protonmail.com";
 
+// Define types for our menu items
+type BaseMenuItem = {
+  name: string;
+  href: string;
+};
+
+type MenuItem = BaseMenuItem & {
+  icon?: typeof Shield;
+  onClick?: () => void;
+};
+
 const Navigation = () => {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
@@ -27,7 +38,7 @@ const Navigation = () => {
   };
 
   // Define menu items based on user authorization
-  const menuItems = [
+  const menuItems: MenuItem[] = [
     { name: "Home", href: "/" },
     { name: "About", href: "/about" },
     { name: "Services", href: "/services" },
@@ -37,7 +48,7 @@ const Navigation = () => {
   ];
 
   // Only add admin link if user is authorized
-  const finalMenuItems = isAdmin 
+  const finalMenuItems: MenuItem[] = isAdmin 
     ? [...menuItems, { 
         name: "Admin", 
         href: "/admin-passphrase", 
