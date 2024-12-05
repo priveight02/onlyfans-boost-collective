@@ -8,6 +8,7 @@ import AdminSecurity from "@/components/admin/AdminSecurity";
 import { Shield, Users, Settings, Activity, Bell } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 
 const ADMIN_EMAIL = "laflare18@protonmail.com";
 
