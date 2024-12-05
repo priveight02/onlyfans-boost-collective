@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Menu, X, LogIn, LogOut, Shield } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import TopBanner from "./TopBanner";
@@ -8,7 +8,6 @@ import { toast } from "sonner";
 
 const ADMIN_EMAIL = "laflare18@protonmail.com";
 
-// Define types for our menu items
 type MenuItem = {
   name: string;
   href: string;
@@ -20,15 +19,20 @@ const Navigation = () => {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { user, loading } = useAuth();
 
   const isAdmin = user?.email === ADMIN_EMAIL;
-  console.log("Current user email:", user?.email);
-  console.log("Is admin:", isAdmin);
+  console.log("Navigation - Current user email:", user?.email);
+  console.log("Navigation - Is admin:", isAdmin);
+  console.log("Navigation - Auth loading:", loading);
 
   const handleAdminAccess = () => {
-    console.log("Admin access requested");
-    navigate("/admin-passphrase");
+    console.log("Admin access requested by:", user?.email);
+    if (isAdmin) {
+      navigate("/admin-passphrase");
+    } else {
+      toast.error("You don't have permission to access the admin panel");
+    }
   };
 
   // Define menu items based on user authorization
@@ -45,11 +49,15 @@ const Navigation = () => {
   const finalMenuItems: MenuItem[] = isAdmin 
     ? [...menuItems, { 
         name: "Admin", 
-        href: "/admin-passphrase", 
+        href: "#",  // Changed to # to prevent default navigation
         icon: Shield,
         onClick: handleAdminAccess 
       }]
     : menuItems;
+
+  if (loading) {
+    return null; // Don't render navigation while auth is loading
+  }
 
   return (
     <div className="w-full">
@@ -178,6 +186,3 @@ const Navigation = () => {
       </nav>
     </div>
   );
-};
-
-export default Navigation;

@@ -13,7 +13,7 @@ const BLOCK_DURATION = 365 * 24 * 60 * 60 * 1000; // 1 year in milliseconds
 
 const AdminPassphrase = () => {
   const [passphrase, setPassphrase] = useState("");
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const navigate = useNavigate();
 
   // Get stored attempts from localStorage
@@ -23,19 +23,21 @@ const AdminPassphrase = () => {
   };
 
   useEffect(() => {
-    console.log("AdminPassphrase: Checking authorization");
-    console.log("Current user:", user?.email);
+    console.log("AdminPassphrase - Auth state:", { user: user?.email, loading });
     
-    // Check if user is authorized
+    if (loading) {
+      return; // Wait for auth to initialize
+    }
+
     if (!user) {
-      console.log("No user found, redirecting to login");
+      console.log("AdminPassphrase - No user found");
       toast.error("Please login to access the admin panel");
       navigate("/auth");
       return;
     }
 
     if (user.email !== ADMIN_EMAIL) {
-      console.log("Unauthorized user attempted access:", user.email);
+      console.log("AdminPassphrase - Unauthorized access by:", user.email);
       toast.error("You don't have permission to access this page");
       navigate("/");
       return;
@@ -46,29 +48,28 @@ const AdminPassphrase = () => {
     if (attempts.count >= MAX_ATTEMPTS) {
       const timeElapsed = Date.now() - attempts.timestamp;
       if (timeElapsed < BLOCK_DURATION) {
-        console.log("Blocked user attempted access");
-        toast.error("You have been blocked from accessing the admin panel due to too many failed attempts");
+        console.log("AdminPassphrase - Blocked user attempted access");
+        toast.error("Access blocked due to too many failed attempts");
         navigate("/");
         return;
       } else {
-        // Reset attempts after block duration
         localStorage.setItem("adminAttempts", JSON.stringify({ count: 0, timestamp: Date.now() }));
       }
     }
 
-    console.log("Authorization check passed for admin user");
-  }, [user, navigate]);
+    console.log("AdminPassphrase - Access granted to admin page");
+  }, [user, loading, navigate]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    console.log("AdminPassphrase - Attempt submission");
     
     const attempts = getStoredAttempts();
 
     if (passphrase === CORRECT_PASSPHRASE) {
-      console.log("Correct passphrase entered");
-      // Reset attempts on successful entry
+      console.log("AdminPassphrase - Correct passphrase entered");
       localStorage.setItem("adminAttempts", JSON.stringify({ count: 0, timestamp: Date.now() }));
-      toast.success("Access granted");
+      toast.success("Access granted to admin panel");
       navigate("/admin");
     } else {
       const newAttempts = {
@@ -78,19 +79,18 @@ const AdminPassphrase = () => {
       localStorage.setItem("adminAttempts", JSON.stringify(newAttempts));
       
       if (newAttempts.count >= MAX_ATTEMPTS) {
-        console.log("User blocked after maximum attempts");
-        toast.error("You have been blocked from accessing the admin panel due to too many failed attempts");
+        console.log("AdminPassphrase - User blocked after maximum attempts");
+        toast.error("Access blocked due to too many failed attempts");
         navigate("/");
       } else {
-        console.log(`Incorrect passphrase attempt ${newAttempts.count} of ${MAX_ATTEMPTS}`);
+        console.log(`AdminPassphrase - Failed attempt ${newAttempts.count}/${MAX_ATTEMPTS}`);
         toast.error(`Incorrect passphrase. ${MAX_ATTEMPTS - newAttempts.count} attempts remaining`);
         setPassphrase("");
       }
     }
   };
 
-  // Only render the form if the user is authorized
-  if (!user || user.email !== ADMIN_EMAIL) {
+  if (loading || !user || user.email !== ADMIN_EMAIL) {
     return null;
   }
 
