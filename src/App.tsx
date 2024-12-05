@@ -12,6 +12,7 @@ import Join from "./pages/Join";
 import FAQ from "./pages/FAQ";
 import Auth from "./pages/Auth";
 import Admin from "./pages/Admin";
+import AdminPassphrase from "./pages/AdminPassphrase";
 
 const queryClient = new QueryClient();
 
@@ -31,6 +32,7 @@ const App = () => (
           <Route path="/faq" element={<FAQ />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/admin" element={<Admin />} />
+          <Route path="/admin-passphrase" element={<AdminPassphrase />} />
         </Routes>
       </BrowserRouter>
     </TooltipProvider>

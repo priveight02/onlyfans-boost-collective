@@ -18,7 +18,7 @@ const Navigation = () => {
 
   const handleAdminAccess = () => {
     if (isAdmin) {
-      navigate("/admin");
+      navigate("/admin-passphrase");
     } else {
       toast.error("You don't have permission to access the admin panel");
     }
@@ -33,13 +33,11 @@ const Navigation = () => {
     { name: "FAQ", href: "/faq" },
     ...(isAdmin ? [{ 
       name: "Admin", 
-      href: "/admin", 
+      href: "/admin-passphrase", 
       icon: Shield,
       onClick: handleAdminAccess 
     }] : []),
   ];
-
-  // ... keep existing code (mobile menu state and JSX structure)
 
   return (
     <div className="w-full">
