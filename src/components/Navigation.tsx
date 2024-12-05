@@ -15,6 +15,8 @@ const Navigation = () => {
   const { user, logout } = useAuth();
 
   const isAdmin = user?.email === ADMIN_EMAIL;
+  console.log("Current user email:", user?.email);
+  console.log("Is admin:", isAdmin);
 
   const handleAdminAccess = () => {
     if (isAdmin) {
@@ -24,6 +26,7 @@ const Navigation = () => {
     }
   };
 
+  // Define menu items based on user authorization
   const menuItems = [
     { name: "Home", href: "/" },
     { name: "About", href: "/about" },
@@ -31,13 +34,17 @@ const Navigation = () => {
     { name: "Models", href: "/models" },
     { name: "Join", href: "/join" },
     { name: "FAQ", href: "/faq" },
-    ...(isAdmin ? [{ 
-      name: "Admin", 
-      href: "/admin-passphrase", 
-      icon: Shield,
-      onClick: handleAdminAccess 
-    }] : []),
   ];
+
+  // Only add admin link if user is authorized
+  const finalMenuItems = isAdmin 
+    ? [...menuItems, { 
+        name: "Admin", 
+        href: "/admin-passphrase", 
+        icon: Shield,
+        onClick: handleAdminAccess 
+      }]
+    : menuItems;
 
   return (
     <div className="w-full">
@@ -57,7 +64,7 @@ const Navigation = () => {
             
             {/* Desktop menu */}
             <div className="hidden md:flex items-center space-x-8">
-              {menuItems.map((item) => (
+              {finalMenuItems.map((item) => (
                 <button
                   key={item.name}
                   onClick={() => {
@@ -115,7 +122,7 @@ const Navigation = () => {
           {isOpen && (
             <div className="md:hidden">
               <div className="pt-2 pb-3 space-y-1">
-                {menuItems.map((item) => (
+                {finalMenuItems.map((item) => (
                   <button
                     key={item.name}
                     onClick={() => {
