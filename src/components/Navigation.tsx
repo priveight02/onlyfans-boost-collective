@@ -19,7 +19,7 @@ const Navigation = () => {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, loading } = useAuth();
+  const { user, loading, logout } = useAuth();
 
   const isAdmin = user?.email === ADMIN_EMAIL;
   console.log("Navigation - Current user email:", user?.email);
@@ -186,3 +186,6 @@ const Navigation = () => {
       </nav>
     </div>
   );
+};
+
+export default Navigation;
