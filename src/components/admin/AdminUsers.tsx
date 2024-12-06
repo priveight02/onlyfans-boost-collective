@@ -15,6 +15,16 @@ import { Search } from "lucide-react";
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
 
+interface User {
+  id: string;
+  email: string;
+  createdAt?: {
+    seconds: number;
+    nanoseconds: number;
+  };
+  status?: string;
+}
+
 const AdminUsers = () => {
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -25,7 +35,7 @@ const AdminUsers = () => {
       return snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
-      }));
+      })) as User[];
     },
   });
 
@@ -72,7 +82,7 @@ const AdminUsers = () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredUsers?.map((user: any) => (
+            {filteredUsers?.map((user: User) => (
               <TableRow key={user.id}>
                 <TableCell>{user.email}</TableCell>
                 <TableCell>{new Date(user.createdAt?.seconds * 1000).toLocaleDateString()}</TableCell>
