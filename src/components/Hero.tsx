@@ -14,9 +14,9 @@ const Hero = () => {
             y: [0, -25, 0],
           }}
           transition={{
-            duration: 90, // Increased for ultra-smooth motion
+            duration: 90,
             repeat: Infinity,
-            ease: [0.4, 0.0, 0.2, 1], // Custom easing for fluid motion
+            ease: [0.4, 0.0, 0.2, 1],
             times: [0, 0.5, 1]
           }}
           className="absolute inset-0 opacity-20"
@@ -31,9 +31,9 @@ const Hero = () => {
             y: [0, 25, 0],
           }}
           transition={{
-            duration: 85, // Increased for ultra-smooth motion
+            duration: 85,
             repeat: Infinity,
-            ease: [0.4, 0.0, 0.2, 1], // Custom easing for fluid motion
+            ease: [0.4, 0.0, 0.2, 1],
             times: [0, 0.5, 1]
           }}
           className="absolute inset-0 opacity-10"
@@ -64,7 +64,7 @@ const Hero = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.4 }}
-            className="text-xl md:text-2xl text-white mb-8 max-w-2xl mx-auto leading-relaxed font-medium drop-shadow-md bg-black/10 backdrop-blur-sm rounded-lg px-6 py-3 [text-wrap:balance]"
+            className="text-xl md:text-2xl text-white mb-8 max-w-2xl mx-auto leading-relaxed font-semibold drop-shadow-md bg-black/20 backdrop-blur-sm rounded-lg px-6 py-3 [text-wrap:balance] border border-white/10"
           >
             We help content creators grow their brand, maximize earnings, and succeed in the competitive digital space.
           </motion.p>
