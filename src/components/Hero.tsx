@@ -8,16 +8,15 @@ const Hero = () => {
         <div className="absolute inset-0 bg-black/10 mix-blend-multiply" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
         
-        {/* Ultra-smooth background patterns with optimized animations */}
         <motion.div
           animate={{
             x: [0, -50, 0],
             y: [0, -25, 0],
           }}
           transition={{
-            duration: 90, // Increased for ultra-smooth motion
+            duration: 90,
             repeat: Infinity,
-            ease: [0.4, 0.0, 0.2, 1], // Custom easing for fluid motion
+            ease: [0.4, 0.0, 0.2, 1],
             times: [0, 0.5, 1]
           }}
           className="absolute inset-0 opacity-20"
@@ -32,9 +31,9 @@ const Hero = () => {
             y: [0, 25, 0],
           }}
           transition={{
-            duration: 85, // Increased for ultra-smooth motion
+            duration: 85,
             repeat: Infinity,
-            ease: [0.4, 0.0, 0.2, 1], // Custom easing for fluid motion
+            ease: [0.4, 0.0, 0.2, 1],
             times: [0, 0.5, 1]
           }}
           className="absolute inset-0 opacity-10"
@@ -77,61 +76,13 @@ const Hero = () => {
           >
             <a
               href="#contact"
-              className="group inline-flex items-center px-8 py-3 text-lg font-medium rounded-full bg-white text-primary hover:bg-primary-light transition-all duration-500 transform hover:scale-105 shadow-lg"
+              className="group inline-flex items-center px-8 py-3 text-lg font-medium rounded-full bg-white text-gray-900 hover:bg-primary-light transition-all duration-500 transform hover:scale-105 shadow-lg"
             >
               Get Started
               <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform duration-500" />
             </a>
           </motion.div>
         </motion.div>
-      </div>
-
-      {/* Ultra-smooth animated background elements */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -inset-[10px] opacity-70">
-          <motion.div 
-            animate={{ 
-              scale: [1, 1.1, 1],
-              opacity: [0.4, 0.6, 0.4],
-              rotate: [0, 180, 360]
-            }}
-            transition={{ 
-              duration: 75,
-              repeat: Infinity,
-              ease: [0.4, 0.0, 0.2, 1],
-              times: [0, 0.5, 1]
-            }}
-            className="absolute top-1/4 left-1/4 w-96 h-96 bg-[#c592ff]/50 rounded-full mix-blend-multiply filter blur-xl"
-          />
-          <motion.div 
-            animate={{ 
-              scale: [1.2, 1, 1.2],
-              opacity: [0.5, 0.7, 0.5],
-              rotate: [360, 180, 0]
-            }}
-            transition={{ 
-              duration: 70,
-              repeat: Infinity,
-              ease: [0.4, 0.0, 0.2, 1],
-              times: [0, 0.5, 1]
-            }}
-            className="absolute top-1/3 right-1/4 w-96 h-96 bg-[#7c4dff]/50 rounded-full mix-blend-multiply filter blur-xl"
-          />
-          <motion.div 
-            animate={{ 
-              scale: [1, 1.2, 1],
-              opacity: [0.4, 0.6, 0.4],
-              rotate: [0, -180, -360]
-            }}
-            transition={{ 
-              duration: 80,
-              repeat: Infinity,
-              ease: [0.4, 0.0, 0.2, 1],
-              times: [0, 0.5, 1]
-            }}
-            className="absolute bottom-1/4 left-1/3 w-96 h-96 bg-[#ff9de3]/50 rounded-full mix-blend-multiply filter blur-xl"
-          />
-        </div>
       </div>
     </div>
   );
