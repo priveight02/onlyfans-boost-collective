@@ -43,7 +43,7 @@ const Contact = () => {
           {/* Contact Us label */}
           <div className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 top-0">
             <div className="bg-gradient-to-r from-primary-light/40 via-white/60 to-primary-light/40 backdrop-blur-md px-8 py-2 rounded-full shadow-lg border border-white/20 transition-all duration-300 hover:from-primary-light/50 hover:via-white/70 hover:to-primary-light/50">
-              <span className="text-primary font-medium">
+              <span className="text-black font-medium">
                 Contact Us
               </span>
             </div>

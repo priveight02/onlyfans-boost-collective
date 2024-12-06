@@ -107,7 +107,7 @@ const Services = () => {
                   <service.icon className="h-7 w-7 text-primary" />
                 </div>
                 
-                <h3 className="text-xl font-bold text-primary mb-4 group-hover:text-primary-accent transition-colors duration-300">
+                <h3 className="text-xl font-bold text-black mb-4 group-hover:text-primary-accent transition-colors duration-300">
                   {service.title}
                 </h3>
                 

@@ -8,7 +8,6 @@ const Hero = () => {
         <div className="absolute inset-0 bg-black/10 mix-blend-multiply" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
         
-        {/* Ultra-smooth background patterns with optimized animations */}
         <motion.div
           animate={{
             x: [0, -50, 0],
@@ -77,7 +76,7 @@ const Hero = () => {
           >
             <a
               href="#contact"
-              className="group inline-flex items-center px-8 py-3 text-lg font-medium rounded-full bg-white text-primary hover:bg-primary-light transition-all duration-500 transform hover:scale-105 shadow-lg"
+              className="group inline-flex items-center px-8 py-3 text-lg font-medium rounded-full bg-white text-black hover:bg-primary-light transition-all duration-500 transform hover:scale-105 shadow-lg"
             >
               Get Started
               <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform duration-500" />
@@ -86,7 +85,6 @@ const Hero = () => {
         </motion.div>
       </div>
 
-      {/* Ultra-smooth animated background elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -inset-[10px] opacity-70">
           <motion.div 
