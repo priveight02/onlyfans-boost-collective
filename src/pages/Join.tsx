@@ -19,7 +19,7 @@ const Join = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    const subject = `Application from ${formData.firstName} ${formData.lastName}`;
+    const subject = `Join Application from ${formData.firstName} ${formData.lastName}`;
     const body = `Name: ${formData.firstName} ${formData.lastName}\nEmail: ${formData.email}\nInstagram: ${formData.instagram}\n\nMessage:\n${formData.message}`;
     const mailtoLink = `mailto:protekticorp@proton.me?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     
