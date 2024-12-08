@@ -18,18 +18,11 @@ const Join = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    const subject = `Join Application from ${formData.firstName} ${formData.lastName}`;
-    const body = `Name: ${formData.firstName} ${formData.lastName}\nEmail: ${formData.email}\nInstagram: ${formData.instagram}\n\nMessage:\n${formData.message}`;
-    const mailtoLink = `mailto:protekticorp@proton.me?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    
-    window.location.href = mailtoLink;
-    
+    console.log("Form submitted:", formData);
     toast({
-      title: "Email client opened!",
-      description: "Please send the pre-filled email to complete your application submission.",
+      title: "Application received!",
+      description: "We'll review your application and get back to you soon.",
     });
-    
     setFormData({
       firstName: "",
       lastName: "",

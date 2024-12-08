@@ -34,11 +34,16 @@ const Contact = () => {
       {/* Decorative top separator */}
       <div className="absolute -top-6 left-0 w-full">
         <div className="relative w-full">
+          {/* Gradient line */}
           <div className="absolute inset-0 w-full h-[1px] bg-gradient-to-r from-transparent via-primary/20 to-transparent" />
+          
+          {/* Blurred overlay for depth */}
           <div className="absolute inset-0 w-full h-[2px] bg-white/20 blur-sm" />
+          
+          {/* Contact Us label */}
           <div className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 top-0">
             <div className="bg-gradient-to-r from-primary-light/40 via-white/60 to-primary-light/40 backdrop-blur-md px-8 py-2 rounded-full shadow-lg border border-white/20 transition-all duration-300 hover:from-primary-light/50 hover:via-white/70 hover:to-primary-light/50">
-              <span className="text-gray-900 font-medium">
+              <span className="text-primary font-medium">
                 Contact Us
               </span>
             </div>
@@ -65,7 +70,7 @@ const Contact = () => {
             <span className="invisible">Get in Touch</span>
           </h2>
 
-          <p className="text-lg text-gray-900 mt-1">
+          <p className="text-lg text-gray-600 mt-1">
             Ready to take your career to the next level? Contact us today and unlock your full potential.
           </p>
         </motion.div>
