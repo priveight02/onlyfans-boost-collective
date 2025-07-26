@@ -81,102 +81,78 @@ const OnBoarding = () => {
     setIsSubmitting(true);
     
     try {
-      // Create a Google Forms compatible payload
-      const formPayload = new FormData();
-      
-      // Add all form data as entries
-      Object.entries(formData).forEach(([key, value]) => {
-        if (Array.isArray(value)) {
-          formPayload.append(key, value.join(', '));
-        } else if (typeof value === 'boolean') {
-          formPayload.append(key, value ? 'Yes' : 'No');
-        } else {
-          formPayload.append(key, String(value));
-        }
-      });
-      
-      // Add submission timestamp
-      formPayload.append('submissionTime', new Date().toISOString());
-      
-      // Send email to your address
-      const emailData = {
-        to: 'ozagency.of@gmail.com',
-        subject: `New OnlyFans Application - ${formData.fullLegalName}`,
-        html: `
-          <h2>New OnlyFans Creator Application</h2>
-          <h3>Basic Information:</h3>
-          <p><strong>Full Legal Name:</strong> ${formData.fullLegalName}</p>
-          <p><strong>Online Name:</strong> ${formData.onlineName}</p>
-          <p><strong>Email:</strong> ${formData.emailAddress}</p>
-          <p><strong>Phone:</strong> ${formData.phoneNumber}</p>
-          <p><strong>Social Usernames:</strong> ${formData.socialUsernames}</p>
-          
-          <h3>Personal Profile:</h3>
-          <p><strong>About:</strong> ${formData.personalProfile}</p>
-          <p><strong>Attitude:</strong> ${formData.attitudeDescription}</p>
-          <p><strong>Location:</strong> ${formData.basedLocation}</p>
-          <p><strong>Age:</strong> ${formData.age}</p>
-          <p><strong>Height:</strong> ${formData.height}</p>
-          <p><strong>Languages:</strong> ${formData.languagesSpoken}</p>
-          
-          <h3>Personal Details:</h3>
-          <p><strong>Birthday:</strong> ${formData.birthday}</p>
-          <p><strong>Sexual Orientation:</strong> ${formData.sexualOrientation}</p>
-          <p><strong>Ethnicity:</strong> ${formData.ethnicity}</p>
-          <p><strong>Shoe Size:</strong> ${formData.shoeSize}</p>
-          <p><strong>Bra Size:</strong> ${formData.braSize}</p>
-          <p><strong>Zodiac Sign:</strong> ${formData.zodiacSign}</p>
-          <p><strong>Where From:</strong> ${formData.whereFrom}</p>
-          <p><strong>Favorite Color:</strong> ${formData.favoriteColor}</p>
-          <p><strong>College:</strong> ${formData.college}</p>
-          <p><strong>Kids:</strong> ${formData.kids}</p>
-          <p><strong>Pets:</strong> ${formData.pets}</p>
-          <p><strong>Sports:</strong> ${formData.sports}</p>
-          <p><strong>Places Visited:</strong> ${formData.placesVisited}</p>
-          <p><strong>Relationship Status:</strong> ${formData.relationshipStatus}</p>
-          <p><strong>Other Work:</strong> ${formData.otherWork}</p>
-          
-          <h3>Content & Services:</h3>
-          <p><strong>Content Types:</strong> ${formData.contentTypes.join(', ')}</p>
-          <p><strong>Video Calls:</strong> ${formData.acceptVideoCalls}</p>
-          <p><strong>Sexiest Body Part:</strong> ${formData.sexiestBodyPart}</p>
-          <p><strong>Physical Appearance:</strong> ${formData.physicalAppearance}</p>
-          <p><strong>Custom Requests:</strong> ${formData.customRequests}</p>
-          <p><strong>Go Live:</strong> ${formData.goLive}</p>
-          
-          <h3>Final Details:</h3>
-          <p><strong>Featured People:</strong> ${formData.featuredPeople}</p>
-          <p><strong>OnlyFans Credentials:</strong> ${formData.onlyFansCredentials}</p>
-          <p><strong>Additional Info:</strong> ${formData.additionalInfo}</p>
-          <p><strong>Commitment Understood:</strong> ${formData.commitmentUnderstood ? 'Yes' : 'No'}</p>
-          
-          <p><strong>Submitted:</strong> ${new Date().toLocaleString()}</p>
-        `
-      };
+      // Create a comprehensive email body with all form data
+      const emailBody = `
+NEW ONLYFANS CREATOR APPLICATION
+=====================================
 
-      // Use EmailJS or similar service to send email
-      const response = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          service_id: 'gmail',
-          template_id: 'template_onboarding',
-          user_id: 'user_emailjs_key',
-          template_params: emailData
-        })
-      });
+BASIC INFORMATION:
+• Full Legal Name: ${formData.fullLegalName}
+• Online Name: ${formData.onlineName}
+• Email Address: ${formData.emailAddress}
+• Phone Number: ${formData.phoneNumber}
+• Social Usernames: ${formData.socialUsernames}
 
-      if (response.ok) {
-        toast.success("Application submitted successfully! We'll review it and get back to you within 24 hours.");
+PERSONAL PROFILE:
+• About: ${formData.personalProfile}
+• Attitude Description: ${formData.attitudeDescription}
+• Location: ${formData.basedLocation}
+• Age: ${formData.age}
+• Height: ${formData.height}
+• Languages Spoken: ${formData.languagesSpoken}
+
+PERSONAL DETAILS:
+• Birthday: ${formData.birthday}
+• Sexual Orientation: ${formData.sexualOrientation}
+• Ethnicity: ${formData.ethnicity}
+• Shoe Size: ${formData.shoeSize}
+• Bra Size: ${formData.braSize}
+• Zodiac Sign: ${formData.zodiacSign}
+• Where From: ${formData.whereFrom}
+• Favorite Color: ${formData.favoriteColor}
+• College: ${formData.college}
+• Kids: ${formData.kids}
+• Pets: ${formData.pets}
+• Sports: ${formData.sports}
+• Places Visited: ${formData.placesVisited}
+• Relationship Status: ${formData.relationshipStatus}
+• Other Work: ${formData.otherWork}
+
+CONTENT & SERVICES:
+• Content Types: ${formData.contentTypes.join(', ')}
+• Accept Video Calls: ${formData.acceptVideoCalls}
+• Sexiest Body Part: ${formData.sexiestBodyPart}
+• Physical Appearance: ${formData.physicalAppearance}
+• Custom Requests: ${formData.customRequests}
+• Go Live: ${formData.goLive}
+
+FINAL DETAILS:
+• Featured People: ${formData.featuredPeople}
+• OnlyFans Credentials: ${formData.onlyFansCredentials}
+• Additional Info: ${formData.additionalInfo}
+• Commitment Understood: ${formData.commitmentUnderstood ? 'Yes' : 'No'}
+
+Submitted: ${new Date().toLocaleString()}
+=====================================
+      `;
+
+      const subject = `New OnlyFans Application - ${formData.fullLegalName}`;
+      const mailtoLink = `mailto:ozagency.of@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(emailBody)}`;
+      
+      // Open email client with pre-filled data
+      window.open(mailtoLink, '_blank');
+      
+      // Show success message
+      toast.success("Your email client has been opened with the application data. Please send the email to complete your submission!");
+      
+      // Navigate to home page after a short delay
+      setTimeout(() => {
         navigate("/");
-      } else {
-        throw new Error('Failed to submit');
-      }
+      }, 2000);
+      
     } catch (error) {
       console.error('Submission error:', error);
-      toast.error("There was an error submitting your application. Please try again or contact us directly.");
+      toast.error("There was an error preparing your application. Please try again or contact us directly.");
     } finally {
       setIsSubmitting(false);
     }
