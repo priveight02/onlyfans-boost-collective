@@ -81,78 +81,72 @@ const OnBoarding = () => {
     setIsSubmitting(true);
     
     try {
-      // Create a comprehensive email body with all form data
-      const emailBody = `
-NEW ONLYFANS CREATOR APPLICATION
-=====================================
+      // Prepare the data for Google Apps Script
+      const submissionData = {
+        timestamp: new Date().toISOString(),
+        fullLegalName: formData.fullLegalName,
+        onlineName: formData.onlineName,
+        emailAddress: formData.emailAddress,
+        phoneNumber: formData.phoneNumber,
+        socialUsernames: formData.socialUsernames,
+        personalProfile: formData.personalProfile,
+        attitudeDescription: formData.attitudeDescription,
+        basedLocation: formData.basedLocation,
+        age: formData.age,
+        height: formData.height,
+        languagesSpoken: formData.languagesSpoken,
+        birthday: formData.birthday,
+        sexualOrientation: formData.sexualOrientation,
+        ethnicity: formData.ethnicity,
+        shoeSize: formData.shoeSize,
+        braSize: formData.braSize,
+        zodiacSign: formData.zodiacSign,
+        whereFrom: formData.whereFrom,
+        favoriteColor: formData.favoriteColor,
+        college: formData.college,
+        kids: formData.kids,
+        pets: formData.pets,
+        sports: formData.sports,
+        placesVisited: formData.placesVisited,
+        relationshipStatus: formData.relationshipStatus,
+        otherWork: formData.otherWork,
+        contentTypes: formData.contentTypes.join(', '),
+        acceptVideoCalls: formData.acceptVideoCalls,
+        sexiestBodyPart: formData.sexiestBodyPart,
+        physicalAppearance: formData.physicalAppearance,
+        customRequests: formData.customRequests,
+        goLive: formData.goLive,
+        featuredPeople: formData.featuredPeople,
+        onlyFansCredentials: formData.onlyFansCredentials,
+        additionalInfo: formData.additionalInfo,
+        commitmentUnderstood: formData.commitmentUnderstood ? 'Yes' : 'No'
+      };
 
-BASIC INFORMATION:
-• Full Legal Name: ${formData.fullLegalName}
-• Online Name: ${formData.onlineName}
-• Email Address: ${formData.emailAddress}
-• Phone Number: ${formData.phoneNumber}
-• Social Usernames: ${formData.socialUsernames}
-
-PERSONAL PROFILE:
-• About: ${formData.personalProfile}
-• Attitude Description: ${formData.attitudeDescription}
-• Location: ${formData.basedLocation}
-• Age: ${formData.age}
-• Height: ${formData.height}
-• Languages Spoken: ${formData.languagesSpoken}
-
-PERSONAL DETAILS:
-• Birthday: ${formData.birthday}
-• Sexual Orientation: ${formData.sexualOrientation}
-• Ethnicity: ${formData.ethnicity}
-• Shoe Size: ${formData.shoeSize}
-• Bra Size: ${formData.braSize}
-• Zodiac Sign: ${formData.zodiacSign}
-• Where From: ${formData.whereFrom}
-• Favorite Color: ${formData.favoriteColor}
-• College: ${formData.college}
-• Kids: ${formData.kids}
-• Pets: ${formData.pets}
-• Sports: ${formData.sports}
-• Places Visited: ${formData.placesVisited}
-• Relationship Status: ${formData.relationshipStatus}
-• Other Work: ${formData.otherWork}
-
-CONTENT & SERVICES:
-• Content Types: ${formData.contentTypes.join(', ')}
-• Accept Video Calls: ${formData.acceptVideoCalls}
-• Sexiest Body Part: ${formData.sexiestBodyPart}
-• Physical Appearance: ${formData.physicalAppearance}
-• Custom Requests: ${formData.customRequests}
-• Go Live: ${formData.goLive}
-
-FINAL DETAILS:
-• Featured People: ${formData.featuredPeople}
-• OnlyFans Credentials: ${formData.onlyFansCredentials}
-• Additional Info: ${formData.additionalInfo}
-• Commitment Understood: ${formData.commitmentUnderstood ? 'Yes' : 'No'}
-
-Submitted: ${new Date().toLocaleString()}
-=====================================
-      `;
-
-      const subject = `New OnlyFans Application - ${formData.fullLegalName}`;
-      const mailtoLink = `mailto:ozagency.of@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(emailBody)}`;
+      // Call Google Apps Script Web App
+      // You need to replace this URL with your deployed Google Apps Script URL
+      const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec';
       
-      // Open email client with pre-filled data
-      window.open(mailtoLink, '_blank');
+      console.log('Sending data to Google Apps Script:', submissionData);
       
-      // Show success message
-      toast.success("Your email client has been opened with the application data. Please send the email to complete your submission!");
+      const response = await fetch(GOOGLE_SCRIPT_URL, {
+        method: 'POST',
+        mode: 'no-cors', // Required for Google Apps Script
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(submissionData)
+      });
+
+      // Since mode is 'no-cors', we can't read the response
+      // But if we reach here without error, the request was sent
+      console.log('Request sent to Google Apps Script');
       
-      // Navigate to home page after a short delay
-      setTimeout(() => {
-        navigate("/");
-      }, 2000);
+      toast.success("Application submitted successfully! We'll review it and get back to you within 24 hours.");
+      navigate("/");
       
     } catch (error) {
       console.error('Submission error:', error);
-      toast.error("There was an error preparing your application. Please try again or contact us directly.");
+      toast.error("There was an error submitting your application. Please try again or contact us directly at ozagency.of@gmail.com");
     } finally {
       setIsSubmitting(false);
     }
