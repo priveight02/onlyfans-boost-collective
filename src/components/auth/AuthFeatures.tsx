@@ -23,7 +23,12 @@ const Stat = ({ number, label }: Stat) => (
 export const AuthFeatures = () => (
   <div className="space-y-6">
     <div className="animate-fade-in">
-      <h2 className="text-2xl font-bold text-white mb-4 font-heading tracking-tight">Why Choose Us?</h2>
+      <div className="text-center mb-6">
+        <h2 className="text-3xl font-bold text-white mb-2 font-heading tracking-tight bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
+          Join Us Now
+        </h2>
+        <div className="w-16 h-1 bg-gradient-to-r from-white/60 to-transparent mx-auto rounded-full"></div>
+      </div>
       <div className="space-y-3">
         <Feature
           icon={Shield}
