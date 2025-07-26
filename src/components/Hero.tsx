@@ -66,7 +66,7 @@ const Hero = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.4 }}
-            className="text-xl md:text-2xl text-white/80 mb-8 max-w-3xl mx-auto leading-relaxed font-medium drop-shadow-md bg-white/10 backdrop-blur-sm rounded-2xl px-8 py-4 border border-white/20"
+            className="text-xl md:text-2xl text-white/60 mb-8 max-w-3xl mx-auto leading-relaxed font-medium drop-shadow-md bg-white/10 backdrop-blur-sm rounded-2xl px-8 py-4 border border-white/20"
           >
             Transform your OnlyFans journey with our proven strategies. Join the elite creators earning 6-figures monthly.
           </motion.p>
