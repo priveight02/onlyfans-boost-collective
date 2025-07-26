@@ -257,6 +257,8 @@ const Onboarding = () => {
     }
   };
 
+  console.log('showChoice:', showChoice); // Debug log
+  
   if (showChoice) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-primary/5 via-white to-primary-accent/5 py-12 px-4">
