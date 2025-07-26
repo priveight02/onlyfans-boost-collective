@@ -89,59 +89,65 @@ export const AuthForm = ({ isLogin, setIsLogin }: AuthFormProps) => {
   };
 
   return (
-    <div className="w-full max-w-md bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl p-8 animate-scale-in">
-      <h1 className="text-3xl font-bold text-center mb-2 text-primary">
-        {isLogin ? "Welcome Back" : "Create Account"}
-      </h1>
-      <p className="text-center text-gray-600 mb-8">
-        {isLogin
-          ? "Sign in to access your account"
-          : "Register to join our platform"}
-      </p>
+    <div className="w-full max-w-md bg-white/10 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 p-8 animate-scale-in hover:bg-white/15 transition-all duration-500"
+      style={{ 
+        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.1)' 
+      }}
+    >
+      <div className="text-center mb-8">
+        <h1 className="text-3xl font-bold font-heading mb-3 text-white drop-shadow-lg">
+          {isLogin ? "Welcome Back" : "Create Account"}
+        </h1>
+        <p className="text-white/80 text-sm">
+          {isLogin
+            ? "Sign in to access your account"
+            : "Register to join our platform"}
+        </p>
+      </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="space-y-2">
-          <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+        <div className="space-y-3">
+          <label htmlFor="email" className="block text-sm font-semibold text-white/90">
             Email
           </label>
           <div className="relative">
-            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 h-4 w-4" />
+            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-white/60 h-5 w-5" />
             <Input
               id="email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="pl-10"
+              className="pl-12 bg-white/20 border-white/30 text-white placeholder:text-white/50 focus:bg-white/25 focus:border-white/50 transition-all duration-300 rounded-xl h-12"
               placeholder="Enter your email"
             />
           </div>
         </div>
 
-        <div className="space-y-2">
-          <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+        <div className="space-y-3">
+          <label htmlFor="password" className="block text-sm font-semibold text-white/90">
             Password
           </label>
           <div className="relative">
-            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 h-4 w-4" />
+            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-white/60 h-5 w-5" />
             <Input
               id="password"
               type={showPassword ? "text" : "password"}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className="pl-10 pr-10"
+              className="pl-12 pr-14 bg-white/20 border-white/30 text-white placeholder:text-white/50 focus:bg-white/25 focus:border-white/50 transition-all duration-300 rounded-xl h-12"
               placeholder="Enter your password"
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-white/60 hover:text-white/80 transition-colors"
             >
               {showPassword ? (
-                <EyeOff className="h-4 w-4" />
+                <EyeOff className="h-5 w-5" />
               ) : (
-                <Eye className="h-4 w-4" />
+                <Eye className="h-5 w-5" />
               )}
             </button>
           </div>
@@ -149,7 +155,7 @@ export const AuthForm = ({ isLogin, setIsLogin }: AuthFormProps) => {
 
         <Button
           type="submit"
-          className="w-full bg-primary-accent hover:bg-primary-accent/90 transition-all duration-300 relative group"
+          className="w-full bg-white/25 hover:bg-white/35 text-white font-semibold transition-all duration-300 relative group rounded-xl h-12 border border-white/30 shadow-lg backdrop-blur-sm"
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
         >
@@ -176,20 +182,20 @@ export const AuthForm = ({ isLogin, setIsLogin }: AuthFormProps) => {
         </Button>
       </form>
 
-      <div className="mt-6">
+      <div className="mt-8">
         <div className="relative">
           <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-gray-300"></div>
+            <div className="w-full border-t border-white/30"></div>
           </div>
           <div className="relative flex justify-center text-sm">
-            <span className="px-2 bg-white text-gray-500">Or</span>
+            <span className="px-4 bg-white/10 text-white/80 backdrop-blur-sm rounded-lg">Or</span>
           </div>
         </div>
 
-        <div className="mt-4 flex flex-col space-y-2">
+        <div className="mt-6 flex flex-col space-y-3">
           <button
             onClick={() => setIsLogin(!isLogin)}
-            className="text-center text-primary-accent hover:text-primary-accent/80 text-sm font-medium transition-colors"
+            className="text-center text-white hover:text-white/80 text-sm font-medium transition-colors p-3 bg-white/10 rounded-xl border border-white/20 hover:bg-white/15"
           >
             {isLogin ? "Need an account? Register" : "Already have an account? Login"}
           </button>
@@ -198,7 +204,7 @@ export const AuthForm = ({ isLogin, setIsLogin }: AuthFormProps) => {
             <button
               onClick={handlePasswordReset}
               disabled={isResetting}
-              className="text-center text-primary-accent hover:text-primary-accent/80 text-sm font-medium transition-colors"
+              className="text-center text-white/80 hover:text-white text-sm font-medium transition-colors p-3 bg-white/5 rounded-xl border border-white/10 hover:bg-white/10"
             >
               {isResetting ? "Sending reset email..." : "Forgot your password?"}
             </button>
@@ -207,9 +213,9 @@ export const AuthForm = ({ isLogin, setIsLogin }: AuthFormProps) => {
       </div>
 
       {!isLogin && (
-        <div className="mt-6 p-4 bg-primary/5 rounded-lg">
-          <h3 className="text-sm font-medium text-gray-700 mb-2">Password Requirements:</h3>
-          <ul className="text-xs text-gray-600 space-y-1">
+        <div className="mt-6 p-4 bg-white/10 rounded-xl border border-white/20 backdrop-blur-sm">
+          <h3 className="text-sm font-semibold text-white/90 mb-3">Password Requirements:</h3>
+          <ul className="text-xs text-white/70 space-y-1">
             <li>• Minimum 8 characters</li>
             <li>• At least one uppercase letter</li>
             <li>• At least one lowercase letter</li>
