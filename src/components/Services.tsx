@@ -63,8 +63,15 @@ const item = {
 
 const Services = () => {
   return (
-    <section id="services" className="py-8 pb-16 bg-gradient-to-b from-gray-50 to-white relative overflow-hidden">
-      <div className="absolute inset-y-8 inset-x-0 bg-grid-primary/[0.02] bg-[size:20px_20px]" />
+    <section id="services" className="py-24 bg-gradient-to-br from-primary via-primary-accent to-accent relative overflow-hidden">
+      {/* Background Effects */}
+      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/5 to-transparent" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_50%,rgba(255,255,255,0.1),transparent_50%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_80%,rgba(255,255,255,0.08),transparent_50%)]" />
+      
+      {/* Animated background elements */}
+      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-white/5 rounded-full blur-3xl animate-pulse" />
+      <div className="absolute bottom-1/3 right-1/4 w-80 h-80 bg-white/5 rounded-full blur-3xl animate-pulse delay-1000" />
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
         <motion.div 
@@ -72,17 +79,13 @@ const Services = () => {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.5 }}
-          className="text-center mb-12"
+          className="text-center mb-16"
         >
-          <h2 className="text-4xl md:text-5xl font-bold font-heading mb-6 relative">
-            <span className="absolute inset-0 bg-gradient-to-r from-primary via-accent to-primary bg-[length:200%_100%] bg-clip-text text-transparent animate-[gradient_15s_linear_infinite]">
-              Elite Model Management Services
-            </span>
-            <span className="invisible">Elite Model Management Services</span>
+          <h2 className="text-4xl md:text-6xl font-bold font-heading mb-6 text-white">
+            Elite Model Management Services
           </h2>
-
-          <p className="text-lg text-gray-600 mt-12 max-w-3xl mx-auto">
-            Join the top 1% of OnlyFans creators. Our proven system has helped models achieve 6-figure monthly earnings through strategic management and optimization.
+          <p className="text-xl text-white/90 max-w-3xl mx-auto">
+            Join the top 1% of creators. Our proven system delivers 6-figure monthly earnings.
           </p>
         </motion.div>
         
@@ -91,7 +94,7 @@ const Services = () => {
           initial="hidden"
           whileInView="show"
           viewport={{ once: true }}
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-8"
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
         >
           {services.map((service, index) => (
             <motion.div
@@ -99,23 +102,20 @@ const Services = () => {
               variants={item}
               className="relative group"
             >
-              <div className="absolute inset-0 bg-gradient-to-r rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 -z-10"
-                   style={{ backgroundImage: `linear-gradient(to right, ${service.color})` }} />
-              
-              <div className="bg-white rounded-xl p-8 shadow-sm hover:shadow-xl transition-all duration-500 transform hover:-translate-y-1 relative z-10">
-                <div className="w-14 h-14 bg-gradient-to-br from-primary-light to-primary-accent rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
-                  <service.icon className="h-7 w-7 text-primary" />
+              <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-8 border border-white/20 hover:bg-white/15 transition-all duration-500 transform hover:-translate-y-2 hover:scale-105">
+                <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center mb-6 group-hover:bg-white/30 transition-all duration-300">
+                  <service.icon className="h-8 w-8 text-white" />
                 </div>
                 
-                <h3 className="text-xl font-bold text-primary mb-4 group-hover:text-primary-accent transition-colors duration-300">
+                <h3 className="text-2xl font-bold text-white mb-4">
                   {service.title}
                 </h3>
                 
-                <p className="text-gray-600 mb-6 line-clamp-3">
-                  {service.description}
+                <p className="text-white/80 mb-6 text-sm leading-relaxed">
+                  {service.description.split('.')[0]}.
                 </p>
                 
-                <div className="text-primary-accent font-semibold text-sm py-2 px-4 bg-primary-light/30 rounded-full inline-block">
+                <div className="bg-white/20 text-white font-bold text-lg py-3 px-6 rounded-xl text-center border border-white/30">
                   {service.highlight}
                 </div>
               </div>
