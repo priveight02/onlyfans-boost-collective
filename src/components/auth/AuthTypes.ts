@@ -1,5 +1,7 @@
+import { LucideIcon } from "lucide-react";
+
 export interface Feature {
-  icon: string;
+  icon: LucideIcon;
   title: string;
   description: string;
 }
