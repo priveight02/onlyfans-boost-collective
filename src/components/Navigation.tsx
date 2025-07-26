@@ -38,7 +38,11 @@ const Navigation = () => {
   // Define menu items based on user authorization
   const menuItems: MenuItem[] = [
     { name: "Home", href: "/" },
+    { name: "About", href: "/about" },
+    { name: "Services", href: "/services" },
+    { name: "Models", href: "/models" },
     { name: "Join", href: "/join" },
+    { name: "FAQ", href: "/faq" },
   ];
 
   // Only add admin link if user is authorized
