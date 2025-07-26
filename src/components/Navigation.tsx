@@ -67,7 +67,7 @@ const Navigation = () => {
             <div className="flex items-center">
               <Link 
                 to="/" 
-                className="flex items-center space-x-3 group transition-all duration-300 hover:scale-105"
+                className="flex items-center group transition-all duration-300 hover:scale-105"
               >
                 <div className="w-32 h-32">
                   <img 
@@ -76,9 +76,6 @@ const Navigation = () => {
                     className="w-full h-full object-contain"
                   />
                 </div>
-                <span className="text-xl font-heading font-bold text-primary tracking-tight group-hover:text-accent transition-colors duration-300">
-                  OZ Agency
-                </span>
               </Link>
             </div>
             
