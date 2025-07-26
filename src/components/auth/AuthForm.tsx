@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/useAuth";
-import { Eye, EyeOff, LogIn, UserPlus, DoorClosed, DoorOpen, Mail, Lock } from "lucide-react";
+import { Eye, EyeOff, LogIn, UserPlus, DoorClosed, DoorOpen, Mail, Lock, Check } from "lucide-react";
 import { auth } from "@/lib/firebase";
 import { sendPasswordResetEmail } from "firebase/auth";
 import { AuthFormProps } from "./AuthTypes";
@@ -27,8 +27,26 @@ export const AuthForm = ({ isLogin, setIsLogin }: AuthFormProps) => {
   const [showPassword, setShowPassword] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
+  const [passwordRequirements, setPasswordRequirements] = useState({
+    minLength: false,
+    hasUppercase: false,
+    hasLowercase: false,
+    hasNumber: false,
+    hasSpecial: false,
+  });
   const { signIn, signUp } = useAuth();
   const navigate = useNavigate();
+
+  // Real-time password validation
+  useEffect(() => {
+    setPasswordRequirements({
+      minLength: password.length >= 8,
+      hasUppercase: /[A-Z]/.test(password),
+      hasLowercase: /[a-z]/.test(password),
+      hasNumber: /[0-9]/.test(password),
+      hasSpecial: /[^A-Za-z0-9]/.test(password),
+    });
+  }, [password]);
 
   const validateForm = () => {
     try {
@@ -214,12 +232,67 @@ export const AuthForm = ({ isLogin, setIsLogin }: AuthFormProps) => {
       {!isLogin && (
         <div className="mt-6 p-4 bg-white/10 rounded-xl border border-white/20 backdrop-blur-sm">
           <h3 className="text-sm font-semibold text-white/90 mb-3">Password Requirements:</h3>
-          <ul className="text-xs text-white/70 space-y-1">
-            <li>• Minimum 8 characters</li>
-            <li>• At least one uppercase letter</li>
-            <li>• At least one lowercase letter</li>
-            <li>• At least one number</li>
-            <li>• At least one special character</li>
+          <ul className="text-xs space-y-2">
+            <li className={`flex items-center gap-2 transition-all duration-300 ${
+              passwordRequirements.minLength 
+                ? "text-green-300" 
+                : "text-white/70"
+            }`}>
+              <Check className={`h-3 w-3 transition-all duration-300 ${
+                passwordRequirements.minLength 
+                  ? "text-green-300 opacity-100" 
+                  : "text-white/40 opacity-0"
+              }`} />
+              Minimum 8 characters
+            </li>
+            <li className={`flex items-center gap-2 transition-all duration-300 ${
+              passwordRequirements.hasUppercase 
+                ? "text-green-300" 
+                : "text-white/70"
+            }`}>
+              <Check className={`h-3 w-3 transition-all duration-300 ${
+                passwordRequirements.hasUppercase 
+                  ? "text-green-300 opacity-100" 
+                  : "text-white/40 opacity-0"
+              }`} />
+              At least one uppercase letter
+            </li>
+            <li className={`flex items-center gap-2 transition-all duration-300 ${
+              passwordRequirements.hasLowercase 
+                ? "text-green-300" 
+                : "text-white/70"
+            }`}>
+              <Check className={`h-3 w-3 transition-all duration-300 ${
+                passwordRequirements.hasLowercase 
+                  ? "text-green-300 opacity-100" 
+                  : "text-white/40 opacity-0"
+              }`} />
+              At least one lowercase letter
+            </li>
+            <li className={`flex items-center gap-2 transition-all duration-300 ${
+              passwordRequirements.hasNumber 
+                ? "text-green-300" 
+                : "text-white/70"
+            }`}>
+              <Check className={`h-3 w-3 transition-all duration-300 ${
+                passwordRequirements.hasNumber 
+                  ? "text-green-300 opacity-100" 
+                  : "text-white/40 opacity-0"
+              }`} />
+              At least one number
+            </li>
+            <li className={`flex items-center gap-2 transition-all duration-300 ${
+              passwordRequirements.hasSpecial 
+                ? "text-green-300" 
+                : "text-white/70"
+            }`}>
+              <Check className={`h-3 w-3 transition-all duration-300 ${
+                passwordRequirements.hasSpecial 
+                  ? "text-green-300 opacity-100" 
+                  : "text-white/40 opacity-0"
+              }`} />
+              At least one special character
+            </li>
           </ul>
         </div>
       )}
