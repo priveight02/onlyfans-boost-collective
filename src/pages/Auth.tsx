@@ -100,30 +100,26 @@ const Auth = () => {
       </div>
 
       {/* Content */}
-      <div className="relative min-h-screen flex items-center justify-center px-4 sm:px-6 lg:px-8">
+      <div className="relative min-h-screen pt-16 pb-12 px-4 flex items-center">
         <div className="absolute top-4 left-4 z-10">
           <BackButton />
         </div>
         
-        <div className="w-full max-w-7xl mx-auto">
-          <div className="grid lg:grid-cols-2 gap-8 lg:gap-16 items-center min-h-[calc(100vh-8rem)]">
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.8 }}
-              className="order-2 lg:order-1"
-            >
-              <AuthFeatures />
-            </motion.div>
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.8, delay: 0.2 }}
-              className="order-1 lg:order-2"
-            >
-              <AuthForm isLogin={isLogin} setIsLogin={setIsLogin} />
-            </motion.div>
-          </div>
+        <div className="max-w-6xl mx-auto w-full grid md:grid-cols-2 gap-12 items-center">
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.8 }}
+          >
+            <AuthFeatures />
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.8, delay: 0.2 }}
+          >
+            <AuthForm isLogin={isLogin} setIsLogin={setIsLogin} />
+          </motion.div>
         </div>
       </div>
     </div>
