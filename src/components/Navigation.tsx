@@ -70,11 +70,11 @@ const Navigation = () => {
                 to="/" 
                 className="flex items-center space-x-3 group transition-all duration-300 hover:scale-105"
               >
-                <div className="w-10 h-10 rounded-lg overflow-hidden shadow-lg group-hover:shadow-xl transition-shadow duration-300">
+                <div className="w-14 h-14 rounded-lg overflow-hidden shadow-lg group-hover:shadow-xl transition-shadow duration-300">
                   <img 
-                    src="/lovable-uploads/de380a59-3cca-4551-ac48-b96afaf53f88.png" 
+                    src="/lovable-uploads/2c50ce76-5d51-4bda-9843-e5ef53bec304.png" 
                     alt="OZ Agency Logo" 
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-contain"
                   />
                 </div>
                 <span className="text-xl font-heading font-bold text-primary tracking-tight group-hover:text-accent transition-colors duration-300">
