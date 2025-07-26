@@ -4,45 +4,45 @@ import { motion } from "framer-motion";
 const services = [
   {
     title: "Elite Content Production",
-    description: "Studio-quality photo and video content that drives massive subscriber growth. Our professional team creates viral-worthy content that converts.",
+    description: "Studio-quality content that drives massive growth.",
     icon: Camera,
-    highlight: "Models earn $50K+ monthly average",
-    color: "from-blue-400/20 to-cyan-400/20"
+    highlight: "$50K+ monthly average",
+    metric: "Models earn"
   },
   {
     title: "Personal Brand Empire",
-    description: "Build an irresistible personal brand that attracts premium subscribers willing to pay top dollar. Become the model everyone talks about.",
+    description: "Build an irresistible brand that attracts premium subscribers.",
     icon: Users,
-    highlight: "300% follower growth in 90 days",
-    color: "from-blue-500/20 to-blue-400/20"
+    highlight: "300% growth",
+    metric: "Follower increase"
   },
   {
     title: "Viral Marketing Campaigns",
-    description: "Explosive multi-platform marketing that makes you the #1 trending creator. We handle all promotion while you focus on content creation.",
+    description: "Multi-platform marketing that makes you #1 trending.",
     icon: Megaphone,
-    highlight: "10x subscriber acquisition rate",
-    color: "from-cyan-400/20 to-blue-500/20"
+    highlight: "10x acquisition",
+    metric: "Subscriber rate"
   },
   {
     title: "Revenue Maximization",
-    description: "Unlock multiple 6-figure income streams through strategic pricing, premium content tiers, and exclusive offerings that maximize your earnings.",
+    description: "Multiple 6-figure income streams through strategic pricing.",
     icon: DollarSign,
-    highlight: "Average $100K+ monthly revenue",
-    color: "from-blue-600/20 to-blue-400/20"
+    highlight: "$100K+ monthly",
+    metric: "Average revenue"
   },
   {
     title: "Elite Analytics Dashboard",
-    description: "Real-time data insights that optimize every aspect of your OnlyFans strategy. Track performance and scale what works best.",
+    description: "Real-time insights that optimize your OnlyFans strategy.",
     icon: TrendingUp,
-    highlight: "Data-driven 500% ROI growth",
-    color: "from-blue-400/20 to-cyan-500/20"
+    highlight: "500% ROI growth",
+    metric: "Data-driven"
   },
   {
     title: "VIP Fan Management",
-    description: "Professional fan engagement strategies that create obsessed, loyal subscribers who stay subscribed and spend more every month.",
+    description: "Professional engagement creating loyal subscribers.",
     icon: MessageSquare,
-    highlight: "98% subscriber retention rate",
-    color: "from-cyan-500/20 to-blue-600/20"
+    highlight: "98% retention",
+    metric: "Subscriber rate"
   }
 ];
 
@@ -63,26 +63,25 @@ const item = {
 
 const Services = () => {
   return (
-    <section id="services" className="py-8 pb-16 bg-gradient-to-b from-gray-50 to-white relative overflow-hidden">
-      <div className="absolute inset-y-8 inset-x-0 bg-grid-primary/[0.02] bg-[size:20px_20px]" />
+    <section id="services" className="py-24 bg-gradient-to-br from-primary via-accent to-primary relative overflow-hidden">
+      {/* Background decorative elements */}
+      <div className="absolute inset-0 bg-grid-white/[0.05] bg-[size:20px_20px]" />
+      <div className="absolute top-1/4 right-1/4 w-80 h-80 bg-white/10 rounded-full blur-3xl" />
+      <div className="absolute bottom-1/3 left-1/3 w-72 h-72 bg-white/10 rounded-full blur-3xl" />
       
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.5 }}
-          className="text-center mb-12"
+          className="text-center mb-16"
         >
-          <h2 className="text-4xl md:text-5xl font-bold font-heading mb-6 relative">
-            <span className="absolute inset-0 bg-gradient-to-r from-primary via-accent to-primary bg-[length:200%_100%] bg-clip-text text-transparent animate-[gradient_15s_linear_infinite]">
-              Elite Model Management Services
-            </span>
-            <span className="invisible">Elite Model Management Services</span>
+          <h2 className="text-4xl md:text-5xl font-bold text-white mb-6 font-heading">
+            Elite Model Management Services
           </h2>
-
-          <p className="text-lg text-gray-600 mt-12 max-w-3xl mx-auto">
-            Join the top 1% of OnlyFans creators. Our proven system has helped models achieve 6-figure monthly earnings through strategic management and optimization.
+          <p className="text-xl text-white/90 max-w-3xl mx-auto">
+            Join the top 1% of OnlyFans creators. Our proven system has helped models achieve 6-figure monthly earnings.
           </p>
         </motion.div>
         
@@ -91,7 +90,7 @@ const Services = () => {
           initial="hidden"
           whileInView="show"
           viewport={{ once: true }}
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-8"
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
         >
           {services.map((service, index) => (
             <motion.div
@@ -99,24 +98,28 @@ const Services = () => {
               variants={item}
               className="relative group"
             >
-              <div className="absolute inset-0 bg-gradient-to-r rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 -z-10"
-                   style={{ backgroundImage: `linear-gradient(to right, ${service.color})` }} />
-              
-              <div className="bg-white rounded-xl p-8 shadow-sm hover:shadow-xl transition-all duration-500 transform hover:-translate-y-1 relative z-10">
-                <div className="w-14 h-14 bg-gradient-to-br from-primary-light to-primary-accent rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
-                  <service.icon className="h-7 w-7 text-primary" />
+              <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-8 shadow-xl hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2 hover:bg-white">
+                <div className="w-16 h-16 bg-gradient-to-br from-primary to-accent rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 shadow-lg">
+                  <service.icon className="h-8 w-8 text-white" />
                 </div>
                 
-                <h3 className="text-xl font-bold text-primary mb-4 group-hover:text-primary-accent transition-colors duration-300">
+                <h3 className="text-2xl font-bold text-gray-900 mb-3">
                   {service.title}
                 </h3>
                 
-                <p className="text-gray-600 mb-6 line-clamp-3">
+                <p className="text-gray-600 mb-6 text-lg leading-relaxed">
                   {service.description}
                 </p>
                 
-                <div className="text-primary-accent font-semibold text-sm py-2 px-4 bg-primary-light/30 rounded-full inline-block">
-                  {service.highlight}
+                <div className="flex items-center justify-between">
+                  <div className="text-left">
+                    <div className="text-xs text-gray-500 uppercase font-medium tracking-wide">
+                      {service.metric}
+                    </div>
+                    <div className="text-2xl font-bold text-primary">
+                      {service.highlight}
+                    </div>
+                  </div>
                 </div>
               </div>
             </motion.div>
