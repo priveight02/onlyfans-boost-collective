@@ -100,7 +100,7 @@ const Auth = () => {
       </div>
 
       {/* Content */}
-      <div className="relative min-h-screen pt-0 pb-8 px-4 flex items-start justify-center">
+      <div className="relative min-h-screen pt-6 pb-8 px-4 flex items-start justify-center">
         <div className="absolute top-2 left-4 z-10">
           <BackButton />
         </div>
