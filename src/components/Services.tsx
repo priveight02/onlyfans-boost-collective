@@ -64,17 +64,31 @@ const item = {
 const Services = () => {
   return (
     <section id="services" className="relative overflow-hidden">
-      {/* Smooth transition with bubbles */}
-      <div className="h-32 bg-gradient-to-b from-transparent via-primary/20 to-primary relative">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(255,255,255,0.1),transparent_40%)]" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_60%_40%,rgba(255,255,255,0.08),transparent_30%)]" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_60%,rgba(255,255,255,0.06),transparent_35%)]" />
+      {/* Modern geometric transition */}
+      <div className="h-24 bg-white relative">
+        <svg 
+          className="absolute bottom-0 w-full h-24" 
+          viewBox="0 0 1440 96" 
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path 
+            d="M0,96L60,85.3C120,75,240,53,360,48C480,43,600,53,720,58.7C840,64,960,64,1080,58.7C1200,53,1320,43,1380,37.3L1440,32L1440,96L1380,96C1320,96,1200,96,1080,96C960,96,840,96,720,96C600,96,480,96,360,96C240,96,120,96,60,96L0,96Z" 
+            fill="url(#blueGradient)"
+          />
+          <defs>
+            <linearGradient id="blueGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor="hsl(210, 100%, 45%)" />
+              <stop offset="50%" stopColor="hsl(200, 100%, 35%)" />
+              <stop offset="100%" stopColor="hsl(200, 100%, 50%)" />
+            </linearGradient>
+          </defs>
+        </svg>
         
-        {/* Animated floating bubbles */}
-        <div className="absolute top-4 left-1/4 w-16 h-16 bg-white/10 rounded-full blur-sm animate-pulse" />
-        <div className="absolute top-8 right-1/3 w-12 h-12 bg-white/8 rounded-full blur-sm animate-pulse delay-500" />
-        <div className="absolute top-12 left-1/2 w-20 h-20 bg-white/6 rounded-full blur-md animate-pulse delay-1000" />
-        <div className="absolute top-6 right-1/4 w-8 h-8 bg-white/12 rounded-full blur-sm animate-pulse delay-300" />
+        {/* Modern floating elements */}
+        <div className="absolute top-4 left-1/4 w-3 h-3 bg-primary rounded-full animate-bounce" />
+        <div className="absolute top-8 right-1/3 w-2 h-2 bg-accent rounded-full animate-bounce delay-300" />
+        <div className="absolute top-6 left-1/2 w-4 h-4 bg-primary-accent rounded-full animate-bounce delay-500" />
+        <div className="absolute top-10 right-1/4 w-2 h-2 bg-primary rounded-full animate-bounce delay-700" />
       </div>
 
       <div className="py-16 bg-gradient-to-br from-primary via-primary-accent to-accent relative">
