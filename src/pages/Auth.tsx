@@ -105,22 +105,32 @@ const Auth = () => {
           <BackButton />
         </div>
         
-        <div className="max-w-6xl grid md:grid-cols-2 gap-8 items-center px-8">
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.8 }}
-          >
-            <AuthFeatures />
-          </motion.div>
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.8, delay: 0.2 }}
-            className="mt-16"
-          >
-            <AuthForm isLogin={isLogin} setIsLogin={setIsLogin} />
-          </motion.div>
+        <div className="max-w-6xl w-full px-8">
+          {/* Centered Title */}
+          <div className="text-center mb-8 flex flex-col items-center">
+            <h2 className="text-3xl font-bold text-white mb-2 font-heading tracking-tight bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
+              Join Us Now
+            </h2>
+            <div className="w-16 h-1 bg-gradient-to-r from-white/60 to-transparent rounded-full"></div>
+          </div>
+          
+          <div className="grid md:grid-cols-2 gap-8 items-center">
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.8 }}
+            >
+              <AuthFeatures />
+            </motion.div>
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.8, delay: 0.2 }}
+              className="mt-16"
+            >
+              <AuthForm isLogin={isLogin} setIsLogin={setIsLogin} />
+            </motion.div>
+          </div>
         </div>
       </div>
     </div>
