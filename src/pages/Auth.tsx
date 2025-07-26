@@ -8,7 +8,7 @@ const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-primary via-accent to-primary-accent">
+    <div className="relative h-screen overflow-hidden bg-gradient-to-br from-primary via-accent to-primary-accent">
       {/* Background Effects - Matching Hero Section */}
       <div className="absolute inset-0">
         <div className="absolute inset-0 bg-black/10 mix-blend-multiply" />
