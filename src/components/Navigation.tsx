@@ -38,7 +38,7 @@ const Navigation = () => {
   // Define menu items based on user authorization
   const menuItems: MenuItem[] = [
     { name: "Home", href: "/" },
-    { name: "About", href: "/about" },
+    { name: "OnBoarding", href: "/onboarding" },
     { name: "Services", href: "/services" },
     { name: "Models", href: "/models" },
     { name: "Join", href: "/join" },
