@@ -185,10 +185,12 @@ export const AuthForm = ({ isLogin, setIsLogin }: AuthFormProps) => {
       <div className="mt-8">
         <div className="relative">
           <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-white/30"></div>
+            <div className="w-full h-px bg-gradient-to-r from-transparent via-white/40 to-transparent"></div>
           </div>
           <div className="relative flex justify-center text-sm">
-            <span className="px-4 bg-white/10 text-white/80 backdrop-blur-sm rounded-lg">Or</span>
+            <span className="px-6 py-2 bg-gradient-to-r from-white/20 to-white/10 text-white font-medium backdrop-blur-md rounded-full border border-white/30 shadow-lg">
+              Or
+            </span>
           </div>
         </div>
 
