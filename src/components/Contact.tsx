@@ -64,14 +64,14 @@ const Contact = () => {
           className="max-w-2xl mx-auto text-center mb-2"
         >
           <h2 className="text-4xl md:text-5xl font-bold font-heading -mt-8 relative">
-            <span className="absolute inset-0 bg-gradient-to-r from-primary via-primary-accent to-primary bg-[length:200%_100%] bg-clip-text text-transparent animate-[gradient_15s_linear_infinite]">
-              Get in Touch
+            <span className="absolute inset-0 bg-gradient-to-r from-primary via-accent to-primary bg-[length:200%_100%] bg-clip-text text-transparent animate-[gradient_15s_linear_infinite]">
+              Apply to Join Our Elite Network
             </span>
-            <span className="invisible">Get in Touch</span>
+            <span className="invisible">Apply to Join Our Elite Network</span>
           </h2>
 
           <p className="text-lg text-gray-600 mt-1">
-            Ready to take your career to the next level? Contact us today and unlock your full potential.
+            Ready to scale to 6-figures monthly? Apply now for exclusive access to our proven model management system. Limited spots available.
           </p>
         </motion.div>
 
@@ -155,7 +155,7 @@ const Contact = () => {
             }}
             whileTap={{ scale: 0.98 }}
             type="submit"
-            className="w-full flex items-center justify-center px-8 py-4 text-lg font-medium rounded-lg text-white bg-gradient-to-r from-[#9b87f5]/80 via-[#7E69AB]/80 to-[#9b87f5]/80 hover:from-[#9b87f5]/90 hover:via-[#7E69AB]/90 hover:to-[#9b87f5]/90 backdrop-blur-sm transition-all duration-300 shadow-xl hover:shadow-2xl hover:shadow-primary-accent/20 border border-white/10"
+            className="w-full flex items-center justify-center px-8 py-4 text-lg font-medium rounded-lg text-white bg-gradient-to-r from-primary/80 via-accent/80 to-primary-accent/80 hover:from-primary/90 hover:via-accent/90 hover:to-primary-accent/90 backdrop-blur-sm transition-all duration-300 shadow-xl hover:shadow-2xl hover:shadow-primary/30 border border-white/10"
           >
             <span className="relative flex items-center gap-2">
               <span className="relative z-10">Send Message</span>

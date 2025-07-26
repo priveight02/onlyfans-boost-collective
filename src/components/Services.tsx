@@ -3,46 +3,46 @@ import { motion } from "framer-motion";
 
 const services = [
   {
-    title: "Content Creation & Photography",
-    description: "Professional photo and video production that keeps subscribers coming back. Our expert team ensures your content stands out with studio-quality results.",
+    title: "Elite Content Production",
+    description: "Studio-quality photo and video content that drives massive subscriber growth. Our professional team creates viral-worthy content that converts.",
     icon: Camera,
-    highlight: "Up to 200% increase in subscriber retention",
-    color: "from-purple-400/20 to-pink-400/20"
-  },
-  {
-    title: "Brand Development",
-    description: "Build a powerful personal brand that attracts high-paying subscribers. Stand out in the competitive OnlyFans space with our proven strategies.",
-    icon: Users,
-    highlight: "Average 150% growth in follower base",
-    color: "from-blue-400/20 to-purple-400/20"
-  },
-  {
-    title: "Marketing Strategy",
-    description: "Multi-platform marketing strategies that drive explosive subscriber growth. We handle promotion while you focus on creating amazing content.",
-    icon: Megaphone,
-    highlight: "3x average subscriber growth",
-    color: "from-pink-400/20 to-rose-400/20"
-  },
-  {
-    title: "Revenue Optimization",
-    description: "Maximize your earnings through strategic pricing and multiple revenue streams. Our experts help you unlock your full earning potential.",
-    icon: DollarSign,
-    highlight: "Up to 300% increase in monthly revenue",
-    color: "from-green-400/20 to-emerald-400/20"
-  },
-  {
-    title: "Growth Analytics",
-    description: "Data-driven strategies to understand your audience and optimize your content for maximum engagement and earnings.",
-    icon: TrendingUp,
-    highlight: "Real-time performance tracking",
+    highlight: "Models earn $50K+ monthly average",
     color: "from-blue-400/20 to-cyan-400/20"
   },
   {
-    title: "Fan Engagement",
-    description: "Proven strategies to increase engagement, maintain loyal subscribers, and maximize your earning potential on OnlyFans.",
+    title: "Personal Brand Empire",
+    description: "Build an irresistible personal brand that attracts premium subscribers willing to pay top dollar. Become the model everyone talks about.",
+    icon: Users,
+    highlight: "300% follower growth in 90 days",
+    color: "from-blue-500/20 to-blue-400/20"
+  },
+  {
+    title: "Viral Marketing Campaigns",
+    description: "Explosive multi-platform marketing that makes you the #1 trending creator. We handle all promotion while you focus on content creation.",
+    icon: Megaphone,
+    highlight: "10x subscriber acquisition rate",
+    color: "from-cyan-400/20 to-blue-500/20"
+  },
+  {
+    title: "Revenue Maximization",
+    description: "Unlock multiple 6-figure income streams through strategic pricing, premium content tiers, and exclusive offerings that maximize your earnings.",
+    icon: DollarSign,
+    highlight: "Average $100K+ monthly revenue",
+    color: "from-blue-600/20 to-blue-400/20"
+  },
+  {
+    title: "Elite Analytics Dashboard",
+    description: "Real-time data insights that optimize every aspect of your OnlyFans strategy. Track performance and scale what works best.",
+    icon: TrendingUp,
+    highlight: "Data-driven 500% ROI growth",
+    color: "from-blue-400/20 to-cyan-500/20"
+  },
+  {
+    title: "VIP Fan Management",
+    description: "Professional fan engagement strategies that create obsessed, loyal subscribers who stay subscribed and spend more every month.",
     icon: MessageSquare,
-    highlight: "90% subscriber retention rate",
-    color: "from-rose-400/20 to-pink-400/20"
+    highlight: "98% subscriber retention rate",
+    color: "from-cyan-500/20 to-blue-600/20"
   }
 ];
 
@@ -75,14 +75,14 @@ const Services = () => {
           className="text-center mb-12"
         >
           <h2 className="text-4xl md:text-5xl font-bold font-heading mb-6 relative">
-            <span className="absolute inset-0 bg-gradient-to-r from-primary via-primary-accent to-primary bg-[length:200%_100%] bg-clip-text text-transparent animate-[gradient_15s_linear_infinite]">
-              Premium OnlyFans Management Services
+            <span className="absolute inset-0 bg-gradient-to-r from-primary via-accent to-primary bg-[length:200%_100%] bg-clip-text text-transparent animate-[gradient_15s_linear_infinite]">
+              Elite Model Management Services
             </span>
-            <span className="invisible">Premium OnlyFans Management Services</span>
+            <span className="invisible">Elite Model Management Services</span>
           </h2>
 
           <p className="text-lg text-gray-600 mt-12 max-w-3xl mx-auto">
-            Comprehensive solutions designed to elevate your OnlyFans presence and maximize your success in the competitive digital space.
+            Join the top 1% of OnlyFans creators. Our proven system has helped models achieve 6-figure monthly earnings through strategic management and optimization.
           </p>
         </motion.div>
         

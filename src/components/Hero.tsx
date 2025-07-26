@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 
 const Hero = () => {
   return (
-    <div className="relative flex items-center bg-gradient-to-br from-[#7c4dff] via-[#c592ff] to-[#ff9de3] overflow-hidden py-32">
+    <div className="relative flex items-center bg-gradient-to-br from-primary via-accent to-primary-accent overflow-hidden py-32">
       <div className="absolute inset-0">
         <div className="absolute inset-0 bg-black/10 mix-blend-multiply" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
@@ -56,18 +56,19 @@ const Hero = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
-            className="text-4xl md:text-6xl font-bold text-white mb-6 font-heading tracking-tight drop-shadow-lg [text-wrap:balance] leading-[1.1]"
+            className="text-4xl md:text-7xl font-bold text-white mb-6 font-heading tracking-tight drop-shadow-lg [text-wrap:balance] leading-[1.1]"
           >
-            Unlock Your Full Potential
+            Elite OnlyFans<br />
+            <span className="text-accent">Management Agency</span>
           </motion.h1>
           
           <motion.p 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.4 }}
-            className="text-xl md:text-2xl text-white mb-8 max-w-2xl mx-auto leading-relaxed font-medium drop-shadow-md bg-black/10 backdrop-blur-sm rounded-lg px-6 py-3 [text-wrap:balance]"
+            className="text-xl md:text-2xl text-white mb-8 max-w-3xl mx-auto leading-relaxed font-medium drop-shadow-md bg-white/10 backdrop-blur-sm rounded-2xl px-8 py-4 border border-white/20"
           >
-            We help content creators grow their brand, maximize earnings, and succeed in the competitive digital space.
+            Transform your OnlyFans journey with our proven strategies. Join the elite creators earning 6-figures monthly.
           </motion.p>
           
           <motion.div
@@ -101,7 +102,7 @@ const Hero = () => {
               ease: [0.4, 0.0, 0.2, 1],
               times: [0, 0.5, 1]
             }}
-            className="absolute top-1/4 left-1/4 w-96 h-96 bg-[#c592ff]/50 rounded-full mix-blend-multiply filter blur-xl"
+            className="absolute top-1/4 left-1/4 w-96 h-96 bg-accent/50 rounded-full mix-blend-multiply filter blur-xl"
           />
           <motion.div 
             animate={{ 
@@ -115,7 +116,7 @@ const Hero = () => {
               ease: [0.4, 0.0, 0.2, 1],
               times: [0, 0.5, 1]
             }}
-            className="absolute top-1/3 right-1/4 w-96 h-96 bg-[#7c4dff]/50 rounded-full mix-blend-multiply filter blur-xl"
+            className="absolute top-1/3 right-1/4 w-96 h-96 bg-primary/50 rounded-full mix-blend-multiply filter blur-xl"
           />
           <motion.div 
             animate={{ 
@@ -129,7 +130,7 @@ const Hero = () => {
               ease: [0.4, 0.0, 0.2, 1],
               times: [0, 0.5, 1]
             }}
-            className="absolute bottom-1/4 left-1/3 w-96 h-96 bg-[#ff9de3]/50 rounded-full mix-blend-multiply filter blur-xl"
+            className="absolute bottom-1/4 left-1/3 w-96 h-96 bg-primary-accent/50 rounded-full mix-blend-multiply filter blur-xl"
           />
         </div>
       </div>
