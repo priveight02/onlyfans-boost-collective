@@ -1,113 +1,142 @@
-# Google Apps Script Setup Instructions
+# Google Apps Script Setup Instructions - UPDATED FOR YOUR CREDENTIALS
 
-Follow these steps to set up automatic email sending for your OnlyFans application form:
+Follow these steps to set up automatic email sending for your OnlyFans application form using your Google API credentials:
+
+**Your Google Project Details:**
+- Project ID: oz-agency
+- API Key: AIzaSyDuLw7jmtDJi3bnfMeuocnMupMlyHLOyaQ
+- Client ID: 1063610154457-lvjms5bq366gdtjqmn38tppsvuppbuuc.apps.googleusercontent.com
 
 ## Step 1: Create Google Apps Script
 
 1. Go to [script.google.com](https://script.google.com)
-2. Click "New Project"
-3. Delete the default code and paste this script:
+2. Make sure you're logged into the same Google account associated with the oz-agency project
+3. Click "New Project"
+4. Delete the default code and paste this script:
 
 ```javascript
 function doPost(e) {
   try {
-    // Parse the form data
-    const formData = JSON.parse(e.postData.contents);
+    // Parse the incoming data
+    const data = JSON.parse(e.postData.contents);
     
-    // Your email address
+    // Email recipient (your email)
     const recipientEmail = 'ozagency.of@gmail.com';
     
-    // Create email subject
-    const subject = `New OnlyFans Application - ${formData.fullLegalName}`;
+    // Create subject line
+    const subject = `🌟 New OnlyFans Application - ${data.formData.fullLegalName}`;
     
-    // Create HTML email body
+    // Create beautifully formatted HTML email
     const htmlBody = `
-      <h2>🌟 NEW ONLYFANS CREATOR APPLICATION</h2>
-      <div style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto;">
+      <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 800px; margin: 0 auto; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 15px;">
         
-        <h3 style="color: #2563eb; border-bottom: 2px solid #2563eb; padding-bottom: 10px;">📝 BASIC INFORMATION</h3>
-        <table style="width: 100%; border-collapse: collapse;">
-          <tr><td style="padding: 8px; font-weight: bold;">Full Legal Name:</td><td style="padding: 8px;">${formData.fullLegalName}</td></tr>
-          <tr style="background-color: #f8f9fa;"><td style="padding: 8px; font-weight: bold;">Online Name:</td><td style="padding: 8px;">${formData.onlineName}</td></tr>
-          <tr><td style="padding: 8px; font-weight: bold;">Email Address:</td><td style="padding: 8px;">${formData.emailAddress}</td></tr>
-          <tr style="background-color: #f8f9fa;"><td style="padding: 8px; font-weight: bold;">Phone Number:</td><td style="padding: 8px;">${formData.phoneNumber}</td></tr>
-          <tr><td style="padding: 8px; font-weight: bold;">Social Usernames:</td><td style="padding: 8px;">${formData.socialUsernames}</td></tr>
-        </table>
+        <div style="background: white; border-radius: 15px; padding: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.2);">
+          
+          <h1 style="color: #4a5568; text-align: center; margin-bottom: 30px; font-size: 28px;">
+            🌟 NEW ONLYFANS CREATOR APPLICATION
+          </h1>
+          
+          <div style="background: linear-gradient(135deg, #667eea, #764ba2); height: 4px; border-radius: 2px; margin-bottom: 30px;"></div>
 
-        <h3 style="color: #2563eb; border-bottom: 2px solid #2563eb; padding-bottom: 10px; margin-top: 30px;">👤 PERSONAL PROFILE</h3>
-        <table style="width: 100%; border-collapse: collapse;">
-          <tr><td style="padding: 8px; font-weight: bold;">About:</td><td style="padding: 8px;">${formData.personalProfile}</td></tr>
-          <tr style="background-color: #f8f9fa;"><td style="padding: 8px; font-weight: bold;">Attitude:</td><td style="padding: 8px;">${formData.attitudeDescription}</td></tr>
-          <tr><td style="padding: 8px; font-weight: bold;">Location:</td><td style="padding: 8px;">${formData.basedLocation}</td></tr>
-          <tr style="background-color: #f8f9fa;"><td style="padding: 8px; font-weight: bold;">Age:</td><td style="padding: 8px;">${formData.age}</td></tr>
-          <tr><td style="padding: 8px; font-weight: bold;">Height:</td><td style="padding: 8px;">${formData.height}</td></tr>
-          <tr style="background-color: #f8f9fa;"><td style="padding: 8px; font-weight: bold;">Languages:</td><td style="padding: 8px;">${formData.languagesSpoken}</td></tr>
-        </table>
+          <h2 style="color: #2d3748; border-left: 4px solid #667eea; padding-left: 15px; margin-bottom: 20px;">📝 BASIC INFORMATION</h2>
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px;">
+            <tr><td style="padding: 12px; font-weight: bold; background: #f7fafc; border: 1px solid #e2e8f0;">Full Legal Name:</td><td style="padding: 12px; border: 1px solid #e2e8f0;">${data.formData.fullLegalName}</td></tr>
+            <tr><td style="padding: 12px; font-weight: bold; background: #f7fafc; border: 1px solid #e2e8f0;">Online Name:</td><td style="padding: 12px; border: 1px solid #e2e8f0;">${data.formData.onlineName || 'N/A'}</td></tr>
+            <tr><td style="padding: 12px; font-weight: bold; background: #f7fafc; border: 1px solid #e2e8f0;">Email Address:</td><td style="padding: 12px; border: 1px solid #e2e8f0;">${data.formData.emailAddress}</td></tr>
+            <tr><td style="padding: 12px; font-weight: bold; background: #f7fafc; border: 1px solid #e2e8f0;">Phone Number:</td><td style="padding: 12px; border: 1px solid #e2e8f0;">${data.formData.phoneNumber}</td></tr>
+            <tr><td style="padding: 12px; font-weight: bold; background: #f7fafc; border: 1px solid #e2e8f0;">Social Usernames:</td><td style="padding: 12px; border: 1px solid #e2e8f0;">${data.formData.socialUsernames}</td></tr>
+          </table>
 
-        <h3 style="color: #2563eb; border-bottom: 2px solid #2563eb; padding-bottom: 10px; margin-top: 30px;">🔍 PERSONAL DETAILS</h3>
-        <table style="width: 100%; border-collapse: collapse;">
-          <tr><td style="padding: 8px; font-weight: bold;">Birthday:</td><td style="padding: 8px;">${formData.birthday}</td></tr>
-          <tr style="background-color: #f8f9fa;"><td style="padding: 8px; font-weight: bold;">Sexual Orientation:</td><td style="padding: 8px;">${formData.sexualOrientation}</td></tr>
-          <tr><td style="padding: 8px; font-weight: bold;">Ethnicity:</td><td style="padding: 8px;">${formData.ethnicity}</td></tr>
-          <tr style="background-color: #f8f9fa;"><td style="padding: 8px; font-weight: bold;">Shoe Size:</td><td style="padding: 8px;">${formData.shoeSize}</td></tr>
-          <tr><td style="padding: 8px; font-weight: bold;">Bra Size:</td><td style="padding: 8px;">${formData.braSize}</td></tr>
-          <tr style="background-color: #f8f9fa;"><td style="padding: 8px; font-weight: bold;">Zodiac Sign:</td><td style="padding: 8px;">${formData.zodiacSign}</td></tr>
-          <tr><td style="padding: 8px; font-weight: bold;">Where From:</td><td style="padding: 8px;">${formData.whereFrom}</td></tr>
-          <tr style="background-color: #f8f9fa;"><td style="padding: 8px; font-weight: bold;">Favorite Color:</td><td style="padding: 8px;">${formData.favoriteColor}</td></tr>
-          <tr><td style="padding: 8px; font-weight: bold;">College:</td><td style="padding: 8px;">${formData.college}</td></tr>
-          <tr style="background-color: #f8f9fa;"><td style="padding: 8px; font-weight: bold;">Kids:</td><td style="padding: 8px;">${formData.kids}</td></tr>
-          <tr><td style="padding: 8px; font-weight: bold;">Pets:</td><td style="padding: 8px;">${formData.pets}</td></tr>
-          <tr style="background-color: #f8f9fa;"><td style="padding: 8px; font-weight: bold;">Sports:</td><td style="padding: 8px;">${formData.sports}</td></tr>
-          <tr><td style="padding: 8px; font-weight: bold;">Places Visited:</td><td style="padding: 8px;">${formData.placesVisited}</td></tr>
-          <tr style="background-color: #f8f9fa;"><td style="padding: 8px; font-weight: bold;">Relationship Status:</td><td style="padding: 8px;">${formData.relationshipStatus}</td></tr>
-          <tr><td style="padding: 8px; font-weight: bold;">Other Work:</td><td style="padding: 8px;">${formData.otherWork}</td></tr>
-        </table>
+          <h2 style="color: #2d3748; border-left: 4px solid #667eea; padding-left: 15px; margin-bottom: 20px;">👤 PERSONAL PROFILE</h2>
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px;">
+            <tr><td style="padding: 12px; font-weight: bold; background: #f7fafc; border: 1px solid #e2e8f0; width: 180px;">About:</td><td style="padding: 12px; border: 1px solid #e2e8f0;">${data.formData.personalProfile}</td></tr>
+            <tr><td style="padding: 12px; font-weight: bold; background: #f7fafc; border: 1px solid #e2e8f0;">Attitude:</td><td style="padding: 12px; border: 1px solid #e2e8f0;">${data.formData.attitudeDescription}</td></tr>
+            <tr><td style="padding: 12px; font-weight: bold; background: #f7fafc; border: 1px solid #e2e8f0;">Location:</td><td style="padding: 12px; border: 1px solid #e2e8f0;">${data.formData.basedLocation}</td></tr>
+            <tr><td style="padding: 12px; font-weight: bold; background: #f7fafc; border: 1px solid #e2e8f0;">Age:</td><td style="padding: 12px; border: 1px solid #e2e8f0;">${data.formData.age}</td></tr>
+            <tr><td style="padding: 12px; font-weight: bold; background: #f7fafc; border: 1px solid #e2e8f0;">Height:</td><td style="padding: 12px; border: 1px solid #e2e8f0;">${data.formData.height}</td></tr>
+            <tr><td style="padding: 12px; font-weight: bold; background: #f7fafc; border: 1px solid #e2e8f0;">Languages:</td><td style="padding: 12px; border: 1px solid #e2e8f0;">${data.formData.languagesSpoken}</td></tr>
+          </table>
 
-        <h3 style="color: #2563eb; border-bottom: 2px solid #2563eb; padding-bottom: 10px; margin-top: 30px;">🎬 CONTENT & SERVICES</h3>
-        <table style="width: 100%; border-collapse: collapse;">
-          <tr><td style="padding: 8px; font-weight: bold;">Content Types:</td><td style="padding: 8px;">${formData.contentTypes}</td></tr>
-          <tr style="background-color: #f8f9fa;"><td style="padding: 8px; font-weight: bold;">Video Calls:</td><td style="padding: 8px;">${formData.acceptVideoCalls}</td></tr>
-          <tr><td style="padding: 8px; font-weight: bold;">Sexiest Body Part:</td><td style="padding: 8px;">${formData.sexiestBodyPart}</td></tr>
-          <tr style="background-color: #f8f9fa;"><td style="padding: 8px; font-weight: bold;">Physical Appearance:</td><td style="padding: 8px;">${formData.physicalAppearance}</td></tr>
-          <tr><td style="padding: 8px; font-weight: bold;">Custom Requests:</td><td style="padding: 8px;">${formData.customRequests}</td></tr>
-          <tr style="background-color: #f8f9fa;"><td style="padding: 8px; font-weight: bold;">Go Live:</td><td style="padding: 8px;">${formData.goLive}</td></tr>
-        </table>
+          <h2 style="color: #2d3748; border-left: 4px solid #667eea; padding-left: 15px; margin-bottom: 20px;">🔍 PERSONAL DETAILS</h2>
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px;">
+            <tr><td style="padding: 12px; font-weight: bold; background: #f7fafc; border: 1px solid #e2e8f0;">Birthday:</td><td style="padding: 12px; border: 1px solid #e2e8f0;">${data.formData.birthday}</td></tr>
+            <tr><td style="padding: 12px; font-weight: bold; background: #f7fafc; border: 1px solid #e2e8f0;">Sexual Orientation:</td><td style="padding: 12px; border: 1px solid #e2e8f0;">${data.formData.sexualOrientation}</td></tr>
+            <tr><td style="padding: 12px; font-weight: bold; background: #f7fafc; border: 1px solid #e2e8f0;">Ethnicity:</td><td style="padding: 12px; border: 1px solid #e2e8f0;">${data.formData.ethnicity}</td></tr>
+            <tr><td style="padding: 12px; font-weight: bold; background: #f7fafc; border: 1px solid #e2e8f0;">Shoe Size:</td><td style="padding: 12px; border: 1px solid #e2e8f0;">${data.formData.shoeSize}</td></tr>
+            <tr><td style="padding: 12px; font-weight: bold; background: #f7fafc; border: 1px solid #e2e8f0;">Bra Size:</td><td style="padding: 12px; border: 1px solid #e2e8f0;">${data.formData.braSize || 'N/A'}</td></tr>
+            <tr><td style="padding: 12px; font-weight: bold; background: #f7fafc; border: 1px solid #e2e8f0;">Zodiac Sign:</td><td style="padding: 12px; border: 1px solid #e2e8f0;">${data.formData.zodiacSign}</td></tr>
+            <tr><td style="padding: 12px; font-weight: bold; background: #f7fafc; border: 1px solid #e2e8f0;">Where From:</td><td style="padding: 12px; border: 1px solid #e2e8f0;">${data.formData.whereFrom}</td></tr>
+            <tr><td style="padding: 12px; font-weight: bold; background: #f7fafc; border: 1px solid #e2e8f0;">Favorite Color:</td><td style="padding: 12px; border: 1px solid #e2e8f0;">${data.formData.favoriteColor}</td></tr>
+            <tr><td style="padding: 12px; font-weight: bold; background: #f7fafc; border: 1px solid #e2e8f0;">College:</td><td style="padding: 12px; border: 1px solid #e2e8f0;">${data.formData.college || 'N/A'}</td></tr>
+            <tr><td style="padding: 12px; font-weight: bold; background: #f7fafc; border: 1px solid #e2e8f0;">Kids:</td><td style="padding: 12px; border: 1px solid #e2e8f0;">${data.formData.kids || 'N/A'}</td></tr>
+            <tr><td style="padding: 12px; font-weight: bold; background: #f7fafc; border: 1px solid #e2e8f0;">Pets:</td><td style="padding: 12px; border: 1px solid #e2e8f0;">${data.formData.pets || 'N/A'}</td></tr>
+            <tr><td style="padding: 12px; font-weight: bold; background: #f7fafc; border: 1px solid #e2e8f0;">Sports:</td><td style="padding: 12px; border: 1px solid #e2e8f0;">${data.formData.sports}</td></tr>
+            <tr><td style="padding: 12px; font-weight: bold; background: #f7fafc; border: 1px solid #e2e8f0;">Places Visited:</td><td style="padding: 12px; border: 1px solid #e2e8f0;">${data.formData.placesVisited}</td></tr>
+            <tr><td style="padding: 12px; font-weight: bold; background: #f7fafc; border: 1px solid #e2e8f0;">Relationship Status:</td><td style="padding: 12px; border: 1px solid #e2e8f0;">${data.formData.relationshipStatus}</td></tr>
+            <tr><td style="padding: 12px; font-weight: bold; background: #f7fafc; border: 1px solid #e2e8f0;">Other Work:</td><td style="padding: 12px; border: 1px solid #e2e8f0;">${data.formData.otherWork}</td></tr>
+          </table>
 
-        <h3 style="color: #2563eb; border-bottom: 2px solid #2563eb; padding-bottom: 10px; margin-top: 30px;">✅ FINAL DETAILS</h3>
-        <table style="width: 100%; border-collapse: collapse;">
-          <tr><td style="padding: 8px; font-weight: bold;">Featured People:</td><td style="padding: 8px;">${formData.featuredPeople}</td></tr>
-          <tr style="background-color: #f8f9fa;"><td style="padding: 8px; font-weight: bold;">OnlyFans Credentials:</td><td style="padding: 8px;">${formData.onlyFansCredentials}</td></tr>
-          <tr><td style="padding: 8px; font-weight: bold;">Additional Info:</td><td style="padding: 8px;">${formData.additionalInfo}</td></tr>
-          <tr style="background-color: #f8f9fa;"><td style="padding: 8px; font-weight: bold;">Commitment Understood:</td><td style="padding: 8px;">${formData.commitmentUnderstood}</td></tr>
-        </table>
+          <h2 style="color: #2d3748; border-left: 4px solid #667eea; padding-left: 15px; margin-bottom: 20px;">🎬 CONTENT & SERVICES</h2>
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px;">
+            <tr><td style="padding: 12px; font-weight: bold; background: #f7fafc; border: 1px solid #e2e8f0;">Content Types:</td><td style="padding: 12px; border: 1px solid #e2e8f0;">${data.formData.contentTypes}</td></tr>
+            <tr><td style="padding: 12px; font-weight: bold; background: #f7fafc; border: 1px solid #e2e8f0;">Video Calls:</td><td style="padding: 12px; border: 1px solid #e2e8f0;">${data.formData.acceptVideoCalls}</td></tr>
+            <tr><td style="padding: 12px; font-weight: bold; background: #f7fafc; border: 1px solid #e2e8f0;">Sexiest Body Part:</td><td style="padding: 12px; border: 1px solid #e2e8f0;">${data.formData.sexiestBodyPart}</td></tr>
+            <tr><td style="padding: 12px; font-weight: bold; background: #f7fafc; border: 1px solid #e2e8f0;">Physical Appearance:</td><td style="padding: 12px; border: 1px solid #e2e8f0;">${data.formData.physicalAppearance}</td></tr>
+            <tr><td style="padding: 12px; font-weight: bold; background: #f7fafc; border: 1px solid #e2e8f0;">Custom Requests:</td><td style="padding: 12px; border: 1px solid #e2e8f0;">${data.formData.customRequests}</td></tr>
+            <tr><td style="padding: 12px; font-weight: bold; background: #f7fafc; border: 1px solid #e2e8f0;">Go Live:</td><td style="padding: 12px; border: 1px solid #e2e8f0;">${data.formData.goLive}</td></tr>
+          </table>
 
-        <div style="margin-top: 30px; padding: 20px; background-color: #e0f2fe; border-radius: 8px;">
-          <p style="margin: 0; font-weight: bold; color: #0277bd;">📅 Submitted: ${formData.timestamp}</p>
+          <h2 style="color: #2d3748; border-left: 4px solid #667eea; padding-left: 15px; margin-bottom: 20px;">✅ FINAL DETAILS</h2>
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px;">
+            <tr><td style="padding: 12px; font-weight: bold; background: #f7fafc; border: 1px solid #e2e8f0;">Featured People:</td><td style="padding: 12px; border: 1px solid #e2e8f0;">${data.formData.featuredPeople}</td></tr>
+            <tr><td style="padding: 12px; font-weight: bold; background: #f7fafc; border: 1px solid #e2e8f0;">OnlyFans Credentials:</td><td style="padding: 12px; border: 1px solid #e2e8f0;">${data.formData.onlyFansCredentials}</td></tr>
+            <tr><td style="padding: 12px; font-weight: bold; background: #f7fafc; border: 1px solid #e2e8f0;">Additional Info:</td><td style="padding: 12px; border: 1px solid #e2e8f0;">${data.formData.additionalInfo}</td></tr>
+            <tr><td style="padding: 12px; font-weight: bold; background: #f7fafc; border: 1px solid #e2e8f0;">Commitment Understood:</td><td style="padding: 12px; border: 1px solid #e2e8f0;">${data.formData.commitmentUnderstood ? 'Yes' : 'No'}</td></tr>
+          </table>
+
+          <div style="background: linear-gradient(135deg, #667eea, #764ba2); padding: 20px; border-radius: 10px; color: white; text-align: center; margin-top: 30px;">
+            <h3 style="margin: 0; font-size: 18px;">📅 Application Submitted</h3>
+            <p style="margin: 10px 0 0 0; font-size: 16px;">${new Date().toLocaleString()}</p>
+          </div>
+          
         </div>
       </div>
     `;
     
-    // Send the email
+    // Send the email using Gmail API
     GmailApp.sendEmail(
       recipientEmail,
       subject,
       '', // Plain text body (empty since we're using HTML)
       {
         htmlBody: htmlBody,
-        replyTo: formData.emailAddress,
-        name: 'OnlyFans Application System'
+        replyTo: data.formData.emailAddress,
+        name: 'OnlyFans Application System - Oz Agency'
       }
     );
     
+    // Log success
+    console.log('Email sent successfully to:', recipientEmail);
+    
     // Return success response
     return ContentService
-      .createTextOutput(JSON.stringify({status: 'success', message: 'Email sent successfully'}))
+      .createTextOutput(JSON.stringify({
+        status: 'success', 
+        message: 'Application email sent successfully',
+        timestamp: new Date().toISOString()
+      }))
       .setMimeType(ContentService.MimeType.JSON);
       
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Error processing application:', error);
+    
+    // Return error response
     return ContentService
-      .createTextOutput(JSON.stringify({status: 'error', message: error.toString()}))
+      .createTextOutput(JSON.stringify({
+        status: 'error', 
+        message: error.toString(),
+        timestamp: new Date().toISOString()
+      }))
       .setMimeType(ContentService.MimeType.JSON);
   }
 }
