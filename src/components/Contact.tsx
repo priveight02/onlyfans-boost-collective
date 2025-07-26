@@ -30,31 +30,7 @@ const Contact = () => {
   };
 
   return (
-    <section id="contact" className="py-20 relative">
-      {/* Decorative top separator */}
-      <div className="absolute -top-6 left-0 w-full">
-        <div className="relative w-full">
-          {/* Gradient line */}
-          <div className="absolute inset-0 w-full h-[1px] bg-gradient-to-r from-transparent via-primary/20 to-transparent" />
-          
-          {/* Blurred overlay for depth */}
-          <div className="absolute inset-0 w-full h-[2px] bg-white/20 blur-sm" />
-          
-          {/* Contact Us label */}
-          <div className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 top-0">
-            <div className="bg-gradient-to-r from-primary-light/40 via-white/60 to-primary-light/40 backdrop-blur-md px-8 py-2 rounded-full shadow-lg border border-white/20 transition-all duration-300 hover:from-primary-light/50 hover:via-white/70 hover:to-primary-light/50">
-              <span className="text-primary font-medium">
-                Contact Us
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-      
-      <div className="absolute inset-0 bg-gradient-to-b from-primary-light/5 to-primary-light/10">
-        <div className="absolute inset-0 bg-grid-primary/[0.02] bg-[size:20px_20px]" />
-      </div>
-
+    <section id="contact" className="py-20 bg-white relative">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
