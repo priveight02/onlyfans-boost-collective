@@ -7,13 +7,15 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
-import { ArrowRight, Star, Users, Target, CheckCircle } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ArrowRight, Star, Users, Target, CheckCircle, Send, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import BackButton from "@/components/BackButton";
 
 const OnBoarding = () => {
   const [step, setStep] = useState(1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     fullLegalName: "",
     onlineName: "",
@@ -75,6 +77,111 @@ const OnBoarding = () => {
     "Dildo Content"
   ];
 
+  const submitToGoogleForms = async () => {
+    setIsSubmitting(true);
+    
+    try {
+      // Create a Google Forms compatible payload
+      const formPayload = new FormData();
+      
+      // Add all form data as entries
+      Object.entries(formData).forEach(([key, value]) => {
+        if (Array.isArray(value)) {
+          formPayload.append(key, value.join(', '));
+        } else if (typeof value === 'boolean') {
+          formPayload.append(key, value ? 'Yes' : 'No');
+        } else {
+          formPayload.append(key, String(value));
+        }
+      });
+      
+      // Add submission timestamp
+      formPayload.append('submissionTime', new Date().toISOString());
+      
+      // Send email to your address
+      const emailData = {
+        to: 'ozagency.of@gmail.com',
+        subject: `New OnlyFans Application - ${formData.fullLegalName}`,
+        html: `
+          <h2>New OnlyFans Creator Application</h2>
+          <h3>Basic Information:</h3>
+          <p><strong>Full Legal Name:</strong> ${formData.fullLegalName}</p>
+          <p><strong>Online Name:</strong> ${formData.onlineName}</p>
+          <p><strong>Email:</strong> ${formData.emailAddress}</p>
+          <p><strong>Phone:</strong> ${formData.phoneNumber}</p>
+          <p><strong>Social Usernames:</strong> ${formData.socialUsernames}</p>
+          
+          <h3>Personal Profile:</h3>
+          <p><strong>About:</strong> ${formData.personalProfile}</p>
+          <p><strong>Attitude:</strong> ${formData.attitudeDescription}</p>
+          <p><strong>Location:</strong> ${formData.basedLocation}</p>
+          <p><strong>Age:</strong> ${formData.age}</p>
+          <p><strong>Height:</strong> ${formData.height}</p>
+          <p><strong>Languages:</strong> ${formData.languagesSpoken}</p>
+          
+          <h3>Personal Details:</h3>
+          <p><strong>Birthday:</strong> ${formData.birthday}</p>
+          <p><strong>Sexual Orientation:</strong> ${formData.sexualOrientation}</p>
+          <p><strong>Ethnicity:</strong> ${formData.ethnicity}</p>
+          <p><strong>Shoe Size:</strong> ${formData.shoeSize}</p>
+          <p><strong>Bra Size:</strong> ${formData.braSize}</p>
+          <p><strong>Zodiac Sign:</strong> ${formData.zodiacSign}</p>
+          <p><strong>Where From:</strong> ${formData.whereFrom}</p>
+          <p><strong>Favorite Color:</strong> ${formData.favoriteColor}</p>
+          <p><strong>College:</strong> ${formData.college}</p>
+          <p><strong>Kids:</strong> ${formData.kids}</p>
+          <p><strong>Pets:</strong> ${formData.pets}</p>
+          <p><strong>Sports:</strong> ${formData.sports}</p>
+          <p><strong>Places Visited:</strong> ${formData.placesVisited}</p>
+          <p><strong>Relationship Status:</strong> ${formData.relationshipStatus}</p>
+          <p><strong>Other Work:</strong> ${formData.otherWork}</p>
+          
+          <h3>Content & Services:</h3>
+          <p><strong>Content Types:</strong> ${formData.contentTypes.join(', ')}</p>
+          <p><strong>Video Calls:</strong> ${formData.acceptVideoCalls}</p>
+          <p><strong>Sexiest Body Part:</strong> ${formData.sexiestBodyPart}</p>
+          <p><strong>Physical Appearance:</strong> ${formData.physicalAppearance}</p>
+          <p><strong>Custom Requests:</strong> ${formData.customRequests}</p>
+          <p><strong>Go Live:</strong> ${formData.goLive}</p>
+          
+          <h3>Final Details:</h3>
+          <p><strong>Featured People:</strong> ${formData.featuredPeople}</p>
+          <p><strong>OnlyFans Credentials:</strong> ${formData.onlyFansCredentials}</p>
+          <p><strong>Additional Info:</strong> ${formData.additionalInfo}</p>
+          <p><strong>Commitment Understood:</strong> ${formData.commitmentUnderstood ? 'Yes' : 'No'}</p>
+          
+          <p><strong>Submitted:</strong> ${new Date().toLocaleString()}</p>
+        `
+      };
+
+      // Use EmailJS or similar service to send email
+      const response = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          service_id: 'gmail',
+          template_id: 'template_onboarding',
+          user_id: 'user_emailjs_key',
+          template_params: emailData
+        })
+      });
+
+      if (response.ok) {
+        toast.success("Application submitted successfully! We'll review it and get back to you within 24 hours.");
+        navigate("/");
+      } else {
+        throw new Error('Failed to submit');
+      }
+    } catch (error) {
+      console.error('Submission error:', error);
+      toast.error("There was an error submitting your application. Please try again or contact us directly.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleNext = () => {
     if (step < totalSteps) {
       setStep(step + 1);
@@ -83,8 +190,7 @@ const OnBoarding = () => {
         toast.error("Please confirm your commitment to the process before submitting.");
         return;
       }
-      toast.success("Thank you for your application! We'll review it and get back to you within 24 hours.");
-      navigate("/");
+      submitToGoogleForms();
     }
   };
 
@@ -117,12 +223,14 @@ const OnBoarding = () => {
             className="space-y-6"
           >
             <div className="text-center mb-8">
-              <Star className="h-16 w-16 text-blue-500 mx-auto mb-4" />
-              <h2 className="text-3xl font-bold text-blue-600 mb-2">Let's Get Started</h2>
-              <p className="text-gray-600">Tell us about yourself</p>
+              <div className="inline-flex p-4 rounded-full bg-primary/10 mb-4">
+                <Star className="h-12 w-12 text-primary" />
+              </div>
+              <h2 className="text-3xl font-bold text-foreground mb-2">Let's Get Started</h2>
+              <p className="text-muted-foreground text-lg">Tell us about yourself to begin your journey</p>
             </div>
             
-            <div className="space-y-6">
+            <div className="grid gap-6">
               <div>
                 <Label htmlFor="fullLegalName" className="text-base font-medium text-gray-900">What's your full legal name? *</Label>
                 <Input
@@ -194,12 +302,14 @@ const OnBoarding = () => {
             className="space-y-6"
           >
             <div className="text-center mb-8">
-              <Users className="h-16 w-16 text-blue-500 mx-auto mb-4" />
-              <h2 className="text-3xl font-bold text-blue-600 mb-2">Personal Information</h2>
-              <p className="text-gray-600">Your detailed profile and background</p>
+              <div className="inline-flex p-4 rounded-full bg-primary/10 mb-4">
+                <Users className="h-12 w-12 text-primary" />
+              </div>
+              <h2 className="text-3xl font-bold text-foreground mb-2">Personal Information</h2>
+              <p className="text-muted-foreground text-lg">Your detailed profile and background</p>
             </div>
             
-            <div className="space-y-6">
+            <div className="grid gap-6">
               <div>
                 <Label htmlFor="personalProfile" className="text-base font-medium text-gray-900">Personal profile - Tell us about yourself, your interests, hobbies, personality traits, the type of music you listen to, what you like to eat, favorite singer & some background info. *</Label>
                 <p className="text-sm text-gray-500 mt-1">Please add as much details as possible, this will help the chatting on your account to be far more convincing</p>
@@ -462,12 +572,14 @@ const OnBoarding = () => {
             className="space-y-6"
           >
             <div className="text-center mb-8">
-              <Target className="h-16 w-16 text-blue-500 mx-auto mb-4" />
-              <h2 className="text-3xl font-bold text-blue-600 mb-2">Content & Services</h2>
-              <p className="text-gray-600">Your content preferences and service options</p>
+              <div className="inline-flex p-4 rounded-full bg-primary/10 mb-4">
+                <Target className="h-12 w-12 text-primary" />
+              </div>
+              <h2 className="text-3xl font-bold text-foreground mb-2">Content & Services</h2>
+              <p className="text-muted-foreground text-lg">Your content preferences and service options</p>
             </div>
             
-            <div className="space-y-6">
+            <div className="grid gap-6">
               <div>
                 <Label className="text-base font-medium text-gray-900">What type of content are you comfortable to share? *</Label>
                 <div className="mt-3 space-y-3 max-h-60 overflow-y-auto border rounded-lg p-4">
@@ -574,12 +686,14 @@ const OnBoarding = () => {
             className="space-y-6"
           >
             <div className="text-center mb-8">
-              <CheckCircle className="h-16 w-16 text-blue-500 mx-auto mb-4" />
-              <h2 className="text-3xl font-bold text-blue-600 mb-2">Final Details</h2>
-              <p className="text-gray-600">Complete your application</p>
+              <div className="inline-flex p-4 rounded-full bg-primary/10 mb-4">
+                <CheckCircle className="h-12 w-12 text-primary" />
+              </div>
+              <h2 className="text-3xl font-bold text-foreground mb-2">Final Details</h2>
+              <p className="text-muted-foreground text-lg">Complete your application</p>
             </div>
             
-            <div className="space-y-6">
+            <div className="grid gap-6">
               <div>
                 <Label htmlFor="featuredPeople" className="text-base font-medium text-gray-900">Do you have anyone featured in your OF content, if so please add their @ so we can tag them</Label>
                 <Textarea
@@ -637,42 +751,67 @@ const OnBoarding = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5">
       <BackButton />
-      <div className="container mx-auto px-4 py-8 max-w-2xl">
-        <div className="bg-white rounded-xl shadow-lg p-8">
-          <div className="mb-8">
-            <div className="flex justify-between items-center mb-4">
-              <span className="text-sm font-medium text-gray-600">
-                Step {step} of {totalSteps}
-              </span>
-              <span className="text-sm font-medium text-gray-600">
-                {Math.round((step / totalSteps) * 100)}% Complete
-              </span>
+      <div className="container mx-auto px-4 py-8 max-w-4xl">
+        <Card className="shadow-2xl border-0 bg-white/95 backdrop-blur-sm">
+          <CardHeader className="text-center pb-6">
+            <div className="flex justify-between items-center mb-6">
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-medium text-muted-foreground bg-secondary/20 px-3 py-1 rounded-full">
+                  Step {step} of {totalSteps}
+                </span>
+              </div>
+              <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                <span>{Math.round((step / totalSteps) * 100)}%</span>
+                <span className="text-primary">Complete</span>
+              </div>
             </div>
-            <Progress value={(step / totalSteps) * 100} className="h-2" />
-          </div>
+            <Progress value={(step / totalSteps) * 100} className="h-3 bg-secondary/20" />
+          </CardHeader>
 
-          {renderStep()}
+          <CardContent className="px-8 pb-8">
+            {renderStep()}
 
-          <div className="flex justify-between mt-8">
-            <Button
-              variant="outline"
-              onClick={handlePrevious}
-              disabled={step === 1}
-              className="px-6 h-12"
-            >
-              Previous
-            </Button>
-            
-            <Button
-              onClick={handleNext}
-              className="px-8 h-12 bg-blue-600 hover:bg-blue-700"
-            >
-              {step === totalSteps ? "Submit Application" : "Next"} <ArrowRight className="w-4 h-4 ml-2" />
-            </Button>
-          </div>
-        </div>
+            <div className="flex justify-between items-center mt-12 pt-6 border-t border-border/20">
+              <Button
+                variant="outline"
+                onClick={handlePrevious}
+                disabled={step === 1}
+                className="px-6 h-12 border-2 hover:bg-secondary/10"
+              >
+                Previous
+              </Button>
+              
+              <Button
+                onClick={handleNext}
+                disabled={isSubmitting}
+                className="px-8 h-12 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground shadow-lg hover:shadow-xl transition-all duration-200"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Submitting Application...
+                  </>
+                ) : (
+                  <>
+                    {step === totalSteps ? (
+                      <>
+                        <Send className="w-4 h-4 mr-2" />
+                        Submit Application
+                      </>
+                    ) : (
+                      <>
+                        Continue
+                        <ArrowRight className="w-4 h-4 ml-2" />
+                      </>
+                    )}
+                  </>
+                )}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
