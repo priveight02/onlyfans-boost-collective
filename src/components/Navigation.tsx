@@ -70,7 +70,7 @@ const Navigation = () => {
                 to="/" 
                 className="flex items-center space-x-3 group transition-all duration-300 hover:scale-105"
               >
-                <div className="w-16 h-16">
+                <div className="w-32 h-32">
                   <img 
                     src="/lovable-uploads/2b707af2-312e-43cc-8558-a55f308c47c9.png" 
                     alt="OZ Agency Logo" 
