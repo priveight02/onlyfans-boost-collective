@@ -105,7 +105,7 @@ const Auth = () => {
           <BackButton />
         </div>
         
-        <div className="max-w-6xl mx-auto w-full grid md:grid-cols-2 gap-8 items-center">
+        <div className="max-w-6xl mx-auto w-full grid md:grid-cols-2 gap-8 items-center justify-center px-4">
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
