@@ -100,12 +100,12 @@ const Auth = () => {
       </div>
 
       {/* Content */}
-      <div className="relative min-h-screen pt-8 pb-12 px-4 flex items-center">
-        <div className="absolute top-4 left-4 z-10">
+      <div className="relative min-h-screen pt-2 pb-8 px-4 flex items-center">
+        <div className="absolute top-2 left-4 z-10">
           <BackButton />
         </div>
         
-        <div className="max-w-6xl mx-auto w-full grid md:grid-cols-2 gap-12 items-center">
+        <div className="max-w-6xl mx-auto w-full grid md:grid-cols-2 gap-8 items-center">
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
