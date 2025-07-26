@@ -10,6 +10,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 const Onboarding = () => {
+  console.log('Onboarding component mounted!'); // Debug: Component loaded
   const [showChoice, setShowChoice] = useState(true);
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
@@ -257,7 +258,7 @@ const Onboarding = () => {
     }
   };
 
-  console.log('showChoice:', showChoice); // Debug log
+  console.log('Onboarding component mounted!', 'showChoice:', showChoice);
   
   if (showChoice) {
     return (
