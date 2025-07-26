@@ -26,13 +26,12 @@ const App = () => (
         <Navigation />
         <Routes>
           <Route path="/" element={<Index />} />
-          <Route path="/about" element={<About />} />
+          <Route path="/onboarding" element={<Onboarding />} />
           <Route path="/services" element={<Services />} />
           <Route path="/models" element={<Models />} />
           <Route path="/join" element={<Join />} />
           <Route path="/faq" element={<FAQ />} />
           <Route path="/auth" element={<Auth />} />
-          <Route path="/onboarding" element={<Onboarding />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="/admin-passphrase" element={<AdminPassphrase />} />
         </Routes>
