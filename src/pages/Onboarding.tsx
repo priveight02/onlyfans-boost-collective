@@ -5,11 +5,12 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { CheckCircle, ArrowRight, Star, Users, Target, DollarSign } from "lucide-react";
+import { CheckCircle, ArrowRight, Star, Users, Target, DollarSign, ExternalLink, FileText } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 const Onboarding = () => {
+  const [showChoice, setShowChoice] = useState(true);
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
     fullName: "",
@@ -256,9 +257,140 @@ const Onboarding = () => {
     }
   };
 
+  if (showChoice) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-white to-primary-accent/5 py-12 px-4">
+        <div className="max-w-4xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-center mb-12"
+          >
+            <Star className="h-16 w-16 text-primary mx-auto mb-6" />
+            <h1 className="text-4xl font-bold text-primary mb-4">Welcome to OZ Agency</h1>
+            <p className="text-xl text-gray-600 mb-8">
+              Ready to take your content creation to the next level? Let's get you onboarded!
+            </p>
+          </motion.div>
+
+          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+            {/* In-Site Onboarding Option */}
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.2 }}
+              className="bg-white rounded-2xl shadow-xl p-8 border-2 border-transparent hover:border-primary/20 transition-all duration-300"
+            >
+              <div className="text-center mb-6">
+                <FileText className="h-12 w-12 text-primary mx-auto mb-4" />
+                <h3 className="text-2xl font-bold text-primary mb-2">Interactive Onboarding</h3>
+                <p className="text-gray-600">
+                  Complete our step-by-step onboarding process right here on our website
+                </p>
+              </div>
+              
+              <div className="space-y-3 mb-8">
+                <div className="flex items-center gap-3">
+                  <CheckCircle className="h-5 w-5 text-green-500" />
+                  <span className="text-sm text-gray-600">Guided step-by-step process</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <CheckCircle className="h-5 w-5 text-green-500" />
+                  <span className="text-sm text-gray-600">Real-time validation</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <CheckCircle className="h-5 w-5 text-green-500" />
+                  <span className="text-sm text-gray-600">Smooth user experience</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <CheckCircle className="h-5 w-5 text-green-500" />
+                  <span className="text-sm text-gray-600">4 easy steps</span>
+                </div>
+              </div>
+              
+              <Button
+                onClick={() => setShowChoice(false)}
+                className="w-full bg-primary hover:bg-primary/90 text-white py-3"
+              >
+                Start Interactive Onboarding
+                <ArrowRight className="h-4 w-4 ml-2" />
+              </Button>
+            </motion.div>
+
+            {/* Google Forms Option */}
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.4 }}
+              className="bg-white rounded-2xl shadow-xl p-8 border-2 border-transparent hover:border-primary/20 transition-all duration-300"
+            >
+              <div className="text-center mb-6">
+                <ExternalLink className="h-12 w-12 text-primary mx-auto mb-4" />
+                <h3 className="text-2xl font-bold text-primary mb-2">Google Forms</h3>
+                <p className="text-gray-600">
+                  Prefer to fill out a traditional form? Use our comprehensive Google Form
+                </p>
+              </div>
+              
+              <div className="space-y-3 mb-8">
+                <div className="flex items-center gap-3">
+                  <CheckCircle className="h-5 w-5 text-green-500" />
+                  <span className="text-sm text-gray-600">Familiar interface</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <CheckCircle className="h-5 w-5 text-green-500" />
+                  <span className="text-sm text-gray-600">Works on any device</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <CheckCircle className="h-5 w-5 text-green-500" />
+                  <span className="text-sm text-gray-600">Save and resume later</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <CheckCircle className="h-5 w-5 text-green-500" />
+                  <span className="text-sm text-gray-600">Quick submission</span>
+                </div>
+              </div>
+              
+              <Button
+                onClick={() => window.open('https://docs.google.com/forms/d/e/1FAIpQLSd8rD9vQ8H3YrKF9s2Yl7Zp0M6Nx4Ct5Eb8VwA2Qj9Uf1Rg3H/viewform', '_blank')}
+                variant="outline"
+                className="w-full border-primary text-primary hover:bg-primary hover:text-white py-3"
+              >
+                Open Google Form
+                <ExternalLink className="h-4 w-4 ml-2" />
+              </Button>
+            </motion.div>
+          </div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.6 }}
+            className="text-center mt-12"
+          >
+            <p className="text-gray-500 text-sm">
+              Both options will gather the same information to help us create your personalized growth strategy
+            </p>
+          </motion.div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-white to-primary-accent/5 py-12 px-4">
       <div className="max-w-2xl mx-auto">
+        {/* Back to Choice Button */}
+        <div className="mb-6">
+          <Button
+            variant="ghost"
+            onClick={() => setShowChoice(true)}
+            className="text-primary hover:text-primary/80 p-0"
+          >
+            ← Back to onboarding options
+          </Button>
+        </div>
+
         {/* Progress Bar */}
         <div className="mb-8">
           <div className="flex justify-between items-center mb-2">
