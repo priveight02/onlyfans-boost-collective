@@ -101,7 +101,7 @@ const Auth = () => {
 
       {/* Content */}
       <div className="relative h-screen pt-10 px-4 flex items-start justify-center overflow-hidden">
-        <div className="absolute top-2 left-4 z-10">
+        <div className="absolute top-12 left-6 z-10">
           <BackButton />
         </div>
         
