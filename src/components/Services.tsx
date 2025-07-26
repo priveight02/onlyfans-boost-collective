@@ -63,65 +63,149 @@ const item = {
 
 const Services = () => {
   return (
-    <section id="services" className="py-24 bg-gradient-to-br from-primary via-primary-accent to-accent relative overflow-hidden">
-      {/* Background Effects */}
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/5 to-transparent" />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_50%,rgba(255,255,255,0.1),transparent_50%)]" />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_80%,rgba(255,255,255,0.08),transparent_50%)]" />
-      
-      {/* Animated background elements */}
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-white/5 rounded-full blur-3xl animate-pulse" />
-      <div className="absolute bottom-1/3 right-1/4 w-80 h-80 bg-white/5 rounded-full blur-3xl animate-pulse delay-1000" />
-      
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.5 }}
-          className="text-center mb-16"
-        >
-          <h2 className="text-4xl md:text-6xl font-bold font-heading mb-6 text-white">
-            Elite Model Management Services
-          </h2>
-          <p className="text-xl text-white/90 max-w-3xl mx-auto">
-            Join the top 1% of creators. Our proven system delivers 6-figure monthly earnings.
-          </p>
-        </motion.div>
+    <section id="services" className="relative overflow-hidden">
+      {/* Smooth transition with bubbles */}
+      <div className="h-32 bg-gradient-to-b from-transparent via-primary/20 to-primary relative">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(255,255,255,0.1),transparent_40%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_60%_40%,rgba(255,255,255,0.08),transparent_30%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_60%,rgba(255,255,255,0.06),transparent_35%)]" />
         
-        <motion.div 
-          variants={container}
-          initial="hidden"
-          whileInView="show"
-          viewport={{ once: true }}
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
-        >
-          {services.map((service, index) => (
-            <motion.div
-              key={service.title}
-              variants={item}
-              className="relative group"
-            >
-              <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-8 border border-white/20 hover:bg-white/15 transition-all duration-500 transform hover:-translate-y-2 hover:scale-105">
-                <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center mb-6 group-hover:bg-white/30 transition-all duration-300">
-                  <service.icon className="h-8 w-8 text-white" />
+        {/* Animated floating bubbles */}
+        <div className="absolute top-4 left-1/4 w-16 h-16 bg-white/10 rounded-full blur-sm animate-pulse" />
+        <div className="absolute top-8 right-1/3 w-12 h-12 bg-white/8 rounded-full blur-sm animate-pulse delay-500" />
+        <div className="absolute top-12 left-1/2 w-20 h-20 bg-white/6 rounded-full blur-md animate-pulse delay-1000" />
+        <div className="absolute top-6 right-1/4 w-8 h-8 bg-white/12 rounded-full blur-sm animate-pulse delay-300" />
+      </div>
+
+      <div className="py-16 bg-gradient-to-br from-primary via-primary-accent to-accent relative">
+        {/* Background Effects */}
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/5 to-transparent" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_50%,rgba(255,255,255,0.1),transparent_50%)]" />
+        
+        {/* Animated background elements */}
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-white/5 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute bottom-1/3 right-1/4 w-80 h-80 bg-white/5 rounded-full blur-3xl animate-pulse delay-1000" />
+        
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5 }}
+            className="text-center mb-16"
+          >
+            <h2 className="text-4xl md:text-6xl font-bold font-heading mb-6 text-white">
+              Build Your Empire With Us
+            </h2>
+            <p className="text-xl text-white/90 max-w-2xl mx-auto">
+              Growing together. Scaling together. Succeeding together.
+            </p>
+          </motion.div>
+          
+          <motion.div 
+            variants={container}
+            initial="hidden"
+            whileInView="show"
+            viewport={{ once: true }}
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
+          >
+            {[
+              {
+                title: "Content Creation",
+                description: "Professional studio content that converts",
+                icon: Camera,
+                highlight: "Start Growing Today",
+                color: "from-blue-400/20 to-cyan-400/20"
+              },
+              {
+                title: "Brand Building",
+                description: "Build your personal brand empire",
+                icon: Users,
+                highlight: "Build Together",
+                color: "from-blue-500/20 to-blue-400/20"
+              },
+              {
+                title: "Marketing Strategy",
+                description: "Multi-platform viral campaigns",
+                icon: Megaphone,
+                highlight: "Scale Together",
+                color: "from-cyan-400/20 to-blue-500/20"
+              },
+              {
+                title: "Revenue Growth",
+                description: "Optimize earnings & income streams",
+                icon: DollarSign,
+                highlight: "Earn Together",
+                color: "from-blue-600/20 to-blue-400/20"
+              },
+              {
+                title: "Analytics & Data",
+                description: "Real-time performance insights",
+                icon: TrendingUp,
+                highlight: "Grow Together",
+                color: "from-blue-400/20 to-cyan-500/20"
+              },
+              {
+                title: "Fan Management",
+                description: "Engagement strategies that work",
+                icon: MessageSquare,
+                highlight: "Connect Together",
+                color: "from-cyan-500/20 to-blue-600/20"
+              }
+            ].map((service, index) => (
+              <motion.div
+                key={service.title}
+                variants={item}
+                className="relative group"
+              >
+                <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-8 border border-white/20 hover:bg-white/15 transition-all duration-500 transform hover:-translate-y-2 hover:scale-105">
+                  <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center mb-6 group-hover:bg-white/30 transition-all duration-300">
+                    <service.icon className="h-8 w-8 text-white" />
+                  </div>
+                  
+                  <h3 className="text-2xl font-bold text-white mb-4">
+                    {service.title}
+                  </h3>
+                  
+                  <p className="text-white/80 mb-6 text-sm leading-relaxed">
+                    {service.description}
+                  </p>
+                  
+                  <div className="bg-white/20 text-white font-bold text-base py-3 px-6 rounded-xl text-center border border-white/30 hover:bg-white/30 transition-colors duration-300 cursor-pointer">
+                    {service.highlight}
+                  </div>
                 </div>
-                
-                <h3 className="text-2xl font-bold text-white mb-4">
-                  {service.title}
-                </h3>
-                
-                <p className="text-white/80 mb-6 text-sm leading-relaxed">
-                  {service.description.split('.')[0]}.
-                </p>
-                
-                <div className="bg-white/20 text-white font-bold text-lg py-3 px-6 rounded-xl text-center border border-white/30">
-                  {service.highlight}
+              </motion.div>
+            ))}
+          </motion.div>
+
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5, delay: 0.3 }}
+            className="text-center mt-16"
+          >
+            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-8 border border-white/20 max-w-2xl mx-auto">
+              <HeartHandshake className="h-12 w-12 text-white mx-auto mb-4" />
+              <h3 className="text-2xl font-bold text-white mb-4">Partner With Us</h3>
+              <p className="text-white/90 mb-6">
+                We're building something amazing. Join our growing community of successful creators.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <div className="bg-white/20 text-white font-semibold py-2 px-4 rounded-lg border border-white/30">
+                  Growing Agency
+                </div>
+                <div className="bg-white/20 text-white font-semibold py-2 px-4 rounded-lg border border-white/30">
+                  Fresh Approach
+                </div>
+                <div className="bg-white/20 text-white font-semibold py-2 px-4 rounded-lg border border-white/30">
+                  Personal Touch
                 </div>
               </div>
-            </motion.div>
-          ))}
-        </motion.div>
+            </div>
+          </motion.div>
+        </div>
       </div>
     </section>
   );
