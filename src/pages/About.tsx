@@ -5,9 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { CheckCircle, ArrowRight, Star, Users, Target, DollarSign, Calendar, MapPin, Phone, Mail, Instagram, Camera } from "lucide-react";
+import { CheckCircle, ArrowRight, Star, Users, Target, Camera, Heart } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import BackButton from "@/components/BackButton";
@@ -15,36 +14,74 @@ import BackButton from "@/components/BackButton";
 const OnBoarding = () => {
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
-    firstName: "",
-    lastName: "",
-    dateOfBirth: "",
-    phone: "",
-    email: "",
-    location: "",
-    instagramHandle: "",
-    onlyFansHandle: "",
-    hasAgencyExperience: "",
-    agencyExperienceDetails: "",
-    currentFollowersInstagram: "",
-    currentFollowersOnlyFans: "",
-    monthlyEarnings: "",
-    contentType: [] as string[],
-    workAvailability: "",
-    personalityType: "",
-    goals: "",
-    specialSkills: "",
-    referralSource: "",
-    additionalInfo: ""
+    fullLegalName: "",
+    onlineName: "",
+    emailAddress: "",
+    socialUsernames: "",
+    phoneNumber: "",
+    personalProfile: "",
+    attitudeDescription: "",
+    basedLocation: "",
+    age: "",
+    height: "",
+    languagesSpoken: "",
+    birthday: "",
+    sexualOrientation: "",
+    ethnicity: "",
+    shoeSize: "",
+    braSize: "",
+    zodiacSign: "",
+    whereFrom: "",
+    favoriteColor: "",
+    college: "",
+    kids: "",
+    pets: "",
+    sports: "",
+    placesVisited: "",
+    relationshipStatus: "",
+    otherWork: "",
+    contentTypes: [] as string[],
+    acceptVideoCalls: "",
+    sexiestBodyPart: "",
+    physicalAppearance: "",
+    customRequests: "",
+    goLive: "",
+    featuredPeople: "",
+    onlyFansCredentials: "",
+    additionalInfo: "",
+    commitmentUnderstood: false
   });
   const navigate = useNavigate();
 
-  const totalSteps = 6;
+  const totalSteps = 8;
+
+  const contentTypeOptions = [
+    "Bikini",
+    "Lingerie", 
+    "Feet",
+    "Ass",
+    "Voice Notes",
+    "Boobs",
+    "Pussy pics",
+    "Full nude pics/videos",
+    "Video dick rates",
+    "Girl-GIrl Content",
+    "Boy-Girl Content",
+    "Masturbation Content",
+    "Anal",
+    "JOI Videos (Jerk-off instructions)",
+    "Twerk videos",
+    "Dildo Content"
+  ];
 
   const handleNext = () => {
     if (step < totalSteps) {
       setStep(step + 1);
     } else {
-      // Submit form and redirect to dashboard
+      if (!formData.commitmentUnderstood) {
+        toast.error("Please confirm your commitment to the process before submitting.");
+        return;
+      }
       toast.success("Thank you for your application! We'll review it and get back to you within 24 hours.");
       navigate("/");
     }
@@ -56,16 +93,16 @@ const OnBoarding = () => {
     }
   };
 
-  const updateFormData = (field: string, value: string | string[]) => {
+  const updateFormData = (field: string, value: string | string[] | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
   const handleContentTypeChange = (contentType: string, checked: boolean) => {
-    const currentTypes = formData.contentType;
+    const currentTypes = formData.contentTypes;
     if (checked) {
-      updateFormData('contentType', [...currentTypes, contentType]);
+      updateFormData('contentTypes', [...currentTypes, contentType]);
     } else {
-      updateFormData('contentType', currentTypes.filter(type => type !== contentType));
+      updateFormData('contentTypes', currentTypes.filter(type => type !== contentType));
     }
   };
 
@@ -80,81 +117,66 @@ const OnBoarding = () => {
           >
             <div className="text-center mb-8">
               <Star className="h-12 w-12 text-primary mx-auto mb-4" />
-              <h2 className="text-2xl font-bold text-primary mb-2">Personal Information</h2>
-              <p className="text-gray-600">Let's start with your basic details</p>
+              <h2 className="text-2xl font-bold text-primary mb-2">Risen Onboarding Form</h2>
+              <p className="text-gray-600">Please fill out this form with in full and with detail. We are so pleased to have you with us! :)</p>
             </div>
             
             <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="firstName">First Name *</Label>
-                  <Input
-                    id="firstName"
-                    value={formData.firstName}
-                    onChange={(e) => updateFormData('firstName', e.target.value)}
-                    placeholder="Enter your first name"
-                    className="mt-1"
-                    required
-                  />
-                </div>
-                
-                <div>
-                  <Label htmlFor="lastName">Last Name *</Label>
-                  <Input
-                    id="lastName"
-                    value={formData.lastName}
-                    onChange={(e) => updateFormData('lastName', e.target.value)}
-                    placeholder="Enter your last name"
-                    className="mt-1"
-                    required
-                  />
-                </div>
-              </div>
-              
               <div>
-                <Label htmlFor="dateOfBirth">Date of Birth *</Label>
+                <Label htmlFor="fullLegalName">What's your full legal name? *</Label>
                 <Input
-                  id="dateOfBirth"
-                  type="date"
-                  value={formData.dateOfBirth}
-                  onChange={(e) => updateFormData('dateOfBirth', e.target.value)}
+                  id="fullLegalName"
+                  value={formData.fullLegalName}
+                  onChange={(e) => updateFormData('fullLegalName', e.target.value)}
+                  placeholder="Your response"
                   className="mt-1"
                   required
                 />
               </div>
               
               <div>
-                <Label htmlFor="phone">Phone Number *</Label>
+                <Label htmlFor="onlineName">What's your online name? (if different from your legal name)</Label>
                 <Input
-                  id="phone"
-                  value={formData.phone}
-                  onChange={(e) => updateFormData('phone', e.target.value)}
-                  placeholder="Include country code (e.g. +1234567890)"
+                  id="onlineName"
+                  value={formData.onlineName}
+                  onChange={(e) => updateFormData('onlineName', e.target.value)}
+                  placeholder="Your response"
                   className="mt-1"
-                  required
                 />
               </div>
               
               <div>
-                <Label htmlFor="email">Email Address *</Label>
+                <Label htmlFor="emailAddress">E-mail address? *</Label>
                 <Input
-                  id="email"
+                  id="emailAddress"
                   type="email"
-                  value={formData.email}
-                  onChange={(e) => updateFormData('email', e.target.value)}
-                  placeholder="your.email@example.com"
+                  value={formData.emailAddress}
+                  onChange={(e) => updateFormData('emailAddress', e.target.value)}
+                  placeholder="Your response"
                   className="mt-1"
                   required
                 />
               </div>
               
               <div>
-                <Label htmlFor="location">Location *</Label>
+                <Label htmlFor="socialUsernames">IG, TikTok, Twitter usernames *</Label>
                 <Input
-                  id="location"
-                  value={formData.location}
-                  onChange={(e) => updateFormData('location', e.target.value)}
-                  placeholder="City, Country"
+                  id="socialUsernames"
+                  value={formData.socialUsernames}
+                  onChange={(e) => updateFormData('socialUsernames', e.target.value)}
+                  placeholder="Your response"
+                  className="mt-1"
+                  required
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="phoneNumber">Phone Number? *</Label>
+                <Input
+                  id="phoneNumber"
+                  value={formData.phoneNumber}
+                  onChange={(e) => updateFormData('phoneNumber', e.target.value)}
+                  placeholder="Your response"
                   className="mt-1"
                   required
                 />
@@ -171,61 +193,36 @@ const OnBoarding = () => {
             className="space-y-6"
           >
             <div className="text-center mb-8">
-              <Instagram className="h-12 w-12 text-primary mx-auto mb-4" />
-              <h2 className="text-2xl font-bold text-primary mb-2">Social Media Profiles</h2>
-              <p className="text-gray-600">Your online presence information</p>
+              <Users className="h-12 w-12 text-primary mx-auto mb-4" />
+              <h2 className="text-2xl font-bold text-primary mb-2">Personal Profile</h2>
+              <p className="text-gray-600">Tell us about yourself in detail</p>
             </div>
             
             <div className="space-y-4">
               <div>
-                <Label htmlFor="instagramHandle">Instagram Handle *</Label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">@</span>
-                  <Input
-                    id="instagramHandle"
-                    value={formData.instagramHandle}
-                    onChange={(e) => updateFormData('instagramHandle', e.target.value)}
-                    placeholder="yourusername"
-                    className="mt-1 pl-8"
-                    required
-                  />
-                </div>
-              </div>
-              
-              <div>
-                <Label htmlFor="onlyFansHandle">OnlyFans Handle *</Label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">@</span>
-                  <Input
-                    id="onlyFansHandle"
-                    value={formData.onlyFansHandle}
-                    onChange={(e) => updateFormData('onlyFansHandle', e.target.value)}
-                    placeholder="yourusername"
-                    className="mt-1 pl-8"
-                    required
-                  />
-                </div>
-              </div>
-              
-              <div>
-                <Label htmlFor="currentFollowersInstagram">Instagram Followers</Label>
-                <Input
-                  id="currentFollowersInstagram"
-                  value={formData.currentFollowersInstagram}
-                  onChange={(e) => updateFormData('currentFollowersInstagram', e.target.value)}
-                  placeholder="e.g., 5,000"
-                  className="mt-1"
+                <Label htmlFor="personalProfile">Personal profile - Tell us about yourself, your interests, hobbies, personality traits, the type of music you listen to, what you like to eat, favorite singer & some background info. *</Label>
+                <p className="text-sm text-gray-500 mt-1">Please add as much details as possible, this will help the chatting on your account to be far more convincing</p>
+                <Textarea
+                  id="personalProfile"
+                  value={formData.personalProfile}
+                  onChange={(e) => updateFormData('personalProfile', e.target.value)}
+                  placeholder="Your response"
+                  className="mt-1 min-h-[120px]"
+                  required
                 />
               </div>
               
               <div>
-                <Label htmlFor="currentFollowersOnlyFans">OnlyFans Subscribers</Label>
-                <Input
-                  id="currentFollowersOnlyFans"
-                  value={formData.currentFollowersOnlyFans}
-                  onChange={(e) => updateFormData('currentFollowersOnlyFans', e.target.value)}
-                  placeholder="e.g., 500"
-                  className="mt-1"
+                <Label htmlFor="attitudeDescription">Describe your attitude, how you would want the writers to talk that represents you. *</Label>
+                <p className="text-sm text-gray-500 mt-1">Anything we should know to blend the chatting exactly like it was yourself.</p>
+                <p className="text-sm text-gray-500">Example: Bubbly and always teasing and joking around but can get really sexual and very descriptive</p>
+                <Textarea
+                  id="attitudeDescription"
+                  value={formData.attitudeDescription}
+                  onChange={(e) => updateFormData('attitudeDescription', e.target.value)}
+                  placeholder="Your response"
+                  className="mt-1 min-h-[120px]"
+                  required
                 />
               </div>
             </div>
@@ -240,74 +237,82 @@ const OnBoarding = () => {
             className="space-y-6"
           >
             <div className="text-center mb-8">
-              <DollarSign className="h-12 w-12 text-primary mx-auto mb-4" />
-              <h2 className="text-2xl font-bold text-primary mb-2">Experience & Earnings</h2>
-              <p className="text-gray-600">Tell us about your background</p>
+              <Target className="h-12 w-12 text-primary mx-auto mb-4" />
+              <h2 className="text-2xl font-bold text-primary mb-2">Basic Information</h2>
+              <p className="text-gray-600">Your basic details</p>
             </div>
             
             <div className="space-y-4">
               <div>
-                <Label>Do you have experience working with an agency? *</Label>
-                <RadioGroup
-                  value={formData.hasAgencyExperience}
-                  onValueChange={(value) => updateFormData('hasAgencyExperience', value)}
-                  className="mt-2"
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="yes" id="exp-yes" />
-                    <Label htmlFor="exp-yes">Yes</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="no" id="exp-no" />
-                    <Label htmlFor="exp-no">No</Label>
-                  </div>
-                </RadioGroup>
-              </div>
-              
-              {formData.hasAgencyExperience === 'yes' && (
-                <div>
-                  <Label htmlFor="agencyExperienceDetails">Please describe your agency experience</Label>
-                  <Textarea
-                    id="agencyExperienceDetails"
-                    value={formData.agencyExperienceDetails}
-                    onChange={(e) => updateFormData('agencyExperienceDetails', e.target.value)}
-                    placeholder="Which agency, how long, what was your experience..."
-                    className="mt-1"
-                  />
-                </div>
-              )}
-              
-              <div>
-                <Label htmlFor="monthlyEarnings">Current Monthly Earnings</Label>
-                <Select onValueChange={(value) => updateFormData('monthlyEarnings', value)}>
-                  <SelectTrigger className="mt-1">
-                    <SelectValue placeholder="Select your earnings range" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="0-500">$0 - $500</SelectItem>
-                    <SelectItem value="500-1000">$500 - $1,000</SelectItem>
-                    <SelectItem value="1000-2500">$1,000 - $2,500</SelectItem>
-                    <SelectItem value="2500-5000">$2,500 - $5,000</SelectItem>
-                    <SelectItem value="5000-10000">$5,000 - $10,000</SelectItem>
-                    <SelectItem value="10000+">$10,000+</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="basedLocation">Where are you based? *</Label>
+                <Input
+                  id="basedLocation"
+                  value={formData.basedLocation}
+                  onChange={(e) => updateFormData('basedLocation', e.target.value)}
+                  placeholder="Your response"
+                  className="mt-1"
+                  required
+                />
               </div>
               
               <div>
-                <Label>Content Type (Select all that apply)</Label>
-                <div className="mt-2 space-y-2">
-                  {['Photos', 'Videos', 'Live Streams', 'Custom Content', 'Fetish Content', 'Couple Content'].map((type) => (
-                    <div key={type} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={type}
-                        checked={formData.contentType.includes(type)}
-                        onCheckedChange={(checked) => handleContentTypeChange(type, !!checked)}
-                      />
-                      <Label htmlFor={type}>{type}</Label>
-                    </div>
-                  ))}
-                </div>
+                <Label htmlFor="age">Age *</Label>
+                <Input
+                  id="age"
+                  value={formData.age}
+                  onChange={(e) => updateFormData('age', e.target.value)}
+                  placeholder="Your response"
+                  className="mt-1"
+                  required
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="height">Height *</Label>
+                <Input
+                  id="height"
+                  value={formData.height}
+                  onChange={(e) => updateFormData('height', e.target.value)}
+                  placeholder="Your response"
+                  className="mt-1"
+                  required
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="languagesSpoken">Languages Spoken *</Label>
+                <Input
+                  id="languagesSpoken"
+                  value={formData.languagesSpoken}
+                  onChange={(e) => updateFormData('languagesSpoken', e.target.value)}
+                  placeholder="Your response"
+                  className="mt-1"
+                  required
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="birthday">Birthday *</Label>
+                <Input
+                  id="birthday"
+                  value={formData.birthday}
+                  onChange={(e) => updateFormData('birthday', e.target.value)}
+                  placeholder="Your response"
+                  className="mt-1"
+                  required
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="sexualOrientation">Sexual Orientation *</Label>
+                <Input
+                  id="sexualOrientation"
+                  value={formData.sexualOrientation}
+                  onChange={(e) => updateFormData('sexualOrientation', e.target.value)}
+                  placeholder="Your response"
+                  className="mt-1"
+                  required
+                />
               </div>
             </div>
           </motion.div>
@@ -321,68 +326,80 @@ const OnBoarding = () => {
             className="space-y-6"
           >
             <div className="text-center mb-8">
-              <Calendar className="h-12 w-12 text-primary mx-auto mb-4" />
-              <h2 className="text-2xl font-bold text-primary mb-2">Availability & Personality</h2>
-              <p className="text-gray-600">Help us understand your working style</p>
+              <Heart className="h-12 w-12 text-primary mx-auto mb-4" />
+              <h2 className="text-2xl font-bold text-primary mb-2">Physical Details</h2>
+              <p className="text-gray-600">Additional physical information</p>
             </div>
             
             <div className="space-y-4">
               <div>
-                <Label>Work Availability *</Label>
-                <RadioGroup
-                  value={formData.workAvailability}
-                  onValueChange={(value) => updateFormData('workAvailability', value)}
-                  className="mt-2"
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="part-time" id="part-time" />
-                    <Label htmlFor="part-time">Part-time (5-20 hours/week)</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="full-time" id="full-time" />
-                    <Label htmlFor="full-time">Full-time (30+ hours/week)</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="flexible" id="flexible" />
-                    <Label htmlFor="flexible">Flexible schedule</Label>
-                  </div>
-                </RadioGroup>
-              </div>
-              
-              <div>
-                <Label>Personality Type *</Label>
-                <RadioGroup
-                  value={formData.personalityType}
-                  onValueChange={(value) => updateFormData('personalityType', value)}
-                  className="mt-2"
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="outgoing" id="outgoing" />
-                    <Label htmlFor="outgoing">Outgoing & Social</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="shy" id="shy" />
-                    <Label htmlFor="shy">Shy & Reserved</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="playful" id="playful" />
-                    <Label htmlFor="playful">Playful & Fun</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="professional" id="professional" />
-                    <Label htmlFor="professional">Professional & Serious</Label>
-                  </div>
-                </RadioGroup>
-              </div>
-              
-              <div>
-                <Label htmlFor="specialSkills">Special Skills or Talents</Label>
-                <Textarea
-                  id="specialSkills"
-                  value={formData.specialSkills}
-                  onChange={(e) => updateFormData('specialSkills', e.target.value)}
-                  placeholder="e.g., Dancing, singing, languages, fitness, etc."
+                <Label htmlFor="ethnicity">Ethnicity *</Label>
+                <Input
+                  id="ethnicity"
+                  value={formData.ethnicity}
+                  onChange={(e) => updateFormData('ethnicity', e.target.value)}
+                  placeholder="Your response"
                   className="mt-1"
+                  required
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="shoeSize">Shoe Size *</Label>
+                <Input
+                  id="shoeSize"
+                  value={formData.shoeSize}
+                  onChange={(e) => updateFormData('shoeSize', e.target.value)}
+                  placeholder="Your response"
+                  className="mt-1"
+                  required
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="braSize">Bra Size</Label>
+                <Input
+                  id="braSize"
+                  value={formData.braSize}
+                  onChange={(e) => updateFormData('braSize', e.target.value)}
+                  placeholder="Your response"
+                  className="mt-1"
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="zodiacSign">Zodiac Sign *</Label>
+                <Input
+                  id="zodiacSign"
+                  value={formData.zodiacSign}
+                  onChange={(e) => updateFormData('zodiacSign', e.target.value)}
+                  placeholder="Your response"
+                  className="mt-1"
+                  required
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="whereFrom">Where are you from? *</Label>
+                <Input
+                  id="whereFrom"
+                  value={formData.whereFrom}
+                  onChange={(e) => updateFormData('whereFrom', e.target.value)}
+                  placeholder="Your response"
+                  className="mt-1"
+                  required
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="favoriteColor">Favorite Color? *</Label>
+                <Input
+                  id="favoriteColor"
+                  value={formData.favoriteColor}
+                  onChange={(e) => updateFormData('favoriteColor', e.target.value)}
+                  placeholder="Your response"
+                  className="mt-1"
+                  required
                 />
               </div>
             </div>
@@ -397,49 +414,90 @@ const OnBoarding = () => {
             className="space-y-6"
           >
             <div className="text-center mb-8">
-              <Target className="h-12 w-12 text-primary mx-auto mb-4" />
-              <h2 className="text-2xl font-bold text-primary mb-2">Goals & Additional Info</h2>
-              <p className="text-gray-600">Tell us about your aspirations</p>
+              <Users className="h-12 w-12 text-primary mx-auto mb-4" />
+              <h2 className="text-2xl font-bold text-primary mb-2">Background Information</h2>
+              <p className="text-gray-600">Tell us more about your background</p>
             </div>
             
             <div className="space-y-4">
               <div>
-                <Label htmlFor="goals">What are your main goals? *</Label>
-                <Textarea
-                  id="goals"
-                  value={formData.goals}
-                  onChange={(e) => updateFormData('goals', e.target.value)}
-                  placeholder="e.g., Reach $10K monthly, build personal brand, gain 100K followers..."
+                <Label htmlFor="college">Did you go to college? What major?</Label>
+                <Input
+                  id="college"
+                  value={formData.college}
+                  onChange={(e) => updateFormData('college', e.target.value)}
+                  placeholder="Your response"
+                  className="mt-1"
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="kids">Do you have kids? If yes how many?</Label>
+                <Input
+                  id="kids"
+                  value={formData.kids}
+                  onChange={(e) => updateFormData('kids', e.target.value)}
+                  placeholder="Your response"
+                  className="mt-1"
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="pets">Do you have pets? Name, kind, age?</Label>
+                <Input
+                  id="pets"
+                  value={formData.pets}
+                  onChange={(e) => updateFormData('pets', e.target.value)}
+                  placeholder="Your response"
+                  className="mt-1"
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="sports">Do you play sports? *</Label>
+                <Input
+                  id="sports"
+                  value={formData.sports}
+                  onChange={(e) => updateFormData('sports', e.target.value)}
+                  placeholder="Your response"
                   className="mt-1"
                   required
                 />
               </div>
               
               <div>
-                <Label htmlFor="referralSource">How did you hear about us?</Label>
-                <Select onValueChange={(value) => updateFormData('referralSource', value)}>
-                  <SelectTrigger className="mt-1">
-                    <SelectValue placeholder="Select an option" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="social-media">Social Media</SelectItem>
-                    <SelectItem value="friend-referral">Friend Referral</SelectItem>
-                    <SelectItem value="google-search">Google Search</SelectItem>
-                    <SelectItem value="other-model">Another Model</SelectItem>
-                    <SelectItem value="advertisement">Advertisement</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="placesVisited">What places have you visited? *</Label>
+                <Input
+                  id="placesVisited"
+                  value={formData.placesVisited}
+                  onChange={(e) => updateFormData('placesVisited', e.target.value)}
+                  placeholder="Your response"
+                  className="mt-1"
+                  required
+                />
               </div>
               
               <div>
-                <Label htmlFor="additionalInfo">Additional Information</Label>
-                <Textarea
-                  id="additionalInfo"
-                  value={formData.additionalInfo}
-                  onChange={(e) => updateFormData('additionalInfo', e.target.value)}
-                  placeholder="Anything else you'd like us to know..."
+                <Label htmlFor="relationshipStatus">Public Relationship Status? *</Label>
+                <Input
+                  id="relationshipStatus"
+                  value={formData.relationshipStatus}
+                  onChange={(e) => updateFormData('relationshipStatus', e.target.value)}
+                  placeholder="Your response"
                   className="mt-1"
+                  required
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="otherWork">What is your work other than OnlyFans? *</Label>
+                <Input
+                  id="otherWork"
+                  value={formData.otherWork}
+                  onChange={(e) => updateFormData('otherWork', e.target.value)}
+                  placeholder="Your response"
+                  className="mt-1"
+                  required
                 />
               </div>
             </div>
@@ -454,39 +512,188 @@ const OnBoarding = () => {
             className="space-y-6"
           >
             <div className="text-center mb-8">
-              <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
-              <h2 className="text-2xl font-bold text-primary mb-2">Application Complete!</h2>
-              <p className="text-gray-600">Review your information before submitting</p>
+              <Camera className="h-12 w-12 text-primary mx-auto mb-4" />
+              <h2 className="text-2xl font-bold text-primary mb-2">Content Preferences</h2>
+              <p className="text-gray-600">What type of content are you comfortable sharing?</p>
             </div>
             
-            <div className="bg-gradient-to-br from-primary/5 to-primary-accent/5 rounded-lg p-6 space-y-4 max-h-96 overflow-y-auto">
+            <div className="space-y-4">
               <div>
-                <h3 className="font-semibold text-primary">Personal Information</h3>
-                <p className="text-sm text-gray-600">{formData.firstName} {formData.lastName}</p>
-                <p className="text-sm text-gray-600">{formData.email} | {formData.phone}</p>
-                <p className="text-sm text-gray-600">{formData.location}</p>
+                <Label className="text-base font-medium">What type of content are you comfortable to share? *</Label>
+                <div className="mt-3 space-y-2 max-h-60 overflow-y-auto border rounded-lg p-4">
+                  {contentTypeOptions.map((type) => (
+                    <div key={type} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={type}
+                        checked={formData.contentTypes.includes(type)}
+                        onCheckedChange={(checked) => handleContentTypeChange(type, !!checked)}
+                      />
+                      <Label htmlFor={type} className="text-sm">{type}</Label>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-red-500 text-sm mt-2">This question is required.</p>
+              </div>
+            </div>
+          </motion.div>
+        );
+        
+      case 7:
+        return (
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="space-y-6"
+          >
+            <div className="text-center mb-8">
+              <Heart className="h-12 w-12 text-primary mx-auto mb-4" />
+              <h2 className="text-2xl font-bold text-primary mb-2">Service Preferences</h2>
+              <p className="text-gray-600">Your comfort level with different services</p>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <Label>Do you accept video calls from OF fans? *</Label>
+                <RadioGroup
+                  value={formData.acceptVideoCalls}
+                  onValueChange={(value) => updateFormData('acceptVideoCalls', value)}
+                  className="mt-2"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="yes" id="video-yes" />
+                    <Label htmlFor="video-yes">Yes</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="no" id="video-no" />
+                    <Label htmlFor="video-no">No</Label>
+                  </div>
+                </RadioGroup>
               </div>
               
               <div>
-                <h3 className="font-semibold text-primary">Social Media</h3>
-                <p className="text-sm text-gray-600">Instagram: @{formData.instagramHandle}</p>
-                <p className="text-sm text-gray-600">OnlyFans: @{formData.onlyFansHandle}</p>
+                <Label htmlFor="sexiestBodyPart">Which part of your body do you find to be the sexiest one? *</Label>
+                <Input
+                  id="sexiestBodyPart"
+                  value={formData.sexiestBodyPart}
+                  onChange={(e) => updateFormData('sexiestBodyPart', e.target.value)}
+                  placeholder="Your response"
+                  className="mt-1"
+                  required
+                />
               </div>
               
               <div>
-                <h3 className="font-semibold text-primary">Experience & Goals</h3>
-                <p className="text-sm text-gray-600">Monthly Earnings: {formData.monthlyEarnings}</p>
-                <p className="text-sm text-gray-600">Agency Experience: {formData.hasAgencyExperience}</p>
-                <p className="text-sm text-gray-600">Availability: {formData.workAvailability}</p>
+                <Label htmlFor="physicalAppearance">How would you best describe your physical appearance? *</Label>
+                <Textarea
+                  id="physicalAppearance"
+                  value={formData.physicalAppearance}
+                  onChange={(e) => updateFormData('physicalAppearance', e.target.value)}
+                  placeholder="Your response"
+                  className="mt-1"
+                  required
+                />
+              </div>
+              
+              <div>
+                <Label>Are you willing to make custom requests?</Label>
+                <RadioGroup
+                  value={formData.customRequests}
+                  onValueChange={(value) => updateFormData('customRequests', value)}
+                  className="mt-2"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="yes" id="custom-yes" />
+                    <Label htmlFor="custom-yes">Yes</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="no" id="custom-no" />
+                    <Label htmlFor="custom-no">No</Label>
+                  </div>
+                </RadioGroup>
+              </div>
+              
+              <div>
+                <Label>Are you willing to go LIVE on OF?</Label>
+                <RadioGroup
+                  value={formData.goLive}
+                  onValueChange={(value) => updateFormData('goLive', value)}
+                  className="mt-2"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="yes" id="live-yes" />
+                    <Label htmlFor="live-yes">Yes</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="no" id="live-no" />
+                    <Label htmlFor="live-no">No</Label>
+                  </div>
+                </RadioGroup>
               </div>
             </div>
+          </motion.div>
+        );
+        
+      case 8:
+        return (
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="space-y-6"
+          >
+            <div className="text-center mb-8">
+              <CheckCircle className="h-12 w-12 text-primary mx-auto mb-4" />
+              <h2 className="text-2xl font-bold text-primary mb-2">Final Details</h2>
+              <p className="text-gray-600">Complete your application</p>
+            </div>
             
-            <div className="bg-primary/10 rounded-lg p-4 text-center">
-              <Camera className="h-8 w-8 text-primary mx-auto mb-2" />
-              <h3 className="font-semibold text-primary">What Happens Next?</h3>
-              <p className="text-sm text-gray-600 mt-1">
-                Our team will review your application within 24 hours. If you're a good fit, we'll contact you to schedule a video interview and discuss your personalized strategy.
-              </p>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="featuredPeople">Do you have anyone featured in your OF content, if so please add their @ so we can tag them</Label>
+                <Textarea
+                  id="featuredPeople"
+                  value={formData.featuredPeople}
+                  onChange={(e) => updateFormData('featuredPeople', e.target.value)}
+                  placeholder="Your response"
+                  className="mt-1"
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="onlyFansCredentials">OnlyFans Email + Password</Label>
+                <Textarea
+                  id="onlyFansCredentials"
+                  value={formData.onlyFansCredentials}
+                  onChange={(e) => updateFormData('onlyFansCredentials', e.target.value)}
+                  placeholder="Your response"
+                  className="mt-1"
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="additionalInfo">Anything else you want to mention or add that we have not asked you on this questionnaire?</Label>
+                <Textarea
+                  id="additionalInfo"
+                  value={formData.additionalInfo}
+                  onChange={(e) => updateFormData('additionalInfo', e.target.value)}
+                  placeholder="Your response"
+                  className="mt-1"
+                />
+              </div>
+              
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <div className="flex items-start space-x-3">
+                  <Checkbox
+                    id="commitment"
+                    checked={formData.commitmentUnderstood}
+                    onCheckedChange={(checked) => updateFormData('commitmentUnderstood', !!checked)}
+                    className="mt-1"
+                  />
+                  <Label htmlFor="commitment" className="text-sm leading-relaxed">
+                    Please tick this box to show that you understand making a high amount of money will require great commitment from you. We expect regular content, regular postings on TikTok / IG<br />
+                    <span className="font-medium">I understand and I am committed to this process</span>
+                  </Label>
+                </div>
+              </div>
             </div>
           </motion.div>
         );
