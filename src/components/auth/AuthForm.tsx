@@ -57,7 +57,15 @@ export const AuthForm = ({ isLogin, setIsLogin }: AuthFormProps) => {
         await signUp(email, password);
         toast.success("Account created successfully!");
       }
-      navigate("/");
+      
+      // Check for redirect path after login
+      const redirectPath = localStorage.getItem('redirectAfterLogin');
+      if (redirectPath) {
+        localStorage.removeItem('redirectAfterLogin');
+        navigate(redirectPath);
+      } else {
+        navigate("/");
+      }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "An error occurred");
     }

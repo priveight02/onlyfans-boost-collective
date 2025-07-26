@@ -1,5 +1,6 @@
 import { Camera, Users, TrendingUp, HeartHandshake, MessageSquare, DollarSign, Megaphone } from "lucide-react";
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 
 const services = [
   {
@@ -62,6 +63,14 @@ const item = {
 };
 
 const Services = () => {
+  const navigate = useNavigate();
+
+  const handleServiceClick = () => {
+    // Store redirect path for after login
+    localStorage.setItem('redirectAfterLogin', '/onboarding');
+    navigate('/auth');
+  };
+
   return (
     <section id="services" className="py-12 bg-gradient-to-br from-primary via-primary-accent to-accent relative overflow-hidden min-h-screen flex items-center">
       {/* Enhanced Background Effects */}
@@ -159,9 +168,12 @@ const Services = () => {
                   {service.description}
                 </p>
                 
-                <div className="bg-white/25 text-white font-semibold text-sm py-2 px-4 rounded-lg text-center border border-white/20 hover:bg-white/35 transition-all duration-300 cursor-pointer hover:scale-105">
+                <button 
+                  onClick={handleServiceClick}
+                  className="w-full bg-white/25 text-white font-semibold text-sm py-2 px-4 rounded-lg text-center border border-white/20 hover:bg-white/35 transition-all duration-300 cursor-pointer hover:scale-105"
+                >
                   {service.highlight}
-                </div>
+                </button>
               </div>
             </motion.div>
           ))}
