@@ -68,10 +68,18 @@ const Navigation = () => {
             <div className="flex items-center">
               <Link 
                 to="/" 
-                className="text-xl font-heading font-bold text-primary tracking-tight hover:text-primary-accent transition-colors"
-                style={{ letterSpacing: '-0.025em' }}
+                className="flex items-center space-x-3 group transition-all duration-300 hover:scale-105"
               >
-                OFM EXTENDED™
+                <div className="w-10 h-10 rounded-lg overflow-hidden shadow-lg group-hover:shadow-xl transition-shadow duration-300">
+                  <img 
+                    src="/lovable-uploads/de380a59-3cca-4551-ac48-b96afaf53f88.png" 
+                    alt="OZ Agency Logo" 
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <span className="text-xl font-heading font-bold text-primary tracking-tight group-hover:text-accent transition-colors duration-300">
+                  OZ Agency
+                </span>
               </Link>
             </div>
             
