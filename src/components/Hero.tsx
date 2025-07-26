@@ -59,7 +59,7 @@ const Hero = () => {
             className="text-4xl md:text-7xl font-bold text-white mb-6 font-heading tracking-tight drop-shadow-lg [text-wrap:balance] leading-[1.1]"
           >
             Elite OnlyFans<br />
-            <span className="text-accent drop-shadow-md">Management Agency</span>
+            <span className="text-accent drop-shadow-lg [text-shadow:_0_0_20px_rgb(255_255_255_/_50%)]">Management Agency</span>
           </motion.h1>
           
           <motion.p 
