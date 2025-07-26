@@ -1,26 +1,26 @@
 import type { Feature, Stat } from "./AuthTypes";
 
 const Feature = ({ icon, title, description }: Feature) => (
-  <div className="flex items-start space-x-3">
-    <div className="text-2xl">{icon}</div>
+  <div className="flex items-start space-x-4 p-4 bg-white/10 backdrop-blur-sm rounded-xl border border-white/20 hover:bg-white/15 transition-all duration-300">
+    <div className="text-3xl bg-white/20 rounded-lg p-3 backdrop-blur-sm">{icon}</div>
     <div>
-      <h3 className="font-medium text-primary">{title}</h3>
-      <p className="text-sm text-gray-600">{description}</p>
+      <h3 className="font-semibold text-white text-lg mb-1">{title}</h3>
+      <p className="text-white/80 text-sm leading-relaxed">{description}</p>
     </div>
   </div>
 );
 
 const Stat = ({ number, label }: Stat) => (
-  <div className="bg-white/60 backdrop-blur-sm rounded-lg p-4 text-center">
-    <div className="text-2xl font-bold text-primary-accent">{number}</div>
-    <div className="text-sm text-gray-600">{label}</div>
+  <div className="bg-white/15 backdrop-blur-sm rounded-xl p-4 text-center border border-white/30 hover:bg-white/20 transition-all duration-300">
+    <div className="text-2xl font-bold text-white">{number}</div>
+    <div className="text-sm text-white/70">{label}</div>
   </div>
 );
 
 export const AuthFeatures = () => (
-  <div className="space-y-8 p-8">
+  <div className="space-y-8">
     <div className="animate-fade-in">
-      <h2 className="text-2xl font-bold text-primary mb-4">Why Choose Us?</h2>
+      <h2 className="text-3xl font-bold text-white mb-6 font-heading">Why Choose Us?</h2>
       <div className="space-y-4">
         <Feature
           icon="🔒"
