@@ -1,46 +1,49 @@
 import type { Feature, Stat } from "./AuthTypes";
+import { Shield, Zap, DollarSign, Star } from "lucide-react";
 
 const Feature = ({ icon, title, description }: Feature) => (
-  <div className="flex items-start space-x-4 p-4 bg-white/10 backdrop-blur-sm rounded-xl border border-white/20 hover:bg-white/15 transition-all duration-300">
-    <div className="text-3xl bg-white/20 rounded-lg p-3 backdrop-blur-sm">{icon}</div>
-    <div>
-      <h3 className="font-semibold text-white text-lg mb-1">{title}</h3>
-      <p className="text-white/80 text-sm leading-relaxed">{description}</p>
+  <div className="group flex items-start space-x-5 p-6 bg-white/5 backdrop-blur-md rounded-2xl border border-white/10 hover:bg-white/10 hover:border-white/20 transition-all duration-500">
+    <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-white/20 to-white/10 rounded-xl border border-white/20 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+      <div className="text-white">{icon}</div>
+    </div>
+    <div className="flex-1">
+      <h3 className="font-semibold text-white text-xl mb-2 font-heading">{title}</h3>
+      <p className="text-white/70 text-base leading-relaxed">{description}</p>
     </div>
   </div>
 );
 
 const Stat = ({ number, label }: Stat) => (
-  <div className="bg-white/15 backdrop-blur-sm rounded-xl p-4 text-center border border-white/30 hover:bg-white/20 transition-all duration-300">
-    <div className="text-2xl font-bold text-white">{number}</div>
-    <div className="text-sm text-white/70">{label}</div>
+  <div className="group bg-white/8 backdrop-blur-md rounded-xl p-5 text-center border border-white/15 hover:bg-white/15 hover:border-white/25 transition-all duration-400">
+    <div className="text-3xl font-bold text-white mb-1 group-hover:scale-105 transition-transform duration-300">{number}</div>
+    <div className="text-sm text-white/60 font-medium uppercase tracking-wider">{label}</div>
   </div>
 );
 
 export const AuthFeatures = () => (
-  <div className="space-y-8">
+  <div className="space-y-10">
     <div className="animate-fade-in">
-      <h2 className="text-3xl font-bold text-white mb-6 font-heading">Why Choose Us?</h2>
-      <div className="space-y-4">
+      <h2 className="text-4xl font-bold text-white mb-8 font-heading tracking-tight">Why Choose Us?</h2>
+      <div className="space-y-5">
         <Feature
-          icon="🔒"
+          icon={<Shield size={24} />}
           title="Secure Platform"
-          description="Enterprise-grade security with advanced encryption"
+          description="Enterprise-grade security with advanced encryption and data protection"
         />
         <Feature
-          icon="⚡"
+          icon={<Zap size={24} />}
           title="Fast Onboarding"
-          description="Get started in minutes with our streamlined process"
+          description="Get started in minutes with our streamlined verification process"
         />
         <Feature
-          icon="💰"
+          icon={<DollarSign size={24} />}
           title="Maximize Earnings"
-          description="Proven strategies to increase your revenue"
+          description="Proven strategies and tools to optimize your revenue potential"
         />
         <Feature
-          icon="🌟"
+          icon={<Star size={24} />}
           title="24/7 Support"
-          description="Dedicated team ready to help you succeed"
+          description="Dedicated team ready to help you succeed at any time"
         />
       </div>
     </div>
