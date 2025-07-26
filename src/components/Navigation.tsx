@@ -69,7 +69,7 @@ const Navigation = () => {
                 to="/" 
                 className="flex items-center group transition-all duration-300 hover:scale-105"
               >
-                <div className="w-20 h-20">
+                <div className="w-32 h-32">
                   <img 
                     src="/lovable-uploads/2b707af2-312e-43cc-8558-a55f308c47c9.png" 
                     alt="OZ Agency Logo" 
@@ -95,7 +95,7 @@ const Navigation = () => {
                   className={`transition-colors duration-200 flex items-center gap-2 ${
                     location.pathname === item.href
                       ? "text-primary-accent font-medium"
-                      : "text-gray-500 hover:text-primary-accent"
+                      : "text-gray-700 hover:text-primary-accent"
                   }`}
                 >
                   {item.icon && <item.icon className="h-4 w-4" />}
@@ -106,7 +106,7 @@ const Navigation = () => {
                 <Button
                   variant="ghost"
                   onClick={logout}
-                  className="text-gray-500 hover:text-primary-accent hover:bg-transparent"
+                  className="text-gray-700 hover:text-primary-accent hover:bg-transparent"
                 >
                   <LogOut className="mr-2 h-4 w-4" />
                   Logout
@@ -115,7 +115,7 @@ const Navigation = () => {
                 <Link to="/auth">
                   <Button
                     variant="ghost"
-                    className="text-gray-500 hover:text-primary-accent hover:bg-transparent"
+                    className="text-gray-700 hover:text-primary-accent hover:bg-transparent"
                   >
                     <LogIn className="mr-2 h-4 w-4" />
                     Login
@@ -128,7 +128,7 @@ const Navigation = () => {
             <div className="md:hidden flex items-center">
               <button
                 onClick={() => setIsOpen(!isOpen)}
-                className="text-gray-500 hover:text-primary-accent"
+                className="text-gray-700 hover:text-primary-accent"
               >
                 {isOpen ? <X size={24} /> : <Menu size={24} />}
               </button>
@@ -153,7 +153,7 @@ const Navigation = () => {
                     className={`block w-full text-left px-3 py-2 ${
                       location.pathname === item.href
                         ? "text-primary-accent font-medium"
-                        : "text-gray-500 hover:text-primary-accent"
+                        : "text-gray-700 hover:text-primary-accent"
                     } flex items-center gap-2`}
                   >
                     {item.icon && <item.icon className="h-4 w-4" />}
@@ -167,7 +167,7 @@ const Navigation = () => {
                       logout();
                       setIsOpen(false);
                     }}
-                    className="w-full justify-start text-gray-500 hover:text-primary-accent hover:bg-transparent"
+                    className="w-full justify-start text-gray-700 hover:text-primary-accent hover:bg-transparent"
                   >
                     <LogOut className="mr-2 h-4 w-4" />
                     Logout
@@ -176,7 +176,7 @@ const Navigation = () => {
                   <Link to="/auth" className="block" onClick={() => setIsOpen(false)}>
                     <Button
                       variant="ghost"
-                      className="w-full justify-start text-gray-500 hover:text-primary-accent hover:bg-transparent"
+                      className="w-full justify-start text-gray-700 hover:text-primary-accent hover:bg-transparent"
                     >
                       <LogIn className="mr-2 h-4 w-4" />
                       Login
