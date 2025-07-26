@@ -21,10 +21,10 @@ const Stat = ({ number, label }: Stat) => (
 );
 
 export const AuthFeatures = () => (
-  <div className="space-y-6">
+  <div className="space-y-3">
     <div className="animate-fade-in">
-      <h2 className="text-2xl font-bold text-white mb-4 font-heading tracking-tight">Why Choose Us?</h2>
-      <div className="space-y-3">
+      <h2 className="text-2xl font-bold text-white mb-1 font-heading tracking-tight">Why Choose Us?</h2>
+      <div className="space-y-1">
         <Feature
           icon={Shield}
           title="Secure Platform"
