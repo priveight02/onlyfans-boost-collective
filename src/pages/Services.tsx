@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import { Camera, Users, TrendingUp, HeartHandshake, MessageSquare, DollarSign, Megaphone } from "lucide-react";
+import { Camera, Users, TrendingUp, HeartHandshake, MessageSquare, DollarSign, Megaphone, Star, Sparkles } from "lucide-react";
 import BackButton from "@/components/BackButton";
 
 const Services = () => {
@@ -13,37 +13,35 @@ const Services = () => {
           <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTQ0MCIgaGVpZ2h0PSI1MDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PGxpbmVhckdyYWRpZW50IHgxPSIwJSIgeTE9IjAlIiB4Mj0iMTAwJSIgeTI9IjEwMCUiIGlkPSJhIj48c3RvcCBzdG9wLWNvbG9yPSIjRkZGIiBzdG9wLW9wYWNpdHk9Ii4yNSIgb2Zmc2V0PSIwJSIvPjxzdG9wIHN0b3AtY29sb3I9IiNGRkYiIHN0b3Atb3BhY2l0eT0iMCIgb2Zmc2V0PSIxMDAlIi8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHBhdGggZD0iTTAgMGgxNDQwdjE4N0wxNzIuOCA0NjEuOCAwIDIyN3oiIGZpbGw9InVybCgjYSkiIGZpbGwtcnVsZT0iZXZlbm9kZCIgZmlsbC1vcGFjaXR5PSIuNCIvPjwvc3ZnPg==')] bg-cover bg-center opacity-50" />
           <div className="absolute inset-0 bg-grid-white/[0.05] bg-[size:20px_20px]" />
           <div className="absolute inset-0 bg-gradient-to-b from-transparent to-[#9b87f5]/20" />
-          {/* Decorative shapes */}
-          <div className="absolute top-1/4 left-1/4 w-72 h-72 bg-white/10 rounded-full blur-3xl transform rotate-180" />
-          <div className="absolute bottom-1/3 right-1/3 w-88 h-88 bg-white/10 rounded-full blur-3xl" />
-          <div className="absolute top-1/2 right-1/4 w-96 h-96 bg-white/10 rounded-full blur-3xl transform -rotate-180" />
+          <div className="absolute top-1/2 left-1/3 w-80 h-80 bg-white/10 rounded-full blur-3xl transform -translate-y-1/2" />
+          <div className="absolute bottom-1/3 right-1/4 w-72 h-72 bg-white/10 rounded-full blur-3xl" />
         </div>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
-          <h1 className="text-4xl md:text-6xl font-bold text-white mb-6 font-heading animate-fade-in">
-            Elevate Your OnlyFans Success
+          <div className="flex justify-center mb-6">
+            <Sparkles className="h-16 w-16 text-white animate-pulse" />
+          </div>
+          <h1 className="text-4xl md:text-6xl font-bold text-white mb-6 font-heading hover:scale-105 transition-transform duration-300 animate-fade-in">
+            Premium OnlyFans Management
           </h1>
-          <p className="text-xl text-white/90 max-w-2xl mx-auto mb-8 animate-fade-in">
-            Join the elite community of top-earning creators. Our proven strategies have helped models increase their earnings by up to 300%.
+          <p className="text-xl text-white/90 max-w-2xl mx-auto mb-8 hover:text-white transition-colors duration-200 animate-fade-in">
+            Transform your content creation journey with our comprehensive management services designed to maximize your success and earnings.
           </p>
           <Link to="/join">
-            <Button size="lg" className="bg-white text-primary hover:bg-primary-light hover:text-primary animate-fade-in">
+            <Button size="lg" className="bg-white text-primary hover:bg-primary hover:text-white hover:scale-105 transition-all duration-300 animate-fade-in shadow-lg hover:shadow-xl">
               Start Growing Today
             </Button>
           </Link>
         </div>
       </div>
       {/* Services Grid */}
-      <section className="py-24 bg-gradient-to-b from-gray-50 to-white">
+      <section className="py-24 bg-gradient-to-b from-white to-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold font-heading mb-4 relative">
-              <span className="absolute inset-0 bg-gradient-to-r from-[#9b87f5] via-[#D6BCFA] to-[#9b87f5] bg-[length:200%_100%] bg-clip-text text-transparent animate-[gradient_15s_linear_infinite]">
-                Premium OnlyFans Management Services
-              </span>
-              <span className="invisible">Premium OnlyFans Management Services</span>
+            <h2 className="text-3xl md:text-4xl font-bold text-primary mb-4 animate-fade-in">
+              Our Exclusive Services
             </h2>
-            <p className="text-gray-600 max-w-2xl mx-auto">
-              We provide comprehensive solutions designed to maximize your earnings and grow your OnlyFans presence.
+            <p className="text-gray-600 max-w-2xl mx-auto animate-fade-in">
+              Comprehensive solutions designed to elevate your content creation and maximize your earnings potential.
             </p>
           </div>
           
@@ -91,17 +89,21 @@ const Services = () => {
                 icon: MessageSquare,
                 highlight: "90% subscriber retention rate"
               }
-            ].map((service) => (
+            ].map((service, index) => (
               <div
                 key={service.title}
-                className="bg-white p-8 rounded-lg shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 group"
+                className="bg-white p-8 rounded-xl shadow-lg hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 group border border-gray-100 animate-fade-in"
+                style={{ animationDelay: `${index * 100}ms` }}
               >
-                <div className="w-12 h-12 bg-primary-light rounded-lg flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-                  <service.icon className="h-6 w-6 text-primary-accent" />
+                <div className="w-16 h-16 bg-gradient-to-r from-primary to-primary-accent rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-lg">
+                  <service.icon className="h-8 w-8 text-white" />
                 </div>
-                <h3 className="text-xl font-bold text-primary mb-2">{service.title}</h3>
-                <p className="text-gray-600 mb-4">{service.description}</p>
-                <p className="text-primary-accent font-semibold">{service.highlight}</p>
+                <h3 className="text-xl font-bold text-primary mb-3 group-hover:text-primary-accent transition-colors duration-300">{service.title}</h3>
+                <p className="text-gray-600 mb-4 leading-relaxed">{service.description}</p>
+                <div className="flex items-center text-primary-accent font-semibold">
+                  <Star className="h-4 w-4 mr-2" />
+                  {service.highlight}
+                </div>
               </div>
             ))}
           </div>
@@ -109,23 +111,26 @@ const Services = () => {
       </section>
 
       {/* CTA Section */}
-      <section className="py-24 bg-gradient-to-r from-primary to-primary-accent">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-3xl md:text-4xl font-bold text-white mb-6 font-heading">
-            Ready to Maximize Your OnlyFans Potential?
+      <section className="py-24 bg-gradient-to-r from-[#9b87f5] to-[#7E69AB] relative overflow-hidden">
+        <div className="absolute inset-0 bg-grid-white/[0.05] bg-[size:20px_20px]" />
+        <div className="absolute top-1/2 left-1/4 w-64 h-64 bg-white/10 rounded-full blur-3xl" />
+        <div className="absolute bottom-1/4 right-1/3 w-80 h-80 bg-white/10 rounded-full blur-3xl" />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
+          <h2 className="text-3xl md:text-4xl font-bold text-white mb-6 font-heading animate-fade-in">
+            Ready to Transform Your Success?
           </h2>
-          <p className="text-xl text-white/90 max-w-2xl mx-auto mb-8">
-            Join our elite community of successful creators and start growing your OnlyFans income today.
+          <p className="text-xl text-white/90 max-w-2xl mx-auto mb-8 animate-fade-in">
+            Join our exclusive network of top-performing creators and unlock your full earning potential.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link to="/join">
-              <Button size="lg" className="bg-white text-primary hover:bg-primary-light hover:text-primary w-full sm:w-auto">
+              <Button size="lg" className="bg-white text-primary hover:bg-primary hover:text-white hover:scale-105 transition-all duration-300 w-full sm:w-auto shadow-lg hover:shadow-xl">
                 Apply Now
               </Button>
             </Link>
-            <Link to="/contact">
-              <Button size="lg" variant="outline" className="border-white text-white hover:bg-white/10 w-full sm:w-auto">
-                Schedule a Call
+            <Link to="/models">
+              <Button size="lg" variant="outline" className="border-white text-white hover:bg-white hover:text-primary hover:scale-105 transition-all duration-300 w-full sm:w-auto">
+                View Success Stories
               </Button>
             </Link>
           </div>
