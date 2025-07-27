@@ -70,7 +70,7 @@ const Navigation = () => {
                 <div className="w-32 h-32">
                   <img 
                     src="/lovable-uploads/2b707af2-312e-43cc-8558-a55f308c47c9.png" 
-                    alt="OZ Agency Logo" 
+                    alt="Oz Agency Logo" 
                     className="w-full h-full object-contain"
                   />
                 </div>

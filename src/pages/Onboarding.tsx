@@ -68,7 +68,7 @@ const Onboarding = () => {
         const templateParams = {
           to_email: 'ozagency.of@gmail.com',
           from_name: formData.fullLegalName,
-          message: `OZ AGENCY ONBOARDING SUBMISSION:
+          message: `Oz AGENCY ONBOARDING SUBMISSION:
 
 BASIC INFORMATION:
 Full Legal Name: ${formData.fullLegalName}
@@ -763,7 +763,7 @@ Password: yourpassword"
             className="text-center mb-12"
           >
             <Star className="h-16 w-16 text-white mx-auto mb-6" />
-            <h1 className="text-4xl font-bold text-white mb-4 drop-shadow-lg">Welcome to OZ Agency</h1>
+            <h1 className="text-4xl font-bold text-white mb-4 drop-shadow-lg">Welcome to Oz Agency</h1>
             <p className="text-xl text-white/90 mb-8 drop-shadow-md">
               Ready to take your content creation to the next level? Let's get you onboarded!
             </p>
