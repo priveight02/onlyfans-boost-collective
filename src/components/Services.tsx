@@ -66,9 +66,7 @@ const Services = () => {
   const navigate = useNavigate();
 
   const handleServiceClick = () => {
-    // Store redirect path for after login
-    localStorage.setItem('redirectAfterLogin', '/onboarding');
-    navigate('/auth');
+    navigate('/onboarding');
   };
 
   return (

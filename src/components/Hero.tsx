@@ -1,7 +1,14 @@
 import { ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 
 const Hero = () => {
+  const navigate = useNavigate();
+
+  const handleGetStarted = () => {
+    navigate('/onboarding');
+  };
+
   return (
     <div className="relative flex items-center bg-gradient-to-br from-primary via-accent to-primary-accent overflow-hidden py-32">
       <div className="absolute inset-0">
@@ -76,13 +83,13 @@ const Hero = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.6 }}
           >
-            <a
-              href="#contact"
+            <button
+              onClick={handleGetStarted}
               className="group inline-flex items-center px-8 py-3 text-lg font-medium rounded-full bg-white text-primary hover:bg-primary-light transition-all duration-500 transform hover:scale-105 shadow-lg"
             >
               Get Started
               <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform duration-500" />
-            </a>
+            </button>
           </motion.div>
         </motion.div>
       </div>
