@@ -55,7 +55,7 @@ const Hero = () => {
             transition={{ duration: 0.8, delay: 0.4 }}
             className="text-xl md:text-2xl text-white mb-8 max-w-3xl mx-auto leading-relaxed font-medium drop-shadow-lg bg-black/20 backdrop-blur-sm rounded-2xl px-8 py-4 border border-white/20"
           >
-            Ready to achieve your financial success and unlock the freedom you've dreamed of? We'll help you build the life you deserve, your success starts now.
+            Ready to join 500+ creators earning $10K+ monthly and finally live the life you've always wanted? Stop struggling and start thriving, your transformation begins today.
           </motion.p>
           
           <motion.div
