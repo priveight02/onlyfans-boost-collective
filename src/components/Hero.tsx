@@ -75,7 +75,7 @@ const Hero = () => {
             transition={{ duration: 0.8, delay: 0.4 }}
             className="text-xl md:text-2xl text-white mb-8 max-w-3xl mx-auto leading-relaxed font-medium drop-shadow-lg bg-black/20 backdrop-blur-sm rounded-2xl px-8 py-4 border border-white/20"
           >
-            Imagine never checking your bank account with anxiety again. Transform your life from paycheck stress to unlimited financial freedom. Your dream lifestyle is just one decision away.
+            Stop worrying about money and start living your dreams. This is your chance to build real wealth, gain complete financial freedom, and finally live life on your own terms.
           </motion.p>
           
           <motion.div
