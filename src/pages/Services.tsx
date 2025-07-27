@@ -140,14 +140,16 @@ const Services = () => {
             Join our exclusive network of top-performing creators and unlock your full earning potential.
           </p>
           
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button size="lg" className="bg-white text-primary hover:bg-primary hover:text-white hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl">
-              Apply Now
+          <Link to="/onboarding">
+            <Button size="lg" className="bg-white text-primary hover:bg-primary hover:text-white hover:scale-110 transition-all duration-300 shadow-2xl hover:shadow-white/20 text-lg px-12 py-4 rounded-2xl font-bold group">
+              <span className="flex items-center gap-3">
+                Start Your Journey
+                <div className="w-8 h-8 bg-primary group-hover:bg-white rounded-full flex items-center justify-center transition-all duration-300">
+                  <Sparkles className="h-4 w-4 text-white group-hover:text-primary" />
+                </div>
+              </span>
             </Button>
-            <Button size="lg" variant="outline" className="border-white text-white hover:bg-white hover:text-primary hover:scale-105 transition-all duration-300">
-              Learn More
-            </Button>
-          </div>
+          </Link>
         </div>
       </section>
     </div>
