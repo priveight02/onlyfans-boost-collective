@@ -5,6 +5,8 @@ import ModelCard from '@/components/models/ModelCard';
 import ContactForm from '@/components/models/ContactForm';
 import TestimonialsCarousel from '@/components/models/TestimonialsCarousel';
 import BackButton from "@/components/BackButton";
+import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
 import {
   Carousel,
   CarouselContent,
@@ -56,10 +58,32 @@ const Models = () => {
         </div>
       </section>
 
-      {/* Testimonials Section */}
-      <TestimonialsCarousel />
-
-      <ContactForm />
+      {/* Simple CTA Section */}
+      <section className="py-24 bg-gradient-to-r from-[#9b87f5] to-[#7E69AB] relative overflow-hidden">
+        <div className="absolute inset-0 bg-grid-white/[0.05] bg-[size:20px_20px]" />
+        <div className="absolute top-1/2 left-1/4 w-64 h-64 bg-white/10 rounded-full blur-3xl" />
+        <div className="absolute bottom-1/4 right-1/3 w-80 h-80 bg-white/10 rounded-full blur-3xl" />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
+          <h2 className="text-3xl md:text-4xl font-bold text-white mb-6 font-heading animate-fade-in">
+            Ready to Join Our Success Stories?
+          </h2>
+          <p className="text-xl text-white/90 max-w-2xl mx-auto mb-8 animate-fade-in">
+            Start your journey with our proven strategies and expert guidance.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Link to="/join">
+              <Button size="lg" className="bg-white text-primary hover:bg-primary hover:text-white hover:scale-105 transition-all duration-300 w-full sm:w-auto shadow-lg hover:shadow-xl">
+                Apply Now
+              </Button>
+            </Link>
+            <Link to="/services">
+              <Button size="lg" variant="outline" className="border-white text-white hover:bg-white hover:text-primary hover:scale-105 transition-all duration-300 w-full sm:w-auto">
+                View Services
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </section>
     </div>
   );
 };
