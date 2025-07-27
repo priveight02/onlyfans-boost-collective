@@ -62,7 +62,7 @@ const Navigation = () => {
       <nav className="bg-white/90 backdrop-blur-sm shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
-            <div className="flex items-center">
+            <div className="flex items-center ml-8">
               <Link 
                 to="/" 
                 className="flex items-center group transition-all duration-300 hover:scale-105"
