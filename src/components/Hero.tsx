@@ -55,7 +55,7 @@ const Hero = () => {
             transition={{ duration: 0.8, delay: 0.4 }}
             className="text-xl md:text-2xl text-white mb-8 max-w-3xl mx-auto leading-relaxed font-medium drop-shadow-lg bg-black/20 backdrop-blur-sm rounded-2xl px-8 py-4 border border-white/20"
           >
-            Stop dreaming about your financial freedom, we'll help you unlock your full potential, the life you deserve is just one decision away.
+            Ready to transform your financial freedom? We'll help you unlock your full potential and achieve the happy life you deserve - it's just one decision away.
           </motion.p>
           
           <motion.div
