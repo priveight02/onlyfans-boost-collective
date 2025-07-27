@@ -14,6 +14,7 @@ import emailjs from '@emailjs/browser';
 const Onboarding = () => {
   console.log('Onboarding component mounted!'); // Debug: Component loaded
   const [showChoice, setShowChoice] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
     fullLegalName: "",
@@ -61,7 +62,8 @@ const Onboarding = () => {
     if (step < totalSteps) {
       setStep(step + 1);
     } else {
-      // Submit form via email
+      // Submit form via email with loading animation
+      setIsSubmitting(true);
       try {
         const templateParams = {
           to_email: 'ozagency.of@gmail.com',
@@ -127,10 +129,14 @@ Submitted: ${new Date().toLocaleString()}`,
         );
 
         toast.success("Application submitted successfully! We'll be in touch soon.");
-        navigate("/");
+        setTimeout(() => {
+          navigate("/");
+        }, 2000);
       } catch (error) {
         console.error('Failed to send email:', error);
         toast.error("Failed to submit application. Please try again or contact us directly.");
+      } finally {
+        setIsSubmitting(false);
       }
     }
   };
@@ -545,7 +551,7 @@ Submitted: ${new Date().toLocaleString()}`,
                     'Girl-Girl Content', 'Boy-Girl Content', 'Masturbation Content', 
                     'Anal', 'JOI Videos (Jerk-off instructions)', 'Twerk videos', 'Dildo Content'
                   ].map((content) => (
-                    <div key={content} className="flex items-start space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-all duration-200 animate-scale-in">
+                    <div key={content} className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-all duration-200 animate-scale-in">
                       <Checkbox
                         id={content}
                         checked={formData.contentTypes.includes(content)}
@@ -556,9 +562,9 @@ Submitted: ${new Date().toLocaleString()}`,
                             updateFormData('contentTypes', formData.contentTypes.filter(item => item !== content));
                           }
                         }}
-                        className="w-6 h-6 data-[state=checked]:bg-primary data-[state=checked]:border-primary border-2 border-gray-300 rounded-md transition-all duration-300 hover:border-primary hover:scale-110"
+                        className="w-6 h-6 data-[state=checked]:bg-primary data-[state=checked]:border-primary border-2 border-gray-300 rounded-md transition-all duration-300 hover:border-primary hover:scale-110 flex-shrink-0"
                       />
-                      <Label htmlFor={content} className="text-sm font-medium cursor-pointer leading-tight">
+                      <Label htmlFor={content} className="text-sm font-medium cursor-pointer leading-tight flex-1">
                         {content}
                       </Label>
                     </div>
@@ -696,11 +702,11 @@ Password: yourpassword"
               </div>
 
               <div className="bg-green-50 border border-green-200 rounded-lg p-4 animate-fade-in">
-                <label className="flex items-start space-x-3 cursor-pointer">
+                <label className="flex items-center space-x-3 cursor-pointer">
                   <Checkbox
                     checked={formData.commitment}
                     onCheckedChange={(checked) => updateFormData('commitment', checked)}
-                    className="w-6 h-6 data-[state=checked]:bg-green-600 data-[state=checked]:border-green-600 border-2 border-green-400 rounded-md transition-all duration-300 hover:border-green-600 hover:scale-110 mt-1"
+                    className="w-6 h-6 data-[state=checked]:bg-green-600 data-[state=checked]:border-green-600 border-2 border-green-400 rounded-md transition-all duration-300 hover:border-green-600 hover:scale-110 flex-shrink-0"
                     required
                   />
                   <span className="text-sm">
@@ -857,18 +863,25 @@ Password: yourpassword"
 
         {/* Progress Bar */}
         <div className="mb-8">
-          <div className="flex justify-between items-center mb-2">
+          <div className="flex justify-between items-center mb-3">
             <span className="text-sm font-medium text-primary">Step {step} of {totalSteps}</span>
             <span className="text-sm text-gray-500">{Math.round((step / totalSteps) * 100)}% Complete</span>
           </div>
-          <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden shadow-inner">
+          <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden shadow-inner relative">
             <div 
-              className="h-3 rounded-full bg-gradient-to-r from-primary via-primary-accent to-primary transition-all duration-700 ease-out transform shadow-sm"
-              style={{ 
-                width: `${(step / totalSteps) * 100}%`,
-                background: `linear-gradient(90deg, hsl(var(--primary)) 0%, hsl(var(--primary)) 50%, hsl(var(--primary-accent)) 100%)`
-              }}
-            />
+              className="h-4 rounded-full bg-gradient-to-r from-blue-500 via-blue-600 to-blue-700 transition-all duration-700 ease-out shadow-lg relative overflow-hidden"
+              style={{ width: `${(step / totalSteps) * 100}%` }}
+            >
+              {/* Flowing animation effect */}
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-pulse"></div>
+              <div 
+                className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -skew-x-12 animate-[slide_2s_ease-in-out_infinite]"
+                style={{
+                  animation: 'slide 2s ease-in-out infinite',
+                  transform: 'translateX(-100%)'
+                }}
+              ></div>
+            </div>
           </div>
         </div>
 
@@ -876,8 +889,8 @@ Password: yourpassword"
         <div className="bg-white rounded-2xl shadow-xl p-8 mb-6 relative">
           {renderStep()}
           
-          {/* Bottom left legend */}
-          <div className="absolute bottom-4 left-8">
+          {/* Bottom left legend - moved lower */}
+          <div className="absolute bottom-2 left-8">
             <p className="text-xs text-red-600 font-medium">
               <span className="text-red-600">*</span> Indicates required question
             </p>
@@ -889,7 +902,7 @@ Password: yourpassword"
           <Button
             variant="outline"
             onClick={handlePrevious}
-            disabled={step === 1}
+            disabled={step === 1 || isSubmitting}
             className="flex items-center gap-2"
           >
             Previous
@@ -897,10 +910,20 @@ Password: yourpassword"
           
           <Button
             onClick={handleNext}
-            className="bg-primary hover:bg-primary/90 flex items-center gap-2"
+            disabled={isSubmitting}
+            className="bg-primary hover:bg-primary/90 flex items-center gap-2 min-w-[150px]"
           >
-            {step === totalSteps ? "Complete Setup" : "Next"}
-            <ArrowRight className="h-4 w-4" />
+            {isSubmitting ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                Submitting...
+              </>
+            ) : (
+              <>
+                {step === totalSteps ? "Complete Setup" : "Next"}
+                <ArrowRight className="h-4 w-4" />
+              </>
+            )}
           </Button>
         </div>
       </div>
