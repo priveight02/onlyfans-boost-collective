@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { CheckCircle, ArrowRight, Star, Users, Target, DollarSign, ExternalLink, FileText } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import emailjs from '@emailjs/browser';
 
 const Onboarding = () => {
   console.log('Onboarding component mounted!'); // Debug: Component loaded
@@ -28,13 +29,50 @@ const Onboarding = () => {
 
   const totalSteps = 4;
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (step < totalSteps) {
       setStep(step + 1);
     } else {
-      // Submit form and redirect to dashboard
-      toast.success("Welcome to our platform! We'll be in touch soon.");
-      navigate("/");
+      // Submit form via email
+      try {
+        const templateParams = {
+          to_email: 'ozagency.of@gmail.com',
+          from_name: formData.fullName,
+          stage_name: formData.stageName,
+          experience_level: formData.experienceLevel,
+          current_followers: formData.currentFollowers,
+          monthly_earnings: formData.monthlyEarnings,
+          goals: formData.goals,
+          challenges: formData.challenges,
+          availability: formData.availability,
+          submission_date: new Date().toLocaleDateString(),
+          message: `New Onboarding Submission:
+          
+Full Name: ${formData.fullName}
+Stage/Creator Name: ${formData.stageName}
+Experience Level: ${formData.experienceLevel}
+Current Followers: ${formData.currentFollowers}
+Monthly Earnings: ${formData.monthlyEarnings}
+Goals: ${formData.goals}
+Challenges: ${formData.challenges}
+Availability: ${formData.availability}
+Submitted: ${new Date().toLocaleString()}`
+        };
+
+        // Initialize EmailJS (you'll need to set up a service)
+        await emailjs.send(
+          'service_onboarding', // Service ID (needs to be configured)
+          'template_onboarding', // Template ID (needs to be configured)
+          templateParams,
+          'your_public_key' // Public key (needs to be configured)
+        );
+
+        toast.success("Application submitted successfully! We'll be in touch soon.");
+        navigate("/");
+      } catch (error) {
+        console.error('Failed to send email:', error);
+        toast.error("Failed to submit application. Please try again or contact us directly.");
+      }
     }
   };
 
