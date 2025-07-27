@@ -944,7 +944,7 @@ Password: yourpassword"
           <Button
             variant="ghost"
             onClick={() => setShowChoice(true)}
-            className="text-primary hover:text-primary/80 p-0"
+            className="text-primary hover:text-primary hover:bg-white/20 bg-white/10 backdrop-blur-sm border border-white/20 p-0 px-3 py-2"
           >
             ← Back to onboarding options
           </Button>
