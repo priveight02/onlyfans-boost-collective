@@ -976,14 +976,14 @@ Password: yourpassword"
 
         {/* Form Content */}
         <div className="bg-white rounded-2xl shadow-xl p-8 mb-6 relative">
-          {/* Top left legend */}
-          <div className="absolute top-2 left-8">
+          {renderStep()}
+          
+          {/* Bottom left legend - moved lower */}
+          <div className="absolute bottom-2 left-8">
             <p className="text-xs text-red-600 font-medium">
               <span className="text-red-600">*</span> Indicates required question
             </p>
           </div>
-          
-          {renderStep()}
         </div>
 
         {/* Navigation Buttons */}
