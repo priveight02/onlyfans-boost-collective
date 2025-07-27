@@ -753,9 +753,9 @@ Password: yourpassword"
         {/* Static background elements */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div className="absolute -inset-[10px] opacity-70">
-            <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-accent/50 rounded-full mix-blend-multiply filter blur-xl" />
-            <div className="absolute top-1/3 right-1/4 w-96 h-96 bg-primary/50 rounded-full mix-blend-multiply filter blur-xl" />
-            <div className="absolute bottom-1/4 left-1/3 w-96 h-96 bg-primary-accent/50 rounded-full mix-blend-multiply filter blur-xl" />
+            <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-accent/50 rounded-full mix-blend-multiply" />
+            <div className="absolute top-1/3 right-1/4 w-96 h-96 bg-primary/50 rounded-full mix-blend-multiply" />
+            <div className="absolute bottom-1/4 left-1/3 w-96 h-96 bg-primary-accent/50 rounded-full mix-blend-multiply" />
           </div>
         </div>
         
