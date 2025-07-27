@@ -69,8 +69,8 @@ const Navigation = () => {
 
   return (
     <div className="w-full fixed top-0 z-50">
-      <nav className={`backdrop-blur-sm shadow-sm transition-all duration-300 ${
-        isScrolled ? 'bg-white/20' : 'bg-white/90'
+      <nav className={`shadow-sm transition-all duration-300 ${
+        isScrolled ? 'bg-black/5 backdrop-blur-[2px]' : 'bg-white/90 backdrop-blur-sm'
       }`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
@@ -104,8 +104,8 @@ const Navigation = () => {
                   }}
                   className={`transition-colors duration-200 flex items-center gap-2 ${
                     location.pathname === item.href
-                      ? "text-primary-accent font-medium"
-                      : "text-gray-700 hover:text-primary-accent"
+                      ? `font-medium ${isScrolled ? 'text-white' : 'text-primary-accent'}`
+                      : `${isScrolled ? 'text-white hover:text-white/80' : 'text-gray-700 hover:text-primary-accent'}`
                   }`}
                 >
                   {item.icon && <item.icon className="h-4 w-4" />}
@@ -116,7 +116,9 @@ const Navigation = () => {
                 <Button
                   variant="ghost"
                   onClick={logout}
-                  className="text-gray-700 hover:text-primary-accent hover:bg-transparent"
+                  className={`transition-colors duration-200 hover:bg-transparent ${
+                    isScrolled ? 'text-white hover:text-white/80' : 'text-gray-700 hover:text-primary-accent'
+                  }`}
                 >
                   <LogOut className="mr-2 h-4 w-4" />
                   Logout
@@ -125,7 +127,9 @@ const Navigation = () => {
                 <Link to="/auth">
                   <Button
                     variant="ghost"
-                    className="text-gray-700 hover:text-primary-accent hover:bg-transparent"
+                    className={`transition-colors duration-200 hover:bg-transparent ${
+                      isScrolled ? 'text-white hover:text-white/80' : 'text-gray-700 hover:text-primary-accent'
+                    }`}
                   >
                     <LogIn className="mr-2 h-4 w-4" />
                     Login
@@ -138,7 +142,9 @@ const Navigation = () => {
             <div className="md:hidden flex items-center">
               <button
                 onClick={() => setIsOpen(!isOpen)}
-                className="text-gray-700 hover:text-primary-accent"
+                className={`transition-colors duration-200 ${
+                  isScrolled ? 'text-white hover:text-white/80' : 'text-gray-700 hover:text-primary-accent'
+                }`}
               >
                 {isOpen ? <X size={24} /> : <Menu size={24} />}
               </button>
