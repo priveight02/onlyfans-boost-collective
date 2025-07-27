@@ -59,12 +59,12 @@ Availability: ${formData.availability}
 Submitted: ${new Date().toLocaleString()}`
         };
 
-        // Initialize EmailJS (you'll need to set up a service)
+        // Initialize EmailJS with your actual configuration
         await emailjs.send(
-          'service_onboarding', // Service ID (needs to be configured)
-          'template_onboarding', // Template ID (needs to be configured)
+          'service_4hu7xw9', // Your Gmail service ID
+          'template_0rpah62', // Your Contact Us template ID
           templateParams,
-          'your_public_key' // Public key (needs to be configured)
+          'YOUR_PUBLIC_KEY' // You need to replace this with your actual public key
         );
 
         toast.success("Application submitted successfully! We'll be in touch soon.");
