@@ -162,7 +162,7 @@ Submitted: ${new Date().toLocaleString()}`,
             
             <div className="space-y-4 animate-fade-in">
               <div>
-                <Label htmlFor="fullLegalName" className="text-red-600 font-medium">What's your full legal name? *</Label>
+                <Label htmlFor="fullLegalName" className="font-medium">What's your full legal name? <span className="text-red-600">*</span></Label>
                 <Input
                   id="fullLegalName"
                   value={formData.fullLegalName}
@@ -185,7 +185,7 @@ Submitted: ${new Date().toLocaleString()}`,
               </div>
               
               <div>
-                <Label htmlFor="email" className="text-red-600 font-medium">E-mail address? *</Label>
+                <Label htmlFor="email" className="font-medium">E-mail address? <span className="text-red-600">*</span></Label>
                 <Input
                   id="email"
                   type="email"
@@ -198,7 +198,7 @@ Submitted: ${new Date().toLocaleString()}`,
               </div>
 
               <div>
-                <Label htmlFor="socialUsernames" className="text-red-600 font-medium">IG, TikTok, Twitter usernames *</Label>
+                <Label htmlFor="socialUsernames" className="font-medium">IG, TikTok, Twitter usernames <span className="text-red-600">*</span></Label>
                 <Textarea
                   id="socialUsernames"
                   value={formData.socialUsernames}
@@ -209,7 +209,7 @@ Submitted: ${new Date().toLocaleString()}`,
               </div>
 
               <div>
-                <Label htmlFor="phoneNumber" className="text-red-600 font-medium">Phone Number? *</Label>
+                <Label htmlFor="phoneNumber" className="font-medium">Phone Number? <span className="text-red-600">*</span></Label>
                 <Input
                   id="phoneNumber"
                   value={formData.phoneNumber}
@@ -238,7 +238,7 @@ Submitted: ${new Date().toLocaleString()}`,
             
             <div className="space-y-4 animate-fade-in">
               <div>
-                <Label htmlFor="personalProfile" className="text-red-600 font-medium">Personal profile - Tell us about yourself, your interests, hobbies, personality traits, the type of music you listen to, what you like to eat, favorite singer & some background info. *</Label>
+                <Label htmlFor="personalProfile" className="font-medium">Personal profile - Tell us about yourself, your interests, hobbies, personality traits, the type of music you listen to, what you like to eat, favorite singer & some background info. <span className="text-red-600">*</span></Label>
                 <Textarea
                   id="personalProfile"
                   value={formData.personalProfile}
@@ -250,7 +250,7 @@ Submitted: ${new Date().toLocaleString()}`,
               </div>
               
               <div>
-                <Label htmlFor="attitude" className="text-red-600 font-medium">Describe your attitude, how you would want the writers to talk that represents you. *</Label>
+                <Label htmlFor="attitude" className="font-medium">Describe your attitude, how you would want the writers to talk that represents you. <span className="text-red-600">*</span></Label>
                 <Textarea
                   id="attitude"
                   value={formData.attitude}
@@ -262,7 +262,7 @@ Submitted: ${new Date().toLocaleString()}`,
               </div>
 
               <div>
-                <Label htmlFor="location" className="text-red-600 font-medium">Where are you based? *</Label>
+                <Label htmlFor="location" className="font-medium">Where are you based? <span className="text-red-600">*</span></Label>
                 <Input
                   id="location"
                   value={formData.location}
@@ -289,9 +289,9 @@ Submitted: ${new Date().toLocaleString()}`,
               <p className="text-gray-600">Additional details about you</p>
             </div>
             
-            <div className="space-y-4 grid grid-cols-2 gap-4">
+            <div className="space-y-4 grid grid-cols-2 gap-4 animate-fade-in">
               <div>
-                <Label htmlFor="age">Age *</Label>
+                <Label htmlFor="age">Age <span className="text-red-600">*</span></Label>
                 <Input
                   id="age"
                   value={formData.age}
@@ -303,7 +303,7 @@ Submitted: ${new Date().toLocaleString()}`,
               </div>
 
               <div>
-                <Label htmlFor="height">Height *</Label>
+                <Label htmlFor="height">Height <span className="text-red-600">*</span></Label>
                 <Input
                   id="height"
                   value={formData.height}
@@ -315,7 +315,7 @@ Submitted: ${new Date().toLocaleString()}`,
               </div>
 
               <div>
-                <Label htmlFor="languageSpoken">Language Spoken *</Label>
+                <Label htmlFor="languageSpoken">Language Spoken <span className="text-red-600">*</span></Label>
                 <Input
                   id="languageSpoken"
                   value={formData.languageSpoken}
@@ -327,7 +327,7 @@ Submitted: ${new Date().toLocaleString()}`,
               </div>
 
               <div>
-                <Label htmlFor="birthday">Birthday *</Label>
+                <Label htmlFor="birthday">Birthday <span className="text-red-600">*</span></Label>
                 <Input
                   id="birthday"
                   value={formData.birthday}
@@ -339,7 +339,7 @@ Submitted: ${new Date().toLocaleString()}`,
               </div>
 
               <div>
-                <Label htmlFor="sexualOrientation">Sexual Orientation *</Label>
+                <Label htmlFor="sexualOrientation">Sexual Orientation <span className="text-red-600">*</span></Label>
                 <Input
                   id="sexualOrientation"
                   value={formData.sexualOrientation}
@@ -351,7 +351,7 @@ Submitted: ${new Date().toLocaleString()}`,
               </div>
 
               <div>
-                <Label htmlFor="ethnicity">Ethnicity *</Label>
+                <Label htmlFor="ethnicity">Ethnicity <span className="text-red-600">*</span></Label>
                 <Input
                   id="ethnicity"
                   value={formData.ethnicity}
@@ -363,7 +363,7 @@ Submitted: ${new Date().toLocaleString()}`,
               </div>
 
               <div>
-                <Label htmlFor="shoeSize">Shoe Size *</Label>
+                <Label htmlFor="shoeSize">Shoe Size <span className="text-red-600">*</span></Label>
                 <Input
                   id="shoeSize"
                   value={formData.shoeSize}
@@ -386,7 +386,7 @@ Submitted: ${new Date().toLocaleString()}`,
               </div>
 
               <div>
-                <Label htmlFor="zodiacSign">Zodiac Sign *</Label>
+                <Label htmlFor="zodiacSign">Zodiac Sign <span className="text-red-600">*</span></Label>
                 <Input
                   id="zodiacSign"
                   value={formData.zodiacSign}
@@ -398,7 +398,7 @@ Submitted: ${new Date().toLocaleString()}`,
               </div>
 
               <div>
-                <Label htmlFor="whereFrom">Where are you from? *</Label>
+                <Label htmlFor="whereFrom">Where are you from? <span className="text-red-600">*</span></Label>
                 <Input
                   id="whereFrom"
                   value={formData.whereFrom}
@@ -410,7 +410,7 @@ Submitted: ${new Date().toLocaleString()}`,
               </div>
 
               <div>
-                <Label htmlFor="favoriteColor">Favorite Color? *</Label>
+                <Label htmlFor="favoriteColor">Favorite Color? <span className="text-red-600">*</span></Label>
                 <Input
                   id="favoriteColor"
                   value={formData.favoriteColor}
@@ -437,7 +437,7 @@ Submitted: ${new Date().toLocaleString()}`,
               <p className="text-gray-600">More about your background</p>
             </div>
             
-            <div className="space-y-4">
+            <div className="space-y-4 animate-fade-in">
               <div>
                 <Label htmlFor="college">Did you go to college? What major?</Label>
                 <Input
@@ -472,7 +472,7 @@ Submitted: ${new Date().toLocaleString()}`,
               </div>
 
               <div>
-                <Label htmlFor="sports">Do you play sports? *</Label>
+                <Label htmlFor="sports">Do you play sports? <span className="text-red-600">*</span></Label>
                 <Input
                   id="sports"
                   value={formData.sports}
@@ -484,7 +484,7 @@ Submitted: ${new Date().toLocaleString()}`,
               </div>
 
               <div>
-                <Label htmlFor="placesVisited">What places have you visited? *</Label>
+                <Label htmlFor="placesVisited">What places have you visited? <span className="text-red-600">*</span></Label>
                 <Textarea
                   id="placesVisited"
                   value={formData.placesVisited}
@@ -496,7 +496,7 @@ Submitted: ${new Date().toLocaleString()}`,
               </div>
 
               <div>
-                <Label htmlFor="relationshipStatus">Public Relationship Status? *</Label>
+                <Label htmlFor="relationshipStatus">Public Relationship Status? <span className="text-red-600">*</span></Label>
                 <Input
                   id="relationshipStatus"
                   value={formData.relationshipStatus}
@@ -508,7 +508,7 @@ Submitted: ${new Date().toLocaleString()}`,
               </div>
 
               <div>
-                <Label htmlFor="otherWork">What is your work other than OnlyFans? *</Label>
+                <Label htmlFor="otherWork">What is your work other than OnlyFans? <span className="text-red-600">*</span></Label>
                 <Input
                   id="otherWork"
                   value={formData.otherWork}
@@ -535,9 +535,9 @@ Submitted: ${new Date().toLocaleString()}`,
               <p className="text-gray-600">What content are you comfortable sharing?</p>
             </div>
             
-            <div className="space-y-6">
+            <div className="space-y-6 animate-fade-in">
               <div className="animate-fade-in">
-                <Label className="text-red-600 font-medium text-base mb-4 block">What type of content are you comfortable to share? *</Label>
+                <Label className="font-medium text-base mb-4 block">What type of content are you comfortable to share? <span className="text-red-600">*</span></Label>
                 <div className="grid grid-cols-2 gap-4 mt-4">
                   {[
                     'Bikini', 'Lingerie', 'Feet', 'Ass', 'Voice Notes', 'Boobs', 
@@ -567,25 +567,25 @@ Submitted: ${new Date().toLocaleString()}`,
               </div>
 
               <div className="animate-fade-in">
-                <Label className="text-red-600 font-medium">Do you accept video calls from OF fans? *</Label>
+                <Label className="font-medium">Do you accept video calls from OF fans? <span className="text-red-600">*</span></Label>
                 <RadioGroup
                   value={formData.acceptVideoCalls}
                   onValueChange={(value) => updateFormData('acceptVideoCalls', value)}
-                  className="mt-2"
+                  className="mt-2 animate-fade-in"
                 >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="yes" id="video-yes" />
-                    <Label htmlFor="video-yes">Yes</Label>
+                  <div className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 transition-all duration-200">
+                    <RadioGroupItem value="yes" id="video-yes" className="w-6 h-6 border-2 border-gray-300 data-[state=checked]:border-primary data-[state=checked]:text-primary" />
+                    <Label htmlFor="video-yes" className="cursor-pointer">Yes</Label>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="no" id="video-no" />
-                    <Label htmlFor="video-no">No</Label>
+                  <div className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 transition-all duration-200">
+                    <RadioGroupItem value="no" id="video-no" className="w-6 h-6 border-2 border-gray-300 data-[state=checked]:border-primary data-[state=checked]:text-primary" />
+                    <Label htmlFor="video-no" className="cursor-pointer">No</Label>
                   </div>
                 </RadioGroup>
               </div>
 
               <div>
-                <Label htmlFor="sexiestBodyPart" className="text-red-600 font-medium">Which part of your body do you find to be the sexiest one? *</Label>
+                <Label htmlFor="sexiestBodyPart" className="font-medium">Which part of your body do you find to be the sexiest one? <span className="text-red-600">*</span></Label>
                 <Input
                   id="sexiestBodyPart"
                   value={formData.sexiestBodyPart}
@@ -597,7 +597,7 @@ Submitted: ${new Date().toLocaleString()}`,
               </div>
 
               <div>
-                <Label htmlFor="physicalAppearance" className="text-red-600 font-medium">How would you best describe your physical appearance? *</Label>
+                <Label htmlFor="physicalAppearance" className="font-medium">How would you best describe your physical appearance? <span className="text-red-600">*</span></Label>
                 <Textarea
                   id="physicalAppearance"
                   value={formData.physicalAppearance}
@@ -624,21 +624,21 @@ Submitted: ${new Date().toLocaleString()}`,
               <p className="text-gray-600">Last few questions and commitment</p>
             </div>
             
-            <div className="space-y-4">
+            <div className="space-y-4 animate-fade-in">
               <div>
                 <Label>Are you willing to make custom requests?</Label>
                 <RadioGroup
                   value={formData.customRequests}
                   onValueChange={(value) => updateFormData('customRequests', value)}
-                  className="mt-2"
+                  className="mt-2 animate-fade-in"
                 >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="yes" id="custom-yes" />
-                    <Label htmlFor="custom-yes">Yes</Label>
+                  <div className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 transition-all duration-200">
+                    <RadioGroupItem value="yes" id="custom-yes" className="w-6 h-6 border-2 border-gray-300 data-[state=checked]:border-primary data-[state=checked]:text-primary" />
+                    <Label htmlFor="custom-yes" className="cursor-pointer">Yes</Label>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="no" id="custom-no" />
-                    <Label htmlFor="custom-no">No</Label>
+                  <div className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 transition-all duration-200">
+                    <RadioGroupItem value="no" id="custom-no" className="w-6 h-6 border-2 border-gray-300 data-[state=checked]:border-primary data-[state=checked]:text-primary" />
+                    <Label htmlFor="custom-no" className="cursor-pointer">No</Label>
                   </div>
                 </RadioGroup>
               </div>
@@ -648,15 +648,15 @@ Submitted: ${new Date().toLocaleString()}`,
                 <RadioGroup
                   value={formData.goLive}
                   onValueChange={(value) => updateFormData('goLive', value)}
-                  className="mt-2"
+                  className="mt-2 animate-fade-in"
                 >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="yes" id="live-yes" />
-                    <Label htmlFor="live-yes">Yes</Label>
+                  <div className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 transition-all duration-200">
+                    <RadioGroupItem value="yes" id="live-yes" className="w-6 h-6 border-2 border-gray-300 data-[state=checked]:border-primary data-[state=checked]:text-primary" />
+                    <Label htmlFor="live-yes" className="cursor-pointer">Yes</Label>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="no" id="live-no" />
-                    <Label htmlFor="live-no">No</Label>
+                  <div className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 transition-all duration-200">
+                    <RadioGroupItem value="no" id="live-no" className="w-6 h-6 border-2 border-gray-300 data-[state=checked]:border-primary data-[state=checked]:text-primary" />
+                    <Label htmlFor="live-no" className="cursor-pointer">No</Label>
                   </div>
                 </RadioGroup>
               </div>
@@ -695,17 +695,17 @@ Password: yourpassword"
                 />
               </div>
 
-              <div className="bg-primary/10 rounded-lg p-4 animate-fade-in">
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4 animate-fade-in">
                 <label className="flex items-start space-x-3 cursor-pointer">
                   <Checkbox
                     checked={formData.commitment}
                     onCheckedChange={(checked) => updateFormData('commitment', checked)}
-                    className="w-6 h-6 data-[state=checked]:bg-red-600 data-[state=checked]:border-red-600 border-2 border-red-400 rounded-md transition-all duration-300 hover:border-red-600 hover:scale-110 mt-1"
+                    className="w-6 h-6 data-[state=checked]:bg-green-600 data-[state=checked]:border-green-600 border-2 border-green-400 rounded-md transition-all duration-300 hover:border-green-600 hover:scale-110 mt-1"
                     required
                   />
                   <span className="text-sm">
-                    <strong className="text-red-600">I understand and I am committed to this process *</strong><br/>
-                    Please tick this box to show that you understand making a high amount of money will require great commitment from you. We expect regular content, regular postings on TikTok / IG
+                    <strong className="text-green-700">I understand and I am committed to this process <span className="text-red-600">*</span></strong><br/>
+                    <span className="text-green-600">Please tick this box to show that you understand making a high amount of money will require great commitment from you. We expect regular content, regular postings on TikTok / IG</span>
                   </span>
                 </label>
               </div>
@@ -861,17 +861,27 @@ Password: yourpassword"
             <span className="text-sm font-medium text-primary">Step {step} of {totalSteps}</span>
             <span className="text-sm text-gray-500">{Math.round((step / totalSteps) * 100)}% Complete</span>
           </div>
-          <div className="w-full bg-gray-200 rounded-full h-2">
+          <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden shadow-inner">
             <div 
-              className="bg-gradient-to-r from-primary to-primary-accent h-2 rounded-full transition-all duration-300"
-              style={{ width: `${(step / totalSteps) * 100}%` }}
+              className="h-3 rounded-full bg-gradient-to-r from-primary via-primary-accent to-primary transition-all duration-700 ease-out transform shadow-sm"
+              style={{ 
+                width: `${(step / totalSteps) * 100}%`,
+                background: `linear-gradient(90deg, hsl(var(--primary)) 0%, hsl(var(--primary)) 50%, hsl(var(--primary-accent)) 100%)`
+              }}
             />
           </div>
         </div>
 
         {/* Form Content */}
-        <div className="bg-white rounded-2xl shadow-xl p-8 mb-6">
+        <div className="bg-white rounded-2xl shadow-xl p-8 mb-6 relative">
           {renderStep()}
+          
+          {/* Bottom left legend */}
+          <div className="absolute bottom-4 left-8">
+            <p className="text-xs text-red-600 font-medium">
+              <span className="text-red-600">*</span> Indicates required question
+            </p>
+          </div>
         </div>
 
         {/* Navigation Buttons */}
@@ -892,15 +902,6 @@ Password: yourpassword"
             {step === totalSteps ? "Complete Setup" : "Next"}
             <ArrowRight className="h-4 w-4" />
           </Button>
-        </div>
-
-        {/* Sticky Legend */}
-        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 py-3 px-4 z-50 shadow-lg">
-          <div className="max-w-2xl mx-auto text-center">
-            <p className="text-sm text-red-600 font-medium">
-              * Indicates required question
-            </p>
-          </div>
         </div>
       </div>
     </div>
