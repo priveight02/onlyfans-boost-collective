@@ -64,7 +64,7 @@ Submitted: ${new Date().toLocaleString()}`
           'service_4hu7xw9', // Your Gmail service ID
           'template_0rpah62', // Your Contact Us template ID
           templateParams,
-          'YOUR_PUBLIC_KEY' // You need to replace this with your actual public key
+          '5kIZONH43TX7JEXE6' // Your EmailJS public key
         );
 
         toast.success("Application submitted successfully! We'll be in touch soon.");
