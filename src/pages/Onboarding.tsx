@@ -355,7 +355,7 @@ const Onboarding = () => {
               </div>
               
               <Button
-                onClick={() => window.open('https://docs.google.com/forms/d/e/1FAIpQLSd8rD9vQ8H3YrKF9s2Yl7Zp0M6Nx4Ct5Eb8VwA2Qj9Uf1Rg3H/viewform', '_blank')}
+                onClick={() => window.open('https://docs.google.com/forms/d/e/1FAIpQLSdHAj5zg3ktY8AM9YCu9GAZ9rpSdM02vgPWIax8QTmF3_2Rpw/viewform?usp=header', '_blank')}
                 variant="outline"
                 className="w-full border-primary text-primary hover:bg-primary hover:text-white py-3"
               >
@@ -372,7 +372,8 @@ const Onboarding = () => {
             className="text-center mt-12"
           >
             <p className="text-gray-500 text-sm">
-              Both options will gather the same information to help us create your personalized growth strategy
+              Both options will gather the same information to help us create your personalized growth strategy.<br />
+              <strong>Your data is protected under our strict privacy policy and will never be shared with third parties.</strong>
             </p>
           </motion.div>
         </div>
