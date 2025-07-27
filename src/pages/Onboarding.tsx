@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { CheckCircle, ArrowRight, Star, Users, Target, DollarSign, ExternalLink, FileText } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -159,9 +160,9 @@ Submitted: ${new Date().toLocaleString()}`,
               <p className="text-gray-600">Let's start with your basic details</p>
             </div>
             
-            <div className="space-y-4">
+            <div className="space-y-4 animate-fade-in">
               <div>
-                <Label htmlFor="fullLegalName">What's your full legal name? *</Label>
+                <Label htmlFor="fullLegalName" className="text-red-600 font-medium">What's your full legal name? *</Label>
                 <Input
                   id="fullLegalName"
                   value={formData.fullLegalName}
@@ -184,7 +185,7 @@ Submitted: ${new Date().toLocaleString()}`,
               </div>
               
               <div>
-                <Label htmlFor="email">E-mail address? *</Label>
+                <Label htmlFor="email" className="text-red-600 font-medium">E-mail address? *</Label>
                 <Input
                   id="email"
                   type="email"
@@ -197,7 +198,7 @@ Submitted: ${new Date().toLocaleString()}`,
               </div>
 
               <div>
-                <Label htmlFor="socialUsernames">IG, TikTok, Twitter usernames *</Label>
+                <Label htmlFor="socialUsernames" className="text-red-600 font-medium">IG, TikTok, Twitter usernames *</Label>
                 <Textarea
                   id="socialUsernames"
                   value={formData.socialUsernames}
@@ -208,7 +209,7 @@ Submitted: ${new Date().toLocaleString()}`,
               </div>
 
               <div>
-                <Label htmlFor="phoneNumber">Phone Number? *</Label>
+                <Label htmlFor="phoneNumber" className="text-red-600 font-medium">Phone Number? *</Label>
                 <Input
                   id="phoneNumber"
                   value={formData.phoneNumber}
@@ -235,9 +236,9 @@ Submitted: ${new Date().toLocaleString()}`,
               <p className="text-gray-600">Tell us about yourself in detail</p>
             </div>
             
-            <div className="space-y-4">
+            <div className="space-y-4 animate-fade-in">
               <div>
-                <Label htmlFor="personalProfile">Personal profile - Tell us about yourself, your interests, hobbies, personality traits, the type of music you listen to, what you like to eat, favorite singer & some background info. *</Label>
+                <Label htmlFor="personalProfile" className="text-red-600 font-medium">Personal profile - Tell us about yourself, your interests, hobbies, personality traits, the type of music you listen to, what you like to eat, favorite singer & some background info. *</Label>
                 <Textarea
                   id="personalProfile"
                   value={formData.personalProfile}
@@ -249,7 +250,7 @@ Submitted: ${new Date().toLocaleString()}`,
               </div>
               
               <div>
-                <Label htmlFor="attitude">Describe your attitude, how you would want the writers to talk that represents you. *</Label>
+                <Label htmlFor="attitude" className="text-red-600 font-medium">Describe your attitude, how you would want the writers to talk that represents you. *</Label>
                 <Textarea
                   id="attitude"
                   value={formData.attitude}
@@ -261,7 +262,7 @@ Submitted: ${new Date().toLocaleString()}`,
               </div>
 
               <div>
-                <Label htmlFor="location">Where are you based? *</Label>
+                <Label htmlFor="location" className="text-red-600 font-medium">Where are you based? *</Label>
                 <Input
                   id="location"
                   value={formData.location}
@@ -535,36 +536,38 @@ Submitted: ${new Date().toLocaleString()}`,
             </div>
             
             <div className="space-y-6">
-              <div>
-                <Label>What type of content are you comfortable to share? *</Label>
-                <div className="grid grid-cols-2 gap-3 mt-3">
+              <div className="animate-fade-in">
+                <Label className="text-red-600 font-medium text-base mb-4 block">What type of content are you comfortable to share? *</Label>
+                <div className="grid grid-cols-2 gap-4 mt-4">
                   {[
                     'Bikini', 'Lingerie', 'Feet', 'Ass', 'Voice Notes', 'Boobs', 
                     'Pussy pics', 'Full nude pics/videos', 'Video dick rates', 
                     'Girl-Girl Content', 'Boy-Girl Content', 'Masturbation Content', 
                     'Anal', 'JOI Videos (Jerk-off instructions)', 'Twerk videos', 'Dildo Content'
                   ].map((content) => (
-                    <label key={content} className="flex items-center space-x-2 cursor-pointer">
-                      <input
-                        type="checkbox"
+                    <div key={content} className="flex items-start space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-all duration-200 animate-scale-in">
+                      <Checkbox
+                        id={content}
                         checked={formData.contentTypes.includes(content)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
+                        onCheckedChange={(checked) => {
+                          if (checked) {
                             updateFormData('contentTypes', [...formData.contentTypes, content]);
                           } else {
                             updateFormData('contentTypes', formData.contentTypes.filter(item => item !== content));
                           }
                         }}
-                        className="rounded border-gray-300"
+                        className="w-6 h-6 data-[state=checked]:bg-primary data-[state=checked]:border-primary border-2 border-gray-300 rounded-md transition-all duration-300 hover:border-primary hover:scale-110"
                       />
-                      <span className="text-sm">{content}</span>
-                    </label>
+                      <Label htmlFor={content} className="text-sm font-medium cursor-pointer leading-tight">
+                        {content}
+                      </Label>
+                    </div>
                   ))}
                 </div>
               </div>
 
-              <div>
-                <Label>Do you accept video calls from OF fans? *</Label>
+              <div className="animate-fade-in">
+                <Label className="text-red-600 font-medium">Do you accept video calls from OF fans? *</Label>
                 <RadioGroup
                   value={formData.acceptVideoCalls}
                   onValueChange={(value) => updateFormData('acceptVideoCalls', value)}
@@ -582,7 +585,7 @@ Submitted: ${new Date().toLocaleString()}`,
               </div>
 
               <div>
-                <Label htmlFor="sexiestBodyPart">Which part of your body do you find to be the sexiest one? *</Label>
+                <Label htmlFor="sexiestBodyPart" className="text-red-600 font-medium">Which part of your body do you find to be the sexiest one? *</Label>
                 <Input
                   id="sexiestBodyPart"
                   value={formData.sexiestBodyPart}
@@ -594,7 +597,7 @@ Submitted: ${new Date().toLocaleString()}`,
               </div>
 
               <div>
-                <Label htmlFor="physicalAppearance">How would you best describe your physical appearance? *</Label>
+                <Label htmlFor="physicalAppearance" className="text-red-600 font-medium">How would you best describe your physical appearance? *</Label>
                 <Textarea
                   id="physicalAppearance"
                   value={formData.physicalAppearance}
@@ -692,17 +695,16 @@ Password: yourpassword"
                 />
               </div>
 
-              <div className="bg-primary/10 rounded-lg p-4">
+              <div className="bg-primary/10 rounded-lg p-4 animate-fade-in">
                 <label className="flex items-start space-x-3 cursor-pointer">
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     checked={formData.commitment}
-                    onChange={(e) => updateFormData('commitment', e.target.checked)}
-                    className="rounded border-gray-300 mt-1"
+                    onCheckedChange={(checked) => updateFormData('commitment', checked)}
+                    className="w-6 h-6 data-[state=checked]:bg-red-600 data-[state=checked]:border-red-600 border-2 border-red-400 rounded-md transition-all duration-300 hover:border-red-600 hover:scale-110 mt-1"
                     required
                   />
                   <span className="text-sm">
-                    <strong>I understand and I am committed to this process *</strong><br/>
+                    <strong className="text-red-600">I understand and I am committed to this process *</strong><br/>
                     Please tick this box to show that you understand making a high amount of money will require great commitment from you. We expect regular content, regular postings on TikTok / IG
                   </span>
                 </label>
@@ -890,6 +892,15 @@ Password: yourpassword"
             {step === totalSteps ? "Complete Setup" : "Next"}
             <ArrowRight className="h-4 w-4" />
           </Button>
+        </div>
+
+        {/* Sticky Legend */}
+        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 py-3 px-4 z-50 shadow-lg">
+          <div className="max-w-2xl mx-auto text-center">
+            <p className="text-sm text-red-600 font-medium">
+              * Indicates required question
+            </p>
+          </div>
         </div>
       </div>
     </div>
