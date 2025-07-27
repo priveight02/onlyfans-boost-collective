@@ -17,9 +17,19 @@ type MenuItem = {
 
 const Navigation = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const { user, loading, logout } = useAuth();
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 50);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const isAdmin = user?.email === ADMIN_EMAIL;
   console.log("Navigation - Current user email:", user?.email);
@@ -58,8 +68,10 @@ const Navigation = () => {
   }
 
   return (
-    <div className="w-full">
-      <nav className="bg-white/90 backdrop-blur-sm shadow-sm">
+    <div className="w-full fixed top-0 z-50">
+      <nav className={`backdrop-blur-sm shadow-sm transition-all duration-300 ${
+        isScrolled ? 'bg-white/20' : 'bg-white/90'
+      }`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex items-center ml-36 lg:ml-52">
