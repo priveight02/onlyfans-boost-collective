@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { HelpCircle, Plus, Minus, Search, MessageCircle, Clock, Shield } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import BackButton from "@/components/BackButton";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,6 +12,7 @@ import {
 
 const FAQ = () => {
   const [searchTerm, setSearchTerm] = useState("");
+  const navigate = useNavigate();
 
   const faqs = [
     {
@@ -97,10 +99,10 @@ const FAQ = () => {
       <BackButton />
       {/* Hero Section */}
       <div className="relative py-24 overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-[#9b87f5] to-[#7E69AB]">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary via-primary-accent to-accent">
           <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTQ0MCIgaGVpZ2h0PSI1MDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PGxpbmVhckdyYWRpZW50IHgxPSIwJSIgeTE9IjAlIiB4Mj0iMTAwJSIgeTI9IjEwMCUiIGlkPSJhIj48c3RvcCBzdG9wLWNvbG9yPSIjRkZGIiBzdG9wLW9wYWNpdHk9Ii4yNSIgb2Zmc2V0PSIwJSIvPjxzdG9wIHN0b3AtY29sb3I9IiNGRkYiIHN0b3Atb3BhY2l0eT0iMCIgb2Zmc2V0PSIxMDAlIi8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHBhdGggZD0iTTAgMGgxNDQwdjE4N0wxNzIuOCA0NjEuOCAwIDIyN3oiIGZpbGw9InVybCgjYSkiIGZpbGwtcnVsZT0iZXZlbm9kZCIgZmlsbC1vcGFjaXR5PSIuNCIvPjwvc3ZnPg==')] bg-cover bg-center opacity-50" />
           <div className="absolute inset-0 bg-grid-white/[0.05] bg-[size:20px_20px]" />
-          <div className="absolute inset-0 bg-gradient-to-b from-transparent to-[#9b87f5]/20" />
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent to-primary/20" />
           <div className="absolute top-1/2 left-1/3 w-80 h-80 bg-white/10 rounded-full blur-3xl transform -translate-y-1/2" />
           <div className="absolute bottom-1/3 right-1/4 w-72 h-72 bg-white/10 rounded-full blur-3xl" />
         </div>
@@ -198,10 +200,11 @@ const FAQ = () => {
       </section>
 
       {/* CTA Section */}
-      <section className="py-24 bg-gradient-to-r from-[#9b87f5] to-[#7E69AB] relative overflow-hidden">
+      <section className="py-24 bg-gradient-to-br from-primary via-primary-accent to-accent relative overflow-hidden">
         <div className="absolute inset-0 bg-grid-white/[0.05] bg-[size:20px_20px]" />
-        <div className="absolute top-1/2 left-1/4 w-64 h-64 bg-white/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/4 right-1/3 w-80 h-80 bg-white/10 rounded-full blur-3xl" />
+        <div className="absolute top-1/2 left-1/4 w-64 h-64 bg-white/10 rounded-full blur-3xl animate-float" />
+        <div className="absolute bottom-1/4 right-1/3 w-80 h-80 bg-white/20 rounded-full blur-3xl animate-float" style={{ animationDelay: '2s' }} />
+        <div className="absolute top-1/3 right-1/4 w-96 h-96 bg-white/10 rounded-full blur-3xl animate-float" style={{ animationDelay: '4s' }} />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
           <h2 className="text-3xl md:text-4xl font-bold text-white mb-6 font-heading animate-fade-in">
             Still Have Questions?
@@ -209,19 +212,14 @@ const FAQ = () => {
           <p className="text-xl text-white/90 mb-8 max-w-2xl mx-auto animate-fade-in">
             Our team is here to help you succeed. Get personalized answers and start your journey with us today.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <div className="flex justify-center">
             <Button
               size="lg"
-              className="bg-white text-primary hover:bg-primary hover:text-white hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl"
+              onClick={() => navigate('/onboarding')}
+              className="relative group bg-white/10 backdrop-blur-md text-white border border-white/20 hover:bg-white hover:text-primary hover:scale-105 transition-all duration-500 shadow-[0_0_30px_rgba(255,255,255,0.3)] hover:shadow-[0_0_40px_rgba(255,255,255,0.5)] px-12 py-4 text-lg font-semibold rounded-xl overflow-hidden"
             >
-              Contact Support
-            </Button>
-            <Button
-              size="lg"
-              variant="outline"
-              className="border-white text-white hover:bg-white hover:text-primary hover:scale-105 transition-all duration-300"
-            >
-              Schedule a Call
+              <span className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+              <span className="relative z-10">Start Your Journey</span>
             </Button>
           </div>
         </div>
