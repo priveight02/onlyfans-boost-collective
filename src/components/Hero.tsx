@@ -65,8 +65,8 @@ const Hero = () => {
             transition={{ duration: 0.8, delay: 0.2 }}
             className="text-4xl md:text-7xl font-bold text-white mb-6 font-heading tracking-tight drop-shadow-lg [text-wrap:balance] leading-[1.1]"
           >
-            Elite OnlyFans<br />
-            <span className="text-accent drop-shadow-md">Management Agency</span>
+            Your Dreams Are Waiting<br />
+            <span className="text-accent drop-shadow-md">Let's Build Them Together</span>
           </motion.h1>
           
           <motion.p 
@@ -75,7 +75,7 @@ const Hero = () => {
             transition={{ duration: 0.8, delay: 0.4 }}
             className="text-xl md:text-2xl text-white mb-8 max-w-3xl mx-auto leading-relaxed font-medium drop-shadow-lg bg-black/20 backdrop-blur-sm rounded-2xl px-8 py-4 border border-white/20"
           >
-            Transform your OnlyFans journey with our proven strategies. Join the elite creators earning 6-figures monthly.
+            You deserve to live life on your own terms - free from financial stress, free to chase your passions, and free to build the future you've always imagined. We're here to make that dream your reality.
           </motion.p>
           
           <motion.div
@@ -87,7 +87,7 @@ const Hero = () => {
               onClick={handleGetStarted}
               className="group inline-flex items-center px-8 py-3 text-lg font-medium rounded-full bg-white text-primary hover:bg-primary-light transition-all duration-500 transform hover:scale-105 shadow-lg"
             >
-              Get Started
+              Start Your Journey
               <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform duration-500" />
             </button>
           </motion.div>
