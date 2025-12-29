@@ -43,9 +43,9 @@ const Onboarding = () => {
         >
           <div className="text-center mb-6">
             <ExternalLink className="h-10 w-10 sm:h-12 sm:w-12 text-primary mx-auto mb-4" />
-            <h3 className="text-xl sm:text-2xl font-bold text-primary mb-2">Start Your Application</h3>
+            <h3 className="text-xl sm:text-2xl font-bold text-primary mb-2">Oz Agency Onboarding Form</h3>
             <p className="text-sm sm:text-base text-gray-600">
-              Complete our comprehensive application form to join Oz Agency
+              Complete our Google Form to get onboarded with Oz Agency
             </p>
           </div>
           
@@ -69,10 +69,10 @@ const Onboarding = () => {
           </div>
           
           <Button
-            onClick={() => window.open('https://docs.google.com/forms/d/e/1FAIpQLSdHAj5zg3ktY8AM9YCu9GAZ9rpSdM02vgPWIax8QTmF3_2Rpw/viewform?usp=header', '_blank')}
+            onClick={() => window.open('https://docs.google.com/forms/d/e/1FAIpQLScDxHS2ojoDP-ii3mEy61C5Vl-Bmz1emqAGeSAs8_ISMMsUAA/viewform', '_blank')}
             className="w-full bg-primary hover:bg-primary/90 text-white py-3 text-base sm:text-lg"
           >
-            Open Application Form
+            Open Onboarding Form
             <ExternalLink className="h-4 w-4 ml-2" />
           </Button>
         </motion.div>
