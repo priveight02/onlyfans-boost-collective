@@ -135,7 +135,7 @@ const Services = () => {
             },
             {
               title: "Analytics & Data",
-              description: "Real-time performance insights",
+              description: "Subs and chatting taken care of",
               icon: TrendingUp,
               highlight: "Grow Together",
               gradient: "from-orange-400/30 to-cyan-500/30"
