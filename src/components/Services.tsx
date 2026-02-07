@@ -1,4 +1,4 @@
-import { Camera, Users, TrendingUp, HeartHandshake, MessageSquare, DollarSign, Megaphone } from "lucide-react";
+import { Camera, Users, TrendingUp, HeartHandshake, MessageSquare, DollarSign, Megaphone, MessageCircle } from "lucide-react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 
@@ -136,7 +136,7 @@ const Services = () => {
             {
               title: "Analytics & Data",
               description: "Subs and chatting taken care of",
-              icon: TrendingUp,
+              icon: MessageCircle,
               highlight: "Grow Together",
               gradient: "from-orange-400/30 to-cyan-500/30"
             },
