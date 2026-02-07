@@ -45,7 +45,7 @@ const Hero = () => {
             transition={{ duration: 0.8, delay: 0.2 }}
             className="text-4xl md:text-7xl font-bold text-white mb-6 font-heading tracking-tight drop-shadow-lg [text-wrap:balance] leading-[1.1]"
           >
-            Elite OnlyFans<br />
+            Premium OnlyFans<br />
             <span className="text-accent drop-shadow-md">Management Agency</span>
           </motion.h1>
           
