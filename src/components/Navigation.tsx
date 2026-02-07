@@ -69,9 +69,7 @@ const Navigation = () => {
 
   return (
     <div className="w-full fixed top-0 z-50">
-      <nav className={`shadow-sm transition-all duration-300 ${
-        isScrolled ? 'bg-black/5 backdrop-blur-[2px]' : 'bg-white/90 backdrop-blur-sm'
-      }`}>
+      <nav className="shadow-sm transition-all duration-300 bg-transparent">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex items-center ml-36 lg:ml-52">
@@ -79,11 +77,11 @@ const Navigation = () => {
                 to="/" 
                 className="flex items-center group transition-all duration-300 hover:scale-105"
               >
-                <div className="w-32 h-32">
+                <div className="w-16 h-16">
                   <img 
-                    src="/lovable-uploads/2b707af2-312e-43cc-8558-a55f308c47c9.png" 
-                    alt="Oz Agency Logo" 
-                    className="w-full h-full object-contain"
+                    src="/lovable-uploads/ozc-agency-logo.jpg" 
+                    alt="OZC Agency Logo" 
+                    className="w-full h-full object-contain rounded-full"
                   />
                 </div>
               </Link>
@@ -104,8 +102,8 @@ const Navigation = () => {
                   }}
                   className={`transition-colors duration-200 flex items-center gap-2 ${
                     location.pathname === item.href
-                      ? `font-medium ${isScrolled ? 'text-white' : 'text-primary-accent'}`
-                      : `${isScrolled ? 'text-white hover:text-white/80' : 'text-gray-700 hover:text-primary-accent'}`
+                      ? 'font-medium text-white'
+                      : 'text-white hover:text-white/80'
                   }`}
                 >
                   {item.icon && <item.icon className="h-4 w-4" />}
@@ -116,9 +114,7 @@ const Navigation = () => {
                 <Button
                   variant="ghost"
                   onClick={logout}
-                  className={`transition-colors duration-200 hover:bg-transparent ${
-                    isScrolled ? 'text-white hover:text-white/80' : 'text-gray-700 hover:text-primary-accent'
-                  }`}
+                  className="transition-colors duration-200 hover:bg-transparent text-white hover:text-white/80"
                 >
                   <LogOut className="mr-2 h-4 w-4" />
                   Logout
@@ -127,9 +123,7 @@ const Navigation = () => {
                 <Link to="/auth">
                   <Button
                     variant="ghost"
-                    className={`transition-colors duration-200 hover:bg-transparent ${
-                      isScrolled ? 'text-white hover:text-white/80' : 'text-gray-700 hover:text-primary-accent'
-                    }`}
+                    className="transition-colors duration-200 hover:bg-transparent text-white hover:text-white/80"
                   >
                     <LogIn className="mr-2 h-4 w-4" />
                     Login
@@ -142,9 +136,7 @@ const Navigation = () => {
             <div className="md:hidden flex items-center">
               <button
                 onClick={() => setIsOpen(!isOpen)}
-                className={`transition-colors duration-200 ${
-                  isScrolled ? 'text-white hover:text-white/80' : 'text-gray-700 hover:text-primary-accent'
-                }`}
+                className="transition-colors duration-200 text-white hover:text-white/80"
               >
                 {isOpen ? <X size={24} /> : <Menu size={24} />}
               </button>
