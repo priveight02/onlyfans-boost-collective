@@ -106,9 +106,9 @@ const Services = () => {
         >
           {[
             {
-              title: "Content Creation",
-              description: "Professional studio content that converts",
-              icon: Camera,
+              title: "Traffic Generation",
+              description: "Driving visibility and fans to your profile",
+              icon: TrendingUp,
               highlight: "Start Growing Today",
               gradient: "from-blue-400/30 to-cyan-400/30"
             },
