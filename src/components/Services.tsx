@@ -135,7 +135,7 @@ const Services = () => {
             },
             {
               title: "Subs & Chatting",
-              description: "Taken care of for you",
+              description: "Subs and chatting taken care of",
               icon: TrendingUp,
               highlight: "Grow Together",
               gradient: "from-orange-400/30 to-cyan-500/30"
