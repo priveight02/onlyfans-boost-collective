@@ -134,8 +134,8 @@ const Services = () => {
               gradient: "from-green-400/30 to-blue-400/30"
             },
             {
-              title: "Analytics & Data",
-              description: "Subs and chatting taken care of",
+              title: "Chat Management",
+              description: "24/7 fan engagement handled for you",
               icon: MessageCircle,
               highlight: "Grow Together",
               gradient: "from-orange-400/30 to-cyan-500/30"
