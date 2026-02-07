@@ -134,7 +134,7 @@ const Services = () => {
               gradient: "from-green-400/30 to-blue-400/30"
             },
             {
-              title: "Chat Management",
+              title: "Chatting Strategies",
               description: "24/7 fan engagement handled for you",
               icon: MessageCircle,
               highlight: "Grow Together",
