@@ -134,8 +134,8 @@ const Services = () => {
               gradient: "from-green-400/30 to-blue-400/30"
             },
             {
-              title: "Analytics & Data",
-              description: "Real-time performance insights",
+              title: "Subs & Chatting",
+              description: "Taken care of for you",
               icon: TrendingUp,
               highlight: "Grow Together",
               gradient: "from-orange-400/30 to-cyan-500/30"
