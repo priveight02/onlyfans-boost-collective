@@ -10,7 +10,7 @@ const Hero = () => {
   };
 
   return (
-    <div className="relative flex items-center bg-gradient-to-br from-primary via-accent to-primary-accent overflow-hidden min-h-screen">
+    <div className="relative flex items-center bg-gradient-to-br from-primary via-accent to-primary-accent overflow-hidden min-h-screen pt-16">
       <div className="absolute inset-0">
         <div className="absolute inset-0 bg-black/10 mix-blend-multiply" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />

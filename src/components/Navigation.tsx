@@ -69,7 +69,7 @@ const Navigation = () => {
 
   return (
     <div className="w-full fixed top-0 z-50">
-      <nav className="shadow-sm transition-all duration-300 bg-transparent">
+      <nav className="transition-all duration-300 bg-transparent">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex items-center ml-36 lg:ml-52">
