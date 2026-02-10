@@ -13,8 +13,18 @@ import ContractsManager from "@/components/admin/ContractsManager";
 import MessagingHub from "@/components/admin/MessagingHub";
 import TaskWorkflow from "@/components/admin/TaskWorkflow";
 import IntranetChat from "@/components/admin/IntranetChat";
+import CreatorRankingEngine from "@/components/admin/CreatorRankingEngine";
+import AdvancedFinancials from "@/components/admin/AdvancedFinancials";
+import TeamPerformance from "@/components/admin/TeamPerformance";
+import AutomationEngine from "@/components/admin/AutomationEngine";
+import ComplianceCenter from "@/components/admin/ComplianceCenter";
+import ReportingExport from "@/components/admin/ReportingExport";
 import { supabase } from "@/integrations/supabase/client";
-import { Shield, LayoutDashboard, Lock, Settings, LogOut, Contact, Search, BarChart3, Users, DollarSign, FileText, MessageSquare, CheckSquare, MessageCircle } from "lucide-react";
+import {
+  Shield, LayoutDashboard, Lock, Settings, LogOut, Contact, Search,
+  BarChart3, Users, DollarSign, FileText, MessageSquare, CheckSquare,
+  MessageCircle, Award, TrendingUp, Activity, Zap, Download, ShieldCheck,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -89,8 +99,14 @@ const Admin = () => {
             <TabsTrigger value="crm" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
               <Contact className="h-3.5 w-3.5" /> CRM
             </TabsTrigger>
+            <TabsTrigger value="rankings" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
+              <Award className="h-3.5 w-3.5" /> Rankings
+            </TabsTrigger>
             <TabsTrigger value="financial" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
               <DollarSign className="h-3.5 w-3.5" /> Financials
+            </TabsTrigger>
+            <TabsTrigger value="adv-financials" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
+              <TrendingUp className="h-3.5 w-3.5" /> Intelligence
             </TabsTrigger>
             <TabsTrigger value="messaging" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
               <MessageSquare className="h-3.5 w-3.5" /> Messaging
@@ -104,11 +120,23 @@ const Admin = () => {
             <TabsTrigger value="team" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
               <Users className="h-3.5 w-3.5" /> Team
             </TabsTrigger>
+            <TabsTrigger value="team-perf" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
+              <Activity className="h-3.5 w-3.5" /> Performance
+            </TabsTrigger>
+            <TabsTrigger value="automation" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
+              <Zap className="h-3.5 w-3.5" /> Automation
+            </TabsTrigger>
             <TabsTrigger value="lookup" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
               <Search className="h-3.5 w-3.5" /> Lookup
             </TabsTrigger>
             <TabsTrigger value="audience" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
               <BarChart3 className="h-3.5 w-3.5" /> Audience
+            </TabsTrigger>
+            <TabsTrigger value="reports" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
+              <Download className="h-3.5 w-3.5" /> Reports
+            </TabsTrigger>
+            <TabsTrigger value="compliance" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
+              <ShieldCheck className="h-3.5 w-3.5" /> Compliance
             </TabsTrigger>
             <TabsTrigger value="security" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
               <Lock className="h-3.5 w-3.5" /> Security
@@ -123,13 +151,19 @@ const Admin = () => {
 
           <TabsContent value="dashboard"><EnhancedDashboard /></TabsContent>
           <TabsContent value="crm"><CRMAccountsTab /></TabsContent>
+          <TabsContent value="rankings"><CreatorRankingEngine accounts={accounts} /></TabsContent>
           <TabsContent value="financial"><FinancialModule /></TabsContent>
+          <TabsContent value="adv-financials"><AdvancedFinancials /></TabsContent>
           <TabsContent value="messaging"><MessagingHub /></TabsContent>
           <TabsContent value="tasks"><TaskWorkflow /></TabsContent>
           <TabsContent value="contracts"><ContractsManager /></TabsContent>
           <TabsContent value="team"><TeamManagement /></TabsContent>
+          <TabsContent value="team-perf"><TeamPerformance /></TabsContent>
+          <TabsContent value="automation"><AutomationEngine /></TabsContent>
           <TabsContent value="lookup"><ProfileLookup /></TabsContent>
           <TabsContent value="audience"><AudienceIntelligence accounts={accounts} /></TabsContent>
+          <TabsContent value="reports"><ReportingExport /></TabsContent>
+          <TabsContent value="compliance"><ComplianceCenter /></TabsContent>
           <TabsContent value="security"><AdminSecurity /></TabsContent>
           <TabsContent value="chat"><IntranetChat /></TabsContent>
           <TabsContent value="settings">
