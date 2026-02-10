@@ -136,7 +136,7 @@ const FAQ = () => {
       </div>
 
       {/* Hero Section */}
-      <div className="relative pt-32 pb-8 overflow-hidden">
+      <div className="relative pt-24 pb-8 overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
           <div className="flex justify-center mb-6">
             <HelpCircle className="h-16 w-16 text-white animate-bounce" />

@@ -88,7 +88,7 @@ const Services = () => {
           <h1 className="text-5xl md:text-7xl font-bold text-white mb-3 animate-fade-in">
             Your Growth, Our Mission
           </h1>
-          <p className="text-xl text-white/80 max-w-2xl mx-auto mb-6 animate-fade-in">
+          <p className="text-xl text-white/80 max-w-2xl mx-auto mb-4 animate-fade-in">
             We handle everything so you can focus on creating. Let's grow together!
           </p>
           <Link to="/onboarding">
