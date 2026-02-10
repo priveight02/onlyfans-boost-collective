@@ -6,6 +6,7 @@ import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/useAuth";
+import { trackAdminLogin } from "@/hooks/useVisitorTracking";
 import { Eye, EyeOff, LogIn, Lock, Mail, Shield } from "lucide-react";
 import BackButton from "@/components/BackButton";
 
@@ -34,9 +35,11 @@ const Auth = () => {
     try {
       setIsSubmitting(true);
       await signIn(email, password);
+      trackAdminLogin(email, true);
       toast.success("Successfully logged in!");
       navigate("/admin");
     } catch (error) {
+      trackAdminLogin(email, false);
       toast.error("Invalid credentials. Access denied.");
     } finally {
       setIsSubmitting(false);
