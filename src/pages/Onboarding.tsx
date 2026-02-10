@@ -4,7 +4,7 @@ import { ExternalLink, CheckCircle } from "lucide-react";
 
 const Onboarding = () => {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-primary to-blue-900 relative overflow-hidden px-4 py-8 sm:py-12">
+    <div className="h-screen bg-gradient-to-br from-purple-900 via-primary to-blue-900 relative overflow-hidden px-4">
       {/* Decorative backgrounds */}
       <div className="fixed inset-0 pointer-events-none">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl" />
@@ -12,15 +12,15 @@ const Onboarding = () => {
         <div className="absolute top-2/3 left-1/2 w-72 h-72 bg-pink-500/10 rounded-full blur-3xl" />
       </div>
 
-      <div className="relative w-full max-w-lg mx-auto pt-20 flex flex-col items-center justify-center min-h-[calc(100vh-4rem)]">
+      <div className="relative w-full max-w-lg mx-auto pt-16 flex flex-col items-center justify-center h-full">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-8 sm:mb-12"
+          className="text-center mb-3 sm:mb-4"
         >
-          <span className="text-5xl sm:text-6xl mb-4 sm:mb-6 block">🧙‍♂️</span>
-          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-3 sm:mb-4 drop-shadow-lg">Welcome to Ozc Agency</h1>
-          <p className="text-base sm:text-lg md:text-xl text-white/90 mb-6 sm:mb-8 drop-shadow-md px-4">
+          <span className="text-4xl sm:text-5xl mb-2 block">🧙‍♂️</span>
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-2 drop-shadow-lg">Welcome to Ozc Agency</h1>
+          <p className="text-sm sm:text-base md:text-lg text-white/90 drop-shadow-md px-4">
             Ready to take your content creation to the next level? Let's get you onboarded!
           </p>
         </motion.div>
