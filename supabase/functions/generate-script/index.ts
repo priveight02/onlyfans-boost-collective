@@ -176,15 +176,43 @@ The script must be immediately usable by a chatter. ${isPremium ? "Take extra ca
     }
 
     const data = await response.json();
+    console.log("AI response structure:", JSON.stringify(data.choices?.[0]?.message ? {
+      role: data.choices[0].message.role,
+      has_tool_calls: !!data.choices[0].message.tool_calls,
+      tool_calls_count: data.choices[0].message.tool_calls?.length,
+      has_content: !!data.choices[0].message.content,
+      content_preview: typeof data.choices[0].message.content === "string" ? data.choices[0].message.content.substring(0, 200) : "non-string",
+    } : "no choices"));
+
+    let script: any = null;
+
+    // Try tool_calls first
     const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
-    
-    if (!toolCall?.function?.arguments) {
-      throw new Error("No script generated");
+    if (toolCall?.function?.arguments) {
+      script = typeof toolCall.function.arguments === "string" 
+        ? JSON.parse(toolCall.function.arguments) 
+        : toolCall.function.arguments;
     }
 
-    const script = typeof toolCall.function.arguments === "string" 
-      ? JSON.parse(toolCall.function.arguments) 
-      : toolCall.function.arguments;
+    // Fallback: parse from content if tool_calls not present
+    if (!script) {
+      const content = data.choices?.[0]?.message?.content;
+      if (content && typeof content === "string") {
+        // Try to extract JSON from content (may be wrapped in markdown code blocks)
+        const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/) || content.match(/(\{[\s\S]*\})/);
+        if (jsonMatch?.[1]) {
+          try {
+            script = JSON.parse(jsonMatch[1].trim());
+          } catch (parseErr) {
+            console.error("Failed to parse content JSON:", parseErr);
+          }
+        }
+      }
+    }
+
+    if (!script || !script.steps) {
+      throw new Error("No script generated - AI returned unexpected format");
+    }
 
     return new Response(JSON.stringify(script), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
