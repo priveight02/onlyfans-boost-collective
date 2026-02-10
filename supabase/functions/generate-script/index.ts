@@ -20,7 +20,7 @@ serve(async (req) => {
     const {
       category, target_segment, theme, quality, generate_real_messages,
       script_length, include_conditions, include_followups, include_delays, include_questions,
-      message_tone, enable_exclusivity,
+      message_tone, enable_exclusivity, enable_typo_simulation, enable_free_first, enable_max_conversion,
     } = await req.json();
     
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
@@ -112,9 +112,51 @@ These elements should be woven naturally throughout the script, not forced. The 
 
     const toneInstruction = TONE_INSTRUCTIONS[message_tone] || TONE_INSTRUCTIONS.innocent;
 
+    const typoInstruction = enable_typo_simulation ? `
+TYPO SIMULATION (CRITICAL FOR REALISM):
+Throughout the script, intentionally include 1-3 typos in messages, then IMMEDIATELY follow with a correction using an asterisk (*). This makes the conversation feel genuinely typed by a real person in real-time. Examples:
+- "I just tok this for u" → next message: "*took lol"
+- "ur so hooot" → next message: "*hot omg autocorrect 😂"
+- "I wanna sho u something" → next message: "*show"
+- "hold on im comming" → next message: "*coming lol"
+- "I'm so nrevous rn" → next message: "*nervous 🙈"
+
+Rules:
+- Only 1-3 typos per script (not every message!)
+- The typo should look like a genuine fast-typing mistake (adjacent keys, missing letters, doubled letters)
+- The correction message should be SHORT — just the corrected word with * and optionally "lol" or an emoji
+- Place typos in casual/emotional moments (when she'd be typing fast because she's excited/nervous)
+- NEVER put typos in PPV captions or pricing messages — only in chat messages
+` : "";
+
+    const freeFirstInstruction = enable_free_first !== false ? `
+FREE CONTENT FIRST STRATEGY (MANDATORY):
+- The script MUST include at least 1-2 FREE media items (free_content steps with price: 0) BEFORE any paid PPV content
+- The free content serves as "bait" — it gives the fan a taste, triggers the reciprocity principle, and locks them into the conversation
+- Free content should be enticing enough to create desire but leave the best stuff for paid
+- After free content, add a message gauging their reaction before the first PPV drop
+- This is the #1 conversion technique: give value first → fan feels obligated to buy
+- Example flow: casual opener → free preview → "did u like that?" → their response → first PPV at low price
+` : "";
+
+    const maxConversionInstruction = enable_max_conversion !== false ? `
+MAX CONVERSION OPTIMIZATION (APPLY TO EVERY MESSAGE):
+Every single message in this script should serve a psychological purpose. No filler. No wasted messages.
+
+1. SUNK COST ESCALATION: After first purchase, reference it: "since u already saw the first one..." — makes them feel invested
+2. FOMO TRIGGERS: "I might delete this later", "I'm only sending this rn", "this offer won't last"
+3. URGENCY: "I'm only in the mood to do this right now", "my roommate comes back in 20 mins"
+4. PRICE ANCHORING: Before revealing price, hint at higher value: "I usually charge way more for this kind of thing but for u..."
+5. RE-ENGAGEMENT LOOPS: If they go quiet, have follow-up messages that create curiosity: "u there? 🥺 I was about to send u something crazy"
+6. MICRO-COMMITMENTS: Get small "yes" responses before big asks: "do u want to see more?" → yes → "ok but this one is special..."
+7. REWARD AFTER PURCHASE: Always send a warm thank-you + tease after they buy: "omg u actually got it 🥰 u have no idea what I'm about to send u next"
+8. EMOTIONAL ESCALATION: Each message should be slightly more intense than the last — never plateau
+9. NATURAL NON-FORCED FLOW: Despite all these techniques, the conversation must read like a REAL chat. No sales pitch language. No "limited time offer" corporate speak. Just a girl genuinely chatting.
+` : "";
+
     const messageInstruction = realMessages
-      ? `Write REAL, natural-sounding messages that chatters can copy-paste directly. Use {NAME} as placeholder. Each message must be unique, engaging, and psychologically optimized.\n\n${toneInstruction}\n\n${exclusivityInstruction}`
-      : `Use placeholder text for messages: "[message]", "[answer]", "[follow-up]", "[reaction]". The chatter writes their own messages. Only fill in media descriptions and pricing.\n\n${exclusivityInstruction}`;
+      ? `Write REAL, natural-sounding messages that chatters can copy-paste directly. Use {NAME} as placeholder. Each message must be unique, engaging, and psychologically optimized.\n\n${toneInstruction}\n\n${exclusivityInstruction}\n\n${typoInstruction}\n\n${freeFirstInstruction}\n\n${maxConversionInstruction}`
+      : `Use placeholder text for messages: "[message]", "[answer]", "[follow-up]", "[reaction]". The chatter writes their own messages. Only fill in media descriptions and pricing.\n\n${exclusivityInstruction}\n\n${freeFirstInstruction}\n\n${maxConversionInstruction}`;
 
     const conditionalInstructions = [];
     if (!useConditions) conditionalInstructions.push("Do NOT include any 'condition' steps.");
