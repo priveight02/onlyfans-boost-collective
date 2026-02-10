@@ -20,6 +20,7 @@ serve(async (req) => {
     const {
       category, target_segment, theme, quality, generate_real_messages,
       script_length, include_conditions, include_followups, include_delays, include_questions,
+      message_tone,
     } = await req.json();
     
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
@@ -33,8 +34,16 @@ serve(async (req) => {
     const useDelays = include_delays !== false;
     const useQuestions = include_questions !== false;
 
+    const isInnocent = message_tone !== "bold";
+
+    const toneInstruction = isInnocent
+      ? `MESSAGE TONE — INNOCENT / CUTE / SHY:
+Write messages as if the creator is a sweet, playful, slightly shy girl-next-door. She types casually, sometimes with small grammar mistakes that feel natural and endearing (not stupid). She uses "babe", "baby", emojis like 😊💕🥺, and sounds genuinely excited and a bit nervous. She never uses vulgar/explicit language — she hints and teases instead. She says things like "I'm getting so hot right now", "do you like seeing me like this?", "I really want you to enjoy this with me". The vibe is: warm, personal, slightly naive, irresistible innocence.`
+      : `MESSAGE TONE — BOLD / EXPLICIT / CONFIDENT:
+Write messages as if the creator is confident, sexually forward, and in control. She knows what she wants and isn't shy about saying it. She uses direct, explicit language freely. She says things like "I want you so hard right now", "look at what I'm doing for you", "tell me how much you want me". The vibe is: dominant, seductive, unapologetic, grown-up. No shyness, no hesitation.`;
+
     const messageInstruction = realMessages
-      ? `Write REAL, natural-sounding messages that chatters can copy-paste directly. Messages should feel personal, warm, and conversational. Use {NAME} as placeholder. Each message must be unique, engaging, and psychologically optimized.`
+      ? `Write REAL, natural-sounding messages that chatters can copy-paste directly. Use {NAME} as placeholder. Each message must be unique, engaging, and psychologically optimized.\n\n${toneInstruction}`
       : `Use placeholder text for messages: "[message]", "[answer]", "[follow-up]", "[reaction]". The chatter writes their own messages. Only fill in media descriptions and pricing.`;
 
     const conditionalInstructions = [];
