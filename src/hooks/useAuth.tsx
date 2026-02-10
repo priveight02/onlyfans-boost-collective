@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { User } from '@supabase/supabase-js';
 
@@ -6,50 +6,60 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   isAdmin: boolean;
-  adminLoading: boolean;
   signIn: (email: string, password: string) => Promise<any>;
   logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Cache admin status in memory to avoid re-checking
+const adminCache = new Map<string, boolean>();
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [adminLoading, setAdminLoading] = useState(true);
-  const initializedRef = useRef(false);
 
   useEffect(() => {
     let mounted = true;
 
-    const handleUser = async (currentUser: User | null) => {
+    const resolveUser = async (currentUser: User | null) => {
       if (!mounted) return;
-      setUser(currentUser);
-      setLoading(false);
 
-      if (currentUser) {
-        setAdminLoading(true);
-        const { data } = await supabase.rpc('is_admin', { _user_id: currentUser.id });
-        if (mounted) {
-          setIsAdmin(!!data);
-          setAdminLoading(false);
-        }
-      } else {
+      if (!currentUser) {
+        setUser(null);
         setIsAdmin(false);
-        setAdminLoading(false);
+        setLoading(false);
+        return;
+      }
+
+      setUser(currentUser);
+
+      // Use cache if available
+      if (adminCache.has(currentUser.id)) {
+        setIsAdmin(adminCache.get(currentUser.id)!);
+        setLoading(false);
+        return;
+      }
+
+      // Quick parallel check
+      const { data } = await supabase.rpc('is_admin', { _user_id: currentUser.id });
+      const admin = !!data;
+      adminCache.set(currentUser.id, admin);
+      if (mounted) {
+        setIsAdmin(admin);
+        setLoading(false);
       }
     };
 
+    // Set up listener first
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!mounted) return;
-      handleUser(session?.user ?? null);
+      resolveUser(session?.user ?? null);
     });
 
+    // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!mounted || initializedRef.current) return;
-      initializedRef.current = true;
-      handleUser(session?.user ?? null);
+      resolveUser(session?.user ?? null);
     });
 
     return () => {
@@ -65,13 +75,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const logout = async () => {
+    adminCache.clear();
     setIsAdmin(false);
+    setUser(null);
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, isAdmin, adminLoading, signIn, logout }}>
+    <AuthContext.Provider value={{ user, loading, isAdmin, signIn, logout }}>
       {children}
     </AuthContext.Provider>
   );
