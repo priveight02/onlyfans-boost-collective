@@ -216,26 +216,53 @@ MAX CONVERSION OPTIMIZATION (APPLY TO EVERY MESSAGE):
 9. NATURAL NON-FORCED FLOW: Despite all these techniques, the conversation must read like a REAL chat.` : "";
 
     const emojiInstruction = useEmoji ? `
-EMOJI USAGE: Use natural emoji throughout messages (😊💕🔥🥺😏🙈😈). Place them where a real person would while texting — at ends of sentences, after teasing, expressing emotion. Don't overdo it (1-3 per message max).` : `
+EMOJI USAGE: Use natural emoji throughout messages (😊💕🔥🥺😏🙈😈). Place them where a real person would — at ends of sentences, after teasing. Don't overdo it (1-3 per message max).
+
+MESSAGE LENGTH — KEEP IT SHORT (CRITICAL):
+Messages MUST be SHORT. Like real texting. 1 line, max 2 lines. Never a paragraph. Never formal.
+GOOD: "u like it daddy?" / "take it or leave it lol" / "don't u wanna see?" / "u really make me horny"
+BAD: "Hey babe, I was just thinking about you and I wanted to share something really special..."
+If a message is longer than 15 words, it's TOO LONG. Break it into multiple short messages instead.` : `
 CRITICAL — ABSOLUTELY ZERO EMOJIS (STRICT ENFORCEMENT):
-Do NOT use ANY emoji characters whatsoever. Not a single one. No 😊, no 💕, no 🥺, no 😏, no 🔥, no 🙈, no 😈, no ❤️, no 💋, no 😍 — NOTHING.
+Do NOT use ANY emoji characters whatsoever. Not a single one.
+
+MESSAGE LENGTH — KEEP IT SHORT (THE MOST CRITICAL RULE AFTER NO EMOJIS):
+Messages MUST be SHORT. Like real texting — not essays, not speeches, not formal sentences. A girl texting on her phone, not writing an email.
+
+STRICT LENGTH RULES:
+- Most messages: 3-10 words. That's it.
+- Maximum: 15 words. If it's longer, SPLIT into multiple short messages.
+- NEVER write a paragraph. NEVER write more than 2 short sentences in one message.
+- NO formal language. NO "I would love to share something special with you."
+- NO wordy build-ups. NO "I've been thinking about you all day and I really want to show you..."
+
+REAL EXAMPLES FROM TOP PERFORMERS (this is the EXACT vibe):
+- "take it or leave it, im a lil 19 years old shy girl lol"
+- "and its a vid btw"
+- "u like it daddy?"
+- "don't u wanna see how deep my fingers can go?"
+- "u can hear how wet i am lol"
+- "u really make me horny"
+- "let it go ill be your slut for the rest of the night"
+- "just got home im bored"
+- "hold on 2 mins babe"
+- "did u like it??"
+
+NOTICE: All SHORT. Punchy. Direct. Real. Every message must match this energy.
 
 NATURAL YOUNG WOMAN TEXTING STYLE:
-She texts like a REAL person — not a chatbot stuffing abbreviations into every word. The key is BALANCE:
 - Some messages use "u", "ur", "rn" naturally — others are fully spelled out. Mix it up.
-- She does NOT put "lol" or "ngl" in every message — maybe 1 in every 3-4 messages
-- She's comfortable being explicit and sexual — this is adult content. She says things like "don't u wanna see how deep my fingers can go?", "u really make me horny", "u like it daddy?"
-- She knows her worth and is confident: "take it or leave it, im a lil 19 years old shy girl lol"
-- She can be very direct: "let it go ill be your slut for the rest of the night"
-- Short messages mostly, lowercase, but she doesn't try to sound cool or funny
-- She is NOT a class clown — no excessive "lol", no over-the-top silliness, no tryhard humor
-- The progression is: starts sweet/innocent → gets increasingly sexual → peak explicitness at premium content
-- Her confidence is quiet, not loud. She's real, not performing.
+- She does NOT put "lol" in every message — maybe 1 in every 3-4 messages
+- She's comfortable being explicit and sexual
+- Short messages, lowercase, real — not performing
+- starts sweet/innocent → gets increasingly sexual → peak explicitness at premium
 
-BAD examples (too forced): "heyy u up? lol ngl im so bored rn omg wyd hbu"
-GOOD examples (natural): "heyy how was ur day", "just got home im bored", "don't u wanna see?", "u like it daddy?", "take it or leave it lol", "u can hear how wet i am"
+BAD (TOO LONG/FORMAL): "Hey babe, I was just thinking about you and I wanted to send you something really special tonight" ← NEVER
+BAD (TOO FORCED): "heyy u up? lol ngl im so bored rn omg wyd hbu"
+GOOD: "heyy how was ur day" / "don't u wanna see?" / "u like it daddy?" / "I just took this for u"
 
-THIS IS THE MOST IMPORTANT RULE: If even ONE emoji appears in ANY message, the script is INVALID.`;
+RULE 1: If even ONE emoji appears in ANY message, the script is INVALID.
+RULE 2: If ANY message exceeds 15 words, the script needs to be REWRITTEN.`;
 
     const reEngagementInstruction = enable_re_engagement !== false ? `
 RE-ENGAGEMENT LOOPS: If the fan goes quiet at ANY point, include follow-up messages:

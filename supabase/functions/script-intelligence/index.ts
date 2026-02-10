@@ -168,7 +168,8 @@ CRITICAL RULES:
 - Be brutally honest about weaknesses
 - Base analysis on actual content, not assumptions
 - Pricing changes should follow reciprocity → low barrier → escalation → premium pattern
-- Content changes should match natural young woman texting style (casual, abbreviations like u/ur/rn mixed naturally)`;
+- Content changes MUST be SHORT (3-15 words max per message). Real texting style. Examples: "u like it daddy?", "don't u wanna see?", "take it or leave it lol", "I just took this for u". NEVER suggest long formal sentences. If a suggested message exceeds 15 words, split it into multiple messages.
+- Content changes should match natural young woman texting style (casual, abbreviations like u/ur/rn mixed naturally, zero emojis unless emoji mode is on)`;
 
       userPrompt = `Analyze this script in extreme detail and provide structured improvements:
 
