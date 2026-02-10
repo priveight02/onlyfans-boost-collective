@@ -83,7 +83,7 @@ const Services = () => {
       <div className="absolute top-1/2 right-1/3 w-64 h-64 bg-pink-500/15 rounded-full blur-3xl" />
 
       {/* Hero Section */}
-      <div className="relative pt-32 md:pt-36 pb-8">
+      <div className="relative pt-24 md:pt-28 pb-8">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
           <h1 className="text-5xl md:text-7xl font-bold text-white mb-8 animate-fade-in">
             Your Growth, Our Mission
@@ -100,7 +100,7 @@ const Services = () => {
       </div>
 
       {/* Smooth separator */}
-      <div className="relative py-6">
+      <div className="relative py-3">
         <div className="max-w-3xl mx-auto px-8">
           <div className="h-px bg-gradient-to-r from-transparent via-white/30 to-transparent" />
         </div>
@@ -109,7 +109,7 @@ const Services = () => {
       {/* Services Grid */}
       <section className="pb-6 relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <div className="text-center mb-8 mt-6">
+          <div className="text-center mb-8 mt-3">
             <h2 className="text-3xl md:text-4xl font-bold text-white mb-4 animate-fade-in">
               Our Exclusive Services
             </h2>
