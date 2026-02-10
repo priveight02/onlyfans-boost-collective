@@ -570,6 +570,7 @@ const ScriptBuilder = () => {
   const [enableReEngagement, setEnableReEngagement] = useState(true);
   const [enableVoiceNoteHints, setEnableVoiceNoteHints] = useState(false);
   const [adaptivePricing, setAdaptivePricing] = useState(true);
+  const [enableFormalLongMessages, setEnableFormalLongMessages] = useState(false);
   // NEW Psychology & Story Options
   const [enableMindBuilding, setEnableMindBuilding] = useState(true);
   const [enableStoryArc, setEnableStoryArc] = useState(true);
@@ -792,6 +793,7 @@ const ScriptBuilder = () => {
           enable_exclusivity_psychology: enableExclusivityPsychology,
           enable_fantasy_projection: enableFantasyProjection,
           enable_emotional_anchoring: enableEmotionalAnchoring,
+          enable_formal_long_messages: enableFormalLongMessages,
         },
       });
       if (error) throw error;
@@ -1115,6 +1117,7 @@ const ScriptBuilder = () => {
                     { id: "opt-typo", icon: "✏️", label: "Typo Simulation", desc: "Natural typos + *correction.", checked: enableTypoSimulation, set: setEnableTypoSimulation },
                     { id: "opt-reengage", icon: "🔄", label: "Re-Engagement Loops", desc: "Auto follow-ups if fan goes quiet.", checked: enableReEngagement, set: setEnableReEngagement },
                     { id: "opt-voice", icon: "🎤", label: "Voice Note Hints", desc: "Reference voice msgs for intimacy.", checked: enableVoiceNoteHints, set: setEnableVoiceNoteHints },
+                    { id: "opt-formal-long", icon: "📝", label: "Longer Formal Messages", desc: "Longer, more detailed messages instead of short texting style.", checked: enableFormalLongMessages, set: setEnableFormalLongMessages },
                   ].map(opt => (
                     <div key={opt.id} className="flex items-center gap-3 p-2.5 rounded-lg bg-white/[0.03] border border-white/[0.06]">
                       <Switch id={opt.id} checked={opt.checked} onCheckedChange={opt.set} />
