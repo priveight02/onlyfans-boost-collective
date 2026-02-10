@@ -93,6 +93,12 @@ export type Database = {
           last_activity_at: string | null
           monthly_revenue: number | null
           notes: string | null
+          of_auth_id: string | null
+          of_connected: boolean | null
+          of_connected_at: string | null
+          of_session_token: string | null
+          of_user_agent: string | null
+          of_x_bc: string | null
           onboarded_at: string | null
           platform: string
           social_links: Json | null
@@ -117,6 +123,12 @@ export type Database = {
           last_activity_at?: string | null
           monthly_revenue?: number | null
           notes?: string | null
+          of_auth_id?: string | null
+          of_connected?: boolean | null
+          of_connected_at?: string | null
+          of_session_token?: string | null
+          of_user_agent?: string | null
+          of_x_bc?: string | null
           onboarded_at?: string | null
           platform?: string
           social_links?: Json | null
@@ -141,6 +153,12 @@ export type Database = {
           last_activity_at?: string | null
           monthly_revenue?: number | null
           notes?: string | null
+          of_auth_id?: string | null
+          of_connected?: boolean | null
+          of_connected_at?: string | null
+          of_session_token?: string | null
+          of_user_agent?: string | null
+          of_x_bc?: string | null
           onboarded_at?: string | null
           platform?: string
           social_links?: Json | null
@@ -150,6 +168,36 @@ export type Database = {
           tier?: string | null
           total_revenue?: number | null
           updated_at?: string
+          username?: string
+        }
+        Relationships: []
+      }
+      profile_lookup_history: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          display_name: string | null
+          id: string
+          looked_up_by: string | null
+          snapshot_data: Json
+          username: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          looked_up_by?: string | null
+          snapshot_data?: Json
+          username: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          looked_up_by?: string | null
+          snapshot_data?: Json
           username?: string
         }
         Relationships: []
@@ -175,6 +223,84 @@ export type Database = {
           page_path?: string
           user_agent?: string | null
           visitor_ip?: string | null
+        }
+        Relationships: []
+      }
+      team_account_assignments: {
+        Row: {
+          account_id: string
+          assigned_at: string
+          id: string
+          role_on_account: string
+          team_member_id: string
+        }
+        Insert: {
+          account_id: string
+          assigned_at?: string
+          id?: string
+          role_on_account?: string
+          team_member_id: string
+        }
+        Update: {
+          account_id?: string
+          assigned_at?: string
+          id?: string
+          role_on_account?: string
+          team_member_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_account_assignments_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "managed_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "team_account_assignments_team_member_id_fkey"
+            columns: ["team_member_id"]
+            isOneToOne: false
+            referencedRelation: "team_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      team_members: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          email: string
+          id: string
+          name: string
+          notes: string | null
+          role: string
+          status: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          email: string
+          id?: string
+          name: string
+          notes?: string | null
+          role?: string
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          name?: string
+          notes?: string | null
+          role?: string
+          status?: string
+          updated_at?: string
+          user_id?: string | null
         }
         Relationships: []
       }
