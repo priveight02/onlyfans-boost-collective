@@ -70,7 +70,7 @@ const Services = () => {
   };
 
   return (
-    <section id="services" className="py-12 bg-gradient-to-br from-primary via-primary-accent to-accent relative overflow-hidden min-h-screen flex items-center">
+    <section id="services" className="py-12 bg-gradient-to-b from-primary-accent via-accent to-primary relative overflow-hidden min-h-screen flex items-center">
       {/* Enhanced Background Effects */}
       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/5 to-transparent" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_50%,rgba(255,255,255,0.15),transparent_50%)]" />
