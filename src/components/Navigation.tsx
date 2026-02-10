@@ -54,9 +54,7 @@ const Navigation = () => {
       }]
     : menuItems;
 
-  if (loading) {
-    return null;
-  }
+  // Don't hide nav while loading - just hide auth-dependent buttons
 
   return (
     <div className="w-full fixed top-0 z-50">
@@ -94,16 +92,16 @@ const Navigation = () => {
                   {item.name}
                 </Link>
               ))}
-              {user ? (
+              {!loading && user ? (
                 <Button
                   variant="ghost"
                   onClick={handleLogout}
                   className="transition-colors duration-200 hover:bg-transparent text-white hover:text-white/80"
+                  title="Log out"
                 >
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Logout
+                  <LogOut className="h-5 w-5" />
                 </Button>
-              ) : (
+              ) : !loading ? (
                 <Link to="/auth">
                   <Button
                     variant="ghost"
@@ -113,7 +111,7 @@ const Navigation = () => {
                     Login
                   </Button>
                 </Link>
-              )}
+              ) : null}
             </div>
 
             {/* Mobile menu button */}
@@ -146,7 +144,7 @@ const Navigation = () => {
                     {item.name}
                   </Link>
                 ))}
-                {user ? (
+                {!loading && user ? (
                   <Button
                     variant="ghost"
                     onClick={() => {
@@ -158,7 +156,7 @@ const Navigation = () => {
                     <LogOut className="mr-2 h-4 w-4" />
                     Logout
                   </Button>
-                ) : (
+                ) : !loading ? (
                   <Link to="/auth" className="block" onClick={() => setIsOpen(false)}>
                     <Button
                       variant="ghost"
@@ -168,7 +166,7 @@ const Navigation = () => {
                       Login
                     </Button>
                   </Link>
-                )}
+                ) : null}
               </div>
             </div>
           )}
