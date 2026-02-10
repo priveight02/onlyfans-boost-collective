@@ -9,11 +9,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Plus, Trash2, MessageSquare, Image, DollarSign, Clock,
-  GitBranch, Save, Copy, Zap, HelpCircle, Send, Film, Tag,
-  ChevronDown, ChevronUp, GripVertical, ArrowDown, Play, Eye,
+  GitBranch, Save, Copy, Zap, HelpCircle, Send, Film,
+  ChevronDown, ChevronUp, GripVertical, ArrowDown, Eye,
   Sparkles, Loader2, Crown, Timer, BookOpen, Lightbulb,
+  Download, FileSpreadsheet, FileText,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -48,6 +50,13 @@ interface Script {
 
 const CATEGORIES = ["onboarding", "retention", "upsell", "premium", "reactivation", "general"];
 const SEGMENTS = ["all", "new_users", "active_users", "vip", "high_spenders", "inactive", "custom"];
+const SCRIPT_LENGTHS = [
+  { value: "very_short", label: "Very Short", desc: "5-7 steps, 2-3 media", icon: "⚡" },
+  { value: "short", label: "Short", desc: "8-10 steps, 3-4 media", icon: "🔥" },
+  { value: "medium", label: "Medium", desc: "12-16 steps, 4-5 media", icon: "📋" },
+  { value: "long", label: "Long", desc: "18-22 steps, 5-7 media", icon: "📖" },
+  { value: "very_long", label: "Very Long", desc: "25-35 steps, 7-10 media", icon: "📚" },
+];
 
 /* ── Script Templates ── */
 const SCRIPT_TEMPLATES = [
@@ -62,9 +71,9 @@ const SCRIPT_TEMPLATES = [
       { step_type: "message", title: "Build rapport", content: "How did you sleep? I had the craziest dream last night 😂", media_type: "", media_url: "", price: 0, delay_minutes: 3 },
       { step_type: "ppv_content", title: "Getting ready 1", content: "Getting ready for the day... want to see? 😏", media_type: "image", media_url: "2 images - getting ready, same bedroom setting", price: 5, delay_minutes: 5 },
       { step_type: "condition", title: "Check response", content: "", media_type: "", media_url: "", price: 0, delay_minutes: 10, condition_logic: { condition: "Responded or purchased" } },
-      { step_type: "followup_purchased", title: "Thank + tease next", content: "Glad you liked it! 😘 Want to see what I'm wearing today?", media_type: "", media_url: "", price: 0, delay_minutes: 2 },
+      { step_type: "followup_purchased", title: "Thank + tease", content: "Glad you liked it! 😘 Want to see what I'm wearing today?", media_type: "", media_url: "", price: 0, delay_minutes: 2 },
       { step_type: "ppv_content", title: "Full outfit reveal", content: "Here's the full look 💕", media_type: "mixed", media_url: "2 photos + 15s video - full outfit, same room", price: 10, delay_minutes: 3 },
-      { step_type: "followup_ignored", title: "Re-engage", content: "Hey {NAME}, you missed my morning look! Here's a little preview 😉", media_type: "image", media_url: "1 teaser image, cropped", price: 0, delay_minutes: 60 },
+      { step_type: "followup_ignored", title: "Re-engage", content: "Hey {NAME}, you missed my morning look! 😉", media_type: "image", media_url: "1 teaser image, cropped", price: 0, delay_minutes: 60 },
       { step_type: "ppv_content", title: "Premium set", content: "The complete morning set just for you ✨", media_type: "mixed", media_url: "3 images + 28s video - complete set, same setting", price: 20, delay_minutes: 5 },
     ],
   },
@@ -75,52 +84,102 @@ const SCRIPT_TEMPLATES = [
     category: "retention",
     steps: [
       { step_type: "welcome", title: "Workout done", content: "Just finished my workout {NAME}! 💦", media_type: "", media_url: "", price: 0, delay_minutes: 0 },
-      { step_type: "free_content", title: "Quick selfie", content: "Proof I actually went 😂", media_type: "image", media_url: "1 mirror selfie in gym clothes, sweaty", price: 0, delay_minutes: 1 },
+      { step_type: "free_content", title: "Quick selfie", content: "Proof I actually went 😂", media_type: "image", media_url: "1 mirror selfie in gym clothes", price: 0, delay_minutes: 1 },
       { step_type: "question", title: "Engage", content: "Do you work out too? What's your routine?", media_type: "", media_url: "", price: 0, delay_minutes: 3 },
-      { step_type: "ppv_content", title: "Workout clips", content: "Some clips from today's session 🏋️‍♀️", media_type: "video", media_url: "Video 0:22 - workout highlights, gym setting", price: 7, delay_minutes: 5 },
-      { step_type: "ppv_content", title: "Post-workout", content: "The post-workout glow hits different 😏", media_type: "image", media_url: "3 images - post-workout, same gym/locker room", price: 12, delay_minutes: 5 },
-      { step_type: "condition", title: "Bought both?", content: "", media_type: "", media_url: "", price: 0, delay_minutes: 15, condition_logic: { condition: "Purchased previous content" } },
-      { step_type: "followup_purchased", title: "VIP offer", content: "Since you loved those... I have something special 😈", media_type: "", media_url: "", price: 0, delay_minutes: 2 },
-      { step_type: "ppv_content", title: "Exclusive set", content: "Full post-workout set - only for my favorites ✨", media_type: "mixed", media_url: "4 images + 35s video - complete set, same location", price: 25, delay_minutes: 3 },
-      { step_type: "followup_ignored", title: "Soft re-engage", content: "Hey {NAME}! Hope you're having a good day 💕 Missed you earlier", media_type: "", media_url: "", price: 0, delay_minutes: 120 },
+      { step_type: "ppv_content", title: "Workout clips", content: "Some clips from today 🏋️", media_type: "video", media_url: "Video 0:22 - workout highlights", price: 7, delay_minutes: 5 },
+      { step_type: "ppv_content", title: "Post-workout", content: "The post-workout glow 😏", media_type: "image", media_url: "3 images - post-workout, same gym", price: 12, delay_minutes: 5 },
+      { step_type: "ppv_content", title: "Exclusive set", content: "Full set - only for favorites ✨", media_type: "mixed", media_url: "4 images + 35s video", price: 25, delay_minutes: 3 },
     ],
   },
   {
     name: "Night Out Prep",
-    description: "Getting ready for a night out, bedroom/bathroom, 4 media items",
+    description: "Getting ready for a night out, 4 media items",
     icon: "🌙",
     category: "upsell",
     steps: [
-      { step_type: "welcome", title: "Evening greeting", content: "Hey {NAME}! Getting ready to go out tonight 🥂", media_type: "", media_url: "", price: 0, delay_minutes: 0 },
-      { step_type: "free_content", title: "Outfit options", content: "Help me pick? 😊", media_type: "image", media_url: "1 image - holding up two outfits", price: 0, delay_minutes: 2 },
-      { step_type: "question", title: "Get input", content: "Left or right? Need your opinion!", media_type: "", media_url: "", price: 0, delay_minutes: 3 },
-      { step_type: "ppv_content", title: "Trying on", content: "Trying them on for you 😏", media_type: "image", media_url: "2 images - trying on outfits, bedroom mirror", price: 5, delay_minutes: 5 },
-      { step_type: "message", title: "Build anticipation", content: "Almost ready... doing my makeup now 💄", media_type: "", media_url: "", price: 0, delay_minutes: 10 },
-      { step_type: "ppv_content", title: "Final look", content: "What do you think? 🔥", media_type: "mixed", media_url: "2 images + 20s video - final look, same bathroom/bedroom", price: 12, delay_minutes: 5 },
-      { step_type: "ppv_content", title: "Exclusive BTS", content: "The full getting-ready experience just for you 💕", media_type: "mixed", media_url: "3 images + 40s video - complete BTS, same setting", price: 20, delay_minutes: 5 },
-      { step_type: "followup_purchased", title: "Thank you", content: "Thanks for helping me get ready {NAME}! I'll send you pics later tonight 😘", media_type: "", media_url: "", price: 0, delay_minutes: 2 },
-      { step_type: "followup_ignored", title: "FOMO", content: "You missed my getting-ready content! I looked amazing tonight 😏 Want to see?", media_type: "", media_url: "", price: 0, delay_minutes: 180 },
+      { step_type: "welcome", title: "Evening", content: "Hey {NAME}! Getting ready to go out 🥂", media_type: "", media_url: "", price: 0, delay_minutes: 0 },
+      { step_type: "free_content", title: "Outfit options", content: "Help me pick? 😊", media_type: "image", media_url: "1 image - holding up outfits", price: 0, delay_minutes: 2 },
+      { step_type: "ppv_content", title: "Trying on", content: "Trying them on 😏", media_type: "image", media_url: "2 images - trying outfits", price: 5, delay_minutes: 5 },
+      { step_type: "ppv_content", title: "Final look", content: "What do you think? 🔥", media_type: "mixed", media_url: "2 images + 20s video", price: 12, delay_minutes: 5 },
+      { step_type: "ppv_content", title: "Exclusive BTS", content: "Full getting-ready experience 💕", media_type: "mixed", media_url: "3 images + 40s video", price: 20, delay_minutes: 5 },
     ],
   },
   {
     name: "Lazy Day",
-    description: "Cozy at-home content, living room/couch setting, 5 media items",
+    description: "Cozy at-home content, living room, 5 media items",
     icon: "🛋️",
     category: "retention",
     steps: [
-      { step_type: "welcome", title: "Lazy vibes", content: "Having the laziest day ever {NAME} 🛋️ just me and Netflix", media_type: "", media_url: "", price: 0, delay_minutes: 0 },
-      { step_type: "free_content", title: "Cozy preview", content: "Current mood 😴", media_type: "image", media_url: "1 cozy selfie on couch, blanket, casual", price: 0, delay_minutes: 2 },
-      { step_type: "question", title: "Conversation", content: "What are you watching lately? I need recommendations!", media_type: "", media_url: "", price: 0, delay_minutes: 5 },
-      { step_type: "ppv_content", title: "Cozy set 1", content: "Getting comfy... 😊", media_type: "image", media_url: "2 images - lounging on couch, same room, cozy outfit", price: 5, delay_minutes: 8 },
-      { step_type: "ppv_content", title: "Cozy set 2", content: "It's getting warm in here 🔥", media_type: "image", media_url: "2 images - same couch setting, more relaxed", price: 8, delay_minutes: 5 },
-      { step_type: "ppv_content", title: "Video content", content: "Just for you since you're keeping me company 💕", media_type: "video", media_url: "Video 0:30 - same room, personal message", price: 15, delay_minutes: 5 },
-      { step_type: "condition", title: "Engagement check", content: "", media_type: "", media_url: "", price: 0, delay_minutes: 15, condition_logic: { condition: "Active in conversation" } },
-      { step_type: "followup_purchased", title: "Premium bundle", content: "You've been so sweet today... here's something extra special 🎁", media_type: "", media_url: "", price: 0, delay_minutes: 3 },
-      { step_type: "ppv_content", title: "Full lazy day set", content: "The complete lazy day collection ✨", media_type: "mixed", media_url: "4 images + 45s video - full set, same couch/room", price: 25, delay_minutes: 3 },
-      { step_type: "followup_ignored", title: "Next day follow-up", content: "Hey {NAME}! You missed our lazy day together 😢 Want to make it up?", media_type: "", media_url: "", price: 0, delay_minutes: 1440 },
+      { step_type: "welcome", title: "Lazy vibes", content: "Laziest day ever {NAME} 🛋️", media_type: "", media_url: "", price: 0, delay_minutes: 0 },
+      { step_type: "free_content", title: "Cozy preview", content: "Current mood 😴", media_type: "image", media_url: "1 cozy selfie on couch", price: 0, delay_minutes: 2 },
+      { step_type: "ppv_content", title: "Cozy set", content: "Getting comfy... 😊", media_type: "image", media_url: "2 images - lounging, cozy", price: 5, delay_minutes: 8 },
+      { step_type: "ppv_content", title: "Video", content: "Just for you 💕", media_type: "video", media_url: "Video 0:30 - personal message", price: 15, delay_minutes: 5 },
+      { step_type: "ppv_content", title: "Full set", content: "Complete lazy day collection ✨", media_type: "mixed", media_url: "4 images + 45s video", price: 25, delay_minutes: 3 },
     ],
   },
 ];
+
+/* ── Export Utilities ── */
+const exportToCSV = (script: Script, steps: ScriptStep[]) => {
+  const headers = ["#", "Type", "Title", "Content", "Media Type", "Media Description", "Price ($)", "Delay (min)"];
+  const rows = steps.map((s, i) => [
+    i + 1, s.step_type, s.title, `"${(s.content || "").replace(/"/g, '""')}"`,
+    s.media_type || "", `"${(s.media_url || "").replace(/"/g, '""')}"`,
+    s.price || 0, s.delay_minutes || 0,
+  ]);
+  const csv = [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
+  downloadFile(`${script.title || "script"}.csv`, csv, "text/csv");
+};
+
+const exportToText = (script: Script, steps: ScriptStep[]) => {
+  let text = `📋 SCRIPT: ${script.title}\n`;
+  text += `📝 ${script.description || ""}\n`;
+  text += `📂 Category: ${script.category} | 🎯 Target: ${script.target_segment}\n`;
+  text += `💰 Total Value: $${steps.reduce((s, st) => s + (st.price || 0), 0)}\n`;
+  text += "═".repeat(60) + "\n\n";
+  steps.forEach((s, i) => {
+    const typeLabel = s.step_type.toUpperCase().replace(/_/g, " ");
+    text += `[${i + 1}] ${typeLabel}${s.price > 0 ? ` — $${s.price}` : ""}\n`;
+    if (s.title) text += `    Title: ${s.title}\n`;
+    if (s.content) text += `    Message: ${s.content}\n`;
+    if (s.media_url) text += `    Media: ${s.media_type ? `(${s.media_type}) ` : ""}${s.media_url}\n`;
+    if (s.delay_minutes > 0) text += `    ⏱ Wait ${s.delay_minutes} min\n`;
+    if (s.step_type === "condition") text += `    ⑂ Branch: ${s.condition_logic?.condition || "Check response"}\n`;
+    text += "\n";
+  });
+  downloadFile(`${script.title || "script"}.txt`, text, "text/plain");
+};
+
+const exportToMarkdown = (script: Script, steps: ScriptStep[]) => {
+  let md = `# 📋 ${script.title}\n\n`;
+  md += `> ${script.description || ""}\n\n`;
+  md += `**Category:** ${script.category} | **Target:** ${script.target_segment} | **Total:** $${steps.reduce((s, st) => s + (st.price || 0), 0)}\n\n`;
+  md += "---\n\n";
+  md += "| # | Type | Content | Media | Price | Delay |\n";
+  md += "|---|------|---------|-------|-------|-------|\n";
+  steps.forEach((s, i) => {
+    md += `| ${i + 1} | ${s.step_type} | ${(s.content || s.title || "—").substring(0, 50)} | ${s.media_url ? `${s.media_type}: ${s.media_url.substring(0, 30)}` : "—"} | ${s.price > 0 ? `$${s.price}` : "—"} | ${s.delay_minutes > 0 ? `${s.delay_minutes}m` : "—"} |\n`;
+  });
+  md += "\n---\n\n";
+  steps.forEach((s, i) => {
+    md += `### Step ${i + 1}: ${s.step_type.toUpperCase().replace(/_/g, " ")}${s.price > 0 ? ` — $${s.price}` : ""}\n\n`;
+    if (s.content) md += `${s.content}\n\n`;
+    if (s.media_url) md += `📎 *${s.media_type}: ${s.media_url}*\n\n`;
+  });
+  downloadFile(`${script.title || "script"}.md`, md, "text/markdown");
+};
+
+const downloadFile = (filename: string, content: string, type: string) => {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename.replace(/[^a-zA-Z0-9._-]/g, "_");
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+};
 
 const ScriptBuilder = () => {
   const [scripts, setScripts] = useState<any[]>([]);
@@ -128,6 +187,7 @@ const ScriptBuilder = () => {
   const [steps, setSteps] = useState<ScriptStep[]>([]);
   const [showNewDialog, setShowNewDialog] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
+  const [showGenOptions, setShowGenOptions] = useState(false);
   const [viewMode, setViewMode] = useState<"flow" | "edit">("flow");
   const [editingStep, setEditingStep] = useState<number | null>(null);
   const [newScript, setNewScript] = useState<Script>({
@@ -136,16 +196,21 @@ const ScriptBuilder = () => {
   const [saving, setSaving] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [generatingQuality, setGeneratingQuality] = useState<"fast" | "premium" | null>(null);
+
+  // Generation options
   const [generateRealMessages, setGenerateRealMessages] = useState(true);
+  const [scriptLength, setScriptLength] = useState("medium");
+  const [includeConditions, setIncludeConditions] = useState(true);
+  const [includeFollowups, setIncludeFollowups] = useState(true);
+  const [includeDelays, setIncludeDelays] = useState(true);
+  const [includeQuestions, setIncludeQuestions] = useState(true);
+
   const [genTimer, setGenTimer] = useState(0);
   const [genEstimate, setGenEstimate] = useState(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => { loadScripts(); }, []);
-
-  useEffect(() => {
-    return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, []);
+  useEffect(() => { return () => { if (timerRef.current) clearInterval(timerRef.current); }; }, []);
 
   const loadScripts = async () => {
     const { data } = await supabase.from("scripts").select("*").order("created_at", { ascending: false });
@@ -192,19 +257,16 @@ const ScriptBuilder = () => {
     }).select().single();
     if (error) return toast.error(error.message);
 
-    const templateSteps: ScriptStep[] = template.steps.map((s, i) => ({
-      step_order: i, step_type: s.step_type, title: s.title, content: s.content,
-      media_url: s.media_url, media_type: s.media_type, price: s.price,
-      delay_minutes: s.delay_minutes, condition_logic: s.step_type === "condition" ? (s as any).condition_logic || {} : {},
-      conversion_rate: 0, drop_off_rate: 0, revenue_generated: 0, impressions: 0,
-    }));
-
-    if (data) {
+    if (data && template.steps.length > 0) {
       await supabase.from("script_steps").insert(
-        templateSteps.map(s => ({ script_id: data.id, ...s }))
+        template.steps.map((s, i) => ({
+          script_id: data.id, step_order: i, step_type: s.step_type,
+          title: s.title, content: s.content, media_url: s.media_url, media_type: s.media_type,
+          price: s.price, delay_minutes: s.delay_minutes,
+          condition_logic: s.step_type === "condition" ? (s as any).condition_logic || {} : {},
+        }))
       );
     }
-
     toast.success(`Template "${template.name}" applied!`);
     setShowTemplates(false);
     await loadScripts();
@@ -212,13 +274,12 @@ const ScriptBuilder = () => {
   };
 
   const addStep = (type: string = "message") => {
-    const newStep: ScriptStep = {
-      step_order: steps.length, step_type: type, title: "", content: "",
+    setSteps(prev => [...prev, {
+      step_order: prev.length, step_type: type, title: "", content: "",
       media_url: "", media_type: "", price: 0, delay_minutes: 0,
       condition_logic: {}, conversion_rate: 0, drop_off_rate: 0,
       revenue_generated: 0, impressions: 0,
-    };
-    setSteps(prev => [...prev, newStep]);
+    }]);
     setEditingStep(steps.length);
     setViewMode("edit");
   };
@@ -300,66 +361,64 @@ const ScriptBuilder = () => {
     if (data) selectScript(data);
   };
 
+  // ── ALWAYS creates a NEW script in DB and redirects to it ──
   const generateScript = async (quality: "fast" | "premium") => {
     setGenerating(true);
     setGeneratingQuality(quality);
-    const estimate = quality === "premium" ? 25 : 10;
+    const estimateMap: Record<string, number> = { very_short: 6, short: 8, medium: 12, long: 18, very_long: 25 };
+    const estimate = (estimateMap[scriptLength] || 12) * (quality === "premium" ? 2 : 1);
     setGenEstimate(estimate);
     setGenTimer(0);
-
-    timerRef.current = setInterval(() => {
-      setGenTimer(prev => prev + 1);
-    }, 1000);
+    timerRef.current = setInterval(() => setGenTimer(prev => prev + 1), 1000);
 
     try {
-      const category = selectedScript?.category || "general";
-      const segment = selectedScript?.target_segment || "new_users";
+      const category = selectedScript?.category || newScript.category || "general";
+      const segment = selectedScript?.target_segment || newScript.target_segment || "new_users";
+
       const { data, error } = await supabase.functions.invoke("generate-script", {
         body: {
-          category,
-          target_segment: segment,
-          quality,
+          category, target_segment: segment, quality,
           generate_real_messages: generateRealMessages,
+          script_length: scriptLength,
+          include_conditions: includeConditions,
+          include_followups: includeFollowups,
+          include_delays: includeDelays,
+          include_questions: includeQuestions,
         },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
-      if (!selectedScript?.id) {
-        const { data: newScriptData, error: createErr } = await supabase.from("scripts").insert({
-          title: data.title || "AI Generated Script",
-          description: data.description || "",
-          category,
-          target_segment: segment,
-        }).select().single();
-        if (createErr) throw createErr;
-        setSelectedScript(newScriptData);
-        if (data.steps?.length > 0 && newScriptData) {
-          await supabase.from("script_steps").insert(
-            data.steps.map((s: any, i: number) => ({
-              script_id: newScriptData.id, step_order: i, step_type: s.step_type,
-              title: s.title || "", content: s.content || "",
-              media_url: s.media_url || "", media_type: s.media_type || "",
-              price: s.price || 0, delay_minutes: s.delay_minutes || 0,
-              condition_logic: s.condition_logic || {},
-            }))
-          );
-        }
-        await loadScripts();
-        if (newScriptData) await loadSteps(newScriptData.id);
-      } else {
-        const generatedSteps: ScriptStep[] = (data.steps || []).map((s: any, i: number) => ({
-          step_order: i, step_type: s.step_type || "message",
-          title: s.title || "", content: s.content || "",
-          media_url: s.media_url || "", media_type: s.media_type || "",
-          price: s.price || 0, delay_minutes: s.delay_minutes || 0,
-          condition_logic: s.condition_logic || {},
-          conversion_rate: 0, drop_off_rate: 0, revenue_generated: 0, impressions: 0,
-        }));
-        setSteps(generatedSteps);
-        if (data.title) setSelectedScript(p => p ? { ...p, title: data.title, description: data.description || p.description } : p);
+      // ALWAYS create a new script entry in DB
+      const { data: newScriptData, error: createErr } = await supabase.from("scripts").insert({
+        title: data.title || `AI ${quality === "premium" ? "Premium" : "Fast"} Script`,
+        description: data.description || "",
+        category,
+        target_segment: segment,
+      }).select().single();
+      if (createErr) throw createErr;
+
+      // Save all steps to DB
+      if (data.steps?.length > 0 && newScriptData) {
+        await supabase.from("script_steps").insert(
+          data.steps.map((s: any, i: number) => ({
+            script_id: newScriptData.id, step_order: i, step_type: s.step_type || "message",
+            title: s.title || "", content: s.content || "",
+            media_url: s.media_url || "", media_type: s.media_type || "",
+            price: s.price || 0, delay_minutes: s.delay_minutes || 0,
+            condition_logic: s.condition_logic || {},
+          }))
+        );
       }
-      toast.success(`${quality === "premium" ? "Premium" : "Fast"} script generated! Review and edit inline.`);
+
+      // Reload scripts list and auto-select the new script
+      await loadScripts();
+      if (newScriptData) {
+        await selectScript(newScriptData);
+        setViewMode("flow");
+      }
+
+      toast.success(`${quality === "premium" ? "👑 Premium" : "⚡ Fast"} script saved to library!`);
     } catch (e: any) {
       toast.error(e.message || "Failed to generate script");
     } finally {
@@ -378,37 +437,87 @@ const ScriptBuilder = () => {
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
           <h2 className="text-lg font-semibold text-white">Script Builder</h2>
-          <p className="text-xs text-white/40">Design structured content scripts with progressive pricing</p>
+          <p className="text-xs text-white/40">Design structured content scripts with progressive pricing & psychology</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          {/* Real Messages Toggle */}
-          <div className="flex items-center gap-2 bg-white/5 rounded-lg px-3 py-1.5 border border-white/10">
-            <Switch id="real-msgs" checked={generateRealMessages} onCheckedChange={setGenerateRealMessages} />
-            <Label htmlFor="real-msgs" className="text-[10px] text-white/50 cursor-pointer">Real messages</Label>
-          </div>
-
           {/* Generate Buttons */}
           <Button size="sm" onClick={() => generateScript("fast")} disabled={generating}
             className="gap-1.5 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white border-0">
             {generatingQuality === "fast" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />}
-            {generatingQuality === "fast" ? "Generating..." : "⚡ Fast Script"}
+            {generatingQuality === "fast" ? "Generating..." : "⚡ Fast"}
           </Button>
           <Button size="sm" onClick={() => generateScript("premium")} disabled={generating}
             className="gap-1.5 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white border-0">
             {generatingQuality === "premium" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Crown className="h-3.5 w-3.5" />}
-            {generatingQuality === "premium" ? "Generating..." : "👑 Premium Script"}
+            {generatingQuality === "premium" ? "Generating..." : "👑 Premium"}
           </Button>
+
+          {/* Gen Options */}
+          <Dialog open={showGenOptions} onOpenChange={setShowGenOptions}>
+            <DialogTrigger asChild>
+              <Button size="sm" variant="outline" className="gap-1 border-white/10 text-white/50 hover:text-white text-[10px] h-8">
+                <Sparkles className="h-3 w-3" /> Options
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="bg-[hsl(220,40%,13%)] border-white/10 text-white max-w-md">
+              <DialogHeader><DialogTitle className="flex items-center gap-2"><Sparkles className="h-4 w-4 text-purple-400" /> Generation Options</DialogTitle></DialogHeader>
+              <div className="space-y-4 mt-2">
+                {/* Length */}
+                <div>
+                  <Label className="text-xs text-white/60 mb-2 block">Script Length</Label>
+                  <div className="grid grid-cols-5 gap-1">
+                    {SCRIPT_LENGTHS.map(l => (
+                      <button key={l.value} onClick={() => setScriptLength(l.value)}
+                        className={`p-2 rounded-lg text-center transition-all border ${
+                          scriptLength === l.value ? "bg-accent/20 border-accent/40 text-white" : "bg-white/[0.03] border-white/[0.06] text-white/40 hover:bg-white/[0.06]"
+                        }`}>
+                        <span className="text-sm block">{l.icon}</span>
+                        <span className="text-[9px] font-semibold block">{l.label}</span>
+                        <span className="text-[7px] block text-white/30">{l.desc}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Toggles */}
+                <div className="space-y-2">
+                  <Label className="text-xs text-white/60">Content Options</Label>
+                  <div className="flex items-center gap-2">
+                    <Switch id="opt-real" checked={generateRealMessages} onCheckedChange={setGenerateRealMessages} />
+                    <Label htmlFor="opt-real" className="text-xs text-white/70 cursor-pointer">Generate real messages (vs placeholders)</Label>
+                  </div>
+                </div>
+
+                {/* Condition checkboxes */}
+                <div className="space-y-2">
+                  <Label className="text-xs text-white/60">Include in Script</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { id: "conditions", label: "Conditions (branches)", checked: includeConditions, set: setIncludeConditions },
+                      { id: "followups", label: "Follow-ups (bought/ignored)", checked: includeFollowups, set: setIncludeFollowups },
+                      { id: "delays", label: "Timing delays", checked: includeDelays, set: setIncludeDelays },
+                      { id: "questions", label: "Engagement questions", checked: includeQuestions, set: setIncludeQuestions },
+                    ].map(opt => (
+                      <label key={opt.id} className="flex items-center gap-2 cursor-pointer p-2 rounded-lg bg-white/[0.03] border border-white/[0.06] hover:bg-white/[0.06]">
+                        <Checkbox checked={opt.checked} onCheckedChange={(v) => opt.set(v === true)} />
+                        <span className="text-[10px] text-white/60">{opt.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
 
           {/* Templates */}
           <Dialog open={showTemplates} onOpenChange={setShowTemplates}>
             <DialogTrigger asChild>
-              <Button size="sm" variant="outline" className="gap-1.5 border-white/10 text-white/60 hover:text-white">
-                <BookOpen className="h-3.5 w-3.5" /> Templates
+              <Button size="sm" variant="outline" className="gap-1 border-white/10 text-white/50 hover:text-white text-[10px] h-8">
+                <BookOpen className="h-3 w-3" /> Templates
               </Button>
             </DialogTrigger>
             <DialogContent className="bg-[hsl(220,40%,13%)] border-white/10 text-white max-w-lg">
               <DialogHeader><DialogTitle className="flex items-center gap-2"><Lightbulb className="h-4 w-4 text-amber-400" /> Script Templates</DialogTitle></DialogHeader>
-              <p className="text-xs text-white/40">Pre-built script structures you can customize. Each template includes 4-5 media items in a consistent setting with progressive pricing.</p>
               <div className="space-y-2 mt-2 max-h-[400px] overflow-y-auto">
                 {SCRIPT_TEMPLATES.map((t, i) => (
                   <button key={i} onClick={() => applyTemplate(t)}
@@ -422,13 +531,6 @@ const ScriptBuilder = () => {
                       </Badge>
                     </div>
                     <p className="text-[11px] text-white/40">{t.description}</p>
-                    <div className="flex gap-1 mt-2 flex-wrap">
-                      {t.steps.filter(s => s.media_type).map((s, j) => (
-                        <span key={j} className="text-[8px] px-1.5 py-0.5 rounded bg-white/5 text-white/30">
-                          {s.media_type === "image" ? "📸" : s.media_type === "video" ? "🎬" : "📎"} {s.price > 0 ? `$${s.price}` : "free"}
-                        </span>
-                      ))}
-                    </div>
                   </button>
                 ))}
               </div>
@@ -437,7 +539,7 @@ const ScriptBuilder = () => {
 
           <Dialog open={showNewDialog} onOpenChange={setShowNewDialog}>
             <DialogTrigger asChild>
-              <Button size="sm" className="gap-1.5 bg-accent hover:bg-accent/80"><Plus className="h-3.5 w-3.5" /> New</Button>
+              <Button size="sm" className="gap-1.5 bg-accent hover:bg-accent/80 h-8"><Plus className="h-3.5 w-3.5" /> New</Button>
             </DialogTrigger>
             <DialogContent className="bg-[hsl(220,40%,13%)] border-white/10 text-white">
               <DialogHeader><DialogTitle>Create New Script</DialogTitle></DialogHeader>
@@ -465,7 +567,7 @@ const ScriptBuilder = () => {
         </div>
       </div>
 
-      {/* Generation Loading Overlay */}
+      {/* Generation Loading */}
       {generating && (
         <Card className="bg-gradient-to-r from-purple-900/20 to-pink-900/20 border-purple-500/20 backdrop-blur-sm">
           <CardContent className="p-4">
@@ -481,10 +583,7 @@ const ScriptBuilder = () => {
                   {generatingQuality === "premium" ? "Generating Premium Script..." : "Generating Fast Script..."}
                 </p>
                 <p className="text-xs text-white/40">
-                  {generatingQuality === "premium"
-                    ? "Creating detailed flow with multiple branches, timing, and psychological hooks..."
-                    : "Creating efficient, production-ready script..."
-                  }
+                  {SCRIPT_LENGTHS.find(l => l.value === scriptLength)?.desc} • Auto-saves to library
                 </p>
                 <div className="flex items-center gap-3 mt-2">
                   <Progress value={Math.min((genTimer / genEstimate) * 100, 95)} className="h-1.5 flex-1" />
@@ -538,18 +637,54 @@ const ScriptBuilder = () => {
                         onChange={e => setSelectedScript(p => p ? { ...p, description: e.target.value } : p)}
                         placeholder="Add description..." className="bg-transparent border-none text-white/40 text-xs p-0 h-auto mt-1 focus-visible:ring-0" />
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5 flex-wrap">
                       <div className="flex bg-white/5 rounded-lg p-0.5 border border-white/10">
-                        <button onClick={() => setViewMode("flow")} className={`px-2.5 py-1 text-[10px] rounded-md transition-all ${viewMode === "flow" ? "bg-accent text-white" : "text-white/40 hover:text-white"}`}>
+                        <button onClick={() => setViewMode("flow")} className={`px-2 py-1 text-[10px] rounded-md transition-all ${viewMode === "flow" ? "bg-accent text-white" : "text-white/40 hover:text-white"}`}>
                           <Eye className="h-3 w-3 inline mr-1" />Canvas
                         </button>
-                        <button onClick={() => setViewMode("edit")} className={`px-2.5 py-1 text-[10px] rounded-md transition-all ${viewMode === "edit" ? "bg-accent text-white" : "text-white/40 hover:text-white"}`}>
+                        <button onClick={() => setViewMode("edit")} className={`px-2 py-1 text-[10px] rounded-md transition-all ${viewMode === "edit" ? "bg-accent text-white" : "text-white/40 hover:text-white"}`}>
                           <Zap className="h-3 w-3 inline mr-1" />Detail
                         </button>
                       </div>
                       <Badge variant="outline" className="text-[9px] border-amber-500/20 text-amber-400">
                         <DollarSign className="h-2.5 w-2.5 mr-0.5" />${totalPrice}
                       </Badge>
+
+                      {/* Export dropdown */}
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button size="sm" variant="ghost" className="h-7 text-white/40 hover:text-white text-[10px] gap-1">
+                            <Download className="h-3 w-3" /> Export
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="bg-[hsl(220,40%,13%)] border-white/10 text-white max-w-xs">
+                          <DialogHeader><DialogTitle className="text-sm">Export Script</DialogTitle></DialogHeader>
+                          <div className="space-y-2">
+                            <button onClick={() => { exportToCSV(selectedScript, steps); }} className="w-full flex items-center gap-3 p-3 rounded-lg bg-white/[0.04] border border-white/[0.06] hover:bg-white/[0.08] transition-all">
+                              <FileSpreadsheet className="h-5 w-5 text-emerald-400" />
+                              <div className="text-left">
+                                <p className="text-xs font-semibold text-white">Google Sheets / CSV</p>
+                                <p className="text-[10px] text-white/40">Opens in Google Sheets, Excel, Numbers</p>
+                              </div>
+                            </button>
+                            <button onClick={() => { exportToText(selectedScript, steps); }} className="w-full flex items-center gap-3 p-3 rounded-lg bg-white/[0.04] border border-white/[0.06] hover:bg-white/[0.08] transition-all">
+                              <FileText className="h-5 w-5 text-blue-400" />
+                              <div className="text-left">
+                                <p className="text-xs font-semibold text-white">Plain Text / Notes</p>
+                                <p className="text-[10px] text-white/40">Apple Notes, Notepad, any text editor</p>
+                              </div>
+                            </button>
+                            <button onClick={() => { exportToMarkdown(selectedScript, steps); }} className="w-full flex items-center gap-3 p-3 rounded-lg bg-white/[0.04] border border-white/[0.06] hover:bg-white/[0.08] transition-all">
+                              <FileText className="h-5 w-5 text-purple-400" />
+                              <div className="text-left">
+                                <p className="text-xs font-semibold text-white">Markdown / Word</p>
+                                <p className="text-[10px] text-white/40">Formatted doc, Notion, Google Docs</p>
+                              </div>
+                            </button>
+                          </div>
+                        </DialogContent>
+                      </Dialog>
+
                       <Button size="sm" variant="ghost" onClick={cloneScript} className="h-7 text-white/40 hover:text-white text-[10px] gap-1">
                         <Copy className="h-3 w-3" /> Clone
                       </Button>
@@ -575,7 +710,7 @@ const ScriptBuilder = () => {
                 </CardContent>
               </Card>
 
-              {/* Flow View */}
+              {/* Flow / Edit View */}
               {viewMode === "flow" ? (
                 <ScriptFlowView
                   steps={steps}
@@ -588,27 +723,22 @@ const ScriptBuilder = () => {
                   onReorderSteps={reorderSteps}
                 />
               ) : (
-                /* Edit View */
                 <div className="space-y-2">
                   {steps.map((step, i) => (
-                    <StepEditor
-                      key={i}
-                      step={step}
-                      index={i}
+                    <StepEditor key={i} step={step} index={i}
                       isExpanded={editingStep === i}
                       onToggle={() => setEditingStep(editingStep === i ? null : i)}
                       onUpdate={(field, value) => updateStep(i, field, value)}
                       onRemove={() => removeStep(i)}
                       onMoveUp={() => moveStep(i, "up")}
                       onMoveDown={() => moveStep(i, "down")}
-                      onDuplicate={() => duplicateStep(i)}
-                    />
+                      onDuplicate={() => duplicateStep(i)} />
                   ))}
                   <StepAddButtons onAdd={addStep} />
                 </div>
               )}
 
-              {/* Pricing ladder summary */}
+              {/* Pricing ladder */}
               {paidSteps.length > 0 && (
                 <Card className="bg-white/5 backdrop-blur-sm border-white/10">
                   <CardHeader className="pb-2">
@@ -643,7 +773,7 @@ const ScriptBuilder = () => {
                 <p className="text-white/30 text-sm">Select a script, use a template, or generate one with AI</p>
                 <div className="flex justify-center gap-2">
                   <Button size="sm" onClick={() => setShowTemplates(true)} variant="outline" className="gap-1.5 border-white/10 text-white/50 hover:text-white">
-                    <BookOpen className="h-3.5 w-3.5" /> Browse Templates
+                    <BookOpen className="h-3.5 w-3.5" /> Templates
                   </Button>
                   <Button size="sm" onClick={() => generateScript("fast")} disabled={generating}
                     className="gap-1.5 bg-gradient-to-r from-purple-600 to-pink-600 text-white border-0">
@@ -670,10 +800,6 @@ const STEP_TYPES = [
   { value: "followup_purchased", label: "Follow-up (Purchased)", icon: Send, color: "bg-pink-300", textColor: "text-pink-900" },
   { value: "followup_ignored", label: "Follow-up (Ignored)", icon: Send, color: "bg-red-500", textColor: "text-white" },
   { value: "delay", label: "Delay / Wait", icon: Clock, color: "bg-gray-400", textColor: "text-gray-900" },
-  { value: "offer", label: "Offer / Premium", icon: DollarSign, color: "bg-amber-400", textColor: "text-amber-900" },
-  { value: "content", label: "Content Delivery", icon: Image, color: "bg-emerald-400", textColor: "text-emerald-900" },
-  { value: "followup", label: "Follow-up", icon: Send, color: "bg-pink-300", textColor: "text-pink-900" },
-  { value: "media", label: "Video / Media", icon: Film, color: "bg-orange-400", textColor: "text-orange-900" },
 ];
 
 const getStepConfig = (type: string) => STEP_TYPES.find(s => s.value === type) || STEP_TYPES[1];
@@ -682,20 +808,10 @@ const getStepConfig = (type: string) => STEP_TYPES.find(s => s.value === type) |
 const StepAddButtons = ({ onAdd }: { onAdd: (type: string) => void }) => (
   <div className="flex flex-wrap gap-1.5 p-3 bg-white/[0.02] rounded-xl border border-dashed border-white/10">
     <p className="text-[10px] text-white/30 w-full mb-1">Add step:</p>
-    {[
-      { type: "welcome", label: "Welcome", color: "bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30" },
-      { type: "message", label: "Message", color: "bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30" },
-      { type: "free_content", label: "Free Content", color: "bg-green-500/20 text-green-400 hover:bg-green-500/30" },
-      { type: "ppv_content", label: "PPV Content", color: "bg-green-400/20 text-green-300 hover:bg-green-400/30" },
-      { type: "question", label: "Question", color: "bg-yellow-300/20 text-yellow-300 hover:bg-yellow-300/30" },
-      { type: "condition", label: "Branch", color: "bg-blue-500/20 text-blue-400 hover:bg-blue-500/30" },
-      { type: "followup_purchased", label: "Follow-up (Bought)", color: "bg-pink-500/20 text-pink-400 hover:bg-pink-500/30" },
-      { type: "followup_ignored", label: "Follow-up (Ignored)", color: "bg-red-500/20 text-red-400 hover:bg-red-500/30" },
-      { type: "delay", label: "Delay", color: "bg-white/10 text-white/40 hover:bg-white/20" },
-    ].map(b => (
-      <button key={b.type} onClick={() => onAdd(b.type)}
-        className={`px-2.5 py-1 rounded-md text-[10px] font-medium transition-all ${b.color}`}>
-        {b.label}
+    {STEP_TYPES.map(t => (
+      <button key={t.value} onClick={() => onAdd(t.value)}
+        className={`px-2.5 py-1 rounded-md text-[10px] font-medium transition-all ${t.color}/20 text-white/60 hover:text-white border border-white/5 hover:border-white/10`}>
+        {t.label}
       </button>
     ))}
   </div>
@@ -708,7 +824,6 @@ const StepEditor = ({ step, index, isExpanded, onToggle, onUpdate, onRemove, onM
   onRemove: () => void; onMoveUp: () => void; onMoveDown: () => void; onDuplicate: () => void;
 }) => {
   const cfg = getStepConfig(step.step_type);
-  const Icon = cfg.icon;
 
   return (
     <div>
@@ -762,9 +877,9 @@ const StepEditor = ({ step, index, isExpanded, onToggle, onUpdate, onRemove, onM
               </div>
 
               <div>
-                <label className="text-[10px] text-white/40 block mb-1">Content / Message / Caption</label>
+                <label className="text-[10px] text-white/40 block mb-1">Content / Message</label>
                 <Textarea value={step.content} onChange={e => onUpdate("content", e.target.value)}
-                  placeholder="Enter the message text, caption, or instructions..."
+                  placeholder="Message text, caption, or instructions..."
                   className="min-h-[60px] bg-white/5 border-white/10 text-white text-xs placeholder:text-white/20 resize-none" />
               </div>
 
@@ -790,8 +905,8 @@ const StepEditor = ({ step, index, isExpanded, onToggle, onUpdate, onRemove, onM
                   </Select>
                 </div>
                 <div>
-                  <label className="text-[10px] text-white/40 block mb-1">Media Description</label>
-                  <Input value={step.media_url} onChange={e => onUpdate("media_url", e.target.value)} placeholder="e.g. 2 selfies, Video 0:28" className="bg-white/5 border-white/10 text-white text-xs h-8" />
+                  <label className="text-[10px] text-white/40 block mb-1">Media Desc.</label>
+                  <Input value={step.media_url} onChange={e => onUpdate("media_url", e.target.value)} placeholder="e.g. 2 selfies" className="bg-white/5 border-white/10 text-white text-xs h-8" />
                 </div>
               </div>
 
@@ -799,16 +914,7 @@ const StepEditor = ({ step, index, isExpanded, onToggle, onUpdate, onRemove, onM
                 <div className="p-2 bg-blue-500/5 rounded-lg border border-blue-500/20">
                   <p className="text-[10px] text-blue-400 font-medium mb-1">Branching Condition</p>
                   <Input value={step.condition_logic?.condition || ""} onChange={e => onUpdate("condition_logic", { ...step.condition_logic, condition: e.target.value })}
-                    placeholder="e.g. Responded to welcome message" className="bg-white/5 border-white/10 text-white text-xs h-8" />
-                </div>
-              )}
-
-              {(step.conversion_rate > 0 || step.impressions > 0) && (
-                <div className="grid grid-cols-4 gap-2 p-2 bg-white/[0.02] rounded-lg">
-                  <div><p className="text-[9px] text-white/30">Conversion</p><p className="text-xs text-emerald-400">{step.conversion_rate}%</p></div>
-                  <div><p className="text-[9px] text-white/30">Drop-off</p><p className="text-xs text-red-400">{step.drop_off_rate}%</p></div>
-                  <div><p className="text-[9px] text-white/30">Revenue</p><p className="text-xs text-amber-400">${step.revenue_generated}</p></div>
-                  <div><p className="text-[9px] text-white/30">Impressions</p><p className="text-xs text-white/60">{step.impressions}</p></div>
+                    placeholder="e.g. Responded to message" className="bg-white/5 border-white/10 text-white text-xs h-8" />
                 </div>
               )}
             </div>
