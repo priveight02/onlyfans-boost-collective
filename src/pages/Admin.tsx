@@ -12,8 +12,9 @@ import FinancialModule from "@/components/admin/FinancialModule";
 import ContractsManager from "@/components/admin/ContractsManager";
 import MessagingHub from "@/components/admin/MessagingHub";
 import TaskWorkflow from "@/components/admin/TaskWorkflow";
+import IntranetChat from "@/components/admin/IntranetChat";
 import { supabase } from "@/integrations/supabase/client";
-import { Shield, LayoutDashboard, Lock, Settings, LogOut, Contact, Search, BarChart3, Users, DollarSign, FileText, MessageSquare, CheckSquare } from "lucide-react";
+import { Shield, LayoutDashboard, Lock, Settings, LogOut, Contact, Search, BarChart3, Users, DollarSign, FileText, MessageSquare, CheckSquare, MessageCircle } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -112,6 +113,9 @@ const Admin = () => {
             <TabsTrigger value="security" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
               <Lock className="h-3.5 w-3.5" /> Security
             </TabsTrigger>
+            <TabsTrigger value="chat" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
+              <MessageCircle className="h-3.5 w-3.5" /> Intranet
+            </TabsTrigger>
             <TabsTrigger value="settings" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
               <Settings className="h-3.5 w-3.5" /> Settings
             </TabsTrigger>
@@ -127,6 +131,7 @@ const Admin = () => {
           <TabsContent value="lookup"><ProfileLookup /></TabsContent>
           <TabsContent value="audience"><AudienceIntelligence accounts={accounts} /></TabsContent>
           <TabsContent value="security"><AdminSecurity /></TabsContent>
+          <TabsContent value="chat"><IntranetChat /></TabsContent>
           <TabsContent value="settings">
             <Card className="bg-white/5 backdrop-blur-sm border-white/10">
               <CardHeader>
