@@ -95,12 +95,12 @@ const Services = () => {
             <button className="group inline-flex items-center px-8 py-3 text-lg font-medium rounded-full bg-white text-primary hover:bg-primary-light transition-all duration-500 transform hover:scale-105 shadow-lg">
               Start Evolving Today
             </button>
-          </Link>
+      </Link>
         </div>
       </div>
 
       {/* Smooth separator */}
-      <div className="relative py-12">
+      <div className="relative py-6">
         <div className="max-w-3xl mx-auto px-8">
           <div className="h-px bg-gradient-to-r from-transparent via-white/30 to-transparent" />
         </div>
@@ -109,7 +109,7 @@ const Services = () => {
       {/* Services Grid */}
       <section className="pb-6 relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <div className="text-center mb-8">
+          <div className="text-center mb-8 mt-6">
             <h2 className="text-3xl md:text-4xl font-bold text-white mb-4 animate-fade-in">
               Our Exclusive Services
             </h2>
