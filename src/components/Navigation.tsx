@@ -85,8 +85,8 @@ const Navigation = () => {
                     to={item.href}
                     className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors duration-200 flex items-center gap-2 ${
                       location.pathname === item.href
-                        ? 'bg-white/10 text-white'
-                        : 'text-white/50 hover:text-white hover:bg-white/5'
+                    ? 'bg-white/10 text-white'
+                        : 'text-white/70 hover:text-white hover:bg-white/5'
                     }`}
                   >
                     {item.icon && <item.icon className="h-4 w-4" />}
@@ -107,7 +107,7 @@ const Navigation = () => {
                 <Link to="/auth">
                   <Button
                     variant="ghost"
-                    className="transition-colors duration-200 hover:bg-white/10 text-white/50 hover:text-white rounded-lg gap-2"
+                    className="transition-colors duration-200 hover:bg-white/10 text-white/70 hover:text-white rounded-lg gap-2"
                   >
                     <LogIn className="h-4 w-4" />
                     Login
