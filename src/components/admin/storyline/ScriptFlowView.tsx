@@ -1,8 +1,7 @@
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  MessageSquare, Image, Film, HelpCircle, GitBranch, Send, Clock,
-  DollarSign, Trash2, Copy, ChevronUp, ChevronDown, Edit, Plus,
+  Image, Film, GitBranch, Clock,
+  Trash2, Copy, ChevronUp, ChevronDown, Edit,
 } from "lucide-react";
 
 interface ScriptStep {
@@ -27,23 +26,24 @@ interface Props {
   onDuplicateStep: (index: number) => void;
 }
 
-const STEP_COLORS: Record<string, { bg: string; border: string; text: string; label: string }> = {
-  welcome:            { bg: "bg-cyan-500",     border: "border-cyan-600",     text: "text-cyan-950",  label: "Welcome Message" },
-  message:            { bg: "bg-yellow-400",   border: "border-yellow-500",   text: "text-yellow-950", label: "Message" },
-  free_content:       { bg: "bg-green-500",    border: "border-green-600",    text: "text-green-950", label: "Free Content" },
-  ppv_content:        { bg: "bg-green-400",    border: "border-green-500",    text: "text-green-950", label: "PPV Content" },
-  content:            { bg: "bg-green-400",    border: "border-green-500",    text: "text-green-950", label: "Content" },
-  question:           { bg: "bg-yellow-300",   border: "border-yellow-400",   text: "text-yellow-950", label: "Question" },
-  condition:          { bg: "bg-blue-400",     border: "border-blue-500",     text: "text-blue-950",  label: "Condition Branch" },
-  followup_purchased: { bg: "bg-pink-300",     border: "border-pink-400",     text: "text-pink-950",  label: "Follow-up (Purchased)" },
-  followup:           { bg: "bg-pink-300",     border: "border-pink-400",     text: "text-pink-950",  label: "Follow-up" },
-  followup_ignored:   { bg: "bg-red-500",      border: "border-red-600",      text: "text-white",     label: "Follow-up (Ignored)" },
-  delay:              { bg: "bg-gray-400",     border: "border-gray-500",     text: "text-gray-900",  label: "Delay" },
-  offer:              { bg: "bg-amber-400",    border: "border-amber-500",    text: "text-amber-950", label: "Offer" },
-  media:              { bg: "bg-orange-400",   border: "border-orange-500",   text: "text-orange-950", label: "Media" },
+/* ── Google Sheet Color Map ── */
+const STEP_STYLES: Record<string, { bg: string; text: string; label: string }> = {
+  welcome:            { bg: "#00CED1", text: "#000",  label: "Welcome Message" },
+  message:            { bg: "#FFFF00", text: "#000",  label: "Message" },
+  free_content:       { bg: "#00FF00", text: "#000",  label: "Free Content" },
+  ppv_content:        { bg: "#32CD32", text: "#000",  label: "PPV Content" },
+  content:            { bg: "#32CD32", text: "#000",  label: "Content" },
+  question:           { bg: "#FFD700", text: "#000",  label: "Question" },
+  condition:          { bg: "#00BFFF", text: "#000",  label: "Condition Branch" },
+  followup_purchased: { bg: "#DDA0DD", text: "#000",  label: "Follow-up (Purchased)" },
+  followup:           { bg: "#DDA0DD", text: "#000",  label: "Follow-up" },
+  followup_ignored:   { bg: "#FF4500", text: "#FFF",  label: "Follow-up (Ignored)" },
+  delay:              { bg: "#A9A9A9", text: "#000",  label: "Delay" },
+  offer:              { bg: "#FFA500", text: "#000",  label: "Offer" },
+  media:              { bg: "#FF8C00", text: "#000",  label: "Media" },
 };
 
-const getColor = (type: string) => STEP_COLORS[type] || STEP_COLORS.message;
+const getStyle = (type: string) => STEP_STYLES[type] || STEP_STYLES.message;
 
 const ScriptFlowView = ({ steps, onEditStep, onAddStep, onRemoveStep, onMoveStep, onDuplicateStep }: Props) => {
   if (steps.length === 0) {
@@ -52,11 +52,12 @@ const ScriptFlowView = ({ steps, onEditStep, onAddStep, onRemoveStep, onMoveStep
         <div className="text-white/20 text-sm">No steps yet. Start building your script flow.</div>
         <div className="flex flex-wrap justify-center gap-2">
           {["welcome", "message", "free_content", "ppv_content", "question", "condition"].map(type => {
-            const c = getColor(type);
+            const s = getStyle(type);
             return (
               <button key={type} onClick={() => onAddStep(type)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${c.bg} ${c.text} hover:opacity-90 transition-opacity`}>
-                + {c.label}
+                style={{ background: s.bg, color: s.text }}
+                className="px-3 py-1.5 rounded text-xs font-bold hover:opacity-90 transition-opacity">
+                + {s.label}
               </button>
             );
           })}
@@ -65,151 +66,153 @@ const ScriptFlowView = ({ steps, onEditStep, onAddStep, onRemoveStep, onMoveStep
     );
   }
 
-  // Group steps for visual branching
-  const renderStep = (step: ScriptStep, index: number) => {
-    const c = getColor(step.step_type);
-    const isCondition = step.step_type === "condition";
-    const isPPV = step.step_type === "ppv_content" || (step.step_type === "content" && step.price > 0) || step.step_type === "offer";
-    const isFollowup = step.step_type === "followup_purchased" || step.step_type === "followup_ignored" || step.step_type === "followup";
-    const isBranch = isCondition;
-
-    return (
-      <div key={index} className="group relative">
-        {/* Connector line */}
-        {index > 0 && (
-          <div className="flex justify-center py-0.5">
-            <div className="w-px h-4 bg-white/10" />
-          </div>
-        )}
-
-        {/* Step row */}
-        <div className={`relative flex items-stretch rounded-lg overflow-hidden border ${c.border}/30 hover:${c.border}/60 transition-all group`}>
-          {/* Color bar */}
-          <div className={`w-1.5 ${c.bg} shrink-0`} />
-
-          {/* Main content area */}
-          <div className={`flex-1 ${c.bg}/10 px-3 py-2 min-h-[40px] flex items-center gap-3`}>
-            {/* Step number */}
-            <span className="text-[9px] text-white/20 font-mono w-4 shrink-0">#{index + 1}</span>
-
-            {/* Type badge */}
-            <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${c.bg} ${c.text} shrink-0 whitespace-nowrap`}>
-              {c.label}
-            </span>
-
-            {/* Content */}
-            <div className="flex-1 min-w-0">
-              {step.title && (
-                <p className="text-xs font-semibold text-white truncate">{step.title}</p>
-              )}
-              {step.content && (
-                <p className="text-[11px] text-white/60 truncate">{step.content}</p>
-              )}
-              {step.media_url && (
-                <p className="text-[10px] text-white/40 truncate italic">{step.media_url}</p>
-              )}
-              {!step.title && !step.content && (
-                <p className="text-[10px] text-white/20 italic">Click to edit...</p>
-              )}
-            </div>
-
-            {/* Price badge */}
-            {step.price > 0 && (
-              <Badge className={`${c.bg} ${c.text} text-[10px] font-bold shrink-0 border-0`}>
-                ${step.price}
-              </Badge>
-            )}
-
-            {/* Media indicator */}
-            {step.media_type && (
-              <Badge variant="outline" className="text-[9px] border-white/10 text-white/40 shrink-0 gap-0.5">
-                {step.media_type === "image" && <><Image className="h-2.5 w-2.5" /> Pic</>}
-                {step.media_type === "video" && <><Film className="h-2.5 w-2.5" /> Vid</>}
-                {step.media_type === "mixed" && <><Film className="h-2.5 w-2.5" /> Mixed</>}
-              </Badge>
-            )}
-
-            {/* Delay */}
-            {step.delay_minutes > 0 && (
-              <Badge variant="outline" className="text-[9px] border-white/10 text-white/30 shrink-0 gap-0.5">
-                <Clock className="h-2 w-2" /> {step.delay_minutes}m
-              </Badge>
-            )}
-
-            {/* Condition display */}
-            {isBranch && step.condition_logic?.condition && (
-              <Badge variant="outline" className="text-[9px] border-blue-500/20 text-blue-400 shrink-0 gap-0.5">
-                <GitBranch className="h-2.5 w-2.5" /> {step.condition_logic.condition}
-              </Badge>
-            )}
-          </div>
-
-          {/* Actions (show on hover) */}
-          <div className="flex items-center gap-0.5 px-1.5 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity">
-            <Button size="sm" variant="ghost" className="h-5 w-5 p-0 text-white/30 hover:text-white" onClick={() => onEditStep(index)}>
-              <Edit className="h-2.5 w-2.5" />
-            </Button>
-            <Button size="sm" variant="ghost" className="h-5 w-5 p-0 text-white/30 hover:text-white" onClick={() => onMoveStep(index, "up")}>
-              <ChevronUp className="h-2.5 w-2.5" />
-            </Button>
-            <Button size="sm" variant="ghost" className="h-5 w-5 p-0 text-white/30 hover:text-white" onClick={() => onMoveStep(index, "down")}>
-              <ChevronDown className="h-2.5 w-2.5" />
-            </Button>
-            <Button size="sm" variant="ghost" className="h-5 w-5 p-0 text-white/30 hover:text-white" onClick={() => onDuplicateStep(index)}>
-              <Copy className="h-2.5 w-2.5" />
-            </Button>
-            <Button size="sm" variant="ghost" className="h-5 w-5 p-0 text-red-400/50 hover:text-red-400" onClick={() => onRemoveStep(index)}>
-              <Trash2 className="h-2.5 w-2.5" />
-            </Button>
-          </div>
-        </div>
-
-        {/* Branch visualization for conditions */}
-        {isBranch && (
-          <div className="flex justify-center py-1">
-            <div className="flex items-center gap-4 text-[9px]">
-              <div className="flex items-center gap-1 text-blue-400">
-                <div className="w-8 h-px bg-blue-400/30" />
-                <span>✓ Yes</span>
-                <div className="w-8 h-px bg-blue-400/30" />
-              </div>
-              <GitBranch className="h-3 w-3 text-blue-400/40" />
-              <div className="flex items-center gap-1 text-red-400">
-                <div className="w-8 h-px bg-red-400/30" />
-                <span>✗ No</span>
-                <div className="w-8 h-px bg-red-400/30" />
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  };
+  // Find condition indices to render branching
+  const conditionIndices = steps.reduce<number[]>((acc, s, i) => {
+    if (s.step_type === "condition") acc.push(i);
+    return acc;
+  }, []);
 
   return (
-    <div className="space-y-0">
-      <div className="bg-white/[0.02] rounded-xl border border-white/[0.06] p-4 space-y-0">
-        {steps.map((step, i) => renderStep(step, i))}
+    <div className="space-y-3">
+      {/* Google Sheets-style spreadsheet */}
+      <div className="rounded-lg overflow-hidden border border-white/10 bg-white/[0.02]">
+        {/* Header row */}
+        <div className="grid grid-cols-[32px_1fr_100px_60px] bg-white/5 border-b border-white/10">
+          <div className="p-1.5 text-[9px] text-white/30 font-mono text-center">#</div>
+          <div className="p-1.5 text-[9px] text-white/30 font-medium">Content</div>
+          <div className="p-1.5 text-[9px] text-white/30 font-medium text-center">Type</div>
+          <div className="p-1.5 text-[9px] text-white/30 font-medium text-center">$</div>
+        </div>
+
+        {/* Step rows */}
+        {steps.map((step, i) => {
+          const s = getStyle(step.step_type);
+          const isCondition = step.step_type === "condition";
+          const isFollowupIgnored = step.step_type === "followup_ignored";
+          const isFollowupPurchased = step.step_type === "followup_purchased" || step.step_type === "followup";
+          const hasBranch = isFollowupPurchased && steps[i + 1]?.step_type === "followup_ignored";
+
+          // Build display text
+          let displayText = step.content || step.title || s.label;
+          if (step.media_url) displayText = step.media_url;
+          if (step.step_type === "ppv_content" || step.step_type === "offer") {
+            const mediaInfo = step.media_url || step.title || "Content";
+            displayText = `${mediaInfo}${step.price > 0 ? ` - $${step.price}` : ""}`;
+          }
+
+          return (
+            <div key={i} className="group relative">
+              {/* Main row - FULL WIDTH colored like Google Sheets */}
+              <div
+                className="grid grid-cols-[32px_1fr] min-h-[32px] border-b border-black/10 cursor-pointer hover:brightness-110 transition-all relative"
+                style={{ background: s.bg }}
+                onClick={() => onEditStep(i)}
+              >
+                {/* Row number */}
+                <div className="flex items-center justify-center text-[10px] font-mono border-r border-black/10"
+                  style={{ color: s.text + "80" }}>
+                  {i + 1}
+                </div>
+
+                {/* Content cell - full width colored */}
+                <div className="flex items-center px-3 py-1.5 gap-2 relative">
+                  {/* Condition branch indicator (left border) */}
+                  {isCondition && (
+                    <span className="text-[10px] font-bold mr-1" style={{ color: s.text }}>
+                      ⑂
+                    </span>
+                  )}
+
+                  {/* Main text */}
+                  <span className="text-xs font-semibold flex-1 truncate" style={{ color: s.text }}>
+                    {displayText}
+                  </span>
+
+                  {/* Media badge */}
+                  {step.media_type && (
+                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-black/10 whitespace-nowrap" style={{ color: s.text }}>
+                      {step.media_type === "image" ? "📸" : step.media_type === "video" ? "🎬" : "📎"} {step.media_type}
+                    </span>
+                  )}
+
+                  {/* Price */}
+                  {step.price > 0 && step.step_type !== "ppv_content" && step.step_type !== "offer" && (
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-black/15" style={{ color: s.text }}>
+                      ${step.price}
+                    </span>
+                  )}
+
+                  {/* Delay */}
+                  {step.delay_minutes > 0 && (
+                    <span className="text-[9px] px-1 py-0.5 rounded bg-black/10" style={{ color: s.text }}>
+                      ⏱{step.delay_minutes}m
+                    </span>
+                  )}
+
+                  {/* Hover actions */}
+                  <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity absolute right-1 top-1/2 -translate-y-1/2 bg-black/30 rounded px-1 py-0.5">
+                    <button className="p-0.5 hover:bg-white/20 rounded" onClick={e => { e.stopPropagation(); onMoveStep(i, "up"); }}>
+                      <ChevronUp className="h-3 w-3 text-white" />
+                    </button>
+                    <button className="p-0.5 hover:bg-white/20 rounded" onClick={e => { e.stopPropagation(); onMoveStep(i, "down"); }}>
+                      <ChevronDown className="h-3 w-3 text-white" />
+                    </button>
+                    <button className="p-0.5 hover:bg-white/20 rounded" onClick={e => { e.stopPropagation(); onDuplicateStep(i); }}>
+                      <Copy className="h-3 w-3 text-white" />
+                    </button>
+                    <button className="p-0.5 hover:bg-red-500/50 rounded" onClick={e => { e.stopPropagation(); onRemoveStep(i); }}>
+                      <Trash2 className="h-3 w-3 text-white" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Branch split visualization */}
+              {isCondition && (
+                <div className="grid grid-cols-[32px_1fr] border-b border-black/10">
+                  <div className="bg-white/5" />
+                  <div className="flex items-center gap-0 text-[10px]">
+                    <div className="flex-1 py-1 px-3 bg-blue-500/20 text-blue-300 font-bold text-center border-r border-white/10">
+                      ✓ {step.condition_logic?.condition || "If YES"}
+                    </div>
+                    <div className="w-[120px] py-1 px-2 bg-red-500/20 text-red-300 font-bold text-center">
+                      ✗ If NO
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Side-by-side follow-up visualization */}
+              {hasBranch && (
+                <div className="grid grid-cols-[32px_1fr_120px] border-b border-black/10">
+                  <div className="bg-white/5 flex items-center justify-center text-[10px] text-white/20 font-mono" />
+                  <div className="py-1.5 px-3 text-xs font-semibold" style={{ background: s.bg, color: s.text }}>
+                    {step.content || step.title || s.label}
+                  </div>
+                  <div className="py-1.5 px-2 text-xs font-semibold"
+                    style={{ background: getStyle("followup_ignored").bg, color: getStyle("followup_ignored").text }}>
+                    {steps[i + 1]?.content || steps[i + 1]?.title || "Follow-up (Ignored)"}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
 
-      {/* Quick add bar */}
-      <div className="flex flex-wrap gap-1.5 pt-3">
+      {/* Quick add toolbar */}
+      <div className="flex flex-wrap gap-1.5">
         <p className="text-[10px] text-white/30 w-full">Quick add:</p>
         {[
-          { type: "welcome", label: "+ Welcome" },
-          { type: "message", label: "+ Message" },
-          { type: "free_content", label: "+ Free Content" },
-          { type: "ppv_content", label: "+ PPV Content" },
-          { type: "question", label: "+ Question" },
-          { type: "condition", label: "+ Branch" },
-          { type: "followup_purchased", label: "+ Follow-up (Bought)" },
-          { type: "followup_ignored", label: "+ Follow-up (Ignored)" },
-        ].map(b => {
-          const c = getColor(b.type);
+          "welcome", "message", "free_content", "ppv_content",
+          "question", "condition", "followup_purchased", "followup_ignored",
+        ].map(type => {
+          const s = getStyle(type);
           return (
-            <button key={b.type} onClick={() => onAddStep(b.type)}
-              className={`px-2 py-1 rounded-md text-[10px] font-medium ${c.bg}/20 text-white/60 hover:${c.bg}/40 hover:text-white transition-all border border-white/5`}>
-              {b.label}
+            <button key={type} onClick={() => onAddStep(type)}
+              style={{ background: s.bg + "30", borderColor: s.bg + "40" }}
+              className="px-2 py-1 rounded-md text-[10px] font-medium text-white/70 hover:text-white transition-all border">
+              + {s.label}
             </button>
           );
         })}
