@@ -19,19 +19,23 @@ const FAQ = () => {
       questions: [
         {
           question: "What does Ozc Agency actually do for models?",
-          answer: "We become your full business team. Our chatting specialists engage your fans around the clock to keep them spending and coming back, while our marketing crew drives fresh subscribers to your page every single day. On top of that, we handle leak removal, solve any problems that come up, and fine-tune your content strategy — so all you have to do is create and enjoy the results."
+          answer: "We become your full business team. Our chatting specialists engage your fans around the clock to keep them spending and coming back, while our marketing crew drives fresh subscribers to your page every single day. On top of that, we handle leak removal, solve any problems that come up, and fine-tune your content strategy, so all you have to do is create and enjoy the results."
         },
         {
           question: "How do I apply to join Ozc Agency?",
-          answer: "It's really easy — just fill out our quick onboarding form and tell us a bit about yourself. We review every single application within 24 hours, then we'll set up a friendly call to get to know you, answer all your questions, and figure out the best game plan together. No pressure, just a conversation."
+          answer: "It's really easy. Just fill out our quick onboarding form and tell us a bit about yourself. We review every single application within 24 hours, then we'll set up a friendly call to get to know you, answer all your questions, and figure out the best game plan together. No pressure, just a conversation."
         },
         {
           question: "Do I need to already have an OF page to join?",
-          answer: "Not at all! Whether you're completely new or already have an established page, we've got you covered. If you're just getting started, we'll walk you through everything step by step — from setting up your page to building your brand. No experience needed, just the willingness to grow."
+          answer: "Not at all! Whether you're completely new or already have an established page, we've got you covered. If you're just getting started, we'll walk you through everything step by step, from setting up your page to building your brand. No experience needed, just the willingness to grow."
         },
         {
           question: "What makes Ozc Agency different from other agencies?",
-          answer: "Most agencies just \"manage\" — we actually build your business. You get an entire team working for you 24/7: chatters keeping your fans engaged and spending, marketers bringing in new subs daily, and a support team that handles leaks, issues, and everything in between. We treat your page like our own because your success is literally our success."
+          answer: "Most agencies just \"manage\", we actually build your business. You get an entire team working for you 24/7: chatters keeping your fans engaged and spending, marketers bringing in new subs daily, and a support team that handles leaks, issues, and everything in between. We treat your page like our own because your success is literally our success."
+        },
+        {
+          question: "Is content creation on OF legal and ethical?",
+          answer: "Absolutely. OnlyFans is a fully legal, regulated platform used by millions of creators worldwide to monetize their content on their own terms. Everything is consensual, you decide what you post, who sees it, and where your boundaries are. It's simply a business where you're in complete control of your brand, your content, and your income. Our agency ensures everything stays professional, protected, and aligned with platform guidelines at all times."
         }
       ]
     },
@@ -40,19 +44,19 @@ const FAQ = () => {
       questions: [
         {
           question: "How does your chatting team work?",
-          answer: "Think of them as your fan relationship experts. They work in shifts around the clock so your DMs are never sitting unanswered. Every conversation is designed to make your fans feel special, build real connections, and naturally encourage tips, PPV purchases, and custom requests — all while staying true to your voice and personality."
+          answer: "Think of them as your fan relationship experts. They work in shifts around the clock so your DMs are never sitting unanswered. Every conversation is designed to make your fans feel special, build real connections, and naturally encourage tips, PPV purchases, and custom requests, all while staying true to your voice and personality."
         },
         {
           question: "Will the chatting feel authentic to my fans?",
-          answer: "That's one of our top priorities. Before we start, we spend time learning how you talk, your vibe, your humor — everything that makes you, you. Your fans will feel like they're talking directly to you, just with way faster response times. The result? Happier fans who stick around longer and spend more."
+          answer: "That's one of our top priorities. Before we start, we spend time learning how you talk, your vibe, your humor, everything that makes you, you. Your fans will feel like they're talking directly to you, just with way faster response times. The result? Happier fans who stick around longer and spend more."
         },
         {
           question: "What is fan lifetime value and why should I care?",
-          answer: "It's the total amount a fan spends over their entire time on your page — way beyond just the monthly sub. Most models leave a ton of money on the table because they don't nurture their fans properly. Our chatting strategies turn one-time visitors into loyal, high-spending supporters who keep coming back month after month."
+          answer: "It's the total amount a fan spends over their entire time on your page, way beyond just the monthly sub. Most models leave a ton of money on the table because they don't nurture their fans properly. Our chatting strategies turn one-time visitors into loyal, high-spending supporters who keep coming back month after month."
         },
         {
           question: "Do I have control over what my chatting team says?",
-          answer: "Always. You set the rules, and we follow them — no exceptions. You'll have full access to see every conversation, and we check in regularly to make sure everything feels right. Your boundaries and comfort always come first. If something doesn't sit well with you, we adjust immediately."
+          answer: "Always. You set the rules, and we follow them, no exceptions. You'll have full access to see every conversation, and we check in regularly to make sure everything feels right. Your boundaries and comfort always come first. If something doesn't sit well with you, we adjust immediately."
         }
       ]
     },
@@ -65,11 +69,11 @@ const FAQ = () => {
         },
         {
           question: "Do you handle my social media accounts?",
-          answer: "Yes! We take care of your posting schedule, content repurposing, captions, engagement, and growth tactics across all your socials. Everything stays on-brand and is designed to funnel people straight to your page. You stay in control of what goes out — we just make sure it's consistent, strategic, and getting results."
+          answer: "Yes! We take care of your posting schedule, content repurposing, captions, engagement, and growth tactics across all your socials. Everything stays on-brand and is designed to funnel people straight to your page. You stay in control of what goes out, we just make sure it's consistent, strategic, and getting results."
         },
         {
           question: "How quickly will I start seeing new subscribers?",
-          answer: "Most models notice a bump in traffic within the first week or two. Real, consistent growth usually kicks in within the first month as our strategies build momentum. From there, it just keeps compounding — the longer we work together, the stronger the results get."
+          answer: "Most models notice a bump in traffic within the first week or two. Real, consistent growth usually kicks in within the first month as our strategies build momentum. From there, it just keeps compounding, the longer we work together, the stronger the results get."
         }
       ]
     },
@@ -78,15 +82,15 @@ const FAQ = () => {
       questions: [
         {
           question: "What do you do about leaked content?",
-          answer: "We take leaks seriously and act fast. Our team actively scans the internet for any unauthorized content and handles DMCA takedowns and removal requests immediately. You should never have to deal with that stress — we've got your back and we treat every situation with urgency and discretion."
+          answer: "We take leaks seriously and act fast. Our team actively scans the internet for any unauthorized content and handles DMCA takedowns and removal requests immediately. You should never have to deal with that stress, we've got your back and we treat every situation with urgency and discretion."
         },
         {
           question: "What kind of problems can your team help me with?",
-          answer: "Honestly, pretty much anything. Account issues, chargebacks, difficult subscribers, platform questions, payment hiccups — you name it. We've seen it all and know how to handle it quickly. Our job is to remove the stress from your plate so you can focus on what you do best."
+          answer: "Honestly, pretty much anything. Account issues, chargebacks, difficult subscribers, platform questions, payment hiccups, you name it. We've seen it all and know how to handle it quickly. Our job is to remove the stress from your plate so you can focus on what you do best."
         },
         {
           question: "Is my personal information kept confidential?",
-          answer: "1000%. Your privacy is sacred to us. Everything — your real name, earnings, strategies, personal details — stays strictly between you and our team. We operate with complete discretion and will never share your information with anyone. Period."
+          answer: "1000%. Your privacy is sacred to us. Everything, your real name, earnings, strategies, personal details, stays strictly between you and our team. We operate with complete discretion and will never share your information with anyone. Period."
         }
       ]
     },
@@ -103,11 +107,11 @@ const FAQ = () => {
         },
         {
           question: "How does the revenue split work?",
-          answer: "We keep it simple and fair. Our model is performance-based — we take a percentage of the revenue we help generate, so we only make money when you make money. The exact split depends on what services you need, and we'll go over everything openly during your onboarding call. No hidden fees, no surprises."
+          answer: "We keep it simple and fair. Our model is performance-based, we take a percentage of the revenue we help generate, so we only make money when you make money. The exact split depends on what services you need, and we'll go over everything openly during your onboarding call. No hidden fees, no surprises."
         },
         {
           question: "Are there any upfront costs or long-term contracts?",
-          answer: "Nope. We don't do long contracts or upfront fees. We believe the best way to earn your trust is by delivering results, not trapping you in paperwork. If at any point you feel it's not the right fit, you're free to go — but we're confident you'll want to stay once you see what we can do."
+          answer: "Nope. We don't do long contracts or upfront fees. We believe the best way to earn your trust is by delivering results, not trapping you in paperwork. If at any point you feel it's not the right fit, you're free to go, but we're confident you'll want to stay once you see what we can do."
         }
       ]
     }
@@ -241,7 +245,7 @@ const FAQ = () => {
               onClick={() => navigate('/onboarding')}
               className="bg-white text-primary hover:bg-white/90 hover:scale-105 transition-all duration-300 px-14 py-5 text-lg font-bold rounded-xl shadow-lg hover:shadow-xl"
             >
-              Apply Now — It's Free
+              Apply Now, It's Free
             </Button>
           </div>
         </div>
