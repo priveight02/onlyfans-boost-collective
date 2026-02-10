@@ -79,6 +79,78 @@ export type Database = {
         }
         Relationships: []
       }
+      automation_workflows: {
+        Row: {
+          account_id: string | null
+          actions: Json | null
+          conditions: Json | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          last_run_at: string | null
+          script_id: string | null
+          status: string
+          success_rate: number | null
+          title: string
+          total_runs: number | null
+          trigger_config: Json | null
+          trigger_type: string
+          updated_at: string
+        }
+        Insert: {
+          account_id?: string | null
+          actions?: Json | null
+          conditions?: Json | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          last_run_at?: string | null
+          script_id?: string | null
+          status?: string
+          success_rate?: number | null
+          title: string
+          total_runs?: number | null
+          trigger_config?: Json | null
+          trigger_type?: string
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string | null
+          actions?: Json | null
+          conditions?: Json | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          last_run_at?: string | null
+          script_id?: string | null
+          status?: string
+          success_rate?: number | null
+          title?: string
+          total_runs?: number | null
+          trigger_config?: Json | null
+          trigger_type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_workflows_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "managed_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automation_workflows_script_id_fkey"
+            columns: ["script_id"]
+            isOneToOne: false
+            referencedRelation: "scripts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chat_messages: {
         Row: {
           content: string | null
@@ -501,6 +573,152 @@ export type Database = {
         }
         Relationships: []
       }
+      script_steps: {
+        Row: {
+          condition_logic: Json | null
+          content: string | null
+          conversion_rate: number | null
+          created_at: string
+          delay_minutes: number | null
+          drop_off_rate: number | null
+          id: string
+          impressions: number | null
+          media_type: string | null
+          media_url: string | null
+          metadata: Json | null
+          price: number | null
+          revenue_generated: number | null
+          script_id: string
+          step_order: number
+          step_type: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          condition_logic?: Json | null
+          content?: string | null
+          conversion_rate?: number | null
+          created_at?: string
+          delay_minutes?: number | null
+          drop_off_rate?: number | null
+          id?: string
+          impressions?: number | null
+          media_type?: string | null
+          media_url?: string | null
+          metadata?: Json | null
+          price?: number | null
+          revenue_generated?: number | null
+          script_id: string
+          step_order?: number
+          step_type?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          condition_logic?: Json | null
+          content?: string | null
+          conversion_rate?: number | null
+          created_at?: string
+          delay_minutes?: number | null
+          drop_off_rate?: number | null
+          id?: string
+          impressions?: number | null
+          media_type?: string | null
+          media_url?: string | null
+          metadata?: Json | null
+          price?: number | null
+          revenue_generated?: number | null
+          script_id?: string
+          step_order?: number
+          step_type?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "script_steps_script_id_fkey"
+            columns: ["script_id"]
+            isOneToOne: false
+            referencedRelation: "scripts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      scripts: {
+        Row: {
+          account_id: string | null
+          avg_completion_rate: number | null
+          category: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          metadata: Json | null
+          parent_script_id: string | null
+          status: string
+          target_segment: string
+          title: string
+          total_conversions: number | null
+          total_revenue: number | null
+          total_runs: number | null
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          account_id?: string | null
+          avg_completion_rate?: number | null
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          metadata?: Json | null
+          parent_script_id?: string | null
+          status?: string
+          target_segment?: string
+          title: string
+          total_conversions?: number | null
+          total_revenue?: number | null
+          total_runs?: number | null
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          account_id?: string | null
+          avg_completion_rate?: number | null
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          metadata?: Json | null
+          parent_script_id?: string | null
+          status?: string
+          target_segment?: string
+          title?: string
+          total_conversions?: number | null
+          total_revenue?: number | null
+          total_runs?: number | null
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scripts_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "managed_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scripts_parent_script_id_fkey"
+            columns: ["parent_script_id"]
+            isOneToOne: false
+            referencedRelation: "scripts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       site_visits: {
         Row: {
           created_at: string
@@ -683,6 +901,67 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      workflow_runs: {
+        Row: {
+          account_id: string | null
+          completed_at: string | null
+          created_at: string
+          current_step: number | null
+          id: string
+          result: Json | null
+          script_id: string | null
+          started_at: string
+          status: string
+          workflow_id: string
+        }
+        Insert: {
+          account_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          current_step?: number | null
+          id?: string
+          result?: Json | null
+          script_id?: string | null
+          started_at?: string
+          status?: string
+          workflow_id: string
+        }
+        Update: {
+          account_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          current_step?: number | null
+          id?: string
+          result?: Json | null
+          script_id?: string | null
+          started_at?: string
+          status?: string
+          workflow_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_runs_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "managed_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_runs_script_id_fkey"
+            columns: ["script_id"]
+            isOneToOne: false
+            referencedRelation: "scripts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_runs_workflow_id_fkey"
+            columns: ["workflow_id"]
+            isOneToOne: false
+            referencedRelation: "automation_workflows"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
