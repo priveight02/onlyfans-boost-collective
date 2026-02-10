@@ -11,19 +11,19 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 
 const Admin = () => {
-  const { user, loading, isAdmin } = useAuth();
+  const { user, loading, isAdmin, adminLoading } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (loading) return;
+    if (loading || adminLoading) return;
 
     if (!user || !isAdmin) {
       toast.error("You don't have permission to access the admin panel");
       navigate("/");
     }
-  }, [user, loading, isAdmin, navigate]);
+  }, [user, loading, adminLoading, isAdmin, navigate]);
 
-  if (loading) {
+  if (loading || adminLoading) {
     return (
       <div className="min-h-screen bg-muted flex items-center justify-center pt-20">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />

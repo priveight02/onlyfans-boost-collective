@@ -6,6 +6,7 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   isAdmin: boolean;
+  adminLoading: boolean;
   signIn: (email: string, password: string) => Promise<any>;
   logout: () => Promise<void>;
 }
@@ -16,40 +17,39 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [adminLoading, setAdminLoading] = useState(true);
   const initializedRef = useRef(false);
 
   useEffect(() => {
     let mounted = true;
 
-    // Listen for auth changes — this fires for initial session too
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const handleUser = async (currentUser: User | null) => {
       if (!mounted) return;
-      const currentUser = session?.user ?? null;
       setUser(currentUser);
-      // Stop loading immediately — don't wait for admin check
       setLoading(false);
 
       if (currentUser) {
-        // Admin check runs in background, UI updates when ready
+        setAdminLoading(true);
         const { data } = await supabase.rpc('is_admin', { _user_id: currentUser.id });
-        if (mounted) setIsAdmin(!!data);
+        if (mounted) {
+          setIsAdmin(!!data);
+          setAdminLoading(false);
+        }
       } else {
         setIsAdmin(false);
+        setAdminLoading(false);
       }
+    };
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!mounted) return;
+      handleUser(session?.user ?? null);
     });
 
-    // Kick off initial session check
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
       if (!mounted || initializedRef.current) return;
       initializedRef.current = true;
-      const currentUser = session?.user ?? null;
-      setUser(currentUser);
-      setLoading(false);
-
-      if (currentUser) {
-        const { data } = await supabase.rpc('is_admin', { _user_id: currentUser.id });
-        if (mounted) setIsAdmin(!!data);
-      }
+      handleUser(session?.user ?? null);
     });
 
     return () => {
@@ -71,7 +71,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, isAdmin, signIn, logout }}>
+    <AuthContext.Provider value={{ user, loading, isAdmin, adminLoading, signIn, logout }}>
       {children}
     </AuthContext.Provider>
   );
