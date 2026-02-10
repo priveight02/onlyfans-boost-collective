@@ -100,7 +100,7 @@ const Services = () => {
       </div>
 
       {/* Smooth separator */}
-      <div className="relative py-4">
+      <div className="relative py-2">
         <div className="max-w-3xl mx-auto px-8">
           <div className="h-px bg-gradient-to-r from-transparent via-white/30 to-transparent" />
         </div>
@@ -109,7 +109,7 @@ const Services = () => {
       {/* Services Grid */}
       <section className="pb-6 relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <div className="text-center mb-8 mt-4">
+          <div className="text-center mb-8 mt-2">
             <h2 className="text-3xl md:text-4xl font-bold text-white mb-4 animate-fade-in">
               Our Exclusive Services
             </h2>
