@@ -1,6 +1,6 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  Zap, BookOpen, BarChart3, GitBranch, Brain, Layers, Sparkles,
+  Zap, BookOpen, BarChart3, GitBranch, Brain, Layers, Sparkles, Target, Heart,
 } from "lucide-react";
 import ScriptBuilder from "./ScriptBuilder";
 import ScriptLibrary from "./ScriptLibrary";
@@ -8,6 +8,8 @@ import ScriptAnalytics from "./ScriptAnalytics";
 import WorkflowEngine from "./WorkflowEngine";
 import ScriptIntelligence from "./ScriptIntelligence";
 import AutomationEngine from "../AutomationEngine";
+import ConversionOptimizer from "./ConversionOptimizer";
+import FanPsychologyPlaybook from "./FanPsychologyPlaybook";
 
 const StorylineHub = () => {
   return (
@@ -20,12 +22,18 @@ const StorylineHub = () => {
       </div>
 
       <Tabs defaultValue="builder" className="space-y-4">
-        <TabsList className="bg-white/5 backdrop-blur-sm border border-white/10 p-1 rounded-xl h-auto gap-1">
+        <TabsList className="bg-white/5 backdrop-blur-sm border border-white/10 p-1 rounded-xl h-auto gap-1 flex-wrap">
           <TabsTrigger value="builder" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
             <Zap className="h-3.5 w-3.5" /> Script Builder
           </TabsTrigger>
           <TabsTrigger value="library" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
             <BookOpen className="h-3.5 w-3.5" /> Library
+          </TabsTrigger>
+          <TabsTrigger value="optimizer" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
+            <Target className="h-3.5 w-3.5" /> Conversion Optimizer
+          </TabsTrigger>
+          <TabsTrigger value="playbook" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
+            <Heart className="h-3.5 w-3.5" /> Psychology Playbook
           </TabsTrigger>
           <TabsTrigger value="analytics" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
             <BarChart3 className="h-3.5 w-3.5" /> Analytics
@@ -43,6 +51,8 @@ const StorylineHub = () => {
 
         <TabsContent value="builder"><ScriptBuilder /></TabsContent>
         <TabsContent value="library"><ScriptLibrary /></TabsContent>
+        <TabsContent value="optimizer"><ConversionOptimizer /></TabsContent>
+        <TabsContent value="playbook"><FanPsychologyPlaybook /></TabsContent>
         <TabsContent value="analytics"><ScriptAnalytics /></TabsContent>
         <TabsContent value="workflows"><WorkflowEngine /></TabsContent>
         <TabsContent value="ai"><ScriptIntelligence /></TabsContent>
