@@ -204,6 +204,7 @@ const ScriptBuilder = () => {
   const [includeFollowups, setIncludeFollowups] = useState(true);
   const [includeDelays, setIncludeDelays] = useState(true);
   const [includeQuestions, setIncludeQuestions] = useState(true);
+  const [messageTone, setMessageTone] = useState<"innocent" | "bold">("innocent");
 
   const [genTimer, setGenTimer] = useState(0);
   const [genEstimate, setGenEstimate] = useState(0);
@@ -384,6 +385,7 @@ const ScriptBuilder = () => {
           include_followups: includeFollowups,
           include_delays: includeDelays,
           include_questions: includeQuestions,
+          message_tone: messageTone,
         },
       });
       if (error) throw error;
@@ -485,6 +487,29 @@ const ScriptBuilder = () => {
                   <div className="flex items-center gap-2">
                     <Switch id="opt-real" checked={generateRealMessages} onCheckedChange={setGenerateRealMessages} />
                     <Label htmlFor="opt-real" className="text-xs text-white/70 cursor-pointer">Generate real messages (vs placeholders)</Label>
+                  </div>
+                </div>
+
+                {/* Message Tone */}
+                <div className="space-y-2">
+                  <Label className="text-xs text-white/60">Message Tone</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button onClick={() => setMessageTone("innocent")}
+                      className={`p-3 rounded-lg text-center transition-all border ${
+                        messageTone === "innocent" ? "bg-pink-500/20 border-pink-500/40 text-white" : "bg-white/[0.03] border-white/[0.06] text-white/40 hover:bg-white/[0.06]"
+                      }`}>
+                      <span className="text-lg block">🥺</span>
+                      <span className="text-[10px] font-semibold block">Innocent / Cute</span>
+                      <span className="text-[8px] block text-white/30">Playful, shy, sweet girl-next-door</span>
+                    </button>
+                    <button onClick={() => setMessageTone("bold")}
+                      className={`p-3 rounded-lg text-center transition-all border ${
+                        messageTone === "bold" ? "bg-red-500/20 border-red-500/40 text-white" : "bg-white/[0.03] border-white/[0.06] text-white/40 hover:bg-white/[0.06]"
+                      }`}>
+                      <span className="text-lg block">🔥</span>
+                      <span className="text-[10px] font-semibold block">Bold / Explicit</span>
+                      <span className="text-[8px] block text-white/30">Confident, direct, grown-up language</span>
+                    </button>
                   </div>
                 </div>
 
