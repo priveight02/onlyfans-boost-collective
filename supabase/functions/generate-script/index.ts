@@ -20,7 +20,7 @@ serve(async (req) => {
     const {
       category, target_segment, theme, quality, generate_real_messages,
       script_length, include_conditions, include_followups, include_delays, include_questions,
-      message_tone,
+      message_tone, enable_exclusivity,
     } = await req.json();
     
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
@@ -39,23 +39,82 @@ serve(async (req) => {
 Write messages as if the creator is a sweet, playful, slightly shy girl-next-door. She types casually, sometimes with small grammar mistakes that feel natural and endearing. She uses "babe", "baby", emojis like 😊💕🥺, and sounds genuinely excited and a bit nervous. She never uses vulgar/explicit language — she hints and teases instead. She says things like "I'm getting so hot right now", "do you like seeing me like this?", "I really want you to enjoy this with me". The vibe is: warm, personal, slightly naive, irresistible innocence.`,
 
       aggressive_innocent: `MESSAGE TONE — SPICY / CASUAL / AGGRESSIVE-INNOCENT:
-Write messages like a girl who texts super casually but says very bold, explicit things. She uses "u" instead of "you", "ur" instead of "your", "lol", "omg", lowercase typing, short punchy sentences. She sounds young and casual in HOW she types but what she says is aggressive and sexually forward. She mixes innocent texting style with very explicit content. Examples: "u know I never shown my pussy before", "don't u wanna see how deep my fingers can go?", "u can hear how wet i am lol", "u really make me horny", "let it go i'll be your slut for the rest of the night", "fuck baby that's spenny!", "i wanna show u everything". The vibe is: casual texting energy + sexually aggressive content, like a real girl texting someone she's into. NO formal language. NO long sentences. Raw, real, unfiltered.`,
+Write messages like a girl who texts super casually but says very bold things. She uses "u" instead of "you", "ur" instead of "your", "lol", "omg", lowercase typing, short punchy sentences. She sounds young and casual in HOW she types but what she says is bold and forward. She mixes innocent texting style with very direct content. The vibe is: casual texting energy + forward content, like a real girl texting someone she's into. NO formal language. NO long sentences. Raw, real, unfiltered.`,
 
       bold: `MESSAGE TONE — BOLD / EXPLICIT / CONFIDENT:
-Write messages as if the creator is confident, sexually forward, and in control. She knows what she wants and isn't shy about saying it. She uses direct, explicit language freely. She says things like "I want you so hard right now", "look at what I'm doing for you", "tell me how much you want me". The vibe is: dominant, seductive, unapologetic, grown-up. No shyness, no hesitation.`,
+Write messages as if the creator is confident, forward, and in control. She knows what she wants and isn't shy about saying it. She uses direct language freely. She says things like "I want you so bad right now", "look at what I'm doing for you", "tell me how much you want me". The vibe is: dominant, seductive, unapologetic, grown-up. No shyness, no hesitation.`,
 
       submissive: `MESSAGE TONE — SUBMISSIVE / NEEDY / DEVOTED:
-Write messages as if the creator is desperate to please and craves validation. She's eager, needy, and devoted. She says things like "please tell me what you want me to do", "I'll do anything for you", "am I being a good girl?", "I need you so bad rn", "I can't stop thinking about you daddy". She uses lots of emojis 🥺😩💦, begs, and makes the subscriber feel powerful and in control. The vibe is: worship, devotion, eager-to-please.`,
+Write messages as if the creator is eager to please and craves validation. She's needy and devoted. She says things like "please tell me what you want me to do", "I'll do anything for you", "am I being a good girl?", "I need you so bad rn". She uses lots of emojis 🥺😩, begs, and makes the subscriber feel powerful and in control. The vibe is: worship, devotion, eager-to-please.`,
 
       bratty: `MESSAGE TONE — BRATTY / TEASE / PLAYFUL ATTITUDE:
 Write messages as if the creator is a confident tease who plays hard to get. She's sassy, witty, and makes the subscriber work for it. She says things like "hmm maybe if you're nice enough", "you think you deserve to see that? 😏", "make me", "idk if you can handle me tbh", "prove you want it". She flips between teasing denial and rewarding. Uses 😏💅🙄 emojis. The vibe is: playful power, push-pull dynamic, "chase me".`,
+
+      dynamic_shift: `MESSAGE TONE — DYNAMIC TONE SHIFT (MOST NATURAL & EFFECTIVE):
+This script MUST shift tones throughout to mimic a REAL conversation flow:
+
+PHASE 1 — OPENING (first 20-30% of script): INNOCENT / CUTE
+- Sweet, shy, playful. She's casual, warm, girl-next-door. Uses "babe", 😊💕, sounds genuinely excited.
+- She's building connection, asking about their day, being friendly and approachable.
+
+PHASE 2 — HEATING UP (middle 30-40%): BOLD / AGGRESSIVE
+- The conversation naturally gets more forward. She becomes confident, direct, and expressive.
+- She starts saying bolder things, building tension and desire. "I wanna show u something...", "u make me feel so..."
+- This is where the first paid content drops — she's warmed up and it feels natural.
+
+PHASE 3 — AFTER MEDIA SENDS: SUBMISSIVE / NEEDY
+- After sending content, she becomes softer, needier. "did u like it? 🥺", "I hope that was good enough for u", "tell me what u want next..."
+- This makes the fan feel powerful and in control, which triggers more spending.
+
+PHASE 4 — GRAND FINALE BUILD: Back to BOLD/AGGRESSIVE
+- For the final premium content, she gets confident again. "I saved the best for last", "u ready for this?"
+- Then immediately after the final send, back to SUBMISSIVE: "omg I can't believe I just sent u that 🙈"
+
+The shifts must feel NATURAL — like a real person's emotions during an intimate conversation. NOT robotic transitions. Each phase bleeds into the next gradually.`,
     };
+
+    const exclusivityInstruction = enable_exclusivity !== false ? `
+EXCLUSIVITY & NATURAL PAUSE PSYCHOLOGY (CRITICAL):
+These techniques make the fan believe the content is being created RIGHT NOW, just for them:
+
+1. NATURAL PAUSES: Insert "hold on" or "brb" messages with realistic delays (2-5 min). Examples:
+   - "hold on 2 mins babe 😊" → (delay 2-3 min) → sends content
+   - "omg wait let me take something for u real quick" → (delay 3-5 min) → sends media
+   - "brb getting my phone lol" → (delay 1-2 min) → returns with content
+   The fan thinks she's literally going to shoot the content and coming back. This creates MASSIVE anticipation.
+
+2. "JUST TOOK THIS" LANGUAGE: Every media send should feel spontaneous:
+   - "just took this for u 🤭"
+   - "I literally just recorded this omg"
+   - "ok I just did it... don't judge me lol"
+   - "I took this right now look"
+
+3. EXCLUSIVITY MARKERS: Make the fan feel like the ONLY person seeing this:
+   - "I never send this to anyone"
+   - "u're literally the only one who's seen this"
+   - "I don't usually do this but..."
+   - "don't screenshot ok? 🥺 this is just for u"
+   - "I only feel comfortable doing this with u"
+
+4. ENVIRONMENT AUTHENTICITY: Reference the real-time setting:
+   - "I'm literally in my room rn"
+   - "my roommate just left so..."
+   - "I'm in the bathroom lol hold on"
+   - Reference time of day, what she's wearing, what she was doing before
+
+5. HESITATION BEFORE BOLD CONTENT: Show "nervousness" before sending premium content:
+   - "should I send it? 🙈"
+   - "ok promise u won't think I'm weird"
+   - "I'm so nervous omg"
+   - This makes premium content feel more valuable and intimate
+
+These elements should be woven naturally throughout the script, not forced. The goal is that a fan reading this conversation would believe it's 100% real and happening live.` : "";
 
     const toneInstruction = TONE_INSTRUCTIONS[message_tone] || TONE_INSTRUCTIONS.innocent;
 
     const messageInstruction = realMessages
-      ? `Write REAL, natural-sounding messages that chatters can copy-paste directly. Use {NAME} as placeholder. Each message must be unique, engaging, and psychologically optimized.\n\n${toneInstruction}`
-      : `Use placeholder text for messages: "[message]", "[answer]", "[follow-up]", "[reaction]". The chatter writes their own messages. Only fill in media descriptions and pricing.`;
+      ? `Write REAL, natural-sounding messages that chatters can copy-paste directly. Use {NAME} as placeholder. Each message must be unique, engaging, and psychologically optimized.\n\n${toneInstruction}\n\n${exclusivityInstruction}`
+      : `Use placeholder text for messages: "[message]", "[answer]", "[follow-up]", "[reaction]". The chatter writes their own messages. Only fill in media descriptions and pricing.\n\n${exclusivityInstruction}`;
 
     const conditionalInstructions = [];
     if (!useConditions) conditionalInstructions.push("Do NOT include any 'condition' steps.");
