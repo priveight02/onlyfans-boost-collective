@@ -1152,13 +1152,13 @@ const ProfileLookup = () => {
 
             {/* ===== HIGHLIGHTS ===== */}
             <TabsContent value="highlights" className="space-y-4">
-              <Card className="bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 border-emerald-500/20">
+              <Card className="bg-white/[0.05] backdrop-blur-sm border-white/[0.1]">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm text-emerald-400 flex items-center gap-2"><Zap className="h-4 w-4" /> Conversion Drivers</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   {[
-                    profile.subscribePrice === 0 && { title: "Free Subscription Model", detail: "Removes barrier to entry — maximizes top-of-funnel. Revenue driven by PPV and tips.", impact: "HIGH" },
+                    profile.subscribePrice === 0 && { title: "Free Subscription Model", detail: "Removes barrier to entry, maximizes top-of-funnel. Revenue driven by PPV and tips.", impact: "HIGH" },
                     profile.subscribePrice > 0 && profile.subscribePrice < 10 && { title: `Low Price ($${profile.subscribePrice})`, detail: "Accessible pricing encourages impulse subscriptions.", impact: "HIGH" },
                     profile.subscribePrice >= 10 && { title: `Premium Pricing ($${profile.subscribePrice})`, detail: "Higher ARPU per subscriber.", impact: "MEDIUM" },
                     profile.subscribeBundles?.length > 0 && { title: `${profile.subscribeBundles.length} Bundle Offers`, detail: "Multi-month discounts increase LTV and reduce churn.", impact: "HIGH" },
@@ -1176,18 +1176,18 @@ const ProfileLookup = () => {
                     promotions && Array.isArray(promotions) && promotions.length > 0 && { title: `${promotions.length} Active Promotions`, detail: "Discounts drive subscriber acquisition.", impact: "HIGH" },
                     trackingLinks && Array.isArray(trackingLinks) && trackingLinks.length > 0 && { title: `${trackingLinks.length} Tracking Links`, detail: "Attribution-ready marketing funnels.", impact: "HIGH" },
                     trialLinks && Array.isArray(trialLinks) && trialLinks.length > 0 && { title: `${trialLinks.length} Free Trial Links`, detail: "Low-friction acquisition strategy.", impact: "HIGH" },
-                    massMessagingOverview?.sentCount > 0 && { title: "Active Mass Messaging", detail: `${massMessagingOverview.sentCount} messages sent — PPV revenue driver.`, impact: "HIGH" },
+                    massMessagingOverview?.sentCount > 0 && { title: "Active Mass Messaging", detail: `${massMessagingOverview.sentCount} messages sent, PPV revenue driver.`, impact: "HIGH" },
                     topMessage && { title: "Top PPV Message Performing", detail: `${topMessage.purchases || 0} purchases generating revenue.`, impact: "HIGH" },
-                    chargebackRatio?.ratio !== undefined && chargebackRatio.ratio < 1 && { title: "Low Chargeback Ratio", detail: `${chargebackRatio.ratio}% — healthy payment profile.`, impact: "MEDIUM" },
+                    chargebackRatio?.ratio !== undefined && chargebackRatio.ratio < 1 && { title: "Low Chargeback Ratio", detail: `${chargebackRatio.ratio}%, healthy payment profile.`, impact: "MEDIUM" },
                   ].filter(Boolean).map((item: any, i) => (
-                    <div key={i} className="flex items-start gap-3 bg-white/[0.05] rounded-xl p-4 border border-white/[0.07]">
+                    <div key={i} className="flex items-start gap-3 bg-white/[0.07] rounded-xl p-4 border border-white/[0.1]">
                       <Zap className={`h-4 w-4 mt-0.5 shrink-0 ${item.impact === "HIGH" ? "text-emerald-400" : "text-amber-400"}`} />
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
-                          <p className="text-sm text-white/80 font-semibold">{item.title}</p>
+                          <p className="text-sm text-white font-semibold">{item.title}</p>
                           <Badge className={`text-xs ${item.impact === "HIGH" ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" : "bg-amber-500/20 text-amber-400 border-amber-500/30"}`}>{item.impact}</Badge>
                         </div>
-                        <p className="text-sm text-white/50 mt-1">{item.detail}</p>
+                        <p className="text-sm text-white/60 mt-1">{item.detail}</p>
                       </div>
                     </div>
                   ))}
@@ -1195,7 +1195,7 @@ const ProfileLookup = () => {
               </Card>
 
               {/* Replicable Strategies */}
-              <Card className="bg-gradient-to-br from-blue-500/10 to-blue-500/5 border-blue-500/20">
+              <Card className="bg-white/[0.05] backdrop-blur-sm border-white/[0.1]">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm text-blue-400 flex items-center gap-2"><Copy className="h-4 w-4" /> Replicable Strategies</CardTitle>
                 </CardHeader>
@@ -1212,9 +1212,9 @@ const ProfileLookup = () => {
                     massMessagingOverview?.sentCount ? `Mass messaging active (${massMessagingOverview.sentCount} sent)` : "",
                     trackingLinks && Array.isArray(trackingLinks) ? `${trackingLinks.length} tracking links for attribution` : "",
                   ].filter(Boolean).map((s, i) => (
-                    <div key={i} className="flex items-start gap-2.5 bg-white/[0.05] rounded-xl p-3 border border-white/[0.07]">
+                    <div key={i} className="flex items-start gap-2.5 bg-white/[0.07] rounded-xl p-3 border border-white/[0.1]">
                       <span className="text-blue-400 font-bold text-sm mt-0.5">{i + 1}.</span>
-                      <p className="text-sm text-white/60">{s}</p>
+                      <p className="text-sm text-white/70">{s}</p>
                     </div>
                   ))}
                 </CardContent>
@@ -1300,7 +1300,7 @@ const ProfileLookup = () => {
 
             {/* ===== AI ANALYSIS ===== */}
             <TabsContent value="ai" className="space-y-4">
-              <Card className="bg-gradient-to-br from-violet-500/10 to-violet-500/5 border-violet-500/20">
+              <Card className="bg-white/[0.05] backdrop-blur-sm border-white/[0.1]">
                 <CardHeader className="pb-2">
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-sm text-violet-400 flex items-center gap-2"><Sparkles className="h-4 w-4" /> AI Intelligence Analysis</CardTitle>
@@ -1313,15 +1313,15 @@ const ProfileLookup = () => {
                 <CardContent>
                   {!aiAnalysis && !aiLoading && (
                     <div className="text-center py-8">
-                      <Sparkles className="h-8 w-8 text-violet-400/30 mx-auto mb-3" />
-                      <p className="text-sm text-white/50">Click "Run AI Analysis" for comprehensive strategic analysis</p>
-                      <p className="text-xs text-white/40 mt-1">Covers: conversion drivers, revenue optimization, content strategy, management recommendations</p>
+                      <Sparkles className="h-8 w-8 text-violet-400/40 mx-auto mb-3" />
+                      <p className="text-sm text-white/60">Click "Run AI Analysis" for comprehensive strategic analysis</p>
+                      <p className="text-xs text-white/45 mt-1">Covers: conversion drivers, revenue optimization, content strategy, management recommendations</p>
                     </div>
                   )}
                   {(aiAnalysis || aiLoading) && (
-                    <div className="text-sm text-white/60 leading-relaxed whitespace-pre-wrap">
+                    <div className="text-sm text-white/80 leading-relaxed whitespace-pre-wrap">
                       {aiAnalysis.split(/(\*\*.*?\*\*)/g).map((part, i) => {
-                        if (part.startsWith("**") && part.endsWith("**")) return <strong key={i} className="text-white/80">{part.slice(2, -2)}</strong>;
+                        if (part.startsWith("**") && part.endsWith("**")) return <strong key={i} className="text-white">{part.slice(2, -2)}</strong>;
                         return <span key={i}>{part}</span>;
                       })}
                       {aiLoading && <span className="inline-block w-2 h-4 bg-violet-400/50 animate-pulse ml-1" />}
