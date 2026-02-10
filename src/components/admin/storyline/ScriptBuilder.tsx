@@ -884,7 +884,7 @@ const ScriptBuilder = () => {
           {/* Gen Options */}
           <Dialog open={showGenOptions} onOpenChange={setShowGenOptions}>
             <DialogTrigger asChild>
-              <Button size="sm" variant="outline" className="gap-1 border-white/10 text-white/50 hover:text-white text-[10px] h-8">
+              <Button size="sm" variant="outline" className="gap-1 bg-white/5 border-white/10 text-white/50 hover:bg-white/10 hover:text-white text-[10px] h-8">
                 <Sparkles className="h-3 w-3" /> Options
               </Button>
             </DialogTrigger>
@@ -1059,7 +1059,7 @@ const ScriptBuilder = () => {
           {/* Templates */}
           <Dialog open={showTemplates} onOpenChange={setShowTemplates}>
             <DialogTrigger asChild>
-              <Button size="sm" variant="outline" className="gap-1 border-white/10 text-white/50 hover:text-white text-[10px] h-8">
+              <Button size="sm" variant="outline" className="gap-1 bg-white/5 border-white/10 text-white/50 hover:bg-white/10 hover:text-white text-[10px] h-8">
                 <BookOpen className="h-3 w-3" /> Templates
               </Button>
             </DialogTrigger>
@@ -1198,7 +1198,7 @@ const ScriptBuilder = () => {
             </DialogHeader>
             <p className="text-sm text-white/60">This will permanently delete all {scripts.length} scripts and their steps. This action cannot be undone.</p>
             <div className="flex gap-2 mt-2">
-              <Button variant="outline" onClick={() => setShowDeleteAll(false)} className="flex-1 border-white/10 text-white/60 hover:text-white">Cancel</Button>
+              <Button variant="outline" onClick={() => setShowDeleteAll(false)} className="flex-1 bg-white/5 border-white/10 text-white/60 hover:bg-white/10 hover:text-white">Cancel</Button>
               <Button onClick={deleteAllScripts} className="flex-1 bg-red-600 hover:bg-red-500 text-white border-0">Delete All</Button>
             </div>
           </DialogContent>
@@ -1369,7 +1369,7 @@ const ScriptBuilder = () => {
                 <Zap className="h-8 w-8 text-white/10 mx-auto mb-3" />
                 <p className="text-white/30 text-sm">Select a script, use a template, or generate one with AI</p>
                 <div className="flex justify-center gap-2">
-                  <Button size="sm" onClick={() => setShowTemplates(true)} variant="outline" className="gap-1.5 border-white/10 text-white/50 hover:text-white">
+                  <Button size="sm" onClick={() => setShowTemplates(true)} variant="outline" className="gap-1.5 bg-white/5 border-white/10 text-white/50 hover:bg-white/10 hover:text-white">
                     <BookOpen className="h-3.5 w-3.5" /> Templates
                   </Button>
                   <Button size="sm" onClick={() => generateScript("fast")} disabled={generating}
