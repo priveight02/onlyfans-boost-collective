@@ -6,8 +6,6 @@ import { Button } from "./ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
-const ADMIN_EMAIL = "laflare18@protonmail.com";
-
 type MenuItem = {
   name: string;
   href: string;
@@ -20,32 +18,26 @@ const Navigation = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, loading, logout } = useAuth();
+  const { user, loading, isAdmin, logout } = useAuth();
 
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 50);
     };
-
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const isAdmin = user?.email === ADMIN_EMAIL;
-  console.log("Navigation - Current user email:", user?.email);
-  console.log("Navigation - Is admin:", isAdmin);
-  console.log("Navigation - Auth loading:", loading);
-
-  const handleAdminAccess = () => {
-    console.log("Admin access requested by:", user?.email);
-    if (isAdmin) {
-      navigate("/admin-passphrase");
-    } else {
-      toast.error("You don't have permission to access the admin panel");
+  const handleLogout = async () => {
+    try {
+      await logout();
+      toast.success("Logged out successfully");
+      navigate("/");
+    } catch {
+      toast.error("Failed to log out");
     }
   };
 
-  // Define menu items based on user authorization
   const menuItems: MenuItem[] = [
     { name: "Home", href: "/" },
     { name: "Onboarding", href: "/onboarding" },
@@ -53,18 +45,17 @@ const Navigation = () => {
     { name: "FAQ", href: "/faq" },
   ];
 
-  // Only add admin link if user is authorized
-  const finalMenuItems: MenuItem[] = isAdmin 
-    ? [...menuItems, { 
-        name: "Admin", 
-        href: "#",  // Changed to # to prevent default navigation
+  // Only show admin link if user is verified admin
+  const finalMenuItems: MenuItem[] = isAdmin
+    ? [...menuItems, {
+        name: "Admin",
+        href: "/admin",
         icon: Shield,
-        onClick: handleAdminAccess 
       }]
     : menuItems;
 
   if (loading) {
-    return null; // Don't render navigation while auth is loading
+    return null;
   }
 
   return (
@@ -73,33 +64,26 @@ const Navigation = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex items-center ml-36 lg:ml-52">
-              <Link 
-                to="/" 
+              <Link
+                to="/"
                 className="flex items-center group transition-all duration-300 hover:scale-105"
               >
                 <div className="w-16 h-16">
-                  <img 
-                    src="/lovable-uploads/ozc-agency-logo.jpg" 
-                    alt="OZC Agency Logo" 
+                  <img
+                    src="/lovable-uploads/ozc-agency-logo.jpg"
+                    alt="OZC Agency Logo"
                     className="w-full h-full object-contain rounded-full"
                   />
                 </div>
               </Link>
             </div>
-            
+
             {/* Desktop menu */}
             <div className="hidden md:flex items-center space-x-8">
               {finalMenuItems.map((item) => (
-                <button
+                <Link
                   key={item.name}
-                  onClick={() => {
-                    if (item.onClick) {
-                      item.onClick();
-                    } else {
-                      navigate(item.href);
-                    }
-                    setIsOpen(false);
-                  }}
+                  to={item.href}
                   className={`transition-colors duration-200 flex items-center gap-2 ${
                     location.pathname === item.href
                       ? 'font-medium text-white'
@@ -108,12 +92,12 @@ const Navigation = () => {
                 >
                   {item.icon && <item.icon className="h-4 w-4" />}
                   {item.name}
-                </button>
+                </Link>
               ))}
               {user ? (
                 <Button
                   variant="ghost"
-                  onClick={logout}
+                  onClick={handleLogout}
                   className="transition-colors duration-200 hover:bg-transparent text-white hover:text-white/80"
                 >
                   <LogOut className="mr-2 h-4 w-4" />
@@ -148,16 +132,10 @@ const Navigation = () => {
             <div className="md:hidden bg-white/10 backdrop-blur-xl rounded-b-xl border-t border-white/10">
               <div className="pt-2 pb-3 space-y-1">
                 {finalMenuItems.map((item) => (
-                  <button
+                  <Link
                     key={item.name}
-                    onClick={() => {
-                      if (item.onClick) {
-                        item.onClick();
-                      } else {
-                        navigate(item.href);
-                      }
-                      setIsOpen(false);
-                    }}
+                    to={item.href}
+                    onClick={() => setIsOpen(false)}
                     className={`block w-full text-left px-3 py-2 ${
                       location.pathname === item.href
                         ? "text-white font-medium"
@@ -166,13 +144,13 @@ const Navigation = () => {
                   >
                     {item.icon && <item.icon className="h-4 w-4" />}
                     {item.name}
-                  </button>
+                  </Link>
                 ))}
                 {user ? (
                   <Button
                     variant="ghost"
                     onClick={() => {
-                      logout();
+                      handleLogout();
                       setIsOpen(false);
                     }}
                     className="w-full justify-start text-white/90 hover:text-white hover:bg-transparent"

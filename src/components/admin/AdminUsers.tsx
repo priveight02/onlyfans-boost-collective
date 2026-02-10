@@ -1,6 +1,3 @@
-import { useQuery } from "@tanstack/react-query";
-import { db } from "@/lib/firebase";
-import { collection, getDocs } from "firebase/firestore";
 import {
   Table,
   TableBody,
@@ -11,21 +8,6 @@ import {
 } from "@/components/ui/table";
 
 const AdminUsers = () => {
-  const { data: users, isLoading } = useQuery({
-    queryKey: ['admin-users-list'],
-    queryFn: async () => {
-      const snapshot = await getDocs(collection(db, 'users'));
-      return snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-    },
-  });
-
-  if (isLoading) {
-    return <div>Loading users...</div>;
-  }
-
   return (
     <div className="rounded-md border">
       <Table>
@@ -37,13 +19,11 @@ const AdminUsers = () => {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {users?.map((user: any) => (
-            <TableRow key={user.id}>
-              <TableCell>{user.email}</TableCell>
-              <TableCell>{new Date(user.createdAt?.seconds * 1000).toLocaleDateString()}</TableCell>
-              <TableCell>{user.status || 'Active'}</TableCell>
-            </TableRow>
-          ))}
+          <TableRow>
+            <TableCell colSpan={3} className="text-center text-muted-foreground">
+              No users found
+            </TableCell>
+          </TableRow>
         </TableBody>
       </Table>
     </div>

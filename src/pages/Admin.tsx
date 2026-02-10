@@ -10,27 +10,20 @@ import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 
-const ADMIN_EMAIL = "laflare18@protonmail.com";
-
 const Admin = () => {
-  const { user, loading } = useAuth();
+  const { user, loading, isAdmin } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    console.log("Admin Panel - Auth state:", { user: user?.email, loading });
-    
-    if (loading) {
-      return;
-    }
+    if (loading) return;
 
-    if (!user || user.email !== ADMIN_EMAIL) {
-      console.log("Admin Panel - Unauthorized access attempt:", user?.email);
+    if (!user || !isAdmin) {
       toast.error("You don't have permission to access the admin panel");
       navigate("/");
     }
-  }, [user, loading, navigate]);
+  }, [user, loading, isAdmin, navigate]);
 
-  if (loading || !user || user.email !== ADMIN_EMAIL) {
+  if (loading || !user || !isAdmin) {
     return null;
   }
 
@@ -47,7 +40,6 @@ const Admin = () => {
         </div>
       </div>
 
-      {/* Quick Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -83,32 +75,21 @@ const Admin = () => {
 
       <Tabs defaultValue="dashboard" className="space-y-6">
         <TabsList className="bg-white/50 backdrop-blur-sm">
-          <TabsTrigger value="dashboard" className="data-[state=active]:bg-white">
-            Dashboard
-          </TabsTrigger>
-          <TabsTrigger value="users" className="data-[state=active]:bg-white">
-            User Management
-          </TabsTrigger>
-          <TabsTrigger value="security" className="data-[state=active]:bg-white">
-            Security
-          </TabsTrigger>
-          <TabsTrigger value="settings" className="data-[state=active]:bg-white">
-            Settings
-          </TabsTrigger>
+          <TabsTrigger value="dashboard" className="data-[state=active]:bg-white">Dashboard</TabsTrigger>
+          <TabsTrigger value="users" className="data-[state=active]:bg-white">User Management</TabsTrigger>
+          <TabsTrigger value="security" className="data-[state=active]:bg-white">Security</TabsTrigger>
+          <TabsTrigger value="settings" className="data-[state=active]:bg-white">Settings</TabsTrigger>
         </TabsList>
 
         <TabsContent value="dashboard" className="space-y-4">
           <AdminDashboard />
         </TabsContent>
-        
         <TabsContent value="users" className="space-y-4">
           <AdminUsers />
         </TabsContent>
-        
         <TabsContent value="security" className="space-y-4">
           <AdminSecurity />
         </TabsContent>
-
         <TabsContent value="settings" className="space-y-4">
           <Card>
             <CardHeader>
@@ -122,8 +103,8 @@ const Admin = () => {
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Site Description</label>
-                  <textarea 
-                    className="w-full min-h-[100px] p-2 border rounded-md" 
+                  <textarea
+                    className="w-full min-h-[100px] p-2 border rounded-md"
                     placeholder="Enter site description..."
                   />
                 </div>
