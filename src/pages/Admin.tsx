@@ -7,8 +7,9 @@ import AdminSecurity from "@/components/admin/AdminSecurity";
 import CRMAccountsTab from "@/components/admin/CRMAccountsTab";
 import ProfileLookup from "@/components/admin/ProfileLookup";
 import AudienceIntelligence from "@/components/admin/AudienceIntelligence";
+import TeamManagement from "@/components/admin/TeamManagement";
 import { supabase } from "@/integrations/supabase/client";
-import { Shield, LayoutDashboard, Lock, Settings, LogOut, Contact, Search, BarChart3 } from "lucide-react";
+import { Shield, LayoutDashboard, Lock, Settings, LogOut, Contact, Search, BarChart3, Users } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -97,6 +98,10 @@ const Admin = () => {
               <Lock className="h-4 w-4" />
               Security
             </TabsTrigger>
+            <TabsTrigger value="team" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-2">
+              <Users className="h-4 w-4" />
+              Team
+            </TabsTrigger>
             <TabsTrigger value="settings" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-2">
               <Settings className="h-4 w-4" />
               Settings
@@ -117,6 +122,9 @@ const Admin = () => {
           </TabsContent>
           <TabsContent value="security" className="space-y-4">
             <AdminSecurity />
+          </TabsContent>
+          <TabsContent value="team" className="space-y-4">
+            <TeamManagement />
           </TabsContent>
           <TabsContent value="settings" className="space-y-4">
             <Card className="bg-white/5 backdrop-blur-sm border-white/10">

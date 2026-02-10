@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -13,7 +13,7 @@ import {
   ChevronDown, ChevronUp, Download, Info, Activity,
   Target, Layers, ArrowUpRight, ArrowDownRight, Sparkles,
   RefreshCw, MessageSquare, Bell, Link2, Award, AlertTriangle,
-  Percent, UserCheck, UserX, Crown, Hash,
+  Percent, UserCheck, UserX, Crown, Hash, X,
 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
@@ -136,6 +136,36 @@ const ProfileLookup = () => {
   const [bioExpanded, setBioExpanded] = useState(false);
   const [aiAnalysis, setAiAnalysis] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
+  const [lookupHistory, setLookupHistory] = useState<any[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const [showHistory, setShowHistory] = useState(false);
+
+  const fetchHistory = async () => {
+    setHistoryLoading(true);
+    const { data: history } = await supabase
+      .from("profile_lookup_history")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(50);
+    setLookupHistory(history || []);
+    setHistoryLoading(false);
+  };
+
+  useEffect(() => { fetchHistory(); }, []);
+
+  const saveLookup = async (result: any) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      await supabase.from("profile_lookup_history").insert({
+        username: result.profile?.username || username.trim().replace("@", ""),
+        display_name: result.profile?.name || null,
+        avatar_url: result.profile?.avatar || null,
+        snapshot_data: result,
+        looked_up_by: session?.user?.id || null,
+      } as any);
+      fetchHistory();
+    } catch (e) { console.error("Failed to save lookup history", e); }
+  };
 
   const profile = data?.profile;
   const earnings = data?.earnings;
@@ -229,6 +259,7 @@ const ProfileLookup = () => {
         setData(result);
         setFetchedAt(result._meta?.fetchedAt || new Date().toISOString());
         toast.success(`Profile loaded • ${result._meta?.endpointCount || result._meta?.endpoints?.length || 1} endpoints queried`);
+        saveLookup(result);
       } else { toast.error("Profile not found"); }
     } catch { toast.error("Network error"); }
     finally { setLoading(false); }
@@ -413,6 +444,21 @@ const ProfileLookup = () => {
     a.click(); URL.revokeObjectURL(url); toast.success("Exported CSV");
   };
 
+  const loadFromHistory = (entry: any) => {
+    setData(entry.snapshot_data);
+    setFetchedAt(entry.created_at);
+    setUsername(entry.username);
+    setShowHistory(false);
+    toast.success(`Loaded snapshot from ${new Date(entry.created_at).toLocaleDateString()}`);
+  };
+
+  const deleteHistoryEntry = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    await supabase.from("profile_lookup_history").delete().eq("id", id);
+    fetchHistory();
+    toast.success("Removed from history");
+  };
+
   return (
     <div className="space-y-6">
       {/* Search */}
@@ -425,7 +471,88 @@ const ProfileLookup = () => {
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
           {loading ? "Scanning..." : "Lookup"}
         </Button>
+        <Button variant="outline" onClick={() => setShowHistory(!showHistory)} className="border-white/10 text-white/60 hover:text-white hover:bg-white/10 gap-2 h-11 rounded-xl">
+          <Clock className="h-4 w-4" />
+          <span className="hidden sm:inline">History</span>
+          {lookupHistory.length > 0 && (
+            <Badge className="bg-accent/20 text-accent text-[10px] h-4 px-1.5">{lookupHistory.length}</Badge>
+          )}
+        </Button>
       </div>
+
+      {/* Recent lookups / History */}
+      {showHistory && (
+        <div className="bg-white/[0.04] border border-white/[0.08] rounded-xl p-4 space-y-3 animate-in fade-in-0 slide-in-from-top-2 duration-300">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+              <Clock className="h-4 w-4 text-white/50" /> Lookup History
+            </h3>
+            <span className="text-xs text-white/30">{lookupHistory.length} entries</span>
+          </div>
+          {historyLoading ? (
+            <div className="flex items-center justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-accent/50" /></div>
+          ) : lookupHistory.length === 0 ? (
+            <p className="text-xs text-white/30 text-center py-4">No lookups yet</p>
+          ) : (
+            <div className="space-y-1.5 max-h-80 overflow-y-auto pr-1">
+              {lookupHistory.map(entry => (
+                <div
+                  key={entry.id}
+                  onClick={() => loadFromHistory(entry)}
+                  className="flex items-center gap-3 bg-white/[0.03] hover:bg-white/[0.07] rounded-lg p-3 border border-white/[0.05] cursor-pointer transition-colors group"
+                >
+                  {entry.avatar_url ? (
+                    <img src={entry.avatar_url} alt="" className="w-8 h-8 rounded-md object-cover" />
+                  ) : (
+                    <div className="w-8 h-8 rounded-md bg-accent/15 flex items-center justify-center text-white text-xs font-bold">
+                      {(entry.display_name || entry.username).charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-white/80 font-medium truncate">{entry.display_name || entry.username}</p>
+                    <p className="text-xs text-white/40">@{entry.username}</p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-[11px] text-white/30">{new Date(entry.created_at).toLocaleDateString()}</p>
+                    <p className="text-[10px] text-white/20">{new Date(entry.created_at).toLocaleTimeString()}</p>
+                  </div>
+                  <button
+                    onClick={(e) => deleteHistoryEntry(entry.id, e)}
+                    className="text-white/10 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Recent lookups bar (when history panel is closed) */}
+      {!showHistory && !data && lookupHistory.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-xs text-white/30">Recent lookups</p>
+          <div className="flex gap-2 flex-wrap">
+            {lookupHistory.slice(0, 8).map(entry => (
+              <button
+                key={entry.id}
+                onClick={() => loadFromHistory(entry)}
+                className="flex items-center gap-2 bg-white/[0.04] hover:bg-white/[0.08] rounded-lg px-3 py-2 border border-white/[0.06] transition-colors"
+              >
+                {entry.avatar_url ? (
+                  <img src={entry.avatar_url} alt="" className="w-5 h-5 rounded object-cover" />
+                ) : (
+                  <div className="w-5 h-5 rounded bg-accent/15 flex items-center justify-center text-white text-[10px] font-bold">
+                    {(entry.display_name || entry.username).charAt(0).toUpperCase()}
+                  </div>
+                )}
+                <span className="text-xs text-white/60">@{entry.username}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {loading && (
         <div className="text-center py-10">

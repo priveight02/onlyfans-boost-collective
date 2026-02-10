@@ -5,6 +5,7 @@ import CRMAccountSearch from "./CRMAccountSearch";
 import CRMAccountCard from "./CRMAccountCard";
 import CRMAccountDetail from "./CRMAccountDetail";
 import CRMAddAccountDialog from "./CRMAddAccountDialog";
+import OFConnectDialog from "./OFConnectDialog";
 import { Loader2, Inbox } from "lucide-react";
 
 const CRMAccountsTab = () => {
@@ -16,6 +17,7 @@ const CRMAccountsTab = () => {
   const [selectedAccount, setSelectedAccount] = useState<any | null>(null);
   const [editAccount, setEditAccount] = useState<any | null>(null);
   const [showAdd, setShowAdd] = useState(false);
+  const [connectAccount, setConnectAccount] = useState<any | null>(null);
 
   const fetchAccounts = async () => {
     setLoading(true);
@@ -97,6 +99,7 @@ const CRMAccountsTab = () => {
               onSelect={setSelectedAccount}
               onEdit={handleEdit}
               onDelete={handleDelete}
+              onConnect={setConnectAccount}
             />
           ))}
         </div>
@@ -129,6 +132,15 @@ const CRMAccountsTab = () => {
         onSuccess={fetchAccounts}
         editAccount={editAccount}
       />
+
+      {/* OF Connect dialog */}
+      {connectAccount && (
+        <OFConnectDialog
+          account={connectAccount}
+          onClose={() => setConnectAccount(null)}
+          onSuccess={fetchAccounts}
+        />
+      )}
     </div>
   );
 };

@@ -1,4 +1,5 @@
-import { Copy, ExternalLink, MoreHorizontal, TrendingUp, Users, FileText, Mail } from "lucide-react";
+import { useState } from "react";
+import { Copy, ExternalLink, MoreHorizontal, TrendingUp, Users, FileText, Mail, Link2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
@@ -34,6 +35,7 @@ interface CRMAccountCardProps {
   onSelect: (account: Account) => void;
   onEdit: (account: Account) => void;
   onDelete: (id: string) => void;
+  onConnect?: (account: Account) => void;
 }
 
 const statusColors: Record<string, string> = {
@@ -50,7 +52,7 @@ const tierColors: Record<string, string> = {
   enterprise: "bg-cyan-500/15 text-cyan-400 border-cyan-500/20",
 };
 
-const CRMAccountCard = ({ account, onSelect, onEdit, onDelete }: CRMAccountCardProps) => {
+const CRMAccountCard = ({ account, onSelect, onEdit, onDelete, onConnect }: CRMAccountCardProps) => {
   const copyBio = () => {
     if (account.bio) {
       navigator.clipboard.writeText(account.bio);
@@ -107,6 +109,9 @@ const CRMAccountCard = ({ account, onSelect, onEdit, onDelete }: CRMAccountCardP
           </div>
           <div className="flex items-center gap-1.5">
             <span className="text-xs text-white/40">@{account.username}</span>
+            {(account as any).of_connected && (
+              <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">OF</span>
+            )}
             <button
               onClick={(e) => { e.stopPropagation(); copyUsername(); }}
               className="opacity-0 group-hover:opacity-100 transition-opacity"
@@ -130,6 +135,11 @@ const CRMAccountCard = ({ account, onSelect, onEdit, onDelete }: CRMAccountCardP
             <DropdownMenuItem onClick={copyBio} disabled={!account.bio} className="hover:bg-white/10 cursor-pointer">
               <Copy className="h-3.5 w-3.5 mr-2" /> Copy Bio
             </DropdownMenuItem>
+            {onConnect && (
+              <DropdownMenuItem onClick={() => onConnect(account)} className="hover:bg-white/10 cursor-pointer">
+                <Link2 className="h-3.5 w-3.5 mr-2" /> {(account as any).of_connected ? "Manage OF" : "Connect OF"}
+              </DropdownMenuItem>
+            )}
             {account.contact_email && (
               <DropdownMenuItem className="hover:bg-white/10 cursor-pointer">
                 <Mail className="h-3.5 w-3.5 mr-2" /> Email
