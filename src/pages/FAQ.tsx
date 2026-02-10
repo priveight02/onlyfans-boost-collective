@@ -132,7 +132,7 @@ const FAQ = () => {
       </div>
 
       {/* Hero Section */}
-      <div className="relative pt-24 pb-16 overflow-hidden">
+      <div className="relative pt-24 pb-8 overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
           <div className="flex justify-center mb-6">
             <HelpCircle className="h-16 w-16 text-white animate-bounce" />
@@ -140,14 +140,14 @@ const FAQ = () => {
           <h1 className="text-4xl md:text-6xl font-bold text-white mb-6 font-heading hover:scale-105 transition-transform duration-300 animate-fade-in">
             Frequently Asked Questions
           </h1>
-          <p className="text-xl text-white/90 max-w-2xl mx-auto animate-fade-in">
+          <p className="text-xl text-white/90 max-w-2xl mx-auto mb-2 animate-fade-in">
             Find answers to common questions about our services and how we can help you achieve success in content creation.
           </p>
         </div>
       </div>
 
       {/* Search Section */}
-      <section className="py-4 relative z-10">
+      <section className="py-2 relative z-10">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="relative animate-fade-in">
             <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-white/50 h-5 w-5" />
@@ -167,7 +167,7 @@ const FAQ = () => {
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           {filteredFaqs.map((category, categoryIndex) => (
             <div key={category.category} className="mb-6 animate-fade-in" style={{ animationDelay: `${categoryIndex * 100}ms` }}>
-              <h2 className="text-2xl font-bold text-white mb-4 text-center">{category.category}</h2>
+              <h2 className="text-2xl font-bold text-white mb-5 text-center">{category.category}</h2>
               <Accordion type="single" collapsible className="space-y-2">
                 {category.questions.map((faq, index) => (
                   <AccordionItem 
@@ -204,7 +204,7 @@ const FAQ = () => {
       </section>
 
       {/* Quick Stats */}
-      <section className="py-16 relative z-10">
+      <section className="py-8 relative z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
             <div className="p-6 rounded-xl bg-white/10 backdrop-blur-md border border-white/20 animate-fade-in">
@@ -227,22 +227,21 @@ const FAQ = () => {
       </section>
 
       {/* CTA Section */}
-      <section className="py-24 relative overflow-hidden z-10">
+      <section className="pt-4 pb-16 relative overflow-hidden z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
-          <h2 className="text-3xl md:text-4xl font-bold text-white mb-6 font-heading animate-fade-in">
-            Still Have Questions?
+          <h2 className="text-3xl md:text-4xl font-bold text-white mb-3 font-heading animate-fade-in">
+            Ready to Start Earning More?
           </h2>
-          <p className="text-xl text-white/90 mb-8 max-w-2xl mx-auto animate-fade-in">
-            Our team is here to help you succeed. Get personalized answers and start your journey with us today.
+          <p className="text-lg text-white/90 mb-6 max-w-2xl mx-auto animate-fade-in">
+            Join the models already growing with Ozc Agency. Apply now and let's build your success together.
           </p>
           <div className="flex justify-center">
             <Button
               size="lg"
               onClick={() => navigate('/onboarding')}
-              className="relative group bg-white/10 backdrop-blur-md text-white border border-white/20 hover:bg-white hover:text-primary hover:scale-105 transition-all duration-500 shadow-[0_0_30px_rgba(255,255,255,0.3)] hover:shadow-[0_0_40px_rgba(255,255,255,0.5)] px-12 py-4 text-lg font-semibold rounded-xl overflow-hidden"
+              className="bg-white text-primary hover:bg-white/90 hover:scale-105 transition-all duration-300 px-14 py-5 text-lg font-bold rounded-xl shadow-lg hover:shadow-xl"
             >
-              <span className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-              <span className="relative z-10">Start Your Journey</span>
+              Apply Now — It's Free
             </Button>
           </div>
         </div>
