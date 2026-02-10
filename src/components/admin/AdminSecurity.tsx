@@ -39,19 +39,9 @@ const AdminSecurity = () => {
   useEffect(() => {
     const fetchData = async () => {
       const [attemptsRes, visitsRes, countRes] = await Promise.all([
-        supabase
-          .from("admin_login_attempts")
-          .select("*")
-          .order("created_at", { ascending: false })
-          .limit(50),
-        supabase
-          .from("site_visits")
-          .select("*")
-          .order("created_at", { ascending: false })
-          .limit(50),
-        supabase
-          .from("site_visits")
-          .select("id", { count: "exact", head: true }),
+        supabase.from("admin_login_attempts").select("*").order("created_at", { ascending: false }).limit(50),
+        supabase.from("site_visits").select("*").order("created_at", { ascending: false }).limit(50),
+        supabase.from("site_visits").select("id", { count: "exact", head: true }),
       ]);
 
       if (attemptsRes.data) {
@@ -63,90 +53,70 @@ const AdminSecurity = () => {
         const ips = new Set(visitsRes.data.map((v) => v.visitor_ip).filter(Boolean));
         setUniqueIPs(ips.size);
       }
-      if (countRes.count !== null) {
-        setTotalVisits(countRes.count);
-      }
+      if (countRes.count !== null) setTotalVisits(countRes.count);
     };
-
     fetchData();
   }, []);
 
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleString();
-  };
+  const formatDate = (dateStr: string) => new Date(dateStr).toLocaleString();
 
   return (
     <div className="space-y-6">
-      {/* Stats Cards */}
+      {/* Stats */}
       <div className="grid gap-4 md:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Visits</CardTitle>
-            <Eye className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalVisits.toLocaleString()}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Unique IPs</CardTitle>
-            <Users className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{uniqueIPs}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Login Attempts</CardTitle>
-            <Shield className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{loginAttempts.length}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Failed Logins</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-destructive" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-destructive">{failedLogins}</div>
-          </CardContent>
-        </Card>
+        {[
+          { title: "Total Visits", value: totalVisits.toLocaleString(), icon: Eye },
+          { title: "Unique IPs", value: uniqueIPs.toString(), icon: Users },
+          { title: "Login Attempts", value: loginAttempts.length.toString(), icon: Shield },
+          { title: "Failed Logins", value: failedLogins.toString(), icon: AlertTriangle, destructive: true },
+        ].map((stat) => (
+          <Card key={stat.title} className="bg-white/5 backdrop-blur-sm border-white/10">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-white/50">{stat.title}</CardTitle>
+              <stat.icon className={`h-4 w-4 ${stat.destructive ? "text-red-400" : "text-accent"}`} />
+            </CardHeader>
+            <CardContent>
+              <div className={`text-2xl font-bold ${stat.destructive ? "text-red-400" : "text-white"}`}>
+                {stat.value}
+              </div>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
-      {/* Login Attempts Table */}
-      <Card>
+      {/* Login Attempts */}
+      <Card className="bg-white/5 backdrop-blur-sm border-white/10">
         <CardHeader>
-          <CardTitle>Admin Login Attempts</CardTitle>
+          <CardTitle className="text-white">Admin Login Attempts</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead>Timestamp</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>IP Address</TableHead>
-                <TableHead>Status</TableHead>
+              <TableRow className="border-white/10 hover:bg-transparent">
+                <TableHead className="text-white/50">Timestamp</TableHead>
+                <TableHead className="text-white/50">Email</TableHead>
+                <TableHead className="text-white/50">IP Address</TableHead>
+                <TableHead className="text-white/50">Status</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loginAttempts.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={4} className="text-center text-muted-foreground">
+                <TableRow className="border-white/10 hover:bg-white/5">
+                  <TableCell colSpan={4} className="text-center text-white/30">
                     No login attempts recorded yet
                   </TableCell>
                 </TableRow>
               ) : (
                 loginAttempts.map((attempt) => (
-                  <TableRow key={attempt.id}>
-                    <TableCell className="text-xs">{formatDate(attempt.created_at)}</TableCell>
-                    <TableCell>{attempt.email || "—"}</TableCell>
-                    <TableCell className="font-mono text-xs">{attempt.ip_address || "—"}</TableCell>
+                  <TableRow key={attempt.id} className="border-white/10 hover:bg-white/5">
+                    <TableCell className="text-xs text-white/60">{formatDate(attempt.created_at)}</TableCell>
+                    <TableCell className="text-white/70">{attempt.email || "—"}</TableCell>
+                    <TableCell className="font-mono text-xs text-white/50">{attempt.ip_address || "—"}</TableCell>
                     <TableCell>
-                      <Badge variant={attempt.success ? "default" : "destructive"}>
+                      <Badge className={attempt.success
+                        ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20"
+                        : "bg-red-500/10 text-red-400 border-red-500/20 hover:bg-red-500/20"
+                      }>
                         {attempt.success ? "Success" : "Failed"}
                       </Badge>
                     </TableCell>
@@ -158,33 +128,33 @@ const AdminSecurity = () => {
         </CardContent>
       </Card>
 
-      {/* Recent Visits Table */}
-      <Card>
+      {/* Recent Visits */}
+      <Card className="bg-white/5 backdrop-blur-sm border-white/10">
         <CardHeader>
-          <CardTitle>Recent Site Visits</CardTitle>
+          <CardTitle className="text-white">Recent Site Visits</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead>Timestamp</TableHead>
-                <TableHead>Page</TableHead>
-                <TableHead>IP Address</TableHead>
+              <TableRow className="border-white/10 hover:bg-transparent">
+                <TableHead className="text-white/50">Timestamp</TableHead>
+                <TableHead className="text-white/50">Page</TableHead>
+                <TableHead className="text-white/50">IP Address</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {visits.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={3} className="text-center text-muted-foreground">
+                <TableRow className="border-white/10 hover:bg-white/5">
+                  <TableCell colSpan={3} className="text-center text-white/30">
                     No visits recorded yet
                   </TableCell>
                 </TableRow>
               ) : (
                 visits.map((visit) => (
-                  <TableRow key={visit.id}>
-                    <TableCell className="text-xs">{formatDate(visit.created_at)}</TableCell>
-                    <TableCell>{visit.page_path}</TableCell>
-                    <TableCell className="font-mono text-xs">{visit.visitor_ip || "—"}</TableCell>
+                  <TableRow key={visit.id} className="border-white/10 hover:bg-white/5">
+                    <TableCell className="text-xs text-white/60">{formatDate(visit.created_at)}</TableCell>
+                    <TableCell className="text-white/70">{visit.page_path}</TableCell>
+                    <TableCell className="font-mono text-xs text-white/50">{visit.visitor_ip || "—"}</TableCell>
                   </TableRow>
                 ))
               )}
