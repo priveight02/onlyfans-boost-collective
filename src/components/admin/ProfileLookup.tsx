@@ -47,40 +47,40 @@ interface MetricCardProps {
 }
 
 const MetricCard = ({ label, value, icon: Icon, color, source, subtext, delta }: MetricCardProps) => (
-  <div className="bg-white/[0.03] rounded-lg p-3 border border-white/[0.05] group relative">
+  <div className="bg-white/[0.06] backdrop-blur-sm rounded-xl p-4 border border-white/[0.08] group relative transition-colors hover:bg-white/[0.08]">
     <div className="flex items-start justify-between">
-      <Icon className={`h-4 w-4 ${color} mb-1.5`} />
+      <Icon className={`h-4 w-4 ${color} mb-2`} />
       {source && (
-        <span className="text-[8px] text-white/20 bg-white/5 px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity">{source}</span>
+        <span className="text-[10px] text-white/30 bg-white/[0.06] px-1.5 py-0.5 rounded-md opacity-0 group-hover:opacity-100 transition-opacity">{source}</span>
       )}
     </div>
     <div className="flex items-end gap-1.5">
-      <p className="text-lg font-bold text-white truncate">{typeof value === "number" ? value.toLocaleString() : value}</p>
+      <p className="text-lg font-bold text-white/90 truncate">{typeof value === "number" ? value.toLocaleString() : value}</p>
       {delta !== undefined && delta !== null && (
-        <span className={`text-[10px] flex items-center gap-0.5 mb-0.5 ${delta >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-          {delta >= 0 ? <ArrowUpRight className="h-2.5 w-2.5" /> : <ArrowDownRight className="h-2.5 w-2.5" />}
+        <span className={`text-xs flex items-center gap-0.5 mb-0.5 ${delta >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+          {delta >= 0 ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
           {Math.abs(delta).toFixed(1)}%
         </span>
       )}
     </div>
-    <p className="text-[10px] text-white/30">{label}</p>
-    {subtext && <p className="text-[9px] text-white/20 mt-0.5 truncate">{subtext}</p>}
+    <p className="text-xs text-white/50 mt-0.5">{label}</p>
+    {subtext && <p className="text-[11px] text-white/35 mt-0.5 truncate">{subtext}</p>}
   </div>
 );
 
 const DataSourceBadge = ({ source, timestamp }: { source: string; timestamp?: string }) => (
   <div className="flex items-center gap-1.5">
     <div className={`w-1.5 h-1.5 rounded-full ${source === "API" ? "bg-emerald-400" : source === "Derived" ? "bg-amber-400" : "bg-blue-400"}`} />
-    <span className="text-[9px] text-white/25">{source}</span>
-    {timestamp && <span className="text-[8px] text-white/15">• {timestamp}</span>}
+    <span className="text-[11px] text-white/40">{source}</span>
+    {timestamp && <span className="text-[10px] text-white/25">• {timestamp}</span>}
   </div>
 );
 
 const SectionCard = ({ title, icon: Icon, children, badge }: { title: string; icon: React.ElementType; children: React.ReactNode; badge?: string }) => (
-  <Card className="bg-white/[0.04] border-white/[0.08]">
-    <CardHeader className="pb-2">
+  <Card className="bg-white/[0.05] backdrop-blur-sm border-white/[0.08] rounded-xl shadow-lg shadow-black/10">
+    <CardHeader className="pb-3">
       <div className="flex items-center justify-between">
-        <CardTitle className="text-sm text-white/70 flex items-center gap-2"><Icon className="h-4 w-4" /> {title}</CardTitle>
+        <CardTitle className="text-sm font-semibold text-white/80 flex items-center gap-2"><Icon className="h-4 w-4 text-white/50" /> {title}</CardTitle>
         {badge && <DataSourceBadge source={badge} />}
       </div>
     </CardHeader>
@@ -92,17 +92,17 @@ const FanTable = ({ fans, title }: { fans: any[]; title: string }) => {
   if (!fans?.length) return null;
   return (
     <SectionCard title={title} icon={Users} badge="API">
-      <div className="space-y-1.5 max-h-60 overflow-y-auto">
+      <div className="space-y-2 max-h-72 overflow-y-auto pr-1 scrollbar-thin">
         {fans.slice(0, 30).map((fan: any, i: number) => (
-          <div key={fan.id || i} className="flex items-center gap-3 bg-white/[0.02] rounded p-2 border border-white/[0.03]">
-            {fan.avatar && <img src={fan.avatar} alt="" className="w-7 h-7 rounded-full" />}
+          <div key={fan.id || i} className="flex items-center gap-3 bg-white/[0.04] rounded-lg p-2.5 border border-white/[0.06] hover:bg-white/[0.07] transition-colors">
+            {fan.avatar && <img src={fan.avatar} alt="" className="w-8 h-8 rounded-full ring-1 ring-white/10" />}
             <div className="flex-1 min-w-0">
-              <p className="text-xs text-white/60 truncate">{fan.name || fan.username || `Fan #${i + 1}`}</p>
-              {fan.username && <p className="text-[10px] text-white/25">@{fan.username}</p>}
+              <p className="text-sm text-white/70 truncate font-medium">{fan.name || fan.username || `Fan #${i + 1}`}</p>
+              {fan.username && <p className="text-xs text-white/35">@{fan.username}</p>}
             </div>
-            {fan.subscribedOn && <span className="text-[10px] text-white/20">{new Date(fan.subscribedOn).toLocaleDateString()}</span>}
-            {fan.totalSpent !== undefined && <span className="text-[10px] text-emerald-400">${Number(fan.totalSpent || 0).toFixed(2)}</span>}
-            {fan.totalRevenue !== undefined && <span className="text-[10px] text-emerald-400">${Number(fan.totalRevenue || 0).toFixed(2)}</span>}
+            {fan.subscribedOn && <span className="text-xs text-white/35">{new Date(fan.subscribedOn).toLocaleDateString()}</span>}
+            {fan.totalSpent !== undefined && <span className="text-xs font-medium text-emerald-400">${Number(fan.totalSpent || 0).toFixed(2)}</span>}
+            {fan.totalRevenue !== undefined && <span className="text-xs font-medium text-emerald-400">${Number(fan.totalRevenue || 0).toFixed(2)}</span>}
           </div>
         ))}
       </div>
@@ -400,20 +400,20 @@ const ProfileLookup = () => {
       {/* Search */}
       <div className="flex gap-3">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30" />
-          <Input placeholder="Enter username (e.g. madison420ivy)" value={username} onChange={(e) => setUsername(e.target.value)} onKeyDown={(e) => e.key === "Enter" && lookupProfile()} className="pl-10 bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-accent" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
+          <Input placeholder="Enter username (e.g. madison420ivy)" value={username} onChange={(e) => setUsername(e.target.value)} onKeyDown={(e) => e.key === "Enter" && lookupProfile()} className="pl-10 bg-white/[0.06] border-white/[0.1] text-white placeholder:text-white/40 focus:border-accent h-11 rounded-xl text-sm" />
         </div>
-        <Button onClick={lookupProfile} disabled={loading || !username.trim()} className="bg-accent hover:bg-accent/80 text-white gap-2">
+        <Button onClick={lookupProfile} disabled={loading || !username.trim()} className="bg-accent hover:bg-accent/80 text-white gap-2 h-11 px-5 rounded-xl font-medium">
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
           {loading ? "Scanning..." : "Lookup"}
         </Button>
       </div>
 
       {loading && (
-        <div className="text-center py-8">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto text-accent/50 mb-3" />
-          <p className="text-sm text-white/30">Querying 60+ API endpoints in parallel...</p>
-          <p className="text-xs text-white/15 mt-1">Profile • Earnings • Subscribers • Fans • Chargebacks • Stories • Posts • Vault • Links • Settings</p>
+        <div className="text-center py-10">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto text-accent/60 mb-4" />
+          <p className="text-sm text-white/50 font-medium">Querying 60+ API endpoints in parallel...</p>
+          <p className="text-xs text-white/30 mt-1.5">Profile • Earnings • Subscribers • Fans • Chargebacks • Stories • Posts • Vault • Links • Settings</p>
         </div>
       )}
 
@@ -424,7 +424,7 @@ const ProfileLookup = () => {
             <div className="relative rounded-xl overflow-hidden h-44">
               <img src={profile.header} alt="" className="w-full h-full object-cover" />
               <div className="absolute inset-0 bg-gradient-to-t from-[hsl(220,60%,10%)] via-transparent to-transparent" />
-              <div className="absolute bottom-3 right-3 flex items-center gap-2">
+              <div className="absolute bottom-4 right-4 flex items-center gap-2">
                 <DataSourceBadge source="API" timestamp={new Date(fetchedAt).toLocaleTimeString()} />
                 <Badge className="bg-white/10 text-white/50 text-[9px] border-white/10">{data._meta?.endpointCount || data._meta?.endpoints?.length || 1} endpoints</Badge>
               </div>
@@ -432,38 +432,38 @@ const ProfileLookup = () => {
           )}
 
           {/* Identity */}
-          <Card className="bg-white/[0.04] border-white/[0.08] -mt-16 relative z-10 mx-4">
+          <Card className="bg-white/[0.05] backdrop-blur-sm border-white/[0.08] -mt-16 relative z-10 mx-4 rounded-xl shadow-lg shadow-black/10">
             <CardContent className="p-5">
               <div className="flex items-start gap-4">
                 <div className="shrink-0 -mt-12">
                   {profile.avatar ? (
-                    <img src={profile.avatar} alt={profile.name} className="w-20 h-20 rounded-xl object-cover border-4 border-[hsl(220,60%,10%)]" />
+                    <img src={profile.avatar} alt={profile.name} className="w-20 h-20 rounded-xl object-cover border-4 border-[hsl(220,60%,10%)] shadow-lg" />
                   ) : (
-                    <div className="w-20 h-20 rounded-xl bg-accent/20 flex items-center justify-center text-white text-2xl font-bold border-4 border-[hsl(220,60%,10%)]">{profile.name?.charAt(0) || "?"}</div>
+                    <div className="w-20 h-20 rounded-xl bg-accent/20 flex items-center justify-center text-white text-2xl font-bold border-4 border-[hsl(220,60%,10%)] shadow-lg">{profile.name?.charAt(0) || "?"}</div>
                   )}
                 </div>
                 <div className="flex-1 min-w-0 pt-1">
                   <div className="flex items-center gap-2 flex-wrap">
                     <h2 className="text-xl font-bold text-white">{profile.name}</h2>
-                    {profile.isVerified && <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30 text-[10px]"><Star className="h-3 w-3 mr-1" /> Verified</Badge>}
-                    {profile.isActive && <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[10px]">Active</Badge>}
+                    {profile.isVerified && <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30 text-xs"><Star className="h-3 w-3 mr-1" /> Verified</Badge>}
+                    {profile.isActive && <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-xs">Active</Badge>}
                     {topPercentage !== undefined && topPercentage !== null && (
-                      <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 text-[10px]"><Crown className="h-3 w-3 mr-1" /> Top {topPercentage}%</Badge>
+                      <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 text-xs"><Crown className="h-3 w-3 mr-1" /> Top {topPercentage}%</Badge>
                     )}
                   </div>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-sm text-white/40">@{profile.username}</span>
-                    <button onClick={() => copyField("Username", profile.username)}><Copy className="h-3 w-3 text-white/20 hover:text-white/50" /></button>
+                  <div className="flex items-center gap-2 mt-1.5">
+                    <span className="text-sm text-white/50 font-medium">@{profile.username}</span>
+                    <button onClick={() => copyField("Username", profile.username)} className="hover:scale-110 transition-transform"><Copy className="h-3.5 w-3.5 text-white/30 hover:text-white/60" /></button>
                   </div>
-                  <div className="flex items-center gap-4 mt-2 text-xs text-white/30 flex-wrap">
-                    <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{formatDate(profile.joinDate)}</span>
+                  <div className="flex items-center gap-4 mt-2.5 text-xs text-white/45 flex-wrap">
+                    <span className="flex items-center gap-1.5"><Calendar className="h-3.5 w-3.5" />{formatDate(profile.joinDate)}</span>
                     <span>{derived.days}d active</span>
-                    {modelStartDate && <span className="flex items-center gap-1"><Clock className="h-3 w-3" />Monetizing since {formatDate(modelStartDate)}</span>}
-                    {profile.location && <span className="flex items-center gap-1"><Globe className="h-3 w-3" />{profile.location}</span>}
+                    {modelStartDate && <span className="flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" />Monetizing since {formatDate(modelStartDate)}</span>}
+                    {profile.location && <span className="flex items-center gap-1.5"><Globe className="h-3.5 w-3.5" />{profile.location}</span>}
                   </div>
                 </div>
                 <a href={`https://onlyfans.com/${profile.username}`} target="_blank" rel="noopener noreferrer">
-                  <Button size="sm" variant="ghost" className="text-white/40 hover:text-white gap-1.5 text-xs"><ExternalLink className="h-3.5 w-3.5" /> View</Button>
+                  <Button size="sm" variant="ghost" className="text-white/50 hover:text-white gap-1.5 text-xs"><ExternalLink className="h-3.5 w-3.5" /> View</Button>
                 </a>
               </div>
             </CardContent>
@@ -484,18 +484,18 @@ const ProfileLookup = () => {
               { label: "Messaging", available: hasMessaging },
               { label: "Links", available: hasLinks },
             ].map((d) => (
-              <Badge key={d.label} variant="outline" className={`text-[10px] ${d.available ? "text-emerald-400 border-emerald-500/30 bg-emerald-500/10" : "text-white/15 border-white/5"}`}>
+              <Badge key={d.label} variant="outline" className={`text-xs px-2.5 py-1 ${d.available ? "text-emerald-400 border-emerald-500/30 bg-emerald-500/10" : "text-white/25 border-white/[0.08] bg-white/[0.02]"}`}>
                 {d.available ? "✓" : "✗"} {d.label}
               </Badge>
             ))}
             {hasAccountAccess && data._meta?.accountId && (
-              <Badge variant="outline" className="text-[9px] text-accent/50 border-accent/20 bg-accent/5">{data._meta.accountId}</Badge>
+              <Badge variant="outline" className="text-xs text-accent/60 border-accent/20 bg-accent/5 px-2.5 py-1">{data._meta.accountId}</Badge>
             )}
           </div>
 
           {/* Main tabs */}
           <Tabs defaultValue="overview" className="space-y-4">
-            <TabsList className="bg-white/5 border border-white/10 p-1 rounded-xl flex-wrap h-auto">
+            <TabsList className="bg-white/[0.04] backdrop-blur-sm border border-white/[0.08] p-1.5 rounded-xl flex-wrap h-auto gap-1">
               {[
                 { value: "overview", icon: BarChart3, label: "Overview" },
                 { value: "revenue", icon: DollarSign, label: "Revenue" },
@@ -512,7 +512,7 @@ const ProfileLookup = () => {
                 { value: "ai", icon: Sparkles, label: "AI Analysis" },
                 { value: "raw", icon: Shield, label: "Raw Data" },
               ].map(t => (
-                <TabsTrigger key={t.value} value={t.value} className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/40 rounded-lg gap-1.5 text-xs">
+                <TabsTrigger key={t.value} value={t.value} className="data-[state=active]:bg-white/[0.12] data-[state=active]:text-white data-[state=active]:shadow-sm text-white/50 hover:text-white/70 rounded-lg gap-1.5 text-xs font-medium px-3 py-2 transition-all">
                   <t.icon className="h-3.5 w-3.5" /> {t.label}
                 </TabsTrigger>
               ))}
@@ -584,7 +584,7 @@ const ProfileLookup = () => {
                     { label: "Can Earn", active: !!profile.canEarn },
                     { label: "Promo", active: !!profile.hasProfilePromotion },
                   ].map(f => (
-                    <Badge key={f.label} variant="outline" className={`text-[10px] ${f.active ? "text-emerald-400 border-emerald-500/30 bg-emerald-500/10" : "text-white/20 border-white/5"}`}>
+                    <Badge key={f.label} variant="outline" className={`text-xs px-2.5 py-1 ${f.active ? "text-emerald-400 border-emerald-500/30 bg-emerald-500/10" : "text-white/30 border-white/[0.08] bg-white/[0.02]"}`}>
                       {f.label}{f.detail ? `: ${f.detail}` : ""}
                     </Badge>
                   ))}
@@ -595,7 +595,7 @@ const ProfileLookup = () => {
                 <SectionCard title="Subscription Bundles" icon={Layers}>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     {profile.subscribeBundles.map((b: any) => (
-                      <div key={b.id || b.duration} className="bg-white/[0.03] rounded-lg p-3 border border-white/[0.05] text-center">
+                      <div key={b.id || b.duration} className="bg-white/[0.06] rounded-xl p-4 border border-white/[0.08] text-center">
                         <p className="text-lg font-bold text-white">{b.duration} mo</p>
                         <p className="text-xs text-emerald-400">{b.discount}% off</p>
                       </div>
@@ -682,12 +682,12 @@ const ProfileLookup = () => {
                   {/* Transactions table */}
                   {transactions && Array.isArray(transactions) && transactions.length > 0 && (
                     <SectionCard title={`Recent Transactions (${transactions.length})`} icon={DollarSign} badge="API">
-                      <div className="space-y-1.5 max-h-60 overflow-y-auto">
+                      <div className="space-y-2 max-h-72 overflow-y-auto">
                         {transactions.slice(0, 30).map((tx: any, i: number) => (
-                          <div key={tx.id || i} className="flex items-center gap-3 bg-white/[0.02] rounded p-2 border border-white/[0.03]">
+                          <div key={tx.id || i} className="flex items-center gap-3 bg-white/[0.04] rounded-lg p-2.5 border border-white/[0.06] hover:bg-white/[0.07] transition-colors">
                             <div className="flex-1 min-w-0">
-                              <p className="text-xs text-white/60 truncate">{tx.description || tx.type || "Transaction"}</p>
-                              <p className="text-[10px] text-white/25">{tx.createdAt ? new Date(tx.createdAt).toLocaleString() : ""}</p>
+                              <p className="text-sm text-white/70 truncate">{tx.description || tx.type || "Transaction"}</p>
+                              <p className="text-xs text-white/35">{tx.createdAt ? new Date(tx.createdAt).toLocaleString() : ""}</p>
                             </div>
                             <span className={`text-xs font-medium ${(tx.amount || 0) >= 0 ? "text-emerald-400" : "text-red-400"}`}>{fmt$(tx.amount || tx.net || 0)}</span>
                           </div>
@@ -697,11 +697,11 @@ const ProfileLookup = () => {
                   )}
                 </>
               ) : (
-                <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-4 flex items-start gap-3">
-                  <Info className="h-4 w-4 text-amber-400 mt-0.5 shrink-0" />
+                <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-5 flex items-start gap-3">
+                  <Info className="h-5 w-5 text-amber-400 mt-0.5 shrink-0" />
                   <div>
-                    <p className="text-sm text-amber-300 font-medium">Earnings data not available</p>
-                    <p className="text-xs text-amber-300/60 mt-1">Financial endpoints require account-level access. Only profiles linked to your API account return revenue data.</p>
+                    <p className="text-sm text-amber-300 font-semibold">Earnings data not available</p>
+                    <p className="text-sm text-amber-300/70 mt-1.5 leading-relaxed">Financial endpoints require account-level access. Only profiles linked to your API account return revenue data.</p>
                   </div>
                 </div>
               )}
@@ -817,10 +817,10 @@ const ProfileLookup = () => {
                       { label: "Posting Cadence", value: derived.postFreqPerDay >= 2 ? "High Volume" : derived.postFreqPerDay >= 0.5 ? "Consistent" : "Moderate", detail: `~${derived.postFreqPerWeek.toFixed(1)} posts/week` },
                       { label: "Content Density", value: (profile.mediasCount || 0) > (profile.postsCount || 0) ? "Multi-media" : "Single-media", detail: `${((profile.mediasCount || 0) / Math.max(profile.postsCount || 1, 1)).toFixed(1)} media/post` },
                     ].map(s => (
-                      <div key={s.label} className="bg-white/[0.03] rounded-lg p-3 border border-white/[0.05]">
-                        <p className="text-xs text-white/40">{s.label}</p>
-                        <p className="text-sm text-white/70 font-medium">{s.value}</p>
-                        <p className="text-[10px] text-white/25">{s.detail}</p>
+                      <div key={s.label} className="bg-white/[0.06] rounded-xl p-4 border border-white/[0.08]">
+                        <p className="text-xs text-white/50 mb-1">{s.label}</p>
+                        <p className="text-sm text-white/80 font-medium">{s.value}</p>
+                        <p className="text-xs text-white/35 mt-0.5">{s.detail}</p>
                       </div>
                     ))}
                   </div>
@@ -833,27 +833,27 @@ const ProfileLookup = () => {
                   {stories && Array.isArray(stories) && (
                     <SectionCard title={`Active Stories (${stories.length})`} icon={Video} badge="API">
                       {stories.length > 0 ? (
-                        <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                        <div className="space-y-2 max-h-48 overflow-y-auto">
                           {stories.map((s: any, i: number) => (
-                            <div key={s.id || i} className="bg-white/[0.02] rounded p-2 border border-white/[0.03] text-xs text-white/50">
+                            <div key={s.id || i} className="bg-white/[0.04] rounded-lg p-2.5 border border-white/[0.06] text-sm text-white/60">
                               Story #{i + 1} {s.createdAt && `• ${new Date(s.createdAt).toLocaleString()}`}
                             </div>
                           ))}
                         </div>
-                      ) : <p className="text-xs text-white/25">No active stories</p>}
+                      ) : <p className="text-sm text-white/35">No active stories</p>}
                     </SectionCard>
                   )}
                   {storyHighlights && Array.isArray(storyHighlights) && (
                     <SectionCard title={`Story Highlights (${storyHighlights.length})`} icon={Star} badge="API">
                       {storyHighlights.length > 0 ? (
-                        <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                        <div className="space-y-2 max-h-48 overflow-y-auto">
                           {storyHighlights.map((h: any, i: number) => (
-                            <div key={h.id || i} className="bg-white/[0.02] rounded p-2 border border-white/[0.03] text-xs text-white/50">
+                            <div key={h.id || i} className="bg-white/[0.04] rounded-lg p-2.5 border border-white/[0.06] text-sm text-white/60">
                               {h.title || h.name || `Highlight #${i + 1}`} {h.storiesCount !== undefined && `• ${h.storiesCount} stories`}
                             </div>
                           ))}
                         </div>
-                      ) : <p className="text-xs text-white/25">No highlights</p>}
+                      ) : <p className="text-sm text-white/35">No highlights</p>}
                     </SectionCard>
                   )}
                 </div>
@@ -876,27 +876,27 @@ const ProfileLookup = () => {
                   {vaultLists && Array.isArray(vaultLists) && vaultLists.length > 0 && (
                     <div className="flex flex-wrap gap-2 mb-3">
                       {vaultLists.map((l: any, i: number) => (
-                        <Badge key={l.id || i} variant="outline" className="text-[10px] text-white/40 border-white/10">
+                        <Badge key={l.id || i} variant="outline" className="text-xs text-white/50 border-white/[0.1] px-2.5 py-1">
                           {l.name || `List ${i + 1}`} {l.mediaCount !== undefined && `(${l.mediaCount})`}
                         </Badge>
                       ))}
                     </div>
                   )}
-                  <p className="text-xs text-white/25">{Array.isArray(vaultMedia) ? vaultMedia.length : 0} media items in vault</p>
+                  <p className="text-sm text-white/40">{Array.isArray(vaultMedia) ? vaultMedia.length : 0} media items in vault</p>
                 </SectionCard>
               )}
 
               {/* Promotions */}
               {promotions && Array.isArray(promotions) && promotions.length > 0 && (
                 <SectionCard title={`Promotions (${promotions.length})`} icon={Zap} badge="API">
-                  <div className="space-y-1.5">
+                  <div className="space-y-2">
                     {promotions.map((p: any, i: number) => (
-                      <div key={p.id || i} className="bg-white/[0.02] rounded p-2 border border-white/[0.03] flex items-center gap-3">
+                      <div key={p.id || i} className="bg-white/[0.04] rounded-lg p-3 border border-white/[0.06] flex items-center gap-3 hover:bg-white/[0.07] transition-colors">
                         <div className="flex-1">
-                          <p className="text-xs text-white/60">{p.type || "Promotion"} — {p.discount || p.amount || "?"}% off</p>
-                          <p className="text-[10px] text-white/25">{p.startDate || ""} → {p.endDate || ""}</p>
+                          <p className="text-sm text-white/70">{p.type || "Promotion"} — {p.discount || p.amount || "?"}% off</p>
+                          <p className="text-xs text-white/35">{p.startDate || ""} → {p.endDate || ""}</p>
                         </div>
-                        {p.status && <Badge variant="outline" className="text-[10px]">{p.status}</Badge>}
+                        {p.status && <Badge variant="outline" className="text-xs">{p.status}</Badge>}
                       </div>
                     ))}
                   </div>
@@ -1024,15 +1024,15 @@ const ProfileLookup = () => {
 
                   {chats && Array.isArray(chats) && chats.length > 0 && (
                     <SectionCard title={`Recent Chats (${chats.length})`} icon={MessageSquare} badge="API">
-                      <div className="space-y-1.5 max-h-60 overflow-y-auto">
+                      <div className="space-y-2 max-h-72 overflow-y-auto">
                         {chats.slice(0, 20).map((chat: any, i: number) => (
-                          <div key={chat.id || i} className="flex items-center gap-3 bg-white/[0.02] rounded p-2 border border-white/[0.03]">
-                            {chat.avatar && <img src={chat.avatar} alt="" className="w-6 h-6 rounded-full" />}
+                          <div key={chat.id || i} className="flex items-center gap-3 bg-white/[0.04] rounded-lg p-2.5 border border-white/[0.06] hover:bg-white/[0.07] transition-colors">
+                            {chat.avatar && <img src={chat.avatar} alt="" className="w-7 h-7 rounded-full ring-1 ring-white/10" />}
                             <div className="flex-1 min-w-0">
-                              <p className="text-xs text-white/60 truncate">{chat.name || chat.username || `Chat #${i + 1}`}</p>
-                              {chat.lastMessage && <p className="text-[10px] text-white/25 truncate">{chat.lastMessage}</p>}
+                              <p className="text-sm text-white/70 truncate font-medium">{chat.name || chat.username || `Chat #${i + 1}`}</p>
+                              {chat.lastMessage && <p className="text-xs text-white/35 truncate">{chat.lastMessage}</p>}
                             </div>
-                            {chat.unreadCount > 0 && <Badge className="bg-accent/20 text-accent text-[9px]">{chat.unreadCount}</Badge>}
+                            {chat.unreadCount > 0 && <Badge className="bg-accent/20 text-accent text-xs">{chat.unreadCount}</Badge>}
                           </div>
                         ))}
                       </div>
@@ -1041,13 +1041,13 @@ const ProfileLookup = () => {
 
                   {directMessages && Array.isArray(directMessages) && directMessages.length > 0 && (
                     <SectionCard title={`Direct Messages (${directMessages.length})`} icon={MessageSquare} badge="API">
-                      <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                      <div className="space-y-2 max-h-48 overflow-y-auto">
                         {directMessages.slice(0, 15).map((dm: any, i: number) => (
-                          <div key={dm.id || i} className="bg-white/[0.02] rounded p-2 border border-white/[0.03] flex items-center gap-3">
+                          <div key={dm.id || i} className="bg-white/[0.04] rounded-lg p-2.5 border border-white/[0.06] flex items-center gap-3 hover:bg-white/[0.07] transition-colors">
                             <div className="flex-1 min-w-0">
-                              <p className="text-xs text-white/50 truncate">{dm.text || "PPV Message"}</p>
+                              <p className="text-sm text-white/60 truncate">{dm.text || "PPV Message"}</p>
                             </div>
-                            {dm.purchaseAmount !== undefined && <span className="text-[10px] text-emerald-400">{fmt$(dm.purchaseAmount)}</span>}
+                            {dm.purchaseAmount !== undefined && <span className="text-xs font-medium text-emerald-400">{fmt$(dm.purchaseAmount)}</span>}
                           </div>
                         ))}
                       </div>
@@ -1055,9 +1055,9 @@ const ProfileLookup = () => {
                   )}
                 </>
               ) : (
-                <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-4 flex items-start gap-3">
-                  <Info className="h-4 w-4 text-amber-400 mt-0.5 shrink-0" />
-                  <p className="text-sm text-amber-300">Messaging data requires account-level access.</p>
+                <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-5 flex items-start gap-3">
+                  <Info className="h-5 w-5 text-amber-400 mt-0.5 shrink-0" />
+                  <p className="text-sm text-amber-300/80 leading-relaxed">Messaging data requires account-level access.</p>
                 </div>
               )}
             </TabsContent>
@@ -1068,16 +1068,16 @@ const ProfileLookup = () => {
                 <>
                   {trackingLinks && Array.isArray(trackingLinks) && trackingLinks.length > 0 && (
                     <SectionCard title={`Tracking Links (${trackingLinks.length})`} icon={Link2} badge="API">
-                      <div className="space-y-1.5 max-h-60 overflow-y-auto">
+                      <div className="space-y-2 max-h-72 overflow-y-auto">
                         {trackingLinks.map((link: any, i: number) => (
-                          <div key={link.id || i} className="flex items-center gap-3 bg-white/[0.02] rounded p-2 border border-white/[0.03]">
+                          <div key={link.id || i} className="flex items-center gap-3 bg-white/[0.04] rounded-lg p-2.5 border border-white/[0.06] hover:bg-white/[0.07] transition-colors">
                             <div className="flex-1 min-w-0">
-                              <p className="text-xs text-white/60 truncate">{link.name || link.code || `Link #${i + 1}`}</p>
-                              {link.url && <p className="text-[10px] text-white/25 truncate">{link.url}</p>}
+                              <p className="text-sm text-white/70 truncate font-medium">{link.name || link.code || `Link #${i + 1}`}</p>
+                              {link.url && <p className="text-xs text-white/35 truncate">{link.url}</p>}
                             </div>
-                            {link.clicks !== undefined && <span className="text-[10px] text-white/30">{link.clicks} clicks</span>}
-                            {link.subscribers !== undefined && <span className="text-[10px] text-blue-400">{link.subscribers} subs</span>}
-                            {link.revenue !== undefined && <span className="text-[10px] text-emerald-400">{fmt$(link.revenue)}</span>}
+                            {link.clicks !== undefined && <span className="text-xs text-white/45">{link.clicks} clicks</span>}
+                            {link.subscribers !== undefined && <span className="text-xs text-blue-400">{link.subscribers} subs</span>}
+                            {link.revenue !== undefined && <span className="text-xs font-medium text-emerald-400">{fmt$(link.revenue)}</span>}
                           </div>
                         ))}
                       </div>
@@ -1086,16 +1086,16 @@ const ProfileLookup = () => {
 
                   {trialLinks && Array.isArray(trialLinks) && trialLinks.length > 0 && (
                     <SectionCard title={`Free Trial Links (${trialLinks.length})`} icon={Zap} badge="API">
-                      <div className="space-y-1.5 max-h-60 overflow-y-auto">
+                      <div className="space-y-2 max-h-72 overflow-y-auto">
                         {trialLinks.map((link: any, i: number) => (
-                          <div key={link.id || i} className="flex items-center gap-3 bg-white/[0.02] rounded p-2 border border-white/[0.03]">
+                          <div key={link.id || i} className="flex items-center gap-3 bg-white/[0.04] rounded-lg p-2.5 border border-white/[0.06] hover:bg-white/[0.07] transition-colors">
                             <div className="flex-1 min-w-0">
-                              <p className="text-xs text-white/60 truncate">{link.name || link.code || `Trial #${i + 1}`}</p>
-                              {link.duration && <p className="text-[10px] text-white/25">{link.duration} days</p>}
+                              <p className="text-sm text-white/70 truncate font-medium">{link.name || link.code || `Trial #${i + 1}`}</p>
+                              {link.duration && <p className="text-xs text-white/35">{link.duration} days</p>}
                             </div>
-                            {link.claimsCount !== undefined && <span className="text-[10px] text-blue-400">{link.claimsCount} claimed</span>}
-                            {link.subscribersCount !== undefined && <span className="text-[10px] text-violet-400">{link.subscribersCount} subs</span>}
-                            {link.revenue !== undefined && <span className="text-[10px] text-emerald-400">{fmt$(link.revenue)}</span>}
+                            {link.claimsCount !== undefined && <span className="text-xs text-blue-400">{link.claimsCount} claimed</span>}
+                            {link.subscribersCount !== undefined && <span className="text-xs text-violet-400">{link.subscribersCount} subs</span>}
+                            {link.revenue !== undefined && <span className="text-xs font-medium text-emerald-400">{fmt$(link.revenue)}</span>}
                           </div>
                         ))}
                       </div>
@@ -1103,9 +1103,9 @@ const ProfileLookup = () => {
                   )}
                 </>
               ) : (
-                <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-4 flex items-start gap-3">
-                  <Info className="h-4 w-4 text-amber-400 mt-0.5 shrink-0" />
-                  <p className="text-sm text-amber-300">Link data requires account-level access.</p>
+                <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-5 flex items-start gap-3">
+                  <Info className="h-5 w-5 text-amber-400 mt-0.5 shrink-0" />
+                  <p className="text-sm text-amber-300/80 leading-relaxed">Link data requires account-level access.</p>
                 </div>
               )}
             </TabsContent>
@@ -1131,14 +1131,14 @@ const ProfileLookup = () => {
 
                   {chargebacks && Array.isArray(chargebacks) && chargebacks.length > 0 && (
                     <SectionCard title={`Chargebacks (${chargebacks.length})`} icon={AlertTriangle} badge="API">
-                      <div className="space-y-1.5 max-h-60 overflow-y-auto">
+                      <div className="space-y-2 max-h-72 overflow-y-auto">
                         {chargebacks.map((cb: any, i: number) => (
-                          <div key={cb.id || i} className="flex items-center gap-3 bg-white/[0.02] rounded p-2 border border-white/[0.03]">
+                          <div key={cb.id || i} className="flex items-center gap-3 bg-white/[0.04] rounded-lg p-2.5 border border-white/[0.06] hover:bg-white/[0.07] transition-colors">
                             <div className="flex-1 min-w-0">
-                              <p className="text-xs text-white/60">{cb.type || cb.reason || "Chargeback"}</p>
-                              <p className="text-[10px] text-white/25">{cb.createdAt ? new Date(cb.createdAt).toLocaleString() : ""}</p>
+                              <p className="text-sm text-white/70">{cb.type || cb.reason || "Chargeback"}</p>
+                              <p className="text-xs text-white/35">{cb.createdAt ? new Date(cb.createdAt).toLocaleString() : ""}</p>
                             </div>
-                            <span className="text-xs text-red-400">{fmt$(cb.amount || 0)}</span>
+                            <span className="text-sm font-medium text-red-400">{fmt$(cb.amount || 0)}</span>
                           </div>
                         ))}
                       </div>
@@ -1146,9 +1146,9 @@ const ProfileLookup = () => {
                   )}
                 </>
               ) : (
-                <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-4 flex items-start gap-3">
-                  <AlertTriangle className="h-4 w-4 text-emerald-400 mt-0.5 shrink-0" />
-                  <p className="text-sm text-emerald-300">No chargeback data available (either clean record or requires account access).</p>
+                <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-5 flex items-start gap-3">
+                  <AlertTriangle className="h-5 w-5 text-emerald-400 mt-0.5 shrink-0" />
+                  <p className="text-sm text-emerald-300/80 leading-relaxed">No chargeback data available (either clean record or requires account access).</p>
                 </div>
               )}
             </TabsContent>
@@ -1183,14 +1183,14 @@ const ProfileLookup = () => {
                     topMessage && { title: "Top PPV Message Performing", detail: `${topMessage.purchases || 0} purchases generating revenue.`, impact: "HIGH" },
                     chargebackRatio?.ratio !== undefined && chargebackRatio.ratio < 1 && { title: "Low Chargeback Ratio", detail: `${chargebackRatio.ratio}% — healthy payment profile.`, impact: "MEDIUM" },
                   ].filter(Boolean).map((item: any, i) => (
-                    <div key={i} className="flex items-start gap-3 bg-white/[0.03] rounded-lg p-3 border border-white/[0.05]">
+                    <div key={i} className="flex items-start gap-3 bg-white/[0.05] rounded-xl p-4 border border-white/[0.07]">
                       <Zap className={`h-4 w-4 mt-0.5 shrink-0 ${item.impact === "HIGH" ? "text-emerald-400" : "text-amber-400"}`} />
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
-                          <p className="text-sm text-white/70 font-medium">{item.title}</p>
-                          <Badge className={`text-[9px] ${item.impact === "HIGH" ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" : "bg-amber-500/20 text-amber-400 border-amber-500/30"}`}>{item.impact}</Badge>
+                          <p className="text-sm text-white/80 font-semibold">{item.title}</p>
+                          <Badge className={`text-xs ${item.impact === "HIGH" ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" : "bg-amber-500/20 text-amber-400 border-amber-500/30"}`}>{item.impact}</Badge>
                         </div>
-                        <p className="text-xs text-white/40 mt-0.5">{item.detail}</p>
+                        <p className="text-sm text-white/50 mt-1">{item.detail}</p>
                       </div>
                     </div>
                   ))}
@@ -1215,9 +1215,9 @@ const ProfileLookup = () => {
                     massMessagingOverview?.sentCount ? `Mass messaging active (${massMessagingOverview.sentCount} sent)` : "",
                     trackingLinks && Array.isArray(trackingLinks) ? `${trackingLinks.length} tracking links for attribution` : "",
                   ].filter(Boolean).map((s, i) => (
-                    <div key={i} className="flex items-start gap-2 bg-white/[0.03] rounded-lg p-2.5 border border-white/[0.05]">
-                      <span className="text-blue-400 font-bold text-xs mt-0.5">{i + 1}.</span>
-                      <p className="text-xs text-white/50">{s}</p>
+                    <div key={i} className="flex items-start gap-2.5 bg-white/[0.05] rounded-xl p-3 border border-white/[0.07]">
+                      <span className="text-blue-400 font-bold text-sm mt-0.5">{i + 1}.</span>
+                      <p className="text-sm text-white/60">{s}</p>
                     </div>
                   ))}
                 </CardContent>
@@ -1228,15 +1228,15 @@ const ProfileLookup = () => {
             <TabsContent value="bio" className="space-y-4">
               <SectionCard title="Full Bio" icon={FileText} badge="API">
                 <div className="flex justify-end mb-2">
-                  <Button size="sm" variant="ghost" onClick={() => copyField("Bio", preserveFormatting(profile.about))} className="text-white/30 hover:text-white h-6 text-xs gap-1"><Copy className="h-3 w-3" /> Copy</Button>
+                  <Button size="sm" variant="ghost" onClick={() => copyField("Bio", preserveFormatting(profile.about))} className="text-white/40 hover:text-white h-7 text-xs gap-1.5"><Copy className="h-3.5 w-3.5" /> Copy</Button>
                 </div>
-                <div className={`${bioExpanded ? "" : "max-h-40 overflow-hidden"} relative`}>
-                  <pre className="text-sm text-white/60 leading-relaxed whitespace-pre-wrap font-sans">{preserveFormatting(profile.about) || "No bio available"}</pre>
-                  {!bioExpanded && profile.about?.length > 200 && <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-[hsl(220,60%,10%)] to-transparent" />}
+                <div className={`${bioExpanded ? "" : "max-h-48 overflow-hidden"} relative`}>
+                  <pre className="text-sm text-white/70 leading-relaxed whitespace-pre-wrap font-sans">{preserveFormatting(profile.about) || "No bio available"}</pre>
+                  {!bioExpanded && profile.about?.length > 200 && <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-[hsl(220,60%,10%)] to-transparent" />}
                 </div>
                 {profile.about?.length > 200 && (
-                  <Button variant="ghost" size="sm" onClick={() => setBioExpanded(!bioExpanded)} className="text-white/30 hover:text-white mt-2 text-xs gap-1">
-                    {bioExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                  <Button variant="ghost" size="sm" onClick={() => setBioExpanded(!bioExpanded)} className="text-white/40 hover:text-white mt-3 text-xs gap-1.5">
+                    {bioExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
                     {bioExpanded ? "Collapse" : "Expand Full Bio"}
                   </Button>
                 )}
@@ -1245,31 +1245,31 @@ const ProfileLookup = () => {
               {bioAnalysis && (
                 <SectionCard title="Bio Intelligence" icon={Sparkles}>
                   <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-4">
-                    <div className="bg-white/[0.03] rounded-lg p-3 border border-white/[0.05] text-center">
-                      <p className="text-lg font-bold text-white">{bioAnalysis.wordCount}</p>
-                      <p className="text-[10px] text-white/30">Words</p>
+                    <div className="bg-white/[0.06] rounded-xl p-4 border border-white/[0.08] text-center">
+                      <p className="text-lg font-bold text-white/90">{bioAnalysis.wordCount}</p>
+                      <p className="text-xs text-white/45">Words</p>
                     </div>
-                    <div className="bg-white/[0.03] rounded-lg p-3 border border-white/[0.05] text-center">
-                      <p className="text-lg font-bold text-white">{bioAnalysis.sections.length}</p>
-                      <p className="text-[10px] text-white/30">Sections</p>
+                    <div className="bg-white/[0.06] rounded-xl p-4 border border-white/[0.08] text-center">
+                      <p className="text-lg font-bold text-white/90">{bioAnalysis.sections.length}</p>
+                      <p className="text-xs text-white/45">Sections</p>
                     </div>
                     {[
                       { label: "Emojis", active: bioAnalysis.hasEmojis },
                       { label: "CTA", active: bioAnalysis.hasCTA },
                       { label: "Links", active: bioAnalysis.hasLinks },
                     ].map(f => (
-                      <div key={f.label} className="bg-white/[0.03] rounded-lg p-3 border border-white/[0.05] text-center">
-                        <p className={`text-lg font-bold ${f.active ? "text-emerald-400" : "text-white/20"}`}>{f.active ? "✓" : "✗"}</p>
-                        <p className="text-[10px] text-white/30">{f.label}</p>
+                      <div key={f.label} className="bg-white/[0.06] rounded-xl p-4 border border-white/[0.08] text-center">
+                        <p className={`text-lg font-bold ${f.active ? "text-emerald-400" : "text-white/25"}`}>{f.active ? "✓" : "✗"}</p>
+                        <p className="text-xs text-white/45">{f.label}</p>
                       </div>
                     ))}
                   </div>
                   {bioAnalysis.topKeywords.length > 0 && (
                     <div>
-                      <p className="text-xs text-white/40 mb-2">Top Keywords</p>
-                      <div className="flex flex-wrap gap-1.5">
+                      <p className="text-sm text-white/50 mb-2 font-medium">Top Keywords</p>
+                      <div className="flex flex-wrap gap-2">
                         {bioAnalysis.topKeywords.map(([word, count]) => (
-                          <Badge key={word} variant="outline" className="text-[10px] text-white/40 border-white/10">{word} ({count})</Badge>
+                          <Badge key={word} variant="outline" className="text-xs text-white/50 border-white/[0.1] px-2.5 py-1">{word} ({count})</Badge>
                         ))}
                       </div>
                     </div>
@@ -1374,10 +1374,10 @@ const ProfileLookup = () => {
       )}
 
       {!profile && !loading && (
-        <div className="text-center py-16 text-white/20">
-          <Search className="h-10 w-10 mx-auto mb-3 opacity-50" />
-          <p className="text-sm">Search for a creator to access their full profile intelligence</p>
-          <p className="text-xs mt-1 text-white/15">Queries 60+ endpoints: profile, earnings, subscribers, fans, chargebacks, stories, vault, links, settings & more</p>
+        <div className="text-center py-20 text-white/40">
+          <Search className="h-12 w-12 mx-auto mb-4 opacity-40" />
+          <p className="text-base font-medium">Search for a creator to access their full profile intelligence</p>
+          <p className="text-sm mt-2 text-white/30">Queries 60+ endpoints: profile, earnings, subscribers, fans, chargebacks, stories, vault, links, settings & more</p>
         </div>
       )}
     </div>
