@@ -2,14 +2,18 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import AdminDashboard from "@/components/admin/AdminDashboard";
+import EnhancedDashboard from "@/components/admin/EnhancedDashboard";
 import AdminSecurity from "@/components/admin/AdminSecurity";
 import CRMAccountsTab from "@/components/admin/CRMAccountsTab";
 import ProfileLookup from "@/components/admin/ProfileLookup";
 import AudienceIntelligence from "@/components/admin/AudienceIntelligence";
 import TeamManagement from "@/components/admin/TeamManagement";
+import FinancialModule from "@/components/admin/FinancialModule";
+import ContractsManager from "@/components/admin/ContractsManager";
+import MessagingHub from "@/components/admin/MessagingHub";
+import TaskWorkflow from "@/components/admin/TaskWorkflow";
 import { supabase } from "@/integrations/supabase/client";
-import { Shield, LayoutDashboard, Lock, Settings, LogOut, Contact, Search, BarChart3, Users } from "lucide-react";
+import { Shield, LayoutDashboard, Lock, Settings, LogOut, Contact, Search, BarChart3, Users, DollarSign, FileText, MessageSquare, CheckSquare } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -61,8 +65,8 @@ const Admin = () => {
               <Shield className="h-6 w-6 text-accent" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold font-heading text-white">CRM Dashboard</h1>
-              <p className="text-sm text-white/50">Ozc Agency Management</p>
+              <h1 className="text-2xl font-bold font-heading text-white">Agency Command Center</h1>
+              <p className="text-sm text-white/50">Ozc Agency — Full CRM & Operations</p>
             </div>
           </div>
           <Button
@@ -77,56 +81,53 @@ const Admin = () => {
 
         {/* Tabs */}
         <Tabs defaultValue="dashboard" className="space-y-6">
-          <TabsList className="bg-white/5 backdrop-blur-sm border border-white/10 p-1 rounded-xl flex-wrap">
-            <TabsTrigger value="dashboard" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-2">
-              <LayoutDashboard className="h-4 w-4" />
-              Dashboard
+          <TabsList className="bg-white/5 backdrop-blur-sm border border-white/10 p-1 rounded-xl flex-wrap h-auto gap-1">
+            <TabsTrigger value="dashboard" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
+              <LayoutDashboard className="h-3.5 w-3.5" /> Dashboard
             </TabsTrigger>
-            <TabsTrigger value="users" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-2">
-              <Contact className="h-4 w-4" />
-              CRM
+            <TabsTrigger value="crm" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
+              <Contact className="h-3.5 w-3.5" /> CRM
             </TabsTrigger>
-            <TabsTrigger value="lookup" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-2">
-              <Search className="h-4 w-4" />
-              Profile Lookup
+            <TabsTrigger value="financial" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
+              <DollarSign className="h-3.5 w-3.5" /> Financials
             </TabsTrigger>
-            <TabsTrigger value="audience" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-2">
-              <BarChart3 className="h-4 w-4" />
-              Audience Intel
+            <TabsTrigger value="messaging" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
+              <MessageSquare className="h-3.5 w-3.5" /> Messaging
             </TabsTrigger>
-            <TabsTrigger value="security" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-2">
-              <Lock className="h-4 w-4" />
-              Security
+            <TabsTrigger value="tasks" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
+              <CheckSquare className="h-3.5 w-3.5" /> Tasks
             </TabsTrigger>
-            <TabsTrigger value="team" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-2">
-              <Users className="h-4 w-4" />
-              Team
+            <TabsTrigger value="contracts" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
+              <FileText className="h-3.5 w-3.5" /> Contracts
             </TabsTrigger>
-            <TabsTrigger value="settings" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-2">
-              <Settings className="h-4 w-4" />
-              Settings
+            <TabsTrigger value="team" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
+              <Users className="h-3.5 w-3.5" /> Team
+            </TabsTrigger>
+            <TabsTrigger value="lookup" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
+              <Search className="h-3.5 w-3.5" /> Lookup
+            </TabsTrigger>
+            <TabsTrigger value="audience" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
+              <BarChart3 className="h-3.5 w-3.5" /> Audience
+            </TabsTrigger>
+            <TabsTrigger value="security" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
+              <Lock className="h-3.5 w-3.5" /> Security
+            </TabsTrigger>
+            <TabsTrigger value="settings" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
+              <Settings className="h-3.5 w-3.5" /> Settings
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="dashboard" className="space-y-4">
-            <AdminDashboard />
-          </TabsContent>
-          <TabsContent value="users" className="space-y-4">
-            <CRMAccountsTab />
-          </TabsContent>
-          <TabsContent value="lookup" className="space-y-4">
-            <ProfileLookup />
-          </TabsContent>
-          <TabsContent value="audience" className="space-y-4">
-            <AudienceIntelligence accounts={accounts} />
-          </TabsContent>
-          <TabsContent value="security" className="space-y-4">
-            <AdminSecurity />
-          </TabsContent>
-          <TabsContent value="team" className="space-y-4">
-            <TeamManagement />
-          </TabsContent>
-          <TabsContent value="settings" className="space-y-4">
+          <TabsContent value="dashboard"><EnhancedDashboard /></TabsContent>
+          <TabsContent value="crm"><CRMAccountsTab /></TabsContent>
+          <TabsContent value="financial"><FinancialModule /></TabsContent>
+          <TabsContent value="messaging"><MessagingHub /></TabsContent>
+          <TabsContent value="tasks"><TaskWorkflow /></TabsContent>
+          <TabsContent value="contracts"><ContractsManager /></TabsContent>
+          <TabsContent value="team"><TeamManagement /></TabsContent>
+          <TabsContent value="lookup"><ProfileLookup /></TabsContent>
+          <TabsContent value="audience"><AudienceIntelligence accounts={accounts} /></TabsContent>
+          <TabsContent value="security"><AdminSecurity /></TabsContent>
+          <TabsContent value="settings">
             <Card className="bg-white/5 backdrop-blur-sm border-white/10">
               <CardHeader>
                 <CardTitle className="text-white">Site Settings</CardTitle>
@@ -135,18 +136,11 @@ const Admin = () => {
                 <div className="grid gap-4">
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-white/70">Site Title</label>
-                    <Input
-                      type="text"
-                      placeholder="Ozc Agency"
-                      className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-accent"
-                    />
+                    <Input type="text" placeholder="Ozc Agency" className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-accent" />
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-white/70">Site Description</label>
-                    <textarea
-                      className="w-full min-h-[100px] p-3 rounded-lg bg-white/5 border border-white/10 text-white placeholder:text-white/30 focus:border-accent focus:outline-none transition-colors"
-                      placeholder="Enter site description..."
-                    />
+                    <textarea className="w-full min-h-[100px] p-3 rounded-lg bg-white/5 border border-white/10 text-white placeholder:text-white/30 focus:border-accent focus:outline-none transition-colors" placeholder="Enter site description..." />
                   </div>
                 </div>
               </CardContent>
