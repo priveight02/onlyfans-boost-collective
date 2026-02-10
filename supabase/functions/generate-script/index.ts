@@ -212,24 +212,60 @@ ${isPremium ? "- This should be a masterclass in fan psychology and engagement. 
     const data = await response.json();
     let script: any = null;
 
+    console.log("AI response structure:", JSON.stringify({
+      hasChoices: !!data.choices,
+      choiceCount: data.choices?.length,
+      hasToolCalls: !!data.choices?.[0]?.message?.tool_calls,
+      hasContent: !!data.choices?.[0]?.message?.content,
+      contentType: typeof data.choices?.[0]?.message?.content,
+      contentPreview: typeof data.choices?.[0]?.message?.content === "string" 
+        ? data.choices[0].message.content.substring(0, 200) : "N/A",
+    }));
+
+    // Method 1: tool_calls
     const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
     if (toolCall?.function?.arguments) {
-      script = typeof toolCall.function.arguments === "string"
-        ? JSON.parse(toolCall.function.arguments)
-        : toolCall.function.arguments;
+      try {
+        script = typeof toolCall.function.arguments === "string"
+          ? JSON.parse(toolCall.function.arguments)
+          : toolCall.function.arguments;
+        console.log("Parsed from tool_calls");
+      } catch (e) { console.error("tool_calls parse error:", e); }
     }
 
+    // Method 2: content as string with JSON
     if (!script) {
       const content = data.choices?.[0]?.message?.content;
       if (content && typeof content === "string") {
-        const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/) || content.match(/(\{[\s\S]*\})/);
-        if (jsonMatch?.[1]) {
-          try { script = JSON.parse(jsonMatch[1].trim()); } catch {}
+        // Try code block first
+        const codeBlock = content.match(/```(?:json)?\s*([\s\S]*?)```/);
+        if (codeBlock?.[1]) {
+          try { script = JSON.parse(codeBlock[1].trim()); console.log("Parsed from code block"); } catch {}
+        }
+        // Try raw JSON object
+        if (!script) {
+          const rawJson = content.match(/(\{[\s\S]*"steps"\s*:\s*\[[\s\S]*\][\s\S]*\})/);
+          if (rawJson?.[1]) {
+            try { script = JSON.parse(rawJson[1].trim()); console.log("Parsed from raw JSON"); } catch {}
+          }
+        }
+      }
+      // Content could be an array of parts
+      if (!script && Array.isArray(content)) {
+        for (const part of content) {
+          const text = typeof part === "string" ? part : part?.text;
+          if (text) {
+            const m = text.match(/(\{[\s\S]*"steps"\s*:\s*\[[\s\S]*\][\s\S]*\})/);
+            if (m?.[1]) {
+              try { script = JSON.parse(m[1].trim()); console.log("Parsed from content array"); break; } catch {}
+            }
+          }
         }
       }
     }
 
     if (!script || !script.steps) {
+      console.error("Full AI response:", JSON.stringify(data).substring(0, 2000));
       throw new Error("No script generated - AI returned unexpected format");
     }
 
