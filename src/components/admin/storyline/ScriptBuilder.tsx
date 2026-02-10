@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -6,11 +6,14 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
 import {
   Plus, Trash2, MessageSquare, Image, DollarSign, Clock,
   GitBranch, Save, Copy, Zap, HelpCircle, Send, Film, Tag,
   ChevronDown, ChevronUp, GripVertical, ArrowDown, Play, Eye,
-  Sparkles, Loader2,
+  Sparkles, Loader2, Crown, Timer, BookOpen, Lightbulb,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -46,11 +49,85 @@ interface Script {
 const CATEGORIES = ["onboarding", "retention", "upsell", "premium", "reactivation", "general"];
 const SEGMENTS = ["all", "new_users", "active_users", "vip", "high_spenders", "inactive", "custom"];
 
+/* ── Script Templates ── */
+const SCRIPT_TEMPLATES = [
+  {
+    name: "Morning Routine",
+    description: "Casual morning content in bedroom/bathroom setting, 4 media items",
+    icon: "☀️",
+    category: "general",
+    steps: [
+      { step_type: "welcome", title: "Morning greeting", content: "Good morning {NAME}! Just woke up... 🥱", media_type: "", media_url: "", price: 0, delay_minutes: 0 },
+      { step_type: "free_content", title: "Casual preview", content: "Just took this for you 😊", media_type: "image", media_url: "1 casual selfie in bed, messy hair, natural look", price: 0, delay_minutes: 2 },
+      { step_type: "message", title: "Build rapport", content: "How did you sleep? I had the craziest dream last night 😂", media_type: "", media_url: "", price: 0, delay_minutes: 3 },
+      { step_type: "ppv_content", title: "Getting ready 1", content: "Getting ready for the day... want to see? 😏", media_type: "image", media_url: "2 images - getting ready, same bedroom setting", price: 5, delay_minutes: 5 },
+      { step_type: "condition", title: "Check response", content: "", media_type: "", media_url: "", price: 0, delay_minutes: 10, condition_logic: { condition: "Responded or purchased" } },
+      { step_type: "followup_purchased", title: "Thank + tease next", content: "Glad you liked it! 😘 Want to see what I'm wearing today?", media_type: "", media_url: "", price: 0, delay_minutes: 2 },
+      { step_type: "ppv_content", title: "Full outfit reveal", content: "Here's the full look 💕", media_type: "mixed", media_url: "2 photos + 15s video - full outfit, same room", price: 10, delay_minutes: 3 },
+      { step_type: "followup_ignored", title: "Re-engage", content: "Hey {NAME}, you missed my morning look! Here's a little preview 😉", media_type: "image", media_url: "1 teaser image, cropped", price: 0, delay_minutes: 60 },
+      { step_type: "ppv_content", title: "Premium set", content: "The complete morning set just for you ✨", media_type: "mixed", media_url: "3 images + 28s video - complete set, same setting", price: 20, delay_minutes: 5 },
+    ],
+  },
+  {
+    name: "Workout Session",
+    description: "Post-workout content in gym/home gym, progressive 5 media items",
+    icon: "💪",
+    category: "retention",
+    steps: [
+      { step_type: "welcome", title: "Workout done", content: "Just finished my workout {NAME}! 💦", media_type: "", media_url: "", price: 0, delay_minutes: 0 },
+      { step_type: "free_content", title: "Quick selfie", content: "Proof I actually went 😂", media_type: "image", media_url: "1 mirror selfie in gym clothes, sweaty", price: 0, delay_minutes: 1 },
+      { step_type: "question", title: "Engage", content: "Do you work out too? What's your routine?", media_type: "", media_url: "", price: 0, delay_minutes: 3 },
+      { step_type: "ppv_content", title: "Workout clips", content: "Some clips from today's session 🏋️‍♀️", media_type: "video", media_url: "Video 0:22 - workout highlights, gym setting", price: 7, delay_minutes: 5 },
+      { step_type: "ppv_content", title: "Post-workout", content: "The post-workout glow hits different 😏", media_type: "image", media_url: "3 images - post-workout, same gym/locker room", price: 12, delay_minutes: 5 },
+      { step_type: "condition", title: "Bought both?", content: "", media_type: "", media_url: "", price: 0, delay_minutes: 15, condition_logic: { condition: "Purchased previous content" } },
+      { step_type: "followup_purchased", title: "VIP offer", content: "Since you loved those... I have something special 😈", media_type: "", media_url: "", price: 0, delay_minutes: 2 },
+      { step_type: "ppv_content", title: "Exclusive set", content: "Full post-workout set - only for my favorites ✨", media_type: "mixed", media_url: "4 images + 35s video - complete set, same location", price: 25, delay_minutes: 3 },
+      { step_type: "followup_ignored", title: "Soft re-engage", content: "Hey {NAME}! Hope you're having a good day 💕 Missed you earlier", media_type: "", media_url: "", price: 0, delay_minutes: 120 },
+    ],
+  },
+  {
+    name: "Night Out Prep",
+    description: "Getting ready for a night out, bedroom/bathroom, 4 media items",
+    icon: "🌙",
+    category: "upsell",
+    steps: [
+      { step_type: "welcome", title: "Evening greeting", content: "Hey {NAME}! Getting ready to go out tonight 🥂", media_type: "", media_url: "", price: 0, delay_minutes: 0 },
+      { step_type: "free_content", title: "Outfit options", content: "Help me pick? 😊", media_type: "image", media_url: "1 image - holding up two outfits", price: 0, delay_minutes: 2 },
+      { step_type: "question", title: "Get input", content: "Left or right? Need your opinion!", media_type: "", media_url: "", price: 0, delay_minutes: 3 },
+      { step_type: "ppv_content", title: "Trying on", content: "Trying them on for you 😏", media_type: "image", media_url: "2 images - trying on outfits, bedroom mirror", price: 5, delay_minutes: 5 },
+      { step_type: "message", title: "Build anticipation", content: "Almost ready... doing my makeup now 💄", media_type: "", media_url: "", price: 0, delay_minutes: 10 },
+      { step_type: "ppv_content", title: "Final look", content: "What do you think? 🔥", media_type: "mixed", media_url: "2 images + 20s video - final look, same bathroom/bedroom", price: 12, delay_minutes: 5 },
+      { step_type: "ppv_content", title: "Exclusive BTS", content: "The full getting-ready experience just for you 💕", media_type: "mixed", media_url: "3 images + 40s video - complete BTS, same setting", price: 20, delay_minutes: 5 },
+      { step_type: "followup_purchased", title: "Thank you", content: "Thanks for helping me get ready {NAME}! I'll send you pics later tonight 😘", media_type: "", media_url: "", price: 0, delay_minutes: 2 },
+      { step_type: "followup_ignored", title: "FOMO", content: "You missed my getting-ready content! I looked amazing tonight 😏 Want to see?", media_type: "", media_url: "", price: 0, delay_minutes: 180 },
+    ],
+  },
+  {
+    name: "Lazy Day",
+    description: "Cozy at-home content, living room/couch setting, 5 media items",
+    icon: "🛋️",
+    category: "retention",
+    steps: [
+      { step_type: "welcome", title: "Lazy vibes", content: "Having the laziest day ever {NAME} 🛋️ just me and Netflix", media_type: "", media_url: "", price: 0, delay_minutes: 0 },
+      { step_type: "free_content", title: "Cozy preview", content: "Current mood 😴", media_type: "image", media_url: "1 cozy selfie on couch, blanket, casual", price: 0, delay_minutes: 2 },
+      { step_type: "question", title: "Conversation", content: "What are you watching lately? I need recommendations!", media_type: "", media_url: "", price: 0, delay_minutes: 5 },
+      { step_type: "ppv_content", title: "Cozy set 1", content: "Getting comfy... 😊", media_type: "image", media_url: "2 images - lounging on couch, same room, cozy outfit", price: 5, delay_minutes: 8 },
+      { step_type: "ppv_content", title: "Cozy set 2", content: "It's getting warm in here 🔥", media_type: "image", media_url: "2 images - same couch setting, more relaxed", price: 8, delay_minutes: 5 },
+      { step_type: "ppv_content", title: "Video content", content: "Just for you since you're keeping me company 💕", media_type: "video", media_url: "Video 0:30 - same room, personal message", price: 15, delay_minutes: 5 },
+      { step_type: "condition", title: "Engagement check", content: "", media_type: "", media_url: "", price: 0, delay_minutes: 15, condition_logic: { condition: "Active in conversation" } },
+      { step_type: "followup_purchased", title: "Premium bundle", content: "You've been so sweet today... here's something extra special 🎁", media_type: "", media_url: "", price: 0, delay_minutes: 3 },
+      { step_type: "ppv_content", title: "Full lazy day set", content: "The complete lazy day collection ✨", media_type: "mixed", media_url: "4 images + 45s video - full set, same couch/room", price: 25, delay_minutes: 3 },
+      { step_type: "followup_ignored", title: "Next day follow-up", content: "Hey {NAME}! You missed our lazy day together 😢 Want to make it up?", media_type: "", media_url: "", price: 0, delay_minutes: 1440 },
+    ],
+  },
+];
+
 const ScriptBuilder = () => {
   const [scripts, setScripts] = useState<any[]>([]);
   const [selectedScript, setSelectedScript] = useState<Script | null>(null);
   const [steps, setSteps] = useState<ScriptStep[]>([]);
   const [showNewDialog, setShowNewDialog] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(false);
   const [viewMode, setViewMode] = useState<"flow" | "edit">("flow");
   const [editingStep, setEditingStep] = useState<number | null>(null);
   const [newScript, setNewScript] = useState<Script>({
@@ -58,8 +135,17 @@ const ScriptBuilder = () => {
   });
   const [saving, setSaving] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [generatingQuality, setGeneratingQuality] = useState<"fast" | "premium" | null>(null);
+  const [generateRealMessages, setGenerateRealMessages] = useState(true);
+  const [genTimer, setGenTimer] = useState(0);
+  const [genEstimate, setGenEstimate] = useState(0);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => { loadScripts(); }, []);
+
+  useEffect(() => {
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  }, []);
 
   const loadScripts = async () => {
     const { data } = await supabase.from("scripts").select("*").order("created_at", { ascending: false });
@@ -99,6 +185,32 @@ const ScriptBuilder = () => {
     if (data) selectScript(data);
   };
 
+  const applyTemplate = async (template: typeof SCRIPT_TEMPLATES[0]) => {
+    const { data, error } = await supabase.from("scripts").insert({
+      title: template.name, description: template.description,
+      category: template.category, target_segment: "all",
+    }).select().single();
+    if (error) return toast.error(error.message);
+
+    const templateSteps: ScriptStep[] = template.steps.map((s, i) => ({
+      step_order: i, step_type: s.step_type, title: s.title, content: s.content,
+      media_url: s.media_url, media_type: s.media_type, price: s.price,
+      delay_minutes: s.delay_minutes, condition_logic: s.step_type === "condition" ? (s as any).condition_logic || {} : {},
+      conversion_rate: 0, drop_off_rate: 0, revenue_generated: 0, impressions: 0,
+    }));
+
+    if (data) {
+      await supabase.from("script_steps").insert(
+        templateSteps.map(s => ({ script_id: data.id, ...s }))
+      );
+    }
+
+    toast.success(`Template "${template.name}" applied!`);
+    setShowTemplates(false);
+    await loadScripts();
+    if (data) selectScript(data);
+  };
+
   const addStep = (type: string = "message") => {
     const newStep: ScriptStep = {
       step_order: steps.length, step_type: type, title: "", content: "",
@@ -125,6 +237,13 @@ const ScriptBuilder = () => {
     const newSteps = [...steps];
     const target = direction === "up" ? index - 1 : index + 1;
     [newSteps[index], newSteps[target]] = [newSteps[target], newSteps[index]];
+    setSteps(newSteps.map((s, i) => ({ ...s, step_order: i })));
+  };
+
+  const reorderSteps = (fromIndex: number, toIndex: number) => {
+    const newSteps = [...steps];
+    const [moved] = newSteps.splice(fromIndex, 1);
+    newSteps.splice(toIndex, 0, moved);
     setSteps(newSteps.map((s, i) => ({ ...s, step_order: i })));
   };
 
@@ -181,18 +300,31 @@ const ScriptBuilder = () => {
     if (data) selectScript(data);
   };
 
-  const generateFastScript = async () => {
+  const generateScript = async (quality: "fast" | "premium") => {
     setGenerating(true);
+    setGeneratingQuality(quality);
+    const estimate = quality === "premium" ? 25 : 10;
+    setGenEstimate(estimate);
+    setGenTimer(0);
+
+    timerRef.current = setInterval(() => {
+      setGenTimer(prev => prev + 1);
+    }, 1000);
+
     try {
       const category = selectedScript?.category || "general";
       const segment = selectedScript?.target_segment || "new_users";
       const { data, error } = await supabase.functions.invoke("generate-script", {
-        body: { category, target_segment: segment },
+        body: {
+          category,
+          target_segment: segment,
+          quality,
+          generate_real_messages: generateRealMessages,
+        },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
-      // If no script selected, create one first
       if (!selectedScript?.id) {
         const { data: newScriptData, error: createErr } = await supabase.from("scripts").insert({
           title: data.title || "AI Generated Script",
@@ -202,7 +334,6 @@ const ScriptBuilder = () => {
         }).select().single();
         if (createErr) throw createErr;
         setSelectedScript(newScriptData);
-        // Save steps to DB
         if (data.steps?.length > 0 && newScriptData) {
           await supabase.from("script_steps").insert(
             data.steps.map((s: any, i: number) => ({
@@ -217,7 +348,6 @@ const ScriptBuilder = () => {
         await loadScripts();
         if (newScriptData) await loadSteps(newScriptData.id);
       } else {
-        // Update existing script with generated steps
         const generatedSteps: ScriptStep[] = (data.steps || []).map((s: any, i: number) => ({
           step_order: i, step_type: s.step_type || "message",
           title: s.title || "", content: s.content || "",
@@ -229,11 +359,13 @@ const ScriptBuilder = () => {
         setSteps(generatedSteps);
         if (data.title) setSelectedScript(p => p ? { ...p, title: data.title, description: data.description || p.description } : p);
       }
-      toast.success("Script generated! Review and save.");
+      toast.success(`${quality === "premium" ? "Premium" : "Fast"} script generated! Review and edit inline.`);
     } catch (e: any) {
       toast.error(e.message || "Failed to generate script");
     } finally {
       setGenerating(false);
+      setGeneratingQuality(null);
+      if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
     }
   };
 
@@ -242,46 +374,130 @@ const ScriptBuilder = () => {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      {/* Header */}
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
           <h2 className="text-lg font-semibold text-white">Script Builder</h2>
-          <p className="text-xs text-white/40">Design multi-step chat flows with branching & progressive pricing</p>
+          <p className="text-xs text-white/40">Design structured content scripts with progressive pricing</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button size="sm" onClick={generateFastScript} disabled={generating}
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Real Messages Toggle */}
+          <div className="flex items-center gap-2 bg-white/5 rounded-lg px-3 py-1.5 border border-white/10">
+            <Switch id="real-msgs" checked={generateRealMessages} onCheckedChange={setGenerateRealMessages} />
+            <Label htmlFor="real-msgs" className="text-[10px] text-white/50 cursor-pointer">Real messages</Label>
+          </div>
+
+          {/* Generate Buttons */}
+          <Button size="sm" onClick={() => generateScript("fast")} disabled={generating}
             className="gap-1.5 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white border-0">
-            {generating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
-            {generating ? "Generating..." : "⚡ Generate Fast Script"}
+            {generatingQuality === "fast" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />}
+            {generatingQuality === "fast" ? "Generating..." : "⚡ Fast Script"}
           </Button>
+          <Button size="sm" onClick={() => generateScript("premium")} disabled={generating}
+            className="gap-1.5 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white border-0">
+            {generatingQuality === "premium" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Crown className="h-3.5 w-3.5" />}
+            {generatingQuality === "premium" ? "Generating..." : "👑 Premium Script"}
+          </Button>
+
+          {/* Templates */}
+          <Dialog open={showTemplates} onOpenChange={setShowTemplates}>
+            <DialogTrigger asChild>
+              <Button size="sm" variant="outline" className="gap-1.5 border-white/10 text-white/60 hover:text-white">
+                <BookOpen className="h-3.5 w-3.5" /> Templates
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="bg-[hsl(220,40%,13%)] border-white/10 text-white max-w-lg">
+              <DialogHeader><DialogTitle className="flex items-center gap-2"><Lightbulb className="h-4 w-4 text-amber-400" /> Script Templates</DialogTitle></DialogHeader>
+              <p className="text-xs text-white/40">Pre-built script structures you can customize. Each template includes 4-5 media items in a consistent setting with progressive pricing.</p>
+              <div className="space-y-2 mt-2 max-h-[400px] overflow-y-auto">
+                {SCRIPT_TEMPLATES.map((t, i) => (
+                  <button key={i} onClick={() => applyTemplate(t)}
+                    className="w-full text-left p-3 rounded-lg bg-white/[0.04] border border-white/[0.06] hover:bg-white/[0.08] transition-all">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-lg">{t.icon}</span>
+                      <span className="font-semibold text-sm text-white">{t.name}</span>
+                      <Badge variant="outline" className="text-[9px] border-white/10 text-white/40 ml-auto">{t.steps.length} steps</Badge>
+                      <Badge variant="outline" className="text-[9px] border-amber-500/20 text-amber-400">
+                        ${t.steps.reduce((sum, s) => sum + s.price, 0)}
+                      </Badge>
+                    </div>
+                    <p className="text-[11px] text-white/40">{t.description}</p>
+                    <div className="flex gap-1 mt-2 flex-wrap">
+                      {t.steps.filter(s => s.media_type).map((s, j) => (
+                        <span key={j} className="text-[8px] px-1.5 py-0.5 rounded bg-white/5 text-white/30">
+                          {s.media_type === "image" ? "📸" : s.media_type === "video" ? "🎬" : "📎"} {s.price > 0 ? `$${s.price}` : "free"}
+                        </span>
+                      ))}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </DialogContent>
+          </Dialog>
+
           <Dialog open={showNewDialog} onOpenChange={setShowNewDialog}>
             <DialogTrigger asChild>
-              <Button size="sm" className="gap-1.5 bg-accent hover:bg-accent/80"><Plus className="h-3.5 w-3.5" /> New Script</Button>
-          </DialogTrigger>
-          <DialogContent className="bg-[hsl(220,40%,13%)] border-white/10 text-white">
-            <DialogHeader><DialogTitle>Create New Script</DialogTitle></DialogHeader>
-            <div className="space-y-3">
-              <Input placeholder="Script title" value={newScript.title} onChange={e => setNewScript(p => ({ ...p, title: e.target.value }))} className="bg-white/5 border-white/10 text-white" />
-              <Input placeholder="Description" value={newScript.description} onChange={e => setNewScript(p => ({ ...p, description: e.target.value }))} className="bg-white/5 border-white/10 text-white" />
-              <div className="grid grid-cols-2 gap-2">
-                <Select value={newScript.category} onValueChange={v => setNewScript(p => ({ ...p, category: v }))}>
-                  <SelectTrigger className="bg-white/5 border-white/10 text-white"><SelectValue /></SelectTrigger>
-                  <SelectContent className="bg-[hsl(220,40%,15%)] border-white/10">
-                    {CATEGORIES.map(c => <SelectItem key={c} value={c} className="text-white">{c}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-                <Select value={newScript.target_segment} onValueChange={v => setNewScript(p => ({ ...p, target_segment: v }))}>
-                  <SelectTrigger className="bg-white/5 border-white/10 text-white"><SelectValue /></SelectTrigger>
-                  <SelectContent className="bg-[hsl(220,40%,15%)] border-white/10">
-                    {SEGMENTS.map(s => <SelectItem key={s} value={s} className="text-white">{s.replace(/_/g, " ")}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+              <Button size="sm" className="gap-1.5 bg-accent hover:bg-accent/80"><Plus className="h-3.5 w-3.5" /> New</Button>
+            </DialogTrigger>
+            <DialogContent className="bg-[hsl(220,40%,13%)] border-white/10 text-white">
+              <DialogHeader><DialogTitle>Create New Script</DialogTitle></DialogHeader>
+              <div className="space-y-3">
+                <Input placeholder="Script title" value={newScript.title} onChange={e => setNewScript(p => ({ ...p, title: e.target.value }))} className="bg-white/5 border-white/10 text-white" />
+                <Input placeholder="Description" value={newScript.description} onChange={e => setNewScript(p => ({ ...p, description: e.target.value }))} className="bg-white/5 border-white/10 text-white" />
+                <div className="grid grid-cols-2 gap-2">
+                  <Select value={newScript.category} onValueChange={v => setNewScript(p => ({ ...p, category: v }))}>
+                    <SelectTrigger className="bg-white/5 border-white/10 text-white"><SelectValue /></SelectTrigger>
+                    <SelectContent className="bg-[hsl(220,40%,15%)] border-white/10">
+                      {CATEGORIES.map(c => <SelectItem key={c} value={c} className="text-white">{c}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  <Select value={newScript.target_segment} onValueChange={v => setNewScript(p => ({ ...p, target_segment: v }))}>
+                    <SelectTrigger className="bg-white/5 border-white/10 text-white"><SelectValue /></SelectTrigger>
+                    <SelectContent className="bg-[hsl(220,40%,15%)] border-white/10">
+                      {SEGMENTS.map(s => <SelectItem key={s} value={s} className="text-white">{s.replace(/_/g, " ")}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button onClick={createScript} className="w-full bg-accent hover:bg-accent/80">Create Script</Button>
               </div>
-              <Button onClick={createScript} className="w-full bg-accent hover:bg-accent/80">Create Script</Button>
-            </div>
-          </DialogContent>
+            </DialogContent>
           </Dialog>
         </div>
       </div>
+
+      {/* Generation Loading Overlay */}
+      {generating && (
+        <Card className="bg-gradient-to-r from-purple-900/20 to-pink-900/20 border-purple-500/20 backdrop-blur-sm">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-4">
+              <div className="relative">
+                <div className="h-12 w-12 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 animate-pulse flex items-center justify-center">
+                  {generatingQuality === "premium" ? <Crown className="h-5 w-5 text-white" /> : <Zap className="h-5 w-5 text-white" />}
+                </div>
+                <div className="absolute inset-0 rounded-full border-2 border-purple-400/30 animate-spin" style={{ borderTopColor: "transparent" }} />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-white">
+                  {generatingQuality === "premium" ? "Generating Premium Script..." : "Generating Fast Script..."}
+                </p>
+                <p className="text-xs text-white/40">
+                  {generatingQuality === "premium"
+                    ? "Creating detailed flow with multiple branches, timing, and psychological hooks..."
+                    : "Creating efficient, production-ready script..."
+                  }
+                </p>
+                <div className="flex items-center gap-3 mt-2">
+                  <Progress value={Math.min((genTimer / genEstimate) * 100, 95)} className="h-1.5 flex-1" />
+                  <div className="flex items-center gap-1.5 text-white/50">
+                    <Timer className="h-3 w-3" />
+                    <span className="text-[10px] font-mono">{genTimer}s / ~{genEstimate}s</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
         {/* Script list sidebar */}
@@ -325,10 +541,10 @@ const ScriptBuilder = () => {
                     <div className="flex items-center gap-2">
                       <div className="flex bg-white/5 rounded-lg p-0.5 border border-white/10">
                         <button onClick={() => setViewMode("flow")} className={`px-2.5 py-1 text-[10px] rounded-md transition-all ${viewMode === "flow" ? "bg-accent text-white" : "text-white/40 hover:text-white"}`}>
-                          <Eye className="h-3 w-3 inline mr-1" />Flow
+                          <Eye className="h-3 w-3 inline mr-1" />Canvas
                         </button>
                         <button onClick={() => setViewMode("edit")} className={`px-2.5 py-1 text-[10px] rounded-md transition-all ${viewMode === "edit" ? "bg-accent text-white" : "text-white/40 hover:text-white"}`}>
-                          <Zap className="h-3 w-3 inline mr-1" />Edit
+                          <Zap className="h-3 w-3 inline mr-1" />Detail
                         </button>
                       </div>
                       <Badge variant="outline" className="text-[9px] border-amber-500/20 text-amber-400">
@@ -368,6 +584,8 @@ const ScriptBuilder = () => {
                   onRemoveStep={removeStep}
                   onMoveStep={moveStep}
                   onDuplicateStep={duplicateStep}
+                  onUpdateStep={updateStep}
+                  onReorderSteps={reorderSteps}
                 />
               ) : (
                 /* Edit View */
@@ -420,9 +638,18 @@ const ScriptBuilder = () => {
             </>
           ) : (
             <Card className="bg-white/5 backdrop-blur-sm border-white/10">
-              <CardContent className="py-16 text-center">
+              <CardContent className="py-16 text-center space-y-4">
                 <Zap className="h-8 w-8 text-white/10 mx-auto mb-3" />
-                <p className="text-white/30 text-sm">Select a script or create a new one</p>
+                <p className="text-white/30 text-sm">Select a script, use a template, or generate one with AI</p>
+                <div className="flex justify-center gap-2">
+                  <Button size="sm" onClick={() => setShowTemplates(true)} variant="outline" className="gap-1.5 border-white/10 text-white/50 hover:text-white">
+                    <BookOpen className="h-3.5 w-3.5" /> Browse Templates
+                  </Button>
+                  <Button size="sm" onClick={() => generateScript("fast")} disabled={generating}
+                    className="gap-1.5 bg-gradient-to-r from-purple-600 to-pink-600 text-white border-0">
+                    <Zap className="h-3.5 w-3.5" /> Generate Fast
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           )}
@@ -537,7 +764,7 @@ const StepEditor = ({ step, index, isExpanded, onToggle, onUpdate, onRemove, onM
               <div>
                 <label className="text-[10px] text-white/40 block mb-1">Content / Message / Caption</label>
                 <Textarea value={step.content} onChange={e => onUpdate("content", e.target.value)}
-                  placeholder="Enter the message text, caption for PPV, or instructions for the chatter..."
+                  placeholder="Enter the message text, caption, or instructions..."
                   className="min-h-[60px] bg-white/5 border-white/10 text-white text-xs placeholder:text-white/20 resize-none" />
               </div>
 

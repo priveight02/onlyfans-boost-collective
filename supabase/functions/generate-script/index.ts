@@ -9,49 +9,80 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { category, target_segment, theme } = await req.json();
+    const { category, target_segment, theme, quality, generate_real_messages } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
-    const systemPrompt = `You are an expert script designer for creator management agencies. You create structured multi-step chat scripts that chatters use to engage fans and sell content.
+    const isPremium = quality === "premium";
+    const realMessages = generate_real_messages !== false; // default true
 
-A script is a structured sequence of chat messages, free content, paid content (PPV), questions, and follow-ups arranged in a logical flow. Each step has a type, content text, and optional pricing.
+    const messageInstruction = realMessages
+      ? `Write REAL, natural-sounding messages that chatters can copy-paste directly. Messages should feel personal, warm, and conversational. Use {NAME} as placeholder for the fan's name. Each message should be unique and engaging.`
+      : `Use placeholder text for messages: "message", "answer", "follow-up", etc. The chatter will write their own messages. Only fill in media descriptions and pricing.`;
 
-RULES:
-- Scripts must be production-ready, natural-sounding, and optimized for conversion
-- Use progressive pricing (start free/cheap, escalate)
-- Include branching logic (what if they respond vs ignore)
-- Always start with a welcome or hook message
-- Include 2-3 free content steps to build rapport
-- Include 2-4 PPV content steps with escalating prices ($5-$50 range)
-- Add questions to gauge interest and create engagement
-- Add follow-up branches for purchased vs ignored
-- Messages should feel personal and conversational
-- Use {NAME} as placeholder for the fan's name
-- Each script should have 12-25 steps total
-- Vary the narrative themes and approaches
+    const systemPrompt = `You are a world-class script designer for creator management agencies. You design structured multi-step content presentation scripts that chatters use to engage fans and present content efficiently.
+
+WHAT A SCRIPT IS:
+A script is a structured series of 4-5 media items (images and videos) shot in the SAME environment/room/setting, where the story gradually builds in intensity and value. Between media items, the chatter sends chat messages to maintain conversation flow and build anticipation. The script includes progressive pricing where each piece of content costs more than the last.
+
+SCRIPT STRUCTURE BEST PRACTICES (from top creators):
+1. HOOK: Start with a casual, friendly message that feels organic - reference something personal or timely
+2. FREE TEASER: Send 1-2 free preview images to build interest (low-effort content from the set)
+3. ENGAGEMENT: Ask a question or make a comment to get the fan talking
+4. FIRST PAID CONTENT: Offer the first paid item at a low entry price ($5-$8) - easiest to convert
+5. REACTION & UPSELL: React to their purchase warmly, then tease the next piece
+6. ESCALATING CONTENT: Each subsequent piece increases in value and price
+7. FINALE: The best content at the highest price, positioned as exclusive/special
+8. FOLLOW-UP: Different paths for buyers vs non-responders
+
+KEY PRINCIPLES:
+- Progressive pricing: $5 → $8 → $12 → $15 → $25 (realistic creator pricing)
+- Same setting/environment throughout (bedroom, bathroom, pool, gym, kitchen, outdoor, hotel, etc.)
+- 4-5 media items total (mix of images and short videos)
+- Natural conversation flow between content drops
+- Timing delays between messages (2-15 minutes) to feel organic
+- Media descriptions should specify: count, type (selfie/photo/video), duration for videos, outfit/setting details
+- Always have branching: what to do if fan responds vs ignores
+
+${messageInstruction}
 
 STEP TYPES (use exactly these):
-- welcome: Opening hook message
-- message: Regular chat message
-- free_content: Free images/videos sent to build rapport
-- ppv_content: Paid content with a price
-- question: Question to engage the fan
-- condition: Branching point (responded vs didn't)
-- followup_purchased: Follow-up after they bought
-- followup_ignored: Follow-up if they ignored
+- welcome: Opening hook message to start conversation
+- message: Regular chat message between content
+- free_content: Free preview images/videos to build interest
+- ppv_content: Paid content with a price (the main monetization)
+- question: Question to engage the fan and gauge interest
+- condition: Branching point (responded vs didn't respond)
+- followup_purchased: Follow-up message after they bought content
+- followup_ignored: Re-engagement if they didn't respond/buy
+- delay: Wait period between messages (set delay_minutes)
+
+${isPremium ? `PREMIUM QUALITY REQUIREMENTS:
+- Create 15-20 steps for a complete, detailed flow
+- Include multiple branching paths
+- Add 2-3 re-engagement attempts for non-responders
+- Include specific timing for each delay (e.g., "wait 5 min", "wait 15 min", "next day")
+- Add detailed media descriptions (exact count, type, duration, setting details)
+- Include emotional triggers and psychological hooks
+- Add notes about tone and delivery in each message
+- Create a compelling narrative arc across the entire script
+- Include upsell paths after successful purchases` : `FAST SCRIPT REQUIREMENTS:
+- Create 10-14 steps for a clean, efficient flow
+- Include at least one branching path
+- Keep it practical and ready to use immediately
+- Focus on the core flow: hook → free → paid → escalate → follow-up`}
 
 Return a JSON object with this EXACT structure:
 {
-  "title": "Script title",
-  "description": "Brief description",
+  "title": "Script title - descriptive and specific to the theme",
+  "description": "Brief description of the script's strategy and setting",
   "steps": [
     {
       "step_type": "welcome",
       "title": "Short title for this step",
-      "content": "The actual message or caption",
+      "content": "The actual message text or placeholder",
       "media_type": "" | "image" | "video" | "mixed",
-      "media_url": "Description of media e.g. '2 selfies in bedroom' or 'Video 0:28 - teaser'",
+      "media_url": "Detailed description of media e.g. '2 selfies in bedroom, wearing casual outfit' or 'Video 0:28 - teaser clip, same setting'",
       "price": 0,
       "delay_minutes": 0,
       "condition_logic": {}
@@ -59,16 +90,24 @@ Return a JSON object with this EXACT structure:
   ]
 }
 
-For condition steps, set condition_logic to: {"condition": "Responded to welcome"} or similar.
-For PPV steps, always set a price > 0 and describe the media.
-For free_content, price should be 0 and describe what's sent.`;
+PRICING RULES:
+- Free content: price = 0
+- First PPV: $5-$8
+- Second PPV: $8-$15
+- Third PPV: $12-$20
+- Premium/Finale: $15-$35
+- Bundle offers: $25-$50
+- Messages, questions, conditions: price = 0
+- NEVER price above $50 for a single item`;
 
-    const userPrompt = `Generate a highly optimized, production-ready chat script.
+    const userPrompt = `Generate a ${isPremium ? "premium, highly detailed" : "fast, efficient"} production-ready script.
 Category: ${category || "general"}
-Target audience: ${target_segment || "new fans"}
-Theme/Setting: ${theme || "casual and flirty lifestyle content - surprise the chatter with a creative angle"}
+Target audience: ${target_segment || "new_users"}
+Theme/Setting: ${theme || "Create a unique, specific setting and storyline - be creative with the environment (e.g., morning routine in a cozy bedroom, post-workout in a home gym, lazy afternoon by the pool, getting ready for a night out). Make it feel like a real, organic moment."}
 
-Make it unique, creative, and conversion-optimized. The script should feel natural and build genuine engagement while strategically escalating value.`;
+The script must be immediately usable by a chatter. ${isPremium ? "Take extra care with message quality, timing, branching logic, and psychological hooks. This should be a masterclass in fan engagement." : "Keep it clean and practical - a chatter should be able to start using this within 30 seconds."}`;
+
+    const model = isPremium ? "google/gemini-2.5-flash" : "google/gemini-3-flash-preview";
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -77,7 +116,7 @@ Make it unique, creative, and conversion-optimized. The script should feel natur
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
@@ -87,7 +126,7 @@ Make it unique, creative, and conversion-optimized. The script should feel natur
             type: "function",
             function: {
               name: "create_script",
-              description: "Create a structured chat script with steps",
+              description: "Create a structured content presentation script with steps",
               parameters: {
                 type: "object",
                 properties: {
@@ -98,7 +137,7 @@ Make it unique, creative, and conversion-optimized. The script should feel natur
                     items: {
                       type: "object",
                       properties: {
-                        step_type: { type: "string", enum: ["welcome", "message", "free_content", "ppv_content", "question", "condition", "followup_purchased", "followup_ignored"] },
+                        step_type: { type: "string", enum: ["welcome", "message", "free_content", "ppv_content", "question", "condition", "followup_purchased", "followup_ignored", "delay"] },
                         title: { type: "string" },
                         content: { type: "string" },
                         media_type: { type: "string", enum: ["", "image", "video", "mixed"] },

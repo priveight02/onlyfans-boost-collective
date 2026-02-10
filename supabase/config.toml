@@ -8,3 +8,9 @@ verify_jwt = false
 
 [functions.generate-script]
 verify_jwt = false
+
+[functions.script-intelligence]
+verify_jwt = false
+
+[functions.track-visit]
+verify_jwt = false
