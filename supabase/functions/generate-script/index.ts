@@ -333,7 +333,7 @@ ${isPremium ? "- This should be a masterclass in fan psychology and engagement. 
                         step_type: { type: "string", enum: ["welcome", "message", "free_content", "ppv_content", "question", "condition", "followup_purchased", "followup_ignored", "delay"] },
                         title: { type: "string" },
                         content: { type: "string" },
-                        media_type: { type: "string", enum: ["", "image", "video", "mixed"] },
+                        media_type: { type: "string", enum: ["none", "image", "video", "mixed"] },
                         media_url: { type: "string" },
                         price: { type: "number" },
                         delay_minutes: { type: "number" },
