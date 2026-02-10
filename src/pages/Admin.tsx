@@ -3,9 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import AdminDashboard from "@/components/admin/AdminDashboard";
-import AdminUsers from "@/components/admin/AdminUsers";
 import AdminSecurity from "@/components/admin/AdminSecurity";
-import { Shield, LayoutDashboard, Users, Lock, Settings, LogOut } from "lucide-react";
+import CRMAccountsTab from "@/components/admin/CRMAccountsTab";
+import { Shield, LayoutDashboard, Users, Lock, Settings, LogOut, Contact } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -78,8 +78,8 @@ const Admin = () => {
               value="users"
               className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-2"
             >
-              <Users className="h-4 w-4" />
-              Accounts
+              <Contact className="h-4 w-4" />
+              CRM
             </TabsTrigger>
             <TabsTrigger
               value="security"
@@ -101,7 +101,7 @@ const Admin = () => {
             <AdminDashboard />
           </TabsContent>
           <TabsContent value="users" className="space-y-4">
-            <AdminUsers />
+            <CRMAccountsTab />
           </TabsContent>
           <TabsContent value="security" className="space-y-4">
             <AdminSecurity />
