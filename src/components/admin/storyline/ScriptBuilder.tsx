@@ -329,14 +329,125 @@ const exportToExcel = async (script: Script, steps: ScriptStep[]) => {
 
 /* ── Other Export Utilities ── */
 const exportToCSV = (script: Script, steps: ScriptStep[]) => {
-  const headers = ["#", "Type", "Title", "Content", "Media Type", "Media Description", "Price ($)", "Delay (min)"];
-  const rows = steps.map((s, i) => [
-    i + 1, s.step_type, s.title, `"${(s.content || "").replace(/"/g, '""')}"`,
-    s.media_type || "", `"${(s.media_url || "").replace(/"/g, '""')}"`,
-    s.price || 0, s.delay_minutes || 0,
-  ]);
+  const headers = ["#", "Type", "Title", "Content", "Media Type", "Media Description", "Price ($)", "Delay (min)", "Psychology"];
+  const rows = steps.map((s, i) => {
+    let psych = "";
+    const c = (s.content || "").toLowerCase();
+    if (c.includes("just for u") || c.includes("only for you")) psych = "Exclusivity";
+    else if (c.includes("hold on") || c.includes("brb")) psych = "Anticipation Build";
+    else if (c.includes("u there") || c.includes("miss")) psych = "Re-engagement";
+    else if (s.step_type === "free_content") psych = "Reciprocity Trigger";
+    else if (s.price > 100) psych = "Premium Scarcity";
+    else if (s.price > 0 && s.price <= 15) psych = "Payment Barrier Break";
+    else if (s.price > 15 && s.price <= 50) psych = "Sunk Cost Leverage";
+    else if (s.price > 50) psych = "FOMO + Urgency";
+    else if (s.step_type === "question") psych = "Micro-commitment";
+    else if (s.step_type === "condition") psych = "Branch Logic";
+    return [
+      i + 1, s.step_type.toUpperCase().replace(/_/g, " "), s.title,
+      `"${(s.content || "").replace(/"/g, '""')}"`,
+      s.media_type || "", `"${(s.media_url || "").replace(/"/g, '""')}"`,
+      s.price || 0, s.delay_minutes || 0, psych,
+    ];
+  });
   const csv = [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
   downloadFile(`${script.title || "script"}.csv`, csv, "text/csv");
+};
+
+/* ── Google Sheets HTML Export (with colors) ── */
+const STEP_COLORS_HTML: Record<string, { bg: string; fg: string }> = {
+  welcome: { bg: "#00BCD4", fg: "#FFFFFF" },
+  message: { bg: "#FFC107", fg: "#000000" },
+  free_content: { bg: "#4CAF50", fg: "#FFFFFF" },
+  ppv_content: { bg: "#FF9800", fg: "#FFFFFF" },
+  question: { bg: "#FFEB3B", fg: "#000000" },
+  condition: { bg: "#2196F3", fg: "#FFFFFF" },
+  followup_purchased: { bg: "#E91E63", fg: "#FFFFFF" },
+  followup_ignored: { bg: "#F44336", fg: "#FFFFFF" },
+  delay: { bg: "#9E9E9E", fg: "#FFFFFF" },
+};
+
+const exportToGoogleSheetsHTML = (script: Script, steps: ScriptStep[]) => {
+  const totalValue = steps.reduce((s, st) => s + (st.price || 0), 0);
+  let html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+<head><meta charset="utf-8"><style>
+  body { font-family: Arial, sans-serif; }
+  table { border-collapse: collapse; width: 100%; }
+  th { background: #1A1A2E; color: #FFFFFF; font-weight: bold; padding: 10px 8px; border: 1px solid #333; text-align: center; font-size: 12px; }
+  td { padding: 8px 6px; border: 1px solid #E0E0E0; vertical-align: top; font-size: 11px; }
+  .overview-label { background: #F3E5F5; color: #6A1B9A; font-weight: bold; font-size: 13px; padding: 8px; }
+  .overview-value { font-size: 13px; padding: 8px; }
+  .price-free { background: #E8F5E9; color: #2E7D32; font-weight: bold; }
+  .price-low { background: #FFF3E0; color: #E65100; font-weight: bold; }
+  .price-high { background: #FF6F00; color: #FFFFFF; font-weight: bold; font-size: 13px; }
+  .psych { color: #6A1B9A; font-style: italic; }
+  .total-row { background: #FFF3E0; }
+  .total-label { font-weight: bold; font-size: 13px; }
+  .total-value { font-weight: bold; font-size: 15px; color: #D84315; }
+</style></head><body>`;
+
+  // Overview table
+  html += `<h2 style="color:#6A1B9A;">📋 ${script.title}</h2>`;
+  html += `<table style="width:400px; margin-bottom:20px;">`;
+  const ovData = [
+    ["📋 Script", script.title],
+    ["📝 Description", script.description || "—"],
+    ["📂 Category", script.category],
+    ["🎯 Target", script.target_segment],
+    ["💰 Total Value", `$${totalValue}`],
+    ["📊 Steps", `${steps.length}`],
+    ["🎁 Free Media", `${steps.filter(s => s.step_type === "free_content").length}`],
+    ["💎 Paid Media", `${steps.filter(s => s.price > 0).length}`],
+    ["📅 Generated", new Date().toLocaleString()],
+  ];
+  ovData.forEach(([label, value]) => {
+    html += `<tr><td class="overview-label">${label}</td><td class="overview-value">${value}</td></tr>`;
+  });
+  html += `</table>`;
+
+  // Steps table
+  html += `<table><tr><th>#</th><th>Type</th><th>Title</th><th>💬 Message</th><th>📸 Media</th><th>📎 Description</th><th>💰 Price</th><th>⏱️ Delay</th><th>🧠 Psychology</th></tr>`;
+  steps.forEach((step, i) => {
+    const colors = STEP_COLORS_HTML[step.step_type] || { bg: "#FFC107", fg: "#000000" };
+    const emoji = STEP_TYPE_COLORS[step.step_type]?.emoji || "📌";
+    let psych = "";
+    const c = (step.content || "").toLowerCase();
+    if (c.includes("just for u") || c.includes("only for you")) psych = "🔒 Exclusivity";
+    else if (c.includes("hold on") || c.includes("brb")) psych = "⏳ Anticipation Build";
+    else if (c.includes("u there") || c.includes("miss")) psych = "🔄 Re-engagement";
+    else if (step.step_type === "free_content") psych = "🎁 Reciprocity Trigger";
+    else if (step.price > 100) psych = "💎 Premium Scarcity";
+    else if (step.price > 0 && step.price <= 15) psych = "🚪 Payment Barrier Break";
+    else if (step.price > 15 && step.price <= 50) psych = "📈 Sunk Cost Leverage";
+    else if (step.price > 50) psych = "🔥 FOMO + Urgency";
+    else if (step.step_type === "question") psych = "💬 Micro-commitment";
+    else if (step.step_type === "condition") psych = "🔀 Branch Logic";
+
+    let priceClass = "";
+    let priceText = "—";
+    if (step.step_type === "free_content") { priceClass = "price-free"; priceText = "🎁 FREE"; }
+    else if (step.price > 100) { priceClass = "price-high"; priceText = `$${step.price}`; }
+    else if (step.price > 0) { priceClass = "price-low"; priceText = `$${step.price}`; }
+
+    html += `<tr>
+      <td style="text-align:center; font-weight:bold;">${i + 1}</td>
+      <td style="background:${colors.bg}; color:${colors.fg}; font-weight:bold; text-align:center;">${emoji} ${step.step_type.replace(/_/g, " ").toUpperCase()}</td>
+      <td>${step.title || "—"}</td>
+      <td style="max-width:300px;">${(step.content || "—").replace(/\n/g, "<br>")}</td>
+      <td>${step.media_type ? `📸 ${step.media_type}` : "—"}</td>
+      <td>${step.media_url || "—"}</td>
+      <td class="${priceClass}">${priceText}</td>
+      <td>${step.delay_minutes > 0 ? `⏱️ ${step.delay_minutes}m` : "—"}</td>
+      <td class="psych">${psych}</td>
+    </tr>`;
+  });
+
+  // Total row
+  html += `<tr class="total-row"><td colspan="6"></td><td class="total-label" colspan="2">TOTAL VALUE</td><td class="total-value">$${totalValue}</td></tr>`;
+  html += `</table></body></html>`;
+
+  downloadFile(`${script.title || "script"}-sheets.xls`, html, "application/vnd.ms-excel");
+  toast.success("Google Sheets export with colors & formatting!");
 };
 
 const exportToText = (script: Script, steps: ScriptStep[]) => {
@@ -362,23 +473,54 @@ const exportToText = (script: Script, steps: ScriptStep[]) => {
 };
 
 const exportToMarkdown = (script: Script, steps: ScriptStep[]) => {
+  const totalValue = steps.reduce((s, st) => s + (st.price || 0), 0);
   let md = `# 📋 ${script.title}\n\n`;
   md += `> ${script.description || ""}\n\n`;
-  md += `**Category:** ${script.category} | **Target:** ${script.target_segment} | **Total:** $${steps.reduce((s, st) => s + (st.price || 0), 0)}\n\n`;
+  md += `| 📂 Category | 🎯 Target | 💰 Total Value | 📊 Steps | 🎁 Free | 💎 Paid |\n`;
+  md += `|---|---|---|---|---|---|\n`;
+  md += `| ${script.category} | ${script.target_segment} | **$${totalValue}** | ${steps.length} | ${steps.filter(s => s.step_type === "free_content").length} | ${steps.filter(s => s.price > 0).length} |\n\n`;
   md += "---\n\n";
-  md += "| # | Type | Content | Media | Price | Delay |\n";
-  md += "|---|------|---------|-------|-------|-------|\n";
+  md += "## 📜 Script Flow\n\n";
+  md += "| # | Type | Title | 💬 Message | 📸 Media | 📎 Description | 💰 Price | ⏱️ Delay | 🧠 Psychology |\n";
+  md += "|---|------|-------|---------|-------|-------------|-------|-------|-------------|\n";
   steps.forEach((s, i) => {
     const emoji = STEP_TYPE_COLORS[s.step_type]?.emoji || "📌";
-    md += `| ${i + 1} | ${emoji} ${s.step_type} | ${(s.content || s.title || "—").substring(0, 50)} | ${s.media_url ? `📸 ${s.media_type}: ${s.media_url.substring(0, 30)}` : "—"} | ${s.price > 0 ? `💰$${s.price}` : s.step_type === "free_content" ? "🎁 FREE" : "—"} | ${s.delay_minutes > 0 ? `⏱️${s.delay_minutes}m` : "—"} |\n`;
+    let psych = "";
+    const c = (s.content || "").toLowerCase();
+    if (c.includes("just for u") || c.includes("only for you")) psych = "🔒 Exclusivity";
+    else if (c.includes("hold on") || c.includes("brb")) psych = "⏳ Anticipation";
+    else if (s.step_type === "free_content") psych = "🎁 Reciprocity";
+    else if (s.price > 100) psych = "💎 Premium Scarcity";
+    else if (s.price > 0 && s.price <= 15) psych = "🚪 Barrier Break";
+    else if (s.price > 15 && s.price <= 50) psych = "📈 Sunk Cost";
+    else if (s.price > 50) psych = "🔥 FOMO";
+    else if (s.step_type === "question") psych = "💬 Micro-commit";
+    else if (s.step_type === "condition") psych = "🔀 Branch";
+    const priceLabel = s.price > 0 ? `💰 $${s.price}` : s.step_type === "free_content" ? "🎁 FREE" : "—";
+    md += `| ${i + 1} | ${emoji} ${s.step_type.replace(/_/g, " ").toUpperCase()} | ${s.title || "—"} | ${(s.content || "—").substring(0, 60).replace(/\|/g, "\\|")} | ${s.media_type || "—"} | ${(s.media_url || "—").substring(0, 35).replace(/\|/g, "\\|")} | ${priceLabel} | ${s.delay_minutes > 0 ? `⏱️ ${s.delay_minutes}m` : "—"} | ${psych} |\n`;
   });
   md += "\n---\n\n";
+  md += "## 📖 Detailed Steps\n\n";
   steps.forEach((s, i) => {
     const emoji = STEP_TYPE_COLORS[s.step_type]?.emoji || "📌";
-    md += `### ${emoji} Step ${i + 1}: ${s.step_type.toUpperCase().replace(/_/g, " ")}${s.price > 0 ? ` — 💰$${s.price}` : ""}\n\n`;
-    if (s.content) md += `${s.content}\n\n`;
-    if (s.media_url) md += `📎 *${s.media_type}: ${s.media_url}*\n\n`;
+    const priceLabel = s.price > 0 ? ` — 💰 $${s.price}` : s.step_type === "free_content" ? " — 🎁 FREE" : "";
+    md += `### ${emoji} Step ${i + 1}: ${s.step_type.toUpperCase().replace(/_/g, " ")}${priceLabel}\n\n`;
+    if (s.title) md += `**${s.title}**\n\n`;
+    if (s.content) md += `> ${s.content.replace(/\n/g, "\n> ")}\n\n`;
+    if (s.media_url) md += `📎 **Media (${s.media_type || "unspecified"}):** *${s.media_url}*\n\n`;
+    if (s.delay_minutes > 0) md += `⏱️ *Wait ${s.delay_minutes} minutes*\n\n`;
+    if (s.step_type === "condition") md += `🔀 **Branch:** ${s.condition_logic?.condition || "Check response"}\n\n`;
+    md += "---\n\n";
   });
+  md += `## 💰 Pricing Summary\n\n`;
+  md += `| # | Type | Price | Running Total |\n`;
+  md += `|---|------|-------|---------------|\n`;
+  let running = 0;
+  steps.filter(s => s.price > 0 || s.step_type === "free_content").forEach((s, i) => {
+    running += s.price || 0;
+    md += `| ${i + 1} | ${s.step_type.replace(/_/g, " ")} | ${s.price > 0 ? `$${s.price}` : "🎁 FREE"} | **$${running}** |\n`;
+  });
+  md += `\n**Total Script Value: $${totalValue}**\n`;
   downloadFile(`${script.title || "script"}.md`, md, "text/markdown");
 };
 
@@ -423,7 +565,7 @@ const ScriptBuilder = () => {
   const [enableTypoSimulation, setEnableTypoSimulation] = useState(false);
   const [enableFreeFirst, setEnableFreeFirst] = useState(true);
   const [enableMaxConversion, setEnableMaxConversion] = useState(true);
-  const [enableEmoji, setEnableEmoji] = useState(true);
+  const [enableEmoji, setEnableEmoji] = useState(false);
   const [enableReEngagement, setEnableReEngagement] = useState(true);
   const [enableVoiceNoteHints, setEnableVoiceNoteHints] = useState(false);
   const [adaptivePricing, setAdaptivePricing] = useState(true);
@@ -1108,11 +1250,18 @@ const ScriptBuilder = () => {
                                 <p className="text-[10px] text-white/40">Full color-coded spreadsheet with psychology labels</p>
                               </div>
                             </button>
-                            <button onClick={() => exportToCSV(selectedScript, steps)} className="w-full flex items-center gap-3 p-3 rounded-lg bg-white/[0.04] border border-white/[0.06] hover:bg-white/[0.08] transition-all">
+                            <button onClick={() => exportToGoogleSheetsHTML(selectedScript, steps)} className="w-full flex items-center gap-3 p-3 rounded-lg bg-gradient-to-r from-green-500/10 to-yellow-500/10 border border-green-500/20 hover:bg-green-500/20 transition-all">
                               <FileSpreadsheet className="h-5 w-5 text-yellow-400" />
                               <div className="text-left">
-                                <p className="text-xs font-semibold text-white">Google Sheets / CSV</p>
-                                <p className="text-[10px] text-white/40">Plain CSV for Sheets, Numbers</p>
+                                <p className="text-xs font-semibold text-white">📊 Google Sheets (Colors)</p>
+                                <p className="text-[10px] text-white/40">Color-coded .xls with psychology labels</p>
+                              </div>
+                            </button>
+                            <button onClick={() => exportToCSV(selectedScript, steps)} className="w-full flex items-center gap-3 p-3 rounded-lg bg-white/[0.04] border border-white/[0.06] hover:bg-white/[0.08] transition-all">
+                              <FileSpreadsheet className="h-5 w-5 text-gray-400" />
+                              <div className="text-left">
+                                <p className="text-xs font-semibold text-white">📋 Plain CSV</p>
+                                <p className="text-[10px] text-white/40">Raw data for import/analysis</p>
                               </div>
                             </button>
                             <button onClick={() => exportToText(selectedScript, steps)} className="w-full flex items-center gap-3 p-3 rounded-lg bg-white/[0.04] border border-white/[0.06] hover:bg-white/[0.08] transition-all">
@@ -1122,11 +1271,11 @@ const ScriptBuilder = () => {
                                 <p className="text-[10px] text-white/40">With emojis, formatted for Apple Notes</p>
                               </div>
                             </button>
-                            <button onClick={() => exportToMarkdown(selectedScript, steps)} className="w-full flex items-center gap-3 p-3 rounded-lg bg-white/[0.04] border border-white/[0.06] hover:bg-white/[0.08] transition-all">
+                            <button onClick={() => exportToMarkdown(selectedScript, steps)} className="w-full flex items-center gap-3 p-3 rounded-lg bg-gradient-to-r from-purple-500/10 to-indigo-500/10 border border-purple-500/20 hover:bg-purple-500/20 transition-all">
                               <FileText className="h-5 w-5 text-purple-400" />
                               <div className="text-left">
-                                <p className="text-xs font-semibold text-white">📄 Markdown / Word</p>
-                                <p className="text-[10px] text-white/40">Formatted doc for Notion, Google Docs</p>
+                                <p className="text-xs font-semibold text-white">📄 Word / Notion / Docs</p>
+                                <p className="text-[10px] text-white/40">Rich formatted with pricing table & psychology</p>
                               </div>
                             </button>
                           </div>
