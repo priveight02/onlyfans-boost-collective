@@ -92,7 +92,7 @@ const Navigation = () => {
                   {item.name}
                 </Link>
               ))}
-              {!loading && user ? (
+              {user ? (
                 <Button
                   variant="ghost"
                   onClick={handleLogout}
@@ -101,7 +101,7 @@ const Navigation = () => {
                 >
                   <LogOut className="h-5 w-5" />
                 </Button>
-              ) : !loading ? (
+              ) : (
                 <Link to="/auth">
                   <Button
                     variant="ghost"
@@ -111,7 +111,7 @@ const Navigation = () => {
                     Login
                   </Button>
                 </Link>
-              ) : null}
+              )}
             </div>
 
             {/* Mobile menu button */}
@@ -144,7 +144,7 @@ const Navigation = () => {
                     {item.name}
                   </Link>
                 ))}
-                {!loading && user ? (
+                {user ? (
                   <Button
                     variant="ghost"
                     onClick={() => {
@@ -156,7 +156,7 @@ const Navigation = () => {
                     <LogOut className="mr-2 h-4 w-4" />
                     Logout
                   </Button>
-                ) : !loading ? (
+                ) : (
                   <Link to="/auth" className="block" onClick={() => setIsOpen(false)}>
                     <Button
                       variant="ghost"
@@ -166,7 +166,7 @@ const Navigation = () => {
                       Login
                     </Button>
                   </Link>
-                ) : null}
+                )}
               </div>
             </div>
           )}
