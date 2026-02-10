@@ -128,8 +128,16 @@ MAX CONVERSION OPTIMIZATION (APPLY TO EVERY MESSAGE):
 8. EMOTIONAL ESCALATION: Each message should be slightly more intense than the last
 9. NATURAL NON-FORCED FLOW: Despite all these techniques, the conversation must read like a REAL chat.` : "";
 
-    const emojiInstruction = enable_emoji !== false ? `
-EMOJI USAGE: Use natural emoji throughout messages (😊💕🔥🥺😏🙈😈). Place them where a real person would while texting — at ends of sentences, after teasing, expressing emotion. Don't overdo it (1-3 per message max).` : "EMOJI USAGE: Minimize emoji usage.";
+    const emojiInstruction = enable_emoji === true ? `
+EMOJI USAGE: Use natural emoji throughout messages (😊💕🔥🥺😏🙈😈). Place them where a real person would while texting — at ends of sentences, after teasing, expressing emotion. Don't overdo it (1-3 per message max).` : `
+EMOJI USAGE — MINIMAL / ABBREVIATION STYLE (DEFAULT):
+A young woman texting a guy she's into does NOT use many emojis. She types casually with abbreviations:
+- Use "u" not "you", "ur" not "your", "rn" not "right now", "ngl" not "not gonna lie", "tbh" not "to be honest", "lol", "omg", "idk", "wyd", "hbu", "nvm"
+- Maximum 1 emoji per 3-4 messages. When used, only: 😊 🙈 😏 lol
+- NO emoji spam. NO hearts everywhere. NO 💕🥺😍 on every message.
+- She sounds like a real girl texting — short sentences, lowercase, casual abbreviations
+- Example: "heyy u up? lol i just got home ngl im bored" NOT "Hey babe! 💕 Just got home! 🥰😍 Missing you! 💋"
+- The vibe is: low-effort texting that feels REAL, not performative`;
 
     const reEngagementInstruction = enable_re_engagement !== false ? `
 RE-ENGAGEMENT LOOPS: If the fan goes quiet at ANY point, include follow-up messages:
