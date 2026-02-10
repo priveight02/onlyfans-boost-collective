@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Menu, X, LogIn, LogOut, Shield } from "lucide-react";
+import { Menu, X, LogIn, LogOut, Shield, Home, Briefcase, HelpCircle, UserPlus } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import TopBanner from "./TopBanner";
 import { Button } from "./ui/button";
@@ -39,10 +39,10 @@ const Navigation = () => {
   };
 
   const menuItems: MenuItem[] = [
-    { name: "Home", href: "/" },
-    { name: "Onboarding", href: "/onboarding" },
-    { name: "Services", href: "/services" },
-    { name: "FAQ", href: "/faq" },
+    { name: "Home", href: "/", icon: Home },
+    { name: "Onboarding", href: "/onboarding", icon: UserPlus },
+    { name: "Services", href: "/services", icon: Briefcase },
+    { name: "FAQ", href: "/faq", icon: HelpCircle },
   ];
 
   // Only show admin link if user is verified admin
@@ -76,27 +76,29 @@ const Navigation = () => {
               </Link>
             </div>
 
-            {/* Desktop menu */}
-            <div className="hidden md:flex items-center space-x-8">
-              {finalMenuItems.map((item) => (
-                <Link
-                  key={item.name}
-                  to={item.href}
-                  className={`transition-colors duration-200 flex items-center gap-2 ${
-                    location.pathname === item.href
-                      ? 'font-medium text-white'
-                      : 'text-white hover:text-white/80'
-                  }`}
-                >
-                  {item.icon && <item.icon className="h-4 w-4" />}
-                  {item.name}
-                </Link>
-              ))}
+            {/* Desktop menu - Tab style matching admin */}
+            <div className="hidden md:flex items-center gap-2">
+              <div className="flex items-center bg-white/5 backdrop-blur-sm border border-white/10 p-1 rounded-xl">
+                {finalMenuItems.map((item) => (
+                  <Link
+                    key={item.name}
+                    to={item.href}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors duration-200 flex items-center gap-2 ${
+                      location.pathname === item.href
+                        ? 'bg-white/10 text-white'
+                        : 'text-white/50 hover:text-white hover:bg-white/5'
+                    }`}
+                  >
+                    {item.icon && <item.icon className="h-4 w-4" />}
+                    {item.name}
+                  </Link>
+                ))}
+              </div>
               {user ? (
                 <Button
                   variant="ghost"
                   onClick={handleLogout}
-                  className="transition-colors duration-200 hover:bg-transparent text-white hover:text-white/80"
+                  className="transition-colors duration-200 hover:bg-white/10 text-white/60 hover:text-white rounded-lg"
                   title="Log out"
                 >
                   <LogOut className="h-5 w-5" />
@@ -105,9 +107,9 @@ const Navigation = () => {
                 <Link to="/auth">
                   <Button
                     variant="ghost"
-                    className="transition-colors duration-200 hover:bg-transparent text-white hover:text-white/80"
+                    className="transition-colors duration-200 hover:bg-white/10 text-white/50 hover:text-white rounded-lg gap-2"
                   >
-                    <LogIn className="mr-2 h-4 w-4" />
+                    <LogIn className="h-4 w-4" />
                     Login
                   </Button>
                 </Link>
