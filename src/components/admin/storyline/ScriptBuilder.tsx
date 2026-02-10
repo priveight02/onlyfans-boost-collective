@@ -204,7 +204,9 @@ const ScriptBuilder = () => {
   const [includeFollowups, setIncludeFollowups] = useState(true);
   const [includeDelays, setIncludeDelays] = useState(true);
   const [includeQuestions, setIncludeQuestions] = useState(true);
-  const [messageTone, setMessageTone] = useState<"innocent" | "bold" | "aggressive_innocent" | "submissive" | "bratty">("innocent");
+  const [messageTone, setMessageTone] = useState<"innocent" | "bold" | "aggressive_innocent" | "submissive" | "bratty" | "dynamic_shift">("innocent");
+  const [enableDynamicShift, setEnableDynamicShift] = useState(false);
+  const [enableExclusivity, setEnableExclusivity] = useState(true);
 
   const [genTimer, setGenTimer] = useState(0);
   const [genEstimate, setGenEstimate] = useState(0);
@@ -385,7 +387,8 @@ const ScriptBuilder = () => {
           include_followups: includeFollowups,
           include_delays: includeDelays,
           include_questions: includeQuestions,
-          message_tone: messageTone,
+          message_tone: enableDynamicShift ? "dynamic_shift" : messageTone,
+          enable_exclusivity: enableExclusivity,
         },
       });
       if (error) throw error;
@@ -490,10 +493,37 @@ const ScriptBuilder = () => {
                   </div>
                 </div>
 
+                {/* Dynamic Tone Shift */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 p-3 rounded-lg bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/20">
+                    <Switch id="opt-dynamic" checked={enableDynamicShift} onCheckedChange={(v) => { setEnableDynamicShift(v); if (v) setMessageTone("dynamic_shift"); }} />
+                    <div className="flex-1">
+                      <Label htmlFor="opt-dynamic" className="text-xs text-white cursor-pointer font-semibold flex items-center gap-1.5">
+                        🎭 Dynamic Tone Shift
+                        <Badge variant="outline" className="text-[7px] border-purple-500/30 text-purple-300">NEW</Badge>
+                      </Label>
+                      <p className="text-[8px] text-white/40 mt-0.5">Starts innocent → builds bold/aggressive → goes submissive after media. Mimics real conversation flow.</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Exclusivity & Natural Pauses */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 p-3 rounded-lg bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20">
+                    <Switch id="opt-exclusivity" checked={enableExclusivity} onCheckedChange={setEnableExclusivity} />
+                    <div className="flex-1">
+                      <Label htmlFor="opt-exclusivity" className="text-xs text-white cursor-pointer font-semibold flex items-center gap-1.5">
+                        ✨ Exclusivity & Natural Pauses
+                      </Label>
+                      <p className="text-[8px] text-white/40 mt-0.5">"Hold on 2 mins", content shot on the spot, "only for you" — makes it feel real & exclusive.</p>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Message Tone */}
                 <div className="space-y-2">
-                  <Label className="text-xs text-white/60">Message Tone</Label>
-                  <div className="grid grid-cols-3 gap-2">
+                  <Label className="text-xs text-white/60">Message Tone {enableDynamicShift && <span className="text-purple-400">(overridden by Dynamic Shift)</span>}</Label>
+                  <div className={`grid grid-cols-3 gap-2 ${enableDynamicShift ? "opacity-40 pointer-events-none" : ""}`}>
                     <button onClick={() => setMessageTone("innocent")}
                       className={`p-3 rounded-lg text-center transition-all border ${
                         messageTone === "innocent" ? "bg-pink-500/20 border-pink-500/40 text-white" : "bg-white/[0.03] border-white/[0.06] text-white/40 hover:bg-white/[0.06]"
