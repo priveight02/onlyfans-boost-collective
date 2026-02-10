@@ -47,15 +47,15 @@ interface MetricCardProps {
 }
 
 const MetricCard = ({ label, value, icon: Icon, color, source, subtext, delta }: MetricCardProps) => (
-  <div className="bg-white/[0.06] backdrop-blur-sm rounded-xl p-4 border border-white/[0.08] group relative transition-colors hover:bg-white/[0.08]">
+  <div className="bg-white/[0.07] backdrop-blur-sm rounded-xl p-4 border border-white/[0.1] group relative transition-colors hover:bg-white/[0.1]">
     <div className="flex items-start justify-between">
       <Icon className={`h-4 w-4 ${color} mb-2`} />
       {source && (
-        <span className="text-[10px] text-white/30 bg-white/[0.06] px-1.5 py-0.5 rounded-md opacity-0 group-hover:opacity-100 transition-opacity">{source}</span>
+        <span className="text-[10px] text-white/40 bg-white/[0.08] px-1.5 py-0.5 rounded-md opacity-0 group-hover:opacity-100 transition-opacity">{source}</span>
       )}
     </div>
     <div className="flex items-end gap-1.5">
-      <p className="text-lg font-bold text-white/90 truncate">{typeof value === "number" ? value.toLocaleString() : value}</p>
+      <p className="text-lg font-bold text-white truncate">{typeof value === "number" ? value.toLocaleString() : value}</p>
       {delta !== undefined && delta !== null && (
         <span className={`text-xs flex items-center gap-0.5 mb-0.5 ${delta >= 0 ? "text-emerald-400" : "text-red-400"}`}>
           {delta >= 0 ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
@@ -63,29 +63,47 @@ const MetricCard = ({ label, value, icon: Icon, color, source, subtext, delta }:
         </span>
       )}
     </div>
-    <p className="text-xs text-white/50 mt-0.5">{label}</p>
-    {subtext && <p className="text-[11px] text-white/35 mt-0.5 truncate">{subtext}</p>}
+    <p className="text-xs text-white/60 mt-0.5">{label}</p>
+    {subtext && <p className="text-[11px] text-white/50 mt-0.5 truncate">{subtext}</p>}
   </div>
 );
 
 const DataSourceBadge = ({ source, timestamp }: { source: string; timestamp?: string }) => (
   <div className="flex items-center gap-1.5">
     <div className={`w-1.5 h-1.5 rounded-full ${source === "API" ? "bg-emerald-400" : source === "Derived" ? "bg-amber-400" : "bg-blue-400"}`} />
-    <span className="text-[11px] text-white/40">{source}</span>
-    {timestamp && <span className="text-[10px] text-white/25">• {timestamp}</span>}
+    <span className="text-[11px] text-white/50">{source}</span>
+    {timestamp && <span className="text-[10px] text-white/40">• {timestamp}</span>}
   </div>
 );
 
 const SectionCard = ({ title, icon: Icon, children, badge }: { title: string; icon: React.ElementType; children: React.ReactNode; badge?: string }) => (
-  <Card className="bg-white/[0.05] backdrop-blur-sm border-white/[0.08] rounded-xl shadow-lg shadow-black/10">
+  <Card className="bg-white/[0.06] backdrop-blur-sm border-white/[0.1] rounded-xl shadow-lg shadow-black/10">
     <CardHeader className="pb-3">
       <div className="flex items-center justify-between">
-        <CardTitle className="text-sm font-semibold text-white/80 flex items-center gap-2"><Icon className="h-4 w-4 text-white/50" /> {title}</CardTitle>
+        <CardTitle className="text-sm font-semibold text-white/90 flex items-center gap-2"><Icon className="h-4 w-4 text-white/60" /> {title}</CardTitle>
         {badge && <DataSourceBadge source={badge} />}
       </div>
     </CardHeader>
     <CardContent>{children}</CardContent>
   </Card>
+);
+
+const NoAccountAccessBanner = ({ feature }: { feature: string }) => (
+  <div className="bg-white/[0.04] border border-white/[0.1] rounded-xl p-6 text-center space-y-3">
+    <div className="w-12 h-12 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center mx-auto">
+      <Shield className="h-5 w-5 text-amber-400" />
+    </div>
+    <div>
+      <p className="text-sm font-semibold text-white/80">Account Access Required</p>
+      <p className="text-sm text-white/50 mt-1 max-w-md mx-auto leading-relaxed">
+        {feature} requires the creator's account to be connected to your API. Public profile data is shown above.
+      </p>
+    </div>
+    <div className="flex items-center justify-center gap-2 text-xs text-white/40">
+      <Info className="h-3.5 w-3.5" />
+      <span>Connect the account via the OnlyFans API dashboard to unlock this data</span>
+    </div>
+  </div>
 );
 
 const FanTable = ({ fans, title }: { fans: any[]; title: string }) => {
@@ -94,13 +112,13 @@ const FanTable = ({ fans, title }: { fans: any[]; title: string }) => {
     <SectionCard title={title} icon={Users} badge="API">
       <div className="space-y-2 max-h-72 overflow-y-auto pr-1 scrollbar-thin">
         {fans.slice(0, 30).map((fan: any, i: number) => (
-          <div key={fan.id || i} className="flex items-center gap-3 bg-white/[0.04] rounded-lg p-2.5 border border-white/[0.06] hover:bg-white/[0.07] transition-colors">
-            {fan.avatar && <img src={fan.avatar} alt="" className="w-8 h-8 rounded-full ring-1 ring-white/10" />}
+          <div key={fan.id || i} className="flex items-center gap-3 bg-white/[0.05] rounded-lg p-2.5 border border-white/[0.08] hover:bg-white/[0.08] transition-colors">
+            {fan.avatar && <img src={fan.avatar} alt="" className="w-8 h-8 rounded-full ring-1 ring-white/15" />}
             <div className="flex-1 min-w-0">
-              <p className="text-sm text-white/70 truncate font-medium">{fan.name || fan.username || `Fan #${i + 1}`}</p>
-              {fan.username && <p className="text-xs text-white/35">@{fan.username}</p>}
+              <p className="text-sm text-white/80 truncate font-medium">{fan.name || fan.username || `Fan #${i + 1}`}</p>
+              {fan.username && <p className="text-xs text-white/50">@{fan.username}</p>}
             </div>
-            {fan.subscribedOn && <span className="text-xs text-white/35">{new Date(fan.subscribedOn).toLocaleDateString()}</span>}
+            {fan.subscribedOn && <span className="text-xs text-white/50">{new Date(fan.subscribedOn).toLocaleDateString()}</span>}
             {fan.totalSpent !== undefined && <span className="text-xs font-medium text-emerald-400">${Number(fan.totalSpent || 0).toFixed(2)}</span>}
             {fan.totalRevenue !== undefined && <span className="text-xs font-medium text-emerald-400">${Number(fan.totalRevenue || 0).toFixed(2)}</span>}
           </div>
@@ -412,8 +430,8 @@ const ProfileLookup = () => {
       {loading && (
         <div className="text-center py-10">
           <Loader2 className="h-8 w-8 animate-spin mx-auto text-accent/60 mb-4" />
-          <p className="text-sm text-white/50 font-medium">Querying 60+ API endpoints in parallel...</p>
-          <p className="text-xs text-white/30 mt-1.5">Profile • Earnings • Subscribers • Fans • Chargebacks • Stories • Posts • Vault • Links • Settings</p>
+          <p className="text-sm text-white/70 font-medium">Querying 60+ API endpoints in parallel...</p>
+          <p className="text-xs text-white/45 mt-1.5">Profile • Earnings • Subscribers • Fans • Chargebacks • Stories • Posts • Vault • Links • Settings</p>
         </div>
       )}
 
@@ -452,10 +470,10 @@ const ProfileLookup = () => {
                     )}
                   </div>
                   <div className="flex items-center gap-2 mt-1.5">
-                    <span className="text-sm text-white/50 font-medium">@{profile.username}</span>
-                    <button onClick={() => copyField("Username", profile.username)} className="hover:scale-110 transition-transform"><Copy className="h-3.5 w-3.5 text-white/30 hover:text-white/60" /></button>
+                    <span className="text-sm text-white/60 font-medium">@{profile.username}</span>
+                    <button onClick={() => copyField("Username", profile.username)} className="hover:scale-110 transition-transform"><Copy className="h-3.5 w-3.5 text-white/50 hover:text-white/70" /></button>
                   </div>
-                  <div className="flex items-center gap-4 mt-2.5 text-xs text-white/45 flex-wrap">
+                  <div className="flex items-center gap-4 mt-2.5 text-xs text-white/60 flex-wrap">
                     <span className="flex items-center gap-1.5"><Calendar className="h-3.5 w-3.5" />{formatDate(profile.joinDate)}</span>
                     <span>{derived.days}d active</span>
                     {modelStartDate && <span className="flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" />Monetizing since {formatDate(modelStartDate)}</span>}
@@ -484,7 +502,7 @@ const ProfileLookup = () => {
               { label: "Messaging", available: hasMessaging },
               { label: "Links", available: hasLinks },
             ].map((d) => (
-              <Badge key={d.label} variant="outline" className={`text-xs px-2.5 py-1 ${d.available ? "text-emerald-400 border-emerald-500/30 bg-emerald-500/10" : "text-white/25 border-white/[0.08] bg-white/[0.02]"}`}>
+              <Badge key={d.label} variant="outline" className={`text-xs px-2.5 py-1 ${d.available ? "text-emerald-400 border-emerald-500/30 bg-emerald-500/10" : "text-white/40 border-white/[0.1] bg-white/[0.03]"}`}>
                 {d.available ? "✓" : "✗"} {d.label}
               </Badge>
             ))}
@@ -495,7 +513,7 @@ const ProfileLookup = () => {
 
           {/* Main tabs */}
           <Tabs defaultValue="overview" className="space-y-4">
-            <TabsList className="bg-white/[0.04] backdrop-blur-sm border border-white/[0.08] p-1.5 rounded-xl flex-wrap h-auto gap-1">
+            <TabsList className="bg-white/[0.06] backdrop-blur-sm border border-white/[0.1] p-1.5 rounded-xl flex-wrap h-auto gap-1">
               {[
                 { value: "overview", icon: BarChart3, label: "Overview" },
                 { value: "revenue", icon: DollarSign, label: "Revenue" },
@@ -584,7 +602,7 @@ const ProfileLookup = () => {
                     { label: "Can Earn", active: !!profile.canEarn },
                     { label: "Promo", active: !!profile.hasProfilePromotion },
                   ].map(f => (
-                    <Badge key={f.label} variant="outline" className={`text-xs px-2.5 py-1 ${f.active ? "text-emerald-400 border-emerald-500/30 bg-emerald-500/10" : "text-white/30 border-white/[0.08] bg-white/[0.02]"}`}>
+                    <Badge key={f.label} variant="outline" className={`text-xs px-2.5 py-1 ${f.active ? "text-emerald-400 border-emerald-500/30 bg-emerald-500/10" : "text-white/45 border-white/[0.1] bg-white/[0.03]"}`}>
                       {f.label}{f.detail ? `: ${f.detail}` : ""}
                     </Badge>
                   ))}
@@ -684,10 +702,10 @@ const ProfileLookup = () => {
                     <SectionCard title={`Recent Transactions (${transactions.length})`} icon={DollarSign} badge="API">
                       <div className="space-y-2 max-h-72 overflow-y-auto">
                         {transactions.slice(0, 30).map((tx: any, i: number) => (
-                          <div key={tx.id || i} className="flex items-center gap-3 bg-white/[0.04] rounded-lg p-2.5 border border-white/[0.06] hover:bg-white/[0.07] transition-colors">
+                          <div key={tx.id || i} className="flex items-center gap-3 bg-white/[0.06] rounded-lg p-2.5 border border-white/[0.08] hover:bg-white/[0.09] transition-colors">
                             <div className="flex-1 min-w-0">
                               <p className="text-sm text-white/70 truncate">{tx.description || tx.type || "Transaction"}</p>
-                              <p className="text-xs text-white/35">{tx.createdAt ? new Date(tx.createdAt).toLocaleString() : ""}</p>
+                              <p className="text-xs text-white/50">{tx.createdAt ? new Date(tx.createdAt).toLocaleString() : ""}</p>
                             </div>
                             <span className={`text-xs font-medium ${(tx.amount || 0) >= 0 ? "text-emerald-400" : "text-red-400"}`}>{fmt$(tx.amount || tx.net || 0)}</span>
                           </div>
@@ -697,13 +715,7 @@ const ProfileLookup = () => {
                   )}
                 </>
               ) : (
-                <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-5 flex items-start gap-3">
-                  <Info className="h-5 w-5 text-amber-400 mt-0.5 shrink-0" />
-                  <div>
-                    <p className="text-sm text-amber-300 font-semibold">Earnings data not available</p>
-                    <p className="text-sm text-amber-300/70 mt-1.5 leading-relaxed">Financial endpoints require account-level access. Only profiles linked to your API account return revenue data.</p>
-                  </div>
-                </div>
+                <NoAccountAccessBanner feature="Revenue and earnings data" />
               )}
             </TabsContent>
 
@@ -721,7 +733,7 @@ const ProfileLookup = () => {
                   {subscriberMetrics.paid !== undefined && <MetricCard label="Paid Subs" value={subscriberMetrics.paid} icon={DollarSign} color="text-emerald-400" source="API" />}
                   {subscriberMetrics.free !== undefined && <MetricCard label="Free Subs" value={subscriberMetrics.free} icon={Users} color="text-blue-400" source="API" />}
                   {subscriberMetrics.expired !== undefined && <MetricCard label="Expired" value={subscriberMetrics.expired} icon={UserX} color="text-red-400" source="API" />}
-                  {subscriberMetrics.unknown_subscriptions !== undefined && <MetricCard label="Deleted Accounts" value={subscriberMetrics.unknown_subscriptions} icon={UserX} color="text-white/30" source="API" />}
+                  {subscriberMetrics.unknown_subscriptions !== undefined && <MetricCard label="Deleted Accounts" value={subscriberMetrics.unknown_subscriptions} icon={UserX} color="text-white/50" source="API" />}
                 </div>
               )}
 
@@ -781,10 +793,7 @@ const ProfileLookup = () => {
                   {latestFansNew && Array.isArray(latestFansNew) && latestFansNew.length > 0 && <FanTable fans={latestFansNew} title="Newly Subscribed Fans" />}
                 </>
               ) : (
-                <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-4 flex items-start gap-3">
-                  <Info className="h-4 w-4 text-amber-400 mt-0.5 shrink-0" />
-                  <p className="text-sm text-amber-300">Fan data requires account-level access.</p>
-                </div>
+                <NoAccountAccessBanner feature="Fan data (active, expired, top fans)" />
               )}
             </TabsContent>
 
@@ -820,7 +829,7 @@ const ProfileLookup = () => {
                       <div key={s.label} className="bg-white/[0.06] rounded-xl p-4 border border-white/[0.08]">
                         <p className="text-xs text-white/50 mb-1">{s.label}</p>
                         <p className="text-sm text-white/80 font-medium">{s.value}</p>
-                        <p className="text-xs text-white/35 mt-0.5">{s.detail}</p>
+                        <p className="text-xs text-white/50 mt-0.5">{s.detail}</p>
                       </div>
                     ))}
                   </div>
@@ -835,12 +844,12 @@ const ProfileLookup = () => {
                       {stories.length > 0 ? (
                         <div className="space-y-2 max-h-48 overflow-y-auto">
                           {stories.map((s: any, i: number) => (
-                            <div key={s.id || i} className="bg-white/[0.04] rounded-lg p-2.5 border border-white/[0.06] text-sm text-white/60">
+                            <div key={s.id || i} className="bg-white/[0.06] rounded-lg p-2.5 border border-white/[0.08] text-sm text-white/70">
                               Story #{i + 1} {s.createdAt && `• ${new Date(s.createdAt).toLocaleString()}`}
                             </div>
                           ))}
                         </div>
-                      ) : <p className="text-sm text-white/35">No active stories</p>}
+                      ) : <p className="text-sm text-white/50">No active stories</p>}
                     </SectionCard>
                   )}
                   {storyHighlights && Array.isArray(storyHighlights) && (
@@ -848,12 +857,12 @@ const ProfileLookup = () => {
                       {storyHighlights.length > 0 ? (
                         <div className="space-y-2 max-h-48 overflow-y-auto">
                           {storyHighlights.map((h: any, i: number) => (
-                            <div key={h.id || i} className="bg-white/[0.04] rounded-lg p-2.5 border border-white/[0.06] text-sm text-white/60">
+                            <div key={h.id || i} className="bg-white/[0.06] rounded-lg p-2.5 border border-white/[0.08] text-sm text-white/70">
                               {h.title || h.name || `Highlight #${i + 1}`} {h.storiesCount !== undefined && `• ${h.storiesCount} stories`}
                             </div>
                           ))}
                         </div>
-                      ) : <p className="text-sm text-white/35">No highlights</p>}
+                      ) : <p className="text-sm text-white/50">No highlights</p>}
                     </SectionCard>
                   )}
                 </div>
@@ -891,10 +900,10 @@ const ProfileLookup = () => {
                 <SectionCard title={`Promotions (${promotions.length})`} icon={Zap} badge="API">
                   <div className="space-y-2">
                     {promotions.map((p: any, i: number) => (
-                      <div key={p.id || i} className="bg-white/[0.04] rounded-lg p-3 border border-white/[0.06] flex items-center gap-3 hover:bg-white/[0.07] transition-colors">
+                      <div key={p.id || i} className="bg-white/[0.06] rounded-lg p-3 border border-white/[0.08] flex items-center gap-3 hover:bg-white/[0.09] transition-colors">
                         <div className="flex-1">
                           <p className="text-sm text-white/70">{p.type || "Promotion"} — {p.discount || p.amount || "?"}% off</p>
-                          <p className="text-xs text-white/35">{p.startDate || ""} → {p.endDate || ""}</p>
+                          <p className="text-xs text-white/50">{p.startDate || ""} → {p.endDate || ""}</p>
                         </div>
                         {p.status && <Badge variant="outline" className="text-xs">{p.status}</Badge>}
                       </div>
@@ -969,10 +978,7 @@ const ProfileLookup = () => {
                   )}
                 </>
               ) : (
-                <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-4 flex items-start gap-3">
-                  <Info className="h-4 w-4 text-amber-400 mt-0.5 shrink-0" />
-                  <p className="text-sm text-amber-300">Visitor data requires account-level access.</p>
-                </div>
+                <NoAccountAccessBanner feature="Visitor and traffic analytics" />
               )}
 
               {/* Traffic signals from public data */}
@@ -987,10 +993,10 @@ const ProfileLookup = () => {
                     profile.hasStories && { signal: "Uses Stories", detail: "Engagement feature for retention", strength: "Medium" },
                     socialMediaButtons && Array.isArray(socialMediaButtons) && socialMediaButtons.length > 0 && { signal: `${socialMediaButtons.length} Social Links`, detail: socialMediaButtons.map((b: any) => b.type || b.label).join(", "), strength: "Strong" },
                   ].filter(Boolean).map((s: any, i) => (
-                    <div key={i} className="flex items-center gap-3 bg-white/[0.03] rounded-lg p-2.5 border border-white/[0.05]">
+                    <div key={i} className="flex items-center gap-3 bg-white/[0.06] rounded-lg p-2.5 border border-white/[0.08]">
                       <div className="flex-1">
                         <p className="text-xs text-white/60 font-medium">{s.signal}</p>
-                        <p className="text-[10px] text-white/25">{s.detail}</p>
+                        <p className="text-xs text-white/50">{s.detail}</p>
                       </div>
                       <Badge variant="outline" className={`text-[10px] ${s.strength === "Strong" ? "text-emerald-400 border-emerald-500/30" : "text-amber-400 border-amber-500/30"}`}>{s.strength}</Badge>
                     </div>
@@ -1015,7 +1021,7 @@ const ProfileLookup = () => {
 
                   {topMessage && (
                     <SectionCard title="Top Performing Message" icon={Award} badge="API">
-                      <div className="bg-white/[0.03] rounded-lg p-3 border border-white/[0.05]">
+                      <div className="bg-white/[0.06] rounded-lg p-3 border border-white/[0.08]">
                         <p className="text-xs text-white/60">{topMessage.text || topMessage.content || "PPV/Locked message"}</p>
                         {topMessage.purchases !== undefined && <p className="text-xs text-emerald-400 mt-1">{topMessage.purchases} purchases • {fmt$(topMessage.revenue || topMessage.purchaseAmount)}</p>}
                       </div>
@@ -1030,7 +1036,7 @@ const ProfileLookup = () => {
                             {chat.avatar && <img src={chat.avatar} alt="" className="w-7 h-7 rounded-full ring-1 ring-white/10" />}
                             <div className="flex-1 min-w-0">
                               <p className="text-sm text-white/70 truncate font-medium">{chat.name || chat.username || `Chat #${i + 1}`}</p>
-                              {chat.lastMessage && <p className="text-xs text-white/35 truncate">{chat.lastMessage}</p>}
+                              {chat.lastMessage && <p className="text-xs text-white/50 truncate">{chat.lastMessage}</p>}
                             </div>
                             {chat.unreadCount > 0 && <Badge className="bg-accent/20 text-accent text-xs">{chat.unreadCount}</Badge>}
                           </div>
@@ -1055,10 +1061,7 @@ const ProfileLookup = () => {
                   )}
                 </>
               ) : (
-                <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-5 flex items-start gap-3">
-                  <Info className="h-5 w-5 text-amber-400 mt-0.5 shrink-0" />
-                  <p className="text-sm text-amber-300/80 leading-relaxed">Messaging data requires account-level access.</p>
-                </div>
+                <NoAccountAccessBanner feature="Messaging data (chats, mass messages, DMs)" />
               )}
             </TabsContent>
 
@@ -1103,10 +1106,7 @@ const ProfileLookup = () => {
                   )}
                 </>
               ) : (
-                <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-5 flex items-start gap-3">
-                  <Info className="h-5 w-5 text-amber-400 mt-0.5 shrink-0" />
-                  <p className="text-sm text-amber-300/80 leading-relaxed">Link data requires account-level access.</p>
-                </div>
+                <NoAccountAccessBanner feature="Tracking and trial link data" />
               )}
             </TabsContent>
 
@@ -1146,10 +1146,7 @@ const ProfileLookup = () => {
                   )}
                 </>
               ) : (
-                <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-5 flex items-start gap-3">
-                  <AlertTriangle className="h-5 w-5 text-emerald-400 mt-0.5 shrink-0" />
-                  <p className="text-sm text-emerald-300/80 leading-relaxed">No chargeback data available (either clean record or requires account access).</p>
-                </div>
+                <NoAccountAccessBanner feature="Chargeback data" />
               )}
             </TabsContent>
 
@@ -1259,7 +1256,7 @@ const ProfileLookup = () => {
                       { label: "Links", active: bioAnalysis.hasLinks },
                     ].map(f => (
                       <div key={f.label} className="bg-white/[0.06] rounded-xl p-4 border border-white/[0.08] text-center">
-                        <p className={`text-lg font-bold ${f.active ? "text-emerald-400" : "text-white/25"}`}>{f.active ? "✓" : "✗"}</p>
+                        <p className={`text-lg font-bold ${f.active ? "text-emerald-400" : "text-white/40"}`}>{f.active ? "✓" : "✗"}</p>
                         <p className="text-xs text-white/45">{f.label}</p>
                       </div>
                     ))}
@@ -1317,8 +1314,8 @@ const ProfileLookup = () => {
                   {!aiAnalysis && !aiLoading && (
                     <div className="text-center py-8">
                       <Sparkles className="h-8 w-8 text-violet-400/30 mx-auto mb-3" />
-                      <p className="text-sm text-white/30">Click "Run AI Analysis" for comprehensive strategic analysis</p>
-                      <p className="text-xs text-white/15 mt-1">Covers: conversion drivers, revenue optimization, content strategy, management recommendations</p>
+                      <p className="text-sm text-white/50">Click "Run AI Analysis" for comprehensive strategic analysis</p>
+                      <p className="text-xs text-white/40 mt-1">Covers: conversion drivers, revenue optimization, content strategy, management recommendations</p>
                     </div>
                   )}
                   {(aiAnalysis || aiLoading) && (
@@ -1377,7 +1374,7 @@ const ProfileLookup = () => {
         <div className="text-center py-20 text-white/40">
           <Search className="h-12 w-12 mx-auto mb-4 opacity-40" />
           <p className="text-base font-medium">Search for a creator to access their full profile intelligence</p>
-          <p className="text-sm mt-2 text-white/30">Queries 60+ endpoints: profile, earnings, subscribers, fans, chargebacks, stories, vault, links, settings & more</p>
+          <p className="text-sm mt-2 text-white/50">Queries 60+ endpoints: profile, earnings, subscribers, fans, chargebacks, stories, vault, links, settings & more</p>
         </div>
       )}
     </div>
