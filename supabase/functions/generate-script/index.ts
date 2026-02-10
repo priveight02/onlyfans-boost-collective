@@ -34,13 +34,24 @@ serve(async (req) => {
     const useDelays = include_delays !== false;
     const useQuestions = include_questions !== false;
 
-    const isInnocent = message_tone !== "bold";
+    const TONE_INSTRUCTIONS: Record<string, string> = {
+      innocent: `MESSAGE TONE — INNOCENT / CUTE / SHY:
+Write messages as if the creator is a sweet, playful, slightly shy girl-next-door. She types casually, sometimes with small grammar mistakes that feel natural and endearing. She uses "babe", "baby", emojis like 😊💕🥺, and sounds genuinely excited and a bit nervous. She never uses vulgar/explicit language — she hints and teases instead. She says things like "I'm getting so hot right now", "do you like seeing me like this?", "I really want you to enjoy this with me". The vibe is: warm, personal, slightly naive, irresistible innocence.`,
 
-    const toneInstruction = isInnocent
-      ? `MESSAGE TONE — INNOCENT / CUTE / SHY:
-Write messages as if the creator is a sweet, playful, slightly shy girl-next-door. She types casually, sometimes with small grammar mistakes that feel natural and endearing (not stupid). She uses "babe", "baby", emojis like 😊💕🥺, and sounds genuinely excited and a bit nervous. She never uses vulgar/explicit language — she hints and teases instead. She says things like "I'm getting so hot right now", "do you like seeing me like this?", "I really want you to enjoy this with me". The vibe is: warm, personal, slightly naive, irresistible innocence.`
-      : `MESSAGE TONE — BOLD / EXPLICIT / CONFIDENT:
-Write messages as if the creator is confident, sexually forward, and in control. She knows what she wants and isn't shy about saying it. She uses direct, explicit language freely. She says things like "I want you so hard right now", "look at what I'm doing for you", "tell me how much you want me". The vibe is: dominant, seductive, unapologetic, grown-up. No shyness, no hesitation.`;
+      aggressive_innocent: `MESSAGE TONE — SPICY / CASUAL / AGGRESSIVE-INNOCENT:
+Write messages like a girl who texts super casually but says very bold, explicit things. She uses "u" instead of "you", "ur" instead of "your", "lol", "omg", lowercase typing, short punchy sentences. She sounds young and casual in HOW she types but what she says is aggressive and sexually forward. She mixes innocent texting style with very explicit content. Examples: "u know I never shown my pussy before", "don't u wanna see how deep my fingers can go?", "u can hear how wet i am lol", "u really make me horny", "let it go i'll be your slut for the rest of the night", "fuck baby that's spenny!", "i wanna show u everything". The vibe is: casual texting energy + sexually aggressive content, like a real girl texting someone she's into. NO formal language. NO long sentences. Raw, real, unfiltered.`,
+
+      bold: `MESSAGE TONE — BOLD / EXPLICIT / CONFIDENT:
+Write messages as if the creator is confident, sexually forward, and in control. She knows what she wants and isn't shy about saying it. She uses direct, explicit language freely. She says things like "I want you so hard right now", "look at what I'm doing for you", "tell me how much you want me". The vibe is: dominant, seductive, unapologetic, grown-up. No shyness, no hesitation.`,
+
+      submissive: `MESSAGE TONE — SUBMISSIVE / NEEDY / DEVOTED:
+Write messages as if the creator is desperate to please and craves validation. She's eager, needy, and devoted. She says things like "please tell me what you want me to do", "I'll do anything for you", "am I being a good girl?", "I need you so bad rn", "I can't stop thinking about you daddy". She uses lots of emojis 🥺😩💦, begs, and makes the subscriber feel powerful and in control. The vibe is: worship, devotion, eager-to-please.`,
+
+      bratty: `MESSAGE TONE — BRATTY / TEASE / PLAYFUL ATTITUDE:
+Write messages as if the creator is a confident tease who plays hard to get. She's sassy, witty, and makes the subscriber work for it. She says things like "hmm maybe if you're nice enough", "you think you deserve to see that? 😏", "make me", "idk if you can handle me tbh", "prove you want it". She flips between teasing denial and rewarding. Uses 😏💅🙄 emojis. The vibe is: playful power, push-pull dynamic, "chase me".`,
+    };
+
+    const toneInstruction = TONE_INSTRUCTIONS[message_tone] || TONE_INSTRUCTIONS.innocent;
 
     const messageInstruction = realMessages
       ? `Write REAL, natural-sounding messages that chatters can copy-paste directly. Use {NAME} as placeholder. Each message must be unique, engaging, and psychologically optimized.\n\n${toneInstruction}`

@@ -204,7 +204,7 @@ const ScriptBuilder = () => {
   const [includeFollowups, setIncludeFollowups] = useState(true);
   const [includeDelays, setIncludeDelays] = useState(true);
   const [includeQuestions, setIncludeQuestions] = useState(true);
-  const [messageTone, setMessageTone] = useState<"innocent" | "bold">("innocent");
+  const [messageTone, setMessageTone] = useState<"innocent" | "bold" | "aggressive_innocent" | "submissive" | "bratty">("innocent");
 
   const [genTimer, setGenTimer] = useState(0);
   const [genEstimate, setGenEstimate] = useState(0);
@@ -493,14 +493,22 @@ const ScriptBuilder = () => {
                 {/* Message Tone */}
                 <div className="space-y-2">
                   <Label className="text-xs text-white/60">Message Tone</Label>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-3 gap-2">
                     <button onClick={() => setMessageTone("innocent")}
                       className={`p-3 rounded-lg text-center transition-all border ${
                         messageTone === "innocent" ? "bg-pink-500/20 border-pink-500/40 text-white" : "bg-white/[0.03] border-white/[0.06] text-white/40 hover:bg-white/[0.06]"
                       }`}>
                       <span className="text-lg block">🥺</span>
                       <span className="text-[10px] font-semibold block">Innocent / Cute</span>
-                      <span className="text-[8px] block text-white/30">Playful, shy, sweet girl-next-door</span>
+                      <span className="text-[8px] block text-white/30">Shy, sweet, girl-next-door</span>
+                    </button>
+                    <button onClick={() => setMessageTone("aggressive_innocent")}
+                      className={`p-3 rounded-lg text-center transition-all border ${
+                        messageTone === "aggressive_innocent" ? "bg-purple-500/20 border-purple-500/40 text-white" : "bg-white/[0.03] border-white/[0.06] text-white/40 hover:bg-white/[0.06]"
+                      }`}>
+                      <span className="text-lg block">😈</span>
+                      <span className="text-[10px] font-semibold block">Spicy / Casual</span>
+                      <span className="text-[8px] block text-white/30">Bold words, "u" texting style</span>
                     </button>
                     <button onClick={() => setMessageTone("bold")}
                       className={`p-3 rounded-lg text-center transition-all border ${
@@ -508,7 +516,23 @@ const ScriptBuilder = () => {
                       }`}>
                       <span className="text-lg block">🔥</span>
                       <span className="text-[10px] font-semibold block">Bold / Explicit</span>
-                      <span className="text-[8px] block text-white/30">Confident, direct, grown-up language</span>
+                      <span className="text-[8px] block text-white/30">Confident, direct, grown-up</span>
+                    </button>
+                    <button onClick={() => setMessageTone("submissive")}
+                      className={`p-3 rounded-lg text-center transition-all border ${
+                        messageTone === "submissive" ? "bg-blue-500/20 border-blue-500/40 text-white" : "bg-white/[0.03] border-white/[0.06] text-white/40 hover:bg-white/[0.06]"
+                      }`}>
+                      <span className="text-lg block">🫣</span>
+                      <span className="text-[10px] font-semibold block">Submissive / Needy</span>
+                      <span className="text-[8px] block text-white/30">Begging, pleasing, devoted</span>
+                    </button>
+                    <button onClick={() => setMessageTone("bratty")}
+                      className={`p-3 rounded-lg text-center transition-all border ${
+                        messageTone === "bratty" ? "bg-orange-500/20 border-orange-500/40 text-white" : "bg-white/[0.03] border-white/[0.06] text-white/40 hover:bg-white/[0.06]"
+                      }`}>
+                      <span className="text-lg block">💅</span>
+                      <span className="text-[10px] font-semibold block">Bratty / Tease</span>
+                      <span className="text-[8px] block text-white/30">Playful attitude, "make me"</span>
                     </button>
                   </div>
                 </div>
