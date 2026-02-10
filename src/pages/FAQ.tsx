@@ -19,19 +19,19 @@ const FAQ = () => {
       questions: [
         {
           question: "What does Ozc Agency actually do for models?",
-          answer: "We handle everything that drives your revenue — from our dedicated chatting team engaging your fans 24/7 to maximize lifetime value, to our marketing team driving traffic and new subscribers to your page. We also take care of leak removal, problem-solving, content strategy, and buyer acquisition so you can focus on creating while we handle the business side."
+          answer: "We become your full business team. Our chatting specialists engage your fans around the clock to keep them spending and coming back, while our marketing crew drives fresh subscribers to your page every single day. On top of that, we handle leak removal, solve any problems that come up, and fine-tune your content strategy — so all you have to do is create and enjoy the results."
         },
         {
           question: "How do I apply to join Ozc Agency?",
-          answer: "Simply fill out our onboarding form with your basic info, current platforms, and goals. Our team reviews every application within 24 hours. We'll hop on a quick call to understand your situation, explain how we work, and see if we're a good fit for each other."
+          answer: "It's really easy — just fill out our quick onboarding form and tell us a bit about yourself. We review every single application within 24 hours, then we'll set up a friendly call to get to know you, answer all your questions, and figure out the best game plan together. No pressure, just a conversation."
         },
         {
           question: "Do I need to already have an OF page to join?",
-          answer: "Not necessarily! We work with models at all stages — whether you're brand new and need help setting everything up, or you're already established and looking to scale. If you're starting fresh, we'll guide you through the entire setup process and build your page for success from day one."
+          answer: "Not at all! Whether you're completely new or already have an established page, we've got you covered. If you're just getting started, we'll walk you through everything step by step — from setting up your page to building your brand. No experience needed, just the willingness to grow."
         },
         {
-          question: "What makes Ozc Agency different from other management agencies?",
-          answer: "We're not just managers — we're a full team working around the clock for your success. Our chatting team works 24/7 to engage your fans and increase their lifetime value, our marketing team constantly drives new traffic, and we actively monitor and remove any leaked content. Every decision we make is focused on maximizing your earnings."
+          question: "What makes Ozc Agency different from other agencies?",
+          answer: "Most agencies just \"manage\" — we actually build your business. You get an entire team working for you 24/7: chatters keeping your fans engaged and spending, marketers bringing in new subs daily, and a support team that handles leaks, issues, and everything in between. We treat your page like our own because your success is literally our success."
         }
       ]
     },
@@ -40,19 +40,19 @@ const FAQ = () => {
       questions: [
         {
           question: "How does your chatting team work?",
-          answer: "Our professional chatting team operates 24/7 in shifts so your fans are never left waiting. They're trained in proven engagement strategies to build genuine connections with your subscribers, upsell premium content, and maximize the lifetime value of every single fan on your page."
+          answer: "Think of them as your fan relationship experts. They work in shifts around the clock so your DMs are never sitting unanswered. Every conversation is designed to make your fans feel special, build real connections, and naturally encourage tips, PPV purchases, and custom requests — all while staying true to your voice and personality."
         },
         {
           question: "Will the chatting feel authentic to my fans?",
-          answer: "Absolutely. We take time to learn your personality, tone, and style so every conversation feels natural and on-brand. Your fans won't notice a difference — they'll just feel more engaged and valued, which keeps them subscribed longer and spending more."
+          answer: "That's one of our top priorities. Before we start, we spend time learning how you talk, your vibe, your humor — everything that makes you, you. Your fans will feel like they're talking directly to you, just with way faster response times. The result? Happier fans who stick around longer and spend more."
         },
         {
-          question: "What is fan lifetime value and why does it matter?",
-          answer: "Fan lifetime value (LTV) is the total amount a subscriber spends over their entire time on your page — not just the subscription fee. Our chatting strategies focus on building relationships that increase tips, PPV purchases, and custom requests, turning casual subscribers into loyal high-spending fans."
+          question: "What is fan lifetime value and why should I care?",
+          answer: "It's the total amount a fan spends over their entire time on your page — way beyond just the monthly sub. Most models leave a ton of money on the table because they don't nurture their fans properly. Our chatting strategies turn one-time visitors into loyal, high-spending supporters who keep coming back month after month."
         },
         {
           question: "Do I have control over what my chatting team says?",
-          answer: "100%. You set the boundaries and guidelines, and we operate strictly within them. You'll have full visibility into conversations, and we regularly check in with you to make sure everything aligns with your comfort level and brand image."
+          answer: "Always. You set the rules, and we follow them — no exceptions. You'll have full access to see every conversation, and we check in regularly to make sure everything feels right. Your boundaries and comfort always come first. If something doesn't sit well with you, we adjust immediately."
         }
       ]
     },
@@ -61,15 +61,15 @@ const FAQ = () => {
       questions: [
         {
           question: "How do you drive traffic to my page?",
-          answer: "Our marketing team uses a combination of social media strategies, content promotion, platform-specific growth tactics, and targeted campaigns across multiple channels. We constantly test and optimize what works best for your niche to bring in a steady flow of new, paying subscribers."
+          answer: "We use a mix of proven strategies across Instagram, Twitter/X, TikTok, Reddit, and other platforms to get eyes on your content. Our team constantly tests new approaches, doubles down on what's working, and adapts to trends so you always have a fresh stream of potential subscribers finding you."
         },
         {
           question: "Do you handle my social media accounts?",
-          answer: "Yes — our social media management team handles posting schedules, content repurposing, engagement strategies, and growth tactics across platforms like Instagram, Twitter/X, TikTok, and Reddit. Everything is tailored to your brand and designed to funnel traffic to your page."
+          answer: "Yes! We take care of your posting schedule, content repurposing, captions, engagement, and growth tactics across all your socials. Everything stays on-brand and is designed to funnel people straight to your page. You stay in control of what goes out — we just make sure it's consistent, strategic, and getting results."
         },
         {
-          question: "How quickly will I see new subscribers coming in?",
-          answer: "Most models start seeing increased traffic within the first 1-2 weeks as our marketing strategies kick in. Significant subscriber growth typically happens within the first 30 days, with consistent scaling over the following months as we refine what works best for your audience."
+          question: "How quickly will I start seeing new subscribers?",
+          answer: "Most models notice a bump in traffic within the first week or two. Real, consistent growth usually kicks in within the first month as our strategies build momentum. From there, it just keeps compounding — the longer we work together, the stronger the results get."
         }
       ]
     },
@@ -78,15 +78,15 @@ const FAQ = () => {
       questions: [
         {
           question: "What do you do about leaked content?",
-          answer: "We actively monitor the internet for any leaked content and take immediate action to get it removed through DMCA takedowns and direct platform requests. Protecting your content is a top priority — we treat every leak as urgent and handle it so you don't have to stress about it."
+          answer: "We take leaks seriously and act fast. Our team actively scans the internet for any unauthorized content and handles DMCA takedowns and removal requests immediately. You should never have to deal with that stress — we've got your back and we treat every situation with urgency and discretion."
         },
         {
-          question: "What kind of problems can your team help me solve?",
-          answer: "From account issues and chargebacks to dealing with difficult subscribers, platform policy questions, payment problems, and any unexpected situations — our team has seen it all. We handle the headaches so you can stay focused on creating and growing."
+          question: "What kind of problems can your team help me with?",
+          answer: "Honestly, pretty much anything. Account issues, chargebacks, difficult subscribers, platform questions, payment hiccups — you name it. We've seen it all and know how to handle it quickly. Our job is to remove the stress from your plate so you can focus on what you do best."
         },
         {
           question: "Is my personal information kept confidential?",
-          answer: "Absolutely. Privacy and confidentiality are non-negotiable for us. Your personal details, earnings, strategies, and any sensitive information are kept strictly between you and our team. We operate with full discretion at all times."
+          answer: "1000%. Your privacy is sacred to us. Everything — your real name, earnings, strategies, personal details — stays strictly between you and our team. We operate with complete discretion and will never share your information with anyone. Period."
         }
       ]
     },
@@ -95,19 +95,19 @@ const FAQ = () => {
       questions: [
         {
           question: "How do you help increase my earnings?",
-          answer: "We attack revenue from every angle — our chatting team maximizes fan spending through strategic engagement, our marketing team brings in fresh subscribers daily, and we optimize your pricing, PPV strategy, and content schedule based on real data. Most models see a significant income jump within the first month."
+          answer: "We work every angle. Our chatters keep your fans engaged and spending, our marketers bring in fresh subscribers every day, and we constantly optimize your pricing, PPV strategy, and content schedule based on what the data tells us. Most models notice a real difference in their income within the very first month of working with us."
         },
         {
           question: "What kind of results can I realistically expect?",
-          answer: "Results vary based on your starting point and consistency, but most of our models see 3-10x growth in their first 3 months. Some of our top performers have gone from a few hundred dollars to consistent five-figure months. We set realistic goals together and work relentlessly to hit them."
+          answer: "Every model is different, but here's what we typically see: most of our girls experience 3-10x growth within the first 3 months. Some have gone from making a few hundred dollars to consistent five-figure months. We'll set honest, realistic goals together and then do everything in our power to crush them."
         },
         {
           question: "How does the revenue split work?",
-          answer: "Our pricing is performance-based with a revenue share model — meaning we only win when you win. The exact split depends on the services you need and your current level. We'll discuss all the details transparently during your onboarding call so there are no surprises."
+          answer: "We keep it simple and fair. Our model is performance-based — we take a percentage of the revenue we help generate, so we only make money when you make money. The exact split depends on what services you need, and we'll go over everything openly during your onboarding call. No hidden fees, no surprises."
         },
         {
           question: "Are there any upfront costs or long-term contracts?",
-          answer: "We don't believe in locking you into long contracts or charging hefty upfront fees. Our model is built on mutual success — if we're not delivering results, you're free to walk. We earn your trust through performance, not paperwork."
+          answer: "Nope. We don't do long contracts or upfront fees. We believe the best way to earn your trust is by delivering results, not trapping you in paperwork. If at any point you feel it's not the right fit, you're free to go — but we're confident you'll want to stay once you see what we can do."
         }
       ]
     }
@@ -183,7 +183,7 @@ const FAQ = () => {
                       </div>
                     </AccordionTrigger>
                     <AccordionContent className="px-6 pb-4">
-                      <div className="text-white/70 leading-relaxed text-base">
+                      <div className="text-white/90 leading-relaxed text-base">
                         {faq.answer}
                       </div>
                     </AccordionContent>
