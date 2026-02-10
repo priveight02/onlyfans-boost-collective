@@ -22,6 +22,9 @@ serve(async (req) => {
       script_length, include_conditions, include_followups, include_delays, include_questions,
       message_tone, enable_exclusivity, enable_typo_simulation, enable_free_first, enable_max_conversion,
       enable_emoji, enable_re_engagement, enable_voice_note_hints, adaptive_pricing, pricing_tiers,
+      // New psychology options
+      enable_mind_building, enable_story_arc, enable_exclusivity_psychology,
+      enable_fantasy_projection, enable_emotional_anchoring,
     } = await req.json();
     
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
@@ -82,96 +85,186 @@ These techniques make the fan believe the content is being created RIGHT NOW, ju
    - "hold on 2 mins babe 😊" → (delay 2-3 min) → sends content
    - "omg wait let me take something for u real quick" → (delay 3-5 min) → sends media
    - "brb getting my phone lol" → (delay 1-2 min) → returns with content
-   The fan thinks she's literally going to shoot the content and coming back. This creates MASSIVE anticipation.
 
 2. "JUST TOOK THIS" LANGUAGE: Every media send should feel spontaneous:
    - "just took this for u 🤭"
    - "I literally just recorded this omg"
    - "ok I just did it... don't judge me lol"
-   - "I took this right now look"
 
 3. EXCLUSIVITY MARKERS: Make the fan feel like the ONLY person seeing this:
    - "I never send this to anyone"
    - "u're literally the only one who's seen this"
-   - "I don't usually do this but..."
    - "don't screenshot ok? 🥺 this is just for u"
-   - "I only feel comfortable doing this with u"
 
-4. ENVIRONMENT AUTHENTICITY: Reference the real-time setting:
-   - "I'm literally in my room rn"
-   - "my roommate just left so..."
-   - "I'm in the bathroom lol hold on"
-   - Reference time of day, what she's wearing, what she was doing before
+4. ENVIRONMENT AUTHENTICITY: Reference the real-time setting.
 
-5. HESITATION BEFORE BOLD CONTENT: Show "nervousness" before sending premium content:
-   - "should I send it? 🙈"
-   - "ok promise u won't think I'm weird"
-   - "I'm so nervous omg"
-   - This makes premium content feel more valuable and intimate
-
-These elements should be woven naturally throughout the script, not forced. The goal is that a fan reading this conversation would believe it's 100% real and happening live.` : "";
+5. HESITATION BEFORE BOLD CONTENT: Show "nervousness" before sending premium content.` : "";
 
     const toneInstruction = TONE_INSTRUCTIONS[message_tone] || TONE_INSTRUCTIONS.innocent;
 
     const typoInstruction = enable_typo_simulation ? `
 TYPO SIMULATION (CRITICAL FOR REALISM):
-Throughout the script, intentionally include 1-3 typos in messages, then IMMEDIATELY follow with a correction using an asterisk (*). This makes the conversation feel genuinely typed by a real person in real-time. Examples:
+Throughout the script, intentionally include 1-3 typos in messages, then IMMEDIATELY follow with a correction using an asterisk (*). Examples:
 - "I just tok this for u" → next message: "*took lol"
 - "ur so hooot" → next message: "*hot omg autocorrect 😂"
-- "I wanna sho u something" → next message: "*show"
-- "hold on im comming" → next message: "*coming lol"
-- "I'm so nrevous rn" → next message: "*nervous 🙈"
-
-Rules:
-- Only 1-3 typos per script (not every message!)
-- The typo should look like a genuine fast-typing mistake (adjacent keys, missing letters, doubled letters)
-- The correction message should be SHORT — just the corrected word with * and optionally "lol" or an emoji
-- Place typos in casual/emotional moments (when she'd be typing fast because she's excited/nervous)
-- NEVER put typos in PPV captions or pricing messages — only in chat messages
-` : "";
+Rules: Only 1-3 typos per script. The correction message should be SHORT. NEVER put typos in PPV captions or pricing messages.` : "";
 
     const freeFirstInstruction = enable_free_first !== false ? `
 FREE CONTENT FIRST STRATEGY (MANDATORY):
 - The script MUST include at least 1-2 FREE media items (free_content steps with price: 0) BEFORE any paid PPV content
-- The free content serves as "bait" — it gives the fan a taste, triggers the reciprocity principle, and locks them into the conversation
-- Free content should be enticing enough to create desire but leave the best stuff for paid
+- The free content serves as "bait" — it gives the fan a taste, triggers the reciprocity principle
 - After free content, add a message gauging their reaction before the first PPV drop
-- This is the #1 conversion technique: give value first → fan feels obligated to buy
-- Example flow: casual opener → free preview → "did u like that?" → their response → first PPV at low price
-` : "";
+- Example flow: casual opener → free preview → "did u like that?" → their response → first PPV at low price` : "";
 
     const maxConversionInstruction = enable_max_conversion !== false ? `
 MAX CONVERSION OPTIMIZATION (APPLY TO EVERY MESSAGE):
-Every single message in this script should serve a psychological purpose. No filler. No wasted messages.
-
-1. SUNK COST ESCALATION: After first purchase, reference it: "since u already saw the first one..." — makes them feel invested
-2. FOMO TRIGGERS: "I might delete this later", "I'm only sending this rn", "this offer won't last"
-3. URGENCY: "I'm only in the mood to do this right now", "my roommate comes back in 20 mins"
-4. PRICE ANCHORING: Before revealing price, hint at higher value: "I usually charge way more for this kind of thing but for u..."
-5. RE-ENGAGEMENT LOOPS: If they go quiet, have follow-up messages that create curiosity: "u there? 🥺 I was about to send u something crazy"
-6. MICRO-COMMITMENTS: Get small "yes" responses before big asks: "do u want to see more?" → yes → "ok but this one is special..."
-7. REWARD AFTER PURCHASE: Always send a warm thank-you + tease after they buy: "omg u actually got it 🥰 u have no idea what I'm about to send u next"
-8. EMOTIONAL ESCALATION: Each message should be slightly more intense than the last — never plateau
-9. NATURAL NON-FORCED FLOW: Despite all these techniques, the conversation must read like a REAL chat. No sales pitch language. No "limited time offer" corporate speak. Just a girl genuinely chatting.
-` : "";
+1. SUNK COST ESCALATION: After first purchase, reference it: "since u already saw the first one..."
+2. FOMO TRIGGERS: "I might delete this later", "I'm only sending this rn"
+3. URGENCY: "I'm only in the mood to do this right now"
+4. PRICE ANCHORING: Before revealing price, hint at higher value
+5. RE-ENGAGEMENT LOOPS: If they go quiet, have follow-up messages
+6. MICRO-COMMITMENTS: Get small "yes" responses before big asks
+7. REWARD AFTER PURCHASE: Always send a warm thank-you + tease after they buy
+8. EMOTIONAL ESCALATION: Each message should be slightly more intense than the last
+9. NATURAL NON-FORCED FLOW: Despite all these techniques, the conversation must read like a REAL chat.` : "";
 
     const emojiInstruction = enable_emoji !== false ? `
-EMOJI USAGE: Use natural emoji throughout messages (😊💕🔥🥺😏🙈😈). Place them where a real person would while texting — at ends of sentences, after teasing, expressing emotion. Don't overdo it (1-3 per message max). Emojis should match the current tone phase.` : "EMOJI USAGE: Minimize emoji usage. Keep messages clean text with rare exceptions.";
+EMOJI USAGE: Use natural emoji throughout messages (😊💕🔥🥺😏🙈😈). Place them where a real person would while texting — at ends of sentences, after teasing, expressing emotion. Don't overdo it (1-3 per message max).` : "EMOJI USAGE: Minimize emoji usage.";
 
     const reEngagementInstruction = enable_re_engagement !== false ? `
-RE-ENGAGEMENT LOOPS (CRITICAL): If the fan goes quiet at ANY point, include follow-up messages designed to pull them back:
-- After 5-10 min silence: "u there? 🥺" or "did I scare u away lol"
+RE-ENGAGEMENT LOOPS: If the fan goes quiet at ANY point, include follow-up messages:
+- After 5-10 min silence: "u there? 🥺"
 - After 15-30 min: "I was about to send u something crazy but idk if u're still here..."
-- After 1+ hour: "hey {NAME}... I saved something for u 😏 lmk when u're back"
-- After purchase but no response: "did u like it?? 🙈 I need to know"
-These should feel organic, NOT desperate. They create curiosity and FOMO.` : "";
+- After purchase but no response: "did u like it?? 🙈 I need to know"` : "";
 
     const voiceNoteInstruction = enable_voice_note_hints ? `
-VOICE NOTE HINTS: Reference voice notes/audio as something intimate and exclusive:
+VOICE NOTE HINTS: Reference voice notes/audio as something intimate:
 - "wish I could send u a voice note rn u'd hear how I sound 🥺"
 - "I recorded something for u but idk if I should send it..."
-- "my voice is so soft rn u'd love it"
-This adds another sensory dimension and makes the fan imagine more. Use sparingly (1-2 per script).` : "";
+Use sparingly (1-2 per script).` : "";
+
+    // NEW PSYCHOLOGY INSTRUCTIONS
+    const mindBuildingInstruction = enable_mind_building !== false ? `
+🧠 MIND BUILDING PSYCHOLOGY (CRITICAL — PROGRESSIVE MENTAL INVESTMENT):
+The script must progressively build a mental image in the fan's mind. Each step makes them imagine MORE:
+
+1. SENSORY LAYERING: Start with visual hints → add touch/feeling references → build to full sensory imagination
+   - Early: "I'm wearing something cute rn 😊" (they imagine the outfit)
+   - Mid: "my skin is so soft after that shower..." (they imagine touching)
+   - Late: "I wish u could feel how warm I am rn 🥺" (full sensory immersion)
+
+2. PROGRESSIVE REVEAL: Never show everything at once. Each media reveals a LITTLE more:
+   - First: face/innocent context → Second: more body/setting → Third: the "reveal" they've been building in their mind
+   - The gap between what they SEE and what they IMAGINE is where desire lives
+
+3. MENTAL INVESTMENT HOOKS: Once they've built this mental image, they're INVESTED:
+   - "bet u're imagining what comes next 😏"
+   - "I know what u're thinking rn..."
+   - "the next one is exactly what u're picturing..."
+   - This makes them NEED to see the next content to validate their imagination
+
+4. THOUGHT PLANTING: Drop subtle seeds that grow in their mind:
+   - "I've been thinking about this all day..."
+   - "I keep looking at what I just recorded and getting nervous to send it"
+   - These statements make THEM start thinking about it obsessively too` : "";
+
+    const storyArcInstruction = enable_story_arc !== false ? `
+📖 STORY ARC NARRATIVE (CRITICAL — KEEP THEM HOOKED):
+The script must follow a compelling narrative structure like a movie or TV episode:
+
+ACT 1 — SETUP (first 15-20%): Establish the scene, setting, her mood. Make it feel REAL.
+- "just got home from..." or "I'm laying in bed and..." — ground it in reality
+- Introduce the "why" — why is she reaching out NOW? What triggered this moment?
+
+ACT 2 — RISING ACTION (20-60%): Build tension, desire, and emotional investment
+- Each message raises the stakes slightly. The conversation gets more intimate.
+- Introduce the "what if" — "what if I showed you..." "what would u do if..."
+- The fan becomes part of the story — they're not just watching, they're IN it
+
+ACT 3 — CLIMAX (60-80%): The peak content, the "grand reveal"
+- This is where the premium content drops
+- Maximum emotional intensity, maximum desire
+- "this is it... the one I've been building up to 🥺"
+
+ACT 4 — RESOLUTION (80-100%): Warm down, emotional connection, seed for next time
+- "that was so intense omg 🙈"
+- "I've never shared anything like that with anyone"
+- Plant the hook for next time: "next time I want to try something even crazier..."
+
+The fan should feel like they experienced a STORY, not just bought content.` : "";
+
+    const exclusivityPsychInstruction = enable_exclusivity_psychology !== false ? `
+👑 VIP EXCLUSIVITY PSYCHOLOGY (MAKE THEM FEEL CHOSEN):
+Every fan must feel like they have SPECIAL ACCESS that nobody else gets:
+
+1. INNER CIRCLE LANGUAGE: 
+   - "I don't do this with just anyone"
+   - "u're in my top favorites, u know that right? 😊"
+   - "I have a special folder... it's only for people I really trust"
+
+2. SECRET SHARING FRAMEWORK:
+   - "can I tell u a secret? 🤭" → builds anticipation
+   - "promise u won't tell anyone..." → creates conspiracy bond
+   - "this is between us ok?" → establishes trust intimacy
+   
+3. PRIVILEGE ESCALATION:
+   - Start: "I'm sending u something I don't usually share"
+   - Mid: "u're one of the only ones who gets to see this level"
+   - Peak: "nobody has EVER seen what I'm about to send u"
+   - Each level makes them feel more special, more invested
+
+4. FEAR OF LOSING ACCESS:
+   - "I might stop sharing this kind of stuff if people don't appreciate it"
+   - "I only keep doing this for people who really value it"
+   - Creates anxiety about losing their "special status"` : "";
+
+    const fantasyProjectionInstruction = enable_fantasy_projection ? `
+💭 FANTASY PROJECTION (PUT THEM IN THE SCENE):
+Guide the fan to mentally insert themselves into the scenario:
+
+1. SECOND PERSON IMMERSION:
+   - "imagine u walked in right now and saw me like this..."
+   - "what would u do if u were here with me rn? 😏"
+   - "picture this: it's late, my room is dark, and I just texted u..."
+
+2. SCENARIO BUILDING:
+   - Paint vivid scenarios they can inhabit mentally
+   - "if we were together rn I'd be showing u this in person 🥺"
+   - "imagine waking up next to me and this is the first thing u see..."
+
+3. EMOTIONAL MIRRORING:
+   - "I bet ur heart is racing rn... mine is too"
+   - "are u somewhere private? because what I'm about to send..."
+   - Make them feel what SHE supposedly feels — shared experience
+
+4. CALLBACK LOOPS:
+   - Reference their earlier responses: "u said u liked [thing] so I..."
+   - "remember when I sent u [earlier content]? this is even better"
+   - Creates continuity and deepens the fantasy world` : "";
+
+    const emotionalAnchoringInstruction = enable_emotional_anchoring !== false ? `
+⚓ EMOTIONAL ANCHORING (PAVLOVIAN BUYING):
+Link every purchase to a POSITIVE EMOTION so they associate buying with feeling good:
+
+1. PRE-PURCHASE EXCITEMENT:
+   - "omg I'm so excited to show u this 🥰"
+   - "I've been waiting all day to send u this..."
+   - The excitement is contagious — they feel excited TOO
+
+2. POST-PURCHASE WARMTH:
+   - IMMEDIATELY after they buy: "u just made my whole day 🥺💕"
+   - "I love that u appreciate this... it means so much to me"
+   - "u're literally the best... I made this thinking of u"
+   - They feel GOOD about spending → creates positive reinforcement loop
+
+3. GRATITUDE ANCHORING:
+   - "every time u support me like this I fall for u a little more 💕"
+   - Creates emotional dependency — buying = receiving love/attention
+
+4. ANTICIPATION BUILDING:
+   - After purchase: "ok because u got that one... I have something EVEN better"
+   - Each purchase unlocks the "next level" — gamification of spending
+   - They associate buying with unlocking new emotional experiences` : "";
 
     // Build pricing instruction from custom tiers
     const defaultTiers = [
@@ -188,14 +281,13 @@ This adds another sensory dimension and makes the fan imagine more. Use sparingl
 
     const adaptiveNote = adaptive_pricing !== false ? `
 ADAPTIVE PRICING: Adjust the pricing ladder based on script length:
-- Very Short/Short scripts: Use steps 1-4 only. More free content (2-3 items) to build trust fast. Total target: $${Math.round(totalMin * 0.4)}-$${Math.round(totalMax * 0.5)}.
+- Very Short/Short scripts: Use steps 1-4 only. More free content (2-3 items). Total target: $${Math.round(totalMin * 0.4)}-$${Math.round(totalMax * 0.5)}.
 - Medium scripts: Use steps 1-5. Standard ladder. 1-2 free items. Total target: $${Math.round(totalMin * 0.7)}-$${Math.round(totalMax * 0.8)}.
-- Long/Very Long scripts: Use ALL steps including VIP. 3-4 free items at start so the fan learns to know her before spending. More gradual build. Total target: $${totalMin}-$${totalMax}+.
-The longer the script, the more free media at the beginning to build genuine connection before monetizing.` : "";
+- Long/Very Long scripts: Use ALL steps including VIP. 3-4 free items at start. Total target: $${totalMin}-$${totalMax}+.` : "";
 
     const messageInstruction = realMessages
-      ? `Write REAL, natural-sounding messages that chatters can copy-paste directly. Use {NAME} as placeholder. Each message must be unique, engaging, and psychologically optimized.\n\n${toneInstruction}\n\n${exclusivityInstruction}\n\n${typoInstruction}\n\n${freeFirstInstruction}\n\n${maxConversionInstruction}\n\n${emojiInstruction}\n\n${reEngagementInstruction}\n\n${voiceNoteInstruction}\n\n${adaptiveNote}`
-      : `Use placeholder text for messages: "[message]", "[answer]", "[follow-up]", "[reaction]". The chatter writes their own messages. Only fill in media descriptions and pricing.\n\n${exclusivityInstruction}\n\n${freeFirstInstruction}\n\n${maxConversionInstruction}\n\n${adaptiveNote}`;
+      ? `Write REAL, natural-sounding messages that chatters can copy-paste directly. Use {NAME} as placeholder. Each message must be unique, engaging, and psychologically optimized.\n\n${toneInstruction}\n\n${exclusivityInstruction}\n\n${typoInstruction}\n\n${freeFirstInstruction}\n\n${maxConversionInstruction}\n\n${emojiInstruction}\n\n${reEngagementInstruction}\n\n${voiceNoteInstruction}\n\n${mindBuildingInstruction}\n\n${storyArcInstruction}\n\n${exclusivityPsychInstruction}\n\n${fantasyProjectionInstruction}\n\n${emotionalAnchoringInstruction}\n\n${adaptiveNote}`
+      : `Use placeholder text for messages. Only fill in media descriptions and pricing.\n\n${exclusivityInstruction}\n\n${freeFirstInstruction}\n\n${maxConversionInstruction}\n\n${mindBuildingInstruction}\n\n${storyArcInstruction}\n\n${adaptiveNote}`;
 
     const conditionalInstructions = [];
     if (!useConditions) conditionalInstructions.push("Do NOT include any 'condition' steps.");
@@ -209,25 +301,29 @@ WHAT A SCRIPT IS:
 A script is a structured series of ${length.media} media items (images and videos) in the SAME environment/setting, with chat messages between them. The story builds gradually, creating anticipation and desire. Progressive pricing makes each piece more valuable than the last. The BEST content is saved for last — this is the "grand finale" technique.
 
 PSYCHOLOGICAL TECHNIQUES TO USE:
-1. CURIOSITY GAP: Tease what's coming next without revealing it. "I just took something special..." creates anticipation
+1. CURIOSITY GAP: Tease what's coming next without revealing it
 2. RECIPROCITY: Give free content first → fan feels compelled to reciprocate by purchasing
-3. SCARCITY/EXCLUSIVITY: "Only sending this to you", "Never shared this before", "Deleting soon"
-4. EMOTIONAL INVESTMENT: Get them talking about themselves → they feel connected → harder to ignore offers
-5. SUNK COST: After first small purchase ($5), they're psychologically invested → easier to buy $15, $25
-6. SOCIAL PROOF hints: "Everyone loved my last set", "This is my most requested look"
+3. SCARCITY/EXCLUSIVITY: "Only sending this to you", "Never shared this before"
+4. EMOTIONAL INVESTMENT: Get them talking about themselves → they feel connected
+5. SUNK COST: After first small purchase, they're psychologically invested
+6. SOCIAL PROOF hints: "Everyone loved my last set"
 7. DOPAMINE DRIP: Small rewards (free content) between asks keep them engaged
-8. LOSS AVERSION: "You won't see this anywhere else", "This set is about to expire"
-9. CLIMAX BUILD: Save the absolute BEST for last at the highest price — make them NEED to see the finale
-10. PERSONAL CONNECTION: Use their name, reference their messages, make it feel 1-on-1
+8. LOSS AVERSION: "You won't see this anywhere else"
+9. CLIMAX BUILD: Save the absolute BEST for last at the highest price
+10. PERSONAL CONNECTION: Use their name, reference their messages
+11. MENTAL IMAGERY: Guide the fan to build images in their mind — the gap between what they see and imagine is where desire lives
+12. NARRATIVE ARC: Follow a story structure (setup → tension → climax → resolution)
+13. IDENTITY ATTACHMENT: Make the fan feel they're part of an exclusive group
+14. EMOTIONAL CONDITIONING: Link purchases to positive emotional responses
 
 SCRIPT STRUCTURE — THE "SUSPENSE LADDER":
-1. HOOK: Casual, organic opener that feels real (not salesy)
+1. HOOK: Casual, organic opener that feels real
 2. FREE BAIT: 1-2 free previews to trigger reciprocity
 3. ENGAGEMENT: Questions/chat to build emotional investment  
-4. ENTRY OFFER: First paid item at LOW price ($5-$8) — break the payment barrier
+4. ENTRY OFFER: First paid item at LOW price — break the payment barrier
 5. REWARD + TEASE: Thank them warmly, then hint at something bigger
 6. ESCALATION: Each piece costs more, reveals more, builds the story
-7. GRAND FINALE: The BEST content at the highest price — positioned as "the one you've been waiting for"
+7. GRAND FINALE: The BEST content at the highest price
 8. POST-PURCHASE: Warm follow-up that seeds the NEXT script
 
 This script should be ${length.label} (${length.steps} total steps, ${length.media} media items).
@@ -298,6 +394,11 @@ ${useConditions ? "- Include condition branches" : "- No conditions"}
 ${useFollowups ? "- Include follow-up paths for buyers AND non-responders" : "- No follow-ups"}
 ${useDelays ? "- Include realistic timing delays" : "- No delays"}
 ${useQuestions ? "- Include engagement questions" : "- No questions"}
+${enable_mind_building !== false ? "- Use MIND BUILDING techniques — progressive mental imagery that deepens desire" : ""}
+${enable_story_arc !== false ? "- Follow a STORY ARC narrative — the fan should feel they're experiencing a story, not just buying content" : ""}
+${enable_exclusivity_psychology !== false ? "- Apply VIP EXCLUSIVITY psychology — make the fan feel uniquely chosen and special" : ""}
+${enable_fantasy_projection ? "- Use FANTASY PROJECTION — guide the fan to imagine themselves in the scenario" : ""}
+${enable_emotional_anchoring !== false ? "- Apply EMOTIONAL ANCHORING — link every purchase to positive emotions, create Pavlovian buying" : ""}
 ${isPremium ? "- This should be a masterclass in fan psychology and engagement. Every message must have intent." : "- Keep it practical — a chatter should start using this immediately."}`;
 
     const model = isPremium ? "google/gemini-2.5-flash" : "google/gemini-3-flash-preview";
@@ -376,9 +477,6 @@ ${isPremium ? "- This should be a masterclass in fan psychology and engagement. 
       choiceCount: data.choices?.length,
       hasToolCalls: !!data.choices?.[0]?.message?.tool_calls,
       hasContent: !!data.choices?.[0]?.message?.content,
-      contentType: typeof data.choices?.[0]?.message?.content,
-      contentPreview: typeof data.choices?.[0]?.message?.content === "string" 
-        ? data.choices[0].message.content.substring(0, 200) : "N/A",
     }));
 
     // Method 1: tool_calls
@@ -396,12 +494,10 @@ ${isPremium ? "- This should be a masterclass in fan psychology and engagement. 
     if (!script) {
       const content = data.choices?.[0]?.message?.content;
       if (content && typeof content === "string") {
-        // Try code block first
         const codeBlock = content.match(/```(?:json)?\s*([\s\S]*?)```/);
         if (codeBlock?.[1]) {
           try { script = JSON.parse(codeBlock[1].trim()); console.log("Parsed from code block"); } catch {}
         }
-        // Try raw JSON object
         if (!script) {
           const rawJson = content.match(/(\{[\s\S]*"steps"\s*:\s*\[[\s\S]*\][\s\S]*\})/);
           if (rawJson?.[1]) {
@@ -409,7 +505,6 @@ ${isPremium ? "- This should be a masterclass in fan psychology and engagement. 
           }
         }
       }
-      // Content could be an array of parts
       if (!script && Array.isArray(content)) {
         for (const part of content) {
           const text = typeof part === "string" ? part : part?.text;

@@ -20,6 +20,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import ScriptFlowView from "./ScriptFlowView";
+import ExcelJS from "exceljs";
 
 interface ScriptStep {
   id?: string;
@@ -119,7 +120,214 @@ const SCRIPT_TEMPLATES = [
   },
 ];
 
-/* ── Export Utilities ── */
+/* ── Step Type Color Map ── */
+const STEP_TYPE_COLORS: Record<string, { bg: string; fg: string; emoji: string }> = {
+  welcome: { bg: "00BCD4", fg: "FFFFFF", emoji: "👋" },
+  message: { bg: "FFC107", fg: "000000", emoji: "💬" },
+  free_content: { bg: "4CAF50", fg: "FFFFFF", emoji: "🎁" },
+  ppv_content: { bg: "FF9800", fg: "FFFFFF", emoji: "💰" },
+  question: { bg: "FFEB3B", fg: "000000", emoji: "❓" },
+  condition: { bg: "2196F3", fg: "FFFFFF", emoji: "🔀" },
+  followup_purchased: { bg: "E91E63", fg: "FFFFFF", emoji: "✅" },
+  followup_ignored: { bg: "F44336", fg: "FFFFFF", emoji: "⏳" },
+  delay: { bg: "9E9E9E", fg: "FFFFFF", emoji: "⏱️" },
+};
+
+/* ── Excel Export ── */
+const exportToExcel = async (script: Script, steps: ScriptStep[]) => {
+  const wb = new ExcelJS.Workbook();
+  wb.creator = "OZC Agency Script Builder";
+  wb.created = new Date();
+
+  // ── OVERVIEW SHEET ──
+  const overview = wb.addWorksheet("📋 Overview", { properties: { tabColor: { argb: "FF6A1B9A" } } });
+  overview.columns = [
+    { header: "", key: "label", width: 22 },
+    { header: "", key: "value", width: 50 },
+  ];
+  const ovRows = [
+    ["📋 SCRIPT", script.title],
+    ["📝 Description", script.description || "—"],
+    ["📂 Category", script.category],
+    ["🎯 Target", script.target_segment],
+    ["💰 Total Value", `$${steps.reduce((s, st) => s + (st.price || 0), 0)}`],
+    ["📊 Steps", `${steps.length}`],
+    ["🎁 Free Media", `${steps.filter(s => s.step_type === "free_content").length}`],
+    ["💎 Paid Media", `${steps.filter(s => s.price > 0).length}`],
+    ["📅 Generated", new Date().toLocaleString()],
+  ];
+  ovRows.forEach(([label, value]) => {
+    const row = overview.addRow({ label, value });
+    row.getCell(1).font = { bold: true, size: 12, color: { argb: "FF6A1B9A" } };
+    row.getCell(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF3E5F5" } };
+    row.getCell(2).font = { size: 12 };
+    row.height = 28;
+  });
+
+  // ── SCRIPT SHEET ──
+  const ws = wb.addWorksheet("📜 Script Steps", { properties: { tabColor: { argb: "FFE91E63" } } });
+  ws.columns = [
+    { header: "#", key: "num", width: 5 },
+    { header: "Type", key: "type", width: 22 },
+    { header: "Title", key: "title", width: 25 },
+    { header: "💬 Message / Content", key: "content", width: 55 },
+    { header: "📸 Media", key: "media_type", width: 12 },
+    { header: "📎 Media Description", key: "media_desc", width: 40 },
+    { header: "💰 Price", key: "price", width: 10 },
+    { header: "⏱️ Delay", key: "delay", width: 10 },
+    { header: "🧠 Psychology", key: "psychology", width: 30 },
+  ];
+
+  // Header styling
+  const headerRow = ws.getRow(1);
+  headerRow.height = 30;
+  headerRow.eachCell((cell) => {
+    cell.font = { bold: true, size: 11, color: { argb: "FFFFFFFF" } };
+    cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1A1A2E" } };
+    cell.alignment = { vertical: "middle", horizontal: "center", wrapText: true };
+    cell.border = { bottom: { style: "medium", color: { argb: "FFE91E63" } } };
+  });
+
+  steps.forEach((step, i) => {
+    const colors = STEP_TYPE_COLORS[step.step_type] || STEP_TYPE_COLORS.message;
+    const emoji = colors.emoji;
+
+    // Detect psychology technique
+    let psych = "";
+    const c = (step.content || "").toLowerCase();
+    if (c.includes("just for u") || c.includes("only for you") || c.includes("never send")) psych = "🔒 Exclusivity";
+    else if (c.includes("hold on") || c.includes("brb") || c.includes("wait")) psych = "⏳ Anticipation Build";
+    else if (c.includes("u there") || c.includes("miss")) psych = "🔄 Re-engagement";
+    else if (step.step_type === "free_content") psych = "🎁 Reciprocity Trigger";
+    else if (step.price > 100) psych = "💎 Premium Scarcity";
+    else if (step.price > 0 && step.price <= 15) psych = "🚪 Payment Barrier Break";
+    else if (step.price > 15 && step.price <= 50) psych = "📈 Sunk Cost Leverage";
+    else if (step.price > 50) psych = "🔥 FOMO + Urgency";
+    else if (step.step_type === "question") psych = "💬 Micro-commitment";
+    else if (step.step_type === "condition") psych = "🔀 Branch Logic";
+
+    const row = ws.addRow({
+      num: i + 1,
+      type: `${emoji} ${step.step_type.replace(/_/g, " ").toUpperCase()}`,
+      title: step.title,
+      content: step.content || "—",
+      media_type: step.media_type ? `📸 ${step.media_type}` : "—",
+      media_desc: step.media_url || "—",
+      price: step.price > 0 ? `$${step.price}` : step.step_type === "free_content" ? "🎁 FREE" : "—",
+      delay: step.delay_minutes > 0 ? `⏱️ ${step.delay_minutes}m` : "—",
+      psychology: psych,
+    });
+
+    row.height = 35;
+    row.alignment = { vertical: "middle", wrapText: true };
+
+    // Color code the type cell
+    row.getCell(2).fill = { type: "pattern", pattern: "solid", fgColor: { argb: `FF${colors.bg}` } };
+    row.getCell(2).font = { bold: true, size: 10, color: { argb: `FF${colors.fg}` } };
+    row.getCell(2).alignment = { vertical: "middle", horizontal: "center" };
+
+    // Price cell coloring
+    if (step.price > 100) {
+      row.getCell(7).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFF6F00" } };
+      row.getCell(7).font = { bold: true, size: 12, color: { argb: "FFFFFFFF" } };
+    } else if (step.price > 0) {
+      row.getCell(7).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFF3E0" } };
+      row.getCell(7).font = { bold: true, size: 11, color: { argb: "FFE65100" } };
+    } else if (step.step_type === "free_content") {
+      row.getCell(7).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFE8F5E9" } };
+      row.getCell(7).font = { bold: true, color: { argb: "FF2E7D32" } };
+    }
+
+    // Content cell
+    row.getCell(4).font = { size: 10 };
+    row.getCell(4).alignment = { wrapText: true, vertical: "top" };
+
+    // Psychology cell
+    if (psych) {
+      row.getCell(9).font = { italic: true, size: 10, color: { argb: "FF6A1B9A" } };
+    }
+
+    // Row border
+    row.eachCell((cell) => {
+      cell.border = { bottom: { style: "thin", color: { argb: "FFE0E0E0" } } };
+    });
+  });
+
+  // ── PRICING SHEET ──
+  const pricing = wb.addWorksheet("💰 Pricing Ladder", { properties: { tabColor: { argb: "FFFF9800" } } });
+  pricing.columns = [
+    { header: "Step", key: "step", width: 8 },
+    { header: "💰 Price", key: "price", width: 12 },
+    { header: "Type", key: "type", width: 20 },
+    { header: "🧠 Strategy", key: "strategy", width: 35 },
+    { header: "📊 Running Total", key: "running", width: 15 },
+  ];
+  const pHeader = pricing.getRow(1);
+  pHeader.height = 28;
+  pHeader.eachCell((cell) => {
+    cell.font = { bold: true, size: 11, color: { argb: "FFFFFFFF" } };
+    cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFF6F00" } };
+    cell.alignment = { vertical: "middle", horizontal: "center" };
+  });
+
+  let runningTotal = 0;
+  const paidSteps = steps.filter(s => s.price > 0 || s.step_type === "free_content");
+  paidSteps.forEach((step, i) => {
+    runningTotal += step.price || 0;
+    const strategies: Record<string, string> = {
+      free_content: "🎁 Reciprocity — Give first, fan feels obligated",
+    };
+    let strat = strategies[step.step_type] || "";
+    if (!strat && step.price <= 15) strat = "🚪 Break payment barrier — low commitment";
+    else if (!strat && step.price <= 50) strat = "📈 Sunk cost — already invested, keep going";
+    else if (!strat && step.price <= 110) strat = "🔥 Double stack — bundle perceived value";
+    else if (!strat && step.price <= 200) strat = "💎 Premium scarcity — best saved for last";
+    else if (!strat) strat = "👑 VIP exclusivity — ultimate status reward";
+
+    const row = pricing.addRow({
+      step: i + 1,
+      price: step.price > 0 ? `$${step.price}` : "🎁 FREE",
+      type: step.step_type.replace(/_/g, " "),
+      strategy: strat,
+      running: `$${runningTotal}`,
+    });
+    row.height = 28;
+
+    if (step.price === 0) {
+      row.getCell(2).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFE8F5E9" } };
+      row.getCell(2).font = { bold: true, color: { argb: "FF2E7D32" } };
+    } else if (step.price > 100) {
+      row.getCell(2).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFF6F00" } };
+      row.getCell(2).font = { bold: true, size: 12, color: { argb: "FFFFFFFF" } };
+    } else {
+      row.getCell(2).font = { bold: true, size: 11, color: { argb: "FFE65100" } };
+    }
+    row.getCell(5).font = { bold: true, color: { argb: "FF1565C0" } };
+    row.eachCell((cell) => { cell.border = { bottom: { style: "thin", color: { argb: "FFE0E0E0" } } }; });
+  });
+
+  // Total row
+  const totalRow = pricing.addRow({ step: "", price: "", type: "", strategy: "TOTAL SCRIPT VALUE", running: `$${runningTotal}` });
+  totalRow.height = 35;
+  totalRow.getCell(4).font = { bold: true, size: 12 };
+  totalRow.getCell(5).font = { bold: true, size: 14, color: { argb: "FFD84315" } };
+  totalRow.getCell(5).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFF3E0" } };
+
+  // Download
+  const buffer = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${(script.title || "script").replace(/[^a-zA-Z0-9._-]/g, "_")}.xlsx`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast.success("Excel exported with colors & formatting!");
+};
+
+/* ── Other Export Utilities ── */
 const exportToCSV = (script: Script, steps: ScriptStep[]) => {
   const headers = ["#", "Type", "Title", "Content", "Media Type", "Media Description", "Price ($)", "Delay (min)"];
   const rows = steps.map((s, i) => [
@@ -139,14 +347,17 @@ const exportToText = (script: Script, steps: ScriptStep[]) => {
   text += "═".repeat(60) + "\n\n";
   steps.forEach((s, i) => {
     const typeLabel = s.step_type.toUpperCase().replace(/_/g, " ");
-    text += `[${i + 1}] ${typeLabel}${s.price > 0 ? ` — $${s.price}` : ""}\n`;
-    if (s.title) text += `    Title: ${s.title}\n`;
-    if (s.content) text += `    Message: ${s.content}\n`;
-    if (s.media_url) text += `    Media: ${s.media_type ? `(${s.media_type}) ` : ""}${s.media_url}\n`;
-    if (s.delay_minutes > 0) text += `    ⏱ Wait ${s.delay_minutes} min\n`;
-    if (s.step_type === "condition") text += `    ⑂ Branch: ${s.condition_logic?.condition || "Check response"}\n`;
+    const emoji = STEP_TYPE_COLORS[s.step_type]?.emoji || "📌";
+    text += `${emoji} [${i + 1}] ${typeLabel}${s.price > 0 ? ` — 💰$${s.price}` : s.step_type === "free_content" ? " — 🎁 FREE" : ""}\n`;
+    if (s.title) text += `    📌 Title: ${s.title}\n`;
+    if (s.content) text += `    💬 Message: ${s.content}\n`;
+    if (s.media_url) text += `    📸 Media: ${s.media_type ? `(${s.media_type}) ` : ""}${s.media_url}\n`;
+    if (s.delay_minutes > 0) text += `    ⏱️ Wait ${s.delay_minutes} min\n`;
+    if (s.step_type === "condition") text += `    🔀 Branch: ${s.condition_logic?.condition || "Check response"}\n`;
     text += "\n";
   });
+  text += "═".repeat(60) + "\n";
+  text += `💰 TOTAL SCRIPT VALUE: $${steps.reduce((s, st) => s + (st.price || 0), 0)}\n`;
   downloadFile(`${script.title || "script"}.txt`, text, "text/plain");
 };
 
@@ -158,11 +369,13 @@ const exportToMarkdown = (script: Script, steps: ScriptStep[]) => {
   md += "| # | Type | Content | Media | Price | Delay |\n";
   md += "|---|------|---------|-------|-------|-------|\n";
   steps.forEach((s, i) => {
-    md += `| ${i + 1} | ${s.step_type} | ${(s.content || s.title || "—").substring(0, 50)} | ${s.media_url ? `${s.media_type}: ${s.media_url.substring(0, 30)}` : "—"} | ${s.price > 0 ? `$${s.price}` : "—"} | ${s.delay_minutes > 0 ? `${s.delay_minutes}m` : "—"} |\n`;
+    const emoji = STEP_TYPE_COLORS[s.step_type]?.emoji || "📌";
+    md += `| ${i + 1} | ${emoji} ${s.step_type} | ${(s.content || s.title || "—").substring(0, 50)} | ${s.media_url ? `📸 ${s.media_type}: ${s.media_url.substring(0, 30)}` : "—"} | ${s.price > 0 ? `💰$${s.price}` : s.step_type === "free_content" ? "🎁 FREE" : "—"} | ${s.delay_minutes > 0 ? `⏱️${s.delay_minutes}m` : "—"} |\n`;
   });
   md += "\n---\n\n";
   steps.forEach((s, i) => {
-    md += `### Step ${i + 1}: ${s.step_type.toUpperCase().replace(/_/g, " ")}${s.price > 0 ? ` — $${s.price}` : ""}\n\n`;
+    const emoji = STEP_TYPE_COLORS[s.step_type]?.emoji || "📌";
+    md += `### ${emoji} Step ${i + 1}: ${s.step_type.toUpperCase().replace(/_/g, " ")}${s.price > 0 ? ` — 💰$${s.price}` : ""}\n\n`;
     if (s.content) md += `${s.content}\n\n`;
     if (s.media_url) md += `📎 *${s.media_type}: ${s.media_url}*\n\n`;
   });
@@ -210,11 +423,17 @@ const ScriptBuilder = () => {
   const [enableTypoSimulation, setEnableTypoSimulation] = useState(false);
   const [enableFreeFirst, setEnableFreeFirst] = useState(true);
   const [enableMaxConversion, setEnableMaxConversion] = useState(true);
-  // New options
   const [enableEmoji, setEnableEmoji] = useState(true);
   const [enableReEngagement, setEnableReEngagement] = useState(true);
   const [enableVoiceNoteHints, setEnableVoiceNoteHints] = useState(false);
   const [adaptivePricing, setAdaptivePricing] = useState(true);
+  // NEW Psychology & Story Options
+  const [enableMindBuilding, setEnableMindBuilding] = useState(true);
+  const [enableStoryArc, setEnableStoryArc] = useState(true);
+  const [enableExclusivityPsychology, setEnableExclusivityPsychology] = useState(true);
+  const [enableFantasyProjection, setEnableFantasyProjection] = useState(false);
+  const [enableEmotionalAnchoring, setEnableEmotionalAnchoring] = useState(true);
+
   // Editable pricing tiers
   const [pricingTiers, setPricingTiers] = useState([
     { step: 1, label: "Free bait", min: 0, max: 0 },
@@ -384,7 +603,6 @@ const ScriptBuilder = () => {
     if (data) selectScript(data);
   };
 
-  // ── ALWAYS creates a NEW script in DB and redirects to it ──
   const generateScript = async (quality: "fast" | "premium") => {
     setGenerating(true);
     setGeneratingQuality(quality);
@@ -417,12 +635,17 @@ const ScriptBuilder = () => {
           enable_voice_note_hints: enableVoiceNoteHints,
           adaptive_pricing: adaptivePricing,
           pricing_tiers: pricingTiers,
+          // New psychology options
+          enable_mind_building: enableMindBuilding,
+          enable_story_arc: enableStoryArc,
+          enable_exclusivity_psychology: enableExclusivityPsychology,
+          enable_fantasy_projection: enableFantasyProjection,
+          enable_emotional_anchoring: enableEmotionalAnchoring,
         },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
-      // ALWAYS create a new script entry in DB
       const { data: newScriptData, error: createErr } = await supabase.from("scripts").insert({
         title: data.title || `AI ${quality === "premium" ? "Premium" : "Fast"} Script`,
         description: data.description || "",
@@ -431,7 +654,6 @@ const ScriptBuilder = () => {
       }).select().single();
       if (createErr) throw createErr;
 
-      // Save all steps to DB
       if (data.steps?.length > 0 && newScriptData) {
         await supabase.from("script_steps").insert(
           data.steps.map((s: any, i: number) => ({
@@ -444,7 +666,6 @@ const ScriptBuilder = () => {
         );
       }
 
-      // Reload scripts list and auto-select the new script
       await loadScripts();
       if (newScriptData) {
         await selectScript(newScriptData);
@@ -507,7 +728,6 @@ const ScriptBuilder = () => {
           <p className="text-xs text-white/40">Design structured content scripts with progressive pricing & psychology</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          {/* Generate Buttons */}
           <Button size="sm" onClick={() => generateScript("fast")} disabled={generating}
             className="gap-1.5 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white border-0">
             {generatingQuality === "fast" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />}
@@ -526,11 +746,11 @@ const ScriptBuilder = () => {
                 <Sparkles className="h-3 w-3" /> Options
               </Button>
             </DialogTrigger>
-            <DialogContent className="bg-[hsl(220,40%,13%)] border-white/10 text-white max-w-5xl max-h-[90vh] overflow-y-auto">
-              <DialogHeader><DialogTitle className="flex items-center gap-2 text-lg"><Sparkles className="h-5 w-5 text-purple-400" /> Generation Options</DialogTitle></DialogHeader>
-              <div className="grid grid-cols-3 gap-8 mt-6">
+            <DialogContent className="bg-[hsl(220,40%,13%)] border-white/10 text-white max-w-6xl max-h-[90vh] overflow-y-auto p-8">
+              <DialogHeader><DialogTitle className="flex items-center gap-2 text-xl"><Sparkles className="h-6 w-6 text-purple-400" /> Generation Options</DialogTitle></DialogHeader>
+              <div className="grid grid-cols-4 gap-6 mt-6">
                 {/* COLUMN 1: Script Setup */}
-                <div className="space-y-5">
+                <div className="space-y-4">
                   <h3 className="text-sm font-bold text-white/80 uppercase tracking-wider border-b border-white/10 pb-2">📐 Script Setup</h3>
                   <div>
                     <Label className="text-xs text-white/50 mb-2 block">Script Length</Label>
@@ -569,7 +789,7 @@ const ScriptBuilder = () => {
                 </div>
 
                 {/* COLUMN 2: Tone & Psychology */}
-                <div className="space-y-5">
+                <div className="space-y-4">
                   <h3 className="text-sm font-bold text-white/80 uppercase tracking-wider border-b border-white/10 pb-2">🎭 Tone & Psychology</h3>
                   <div className="flex items-center gap-3 p-3 rounded-lg bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/20">
                     <Switch id="opt-dynamic" checked={enableDynamicShift} onCheckedChange={(v) => { setEnableDynamicShift(v); if (v) setMessageTone("dynamic_shift"); }} />
@@ -585,54 +805,73 @@ const ScriptBuilder = () => {
                     <Label className="text-xs text-white/50 mb-2 block">
                       Manual Tone {enableDynamicShift && <span className="text-purple-400 text-[10px]">(overridden)</span>}
                     </Label>
-                    <div className={`grid grid-cols-2 gap-2 ${enableDynamicShift ? "opacity-30 pointer-events-none" : ""}`}>
+                    <div className={`grid grid-cols-1 gap-1.5 ${enableDynamicShift ? "opacity-30 pointer-events-none" : ""}`}>
                       {[
-                        { key: "innocent", icon: "🥺", label: "Innocent", desc: "Shy, sweet", color: "pink" },
-                        { key: "aggressive_innocent", icon: "😈", label: "Spicy", desc: "Bold + casual", color: "purple" },
-                        { key: "bold", icon: "🔥", label: "Bold", desc: "Confident, direct", color: "red" },
-                        { key: "submissive", icon: "🫣", label: "Submissive", desc: "Needy, devoted", color: "blue" },
-                        { key: "bratty", icon: "💅", label: "Bratty", desc: "Tease, push-pull", color: "orange" },
+                        { key: "innocent", icon: "🥺", label: "Innocent", desc: "Shy, sweet" },
+                        { key: "aggressive_innocent", icon: "😈", label: "Spicy", desc: "Bold + casual" },
+                        { key: "bold", icon: "🔥", label: "Bold", desc: "Confident, direct" },
+                        { key: "submissive", icon: "🫣", label: "Submissive", desc: "Needy, devoted" },
+                        { key: "bratty", icon: "💅", label: "Bratty", desc: "Tease, push-pull" },
                       ].map(t => (
                         <button key={t.key} onClick={() => setMessageTone(t.key as any)}
-                          className={`p-2.5 rounded-lg text-left transition-all border flex items-center gap-2.5 ${
-                            messageTone === t.key ? `bg-${t.color}-500/20 border-${t.color}-500/40 text-white` : "bg-white/[0.03] border-white/[0.06] text-white/40 hover:bg-white/[0.06]"
+                          className={`p-2 rounded-lg text-left transition-all border flex items-center gap-2 ${
+                            messageTone === t.key ? "bg-accent/20 border-accent/40 text-white" : "bg-white/[0.03] border-white/[0.06] text-white/40 hover:bg-white/[0.06]"
                           }`}>
-                          <span className="text-lg">{t.icon}</span>
+                          <span className="text-base">{t.icon}</span>
                           <div>
-                            <span className="text-xs font-semibold block">{t.label}</span>
-                            <span className="text-[9px] block text-white/30">{t.desc}</span>
+                            <span className="text-xs font-semibold">{t.label}</span>
+                            <span className="text-[9px] text-white/30 ml-1">{t.desc}</span>
                           </div>
                         </button>
                       ))}
                     </div>
                   </div>
-                  <div className="flex items-center gap-3 p-3 rounded-lg bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20">
-                    <Switch id="opt-exclusivity" checked={enableExclusivity} onCheckedChange={setEnableExclusivity} />
-                    <div className="flex-1">
-                      <Label htmlFor="opt-exclusivity" className="text-xs text-white cursor-pointer font-semibold">✨ Exclusivity & Pauses</Label>
-                      <p className="text-[10px] text-white/40 mt-0.5">"Hold on 2 mins", "just took this for u", "only for you"</p>
+                  {/* Emoji & Exclusivity */}
+                  {[
+                    { id: "opt-exclusivity", icon: "✨", label: "Exclusivity & Pauses", desc: "\"Hold on 2 mins\", \"just took this for u\"", checked: enableExclusivity, set: setEnableExclusivity, gradient: "from-amber-500/10 to-orange-500/10", border: "border-amber-500/20" },
+                    { id: "opt-emoji", icon: "😍", label: "Emoji & Reactions", desc: "Natural emoji throughout messages", checked: enableEmoji, set: setEnableEmoji, gradient: "from-pink-500/10 to-rose-500/10", border: "border-pink-500/20" },
+                  ].map(opt => (
+                    <div key={opt.id} className={`flex items-center gap-3 p-3 rounded-lg bg-gradient-to-r ${opt.gradient} border ${opt.border}`}>
+                      <Switch id={opt.id} checked={opt.checked} onCheckedChange={opt.set} />
+                      <div className="flex-1">
+                        <Label htmlFor={opt.id} className="text-xs text-white cursor-pointer font-semibold">{opt.icon} {opt.label}</Label>
+                        <p className="text-[10px] text-white/40 mt-0.5">{opt.desc}</p>
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-3 p-3 rounded-lg bg-gradient-to-r from-pink-500/10 to-rose-500/10 border border-pink-500/20">
-                    <Switch id="opt-emoji" checked={enableEmoji} onCheckedChange={setEnableEmoji} />
-                    <div className="flex-1">
-                      <Label htmlFor="opt-emoji" className="text-xs text-white cursor-pointer font-semibold">😍 Emoji & Reactions</Label>
-                      <p className="text-[10px] text-white/40 mt-0.5">Natural emoji use throughout. Adds warmth and personality to messages.</p>
-                    </div>
-                  </div>
+                  ))}
                 </div>
 
-                {/* COLUMN 3: Conversion & Pricing */}
-                <div className="space-y-5">
+                {/* COLUMN 3: Mind Games & Story */}
+                <div className="space-y-4">
+                  <h3 className="text-sm font-bold text-white/80 uppercase tracking-wider border-b border-white/10 pb-2">🧠 Mind Games & Story</h3>
+                  {[
+                    { id: "opt-mind", icon: "🧠", label: "Mind Building", desc: "Progressive mental investment. Fan builds a mental image of you — each step deepens the imagined intimacy.", checked: enableMindBuilding, set: setEnableMindBuilding, gradient: "from-violet-500/15 to-indigo-500/15", border: "border-violet-500/25" },
+                    { id: "opt-story", icon: "📖", label: "Story Arc Narrative", desc: "Script follows a narrative arc: Setup → Rising Tension → Climax → Resolution. Fan stays for the story.", checked: enableStoryArc, set: setEnableStoryArc, gradient: "from-cyan-500/15 to-blue-500/15", border: "border-cyan-500/25" },
+                    { id: "opt-excl-psych", icon: "👑", label: "VIP Exclusivity Psychology", desc: "\"You're the only one\", \"I've never done this before\", \"This stays between us\" — makes fan feel chosen.", checked: enableExclusivityPsychology, set: setEnableExclusivityPsychology, gradient: "from-amber-500/15 to-yellow-500/15", border: "border-amber-500/25" },
+                    { id: "opt-fantasy", icon: "💭", label: "Fantasy Projection", desc: "Guide the fan to imagine themselves IN the scenario. \"Imagine you were here with me rn...\" Creates emotional attachment.", checked: enableFantasyProjection, set: setEnableFantasyProjection, gradient: "from-pink-500/15 to-red-500/15", border: "border-pink-500/25" },
+                    { id: "opt-anchor", icon: "⚓", label: "Emotional Anchoring", desc: "Link purchases to positive emotions. \"This one's special because...\", \"I made this thinking of you\". Creates Pavlovian buying habits.", checked: enableEmotionalAnchoring, set: setEnableEmotionalAnchoring, gradient: "from-emerald-500/15 to-teal-500/15", border: "border-emerald-500/25" },
+                  ].map(opt => (
+                    <div key={opt.id} className={`flex items-center gap-3 p-3 rounded-lg bg-gradient-to-r ${opt.gradient} border ${opt.border}`}>
+                      <Switch id={opt.id} checked={opt.checked} onCheckedChange={opt.set} />
+                      <div className="flex-1">
+                        <Label htmlFor={opt.id} className="text-xs text-white cursor-pointer font-semibold">{opt.icon} {opt.label}</Label>
+                        <p className="text-[10px] text-white/40 mt-0.5 leading-relaxed">{opt.desc}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* COLUMN 4: Conversion & Pricing */}
+                <div className="space-y-4">
                   <h3 className="text-sm font-bold text-white/80 uppercase tracking-wider border-b border-white/10 pb-2">💰 Conversion & Pricing</h3>
                   {[
-                    { id: "opt-freefirst", icon: "🎁", label: "Free Content First", desc: "1-2 free media before PPV. Triggers reciprocity.", checked: enableFreeFirst, set: setEnableFreeFirst },
-                    { id: "opt-maxconv", icon: "💰", label: "Max Conversion Mode", desc: "Sunk cost, FOMO, urgency, price anchoring.", checked: enableMaxConversion, set: setEnableMaxConversion },
-                    { id: "opt-typo", icon: "✏️", label: "Typo Simulation", desc: "Natural typos + *correction. Feels human.", checked: enableTypoSimulation, set: setEnableTypoSimulation },
-                    { id: "opt-reengage", icon: "🔄", label: "Re-Engagement Loops", desc: "Auto follow-ups if fan goes quiet. \"u there babe?\"", checked: enableReEngagement, set: setEnableReEngagement },
-                    { id: "opt-voice", icon: "🎤", label: "Voice Note Hints", desc: "Reference voice notes: \"wish I could send u a voice msg rn\"", checked: enableVoiceNoteHints, set: setEnableVoiceNoteHints },
+                    { id: "opt-freefirst", icon: "🎁", label: "Free Content First", desc: "1-2 free media before PPV. Reciprocity.", checked: enableFreeFirst, set: setEnableFreeFirst },
+                    { id: "opt-maxconv", icon: "💰", label: "Max Conversion Mode", desc: "Sunk cost, FOMO, urgency, anchoring.", checked: enableMaxConversion, set: setEnableMaxConversion },
+                    { id: "opt-typo", icon: "✏️", label: "Typo Simulation", desc: "Natural typos + *correction.", checked: enableTypoSimulation, set: setEnableTypoSimulation },
+                    { id: "opt-reengage", icon: "🔄", label: "Re-Engagement Loops", desc: "Auto follow-ups if fan goes quiet.", checked: enableReEngagement, set: setEnableReEngagement },
+                    { id: "opt-voice", icon: "🎤", label: "Voice Note Hints", desc: "Reference voice msgs for intimacy.", checked: enableVoiceNoteHints, set: setEnableVoiceNoteHints },
                   ].map(opt => (
-                    <div key={opt.id} className="flex items-center gap-3 p-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
+                    <div key={opt.id} className="flex items-center gap-3 p-2.5 rounded-lg bg-white/[0.03] border border-white/[0.06]">
                       <Switch id={opt.id} checked={opt.checked} onCheckedChange={opt.set} />
                       <div className="flex-1">
                         <Label htmlFor={opt.id} className="text-xs text-white cursor-pointer font-semibold">{opt.icon} {opt.label}</Label>
@@ -646,36 +885,29 @@ const ScriptBuilder = () => {
                     <Switch id="opt-adaptive" checked={adaptivePricing} onCheckedChange={setAdaptivePricing} />
                     <div className="flex-1">
                       <Label htmlFor="opt-adaptive" className="text-xs text-white cursor-pointer font-semibold">📊 Adaptive Pricing</Label>
-                      <p className="text-[10px] text-white/40 mt-0.5">Adjusts free media count & pricing tiers based on script length. Longer = more free bait + higher ceiling.</p>
+                      <p className="text-[10px] text-white/40 mt-0.5">Auto-adjust ladder by script length</p>
                     </div>
                   </div>
 
-                  {/* Editable Pricing Ladder */}
-                  <div className="p-4 rounded-lg bg-white/[0.03] border border-white/[0.06]">
-                    <Label className="text-xs text-white/50 mb-3 block">📈 Gradual Pricing Ladder (editable)</Label>
-                    <div className="space-y-2">
-                      {pricingTiers.map((tier, i) => (
-                        <div key={tier.step} className="flex items-center gap-2">
-                          <span className="text-[10px] text-white/40 w-20 shrink-0">Step {tier.step}: {tier.label}</span>
-                          {tier.step === 1 ? (
-                            <span className="text-xs font-bold text-green-400 flex-1 text-center">FREE</span>
-                          ) : (
-                            <div className="flex items-center gap-1 flex-1">
-                              <span className="text-[10px] text-white/30">$</span>
-                              <Input type="number" value={tier.min} onChange={e => updatePricingTier(i, "min", Number(e.target.value))}
-                                className="h-7 w-16 text-xs bg-white/5 border-white/10 text-white text-center p-1" />
-                              <span className="text-[10px] text-white/30">–</span>
-                              <Input type="number" value={tier.max} onChange={e => updatePricingTier(i, "max", Number(e.target.value))}
-                                className="h-7 w-16 text-xs bg-white/5 border-white/10 text-white text-center p-1" />
-                            </div>
-                          )}
+                  {/* Editable Pricing Tiers */}
+                  <div className="space-y-2">
+                    <Label className="text-xs text-white/50 flex items-center justify-between">
+                      <span>💰 Pricing Ladder</span>
+                      <span className="text-amber-400 font-bold">Target: ${totalPricingTarget}</span>
+                    </Label>
+                    {pricingTiers.map((tier, i) => (
+                      <div key={i} className="flex items-center gap-2 p-2 rounded-lg bg-white/[0.03] border border-white/[0.06]">
+                        <span className="text-[10px] text-white/40 w-14 shrink-0 font-medium">{tier.label}</span>
+                        <div className="flex items-center gap-1 flex-1">
+                          <span className="text-[9px] text-white/30">$</span>
+                          <Input type="number" value={tier.min} onChange={e => updatePricingTier(i, "min", parseInt(e.target.value) || 0)}
+                            className="bg-white/5 border-white/10 text-white text-xs h-7 w-16 p-1 text-center" />
+                          <span className="text-[9px] text-white/30">—</span>
+                          <Input type="number" value={tier.max} onChange={e => updatePricingTier(i, "max", parseInt(e.target.value) || 0)}
+                            className="bg-white/5 border-white/10 text-white text-xs h-7 w-16 p-1 text-center" />
                         </div>
-                      ))}
-                      <div className="border-t border-white/10 mt-3 pt-3 flex justify-between text-xs">
-                        <span className="text-white/60 font-semibold">Total target</span>
-                        <span className="text-amber-400 font-bold">${pricingTiers.reduce((s, t) => s + t.min, 0)} – ${totalPricingTarget}+</span>
                       </div>
-                    </div>
+                    ))}
                   </div>
                 </div>
               </div>
@@ -689,14 +921,14 @@ const ScriptBuilder = () => {
                 <BookOpen className="h-3 w-3" /> Templates
               </Button>
             </DialogTrigger>
-            <DialogContent className="bg-[hsl(220,40%,13%)] border-white/10 text-white max-w-lg">
-              <DialogHeader><DialogTitle className="flex items-center gap-2"><Lightbulb className="h-4 w-4 text-amber-400" /> Script Templates</DialogTitle></DialogHeader>
-              <div className="space-y-2 mt-2 max-h-[400px] overflow-y-auto">
-                {SCRIPT_TEMPLATES.map((t, i) => (
-                  <button key={i} onClick={() => applyTemplate(t)}
-                    className="w-full text-left p-3 rounded-lg bg-white/[0.04] border border-white/[0.06] hover:bg-white/[0.08] transition-all">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-lg">{t.icon}</span>
+            <DialogContent className="bg-[hsl(220,40%,13%)] border-white/10 text-white max-w-lg max-h-[80vh] overflow-y-auto">
+              <DialogHeader><DialogTitle className="text-sm">Script Templates</DialogTitle></DialogHeader>
+              <div className="grid gap-2">
+                {SCRIPT_TEMPLATES.map(t => (
+                  <button key={t.name} onClick={() => applyTemplate(t)}
+                    className="w-full text-left p-4 rounded-xl bg-white/[0.03] border border-white/[0.06] hover:bg-white/[0.08] transition-all space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xl">{t.icon}</span>
                       <span className="font-semibold text-sm text-white">{t.name}</span>
                       <Badge variant="outline" className="text-[9px] border-white/10 text-white/40 ml-auto">{t.steps.length} steps</Badge>
                       <Badge variant="outline" className="text-[9px] border-amber-500/20 text-amber-400">
@@ -869,25 +1101,32 @@ const ScriptBuilder = () => {
                         <DialogContent className="bg-[hsl(220,40%,13%)] border-white/10 text-white max-w-xs">
                           <DialogHeader><DialogTitle className="text-sm">Export Script</DialogTitle></DialogHeader>
                           <div className="space-y-2">
-                            <button onClick={() => { exportToCSV(selectedScript, steps); }} className="w-full flex items-center gap-3 p-3 rounded-lg bg-white/[0.04] border border-white/[0.06] hover:bg-white/[0.08] transition-all">
+                            <button onClick={() => exportToExcel(selectedScript, steps)} className="w-full flex items-center gap-3 p-3 rounded-lg bg-gradient-to-r from-emerald-500/10 to-green-500/10 border border-emerald-500/20 hover:bg-emerald-500/20 transition-all">
                               <FileSpreadsheet className="h-5 w-5 text-emerald-400" />
                               <div className="text-left">
-                                <p className="text-xs font-semibold text-white">Google Sheets / CSV</p>
-                                <p className="text-[10px] text-white/40">Opens in Google Sheets, Excel, Numbers</p>
+                                <p className="text-xs font-semibold text-white">📊 Excel (Colors + Emojis)</p>
+                                <p className="text-[10px] text-white/40">Full color-coded spreadsheet with psychology labels</p>
                               </div>
                             </button>
-                            <button onClick={() => { exportToText(selectedScript, steps); }} className="w-full flex items-center gap-3 p-3 rounded-lg bg-white/[0.04] border border-white/[0.06] hover:bg-white/[0.08] transition-all">
+                            <button onClick={() => exportToCSV(selectedScript, steps)} className="w-full flex items-center gap-3 p-3 rounded-lg bg-white/[0.04] border border-white/[0.06] hover:bg-white/[0.08] transition-all">
+                              <FileSpreadsheet className="h-5 w-5 text-yellow-400" />
+                              <div className="text-left">
+                                <p className="text-xs font-semibold text-white">Google Sheets / CSV</p>
+                                <p className="text-[10px] text-white/40">Plain CSV for Sheets, Numbers</p>
+                              </div>
+                            </button>
+                            <button onClick={() => exportToText(selectedScript, steps)} className="w-full flex items-center gap-3 p-3 rounded-lg bg-white/[0.04] border border-white/[0.06] hover:bg-white/[0.08] transition-all">
                               <FileText className="h-5 w-5 text-blue-400" />
                               <div className="text-left">
-                                <p className="text-xs font-semibold text-white">Plain Text / Notes</p>
-                                <p className="text-[10px] text-white/40">Apple Notes, Notepad, any text editor</p>
+                                <p className="text-xs font-semibold text-white">📝 Plain Text / Notes</p>
+                                <p className="text-[10px] text-white/40">With emojis, formatted for Apple Notes</p>
                               </div>
                             </button>
-                            <button onClick={() => { exportToMarkdown(selectedScript, steps); }} className="w-full flex items-center gap-3 p-3 rounded-lg bg-white/[0.04] border border-white/[0.06] hover:bg-white/[0.08] transition-all">
+                            <button onClick={() => exportToMarkdown(selectedScript, steps)} className="w-full flex items-center gap-3 p-3 rounded-lg bg-white/[0.04] border border-white/[0.06] hover:bg-white/[0.08] transition-all">
                               <FileText className="h-5 w-5 text-purple-400" />
                               <div className="text-left">
-                                <p className="text-xs font-semibold text-white">Markdown / Word</p>
-                                <p className="text-[10px] text-white/40">Formatted doc, Notion, Google Docs</p>
+                                <p className="text-xs font-semibold text-white">📄 Markdown / Word</p>
+                                <p className="text-[10px] text-white/40">Formatted doc for Notion, Google Docs</p>
                               </div>
                             </button>
                           </div>
