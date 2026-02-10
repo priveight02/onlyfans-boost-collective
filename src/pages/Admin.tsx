@@ -23,11 +23,20 @@ const Admin = () => {
     }
   }, [user, loading, isAdmin, navigate]);
 
-  if (loading || !user || !isAdmin) {
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-muted flex items-center justify-center pt-20">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      </div>
+    );
+  }
+
+  if (!user || !isAdmin) {
     return null;
   }
 
   return (
+    <div className="min-h-screen bg-muted">
     <div className="container mx-auto p-6 pt-24 space-y-8">
       <div className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-3">
@@ -43,32 +52,32 @@ const Admin = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-gray-500">Total Users</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Total Users</CardTitle>
             <Users className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">1,234</div>
-            <p className="text-xs text-gray-500">+12% from last month</p>
+            <p className="text-xs text-muted-foreground">+12% from last month</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-gray-500">Active Models</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Active Models</CardTitle>
             <Activity className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">856</div>
-            <p className="text-xs text-gray-500">+5% from last month</p>
+            <p className="text-xs text-muted-foreground">+5% from last month</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-gray-500">Revenue</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Revenue</CardTitle>
             <Activity className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">$89,432</div>
-            <p className="text-xs text-gray-500">+18% from last month</p>
+            <p className="text-xs text-muted-foreground">+18% from last month</p>
           </CardContent>
         </Card>
       </div>
@@ -113,6 +122,7 @@ const Admin = () => {
           </Card>
         </TabsContent>
       </Tabs>
+    </div>
     </div>
   );
 };
