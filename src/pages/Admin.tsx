@@ -1,11 +1,14 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import AdminDashboard from "@/components/admin/AdminDashboard";
 import AdminSecurity from "@/components/admin/AdminSecurity";
 import CRMAccountsTab from "@/components/admin/CRMAccountsTab";
-import { Shield, LayoutDashboard, Users, Lock, Settings, LogOut, Contact } from "lucide-react";
+import ProfileLookup from "@/components/admin/ProfileLookup";
+import AudienceIntelligence from "@/components/admin/AudienceIntelligence";
+import { supabase } from "@/integrations/supabase/client";
+import { Shield, LayoutDashboard, Lock, Settings, LogOut, Contact, Search, BarChart3 } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -14,6 +17,7 @@ import { Button } from "@/components/ui/button";
 const Admin = () => {
   const { user, loading, isAdmin, logout } = useAuth();
   const navigate = useNavigate();
+  const [accounts, setAccounts] = useState<any[]>([]);
 
   useEffect(() => {
     if (loading) return;
@@ -22,6 +26,12 @@ const Admin = () => {
       navigate("/");
     }
   }, [user, loading, isAdmin, navigate]);
+
+  useEffect(() => {
+    if (!user || !isAdmin) return;
+    supabase.from("managed_accounts").select("*").order("created_at", { ascending: false })
+      .then(({ data }) => setAccounts(data || []));
+  }, [user, isAdmin]);
 
   const handleLogout = async () => {
     await logout();
@@ -66,32 +76,28 @@ const Admin = () => {
 
         {/* Tabs */}
         <Tabs defaultValue="dashboard" className="space-y-6">
-          <TabsList className="bg-white/5 backdrop-blur-sm border border-white/10 p-1 rounded-xl">
-            <TabsTrigger
-              value="dashboard"
-              className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-2"
-            >
+          <TabsList className="bg-white/5 backdrop-blur-sm border border-white/10 p-1 rounded-xl flex-wrap">
+            <TabsTrigger value="dashboard" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-2">
               <LayoutDashboard className="h-4 w-4" />
               Dashboard
             </TabsTrigger>
-            <TabsTrigger
-              value="users"
-              className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-2"
-            >
+            <TabsTrigger value="users" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-2">
               <Contact className="h-4 w-4" />
               CRM
             </TabsTrigger>
-            <TabsTrigger
-              value="security"
-              className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-2"
-            >
+            <TabsTrigger value="lookup" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-2">
+              <Search className="h-4 w-4" />
+              Profile Lookup
+            </TabsTrigger>
+            <TabsTrigger value="audience" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-2">
+              <BarChart3 className="h-4 w-4" />
+              Audience Intel
+            </TabsTrigger>
+            <TabsTrigger value="security" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-2">
               <Lock className="h-4 w-4" />
               Security
             </TabsTrigger>
-            <TabsTrigger
-              value="settings"
-              className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-2"
-            >
+            <TabsTrigger value="settings" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-2">
               <Settings className="h-4 w-4" />
               Settings
             </TabsTrigger>
@@ -102,6 +108,12 @@ const Admin = () => {
           </TabsContent>
           <TabsContent value="users" className="space-y-4">
             <CRMAccountsTab />
+          </TabsContent>
+          <TabsContent value="lookup" className="space-y-4">
+            <ProfileLookup />
+          </TabsContent>
+          <TabsContent value="audience" className="space-y-4">
+            <AudienceIntelligence accounts={accounts} />
           </TabsContent>
           <TabsContent value="security" className="space-y-4">
             <AdminSecurity />
