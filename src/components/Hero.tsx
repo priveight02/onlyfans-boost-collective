@@ -74,6 +74,9 @@ const Hero = () => {
         </motion.div>
       </div>
 
+      {/* Smooth bottom fade into next section */}
+      <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-b from-transparent to-primary pointer-events-none" />
+
       {/* Static background elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -inset-[10px] opacity-70">
