@@ -89,11 +89,11 @@ const Services = () => {
             Premium OnlyFans Management
           </h1>
           <p className="text-xl text-white/80 max-w-2xl mx-auto mb-10 animate-fade-in">
-            Transform your content creation journey with our comprehensive management services designed to maximize your success and earnings.
+            We handle everything so you can focus on creating. Let's grow together, babe.
           </p>
           <Link to="/onboarding">
             <button className="group inline-flex items-center px-8 py-3 text-lg font-medium rounded-full bg-white text-primary hover:bg-primary-light transition-all duration-500 transform hover:scale-105 shadow-lg">
-              Start Growing Today
+              Start Evolving Today
             </button>
           </Link>
         </div>
@@ -143,10 +143,10 @@ const Services = () => {
 
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
           <h2 className="text-4xl md:text-5xl font-bold text-white mb-6 animate-fade-in">
-            Ready to Transform Your Success?
+            Ready to Level Up, gorgeous? ;)
           </h2>
           <p className="text-xl text-white/80 mb-10 animate-fade-in">
-            Join our exclusive network of top-performing creators and unlock your full earning potential.
+            Join our crew of top creators and start earning what you truly deserve.
           </p>
 
           <Link to="/onboarding">
