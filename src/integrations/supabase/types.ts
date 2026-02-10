@@ -14,6 +14,44 @@ export type Database = {
   }
   public: {
     Tables: {
+      account_activities: {
+        Row: {
+          account_id: string
+          activity_type: string
+          created_at: string
+          created_by: string | null
+          description: string
+          id: string
+          metadata: Json | null
+        }
+        Insert: {
+          account_id: string
+          activity_type: string
+          created_at?: string
+          created_by?: string | null
+          description: string
+          id?: string
+          metadata?: Json | null
+        }
+        Update: {
+          account_id?: string
+          activity_type?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          id?: string
+          metadata?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "account_activities_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "managed_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       admin_login_attempts: {
         Row: {
           created_at: string
@@ -38,6 +76,81 @@ export type Database = {
           ip_address?: string | null
           success?: boolean
           user_agent?: string | null
+        }
+        Relationships: []
+      }
+      managed_accounts: {
+        Row: {
+          avatar_url: string | null
+          bio: string | null
+          contact_email: string | null
+          contact_phone: string | null
+          content_count: number | null
+          created_at: string
+          display_name: string | null
+          engagement_rate: number | null
+          id: string
+          last_activity_at: string | null
+          monthly_revenue: number | null
+          notes: string | null
+          onboarded_at: string | null
+          platform: string
+          social_links: Json | null
+          status: string
+          subscriber_count: number | null
+          tags: string[] | null
+          tier: string | null
+          total_revenue: number | null
+          updated_at: string
+          username: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          bio?: string | null
+          contact_email?: string | null
+          contact_phone?: string | null
+          content_count?: number | null
+          created_at?: string
+          display_name?: string | null
+          engagement_rate?: number | null
+          id?: string
+          last_activity_at?: string | null
+          monthly_revenue?: number | null
+          notes?: string | null
+          onboarded_at?: string | null
+          platform?: string
+          social_links?: Json | null
+          status?: string
+          subscriber_count?: number | null
+          tags?: string[] | null
+          tier?: string | null
+          total_revenue?: number | null
+          updated_at?: string
+          username: string
+        }
+        Update: {
+          avatar_url?: string | null
+          bio?: string | null
+          contact_email?: string | null
+          contact_phone?: string | null
+          content_count?: number | null
+          created_at?: string
+          display_name?: string | null
+          engagement_rate?: number | null
+          id?: string
+          last_activity_at?: string | null
+          monthly_revenue?: number | null
+          notes?: string | null
+          onboarded_at?: string | null
+          platform?: string
+          social_links?: Json | null
+          status?: string
+          subscriber_count?: number | null
+          tags?: string[] | null
+          tier?: string | null
+          total_revenue?: number | null
+          updated_at?: string
+          username?: string
         }
         Relationships: []
       }
