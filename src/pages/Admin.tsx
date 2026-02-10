@@ -5,13 +5,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import AdminDashboard from "@/components/admin/AdminDashboard";
 import AdminUsers from "@/components/admin/AdminUsers";
 import AdminSecurity from "@/components/admin/AdminSecurity";
-import { Shield, Users, Settings, Activity, Bell } from "lucide-react";
+import { Shield, LayoutDashboard, Users, Lock, Settings, LogOut } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 const Admin = () => {
-  const { user, loading, isAdmin } = useAuth();
+  const { user, loading, isAdmin, logout } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -22,10 +23,15 @@ const Admin = () => {
     }
   }, [user, loading, isAdmin, navigate]);
 
+  const handleLogout = async () => {
+    await logout();
+    navigate("/");
+  };
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-muted flex items-center justify-center pt-20">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      <div className="min-h-screen bg-gradient-to-br from-[hsl(210,100%,12%)] via-[hsl(220,100%,10%)] to-[hsl(230,100%,8%)] flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent" />
       </div>
     );
   }
@@ -35,93 +41,99 @@ const Admin = () => {
   }
 
   return (
-    <div className="min-h-screen bg-muted">
-    <div className="container mx-auto p-6 pt-24 space-y-8">
-      <div className="flex items-center justify-between mb-8">
-        <div className="flex items-center gap-3">
-          <Shield className="h-8 w-8 text-primary" />
-          <h1 className="text-3xl font-bold text-primary">Admin Panel</h1>
+    <div className="min-h-screen bg-gradient-to-br from-[hsl(210,100%,12%)] via-[hsl(220,100%,10%)] to-[hsl(230,100%,8%)]">
+      <div className="container mx-auto px-4 sm:px-6 pt-24 pb-12 space-y-8">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-white/10 backdrop-blur-sm border border-white/10">
+              <Shield className="h-6 w-6 text-accent" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold font-heading text-white">CRM Dashboard</h1>
+              <p className="text-sm text-white/50">Ozc Agency Management</p>
+            </div>
+          </div>
+          <Button
+            variant="ghost"
+            onClick={handleLogout}
+            className="text-white/60 hover:text-white hover:bg-white/10 gap-2"
+          >
+            <LogOut className="h-4 w-4" />
+            <span className="hidden sm:inline">Log out</span>
+          </Button>
         </div>
-        <div className="flex items-center gap-4">
-          <Bell className="h-6 w-6 text-gray-500 cursor-pointer hover:text-primary transition-colors" />
-          <Settings className="h-6 w-6 text-gray-500 cursor-pointer hover:text-primary transition-colors" />
-        </div>
-      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Users</CardTitle>
-            <Users className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">1,234</div>
-            <p className="text-xs text-muted-foreground">+12% from last month</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Active Models</CardTitle>
-            <Activity className="h-4 w-4 text-green-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">856</div>
-            <p className="text-xs text-muted-foreground">+5% from last month</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Revenue</CardTitle>
-            <Activity className="h-4 w-4 text-blue-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">$89,432</div>
-            <p className="text-xs text-muted-foreground">+18% from last month</p>
-          </CardContent>
-        </Card>
-      </div>
+        {/* Tabs */}
+        <Tabs defaultValue="dashboard" className="space-y-6">
+          <TabsList className="bg-white/5 backdrop-blur-sm border border-white/10 p-1 rounded-xl">
+            <TabsTrigger
+              value="dashboard"
+              className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-2"
+            >
+              <LayoutDashboard className="h-4 w-4" />
+              Dashboard
+            </TabsTrigger>
+            <TabsTrigger
+              value="users"
+              className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-2"
+            >
+              <Users className="h-4 w-4" />
+              Accounts
+            </TabsTrigger>
+            <TabsTrigger
+              value="security"
+              className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-2"
+            >
+              <Lock className="h-4 w-4" />
+              Security
+            </TabsTrigger>
+            <TabsTrigger
+              value="settings"
+              className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-2"
+            >
+              <Settings className="h-4 w-4" />
+              Settings
+            </TabsTrigger>
+          </TabsList>
 
-      <Tabs defaultValue="dashboard" className="space-y-6">
-        <TabsList className="bg-white/50 backdrop-blur-sm">
-          <TabsTrigger value="dashboard" className="data-[state=active]:bg-white">Dashboard</TabsTrigger>
-          <TabsTrigger value="users" className="data-[state=active]:bg-white">User Management</TabsTrigger>
-          <TabsTrigger value="security" className="data-[state=active]:bg-white">Security</TabsTrigger>
-          <TabsTrigger value="settings" className="data-[state=active]:bg-white">Settings</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="dashboard" className="space-y-4">
-          <AdminDashboard />
-        </TabsContent>
-        <TabsContent value="users" className="space-y-4">
-          <AdminUsers />
-        </TabsContent>
-        <TabsContent value="security" className="space-y-4">
-          <AdminSecurity />
-        </TabsContent>
-        <TabsContent value="settings" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Site Settings</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Site Title</label>
-                  <Input type="text" placeholder="OFM EXTENDED™" />
+          <TabsContent value="dashboard" className="space-y-4">
+            <AdminDashboard />
+          </TabsContent>
+          <TabsContent value="users" className="space-y-4">
+            <AdminUsers />
+          </TabsContent>
+          <TabsContent value="security" className="space-y-4">
+            <AdminSecurity />
+          </TabsContent>
+          <TabsContent value="settings" className="space-y-4">
+            <Card className="bg-white/5 backdrop-blur-sm border-white/10">
+              <CardHeader>
+                <CardTitle className="text-white">Site Settings</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid gap-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-white/70">Site Title</label>
+                    <Input
+                      type="text"
+                      placeholder="Ozc Agency"
+                      className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-accent"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-white/70">Site Description</label>
+                    <textarea
+                      className="w-full min-h-[100px] p-3 rounded-lg bg-white/5 border border-white/10 text-white placeholder:text-white/30 focus:border-accent focus:outline-none transition-colors"
+                      placeholder="Enter site description..."
+                    />
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Site Description</label>
-                  <textarea
-                    className="w-full min-h-[100px] p-2 border rounded-md"
-                    placeholder="Enter site description..."
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-    </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </div>
     </div>
   );
 };
