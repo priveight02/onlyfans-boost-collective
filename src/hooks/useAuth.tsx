@@ -1,8 +1,18 @@
-import { useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { User } from '@supabase/supabase-js';
 
-export const useAuth = () => {
+interface AuthContextType {
+  user: User | null;
+  loading: boolean;
+  isAdmin: boolean;
+  signIn: (email: string, password: string) => Promise<any>;
+  logout: () => Promise<void>;
+}
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -10,34 +20,38 @@ export const useAuth = () => {
   useEffect(() => {
     let mounted = true;
 
-    // Get initial session first
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
+    const checkAdmin = async (userId: string) => {
+      const { data } = await supabase.rpc('is_admin', { _user_id: userId });
+      if (mounted) setIsAdmin(!!data);
+    };
+
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
       if (!mounted) return;
       const currentUser = session?.user ?? null;
       setUser(currentUser);
-      
       if (currentUser) {
-        const { data } = await supabase.rpc('is_admin', { _user_id: currentUser.id });
-        if (mounted) setIsAdmin(!!data);
+        checkAdmin(currentUser.id).then(() => {
+          if (mounted) setLoading(false);
+        });
+      } else {
+        setLoading(false);
       }
-      
-      if (mounted) setLoading(false);
     });
 
-    // Then listen for changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!mounted) return;
       const currentUser = session?.user ?? null;
       setUser(currentUser);
-      
       if (currentUser) {
-        const { data } = await supabase.rpc('is_admin', { _user_id: currentUser.id });
-        if (mounted) setIsAdmin(!!data);
+        checkAdmin(currentUser.id).then(() => {
+          if (mounted) setLoading(false);
+        });
       } else {
-        if (mounted) setIsAdmin(false);
+        setIsAdmin(false);
+        setLoading(false);
       }
-      
-      if (mounted) setLoading(false);
     });
 
     return () => {
@@ -57,11 +71,17 @@ export const useAuth = () => {
     if (error) throw error;
   };
 
-  return {
-    user,
-    loading,
-    isAdmin,
-    signIn,
-    logout
-  };
+  return (
+    <AuthContext.Provider value={{ user, loading, isAdmin, signIn, logout }}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
 };
