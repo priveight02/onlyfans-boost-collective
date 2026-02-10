@@ -61,7 +61,7 @@ const Onboarding = () => {
           
           <Button
             onClick={() => window.open('https://docs.google.com/forms/d/e/1FAIpQLScDxHS2ojoDP-ii3mEy61C5Vl-Bmz1emqAGeSAs8_ISMMsUAA/viewform', '_blank')}
-            className="w-full bg-white/10 backdrop-blur-md text-white border border-white/20 hover:bg-white hover:text-primary hover:scale-105 transition-all duration-500 shadow-[0_0_30px_rgba(255,255,255,0.3)] hover:shadow-[0_0_40px_rgba(255,255,255,0.5)] py-3 text-base sm:text-lg font-semibold rounded-xl"
+            className="w-full bg-white text-primary hover:bg-primary-light hover:scale-105 transition-all duration-500 py-3 text-base sm:text-lg font-semibold rounded-full shadow-lg"
           >
             Open Onboarding Form
             <ExternalLink className="h-4 w-4 ml-2" />

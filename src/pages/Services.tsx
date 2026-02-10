@@ -92,9 +92,9 @@ const Services = () => {
             Transform your content creation journey with our comprehensive management services designed to maximize your success and earnings.
           </p>
           <Link to="/onboarding">
-            <Button size="lg" className="bg-white text-primary hover:bg-white/90 hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl">
+            <button className="group inline-flex items-center px-8 py-3 text-lg font-medium rounded-full bg-white text-primary hover:bg-primary-light transition-all duration-500 transform hover:scale-105 shadow-lg">
               Start Growing Today
-            </Button>
+            </button>
           </Link>
         </div>
       </div>
