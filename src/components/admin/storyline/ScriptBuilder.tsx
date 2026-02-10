@@ -808,15 +808,20 @@ const ScriptBuilder = () => {
       if (createErr) throw createErr;
 
       if (data.steps?.length > 0 && newScriptData) {
-        await supabase.from("script_steps").insert(
+        const { error: stepsErr } = await supabase.from("script_steps").insert(
           data.steps.map((s: any, i: number) => ({
             script_id: newScriptData.id, step_order: i, step_type: s.step_type || "message",
             title: s.title || "", content: s.content || "",
-            media_url: s.media_url || "", media_type: s.media_type || "",
-            price: s.price || 0, delay_minutes: s.delay_minutes || 0,
+            media_url: s.media_url || null, media_type: s.media_type && s.media_type !== "none" ? s.media_type : null,
+            price: typeof s.price === "number" ? s.price : 0, 
+            delay_minutes: typeof s.delay_minutes === "number" ? s.delay_minutes : 0,
             condition_logic: s.condition_logic || {},
           }))
         );
+        if (stepsErr) {
+          console.error("Steps insert error:", stepsErr);
+          toast.error("Script created but steps failed to save: " + stepsErr.message);
+        }
       }
 
       await loadScripts();
