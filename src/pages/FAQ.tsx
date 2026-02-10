@@ -18,67 +18,96 @@ const FAQ = () => {
       category: "Getting Started",
       questions: [
         {
-          question: "What does your agency offer to content creators?",
-          answer: "Our agency provides comprehensive services including professional content creation, brand development, strategic marketing across all platforms, revenue optimization strategies, 24/7 dedicated support, and personalized growth plans tailored to your unique goals and audience."
+          question: "What does Ozc Agency actually do for models?",
+          answer: "We handle everything that drives your revenue — from our dedicated chatting team engaging your fans 24/7 to maximize lifetime value, to our marketing team driving traffic and new subscribers to your page. We also take care of leak removal, problem-solving, content strategy, and buyer acquisition so you can focus on creating while we handle the business side."
         },
         {
-          question: "How do I apply to join your agency?",
-          answer: "Getting started is simple! Fill out our detailed application form on the Join page with your information, social media handles, and goals. Our team reviews every application within 24 hours and will contact you to discuss the next steps and answer any questions you may have."
+          question: "How do I apply to join Ozc Agency?",
+          answer: "Simply fill out our onboarding form with your basic info, current platforms, and goals. Our team reviews every application within 24 hours. We'll hop on a quick call to understand your situation, explain how we work, and see if we're a good fit for each other."
         },
         {
-          question: "What are the requirements to work with your agency?",
-          answer: "We welcome creators at all levels! Whether you're just starting out or already established, we look for individuals who are committed to their success, open to professional guidance, and ready to implement our proven strategies consistently."
+          question: "Do I need to already have an OF page to join?",
+          answer: "Not necessarily! We work with models at all stages — whether you're brand new and need help setting everything up, or you're already established and looking to scale. If you're starting fresh, we'll guide you through the entire setup process and build your page for success from day one."
+        },
+        {
+          question: "What makes Ozc Agency different from other management agencies?",
+          answer: "We're not just managers — we're a full team working around the clock for your success. Our chatting team works 24/7 to engage your fans and increase their lifetime value, our marketing team constantly drives new traffic, and we actively monitor and remove any leaked content. Every decision we make is focused on maximizing your earnings."
         }
       ]
     },
     {
-      category: "Services & Support",
+      category: "Chatting & Fan Engagement",
       questions: [
         {
-          question: "What kind of support do you provide to your models?",
-          answer: "We provide comprehensive 24/7 support including content strategy development, technical assistance, marketing guidance, personal coaching sessions, crisis management, and ongoing optimization of your entire online presence across all platforms."
+          question: "How does your chatting team work?",
+          answer: "Our professional chatting team operates 24/7 in shifts so your fans are never left waiting. They're trained in proven engagement strategies to build genuine connections with your subscribers, upsell premium content, and maximize the lifetime value of every single fan on your page."
         },
         {
-          question: "Do you help with content creation and photography?",
-          answer: "Absolutely! We offer professional content creation services including high-quality photography, videography, strategic content planning, editing services, and creative direction to ensure your content consistently stands out and engages your audience."
+          question: "Will the chatting feel authentic to my fans?",
+          answer: "Absolutely. We take time to learn your personality, tone, and style so every conversation feels natural and on-brand. Your fans won't notice a difference — they'll just feel more engaged and valued, which keeps them subscribed longer and spending more."
         },
+        {
+          question: "What is fan lifetime value and why does it matter?",
+          answer: "Fan lifetime value (LTV) is the total amount a subscriber spends over their entire time on your page — not just the subscription fee. Our chatting strategies focus on building relationships that increase tips, PPV purchases, and custom requests, turning casual subscribers into loyal high-spending fans."
+        },
+        {
+          question: "Do I have control over what my chatting team says?",
+          answer: "100%. You set the boundaries and guidelines, and we operate strictly within them. You'll have full visibility into conversations, and we regularly check in with you to make sure everything aligns with your comfort level and brand image."
+        }
+      ]
+    },
+    {
+      category: "Marketing & Traffic",
+      questions: [
+        {
+          question: "How do you drive traffic to my page?",
+          answer: "Our marketing team uses a combination of social media strategies, content promotion, platform-specific growth tactics, and targeted campaigns across multiple channels. We constantly test and optimize what works best for your niche to bring in a steady flow of new, paying subscribers."
+        },
+        {
+          question: "Do you handle my social media accounts?",
+          answer: "Yes — our social media management team handles posting schedules, content repurposing, engagement strategies, and growth tactics across platforms like Instagram, Twitter/X, TikTok, and Reddit. Everything is tailored to your brand and designed to funnel traffic to your page."
+        },
+        {
+          question: "How quickly will I see new subscribers coming in?",
+          answer: "Most models start seeing increased traffic within the first 1-2 weeks as our marketing strategies kick in. Significant subscriber growth typically happens within the first 30 days, with consistent scaling over the following months as we refine what works best for your audience."
+        }
+      ]
+    },
+    {
+      category: "Content Protection & Problem Solving",
+      questions: [
+        {
+          question: "What do you do about leaked content?",
+          answer: "We actively monitor the internet for any leaked content and take immediate action to get it removed through DMCA takedowns and direct platform requests. Protecting your content is a top priority — we treat every leak as urgent and handle it so you don't have to stress about it."
+        },
+        {
+          question: "What kind of problems can your team help me solve?",
+          answer: "From account issues and chargebacks to dealing with difficult subscribers, platform policy questions, payment problems, and any unexpected situations — our team has seen it all. We handle the headaches so you can stay focused on creating and growing."
+        },
+        {
+          question: "Is my personal information kept confidential?",
+          answer: "Absolutely. Privacy and confidentiality are non-negotiable for us. Your personal details, earnings, strategies, and any sensitive information are kept strictly between you and our team. We operate with full discretion at all times."
+        }
+      ]
+    },
+    {
+      category: "Earnings & Growth",
+      questions: [
         {
           question: "How do you help increase my earnings?",
-          answer: "We use proven revenue optimization strategies including strategic pricing models, premium content development, multiple income stream creation, subscriber retention techniques, and data-driven insights to maximize your earning potential across all platforms."
-        }
-      ]
-    },
-    {
-      category: "Results & Timeline",
-      questions: [
-        {
-          question: "How long does it take to see results?",
-          answer: "While results vary based on starting point and consistency, most of our creators see significant improvements within the first 30 days, with substantial growth typically occurring within the first 3 months. We focus on sustainable, long-term growth strategies."
+          answer: "We attack revenue from every angle — our chatting team maximizes fan spending through strategic engagement, our marketing team brings in fresh subscribers daily, and we optimize your pricing, PPV strategy, and content schedule based on real data. Most models see a significant income jump within the first month."
         },
         {
-          question: "What kind of growth can I expect?",
-          answer: "Our creators typically experience 200-500% growth in their first year, with many achieving 6-figure monthly earnings. Individual results depend on consistency, market positioning, and implementation of our strategies."
+          question: "What kind of results can I realistically expect?",
+          answer: "Results vary based on your starting point and consistency, but most of our models see 3-10x growth in their first 3 months. Some of our top performers have gone from a few hundred dollars to consistent five-figure months. We set realistic goals together and work relentlessly to hit them."
         },
         {
-          question: "Do you guarantee specific results?",
-          answer: "While we can't guarantee specific numbers due to market variables, we do guarantee our full commitment to your success with proven strategies, dedicated support, and continuous optimization based on performance data and industry best practices."
-        }
-      ]
-    },
-    {
-      category: "Pricing & Contracts",
-      questions: [
-        {
-          question: "How much do your services cost?",
-          answer: "Our pricing is customized based on your specific needs, current status, and growth goals. We offer flexible packages and revenue-sharing models to ensure our services are accessible and aligned with your success. All details are discussed during your consultation."
+          question: "How does the revenue split work?",
+          answer: "Our pricing is performance-based with a revenue share model — meaning we only win when you win. The exact split depends on the services you need and your current level. We'll discuss all the details transparently during your onboarding call so there are no surprises."
         },
         {
-          question: "Are there any long-term contracts?",
-          answer: "We believe in earning your trust through results, not binding contracts. Our partnerships are built on mutual success and satisfaction, with flexible terms that can be adjusted as your business grows and evolves."
-        },
-        {
-          question: "What payment methods do you accept?",
-          answer: "We accept various payment methods including bank transfers, credit cards, and cryptocurrency. We also offer revenue-sharing models where our success is directly tied to your growth and earnings."
+          question: "Are there any upfront costs or long-term contracts?",
+          answer: "We don't believe in locking you into long contracts or charging hefty upfront fees. Our model is built on mutual success — if we're not delivering results, you're free to walk. We earn your trust through performance, not paperwork."
         }
       ]
     }
