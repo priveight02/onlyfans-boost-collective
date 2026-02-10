@@ -118,7 +118,7 @@ const FAQ = () => {
       </div>
 
       {/* Search Section */}
-      <section className="py-12 relative z-10">
+      <section className="py-4 relative z-10">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="relative animate-fade-in">
             <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-white/50 h-5 w-5" />
@@ -134,12 +134,12 @@ const FAQ = () => {
       </section>
       
       {/* FAQ Categories */}
-      <section className="py-16 relative z-10">
+      <section className="py-6 relative z-10">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           {filteredFaqs.map((category, categoryIndex) => (
-            <div key={category.category} className="mb-12 animate-fade-in" style={{ animationDelay: `${categoryIndex * 100}ms` }}>
-              <h2 className="text-2xl font-bold text-white mb-8 text-center">{category.category}</h2>
-              <Accordion type="single" collapsible className="space-y-4">
+            <div key={category.category} className="mb-6 animate-fade-in" style={{ animationDelay: `${categoryIndex * 100}ms` }}>
+              <h2 className="text-2xl font-bold text-white mb-4 text-center">{category.category}</h2>
+              <Accordion type="single" collapsible className="space-y-2">
                 {category.questions.map((faq, index) => (
                   <AccordionItem 
                     key={index} 
@@ -147,13 +147,13 @@ const FAQ = () => {
                     className="group bg-white/10 backdrop-blur-md rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 border border-white/20 overflow-hidden"
                   >
                     <AccordionTrigger 
-                      className="px-8 py-6 text-left text-lg font-semibold text-white group-hover:text-white/80 transition-all duration-300 [&[data-state=open]>svg]:rotate-180"
+                      className="px-6 py-4 text-left text-base font-semibold text-white group-hover:text-white/80 transition-all duration-300 [&[data-state=open]>svg]:rotate-180"
                     >
                       <div className="flex items-center w-full pr-4">
                         <span className="flex-1">{faq.question}</span>
                       </div>
                     </AccordionTrigger>
-                    <AccordionContent className="px-8 pb-6">
+                    <AccordionContent className="px-6 pb-4">
                       <div className="text-white/70 leading-relaxed text-base">
                         {faq.answer}
                       </div>
