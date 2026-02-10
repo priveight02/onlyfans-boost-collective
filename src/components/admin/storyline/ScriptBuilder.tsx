@@ -811,11 +811,12 @@ const ScriptBuilder = () => {
         const { error: stepsErr } = await supabase.from("script_steps").insert(
           data.steps.map((s: any, i: number) => ({
             script_id: newScriptData.id, step_order: i, step_type: s.step_type || "message",
-            title: s.title || "", content: s.content || "",
-            media_url: s.media_url || null, media_type: s.media_type && s.media_type !== "none" ? s.media_type : null,
-            price: typeof s.price === "number" ? s.price : 0, 
-            delay_minutes: typeof s.delay_minutes === "number" ? s.delay_minutes : 0,
-            condition_logic: s.condition_logic || {},
+            title: s.title || `Step ${i + 1}`, content: s.content || "",
+            media_url: s.media_url && s.media_url !== "" ? s.media_url : null, 
+            media_type: s.media_type && s.media_type !== "none" && s.media_type !== "" ? s.media_type : null,
+            price: typeof s.price === "number" ? s.price : parseFloat(s.price) || 0, 
+            delay_minutes: typeof s.delay_minutes === "number" ? Math.round(s.delay_minutes) : parseInt(s.delay_minutes) || 0,
+            condition_logic: s.condition_logic && typeof s.condition_logic === "object" ? s.condition_logic : {},
           }))
         );
         if (stepsErr) {
