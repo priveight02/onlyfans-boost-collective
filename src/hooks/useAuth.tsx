@@ -1,64 +1,61 @@
 import { useState, useEffect } from 'react';
-import { auth } from '@/lib/firebase';
-import { 
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  signOut,
-  onAuthStateChanged,
-  User
-} from 'firebase/auth';
+import { supabase } from '@/integrations/supabase/client';
+import type { User } from '@supabase/supabase-js';
 
 export const useAuth = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setUser(user);
+    // Set up auth state listener FIRST
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
+      
+      if (currentUser) {
+        // Check admin role via database function
+        const { data } = await supabase.rpc('is_admin', { _user_id: currentUser.id });
+        setIsAdmin(!!data);
+      } else {
+        setIsAdmin(false);
+      }
+      
       setLoading(false);
-      console.log('Auth state changed:', user?.email);
     });
 
-    return unsubscribe;
+    // Then get initial session
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
+      
+      if (currentUser) {
+        const { data } = await supabase.rpc('is_admin', { _user_id: currentUser.id });
+        setIsAdmin(!!data);
+      }
+      
+      setLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    try {
-      const result = await signInWithEmailAndPassword(auth, email, password);
-      console.log('Sign in successful:', result.user.email);
-      return result;
-    } catch (error) {
-      console.error('Sign in error:', error);
-      throw error;
-    }
-  };
-
-  const signUp = async (email: string, password: string) => {
-    try {
-      const result = await createUserWithEmailAndPassword(auth, email, password);
-      console.log('Sign up successful:', result.user.email);
-      return result;
-    } catch (error) {
-      console.error('Sign up error:', error);
-      throw error;
-    }
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    return data;
   };
 
   const logout = async () => {
-    try {
-      await signOut(auth);
-      console.log('Sign out successful');
-    } catch (error) {
-      console.error('Sign out error:', error);
-      throw error;
-    }
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
   };
 
   return {
     user,
     loading,
+    isAdmin,
     signIn,
-    signUp,
     logout
   };
 };
