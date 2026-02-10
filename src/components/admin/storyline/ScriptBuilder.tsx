@@ -15,7 +15,7 @@ import {
   GitBranch, Save, Copy, Zap, HelpCircle, Send, Film,
   ChevronDown, ChevronUp, GripVertical, ArrowDown, Eye,
   Sparkles, Loader2, Crown, Timer, BookOpen, Lightbulb,
-  Download, FileSpreadsheet, FileText,
+  Download, FileSpreadsheet, FileText, AlertTriangle,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -210,6 +210,23 @@ const ScriptBuilder = () => {
   const [enableTypoSimulation, setEnableTypoSimulation] = useState(false);
   const [enableFreeFirst, setEnableFreeFirst] = useState(true);
   const [enableMaxConversion, setEnableMaxConversion] = useState(true);
+  // New options
+  const [enableEmoji, setEnableEmoji] = useState(true);
+  const [enableReEngagement, setEnableReEngagement] = useState(true);
+  const [enableVoiceNoteHints, setEnableVoiceNoteHints] = useState(false);
+  const [adaptivePricing, setAdaptivePricing] = useState(true);
+  // Editable pricing tiers
+  const [pricingTiers, setPricingTiers] = useState([
+    { step: 1, label: "Free bait", min: 0, max: 0 },
+    { step: 2, label: "Entry PPV", min: 8, max: 15 },
+    { step: 3, label: "Mid tier", min: 25, max: 49 },
+    { step: 4, label: "Double stack", min: 70, max: 105 },
+    { step: 5, label: "Premium", min: 145, max: 200 },
+    { step: 6, label: "VIP only", min: 410, max: 410 },
+  ]);
+  // Delete confirmation
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+  const [showDeleteAll, setShowDeleteAll] = useState(false);
 
   const [genTimer, setGenTimer] = useState(0);
   const [genEstimate, setGenEstimate] = useState(0);
@@ -395,6 +412,11 @@ const ScriptBuilder = () => {
           enable_typo_simulation: enableTypoSimulation,
           enable_free_first: enableFreeFirst,
           enable_max_conversion: enableMaxConversion,
+          enable_emoji: enableEmoji,
+          enable_re_engagement: enableReEngagement,
+          enable_voice_note_hints: enableVoiceNoteHints,
+          adaptive_pricing: adaptivePricing,
+          pricing_tiers: pricingTiers,
         },
       });
       if (error) throw error;
@@ -439,6 +461,40 @@ const ScriptBuilder = () => {
     }
   };
 
+  const deleteScript = async (scriptId: string) => {
+    try {
+      await supabase.from("script_steps").delete().eq("script_id", scriptId);
+      await supabase.from("automation_workflows").delete().eq("script_id", scriptId);
+      await supabase.from("scripts").delete().eq("id", scriptId);
+      if (selectedScript?.id === scriptId) { setSelectedScript(null); setSteps([]); }
+      toast.success("Script deleted permanently");
+      setShowDeleteConfirm(null);
+      await loadScripts();
+    } catch (e: any) { toast.error(e.message); }
+  };
+
+  const deleteAllScripts = async () => {
+    try {
+      const ids = scripts.map(s => s.id);
+      if (ids.length === 0) return;
+      for (const id of ids) {
+        await supabase.from("script_steps").delete().eq("script_id", id);
+        await supabase.from("automation_workflows").delete().eq("script_id", id);
+      }
+      await supabase.from("scripts").delete().in("id", ids);
+      setSelectedScript(null); setSteps([]);
+      toast.success(`All ${ids.length} scripts deleted permanently`);
+      setShowDeleteAll(false);
+      await loadScripts();
+    } catch (e: any) { toast.error(e.message); }
+  };
+
+  const updatePricingTier = (index: number, field: "min" | "max", value: number) => {
+    setPricingTiers(prev => prev.map((t, i) => i === index ? { ...t, [field]: value } : t));
+  };
+
+  const totalPricingTarget = pricingTiers.reduce((s, t) => s + t.max, 0);
+
   const totalPrice = steps.reduce((s, step) => s + (step.price || 0), 0);
   const paidSteps = steps.filter(s => s.price > 0);
 
@@ -470,34 +526,32 @@ const ScriptBuilder = () => {
                 <Sparkles className="h-3 w-3" /> Options
               </Button>
             </DialogTrigger>
-            <DialogContent className="bg-[hsl(220,40%,13%)] border-white/10 text-white max-w-4xl max-h-[85vh] overflow-y-auto">
-              <DialogHeader><DialogTitle className="flex items-center gap-2"><Sparkles className="h-4 w-4 text-purple-400" /> Generation Options</DialogTitle></DialogHeader>
-              <div className="grid grid-cols-3 gap-6 mt-4">
+            <DialogContent className="bg-[hsl(220,40%,13%)] border-white/10 text-white max-w-5xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader><DialogTitle className="flex items-center gap-2 text-lg"><Sparkles className="h-5 w-5 text-purple-400" /> Generation Options</DialogTitle></DialogHeader>
+              <div className="grid grid-cols-3 gap-8 mt-6">
                 {/* COLUMN 1: Script Setup */}
-                <div className="space-y-4">
-                  <h3 className="text-xs font-bold text-white/80 uppercase tracking-wider border-b border-white/10 pb-1">📐 Script Setup</h3>
-                  {/* Length */}
+                <div className="space-y-5">
+                  <h3 className="text-sm font-bold text-white/80 uppercase tracking-wider border-b border-white/10 pb-2">📐 Script Setup</h3>
                   <div>
-                    <Label className="text-[10px] text-white/50 mb-1.5 block">Script Length</Label>
-                    <div className="grid grid-cols-1 gap-1">
+                    <Label className="text-xs text-white/50 mb-2 block">Script Length</Label>
+                    <div className="grid grid-cols-1 gap-1.5">
                       {SCRIPT_LENGTHS.map(l => (
                         <button key={l.value} onClick={() => setScriptLength(l.value)}
-                          className={`p-2 rounded-lg text-left transition-all border flex items-center gap-2 ${
+                          className={`p-3 rounded-lg text-left transition-all border flex items-center gap-3 ${
                             scriptLength === l.value ? "bg-accent/20 border-accent/40 text-white" : "bg-white/[0.03] border-white/[0.06] text-white/40 hover:bg-white/[0.06]"
                           }`}>
-                          <span className="text-sm">{l.icon}</span>
+                          <span className="text-lg">{l.icon}</span>
                           <div>
-                            <span className="text-[10px] font-semibold block">{l.label}</span>
-                            <span className="text-[8px] block text-white/30">{l.desc}</span>
+                            <span className="text-xs font-semibold block">{l.label}</span>
+                            <span className="text-[10px] block text-white/30">{l.desc}</span>
                           </div>
                         </button>
                       ))}
                     </div>
                   </div>
-                  {/* Include checkboxes */}
                   <div>
-                    <Label className="text-[10px] text-white/50 mb-1.5 block">Include in Script</Label>
-                    <div className="space-y-1">
+                    <Label className="text-xs text-white/50 mb-2 block">Include in Script</Label>
+                    <div className="space-y-1.5">
                       {[
                         { id: "real", label: "Real messages (vs placeholders)", checked: generateRealMessages, set: setGenerateRealMessages },
                         { id: "conditions", label: "Condition branches", checked: includeConditions, set: setIncludeConditions },
@@ -505,9 +559,9 @@ const ScriptBuilder = () => {
                         { id: "delays", label: "Timing delays", checked: includeDelays, set: setIncludeDelays },
                         { id: "questions", label: "Engagement questions", checked: includeQuestions, set: setIncludeQuestions },
                       ].map(opt => (
-                        <label key={opt.id} className="flex items-center gap-2 cursor-pointer p-1.5 rounded-lg bg-white/[0.03] border border-white/[0.06] hover:bg-white/[0.06]">
+                        <label key={opt.id} className="flex items-center gap-2.5 cursor-pointer p-2 rounded-lg bg-white/[0.03] border border-white/[0.06] hover:bg-white/[0.06]">
                           <Checkbox checked={opt.checked} onCheckedChange={(v) => opt.set(v === true)} />
-                          <span className="text-[10px] text-white/60">{opt.label}</span>
+                          <span className="text-xs text-white/60">{opt.label}</span>
                         </label>
                       ))}
                     </div>
@@ -515,25 +569,23 @@ const ScriptBuilder = () => {
                 </div>
 
                 {/* COLUMN 2: Tone & Psychology */}
-                <div className="space-y-4">
-                  <h3 className="text-xs font-bold text-white/80 uppercase tracking-wider border-b border-white/10 pb-1">🎭 Tone & Psychology</h3>
-                  {/* Dynamic Tone Shift */}
-                  <div className="flex items-center gap-2 p-2.5 rounded-lg bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/20">
+                <div className="space-y-5">
+                  <h3 className="text-sm font-bold text-white/80 uppercase tracking-wider border-b border-white/10 pb-2">🎭 Tone & Psychology</h3>
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/20">
                     <Switch id="opt-dynamic" checked={enableDynamicShift} onCheckedChange={(v) => { setEnableDynamicShift(v); if (v) setMessageTone("dynamic_shift"); }} />
                     <div className="flex-1">
-                      <Label htmlFor="opt-dynamic" className="text-[10px] text-white cursor-pointer font-semibold flex items-center gap-1">
+                      <Label htmlFor="opt-dynamic" className="text-xs text-white cursor-pointer font-semibold flex items-center gap-1.5">
                         🎭 Dynamic Tone Shift
-                        <Badge variant="outline" className="text-[7px] border-purple-500/30 text-purple-300">REC</Badge>
+                        <Badge variant="outline" className="text-[8px] border-purple-500/30 text-purple-300">REC</Badge>
                       </Label>
-                      <p className="text-[8px] text-white/40">Innocent → Bold → Submissive → Bold finale</p>
+                      <p className="text-[10px] text-white/40 mt-0.5">Innocent → Bold → Submissive → Bold finale</p>
                     </div>
                   </div>
-                  {/* Message Tone Grid */}
                   <div>
-                    <Label className="text-[10px] text-white/50 mb-1.5 block">
-                      Manual Tone {enableDynamicShift && <span className="text-purple-400 text-[8px]">(overridden)</span>}
+                    <Label className="text-xs text-white/50 mb-2 block">
+                      Manual Tone {enableDynamicShift && <span className="text-purple-400 text-[10px]">(overridden)</span>}
                     </Label>
-                    <div className={`grid grid-cols-2 gap-1.5 ${enableDynamicShift ? "opacity-30 pointer-events-none" : ""}`}>
+                    <div className={`grid grid-cols-2 gap-2 ${enableDynamicShift ? "opacity-30 pointer-events-none" : ""}`}>
                       {[
                         { key: "innocent", icon: "🥺", label: "Innocent", desc: "Shy, sweet", color: "pink" },
                         { key: "aggressive_innocent", icon: "😈", label: "Spicy", desc: "Bold + casual", color: "purple" },
@@ -542,64 +594,86 @@ const ScriptBuilder = () => {
                         { key: "bratty", icon: "💅", label: "Bratty", desc: "Tease, push-pull", color: "orange" },
                       ].map(t => (
                         <button key={t.key} onClick={() => setMessageTone(t.key as any)}
-                          className={`p-2 rounded-lg text-left transition-all border flex items-center gap-2 ${
+                          className={`p-2.5 rounded-lg text-left transition-all border flex items-center gap-2.5 ${
                             messageTone === t.key ? `bg-${t.color}-500/20 border-${t.color}-500/40 text-white` : "bg-white/[0.03] border-white/[0.06] text-white/40 hover:bg-white/[0.06]"
                           }`}>
-                          <span className="text-base">{t.icon}</span>
+                          <span className="text-lg">{t.icon}</span>
                           <div>
-                            <span className="text-[10px] font-semibold block">{t.label}</span>
-                            <span className="text-[7px] block text-white/30">{t.desc}</span>
+                            <span className="text-xs font-semibold block">{t.label}</span>
+                            <span className="text-[9px] block text-white/30">{t.desc}</span>
                           </div>
                         </button>
                       ))}
                     </div>
                   </div>
-                  {/* Exclusivity */}
-                  <div className="flex items-center gap-2 p-2.5 rounded-lg bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20">
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20">
                     <Switch id="opt-exclusivity" checked={enableExclusivity} onCheckedChange={setEnableExclusivity} />
                     <div className="flex-1">
-                      <Label htmlFor="opt-exclusivity" className="text-[10px] text-white cursor-pointer font-semibold">✨ Exclusivity & Pauses</Label>
-                      <p className="text-[8px] text-white/40">"Hold on 2 mins", "just took this for u", "only for you"</p>
+                      <Label htmlFor="opt-exclusivity" className="text-xs text-white cursor-pointer font-semibold">✨ Exclusivity & Pauses</Label>
+                      <p className="text-[10px] text-white/40 mt-0.5">"Hold on 2 mins", "just took this for u", "only for you"</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-gradient-to-r from-pink-500/10 to-rose-500/10 border border-pink-500/20">
+                    <Switch id="opt-emoji" checked={enableEmoji} onCheckedChange={setEnableEmoji} />
+                    <div className="flex-1">
+                      <Label htmlFor="opt-emoji" className="text-xs text-white cursor-pointer font-semibold">😍 Emoji & Reactions</Label>
+                      <p className="text-[10px] text-white/40 mt-0.5">Natural emoji use throughout. Adds warmth and personality to messages.</p>
                     </div>
                   </div>
                 </div>
 
-                {/* COLUMN 3: Conversion & Realism */}
-                <div className="space-y-4">
-                  <h3 className="text-xs font-bold text-white/80 uppercase tracking-wider border-b border-white/10 pb-1">💰 Conversion & Realism</h3>
+                {/* COLUMN 3: Conversion & Pricing */}
+                <div className="space-y-5">
+                  <h3 className="text-sm font-bold text-white/80 uppercase tracking-wider border-b border-white/10 pb-2">💰 Conversion & Pricing</h3>
                   {[
-                    { id: "opt-freefirst", icon: "🎁", label: "Free Content First", desc: "1-2 free media before any PPV. Triggers reciprocity.", checked: enableFreeFirst, set: setEnableFreeFirst, from: "cyan", to: "blue", border: "cyan" },
-                    { id: "opt-maxconv", icon: "💰", label: "Max Conversion Mode", desc: "Sunk cost, FOMO, urgency, micro-commits, price anchoring.", checked: enableMaxConversion, set: setEnableMaxConversion, from: "yellow", to: "amber", border: "yellow" },
-                    { id: "opt-typo", icon: "✏️", label: "Typo Simulation", desc: "Natural typos + *correction. Makes it feel real.", checked: enableTypoSimulation, set: setEnableTypoSimulation, from: "green", to: "emerald", border: "green" },
+                    { id: "opt-freefirst", icon: "🎁", label: "Free Content First", desc: "1-2 free media before PPV. Triggers reciprocity.", checked: enableFreeFirst, set: setEnableFreeFirst },
+                    { id: "opt-maxconv", icon: "💰", label: "Max Conversion Mode", desc: "Sunk cost, FOMO, urgency, price anchoring.", checked: enableMaxConversion, set: setEnableMaxConversion },
+                    { id: "opt-typo", icon: "✏️", label: "Typo Simulation", desc: "Natural typos + *correction. Feels human.", checked: enableTypoSimulation, set: setEnableTypoSimulation },
+                    { id: "opt-reengage", icon: "🔄", label: "Re-Engagement Loops", desc: "Auto follow-ups if fan goes quiet. \"u there babe?\"", checked: enableReEngagement, set: setEnableReEngagement },
+                    { id: "opt-voice", icon: "🎤", label: "Voice Note Hints", desc: "Reference voice notes: \"wish I could send u a voice msg rn\"", checked: enableVoiceNoteHints, set: setEnableVoiceNoteHints },
                   ].map(opt => (
-                    <div key={opt.id} className={`flex items-center gap-2 p-2.5 rounded-lg bg-gradient-to-r from-${opt.from}-500/10 to-${opt.to}-500/10 border border-${opt.border}-500/20`}>
+                    <div key={opt.id} className="flex items-center gap-3 p-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
                       <Switch id={opt.id} checked={opt.checked} onCheckedChange={opt.set} />
                       <div className="flex-1">
-                        <Label htmlFor={opt.id} className="text-[10px] text-white cursor-pointer font-semibold">{opt.icon} {opt.label}</Label>
-                        <p className="text-[8px] text-white/40">{opt.desc}</p>
+                        <Label htmlFor={opt.id} className="text-xs text-white cursor-pointer font-semibold">{opt.icon} {opt.label}</Label>
+                        <p className="text-[10px] text-white/40 mt-0.5">{opt.desc}</p>
                       </div>
                     </div>
                   ))}
-                  {/* Pricing Ladder Preview */}
-                  <div className="p-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
-                    <Label className="text-[10px] text-white/50 mb-2 block">📈 Gradual Pricing Ladder ($300-700 target)</Label>
-                    <div className="space-y-1">
-                      {[
-                        { step: "1", label: "Free bait", price: "$0", color: "text-green-400" },
-                        { step: "2", label: "Entry PPV", price: "$8-15", color: "text-blue-400" },
-                        { step: "3", label: "Mid tier", price: "$25-49", color: "text-purple-400" },
-                        { step: "4", label: "Double stack", price: "$70 + $35", color: "text-orange-400" },
-                        { step: "5", label: "Premium", price: "$145-200", color: "text-red-400" },
-                        { step: "6", label: "VIP only", price: "$410", color: "text-amber-400" },
-                      ].map(tier => (
-                        <div key={tier.step} className="flex items-center justify-between text-[9px]">
-                          <span className="text-white/40">Step {tier.step}: {tier.label}</span>
-                          <span className={`font-bold ${tier.color}`}>{tier.price}</span>
+
+                  {/* Adaptive Pricing Toggle */}
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border border-emerald-500/20">
+                    <Switch id="opt-adaptive" checked={adaptivePricing} onCheckedChange={setAdaptivePricing} />
+                    <div className="flex-1">
+                      <Label htmlFor="opt-adaptive" className="text-xs text-white cursor-pointer font-semibold">📊 Adaptive Pricing</Label>
+                      <p className="text-[10px] text-white/40 mt-0.5">Adjusts free media count & pricing tiers based on script length. Longer = more free bait + higher ceiling.</p>
+                    </div>
+                  </div>
+
+                  {/* Editable Pricing Ladder */}
+                  <div className="p-4 rounded-lg bg-white/[0.03] border border-white/[0.06]">
+                    <Label className="text-xs text-white/50 mb-3 block">📈 Gradual Pricing Ladder (editable)</Label>
+                    <div className="space-y-2">
+                      {pricingTiers.map((tier, i) => (
+                        <div key={tier.step} className="flex items-center gap-2">
+                          <span className="text-[10px] text-white/40 w-20 shrink-0">Step {tier.step}: {tier.label}</span>
+                          {tier.step === 1 ? (
+                            <span className="text-xs font-bold text-green-400 flex-1 text-center">FREE</span>
+                          ) : (
+                            <div className="flex items-center gap-1 flex-1">
+                              <span className="text-[10px] text-white/30">$</span>
+                              <Input type="number" value={tier.min} onChange={e => updatePricingTier(i, "min", Number(e.target.value))}
+                                className="h-7 w-16 text-xs bg-white/5 border-white/10 text-white text-center p-1" />
+                              <span className="text-[10px] text-white/30">–</span>
+                              <Input type="number" value={tier.max} onChange={e => updatePricingTier(i, "max", Number(e.target.value))}
+                                className="h-7 w-16 text-xs bg-white/5 border-white/10 text-white text-center p-1" />
+                            </div>
+                          )}
                         </div>
                       ))}
-                      <div className="border-t border-white/10 mt-1.5 pt-1.5 flex justify-between text-[10px]">
-                        <span className="text-white/60 font-semibold">Total range</span>
-                        <span className="text-amber-400 font-bold">$300 – $700+</span>
+                      <div className="border-t border-white/10 mt-3 pt-3 flex justify-between text-xs">
+                        <span className="text-white/60 font-semibold">Total target</span>
+                        <span className="text-amber-400 font-bold">${pricingTiers.reduce((s, t) => s + t.min, 0)} – ${totalPricingTarget}+</span>
                       </div>
                     </div>
                   </div>
@@ -701,24 +775,60 @@ const ScriptBuilder = () => {
         {/* Script list sidebar */}
         <Card className="bg-white/5 backdrop-blur-sm border-white/10 lg:col-span-1">
           <CardHeader className="pb-2">
-            <CardTitle className="text-white text-xs">Scripts ({scripts.length})</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-white text-xs">Scripts ({scripts.length})</CardTitle>
+              {scripts.length > 0 && (
+                <button onClick={() => setShowDeleteAll(true)} className="text-red-400/50 hover:text-red-400 transition-colors" title="Delete all scripts">
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
           </CardHeader>
           <CardContent className="space-y-1 max-h-[600px] overflow-y-auto p-2">
             {scripts.map(s => (
-              <button key={s.id} onClick={() => selectScript(s)}
-                className={`w-full text-left p-2.5 rounded-lg transition-all text-xs ${
-                  selectedScript?.id === s.id ? "bg-accent/20 border border-accent/30" : "bg-white/[0.03] border border-transparent hover:bg-white/[0.06]"
-                }`}>
-                <p className="font-medium text-white truncate">{s.title}</p>
-                <div className="flex items-center gap-1.5 mt-1">
-                  <Badge variant="outline" className="text-[9px] border-white/10 text-white/40">{s.category}</Badge>
-                  <Badge variant="outline" className={`text-[9px] ${s.status === "active" ? "border-emerald-500/20 text-emerald-400" : "border-white/10 text-white/40"}`}>{s.status}</Badge>
-                </div>
-              </button>
+              <div key={s.id} className={`relative group w-full text-left p-2.5 rounded-lg transition-all text-xs ${
+                selectedScript?.id === s.id ? "bg-accent/20 border border-accent/30" : "bg-white/[0.03] border border-transparent hover:bg-white/[0.06]"
+              }`}>
+                <button onClick={() => selectScript(s)} className="w-full text-left">
+                  <p className="font-medium text-white truncate pr-6">{s.title}</p>
+                  <div className="flex items-center gap-1.5 mt-1">
+                    <Badge variant="outline" className="text-[9px] border-white/10 text-white/40">{s.category}</Badge>
+                    <Badge variant="outline" className={`text-[9px] ${s.status === "active" ? "border-emerald-500/20 text-emerald-400" : "border-white/10 text-white/40"}`}>{s.status}</Badge>
+                  </div>
+                </button>
+                {showDeleteConfirm === s.id ? (
+                  <div className="absolute right-1 top-1 flex items-center gap-1 bg-red-950/90 border border-red-500/30 rounded-lg p-1.5 z-10">
+                    <span className="text-[9px] text-red-300 mr-1">Delete?</span>
+                    <button onClick={() => deleteScript(s.id)} className="text-[9px] bg-red-600 hover:bg-red-500 text-white px-2 py-0.5 rounded">Yes</button>
+                    <button onClick={() => setShowDeleteConfirm(null)} className="text-[9px] bg-white/10 hover:bg-white/20 text-white px-2 py-0.5 rounded">No</button>
+                  </div>
+                ) : (
+                  <button onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(s.id); }}
+                    className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 text-red-400/50 hover:text-red-400 transition-all" title="Delete script">
+                    <Trash2 className="h-3 w-3" />
+                  </button>
+                )}
+              </div>
             ))}
             {scripts.length === 0 && <p className="text-white/30 text-xs text-center py-4">No scripts yet</p>}
           </CardContent>
         </Card>
+
+        {/* Delete All Confirmation Dialog */}
+        <Dialog open={showDeleteAll} onOpenChange={setShowDeleteAll}>
+          <DialogContent className="bg-[hsl(220,40%,13%)] border-red-500/20 text-white max-w-sm">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-red-400">
+                <AlertTriangle className="h-5 w-5" /> Delete All Scripts
+              </DialogTitle>
+            </DialogHeader>
+            <p className="text-sm text-white/60">This will permanently delete all {scripts.length} scripts and their steps. This action cannot be undone.</p>
+            <div className="flex gap-2 mt-2">
+              <Button variant="outline" onClick={() => setShowDeleteAll(false)} className="flex-1 border-white/10 text-white/60 hover:text-white">Cancel</Button>
+              <Button onClick={deleteAllScripts} className="flex-1 bg-red-600 hover:bg-red-500 text-white border-0">Delete All</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* Builder area */}
         <div className="lg:col-span-3 space-y-4">

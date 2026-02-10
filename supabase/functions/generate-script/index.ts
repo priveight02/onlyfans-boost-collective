@@ -21,6 +21,7 @@ serve(async (req) => {
       category, target_segment, theme, quality, generate_real_messages,
       script_length, include_conditions, include_followups, include_delays, include_questions,
       message_tone, enable_exclusivity, enable_typo_simulation, enable_free_first, enable_max_conversion,
+      enable_emoji, enable_re_engagement, enable_voice_note_hints, adaptive_pricing, pricing_tiers,
     } = await req.json();
     
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
@@ -154,9 +155,47 @@ Every single message in this script should serve a psychological purpose. No fil
 9. NATURAL NON-FORCED FLOW: Despite all these techniques, the conversation must read like a REAL chat. No sales pitch language. No "limited time offer" corporate speak. Just a girl genuinely chatting.
 ` : "";
 
+    const emojiInstruction = enable_emoji !== false ? `
+EMOJI USAGE: Use natural emoji throughout messages (😊💕🔥🥺😏🙈😈). Place them where a real person would while texting — at ends of sentences, after teasing, expressing emotion. Don't overdo it (1-3 per message max). Emojis should match the current tone phase.` : "EMOJI USAGE: Minimize emoji usage. Keep messages clean text with rare exceptions.";
+
+    const reEngagementInstruction = enable_re_engagement !== false ? `
+RE-ENGAGEMENT LOOPS (CRITICAL): If the fan goes quiet at ANY point, include follow-up messages designed to pull them back:
+- After 5-10 min silence: "u there? 🥺" or "did I scare u away lol"
+- After 15-30 min: "I was about to send u something crazy but idk if u're still here..."
+- After 1+ hour: "hey {NAME}... I saved something for u 😏 lmk when u're back"
+- After purchase but no response: "did u like it?? 🙈 I need to know"
+These should feel organic, NOT desperate. They create curiosity and FOMO.` : "";
+
+    const voiceNoteInstruction = enable_voice_note_hints ? `
+VOICE NOTE HINTS: Reference voice notes/audio as something intimate and exclusive:
+- "wish I could send u a voice note rn u'd hear how I sound 🥺"
+- "I recorded something for u but idk if I should send it..."
+- "my voice is so soft rn u'd love it"
+This adds another sensory dimension and makes the fan imagine more. Use sparingly (1-2 per script).` : "";
+
+    // Build pricing instruction from custom tiers
+    const defaultTiers = [
+      { step: 1, label: "Free bait", min: 0, max: 0 },
+      { step: 2, label: "Entry PPV", min: 8, max: 15 },
+      { step: 3, label: "Mid tier", min: 25, max: 49 },
+      { step: 4, label: "Double stack", min: 70, max: 105 },
+      { step: 5, label: "Premium", min: 145, max: 200 },
+      { step: 6, label: "VIP only", min: 410, max: 410 },
+    ];
+    const tiers = pricing_tiers || defaultTiers;
+    const totalMin = tiers.reduce((s: number, t: any) => s + (t.min || 0), 0);
+    const totalMax = tiers.reduce((s: number, t: any) => s + (t.max || 0), 0);
+
+    const adaptiveNote = adaptive_pricing !== false ? `
+ADAPTIVE PRICING: Adjust the pricing ladder based on script length:
+- Very Short/Short scripts: Use steps 1-4 only. More free content (2-3 items) to build trust fast. Total target: $${Math.round(totalMin * 0.4)}-$${Math.round(totalMax * 0.5)}.
+- Medium scripts: Use steps 1-5. Standard ladder. 1-2 free items. Total target: $${Math.round(totalMin * 0.7)}-$${Math.round(totalMax * 0.8)}.
+- Long/Very Long scripts: Use ALL steps including VIP. 3-4 free items at start so the fan learns to know her before spending. More gradual build. Total target: $${totalMin}-$${totalMax}+.
+The longer the script, the more free media at the beginning to build genuine connection before monetizing.` : "";
+
     const messageInstruction = realMessages
-      ? `Write REAL, natural-sounding messages that chatters can copy-paste directly. Use {NAME} as placeholder. Each message must be unique, engaging, and psychologically optimized.\n\n${toneInstruction}\n\n${exclusivityInstruction}\n\n${typoInstruction}\n\n${freeFirstInstruction}\n\n${maxConversionInstruction}`
-      : `Use placeholder text for messages: "[message]", "[answer]", "[follow-up]", "[reaction]". The chatter writes their own messages. Only fill in media descriptions and pricing.\n\n${exclusivityInstruction}\n\n${freeFirstInstruction}\n\n${maxConversionInstruction}`;
+      ? `Write REAL, natural-sounding messages that chatters can copy-paste directly. Use {NAME} as placeholder. Each message must be unique, engaging, and psychologically optimized.\n\n${toneInstruction}\n\n${exclusivityInstruction}\n\n${typoInstruction}\n\n${freeFirstInstruction}\n\n${maxConversionInstruction}\n\n${emojiInstruction}\n\n${reEngagementInstruction}\n\n${voiceNoteInstruction}\n\n${adaptiveNote}`
+      : `Use placeholder text for messages: "[message]", "[answer]", "[follow-up]", "[reaction]". The chatter writes their own messages. Only fill in media descriptions and pricing.\n\n${exclusivityInstruction}\n\n${freeFirstInstruction}\n\n${maxConversionInstruction}\n\n${adaptiveNote}`;
 
     const conditionalInstructions = [];
     if (!useConditions) conditionalInstructions.push("Do NOT include any 'condition' steps.");
@@ -221,18 +260,12 @@ ${isPremium ? `PREMIUM QUALITY — GO ALL OUT:
 - Practical and copy-paste ready
 - Core flow: hook → free → paid → escalate → finale`}
 
-PRICING RULES — GRADUAL LADDER ($300-$700 TOTAL TARGET):
-The script must extract $300-$700 total from the fan through gradual price escalation. Each step feels natural because the fan is already invested. The pricing MUST follow this ladder:
+PRICING RULES — GRADUAL LADDER ($${totalMin}-$${totalMax} TOTAL TARGET):
+The script must extract $${totalMin}-$${totalMax} total from the fan through gradual price escalation. The pricing MUST follow this ladder:
+${tiers.map((t: any) => `- Step ${t.step} (${t.label.toUpperCase()}): $${t.min}${t.max !== t.min ? `-$${t.max}` : ""}`).join("\n")}
 
-- Step 1 (FREE BAIT): $0 — 1-2 free media to lock the fan in. This triggers reciprocity.
-- Step 2 (ENTRY): $8-$15 — Very low barrier. "It's just $10 babe." Easy first purchase to break the payment wall.
-- Step 3 (MID TIER): $25-$49 — Now they've already spent $10-15, so $35 feels reasonable. Sunk cost kicks in.
-- Step 4 (DOUBLE STACK): $70 + $35 bundle — Two items sent close together. "I'll give u both for $105 total" or separate. The fan is deep in now.
-- Step 5 (PREMIUM): $145-$200 — The "grand finale" tier. "This is the one u've been waiting for." Position as the best content of the entire set.
-- Step 6 (VIP ONLY — optional): $410 — Only for high spenders / VIP clients. "I've never sent this to anyone." Ultimate exclusivity play.
-
-The escalation MUST feel natural — each price is justified by the increasing quality/intimacy of the content. Reference previous purchases: "since u already got the first set..." to leverage sunk cost.
-Total script value should land between $300-$700 depending on script length. Shorter scripts may skip Step 6.
+The escalation MUST feel natural — each price is justified by the increasing quality/intimacy of the content. Reference previous purchases to leverage sunk cost.
+Total script value should land between $${totalMin}-$${totalMax} depending on script length. Shorter scripts may skip the highest tier.
 
 Return JSON with this EXACT structure:
 {
