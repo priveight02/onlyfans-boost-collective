@@ -86,7 +86,7 @@ const Services = () => {
       <div className="relative pt-24 pb-8">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
           <h1 className="text-5xl md:text-7xl font-bold text-white mb-8 animate-fade-in">
-            Premium OnlyFans Management
+            Your Growth, Our Mission
           </h1>
           <p className="text-xl text-white/80 max-w-2xl mx-auto mb-10 animate-fade-in">
             We handle everything so you can focus on creating. Let's grow together!
