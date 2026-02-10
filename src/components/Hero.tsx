@@ -10,10 +10,10 @@ const Hero = () => {
   };
 
   return (
-    <div className="relative flex items-center bg-gradient-to-br from-primary via-accent to-primary-accent overflow-hidden min-h-screen pt-16">
+    <div className="relative flex items-center bg-gradient-to-br from-[hsl(210,100%,50%)] via-[hsl(195,100%,45%)] to-[hsl(200,100%,40%)] overflow-hidden min-h-screen pt-16">
       <div className="absolute inset-0">
-        <div className="absolute inset-0 bg-black/10 mix-blend-multiply" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
+        <div className="absolute inset-0 bg-[hsl(210,100%,55%)]/10 mix-blend-multiply" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[hsl(210,100%,25%)]/20 to-transparent" />
         
         {/* Static background patterns */}
         <div
