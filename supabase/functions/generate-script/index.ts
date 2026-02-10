@@ -38,23 +38,41 @@ serve(async (req) => {
     const useDelays = include_delays !== false;
     const useQuestions = include_questions !== false;
 
+    const useEmoji = enable_emoji === true;
+
     const TONE_INSTRUCTIONS: Record<string, string> = {
-      innocent: `MESSAGE TONE — INNOCENT / CUTE / SHY:
-Write messages as if the creator is a sweet, playful, slightly shy girl-next-door. She types casually, sometimes with small grammar mistakes that feel natural and endearing. She uses "babe", "baby", emojis like 😊💕🥺, and sounds genuinely excited and a bit nervous. She never uses vulgar/explicit language — she hints and teases instead. She says things like "I'm getting so hot right now", "do you like seeing me like this?", "I really want you to enjoy this with me". The vibe is: warm, personal, slightly naive, irresistible innocence.`,
+      innocent: useEmoji
+        ? `MESSAGE TONE — INNOCENT / CUTE / SHY:
+Write messages as if the creator is a sweet, playful, slightly shy girl-next-door. She types casually, sometimes with small grammar mistakes that feel natural and endearing. She uses "babe", "baby", emojis like 😊💕🥺, and sounds genuinely excited and a bit nervous. She never uses vulgar/explicit language — she hints and teases instead. She says things like "I'm getting so hot right now", "do you like seeing me like this?", "I really want you to enjoy this with me". The vibe is: warm, personal, slightly naive, irresistible innocence.`
+        : `MESSAGE TONE — INNOCENT / CUTE / SHY (NO EMOJI):
+Write messages as if the creator is a sweet, playful, slightly shy girl-next-door. She types casually with abbreviations like "u", "ur", "rn", "lol", "omg", "ngl", "idk". She uses "babe", "baby" and sounds genuinely excited and a bit nervous. She never uses vulgar/explicit language — she hints and teases instead. She says things like "im getting so hot rn", "do u like seeing me like this?", "i rly want u to enjoy this with me lol". The vibe is: warm, personal, slightly naive, irresistible innocence. ABSOLUTELY ZERO EMOJIS IN ANY MESSAGE.`,
 
-      aggressive_innocent: `MESSAGE TONE — SPICY / CASUAL / AGGRESSIVE-INNOCENT:
-Write messages like a girl who texts super casually but says very bold things. She uses "u" instead of "you", "ur" instead of "your", "lol", "omg", lowercase typing, short punchy sentences. She sounds young and casual in HOW she types but what she says is bold and forward. She mixes innocent texting style with very direct content. The vibe is: casual texting energy + forward content, like a real girl texting someone she's into. NO formal language. NO long sentences. Raw, real, unfiltered.`,
+      aggressive_innocent: useEmoji
+        ? `MESSAGE TONE — SPICY / CASUAL / AGGRESSIVE-INNOCENT:
+Write messages like a girl who texts super casually but says very bold things. She uses "u" instead of "you", "ur" instead of "your", "lol", "omg", lowercase typing, short punchy sentences. She sounds young and casual in HOW she types but what she says is bold and forward. She mixes innocent texting style with very direct content. The vibe is: casual texting energy + forward content, like a real girl texting someone she's into. NO formal language. NO long sentences. Raw, real, unfiltered.`
+        : `MESSAGE TONE — SPICY / CASUAL / AGGRESSIVE-INNOCENT (NO EMOJI):
+Write messages like a girl who texts super casually but says very bold things. She uses "u" instead of "you", "ur" instead of "your", "lol", "omg", "ngl", "tbh", "wyd", "hbu", lowercase typing, short punchy sentences. She sounds young and casual in HOW she types but what she says is bold and forward. She mixes innocent texting style with very direct content. The vibe is: casual texting energy + forward content, like a real girl texting someone she's into. NO formal language. NO long sentences. Raw, real, unfiltered. ABSOLUTELY ZERO EMOJIS.`,
 
-      bold: `MESSAGE TONE — BOLD / EXPLICIT / CONFIDENT:
-Write messages as if the creator is confident, forward, and in control. She knows what she wants and isn't shy about saying it. She uses direct language freely. She says things like "I want you so bad right now", "look at what I'm doing for you", "tell me how much you want me". The vibe is: dominant, seductive, unapologetic, grown-up. No shyness, no hesitation.`,
+      bold: useEmoji
+        ? `MESSAGE TONE — BOLD / EXPLICIT / CONFIDENT:
+Write messages as if the creator is confident, forward, and in control. She knows what she wants and isn't shy about saying it. She uses direct language freely. She says things like "I want you so bad right now", "look at what I'm doing for you", "tell me how much you want me". The vibe is: dominant, seductive, unapologetic, grown-up. No shyness, no hesitation.`
+        : `MESSAGE TONE — BOLD / EXPLICIT / CONFIDENT (NO EMOJI):
+Write messages as if the creator is confident, forward, and in control. She uses abbreviations like "u", "ur", "rn", "ngl", "lol". She says things like "i want u so bad rn", "look at what im doing for u", "tell me how much u want me". The vibe is: dominant, seductive, unapologetic, grown-up. No shyness, no hesitation. ABSOLUTELY ZERO EMOJIS.`,
 
-      submissive: `MESSAGE TONE — SUBMISSIVE / NEEDY / DEVOTED:
-Write messages as if the creator is eager to please and craves validation. She's needy and devoted. She says things like "please tell me what you want me to do", "I'll do anything for you", "am I being a good girl?", "I need you so bad rn". She uses lots of emojis 🥺😩, begs, and makes the subscriber feel powerful and in control. The vibe is: worship, devotion, eager-to-please.`,
+      submissive: useEmoji
+        ? `MESSAGE TONE — SUBMISSIVE / NEEDY / DEVOTED:
+Write messages as if the creator is eager to please and craves validation. She's needy and devoted. She says things like "please tell me what you want me to do", "I'll do anything for you", "am I being a good girl?", "I need you so bad rn". She uses lots of emojis 🥺😩, begs, and makes the subscriber feel powerful and in control. The vibe is: worship, devotion, eager-to-please.`
+        : `MESSAGE TONE — SUBMISSIVE / NEEDY / DEVOTED (NO EMOJI):
+Write messages as if the creator is eager to please and craves validation. She's needy and devoted. She uses "u", "ur", "rn", "pls", "omg", "lol". She says things like "pls tell me what u want me to do", "ill do anything for u", "am i being a good girl?", "i need u so bad rn". She begs and makes the subscriber feel powerful and in control. The vibe is: worship, devotion, eager-to-please. ABSOLUTELY ZERO EMOJIS.`,
 
-      bratty: `MESSAGE TONE — BRATTY / TEASE / PLAYFUL ATTITUDE:
-Write messages as if the creator is a confident tease who plays hard to get. She's sassy, witty, and makes the subscriber work for it. She says things like "hmm maybe if you're nice enough", "you think you deserve to see that? 😏", "make me", "idk if you can handle me tbh", "prove you want it". She flips between teasing denial and rewarding. Uses 😏💅🙄 emojis. The vibe is: playful power, push-pull dynamic, "chase me".`,
+      bratty: useEmoji
+        ? `MESSAGE TONE — BRATTY / TEASE / PLAYFUL ATTITUDE:
+Write messages as if the creator is a confident tease who plays hard to get. She's sassy, witty, and makes the subscriber work for it. She says things like "hmm maybe if you're nice enough", "you think you deserve to see that? 😏", "make me", "idk if you can handle me tbh", "prove you want it". She flips between teasing denial and rewarding. Uses 😏💅🙄 emojis. The vibe is: playful power, push-pull dynamic, "chase me".`
+        : `MESSAGE TONE — BRATTY / TEASE / PLAYFUL ATTITUDE (NO EMOJI):
+Write messages as if the creator is a confident tease who plays hard to get. She's sassy, witty, and makes the subscriber work for it. She uses "u", "ur", "idk", "tbh", "lol", "ngl". She says things like "hmm maybe if ur nice enough", "u think u deserve to see that lol", "make me", "idk if u can handle me tbh", "prove u want it". She flips between teasing denial and rewarding. The vibe is: playful power, push-pull dynamic, "chase me". ABSOLUTELY ZERO EMOJIS.`,
 
-      dynamic_shift: `MESSAGE TONE — DYNAMIC TONE SHIFT (MOST NATURAL & EFFECTIVE):
+      dynamic_shift: useEmoji
+        ? `MESSAGE TONE — DYNAMIC TONE SHIFT (MOST NATURAL & EFFECTIVE):
 This script MUST shift tones throughout to mimic a REAL conversation flow:
 
 PHASE 1 — OPENING (first 20-30% of script): INNOCENT / CUTE
@@ -74,7 +92,27 @@ PHASE 4 — GRAND FINALE BUILD: Back to BOLD/AGGRESSIVE
 - For the final premium content, she gets confident again. "I saved the best for last", "u ready for this?"
 - Then immediately after the final send, back to SUBMISSIVE: "omg I can't believe I just sent u that 🙈"
 
-The shifts must feel NATURAL — like a real person's emotions during an intimate conversation. NOT robotic transitions. Each phase bleeds into the next gradually.`,
+The shifts must feel NATURAL — like a real person's emotions during an intimate conversation. NOT robotic transitions. Each phase bleeds into the next gradually.`
+        : `MESSAGE TONE — DYNAMIC TONE SHIFT (NO EMOJI — ABBREVIATION STYLE):
+This script MUST shift tones throughout to mimic a REAL conversation flow. She types with abbreviations: "u", "ur", "rn", "ngl", "tbh", "lol", "omg", "idk", "wyd", "hbu". ABSOLUTELY ZERO EMOJIS IN ANY MESSAGE.
+
+PHASE 1 — OPENING (first 20-30% of script): INNOCENT / CUTE
+- Sweet, shy, playful. She's casual, warm, girl-next-door. Uses "babe", sounds genuinely excited.
+- "heyy u up? lol just got home ngl im bored", "how was ur day babe"
+
+PHASE 2 — HEATING UP (middle 30-40%): BOLD / AGGRESSIVE
+- The conversation naturally gets more forward. She becomes confident, direct.
+- "i wanna show u something...", "u make me feel so... ngl", "ok wait i have an idea lol"
+
+PHASE 3 — AFTER MEDIA SENDS: SUBMISSIVE / NEEDY
+- After sending content, she becomes softer, needier. "did u like it?", "i hope that was good enough for u", "tell me what u want next..."
+- This makes the fan feel powerful and in control, which triggers more spending.
+
+PHASE 4 — GRAND FINALE BUILD: Back to BOLD/AGGRESSIVE
+- "i saved the best for last ngl", "u ready for this?"
+- Then after the final send: "omg i cant believe i just sent u that lol"
+
+The shifts must feel NATURAL. Each phase bleeds into the next gradually.`,
     };
 
     const exclusivityInstruction = enable_exclusivity !== false ? `
@@ -128,16 +166,21 @@ MAX CONVERSION OPTIMIZATION (APPLY TO EVERY MESSAGE):
 8. EMOTIONAL ESCALATION: Each message should be slightly more intense than the last
 9. NATURAL NON-FORCED FLOW: Despite all these techniques, the conversation must read like a REAL chat.` : "";
 
-    const emojiInstruction = enable_emoji === true ? `
+    const emojiInstruction = useEmoji ? `
 EMOJI USAGE: Use natural emoji throughout messages (😊💕🔥🥺😏🙈😈). Place them where a real person would while texting — at ends of sentences, after teasing, expressing emotion. Don't overdo it (1-3 per message max).` : `
-EMOJI USAGE — MINIMAL / ABBREVIATION STYLE (DEFAULT):
-A young woman texting a guy she's into does NOT use many emojis. She types casually with abbreviations:
-- Use "u" not "you", "ur" not "your", "rn" not "right now", "ngl" not "not gonna lie", "tbh" not "to be honest", "lol", "omg", "idk", "wyd", "hbu", "nvm"
-- Maximum 1 emoji per 3-4 messages. When used, only: 😊 🙈 😏 lol
-- NO emoji spam. NO hearts everywhere. NO 💕🥺😍 on every message.
-- She sounds like a real girl texting — short sentences, lowercase, casual abbreviations
-- Example: "heyy u up? lol i just got home ngl im bored" NOT "Hey babe! 💕 Just got home! 🥰😍 Missing you! 💋"
-- The vibe is: low-effort texting that feels REAL, not performative`;
+CRITICAL — ABSOLUTELY ZERO EMOJIS (STRICT ENFORCEMENT):
+Do NOT use ANY emoji characters whatsoever. Not a single one. No 😊, no 💕, no 🥺, no 😏, no 🔥, no 🙈, no 😈, no ❤️, no 💋, no 😍 — NOTHING. Not even 1.
+
+Instead, the creator texts like a real young woman with a casual abbreviation style:
+- Use "u" not "you", "ur" not "your", "rn" not "right now", "ngl" not "not gonna lie", "tbh" not "to be honest"  
+- Use "lol", "omg", "idk", "wyd", "hbu", "nvm", "pls", "bc", "w/", "abt"
+- Short sentences, lowercase, casual. She sounds real, not performative.
+- Example: "heyy u up? lol i just got home ngl im bored" NOT "Hey babe! 💕 Just got home! 🥰😍"
+- Example: "ok wait hold on lol" NOT "hold on 😊"
+- Example: "did u like it? ngl i was nervous to send that" NOT "did u like it? 🥺"
+- The vibe is: low-effort authentic texting. She does NOT decorate her messages with symbols.
+
+THIS IS THE MOST IMPORTANT RULE: If even ONE emoji appears in ANY message, the script is INVALID.`;
 
     const reEngagementInstruction = enable_re_engagement !== false ? `
 RE-ENGAGEMENT LOOPS: If the fan goes quiet at ANY point, include follow-up messages:
