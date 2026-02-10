@@ -90,15 +90,34 @@ const ProfileLookup = () => {
   const earnings = data?.earnings;
   const earningsByType = data?.earningsByType;
   const subscriberStats = data?.subscriberStats;
+  const subscriberStatsNew = data?.subscriberStatsNew;
+  const subscriberStatsRenew = data?.subscriberStatsRenew;
   const subscriberMetrics = data?.subscriberMetrics;
   const visitors = data?.visitors;
-  const statistics = data?.statistics;
+  const statistics = data?.statistics_overview;
+  const statisticsFans = data?.statistics_fans;
+  const statisticsVisitors = data?.statistics_visitors;
+  const statisticsPosts = data?.statistics_posts;
   const yearlyEarnings = data?.yearlyEarnings;
+  const accountDetails = data?.accountDetails;
+  const latestFans = data?.latestFans;
+  const activeFans = data?.activeFans;
+  const allFans = data?.allFans;
+  const transactions = data?.transactions;
+  const totalTransactions = data?.totalTransactions;
+  const earningStatistics = data?.earningStatistics;
+  const promotions = data?.promotions;
+  const subscriptionBundles = data?.subscriptionBundles;
+  const chats = data?.chats;
+  const accountInfo = data?.account;
 
   const hasEarningsData = !!earnings || !!earningsByType;
   const hasSubStats = !!subscriberStats;
-  const hasVisitorData = !!visitors;
+  const hasVisitorData = !!visitors || !!statisticsVisitors;
   const hasStatsOverview = !!statistics;
+  const hasAccountAccess = !!data?._meta?.accountResolved;
+  const hasFansData = !!latestFans || !!activeFans || !!allFans;
+  const hasTransactions = !!transactions;
 
   const lookupProfile = async () => {
     const clean = username.trim().replace("@", "");
@@ -436,15 +455,23 @@ const ProfileLookup = () => {
           <div className="flex flex-wrap gap-2 px-4">
             {[
               { label: "Profile", available: true },
+              { label: "Account ID", available: hasAccountAccess },
               { label: "Earnings", available: hasEarningsData },
               { label: "Subscribers", available: hasSubStats },
               { label: "Visitors", available: hasVisitorData },
               { label: "Statistics", available: hasStatsOverview },
+              { label: "Fans", available: hasFansData },
+              { label: "Transactions", available: hasTransactions },
             ].map((d) => (
               <Badge key={d.label} variant="outline" className={`text-[10px] ${d.available ? "text-emerald-400 border-emerald-500/30 bg-emerald-500/10" : "text-white/15 border-white/5"}`}>
                 {d.available ? "✓" : "✗"} {d.label}
               </Badge>
             ))}
+            {hasAccountAccess && data._meta?.accountId && (
+              <Badge variant="outline" className="text-[9px] text-accent/50 border-accent/20 bg-accent/5">
+                {data._meta.accountId}
+              </Badge>
+            )}
           </div>
 
           {/* Main tabs */}
@@ -454,6 +481,7 @@ const ProfileLookup = () => {
                 { value: "overview", icon: BarChart3, label: "Overview" },
                 { value: "revenue", icon: DollarSign, label: "Revenue" },
                 { value: "audience", icon: Users, label: "Audience" },
+                { value: "fans", icon: Heart, label: "Fans" },
                 { value: "content", icon: Layers, label: "Content" },
                 { value: "engagement", icon: Activity, label: "Engagement" },
                 { value: "traffic", icon: Eye, label: "Traffic" },
@@ -706,10 +734,157 @@ const ProfileLookup = () => {
                 </Card>
               )}
 
-              {!hasSubStats && (
+              {/* New vs Renew breakdown */}
+              {(subscriberStatsNew || subscriberStatsRenew) && (
+                <Card className="bg-white/[0.04] border-white/[0.08]">
+                  <CardHeader className="pb-2"><CardTitle className="text-sm text-white/70">New vs Renewed Subscribers (30d)</CardTitle></CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-2 gap-3">
+                      {subscriberStatsNew && (
+                        <div className="bg-white/[0.03] rounded-lg p-3 border border-white/[0.05]">
+                          <p className="text-xs text-white/40 mb-1">New Subscribers</p>
+                          <p className="text-lg font-bold text-emerald-400">{subscriberStatsNew.subscribers ?? "N/A"}</p>
+                          {subscriberStatsNew.delta !== undefined && <p className="text-[10px] text-white/25">Delta: {subscriberStatsNew.delta}%</p>}
+                          <DataSourceBadge source="API" />
+                        </div>
+                      )}
+                      {subscriberStatsRenew && (
+                        <div className="bg-white/[0.03] rounded-lg p-3 border border-white/[0.05]">
+                          <p className="text-xs text-white/40 mb-1">Renewed Subscribers</p>
+                          <p className="text-lg font-bold text-blue-400">{subscriberStatsRenew.subscribers ?? "N/A"}</p>
+                          {subscriberStatsRenew.delta !== undefined && <p className="text-[10px] text-white/25">Delta: {subscriberStatsRenew.delta}%</p>}
+                          <DataSourceBadge source="API" />
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Transactions summary */}
+              {totalTransactions && (
+                <Card className="bg-white/[0.04] border-white/[0.08]">
+                  <CardHeader className="pb-2"><CardTitle className="text-sm text-white/70">Transaction Summary (30d)</CardTitle></CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      {Object.entries(totalTransactions).filter(([k]) => !k.startsWith("_")).map(([key, val]: [string, any]) => (
+                        <div key={key} className="bg-white/[0.03] rounded-lg p-3 border border-white/[0.05] text-center">
+                          <p className="text-lg font-bold text-white">{typeof val === "number" ? (key.includes("amount") ? `$${val.toLocaleString()}` : val.toLocaleString()) : String(val)}</p>
+                          <p className="text-[10px] text-white/30 capitalize">{key.replace(/_/g, " ")}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {!hasSubStats && !hasAccountAccess && (
                 <div className="bg-white/5 border border-white/10 rounded-lg p-4 text-center">
                   <Users className="h-8 w-8 text-white/15 mx-auto mb-2" />
-                  <p className="text-sm text-white/30">Detailed subscriber analytics require account-level API access</p>
+                  <p className="text-sm text-white/30">Detailed subscriber analytics require the account to be connected to your API</p>
+                  <p className="text-xs text-white/15 mt-1">The username must match a connected account in your OnlyFans API dashboard</p>
+                </div>
+              )}
+            </TabsContent>
+
+            {/* FANS */}
+            <TabsContent value="fans" className="space-y-4">
+              {hasFansData ? (
+                <>
+                  {/* Latest fans */}
+                  {latestFans?.list && Array.isArray(latestFans.list) && latestFans.list.length > 0 && (
+                    <Card className="bg-white/[0.04] border-white/[0.08]">
+                      <CardHeader className="pb-2">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="text-sm text-white/70">Latest Fans (30d)</CardTitle>
+                          <DataSourceBadge source="API" />
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-2 max-h-[400px] overflow-auto">
+                          {latestFans.list.map((fan: any, i: number) => (
+                            <div key={i} className="flex items-center gap-3 bg-white/[0.03] rounded-lg p-2.5 border border-white/[0.05]">
+                              {fan.avatar ? (
+                                <img src={fan.avatar} alt="" className="w-8 h-8 rounded-full object-cover" />
+                              ) : (
+                                <div className="w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center text-xs text-white">{(fan.name || fan.username || "?").charAt(0)}</div>
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm text-white/60 truncate">{fan.name || fan.username}</p>
+                                {fan.username && <p className="text-[10px] text-white/25">@{fan.username}</p>}
+                              </div>
+                              {fan.subscribedAt && <p className="text-[10px] text-white/20">{new Date(fan.subscribedAt).toLocaleDateString()}</p>}
+                              {fan.totalSpent !== undefined && <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 text-[9px]">${fan.totalSpent}</Badge>}
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Active fans */}
+                  {activeFans?.list && Array.isArray(activeFans.list) && activeFans.list.length > 0 && (
+                    <Card className="bg-white/[0.04] border-white/[0.08]">
+                      <CardHeader className="pb-2">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="text-sm text-white/70">Active Fans (Top 10)</CardTitle>
+                          <DataSourceBadge source="API" />
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-2 max-h-[400px] overflow-auto">
+                          {activeFans.list.map((fan: any, i: number) => (
+                            <div key={i} className="flex items-center gap-3 bg-white/[0.03] rounded-lg p-2.5 border border-white/[0.05]">
+                              {fan.avatar ? (
+                                <img src={fan.avatar} alt="" className="w-8 h-8 rounded-full object-cover" />
+                              ) : (
+                                <div className="w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center text-xs text-white">{(fan.name || fan.username || "?").charAt(0)}</div>
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm text-white/60 truncate">{fan.name || fan.username}</p>
+                                {fan.username && <p className="text-[10px] text-white/25">@{fan.username}</p>}
+                              </div>
+                              {fan.subscribedAt && <p className="text-[10px] text-white/20">{new Date(fan.subscribedAt).toLocaleDateString()}</p>}
+                              {fan.totalSpent !== undefined && <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 text-[9px]">${fan.totalSpent}</Badge>}
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Recent transactions */}
+                  {transactions?.list && Array.isArray(transactions.list) && transactions.list.length > 0 && (
+                    <Card className="bg-white/[0.04] border-white/[0.08]">
+                      <CardHeader className="pb-2">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="text-sm text-white/70">Recent Transactions</CardTitle>
+                          <DataSourceBadge source="API" />
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-2 max-h-[400px] overflow-auto">
+                          {transactions.list.slice(0, 20).map((tx: any, i: number) => (
+                            <div key={i} className="flex items-center justify-between bg-white/[0.03] rounded-lg p-2.5 border border-white/[0.05]">
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm text-white/60">{tx.description || tx.type || "Transaction"}</p>
+                                <p className="text-[10px] text-white/25">{tx.createdAt ? new Date(tx.createdAt).toLocaleString() : ""}</p>
+                              </div>
+                              <p className={`text-sm font-medium ${(tx.amount || 0) >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                                {(tx.amount || 0) >= 0 ? "+" : ""}${Math.abs(tx.amount || tx.net || 0).toFixed(2)}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+                </>
+              ) : (
+                <div className="bg-white/5 border border-white/10 rounded-lg p-4 text-center">
+                  <Heart className="h-8 w-8 text-white/15 mx-auto mb-2" />
+                  <p className="text-sm text-white/30">Fan data requires the account to be connected to your API</p>
+                  <p className="text-xs text-white/15 mt-1">Connect this creator's account in your OnlyFans API dashboard to unlock fan analytics</p>
                 </div>
               )}
             </TabsContent>
