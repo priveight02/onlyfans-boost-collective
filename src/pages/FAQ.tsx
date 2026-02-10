@@ -136,7 +136,7 @@ const FAQ = () => {
       </div>
 
       {/* Hero Section */}
-      <div className="relative pt-24 pb-8 overflow-hidden">
+      <div className="relative pt-32 pb-12 overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
           <div className="flex justify-center mb-6">
             <HelpCircle className="h-16 w-16 text-white animate-bounce" />
@@ -167,7 +167,7 @@ const FAQ = () => {
       </section>
       
       {/* FAQ Categories */}
-      <section className="py-6 relative z-10">
+      <section className="py-8 relative z-10">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           {filteredFaqs.map((category, categoryIndex) => (
             <div key={category.category} className="mb-6 animate-fade-in" style={{ animationDelay: `${categoryIndex * 100}ms` }}>
