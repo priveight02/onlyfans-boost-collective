@@ -5,107 +5,141 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const LENGTH_CONFIG: Record<string, { steps: string; media: string; label: string }> = {
+  very_short: { steps: "5-7", media: "2-3", label: "very short" },
+  short: { steps: "8-10", media: "3-4", label: "short" },
+  medium: { steps: "12-16", media: "4-5", label: "medium" },
+  long: { steps: "18-22", media: "5-7", label: "long" },
+  very_long: { steps: "25-35", media: "7-10", label: "very long" },
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { category, target_segment, theme, quality, generate_real_messages } = await req.json();
+    const {
+      category, target_segment, theme, quality, generate_real_messages,
+      script_length, include_conditions, include_followups, include_delays, include_questions,
+    } = await req.json();
+    
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
     const isPremium = quality === "premium";
-    const realMessages = generate_real_messages !== false; // default true
+    const realMessages = generate_real_messages !== false;
+    const length = LENGTH_CONFIG[script_length] || LENGTH_CONFIG.medium;
+    const useConditions = include_conditions !== false;
+    const useFollowups = include_followups !== false;
+    const useDelays = include_delays !== false;
+    const useQuestions = include_questions !== false;
 
     const messageInstruction = realMessages
-      ? `Write REAL, natural-sounding messages that chatters can copy-paste directly. Messages should feel personal, warm, and conversational. Use {NAME} as placeholder for the fan's name. Each message should be unique and engaging.`
-      : `Use placeholder text for messages: "message", "answer", "follow-up", etc. The chatter will write their own messages. Only fill in media descriptions and pricing.`;
+      ? `Write REAL, natural-sounding messages that chatters can copy-paste directly. Messages should feel personal, warm, and conversational. Use {NAME} as placeholder. Each message must be unique, engaging, and psychologically optimized.`
+      : `Use placeholder text for messages: "[message]", "[answer]", "[follow-up]", "[reaction]". The chatter writes their own messages. Only fill in media descriptions and pricing.`;
 
-    const systemPrompt = `You are a world-class script designer for creator management agencies. You design structured multi-step content presentation scripts that chatters use to engage fans and present content efficiently.
+    const conditionalInstructions = [];
+    if (!useConditions) conditionalInstructions.push("Do NOT include any 'condition' steps.");
+    if (!useFollowups) conditionalInstructions.push("Do NOT include 'followup_purchased' or 'followup_ignored' steps.");
+    if (!useDelays) conditionalInstructions.push("Set all delay_minutes to 0.");
+    if (!useQuestions) conditionalInstructions.push("Do NOT include 'question' steps.");
+
+    const systemPrompt = `You are a world-class script designer and fan psychology expert for creator management. You design scripts that maximize revenue through psychological engagement techniques used by the highest-earning creators.
 
 WHAT A SCRIPT IS:
-A script is a structured series of 4-5 media items (images and videos) shot in the SAME environment/room/setting, where the story gradually builds in intensity and value. Between media items, the chatter sends chat messages to maintain conversation flow and build anticipation. The script includes progressive pricing where each piece of content costs more than the last.
+A script is a structured series of ${length.media} media items (images and videos) in the SAME environment/setting, with chat messages between them. The story builds gradually, creating anticipation and desire. Progressive pricing makes each piece more valuable than the last. The BEST content is saved for last — this is the "grand finale" technique.
 
-SCRIPT STRUCTURE BEST PRACTICES (from top creators):
-1. HOOK: Start with a casual, friendly message that feels organic - reference something personal or timely
-2. FREE TEASER: Send 1-2 free preview images to build interest (low-effort content from the set)
-3. ENGAGEMENT: Ask a question or make a comment to get the fan talking
-4. FIRST PAID CONTENT: Offer the first paid item at a low entry price ($5-$8) - easiest to convert
-5. REACTION & UPSELL: React to their purchase warmly, then tease the next piece
-6. ESCALATING CONTENT: Each subsequent piece increases in value and price
-7. FINALE: The best content at the highest price, positioned as exclusive/special
-8. FOLLOW-UP: Different paths for buyers vs non-responders
+PSYCHOLOGICAL TECHNIQUES TO USE:
+1. CURIOSITY GAP: Tease what's coming next without revealing it. "I just took something special..." creates anticipation
+2. RECIPROCITY: Give free content first → fan feels compelled to reciprocate by purchasing
+3. SCARCITY/EXCLUSIVITY: "Only sending this to you", "Never shared this before", "Deleting soon"
+4. EMOTIONAL INVESTMENT: Get them talking about themselves → they feel connected → harder to ignore offers
+5. SUNK COST: After first small purchase ($5), they're psychologically invested → easier to buy $15, $25
+6. SOCIAL PROOF hints: "Everyone loved my last set", "This is my most requested look"
+7. DOPAMINE DRIP: Small rewards (free content) between asks keep them engaged
+8. LOSS AVERSION: "You won't see this anywhere else", "This set is about to expire"
+9. CLIMAX BUILD: Save the absolute BEST for last at the highest price — make them NEED to see the finale
+10. PERSONAL CONNECTION: Use their name, reference their messages, make it feel 1-on-1
 
-KEY PRINCIPLES:
-- Progressive pricing: $5 → $8 → $12 → $15 → $25 (realistic creator pricing)
-- Same setting/environment throughout (bedroom, bathroom, pool, gym, kitchen, outdoor, hotel, etc.)
-- 4-5 media items total (mix of images and short videos)
-- Natural conversation flow between content drops
-- Timing delays between messages (2-15 minutes) to feel organic
-- Media descriptions should specify: count, type (selfie/photo/video), duration for videos, outfit/setting details
-- Always have branching: what to do if fan responds vs ignores
+SCRIPT STRUCTURE — THE "SUSPENSE LADDER":
+1. HOOK: Casual, organic opener that feels real (not salesy)
+2. FREE BAIT: 1-2 free previews to trigger reciprocity
+3. ENGAGEMENT: Questions/chat to build emotional investment  
+4. ENTRY OFFER: First paid item at LOW price ($5-$8) — break the payment barrier
+5. REWARD + TEASE: Thank them warmly, then hint at something bigger
+6. ESCALATION: Each piece costs more, reveals more, builds the story
+7. GRAND FINALE: The BEST content at the highest price — positioned as "the one you've been waiting for"
+8. POST-PURCHASE: Warm follow-up that seeds the NEXT script
+
+This script should be ${length.label} (${length.steps} total steps, ${length.media} media items).
 
 ${messageInstruction}
 
+${conditionalInstructions.length > 0 ? "CONDITIONAL RULES:\n" + conditionalInstructions.join("\n") : ""}
+
 STEP TYPES (use exactly these):
-- welcome: Opening hook message to start conversation
-- message: Regular chat message between content
-- free_content: Free preview images/videos to build interest
-- ppv_content: Paid content with a price (the main monetization)
-- question: Question to engage the fan and gauge interest
-- condition: Branching point (responded vs didn't respond)
-- followup_purchased: Follow-up message after they bought content
-- followup_ignored: Re-engagement if they didn't respond/buy
-- delay: Wait period between messages (set delay_minutes)
+- welcome: Opening hook message
+- message: Chat message between content
+- free_content: Free preview (price = 0)
+- ppv_content: Paid content with a price
+${useQuestions ? "- question: Engagement question" : ""}
+${useConditions ? "- condition: Branching point (responded vs didn't)" : ""}
+${useFollowups ? "- followup_purchased: Follow-up after purchase\n- followup_ignored: Re-engagement if they ignored" : ""}
+${useDelays ? "- delay: Wait period between messages" : ""}
 
-${isPremium ? `PREMIUM QUALITY REQUIREMENTS:
-- Create 15-20 steps for a complete, detailed flow
-- Include multiple branching paths
-- Add 2-3 re-engagement attempts for non-responders
-- Include specific timing for each delay (e.g., "wait 5 min", "wait 15 min", "next day")
-- Add detailed media descriptions (exact count, type, duration, setting details)
-- Include emotional triggers and psychological hooks
-- Add notes about tone and delivery in each message
-- Create a compelling narrative arc across the entire script
-- Include upsell paths after successful purchases` : `FAST SCRIPT REQUIREMENTS:
-- Create 10-14 steps for a clean, efficient flow
-- Include at least one branching path
-- Keep it practical and ready to use immediately
-- Focus on the core flow: hook → free → paid → escalate → follow-up`}
+${isPremium ? `PREMIUM QUALITY — GO ALL OUT:
+- ${length.steps} steps minimum with rich detail
+- Multiple branching paths with re-engagement loops
+- Detailed media descriptions (count, type, duration, outfit, setting, mood)
+- Every message has emotional intent notes
+- Psychological technique labels on key steps
+- Create genuine narrative arc with climax and resolution
+- Include "seed" for next script at the end
+- Each PPV caption should trigger FOMO + curiosity` : `FAST QUALITY:
+- ${length.steps} steps, clean and efficient
+- At least one branch${useConditions ? "" : " (skip if conditions disabled)"}
+- Practical and copy-paste ready
+- Core flow: hook → free → paid → escalate → finale`}
 
-Return a JSON object with this EXACT structure:
+PRICING RULES (REALISTIC):
+- Free content: $0
+- First PPV: $5-$8 (low barrier entry)
+- Second PPV: $8-$15
+- Third PPV: $12-$25
+- Grand Finale: $20-$45
+- Never above $50
+
+Return JSON with this EXACT structure:
 {
-  "title": "Script title - descriptive and specific to the theme",
-  "description": "Brief description of the script's strategy and setting",
+  "title": "Descriptive script title",
+  "description": "Strategy description + setting + psychological approach",
   "steps": [
     {
       "step_type": "welcome",
-      "title": "Short title for this step",
-      "content": "The actual message text or placeholder",
+      "title": "Step title",
+      "content": "Message text or placeholder",
       "media_type": "" | "image" | "video" | "mixed",
-      "media_url": "Detailed description of media e.g. '2 selfies in bedroom, wearing casual outfit' or 'Video 0:28 - teaser clip, same setting'",
+      "media_url": "Detailed media description",
       "price": 0,
       "delay_minutes": 0,
       "condition_logic": {}
     }
   ]
-}
+}`;
 
-PRICING RULES:
-- Free content: price = 0
-- First PPV: $5-$8
-- Second PPV: $8-$15
-- Third PPV: $12-$20
-- Premium/Finale: $15-$35
-- Bundle offers: $25-$50
-- Messages, questions, conditions: price = 0
-- NEVER price above $50 for a single item`;
-
-    const userPrompt = `Generate a ${isPremium ? "premium, highly detailed" : "fast, efficient"} production-ready script.
+    const userPrompt = `Generate a ${isPremium ? "premium, psychologically optimized" : "fast, efficient"} ${length.label} script.
 Category: ${category || "general"}
 Target audience: ${target_segment || "new_users"}
-Theme/Setting: ${theme || "Create a unique, specific setting and storyline - be creative with the environment (e.g., morning routine in a cozy bedroom, post-workout in a home gym, lazy afternoon by the pool, getting ready for a night out). Make it feel like a real, organic moment."}
+Theme/Setting: ${theme || "Be creative — pick a unique, specific real-life scenario and setting. Make it feel like a genuine organic moment the creator is sharing."}
 
-The script must be immediately usable by a chatter. ${isPremium ? "Take extra care with message quality, timing, branching logic, and psychological hooks. This should be a masterclass in fan engagement." : "Keep it clean and practical - a chatter should be able to start using this within 30 seconds."}`;
+Requirements:
+- ${length.steps} steps total, ${length.media} media items
+- Progressive pricing with grand finale technique
+- ${realMessages ? "Write real, copy-paste ready messages with psychological hooks" : "Use placeholders for messages"}
+${useConditions ? "- Include condition branches" : "- No conditions"}
+${useFollowups ? "- Include follow-up paths for buyers AND non-responders" : "- No follow-ups"}
+${useDelays ? "- Include realistic timing delays" : "- No delays"}
+${useQuestions ? "- Include engagement questions" : "- No questions"}
+${isPremium ? "- This should be a masterclass in fan psychology and engagement. Every message must have intent." : "- Keep it practical — a chatter should start using this immediately."}`;
 
     const model = isPremium ? "google/gemini-2.5-flash" : "google/gemini-3-flash-preview";
 
@@ -126,12 +160,12 @@ The script must be immediately usable by a chatter. ${isPremium ? "Take extra ca
             type: "function",
             function: {
               name: "create_script",
-              description: "Create a structured content presentation script with steps",
+              description: "Create a structured content presentation script",
               parameters: {
                 type: "object",
                 properties: {
-                  title: { type: "string", description: "Script title" },
-                  description: { type: "string", description: "Brief description" },
+                  title: { type: "string" },
+                  description: { type: "string" },
                   steps: {
                     type: "array",
                     items: {
@@ -176,36 +210,21 @@ The script must be immediately usable by a chatter. ${isPremium ? "Take extra ca
     }
 
     const data = await response.json();
-    console.log("AI response structure:", JSON.stringify(data.choices?.[0]?.message ? {
-      role: data.choices[0].message.role,
-      has_tool_calls: !!data.choices[0].message.tool_calls,
-      tool_calls_count: data.choices[0].message.tool_calls?.length,
-      has_content: !!data.choices[0].message.content,
-      content_preview: typeof data.choices[0].message.content === "string" ? data.choices[0].message.content.substring(0, 200) : "non-string",
-    } : "no choices"));
-
     let script: any = null;
 
-    // Try tool_calls first
     const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
     if (toolCall?.function?.arguments) {
-      script = typeof toolCall.function.arguments === "string" 
-        ? JSON.parse(toolCall.function.arguments) 
+      script = typeof toolCall.function.arguments === "string"
+        ? JSON.parse(toolCall.function.arguments)
         : toolCall.function.arguments;
     }
 
-    // Fallback: parse from content if tool_calls not present
     if (!script) {
       const content = data.choices?.[0]?.message?.content;
       if (content && typeof content === "string") {
-        // Try to extract JSON from content (may be wrapped in markdown code blocks)
         const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/) || content.match(/(\{[\s\S]*\})/);
         if (jsonMatch?.[1]) {
-          try {
-            script = JSON.parse(jsonMatch[1].trim());
-          } catch (parseErr) {
-            console.error("Failed to parse content JSON:", parseErr);
-          }
+          try { script = JSON.parse(jsonMatch[1].trim()); } catch {}
         }
       }
     }
