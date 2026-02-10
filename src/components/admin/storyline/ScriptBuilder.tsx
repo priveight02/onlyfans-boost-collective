@@ -207,6 +207,9 @@ const ScriptBuilder = () => {
   const [messageTone, setMessageTone] = useState<"innocent" | "bold" | "aggressive_innocent" | "submissive" | "bratty" | "dynamic_shift">("innocent");
   const [enableDynamicShift, setEnableDynamicShift] = useState(false);
   const [enableExclusivity, setEnableExclusivity] = useState(true);
+  const [enableTypoSimulation, setEnableTypoSimulation] = useState(false);
+  const [enableFreeFirst, setEnableFreeFirst] = useState(true);
+  const [enableMaxConversion, setEnableMaxConversion] = useState(true);
 
   const [genTimer, setGenTimer] = useState(0);
   const [genEstimate, setGenEstimate] = useState(0);
@@ -389,6 +392,9 @@ const ScriptBuilder = () => {
           include_questions: includeQuestions,
           message_tone: enableDynamicShift ? "dynamic_shift" : messageTone,
           enable_exclusivity: enableExclusivity,
+          enable_typo_simulation: enableTypoSimulation,
+          enable_free_first: enableFreeFirst,
+          enable_max_conversion: enableMaxConversion,
         },
       });
       if (error) throw error;
@@ -567,6 +573,40 @@ const ScriptBuilder = () => {
                   </div>
                 </div>
 
+                {/* Conversion & Realism Boosters */}
+                <div className="space-y-2">
+                  <Label className="text-xs text-white/60">Conversion & Realism Boosters</Label>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 p-3 rounded-lg bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/20">
+                      <Switch id="opt-typo" checked={enableTypoSimulation} onCheckedChange={setEnableTypoSimulation} />
+                      <div className="flex-1">
+                        <Label htmlFor="opt-typo" className="text-xs text-white cursor-pointer font-semibold flex items-center gap-1.5">
+                          ✏️ Typo Simulation
+                          <Badge variant="outline" className="text-[7px] border-green-500/30 text-green-300">OFF</Badge>
+                        </Label>
+                        <p className="text-[8px] text-white/40 mt-0.5">Intentionally mistype a word then correct with *asterisk in next message. Makes it feel human.</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 p-3 rounded-lg bg-gradient-to-r from-cyan-500/10 to-blue-500/10 border border-cyan-500/20">
+                      <Switch id="opt-freefirst" checked={enableFreeFirst} onCheckedChange={setEnableFreeFirst} />
+                      <div className="flex-1">
+                        <Label htmlFor="opt-freefirst" className="text-xs text-white cursor-pointer font-semibold">
+                          🎁 Free Content First
+                        </Label>
+                        <p className="text-[8px] text-white/40 mt-0.5">Always start with 1-2 free media to lock the fan in before any PPV. Triggers reciprocity.</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 p-3 rounded-lg bg-gradient-to-r from-yellow-500/10 to-amber-500/10 border border-yellow-500/20">
+                      <Switch id="opt-maxconv" checked={enableMaxConversion} onCheckedChange={setEnableMaxConversion} />
+                      <div className="flex-1">
+                        <Label htmlFor="opt-maxconv" className="text-xs text-white cursor-pointer font-semibold">
+                          💰 Max Conversion Mode
+                        </Label>
+                        <p className="text-[8px] text-white/40 mt-0.5">Optimize every message for conversion: sunk cost, FOMO, urgency, and re-engagement loops.</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
                 {/* Condition checkboxes */}
                 <div className="space-y-2">
                   <Label className="text-xs text-white/60">Include in Script</Label>
