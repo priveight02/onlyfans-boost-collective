@@ -470,158 +470,138 @@ const ScriptBuilder = () => {
                 <Sparkles className="h-3 w-3" /> Options
               </Button>
             </DialogTrigger>
-            <DialogContent className="bg-[hsl(220,40%,13%)] border-white/10 text-white max-w-md">
+            <DialogContent className="bg-[hsl(220,40%,13%)] border-white/10 text-white max-w-4xl max-h-[85vh] overflow-y-auto">
               <DialogHeader><DialogTitle className="flex items-center gap-2"><Sparkles className="h-4 w-4 text-purple-400" /> Generation Options</DialogTitle></DialogHeader>
-              <div className="space-y-4 mt-2">
-                {/* Length */}
-                <div>
-                  <Label className="text-xs text-white/60 mb-2 block">Script Length</Label>
-                  <div className="grid grid-cols-5 gap-1">
-                    {SCRIPT_LENGTHS.map(l => (
-                      <button key={l.value} onClick={() => setScriptLength(l.value)}
-                        className={`p-2 rounded-lg text-center transition-all border ${
-                          scriptLength === l.value ? "bg-accent/20 border-accent/40 text-white" : "bg-white/[0.03] border-white/[0.06] text-white/40 hover:bg-white/[0.06]"
-                        }`}>
-                        <span className="text-sm block">{l.icon}</span>
-                        <span className="text-[9px] font-semibold block">{l.label}</span>
-                        <span className="text-[7px] block text-white/30">{l.desc}</span>
-                      </button>
-                    ))}
+              <div className="grid grid-cols-3 gap-6 mt-4">
+                {/* COLUMN 1: Script Setup */}
+                <div className="space-y-4">
+                  <h3 className="text-xs font-bold text-white/80 uppercase tracking-wider border-b border-white/10 pb-1">📐 Script Setup</h3>
+                  {/* Length */}
+                  <div>
+                    <Label className="text-[10px] text-white/50 mb-1.5 block">Script Length</Label>
+                    <div className="grid grid-cols-1 gap-1">
+                      {SCRIPT_LENGTHS.map(l => (
+                        <button key={l.value} onClick={() => setScriptLength(l.value)}
+                          className={`p-2 rounded-lg text-left transition-all border flex items-center gap-2 ${
+                            scriptLength === l.value ? "bg-accent/20 border-accent/40 text-white" : "bg-white/[0.03] border-white/[0.06] text-white/40 hover:bg-white/[0.06]"
+                          }`}>
+                          <span className="text-sm">{l.icon}</span>
+                          <div>
+                            <span className="text-[10px] font-semibold block">{l.label}</span>
+                            <span className="text-[8px] block text-white/30">{l.desc}</span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  {/* Include checkboxes */}
+                  <div>
+                    <Label className="text-[10px] text-white/50 mb-1.5 block">Include in Script</Label>
+                    <div className="space-y-1">
+                      {[
+                        { id: "real", label: "Real messages (vs placeholders)", checked: generateRealMessages, set: setGenerateRealMessages },
+                        { id: "conditions", label: "Condition branches", checked: includeConditions, set: setIncludeConditions },
+                        { id: "followups", label: "Follow-ups (bought/ignored)", checked: includeFollowups, set: setIncludeFollowups },
+                        { id: "delays", label: "Timing delays", checked: includeDelays, set: setIncludeDelays },
+                        { id: "questions", label: "Engagement questions", checked: includeQuestions, set: setIncludeQuestions },
+                      ].map(opt => (
+                        <label key={opt.id} className="flex items-center gap-2 cursor-pointer p-1.5 rounded-lg bg-white/[0.03] border border-white/[0.06] hover:bg-white/[0.06]">
+                          <Checkbox checked={opt.checked} onCheckedChange={(v) => opt.set(v === true)} />
+                          <span className="text-[10px] text-white/60">{opt.label}</span>
+                        </label>
+                      ))}
+                    </div>
                   </div>
                 </div>
 
-                {/* Toggles */}
-                <div className="space-y-2">
-                  <Label className="text-xs text-white/60">Content Options</Label>
-                  <div className="flex items-center gap-2">
-                    <Switch id="opt-real" checked={generateRealMessages} onCheckedChange={setGenerateRealMessages} />
-                    <Label htmlFor="opt-real" className="text-xs text-white/70 cursor-pointer">Generate real messages (vs placeholders)</Label>
-                  </div>
-                </div>
-
-                {/* Dynamic Tone Shift */}
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 p-3 rounded-lg bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/20">
+                {/* COLUMN 2: Tone & Psychology */}
+                <div className="space-y-4">
+                  <h3 className="text-xs font-bold text-white/80 uppercase tracking-wider border-b border-white/10 pb-1">🎭 Tone & Psychology</h3>
+                  {/* Dynamic Tone Shift */}
+                  <div className="flex items-center gap-2 p-2.5 rounded-lg bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/20">
                     <Switch id="opt-dynamic" checked={enableDynamicShift} onCheckedChange={(v) => { setEnableDynamicShift(v); if (v) setMessageTone("dynamic_shift"); }} />
                     <div className="flex-1">
-                      <Label htmlFor="opt-dynamic" className="text-xs text-white cursor-pointer font-semibold flex items-center gap-1.5">
+                      <Label htmlFor="opt-dynamic" className="text-[10px] text-white cursor-pointer font-semibold flex items-center gap-1">
                         🎭 Dynamic Tone Shift
-                        <Badge variant="outline" className="text-[7px] border-purple-500/30 text-purple-300">NEW</Badge>
+                        <Badge variant="outline" className="text-[7px] border-purple-500/30 text-purple-300">REC</Badge>
                       </Label>
-                      <p className="text-[8px] text-white/40 mt-0.5">Starts innocent → builds bold/aggressive → goes submissive after media. Mimics real conversation flow.</p>
+                      <p className="text-[8px] text-white/40">Innocent → Bold → Submissive → Bold finale</p>
                     </div>
                   </div>
-                </div>
-
-                {/* Exclusivity & Natural Pauses */}
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 p-3 rounded-lg bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20">
+                  {/* Message Tone Grid */}
+                  <div>
+                    <Label className="text-[10px] text-white/50 mb-1.5 block">
+                      Manual Tone {enableDynamicShift && <span className="text-purple-400 text-[8px]">(overridden)</span>}
+                    </Label>
+                    <div className={`grid grid-cols-2 gap-1.5 ${enableDynamicShift ? "opacity-30 pointer-events-none" : ""}`}>
+                      {[
+                        { key: "innocent", icon: "🥺", label: "Innocent", desc: "Shy, sweet", color: "pink" },
+                        { key: "aggressive_innocent", icon: "😈", label: "Spicy", desc: "Bold + casual", color: "purple" },
+                        { key: "bold", icon: "🔥", label: "Bold", desc: "Confident, direct", color: "red" },
+                        { key: "submissive", icon: "🫣", label: "Submissive", desc: "Needy, devoted", color: "blue" },
+                        { key: "bratty", icon: "💅", label: "Bratty", desc: "Tease, push-pull", color: "orange" },
+                      ].map(t => (
+                        <button key={t.key} onClick={() => setMessageTone(t.key as any)}
+                          className={`p-2 rounded-lg text-left transition-all border flex items-center gap-2 ${
+                            messageTone === t.key ? `bg-${t.color}-500/20 border-${t.color}-500/40 text-white` : "bg-white/[0.03] border-white/[0.06] text-white/40 hover:bg-white/[0.06]"
+                          }`}>
+                          <span className="text-base">{t.icon}</span>
+                          <div>
+                            <span className="text-[10px] font-semibold block">{t.label}</span>
+                            <span className="text-[7px] block text-white/30">{t.desc}</span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  {/* Exclusivity */}
+                  <div className="flex items-center gap-2 p-2.5 rounded-lg bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20">
                     <Switch id="opt-exclusivity" checked={enableExclusivity} onCheckedChange={setEnableExclusivity} />
                     <div className="flex-1">
-                      <Label htmlFor="opt-exclusivity" className="text-xs text-white cursor-pointer font-semibold flex items-center gap-1.5">
-                        ✨ Exclusivity & Natural Pauses
-                      </Label>
-                      <p className="text-[8px] text-white/40 mt-0.5">"Hold on 2 mins", content shot on the spot, "only for you" — makes it feel real & exclusive.</p>
+                      <Label htmlFor="opt-exclusivity" className="text-[10px] text-white cursor-pointer font-semibold">✨ Exclusivity & Pauses</Label>
+                      <p className="text-[8px] text-white/40">"Hold on 2 mins", "just took this for u", "only for you"</p>
                     </div>
                   </div>
                 </div>
 
-                {/* Message Tone */}
-                <div className="space-y-2">
-                  <Label className="text-xs text-white/60">Message Tone {enableDynamicShift && <span className="text-purple-400">(overridden by Dynamic Shift)</span>}</Label>
-                  <div className={`grid grid-cols-3 gap-2 ${enableDynamicShift ? "opacity-40 pointer-events-none" : ""}`}>
-                    <button onClick={() => setMessageTone("innocent")}
-                      className={`p-3 rounded-lg text-center transition-all border ${
-                        messageTone === "innocent" ? "bg-pink-500/20 border-pink-500/40 text-white" : "bg-white/[0.03] border-white/[0.06] text-white/40 hover:bg-white/[0.06]"
-                      }`}>
-                      <span className="text-lg block">🥺</span>
-                      <span className="text-[10px] font-semibold block">Innocent / Cute</span>
-                      <span className="text-[8px] block text-white/30">Shy, sweet, girl-next-door</span>
-                    </button>
-                    <button onClick={() => setMessageTone("aggressive_innocent")}
-                      className={`p-3 rounded-lg text-center transition-all border ${
-                        messageTone === "aggressive_innocent" ? "bg-purple-500/20 border-purple-500/40 text-white" : "bg-white/[0.03] border-white/[0.06] text-white/40 hover:bg-white/[0.06]"
-                      }`}>
-                      <span className="text-lg block">😈</span>
-                      <span className="text-[10px] font-semibold block">Spicy / Casual</span>
-                      <span className="text-[8px] block text-white/30">Bold words, "u" texting style</span>
-                    </button>
-                    <button onClick={() => setMessageTone("bold")}
-                      className={`p-3 rounded-lg text-center transition-all border ${
-                        messageTone === "bold" ? "bg-red-500/20 border-red-500/40 text-white" : "bg-white/[0.03] border-white/[0.06] text-white/40 hover:bg-white/[0.06]"
-                      }`}>
-                      <span className="text-lg block">🔥</span>
-                      <span className="text-[10px] font-semibold block">Bold / Explicit</span>
-                      <span className="text-[8px] block text-white/30">Confident, direct, grown-up</span>
-                    </button>
-                    <button onClick={() => setMessageTone("submissive")}
-                      className={`p-3 rounded-lg text-center transition-all border ${
-                        messageTone === "submissive" ? "bg-blue-500/20 border-blue-500/40 text-white" : "bg-white/[0.03] border-white/[0.06] text-white/40 hover:bg-white/[0.06]"
-                      }`}>
-                      <span className="text-lg block">🫣</span>
-                      <span className="text-[10px] font-semibold block">Submissive / Needy</span>
-                      <span className="text-[8px] block text-white/30">Begging, pleasing, devoted</span>
-                    </button>
-                    <button onClick={() => setMessageTone("bratty")}
-                      className={`p-3 rounded-lg text-center transition-all border ${
-                        messageTone === "bratty" ? "bg-orange-500/20 border-orange-500/40 text-white" : "bg-white/[0.03] border-white/[0.06] text-white/40 hover:bg-white/[0.06]"
-                      }`}>
-                      <span className="text-lg block">💅</span>
-                      <span className="text-[10px] font-semibold block">Bratty / Tease</span>
-                      <span className="text-[8px] block text-white/30">Playful attitude, "make me"</span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Conversion & Realism Boosters */}
-                <div className="space-y-2">
-                  <Label className="text-xs text-white/60">Conversion & Realism Boosters</Label>
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2 p-3 rounded-lg bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/20">
-                      <Switch id="opt-typo" checked={enableTypoSimulation} onCheckedChange={setEnableTypoSimulation} />
+                {/* COLUMN 3: Conversion & Realism */}
+                <div className="space-y-4">
+                  <h3 className="text-xs font-bold text-white/80 uppercase tracking-wider border-b border-white/10 pb-1">💰 Conversion & Realism</h3>
+                  {[
+                    { id: "opt-freefirst", icon: "🎁", label: "Free Content First", desc: "1-2 free media before any PPV. Triggers reciprocity.", checked: enableFreeFirst, set: setEnableFreeFirst, from: "cyan", to: "blue", border: "cyan" },
+                    { id: "opt-maxconv", icon: "💰", label: "Max Conversion Mode", desc: "Sunk cost, FOMO, urgency, micro-commits, price anchoring.", checked: enableMaxConversion, set: setEnableMaxConversion, from: "yellow", to: "amber", border: "yellow" },
+                    { id: "opt-typo", icon: "✏️", label: "Typo Simulation", desc: "Natural typos + *correction. Makes it feel real.", checked: enableTypoSimulation, set: setEnableTypoSimulation, from: "green", to: "emerald", border: "green" },
+                  ].map(opt => (
+                    <div key={opt.id} className={`flex items-center gap-2 p-2.5 rounded-lg bg-gradient-to-r from-${opt.from}-500/10 to-${opt.to}-500/10 border border-${opt.border}-500/20`}>
+                      <Switch id={opt.id} checked={opt.checked} onCheckedChange={opt.set} />
                       <div className="flex-1">
-                        <Label htmlFor="opt-typo" className="text-xs text-white cursor-pointer font-semibold flex items-center gap-1.5">
-                          ✏️ Typo Simulation
-                          <Badge variant="outline" className="text-[7px] border-green-500/30 text-green-300">OFF</Badge>
-                        </Label>
-                        <p className="text-[8px] text-white/40 mt-0.5">Intentionally mistype a word then correct with *asterisk in next message. Makes it feel human.</p>
+                        <Label htmlFor={opt.id} className="text-[10px] text-white cursor-pointer font-semibold">{opt.icon} {opt.label}</Label>
+                        <p className="text-[8px] text-white/40">{opt.desc}</p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 p-3 rounded-lg bg-gradient-to-r from-cyan-500/10 to-blue-500/10 border border-cyan-500/20">
-                      <Switch id="opt-freefirst" checked={enableFreeFirst} onCheckedChange={setEnableFreeFirst} />
-                      <div className="flex-1">
-                        <Label htmlFor="opt-freefirst" className="text-xs text-white cursor-pointer font-semibold">
-                          🎁 Free Content First
-                        </Label>
-                        <p className="text-[8px] text-white/40 mt-0.5">Always start with 1-2 free media to lock the fan in before any PPV. Triggers reciprocity.</p>
+                  ))}
+                  {/* Pricing Ladder Preview */}
+                  <div className="p-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
+                    <Label className="text-[10px] text-white/50 mb-2 block">📈 Gradual Pricing Ladder ($300-700 target)</Label>
+                    <div className="space-y-1">
+                      {[
+                        { step: "1", label: "Free bait", price: "$0", color: "text-green-400" },
+                        { step: "2", label: "Entry PPV", price: "$8-15", color: "text-blue-400" },
+                        { step: "3", label: "Mid tier", price: "$25-49", color: "text-purple-400" },
+                        { step: "4", label: "Double stack", price: "$70 + $35", color: "text-orange-400" },
+                        { step: "5", label: "Premium", price: "$145-200", color: "text-red-400" },
+                        { step: "6", label: "VIP only", price: "$410", color: "text-amber-400" },
+                      ].map(tier => (
+                        <div key={tier.step} className="flex items-center justify-between text-[9px]">
+                          <span className="text-white/40">Step {tier.step}: {tier.label}</span>
+                          <span className={`font-bold ${tier.color}`}>{tier.price}</span>
+                        </div>
+                      ))}
+                      <div className="border-t border-white/10 mt-1.5 pt-1.5 flex justify-between text-[10px]">
+                        <span className="text-white/60 font-semibold">Total range</span>
+                        <span className="text-amber-400 font-bold">$300 – $700+</span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 p-3 rounded-lg bg-gradient-to-r from-yellow-500/10 to-amber-500/10 border border-yellow-500/20">
-                      <Switch id="opt-maxconv" checked={enableMaxConversion} onCheckedChange={setEnableMaxConversion} />
-                      <div className="flex-1">
-                        <Label htmlFor="opt-maxconv" className="text-xs text-white cursor-pointer font-semibold">
-                          💰 Max Conversion Mode
-                        </Label>
-                        <p className="text-[8px] text-white/40 mt-0.5">Optimize every message for conversion: sunk cost, FOMO, urgency, and re-engagement loops.</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                {/* Condition checkboxes */}
-                <div className="space-y-2">
-                  <Label className="text-xs text-white/60">Include in Script</Label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {[
-                      { id: "conditions", label: "Conditions (branches)", checked: includeConditions, set: setIncludeConditions },
-                      { id: "followups", label: "Follow-ups (bought/ignored)", checked: includeFollowups, set: setIncludeFollowups },
-                      { id: "delays", label: "Timing delays", checked: includeDelays, set: setIncludeDelays },
-                      { id: "questions", label: "Engagement questions", checked: includeQuestions, set: setIncludeQuestions },
-                    ].map(opt => (
-                      <label key={opt.id} className="flex items-center gap-2 cursor-pointer p-2 rounded-lg bg-white/[0.03] border border-white/[0.06] hover:bg-white/[0.06]">
-                        <Checkbox checked={opt.checked} onCheckedChange={(v) => opt.set(v === true)} />
-                        <span className="text-[10px] text-white/60">{opt.label}</span>
-                      </label>
-                    ))}
                   </div>
                 </div>
               </div>

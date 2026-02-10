@@ -221,13 +221,18 @@ ${isPremium ? `PREMIUM QUALITY — GO ALL OUT:
 - Practical and copy-paste ready
 - Core flow: hook → free → paid → escalate → finale`}
 
-PRICING RULES (REALISTIC):
-- Free content: $0
-- First PPV: $5-$8 (low barrier entry)
-- Second PPV: $8-$15
-- Third PPV: $12-$25
-- Grand Finale: $20-$45
-- Never above $50
+PRICING RULES — GRADUAL LADDER ($300-$700 TOTAL TARGET):
+The script must extract $300-$700 total from the fan through gradual price escalation. Each step feels natural because the fan is already invested. The pricing MUST follow this ladder:
+
+- Step 1 (FREE BAIT): $0 — 1-2 free media to lock the fan in. This triggers reciprocity.
+- Step 2 (ENTRY): $8-$15 — Very low barrier. "It's just $10 babe." Easy first purchase to break the payment wall.
+- Step 3 (MID TIER): $25-$49 — Now they've already spent $10-15, so $35 feels reasonable. Sunk cost kicks in.
+- Step 4 (DOUBLE STACK): $70 + $35 bundle — Two items sent close together. "I'll give u both for $105 total" or separate. The fan is deep in now.
+- Step 5 (PREMIUM): $145-$200 — The "grand finale" tier. "This is the one u've been waiting for." Position as the best content of the entire set.
+- Step 6 (VIP ONLY — optional): $410 — Only for high spenders / VIP clients. "I've never sent this to anyone." Ultimate exclusivity play.
+
+The escalation MUST feel natural — each price is justified by the increasing quality/intimacy of the content. Reference previous purchases: "since u already got the first set..." to leverage sunk cost.
+Total script value should land between $300-$700 depending on script length. Shorter scripts may skip Step 6.
 
 Return JSON with this EXACT structure:
 {
