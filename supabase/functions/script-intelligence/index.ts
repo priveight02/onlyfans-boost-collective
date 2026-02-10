@@ -97,6 +97,69 @@ Provide:
 5. **Content Improvements** (rewrites for underperforming steps)
 6. **A/B Test Suggestions** (what to test first)
 7. **Predicted Impact** (estimated revenue improvement)`;
+    } else if (type === "deep_script_analysis") {
+      systemPrompt = `You are an elite script optimization AI for a creator management agency. You deeply analyze individual scripts — their psychology, pricing ladder, message flow, tone consistency, conversion triggers, and weaknesses.
+
+You MUST return a JSON object (no markdown, no code fences, just raw JSON) with this exact structure:
+{
+  "score": <number 0-100>,
+  "summary": "<2-3 sentence executive summary>",
+  "strengths": ["<strength 1>", "<strength 2>", ...],
+  "weaknesses": ["<weakness 1>", "<weakness 2>", ...],
+  "improvements": [
+    {
+      "id": "<unique_id>",
+      "title": "<short improvement title>",
+      "description": "<what to change and why>",
+      "impact": "high" | "medium" | "low",
+      "category": "pricing" | "psychology" | "tone" | "structure" | "timing" | "content" | "conversion",
+      "changes": [
+        {
+          "step_index": <0-based index of step to modify>,
+          "field": "content" | "price" | "delay_minutes" | "step_type" | "title" | "media_type" | "media_url",
+          "old_value": "<current value>",
+          "new_value": "<suggested new value>"
+        }
+      ]
+    }
+  ],
+  "psychology_breakdown": [
+    {
+      "step_index": <0-based>,
+      "technique": "<psychology technique name>",
+      "effectiveness": "strong" | "moderate" | "weak" | "missing",
+      "note": "<brief explanation>"
+    }
+  ],
+  "pricing_analysis": {
+    "current_total": <number>,
+    "recommended_total": <number>,
+    "ladder_rating": "<smooth | choppy | too_aggressive | too_conservative>",
+    "notes": "<pricing strategy summary>"
+  },
+  "conversion_prediction": {
+    "current_estimated": <percentage 0-100>,
+    "after_improvements": <percentage 0-100>,
+    "revenue_uplift_percent": <number>
+  }
+}
+
+CRITICAL RULES:
+- Return ONLY valid JSON, no markdown formatting, no explanations outside JSON
+- Every improvement MUST include concrete "changes" array with specific step modifications
+- Be brutally honest about weaknesses
+- Base analysis on actual content, not assumptions
+- Pricing changes should follow reciprocity → low barrier → escalation → premium pattern
+- Content changes should match natural young woman texting style (casual, abbreviations like u/ur/rn mixed naturally)`;
+
+      userPrompt = `Analyze this script in extreme detail and provide structured improvements:
+
+SCRIPT: ${JSON.stringify(scripts?.[0] || {}, null, 2)}
+
+STEPS (in order):
+${JSON.stringify(steps || [], null, 2)}
+
+Return ONLY the JSON object as specified. No markdown, no code fences.`;
     } else if (type === "whatif_simulation") {
       systemPrompt = `You are a scenario simulation AI for script monetization. Run what-if analyses based on the provided data and hypothetical changes.`;
 
@@ -121,6 +184,8 @@ For each scenario provide:
 - Recommendation (do it / don't / test first)`;
     }
 
+    const isStructured = type === "deep_script_analysis";
+    
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -133,7 +198,7 @@ For each scenario provide:
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
         ],
-        stream: true,
+        stream: !isStructured,
       }),
     });
 
@@ -154,6 +219,23 @@ For each scenario provide:
       console.error("AI gateway error:", response.status, t);
       return new Response(JSON.stringify({ error: "AI service error" }), {
         status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (isStructured) {
+      const data = await response.json();
+      const content = data.choices?.[0]?.message?.content || "";
+      // Try to extract JSON from the response
+      let parsed;
+      try {
+        // Remove potential markdown code fences
+        const cleaned = content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+        parsed = JSON.parse(cleaned);
+      } catch {
+        parsed = { raw: content, error: "Failed to parse structured response" };
+      }
+      return new Response(JSON.stringify(parsed), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }

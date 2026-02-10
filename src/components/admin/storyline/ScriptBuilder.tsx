@@ -16,6 +16,7 @@ import {
   ChevronDown, ChevronUp, GripVertical, ArrowDown, Eye,
   Sparkles, Loader2, Crown, Timer, BookOpen, Lightbulb,
   Download, FileSpreadsheet, FileText, AlertTriangle,
+  Brain, CheckCircle2, TrendingUp, Shield, Target, X,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -589,6 +590,14 @@ const ScriptBuilder = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   const [showDeleteAll, setShowDeleteAll] = useState(false);
 
+  // AI Script Analysis
+  const [analyzingScriptId, setAnalyzingScriptId] = useState<string | null>(null);
+  const [analysisResult, setAnalysisResult] = useState<any | null>(null);
+  const [analysisLoading, setAnalysisLoading] = useState(false);
+  const [showAnalysisDialog, setShowAnalysisDialog] = useState(false);
+  const [appliedImprovements, setAppliedImprovements] = useState<Set<string>>(new Set());
+  const [applyingId, setApplyingId] = useState<string | null>(null);
+
   const [genTimer, setGenTimer] = useState(0);
   const [genEstimate, setGenEstimate] = useState(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -857,6 +866,100 @@ const ScriptBuilder = () => {
   };
 
   const totalPricingTarget = pricingTiers.reduce((s, t) => s + t.max, 0);
+
+  const analyzeScript = async (script: any) => {
+    setAnalyzingScriptId(script.id);
+    setAnalysisLoading(true);
+    setAnalysisResult(null);
+    setShowAnalysisDialog(true);
+    setAppliedImprovements(new Set());
+
+    try {
+      // Load steps for this specific script
+      const { data: scriptSteps } = await supabase
+        .from("script_steps")
+        .select("*")
+        .eq("script_id", script.id)
+        .order("step_order");
+
+      const resp = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/script-intelligence`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({
+            type: "deep_script_analysis",
+            scripts: [script],
+            steps: scriptSteps || [],
+          }),
+        }
+      );
+
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({ error: "Unknown error" }));
+        if (resp.status === 429) toast.error("Rate limit exceeded. Please wait and try again.");
+        else if (resp.status === 402) toast.error("AI credits exhausted.");
+        else toast.error(err.error || "Analysis failed");
+        setAnalysisLoading(false);
+        return;
+      }
+
+      const result = await resp.json();
+      if (result.error) {
+        toast.error(result.error);
+      } else {
+        setAnalysisResult(result);
+        toast.success("AI analysis complete");
+      }
+    } catch (e: any) {
+      toast.error(e.message || "Failed to analyze script");
+    } finally {
+      setAnalysisLoading(false);
+    }
+  };
+
+  const applyImprovement = async (improvement: any) => {
+    if (!selectedScript?.id && !analyzingScriptId) return;
+    const targetScriptId = selectedScript?.id || analyzingScriptId;
+    setApplyingId(improvement.id);
+
+    try {
+      // Load current steps
+      const { data: currentSteps } = await supabase
+        .from("script_steps")
+        .select("*")
+        .eq("script_id", targetScriptId)
+        .order("step_order");
+
+      if (!currentSteps) throw new Error("Could not load steps");
+
+      // Apply each change
+      for (const change of improvement.changes || []) {
+        const step = currentSteps[change.step_index];
+        if (!step) continue;
+
+        await supabase
+          .from("script_steps")
+          .update({ [change.field]: change.new_value })
+          .eq("id", step.id);
+      }
+
+      // Reload steps if this is the selected script
+      if (selectedScript?.id === targetScriptId) {
+        await selectScript(selectedScript);
+      }
+
+      setAppliedImprovements(prev => new Set([...prev, improvement.id]));
+      toast.success(`Applied: ${improvement.title}`);
+    } catch (e: any) {
+      toast.error(e.message || "Failed to apply improvement");
+    } finally {
+      setApplyingId(null);
+    }
+  };
 
   const totalPrice = steps.reduce((s, step) => s + (step.price || 0), 0);
   const paidSteps = steps.filter(s => s.price > 0);
@@ -1164,7 +1267,7 @@ const ScriptBuilder = () => {
                 selectedScript?.id === s.id ? "bg-accent/20 border border-accent/30" : "bg-white/[0.03] border border-transparent hover:bg-white/[0.06]"
               }`}>
                 <button onClick={() => selectScript(s)} className="w-full text-left">
-                  <p className="font-medium text-white truncate pr-6">{s.title}</p>
+                  <p className="font-medium text-white truncate pr-12">{s.title}</p>
                   <div className="flex items-center gap-1.5 mt-1">
                     <Badge variant="outline" className="text-[9px] border-white/10 text-white/40">{s.category}</Badge>
                     <Badge variant="outline" className={`text-[9px] ${s.status === "active" ? "border-emerald-500/20 text-emerald-400" : "border-white/10 text-white/40"}`}>{s.status}</Badge>
@@ -1177,10 +1280,23 @@ const ScriptBuilder = () => {
                     <button onClick={() => setShowDeleteConfirm(null)} className="text-[9px] bg-white/10 hover:bg-white/20 text-white px-2 py-0.5 rounded">No</button>
                   </div>
                 ) : (
-                  <button onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(s.id); }}
-                    className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 text-red-400/50 hover:text-red-400 transition-all" title="Delete script">
-                    <Trash2 className="h-3 w-3" />
-                  </button>
+                  <div className="absolute right-1.5 top-1.5 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-all">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); analyzeScript(s); }}
+                      className="p-1 rounded-md text-purple-400/60 hover:text-purple-400 hover:bg-purple-500/10 transition-all"
+                      title="AI Script Analysis"
+                    >
+                      {analysisLoading && analyzingScriptId === s.id ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <Brain className="h-3 w-3" />
+                      )}
+                    </button>
+                    <button onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(s.id); }}
+                      className="p-1 rounded-md text-red-400/50 hover:text-red-400 hover:bg-red-500/10 transition-all" title="Delete script">
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  </div>
                 )}
               </div>
             ))}
@@ -1201,6 +1317,239 @@ const ScriptBuilder = () => {
               <Button variant="outline" onClick={() => setShowDeleteAll(false)} className="flex-1 bg-white/5 border-white/10 text-white/60 hover:bg-white/10 hover:text-white">Cancel</Button>
               <Button onClick={deleteAllScripts} className="flex-1 bg-red-600 hover:bg-red-500 text-white border-0">Delete All</Button>
             </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* AI Script Analysis Dialog */}
+        <Dialog open={showAnalysisDialog} onOpenChange={(open) => { setShowAnalysisDialog(open); if (!open) setAnalysisResult(null); }}>
+          <DialogContent className="bg-[hsl(220,40%,10%)] border-white/10 text-white max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-base">
+                <Brain className="h-5 w-5 text-purple-400" />
+                AI Script Analysis
+                {analysisLoading && <Loader2 className="h-4 w-4 animate-spin text-purple-400 ml-2" />}
+              </DialogTitle>
+            </DialogHeader>
+
+            {analysisLoading && !analysisResult && (
+              <div className="flex flex-col items-center justify-center py-16 gap-4">
+                <div className="relative">
+                  <Brain className="h-12 w-12 text-purple-400/30" />
+                  <Loader2 className="h-6 w-6 animate-spin text-purple-400 absolute -top-1 -right-1" />
+                </div>
+                <p className="text-white/50 text-sm">AI is deeply analyzing your script...</p>
+                <p className="text-white/30 text-[10px]">Evaluating psychology, pricing, tone, conversion potential...</p>
+              </div>
+            )}
+
+            {analysisResult && !analysisResult.error && (
+              <div className="space-y-4">
+                {/* Score & Summary */}
+                <div className="flex items-start gap-4">
+                  <div className="flex flex-col items-center gap-1 shrink-0">
+                    <div className={`w-16 h-16 rounded-2xl flex items-center justify-center text-2xl font-black ${
+                      analysisResult.score >= 80 ? "bg-emerald-500/20 text-emerald-400" :
+                      analysisResult.score >= 60 ? "bg-amber-500/20 text-amber-400" :
+                      "bg-red-500/20 text-red-400"
+                    }`}>
+                      {analysisResult.score}
+                    </div>
+                    <span className="text-[9px] text-white/30">Score</span>
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm text-white/70 leading-relaxed">{analysisResult.summary}</p>
+                  </div>
+                </div>
+
+                {/* Conversion Prediction */}
+                {analysisResult.conversion_prediction && (
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="p-3 bg-white/[0.03] rounded-xl border border-white/[0.06] text-center">
+                      <p className="text-[9px] text-white/30 mb-1">Current Conversion</p>
+                      <p className="text-lg font-bold text-white/60">{analysisResult.conversion_prediction.current_estimated}%</p>
+                    </div>
+                    <div className="p-3 bg-emerald-500/5 rounded-xl border border-emerald-500/20 text-center">
+                      <p className="text-[9px] text-emerald-400/60 mb-1">After Improvements</p>
+                      <p className="text-lg font-bold text-emerald-400">{analysisResult.conversion_prediction.after_improvements}%</p>
+                    </div>
+                    <div className="p-3 bg-purple-500/5 rounded-xl border border-purple-500/20 text-center">
+                      <p className="text-[9px] text-purple-400/60 mb-1">Revenue Uplift</p>
+                      <p className="text-lg font-bold text-purple-400">+{analysisResult.conversion_prediction.revenue_uplift_percent}%</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Pricing Analysis */}
+                {analysisResult.pricing_analysis && (
+                  <div className="p-3 bg-amber-500/5 rounded-xl border border-amber-500/20">
+                    <div className="flex items-center gap-2 mb-2">
+                      <DollarSign className="h-3.5 w-3.5 text-amber-400" />
+                      <span className="text-xs font-semibold text-white">Pricing Analysis</span>
+                      <Badge variant="outline" className={`text-[9px] ml-auto ${
+                        analysisResult.pricing_analysis.ladder_rating === "smooth" ? "border-emerald-500/20 text-emerald-400" : "border-amber-500/20 text-amber-400"
+                      }`}>
+                        {analysisResult.pricing_analysis.ladder_rating}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-4 text-xs">
+                      <span className="text-white/40">Current: <span className="text-white font-semibold">${analysisResult.pricing_analysis.current_total}</span></span>
+                      <ArrowDown className="h-3 w-3 text-white/20 -rotate-90" />
+                      <span className="text-emerald-400/70">Recommended: <span className="text-emerald-400 font-semibold">${analysisResult.pricing_analysis.recommended_total}</span></span>
+                    </div>
+                    <p className="text-[10px] text-white/40 mt-1">{analysisResult.pricing_analysis.notes}</p>
+                  </div>
+                )}
+
+                {/* Strengths & Weaknesses */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <p className="text-[10px] font-semibold text-emerald-400 uppercase tracking-wider flex items-center gap-1"><CheckCircle2 className="h-3 w-3" /> Strengths</p>
+                    {(analysisResult.strengths || []).map((s: string, i: number) => (
+                      <div key={i} className="flex items-start gap-2 p-2 bg-emerald-500/5 rounded-lg border border-emerald-500/10">
+                        <CheckCircle2 className="h-3 w-3 text-emerald-400 mt-0.5 shrink-0" />
+                        <span className="text-[10px] text-white/60">{s}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="space-y-1.5">
+                    <p className="text-[10px] font-semibold text-red-400 uppercase tracking-wider flex items-center gap-1"><AlertTriangle className="h-3 w-3" /> Weaknesses</p>
+                    {(analysisResult.weaknesses || []).map((w: string, i: number) => (
+                      <div key={i} className="flex items-start gap-2 p-2 bg-red-500/5 rounded-lg border border-red-500/10">
+                        <AlertTriangle className="h-3 w-3 text-red-400 mt-0.5 shrink-0" />
+                        <span className="text-[10px] text-white/60">{w}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Psychology Breakdown */}
+                {analysisResult.psychology_breakdown?.length > 0 && (
+                  <div>
+                    <p className="text-[10px] font-semibold text-purple-400 uppercase tracking-wider flex items-center gap-1 mb-2"><Brain className="h-3 w-3" /> Psychology Breakdown</p>
+                    <div className="grid grid-cols-1 gap-1">
+                      {analysisResult.psychology_breakdown.map((p: any, i: number) => (
+                        <div key={i} className="flex items-center gap-3 p-2 bg-white/[0.02] rounded-lg">
+                          <span className="text-[9px] text-white/30 font-mono w-8 shrink-0">#{p.step_index + 1}</span>
+                          <span className="text-[10px] text-white/70 flex-1">{p.technique}</span>
+                          <Badge variant="outline" className={`text-[8px] ${
+                            p.effectiveness === "strong" ? "border-emerald-500/20 text-emerald-400" :
+                            p.effectiveness === "moderate" ? "border-amber-500/20 text-amber-400" :
+                            p.effectiveness === "weak" ? "border-red-500/20 text-red-400" :
+                            "border-white/10 text-white/30"
+                          }`}>
+                            {p.effectiveness}
+                          </Badge>
+                          <span className="text-[9px] text-white/30 max-w-[200px] truncate">{p.note}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Improvements - The clickable ones */}
+                {analysisResult.improvements?.length > 0 && (
+                  <div>
+                    <p className="text-[10px] font-semibold text-blue-400 uppercase tracking-wider flex items-center gap-1 mb-2">
+                      <Target className="h-3 w-3" /> Improvements — Click to Apply
+                    </p>
+                    <div className="space-y-2">
+                      {analysisResult.improvements.map((imp: any) => {
+                        const isApplied = appliedImprovements.has(imp.id);
+                        const isApplying = applyingId === imp.id;
+                        return (
+                          <div key={imp.id} className={`p-3 rounded-xl border transition-all ${
+                            isApplied
+                              ? "bg-emerald-500/10 border-emerald-500/30"
+                              : "bg-white/[0.03] border-white/[0.08] hover:border-purple-500/30 hover:bg-purple-500/5"
+                          }`}>
+                            <div className="flex items-start gap-3">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className="text-xs font-semibold text-white">{imp.title}</span>
+                                  <Badge variant="outline" className={`text-[8px] ${
+                                    imp.impact === "high" ? "border-red-500/20 text-red-400" :
+                                    imp.impact === "medium" ? "border-amber-500/20 text-amber-400" :
+                                    "border-white/10 text-white/30"
+                                  }`}>
+                                    {imp.impact} impact
+                                  </Badge>
+                                  <Badge variant="outline" className="text-[8px] border-white/10 text-white/30">
+                                    {imp.category}
+                                  </Badge>
+                                </div>
+                                <p className="text-[10px] text-white/50 leading-relaxed">{imp.description}</p>
+                                {imp.changes?.length > 0 && (
+                                  <div className="mt-2 space-y-1">
+                                    {imp.changes.map((c: any, ci: number) => (
+                                      <div key={ci} className="flex items-center gap-2 text-[9px]">
+                                        <span className="text-white/30 font-mono">Step {c.step_index + 1}</span>
+                                        <span className="text-white/20">→</span>
+                                        <span className="text-white/30">{c.field}:</span>
+                                        <span className="text-red-400/50 line-through truncate max-w-[150px]">
+                                          {typeof c.old_value === "string" ? c.old_value.substring(0, 40) : String(c.old_value)}
+                                        </span>
+                                        <span className="text-white/20">→</span>
+                                        <span className="text-emerald-400/70 truncate max-w-[150px]">
+                                          {typeof c.new_value === "string" ? c.new_value.substring(0, 40) : String(c.new_value)}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                              <Button
+                                size="sm"
+                                disabled={isApplied || isApplying}
+                                onClick={() => applyImprovement(imp)}
+                                className={`shrink-0 h-8 text-[10px] gap-1 ${
+                                  isApplied
+                                    ? "bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 cursor-default"
+                                    : "bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white border-0"
+                                }`}
+                              >
+                                {isApplying ? (
+                                  <><Loader2 className="h-3 w-3 animate-spin" /> Applying...</>
+                                ) : isApplied ? (
+                                  <><CheckCircle2 className="h-3 w-3" /> Applied</>
+                                ) : (
+                                  <><Zap className="h-3 w-3" /> Apply</>
+                                )}
+                              </Button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Apply All button */}
+                    {analysisResult.improvements.some((imp: any) => !appliedImprovements.has(imp.id)) && (
+                      <Button
+                        onClick={async () => {
+                          for (const imp of analysisResult.improvements) {
+                            if (!appliedImprovements.has(imp.id)) {
+                              await applyImprovement(imp);
+                            }
+                          }
+                        }}
+                        disabled={!!applyingId}
+                        className="w-full mt-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white border-0 h-10 gap-2 text-sm font-semibold"
+                      >
+                        <Sparkles className="h-4 w-4" />
+                        Apply All Remaining Improvements
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {analysisResult?.error && (
+              <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-center">
+                <AlertTriangle className="h-6 w-6 text-red-400 mx-auto mb-2" />
+                <p className="text-sm text-red-400">{analysisResult.error}</p>
+                <p className="text-[10px] text-white/30 mt-1">Try again — AI might return better structured results.</p>
+              </div>
+            )}
           </DialogContent>
         </Dialog>
 
