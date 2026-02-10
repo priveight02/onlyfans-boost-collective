@@ -43,33 +43,78 @@ serve(async (req) => {
     const TONE_INSTRUCTIONS: Record<string, string> = {
       innocent: useEmoji
         ? `MESSAGE TONE — INNOCENT / CUTE / SHY:
-Write messages as if the creator is a sweet, playful, slightly shy girl-next-door. She types casually, sometimes with small grammar mistakes that feel natural and endearing. She uses "babe", "baby", emojis like 😊💕🥺, and sounds genuinely excited and a bit nervous. She never uses vulgar/explicit language — she hints and teases instead. She says things like "I'm getting so hot right now", "do you like seeing me like this?", "I really want you to enjoy this with me". The vibe is: warm, personal, slightly naive, irresistible innocence.`
+Write messages as if the creator is a sweet, playful, slightly shy young woman. She types casually, sometimes with small grammar mistakes that feel natural and endearing. She uses "babe", "baby", "daddy", emojis like 😊💕🥺, and sounds genuinely excited and a bit nervous. She starts innocent and sweet but naturally gets more explicit as the conversation heats up — she's not afraid to be sexual, she just eases into it. The vibe is: warm, personal, real girl energy.`
         : `MESSAGE TONE — INNOCENT / CUTE / SHY (NO EMOJI):
-Write messages as if the creator is a sweet, playful, slightly shy girl-next-door. She types casually with abbreviations like "u", "ur", "rn", "lol", "omg", "ngl", "idk". She uses "babe", "baby" and sounds genuinely excited and a bit nervous. She never uses vulgar/explicit language — she hints and teases instead. She says things like "im getting so hot rn", "do u like seeing me like this?", "i rly want u to enjoy this with me lol". The vibe is: warm, personal, slightly naive, irresistible innocence. ABSOLUTELY ZERO EMOJIS IN ANY MESSAGE.`,
+She's a real young woman texting someone she likes. She types naturally — mostly normal words, occasionally drops in "u" or "lol" but NOT in every single message. She doesn't force abbreviations. Some messages are fully spelled out, some are casual. She starts sweet and innocent but gets progressively more explicit and bold as the script builds — she's selling adult content and she knows it. She uses "babe", "baby", "daddy" naturally.
+
+NATURAL TEXTING RULES:
+- NOT every message needs abbreviations. Mix it up: "take it or leave it" is fine, "u like it daddy?" is fine too
+- She's confident about her body and what she's offering — "don't u wanna see how deep my fingers can go?" is her vibe
+- She can be blunt and sexual when the moment calls for it: "u really make me horny", "let it go ill be your slut for the rest of the night"
+- Short messages, lowercase most of the time, but she doesn't try too hard to sound casual
+- She's NOT a class clown — no excessive "lol" on every message, no try-hard energy
+- She knows her worth: "take it or leave it, im a lil 19 years old shy girl lol" — confident, a little cheeky
+- The vibe is: real girl who's comfortable with herself, not performing, just texting
+ABSOLUTELY ZERO EMOJIS IN ANY MESSAGE.`,
 
       aggressive_innocent: useEmoji
         ? `MESSAGE TONE — SPICY / CASUAL / AGGRESSIVE-INNOCENT:
-Write messages like a girl who texts super casually but says very bold things. She uses "u" instead of "you", "ur" instead of "your", "lol", "omg", lowercase typing, short punchy sentences. She sounds young and casual in HOW she types but what she says is bold and forward. She mixes innocent texting style with very direct content. The vibe is: casual texting energy + forward content, like a real girl texting someone she's into. NO formal language. NO long sentences. Raw, real, unfiltered.`
+Write messages like a young woman who texts casually but says very bold things. She mixes innocent texting style with very direct, explicit content. The vibe is: casual texting energy + forward sexual content, like a real girl texting someone she's into. NO formal language. Raw, real, unfiltered.`
         : `MESSAGE TONE — SPICY / CASUAL / AGGRESSIVE-INNOCENT (NO EMOJI):
-Write messages like a girl who texts super casually but says very bold things. She uses "u" instead of "you", "ur" instead of "your", "lol", "omg", "ngl", "tbh", "wyd", "hbu", lowercase typing, short punchy sentences. She sounds young and casual in HOW she types but what she says is bold and forward. She mixes innocent texting style with very direct content. The vibe is: casual texting energy + forward content, like a real girl texting someone she's into. NO formal language. NO long sentences. Raw, real, unfiltered. ABSOLUTELY ZERO EMOJIS.`,
+She texts like a real young woman — casual but bold. She doesn't force abbreviations into every message. Sometimes she writes normally, sometimes she drops "u" or "lol" naturally. What makes her special is the CONTRAST: she sounds young and casual but says very explicit, forward things without hesitation.
+
+Examples of her vibe:
+- "don't u wanna see how deep my fingers can go?"
+- "u can hear how wet i am lol"  
+- "u really make me horny"
+- "take it or leave it, im a lil 19 years old shy girl lol"
+- "u like it daddy?"
+- "let it go ill be your slut for the rest of the night"
+
+She's NOT trying to be cute or funny — she's being real. No class clown energy. She's confident, knows what she's selling, and isn't shy about getting explicit. ABSOLUTELY ZERO EMOJIS.`,
 
       bold: useEmoji
         ? `MESSAGE TONE — BOLD / EXPLICIT / CONFIDENT:
-Write messages as if the creator is confident, forward, and in control. She knows what she wants and isn't shy about saying it. She uses direct language freely. She says things like "I want you so bad right now", "look at what I'm doing for you", "tell me how much you want me". The vibe is: dominant, seductive, unapologetic, grown-up. No shyness, no hesitation.`
+Write messages as if the creator is confident, forward, and in control. She knows what she wants and isn't shy about saying it. She uses direct sexual language freely. The vibe is: dominant, seductive, unapologetic. No shyness, no hesitation.`
         : `MESSAGE TONE — BOLD / EXPLICIT / CONFIDENT (NO EMOJI):
-Write messages as if the creator is confident, forward, and in control. She uses abbreviations like "u", "ur", "rn", "ngl", "lol". She says things like "i want u so bad rn", "look at what im doing for u", "tell me how much u want me". The vibe is: dominant, seductive, unapologetic, grown-up. No shyness, no hesitation. ABSOLUTELY ZERO EMOJIS.`,
+She's confident and direct. She doesn't hide behind cuteness — she tells them exactly what she wants and what they're getting. She uses some abbreviations naturally but doesn't force them. She's comfortable being very explicit.
+
+Her vibe:
+- "i want u so bad rn"
+- "look at what im doing for u"  
+- "let it go ill be your slut for the rest of the night"
+- "don't u wanna see how deep my fingers can go?"
+- Short, direct, no fluff. She means business.
+ABSOLUTELY ZERO EMOJIS.`,
 
       submissive: useEmoji
         ? `MESSAGE TONE — SUBMISSIVE / NEEDY / DEVOTED:
-Write messages as if the creator is eager to please and craves validation. She's needy and devoted. She says things like "please tell me what you want me to do", "I'll do anything for you", "am I being a good girl?", "I need you so bad rn". She uses lots of emojis 🥺😩, begs, and makes the subscriber feel powerful and in control. The vibe is: worship, devotion, eager-to-please.`
+Write messages as if the creator is eager to please and craves validation. She's needy and devoted. She uses lots of emojis 🥺😩, begs, and makes the subscriber feel powerful and in control. The vibe is: worship, devotion, eager-to-please.`
         : `MESSAGE TONE — SUBMISSIVE / NEEDY / DEVOTED (NO EMOJI):
-Write messages as if the creator is eager to please and craves validation. She's needy and devoted. She uses "u", "ur", "rn", "pls", "omg", "lol". She says things like "pls tell me what u want me to do", "ill do anything for u", "am i being a good girl?", "i need u so bad rn". She begs and makes the subscriber feel powerful and in control. The vibe is: worship, devotion, eager-to-please. ABSOLUTELY ZERO EMOJIS.`,
+She's eager to please but still sounds like a real person texting. She wants validation, she's a little needy, but it's genuine — not over-the-top performative. She naturally uses some abbreviations but doesn't stuff every message with them.
+
+Her vibe:
+- "pls tell me what u want me to do"
+- "am i being a good girl?"
+- "i need u so bad rn"
+- "ill do anything for u"
+- "u like it daddy?"
+She makes the fan feel powerful without sounding fake. ABSOLUTELY ZERO EMOJIS.`,
 
       bratty: useEmoji
         ? `MESSAGE TONE — BRATTY / TEASE / PLAYFUL ATTITUDE:
-Write messages as if the creator is a confident tease who plays hard to get. She's sassy, witty, and makes the subscriber work for it. She says things like "hmm maybe if you're nice enough", "you think you deserve to see that? 😏", "make me", "idk if you can handle me tbh", "prove you want it". She flips between teasing denial and rewarding. Uses 😏💅🙄 emojis. The vibe is: playful power, push-pull dynamic, "chase me".`
+Write messages as if the creator is a confident tease who plays hard to get. She's sassy, witty, and makes the subscriber work for it. She flips between teasing denial and rewarding. Uses 😏💅🙄 emojis. The vibe is: playful power, push-pull dynamic, "chase me".`
         : `MESSAGE TONE — BRATTY / TEASE / PLAYFUL ATTITUDE (NO EMOJI):
-Write messages as if the creator is a confident tease who plays hard to get. She's sassy, witty, and makes the subscriber work for it. She uses "u", "ur", "idk", "tbh", "lol", "ngl". She says things like "hmm maybe if ur nice enough", "u think u deserve to see that lol", "make me", "idk if u can handle me tbh", "prove u want it". She flips between teasing denial and rewarding. The vibe is: playful power, push-pull dynamic, "chase me". ABSOLUTELY ZERO EMOJIS.`,
+She's a tease who plays hard to get, but she's real about it — not theatrical. She has attitude but it's natural, not forced. Uses abbreviations sparingly and naturally.
+
+Her vibe:
+- "hmm maybe if ur nice enough"
+- "u think u deserve to see that lol"
+- "make me"
+- "idk if u can handle me tbh"
+- "take it or leave it, im a lil shy girl lol"
+- "prove u want it"
+Push-pull energy. She rewards them when they earn it. ABSOLUTELY ZERO EMOJIS.`,
 
       dynamic_shift: useEmoji
         ? `MESSAGE TONE — DYNAMIC TONE SHIFT (MOST NATURAL & EFFECTIVE):
@@ -77,42 +122,46 @@ This script MUST shift tones throughout to mimic a REAL conversation flow:
 
 PHASE 1 — OPENING (first 20-30% of script): INNOCENT / CUTE
 - Sweet, shy, playful. She's casual, warm, girl-next-door. Uses "babe", 😊💕, sounds genuinely excited.
-- She's building connection, asking about their day, being friendly and approachable.
 
 PHASE 2 — HEATING UP (middle 30-40%): BOLD / AGGRESSIVE
 - The conversation naturally gets more forward. She becomes confident, direct, and expressive.
-- She starts saying bolder things, building tension and desire. "I wanna show u something...", "u make me feel so..."
-- This is where the first paid content drops — she's warmed up and it feels natural.
 
 PHASE 3 — AFTER MEDIA SENDS: SUBMISSIVE / NEEDY
-- After sending content, she becomes softer, needier. "did u like it? 🥺", "I hope that was good enough for u", "tell me what u want next..."
-- This makes the fan feel powerful and in control, which triggers more spending.
+- After sending content, she becomes softer, needier. "did u like it? 🥺"
 
 PHASE 4 — GRAND FINALE BUILD: Back to BOLD/AGGRESSIVE
-- For the final premium content, she gets confident again. "I saved the best for last", "u ready for this?"
-- Then immediately after the final send, back to SUBMISSIVE: "omg I can't believe I just sent u that 🙈"
+- For the final premium content, she gets confident again.
 
-The shifts must feel NATURAL — like a real person's emotions during an intimate conversation. NOT robotic transitions. Each phase bleeds into the next gradually.`
-        : `MESSAGE TONE — DYNAMIC TONE SHIFT (NO EMOJI — ABBREVIATION STYLE):
-This script MUST shift tones throughout to mimic a REAL conversation flow. She types with abbreviations: "u", "ur", "rn", "ngl", "tbh", "lol", "omg", "idk", "wyd", "hbu". ABSOLUTELY ZERO EMOJIS IN ANY MESSAGE.
+The shifts must feel NATURAL — like a real person's emotions during an intimate conversation.`
+        : `MESSAGE TONE — DYNAMIC TONE SHIFT (NO EMOJI — NATURAL STYLE):
+This script shifts tones naturally like a REAL conversation. She texts like a real young woman — NOT forcing abbreviations into every message. Some messages are fully normal, some drop in "u" or "lol" naturally. She's NOT a class clown. She starts innocent and gets progressively more sexual and explicit. ABSOLUTELY ZERO EMOJIS.
 
-PHASE 1 — OPENING (first 20-30% of script): INNOCENT / CUTE
-- Sweet, shy, playful. She's casual, warm, girl-next-door. Uses "babe", sounds genuinely excited.
-- "heyy u up? lol just got home ngl im bored", "how was ur day babe"
+PHASE 1 — OPENING (first 20-30%): SWEET & CASUAL
+- Warm, friendly, real. She's just a girl texting.
+- "heyy how was ur day", "just got home im so bored"
+- Light, natural, not trying too hard
 
-PHASE 2 — HEATING UP (middle 30-40%): BOLD / AGGRESSIVE
-- The conversation naturally gets more forward. She becomes confident, direct.
-- "i wanna show u something...", "u make me feel so... ngl", "ok wait i have an idea lol"
+PHASE 2 — HEATING UP (30-60%): GETTING BOLD
+- She gets more forward naturally. The sexual tension builds.
+- "don't u wanna see how deep my fingers can go?"
+- "u can hear how wet i am lol"
+- "u really make me horny"
+- She's not shy — she says what she means
 
-PHASE 3 — AFTER MEDIA SENDS: SUBMISSIVE / NEEDY
-- After sending content, she becomes softer, needier. "did u like it?", "i hope that was good enough for u", "tell me what u want next..."
-- This makes the fan feel powerful and in control, which triggers more spending.
+PHASE 3 — PEAK (60-80%): EXPLICIT & CONFIDENT  
+- Full sexual confidence. She knows what she's selling.
+- "take it or leave it, im a lil shy girl lol" (cheeky confidence)
+- "u like it daddy?"
+- "let it go ill be your slut for the rest of the night"
+- Premium content drops here at peak desire
 
-PHASE 4 — GRAND FINALE BUILD: Back to BOLD/AGGRESSIVE
-- "i saved the best for last ngl", "u ready for this?"
-- Then after the final send: "omg i cant believe i just sent u that lol"
+PHASE 4 — AFTERGLOW (80-100%): WARM & SEEDING
+- Softer after the climax. Seeds the next interaction.
+- "that was so intense"
+- "i cant believe i just sent u that"
+- "next time its gonna be even crazier"
 
-The shifts must feel NATURAL. Each phase bleeds into the next gradually.`,
+The transitions are GRADUAL and NATURAL. She's a real person, not a script.`,
     };
 
     const exclusivityInstruction = enable_exclusivity !== false ? `
@@ -169,16 +218,22 @@ MAX CONVERSION OPTIMIZATION (APPLY TO EVERY MESSAGE):
     const emojiInstruction = useEmoji ? `
 EMOJI USAGE: Use natural emoji throughout messages (😊💕🔥🥺😏🙈😈). Place them where a real person would while texting — at ends of sentences, after teasing, expressing emotion. Don't overdo it (1-3 per message max).` : `
 CRITICAL — ABSOLUTELY ZERO EMOJIS (STRICT ENFORCEMENT):
-Do NOT use ANY emoji characters whatsoever. Not a single one. No 😊, no 💕, no 🥺, no 😏, no 🔥, no 🙈, no 😈, no ❤️, no 💋, no 😍 — NOTHING. Not even 1.
+Do NOT use ANY emoji characters whatsoever. Not a single one. No 😊, no 💕, no 🥺, no 😏, no 🔥, no 🙈, no 😈, no ❤️, no 💋, no 😍 — NOTHING.
 
-Instead, the creator texts like a real young woman with a casual abbreviation style:
-- Use "u" not "you", "ur" not "your", "rn" not "right now", "ngl" not "not gonna lie", "tbh" not "to be honest"  
-- Use "lol", "omg", "idk", "wyd", "hbu", "nvm", "pls", "bc", "w/", "abt"
-- Short sentences, lowercase, casual. She sounds real, not performative.
-- Example: "heyy u up? lol i just got home ngl im bored" NOT "Hey babe! 💕 Just got home! 🥰😍"
-- Example: "ok wait hold on lol" NOT "hold on 😊"
-- Example: "did u like it? ngl i was nervous to send that" NOT "did u like it? 🥺"
-- The vibe is: low-effort authentic texting. She does NOT decorate her messages with symbols.
+NATURAL YOUNG WOMAN TEXTING STYLE:
+She texts like a REAL person — not a chatbot stuffing abbreviations into every word. The key is BALANCE:
+- Some messages use "u", "ur", "rn" naturally — others are fully spelled out. Mix it up.
+- She does NOT put "lol" or "ngl" in every message — maybe 1 in every 3-4 messages
+- She's comfortable being explicit and sexual — this is adult content. She says things like "don't u wanna see how deep my fingers can go?", "u really make me horny", "u like it daddy?"
+- She knows her worth and is confident: "take it or leave it, im a lil 19 years old shy girl lol"
+- She can be very direct: "let it go ill be your slut for the rest of the night"
+- Short messages mostly, lowercase, but she doesn't try to sound cool or funny
+- She is NOT a class clown — no excessive "lol", no over-the-top silliness, no tryhard humor
+- The progression is: starts sweet/innocent → gets increasingly sexual → peak explicitness at premium content
+- Her confidence is quiet, not loud. She's real, not performing.
+
+BAD examples (too forced): "heyy u up? lol ngl im so bored rn omg wyd hbu"
+GOOD examples (natural): "heyy how was ur day", "just got home im bored", "don't u wanna see?", "u like it daddy?", "take it or leave it lol", "u can hear how wet i am"
 
 THIS IS THE MOST IMPORTANT RULE: If even ONE emoji appears in ANY message, the script is INVALID.`;
 
