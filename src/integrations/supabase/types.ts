@@ -79,6 +79,116 @@ export type Database = {
         }
         Relationships: []
       }
+      contracts: {
+        Row: {
+          account_id: string | null
+          content: string | null
+          contract_type: string
+          created_at: string
+          created_by: string | null
+          expires_at: string | null
+          id: string
+          metadata: Json | null
+          signature_data: Json | null
+          signed_at: string | null
+          status: string
+          team_member_id: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          account_id?: string | null
+          content?: string | null
+          contract_type?: string
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          metadata?: Json | null
+          signature_data?: Json | null
+          signed_at?: string | null
+          status?: string
+          team_member_id?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string | null
+          content?: string | null
+          contract_type?: string
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          metadata?: Json | null
+          signature_data?: Json | null
+          signed_at?: string | null
+          status?: string
+          team_member_id?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contracts_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "managed_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_team_member_id_fkey"
+            columns: ["team_member_id"]
+            isOneToOne: false
+            referencedRelation: "team_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      financial_records: {
+        Row: {
+          account_id: string | null
+          amount: number
+          created_at: string
+          description: string | null
+          id: string
+          metadata: Json | null
+          period_end: string | null
+          period_start: string | null
+          record_type: string
+        }
+        Insert: {
+          account_id?: string | null
+          amount?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          metadata?: Json | null
+          period_end?: string | null
+          period_start?: string | null
+          record_type: string
+        }
+        Update: {
+          account_id?: string | null
+          amount?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          metadata?: Json | null
+          period_end?: string | null
+          period_start?: string | null
+          record_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "financial_records_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "managed_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       managed_accounts: {
         Row: {
           avatar_url: string | null
@@ -172,6 +282,66 @@ export type Database = {
         }
         Relationships: []
       }
+      message_threads: {
+        Row: {
+          account_id: string
+          assigned_chatter: string | null
+          created_at: string
+          id: string
+          last_message_at: string | null
+          metadata: Json | null
+          priority: string | null
+          status: string
+          subscriber_id: string | null
+          subscriber_name: string | null
+          tags: string[] | null
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          assigned_chatter?: string | null
+          created_at?: string
+          id?: string
+          last_message_at?: string | null
+          metadata?: Json | null
+          priority?: string | null
+          status?: string
+          subscriber_id?: string | null
+          subscriber_name?: string | null
+          tags?: string[] | null
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          assigned_chatter?: string | null
+          created_at?: string
+          id?: string
+          last_message_at?: string | null
+          metadata?: Json | null
+          priority?: string | null
+          status?: string
+          subscriber_id?: string | null
+          subscriber_name?: string | null
+          tags?: string[] | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "message_threads_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "managed_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "message_threads_assigned_chatter_fkey"
+            columns: ["assigned_chatter"]
+            isOneToOne: false
+            referencedRelation: "team_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profile_lookup_history: {
         Row: {
           avatar_url: string | null
@@ -225,6 +395,66 @@ export type Database = {
           visitor_ip?: string | null
         }
         Relationships: []
+      }
+      tasks: {
+        Row: {
+          account_id: string | null
+          assigned_to: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          due_date: string | null
+          id: string
+          priority: string
+          status: string
+          tags: string[] | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          account_id?: string | null
+          assigned_to?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          priority?: string
+          status?: string
+          tags?: string[] | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string | null
+          assigned_to?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          priority?: string
+          status?: string
+          tags?: string[] | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tasks_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "managed_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "team_members"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       team_account_assignments: {
         Row: {
