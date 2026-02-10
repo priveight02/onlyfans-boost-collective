@@ -25,6 +25,7 @@ serve(async (req) => {
       // New psychology options
       enable_mind_building, enable_story_arc, enable_exclusivity_psychology,
       enable_fantasy_projection, enable_emotional_anchoring,
+      enable_formal_long_messages,
     } = await req.json();
     
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
@@ -215,19 +216,19 @@ MAX CONVERSION OPTIMIZATION (APPLY TO EVERY MESSAGE):
 8. EMOTIONAL ESCALATION: Each message should be slightly more intense than the last
 9. NATURAL NON-FORCED FLOW: Despite all these techniques, the conversation must read like a REAL chat.` : "";
 
-    const emojiInstruction = useEmoji ? `
-EMOJI USAGE: Use natural emoji throughout messages (😊💕🔥🥺😏🙈😈). Place them where a real person would — at ends of sentences, after teasing. Don't overdo it (1-3 per message max).
+    const formalLongMessages = enable_formal_long_messages === true;
 
+    const messageLengthInstruction = formalLongMessages ? `
+MESSAGE LENGTH — FORMAL & DETAILED MODE:
+Messages can be longer and more detailed. Write in a warm, conversational but slightly more polished style. 
+Messages can be 1-3 sentences each. Use complete words (no abbreviations like "u" or "ur").
+Still keep it personal and engaging — not robotic or corporate. Think "friendly DM" not "business email".
+The tone should still feel intimate and personal, just more eloquent and descriptive.` : `
 MESSAGE LENGTH — KEEP IT SHORT (CRITICAL):
 Messages MUST be SHORT. Like real texting. 1 line, max 2 lines. Never a paragraph. Never formal.
 GOOD: "u like it daddy?" / "take it or leave it lol" / "don't u wanna see?" / "u really make me horny"
 BAD: "Hey babe, I was just thinking about you and I wanted to share something really special..."
-If a message is longer than 15 words, it's TOO LONG. Break it into multiple short messages instead.` : `
-CRITICAL — ABSOLUTELY ZERO EMOJIS (STRICT ENFORCEMENT):
-Do NOT use ANY emoji characters whatsoever. Not a single one.
-
-MESSAGE LENGTH — KEEP IT SHORT (THE MOST CRITICAL RULE AFTER NO EMOJIS):
-Messages MUST be SHORT. Like real texting — not essays, not speeches, not formal sentences. A girl texting on her phone, not writing an email.
+If a message is longer than 15 words, it's TOO LONG. Break it into multiple short messages instead.
 
 STRICT LENGTH RULES:
 - Most messages: 3-10 words. That's it.
@@ -261,8 +262,18 @@ BAD (TOO LONG/FORMAL): "Hey babe, I was just thinking about you and I wanted to 
 BAD (TOO FORCED): "heyy u up? lol ngl im so bored rn omg wyd hbu"
 GOOD: "heyy how was ur day" / "don't u wanna see?" / "u like it daddy?" / "I just took this for u"
 
-RULE 1: If even ONE emoji appears in ANY message, the script is INVALID.
 RULE 2: If ANY message exceeds 15 words, the script needs to be REWRITTEN.`;
+
+    const emojiInstruction = useEmoji ? `
+EMOJI USAGE: Use natural emoji throughout messages (😊💕🔥🥺😏🙈😈). Place them where a real person would — at ends of sentences, after teasing. Don't overdo it (1-3 per message max).
+
+${messageLengthInstruction}` : `
+CRITICAL — ABSOLUTELY ZERO EMOJIS (STRICT ENFORCEMENT):
+Do NOT use ANY emoji characters whatsoever. Not a single one.
+
+${messageLengthInstruction}
+
+${!formalLongMessages ? "RULE 1: If even ONE emoji appears in ANY message, the script is INVALID." : ""}`;
 
     const reEngagementInstruction = enable_re_engagement !== false ? `
 RE-ENGAGEMENT LOOPS: If the fan goes quiet at ANY point, include follow-up messages:
