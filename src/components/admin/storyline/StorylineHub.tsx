@@ -1,11 +1,12 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  Zap, BookOpen, BarChart3, GitBranch, Brain, Layers,
+  Zap, BookOpen, BarChart3, GitBranch, Brain, Layers, Sparkles,
 } from "lucide-react";
 import ScriptBuilder from "./ScriptBuilder";
 import ScriptLibrary from "./ScriptLibrary";
 import ScriptAnalytics from "./ScriptAnalytics";
 import WorkflowEngine from "./WorkflowEngine";
+import ScriptIntelligence from "./ScriptIntelligence";
 import AutomationEngine from "../AutomationEngine";
 
 const StorylineHub = () => {
@@ -32,7 +33,10 @@ const StorylineHub = () => {
           <TabsTrigger value="workflows" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
             <GitBranch className="h-3.5 w-3.5" /> Workflows
           </TabsTrigger>
-          <TabsTrigger value="intelligence" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
+          <TabsTrigger value="ai" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
+            <Sparkles className="h-3.5 w-3.5" /> AI Intelligence
+          </TabsTrigger>
+          <TabsTrigger value="alerts" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
             <Brain className="h-3.5 w-3.5" /> Smart Alerts
           </TabsTrigger>
         </TabsList>
@@ -41,7 +45,8 @@ const StorylineHub = () => {
         <TabsContent value="library"><ScriptLibrary /></TabsContent>
         <TabsContent value="analytics"><ScriptAnalytics /></TabsContent>
         <TabsContent value="workflows"><WorkflowEngine /></TabsContent>
-        <TabsContent value="intelligence"><AutomationEngine /></TabsContent>
+        <TabsContent value="ai"><ScriptIntelligence /></TabsContent>
+        <TabsContent value="alerts"><AutomationEngine /></TabsContent>
       </Tabs>
     </div>
   );
