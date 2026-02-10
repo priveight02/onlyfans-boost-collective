@@ -16,7 +16,7 @@ import IntranetChat from "@/components/admin/IntranetChat";
 import CreatorRankingEngine from "@/components/admin/CreatorRankingEngine";
 import AdvancedFinancials from "@/components/admin/AdvancedFinancials";
 import TeamPerformance from "@/components/admin/TeamPerformance";
-import AutomationEngine from "@/components/admin/AutomationEngine";
+import StorylineHub from "@/components/admin/storyline/StorylineHub";
 import ComplianceCenter from "@/components/admin/ComplianceCenter";
 import ReportingExport from "@/components/admin/ReportingExport";
 import { supabase } from "@/integrations/supabase/client";
@@ -124,7 +124,7 @@ const Admin = () => {
               <Activity className="h-3.5 w-3.5" /> Performance
             </TabsTrigger>
             <TabsTrigger value="automation" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
-              <Zap className="h-3.5 w-3.5" /> Automation
+              <Zap className="h-3.5 w-3.5" /> Storyline
             </TabsTrigger>
             <TabsTrigger value="lookup" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
               <Search className="h-3.5 w-3.5" /> Lookup
@@ -159,7 +159,7 @@ const Admin = () => {
           <TabsContent value="contracts"><ContractsManager /></TabsContent>
           <TabsContent value="team"><TeamManagement /></TabsContent>
           <TabsContent value="team-perf"><TeamPerformance /></TabsContent>
-          <TabsContent value="automation"><AutomationEngine /></TabsContent>
+          <TabsContent value="automation"><StorylineHub /></TabsContent>
           <TabsContent value="lookup"><ProfileLookup /></TabsContent>
           <TabsContent value="audience"><AudienceIntelligence accounts={accounts} /></TabsContent>
           <TabsContent value="reports"><ReportingExport /></TabsContent>
