@@ -91,7 +91,7 @@ const Services = () => {
           <p className="text-xl text-white/80 max-w-2xl mx-auto mb-4 animate-fade-in">
             We handle everything so you can focus on creating. Let's grow together!
           </p>
-          <Link to="/onboarding">
+          <Link to="/onboarding" className="mt-3 inline-block">
             <button className="group inline-flex items-center px-8 py-3 text-lg font-medium rounded-full bg-white text-primary hover:bg-primary-light transition-all duration-500 transform hover:scale-105 shadow-lg">
               Start Evolving Today
             </button>
