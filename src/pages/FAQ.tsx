@@ -34,7 +34,7 @@ const FAQ = () => {
           answer: "Most agencies just \"manage\", we actually build your business. You get an entire team working for you 24/7: chatters keeping your fans engaged and spending, marketers bringing in new subs daily, and a support team that handles leaks, issues, and everything in between. We treat your page like our own because your success is literally our success."
         },
         {
-          question: "Is content creation on OF legal and ethical?",
+          question: "Is content creation on OF legal?",
           answer: "Absolutely. OnlyFans is a fully legal, regulated platform used by millions of creators worldwide to monetize their content on their own terms. Everything is consensual, you decide what you post, who sees it, and where your boundaries are. It's simply a business where you're in complete control of your brand, your content, and your income. Our agency ensures everything stays professional, protected, and aligned with platform guidelines at all times."
         }
       ]
