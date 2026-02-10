@@ -69,7 +69,7 @@ const Navigation = () => {
 
   return (
     <div className="w-full fixed top-0 z-50">
-      <nav className="transition-all duration-300 bg-transparent backdrop-blur-sm">
+      <nav className="transition-all duration-300 bg-white/5 backdrop-blur-xl border-b border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.12)]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex items-center ml-36 lg:ml-52">
@@ -145,7 +145,7 @@ const Navigation = () => {
 
           {/* Mobile menu */}
           {isOpen && (
-            <div className="md:hidden">
+            <div className="md:hidden bg-white/10 backdrop-blur-xl rounded-b-xl border-t border-white/10">
               <div className="pt-2 pb-3 space-y-1">
                 {finalMenuItems.map((item) => (
                   <button
@@ -160,8 +160,8 @@ const Navigation = () => {
                     }}
                     className={`block w-full text-left px-3 py-2 ${
                       location.pathname === item.href
-                        ? "text-primary-accent font-medium"
-                        : "text-gray-700 hover:text-primary-accent"
+                        ? "text-white font-medium"
+                        : "text-white/90 hover:text-white"
                     } flex items-center gap-2`}
                   >
                     {item.icon && <item.icon className="h-4 w-4" />}
@@ -175,7 +175,7 @@ const Navigation = () => {
                       logout();
                       setIsOpen(false);
                     }}
-                    className="w-full justify-start text-gray-700 hover:text-primary-accent hover:bg-transparent"
+                    className="w-full justify-start text-white/90 hover:text-white hover:bg-transparent"
                   >
                     <LogOut className="mr-2 h-4 w-4" />
                     Logout
@@ -184,7 +184,7 @@ const Navigation = () => {
                   <Link to="/auth" className="block" onClick={() => setIsOpen(false)}>
                     <Button
                       variant="ghost"
-                      className="w-full justify-start text-gray-700 hover:text-primary-accent hover:bg-transparent"
+                      className="w-full justify-start text-white/90 hover:text-white hover:bg-transparent"
                     >
                       <LogIn className="mr-2 h-4 w-4" />
                       Login

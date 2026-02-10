@@ -1,7 +1,6 @@
 import { useState } from "react";
-import { HelpCircle, Plus, Minus, Search, MessageCircle, Clock, Shield } from 'lucide-react';
+import { HelpCircle, Search, MessageCircle, Clock, Shield } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import BackButton from "@/components/BackButton";
 import { Button } from "@/components/ui/button";
 import {
   Accordion,
@@ -95,17 +94,16 @@ const FAQ = () => {
   })).filter(category => category.questions.length > 0);
 
   return (
-    <div className="min-h-screen">
-      <BackButton />
+    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-primary to-blue-900">
+      {/* Decorative backgrounds */}
+      <div className="fixed inset-0 pointer-events-none">
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl" />
+        <div className="absolute bottom-1/3 right-1/4 w-80 h-80 bg-blue-500/15 rounded-full blur-3xl" />
+        <div className="absolute top-2/3 left-1/2 w-72 h-72 bg-pink-500/10 rounded-full blur-3xl" />
+      </div>
+
       {/* Hero Section */}
-      <div className="relative py-24 overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary via-primary-accent to-accent">
-          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTQ0MCIgaGVpZ2h0PSI1MDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PGxpbmVhckdyYWRpZW50IHgxPSIwJSIgeTE9IjAlIiB4Mj0iMTAwJSIgeTI9IjEwMCUiIGlkPSJhIj48c3RvcCBzdG9wLWNvbG9yPSIjRkZGIiBzdG9wLW9wYWNpdHk9Ii4yNSIgb2Zmc2V0PSIwJSIvPjxzdG9wIHN0b3AtY29sb3I9IiNGRkYiIHN0b3Atb3BhY2l0eT0iMCIgb2Zmc2V0PSIxMDAlIi8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHBhdGggZD0iTTAgMGgxNDQwdjE4N0wxNzIuOCA0NjEuOCAwIDIyN3oiIGZpbGw9InVybCgjYSkiIGZpbGwtcnVsZT0iZXZlbm9kZCIgZmlsbC1vcGFjaXR5PSIuNCIvPjwvc3ZnPg==')] bg-cover bg-center opacity-50" />
-          <div className="absolute inset-0 bg-grid-white/[0.05] bg-[size:20px_20px]" />
-          <div className="absolute inset-0 bg-gradient-to-b from-transparent to-primary/20" />
-          <div className="absolute top-1/2 left-1/3 w-80 h-80 bg-white/10 rounded-full blur-3xl transform -translate-y-1/2" />
-          <div className="absolute bottom-1/3 right-1/4 w-72 h-72 bg-white/10 rounded-full blur-3xl" />
-        </div>
+      <div className="relative pt-24 pb-16 overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
           <div className="flex justify-center mb-6">
             <HelpCircle className="h-16 w-16 text-white animate-bounce" />
@@ -120,43 +118,43 @@ const FAQ = () => {
       </div>
 
       {/* Search Section */}
-      <section className="py-12 bg-white">
+      <section className="py-12 relative z-10">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="relative animate-fade-in">
-            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-white/50 h-5 w-5" />
             <input
               type="text"
               placeholder="Search for answers..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-12 pr-4 py-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200 text-lg"
+              className="w-full pl-12 pr-4 py-4 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl focus:ring-2 focus:ring-white/30 focus:border-transparent transition-all duration-200 text-lg text-white placeholder-white/50"
             />
           </div>
         </div>
       </section>
       
       {/* FAQ Categories */}
-      <section className="py-16 bg-gradient-to-b from-white to-gray-50">
+      <section className="py-16 relative z-10">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           {filteredFaqs.map((category, categoryIndex) => (
             <div key={category.category} className="mb-12 animate-fade-in" style={{ animationDelay: `${categoryIndex * 100}ms` }}>
-              <h2 className="text-2xl font-bold text-primary mb-8 text-center">{category.category}</h2>
+              <h2 className="text-2xl font-bold text-white mb-8 text-center">{category.category}</h2>
               <Accordion type="single" collapsible className="space-y-4">
                 {category.questions.map((faq, index) => (
                   <AccordionItem 
                     key={index} 
                     value={`${category.category}-${index}`}
-                    className="group bg-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 border-none overflow-hidden"
+                    className="group bg-white/10 backdrop-blur-md rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 border border-white/20 overflow-hidden"
                   >
                     <AccordionTrigger 
-                      className="px-8 py-6 text-left text-lg font-semibold text-primary group-hover:text-primary-accent transition-all duration-300 [&[data-state=open]>svg]:rotate-180"
+                      className="px-8 py-6 text-left text-lg font-semibold text-white group-hover:text-white/80 transition-all duration-300 [&[data-state=open]>svg]:rotate-180"
                     >
                       <div className="flex items-center w-full pr-4">
                         <span className="flex-1">{faq.question}</span>
                       </div>
                     </AccordionTrigger>
                     <AccordionContent className="px-8 pb-6">
-                      <div className="text-gray-600 leading-relaxed text-base">
+                      <div className="text-white/70 leading-relaxed text-base">
                         {faq.answer}
                       </div>
                     </AccordionContent>
@@ -168,43 +166,39 @@ const FAQ = () => {
           
           {filteredFaqs.length === 0 && (
             <div className="text-center py-12 animate-fade-in">
-              <HelpCircle className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-gray-600 mb-2">No results found</h3>
-              <p className="text-gray-500">Try searching with different keywords or browse our categories above.</p>
+              <HelpCircle className="h-16 w-16 text-white/40 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold text-white/80 mb-2">No results found</h3>
+              <p className="text-white/60">Try searching with different keywords or browse our categories above.</p>
             </div>
           )}
         </div>
       </section>
 
       {/* Quick Stats */}
-      <section className="py-16 bg-white">
+      <section className="py-16 relative z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
-            <div className="p-6 rounded-xl bg-gradient-to-br from-primary/10 to-primary-accent/10 animate-fade-in">
-              <Clock className="h-12 w-12 text-primary mx-auto mb-4" />
-              <h3 className="text-2xl font-bold text-primary mb-2">24/7</h3>
-              <p className="text-gray-600">Support Available</p>
+            <div className="p-6 rounded-xl bg-white/10 backdrop-blur-md border border-white/20 animate-fade-in">
+              <Clock className="h-12 w-12 text-white mx-auto mb-4" />
+              <h3 className="text-2xl font-bold text-white mb-2">24/7</h3>
+              <p className="text-white/70">Support Available</p>
             </div>
-            <div className="p-6 rounded-xl bg-gradient-to-br from-primary/10 to-primary-accent/10 animate-fade-in" style={{ animationDelay: '100ms' }}>
-              <MessageCircle className="h-12 w-12 text-primary mx-auto mb-4" />
-              <h3 className="text-2xl font-bold text-primary mb-2">&lt;24hrs</h3>
-              <p className="text-gray-600">Response Time</p>
+            <div className="p-6 rounded-xl bg-white/10 backdrop-blur-md border border-white/20 animate-fade-in" style={{ animationDelay: '100ms' }}>
+              <MessageCircle className="h-12 w-12 text-white mx-auto mb-4" />
+              <h3 className="text-2xl font-bold text-white mb-2">&lt;24hrs</h3>
+              <p className="text-white/70">Response Time</p>
             </div>
-            <div className="p-6 rounded-xl bg-gradient-to-br from-primary/10 to-primary-accent/10 animate-fade-in" style={{ animationDelay: '200ms' }}>
-              <Shield className="h-12 w-12 text-primary mx-auto mb-4" />
-              <h3 className="text-2xl font-bold text-primary mb-2">100%</h3>
-              <p className="text-gray-600">Confidential</p>
+            <div className="p-6 rounded-xl bg-white/10 backdrop-blur-md border border-white/20 animate-fade-in" style={{ animationDelay: '200ms' }}>
+              <Shield className="h-12 w-12 text-white mx-auto mb-4" />
+              <h3 className="text-2xl font-bold text-white mb-2">100%</h3>
+              <p className="text-white/70">Confidential</p>
             </div>
           </div>
         </div>
       </section>
 
       {/* CTA Section */}
-      <section className="py-24 bg-gradient-to-br from-primary via-primary-accent to-accent relative overflow-hidden">
-        <div className="absolute inset-0 bg-grid-white/[0.05] bg-[size:20px_20px]" />
-        <div className="absolute top-1/2 left-1/4 w-64 h-64 bg-white/10 rounded-full blur-3xl animate-float" />
-        <div className="absolute bottom-1/4 right-1/3 w-80 h-80 bg-white/20 rounded-full blur-3xl animate-float" style={{ animationDelay: '2s' }} />
-        <div className="absolute top-1/3 right-1/4 w-96 h-96 bg-white/10 rounded-full blur-3xl animate-float" style={{ animationDelay: '4s' }} />
+      <section className="py-24 relative overflow-hidden z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
           <h2 className="text-3xl md:text-4xl font-bold text-white mb-6 font-heading animate-fade-in">
             Still Have Questions?
