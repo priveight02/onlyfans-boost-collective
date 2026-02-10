@@ -10,6 +10,7 @@ import {
   Plus, Trash2, MessageSquare, Image, DollarSign, Clock,
   GitBranch, Save, Copy, Zap, HelpCircle, Send, Film, Tag,
   ChevronDown, ChevronUp, GripVertical, ArrowDown, Play, Eye,
+  Sparkles, Loader2,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -56,6 +57,7 @@ const ScriptBuilder = () => {
     title: "", description: "", category: "general", status: "draft", target_segment: "all", version: 1,
   });
   const [saving, setSaving] = useState(false);
+  const [generating, setGenerating] = useState(false);
 
   useEffect(() => { loadScripts(); }, []);
 
@@ -179,6 +181,62 @@ const ScriptBuilder = () => {
     if (data) selectScript(data);
   };
 
+  const generateFastScript = async () => {
+    setGenerating(true);
+    try {
+      const category = selectedScript?.category || "general";
+      const segment = selectedScript?.target_segment || "new_users";
+      const { data, error } = await supabase.functions.invoke("generate-script", {
+        body: { category, target_segment: segment },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      // If no script selected, create one first
+      if (!selectedScript?.id) {
+        const { data: newScriptData, error: createErr } = await supabase.from("scripts").insert({
+          title: data.title || "AI Generated Script",
+          description: data.description || "",
+          category,
+          target_segment: segment,
+        }).select().single();
+        if (createErr) throw createErr;
+        setSelectedScript(newScriptData);
+        // Save steps to DB
+        if (data.steps?.length > 0 && newScriptData) {
+          await supabase.from("script_steps").insert(
+            data.steps.map((s: any, i: number) => ({
+              script_id: newScriptData.id, step_order: i, step_type: s.step_type,
+              title: s.title || "", content: s.content || "",
+              media_url: s.media_url || "", media_type: s.media_type || "",
+              price: s.price || 0, delay_minutes: s.delay_minutes || 0,
+              condition_logic: s.condition_logic || {},
+            }))
+          );
+        }
+        await loadScripts();
+        if (newScriptData) await loadSteps(newScriptData.id);
+      } else {
+        // Update existing script with generated steps
+        const generatedSteps: ScriptStep[] = (data.steps || []).map((s: any, i: number) => ({
+          step_order: i, step_type: s.step_type || "message",
+          title: s.title || "", content: s.content || "",
+          media_url: s.media_url || "", media_type: s.media_type || "",
+          price: s.price || 0, delay_minutes: s.delay_minutes || 0,
+          condition_logic: s.condition_logic || {},
+          conversion_rate: 0, drop_off_rate: 0, revenue_generated: 0, impressions: 0,
+        }));
+        setSteps(generatedSteps);
+        if (data.title) setSelectedScript(p => p ? { ...p, title: data.title, description: data.description || p.description } : p);
+      }
+      toast.success("Script generated! Review and save.");
+    } catch (e: any) {
+      toast.error(e.message || "Failed to generate script");
+    } finally {
+      setGenerating(false);
+    }
+  };
+
   const totalPrice = steps.reduce((s, step) => s + (step.price || 0), 0);
   const paidSteps = steps.filter(s => s.price > 0);
 
@@ -189,9 +247,15 @@ const ScriptBuilder = () => {
           <h2 className="text-lg font-semibold text-white">Script Builder</h2>
           <p className="text-xs text-white/40">Design multi-step chat flows with branching & progressive pricing</p>
         </div>
-        <Dialog open={showNewDialog} onOpenChange={setShowNewDialog}>
-          <DialogTrigger asChild>
-            <Button size="sm" className="gap-1.5 bg-accent hover:bg-accent/80"><Plus className="h-3.5 w-3.5" /> New Script</Button>
+        <div className="flex items-center gap-2">
+          <Button size="sm" onClick={generateFastScript} disabled={generating}
+            className="gap-1.5 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white border-0">
+            {generating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+            {generating ? "Generating..." : "⚡ Generate Fast Script"}
+          </Button>
+          <Dialog open={showNewDialog} onOpenChange={setShowNewDialog}>
+            <DialogTrigger asChild>
+              <Button size="sm" className="gap-1.5 bg-accent hover:bg-accent/80"><Plus className="h-3.5 w-3.5" /> New Script</Button>
           </DialogTrigger>
           <DialogContent className="bg-[hsl(220,40%,13%)] border-white/10 text-white">
             <DialogHeader><DialogTitle>Create New Script</DialogTitle></DialogHeader>
@@ -215,7 +279,8 @@ const ScriptBuilder = () => {
               <Button onClick={createScript} className="w-full bg-accent hover:bg-accent/80">Create Script</Button>
             </div>
           </DialogContent>
-        </Dialog>
+          </Dialog>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
