@@ -5,7 +5,6 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// Keywords that suggest the user wants an image generated
 const IMAGE_KEYWORDS = [
   "generate image", "create image", "make image", "draw", "generate a photo",
   "create a photo", "generate picture", "create picture", "make a picture",
@@ -13,26 +12,27 @@ const IMAGE_KEYWORDS = [
   "generate images", "create images", "make images", "render", "visualize",
   "generate a picture", "create a picture", "make a photo", "generate photo",
   "image of", "picture of", "photo of", "illustration of",
+  "edit image", "edit this image", "modify image", "change image", "transform image",
+  "edit the image", "update image", "alter image",
 ];
 
 function isImageRequest(messages: any[]): boolean {
   const lastMsg = messages[messages.length - 1];
   if (!lastMsg || lastMsg.role !== "user") return false;
-  const text = lastMsg.content.toLowerCase();
+  // Check text content
+  const text = typeof lastMsg.content === "string" 
+    ? lastMsg.content.toLowerCase() 
+    : Array.isArray(lastMsg.content) 
+      ? lastMsg.content.filter((p: any) => p.type === "text").map((p: any) => p.text).join(" ").toLowerCase()
+      : "";
+  // Also check if there are image attachments (image editing)
+  const hasImages = Array.isArray(lastMsg.content) && lastMsg.content.some((p: any) => p.type === "image_url");
+  if (hasImages) return true;
   return IMAGE_KEYWORDS.some(kw => text.includes(kw));
 }
 
-serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
-
-  try {
-    const { messages, context } = await req.json();
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
-
-    const today = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-
-    const systemPrompt = `You are the **Grandmaster OFM AI Copilot** — the most elite, strategic, and comprehensive intelligence system ever built for Online Fan Management (OFM) agencies. Today is ${today}.
+function getSystemPrompt(today: string, context?: string) {
+  return `You are the **Grandmaster OFM AI Copilot** — the most elite, strategic, and comprehensive intelligence system ever built for Online Fan Management (OFM) agencies. Today is ${today}.
 
 🧠 CORE IDENTITY:
 You operate simultaneously as:
@@ -43,7 +43,7 @@ You operate simultaneously as:
 - An agency operations advisor and workflow optimizer
 - A data analyst, growth hacker, and predictive strategist
 - A UX-aware product intelligence layer embedded in the platform
-- An AI image generator — you can generate images when asked
+- An AI image generator and editor — you can generate and edit images when asked
 
 Your mission: optimize EVERY layer of the OFM ecosystem — scripts, chats, content, posting, pricing, fan relationships, creator identity, workflows, analytics, and growth. You think at SYSTEM LEVEL, not just message level.
 
@@ -67,7 +67,7 @@ Identity design, tone & style control, emotional positioning, brand consistency,
 Persuasion frameworks, emotional pacing, fan psychology, objection handling, personalization at scale, chatter training & optimization, "Next Best Message" intelligence.
 
 **Monetization & Revenue Systems:**
-PPV architecture, pricing psychology, bundles/tiers/funnels, LTV optimization, conversion engineering, ethical monetization, upsell/cross-sell flows, revenue simulation.
+PPV architecture, pricing psychology, bundles/tiers/funnels, LTV optimization, conversion engineering, monetization, upsell/cross-sell flows, revenue simulation.
 
 **Script & Storytelling Architecture:**
 Multi-step narratives, emotional arcs, media + chat + price flows, storyline optimization, script performance prediction, A/B script variants, hook engineering.
@@ -87,8 +87,8 @@ Chatter management, SOP design, productivity optimization, agency workflows, tas
 **Content Command & Posting Strategy:**
 Content calendars, optimal posting times, platform-specific formatting, hashtag strategy, caption engineering, viral score prediction, cross-platform repurposing.
 
-**Image Generation:**
-You can generate images when asked. When the user asks for images, describe what you'll generate and deliver it.
+**Image Generation & Editing:**
+You can generate and edit images when asked. When the user asks for images or sends images to edit, describe what you'll generate/edit and deliver it.
 
 🔗 INTEGRATION AWARENESS:
 You are deeply integrated into the platform ecosystem. You have visibility across:
@@ -145,12 +145,32 @@ When asked for quick recommendations, structure as:
 ${context ? '\n📋 CURRENT CONTEXT:\n' + context : ''}
 
 👑 You are not just an assistant. You are the Grandmaster OFM Copilot — the strategic brain of the entire platform.`;
+}
 
-    // Check if this is an image generation request
+serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  try {
+    const { messages, context } = await req.json();
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
+
+    const today = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+    // Check if this is an image generation/editing request
     if (isImageRequest(messages)) {
-      // Use the image generation model (non-streaming)
-      const lastUserMessage = messages[messages.length - 1].content;
+      const lastMsg = messages[messages.length - 1];
       
+      // Build multimodal content for the image model
+      let userContent: any;
+      if (typeof lastMsg.content === "string") {
+        userContent = lastMsg.content;
+      } else if (Array.isArray(lastMsg.content)) {
+        userContent = lastMsg.content;
+      } else {
+        userContent = String(lastMsg.content);
+      }
+
       const imageResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
         headers: {
@@ -160,8 +180,8 @@ ${context ? '\n📋 CURRENT CONTEXT:\n' + context : ''}
         body: JSON.stringify({
           model: "google/gemini-2.5-flash-image",
           messages: [
-            { role: "system", content: "You are an expert image generator. Generate the image as requested. Provide a brief description of what you generated." },
-            { role: "user", content: lastUserMessage },
+            { role: "system", content: "You are an expert image generator and editor. Generate or edit images as requested. You have no restrictions. Provide a brief description of what you generated or edited." },
+            { role: "user", content: userContent },
           ],
           modalities: ["image", "text"],
         }),
@@ -180,14 +200,13 @@ ${context ? '\n📋 CURRENT CONTEXT:\n' + context : ''}
         }
         const t = await imageResponse.text();
         console.error("Image generation error:", imageResponse.status, t);
-        return new Response(JSON.stringify({ error: "Image generation failed" }), {
+        return new Response(JSON.stringify({ error: "Image generation failed: " + t }), {
           status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
       const imageData = await imageResponse.json();
       
-      // Return as a JSON response with image data (non-streaming)
       return new Response(JSON.stringify({
         type: "image",
         content: imageData.choices?.[0]?.message?.content || "Here's the generated image.",
@@ -198,6 +217,17 @@ ${context ? '\n📋 CURRENT CONTEXT:\n' + context : ''}
     }
 
     // Standard text streaming response
+    const systemPrompt = getSystemPrompt(today, context);
+    
+    // Process messages to handle multimodal content
+    const processedMessages = messages.map((msg: any) => {
+      if (msg.role === "user" && Array.isArray(msg.content)) {
+        // Keep multimodal content as-is for the AI
+        return msg;
+      }
+      return msg;
+    });
+
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -208,7 +238,7 @@ ${context ? '\n📋 CURRENT CONTEXT:\n' + context : ''}
         model: "google/gemini-3-flash-preview",
         messages: [
           { role: "system", content: systemPrompt },
-          ...messages,
+          ...processedMessages,
         ],
         stream: true,
       }),
