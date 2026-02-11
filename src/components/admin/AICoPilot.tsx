@@ -4,11 +4,14 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
 import {
   Bot, Send, Plus, Trash2, Loader2, Sparkles, Brain, MessageSquare,
   Zap, Target, TrendingUp, DollarSign, Users, Clock,
-  Paperclip, Download, X, FileText, Music, Play,
+  Paperclip, Download, X, FileText, Music, Play, Pause,
   Pencil, RotateCcw, Copy, Check, RefreshCw, ChevronDown,
+  Image as ImageIcon, Video, Mic, Wand2, Volume2, Upload, Trash,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -29,32 +32,46 @@ type Msg = {
   content: string;
   images?: { type: string; image_url: { url: string } }[];
   attachments?: Attachment[];
+  audioUrl?: string;
 };
 
-interface DraftState {
-  convoId: string | null;
-  input: string;
-  attachments: Attachment[];
+interface Voice {
+  id: string;
+  name: string;
+  description: string | null;
+  elevenlabs_voice_id: string | null;
+  is_preset: boolean | null;
+  sample_urls: string[] | null;
+  preview_url: string | null;
 }
 
+type CopilotMode = "chat" | "image" | "video" | "audio" | "freeWill";
+
 const DRAFT_KEY = "copilot_draft";
+const MAX_ATTACHMENTS = 20;
+const MAX_FILE_SIZE = 20 * 1024 * 1024;
 
 const QUICK_PROMPTS = [
   { label: "Daily Action Plan", icon: Target, prompt: "Give me today's agency action plan. What should I focus on for maximum revenue? Prioritize by impact." },
-  { label: "Revenue Opportunities", icon: DollarSign, prompt: "Analyze my current creators and identify the top 5 untapped revenue opportunities. Be specific with numbers and strategies." },
-  { label: "Script Strategy", icon: Zap, prompt: "What types of scripts should I create this week? Consider fan psychology, current trends, and conversion optimization." },
-  { label: "Weak Points", icon: TrendingUp, prompt: "What are the biggest weak points in my agency's current strategy? Be brutally honest and provide fixes." },
+  { label: "Revenue Opportunities", icon: DollarSign, prompt: "Analyze my current creators and identify the top 5 untapped revenue opportunities." },
+  { label: "Script Strategy", icon: Zap, prompt: "What types of scripts should I create this week? Consider fan psychology and conversion optimization." },
+  { label: "Weak Points", icon: TrendingUp, prompt: "What are the biggest weak points in my agency's current strategy? Be brutally honest." },
   { label: "Fan Retention", icon: Users, prompt: "What retention strategies should I implement right now to reduce churn? Give me 5 actionable steps." },
-  { label: "Content Calendar", icon: Clock, prompt: "Create a 7-day content calendar for my top creator. Include post ideas, platforms, and optimal posting times." },
+  { label: "Content Calendar", icon: Clock, prompt: "Create a 7-day content calendar for my top creator with post ideas and optimal posting times." },
 ];
 
-const MAX_ATTACHMENTS = 20;
-const MAX_FILE_SIZE = 20 * 1024 * 1024;
+const MODE_CONFIG = [
+  { id: "chat" as CopilotMode, label: "Chat", icon: MessageSquare },
+  { id: "image" as CopilotMode, label: "Image", icon: ImageIcon },
+  { id: "video" as CopilotMode, label: "Video", icon: Video },
+  { id: "audio" as CopilotMode, label: "Audio", icon: Volume2 },
+  { id: "freeWill" as CopilotMode, label: "Free Will", icon: Wand2 },
+];
 
 const saveDraft = (convoId: string | null, input: string, attachments: Attachment[]) => {
   try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ convoId, input, attachments })); } catch {}
 };
-const loadDraftData = (): DraftState | null => {
+const loadDraftData = () => {
   try { const raw = localStorage.getItem(DRAFT_KEY); return raw ? JSON.parse(raw) : null; } catch { return null; }
 };
 const clearDraft = () => { try { localStorage.removeItem(DRAFT_KEY); } catch {} };
@@ -81,9 +98,23 @@ const AICoPilot = () => {
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
   const [editAttachments, setEditAttachments] = useState<Attachment[]>([]);
+  const [mode, setMode] = useState<CopilotMode>("chat");
+  const [voices, setVoices] = useState<Voice[]>([]);
+  const [selectedVoice, setSelectedVoice] = useState<string>("");
+  const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
+  const [voiceSamples, setVoiceSamples] = useState<File[]>([]);
+  const [newVoiceName, setNewVoiceName] = useState("");
+  const [isCloningVoice, setIsCloningVoice] = useState(false);
+  const [playingPreview, setPlayingPreview] = useState<string | null>(null);
+  const [showVoiceManager, setShowVoiceManager] = useState(false);
+  const [imagePrompt, setImagePrompt] = useState("");
+  const [videoPrompt, setVideoPrompt] = useState("");
+  const [audioText, setAudioText] = useState("");
   const editFileInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const voiceSampleInputRef = useRef<HTMLInputElement>(null);
+  const previewAudioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => { loadData(); }, []);
 
@@ -93,12 +124,15 @@ const AICoPilot = () => {
   }, [input, attachments, activeConvoId, draftRestored]);
 
   const loadData = async () => {
-    const [convos, accts] = await Promise.all([
+    const [convos, accts, voicesData] = await Promise.all([
       supabase.from("copilot_conversations").select("*").order("updated_at", { ascending: false }),
       supabase.from("managed_accounts").select("id, username, display_name, monthly_revenue, subscriber_count, status"),
+      supabase.from("copilot_voices").select("*").order("is_preset", { ascending: false }).order("name"),
     ]);
     setConversations(convos.data || []);
     setAccounts(accts.data || []);
+    setVoices((voicesData.data as Voice[]) || []);
+    if (voicesData.data?.length) setSelectedVoice(voicesData.data[0].id);
 
     const draft = loadDraftData();
     if (draft) {
@@ -151,7 +185,7 @@ const AICoPilot = () => {
       const acct = accounts.find(a => a.id === contextAccount);
       if (acct) parts.push(`Focused on: ${acct.display_name || acct.username} ($${acct.monthly_revenue}/mo, ${acct.subscriber_count} subs, ${acct.status})`);
     }
-    if (accounts.length > 0) parts.push(`Agency: ${accounts.length} creators, $${accounts.reduce((s, a) => s + (a.monthly_revenue || 0), 0).toLocaleString()}/mo`);
+    if (accounts.length > 0) parts.push(`Agency: ${accounts.length} creators, $${accounts.reduce((s: number, a: any) => s + (a.monthly_revenue || 0), 0).toLocaleString()}/mo`);
     return parts.join("\n");
   };
 
@@ -192,11 +226,20 @@ const AICoPilot = () => {
     ));
   };
 
+  const buildApiContent = (text: string, atts?: Attachment[]): any => {
+    if (!atts || atts.length === 0) return text;
+    const parts: any[] = [];
+    if (text) parts.push({ type: "text", text });
+    for (const att of atts) {
+      if (att.type === "image") parts.push({ type: "image_url", image_url: { url: att.url } });
+      else parts.push({ type: "text", text: `[Attached ${att.type}: ${att.name} - ${att.url}]` });
+    }
+    return parts;
+  };
+
   const streamResponse = async (apiMessages: any[], convoId: string, baseMessages: Msg[], msgText: string) => {
     setIsStreaming(true);
     let assistantSoFar = "";
-
-    // Show immediate typing indicator as an assistant message
     setMessages([...baseMessages, { role: "assistant", content: "▍" }]);
     scrollToBottom();
 
@@ -215,10 +258,8 @@ const AICoPilot = () => {
       const contentType = resp.headers.get("content-type") || "";
 
       if (contentType.includes("application/json")) {
-        // Image generation — show generating status
-        setMessages([...baseMessages, { role: "assistant", content: "🎨 Generating highest quality image... This may take a moment." }]);
+        setMessages([...baseMessages, { role: "assistant", content: "🎨 Generating..." }]);
         scrollToBottom();
-
         const data = await resp.json();
         if (data.type === "image") {
           const assistantMsg: Msg = { role: "assistant", content: data.content || "Here's the generated image.", images: data.images || [] };
@@ -243,38 +284,27 @@ const AICoPilot = () => {
           while ((newlineIndex = textBuffer.indexOf("\n")) !== -1) {
             let line = textBuffer.slice(0, newlineIndex);
             textBuffer = textBuffer.slice(newlineIndex + 1);
-
             if (line.endsWith("\r")) line = line.slice(0, -1);
             if (line.startsWith(":") || line.trim() === "") continue;
             if (!line.startsWith("data: ")) continue;
-
             const jsonStr = line.slice(6).trim();
             if (jsonStr === "[DONE]") { streamDone = true; break; }
-
             try {
-              const parsed = JSON.parse(jsonStr);
-              const content = parsed.choices?.[0]?.delta?.content as string | undefined;
+              const content = JSON.parse(jsonStr).choices?.[0]?.delta?.content as string | undefined;
               if (content) {
                 assistantSoFar += content;
                 const snapshot = assistantSoFar;
                 setMessages(prev => {
                   const last = prev[prev.length - 1];
-                  if (last?.role === "assistant") {
-                    return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: snapshot } : m);
-                  }
+                  if (last?.role === "assistant") return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: snapshot } : m);
                   return [...prev, { role: "assistant", content: snapshot }];
                 });
                 scrollToBottom();
               }
-            } catch {
-              // Incomplete JSON — put back and wait for more data
-              textBuffer = line + "\n" + textBuffer;
-              break;
-            }
+            } catch { textBuffer = line + "\n" + textBuffer; break; }
           }
         }
 
-        // Flush remaining buffer
         if (textBuffer.trim()) {
           for (let raw of textBuffer.split("\n")) {
             if (!raw) continue;
@@ -283,10 +313,7 @@ const AICoPilot = () => {
             if (!raw.startsWith("data: ")) continue;
             const jsonStr = raw.slice(6).trim();
             if (jsonStr === "[DONE]") continue;
-            try {
-              const content = JSON.parse(jsonStr).choices?.[0]?.delta?.content;
-              if (content) assistantSoFar += content;
-            } catch {}
+            try { const c = JSON.parse(jsonStr).choices?.[0]?.delta?.content; if (c) assistantSoFar += c; } catch {}
           }
         }
 
@@ -327,7 +354,6 @@ const AICoPilot = () => {
     setMessages(newMessages);
     scrollToBottom();
 
-    // Auto-create conversation if none active
     let convoId = activeConvoId;
     if (!convoId) {
       convoId = await createConvo(newMessages, msgText.slice(0, 50));
@@ -336,23 +362,9 @@ const AICoPilot = () => {
 
     const apiMessages = messages.map(m => ({ role: m.role, content: buildApiContent(m.content, m.attachments) }));
     apiMessages.push({ role: "user", content: apiContent } as any);
-
     await streamResponse(apiMessages, convoId, newMessages, msgText);
   };
 
-  // Build multimodal API content from text + attachments
-  const buildApiContent = (text: string, atts?: Attachment[]): any => {
-    if (!atts || atts.length === 0) return text;
-    const parts: any[] = [];
-    if (text) parts.push({ type: "text", text });
-    for (const att of atts) {
-      if (att.type === "image") parts.push({ type: "image_url", image_url: { url: att.url } });
-      else parts.push({ type: "text", text: `[Attached ${att.type}: ${att.name} - ${att.url}]` });
-    }
-    return parts;
-  };
-
-  // Edit a user message and regenerate from that point
   const handleEditMessage = async (idx: number) => {
     if (isStreaming || !editText.trim()) return;
     const newContent = editText.trim();
@@ -360,34 +372,26 @@ const AICoPilot = () => {
     setEditingIdx(null);
     setEditText("");
     setEditAttachments([]);
-
     const truncated = messages.slice(0, idx);
     const editedMsg: Msg = { ...messages[idx], content: newContent, attachments: editAtts };
     const newMessages = [...truncated, editedMsg];
     setMessages(newMessages);
     scrollToBottom();
-
     const convoId = activeConvoId;
     if (!convoId) return;
-
     const apiMessages = truncated.map(m => ({ role: m.role, content: buildApiContent(m.content, m.attachments) }));
     apiMessages.push({ role: "user", content: buildApiContent(newContent, editAtts) });
-
     await streamResponse(apiMessages, convoId, newMessages, newContent);
   };
 
-  // Revert conversation to a specific message index (inclusive)
   const handleRevertTo = async (idx: number) => {
     if (isStreaming) return;
     const truncated = messages.slice(0, idx + 1);
     setMessages(truncated);
-    if (activeConvoId) {
-      await saveConversation(activeConvoId, truncated);
-    }
+    if (activeConvoId) await saveConversation(activeConvoId, truncated);
     toast.success("Reverted to this point");
   };
 
-  // Regenerate the last assistant response
   const handleRegenerate = async () => {
     if (isStreaming || messages.length < 2) return;
     let lastUserIdx = -1;
@@ -395,25 +399,185 @@ const AICoPilot = () => {
       if (messages[i].role === "user") { lastUserIdx = i; break; }
     }
     if (lastUserIdx === -1) return;
-
     const truncated = messages.slice(0, lastUserIdx + 1);
     setMessages(truncated);
     scrollToBottom();
-
     const convoId = activeConvoId;
     if (!convoId) return;
-
     const apiMessages = truncated.map(m => ({ role: m.role, content: buildApiContent(m.content, m.attachments) }));
     await streamResponse(apiMessages, convoId, truncated, truncated[lastUserIdx].content);
   };
 
-  // Copy message content
   const handleCopy = (idx: number) => {
     navigator.clipboard.writeText(messages[idx].content);
     setCopiedIdx(idx);
     setTimeout(() => setCopiedIdx(null), 2000);
   };
 
+  // ---- Audio generation ----
+  const generateAudio = async () => {
+    if (!audioText.trim() || !selectedVoice) return;
+    setIsGeneratingAudio(true);
+    try {
+      const voice = voices.find(v => v.id === selectedVoice);
+      if (!voice?.elevenlabs_voice_id) { toast.error("Selected voice has no ElevenLabs ID"); return; }
+
+      const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/elevenlabs-tts`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({ text: audioText, voiceId: voice.elevenlabs_voice_id }),
+      });
+
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error(err.error || "TTS failed");
+      }
+
+      const blob = await resp.blob();
+      const audioUrl = URL.createObjectURL(blob);
+
+      // Add to chat as assistant message
+      const userMsg: Msg = { role: "user", content: `🔊 Generate audio: "${audioText}" (voice: ${voice.name})` };
+      const assistantMsg: Msg = { role: "assistant", content: `Here's the generated audio with **${voice.name}** voice:`, audioUrl };
+      const newMessages = [...messages, userMsg, assistantMsg];
+      setMessages(newMessages);
+      scrollToBottom();
+
+      let convoId = activeConvoId;
+      if (!convoId) {
+        convoId = await createConvo(newMessages, `Audio: ${audioText.slice(0, 40)}`);
+      } else {
+        await saveConversation(convoId, newMessages, audioText);
+      }
+      setAudioText("");
+      toast.success("Audio generated!");
+    } catch (e: any) {
+      toast.error(e.message || "Audio generation failed");
+    } finally {
+      setIsGeneratingAudio(false);
+    }
+  };
+
+  // ---- Voice cloning ----
+  const handleCloneVoice = async () => {
+    if (!newVoiceName.trim() || voiceSamples.length === 0) {
+      toast.error("Provide a name and at least one audio sample (30s+ recommended)");
+      return;
+    }
+    setIsCloningVoice(true);
+    try {
+      // Upload samples
+      const sampleUrls: string[] = [];
+      for (const file of voiceSamples) {
+        const path = `voice-samples/${crypto.randomUUID()}.${file.name.split(".").pop() || "mp3"}`;
+        const { error } = await supabase.storage.from("copilot-attachments").upload(path, file);
+        if (error) throw new Error(`Upload failed: ${file.name}`);
+        const { data: urlData } = supabase.storage.from("copilot-attachments").getPublicUrl(path);
+        sampleUrls.push(urlData.publicUrl);
+      }
+
+      // Call clone endpoint
+      const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/elevenlabs-tts`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({ action: "clone", text: newVoiceName, samples: sampleUrls }),
+      });
+
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error(err.error || "Clone failed");
+      }
+
+      const { voice_id } = await resp.json();
+
+      // Save to database
+      const { data: newVoice, error } = await supabase.from("copilot_voices").insert({
+        name: newVoiceName,
+        description: `Cloned from ${voiceSamples.length} sample(s)`,
+        elevenlabs_voice_id: voice_id,
+        sample_urls: sampleUrls,
+        is_preset: false,
+      }).select().single();
+
+      if (error) throw error;
+      setVoices(prev => [...prev, newVoice as Voice]);
+      setSelectedVoice(newVoice!.id);
+      setNewVoiceName("");
+      setVoiceSamples([]);
+      toast.success(`Voice "${newVoiceName}" cloned successfully!`);
+    } catch (e: any) {
+      toast.error(e.message || "Voice cloning failed");
+    } finally {
+      setIsCloningVoice(false);
+    }
+  };
+
+  const deleteVoice = async (voiceId: string) => {
+    const { error } = await supabase.from("copilot_voices").delete().eq("id", voiceId);
+    if (error) { toast.error("Delete failed"); return; }
+    setVoices(prev => prev.filter(v => v.id !== voiceId));
+    if (selectedVoice === voiceId) setSelectedVoice(voices[0]?.id || "");
+    toast.success("Voice deleted");
+  };
+
+  const playVoicePreview = async (voice: Voice) => {
+    if (playingPreview === voice.id) {
+      previewAudioRef.current?.pause();
+      setPlayingPreview(null);
+      return;
+    }
+    if (!voice.elevenlabs_voice_id) return;
+    setPlayingPreview(voice.id);
+    try {
+      const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/elevenlabs-tts`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({ text: "Hello, this is a preview of my voice.", voiceId: voice.elevenlabs_voice_id }),
+      });
+      if (!resp.ok) throw new Error("Preview failed");
+      const blob = await resp.blob();
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      previewAudioRef.current = audio;
+      audio.onended = () => setPlayingPreview(null);
+      await audio.play();
+    } catch {
+      toast.error("Preview failed");
+      setPlayingPreview(null);
+    }
+  };
+
+  // Send mode-specific prompt
+  const sendModePrompt = (modeOverride?: CopilotMode) => {
+    const m = modeOverride || mode;
+    if (m === "image") {
+      if (!imagePrompt.trim()) return;
+      sendMessage(`Generate an image: ${imagePrompt}`);
+      setImagePrompt("");
+    } else if (m === "video") {
+      if (!videoPrompt.trim()) return;
+      sendMessage(`Generate a video: ${videoPrompt}`);
+      setVideoPrompt("");
+    } else if (m === "audio") {
+      generateAudio();
+    } else {
+      sendMessage();
+    }
+  };
+
+  // ---- Render helpers ----
   const renderPendingAttachments = () => {
     if (attachments.length === 0) return null;
     return (
@@ -422,13 +586,10 @@ const AICoPilot = () => {
           {attachments.map((att, i) => (
             <div key={i} className="relative group rounded-lg overflow-hidden border border-white/10 bg-white/5">
               {att.type === "image" ? (
-                <div className="relative w-[100px] h-[80px]">
-                  <img src={att.url} alt={att.name} className="w-full h-full object-cover" />
-                </div>
+                <div className="relative w-[100px] h-[80px]"><img src={att.url} alt={att.name} className="w-full h-full object-cover" /></div>
               ) : att.type === "video" ? (
                 <div className="relative w-[100px] h-[80px] bg-black/40 flex items-center justify-center">
-                  <video src={att.url} className="w-full h-full object-cover" muted />
-                  <Play className="absolute h-6 w-6 text-white/70" />
+                  <video src={att.url} className="w-full h-full object-cover" muted /><Play className="absolute h-6 w-6 text-white/70" />
                 </div>
               ) : (
                 <div className="flex items-center gap-2 px-2.5 py-2 w-[140px]">
@@ -446,7 +607,6 @@ const AICoPilot = () => {
             </div>
           ))}
         </div>
-        <p className="text-[9px] text-white/20 mt-1.5">{attachments.length}/{MAX_ATTACHMENTS}</p>
       </div>
     );
   };
@@ -469,53 +629,181 @@ const AICoPilot = () => {
     </div>
   );
 
-  // Message action toolbar (ChatGPT/Gemini style)
   const renderMessageActions = (msg: Msg, idx: number) => {
     const isUser = msg.role === "user";
-    const isLast = idx === messages.length - 1;
-    const isLastAssistant = !isUser && isLast;
-
+    const isLastAssistant = !isUser && idx === messages.length - 1;
     return (
       <div className={`flex items-center gap-0.5 mt-1 transition-opacity ${hoveredIdx === idx ? "opacity-100" : "opacity-0"}`}>
-        {/* Copy */}
-        <Button size="sm" variant="ghost" onClick={() => handleCopy(idx)}
-          className="h-6 w-6 p-0 text-white/30 hover:text-white hover:bg-white/10" title="Copy">
+        <Button size="sm" variant="ghost" onClick={() => handleCopy(idx)} className="h-6 w-6 p-0 text-white/30 hover:text-white hover:bg-white/10" title="Copy">
           {copiedIdx === idx ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
         </Button>
-
-        {/* Edit (user messages only) */}
         {isUser && (
           <Button size="sm" variant="ghost" onClick={() => { setEditingIdx(idx); setEditText(msg.content); setEditAttachments(msg.attachments ? [...msg.attachments] : []); }}
-            className="h-6 w-6 p-0 text-white/30 hover:text-white hover:bg-white/10" title="Edit">
-            <Pencil className="h-3 w-3" />
-          </Button>
+            className="h-6 w-6 p-0 text-white/30 hover:text-white hover:bg-white/10" title="Edit"><Pencil className="h-3 w-3" /></Button>
         )}
-
-        {/* Regenerate (last assistant message) */}
         {isLastAssistant && (
-          <Button size="sm" variant="ghost" onClick={handleRegenerate}
-            className="h-6 w-6 p-0 text-white/30 hover:text-white hover:bg-white/10" title="Regenerate">
-            <RefreshCw className="h-3 w-3" />
-          </Button>
+          <Button size="sm" variant="ghost" onClick={handleRegenerate} className="h-6 w-6 p-0 text-white/30 hover:text-white hover:bg-white/10" title="Regenerate"><RefreshCw className="h-3 w-3" /></Button>
         )}
-
-        {/* Revert to this point */}
         {idx < messages.length - 1 && (
-          <Button size="sm" variant="ghost" onClick={() => handleRevertTo(idx)}
-            className="h-6 w-6 p-0 text-white/30 hover:text-white hover:bg-white/10" title="Revert to here">
-            <RotateCcw className="h-3 w-3" />
-          </Button>
+          <Button size="sm" variant="ghost" onClick={() => handleRevertTo(idx)} className="h-6 w-6 p-0 text-white/30 hover:text-white hover:bg-white/10" title="Revert"><RotateCcw className="h-3 w-3" /></Button>
         )}
       </div>
     );
   };
+
+  // ---- Mode-specific panels ----
+  const renderImagePanel = () => (
+    <div className="p-4 space-y-3">
+      <div className="flex items-center gap-2 mb-2">
+        <ImageIcon className="h-5 w-5 text-pink-400" />
+        <p className="text-sm font-medium text-white">Image Generation</p>
+      </div>
+      <p className="text-[11px] text-white/40">Describe what you want to generate. The AI will create it for you.</p>
+      <Textarea value={imagePrompt} onChange={e => setImagePrompt(e.target.value)}
+        placeholder="A cyberpunk cityscape at sunset with neon lights..."
+        className="bg-white/5 border-white/10 text-white text-sm min-h-[100px] resize-none placeholder:text-white/20"
+        onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendModePrompt("image"); } }}
+      />
+      <Button onClick={() => sendModePrompt("image")} disabled={!imagePrompt.trim() || isStreaming}
+        className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white">
+        {isStreaming ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <ImageIcon className="h-4 w-4 mr-2" />}
+        Generate Image
+      </Button>
+    </div>
+  );
+
+  const renderVideoPanel = () => (
+    <div className="p-4 space-y-3">
+      <div className="flex items-center gap-2 mb-2">
+        <Video className="h-5 w-5 text-blue-400" />
+        <p className="text-sm font-medium text-white">Video Generation</p>
+      </div>
+      <p className="text-[11px] text-white/40">Describe the video you want. Include motion, camera, and style details.</p>
+      <Textarea value={videoPrompt} onChange={e => setVideoPrompt(e.target.value)}
+        placeholder="A slow zoom into a tropical beach with waves..."
+        className="bg-white/5 border-white/10 text-white text-sm min-h-[100px] resize-none placeholder:text-white/20"
+        onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendModePrompt("video"); } }}
+      />
+      <Button onClick={() => sendModePrompt("video")} disabled={!videoPrompt.trim() || isStreaming}
+        className="w-full bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white">
+        {isStreaming ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Video className="h-4 w-4 mr-2" />}
+        Generate Video
+      </Button>
+    </div>
+  );
+
+  const renderAudioPanel = () => (
+    <div className="p-4 space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Volume2 className="h-5 w-5 text-emerald-400" />
+          <p className="text-sm font-medium text-white">Audio Generation</p>
+        </div>
+        <Button size="sm" variant="ghost" onClick={() => setShowVoiceManager(!showVoiceManager)}
+          className="text-[10px] text-white/40 hover:text-white h-7 px-2">
+          {showVoiceManager ? "Hide Voices" : "Manage Voices"}
+        </Button>
+      </div>
+
+      {showVoiceManager && (
+        <div className="space-y-3 bg-white/[0.03] rounded-xl p-3 border border-white/[0.06]">
+          <p className="text-[11px] font-medium text-white/60">🎙 Voice Library</p>
+          <ScrollArea className="max-h-[200px]">
+            <div className="space-y-1.5">
+              {voices.map(v => (
+                <div key={v.id} className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer transition-all ${
+                  selectedVoice === v.id ? "bg-accent/20 border border-accent/30" : "bg-white/[0.03] hover:bg-white/[0.06] border border-transparent"
+                }`} onClick={() => setSelectedVoice(v.id)}>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[11px] text-white font-medium truncate">{v.name}</p>
+                    <p className="text-[9px] text-white/30 truncate">{v.description || (v.is_preset ? "Preset" : "Custom")}</p>
+                  </div>
+                  <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); playVoicePreview(v); }}
+                    className="h-6 w-6 p-0 text-white/30 hover:text-white shrink-0">
+                    {playingPreview === v.id ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
+                  </Button>
+                  {!v.is_preset && (
+                    <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); deleteVoice(v.id); }}
+                      className="h-6 w-6 p-0 text-white/20 hover:text-red-400 shrink-0"><Trash className="h-3 w-3" /></Button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </ScrollArea>
+
+          {/* Clone new voice */}
+          <div className="pt-2 border-t border-white/[0.06] space-y-2">
+            <p className="text-[10px] font-medium text-white/50">Clone New Voice</p>
+            <Input value={newVoiceName} onChange={e => setNewVoiceName(e.target.value)}
+              placeholder="Voice name..."
+              className="bg-white/5 border-white/10 text-white text-xs h-8 placeholder:text-white/20" />
+            <div className="flex items-center gap-2">
+              <input ref={voiceSampleInputRef} type="file" multiple accept="audio/*" className="hidden"
+                onChange={e => { const files = Array.from(e.target.files || []); setVoiceSamples(prev => [...prev, ...files]); }}
+              />
+              <Button size="sm" variant="outline" onClick={() => voiceSampleInputRef.current?.click()}
+                className="text-[10px] h-7 border-white/10 text-white/50 hover:text-white hover:bg-white/5">
+                <Upload className="h-3 w-3 mr-1" /> Upload Samples
+              </Button>
+              {voiceSamples.length > 0 && (
+                <span className="text-[9px] text-white/30">{voiceSamples.length} file(s)</span>
+              )}
+            </div>
+            {voiceSamples.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {voiceSamples.map((f, i) => (
+                  <Badge key={i} variant="outline" className="text-[8px] border-white/10 text-white/40 gap-1">
+                    <Music className="h-2.5 w-2.5" /> {f.name.slice(0, 20)}
+                    <button onClick={() => setVoiceSamples(prev => prev.filter((_, j) => j !== i))} className="ml-0.5 hover:text-red-400">
+                      <X className="h-2 w-2" />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+            )}
+            <Button size="sm" onClick={handleCloneVoice} disabled={isCloningVoice || !newVoiceName.trim() || voiceSamples.length === 0}
+              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] h-8">
+              {isCloningVoice ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Mic className="h-3 w-3 mr-1" />}
+              Clone Voice
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Voice selection */}
+      <Select value={selectedVoice} onValueChange={setSelectedVoice}>
+        <SelectTrigger className="bg-white/5 border-white/10 text-white h-9 text-xs">
+          <SelectValue placeholder="Choose a voice..." />
+        </SelectTrigger>
+        <SelectContent className="bg-[hsl(220,40%,10%)] border-white/10 max-h-[300px]">
+          {voices.map(v => (
+            <SelectItem key={v.id} value={v.id} className="text-white text-xs">
+              {v.name} {v.is_preset ? "" : "🎙"} — <span className="text-white/30">{v.description}</span>
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      {/* Text to speak */}
+      <Textarea value={audioText} onChange={e => setAudioText(e.target.value)}
+        placeholder="Type what you want the voice to say..."
+        className="bg-white/5 border-white/10 text-white text-sm min-h-[80px] resize-none placeholder:text-white/20"
+        onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); generateAudio(); } }}
+      />
+      <Button onClick={generateAudio} disabled={!audioText.trim() || !selectedVoice || isGeneratingAudio}
+        className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white">
+        {isGeneratingAudio ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Volume2 className="h-4 w-4 mr-2" />}
+        Generate Audio
+      </Button>
+    </div>
+  );
 
   return (
     <div className="flex gap-4 h-[calc(100vh-200px)] min-h-[600px]">
       {/* Sidebar */}
       <div className="w-64 shrink-0 flex flex-col">
         <Button size="sm" onClick={() => { setActiveConvoId(null); setMessages([]); setInput(""); setAttachments([]); clearDraft(); }}
-          className="w-full bg-accent hover:bg-accent/90 text-xs mb-3 h-9">
+          className="w-full bg-accent hover:bg-accent/90 text-white text-xs mb-3 h-9">
           <Plus className="h-3.5 w-3.5 mr-1" /> New Conversation
         </Button>
         <ScrollArea className="flex-1">
@@ -553,13 +841,13 @@ const AICoPilot = () => {
 
       {/* Chat Area */}
       <div className="flex-1 flex flex-col bg-white/[0.02] rounded-xl border border-white/[0.06] overflow-hidden">
-        <div className="p-3 border-b border-white/[0.06] flex items-center gap-2">
-          <Bot className="h-5 w-5 text-accent" />
-          <div>
-            <p className="text-sm font-semibold text-white">Grandmaster AI Co-Pilot</p>
-            <p className="text-[10px] text-white/40">Images • Videos • Audio • Files • Strategy</p>
-          </div>
-          <div className="ml-auto flex items-center gap-2">
+        {/* Header with mode tabs */}
+        <div className="border-b border-white/[0.06]">
+          <div className="p-3 flex items-center gap-2">
+            <Bot className="h-5 w-5 text-accent" />
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-white">Grandmaster AI Co-Pilot</p>
+            </div>
             {messages.length > 0 && !isStreaming && (
               <Button size="sm" variant="ghost" onClick={handleRegenerate} className="h-7 px-2 text-[10px] text-white/30 hover:text-white gap-1">
                 <RefreshCw className="h-3 w-3" /> Regenerate
@@ -571,26 +859,51 @@ const AICoPilot = () => {
               </Badge>
             )}
           </div>
+          {/* Mode tabs */}
+          <div className="px-3 pb-2 flex gap-1 overflow-x-auto">
+            {MODE_CONFIG.map(m => (
+              <button key={m.id} onClick={() => setMode(m.id)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium transition-all whitespace-nowrap ${
+                  mode === m.id
+                    ? "bg-accent/20 text-accent border border-accent/30"
+                    : "text-white/40 hover:text-white/60 hover:bg-white/5 border border-transparent"
+                }`}>
+                <m.icon className="h-3.5 w-3.5" />
+                {m.label}
+              </button>
+            ))}
+          </div>
         </div>
 
+        {/* Mode panels for image/video/audio */}
+        {(mode === "image" || mode === "video" || mode === "audio") && (
+          <div className="border-b border-white/[0.06]">
+            {mode === "image" && renderImagePanel()}
+            {mode === "video" && renderVideoPanel()}
+            {mode === "audio" && renderAudioPanel()}
+          </div>
+        )}
+
+        {/* Chat messages */}
         <ScrollArea className="flex-1 p-4" ref={scrollRef}>
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center py-12">
               <Brain className="h-12 w-12 text-white/10 mb-4" />
               <p className="text-white/30 text-sm mb-1">Your AI Agency Brain</p>
               <p className="text-white/20 text-xs mb-6 max-w-sm">
-                Ask anything — a conversation is created automatically when you send your first message.
+                {mode === "freeWill" ? "Free Will mode — no limits, ask anything." : "Ask anything — a conversation is created automatically."}
               </p>
-              <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 max-w-lg">
-                {QUICK_PROMPTS.map(qp => (
-                  <Button key={qp.label} size="sm" variant="outline"
-                    onClick={() => sendMessage(qp.prompt)}
-                    className="h-auto py-2 px-3 border-white/10 text-white/50 hover:text-white hover:bg-white/5 text-left flex flex-col items-start gap-1">
-                    <qp.icon className="h-3.5 w-3.5 text-accent" />
-                    <span className="text-[10px]">{qp.label}</span>
-                  </Button>
-                ))}
-              </div>
+              {(mode === "chat" || mode === "freeWill") && (
+                <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 max-w-lg">
+                  {QUICK_PROMPTS.map(qp => (
+                    <button key={qp.label} onClick={() => sendMessage(qp.prompt)}
+                      className="h-auto py-2.5 px-3 rounded-lg border border-white/[0.08] text-white/50 hover:text-white hover:bg-white/[0.06] hover:border-white/[0.15] text-left flex flex-col items-start gap-1.5 transition-all">
+                      <qp.icon className="h-3.5 w-3.5 text-accent" />
+                      <span className="text-[10px] leading-tight">{qp.label}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           ) : (
             <div className="space-y-4">
@@ -601,10 +914,9 @@ const AICoPilot = () => {
                     {editingIdx === i ? (
                       <div className="bg-accent/10 rounded-xl px-4 py-3 border border-accent/20">
                         <Textarea value={editText} onChange={e => setEditText(e.target.value)}
-                          className="bg-white/5 border-white/10 text-white text-xs min-h-[60px] resize-none mb-2"
+                          className="bg-white/5 border-white/10 text-white text-xs min-h-[60px] resize-none mb-2 placeholder:text-white/20"
                           onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleEditMessage(i); } }}
                         />
-                        {/* Edit attachments preview */}
                         {editAttachments.length > 0 && (
                           <div className="flex flex-wrap gap-1.5 mb-2">
                             {editAttachments.map((att, ai) => (
@@ -650,8 +962,8 @@ const AICoPilot = () => {
                             <Paperclip className="h-3 w-3" /> Attach
                           </Button>
                           <div className="flex gap-2">
-                            <Button size="sm" variant="ghost" onClick={() => { setEditingIdx(null); setEditAttachments([]); }} className="h-7 px-3 text-[10px] text-white/40">Cancel</Button>
-                            <Button size="sm" onClick={() => handleEditMessage(i)} className="h-7 px-3 text-[10px] bg-accent hover:bg-accent/90">Save & Regenerate</Button>
+                            <Button size="sm" variant="ghost" onClick={() => { setEditingIdx(null); setEditAttachments([]); }} className="h-7 px-3 text-[10px] text-white/40 hover:text-white">Cancel</Button>
+                            <Button size="sm" onClick={() => handleEditMessage(i)} className="h-7 px-3 text-[10px] bg-accent hover:bg-accent/90 text-white">Save & Regenerate</Button>
                           </div>
                         </div>
                       </div>
@@ -673,6 +985,11 @@ const AICoPilot = () => {
                                   ))}
                                 </div>
                               )}
+                              {msg.audioUrl && (
+                                <div className="mt-2">
+                                  <audio controls src={msg.audioUrl} className="w-full h-10" />
+                                </div>
+                              )}
                             </div>
                           ) : (
                             <>
@@ -687,33 +1004,35 @@ const AICoPilot = () => {
                   </div>
                 </div>
               ))}
-              {/* Typing indicator is now shown inline as an assistant message */}
             </div>
           )}
         </ScrollArea>
 
         {renderPendingAttachments()}
 
-        <div className="p-3 border-t border-white/[0.06]">
-          <input ref={fileInputRef} type="file" multiple accept="image/*,audio/*,video/*,.pdf,.txt,.csv" className="hidden" onChange={handleFileSelect} />
-          <div className="flex gap-2">
-            <Button size="sm" variant="ghost" onClick={() => fileInputRef.current?.click()}
-              disabled={isUploading || attachments.length >= MAX_ATTACHMENTS}
-              className="h-10 w-10 p-0 shrink-0 text-white/30 hover:text-white hover:bg-white/5">
-              {isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
-            </Button>
-            <Textarea value={input} onChange={e => setInput(e.target.value)}
-              onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
-              placeholder="Ask anything, attach files, generate images & videos..."
-              className="bg-white/5 border-white/10 text-white text-xs min-h-[40px] max-h-[120px] resize-none"
-              rows={1}
-            />
-            <Button onClick={() => sendMessage()} disabled={(!input.trim() && attachments.length === 0) || isStreaming}
-              className="bg-accent hover:bg-accent/90 h-10 w-10 p-0 shrink-0">
-              <Send className="h-4 w-4" />
-            </Button>
+        {/* Input bar - always visible for chat/freeWill modes */}
+        {(mode === "chat" || mode === "freeWill") && (
+          <div className="p-3 border-t border-white/[0.06]">
+            <input ref={fileInputRef} type="file" multiple accept="image/*,audio/*,video/*,.pdf,.txt,.csv" className="hidden" onChange={handleFileSelect} />
+            <div className="flex gap-2">
+              <Button size="sm" variant="ghost" onClick={() => fileInputRef.current?.click()}
+                disabled={isUploading || attachments.length >= MAX_ATTACHMENTS}
+                className="h-10 w-10 p-0 shrink-0 text-white/30 hover:text-white hover:bg-white/5">
+                {isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
+              </Button>
+              <Textarea value={input} onChange={e => setInput(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
+                placeholder={mode === "freeWill" ? "Anything goes — no restrictions..." : "Ask anything, attach files, generate images & videos..."}
+                className="bg-white/5 border-white/10 text-white text-xs min-h-[40px] max-h-[120px] resize-none placeholder:text-white/20"
+                rows={1}
+              />
+              <Button onClick={() => sendMessage()} disabled={(!input.trim() && attachments.length === 0) || isStreaming}
+                className="bg-accent hover:bg-accent/90 h-10 w-10 p-0 shrink-0 text-white">
+                <Send className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
