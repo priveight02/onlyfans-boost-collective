@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.agency-copilot]
 verify_jwt = false
+
+[functions.voice-audio]
+verify_jwt = false
