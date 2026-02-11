@@ -464,6 +464,56 @@ export type Database = {
           },
         ]
       }
+      copilot_generated_content: {
+        Row: {
+          account_id: string | null
+          aspect_ratio: string | null
+          content_type: string
+          created_at: string
+          created_by: string | null
+          id: string
+          metadata: Json | null
+          mode: string | null
+          prompt: string | null
+          quality_mode: string | null
+          url: string
+        }
+        Insert: {
+          account_id?: string | null
+          aspect_ratio?: string | null
+          content_type?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          metadata?: Json | null
+          mode?: string | null
+          prompt?: string | null
+          quality_mode?: string | null
+          url: string
+        }
+        Update: {
+          account_id?: string | null
+          aspect_ratio?: string | null
+          content_type?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          metadata?: Json | null
+          mode?: string | null
+          prompt?: string | null
+          quality_mode?: string | null
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "copilot_generated_content_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "managed_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       copilot_voices: {
         Row: {
           created_at: string
