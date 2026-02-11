@@ -151,6 +151,118 @@ export type Database = {
           },
         ]
       }
+      bio_link_clicks: {
+        Row: {
+          bio_link_id: string
+          country: string | null
+          created_at: string
+          device_type: string | null
+          id: string
+          ip_hash: string | null
+          link_index: number | null
+          link_url: string | null
+          referrer: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          bio_link_id: string
+          country?: string | null
+          created_at?: string
+          device_type?: string | null
+          id?: string
+          ip_hash?: string | null
+          link_index?: number | null
+          link_url?: string | null
+          referrer?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          bio_link_id?: string
+          country?: string | null
+          created_at?: string
+          device_type?: string | null
+          id?: string
+          ip_hash?: string | null
+          link_index?: number | null
+          link_url?: string | null
+          referrer?: string | null
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bio_link_clicks_bio_link_id_fkey"
+            columns: ["bio_link_id"]
+            isOneToOne: false
+            referencedRelation: "bio_links"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bio_links: {
+        Row: {
+          account_id: string | null
+          avatar_url: string | null
+          background_color: string | null
+          bio: string | null
+          created_at: string
+          custom_css: string | null
+          id: string
+          is_active: boolean | null
+          links: Json
+          metadata: Json | null
+          of_link: string | null
+          slug: string
+          social_links: Json | null
+          theme: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          account_id?: string | null
+          avatar_url?: string | null
+          background_color?: string | null
+          bio?: string | null
+          created_at?: string
+          custom_css?: string | null
+          id?: string
+          is_active?: boolean | null
+          links?: Json
+          metadata?: Json | null
+          of_link?: string | null
+          slug: string
+          social_links?: Json | null
+          theme?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string | null
+          avatar_url?: string | null
+          background_color?: string | null
+          bio?: string | null
+          created_at?: string
+          custom_css?: string | null
+          id?: string
+          is_active?: boolean | null
+          links?: Json
+          metadata?: Json | null
+          of_link?: string | null
+          slug?: string
+          social_links?: Json | null
+          theme?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bio_links_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "managed_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chat_messages: {
         Row: {
           content: string | null
@@ -1129,6 +1241,242 @@ export type Database = {
           visitor_ip?: string | null
         }
         Relationships: []
+      }
+      social_analytics: {
+        Row: {
+          account_id: string | null
+          created_at: string
+          fetched_at: string
+          id: string
+          metric_type: string
+          metric_value: number | null
+          period_end: string | null
+          period_start: string | null
+          platform: string
+          raw_data: Json | null
+        }
+        Insert: {
+          account_id?: string | null
+          created_at?: string
+          fetched_at?: string
+          id?: string
+          metric_type: string
+          metric_value?: number | null
+          period_end?: string | null
+          period_start?: string | null
+          platform: string
+          raw_data?: Json | null
+        }
+        Update: {
+          account_id?: string | null
+          created_at?: string
+          fetched_at?: string
+          id?: string
+          metric_type?: string
+          metric_value?: number | null
+          period_end?: string | null
+          period_start?: string | null
+          platform?: string
+          raw_data?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "social_analytics_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "managed_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      social_comment_replies: {
+        Row: {
+          account_id: string | null
+          comment_author: string | null
+          comment_id: string
+          comment_text: string | null
+          created_at: string
+          error_message: string | null
+          id: string
+          platform: string
+          post_id: string
+          reply_sent_at: string | null
+          reply_text: string
+          status: string | null
+        }
+        Insert: {
+          account_id?: string | null
+          comment_author?: string | null
+          comment_id: string
+          comment_text?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          platform: string
+          post_id: string
+          reply_sent_at?: string | null
+          reply_text: string
+          status?: string | null
+        }
+        Update: {
+          account_id?: string | null
+          comment_author?: string | null
+          comment_id?: string
+          comment_text?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          platform?: string
+          post_id?: string
+          reply_sent_at?: string | null
+          reply_text?: string
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "social_comment_replies_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "managed_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      social_connections: {
+        Row: {
+          access_token: string | null
+          account_id: string
+          connected_at: string
+          id: string
+          is_connected: boolean | null
+          metadata: Json | null
+          platform: string
+          platform_user_id: string | null
+          platform_username: string | null
+          refresh_token: string | null
+          scopes: string[] | null
+          token_expires_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          access_token?: string | null
+          account_id: string
+          connected_at?: string
+          id?: string
+          is_connected?: boolean | null
+          metadata?: Json | null
+          platform: string
+          platform_user_id?: string | null
+          platform_username?: string | null
+          refresh_token?: string | null
+          scopes?: string[] | null
+          token_expires_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          access_token?: string | null
+          account_id?: string
+          connected_at?: string
+          id?: string
+          is_connected?: boolean | null
+          metadata?: Json | null
+          platform?: string
+          platform_user_id?: string | null
+          platform_username?: string | null
+          refresh_token?: string | null
+          scopes?: string[] | null
+          token_expires_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "social_connections_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "managed_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      social_posts: {
+        Row: {
+          account_id: string | null
+          auto_reply_enabled: boolean | null
+          auto_reply_message: string | null
+          caption: string | null
+          created_at: string
+          created_by: string | null
+          engagement_data: Json | null
+          error_message: string | null
+          hashtags: string[] | null
+          id: string
+          media_urls: Json | null
+          metadata: Json | null
+          platform: string
+          platform_post_id: string | null
+          post_type: string
+          published_at: string | null
+          redirect_url: string | null
+          scheduled_at: string | null
+          status: string
+          thumbnail_url: string | null
+          updated_at: string
+        }
+        Insert: {
+          account_id?: string | null
+          auto_reply_enabled?: boolean | null
+          auto_reply_message?: string | null
+          caption?: string | null
+          created_at?: string
+          created_by?: string | null
+          engagement_data?: Json | null
+          error_message?: string | null
+          hashtags?: string[] | null
+          id?: string
+          media_urls?: Json | null
+          metadata?: Json | null
+          platform?: string
+          platform_post_id?: string | null
+          post_type?: string
+          published_at?: string | null
+          redirect_url?: string | null
+          scheduled_at?: string | null
+          status?: string
+          thumbnail_url?: string | null
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string | null
+          auto_reply_enabled?: boolean | null
+          auto_reply_message?: string | null
+          caption?: string | null
+          created_at?: string
+          created_by?: string | null
+          engagement_data?: Json | null
+          error_message?: string | null
+          hashtags?: string[] | null
+          id?: string
+          media_urls?: Json | null
+          metadata?: Json | null
+          platform?: string
+          platform_post_id?: string | null
+          post_type?: string
+          published_at?: string | null
+          redirect_url?: string | null
+          scheduled_at?: string | null
+          status?: string
+          thumbnail_url?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "social_posts_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "managed_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       tasks: {
         Row: {
