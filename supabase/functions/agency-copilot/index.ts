@@ -219,61 +219,35 @@ serve(async (req) => {
               height: 1024,
               steps: 30,
               cfg_scale: 7.5,
-              seed: Math.floor(Math.random() * 2147483647),
+              seed: Math.floor(Math.random() * 999999999),
               safe_mode: false,
               format: "png",
               embed_exif_metadata: false,
+              return_binary: false,
             }),
           });
 
           if (!veniceResponse.ok) {
             const errText = await veniceResponse.text();
             console.error("Venice.ai error:", veniceResponse.status, errText);
-            
-            // Fallback to Gemini if Venice fails
             console.log("Falling back to Gemini...");
           } else {
-            // Venice returns the image directly as binary
             const contentType = veniceResponse.headers.get("content-type") || "";
+            console.log("Venice.ai response content-type:", contentType);
             
-            if (contentType.includes("application/json")) {
-              // JSON response with base64 or URL
-              const veniceData = await veniceResponse.json();
-              console.log("Venice.ai JSON response keys:", Object.keys(veniceData));
-              
-              const images: any[] = [];
-              if (veniceData.images && veniceData.images.length > 0) {
-                for (const img of veniceData.images) {
-                  if (typeof img === "string") {
-                    // Could be base64 or URL
-                    if (img.startsWith("http")) {
-                      images.push({ type: "image_url", image_url: { url: img } });
-                    } else {
-                      images.push({ type: "image_url", image_url: { url: `data:image/png;base64,${img}` } });
-                    }
-                  } else if (img.url) {
-                    images.push({ type: "image_url", image_url: { url: img.url } });
-                  } else if (img.b64_json || img.base64) {
-                    const b64 = img.b64_json || img.base64;
-                    images.push({ type: "image_url", image_url: { url: `data:image/png;base64,${b64}` } });
-                  }
-                }
+            if (contentType.includes("image/")) {
+              // Direct binary image — convert to base64
+              const imageBytes = new Uint8Array(await veniceResponse.arrayBuffer());
+              // Convert to base64 in chunks to avoid stack overflow
+              let binary = "";
+              const chunkSize = 8192;
+              for (let i = 0; i < imageBytes.length; i += chunkSize) {
+                const chunk = imageBytes.subarray(i, i + chunkSize);
+                binary += String.fromCharCode(...chunk);
               }
-
-              if (images.length > 0) {
-                return new Response(JSON.stringify({
-                  type: "image",
-                  content: "Here's your uncensored image generated with Venice.ai.",
-                  images,
-                }), {
-                  headers: { ...corsHeaders, "Content-Type": "application/json" },
-                });
-              }
-            } else if (contentType.includes("image/")) {
-              // Direct binary image response
-              const imageBuffer = await veniceResponse.arrayBuffer();
-              const base64 = btoa(String.fromCharCode(...new Uint8Array(imageBuffer)));
+              const base64 = btoa(binary);
               const mimeType = contentType.split(";")[0].trim();
+              console.log(`Venice.ai success: got binary image (${imageBytes.length} bytes, ${mimeType})`);
 
               return new Response(JSON.stringify({
                 type: "image",
@@ -282,6 +256,46 @@ serve(async (req) => {
               }), {
                 headers: { ...corsHeaders, "Content-Type": "application/json" },
               });
+            } else {
+              // JSON response
+              const veniceData = await veniceResponse.json();
+              console.log("Venice.ai JSON response:", JSON.stringify(veniceData).substring(0, 500));
+              
+              const images: any[] = [];
+              
+              // Handle various response formats
+              if (veniceData.images) {
+                for (const img of veniceData.images) {
+                  if (typeof img === "string") {
+                    images.push({ type: "image_url", image_url: { url: img.startsWith("http") ? img : `data:image/png;base64,${img}` } });
+                  } else if (img.url) {
+                    images.push({ type: "image_url", image_url: { url: img.url } });
+                  } else if (img.b64_json || img.base64) {
+                    images.push({ type: "image_url", image_url: { url: `data:image/png;base64,${img.b64_json || img.base64}` } });
+                  }
+                }
+              } else if (veniceData.data) {
+                for (const img of veniceData.data) {
+                  if (img.url) {
+                    images.push({ type: "image_url", image_url: { url: img.url } });
+                  } else if (img.b64_json) {
+                    images.push({ type: "image_url", image_url: { url: `data:image/png;base64,${img.b64_json}` } });
+                  }
+                }
+              }
+
+              if (images.length > 0) {
+                console.log(`Venice.ai success: ${images.length} image(s) from JSON`);
+                return new Response(JSON.stringify({
+                  type: "image",
+                  content: "Here's your uncensored image generated with Venice.ai.",
+                  images,
+                }), {
+                  headers: { ...corsHeaders, "Content-Type": "application/json" },
+                });
+              } else {
+                console.log("Venice.ai returned JSON but no images found in response");
+              }
             }
           }
         } catch (veniceErr) {
