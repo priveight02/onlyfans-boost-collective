@@ -14,6 +14,9 @@ const IMAGE_KEYWORDS = [
   "image of", "picture of", "photo of", "illustration of",
   "edit image", "edit this image", "modify image", "change image", "transform image",
   "edit the image", "update image", "alter image",
+  "generate video", "create video", "make video", "generate a video", "create a video",
+  "make a video", "video of", "animate this", "animate image", "turn into video",
+  "generate clip", "create clip", "make clip",
 ];
 
 function isImageRequest(messages: any[]): boolean {
