@@ -32,3 +32,6 @@ verify_jwt = false
 
 [functions.biolink-track]
 verify_jwt = false
+
+[functions.social-ai-responder]
+verify_jwt = false
