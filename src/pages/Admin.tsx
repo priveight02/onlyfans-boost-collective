@@ -23,6 +23,7 @@ import PersonaDNAEngine from "@/components/admin/PersonaDNAEngine";
 import ContentCommandCenter from "@/components/admin/ContentCommandCenter";
 import EmotionalHeatmap from "@/components/admin/EmotionalHeatmap";
 import AICoPilot from "@/components/admin/AICoPilot";
+import FloatingCopilot from "@/components/admin/FloatingCopilot";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Shield, LayoutDashboard, Lock, Settings, LogOut, Contact, Search,
@@ -39,6 +40,7 @@ const Admin = () => {
   const { user, loading, isAdmin, logout } = useAuth();
   const navigate = useNavigate();
   const [accounts, setAccounts] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState("dashboard");
 
   useEffect(() => {
     if (loading) return;
@@ -96,7 +98,7 @@ const Admin = () => {
         </div>
 
         {/* Tabs */}
-        <Tabs defaultValue="dashboard" className="space-y-6">
+        <Tabs defaultValue="dashboard" className="space-y-6" onValueChange={setActiveTab}>
           <TabsList className="bg-white/5 backdrop-blur-sm border border-white/10 p-1 rounded-xl flex-wrap h-auto gap-1">
             <TabsTrigger value="dashboard" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
               <LayoutDashboard className="h-3.5 w-3.5" /> Dashboard
@@ -208,6 +210,9 @@ const Admin = () => {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Global Floating AI Copilot — always visible */}
+      <FloatingCopilot activeTab={activeTab} />
     </div>
   );
 };
