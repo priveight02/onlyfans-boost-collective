@@ -230,6 +230,13 @@ serve(async (req) => {
           if (!veniceResponse.ok) {
             const errText = await veniceResponse.text();
             console.error("Venice.ai error:", veniceResponse.status, errText);
+            // Surface Venice-specific errors to the user
+            if (veniceResponse.status === 402) {
+              return new Response(JSON.stringify({ 
+                type: "image", content: "", images: [],
+                error: "Venice.ai account has insufficient credits. Add funds at venice.ai/settings/billing to use uncensored mode."
+              }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+            }
             console.log("Falling back to Gemini...");
           } else {
             const contentType = veniceResponse.headers.get("content-type") || "";
