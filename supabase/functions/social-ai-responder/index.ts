@@ -6,6 +6,20 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+// Default young-woman persona matching Storyline/Script tone
+const DEFAULT_PERSONA = `You are a young woman (early 20s) chatting casually in DMs. You NEVER use emojis. 
+Your texting style:
+- Use "u" instead of "you", "ur" instead of "your/you're", "rn" instead of "right now", "lol", "omg", "ngl", "tbh", "lowkey", "fr"
+- Keep messages SHORT: 1-2 sentences max, like real texts
+- Be flirty but natural, not forced or cringe
+- Sound like a real girl texting, not a bot
+- Sometimes make small typos on purpose (teh, abt, bc, w/)
+- Never capitalize unless for emphasis
+- Start sweet/innocent, escalate naturally
+- When redirecting to a link, be casual like "check my bio babe" or "i just posted something u might like"
+- Mirror the sender's energy
+- Create urgency/exclusivity naturally`;
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -22,12 +36,10 @@ serve(async (req) => {
     let result: any;
 
     switch (action) {
-      // ===== GENERATE AI REPLY TO A DM =====
       case "generate_dm_reply": {
-        const { message_text, sender_name, conversation_context, persona_tone, persona_style, auto_redirect_url, keywords_trigger } = params;
+        const { message_text, sender_name, conversation_context, auto_redirect_url, keywords_trigger } = params;
 
-        // Get persona if exists
-        let personaInfo = "";
+        let personaInfo = DEFAULT_PERSONA;
         if (account_id) {
           const { data: persona } = await supabase
             .from("persona_profiles")
@@ -35,31 +47,16 @@ serve(async (req) => {
             .eq("account_id", account_id)
             .single();
           if (persona) {
-            personaInfo = `\nPersona: Tone=${persona.tone}, Style=${persona.vocabulary_style}, Emotional Range=${persona.emotional_range}, Boundaries=${persona.boundaries || "none"}`;
+            personaInfo += `\nAdditional persona: Tone=${persona.tone}, Style=${persona.vocabulary_style}, Boundaries=${persona.boundaries || "none"}`;
           }
         }
 
-        const systemPrompt = `You are an AI assistant managing DMs for a content creator. You reply naturally, flirtatiously but professionally, staying in character.
-${personaInfo}
-${persona_tone ? `Override tone: ${persona_tone}` : ""}
-${persona_style ? `Override style: ${persona_style}` : ""}
-${auto_redirect_url ? `IMPORTANT: When appropriate, naturally guide the conversation toward this link: ${auto_redirect_url}. Don't force it, weave it in naturally.` : ""}
-${keywords_trigger ? `If the user mentions any of these keywords: ${keywords_trigger}, redirect them to the link above.` : ""}
+        const systemPrompt = `${personaInfo}
+${auto_redirect_url ? `IMPORTANT: when it makes sense, naturally guide toward this link: ${auto_redirect_url}. dont force it, weave it in casually like "check my bio" or "i just posted smth"` : ""}
+${keywords_trigger ? `if they mention any of these: ${keywords_trigger}, redirect them to the link` : ""}`;
 
-Rules:
-- Keep replies short (1-3 sentences max)
-- Be engaging, warm, and create connection
-- Never break character
-- Use emojis sparingly but effectively
-- If someone asks for explicit content, redirect to the link
-- Mirror the energy of the sender
-- Create urgency/exclusivity when mentioning links`;
+        const messages: any[] = [{ role: "system", content: systemPrompt }];
 
-        const messages: any[] = [
-          { role: "system", content: systemPrompt },
-        ];
-
-        // Add conversation context if provided
         if (conversation_context && Array.isArray(conversation_context)) {
           for (const msg of conversation_context) {
             messages.push({ role: msg.role === "creator" ? "assistant" : "user", content: msg.text });
@@ -77,8 +74,8 @@ Rules:
           body: JSON.stringify({
             model: "google/gemini-3-flash-preview",
             messages,
-            max_tokens: 200,
-            temperature: 0.8,
+            max_tokens: 150,
+            temperature: 0.85,
           }),
         });
 
@@ -97,22 +94,18 @@ Rules:
         break;
       }
 
-      // ===== GENERATE AUTO-REPLY FOR COMMENTS =====
       case "generate_comment_reply": {
         const { comment_text, comment_author, post_caption, reply_style, redirect_url } = params;
 
-        const systemPrompt = `You are managing social media comments for a content creator. Generate a natural, engaging reply.
-${reply_style ? `Style: ${reply_style}` : "Style: friendly, warm, engaging"}
-${redirect_url ? `When relevant, mention checking the bio/link: ${redirect_url}` : ""}
-
+        const systemPrompt = `You are a young woman replying to comments on social media. No emojis. Use casual texting style (u, ur, lol, tbh).
+${reply_style ? `Style: ${reply_style}` : "Be warm and casual like texting a friend"}
+${redirect_url ? `When relevant, casually mention checking bio/link` : ""}
 Rules:
-- Keep it short (1-2 sentences)
-- Use 1-2 emojis max
-- Be authentic and personal
-- If it's a compliment, be gracious
-- If it's a question, answer helpfully and redirect to bio/link
-- Never be defensive or rude
-- Match the platform vibe`;
+- 1 sentence max
+- No emojis ever
+- Sound real, not like a brand
+- If compliment, be sweet but brief
+- If question, answer casually and redirect to bio if relevant`;
 
         const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: "POST",
@@ -124,10 +117,10 @@ Rules:
             model: "google/gemini-3-flash-preview",
             messages: [
               { role: "system", content: systemPrompt },
-              { role: "user", content: `Post caption: "${post_caption || "N/A"}"\nComment by @${comment_author || "user"}: "${comment_text}"\n\nGenerate a reply:` },
+              { role: "user", content: `Post: "${post_caption || "N/A"}"\nComment by @${comment_author || "user"}: "${comment_text}"\n\nReply:` },
             ],
-            max_tokens: 100,
-            temperature: 0.7,
+            max_tokens: 80,
+            temperature: 0.75,
           }),
         });
 
@@ -142,7 +135,6 @@ Rules:
         break;
       }
 
-      // ===== BULK GENERATE COMMENT REPLIES =====
       case "bulk_generate_replies": {
         const { comments, reply_style, redirect_url } = params;
         const replies: any[] = [];
@@ -158,11 +150,11 @@ Rules:
               body: JSON.stringify({
                 model: "google/gemini-2.5-flash-lite",
                 messages: [
-                  { role: "system", content: `Generate a short, engaging reply to this social media comment. ${reply_style || "Be friendly and warm."}${redirect_url ? ` Occasionally mention checking their bio/link.` : ""} Reply ONLY with the reply text, nothing else.` },
+                  { role: "system", content: `Reply to this comment as a young woman. No emojis. Use casual texting (u, ur, lol, tbh). 1 sentence max. Sound real. ${redirect_url ? "Sometimes mention checking bio." : ""} Reply ONLY with the text.` },
                   { role: "user", content: `@${comment.username}: "${comment.text}"` },
                 ],
-                max_tokens: 80,
-                temperature: 0.7,
+                max_tokens: 60,
+                temperature: 0.75,
               }),
             });
 
@@ -178,7 +170,6 @@ Rules:
           } catch (e) {
             replies.push({ comment_id: comment.id, error: String(e) });
           }
-          // Small delay to avoid rate limits
           await new Promise(r => setTimeout(r, 500));
         }
 
@@ -186,7 +177,6 @@ Rules:
         break;
       }
 
-      // ===== ANALYZE CONTENT FOR OPTIMAL POSTING =====
       case "analyze_content": {
         const { caption, platform, content_type } = params;
 
@@ -199,8 +189,8 @@ Rules:
           body: JSON.stringify({
             model: "google/gemini-3-flash-preview",
             messages: [
-              { role: "system", content: `You are a social media optimization expert. Analyze content and provide improvements.` },
-              { role: "user", content: `Platform: ${platform}\nType: ${content_type}\nCaption: "${caption}"\n\nProvide:\n1. Optimized caption (keep similar length)\n2. Best hashtags (10-15)\n3. Best posting time\n4. Engagement prediction (1-10)\n5. Improvements needed` },
+              { role: "system", content: "You are a social media optimization expert for adult content creators." },
+              { role: "user", content: `Platform: ${platform}\nType: ${content_type}\nCaption: "${caption}"\n\nProvide:\n1. Optimized caption\n2. Best hashtags (10-15)\n3. Best posting time\n4. Engagement prediction (1-10)\n5. Improvements` },
             ],
             max_tokens: 500,
             temperature: 0.6,
@@ -213,9 +203,8 @@ Rules:
         break;
       }
 
-      // ===== GENERATE CAPTION =====
       case "generate_caption": {
-        const { topic, platform, style, include_cta, cta_link } = params;
+        const { topic, platform, style, include_cta } = params;
 
         const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: "POST",
@@ -226,7 +215,7 @@ Rules:
           body: JSON.stringify({
             model: "google/gemini-3-flash-preview",
             messages: [
-              { role: "system", content: `Generate a ${platform} caption. Style: ${style || "engaging, trendy"}. ${include_cta ? `Include a call-to-action directing to bio/link.` : ""} Include relevant hashtags. Reply ONLY with the caption text.` },
+              { role: "system", content: `Generate a ${platform} caption. Style: ${style || "casual, young woman vibes"}. No emojis. Use casual texting style. ${include_cta ? "Include a call-to-action directing to bio/link casually." : ""} Include relevant hashtags. Reply ONLY with the caption.` },
               { role: "user", content: topic },
             ],
             max_tokens: 300,
