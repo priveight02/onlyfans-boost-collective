@@ -19,6 +19,16 @@ const ScriptLibrary = () => {
 
   useEffect(() => {
     loadScripts();
+
+    // Realtime sync
+    const channel = supabase
+      .channel('scripts-library-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'scripts' }, () => {
+        loadScripts();
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
   }, []);
 
   const loadScripts = async () => {
@@ -51,9 +61,12 @@ const ScriptLibrary = () => {
   };
 
   const deleteScript = async (id: string) => {
-    await supabase.from("scripts").delete().eq("id", id);
-    toast.success("Script deleted");
-    loadScripts();
+    // Delete steps first, then the script — permanent removal
+    await supabase.from("script_steps").delete().eq("script_id", id);
+    await supabase.from("automation_workflows").delete().eq("script_id", id);
+    const { error } = await supabase.from("scripts").delete().eq("id", id);
+    if (error) { toast.error("Failed to delete: " + error.message); return; }
+    toast.success("Script permanently deleted");
   };
 
   const cloneScript = async (script: any) => {
