@@ -67,6 +67,8 @@ const FloatingCopilot = ({ activeTab, contextData }: FloatingCopilotProps) => {
   const [editText, setEditText] = useState("");
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
+  const [editAttachments, setEditAttachments] = useState<Attachment[]>([]);
+  const editFileInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -264,27 +266,40 @@ const FloatingCopilot = ({ activeTab, contextData }: FloatingCopilotProps) => {
       setConvoId(cId);
     }
 
-    const apiMessages = messages.map(m => ({ role: m.role, content: m.content }));
+    const apiMessages = messages.map(m => ({ role: m.role, content: buildApiContent(m.content, m.attachments) }));
     apiMessages.push({ role: "user", content: apiContent });
 
     await streamResponse(apiMessages, cId!, newMessages, msgText);
   };
 
+  const buildApiContent = (text: string, atts?: Attachment[]): any => {
+    if (!atts || atts.length === 0) return text;
+    const parts: any[] = [];
+    if (text) parts.push({ type: "text", text });
+    for (const att of atts) {
+      if (att.type === "image") parts.push({ type: "image_url", image_url: { url: att.url } });
+      else parts.push({ type: "text", text: `[Attached ${att.type}: ${att.name} - ${att.url}]` });
+    }
+    return parts;
+  };
+
   const handleEditMessage = async (idx: number) => {
     if (isStreaming || !editText.trim()) return;
     const newContent = editText.trim();
+    const editAtts = editAttachments.length > 0 ? [...editAttachments] : undefined;
     setEditingIdx(null);
     setEditText("");
+    setEditAttachments([]);
 
     const truncated = messages.slice(0, idx);
-    const editedMsg: Msg = { ...messages[idx], content: newContent };
+    const editedMsg: Msg = { ...messages[idx], content: newContent, attachments: editAtts };
     const newMessages = [...truncated, editedMsg];
     setMessages(newMessages);
     scrollToBottom();
 
     if (!convoId) return;
-    const apiMessages = truncated.map(m => ({ role: m.role, content: m.content }));
-    apiMessages.push({ role: "user", content: newContent });
+    const apiMessages = truncated.map(m => ({ role: m.role, content: buildApiContent(m.content, m.attachments) }));
+    apiMessages.push({ role: "user", content: buildApiContent(newContent, editAtts) });
     await streamResponse(apiMessages, convoId, newMessages, newContent);
   };
 
@@ -307,7 +322,7 @@ const FloatingCopilot = ({ activeTab, contextData }: FloatingCopilotProps) => {
     const truncated = messages.slice(0, lastUserIdx + 1);
     setMessages(truncated);
     scrollToBottom();
-    const apiMessages = truncated.map(m => ({ role: m.role, content: m.content }));
+    const apiMessages = truncated.map(m => ({ role: m.role, content: buildApiContent(m.content, m.attachments) }));
     await streamResponse(apiMessages, convoId, truncated, truncated[lastUserIdx].content);
   };
 
@@ -346,7 +361,7 @@ const FloatingCopilot = ({ activeTab, contextData }: FloatingCopilotProps) => {
           {copiedIdx === idx ? <Check className="h-2.5 w-2.5 text-emerald-400" /> : <Copy className="h-2.5 w-2.5" />}
         </Button>
         {isUser && (
-          <Button size="sm" variant="ghost" onClick={() => { setEditingIdx(idx); setEditText(msg.content); }} className="h-5 w-5 p-0 text-white/30 hover:text-white" title="Edit">
+          <Button size="sm" variant="ghost" onClick={() => { setEditingIdx(idx); setEditText(msg.content); setEditAttachments(msg.attachments ? [...msg.attachments] : []); }} className="h-5 w-5 p-0 text-white/30 hover:text-white" title="Edit">
             <Pencil className="h-2.5 w-2.5" />
           </Button>
         )}
@@ -433,9 +448,52 @@ const FloatingCopilot = ({ activeTab, contextData }: FloatingCopilotProps) => {
                               className="bg-white/5 border-white/10 text-white text-[11px] min-h-[40px] resize-none mb-1.5"
                               onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleEditMessage(i); } }}
                             />
-                            <div className="flex gap-1.5 justify-end">
-                              <Button size="sm" variant="ghost" onClick={() => setEditingIdx(null)} className="h-6 px-2 text-[9px] text-white/40">Cancel</Button>
-                              <Button size="sm" onClick={() => handleEditMessage(i)} className="h-6 px-2 text-[9px] bg-accent hover:bg-accent/90">Save</Button>
+                            {editAttachments.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mb-1.5">
+                                {editAttachments.map((att, ai) => (
+                                  <div key={ai} className="relative group rounded border border-white/10 bg-white/5">
+                                    {att.type === "image" ? (
+                                      <div className="w-[50px] h-[40px]"><img src={att.url} alt={att.name} className="w-full h-full object-cover rounded" /></div>
+                                    ) : (
+                                      <div className="flex items-center gap-1 px-1.5 py-1">
+                                        <FileText className="h-2.5 w-2.5 text-accent" />
+                                        <span className="text-[7px] text-white/50 truncate max-w-[40px]">{att.name}</span>
+                                      </div>
+                                    )}
+                                    <button onClick={() => setEditAttachments(prev => prev.filter((_, j) => j !== ai))}
+                                      className="absolute -top-1 -right-1 h-3.5 w-3.5 rounded-full bg-black/80 flex items-center justify-center text-white/60 hover:bg-red-500/80 opacity-0 group-hover:opacity-100">
+                                      <X className="h-2 w-2" />
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            <input ref={editFileInputRef} type="file" multiple accept="image/*,audio/*,video/*,.pdf,.txt,.csv" className="hidden"
+                              onChange={async (e) => {
+                                const files = Array.from(e.target.files || []);
+                                for (const file of files) {
+                                  if (file.size > 20 * 1024 * 1024) { toast.error(`${file.name} too large`); continue; }
+                                  const path = `${crypto.randomUUID()}.${file.name.split(".").pop()}`;
+                                  const { error } = await supabase.storage.from("copilot-attachments").upload(path, file);
+                                  if (error) continue;
+                                  const { data: urlData } = supabase.storage.from("copilot-attachments").getPublicUrl(path);
+                                  let type: Attachment["type"] = "file";
+                                  if (file.type.startsWith("image/")) type = "image";
+                                  else if (file.type.startsWith("audio/")) type = "audio";
+                                  else if (file.type.startsWith("video/")) type = "video";
+                                  setEditAttachments(prev => [...prev, { type, name: file.name, url: urlData.publicUrl, mimeType: file.type, size: file.size }]);
+                                }
+                                if (editFileInputRef.current) editFileInputRef.current.value = "";
+                              }}
+                            />
+                            <div className="flex gap-1.5 justify-between">
+                              <Button size="sm" variant="ghost" onClick={() => editFileInputRef.current?.click()} className="h-6 px-1.5 text-[9px] text-white/40 hover:text-white gap-0.5">
+                                <Paperclip className="h-2.5 w-2.5" /> Attach
+                              </Button>
+                              <div className="flex gap-1.5">
+                                <Button size="sm" variant="ghost" onClick={() => { setEditingIdx(null); setEditAttachments([]); }} className="h-6 px-2 text-[9px] text-white/40">Cancel</Button>
+                                <Button size="sm" onClick={() => handleEditMessage(i)} className="h-6 px-2 text-[9px] bg-accent hover:bg-accent/90">Save</Button>
+                              </div>
                             </div>
                           </div>
                         ) : (
