@@ -537,13 +537,14 @@ const SocialMediaHub = () => {
             <CardContent className="p-4">
               <h4 className="text-sm font-semibold text-foreground mb-2">Active Persona</h4>
               <div className="bg-muted/50 rounded-lg p-3 text-xs text-muted-foreground space-y-1">
-                <p>• Young woman, early 20s</p>
+                <p>• Young woman, early 20s — chill, warm, suggestive</p>
                 <p>• No emojis ever</p>
-                <p>• Uses: u, ur, rn, lol, omg, ngl, tbh, lowkey, fr</p>
+                <p>• Max 1-2 abbreviations per message (u, rn)</p>
                 <p>• Short messages (1-2 sentences)</p>
-                <p>• Sometimes typos: teh, abt, bc, w/</p>
-                <p>• Starts sweet, escalates naturally</p>
-                <p>• Casual link redirects: "check my bio babe"</p>
+                <p>• Subtle psychological redirection techniques</p>
+                <p>• Curiosity gaps, FOMO, exclusivity, open loops</p>
+                <p>• Never says "check my bio" directly</p>
+                <p>• Analyzes each DM before responding</p>
               </div>
             </CardContent>
           </Card>

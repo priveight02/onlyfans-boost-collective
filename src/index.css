@@ -32,6 +32,28 @@
     --gradient-hero: linear-gradient(135deg, hsl(210 100% 45%), hsl(220 100% 35%), hsl(230 100% 40%));
     --shadow-glow: 0 0 40px hsl(210 100% 45% / 0.3);
   }
+
+  .dark {
+    --background: 220 100% 10%;
+    --foreground: 210 40% 98%;
+    --card: 220 80% 12%;
+    --card-foreground: 210 40% 98%;
+    --popover: 220 80% 12%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 210 90% 50%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 220 60% 18%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 220 50% 16%;
+    --muted-foreground: 210 20% 60%;
+    --accent: 200 100% 50%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 220 40% 20%;
+    --input: 220 40% 20%;
+    --ring: 210 100% 50%;
+  }
 }
 
 @layer base {
