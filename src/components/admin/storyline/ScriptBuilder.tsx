@@ -603,7 +603,26 @@ const ScriptBuilder = () => {
   const [genEstimate, setGenEstimate] = useState(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  useEffect(() => { loadScripts(); }, []);
+  useEffect(() => {
+    loadScripts();
+
+    // Realtime sync for scripts
+    const channel = supabase
+      .channel('scripts-builder-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'scripts' }, () => {
+        loadScripts();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'script_steps' }, (payload) => {
+        // If steps changed for currently selected script, reload them
+        const scriptId = (payload.new as any)?.script_id || (payload.old as any)?.script_id;
+        if (selectedScript && scriptId === selectedScript.id) {
+          loadSteps(scriptId);
+        }
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [selectedScript?.id]);
   useEffect(() => { return () => { if (timerRef.current) clearInterval(timerRef.current); }; }, []);
 
   const loadScripts = async () => {
