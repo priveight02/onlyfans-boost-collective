@@ -543,37 +543,42 @@ const AICoPilot = () => {
 
   const generateImage = async () => {
     if (!imagePrompt.trim() || isStreaming) return;
-    const refContext = imageRefs.length > 0 ? ` Use these reference images for style/content guidance.` : "";
-    const promptFull = `Generate an image (aspect ratio ${imageAspect}): ${imagePrompt}${refContext}`;
-
-    // Build content with refs
-    const atts = imageRefs.length > 0 ? [...imageRefs] : undefined;
+    setIsStreaming(true);
     const currentRefs = [...imageRefs];
+    const prompt = imagePrompt;
     setImageRefs([]);
+    setImagePrompt("");
 
-    if (currentRefs.length > 0) {
-      const parts: any[] = [{ type: "text", text: promptFull }];
+    try {
+      const parts: any[] = [{ type: "text", text: `Generate an image (aspect ratio ${imageAspect}): ${prompt}${currentRefs.length > 0 ? " Use these reference images for style/content guidance." : ""}` }];
       for (const ref of currentRefs) {
         parts.push({ type: "image_url", image_url: { url: ref.url } });
       }
-      const userMsg: Msg = { role: "user", content: promptFull, attachments: currentRefs };
-      const newMessages = [...messages, userMsg];
-      setMessages(newMessages);
-      scrollToBottom();
 
-      let convoId = activeConvoId;
-      if (!convoId) {
-        convoId = await createConvo(newMessages, imagePrompt.slice(0, 50));
-        if (!convoId) return;
+      const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/agency-copilot`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+        body: JSON.stringify({ messages: [{ role: "user", content: currentRefs.length > 0 ? parts : parts[0].text }], context: buildContext(), quality: qualityMode }),
+      });
+
+      if (!resp.ok) {
+        const errData = await resp.json().catch(() => ({}));
+        throw new Error(errData.error || `Error ${resp.status}`);
       }
 
-      const apiMessages = messages.map(m => ({ role: m.role, content: buildApiContent(m.content, m.attachments) }));
-      apiMessages.push({ role: "user", content: parts });
-      await streamResponse(apiMessages, convoId, newMessages, imagePrompt);
-    } else {
-      sendMessage(promptFull);
+      const data = await resp.json();
+      if (data.type === "image" && data.images?.length) {
+        const newImgs = data.images.map((img: any) => ({ url: img.image_url.url, prompt }));
+        setGeneratedImages(prev => [...newImgs, ...prev]);
+        toast.success("Image generated!");
+      } else {
+        toast.error("No image returned");
+      }
+    } catch (e: any) {
+      toast.error(e.message || "Image generation failed");
+    } finally {
+      setIsStreaming(false);
     }
-    setImagePrompt("");
   };
 
   // ---- Video frame upload ----
@@ -587,33 +592,41 @@ const AICoPilot = () => {
 
   const generateVideo = async () => {
     if (!videoPrompt.trim() || isStreaming) return;
-    const frameContext = videoStartFrame ? ` Use this starting frame image as the base.` : "";
-    const promptFull = `Generate a ${videoDuration}-second video: ${videoPrompt}${frameContext}`;
+    setIsStreaming(true);
+    const prompt = videoPrompt;
+    const frame = videoStartFrame;
+    setVideoPrompt("");
+    setVideoStartFrame(null);
 
-    if (videoStartFrame) {
-      const parts: any[] = [
-        { type: "text", text: promptFull },
-        { type: "image_url", image_url: { url: videoStartFrame.url } },
-      ];
-      const userMsg: Msg = { role: "user", content: promptFull, attachments: [videoStartFrame] };
-      const newMessages = [...messages, userMsg];
-      setMessages(newMessages);
-      scrollToBottom();
+    try {
+      const parts: any[] = [{ type: "text", text: `Generate a ${videoDuration}-second video: ${prompt}${frame ? " Use this starting frame image as the base." : ""}` }];
+      if (frame) parts.push({ type: "image_url", image_url: { url: frame.url } });
 
-      let convoId = activeConvoId;
-      if (!convoId) {
-        convoId = await createConvo(newMessages, videoPrompt.slice(0, 50));
-        if (!convoId) return;
+      const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/agency-copilot`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+        body: JSON.stringify({ messages: [{ role: "user", content: frame ? parts : parts[0].text }], context: buildContext(), quality: qualityMode }),
+      });
+
+      if (!resp.ok) {
+        const errData = await resp.json().catch(() => ({}));
+        throw new Error(errData.error || `Error ${resp.status}`);
       }
 
-      const apiMessages = messages.map(m => ({ role: m.role, content: buildApiContent(m.content, m.attachments) }));
-      apiMessages.push({ role: "user", content: parts });
-      await streamResponse(apiMessages, convoId, newMessages, videoPrompt);
-      setVideoStartFrame(null);
-    } else {
-      sendMessage(promptFull);
+      const data = await resp.json();
+      if (data.type === "image" && data.images?.length) {
+        // Video results come as images from Gemini
+        const newImgs = data.images.map((img: any) => ({ url: img.image_url.url, prompt }));
+        setGeneratedImages(prev => [...newImgs, ...prev]);
+        toast.success("Video/content generated!");
+      } else {
+        toast.info(data.content || "Generation complete — check results");
+      }
+    } catch (e: any) {
+      toast.error(e.message || "Video generation failed");
+    } finally {
+      setIsStreaming(false);
     }
-    setVideoPrompt("");
   };
 
   // ---- Render helpers ----
@@ -785,8 +798,8 @@ const AICoPilot = () => {
         ) : (
           <div className="space-y-4">
             {generatedImages.map((img, i) => (
-              <div key={i} className="relative group rounded-xl overflow-hidden border border-white/10 bg-white/[0.02]">
-                <img src={img.url} alt="" className="w-full rounded-xl" />
+              <div key={i} className="relative group rounded-xl overflow-hidden border border-white/10 bg-white/[0.02] max-w-[320px]">
+                <img src={img.url} alt="" className="w-full rounded-xl max-h-[240px] object-cover" />
                 <div className="absolute top-2 right-2 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button onClick={() => { const a = document.createElement("a"); a.href = img.url; a.download = `image_${i}.png`; a.click(); }}
                     className="h-8 w-8 rounded-lg bg-black/60 flex items-center justify-center hover:bg-black/80">
