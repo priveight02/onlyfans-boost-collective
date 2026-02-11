@@ -45,6 +45,7 @@ interface Voice {
   is_preset: boolean | null;
   sample_urls: string[] | null;
   preview_url: string | null;
+  elevenlabs_voice_id: string | null;
 }
 
 interface VoiceParams {
@@ -235,6 +236,7 @@ const AICoPilot = () => {
     const loadedVoices = (voicesData.data || []).map((v: any) => ({
       id: v.id, name: v.name, description: v.description,
       is_preset: v.is_preset, sample_urls: v.sample_urls, preview_url: v.preview_url,
+      elevenlabs_voice_id: v.elevenlabs_voice_id,
     })) as Voice[];
     setVoices(loadedVoices);
     if (loadedVoices.length) setSelectedVoice(loadedVoices[0].id);
@@ -440,24 +442,60 @@ const AICoPilot = () => {
 
   const handleCopy = (idx: number) => { navigator.clipboard.writeText(messages[idx].content); setCopiedIdx(idx); setTimeout(() => setCopiedIdx(null), 2000); };
 
-  // ---- Voice cloning ----
+  // ---- Voice cloning (real ElevenLabs) ----
   const handleCloneVoice = async () => {
     if (!newVoiceName.trim() || voiceSamples.length === 0) { toast.error("Provide a name and at least one audio sample (1 min recommended)"); return; }
     if (newVoiceName.trim().length < 3) { toast.error("Name must be at least 3 characters"); return; }
     setIsCloningVoice(true);
     try {
+      // Send audio files directly to the voice-audio edge function for real cloning
+      const formData = new FormData();
+      formData.append("name", newVoiceName.trim());
+      formData.append("description", `Cloned voice — ${voiceSamples.length} sample(s)`);
+      for (const file of voiceSamples) {
+        formData.append("files", file, file.name);
+      }
+
+      const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/voice-audio?action=clone`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+        body: formData,
+      });
+      if (!resp.ok) { const ed = await resp.json().catch(() => ({})); throw new Error(ed.error || `Cloning failed (${resp.status})`); }
+      const result = await resp.json();
+      const elevenVoiceId = result.voice_id;
+      const previewUrl = result.preview_audio || null;
+
+      // Also upload samples to storage for reference
       const sampleUrls: string[] = [];
       for (const file of voiceSamples) { const url = await uploadFileToStorage(file); if (url) sampleUrls.push(url); }
-      if (sampleUrls.length === 0) throw new Error("No samples uploaded");
-      const { data: nv, error } = await supabase.from("copilot_voices").insert({ name: newVoiceName, description: `Cloned from ${sampleUrls.length} sample(s) — AI voice matching`, sample_urls: sampleUrls, is_preset: false }).select().single();
+
+      // Save to DB with the ElevenLabs voice ID
+      const { data: nv, error } = await supabase.from("copilot_voices").insert({
+        name: newVoiceName,
+        description: `AI-cloned voice from ${sampleUrls.length} sample(s)`,
+        sample_urls: sampleUrls,
+        preview_url: previewUrl,
+        elevenlabs_voice_id: elevenVoiceId,
+        is_preset: false,
+      }).select().single();
       if (error) throw error;
       setVoices(prev => [...prev, nv as unknown as Voice]); setSelectedVoice(nv!.id);
       setNewVoiceName(""); setVoiceSamples([]); setShowCreateVoice(false);
-      toast.success(`Voice "${newVoiceName}" cloned!`);
+      toast.success(`Voice "${newVoiceName}" cloned successfully!`);
     } catch (e: any) { toast.error(e.message || "Voice cloning failed"); } finally { setIsCloningVoice(false); }
   };
 
   const deleteVoice = async (voiceId: string) => {
+    const voice = voices.find(v => v.id === voiceId);
+    // Delete from ElevenLabs too
+    if (voice?.elevenlabs_voice_id) {
+      fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/voice-audio?action=delete`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+        body: JSON.stringify({ voice_id: voice.elevenlabs_voice_id }),
+      }).catch(() => {});
+    }
     const { error } = await supabase.from("copilot_voices").delete().eq("id", voiceId);
     if (error) { toast.error("Delete failed"); return; }
     setVoices(prev => prev.filter(v => v.id !== voiceId));
@@ -485,24 +523,39 @@ const AICoPilot = () => {
     updateVoiceParam("effects", newEffects);
   };
 
-  // ---- Audio generation (isolated) ----
+  // ---- Audio generation (real ElevenLabs TTS) ----
   const generateAudio = async () => {
     if (!audioText.trim() || isGeneratingAudio) return;
+    const voice = voices.find(v => v.id === selectedVoice);
+    if (!voice?.elevenlabs_voice_id) { toast.error("Select a cloned voice first. Create one from audio samples."); return; }
     setIsGeneratingAudio(true);
     try {
-      const voice = voices.find(v => v.id === selectedVoice);
-      const paramDesc = `Pitch: ${voiceParams.pitch > 0 ? "+" : ""}${voiceParams.pitch} semitones, Speed: ${voiceParams.speed}x, Reverb: ${voiceParams.reverb}%, Effects: ${voiceParams.effects.length ? voiceParams.effects.join(", ") : "none"}`;
-      const voiceContext = voice
-        ? `Voice profile: "${voice.name}" — ${voice.description || "custom voice"}. Voice parameters: ${paramDesc}. ${voice.sample_urls?.length ? `Reference audio samples: ${voice.sample_urls.join(", ")}` : ""}`
-        : `Voice parameters: ${paramDesc}`;
+      // Map voice params to ElevenLabs settings
+      const voiceSettings: any = {
+        stability: Math.max(0, Math.min(1, 0.5 - (voiceParams.pitch * 0.02))),
+        similarity_boost: Math.max(0, Math.min(1, 0.85 + (voiceParams.reverb * 0.001))),
+        style: 0.5,
+        speed: voiceParams.speed,
+      };
 
-      const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/agency-copilot`, {
-        method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
-        body: JSON.stringify({ messages: [{ role: "user", content: `[AUDIO GENERATION REQUEST]\nText: "${audioText}"\n${voiceContext}\nGenerate highest quality, most natural and realistic speech. Match tone perfectly.` }], context: buildContext(), quality: qualityMode }),
+      const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/voice-audio?action=generate`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({
+          text: audioText,
+          voice_id: voice.elevenlabs_voice_id,
+          voice_settings: voiceSettings,
+        }),
       });
       if (!resp.ok) { const ed = await resp.json().catch(() => ({})); throw new Error(ed.error || `Error ${resp.status}`); }
       const data = await resp.json();
-      const saved = await saveGeneratedContent("audio", data.audioUrl || data.content || "", audioText, "audio", { metadata: { voice: voice?.name || "default", params: voiceParams } });
+      const audioUrl = data.audio_url;
+      if (!audioUrl) throw new Error("No audio returned");
+
+      const saved = await saveGeneratedContent("audio", audioUrl, audioText, "audio", { metadata: { voice: voice.name, params: voiceParams } });
       if (saved) setGeneratedAudios(prev => [saved, ...prev]);
       toast.success("Audio generated!"); setAudioText("");
     } catch (e: any) { toast.error(e.message || "Audio generation failed"); } finally { setIsGeneratingAudio(false); }
@@ -813,9 +866,9 @@ const AICoPilot = () => {
                 <div className="flex-1 min-w-0">
                   <p className="text-[12px] text-white font-medium truncate">{v.name}</p>
                 </div>
-                {v.sample_urls && v.sample_urls.length > 0 && (
-                  <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); const a = new Audio(v.sample_urls![0]); a.play().catch(() => {}); }}
-                    className="h-7 w-7 p-0 text-white/30 hover:text-white shrink-0"><Play className="h-3 w-3" /></Button>
+                {(v.preview_url || (v.sample_urls && v.sample_urls.length > 0)) && (
+                  <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); const a = new Audio(v.preview_url || v.sample_urls![0]); a.play().catch(() => {}); }}
+                    className="h-7 w-7 p-0 text-white/30 hover:text-white shrink-0" title="Preview cloned voice"><Play className="h-3 w-3" /></Button>
                 )}
                 <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); setEditingVoiceId(v.id); setVoiceParams(loadVoiceParams(v.id)); setShowVoiceEditor(true); }}
                   className="h-7 w-7 p-0 text-white/20 hover:text-white shrink-0"><SlidersHorizontal className="h-3 w-3" /></Button>
