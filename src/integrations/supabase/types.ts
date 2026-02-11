@@ -280,6 +280,83 @@ export type Database = {
         }
         Relationships: []
       }
+      content_calendar: {
+        Row: {
+          account_id: string | null
+          ai_suggestions: Json | null
+          caption: string | null
+          content_type: string
+          created_at: string
+          created_by: string | null
+          cta: string | null
+          description: string | null
+          engagement_prediction: number | null
+          hashtags: string[] | null
+          id: string
+          media_urls: Json | null
+          metadata: Json | null
+          platform: string
+          published_at: string | null
+          scheduled_at: string | null
+          status: string
+          title: string
+          updated_at: string
+          viral_score: number | null
+        }
+        Insert: {
+          account_id?: string | null
+          ai_suggestions?: Json | null
+          caption?: string | null
+          content_type?: string
+          created_at?: string
+          created_by?: string | null
+          cta?: string | null
+          description?: string | null
+          engagement_prediction?: number | null
+          hashtags?: string[] | null
+          id?: string
+          media_urls?: Json | null
+          metadata?: Json | null
+          platform?: string
+          published_at?: string | null
+          scheduled_at?: string | null
+          status?: string
+          title: string
+          updated_at?: string
+          viral_score?: number | null
+        }
+        Update: {
+          account_id?: string | null
+          ai_suggestions?: Json | null
+          caption?: string | null
+          content_type?: string
+          created_at?: string
+          created_by?: string | null
+          cta?: string | null
+          description?: string | null
+          engagement_prediction?: number | null
+          hashtags?: string[] | null
+          id?: string
+          media_urls?: Json | null
+          metadata?: Json | null
+          platform?: string
+          published_at?: string | null
+          scheduled_at?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+          viral_score?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_calendar_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "managed_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contracts: {
         Row: {
           account_id: string | null
@@ -342,6 +419,118 @@ export type Database = {
             columns: ["team_member_id"]
             isOneToOne: false
             referencedRelation: "team_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      copilot_conversations: {
+        Row: {
+          account_id: string | null
+          context_type: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          messages: Json
+          title: string | null
+          updated_at: string
+        }
+        Insert: {
+          account_id?: string | null
+          context_type?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          messages?: Json
+          title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string | null
+          context_type?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          messages?: Json
+          title?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "copilot_conversations_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "managed_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fan_emotional_profiles: {
+        Row: {
+          account_id: string
+          attachment_level: number | null
+          churn_risk: number | null
+          conflict_risk: number | null
+          created_at: string
+          emotional_triggers: Json | null
+          fan_identifier: string
+          fan_name: string | null
+          id: string
+          interaction_count: number | null
+          last_interaction_at: string | null
+          notes: string | null
+          obsession_risk: number | null
+          sentiment_history: Json | null
+          spending_motivation: string | null
+          tags: string[] | null
+          total_spent: number | null
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          attachment_level?: number | null
+          churn_risk?: number | null
+          conflict_risk?: number | null
+          created_at?: string
+          emotional_triggers?: Json | null
+          fan_identifier: string
+          fan_name?: string | null
+          id?: string
+          interaction_count?: number | null
+          last_interaction_at?: string | null
+          notes?: string | null
+          obsession_risk?: number | null
+          sentiment_history?: Json | null
+          spending_motivation?: string | null
+          tags?: string[] | null
+          total_spent?: number | null
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          attachment_level?: number | null
+          churn_risk?: number | null
+          conflict_risk?: number | null
+          created_at?: string
+          emotional_triggers?: Json | null
+          fan_identifier?: string
+          fan_name?: string | null
+          id?: string
+          interaction_count?: number | null
+          last_interaction_at?: string | null
+          notes?: string | null
+          obsession_risk?: number | null
+          sentiment_history?: Json | null
+          spending_motivation?: string | null
+          tags?: string[] | null
+          total_spent?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fan_emotional_profiles_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "managed_accounts"
             referencedColumns: ["id"]
           },
         ]
@@ -539,6 +728,115 @@ export type Database = {
             columns: ["assigned_chatter"]
             isOneToOne: false
             referencedRelation: "team_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      persona_consistency_checks: {
+        Row: {
+          account_id: string
+          check_type: string
+          consistency_score: number | null
+          content_checked: string | null
+          created_at: string
+          id: string
+          issues: Json | null
+          suggestions: Json | null
+        }
+        Insert: {
+          account_id: string
+          check_type?: string
+          consistency_score?: number | null
+          content_checked?: string | null
+          created_at?: string
+          id?: string
+          issues?: Json | null
+          suggestions?: Json | null
+        }
+        Update: {
+          account_id?: string
+          check_type?: string
+          consistency_score?: number | null
+          content_checked?: string | null
+          created_at?: string
+          id?: string
+          issues?: Json | null
+          suggestions?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "persona_consistency_checks_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "managed_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      persona_profiles: {
+        Row: {
+          account_id: string
+          boundaries: string | null
+          brand_identity: string | null
+          burnout_risk: number | null
+          communication_rules: Json | null
+          created_at: string
+          created_by: string | null
+          emotional_range: string
+          id: string
+          last_mood_update: string | null
+          mood: string | null
+          motivation_level: number | null
+          personality_traits: Json | null
+          stress_level: number | null
+          tone: string
+          updated_at: string
+          vocabulary_style: string
+        }
+        Insert: {
+          account_id: string
+          boundaries?: string | null
+          brand_identity?: string | null
+          burnout_risk?: number | null
+          communication_rules?: Json | null
+          created_at?: string
+          created_by?: string | null
+          emotional_range?: string
+          id?: string
+          last_mood_update?: string | null
+          mood?: string | null
+          motivation_level?: number | null
+          personality_traits?: Json | null
+          stress_level?: number | null
+          tone?: string
+          updated_at?: string
+          vocabulary_style?: string
+        }
+        Update: {
+          account_id?: string
+          boundaries?: string | null
+          brand_identity?: string | null
+          burnout_risk?: number | null
+          communication_rules?: Json | null
+          created_at?: string
+          created_by?: string | null
+          emotional_range?: string
+          id?: string
+          last_mood_update?: string | null
+          mood?: string | null
+          motivation_level?: number | null
+          personality_traits?: Json | null
+          stress_level?: number | null
+          tone?: string
+          updated_at?: string
+          vocabulary_style?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "persona_profiles_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "managed_accounts"
             referencedColumns: ["id"]
           },
         ]
