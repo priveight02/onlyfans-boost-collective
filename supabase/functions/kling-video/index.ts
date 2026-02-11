@@ -71,7 +71,7 @@ serve(async (req) => {
         prompt,
         duration: String(duration || "5"),
         aspect_ratio: aspect_ratio || "16:9",
-        model_name: model_name || "kling-v1-6",
+        model_name: model_name || "kling-v2-master",
         mode: mode || "std",
       };
 
