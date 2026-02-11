@@ -46,7 +46,6 @@ interface Voice {
   sample_urls: string[] | null;
   preview_url: string | null;
   elevenlabs_voice_id: string | null;
-  browser_voice_uri?: string; // browser SpeechSynthesis voice URI
 }
 
 interface VoiceParams {
@@ -172,6 +171,7 @@ const AICoPilot = () => {
   const [voices, setVoices] = useState<Voice[]>([]);
   const [selectedVoice, setSelectedVoice] = useState<string>("");
   const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
+  const [voiceSamples, setVoiceSamples] = useState<File[]>([]);
   const [newVoiceName, setNewVoiceName] = useState("");
   const [isCloningVoice, setIsCloningVoice] = useState(false);
   const [showCreateVoice, setShowCreateVoice] = useState(false);
@@ -180,8 +180,6 @@ const AICoPilot = () => {
   const [showVoiceEditor, setShowVoiceEditor] = useState(false);
   const [editingVoiceId, setEditingVoiceId] = useState<string | null>(null);
   const [playingAudioId, setPlayingAudioId] = useState<string | null>(null);
-  const [browserVoices, setBrowserVoices] = useState<SpeechSynthesisVoice[]>([]);
-  const [selectedBrowserVoice, setSelectedBrowserVoice] = useState<string>("");
 
   // Image state
   const [imagePrompt, setImagePrompt] = useState("");
@@ -206,6 +204,7 @@ const AICoPilot = () => {
   const editFileInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const voiceSampleInputRef = useRef<HTMLInputElement>(null);
   const imageRefInputRef = useRef<HTMLInputElement>(null);
   const videoFrameInputRef = useRef<HTMLInputElement>(null);
   const audioPlayerRefs = useRef<Record<string, HTMLAudioElement | null>>({});
@@ -221,16 +220,6 @@ const AICoPilot = () => {
       setVoiceParams(params);
     }
   }, [selectedVoice]);
-  // Load browser voices
-  useEffect(() => {
-    const loadBrowserVoices = () => {
-      const v = window.speechSynthesis.getVoices();
-      if (v.length) setBrowserVoices(v);
-    };
-    loadBrowserVoices();
-    window.speechSynthesis.onvoiceschanged = loadBrowserVoices;
-    return () => { window.speechSynthesis.onvoiceschanged = null; };
-  }, []);
 
   // ---- Data loading ----
   const loadData = async () => {
@@ -244,12 +233,10 @@ const AICoPilot = () => {
     ]);
     setConversations(convos.data || []);
     setAccounts(accts.data || []);
-    const voiceMap = JSON.parse(localStorage.getItem("copilot_browser_voice_map") || "{}");
     const loadedVoices = (voicesData.data || []).map((v: any) => ({
       id: v.id, name: v.name, description: v.description,
       is_preset: v.is_preset, sample_urls: v.sample_urls, preview_url: v.preview_url,
       elevenlabs_voice_id: v.elevenlabs_voice_id,
-      browser_voice_uri: voiceMap[v.id] || null,
     })) as Voice[];
     setVoices(loadedVoices);
     if (loadedVoices.length) setSelectedVoice(loadedVoices[0].id);
@@ -455,40 +442,62 @@ const AICoPilot = () => {
 
   const handleCopy = (idx: number) => { navigator.clipboard.writeText(messages[idx].content); setCopiedIdx(idx); setTimeout(() => setCopiedIdx(null), 2000); };
 
-  // ---- Create voice (browser SpeechSynthesis) ----
+  // ---- Voice cloning (real ElevenLabs) ----
   const handleCloneVoice = async () => {
-    if (!newVoiceName.trim() || newVoiceName.trim().length < 3) { toast.error("Name must be at least 3 characters"); return; }
-    if (!selectedBrowserVoice) { toast.error("Select a browser voice"); return; }
+    if (!newVoiceName.trim() || voiceSamples.length === 0) { toast.error("Provide a name and at least one audio sample (1 min recommended)"); return; }
+    if (newVoiceName.trim().length < 3) { toast.error("Name must be at least 3 characters"); return; }
     setIsCloningVoice(true);
     try {
-      const bv = browserVoices.find(v => v.voiceURI === selectedBrowserVoice);
+      // Send audio files directly to the voice-audio edge function for real cloning
+      const formData = new FormData();
+      formData.append("name", newVoiceName.trim());
+      formData.append("description", `Cloned voice — ${voiceSamples.length} sample(s)`);
+      for (const file of voiceSamples) {
+        formData.append("files", file, file.name);
+      }
+
+      const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/voice-audio?action=clone`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+        body: formData,
+      });
+      if (!resp.ok) { const ed = await resp.json().catch(() => ({})); throw new Error(ed.error || `Cloning failed (${resp.status})`); }
+      const result = await resp.json();
+      const elevenVoiceId = result.voice_id;
+      const previewUrl = result.preview_audio || null;
+
+      // Also upload samples to storage for reference
+      const sampleUrls: string[] = [];
+      for (const file of voiceSamples) { const url = await uploadFileToStorage(file); if (url) sampleUrls.push(url); }
+
+      // Save to DB with the ElevenLabs voice ID
       const { data: nv, error } = await supabase.from("copilot_voices").insert({
         name: newVoiceName,
-        description: `Browser voice: ${bv?.name || selectedBrowserVoice} (${bv?.lang || "unknown"})`,
-        sample_urls: [],
+        description: `AI-cloned voice from ${sampleUrls.length} sample(s)`,
+        sample_urls: sampleUrls,
+        preview_url: previewUrl,
+        elevenlabs_voice_id: elevenVoiceId,
         is_preset: false,
       }).select().single();
       if (error) throw error;
-      // Save the browser voice URI to localStorage
-      const voiceMap = JSON.parse(localStorage.getItem("copilot_browser_voice_map") || "{}");
-      voiceMap[nv!.id] = selectedBrowserVoice;
-      localStorage.setItem("copilot_browser_voice_map", JSON.stringify(voiceMap));
-
-      const newVoice = { ...(nv as unknown as Voice), browser_voice_uri: selectedBrowserVoice };
-      setVoices(prev => [...prev, newVoice]);
-      setSelectedVoice(nv!.id);
-      setNewVoiceName(""); setSelectedBrowserVoice(""); setShowCreateVoice(false);
-      toast.success(`Voice "${newVoiceName}" created!`);
-    } catch (e: any) { toast.error(e.message || "Failed to create voice"); } finally { setIsCloningVoice(false); }
+      setVoices(prev => [...prev, nv as unknown as Voice]); setSelectedVoice(nv!.id);
+      setNewVoiceName(""); setVoiceSamples([]); setShowCreateVoice(false);
+      toast.success(`Voice "${newVoiceName}" cloned successfully!`);
+    } catch (e: any) { toast.error(e.message || "Voice cloning failed"); } finally { setIsCloningVoice(false); }
   };
 
   const deleteVoice = async (voiceId: string) => {
+    const voice = voices.find(v => v.id === voiceId);
+    // Delete from ElevenLabs too
+    if (voice?.elevenlabs_voice_id) {
+      fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/voice-audio?action=delete`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+        body: JSON.stringify({ voice_id: voice.elevenlabs_voice_id }),
+      }).catch(() => {});
+    }
     const { error } = await supabase.from("copilot_voices").delete().eq("id", voiceId);
     if (error) { toast.error("Delete failed"); return; }
-    // Clean up localStorage mapping
-    const voiceMap = JSON.parse(localStorage.getItem("copilot_browser_voice_map") || "{}");
-    delete voiceMap[voiceId];
-    localStorage.setItem("copilot_browser_voice_map", JSON.stringify(voiceMap));
     setVoices(prev => prev.filter(v => v.id !== voiceId));
     if (selectedVoice === voiceId) setSelectedVoice(voices.filter(v => v.id !== voiceId)[0]?.id || "");
     toast.success("Voice deleted");
@@ -514,47 +523,39 @@ const AICoPilot = () => {
     updateVoiceParam("effects", newEffects);
   };
 
-  // Get the browser voice URI for a voice
-  const getBrowserVoiceUri = (voiceId: string): string | null => {
-    const voice = voices.find(v => v.id === voiceId);
-    if (voice?.browser_voice_uri) return voice.browser_voice_uri;
-    const voiceMap = JSON.parse(localStorage.getItem("copilot_browser_voice_map") || "{}");
-    return voiceMap[voiceId] || null;
-  };
-
-  // ---- Audio generation (Browser SpeechSynthesis) ----
+  // ---- Audio generation (real ElevenLabs TTS) ----
   const generateAudio = async () => {
     if (!audioText.trim() || isGeneratingAudio) return;
-    if (!selectedVoice) { toast.error("Select a voice first"); return; }
-    const browserVoiceUri = getBrowserVoiceUri(selectedVoice);
-    if (!browserVoiceUri) { toast.error("This voice has no browser voice assigned"); return; }
+    const voice = voices.find(v => v.id === selectedVoice);
+    if (!voice?.elevenlabs_voice_id) { toast.error("Select a cloned voice first. Create one from audio samples."); return; }
     setIsGeneratingAudio(true);
     try {
-      const voiceName = voices.find(v => v.id === selectedVoice)?.name || "Voice";
-      
-      // Use SpeechSynthesis to speak the text
-      const utterance = new SpeechSynthesisUtterance(audioText);
-      const bv = browserVoices.find(v => v.voiceURI === browserVoiceUri);
-      if (bv) utterance.voice = bv;
-      utterance.pitch = Math.max(0, Math.min(2, 1 + (voiceParams.pitch / 12)));
-      utterance.rate = Math.max(0.1, Math.min(10, voiceParams.speed));
-      utterance.volume = 1;
+      // Map voice params to ElevenLabs settings
+      const voiceSettings: any = {
+        stability: Math.max(0, Math.min(1, 0.5 - (voiceParams.pitch * 0.02))),
+        similarity_boost: Math.max(0, Math.min(1, 0.85 + (voiceParams.reverb * 0.001))),
+        style: 0.5,
+        speed: voiceParams.speed,
+      };
 
-      // Speak and wait for completion
-      await new Promise<void>((resolve, reject) => {
-        utterance.onend = () => resolve();
-        utterance.onerror = (e) => reject(new Error(e.error || "Speech synthesis failed"));
-        window.speechSynthesis.speak(utterance);
+      const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/voice-audio?action=generate`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({
+          text: audioText,
+          voice_id: voice.elevenlabs_voice_id,
+          voice_settings: voiceSettings,
+        }),
       });
+      if (!resp.ok) { const ed = await resp.json().catch(() => ({})); throw new Error(ed.error || `Error ${resp.status}`); }
+      const data = await resp.json();
+      const audioUrl = data.audio_url;
+      if (!audioUrl) throw new Error("No audio returned");
 
-      // Save a record (URL is a placeholder since browser TTS can't export audio)
-      const saved = await saveGeneratedContent(
-        "audio",
-        `browser-tts://${selectedVoice}/${Date.now()}`,
-        audioText,
-        "audio",
-        { metadata: { voice: voiceName, params: voiceParams, browser_voice_uri: browserVoiceUri, text: audioText } }
-      );
+      const saved = await saveGeneratedContent("audio", audioUrl, audioText, "audio", { metadata: { voice: voice.name, params: voiceParams } });
       if (saved) setGeneratedAudios(prev => [saved, ...prev]);
       toast.success("Audio generated!"); setAudioText("");
     } catch (e: any) { toast.error(e.message || "Audio generation failed"); } finally { setIsGeneratingAudio(false); }
@@ -614,29 +615,19 @@ const AICoPilot = () => {
     } catch (e: any) { toast.error(e.message || "Video generation failed"); } finally { setIsStreaming(false); }
   };
 
-  // ---- Audio playback (browser TTS replay) ----
-  const toggleAudioPlay = (id: string, _url: string, item?: GeneratedContent) => {
+  // ---- Audio playback ----
+  const toggleAudioPlay = (id: string, url: string) => {
     if (playingAudioId === id) {
-      window.speechSynthesis.cancel();
+      audioPlayerRefs.current[id]?.pause();
       setPlayingAudioId(null);
     } else {
-      window.speechSynthesis.cancel();
-      // Get the text and voice from metadata
-      const text = item?.metadata?.text || item?.prompt || "";
-      const browserVoiceUri = item?.metadata?.browser_voice_uri || null;
-      const params = item?.metadata?.params as VoiceParams | undefined;
-      if (!text) { toast.error("No text to replay"); return; }
-      const utterance = new SpeechSynthesisUtterance(text);
-      if (browserVoiceUri) {
-        const bv = browserVoices.find(v => v.voiceURI === browserVoiceUri);
-        if (bv) utterance.voice = bv;
+      if (playingAudioId && audioPlayerRefs.current[playingAudioId]) audioPlayerRefs.current[playingAudioId]?.pause();
+      if (!audioPlayerRefs.current[id]) {
+        const audio = new Audio(url);
+        audio.onended = () => setPlayingAudioId(null);
+        audioPlayerRefs.current[id] = audio;
       }
-      if (params) {
-        utterance.pitch = Math.max(0, Math.min(2, 1 + (params.pitch / 12)));
-        utterance.rate = Math.max(0.1, Math.min(10, params.speed));
-      }
-      utterance.onend = () => setPlayingAudioId(null);
-      window.speechSynthesis.speak(utterance);
+      audioPlayerRefs.current[id]?.play().catch(() => {});
       setPlayingAudioId(id);
     }
   };
@@ -708,7 +699,7 @@ const AICoPilot = () => {
         <div className="flex flex-col items-center justify-center h-full text-center py-12">
           <Headphones className="h-12 w-12 text-white/10 mb-4" />
           <p className="text-white/20 text-sm">Generated audios appear here</p>
-          <p className="text-[10px] text-white/10 mt-1">Playable • Synced with database</p>
+          <p className="text-[10px] text-white/10 mt-1">Playable • Downloadable as .mp3 • Synced</p>
         </div>
       );
     }
@@ -721,16 +712,20 @@ const AICoPilot = () => {
             <div key={item.id} className="group">
               <p className="text-[11px] text-white/50 mb-1.5 font-medium">{voiceName}</p>
               <div className="flex items-center gap-3 bg-white/[0.04] border border-white/[0.08] rounded-xl p-3">
-                <button onClick={() => toggleAudioPlay(item.id, item.url, item)}
+                <button onClick={() => toggleAudioPlay(item.id, item.url)}
                   className="h-10 w-10 rounded-full bg-white flex items-center justify-center shrink-0 hover:bg-white/90 transition-colors">
                   {isPlaying ? <Pause className="h-4 w-4 text-black" /> : <Play className="h-4 w-4 text-black ml-0.5" />}
                 </button>
                 <AudioWaveform playing={isPlaying} />
                 <div className="flex items-center gap-1.5 shrink-0">
                   <button onClick={() => { setEditingVoiceId(item.id); setShowVoiceEditor(true); }}
-                    className="h-8 w-8 rounded-lg flex items-center justify-center text-white/30 hover:text-white hover:bg-white/10 transition-colors" title="Edit params">
+                    className="h-8 w-8 rounded-lg flex items-center justify-center text-white/30 hover:text-white hover:bg-white/10 transition-colors" title="Edit">
                     <SlidersHorizontal className="h-4 w-4" />
                   </button>
+                  <a href={item.url} download={`audio_${item.id}.mp3`}
+                    className="h-8 w-8 rounded-lg flex items-center justify-center text-white/30 hover:text-white hover:bg-white/10 transition-colors" title="Download .mp3">
+                    <Download className="h-4 w-4" />
+                  </a>
                   <button onClick={() => deleteGeneratedContent(item.id, "audio")}
                     className="h-8 w-8 rounded-lg flex items-center justify-center text-white/30 hover:text-red-400 hover:bg-white/10 transition-colors" title="Delete">
                     <Trash className="h-4 w-4" />
@@ -871,16 +866,10 @@ const AICoPilot = () => {
                 <div className="flex-1 min-w-0">
                   <p className="text-[12px] text-white font-medium truncate">{v.name}</p>
                 </div>
-                <Button size="sm" variant="ghost" onClick={(e) => {
-                  e.stopPropagation();
-                  const uri = getBrowserVoiceUri(v.id);
-                  if (uri) {
-                    const bv = browserVoices.find(bv => bv.voiceURI === uri);
-                    const u = new SpeechSynthesisUtterance("Hello, how are you doing?");
-                    if (bv) u.voice = bv;
-                    window.speechSynthesis.speak(u);
-                  } else { toast.info("No browser voice assigned"); }
-                }} className="h-7 w-7 p-0 text-white/30 hover:text-white shrink-0" title="Preview voice"><Play className="h-3 w-3" /></Button>
+                {(v.preview_url || (v.sample_urls && v.sample_urls.length > 0)) && (
+                  <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); const a = new Audio(v.preview_url || v.sample_urls![0]); a.play().catch(() => {}); }}
+                    className="h-7 w-7 p-0 text-white/30 hover:text-white shrink-0" title="Preview cloned voice"><Play className="h-3 w-3" /></Button>
+                )}
                 <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); setEditingVoiceId(v.id); setVoiceParams(loadVoiceParams(v.id)); setShowVoiceEditor(true); }}
                   className="h-7 w-7 p-0 text-white/20 hover:text-white shrink-0"><SlidersHorizontal className="h-3 w-3" /></Button>
                 <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); deleteVoice(v.id); }}
@@ -1041,7 +1030,7 @@ const AICoPilot = () => {
         <DialogContent className="bg-[hsl(220,30%,8%)] border-white/10 text-white max-w-md">
           <DialogHeader>
             <DialogTitle className="text-white text-lg">Create a voice</DialogTitle>
-            <p className="text-sm text-white/40">Select a browser voice and customize it</p>
+            <p className="text-sm text-white/40">Clone a voice from audio samples using AI</p>
           </DialogHeader>
           <div className="space-y-4 mt-2">
             <div>
@@ -1051,30 +1040,27 @@ const AICoPilot = () => {
               {newVoiceName.length > 0 && newVoiceName.length < 3 && <p className="text-[10px] text-red-400 mt-1">Name must contain at least 3 characters</p>}
             </div>
             <div>
-              <p className="text-sm font-medium text-white mb-2">Browser Voice</p>
-              <Select value={selectedBrowserVoice} onValueChange={setSelectedBrowserVoice}>
-                <SelectTrigger className="bg-white/5 border-white/10 text-white h-10 text-sm"><SelectValue placeholder="Select a voice..." /></SelectTrigger>
-                <SelectContent className="bg-[hsl(220,40%,10%)] border-white/10 max-h-[300px]">
-                  {browserVoices.map(v => (
-                    <SelectItem key={v.voiceURI} value={v.voiceURI} className="text-white text-xs">
-                      {v.name} ({v.lang})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {selectedBrowserVoice && (
-                <Button size="sm" variant="ghost" onClick={() => {
-                  const bv = browserVoices.find(v => v.voiceURI === selectedBrowserVoice);
-                  if (bv) { const u = new SpeechSynthesisUtterance("Hello, how are you doing?"); u.voice = bv; window.speechSynthesis.speak(u); }
-                }} className="mt-2 text-[11px] text-accent hover:text-accent/80 h-7 px-2 gap-1">
-                  <Play className="h-3 w-3" /> Preview
-                </Button>
-              )}
+              <p className="text-sm font-medium text-white mb-2">Audio samples</p>
+              <div className="border-2 border-dashed border-white/10 rounded-xl p-8 flex flex-col items-center justify-center gap-3 cursor-pointer hover:border-white/20 transition-colors"
+                onClick={() => voiceSampleInputRef.current?.click()}>
+                <Volume2 className="h-8 w-8 text-white/20" />
+                <p className="text-sm text-white/30">MP3, WAV, M4A</p>
+              </div>
+              <input ref={voiceSampleInputRef} type="file" multiple accept="audio/*" className="hidden"
+                onChange={e => { const files = Array.from(e.target.files || []); setVoiceSamples(prev => [...prev, ...files]); }} />
             </div>
-            <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg px-3 py-2">
-              <p className="text-[11px] text-blue-300/70">Uses your browser's built-in speech synthesis. Pitch, speed & effects can be customized after creation.</p>
-            </div>
-            <Button onClick={handleCloneVoice} disabled={isCloningVoice || newVoiceName.trim().length < 3 || !selectedBrowserVoice}
+            {voiceSamples.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {voiceSamples.map((f, i) => (
+                  <Badge key={i} variant="outline" className="text-[10px] border-white/10 text-white/50 gap-1 py-1">
+                    <Music className="h-3 w-3" /> {f.name.slice(0, 25)}
+                    <button onClick={() => setVoiceSamples(prev => prev.filter((_, j) => j !== i))} className="ml-1 hover:text-red-400"><X className="h-2.5 w-2.5" /></button>
+                  </Badge>
+                ))}
+              </div>
+            )}
+            <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2"><p className="text-[11px] text-amber-300/70">Note: 1 min audio recommended for best results</p></div>
+            <Button onClick={handleCloneVoice} disabled={isCloningVoice || newVoiceName.trim().length < 3 || voiceSamples.length === 0}
               className="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm h-10">
               {isCloningVoice ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Mic className="h-4 w-4 mr-2" />}Create voice
             </Button>
