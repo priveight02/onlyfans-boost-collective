@@ -75,7 +75,7 @@ const Admin = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[hsl(210,100%,12%)] via-[hsl(220,100%,10%)] to-[hsl(230,100%,8%)]">
+    <div className="dark min-h-screen bg-gradient-to-br from-[hsl(210,100%,12%)] via-[hsl(220,100%,10%)] to-[hsl(230,100%,8%)]">
       <div className="container mx-auto px-4 sm:px-6 pt-24 pb-12 space-y-8">
         {/* Header */}
         <div className="flex items-center justify-between">
