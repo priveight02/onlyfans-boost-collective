@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import SocialAITools from "./SocialAITools";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -815,45 +816,8 @@ const SocialMediaHub = () => {
         </TabsContent>
 
         {/* ===== AI TOOLS ===== */}
-        <TabsContent value="ai-tools" className="space-y-4 mt-4">
-          {/* Caption Generator */}
-          <Card>
-            <CardContent className="p-4 space-y-3">
-              <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><Wand2 className="h-4 w-4 text-yellow-400" />AI Caption Generator</h4>
-              <div className="grid grid-cols-2 gap-2">
-                <select value={aiCaptionPlatform} onChange={e => setAiCaptionPlatform(e.target.value)} className="bg-background border border-border text-foreground rounded-lg px-2 py-1.5 text-sm">
-                  <option value="instagram">Instagram</option>
-                  <option value="tiktok">TikTok</option>
-                </select>
-                <div className="flex items-center gap-2">
-                  <Switch checked={aiCaptionCta} onCheckedChange={setAiCaptionCta} />
-                  <span className="text-xs text-muted-foreground">CTA</span>
-                </div>
-              </div>
-              <Textarea value={aiCaptionTopic} onChange={e => setAiCaptionTopic(e.target.value)} placeholder="Describe your post..." rows={2} className="text-sm" />
-              <Button size="sm" onClick={generateAiCaption} disabled={apiLoading || !aiCaptionTopic}><Wand2 className="h-3.5 w-3.5 mr-1" />Generate</Button>
-              {aiCaptionResult && (
-                <div className="bg-muted/50 rounded-lg p-3">
-                  <p className="text-sm text-foreground whitespace-pre-wrap">{aiCaptionResult}</p>
-                  <Button size="sm" variant="outline" className="mt-2" onClick={() => { navigator.clipboard.writeText(aiCaptionResult); toast.success("Copied"); }}><Copy className="h-3 w-3 mr-1" />Copy</Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Content Analyzer */}
-          <Card>
-            <CardContent className="p-4 space-y-3">
-              <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><Activity className="h-4 w-4 text-blue-400" />Content Analyzer</h4>
-              <Textarea value={aiAnalyzeCaption} onChange={e => setAiAnalyzeCaption(e.target.value)} placeholder="Paste caption to analyze..." rows={2} className="text-sm" />
-              <Button size="sm" onClick={analyzeContent} disabled={apiLoading || !aiAnalyzeCaption}><Activity className="h-3.5 w-3.5 mr-1" />Analyze</Button>
-              {aiAnalyzeResult && (
-                <div className="bg-muted/50 rounded-lg p-3">
-                  <p className="text-sm text-foreground whitespace-pre-wrap">{aiAnalyzeResult}</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+        <TabsContent value="ai-tools" className="mt-4">
+          <SocialAITools selectedAccount={selectedAccount} />
         </TabsContent>
 
         {/* ===== ANALYTICS ===== */}
