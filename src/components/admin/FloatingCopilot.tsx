@@ -6,7 +6,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Bot, Send, Loader2, Sparkles, Brain, X,
   Target, DollarSign, Zap, TrendingUp,
-  Paperclip, Download, Image, Music, Video, FileText, Play,
+  Paperclip, Download, Music, FileText, Play,
+  Pencil, RotateCcw, Copy, Check, RefreshCw,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -41,16 +42,10 @@ const FLOAT_DRAFT_KEY = "copilot_float_draft";
 const saveDraft = (input: string, attachments: Attachment[]) => {
   try { localStorage.setItem(FLOAT_DRAFT_KEY, JSON.stringify({ input, attachments })); } catch {}
 };
-const loadDraft = (): { input: string; attachments: Attachment[] } | null => {
+const loadDraftData = (): { input: string; attachments: Attachment[] } | null => {
   try { const r = localStorage.getItem(FLOAT_DRAFT_KEY); return r ? JSON.parse(r) : null; } catch { return null; }
 };
 const clearDraft = () => { try { localStorage.removeItem(FLOAT_DRAFT_KEY); } catch {} };
-
-const formatSize = (bytes: number) => {
-  if (bytes < 1024) return `${bytes}B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
-};
 
 interface FloatingCopilotProps {
   activeTab?: string;
@@ -67,6 +62,11 @@ const FloatingCopilot = ({ activeTab, contextData }: FloatingCopilotProps) => {
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [draftLoaded, setDraftLoaded] = useState(false);
+  const [convoId, setConvoId] = useState<string | null>(null);
+  const [editingIdx, setEditingIdx] = useState<number | null>(null);
+  const [editText, setEditText] = useState("");
+  const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
+  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -75,8 +75,7 @@ const FloatingCopilot = ({ activeTab, contextData }: FloatingCopilotProps) => {
       .select("id, username, display_name, monthly_revenue, subscriber_count, status")
       .then(({ data }) => setAccounts(data || []));
     const timer = setTimeout(() => setPulseHint(false), 8000);
-    // Restore draft
-    const draft = loadDraft();
+    const draft = loadDraftData();
     if (draft) {
       if (draft.input) setInput(draft.input);
       if (draft.attachments?.length) setAttachments(draft.attachments);
@@ -85,7 +84,6 @@ const FloatingCopilot = ({ activeTab, contextData }: FloatingCopilotProps) => {
     return () => clearTimeout(timer);
   }, []);
 
-  // Auto-save draft
   useEffect(() => {
     if (!draftLoaded) return;
     saveDraft(input, attachments);
@@ -97,19 +95,16 @@ const FloatingCopilot = ({ activeTab, contextData }: FloatingCopilotProps) => {
 
   const buildContext = () => {
     const parts: string[] = [];
-    parts.push(`User is currently on the "${activeTab || "dashboard"}" module.`);
-    if (contextData) parts.push(`Current module data: ${JSON.stringify(contextData).slice(0, 500)}`);
-    const summary = accounts.length > 0
-      ? `Agency: ${accounts.length} creators, $${accounts.reduce((s, a) => s + (a.monthly_revenue || 0), 0).toLocaleString()}/mo total, ${accounts.filter(a => a.status === "active").length} active`
-      : "";
-    if (summary) parts.push(summary);
+    parts.push(`User is on "${activeTab || "dashboard"}" module.`);
+    if (contextData) parts.push(`Context: ${JSON.stringify(contextData).slice(0, 500)}`);
+    if (accounts.length > 0) parts.push(`Agency: ${accounts.length} creators, $${accounts.reduce((s, a) => s + (a.monthly_revenue || 0), 0).toLocaleString()}/mo`);
     return parts.join("\n");
   };
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
-    if (attachments.length + files.length > MAX_ATTACHMENTS) { toast.error(`Max ${MAX_ATTACHMENTS} attachments`); return; }
+    if (attachments.length + files.length > MAX_ATTACHMENTS) { toast.error(`Max ${MAX_ATTACHMENTS}`); return; }
     setIsUploading(true);
     const newAtts: Attachment[] = [];
     for (const file of files) {
@@ -129,38 +124,20 @@ const FloatingCopilot = ({ activeTab, contextData }: FloatingCopilotProps) => {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  const sendMessage = async (text?: string) => {
-    const msgText = text || input.trim();
-    if ((!msgText && attachments.length === 0) || isStreaming) return;
-    setInput("");
-    clearDraft();
+  const saveToDb = async (id: string, msgs: Msg[], title?: string) => {
+    await supabase.from("copilot_conversations").update({
+      messages: msgs as any,
+      ...(title ? { title } : {}),
+      updated_at: new Date().toISOString(),
+      context_type: "widget",
+    }).eq("id", id);
+  };
 
-    const currentAttachments = [...attachments];
-    setAttachments([]);
-
-    let apiContent: any = msgText;
-    if (currentAttachments.length > 0) {
-      const parts: any[] = [];
-      if (msgText) parts.push({ type: "text", text: msgText });
-      for (const att of currentAttachments) {
-        if (att.type === "image") parts.push({ type: "image_url", image_url: { url: att.url } });
-        else parts.push({ type: "text", text: `[Attached ${att.type}: ${att.name} - ${att.url}]` });
-      }
-      apiContent = parts;
-    }
-
-    const userMsg: Msg = { role: "user", content: msgText || "Attached files", attachments: currentAttachments.length > 0 ? currentAttachments : undefined };
-    const newMessages = [...messages, userMsg];
-    setMessages(newMessages);
+  const streamResponse = async (apiMessages: any[], cId: string, baseMessages: Msg[], msgText: string) => {
     setIsStreaming(true);
-    scrollToBottom();
-
     let assistantSoFar = "";
 
     try {
-      const apiMessages = messages.map(m => ({ role: m.role, content: m.content }));
-      apiMessages.push({ role: "user", content: apiContent });
-
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/agency-copilot`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
@@ -168,14 +145,15 @@ const FloatingCopilot = ({ activeTab, contextData }: FloatingCopilotProps) => {
       });
 
       if (!resp.ok) { const e = await resp.json().catch(() => ({})); throw new Error(e.error || `Error ${resp.status}`); }
-
       const contentType = resp.headers.get("content-type") || "";
 
       if (contentType.includes("application/json")) {
         const data = await resp.json();
         if (data.type === "image") {
-          setMessages([...newMessages, { role: "assistant", content: data.content || "Generated image.", images: data.images || [] }]);
+          const final = [...baseMessages, { role: "assistant" as const, content: data.content || "Generated.", images: data.images || [] }];
+          setMessages(final);
           scrollToBottom();
+          await saveToDb(cId, final, msgText.slice(0, 50));
         }
       } else {
         if (!resp.body) throw new Error("No body");
@@ -207,14 +185,107 @@ const FloatingCopilot = ({ activeTab, contextData }: FloatingCopilotProps) => {
             } catch { buf = line + "\n" + buf; break; }
           }
         }
-        setMessages([...newMessages, { role: "assistant", content: assistantSoFar }]);
+        const final = [...baseMessages, { role: "assistant" as const, content: assistantSoFar }];
+        setMessages(final);
+        await saveToDb(cId, final, msgText.slice(0, 50));
       }
     } catch (e: any) {
       toast.error(e.message || "Failed");
-      setMessages(newMessages);
+      setMessages(baseMessages);
     } finally {
       setIsStreaming(false);
     }
+  };
+
+  const sendMessage = async (text?: string) => {
+    const msgText = text || input.trim();
+    if ((!msgText && attachments.length === 0) || isStreaming) return;
+    setInput("");
+    clearDraft();
+
+    const currentAttachments = [...attachments];
+    setAttachments([]);
+
+    let apiContent: any = msgText;
+    if (currentAttachments.length > 0) {
+      const parts: any[] = [];
+      if (msgText) parts.push({ type: "text", text: msgText });
+      for (const att of currentAttachments) {
+        if (att.type === "image") parts.push({ type: "image_url", image_url: { url: att.url } });
+        else parts.push({ type: "text", text: `[Attached ${att.type}: ${att.name} - ${att.url}]` });
+      }
+      apiContent = parts;
+    }
+
+    const userMsg: Msg = { role: "user", content: msgText || "Attached files", attachments: currentAttachments.length > 0 ? currentAttachments : undefined };
+    const newMessages = [...messages, userMsg];
+    setMessages(newMessages);
+    scrollToBottom();
+
+    // Auto-create conversation in Supabase (visible in AI Copilot main tab)
+    let cId = convoId;
+    if (!cId) {
+      const { data, error } = await supabase.from("copilot_conversations").insert({
+        title: msgText.slice(0, 50),
+        messages: newMessages as any,
+        context_type: "widget",
+      }).select().single();
+      if (error) { toast.error(error.message); return; }
+      cId = data.id;
+      setConvoId(cId);
+    }
+
+    const apiMessages = messages.map(m => ({ role: m.role, content: m.content }));
+    apiMessages.push({ role: "user", content: apiContent });
+
+    await streamResponse(apiMessages, cId!, newMessages, msgText);
+  };
+
+  const handleEditMessage = async (idx: number) => {
+    if (isStreaming || !editText.trim()) return;
+    const newContent = editText.trim();
+    setEditingIdx(null);
+    setEditText("");
+
+    const truncated = messages.slice(0, idx);
+    const editedMsg: Msg = { ...messages[idx], content: newContent };
+    const newMessages = [...truncated, editedMsg];
+    setMessages(newMessages);
+    scrollToBottom();
+
+    if (!convoId) return;
+    const apiMessages = truncated.map(m => ({ role: m.role, content: m.content }));
+    apiMessages.push({ role: "user", content: newContent });
+    await streamResponse(apiMessages, convoId, newMessages, newContent);
+  };
+
+  const handleRevertTo = async (idx: number) => {
+    if (isStreaming) return;
+    const truncated = messages.slice(0, idx + 1);
+    setMessages(truncated);
+    if (convoId) await saveToDb(convoId, truncated);
+    toast.success("Reverted");
+  };
+
+  const handleRegenerate = async () => {
+    if (isStreaming || messages.length < 2) return;
+    let lastUserIdx = -1;
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === "user") { lastUserIdx = i; break; }
+    }
+    if (lastUserIdx === -1 || !convoId) return;
+
+    const truncated = messages.slice(0, lastUserIdx + 1);
+    setMessages(truncated);
+    scrollToBottom();
+    const apiMessages = truncated.map(m => ({ role: m.role, content: m.content }));
+    await streamResponse(apiMessages, convoId, truncated, truncated[lastUserIdx].content);
+  };
+
+  const handleCopy = (idx: number) => {
+    navigator.clipboard.writeText(messages[idx].content);
+    setCopiedIdx(idx);
+    setTimeout(() => setCopiedIdx(null), 2000);
   };
 
   const renderMsgAttachments = (atts: Attachment[]) => (
@@ -236,6 +307,33 @@ const FloatingCopilot = ({ activeTab, contextData }: FloatingCopilotProps) => {
       ))}
     </div>
   );
+
+  const renderActions = (msg: Msg, idx: number) => {
+    const isUser = msg.role === "user";
+    const isLastAssistant = !isUser && idx === messages.length - 1;
+    return (
+      <div className={`flex items-center gap-0.5 mt-0.5 transition-opacity ${hoveredIdx === idx ? "opacity-100" : "opacity-0"}`}>
+        <Button size="sm" variant="ghost" onClick={() => handleCopy(idx)} className="h-5 w-5 p-0 text-white/30 hover:text-white" title="Copy">
+          {copiedIdx === idx ? <Check className="h-2.5 w-2.5 text-emerald-400" /> : <Copy className="h-2.5 w-2.5" />}
+        </Button>
+        {isUser && (
+          <Button size="sm" variant="ghost" onClick={() => { setEditingIdx(idx); setEditText(msg.content); }} className="h-5 w-5 p-0 text-white/30 hover:text-white" title="Edit">
+            <Pencil className="h-2.5 w-2.5" />
+          </Button>
+        )}
+        {isLastAssistant && (
+          <Button size="sm" variant="ghost" onClick={handleRegenerate} className="h-5 w-5 p-0 text-white/30 hover:text-white" title="Regenerate">
+            <RefreshCw className="h-2.5 w-2.5" />
+          </Button>
+        )}
+        {idx < messages.length - 1 && (
+          <Button size="sm" variant="ghost" onClick={() => handleRevertTo(idx)} className="h-5 w-5 p-0 text-white/30 hover:text-white" title="Revert here">
+            <RotateCcw className="h-2.5 w-2.5" />
+          </Button>
+        )}
+      </div>
+    );
+  };
 
   return (
     <>
@@ -271,7 +369,7 @@ const FloatingCopilot = ({ activeTab, contextData }: FloatingCopilotProps) => {
               </div>
               <div className="flex items-center gap-1">
                 {isStreaming && <Badge variant="outline" className="border-accent/20 text-accent text-[9px] animate-pulse mr-1"><Sparkles className="h-2.5 w-2.5 mr-1" /> Streaming</Badge>}
-                <Button size="sm" variant="ghost" onClick={() => { setMessages([]); setAttachments([]); clearDraft(); }} className="h-7 w-7 p-0 text-white/30 hover:text-white"><Zap className="h-3.5 w-3.5" /></Button>
+                <Button size="sm" variant="ghost" onClick={() => { setMessages([]); setAttachments([]); setConvoId(null); clearDraft(); }} className="h-7 w-7 p-0 text-white/30 hover:text-white" title="New chat"><Zap className="h-3.5 w-3.5" /></Button>
                 <Button size="sm" variant="ghost" onClick={() => setIsOpen(false)} className="h-7 w-7 p-0 text-white/30 hover:text-white"><X className="h-4 w-4" /></Button>
               </div>
             </div>
@@ -283,7 +381,7 @@ const FloatingCopilot = ({ activeTab, contextData }: FloatingCopilotProps) => {
                     <Bot className="h-8 w-8 text-accent/60" />
                   </div>
                   <p className="text-white/40 text-xs mb-1">Grandmaster OFM AI</p>
-                  <p className="text-white/20 text-[10px] mb-5 max-w-[260px]">Strategy, images, videos, audio, files — ask anything.</p>
+                  <p className="text-white/20 text-[10px] mb-5 max-w-[260px]">Conversations auto-save and appear in the AI Copilot tab.</p>
                   <div className="grid grid-cols-2 gap-2 w-full">
                     {QUICK_ACTIONS.map(qa => (
                       <Button key={qa.label} size="sm" variant="outline" onClick={() => sendMessage(qa.prompt)}
@@ -297,22 +395,41 @@ const FloatingCopilot = ({ activeTab, contextData }: FloatingCopilotProps) => {
               ) : (
                 <div className="space-y-3">
                   {messages.map((msg, i) => (
-                    <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-                      <div className={`max-w-[85%] rounded-xl px-3.5 py-2.5 ${msg.role === "user" ? "bg-accent/20 text-white" : "bg-white/[0.04] text-white/80"}`}>
-                        {msg.role === "assistant" ? (
-                          <div className="prose prose-sm prose-invert max-w-none text-[11px] leading-relaxed">
-                            <ReactMarkdown>{msg.content}</ReactMarkdown>
-                            {msg.images?.map((img, idx) => (
-                              <div key={idx} className="relative group mt-2">
-                                <img src={img.image_url.url} alt="Generated" className="rounded-lg max-w-full border border-white/10" />
-                                <a href={img.image_url.url} download className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 bg-black/60 rounded p-1 transition-opacity"><Download className="h-3 w-3 text-white" /></a>
-                              </div>
-                            ))}
+                    <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+                      onMouseEnter={() => setHoveredIdx(i)} onMouseLeave={() => setHoveredIdx(null)}>
+                      <div className="max-w-[85%]">
+                        {editingIdx === i ? (
+                          <div className="bg-accent/10 rounded-xl px-3 py-2 border border-accent/20">
+                            <Textarea value={editText} onChange={e => setEditText(e.target.value)}
+                              className="bg-white/5 border-white/10 text-white text-[11px] min-h-[40px] resize-none mb-1.5"
+                              onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleEditMessage(i); } }}
+                            />
+                            <div className="flex gap-1.5 justify-end">
+                              <Button size="sm" variant="ghost" onClick={() => setEditingIdx(null)} className="h-6 px-2 text-[9px] text-white/40">Cancel</Button>
+                              <Button size="sm" onClick={() => handleEditMessage(i)} className="h-6 px-2 text-[9px] bg-accent hover:bg-accent/90">Save</Button>
+                            </div>
                           </div>
                         ) : (
                           <>
-                            <p className="text-[11px]">{msg.content}</p>
-                            {msg.attachments && renderMsgAttachments(msg.attachments)}
+                            <div className={`rounded-xl px-3.5 py-2.5 ${msg.role === "user" ? "bg-accent/20 text-white" : "bg-white/[0.04] text-white/80"}`}>
+                              {msg.role === "assistant" ? (
+                                <div className="prose prose-sm prose-invert max-w-none text-[11px] leading-relaxed">
+                                  <ReactMarkdown>{msg.content}</ReactMarkdown>
+                                  {msg.images?.map((img, idx) => (
+                                    <div key={idx} className="relative group mt-2">
+                                      <img src={img.image_url.url} alt="Generated" className="rounded-lg max-w-full border border-white/10" />
+                                      <a href={img.image_url.url} download className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 bg-black/60 rounded p-1 transition-opacity"><Download className="h-3 w-3 text-white" /></a>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <>
+                                  <p className="text-[11px]">{msg.content}</p>
+                                  {msg.attachments && renderMsgAttachments(msg.attachments)}
+                                </>
+                              )}
+                            </div>
+                            {renderActions(msg, i)}
                           </>
                         )}
                       </div>
@@ -325,20 +442,16 @@ const FloatingCopilot = ({ activeTab, contextData }: FloatingCopilotProps) => {
               )}
             </ScrollArea>
 
-            {/* Rich pending attachment preview */}
             {attachments.length > 0 && (
               <div className="px-3 py-2 border-t border-white/[0.06] bg-white/[0.02]">
                 <div className="flex flex-wrap gap-1.5">
                   {attachments.map((att, i) => (
                     <div key={i} className="relative group rounded-lg overflow-hidden border border-white/10 bg-white/5">
                       {att.type === "image" ? (
-                        <div className="w-[70px] h-[55px]">
-                          <img src={att.url} alt={att.name} className="w-full h-full object-cover" />
-                        </div>
+                        <div className="w-[70px] h-[55px]"><img src={att.url} alt={att.name} className="w-full h-full object-cover" /></div>
                       ) : att.type === "video" ? (
                         <div className="w-[70px] h-[55px] bg-black/40 flex items-center justify-center relative">
-                          <video src={att.url} className="w-full h-full object-cover" muted />
-                          <Play className="absolute h-4 w-4 text-white/70" />
+                          <video src={att.url} className="w-full h-full object-cover" muted /><Play className="absolute h-4 w-4 text-white/70" />
                         </div>
                       ) : (
                         <div className="flex items-center gap-1 px-2 py-1.5 w-[90px]">
