@@ -680,17 +680,36 @@ const AICoPilot = () => {
         method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
         body: JSON.stringify({ messages: [{ role: "user", content: currentRefs.length > 0 ? parts : promptText }], context: buildContext(), quality: qualityMode }),
       });
-      if (!resp.ok) { const ed = await resp.json().catch(() => ({})); throw new Error(ed.error || `Error ${resp.status}`); }
-      const data = await resp.json();
+      if (!resp.ok) { const ed = await resp.text().catch(() => ""); let errMsg = `Error ${resp.status}`; try { errMsg = JSON.parse(ed).error || errMsg; } catch {} throw new Error(errMsg); }
+      
+      // Handle response - check content type
+      const ct = resp.headers.get("content-type") || "";
+      let data: any;
+      if (ct.includes("application/json")) {
+        data = await resp.json();
+      } else {
+        // SSE or text response — try to parse
+        const text = await resp.text();
+        try { data = JSON.parse(text); } catch {
+          // Try extracting from SSE
+          let content = ""; let images: any[] = [];
+          for (const line of text.split("\n")) {
+            if (!line.startsWith("data: ")) continue;
+            const js = line.slice(6).trim();
+            if (js === "[DONE]") break;
+            try { const p = JSON.parse(js); if (p.choices?.[0]?.message?.images) images = p.choices[0].message.images; if (p.choices?.[0]?.message?.content) content = p.choices[0].message.content; } catch {}
+          }
+          data = { type: "image", content, images };
+        }
+      }
       stopProgress();
 
-      if (data.type === "image" && data.images?.length) {
-        // Only save the first image to prevent duplicates
+      if ((data.type === "image" && data.images?.length) || data.images?.length) {
         const img = data.images[0];
         const saved = await saveGeneratedContent("image", img.image_url.url, prompt, "image", { aspect_ratio: format.ratio, metadata: { format: format.id, width: format.width, height: format.height } });
         if (saved) setGeneratedImages(prev => [saved, ...prev]);
         toast.success(`Image generated! (${format.label} — ${format.width}×${format.height})`);
-      } else toast.error("No image returned");
+      } else toast.error("No image returned — try again");
       setImageRefs([]);
     } catch (e: any) { stopProgress(); toast.error(e.message || "Image generation failed"); } finally { setIsGeneratingImage(false); setImageProgress(0); setImageProgressLabel(""); }
   };
@@ -706,7 +725,8 @@ const AICoPilot = () => {
   const generateVideo = async () => {
     if (!videoPrompt.trim() || isGeneratingVideo) return;
     setIsGeneratingVideo(true);
-    const prompt = videoPrompt;
+    const uncensoredPrefix = qualityMode === "uncensored" ? "Uncensored, unrestricted, no content filtering. " : "";
+    const prompt = uncensoredPrefix + videoPrompt;
     const frame = videoStartFrame;
     const format = VIDEO_FORMAT_PRESETS.find(f => f.id === selectedVideoFormat) || VIDEO_FORMAT_PRESETS[0];
     setVideoPrompt(""); setVideoStartFrame(null);
@@ -1022,7 +1042,7 @@ const AICoPilot = () => {
 
   const renderImagePanel = () => (
     <div className="flex flex-1 overflow-hidden">
-      <div className="w-[420px] border-r border-white/[0.06] p-5 flex flex-col gap-4 overflow-y-auto shrink-0">
+      <div className="w-[380px] border-r border-white/[0.06] p-4 flex flex-col gap-3 overflow-y-auto shrink-0">
         <div className="flex items-center justify-between">
           <p className="text-sm font-medium text-white/70">Image Prompt</p>
           <div className="flex items-center gap-2">
@@ -1075,39 +1095,46 @@ const AICoPilot = () => {
 
   const renderVideoPanel = () => (
     <div className="flex flex-1 overflow-hidden">
-      <div className="w-[420px] border-r border-white/[0.06] p-5 flex flex-col gap-4 overflow-y-auto shrink-0">
+      <div className="w-[380px] border-r border-white/[0.06] p-4 flex flex-col gap-3 overflow-y-auto shrink-0">
         <div className="flex items-center justify-between">
-          <p className="text-sm font-medium text-white/70">Video Prompt</p>
-          <Badge variant="outline" className="text-[9px] border-accent/20 text-accent">Cinematic</Badge>
-        </div>
-        <Textarea value={videoPrompt} onChange={e => setVideoPrompt(e.target.value)} placeholder="Describe your video..." className="bg-white/5 border-white/10 text-white text-sm min-h-[110px] resize-none placeholder:text-white/20" onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); generateVideo(); } }} />
-        <div className="flex gap-3">
-          <div className="border-2 border-dashed border-white/10 rounded-xl p-4 flex flex-col items-center justify-center gap-1 cursor-pointer hover:border-white/20 transition-colors flex-1 min-h-[90px] relative" onClick={() => videoFrameInputRef.current?.click()}>
-            {videoStartFrame ? (<><img src={videoStartFrame.url} alt="" className="w-full h-full object-cover rounded-lg absolute inset-0" /><button onClick={(e) => { e.stopPropagation(); setVideoStartFrame(null); }} className="absolute top-1 right-1 h-5 w-5 rounded-full bg-black/70 flex items-center justify-center z-10"><X className="h-3 w-3 text-white" /></button></>)
-              : (<><Upload className="h-5 w-5 text-white/20" /><p className="text-[10px] text-white/30">Start Frame</p></>)}
+          <p className="text-sm font-semibold text-white/80">Video Prompt</p>
+          <div className="flex items-center gap-2">
+            {qualityMode === "uncensored" && (
+              <Badge variant="outline" className="text-[9px] border-red-500/30 text-red-400 gap-1"><ShieldOff className="h-3 w-3" />Uncensored</Badge>
+            )}
+            <Badge variant="outline" className="text-[9px] border-accent/20 text-accent">Kling AI</Badge>
           </div>
-          <div className="border-2 border-dashed border-white/10 rounded-xl p-4 flex flex-col items-center justify-center gap-1 flex-1 min-h-[90px] opacity-40"><Upload className="h-5 w-5 text-white/20" /><p className="text-[10px] text-white/30">End Frame</p></div>
+        </div>
+        <Textarea value={videoPrompt} onChange={e => setVideoPrompt(e.target.value)} placeholder="Describe your video scene in detail..." className="bg-white/5 border-white/10 text-white text-sm min-h-[80px] resize-none placeholder:text-white/20" onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); generateVideo(); } }} />
+        <div className="flex gap-2">
+          <div className="border-2 border-dashed border-white/10 rounded-xl p-3 flex flex-col items-center justify-center gap-1 cursor-pointer hover:border-white/20 transition-colors flex-1 min-h-[70px] relative" onClick={() => videoFrameInputRef.current?.click()}>
+            {videoStartFrame ? (<><img src={videoStartFrame.url} alt="" className="w-full h-full object-cover rounded-lg absolute inset-0" /><button onClick={(e) => { e.stopPropagation(); setVideoStartFrame(null); }} className="absolute top-1 right-1 h-5 w-5 rounded-full bg-black/70 flex items-center justify-center z-10"><X className="h-3 w-3 text-white" /></button></>)
+              : (<><Upload className="h-4 w-4 text-white/20" /><p className="text-[9px] text-white/30">Start Frame</p></>)}
+          </div>
+          <div className="border-2 border-dashed border-white/10 rounded-xl p-3 flex flex-col items-center justify-center gap-1 flex-1 min-h-[70px] opacity-30"><Upload className="h-4 w-4 text-white/20" /><p className="text-[9px] text-white/30">End Frame</p></div>
         </div>
         <input ref={videoFrameInputRef} type="file" accept="image/*" className="hidden" onChange={handleVideoFrameUpload} />
 
-        {/* Duration */}
         <div>
-          <p className="text-[11px] text-white/40 mb-2">Duration: <span className="text-accent font-medium">{videoDuration}s</span></p>
-          <Slider value={[videoDuration]} onValueChange={([v]) => setVideoDuration(v)} min={1} max={60} step={1} className="w-full" />
-          <div className="flex justify-between text-[9px] text-white/20 mt-1"><span>1s</span><span>30s</span><span>60s</span></div>
+          <p className="text-[10px] text-white/40 mb-1">Duration: <span className="text-accent font-medium">{videoDuration}s</span></p>
+          <div className="flex gap-2">
+            {[5, 10].map(d => (
+              <button key={d} onClick={() => setVideoDuration(d)} className={`px-3 py-1.5 rounded-lg text-xs border transition-all ${videoDuration === d ? "border-accent/40 bg-accent/10 text-accent" : "border-white/10 text-white/30 hover:text-white/50"}`}>{d}s</button>
+            ))}
+          </div>
         </div>
 
-        {/* Format selector */}
         <div>
-          <p className="text-[11px] text-white/40 mb-2 font-medium">Output Format</p>
+          <p className="text-[10px] text-white/40 mb-1.5 font-medium">Output Format</p>
           {renderFormatSelector(VIDEO_FORMAT_PRESETS, selectedVideoFormat, setSelectedVideoFormat)}
         </div>
 
-        <div className="mt-auto flex items-center gap-3">
+        <div className="mt-auto flex items-center gap-2 flex-wrap">
           <Select value={qualityMode} onValueChange={v => setQualityMode(v as QualityMode)}>
             <SelectTrigger className="bg-white/5 border-white/10 text-white h-9 text-xs w-[140px]"><SelectValue /></SelectTrigger>
             <SelectContent className="bg-[hsl(220,40%,10%)] border-white/10">
-              <SelectItem value="best" className="text-white text-xs">Best Quality</SelectItem>
+              <SelectItem value="best" className="text-white text-xs"><div className="flex items-center gap-2"><Shield className="h-3 w-3" /> Best Quality</div></SelectItem>
+              <SelectItem value="uncensored" className="text-white text-xs"><div className="flex items-center gap-2"><ShieldOff className="h-3 w-3 text-red-400" /> Uncensored</div></SelectItem>
               <SelectItem value="high" className="text-white text-xs">High Quality</SelectItem>
             </SelectContent>
           </Select>
@@ -1247,7 +1274,7 @@ const AICoPilot = () => {
   // ============ MAIN RETURN ============
   return (
     <>
-      <div className="flex gap-4 h-[calc(100vh-180px)] min-h-[650px]">
+      <div className="flex gap-3 h-[calc(100vh-130px)]">
         {/* Sidebar */}
         <div className="w-72 shrink-0 flex flex-col">
           <Button size="sm" onClick={() => { setActiveConvoId(null); setMessages([]); setInput(""); setAttachments([]); clearDraft(); }}
