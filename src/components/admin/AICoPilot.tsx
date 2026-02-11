@@ -7,7 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Bot, Send, Plus, Trash2, Loader2, Sparkles, Brain, MessageSquare,
   Zap, Target, TrendingUp, DollarSign, Users, Clock,
-  Paperclip, Image, Download, X, FileText, Music, Video,
+  Paperclip, Image, Download, X, FileText, Music, Video, Play,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -30,6 +30,14 @@ type Msg = {
   attachments?: Attachment[];
 };
 
+interface DraftState {
+  convoId: string | null;
+  input: string;
+  attachments: Attachment[];
+}
+
+const DRAFT_KEY = "copilot_draft";
+
 const QUICK_PROMPTS = [
   { label: "Daily Action Plan", icon: Target, prompt: "Give me today's agency action plan. What should I focus on for maximum revenue? Prioritize by impact." },
   { label: "Revenue Opportunities", icon: DollarSign, prompt: "Analyze my current creators and identify the top 5 untapped revenue opportunities. Be specific with numbers and strategies." },
@@ -40,7 +48,31 @@ const QUICK_PROMPTS = [
 ];
 
 const MAX_ATTACHMENTS = 20;
-const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
+const MAX_FILE_SIZE = 20 * 1024 * 1024;
+
+const saveDraft = (convoId: string | null, input: string, attachments: Attachment[]) => {
+  try {
+    localStorage.setItem(DRAFT_KEY, JSON.stringify({ convoId, input, attachments }));
+  } catch {}
+};
+
+const loadDraft = (): DraftState | null => {
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch { return null; }
+};
+
+const clearDraft = () => {
+  try { localStorage.removeItem(DRAFT_KEY); } catch {}
+};
+
+const formatSize = (bytes: number) => {
+  if (bytes < 1024) return `${bytes}B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
+};
 
 const AICoPilot = () => {
   const [conversations, setConversations] = useState<any[]>([]);
@@ -52,10 +84,17 @@ const AICoPilot = () => {
   const [contextAccount, setContextAccount] = useState("");
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [draftRestored, setDraftRestored] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { loadData(); }, []);
+
+  // Auto-save draft on every change
+  useEffect(() => {
+    if (!draftRestored) return;
+    saveDraft(activeConvoId, input, attachments);
+  }, [input, attachments, activeConvoId, draftRestored]);
 
   const loadData = async () => {
     const [convos, accts] = await Promise.all([
@@ -64,28 +103,54 @@ const AICoPilot = () => {
     ]);
     setConversations(convos.data || []);
     setAccounts(accts.data || []);
-    if (convos.data?.length && !activeConvoId) selectConvo(convos.data[0]);
+
+    // Restore draft
+    const draft = loadDraft();
+    if (draft) {
+      if (draft.input) setInput(draft.input);
+      if (draft.attachments?.length) setAttachments(draft.attachments);
+      if (draft.convoId && convos.data?.length) {
+        const match = convos.data.find((c: any) => c.id === draft.convoId);
+        if (match) {
+          setActiveConvoId(match.id);
+          setMessages((match.messages as unknown as Msg[]) || []);
+          setContextAccount(match.account_id || "");
+        } else if (convos.data.length) {
+          selectConvo(convos.data[0]);
+        }
+      } else if (convos.data?.length) {
+        selectConvo(convos.data[0]);
+      }
+    } else if (convos.data?.length) {
+      selectConvo(convos.data[0]);
+    }
+    setDraftRestored(true);
   };
 
   const selectConvo = (convo: any) => {
     setActiveConvoId(convo.id);
-    setMessages((convo.messages as Msg[]) || []);
+    setMessages((convo.messages as unknown as Msg[]) || []);
     setContextAccount(convo.account_id || "");
-    setAttachments([]);
+    // Don't clear attachments/input when switching - they persist via draft
   };
 
   const createConvo = async () => {
     const { data, error } = await supabase.from("copilot_conversations").insert({ title: "New Conversation", messages: [] }).select().single();
     if (error) { toast.error(error.message); return; }
     setConversations(prev => [data, ...prev]);
-    selectConvo(data);
+    setActiveConvoId(data.id);
+    setMessages([]);
+    setContextAccount("");
+    setInput("");
+    setAttachments([]);
+    clearDraft();
   };
 
   const deleteConvo = async (id: string) => {
     const { error } = await supabase.from("copilot_conversations").delete().eq("id", id);
     if (error) { toast.error("Failed to delete"); return; }
     setConversations(prev => prev.filter(c => c.id !== id));
-    if (activeConvoId === id) { setActiveConvoId(null); setMessages([]); }
+    if (activeConvoId === id) { setActiveConvoId(null); setMessages([]); setInput(""); setAttachments([]); clearDraft(); }
   };
 
   const scrollToBottom = useCallback(() => {
@@ -110,32 +175,21 @@ const AICoPilot = () => {
       toast.error(`Maximum ${MAX_ATTACHMENTS} attachments allowed`);
       return;
     }
-
     setIsUploading(true);
     const newAttachments: Attachment[] = [];
-
     for (const file of files) {
-      if (file.size > MAX_FILE_SIZE) {
-        toast.error(`${file.name} exceeds 20MB limit`);
-        continue;
-      }
-
+      if (file.size > MAX_FILE_SIZE) { toast.error(`${file.name} exceeds 20MB limit`); continue; }
       const ext = file.name.split(".").pop() || "";
       const path = `${crypto.randomUUID()}.${ext}`;
-
       const { error } = await supabase.storage.from("copilot-attachments").upload(path, file);
       if (error) { toast.error(`Failed to upload ${file.name}`); continue; }
-
       const { data: urlData } = supabase.storage.from("copilot-attachments").getPublicUrl(path);
-
       let type: Attachment["type"] = "file";
       if (file.type.startsWith("image/")) type = "image";
       else if (file.type.startsWith("audio/")) type = "audio";
       else if (file.type.startsWith("video/")) type = "video";
-
       newAttachments.push({ type, name: file.name, url: urlData.publicUrl, mimeType: file.type, size: file.size });
     }
-
     setAttachments(prev => [...prev, ...newAttachments]);
     setIsUploading(false);
     if (fileInputRef.current) fileInputRef.current.value = "";
@@ -162,8 +216,8 @@ const AICoPilot = () => {
     const msgText = text || input.trim();
     if ((!msgText && attachments.length === 0) || isStreaming) return;
     setInput("");
+    clearDraft();
 
-    // Build multimodal content if attachments exist
     let apiContent: MsgContent = msgText;
     const currentAttachments = [...attachments];
     setAttachments([]);
@@ -175,7 +229,6 @@ const AICoPilot = () => {
         if (att.type === "image") {
           parts.push({ type: "image_url", image_url: { url: att.url } });
         } else {
-          // For non-image files, reference them as text
           parts.push({ type: "text", text: `[Attached ${att.type}: ${att.name} - ${att.url}]` });
         }
       }
@@ -184,7 +237,6 @@ const AICoPilot = () => {
 
     const userMsg: Msg = { role: "user", content: msgText || "Attached files", attachments: currentAttachments.length > 0 ? currentAttachments : undefined };
     const apiUserMsg = { role: "user", content: apiContent };
-    
     const newMessages = [...messages, userMsg];
     setMessages(newMessages);
     setIsStreaming(true);
@@ -193,16 +245,12 @@ const AICoPilot = () => {
     let assistantSoFar = "";
 
     try {
-      // Build API messages (use original content for history, multimodal for latest)
       const apiMessages = messages.map(m => ({ role: m.role, content: m.content }));
       apiMessages.push(apiUserMsg as any);
 
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/agency-copilot`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-        },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
         body: JSON.stringify({ messages: apiMessages, context: buildContext() }),
       });
 
@@ -232,7 +280,6 @@ const AICoPilot = () => {
           const { done, value } = await reader.read();
           if (done) break;
           textBuffer += decoder.decode(value, { stream: true });
-
           let newlineIndex: number;
           while ((newlineIndex = textBuffer.indexOf("\n")) !== -1) {
             let line = textBuffer.slice(0, newlineIndex);
@@ -283,16 +330,59 @@ const AICoPilot = () => {
     }
   };
 
-  const getAttachmentIcon = (type: string) => {
-    switch (type) {
-      case "image": return <Image className="h-3 w-3" />;
-      case "audio": return <Music className="h-3 w-3" />;
-      case "video": return <Video className="h-3 w-3" />;
-      default: return <FileText className="h-3 w-3" />;
-    }
+  // Rich attachment preview in pending area
+  const renderPendingAttachments = () => {
+    if (attachments.length === 0) return null;
+    return (
+      <div className="px-3 py-2.5 border-t border-white/[0.06] bg-white/[0.02]">
+        <div className="flex flex-wrap gap-2">
+          {attachments.map((att, i) => (
+            <div key={i} className="relative group rounded-lg overflow-hidden border border-white/10 bg-white/5">
+              {att.type === "image" ? (
+                <div className="relative w-[100px] h-[80px]">
+                  <img src={att.url} alt={att.name} className="w-full h-full object-cover" />
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors" />
+                </div>
+              ) : att.type === "video" ? (
+                <div className="relative w-[100px] h-[80px] bg-black/40 flex items-center justify-center">
+                  <video src={att.url} className="w-full h-full object-cover" muted />
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <Play className="h-6 w-6 text-white/70" />
+                  </div>
+                </div>
+              ) : att.type === "audio" ? (
+                <div className="flex items-center gap-2 px-2.5 py-2 w-[140px]">
+                  <Music className="h-4 w-4 text-accent shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-[9px] text-white/60 truncate">{att.name}</p>
+                    <p className="text-[8px] text-white/30">{formatSize(att.size)}</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 px-2.5 py-2 w-[140px]">
+                  <FileText className="h-4 w-4 text-accent shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-[9px] text-white/60 truncate">{att.name}</p>
+                    <p className="text-[8px] text-white/30">{formatSize(att.size)}</p>
+                  </div>
+                </div>
+              )}
+              <button
+                onClick={() => removeAttachment(i)}
+                className="absolute top-1 right-1 h-5 w-5 rounded-full bg-black/70 flex items-center justify-center text-white/60 hover:text-white hover:bg-red-500/80 transition-colors opacity-0 group-hover:opacity-100"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+          ))}
+        </div>
+        <p className="text-[9px] text-white/20 mt-1.5">{attachments.length}/{MAX_ATTACHMENTS} files attached</p>
+      </div>
+    );
   };
 
-  const renderAttachments = (atts: Attachment[]) => (
+  // Render attachments in sent messages (rich preview)
+  const renderMessageAttachments = (atts: Attachment[]) => (
     <div className="flex flex-wrap gap-2 mt-2">
       {atts.map((att, i) => (
         <div key={i} className="rounded-lg overflow-hidden border border-white/10">
@@ -307,6 +397,7 @@ const AICoPilot = () => {
             </div>
           ) : att.type === "video" ? (
             <div className="p-2 bg-white/5">
+              <p className="text-[10px] text-white/50 mb-1">{att.name}</p>
               <video controls src={att.url} className="max-w-[250px] max-h-[150px] rounded" />
             </div>
           ) : (
@@ -367,7 +458,7 @@ const AICoPilot = () => {
           <Bot className="h-5 w-5 text-accent" />
           <div>
             <p className="text-sm font-semibold text-white">Grandmaster AI Co-Pilot</p>
-            <p className="text-[10px] text-white/40">Images • Audio • Files • Strategy</p>
+            <p className="text-[10px] text-white/40">Images • Videos • Audio • Files • Strategy</p>
           </div>
           {isStreaming && (
             <Badge variant="outline" className="ml-auto border-accent/20 text-accent text-[9px] animate-pulse">
@@ -382,7 +473,7 @@ const AICoPilot = () => {
               <Brain className="h-12 w-12 text-white/10 mb-4" />
               <p className="text-white/30 text-sm mb-1">Your AI Agency Brain</p>
               <p className="text-white/20 text-xs mb-6 max-w-sm">
-                Ask anything. Attach images, audio, videos, or files. Generate images from prompts or edit uploaded ones.
+                Ask anything. Attach images, audio, videos, or files. Generate images & videos from prompts or edit uploaded media.
               </p>
               <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 max-w-lg">
                 {QUICK_PROMPTS.map(qp => (
@@ -421,7 +512,7 @@ const AICoPilot = () => {
                     ) : (
                       <>
                         <p className="text-xs">{msg.content}</p>
-                        {msg.attachments && renderAttachments(msg.attachments)}
+                        {msg.attachments && renderMessageAttachments(msg.attachments)}
                       </>
                     )}
                   </div>
@@ -438,34 +529,12 @@ const AICoPilot = () => {
           )}
         </ScrollArea>
 
-        {/* Attachment preview */}
-        {attachments.length > 0 && (
-          <div className="px-3 py-2 border-t border-white/[0.06] bg-white/[0.02]">
-            <div className="flex flex-wrap gap-2">
-              {attachments.map((att, i) => (
-                <div key={i} className="flex items-center gap-1.5 bg-white/5 rounded-lg px-2 py-1 text-[10px] text-white/60">
-                  {getAttachmentIcon(att.type)}
-                  <span className="max-w-[100px] truncate">{att.name}</span>
-                  <button onClick={() => removeAttachment(i)} className="text-white/30 hover:text-white">
-                    <X className="h-3 w-3" />
-                  </button>
-                </div>
-              ))}
-            </div>
-            <p className="text-[9px] text-white/20 mt-1">{attachments.length}/{MAX_ATTACHMENTS} files</p>
-          </div>
-        )}
+        {/* Rich attachment preview */}
+        {renderPendingAttachments()}
 
         {/* Input */}
         <div className="p-3 border-t border-white/[0.06]">
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            accept="image/*,audio/*,video/*,.pdf,.txt,.csv"
-            className="hidden"
-            onChange={handleFileSelect}
-          />
+          <input ref={fileInputRef} type="file" multiple accept="image/*,audio/*,video/*,.pdf,.txt,.csv" className="hidden" onChange={handleFileSelect} />
           <div className="flex gap-2">
             <Button size="sm" variant="ghost" onClick={() => fileInputRef.current?.click()}
               disabled={isUploading || attachments.length >= MAX_ATTACHMENTS}
@@ -476,7 +545,7 @@ const AICoPilot = () => {
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
-              placeholder="Ask anything, attach files, generate images..."
+              placeholder="Ask anything, attach files, generate images & videos..."
               className="bg-white/5 border-white/10 text-white text-xs min-h-[40px] max-h-[120px] resize-none"
               rows={1}
             />

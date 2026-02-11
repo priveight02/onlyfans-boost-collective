@@ -6,7 +6,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Bot, Send, Loader2, Sparkles, Brain, X,
   Target, DollarSign, Zap, TrendingUp,
-  Paperclip, Download, Image, Music, Video, FileText,
+  Paperclip, Download, Image, Music, Video, FileText, Play,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -36,6 +36,21 @@ const QUICK_ACTIONS = [
 ];
 
 const MAX_ATTACHMENTS = 20;
+const FLOAT_DRAFT_KEY = "copilot_float_draft";
+
+const saveDraft = (input: string, attachments: Attachment[]) => {
+  try { localStorage.setItem(FLOAT_DRAFT_KEY, JSON.stringify({ input, attachments })); } catch {}
+};
+const loadDraft = (): { input: string; attachments: Attachment[] } | null => {
+  try { const r = localStorage.getItem(FLOAT_DRAFT_KEY); return r ? JSON.parse(r) : null; } catch { return null; }
+};
+const clearDraft = () => { try { localStorage.removeItem(FLOAT_DRAFT_KEY); } catch {} };
+
+const formatSize = (bytes: number) => {
+  if (bytes < 1024) return `${bytes}B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
+};
 
 interface FloatingCopilotProps {
   activeTab?: string;
@@ -51,6 +66,7 @@ const FloatingCopilot = ({ activeTab, contextData }: FloatingCopilotProps) => {
   const [pulseHint, setPulseHint] = useState(true);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [draftLoaded, setDraftLoaded] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -59,8 +75,21 @@ const FloatingCopilot = ({ activeTab, contextData }: FloatingCopilotProps) => {
       .select("id, username, display_name, monthly_revenue, subscriber_count, status")
       .then(({ data }) => setAccounts(data || []));
     const timer = setTimeout(() => setPulseHint(false), 8000);
+    // Restore draft
+    const draft = loadDraft();
+    if (draft) {
+      if (draft.input) setInput(draft.input);
+      if (draft.attachments?.length) setAttachments(draft.attachments);
+    }
+    setDraftLoaded(true);
     return () => clearTimeout(timer);
   }, []);
+
+  // Auto-save draft
+  useEffect(() => {
+    if (!draftLoaded) return;
+    saveDraft(input, attachments);
+  }, [input, attachments, draftLoaded]);
 
   const scrollToBottom = useCallback(() => {
     setTimeout(() => { scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" }); }, 50);
@@ -104,6 +133,7 @@ const FloatingCopilot = ({ activeTab, contextData }: FloatingCopilotProps) => {
     const msgText = text || input.trim();
     if ((!msgText && attachments.length === 0) || isStreaming) return;
     setInput("");
+    clearDraft();
 
     const currentAttachments = [...attachments];
     setAttachments([]);
@@ -187,7 +217,7 @@ const FloatingCopilot = ({ activeTab, contextData }: FloatingCopilotProps) => {
     }
   };
 
-  const renderAttachments = (atts: Attachment[]) => (
+  const renderMsgAttachments = (atts: Attachment[]) => (
     <div className="flex flex-wrap gap-1.5 mt-1.5">
       {atts.map((att, i) => (
         <div key={i} className="rounded-lg overflow-hidden border border-white/10">
@@ -241,7 +271,7 @@ const FloatingCopilot = ({ activeTab, contextData }: FloatingCopilotProps) => {
               </div>
               <div className="flex items-center gap-1">
                 {isStreaming && <Badge variant="outline" className="border-accent/20 text-accent text-[9px] animate-pulse mr-1"><Sparkles className="h-2.5 w-2.5 mr-1" /> Streaming</Badge>}
-                <Button size="sm" variant="ghost" onClick={() => { setMessages([]); setAttachments([]); }} className="h-7 w-7 p-0 text-white/30 hover:text-white"><Zap className="h-3.5 w-3.5" /></Button>
+                <Button size="sm" variant="ghost" onClick={() => { setMessages([]); setAttachments([]); clearDraft(); }} className="h-7 w-7 p-0 text-white/30 hover:text-white"><Zap className="h-3.5 w-3.5" /></Button>
                 <Button size="sm" variant="ghost" onClick={() => setIsOpen(false)} className="h-7 w-7 p-0 text-white/30 hover:text-white"><X className="h-4 w-4" /></Button>
               </div>
             </div>
@@ -253,7 +283,7 @@ const FloatingCopilot = ({ activeTab, contextData }: FloatingCopilotProps) => {
                     <Bot className="h-8 w-8 text-accent/60" />
                   </div>
                   <p className="text-white/40 text-xs mb-1">Grandmaster OFM AI</p>
-                  <p className="text-white/20 text-[10px] mb-5 max-w-[260px]">Strategy, images, audio, files — ask anything.</p>
+                  <p className="text-white/20 text-[10px] mb-5 max-w-[260px]">Strategy, images, videos, audio, files — ask anything.</p>
                   <div className="grid grid-cols-2 gap-2 w-full">
                     {QUICK_ACTIONS.map(qa => (
                       <Button key={qa.label} size="sm" variant="outline" onClick={() => sendMessage(qa.prompt)}
@@ -282,7 +312,7 @@ const FloatingCopilot = ({ activeTab, contextData }: FloatingCopilotProps) => {
                         ) : (
                           <>
                             <p className="text-[11px]">{msg.content}</p>
-                            {msg.attachments && renderAttachments(msg.attachments)}
+                            {msg.attachments && renderMsgAttachments(msg.attachments)}
                           </>
                         )}
                       </div>
@@ -295,17 +325,35 @@ const FloatingCopilot = ({ activeTab, contextData }: FloatingCopilotProps) => {
               )}
             </ScrollArea>
 
+            {/* Rich pending attachment preview */}
             {attachments.length > 0 && (
-              <div className="px-3 py-1.5 border-t border-white/[0.06] bg-white/[0.02]">
+              <div className="px-3 py-2 border-t border-white/[0.06] bg-white/[0.02]">
                 <div className="flex flex-wrap gap-1.5">
                   {attachments.map((att, i) => (
-                    <div key={i} className="flex items-center gap-1 bg-white/5 rounded px-1.5 py-0.5 text-[9px] text-white/50">
-                      {att.type === "image" ? <Image className="h-2.5 w-2.5" /> : att.type === "audio" ? <Music className="h-2.5 w-2.5" /> : att.type === "video" ? <Video className="h-2.5 w-2.5" /> : <FileText className="h-2.5 w-2.5" />}
-                      <span className="max-w-[60px] truncate">{att.name}</span>
-                      <button onClick={() => setAttachments(prev => prev.filter((_, j) => j !== i))} className="text-white/30 hover:text-white"><X className="h-2.5 w-2.5" /></button>
+                    <div key={i} className="relative group rounded-lg overflow-hidden border border-white/10 bg-white/5">
+                      {att.type === "image" ? (
+                        <div className="w-[70px] h-[55px]">
+                          <img src={att.url} alt={att.name} className="w-full h-full object-cover" />
+                        </div>
+                      ) : att.type === "video" ? (
+                        <div className="w-[70px] h-[55px] bg-black/40 flex items-center justify-center relative">
+                          <video src={att.url} className="w-full h-full object-cover" muted />
+                          <Play className="absolute h-4 w-4 text-white/70" />
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1 px-2 py-1.5 w-[90px]">
+                          {att.type === "audio" ? <Music className="h-3 w-3 text-accent shrink-0" /> : <FileText className="h-3 w-3 text-accent shrink-0" />}
+                          <span className="text-[8px] text-white/50 truncate">{att.name}</span>
+                        </div>
+                      )}
+                      <button onClick={() => setAttachments(prev => prev.filter((_, j) => j !== i))}
+                        className="absolute top-0.5 right-0.5 h-4 w-4 rounded-full bg-black/70 flex items-center justify-center text-white/60 hover:text-white hover:bg-red-500/80 transition-colors opacity-0 group-hover:opacity-100">
+                        <X className="h-2.5 w-2.5" />
+                      </button>
                     </div>
                   ))}
                 </div>
+                <p className="text-[8px] text-white/20 mt-1">{attachments.length}/{MAX_ATTACHMENTS}</p>
               </div>
             )}
 
