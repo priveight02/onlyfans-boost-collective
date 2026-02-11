@@ -708,7 +708,11 @@ const AICoPilot = () => {
         const saved = await saveGeneratedContent("image", img.image_url.url, prompt, "image", { aspect_ratio: format.ratio, metadata: { format: format.id, width: format.width, height: format.height } });
         if (saved) setGeneratedImages(prev => [saved, ...prev]);
         toast.success(`Image generated! (${format.label} — ${format.width}×${format.height})`);
-      } else toast.error("No image returned — try again");
+      } else {
+        const errDetail = data.error || data.content || "No image returned";
+        toast.error(`Image failed: ${errDetail}`);
+        console.error("Image generation failed:", data);
+      }
       setImageRefs([]);
     } catch (e: any) { stopProgress(); toast.error(e.message || "Image generation failed"); } finally { setIsGeneratingImage(false); setImageProgress(0); setImageProgressLabel(""); }
   };
