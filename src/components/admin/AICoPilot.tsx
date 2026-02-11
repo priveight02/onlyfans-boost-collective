@@ -261,6 +261,8 @@ const AICoPilot = () => {
   const [videoStartFrame, setVideoStartFrame] = useState<Attachment | null>(null);
   const [videoDuration, setVideoDuration] = useState<number>(5);
   const [selectedVideoFormat, setSelectedVideoFormat] = useState<string>("landscape");
+  const [selectedVideoModel, setSelectedVideoModel] = useState<string>("kling-v2-master");
+  const [selectedVideoMode, setSelectedVideoMode] = useState<string>("pro");
   const [isGeneratingVideo, setIsGeneratingVideo] = useState(false);
   const [videoProgress, setVideoProgress] = useState(0);
   const [videoProgressLabel, setVideoProgressLabel] = useState("");
@@ -746,6 +748,8 @@ const AICoPilot = () => {
           prompt,
           duration: String(videoDuration <= 10 ? (videoDuration <= 5 ? "5" : "10") : "10"),
           aspect_ratio: mapRatio(format.ratio),
+          model_name: selectedVideoModel,
+          mode: selectedVideoMode,
           image_url: frame?.url || undefined,
         }),
       });
@@ -1116,6 +1120,39 @@ const AICoPilot = () => {
           <div className="flex gap-2">
             {[5, 10].map(d => (
               <button key={d} onClick={() => setVideoDuration(d)} className={`px-3 py-1.5 rounded-lg text-xs border transition-all ${videoDuration === d ? "border-accent/40 bg-accent/10 text-accent" : "border-white/10 text-white/30 hover:text-white/50"}`}>{d}s</button>
+            ))}
+          </div>
+        </div>
+
+        {/* Model selector */}
+        <div>
+          <p className="text-[10px] text-white/40 mb-1.5 font-medium">Kling Model</p>
+          <div className="flex flex-wrap gap-1.5">
+            {[
+              { id: "kling-v2-master", label: "V2 Master", desc: "Best quality" },
+              { id: "kling-v2", label: "V2", desc: "Fast" },
+              { id: "kling-v1-6", label: "V1.6", desc: "Legacy" },
+            ].map(m => (
+              <button key={m.id} onClick={() => setSelectedVideoModel(m.id)}
+                className={`px-2.5 py-1.5 rounded-lg text-[10px] border transition-all ${selectedVideoModel === m.id ? "border-accent/40 bg-accent/10 text-accent" : "border-white/10 text-white/30 hover:text-white/50"}`}>
+                {m.label} <span className="text-[8px] text-white/20 ml-1">{m.desc}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Render mode */}
+        <div>
+          <p className="text-[10px] text-white/40 mb-1.5 font-medium">Render Mode</p>
+          <div className="flex gap-2">
+            {[
+              { id: "pro", label: "Pro", desc: "Higher quality, slower" },
+              { id: "std", label: "Standard", desc: "Faster" },
+            ].map(m => (
+              <button key={m.id} onClick={() => setSelectedVideoMode(m.id)}
+                className={`px-3 py-1.5 rounded-lg text-[10px] border transition-all flex-1 ${selectedVideoMode === m.id ? "border-accent/40 bg-accent/10 text-accent" : "border-white/10 text-white/30 hover:text-white/50"}`}>
+                {m.label} <span className="text-[8px] text-white/20">{m.desc}</span>
+              </button>
             ))}
           </div>
         </div>
