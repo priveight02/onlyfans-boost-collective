@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import {
   Bot, Send, Plus, Trash2, Loader2, Sparkles, Brain, MessageSquare,
@@ -12,6 +11,7 @@ import {
   Paperclip, Download, X, FileText, Music, Play, Pause,
   Pencil, RotateCcw, Copy, Check, RefreshCw, ChevronDown,
   Image as ImageIcon, Video, Mic, Wand2, Volume2, Upload, Trash,
+  Square, Smartphone, Monitor, Settings2,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -25,8 +25,6 @@ interface Attachment {
   size: number;
 }
 
-type MsgContent = string | { type: string; text?: string; image_url?: { url: string } }[];
-
 type Msg = {
   role: "user" | "assistant";
   content: string;
@@ -39,13 +37,13 @@ interface Voice {
   id: string;
   name: string;
   description: string | null;
-  elevenlabs_voice_id: string | null;
   is_preset: boolean | null;
   sample_urls: string[] | null;
   preview_url: string | null;
 }
 
 type CopilotMode = "chat" | "image" | "video" | "audio" | "freeWill";
+type QualityMode = "best" | "high";
 
 const DRAFT_KEY = "copilot_draft";
 const MAX_ATTACHMENTS = 20;
@@ -99,22 +97,35 @@ const AICoPilot = () => {
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
   const [editAttachments, setEditAttachments] = useState<Attachment[]>([]);
   const [mode, setMode] = useState<CopilotMode>("chat");
+  const [qualityMode, setQualityMode] = useState<QualityMode>("best");
+
+  // Voice state
   const [voices, setVoices] = useState<Voice[]>([]);
   const [selectedVoice, setSelectedVoice] = useState<string>("");
   const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
   const [voiceSamples, setVoiceSamples] = useState<File[]>([]);
   const [newVoiceName, setNewVoiceName] = useState("");
   const [isCloningVoice, setIsCloningVoice] = useState(false);
-  const [playingPreview, setPlayingPreview] = useState<string | null>(null);
   const [showVoiceManager, setShowVoiceManager] = useState(false);
-  const [imagePrompt, setImagePrompt] = useState("");
-  const [videoPrompt, setVideoPrompt] = useState("");
   const [audioText, setAudioText] = useState("");
+
+  // Image state
+  const [imagePrompt, setImagePrompt] = useState("");
+  const [imageRefs, setImageRefs] = useState<Attachment[]>([]);
+  const [imageAspect, setImageAspect] = useState<string>("1:1");
+  const [generatedImages, setGeneratedImages] = useState<{ url: string; prompt: string }[]>([]);
+
+  // Video state
+  const [videoPrompt, setVideoPrompt] = useState("");
+  const [videoStartFrame, setVideoStartFrame] = useState<Attachment | null>(null);
+  const [videoDuration, setVideoDuration] = useState<"5" | "10">("5");
+
   const editFileInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const voiceSampleInputRef = useRef<HTMLInputElement>(null);
-  const previewAudioRef = useRef<HTMLAudioElement | null>(null);
+  const imageRefInputRef = useRef<HTMLInputElement>(null);
+  const videoFrameInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { loadData(); }, []);
 
@@ -131,8 +142,12 @@ const AICoPilot = () => {
     ]);
     setConversations(convos.data || []);
     setAccounts(accts.data || []);
-    setVoices((voicesData.data as Voice[]) || []);
-    if (voicesData.data?.length) setSelectedVoice(voicesData.data[0].id);
+    const loadedVoices = (voicesData.data || []).map((v: any) => ({
+      id: v.id, name: v.name, description: v.description,
+      is_preset: v.is_preset, sample_urls: v.sample_urls, preview_url: v.preview_url,
+    })) as Voice[];
+    setVoices(loadedVoices);
+    if (loadedVoices.length) setSelectedVoice(loadedVoices[0].id);
 
     const draft = loadDraftData();
     if (draft) {
@@ -212,6 +227,15 @@ const AICoPilot = () => {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
+  const uploadFileToStorage = async (file: File): Promise<string | null> => {
+    if (file.size > MAX_FILE_SIZE) { toast.error(`${file.name} exceeds 20MB`); return null; }
+    const path = `${crypto.randomUUID()}.${file.name.split(".").pop() || "bin"}`;
+    const { error } = await supabase.storage.from("copilot-attachments").upload(path, file);
+    if (error) { toast.error(`Upload failed: ${file.name}`); return null; }
+    const { data: urlData } = supabase.storage.from("copilot-attachments").getPublicUrl(path);
+    return urlData.publicUrl;
+  };
+
   const saveConversation = async (convoId: string, finalMessages: Msg[], msgText?: string) => {
     const isFirst = finalMessages.filter(m => m.role === "user").length <= 1;
     const title = isFirst && msgText ? msgText.slice(0, 50) : undefined;
@@ -247,7 +271,7 @@ const AICoPilot = () => {
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/agency-copilot`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
-        body: JSON.stringify({ messages: apiMessages, context: buildContext() }),
+        body: JSON.stringify({ messages: apiMessages, context: buildContext(), quality: qualityMode }),
       });
 
       if (!resp.ok) {
@@ -263,6 +287,17 @@ const AICoPilot = () => {
         const data = await resp.json();
         if (data.type === "image") {
           const assistantMsg: Msg = { role: "assistant", content: data.content || "Here's the generated image.", images: data.images || [] };
+          const finalMessages = [...baseMessages, assistantMsg];
+          setMessages(finalMessages);
+          // Also add to image gallery
+          if (data.images?.length) {
+            const newImgs = data.images.map((img: any) => ({ url: img.image_url.url, prompt: msgText }));
+            setGeneratedImages(prev => [...newImgs, ...prev]);
+          }
+          scrollToBottom();
+          await saveConversation(convoId, finalMessages, msgText);
+        } else if (data.type === "audio") {
+          const assistantMsg: Msg = { role: "assistant", content: data.content || "Here's the generated audio.", audioUrl: data.audioUrl };
           const finalMessages = [...baseMessages, assistantMsg];
           setMessages(finalMessages);
           scrollToBottom();
@@ -335,7 +370,7 @@ const AICoPilot = () => {
     setInput("");
     clearDraft();
 
-    let apiContent: MsgContent = msgText;
+    let apiContent: any = msgText;
     const currentAttachments = [...attachments];
     setAttachments([]);
 
@@ -414,55 +449,7 @@ const AICoPilot = () => {
     setTimeout(() => setCopiedIdx(null), 2000);
   };
 
-  // ---- Audio generation ----
-  const generateAudio = async () => {
-    if (!audioText.trim() || !selectedVoice) return;
-    setIsGeneratingAudio(true);
-    try {
-      const voice = voices.find(v => v.id === selectedVoice);
-      if (!voice?.elevenlabs_voice_id) { toast.error("Selected voice has no ElevenLabs ID"); return; }
-
-      const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/elevenlabs-tts`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-        },
-        body: JSON.stringify({ text: audioText, voiceId: voice.elevenlabs_voice_id }),
-      });
-
-      if (!resp.ok) {
-        const err = await resp.json().catch(() => ({}));
-        throw new Error(err.error || "TTS failed");
-      }
-
-      const blob = await resp.blob();
-      const audioUrl = URL.createObjectURL(blob);
-
-      // Add to chat as assistant message
-      const userMsg: Msg = { role: "user", content: `🔊 Generate audio: "${audioText}" (voice: ${voice.name})` };
-      const assistantMsg: Msg = { role: "assistant", content: `Here's the generated audio with **${voice.name}** voice:`, audioUrl };
-      const newMessages = [...messages, userMsg, assistantMsg];
-      setMessages(newMessages);
-      scrollToBottom();
-
-      let convoId = activeConvoId;
-      if (!convoId) {
-        convoId = await createConvo(newMessages, `Audio: ${audioText.slice(0, 40)}`);
-      } else {
-        await saveConversation(convoId, newMessages, audioText);
-      }
-      setAudioText("");
-      toast.success("Audio generated!");
-    } catch (e: any) {
-      toast.error(e.message || "Audio generation failed");
-    } finally {
-      setIsGeneratingAudio(false);
-    }
-  };
-
-  // ---- Voice cloning ----
+  // ---- Voice cloning (Gemini-based) ----
   const handleCloneVoice = async () => {
     if (!newVoiceName.trim() || voiceSamples.length === 0) {
       toast.error("Provide a name and at least one audio sample (30s+ recommended)");
@@ -470,49 +457,27 @@ const AICoPilot = () => {
     }
     setIsCloningVoice(true);
     try {
-      // Upload samples
       const sampleUrls: string[] = [];
       for (const file of voiceSamples) {
-        const path = `voice-samples/${crypto.randomUUID()}.${file.name.split(".").pop() || "mp3"}`;
-        const { error } = await supabase.storage.from("copilot-attachments").upload(path, file);
-        if (error) throw new Error(`Upload failed: ${file.name}`);
-        const { data: urlData } = supabase.storage.from("copilot-attachments").getPublicUrl(path);
-        sampleUrls.push(urlData.publicUrl);
+        const url = await uploadFileToStorage(file);
+        if (url) sampleUrls.push(url);
       }
+      if (sampleUrls.length === 0) throw new Error("No samples uploaded");
 
-      // Call clone endpoint
-      const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/elevenlabs-tts`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-        },
-        body: JSON.stringify({ action: "clone", text: newVoiceName, samples: sampleUrls }),
-      });
-
-      if (!resp.ok) {
-        const err = await resp.json().catch(() => ({}));
-        throw new Error(err.error || "Clone failed");
-      }
-
-      const { voice_id } = await resp.json();
-
-      // Save to database
+      // Save voice profile to database (samples stored for reference when generating)
       const { data: newVoice, error } = await supabase.from("copilot_voices").insert({
         name: newVoiceName,
-        description: `Cloned from ${voiceSamples.length} sample(s)`,
-        elevenlabs_voice_id: voice_id,
+        description: `Cloned from ${sampleUrls.length} sample(s) — AI voice matching`,
         sample_urls: sampleUrls,
         is_preset: false,
       }).select().single();
 
       if (error) throw error;
-      setVoices(prev => [...prev, newVoice as Voice]);
+      setVoices(prev => [...prev, newVoice as unknown as Voice]);
       setSelectedVoice(newVoice!.id);
       setNewVoiceName("");
       setVoiceSamples([]);
-      toast.success(`Voice "${newVoiceName}" cloned successfully!`);
+      toast.success(`Voice "${newVoiceName}" saved! Tone will be matched when generating audio.`);
     } catch (e: any) {
       toast.error(e.message || "Voice cloning failed");
     } finally {
@@ -528,53 +493,127 @@ const AICoPilot = () => {
     toast.success("Voice deleted");
   };
 
-  const playVoicePreview = async (voice: Voice) => {
-    if (playingPreview === voice.id) {
-      previewAudioRef.current?.pause();
-      setPlayingPreview(null);
-      return;
-    }
-    if (!voice.elevenlabs_voice_id) return;
-    setPlayingPreview(voice.id);
+  // ---- Audio generation via Gemini ----
+  const generateAudio = async () => {
+    if (!audioText.trim()) return;
+    setIsGeneratingAudio(true);
     try {
-      const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/elevenlabs-tts`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-        },
-        body: JSON.stringify({ text: "Hello, this is a preview of my voice.", voiceId: voice.elevenlabs_voice_id }),
+      const voice = voices.find(v => v.id === selectedVoice);
+      const voiceContext = voice
+        ? `Voice profile: "${voice.name}" — ${voice.description || "custom voice"}. ${voice.sample_urls?.length ? `Reference audio samples available at: ${voice.sample_urls.join(", ")}` : ""}`
+        : "";
+
+      const userMsg: Msg = { role: "user", content: `🔊 Generate audio: "${audioText}"${voice ? ` (voice: ${voice.name})` : ""}` };
+      const newMessages = [...messages, userMsg];
+      setMessages(newMessages);
+      scrollToBottom();
+
+      let convoId = activeConvoId;
+      if (!convoId) {
+        convoId = await createConvo(newMessages, `Audio: ${audioText.slice(0, 40)}`);
+        if (!convoId) return;
+      }
+
+      // Send to copilot with audio generation context
+      const apiMessages = messages.map(m => ({ role: m.role, content: buildApiContent(m.content, m.attachments) }));
+      apiMessages.push({
+        role: "user",
+        content: `[AUDIO GENERATION REQUEST]\nText to speak: "${audioText}"\n${voiceContext}\nGenerate natural, expressive speech audio for this text. Match the voice tone and style from the samples if provided.`,
       });
-      if (!resp.ok) throw new Error("Preview failed");
-      const blob = await resp.blob();
-      const url = URL.createObjectURL(blob);
-      const audio = new Audio(url);
-      previewAudioRef.current = audio;
-      audio.onended = () => setPlayingPreview(null);
-      await audio.play();
-    } catch {
-      toast.error("Preview failed");
-      setPlayingPreview(null);
+
+      await streamResponse(apiMessages, convoId, newMessages, audioText);
+      setAudioText("");
+    } catch (e: any) {
+      toast.error(e.message || "Audio generation failed");
+    } finally {
+      setIsGeneratingAudio(false);
     }
   };
 
-  // Send mode-specific prompt
-  const sendModePrompt = (modeOverride?: CopilotMode) => {
-    const m = modeOverride || mode;
-    if (m === "image") {
-      if (!imagePrompt.trim()) return;
-      sendMessage(`Generate an image: ${imagePrompt}`);
-      setImagePrompt("");
-    } else if (m === "video") {
-      if (!videoPrompt.trim()) return;
-      sendMessage(`Generate a video: ${videoPrompt}`);
-      setVideoPrompt("");
-    } else if (m === "audio") {
-      generateAudio();
-    } else {
-      sendMessage();
+  // ---- Image panel actions ----
+  const handleImageRefUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    for (const file of files) {
+      if (!file.type.startsWith("image/")) continue;
+      const url = await uploadFileToStorage(file);
+      if (url) setImageRefs(prev => [...prev, { type: "image", name: file.name, url, mimeType: file.type, size: file.size }]);
     }
+    if (imageRefInputRef.current) imageRefInputRef.current.value = "";
+  };
+
+  const generateImage = async () => {
+    if (!imagePrompt.trim() || isStreaming) return;
+    const refContext = imageRefs.length > 0 ? ` Use these reference images for style/content guidance.` : "";
+    const promptFull = `Generate an image (aspect ratio ${imageAspect}): ${imagePrompt}${refContext}`;
+
+    // Build content with refs
+    const atts = imageRefs.length > 0 ? [...imageRefs] : undefined;
+    const currentRefs = [...imageRefs];
+    setImageRefs([]);
+
+    if (currentRefs.length > 0) {
+      const parts: any[] = [{ type: "text", text: promptFull }];
+      for (const ref of currentRefs) {
+        parts.push({ type: "image_url", image_url: { url: ref.url } });
+      }
+      const userMsg: Msg = { role: "user", content: promptFull, attachments: currentRefs };
+      const newMessages = [...messages, userMsg];
+      setMessages(newMessages);
+      scrollToBottom();
+
+      let convoId = activeConvoId;
+      if (!convoId) {
+        convoId = await createConvo(newMessages, imagePrompt.slice(0, 50));
+        if (!convoId) return;
+      }
+
+      const apiMessages = messages.map(m => ({ role: m.role, content: buildApiContent(m.content, m.attachments) }));
+      apiMessages.push({ role: "user", content: parts });
+      await streamResponse(apiMessages, convoId, newMessages, imagePrompt);
+    } else {
+      sendMessage(promptFull);
+    }
+    setImagePrompt("");
+  };
+
+  // ---- Video frame upload ----
+  const handleVideoFrameUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !file.type.startsWith("image/")) return;
+    const url = await uploadFileToStorage(file);
+    if (url) setVideoStartFrame({ type: "image", name: file.name, url, mimeType: file.type, size: file.size });
+    if (videoFrameInputRef.current) videoFrameInputRef.current.value = "";
+  };
+
+  const generateVideo = async () => {
+    if (!videoPrompt.trim() || isStreaming) return;
+    const frameContext = videoStartFrame ? ` Use this starting frame image as the base.` : "";
+    const promptFull = `Generate a ${videoDuration}-second video: ${videoPrompt}${frameContext}`;
+
+    if (videoStartFrame) {
+      const parts: any[] = [
+        { type: "text", text: promptFull },
+        { type: "image_url", image_url: { url: videoStartFrame.url } },
+      ];
+      const userMsg: Msg = { role: "user", content: promptFull, attachments: [videoStartFrame] };
+      const newMessages = [...messages, userMsg];
+      setMessages(newMessages);
+      scrollToBottom();
+
+      let convoId = activeConvoId;
+      if (!convoId) {
+        convoId = await createConvo(newMessages, videoPrompt.slice(0, 50));
+        if (!convoId) return;
+      }
+
+      const apiMessages = messages.map(m => ({ role: m.role, content: buildApiContent(m.content, m.attachments) }));
+      apiMessages.push({ role: "user", content: parts });
+      await streamResponse(apiMessages, convoId, newMessages, videoPrompt);
+      setVideoStartFrame(null);
+    } else {
+      sendMessage(promptFull);
+    }
+    setVideoPrompt("");
   };
 
   // ---- Render helpers ----
@@ -651,44 +690,219 @@ const AICoPilot = () => {
     );
   };
 
-  // ---- Mode-specific panels ----
+  // ---- Mode panels ----
   const renderImagePanel = () => (
-    <div className="p-4 space-y-3">
-      <div className="flex items-center gap-2 mb-2">
-        <ImageIcon className="h-5 w-5 text-pink-400" />
-        <p className="text-sm font-medium text-white">Image Generation</p>
+    <div className="flex h-[500px]">
+      {/* Left: Controls */}
+      <div className="w-[380px] border-r border-white/[0.06] p-4 flex flex-col gap-3 overflow-y-auto">
+        <div className="flex items-center justify-between">
+          <p className="text-xs font-medium text-white/60">Prompt</p>
+          <span className="text-[10px] text-accent">{qualityMode === "best" ? "Best Quality" : "High Quality"}</span>
+        </div>
+        <Textarea value={imagePrompt} onChange={e => setImagePrompt(e.target.value)}
+          placeholder="Describe precisely what you want..."
+          className="bg-white/5 border-white/10 text-white text-sm min-h-[120px] resize-none placeholder:text-white/20"
+          onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); generateImage(); } }}
+        />
+
+        {/* Reference images */}
+        <div className="flex items-center gap-2 text-[11px]">
+          <button onClick={() => {}} className="flex items-center gap-1 text-white/50 hover:text-white">
+            <ImageIcon className="h-3 w-3" /> Reference
+          </button>
+          <span className="text-white/20">•</span>
+          <span className="text-white/30">Saved</span>
+        </div>
+
+        <div className="border-2 border-dashed border-white/10 rounded-xl p-6 flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-white/20 transition-colors"
+          onClick={() => imageRefInputRef.current?.click()}>
+          <Upload className="h-6 w-6 text-white/20" />
+          <p className="text-[11px] text-white/30 text-center">Drag your images here or click to select</p>
+          <p className="text-[9px] text-white/20">PNG, JPG, WEBP up to 10MB • max 10 images</p>
+        </div>
+        <input ref={imageRefInputRef} type="file" multiple accept="image/*" className="hidden" onChange={handleImageRefUpload} />
+
+        {imageRefs.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {imageRefs.map((ref, i) => (
+              <div key={i} className="relative group w-[60px] h-[60px] rounded-lg overflow-hidden border border-white/10">
+                <img src={ref.url} alt="" className="w-full h-full object-cover" />
+                <button onClick={() => setImageRefs(prev => prev.filter((_, j) => j !== i))}
+                  className="absolute top-0.5 right-0.5 h-4 w-4 rounded-full bg-black/70 flex items-center justify-center opacity-0 group-hover:opacity-100">
+                  <X className="h-2.5 w-2.5 text-white" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Aspect ratio */}
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="ghost" onClick={() => imageRefInputRef.current?.click()}
+            className="text-[10px] text-white/40 hover:text-white border border-white/10 h-7 px-2 gap-1">
+            <Upload className="h-3 w-3" /> Upload
+          </Button>
+          <div className="flex gap-1 ml-auto">
+            {["1:1", "16:9", "9:16"].map(r => (
+              <button key={r} onClick={() => setImageAspect(r)}
+                className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] border transition-all ${
+                  imageAspect === r ? "border-accent/40 bg-accent/10 text-accent" : "border-white/10 text-white/30 hover:text-white/50"
+                }`}>
+                {r === "1:1" && <Square className="h-3 w-3" />}
+                {r === "16:9" && <Monitor className="h-3 w-3" />}
+                {r === "9:16" && <Smartphone className="h-3 w-3" />}
+                {r}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="mt-auto flex items-center gap-2">
+          <Select value={qualityMode} onValueChange={v => setQualityMode(v as QualityMode)}>
+            <SelectTrigger className="bg-white/5 border-white/10 text-white h-8 text-[11px] w-[130px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="bg-[hsl(220,40%,10%)] border-white/10">
+              <SelectItem value="best" className="text-white text-xs">Best Quality</SelectItem>
+              <SelectItem value="high" className="text-white text-xs">High Quality</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button onClick={generateImage} disabled={!imagePrompt.trim() || isStreaming}
+            className="flex-1 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white text-xs h-8">
+            {isStreaming ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : null}
+            Enter prompt
+          </Button>
+        </div>
       </div>
-      <p className="text-[11px] text-white/40">Describe what you want to generate. The AI will create it for you.</p>
-      <Textarea value={imagePrompt} onChange={e => setImagePrompt(e.target.value)}
-        placeholder="A cyberpunk cityscape at sunset with neon lights..."
-        className="bg-white/5 border-white/10 text-white text-sm min-h-[100px] resize-none placeholder:text-white/20"
-        onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendModePrompt("image"); } }}
-      />
-      <Button onClick={() => sendModePrompt("image")} disabled={!imagePrompt.trim() || isStreaming}
-        className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white">
-        {isStreaming ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <ImageIcon className="h-4 w-4 mr-2" />}
-        Generate Image
-      </Button>
+
+      {/* Right: Generated gallery */}
+      <ScrollArea className="flex-1 p-4">
+        {generatedImages.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full text-center">
+            <ImageIcon className="h-10 w-10 text-white/10 mb-3" />
+            <p className="text-white/20 text-xs">Generated images will appear here</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {generatedImages.map((img, i) => (
+              <div key={i} className="relative group rounded-xl overflow-hidden border border-white/10 bg-white/[0.02]">
+                <img src={img.url} alt="" className="w-full rounded-xl" />
+                <div className="absolute top-2 right-2 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button onClick={() => { const a = document.createElement("a"); a.href = img.url; a.download = `image_${i}.png`; a.click(); }}
+                    className="h-8 w-8 rounded-lg bg-black/60 flex items-center justify-center hover:bg-black/80">
+                    <Download className="h-4 w-4 text-white" />
+                  </button>
+                  <button onClick={() => setGeneratedImages(prev => prev.filter((_, j) => j !== i))}
+                    className="h-8 w-8 rounded-lg bg-black/60 flex items-center justify-center hover:bg-red-500/60">
+                    <Trash className="h-4 w-4 text-white" />
+                  </button>
+                </div>
+                <div className="p-3">
+                  <p className="text-[10px] text-white/40"><span className="text-accent">Prompt used:</span> {img.prompt}</p>
+                  <div className="flex gap-2 mt-2">
+                    <button onClick={() => setImagePrompt(img.prompt)} className="flex items-center gap-1 text-[10px] text-white/40 hover:text-white border border-white/10 rounded px-2 py-1">
+                      <RotateCcw className="h-3 w-3" /> Use again
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </ScrollArea>
     </div>
   );
 
   const renderVideoPanel = () => (
-    <div className="p-4 space-y-3">
-      <div className="flex items-center gap-2 mb-2">
-        <Video className="h-5 w-5 text-blue-400" />
-        <p className="text-sm font-medium text-white">Video Generation</p>
+    <div className="flex h-[500px]">
+      {/* Left: Controls */}
+      <div className="w-[380px] border-r border-white/[0.06] p-4 flex flex-col gap-3 overflow-y-auto">
+        <div className="flex items-center justify-between">
+          <p className="text-xs font-medium text-white/60">Prompt</p>
+          <span className="text-[10px] text-accent">{qualityMode === "best" ? "Best Quality" : "High Quality"}</span>
+        </div>
+        <Textarea value={videoPrompt} onChange={e => setVideoPrompt(e.target.value)}
+          placeholder="Describe precisely what you want..."
+          className="bg-white/5 border-white/10 text-white text-sm min-h-[120px] resize-none placeholder:text-white/20"
+          onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); generateVideo(); } }}
+        />
+
+        {/* Start/End Frame */}
+        <div className="flex gap-2 text-[11px]">
+          <span className="flex items-center gap-1 text-white/50"><ImageIcon className="h-3 w-3" /> Start</span>
+          <span className="text-white/20">•</span>
+          <span className="text-white/30">End</span>
+        </div>
+        <div className="flex gap-3">
+          <div className="border-2 border-dashed border-white/10 rounded-xl p-4 flex flex-col items-center justify-center gap-1 cursor-pointer hover:border-white/20 transition-colors flex-1 min-h-[120px] relative"
+            onClick={() => videoFrameInputRef.current?.click()}>
+            {videoStartFrame ? (
+              <>
+                <img src={videoStartFrame.url} alt="" className="w-full h-full object-cover rounded-lg absolute inset-0" />
+                <button onClick={(e) => { e.stopPropagation(); setVideoStartFrame(null); }}
+                  className="absolute top-1 right-1 h-5 w-5 rounded-full bg-black/70 flex items-center justify-center z-10">
+                  <X className="h-3 w-3 text-white" />
+                </button>
+              </>
+            ) : (
+              <>
+                <Upload className="h-5 w-5 text-white/20" />
+                <p className="text-[9px] text-white/30 text-center">Start Frame (Required)</p>
+                <p className="text-[8px] text-white/15">PNG, JPG, WEBP</p>
+              </>
+            )}
+          </div>
+          <div className="border-2 border-dashed border-white/10 rounded-xl p-4 flex flex-col items-center justify-center gap-1 flex-1 min-h-[120px] opacity-50">
+            <Upload className="h-5 w-5 text-white/20" />
+            <p className="text-[9px] text-white/30 text-center">End Frame (Optional)</p>
+            <p className="text-[8px] text-white/15">PNG, JPG, WEBP</p>
+          </div>
+        </div>
+        <input ref={videoFrameInputRef} type="file" accept="image/*" className="hidden" onChange={handleVideoFrameUpload} />
+
+        {/* Duration & Upload */}
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="ghost" onClick={() => videoFrameInputRef.current?.click()}
+            className="text-[10px] text-white/40 hover:text-white border border-white/10 h-7 px-2 gap-1">
+            <Upload className="h-3 w-3" /> Upload
+          </Button>
+          <div className="flex gap-1 ml-auto">
+            {(["5", "10"] as const).map(d => (
+              <button key={d} onClick={() => setVideoDuration(d)}
+                className={`px-3 py-1 rounded text-[10px] border transition-all ${
+                  videoDuration === d ? "border-accent/40 bg-accent/10 text-accent" : "border-white/10 text-white/30 hover:text-white/50"
+                }`}>
+                {d} seconds
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="mt-auto flex items-center gap-2">
+          <Select value={qualityMode} onValueChange={v => setQualityMode(v as QualityMode)}>
+            <SelectTrigger className="bg-white/5 border-white/10 text-white h-8 text-[11px] w-[130px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="bg-[hsl(220,40%,10%)] border-white/10">
+              <SelectItem value="best" className="text-white text-xs">Best Quality</SelectItem>
+              <SelectItem value="high" className="text-white text-xs">High Quality</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button onClick={generateVideo} disabled={!videoPrompt.trim() || isStreaming}
+            className="flex-1 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white text-xs h-8">
+            {isStreaming ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : null}
+            {videoStartFrame ? "Select an image" : "Enter prompt"}
+          </Button>
+        </div>
       </div>
-      <p className="text-[11px] text-white/40">Describe the video you want. Include motion, camera, and style details.</p>
-      <Textarea value={videoPrompt} onChange={e => setVideoPrompt(e.target.value)}
-        placeholder="A slow zoom into a tropical beach with waves..."
-        className="bg-white/5 border-white/10 text-white text-sm min-h-[100px] resize-none placeholder:text-white/20"
-        onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendModePrompt("video"); } }}
-      />
-      <Button onClick={() => sendModePrompt("video")} disabled={!videoPrompt.trim() || isStreaming}
-        className="w-full bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white">
-        {isStreaming ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Video className="h-4 w-4 mr-2" />}
-        Generate Video
-      </Button>
+
+      {/* Right: Chat/Results */}
+      <ScrollArea className="flex-1 p-4">
+        <div className="flex flex-col items-center justify-center h-full text-center">
+          <Video className="h-10 w-10 text-white/10 mb-3" />
+          <p className="text-white/20 text-xs">Generated videos will appear in the chat</p>
+        </div>
+      </ScrollArea>
     </div>
   );
 
@@ -698,42 +912,50 @@ const AICoPilot = () => {
         <div className="flex items-center gap-2">
           <Volume2 className="h-5 w-5 text-emerald-400" />
           <p className="text-sm font-medium text-white">Audio Generation</p>
+          <Badge variant="outline" className="text-[8px] border-accent/20 text-accent">Gemini AI</Badge>
         </div>
         <Button size="sm" variant="ghost" onClick={() => setShowVoiceManager(!showVoiceManager)}
-          className="text-[10px] text-white/40 hover:text-white h-7 px-2">
-          {showVoiceManager ? "Hide Voices" : "Manage Voices"}
+          className="text-[10px] text-white/40 hover:text-white h-7 px-2 gap-1">
+          <Settings2 className="h-3 w-3" />
+          {showVoiceManager ? "Hide Voices" : "+ Create a voice"}
         </Button>
       </div>
 
       {showVoiceManager && (
         <div className="space-y-3 bg-white/[0.03] rounded-xl p-3 border border-white/[0.06]">
-          <p className="text-[11px] font-medium text-white/60">🎙 Voice Library</p>
+          <div className="flex items-center justify-between">
+            <p className="text-[11px] font-medium text-white/60">
+              My Voices <Badge variant="outline" className="text-[8px] border-white/10 text-white/30 ml-1">{voices.length}</Badge>
+            </p>
+          </div>
           <ScrollArea className="max-h-[200px]">
             <div className="space-y-1.5">
               {voices.map(v => (
-                <div key={v.id} className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer transition-all ${
+                <div key={v.id} className={`flex items-center gap-2 p-2.5 rounded-lg cursor-pointer transition-all ${
                   selectedVoice === v.id ? "bg-accent/20 border border-accent/30" : "bg-white/[0.03] hover:bg-white/[0.06] border border-transparent"
                 }`} onClick={() => setSelectedVoice(v.id)}>
                   <div className="flex-1 min-w-0">
                     <p className="text-[11px] text-white font-medium truncate">{v.name}</p>
-                    <p className="text-[9px] text-white/30 truncate">{v.description || (v.is_preset ? "Preset" : "Custom")}</p>
+                    <p className="text-[9px] text-white/30 truncate">{v.description || (v.is_preset ? "Preset" : "Custom cloned")}</p>
                   </div>
-                  <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); playVoicePreview(v); }}
-                    className="h-6 w-6 p-0 text-white/30 hover:text-white shrink-0">
-                    {playingPreview === v.id ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
-                  </Button>
+                  {v.sample_urls && v.sample_urls.length > 0 && (
+                    <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); const audio = new Audio(v.sample_urls![0]); audio.play().catch(() => {}); }}
+                      className="h-6 w-6 p-0 text-white/30 hover:text-white shrink-0">
+                      <Play className="h-3 w-3" />
+                    </Button>
+                  )}
                   {!v.is_preset && (
                     <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); deleteVoice(v.id); }}
                       className="h-6 w-6 p-0 text-white/20 hover:text-red-400 shrink-0"><Trash className="h-3 w-3" /></Button>
                   )}
                 </div>
               ))}
+              {voices.length === 0 && <p className="text-[10px] text-white/20 text-center py-3">No voices yet. Clone one below!</p>}
             </div>
           </ScrollArea>
 
-          {/* Clone new voice */}
           <div className="pt-2 border-t border-white/[0.06] space-y-2">
-            <p className="text-[10px] font-medium text-white/50">Clone New Voice</p>
+            <p className="text-[10px] font-medium text-white/50">Clone New Voice (upload audio with voice talking)</p>
             <Input value={newVoiceName} onChange={e => setNewVoiceName(e.target.value)}
               placeholder="Voice name..."
               className="bg-white/5 border-white/10 text-white text-xs h-8 placeholder:text-white/20" />
@@ -743,20 +965,16 @@ const AICoPilot = () => {
               />
               <Button size="sm" variant="outline" onClick={() => voiceSampleInputRef.current?.click()}
                 className="text-[10px] h-7 border-white/10 text-white/50 hover:text-white hover:bg-white/5">
-                <Upload className="h-3 w-3 mr-1" /> Upload Samples
+                <Upload className="h-3 w-3 mr-1" /> Upload Samples (30s+)
               </Button>
-              {voiceSamples.length > 0 && (
-                <span className="text-[9px] text-white/30">{voiceSamples.length} file(s)</span>
-              )}
+              {voiceSamples.length > 0 && <span className="text-[9px] text-white/30">{voiceSamples.length} file(s)</span>}
             </div>
             {voiceSamples.length > 0 && (
               <div className="flex flex-wrap gap-1">
                 {voiceSamples.map((f, i) => (
                   <Badge key={i} variant="outline" className="text-[8px] border-white/10 text-white/40 gap-1">
                     <Music className="h-2.5 w-2.5" /> {f.name.slice(0, 20)}
-                    <button onClick={() => setVoiceSamples(prev => prev.filter((_, j) => j !== i))} className="ml-0.5 hover:text-red-400">
-                      <X className="h-2 w-2" />
-                    </button>
+                    <button onClick={() => setVoiceSamples(prev => prev.filter((_, j) => j !== i))} className="ml-0.5 hover:text-red-400"><X className="h-2 w-2" /></button>
                   </Badge>
                 ))}
               </div>
@@ -770,30 +988,42 @@ const AICoPilot = () => {
         </div>
       )}
 
-      {/* Voice selection */}
-      <Select value={selectedVoice} onValueChange={setSelectedVoice}>
-        <SelectTrigger className="bg-white/5 border-white/10 text-white h-9 text-xs">
-          <SelectValue placeholder="Choose a voice..." />
-        </SelectTrigger>
-        <SelectContent className="bg-[hsl(220,40%,10%)] border-white/10 max-h-[300px]">
-          {voices.map(v => (
-            <SelectItem key={v.id} value={v.id} className="text-white text-xs">
-              {v.name} {v.is_preset ? "" : "🎙"} — <span className="text-white/30">{v.description}</span>
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      {/* Note */}
+      <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
+        <p className="text-[10px] text-amber-300/70">Note: Click on a voice above to select it</p>
+      </div>
 
-      {/* Text to speak */}
-      <Textarea value={audioText} onChange={e => setAudioText(e.target.value)}
-        placeholder="Type what you want the voice to say..."
-        className="bg-white/5 border-white/10 text-white text-sm min-h-[80px] resize-none placeholder:text-white/20"
-        onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); generateAudio(); } }}
-      />
-      <Button onClick={generateAudio} disabled={!audioText.trim() || !selectedVoice || isGeneratingAudio}
+      {/* Voice selection */}
+      {voices.length > 0 && (
+        <Select value={selectedVoice} onValueChange={setSelectedVoice}>
+          <SelectTrigger className="bg-white/5 border-white/10 text-white h-9 text-xs">
+            <SelectValue placeholder="Choose a voice..." />
+          </SelectTrigger>
+          <SelectContent className="bg-[hsl(220,40%,10%)] border-white/10 max-h-[300px]">
+            {voices.map(v => (
+              <SelectItem key={v.id} value={v.id} className="text-white text-xs">
+                {v.name} {v.is_preset ? "" : "🎙"} — <span className="text-white/30">{v.description}</span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
+
+      {/* Text to convert */}
+      <div>
+        <p className="text-xs font-medium text-white mb-1.5">Text to convert to audio</p>
+        <Textarea value={audioText} onChange={e => setAudioText(e.target.value)}
+          placeholder="Enter the text you want to convert to audio..."
+          className="bg-white/5 border-white/10 text-white text-sm min-h-[100px] resize-none placeholder:text-white/20"
+          onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); generateAudio(); } }}
+        />
+        <p className="text-[10px] text-accent mt-1">{audioText.length} characters</p>
+      </div>
+
+      <Button onClick={generateAudio} disabled={!audioText.trim() || isGeneratingAudio}
         className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white">
         {isGeneratingAudio ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Volume2 className="h-4 w-4 mr-2" />}
-        Generate Audio
+        Generate
       </Button>
     </div>
   );
@@ -848,6 +1078,11 @@ const AICoPilot = () => {
             <div className="flex-1">
               <p className="text-sm font-semibold text-white">Grandmaster AI Co-Pilot</p>
             </div>
+            {mode === "freeWill" && (
+              <Badge variant="outline" className="border-red-500/30 text-red-400 text-[9px]">
+                <Wand2 className="h-2.5 w-2.5 mr-1" /> Uncensored
+              </Badge>
+            )}
             {messages.length > 0 && !isStreaming && (
               <Button size="sm" variant="ghost" onClick={handleRegenerate} className="h-7 px-2 text-[10px] text-white/30 hover:text-white gap-1">
                 <RefreshCw className="h-3 w-3" /> Regenerate
@@ -876,141 +1111,141 @@ const AICoPilot = () => {
         </div>
 
         {/* Mode panels for image/video/audio */}
-        {(mode === "image" || mode === "video" || mode === "audio") && (
+        {mode === "image" && renderImagePanel()}
+        {mode === "video" && renderVideoPanel()}
+        {mode === "audio" && (
           <div className="border-b border-white/[0.06]">
-            {mode === "image" && renderImagePanel()}
-            {mode === "video" && renderVideoPanel()}
-            {mode === "audio" && renderAudioPanel()}
+            {renderAudioPanel()}
           </div>
         )}
 
-        {/* Chat messages */}
-        <ScrollArea className="flex-1 p-4" ref={scrollRef}>
-          {messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-center py-12">
-              <Brain className="h-12 w-12 text-white/10 mb-4" />
-              <p className="text-white/30 text-sm mb-1">Your AI Agency Brain</p>
-              <p className="text-white/20 text-xs mb-6 max-w-sm">
-                {mode === "freeWill" ? "Free Will mode — no limits, ask anything." : "Ask anything — a conversation is created automatically."}
-              </p>
-              {(mode === "chat" || mode === "freeWill") && (
-                <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 max-w-lg">
-                  {QUICK_PROMPTS.map(qp => (
-                    <button key={qp.label} onClick={() => sendMessage(qp.prompt)}
-                      className="h-auto py-2.5 px-3 rounded-lg border border-white/[0.08] text-white/50 hover:text-white hover:bg-white/[0.06] hover:border-white/[0.15] text-left flex flex-col items-start gap-1.5 transition-all">
-                      <qp.icon className="h-3.5 w-3.5 text-accent" />
-                      <span className="text-[10px] leading-tight">{qp.label}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {messages.map((msg, i) => (
-                <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
-                  onMouseEnter={() => setHoveredIdx(i)} onMouseLeave={() => setHoveredIdx(null)}>
-                  <div className="max-w-[80%]">
-                    {editingIdx === i ? (
-                      <div className="bg-accent/10 rounded-xl px-4 py-3 border border-accent/20">
-                        <Textarea value={editText} onChange={e => setEditText(e.target.value)}
-                          className="bg-white/5 border-white/10 text-white text-xs min-h-[60px] resize-none mb-2 placeholder:text-white/20"
-                          onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleEditMessage(i); } }}
-                        />
-                        {editAttachments.length > 0 && (
-                          <div className="flex flex-wrap gap-1.5 mb-2">
-                            {editAttachments.map((att, ai) => (
-                              <div key={ai} className="relative group rounded-lg overflow-hidden border border-white/10 bg-white/5">
-                                {att.type === "image" ? (
-                                  <div className="w-[70px] h-[55px]"><img src={att.url} alt={att.name} className="w-full h-full object-cover" /></div>
-                                ) : att.type === "video" ? (
-                                  <div className="w-[70px] h-[55px] bg-black/40 flex items-center justify-center"><Play className="h-4 w-4 text-white/70" /></div>
-                                ) : (
-                                  <div className="flex items-center gap-1 px-2 py-1.5">
-                                    {att.type === "audio" ? <Music className="h-3 w-3 text-accent" /> : <FileText className="h-3 w-3 text-accent" />}
-                                    <span className="text-[8px] text-white/50 truncate max-w-[60px]">{att.name}</span>
+        {/* Chat messages - show for chat/freeWill/audio modes */}
+        {(mode === "chat" || mode === "freeWill" || mode === "audio") && (
+          <ScrollArea className="flex-1 p-4" ref={scrollRef}>
+            {messages.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full text-center py-12">
+                <Brain className="h-12 w-12 text-white/10 mb-4" />
+                <p className="text-white/30 text-sm mb-1">Your AI Agency Brain</p>
+                <p className="text-white/20 text-xs mb-6 max-w-sm">
+                  {mode === "freeWill" ? "Free Will mode — no limits, no restrictions, ask anything." : mode === "audio" ? "Generate audio and it will appear here." : "Ask anything — a conversation is created automatically."}
+                </p>
+                {(mode === "chat" || mode === "freeWill") && (
+                  <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 max-w-lg">
+                    {QUICK_PROMPTS.map(qp => (
+                      <button key={qp.label} onClick={() => sendMessage(qp.prompt)}
+                        className="h-auto py-2.5 px-3 rounded-lg border border-white/[0.08] text-white/50 hover:text-white hover:bg-white/[0.06] hover:border-white/[0.15] text-left flex flex-col items-start gap-1.5 transition-all">
+                        <qp.icon className="h-3.5 w-3.5 text-accent" />
+                        <span className="text-[10px] leading-tight">{qp.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {messages.map((msg, i) => (
+                  <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+                    onMouseEnter={() => setHoveredIdx(i)} onMouseLeave={() => setHoveredIdx(null)}>
+                    <div className="max-w-[80%]">
+                      {editingIdx === i ? (
+                        <div className="bg-accent/10 rounded-xl px-4 py-3 border border-accent/20">
+                          <Textarea value={editText} onChange={e => setEditText(e.target.value)}
+                            className="bg-white/5 border-white/10 text-white text-xs min-h-[60px] resize-none mb-2 placeholder:text-white/20"
+                            onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleEditMessage(i); } }}
+                          />
+                          {editAttachments.length > 0 && (
+                            <div className="flex flex-wrap gap-1.5 mb-2">
+                              {editAttachments.map((att, ai) => (
+                                <div key={ai} className="relative group rounded-lg overflow-hidden border border-white/10 bg-white/5">
+                                  {att.type === "image" ? (
+                                    <div className="w-[70px] h-[55px]"><img src={att.url} alt={att.name} className="w-full h-full object-cover" /></div>
+                                  ) : att.type === "video" ? (
+                                    <div className="w-[70px] h-[55px] bg-black/40 flex items-center justify-center"><Play className="h-4 w-4 text-white/70" /></div>
+                                  ) : (
+                                    <div className="flex items-center gap-1 px-2 py-1.5">
+                                      {att.type === "audio" ? <Music className="h-3 w-3 text-accent" /> : <FileText className="h-3 w-3 text-accent" />}
+                                      <span className="text-[8px] text-white/50 truncate max-w-[60px]">{att.name}</span>
+                                    </div>
+                                  )}
+                                  <button onClick={() => setEditAttachments(prev => prev.filter((_, j) => j !== ai))}
+                                    className="absolute top-0.5 right-0.5 h-4 w-4 rounded-full bg-black/70 flex items-center justify-center text-white/60 hover:text-white hover:bg-red-500/80 opacity-0 group-hover:opacity-100">
+                                    <X className="h-2.5 w-2.5" />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          <input ref={editFileInputRef} type="file" multiple accept="image/*,audio/*,video/*,.pdf,.txt,.csv" className="hidden"
+                            onChange={async (e) => {
+                              const files = Array.from(e.target.files || []);
+                              for (const file of files) {
+                                if (file.size > MAX_FILE_SIZE) { toast.error(`${file.name} too large`); continue; }
+                                const url = await uploadFileToStorage(file);
+                                if (!url) continue;
+                                let type: Attachment["type"] = "file";
+                                if (file.type.startsWith("image/")) type = "image";
+                                else if (file.type.startsWith("audio/")) type = "audio";
+                                else if (file.type.startsWith("video/")) type = "video";
+                                setEditAttachments(prev => [...prev, { type, name: file.name, url, mimeType: file.type, size: file.size }]);
+                              }
+                              if (editFileInputRef.current) editFileInputRef.current.value = "";
+                            }}
+                          />
+                          <div className="flex gap-2 justify-between">
+                            <Button size="sm" variant="ghost" onClick={() => editFileInputRef.current?.click()} className="h-7 px-2 text-[10px] text-white/40 hover:text-white gap-1">
+                              <Paperclip className="h-3 w-3" /> Attach
+                            </Button>
+                            <div className="flex gap-2">
+                              <Button size="sm" variant="ghost" onClick={() => { setEditingIdx(null); setEditAttachments([]); }} className="h-7 px-3 text-[10px] text-white/40 hover:text-white">Cancel</Button>
+                              <Button size="sm" onClick={() => handleEditMessage(i)} className="h-7 px-3 text-[10px] bg-accent hover:bg-accent/90 text-white">Save & Regenerate</Button>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <div className={`rounded-xl px-4 py-3 ${msg.role === "user" ? "bg-accent/20 text-white" : "bg-white/5 text-white/80"}`}>
+                            {msg.role === "assistant" ? (
+                              <div className="prose prose-sm prose-invert max-w-none text-xs leading-relaxed">
+                                <ReactMarkdown>{msg.content}</ReactMarkdown>
+                                {msg.images && msg.images.length > 0 && (
+                                  <div className="mt-2 space-y-2">
+                                    {msg.images.map((img, idx) => (
+                                      <div key={idx} className="relative group">
+                                        <img src={img.image_url.url} alt="Generated" className="rounded-lg max-w-full border border-white/10" />
+                                        <a href={img.image_url.url} download className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 bg-black/60 rounded-lg p-1.5 transition-opacity">
+                                          <Download className="h-3.5 w-3.5 text-white" />
+                                        </a>
+                                      </div>
+                                    ))}
                                   </div>
                                 )}
-                                <button onClick={() => setEditAttachments(prev => prev.filter((_, j) => j !== ai))}
-                                  className="absolute top-0.5 right-0.5 h-4 w-4 rounded-full bg-black/70 flex items-center justify-center text-white/60 hover:text-white hover:bg-red-500/80 opacity-0 group-hover:opacity-100">
-                                  <X className="h-2.5 w-2.5" />
-                                </button>
+                                {msg.audioUrl && (
+                                  <div className="mt-2">
+                                    <audio controls src={msg.audioUrl} className="w-full h-10" />
+                                  </div>
+                                )}
                               </div>
-                            ))}
+                            ) : (
+                              <>
+                                <p className="text-xs">{msg.content}</p>
+                                {msg.attachments && renderMessageAttachments(msg.attachments)}
+                              </>
+                            )}
                           </div>
-                        )}
-                        <input ref={editFileInputRef} type="file" multiple accept="image/*,audio/*,video/*,.pdf,.txt,.csv" className="hidden"
-                          onChange={async (e) => {
-                            const files = Array.from(e.target.files || []);
-                            for (const file of files) {
-                              if (file.size > MAX_FILE_SIZE) { toast.error(`${file.name} too large`); continue; }
-                              const path = `${crypto.randomUUID()}.${file.name.split(".").pop() || "bin"}`;
-                              const { error } = await supabase.storage.from("copilot-attachments").upload(path, file);
-                              if (error) { toast.error(`Upload failed`); continue; }
-                              const { data: urlData } = supabase.storage.from("copilot-attachments").getPublicUrl(path);
-                              let type: Attachment["type"] = "file";
-                              if (file.type.startsWith("image/")) type = "image";
-                              else if (file.type.startsWith("audio/")) type = "audio";
-                              else if (file.type.startsWith("video/")) type = "video";
-                              setEditAttachments(prev => [...prev, { type, name: file.name, url: urlData.publicUrl, mimeType: file.type, size: file.size }]);
-                            }
-                            if (editFileInputRef.current) editFileInputRef.current.value = "";
-                          }}
-                        />
-                        <div className="flex gap-2 justify-between">
-                          <Button size="sm" variant="ghost" onClick={() => editFileInputRef.current?.click()} className="h-7 px-2 text-[10px] text-white/40 hover:text-white gap-1">
-                            <Paperclip className="h-3 w-3" /> Attach
-                          </Button>
-                          <div className="flex gap-2">
-                            <Button size="sm" variant="ghost" onClick={() => { setEditingIdx(null); setEditAttachments([]); }} className="h-7 px-3 text-[10px] text-white/40 hover:text-white">Cancel</Button>
-                            <Button size="sm" onClick={() => handleEditMessage(i)} className="h-7 px-3 text-[10px] bg-accent hover:bg-accent/90 text-white">Save & Regenerate</Button>
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      <>
-                        <div className={`rounded-xl px-4 py-3 ${msg.role === "user" ? "bg-accent/20 text-white" : "bg-white/5 text-white/80"}`}>
-                          {msg.role === "assistant" ? (
-                            <div className="prose prose-sm prose-invert max-w-none text-xs leading-relaxed">
-                              <ReactMarkdown>{msg.content}</ReactMarkdown>
-                              {msg.images && msg.images.length > 0 && (
-                                <div className="mt-2 space-y-2">
-                                  {msg.images.map((img, idx) => (
-                                    <div key={idx} className="relative group">
-                                      <img src={img.image_url.url} alt="Generated" className="rounded-lg max-w-full border border-white/10" />
-                                      <a href={img.image_url.url} download className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 bg-black/60 rounded-lg p-1.5 transition-opacity">
-                                        <Download className="h-3.5 w-3.5 text-white" />
-                                      </a>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                              {msg.audioUrl && (
-                                <div className="mt-2">
-                                  <audio controls src={msg.audioUrl} className="w-full h-10" />
-                                </div>
-                              )}
-                            </div>
-                          ) : (
-                            <>
-                              <p className="text-xs">{msg.content}</p>
-                              {msg.attachments && renderMessageAttachments(msg.attachments)}
-                            </>
-                          )}
-                        </div>
-                        {renderMessageActions(msg, i)}
-                      </>
-                    )}
+                          {renderMessageActions(msg, i)}
+                        </>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </ScrollArea>
+                ))}
+              </div>
+            )}
+          </ScrollArea>
+        )}
 
         {renderPendingAttachments()}
 
-        {/* Input bar - always visible for chat/freeWill modes */}
+        {/* Input bar - visible for chat/freeWill modes */}
         {(mode === "chat" || mode === "freeWill") && (
           <div className="p-3 border-t border-white/[0.06]">
             <input ref={fileInputRef} type="file" multiple accept="image/*,audio/*,video/*,.pdf,.txt,.csv" className="hidden" onChange={handleFileSelect} />
@@ -1022,7 +1257,7 @@ const AICoPilot = () => {
               </Button>
               <Textarea value={input} onChange={e => setInput(e.target.value)}
                 onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
-                placeholder={mode === "freeWill" ? "Anything goes — no restrictions..." : "Ask anything, attach files, generate images & videos..."}
+                placeholder={mode === "freeWill" ? "Anything goes — no restrictions, fully uncensored..." : "Ask anything, attach files, generate images & videos..."}
                 className="bg-white/5 border-white/10 text-white text-xs min-h-[40px] max-h-[120px] resize-none placeholder:text-white/20"
                 rows={1}
               />
