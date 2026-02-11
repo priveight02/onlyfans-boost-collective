@@ -711,29 +711,96 @@ const AICoPilot = () => {
     const format = VIDEO_FORMAT_PRESETS.find(f => f.id === selectedVideoFormat) || VIDEO_FORMAT_PRESETS[0];
     setVideoPrompt(""); setVideoStartFrame(null);
 
-    // Progress simulation (~30s for video)
-    const stopProgress = simulateProgress(setVideoProgress, setVideoProgressLabel, 30000);
+    // Map format ratios to Kling supported ratios (16:9, 9:16, 1:1)
+    const mapRatio = (ratio: string) => {
+      if (ratio === "1:1") return "1:1";
+      if (ratio === "9:16" || ratio === "3:4" || ratio === "4:5") return "9:16";
+      return "16:9";
+    };
+
+    setVideoProgress(0);
+    setVideoProgressLabel("Submitting to Kling AI...");
 
     try {
-      const promptText = `Generate a ${videoDuration}-second cinematic, ultra HD, highest quality video at ${format.width}x${format.height} (${format.ratio}, ${format.label} format): ${prompt}${frame ? " Use this starting frame." : ""}`;
-      const parts: any[] = [{ type: "text", text: promptText }];
-      if (frame) parts.push({ type: "image_url", image_url: { url: frame.url } });
-
-      const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/agency-copilot`, {
-        method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
-        body: JSON.stringify({ messages: [{ role: "user", content: frame ? parts : promptText }], context: buildContext(), quality: qualityMode }),
+      // Step 1: Create task via Kling AI
+      const createResp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/kling-video?action=create`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+        body: JSON.stringify({
+          prompt,
+          duration: String(videoDuration <= 10 ? (videoDuration <= 5 ? "5" : "10") : "10"),
+          aspect_ratio: mapRatio(format.ratio),
+          image_url: frame?.url || undefined,
+        }),
       });
-      if (!resp.ok) { const ed = await resp.json().catch(() => ({})); throw new Error(ed.error || `Error ${resp.status}`); }
-      const data = await resp.json();
-      stopProgress();
+      if (!createResp.ok) { const ed = await createResp.json().catch(() => ({})); throw new Error(ed.error || `Error ${createResp.status}`); }
+      const createData = await createResp.json();
+      const taskId = createData.task_id;
+      if (!taskId) throw new Error("No task_id returned from Kling AI");
 
-      if (data.type === "image" && data.images?.length) {
-        const img = data.images[0];
-        const saved = await saveGeneratedContent("video", img.image_url.url, prompt, "video", { metadata: { duration: videoDuration, format: format.id, width: format.width, height: format.height } });
-        if (saved) setGeneratedVideos(prev => [saved, ...prev]);
-        toast.success(`Video generated! (${format.label} — ${format.width}×${format.height})`);
-      } else toast.info(data.content || "Generation complete");
-    } catch (e: any) { stopProgress(); toast.error(e.message || "Video generation failed"); } finally { setIsGeneratingVideo(false); setVideoProgress(0); setVideoProgressLabel(""); }
+      setVideoProgress(10);
+      setVideoProgressLabel("Task submitted — rendering video...");
+      const taskType = frame ? "image2video" : "text2video";
+
+      // Step 2: Poll for completion (max ~5 minutes)
+      const maxPolls = 60;
+      let pollCount = 0;
+      let videoUrl: string | null = null;
+
+      while (pollCount < maxPolls) {
+        await new Promise(r => setTimeout(r, 5000)); // Poll every 5s
+        pollCount++;
+
+        // Simulate progress: 10% → 90% over polls
+        const progress = Math.min(10 + (pollCount / maxPolls) * 80, 90);
+        setVideoProgress(progress);
+
+        const statusLabels = [
+          "Rendering video...",
+          "Processing frames...",
+          "Applying effects...",
+          "Encoding video...",
+          "Finalizing output...",
+        ];
+        setVideoProgressLabel(statusLabels[Math.min(Math.floor(pollCount / 12), statusLabels.length - 1)]);
+
+        try {
+          const pollResp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/kling-video?action=poll&task_id=${taskId}&type=${taskType}`, {
+            headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+          });
+          if (!pollResp.ok) continue;
+          const pollData = await pollResp.json();
+
+          if (pollData.task_status === "succeed" && pollData.video_url) {
+            videoUrl = pollData.video_url;
+            break;
+          }
+          if (pollData.task_status === "failed") {
+            throw new Error(pollData.task_status_msg || "Video generation failed on Kling AI");
+          }
+        } catch (pollErr: any) {
+          if (pollErr.message?.includes("failed")) throw pollErr;
+          // Network errors during polling — just continue
+        }
+      }
+
+      if (!videoUrl) throw new Error("Video generation timed out. Try a shorter duration or simpler prompt.");
+
+      setVideoProgress(95);
+      setVideoProgressLabel("Saving video...");
+
+      // Save to DB
+      const saved = await saveGeneratedContent("video", videoUrl, prompt, "video", {
+        metadata: { duration: videoDuration, format: format.id, width: format.width, height: format.height, kling_task_id: taskId },
+      });
+      if (saved) setGeneratedVideos(prev => [saved, ...prev]);
+
+      setVideoProgress(100);
+      setVideoProgressLabel("Complete!");
+      toast.success(`Video generated! (${format.label} — ${videoDuration}s)`);
+    } catch (e: any) { toast.error(e.message || "Video generation failed"); } finally {
+      setTimeout(() => { setIsGeneratingVideo(false); setVideoProgress(0); setVideoProgressLabel(""); }, 1500);
+    }
   };
 
   // ---- Audio playback ----
@@ -883,7 +950,7 @@ const AICoPilot = () => {
         style={displayLayout !== "vertical" ? { width: `${220 * displayScale}px`, minHeight: `${170 * displayScale}px` } : { minHeight: "200px" }}>
         <ProgressRing progress={progress} size={90} label={progressLabel} />
         <p className="text-xs text-white/40 mt-3">Media generating...</p>
-        <p className="text-[10px] text-white/20 mt-1">~{modeTab === "video" ? "30" : "15"}s estimated</p>
+        <p className="text-[10px] text-white/20 mt-1">~{modeTab === "video" ? "2-5 min" : "15s"} estimated</p>
       </div>
     ) : null;
 
@@ -901,11 +968,15 @@ const AICoPilot = () => {
           return (
             <div key={item.id} className="relative group rounded-xl overflow-hidden border border-white/10 bg-white/[0.02]"
               style={displayLayout !== "vertical" ? { width: `${220 * displayScale}px` } : {}}>
-              {/* Full image, no cropping */}
-              <img src={item.url} alt="" className="w-full object-contain rounded-t-xl cursor-pointer bg-black/20"
-                onClick={() => setImageFullPreview(item.url)} />
+              {/* Render video or image based on mode */}
+              {modeTab === "video" ? (
+                <video src={item.url} controls className="w-full rounded-t-xl bg-black/20" />
+              ) : (
+                <img src={item.url} alt="" className="w-full object-contain rounded-t-xl cursor-pointer bg-black/20"
+                  onClick={() => setImageFullPreview(item.url)} />
+              )}
               <div className="absolute top-2 right-2 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button onClick={() => { const a = document.createElement("a"); a.href = item.url; a.download = `${modeTab}_${item.id}.png`; a.click(); }} className="h-8 w-8 rounded-lg bg-black/60 flex items-center justify-center hover:bg-black/80"><Download className="h-4 w-4 text-white" /></button>
+                <button onClick={() => { const a = document.createElement("a"); a.href = item.url; a.download = `${modeTab}_${item.id}.${modeTab === "video" ? "mp4" : "png"}`; a.target = "_blank"; a.click(); }} className="h-8 w-8 rounded-lg bg-black/60 flex items-center justify-center hover:bg-black/80"><Download className="h-4 w-4 text-white" /></button>
                 <button onClick={() => deleteGeneratedContent(item.id, modeTab)} className="h-8 w-8 rounded-lg bg-black/60 flex items-center justify-center hover:bg-red-500/60"><Trash className="h-4 w-4 text-white" /></button>
               </div>
               {dims && <div className="absolute top-2 left-2 bg-black/60 rounded-md px-2 py-0.5 text-[9px] text-white/70">{dims}</div>}
