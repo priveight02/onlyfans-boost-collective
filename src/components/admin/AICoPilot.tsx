@@ -14,7 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
 
-type Msg = { role: "user" | "assistant"; content: string };
+type Msg = { role: "user" | "assistant"; content: string; images?: { type: string; image_url: { url: string } }[] };
 
 const QUICK_PROMPTS = [
   { label: "Daily Action Plan", icon: Target, prompt: "Give me today's agency action plan. What should I focus on for maximum revenue? Prioritize by impact." },
@@ -125,80 +125,110 @@ const AICoPilot = () => {
         throw new Error(errData.error || `Error ${resp.status}`);
       }
 
-      if (!resp.body) throw new Error("No response body");
+      const contentType = resp.headers.get("content-type") || "";
 
-      const reader = resp.body.getReader();
-      const decoder = new TextDecoder();
-      let textBuffer = "";
+      if (contentType.includes("application/json")) {
+        // Image generation response (non-streaming)
+        const data = await resp.json();
+        if (data.type === "image") {
+          const assistantMsg: Msg = {
+            role: "assistant",
+            content: data.content || "Here's the generated image.",
+            images: data.images || [],
+          };
+          const finalMessages = [...newMessages, assistantMsg];
+          setMessages(finalMessages);
+          scrollToBottom();
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        textBuffer += decoder.decode(value, { stream: true });
-
-        let newlineIndex: number;
-        while ((newlineIndex = textBuffer.indexOf("\n")) !== -1) {
-          let line = textBuffer.slice(0, newlineIndex);
-          textBuffer = textBuffer.slice(newlineIndex + 1);
-          if (line.endsWith("\r")) line = line.slice(0, -1);
-          if (line.startsWith(":") || line.trim() === "") continue;
-          if (!line.startsWith("data: ")) continue;
-          const jsonStr = line.slice(6).trim();
-          if (jsonStr === "[DONE]") break;
-          try {
-            const parsed = JSON.parse(jsonStr);
-            const content = parsed.choices?.[0]?.delta?.content;
-            if (content) {
-              assistantSoFar += content;
-              setMessages(prev => {
-                const last = prev[prev.length - 1];
-                if (last?.role === "assistant") {
-                  return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: assistantSoFar } : m);
-                }
-                return [...prev, { role: "assistant", content: assistantSoFar }];
-              });
-              scrollToBottom();
-            }
-          } catch {
-            textBuffer = line + "\n" + textBuffer;
-            break;
+          if (activeConvoId) {
+            const title = newMessages.length <= 1 ? msgText.slice(0, 50) : undefined;
+            await supabase.from("copilot_conversations").update({
+              messages: finalMessages,
+              ...(title ? { title } : {}),
+              account_id: contextAccount || null,
+            }).eq("id", activeConvoId);
+            setConversations(prev => prev.map(c =>
+              c.id === activeConvoId ? { ...c, messages: finalMessages, ...(title ? { title } : {}) } : c
+            ));
           }
         }
-      }
+      } else {
+        // Streaming text response
+        if (!resp.body) throw new Error("No response body");
 
-      // Flush remaining
-      if (textBuffer.trim()) {
-        for (let raw of textBuffer.split("\n")) {
-          if (!raw || !raw.startsWith("data: ")) continue;
-          const jsonStr = raw.slice(6).trim();
-          if (jsonStr === "[DONE]") continue;
-          try {
-            const parsed = JSON.parse(jsonStr);
-            const content = parsed.choices?.[0]?.delta?.content;
-            if (content) assistantSoFar += content;
-          } catch {}
+        const reader = resp.body.getReader();
+        const decoder = new TextDecoder();
+        let textBuffer = "";
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          textBuffer += decoder.decode(value, { stream: true });
+
+          let newlineIndex: number;
+          while ((newlineIndex = textBuffer.indexOf("\n")) !== -1) {
+            let line = textBuffer.slice(0, newlineIndex);
+            textBuffer = textBuffer.slice(newlineIndex + 1);
+            if (line.endsWith("\r")) line = line.slice(0, -1);
+            if (line.startsWith(":") || line.trim() === "") continue;
+            if (!line.startsWith("data: ")) continue;
+            const jsonStr = line.slice(6).trim();
+            if (jsonStr === "[DONE]") break;
+            try {
+              const parsed = JSON.parse(jsonStr);
+              const content = parsed.choices?.[0]?.delta?.content;
+              if (content) {
+                assistantSoFar += content;
+                setMessages(prev => {
+                  const last = prev[prev.length - 1];
+                  if (last?.role === "assistant") {
+                    return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: assistantSoFar } : m);
+                  }
+                  return [...prev, { role: "assistant", content: assistantSoFar }];
+                });
+                scrollToBottom();
+              }
+            } catch {
+              textBuffer = line + "\n" + textBuffer;
+              break;
+            }
+          }
         }
-      }
 
-      // Save to database
-      const finalMessages = [...newMessages, { role: "assistant" as const, content: assistantSoFar }];
-      setMessages(finalMessages);
+        // Flush remaining
+        if (textBuffer.trim()) {
+          for (let raw of textBuffer.split("\n")) {
+            if (!raw || !raw.startsWith("data: ")) continue;
+            const jsonStr = raw.slice(6).trim();
+            if (jsonStr === "[DONE]") continue;
+            try {
+              const parsed = JSON.parse(jsonStr);
+              const content = parsed.choices?.[0]?.delta?.content;
+              if (content) assistantSoFar += content;
+            } catch {}
+          }
+        }
 
-      if (activeConvoId) {
-        const title = newMessages.length <= 1 ? msgText.slice(0, 50) : undefined;
-        await supabase.from("copilot_conversations").update({
-          messages: finalMessages,
-          ...(title ? { title } : {}),
-          account_id: contextAccount || null,
-        }).eq("id", activeConvoId);
+        // Save to database
+        const finalMessages = [...newMessages, { role: "assistant" as const, content: assistantSoFar }];
+        setMessages(finalMessages);
 
-        setConversations(prev => prev.map(c =>
-          c.id === activeConvoId ? { ...c, messages: finalMessages, ...(title ? { title } : {}) } : c
-        ));
+        if (activeConvoId) {
+          const title = newMessages.length <= 1 ? msgText.slice(0, 50) : undefined;
+          await supabase.from("copilot_conversations").update({
+            messages: finalMessages,
+            ...(title ? { title } : {}),
+            account_id: contextAccount || null,
+          }).eq("id", activeConvoId);
+
+          setConversations(prev => prev.map(c =>
+            c.id === activeConvoId ? { ...c, messages: finalMessages, ...(title ? { title } : {}) } : c
+          ));
+        }
       }
     } catch (e: any) {
       toast.error(e.message || "Failed to get response");
-      setMessages(newMessages); // Remove failed assistant message
+      setMessages(newMessages);
     } finally {
       setIsStreaming(false);
     }
@@ -297,6 +327,14 @@ const AICoPilot = () => {
                     {msg.role === "assistant" ? (
                       <div className="prose prose-sm prose-invert max-w-none text-xs leading-relaxed">
                         <ReactMarkdown>{msg.content}</ReactMarkdown>
+                        {msg.images && msg.images.length > 0 && (
+                          <div className="mt-2 space-y-2">
+                            {msg.images.map((img, idx) => (
+                              <img key={idx} src={img.image_url.url} alt="Generated image" 
+                                className="rounded-lg max-w-full border border-white/10" />
+                            ))}
+                          </div>
+                        )}
                       </div>
                     ) : (
                       <p className="text-xs">{msg.content}</p>
