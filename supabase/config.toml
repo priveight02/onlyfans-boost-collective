@@ -23,3 +23,12 @@ verify_jwt = false
 
 [functions.kling-video]
 verify_jwt = false
+
+[functions.instagram-api]
+verify_jwt = false
+
+[functions.tiktok-api]
+verify_jwt = false
+
+[functions.biolink-track]
+verify_jwt = false

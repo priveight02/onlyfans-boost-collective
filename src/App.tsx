@@ -13,6 +13,7 @@ import FAQ from "./pages/FAQ";
 import Auth from "./pages/Auth";
 import Onboarding from "./pages/Onboarding";
 import Admin from "./pages/Admin";
+import BioLink from "./pages/BioLink";
 
 const queryClient = new QueryClient();
 
@@ -28,6 +29,7 @@ const AppContent = () => {
         <Route path="/faq" element={<FAQ />} />
         <Route path="/auth" element={<Auth />} />
         <Route path="/admin" element={<Admin />} />
+        <Route path="/link/:slug" element={<BioLink />} />
       </Routes>
     </>
   );

@@ -24,12 +24,13 @@ import ContentCommandCenter from "@/components/admin/ContentCommandCenter";
 import EmotionalHeatmap from "@/components/admin/EmotionalHeatmap";
 import AICoPilot from "@/components/admin/AICoPilot";
 import FloatingCopilot from "@/components/admin/FloatingCopilot";
+import SocialMediaHub from "@/components/admin/SocialMediaHub";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Shield, LayoutDashboard, Lock, Settings, LogOut, Contact, Search,
   BarChart3, Users, DollarSign, FileText, MessageSquare, CheckSquare,
   MessageCircle, Award, TrendingUp, Activity, Zap, Download, ShieldCheck,
-  Brain, Calendar, Heart, Bot,
+  Brain, Calendar, Heart, Bot, Globe,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -139,6 +140,9 @@ const Admin = () => {
             <TabsTrigger value="content" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
               <Calendar className="h-3.5 w-3.5" /> Content
             </TabsTrigger>
+            <TabsTrigger value="social" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
+              <Globe className="h-3.5 w-3.5" /> Social Media
+            </TabsTrigger>
             <TabsTrigger value="emotional" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
               <Heart className="h-3.5 w-3.5" /> Emotional
             </TabsTrigger>
@@ -181,6 +185,7 @@ const Admin = () => {
           <TabsContent value="automation"><StorylineHub /></TabsContent>
           <TabsContent value="persona"><PersonaDNAEngine /></TabsContent>
           <TabsContent value="content"><ContentCommandCenter /></TabsContent>
+          <TabsContent value="social"><SocialMediaHub /></TabsContent>
           <TabsContent value="emotional"><EmotionalHeatmap /></TabsContent>
           <TabsContent value="copilot"><AICoPilot /></TabsContent>
           <TabsContent value="lookup"><ProfileLookup /></TabsContent>
