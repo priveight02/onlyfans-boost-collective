@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.voice-audio]
 verify_jwt = false
+
+[functions.kling-video]
+verify_jwt = false
