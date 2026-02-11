@@ -194,6 +194,10 @@ const AICoPilot = () => {
     setIsStreaming(true);
     let assistantSoFar = "";
 
+    // Show immediate typing indicator as an assistant message
+    setMessages([...baseMessages, { role: "assistant", content: "▍" }]);
+    scrollToBottom();
+
     try {
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/agency-copilot`, {
         method: "POST",
@@ -209,6 +213,10 @@ const AICoPilot = () => {
       const contentType = resp.headers.get("content-type") || "";
 
       if (contentType.includes("application/json")) {
+        // Image generation — show generating status
+        setMessages([...baseMessages, { role: "assistant", content: "🎨 Generating highest quality image... This may take a moment." }]);
+        scrollToBottom();
+
         const data = await resp.json();
         if (data.type === "image") {
           const assistantMsg: Msg = { role: "assistant", content: data.content || "Here's the generated image.", images: data.images || [] };
@@ -222,45 +230,65 @@ const AICoPilot = () => {
         const reader = resp.body.getReader();
         const decoder = new TextDecoder();
         let textBuffer = "";
+        let streamDone = false;
 
-        while (true) {
+        while (!streamDone) {
           const { done, value } = await reader.read();
           if (done) break;
           textBuffer += decoder.decode(value, { stream: true });
-          let nl: number;
-          while ((nl = textBuffer.indexOf("\n")) !== -1) {
-            let line = textBuffer.slice(0, nl);
-            textBuffer = textBuffer.slice(nl + 1);
+
+          let newlineIndex: number;
+          while ((newlineIndex = textBuffer.indexOf("\n")) !== -1) {
+            let line = textBuffer.slice(0, newlineIndex);
+            textBuffer = textBuffer.slice(newlineIndex + 1);
+
             if (line.endsWith("\r")) line = line.slice(0, -1);
             if (line.startsWith(":") || line.trim() === "") continue;
             if (!line.startsWith("data: ")) continue;
+
             const jsonStr = line.slice(6).trim();
-            if (jsonStr === "[DONE]") break;
+            if (jsonStr === "[DONE]") { streamDone = true; break; }
+
             try {
-              const content = JSON.parse(jsonStr).choices?.[0]?.delta?.content;
+              const parsed = JSON.parse(jsonStr);
+              const content = parsed.choices?.[0]?.delta?.content as string | undefined;
               if (content) {
                 assistantSoFar += content;
+                const snapshot = assistantSoFar;
                 setMessages(prev => {
                   const last = prev[prev.length - 1];
-                  if (last?.role === "assistant") return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: assistantSoFar } : m);
-                  return [...prev, { role: "assistant", content: assistantSoFar }];
+                  if (last?.role === "assistant") {
+                    return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: snapshot } : m);
+                  }
+                  return [...prev, { role: "assistant", content: snapshot }];
                 });
                 scrollToBottom();
               }
-            } catch { textBuffer = line + "\n" + textBuffer; break; }
+            } catch {
+              // Incomplete JSON — put back and wait for more data
+              textBuffer = line + "\n" + textBuffer;
+              break;
+            }
           }
         }
 
+        // Flush remaining buffer
         if (textBuffer.trim()) {
           for (let raw of textBuffer.split("\n")) {
-            if (!raw || !raw.startsWith("data: ")) continue;
+            if (!raw) continue;
+            if (raw.endsWith("\r")) raw = raw.slice(0, -1);
+            if (raw.startsWith(":") || raw.trim() === "") continue;
+            if (!raw.startsWith("data: ")) continue;
             const jsonStr = raw.slice(6).trim();
             if (jsonStr === "[DONE]") continue;
-            try { const c = JSON.parse(jsonStr).choices?.[0]?.delta?.content; if (c) assistantSoFar += c; } catch {}
+            try {
+              const content = JSON.parse(jsonStr).choices?.[0]?.delta?.content;
+              if (content) assistantSoFar += content;
+            } catch {}
           }
         }
 
-        const finalMessages = [...baseMessages, { role: "assistant" as const, content: assistantSoFar }];
+        const finalMessages = [...baseMessages, { role: "assistant" as const, content: assistantSoFar || "I couldn't generate a response. Please try again." }];
         setMessages(finalMessages);
         await saveConversation(convoId, finalMessages, msgText);
       }
@@ -599,13 +627,7 @@ const AICoPilot = () => {
                   </div>
                 </div>
               ))}
-              {isStreaming && messages[messages.length - 1]?.role !== "assistant" && (
-                <div className="flex justify-start">
-                  <div className="bg-white/5 rounded-xl px-4 py-3">
-                    <Loader2 className="h-4 w-4 animate-spin text-accent" />
-                  </div>
-                </div>
-              )}
+              {/* Typing indicator is now shown inline as an assistant message */}
             </div>
           )}
         </ScrollArea>
