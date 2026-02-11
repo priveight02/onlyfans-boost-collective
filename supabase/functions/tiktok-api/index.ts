@@ -21,7 +21,7 @@ async function getConnection(supabase: any, accountId: string) {
 }
 
 async function ttFetch(endpoint: string, token: string, method = "GET", body?: any) {
-  const url = `${TT_API_URL}${endpoint}`;
+  const url = endpoint.startsWith("http") ? endpoint : `${TT_API_URL}${endpoint}`;
   const opts: any = {
     method,
     headers: {
@@ -56,7 +56,7 @@ serve(async (req) => {
     switch (action) {
       // ===== USER INFO =====
       case "get_user_info":
-        result = await ttFetch("/user/info/?fields=open_id,union_id,avatar_url,display_name,bio_description,profile_deep_link,is_verified,follower_count,following_count,likes_count,video_count", token);
+        result = await ttFetch("/user/info/?fields=open_id,union_id,avatar_url,display_name,bio_description,profile_deep_link,is_verified,follower_count,following_count,likes_count,video_count,username", token);
         break;
 
       // ===== VIDEO LIST =====
@@ -71,48 +71,47 @@ serve(async (req) => {
       case "get_video_details":
         result = await ttFetch("/video/query/", token, "POST", {
           filters: { video_ids: params.video_ids },
-          fields: "id,title,video_description,duration,cover_image_url,share_url,create_time,like_count,comment_count,share_count,view_count,embed_link",
+          fields: "id,title,video_description,duration,cover_image_url,share_url,create_time,like_count,comment_count,share_count,view_count,embed_link,embed_html,height,width",
         });
         break;
 
       // ===== PUBLISHING =====
       case "init_video_upload": {
-        // Initialize direct post
         result = await ttFetch("/post/publish/video/init/", token, "POST", {
           post_info: {
             title: params.title || "",
-            privacy_level: params.privacy_level || "SELF_ONLY", // SELF_ONLY, MUTUAL_FOLLOW_FRIENDS, FOLLOWER_OF_CREATOR, PUBLIC_TO_EVERYONE
+            privacy_level: params.privacy_level || "SELF_ONLY",
             disable_duet: params.disable_duet || false,
             disable_comment: params.disable_comment || false,
             disable_stitch: params.disable_stitch || false,
             video_cover_timestamp_ms: params.cover_timestamp || 0,
+            ...(params.brand_content_toggle !== undefined ? { brand_content_toggle: params.brand_content_toggle } : {}),
+            ...(params.brand_organic_toggle !== undefined ? { brand_organic_toggle: params.brand_organic_toggle } : {}),
           },
           source_info: {
             source: "FILE_UPLOAD",
             video_size: params.video_size,
             chunk_size: params.chunk_size || params.video_size,
-            total_chunk_count: 1,
+            total_chunk_count: params.total_chunk_count || 1,
           },
         });
         break;
       }
 
       case "publish_video_by_url": {
-        // Direct post via URL (pull from URL)
         result = await ttFetch("/post/publish/video/init/", token, "POST", {
           post_info: {
             title: params.title || "",
             privacy_level: params.privacy_level || "PUBLIC_TO_EVERYONE",
-            disable_duet: false,
-            disable_comment: false,
-            disable_stitch: false,
+            disable_duet: params.disable_duet || false,
+            disable_comment: params.disable_comment || false,
+            disable_stitch: params.disable_stitch || false,
           },
           source_info: {
             source: "PULL_FROM_URL",
             video_url: params.video_url,
           },
         });
-        // Update social_posts if we have a post_id
         if (params.post_id && result.data?.publish_id) {
           await supabase.from("social_posts").update({
             platform_post_id: result.data.publish_id,
@@ -127,7 +126,6 @@ serve(async (req) => {
         result = await ttFetch("/post/publish/status/fetch/", token, "POST", {
           publish_id: params.publish_id,
         });
-        // Update status if complete
         if (params.post_id && result.data?.status === "PUBLISH_COMPLETE") {
           await supabase.from("social_posts").update({
             status: "published",
@@ -143,12 +141,12 @@ serve(async (req) => {
             title: params.title || "",
             description: params.description || "",
             privacy_level: params.privacy_level || "PUBLIC_TO_EVERYONE",
-            disable_comment: false,
+            disable_comment: params.disable_comment || false,
           },
           source_info: {
             source: "PULL_FROM_URL",
-            photo_cover_index: 0,
-            photo_images: params.image_urls, // array of URLs
+            photo_cover_index: params.cover_index || 0,
+            photo_images: params.image_urls,
           },
           post_mode: "DIRECT_POST",
           media_type: "PHOTO",
@@ -163,6 +161,16 @@ serve(async (req) => {
           max_count: params?.limit || 50,
           cursor: params?.cursor || undefined,
           fields: "id,text,create_time,like_count,reply_count,parent_comment_id",
+        });
+        break;
+
+      case "get_comment_replies":
+        result = await ttFetch("/comment/reply/list/", token, "POST", {
+          video_id: params.video_id,
+          comment_id: params.comment_id,
+          max_count: params?.limit || 20,
+          cursor: params?.cursor || undefined,
+          fields: "id,text,create_time,like_count,parent_comment_id",
         });
         break;
 
@@ -188,6 +196,84 @@ serve(async (req) => {
       // ===== ANALYTICS / INSIGHTS =====
       case "get_creator_insights":
         result = await ttFetch(`/research/user/info/?fields=display_name,follower_count,following_count,likes_count,video_count&username=${params.username}`, token);
+        break;
+
+      // ===== RESEARCH API =====
+      case "research_user":
+        result = await ttFetch("/research/user/info/", token, "POST", {
+          username: params.username,
+          fields: "display_name,bio_description,avatar_url,is_verified,follower_count,following_count,likes_count,video_count",
+        });
+        break;
+
+      case "research_videos":
+        result = await ttFetch("/research/video/query/", token, "POST", {
+          query: {
+            and: params.conditions || [
+              { field_name: "keyword", operation: "IN", field_values: params.keywords || [] }
+            ],
+          },
+          max_count: params?.limit || 20,
+          cursor: params?.cursor || undefined,
+          start_date: params?.start_date || undefined,
+          end_date: params?.end_date || undefined,
+          search_id: params?.search_id || undefined,
+          fields: "id,video_description,create_time,region_code,share_count,view_count,like_count,comment_count,music_id,hashtag_names,username,effect_ids,playlist_id,voice_to_text",
+        });
+        break;
+
+      case "research_hashtag":
+        result = await ttFetch("/research/hashtag/query/", token, "POST", {
+          query: { names: params.hashtags },
+          fields: "id,name,publish_count,video_count,view_count",
+        });
+        break;
+
+      case "research_comments":
+        result = await ttFetch("/research/video/comment/list/", token, "POST", {
+          video_id: params.video_id,
+          max_count: params?.limit || 100,
+          cursor: params?.cursor || undefined,
+          fields: "id,text,like_count,reply_count,create_time,video_id",
+        });
+        break;
+
+      // ===== PLAYLIST MANAGEMENT =====
+      case "get_playlists":
+        result = await ttFetch("/playlist/list/", token, "POST", {
+          cursor: params?.cursor || 0,
+          count: params?.limit || 20,
+        });
+        break;
+
+      case "create_playlist":
+        result = await ttFetch("/playlist/create/", token, "POST", {
+          playlist_name: params.name,
+        });
+        break;
+
+      // ===== DIRECT MESSAGES =====
+      case "get_conversations":
+        result = await ttFetch("/dm/conversation/list/", token, "POST", {
+          cursor: params?.cursor || 0,
+        });
+        break;
+
+      case "get_messages":
+        result = await ttFetch("/dm/message/list/", token, "POST", {
+          conversation_id: params.conversation_id,
+          cursor: params?.cursor || 0,
+          max_count: params?.limit || 20,
+        });
+        break;
+
+      case "send_dm":
+        result = await ttFetch("/dm/message/send/", token, "POST", {
+          conversation_id: params.conversation_id,
+          content: {
+            text: params.message,
+          },
+        });
         break;
 
       // ===== TOKEN REFRESH =====
@@ -220,6 +306,11 @@ serve(async (req) => {
         }
         break;
       }
+
+      // ===== CREATOR INFO (Public) =====
+      case "get_creator_info":
+        result = await ttFetch("/post/publish/creator_info/", token, "POST", {});
+        break;
 
       default:
         throw new Error(`Unknown action: ${action}`);

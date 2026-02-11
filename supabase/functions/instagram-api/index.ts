@@ -60,30 +60,59 @@ serve(async (req) => {
         result = await igFetch(`/${igUserId}?fields=id,username,name,biography,profile_picture_url,followers_count,follows_count,media_count,website`, token);
         break;
 
+      case "get_profile_basic":
+        result = await igFetch(`/${igUserId}?fields=id,username,name,profile_picture_url,followers_count,follows_count,media_count`, token);
+        break;
+
       // ===== MEDIA =====
       case "get_media":
         result = await igFetch(`/${igUserId}/media?fields=id,caption,media_type,media_url,thumbnail_url,permalink,timestamp,like_count,comments_count&limit=${params?.limit || 25}`, token);
+        break;
+
+      case "get_media_next_page":
+        if (!params?.next_url) throw new Error("next_url required");
+        result = await igFetch(params.next_url, token);
         break;
 
       case "get_media_details":
         result = await igFetch(`/${params.media_id}?fields=id,caption,media_type,media_url,thumbnail_url,permalink,timestamp,like_count,comments_count,children{id,media_type,media_url}`, token);
         break;
 
+      // ===== TAGGED & MENTIONS =====
+      case "get_tagged_media":
+        result = await igFetch(`/${igUserId}/tags?fields=id,caption,media_type,media_url,permalink,timestamp,like_count,comments_count&limit=${params?.limit || 25}`, token);
+        break;
+
+      case "get_mentioned_media":
+        result = await igFetch(`/${igUserId}/mentioned_media?fields=id,caption,media_type,media_url,permalink,timestamp&limit=${params?.limit || 25}`, token);
+        break;
+
+      case "get_mentioned_comment":
+        result = await igFetch(`/${params.media_id}?fields=id,caption,media_type,permalink,timestamp,username&mentioned_comment_id=${params.comment_id || ""}`, token);
+        break;
+
+      // ===== LIVE MEDIA =====
+      case "get_live_media":
+        result = await igFetch(`/${igUserId}/live_media?fields=id,media_type,timestamp,media_url,permalink`, token);
+        break;
+
       // ===== PUBLISHING =====
       case "create_photo_post": {
-        // Step 1: Create container
         const container = await igFetch(`/${igUserId}/media`, token, "POST", {
           image_url: params.image_url,
           caption: params.caption || "",
+          ...(params.location_id ? { location_id: params.location_id } : {}),
+          ...(params.user_tags ? { user_tags: params.user_tags } : {}),
+          ...(params.alt_text ? { alt_text: params.alt_text } : {}),
         });
-        // Step 2: Publish
         result = await igFetch(`/${igUserId}/media_publish`, token, "POST", {
           creation_id: container.id,
         });
-        // Save to social_posts
-        await supabase.from("social_posts").update({ 
-          platform_post_id: result.id, status: "published", published_at: new Date().toISOString() 
-        }).eq("id", params.post_id);
+        if (params.post_id) {
+          await supabase.from("social_posts").update({ 
+            platform_post_id: result.id, status: "published", published_at: new Date().toISOString() 
+          }).eq("id", params.post_id);
+        }
         break;
       }
 
@@ -93,8 +122,10 @@ serve(async (req) => {
           caption: params.caption || "",
           media_type: "REELS",
           share_to_feed: params.share_to_feed ?? true,
+          ...(params.cover_url ? { cover_url: params.cover_url } : {}),
+          ...(params.thumb_offset ? { thumb_offset: params.thumb_offset } : {}),
+          ...(params.audio_name ? { audio_name: params.audio_name } : {}),
         });
-        // Wait for processing
         let status = "IN_PROGRESS";
         let attempts = 0;
         while (status === "IN_PROGRESS" && attempts < 30) {
@@ -114,33 +145,52 @@ serve(async (req) => {
       }
 
       case "create_carousel": {
-        // Create child containers
         const children: string[] = [];
         for (const item of params.items) {
           const child = await igFetch(`/${igUserId}/media`, token, "POST", {
-            image_url: item.image_url,
+            ...(item.video_url ? { video_url: item.video_url, media_type: "VIDEO" } : { image_url: item.image_url }),
             is_carousel_item: true,
           });
           children.push(child.id);
         }
-        // Create carousel container
         const carousel = await igFetch(`/${igUserId}/media`, token, "POST", {
           media_type: "CAROUSEL",
           caption: params.caption || "",
           children: children.join(","),
         });
         result = await igFetch(`/${igUserId}/media_publish`, token, "POST", { creation_id: carousel.id });
+        if (params.post_id) {
+          await supabase.from("social_posts").update({ 
+            platform_post_id: result.id, status: "published", published_at: new Date().toISOString() 
+          }).eq("id", params.post_id);
+        }
         break;
       }
 
       case "create_story": {
-        const container = await igFetch(`/${igUserId}/media`, token, "POST", {
-          image_url: params.image_url,
-          media_type: "STORIES",
-        });
+        const storyBody: any = { media_type: "STORIES" };
+        if (params.video_url) storyBody.video_url = params.video_url;
+        else storyBody.image_url = params.image_url;
+        const container = await igFetch(`/${igUserId}/media`, token, "POST", storyBody);
         result = await igFetch(`/${igUserId}/media_publish`, token, "POST", { creation_id: container.id });
         break;
       }
+
+      case "check_container_status":
+        result = await igFetch(`/${params.container_id}?fields=id,status_code,status`, token);
+        break;
+
+      // ===== DELETE MEDIA =====
+      case "delete_media":
+        result = await igFetch(`/${params.media_id}`, token, "DELETE");
+        break;
+
+      // ===== UPDATE MEDIA =====
+      case "update_media_caption":
+        result = await igFetch(`/${params.media_id}`, token, "POST", {
+          caption: params.caption,
+        });
+        break;
 
       // ===== COMMENTS =====
       case "get_comments":
@@ -149,7 +199,6 @@ serve(async (req) => {
 
       case "reply_to_comment":
         result = await igFetch(`/${params.comment_id}/replies`, token, "POST", { message: params.message });
-        // Track the reply
         await supabase.from("social_comment_replies").insert({
           account_id: account_id,
           platform: "instagram",
@@ -167,10 +216,25 @@ serve(async (req) => {
         result = await igFetch(`/${params.comment_id}`, token, "DELETE");
         break;
 
+      case "hide_comment":
+        result = await igFetch(`/${params.comment_id}`, token, "POST", { hide: true });
+        break;
+
+      case "unhide_comment":
+        result = await igFetch(`/${params.comment_id}`, token, "POST", { hide: false });
+        break;
+
+      case "enable_comments":
+        result = await igFetch(`/${params.media_id}`, token, "POST", { comment_enabled: true });
+        break;
+
+      case "disable_comments":
+        result = await igFetch(`/${params.media_id}`, token, "POST", { comment_enabled: false });
+        break;
+
       // ===== INSIGHTS =====
       case "get_account_insights":
         result = await igFetch(`/${igUserId}/insights?metric=impressions,reach,profile_views,follower_count,email_contacts,phone_call_clicks,text_message_clicks,get_directions_clicks,website_clicks&period=${params?.period || "day"}&since=${params?.since || ""}&until=${params?.until || ""}`, token);
-        // Cache analytics
         if (result.data) {
           for (const metric of result.data) {
             const latestValue = metric.values?.[metric.values.length - 1];
@@ -189,13 +253,29 @@ serve(async (req) => {
         }
         break;
 
+      case "get_account_insights_demographics":
+        result = await igFetch(`/${igUserId}/insights?metric=audience_city,audience_country,audience_gender_age,audience_locale&period=lifetime`, token);
+        break;
+
+      case "get_account_insights_online_followers":
+        result = await igFetch(`/${igUserId}/insights?metric=online_followers&period=lifetime`, token);
+        break;
+
       case "get_media_insights":
         result = await igFetch(`/${params.media_id}/insights?metric=impressions,reach,engagement,saved,video_views,likes,comments,shares`, token);
         break;
 
+      case "get_reel_insights":
+        result = await igFetch(`/${params.media_id}/insights?metric=clips_replays_count,ig_reels_aggregated_all_plays_count,ig_reels_avg_watch_time,ig_reels_video_view_total_time,likes,comments,shares,saves,reach,total_interactions`, token);
+        break;
+
+      case "get_story_insights":
+        result = await igFetch(`/${params.media_id}/insights?metric=exits,impressions,reach,replies,taps_forward,taps_back`, token);
+        break;
+
       // ===== STORIES =====
       case "get_stories":
-        result = await igFetch(`/${igUserId}/stories?fields=id,media_type,media_url,timestamp`, token);
+        result = await igFetch(`/${igUserId}/stories?fields=id,media_type,media_url,timestamp,permalink`, token);
         break;
 
       // ===== HASHTAG SEARCH =====
@@ -203,13 +283,60 @@ serve(async (req) => {
         result = await igFetch(`/ig_hashtag_search?q=${encodeURIComponent(params.hashtag)}&user_id=${igUserId}`, token);
         break;
 
-      case "get_hashtag_media":
-        result = await igFetch(`/${params.hashtag_id}/top_media?user_id=${igUserId}&fields=id,caption,media_type,like_count,comments_count,permalink`, token);
+      case "get_hashtag_top_media":
+        result = await igFetch(`/${params.hashtag_id}/top_media?user_id=${igUserId}&fields=id,caption,media_type,like_count,comments_count,permalink,timestamp`, token);
+        break;
+
+      case "get_hashtag_recent_media":
+        result = await igFetch(`/${params.hashtag_id}/recent_media?user_id=${igUserId}&fields=id,caption,media_type,like_count,comments_count,permalink,timestamp`, token);
         break;
 
       // ===== BUSINESS DISCOVERY =====
       case "discover_user":
-        result = await igFetch(`/${igUserId}?fields=business_discovery.fields(id,username,name,biography,profile_picture_url,followers_count,media_count,media.limit(12){id,caption,media_type,like_count,comments_count,permalink,timestamp})&username=${params.username}`, token);
+        result = await igFetch(`/${igUserId}?fields=business_discovery.fields(id,username,name,biography,profile_picture_url,followers_count,follows_count,media_count,media.limit(${params?.media_limit || 12}){id,caption,media_type,like_count,comments_count,permalink,timestamp})&username=${params.username}`, token);
+        break;
+
+      case "discover_user_media":
+        result = await igFetch(`/${igUserId}?fields=business_discovery.fields(media.limit(${params?.limit || 25}).after(${params?.after || ""}){id,caption,media_type,like_count,comments_count,permalink,timestamp,media_url})&username=${params.username}`, token);
+        break;
+
+      // ===== MESSAGING (Send to IG Direct) =====
+      case "send_message":
+        result = await igFetch(`/${igUserId}/messages`, token, "POST", {
+          recipient: { id: params.recipient_id },
+          message: { text: params.message },
+        });
+        break;
+
+      case "send_media_message":
+        result = await igFetch(`/${igUserId}/messages`, token, "POST", {
+          recipient: { id: params.recipient_id },
+          message: {
+            attachment: {
+              type: params.media_type || "image",
+              payload: { url: params.media_url },
+            },
+          },
+        });
+        break;
+
+      // ===== CONTENT PUBLISHING STATUS =====
+      case "get_content_publishing_limit":
+        result = await igFetch(`/${igUserId}/content_publishing_limit?fields=config,quota_usage`, token);
+        break;
+
+      // ===== PRODUCT TAGS (Shopping) =====
+      case "get_product_catalog":
+        result = await igFetch(`/${igUserId}/catalog_product_search?q=${encodeURIComponent(params.query || "")}&catalog_id=${params.catalog_id}`, token);
+        break;
+
+      case "get_product_tags":
+        result = await igFetch(`/${params.media_id}?fields=product_tags`, token);
+        break;
+
+      // ===== oEMBED =====
+      case "get_oembed":
+        result = await igFetch(`/instagram_oembed?url=${encodeURIComponent(params.url)}&maxwidth=${params.maxwidth || 658}`, token);
         break;
 
       // ===== TOKEN MANAGEMENT =====
@@ -225,6 +352,10 @@ serve(async (req) => {
         }
         break;
       }
+
+      case "debug_token":
+        result = await igFetch(`/debug_token?input_token=${token}`, token);
+        break;
 
       default:
         throw new Error(`Unknown action: ${action}`);
