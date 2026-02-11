@@ -16,6 +16,7 @@ import {
   Image as ImageIcon, Video, Mic, Wand2, Volume2, Upload, Trash,
   Square, Smartphone, Monitor, Settings2, Grid, Rows, Columns,
   ZoomIn, ZoomOut, Headphones, SlidersHorizontal, Undo2,
+  Shield, ShieldOff,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -49,10 +50,10 @@ interface Voice {
 }
 
 interface VoiceParams {
-  pitch: number;      // -12 to +12 semitones
-  speed: number;      // 0.25x to 4x
-  reverb: number;     // 0 to 100
-  effects: string[];  // e.g. "warm", "breathy", "crisp"
+  pitch: number;
+  speed: number;
+  reverb: number;
+  effects: string[];
 }
 
 interface GeneratedContent {
@@ -68,8 +69,49 @@ interface GeneratedContent {
 }
 
 type CopilotMode = "chat" | "image" | "video" | "audio" | "freeWill";
-type QualityMode = "best" | "high";
+type QualityMode = "best" | "high" | "uncensored";
 type LayoutMode = "grid" | "horizontal" | "vertical";
+
+// ---- Format presets ----
+interface FormatPreset {
+  id: string;
+  label: string;
+  ratio: string;
+  width: number;
+  height: number;
+  icon: typeof Square;
+  category: string;
+}
+
+const FORMAT_PRESETS: FormatPreset[] = [
+  { id: "square", label: "Square", ratio: "1:1", width: 1024, height: 1024, icon: Square, category: "Standard" },
+  { id: "landscape", label: "Landscape", ratio: "16:9", width: 1920, height: 1080, icon: Monitor, category: "Standard" },
+  { id: "portrait", label: "Portrait", ratio: "9:16", width: 1080, height: 1920, icon: Smartphone, category: "Standard" },
+  { id: "profile", label: "Profile Pic", ratio: "1:1", width: 500, height: 500, icon: Users, category: "Social" },
+  { id: "ig-post", label: "IG Post", ratio: "4:5", width: 1080, height: 1350, icon: ImageIcon, category: "Social" },
+  { id: "ig-story", label: "IG / TikTok Story", ratio: "9:16", width: 1080, height: 1920, icon: Smartphone, category: "Social" },
+  { id: "snap", label: "Snapchat", ratio: "9:16", width: 1080, height: 1920, icon: Smartphone, category: "Social" },
+  { id: "twitter", label: "X / Twitter", ratio: "16:9", width: 1600, height: 900, icon: Monitor, category: "Social" },
+  { id: "fb-cover", label: "FB Cover", ratio: "2.63:1", width: 1640, height: 624, icon: Monitor, category: "Social" },
+  { id: "yt-thumb", label: "YT Thumbnail", ratio: "16:9", width: 1280, height: 720, icon: Monitor, category: "Social" },
+  { id: "pinterest", label: "Pinterest", ratio: "2:3", width: 1000, height: 1500, icon: Smartphone, category: "Social" },
+  { id: "of-banner", label: "OF Banner", ratio: "3:1", width: 1500, height: 500, icon: Monitor, category: "Social" },
+  { id: "iphone", label: "iPhone", ratio: "9:19.5", width: 1170, height: 2532, icon: Smartphone, category: "Device" },
+  { id: "ipad", label: "iPad", ratio: "3:4", width: 1536, height: 2048, icon: Monitor, category: "Device" },
+  { id: "4k", label: "4K UHD", ratio: "16:9", width: 1920, height: 1080, icon: Monitor, category: "Device" },
+];
+
+const VIDEO_FORMAT_PRESETS: FormatPreset[] = [
+  { id: "square", label: "Square", ratio: "1:1", width: 1024, height: 1024, icon: Square, category: "Standard" },
+  { id: "landscape", label: "Landscape 16:9", ratio: "16:9", width: 1920, height: 1080, icon: Monitor, category: "Standard" },
+  { id: "portrait", label: "Portrait 9:16", ratio: "9:16", width: 1080, height: 1920, icon: Smartphone, category: "Standard" },
+  { id: "ig-reel", label: "IG Reel / TikTok", ratio: "9:16", width: 1080, height: 1920, icon: Smartphone, category: "Social" },
+  { id: "yt-short", label: "YT Short", ratio: "9:16", width: 1080, height: 1920, icon: Smartphone, category: "Social" },
+  { id: "yt-video", label: "YouTube", ratio: "16:9", width: 1920, height: 1080, icon: Monitor, category: "Social" },
+  { id: "snap-vid", label: "Snapchat", ratio: "9:16", width: 1080, height: 1920, icon: Smartphone, category: "Social" },
+  { id: "twitter-vid", label: "X / Twitter", ratio: "16:9", width: 1280, height: 720, icon: Monitor, category: "Social" },
+  { id: "4:5", label: "IG Feed Video", ratio: "4:5", width: 1080, height: 1350, icon: ImageIcon, category: "Social" },
+];
 
 // ---- Constants ----
 const DRAFT_KEY = "copilot_draft";
@@ -130,7 +172,30 @@ const formatSize = (bytes: number) => {
   return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
 };
 
-// Fake waveform SVG for audio items (visual only)
+// Animated progress ring component
+const ProgressRing = ({ progress, size = 80, label }: { progress: number; size?: number; label?: string }) => {
+  const strokeWidth = 4;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = radius * 2 * Math.PI;
+  const offset = circumference - (progress / 100) * circumference;
+  return (
+    <div className="flex flex-col items-center gap-3">
+      <div className="relative" style={{ width: size, height: size }}>
+        <svg className="transform -rotate-90" width={size} height={size}>
+          <circle cx={size / 2} cy={size / 2} r={radius} strokeWidth={strokeWidth} stroke="rgba(255,255,255,0.08)" fill="none" />
+          <circle cx={size / 2} cy={size / 2} r={radius} strokeWidth={strokeWidth} stroke="hsl(var(--accent))" fill="none"
+            strokeDasharray={circumference} strokeDashoffset={offset} strokeLinecap="round" className="transition-all duration-300" />
+        </svg>
+        <div className="absolute inset-0 flex items-center justify-center">
+          <span className="text-lg font-bold text-white">{Math.round(progress)}%</span>
+        </div>
+      </div>
+      {label && <p className="text-xs text-white/50 animate-pulse">{label}</p>}
+    </div>
+  );
+};
+
+// Waveform
 const AudioWaveform = ({ playing }: { playing: boolean }) => {
   const bars = 40;
   return (
@@ -184,13 +249,21 @@ const AICoPilot = () => {
   // Image state
   const [imagePrompt, setImagePrompt] = useState("");
   const [imageRefs, setImageRefs] = useState<Attachment[]>([]);
-  const [imageAspect, setImageAspect] = useState<string>("1:1");
+  const [selectedImageFormat, setSelectedImageFormat] = useState<string>("square");
+  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+  const [imageProgress, setImageProgress] = useState(0);
+  const [imageProgressLabel, setImageProgressLabel] = useState("");
   const [generatedImages, setGeneratedImages] = useState<GeneratedContent[]>([]);
+  const [imageFullPreview, setImageFullPreview] = useState<string | null>(null);
 
   // Video state
   const [videoPrompt, setVideoPrompt] = useState("");
   const [videoStartFrame, setVideoStartFrame] = useState<Attachment | null>(null);
   const [videoDuration, setVideoDuration] = useState<number>(5);
+  const [selectedVideoFormat, setSelectedVideoFormat] = useState<string>("landscape");
+  const [isGeneratingVideo, setIsGeneratingVideo] = useState(false);
+  const [videoProgress, setVideoProgress] = useState(0);
+  const [videoProgressLabel, setVideoProgressLabel] = useState("");
   const [generatedVideos, setGeneratedVideos] = useState<GeneratedContent[]>([]);
 
   // Audio generated content
@@ -448,13 +521,10 @@ const AICoPilot = () => {
     if (newVoiceName.trim().length < 3) { toast.error("Name must be at least 3 characters"); return; }
     setIsCloningVoice(true);
     try {
-      // Send audio files directly to the voice-audio edge function for real cloning
       const formData = new FormData();
       formData.append("name", newVoiceName.trim());
       formData.append("description", `Cloned voice — ${voiceSamples.length} sample(s)`);
-      for (const file of voiceSamples) {
-        formData.append("files", file, file.name);
-      }
+      for (const file of voiceSamples) { formData.append("files", file, file.name); }
 
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/voice-audio?action=clone`, {
         method: "POST",
@@ -466,11 +536,9 @@ const AICoPilot = () => {
       const elevenVoiceId = result.voice_id;
       const previewUrl = result.preview_audio || null;
 
-      // Also upload samples to storage for reference
       const sampleUrls: string[] = [];
       for (const file of voiceSamples) { const url = await uploadFileToStorage(file); if (url) sampleUrls.push(url); }
 
-      // Save to DB with the ElevenLabs voice ID
       const { data: nv, error } = await supabase.from("copilot_voices").insert({
         name: newVoiceName,
         description: `AI-cloned voice from ${sampleUrls.length} sample(s)`,
@@ -488,7 +556,6 @@ const AICoPilot = () => {
 
   const deleteVoice = async (voiceId: string) => {
     const voice = voices.find(v => v.id === voiceId);
-    // Delete from ElevenLabs too
     if (voice?.elevenlabs_voice_id) {
       fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/voice-audio?action=delete`, {
         method: "POST",
@@ -503,7 +570,6 @@ const AICoPilot = () => {
     toast.success("Voice deleted");
   };
 
-  // Voice params editing
   const updateVoiceParam = (key: keyof VoiceParams, value: any) => {
     const updated = { ...voiceParams, [key]: value };
     setVoiceParams(updated);
@@ -530,7 +596,6 @@ const AICoPilot = () => {
     if (!voice?.elevenlabs_voice_id) { toast.error("Select a cloned voice first. Create one from audio samples."); return; }
     setIsGeneratingAudio(true);
     try {
-      // Map voice params to ElevenLabs settings
       const voiceSettings: any = {
         stability: Math.max(0, Math.min(1, 0.5 - (voiceParams.pitch * 0.02))),
         similarity_boost: Math.max(0, Math.min(1, 0.85 + (voiceParams.reverb * 0.001))),
@@ -540,15 +605,8 @@ const AICoPilot = () => {
 
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/voice-audio?action=generate`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-        },
-        body: JSON.stringify({
-          text: audioText,
-          voice_id: voice.elevenlabs_voice_id,
-          voice_settings: voiceSettings,
-        }),
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+        body: JSON.stringify({ text: audioText, voice_id: voice.elevenlabs_voice_id, voice_settings: voiceSettings }),
       });
       if (!resp.ok) { const ed = await resp.json().catch(() => ({})); throw new Error(ed.error || `Error ${resp.status}`); }
       const data = await resp.json();
@@ -561,7 +619,36 @@ const AICoPilot = () => {
     } catch (e: any) { toast.error(e.message || "Audio generation failed"); } finally { setIsGeneratingAudio(false); }
   };
 
-  // ---- Image generation (isolated) ----
+  // ---- Simulated progress for image/video generation ----
+  const simulateProgress = (
+    setProgress: (v: number) => void,
+    setLabel: (v: string) => void,
+    estimatedMs: number
+  ) => {
+    const steps = [
+      { at: 5, label: "Initializing AI model..." },
+      { at: 15, label: "Analyzing prompt..." },
+      { at: 30, label: "Generating composition..." },
+      { at: 50, label: "Rendering details..." },
+      { at: 70, label: "Enhancing quality..." },
+      { at: 85, label: "Final touches..." },
+      { at: 95, label: "Almost done..." },
+    ];
+    setProgress(0);
+    setLabel("Starting generation...");
+    const interval = estimatedMs / 100;
+    let current = 0;
+    const timer = setInterval(() => {
+      current += 1;
+      if (current >= 95) { clearInterval(timer); return; }
+      setProgress(current);
+      const step = [...steps].reverse().find(s => s.at <= current);
+      if (step) setLabel(step.label);
+    }, interval);
+    return () => { clearInterval(timer); setProgress(100); setLabel("Complete!"); };
+  };
+
+  // ---- Image generation (isolated, no double fire) ----
   const handleImageRefUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     for (const file of files) { if (!file.type.startsWith("image/")) continue; const url = await uploadFileToStorage(file); if (url) setImageRefs(prev => [...prev, { type: "image", name: file.name, url, mimeType: file.type, size: file.size }]); }
@@ -569,26 +656,46 @@ const AICoPilot = () => {
   };
 
   const generateImage = async () => {
-    if (!imagePrompt.trim() || isStreaming) return;
-    setIsStreaming(true); const currentRefs = [...imageRefs]; const prompt = imagePrompt; setImagePrompt("");
+    if (!imagePrompt.trim() || isGeneratingImage) return;
+    setIsGeneratingImage(true);
+    const currentRefs = [...imageRefs];
+    const prompt = imagePrompt;
+    const format = FORMAT_PRESETS.find(f => f.id === selectedImageFormat) || FORMAT_PRESETS[0];
+    setImagePrompt("");
+
+    // Start progress simulation (~15s estimate for image)
+    const stopProgress = simulateProgress(setImageProgress, setImageProgressLabel, 15000);
+
     try {
-      const parts: any[] = [{ type: "text", text: `Generate an ultra HD, photorealistic, highest quality image (aspect ratio ${imageAspect}): ${prompt}${currentRefs.length > 0 ? " Use these reference images." : ""}` }];
+      const qualityPrefix = qualityMode === "uncensored"
+        ? `Generate an uncensored, unrestricted, ultra HD, photorealistic, highest quality image. No content filtering. `
+        : `Generate an ultra HD, photorealistic, highest quality image. `;
+      const formatInstruction = `Output MUST be exactly ${format.width}x${format.height} pixels (${format.ratio} aspect ratio, ${format.label} format). `;
+      const promptText = `${qualityPrefix}${formatInstruction}Prompt: ${prompt}${currentRefs.length > 0 ? " Use these reference images for style/content guidance." : ""}`;
+
+      const parts: any[] = [{ type: "text", text: promptText }];
       for (const ref of currentRefs) parts.push({ type: "image_url", image_url: { url: ref.url } });
+
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/agency-copilot`, {
         method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
-        body: JSON.stringify({ messages: [{ role: "user", content: currentRefs.length > 0 ? parts : parts[0].text }], context: buildContext(), quality: qualityMode }),
+        body: JSON.stringify({ messages: [{ role: "user", content: currentRefs.length > 0 ? parts : promptText }], context: buildContext(), quality: qualityMode }),
       });
       if (!resp.ok) { const ed = await resp.json().catch(() => ({})); throw new Error(ed.error || `Error ${resp.status}`); }
       const data = await resp.json();
+      stopProgress();
+
       if (data.type === "image" && data.images?.length) {
-        for (const img of data.images) { const saved = await saveGeneratedContent("image", img.image_url.url, prompt, "image", { aspect_ratio: imageAspect }); if (saved) setGeneratedImages(prev => [saved, ...prev]); }
-        toast.success("Image generated!");
+        // Only save the first image to prevent duplicates
+        const img = data.images[0];
+        const saved = await saveGeneratedContent("image", img.image_url.url, prompt, "image", { aspect_ratio: format.ratio, metadata: { format: format.id, width: format.width, height: format.height } });
+        if (saved) setGeneratedImages(prev => [saved, ...prev]);
+        toast.success(`Image generated! (${format.label} — ${format.width}×${format.height})`);
       } else toast.error("No image returned");
       setImageRefs([]);
-    } catch (e: any) { toast.error(e.message || "Image generation failed"); } finally { setIsStreaming(false); }
+    } catch (e: any) { stopProgress(); toast.error(e.message || "Image generation failed"); } finally { setIsGeneratingImage(false); setImageProgress(0); setImageProgressLabel(""); }
   };
 
-  // ---- Video generation (isolated) ----
+  // ---- Video generation (isolated, no double fire) ----
   const handleVideoFrameUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]; if (!file || !file.type.startsWith("image/")) return;
     const url = await uploadFileToStorage(file);
@@ -597,22 +704,36 @@ const AICoPilot = () => {
   };
 
   const generateVideo = async () => {
-    if (!videoPrompt.trim() || isStreaming) return;
-    setIsStreaming(true); const prompt = videoPrompt; const frame = videoStartFrame; setVideoPrompt(""); setVideoStartFrame(null);
+    if (!videoPrompt.trim() || isGeneratingVideo) return;
+    setIsGeneratingVideo(true);
+    const prompt = videoPrompt;
+    const frame = videoStartFrame;
+    const format = VIDEO_FORMAT_PRESETS.find(f => f.id === selectedVideoFormat) || VIDEO_FORMAT_PRESETS[0];
+    setVideoPrompt(""); setVideoStartFrame(null);
+
+    // Progress simulation (~30s for video)
+    const stopProgress = simulateProgress(setVideoProgress, setVideoProgressLabel, 30000);
+
     try {
-      const parts: any[] = [{ type: "text", text: `Generate a ${videoDuration}-second cinematic, ultra HD, highest quality video: ${prompt}${frame ? " Use this starting frame." : ""}` }];
+      const promptText = `Generate a ${videoDuration}-second cinematic, ultra HD, highest quality video at ${format.width}x${format.height} (${format.ratio}, ${format.label} format): ${prompt}${frame ? " Use this starting frame." : ""}`;
+      const parts: any[] = [{ type: "text", text: promptText }];
       if (frame) parts.push({ type: "image_url", image_url: { url: frame.url } });
+
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/agency-copilot`, {
         method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
-        body: JSON.stringify({ messages: [{ role: "user", content: frame ? parts : parts[0].text }], context: buildContext(), quality: qualityMode }),
+        body: JSON.stringify({ messages: [{ role: "user", content: frame ? parts : promptText }], context: buildContext(), quality: qualityMode }),
       });
       if (!resp.ok) { const ed = await resp.json().catch(() => ({})); throw new Error(ed.error || `Error ${resp.status}`); }
       const data = await resp.json();
+      stopProgress();
+
       if (data.type === "image" && data.images?.length) {
-        for (const img of data.images) { const saved = await saveGeneratedContent("video", img.image_url.url, prompt, "video", { metadata: { duration: videoDuration } }); if (saved) setGeneratedVideos(prev => [saved, ...prev]); }
-        toast.success("Video generated!");
+        const img = data.images[0];
+        const saved = await saveGeneratedContent("video", img.image_url.url, prompt, "video", { metadata: { duration: videoDuration, format: format.id, width: format.width, height: format.height } });
+        if (saved) setGeneratedVideos(prev => [saved, ...prev]);
+        toast.success(`Video generated! (${format.label} — ${format.width}×${format.height})`);
       } else toast.info(data.content || "Generation complete");
-    } catch (e: any) { toast.error(e.message || "Video generation failed"); } finally { setIsStreaming(false); }
+    } catch (e: any) { stopProgress(); toast.error(e.message || "Video generation failed"); } finally { setIsGeneratingVideo(false); setVideoProgress(0); setVideoProgressLabel(""); }
   };
 
   // ---- Audio playback ----
@@ -648,18 +769,19 @@ const AICoPilot = () => {
     </div>
   );
 
-  // ---- Render helpers ----
+  // ---- Pending attachments ----
   const renderPendingAttachments = () => {
     if (attachments.length === 0) return null;
     return (
-      <div className="px-4 py-3 border-t border-white/[0.06] bg-white/[0.02]">
+      <div className="px-4 py-2 border-t border-white/[0.06]">
         <div className="flex flex-wrap gap-2">
           {attachments.map((att, i) => (
             <div key={i} className="relative group rounded-lg overflow-hidden border border-white/10 bg-white/5">
-              {att.type === "image" ? <div className="w-[100px] h-[80px]"><img src={att.url} alt={att.name} className="w-full h-full object-cover" /></div>
-                : att.type === "video" ? <div className="w-[100px] h-[80px] bg-black/40 flex items-center justify-center"><Play className="h-6 w-6 text-white/70" /></div>
-                : <div className="flex items-center gap-2 px-3 py-2 w-[140px]">{att.type === "audio" ? <Music className="h-4 w-4 text-accent" /> : <FileText className="h-4 w-4 text-accent" />}<p className="text-[10px] text-white/60 truncate">{att.name}</p></div>}
-              <button onClick={() => setAttachments(prev => prev.filter((_, j) => j !== i))} className="absolute top-1 right-1 h-5 w-5 rounded-full bg-black/70 flex items-center justify-center text-white/60 hover:bg-red-500/80 opacity-0 group-hover:opacity-100"><X className="h-3 w-3" /></button>
+              {att.type === "image" ? (<div className="w-[60px] h-[45px]"><img src={att.url} alt="" className="w-full h-full object-cover" /></div>)
+                : att.type === "audio" ? (<div className="flex items-center gap-1 px-2 py-1"><Music className="h-3 w-3 text-accent" /><span className="text-[9px] text-white/50 truncate max-w-[50px]">{att.name}</span></div>)
+                  : att.type === "video" ? (<div className="flex items-center gap-1 px-2 py-1"><Video className="h-3 w-3 text-accent" /><span className="text-[9px] text-white/50 truncate max-w-[50px]">{att.name}</span></div>)
+                    : (<div className="flex items-center gap-1 px-2 py-1"><FileText className="h-3 w-3 text-white/30" /><span className="text-[9px] text-white/50 truncate max-w-[50px]">{att.name}</span></div>)}
+              <button onClick={() => setAttachments(prev => prev.filter((_, j) => j !== i))} className="absolute top-0 right-0 h-4 w-4 rounded-full bg-black/70 flex items-center justify-center opacity-0 group-hover:opacity-100"><X className="h-2.5 w-2.5 text-white" /></button>
             </div>
           ))}
         </div>
@@ -667,32 +789,45 @@ const AICoPilot = () => {
     );
   };
 
+  // ---- Message attachments & actions ----
   const renderMessageAttachments = (atts: Attachment[]) => (
-    <div className="flex flex-wrap gap-2 mt-2">
+    <div className="flex flex-wrap gap-1.5 mt-1.5">
       {atts.map((att, i) => (
         <div key={i} className="rounded-lg overflow-hidden border border-white/10">
-          {att.type === "image" ? <a href={att.url} target="_blank" rel="noopener noreferrer"><img src={att.url} alt={att.name} className="max-w-[200px] max-h-[150px] object-cover" /></a>
-            : att.type === "audio" ? <div className="p-2 bg-white/5"><audio controls src={att.url} className="h-8 w-48" /></div>
-            : att.type === "video" ? <div className="p-2 bg-white/5"><video controls src={att.url} className="max-w-[250px] max-h-[150px] rounded" /></div>
-            : <a href={att.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 p-2 bg-white/5"><FileText className="h-4 w-4 text-accent" /><span className="text-[10px] text-white/60">{att.name}</span></a>}
+          {att.type === "image" ? (<img src={att.url} alt={att.name} className="max-w-[120px] max-h-[80px] object-cover" />) : att.type === "audio" ? (<div className="p-1.5 bg-white/5"><audio controls src={att.url} className="h-6 w-32" /></div>) : att.type === "video" ? (<video controls src={att.url} className="max-w-[150px] max-h-[80px] rounded" />) : (<a href={att.url} target="_blank" className="flex items-center gap-1 p-1.5 bg-white/5 text-[9px] text-white/50"><FileText className="h-3 w-3" />{att.name}</a>)}
         </div>
       ))}
     </div>
   );
 
   const renderMessageActions = (msg: Msg, idx: number) => {
-    const isUser = msg.role === "user"; const isLA = !isUser && idx === messages.length - 1;
+    const isUser = msg.role === "user";
+    const isLastAssistant = !isUser && idx === messages.length - 1;
     return (
-      <div className={`flex items-center gap-0.5 mt-1 transition-opacity ${hoveredIdx === idx ? "opacity-100" : "opacity-0"}`}>
-        <Button size="sm" variant="ghost" onClick={() => handleCopy(idx)} className="h-6 w-6 p-0 text-white/30 hover:text-white hover:bg-white/10">{copiedIdx === idx ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}</Button>
-        {isUser && <Button size="sm" variant="ghost" onClick={() => { setEditingIdx(idx); setEditText(msg.content); setEditAttachments(msg.attachments ? [...msg.attachments] : []); }} className="h-6 w-6 p-0 text-white/30 hover:text-white hover:bg-white/10"><Pencil className="h-3 w-3" /></Button>}
-        {isLA && <Button size="sm" variant="ghost" onClick={handleRegenerate} className="h-6 w-6 p-0 text-white/30 hover:text-white hover:bg-white/10"><RefreshCw className="h-3 w-3" /></Button>}
-        {idx < messages.length - 1 && <Button size="sm" variant="ghost" onClick={() => handleRevertTo(idx)} className="h-6 w-6 p-0 text-white/30 hover:text-white hover:bg-white/10"><RotateCcw className="h-3 w-3" /></Button>}
+      <div className={`flex items-center gap-0.5 mt-0.5 transition-opacity ${hoveredIdx === idx ? "opacity-100" : "opacity-0"}`}>
+        <Button size="sm" variant="ghost" onClick={() => handleCopy(idx)} className="h-5 w-5 p-0 text-white/30 hover:text-white" title="Copy">
+          {copiedIdx === idx ? <Check className="h-2.5 w-2.5 text-emerald-400" /> : <Copy className="h-2.5 w-2.5" />}
+        </Button>
+        {isUser && (
+          <Button size="sm" variant="ghost" onClick={() => { setEditingIdx(idx); setEditText(msg.content); setEditAttachments(msg.attachments ? [...msg.attachments] : []); }} className="h-5 w-5 p-0 text-white/30 hover:text-white" title="Edit">
+            <Pencil className="h-2.5 w-2.5" />
+          </Button>
+        )}
+        {isLastAssistant && (
+          <Button size="sm" variant="ghost" onClick={handleRegenerate} className="h-5 w-5 p-0 text-white/30 hover:text-white" title="Regenerate">
+            <RefreshCw className="h-2.5 w-2.5" />
+          </Button>
+        )}
+        {idx < messages.length - 1 && (
+          <Button size="sm" variant="ghost" onClick={() => handleRevertTo(idx)} className="h-5 w-5 p-0 text-white/30 hover:text-white" title="Revert here">
+            <RotateCcw className="h-2.5 w-2.5" />
+          </Button>
+        )}
       </div>
     );
   };
 
-  // ---- Audio gallery with waveforms (matching reference) ----
+  // ---- Audio gallery ----
   const renderAudioGallery = () => {
     if (generatedAudios.length === 0) {
       return (
@@ -740,29 +875,71 @@ const AICoPilot = () => {
     );
   };
 
-  // ---- Content gallery for image/video ----
-  const renderContentGallery = (items: GeneratedContent[], modeTab: string) => {
-    if (items.length === 0) {
+  // ---- Content gallery for image/video (full image preview) ----
+  const renderContentGallery = (items: GeneratedContent[], modeTab: string, isGenerating: boolean, progress: number, progressLabel: string) => {
+    const showGenerating = isGenerating;
+    const generatingCard = showGenerating ? (
+      <div key="generating" className="relative rounded-xl overflow-hidden border-2 border-accent/30 bg-white/[0.03] flex flex-col items-center justify-center p-8"
+        style={displayLayout !== "vertical" ? { width: `${220 * displayScale}px`, minHeight: `${170 * displayScale}px` } : { minHeight: "200px" }}>
+        <ProgressRing progress={progress} size={90} label={progressLabel} />
+        <p className="text-xs text-white/40 mt-3">Media generating...</p>
+        <p className="text-[10px] text-white/20 mt-1">~{modeTab === "video" ? "30" : "15"}s estimated</p>
+      </div>
+    ) : null;
+
+    if (items.length === 0 && !showGenerating) {
       const Icon = modeTab === "image" ? ImageIcon : Video;
       return (<div className="flex flex-col items-center justify-center h-full text-center py-12"><Icon className="h-12 w-12 text-white/10 mb-4" /><p className="text-white/20 text-sm">Generated {modeTab}s appear here</p></div>);
     }
     const layout = displayLayout === "horizontal" ? "flex flex-row flex-wrap gap-4" : displayLayout === "vertical" ? "flex flex-col gap-4" : "grid grid-cols-2 gap-4";
     return (
       <div className={layout}>
-        {items.map(item => (
-          <div key={item.id} className="relative group rounded-xl overflow-hidden border border-white/10 bg-white/[0.02]"
-            style={displayLayout !== "vertical" ? { width: `${220 * displayScale}px` } : {}}>
-            <img src={item.url} alt="" className="w-full object-cover rounded-t-xl" style={{ maxHeight: `${170 * displayScale}px` }} />
-            <div className="absolute top-2 right-2 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-              <button onClick={() => { const a = document.createElement("a"); a.href = item.url; a.download = `${modeTab}_${item.id}.png`; a.click(); }} className="h-8 w-8 rounded-lg bg-black/60 flex items-center justify-center hover:bg-black/80"><Download className="h-4 w-4 text-white" /></button>
-              <button onClick={() => deleteGeneratedContent(item.id, modeTab)} className="h-8 w-8 rounded-lg bg-black/60 flex items-center justify-center hover:bg-red-500/60"><Trash className="h-4 w-4 text-white" /></button>
+        {generatingCard}
+        {items.map(item => {
+          const meta = item.metadata || {};
+          const dims = meta.width && meta.height ? `${meta.width}×${meta.height}` : item.aspect_ratio || "";
+          return (
+            <div key={item.id} className="relative group rounded-xl overflow-hidden border border-white/10 bg-white/[0.02]"
+              style={displayLayout !== "vertical" ? { width: `${220 * displayScale}px` } : {}}>
+              {/* Full image, no cropping */}
+              <img src={item.url} alt="" className="w-full object-contain rounded-t-xl cursor-pointer bg-black/20"
+                onClick={() => setImageFullPreview(item.url)} />
+              <div className="absolute top-2 right-2 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button onClick={() => { const a = document.createElement("a"); a.href = item.url; a.download = `${modeTab}_${item.id}.png`; a.click(); }} className="h-8 w-8 rounded-lg bg-black/60 flex items-center justify-center hover:bg-black/80"><Download className="h-4 w-4 text-white" /></button>
+                <button onClick={() => deleteGeneratedContent(item.id, modeTab)} className="h-8 w-8 rounded-lg bg-black/60 flex items-center justify-center hover:bg-red-500/60"><Trash className="h-4 w-4 text-white" /></button>
+              </div>
+              {dims && <div className="absolute top-2 left-2 bg-black/60 rounded-md px-2 py-0.5 text-[9px] text-white/70">{dims}</div>}
+              <div className="p-3">
+                <p className="text-[10px] text-white/40 truncate"><span className="text-accent">Prompt:</span> {item.prompt}</p>
+                <button onClick={() => modeTab === "image" ? setImagePrompt(item.prompt || "") : setVideoPrompt(item.prompt || "")}
+                  className="flex items-center gap-1 text-[10px] text-white/30 hover:text-white border border-white/10 rounded px-2 py-0.5 mt-2">
+                  <RotateCcw className="h-2.5 w-2.5" /> Reuse
+                </button>
+              </div>
             </div>
-            <div className="p-3">
-              <p className="text-[10px] text-white/40 truncate"><span className="text-accent">Prompt:</span> {item.prompt}</p>
-              <button onClick={() => modeTab === "image" ? setImagePrompt(item.prompt || "") : setVideoPrompt(item.prompt || "")}
-                className="flex items-center gap-1 text-[10px] text-white/30 hover:text-white border border-white/10 rounded px-2 py-0.5 mt-2">
-                <RotateCcw className="h-2.5 w-2.5" /> Reuse
-              </button>
+          );
+        })}
+      </div>
+    );
+  };
+
+  // ---- Format selector component ----
+  const renderFormatSelector = (presets: FormatPreset[], selectedId: string, onSelect: (id: string) => void) => {
+    const categories = [...new Set(presets.map(p => p.category))];
+    return (
+      <div className="space-y-2">
+        {categories.map(cat => (
+          <div key={cat}>
+            <p className="text-[9px] text-white/25 uppercase tracking-wider mb-1.5">{cat}</p>
+            <div className="flex flex-wrap gap-1.5">
+              {presets.filter(p => p.category === cat).map(f => (
+                <button key={f.id} onClick={() => onSelect(f.id)}
+                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] border transition-all ${selectedId === f.id ? "border-accent/40 bg-accent/10 text-accent" : "border-white/10 text-white/30 hover:text-white/50 hover:border-white/20"}`}>
+                  <f.icon className="h-3 w-3" />
+                  <span>{f.label}</span>
+                  <span className="text-[8px] text-white/20">{f.width}×{f.height}</span>
+                </button>
+              ))}
             </div>
           </div>
         ))}
@@ -774,78 +951,112 @@ const AICoPilot = () => {
 
   const renderImagePanel = () => (
     <div className="flex flex-1 overflow-hidden">
-      <div className="w-[400px] border-r border-white/[0.06] p-5 flex flex-col gap-4 overflow-y-auto shrink-0">
+      <div className="w-[420px] border-r border-white/[0.06] p-5 flex flex-col gap-4 overflow-y-auto shrink-0">
         <div className="flex items-center justify-between">
           <p className="text-sm font-medium text-white/70">Image Prompt</p>
-          <Badge variant="outline" className="text-[9px] border-accent/20 text-accent">{qualityMode === "best" ? "Ultra HD" : "High Quality"}</Badge>
+          <div className="flex items-center gap-2">
+            {qualityMode === "uncensored" && (
+              <Badge variant="outline" className="text-[9px] border-red-500/30 text-red-400 gap-1"><ShieldOff className="h-3 w-3" />Uncensored</Badge>
+            )}
+            <Badge variant="outline" className="text-[9px] border-accent/20 text-accent">
+              {qualityMode === "best" ? "Ultra HD" : qualityMode === "uncensored" ? "Unrestricted" : "High Quality"}
+            </Badge>
+          </div>
         </div>
-        <Textarea value={imagePrompt} onChange={e => setImagePrompt(e.target.value)} placeholder="Describe precisely what you want..." className="bg-white/5 border-white/10 text-white text-sm min-h-[140px] resize-none placeholder:text-white/20" onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); generateImage(); } }} />
-        <div className="border-2 border-dashed border-white/10 rounded-xl p-5 flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-white/20 transition-colors" onClick={() => imageRefInputRef.current?.click()}>
-          <Upload className="h-6 w-6 text-white/20" /><p className="text-[11px] text-white/30">Reference images • click to select</p>
+        <Textarea value={imagePrompt} onChange={e => setImagePrompt(e.target.value)} placeholder="Describe precisely what you want..." className="bg-white/5 border-white/10 text-white text-sm min-h-[120px] resize-none placeholder:text-white/20" onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); generateImage(); } }} />
+
+        {/* Reference images */}
+        <div className="border-2 border-dashed border-white/10 rounded-xl p-4 flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-white/20 transition-colors" onClick={() => imageRefInputRef.current?.click()}>
+          <Upload className="h-5 w-5 text-white/20" /><p className="text-[10px] text-white/30">Reference images • click to select</p>
         </div>
         <input ref={imageRefInputRef} type="file" multiple accept="image/*" className="hidden" onChange={handleImageRefUpload} />
-        {imageRefs.length > 0 && <div className="flex flex-wrap gap-2">{imageRefs.map((ref, i) => (<div key={i} className="relative group w-[70px] h-[70px] rounded-lg overflow-hidden border border-white/10"><img src={ref.url} alt="" className="w-full h-full object-cover" /><button onClick={() => setImageRefs(prev => prev.filter((_, j) => j !== i))} className="absolute top-0.5 right-0.5 h-5 w-5 rounded-full bg-black/70 flex items-center justify-center opacity-0 group-hover:opacity-100"><X className="h-3 w-3 text-white" /></button></div>))}</div>}
-        <div className="flex gap-1.5">
-          {["1:1", "16:9", "9:16"].map(r => (
-            <button key={r} onClick={() => setImageAspect(r)} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] border transition-all ${imageAspect === r ? "border-accent/40 bg-accent/10 text-accent" : "border-white/10 text-white/30 hover:text-white/50"}`}>
-              {r === "1:1" && <Square className="h-3.5 w-3.5" />}{r === "16:9" && <Monitor className="h-3.5 w-3.5" />}{r === "9:16" && <Smartphone className="h-3.5 w-3.5" />}{r}
-            </button>
-          ))}
+        {imageRefs.length > 0 && <div className="flex flex-wrap gap-2">{imageRefs.map((ref, i) => (<div key={i} className="relative group w-[60px] h-[60px] rounded-lg overflow-hidden border border-white/10"><img src={ref.url} alt="" className="w-full h-full object-cover" /><button onClick={() => setImageRefs(prev => prev.filter((_, j) => j !== i))} className="absolute top-0.5 right-0.5 h-5 w-5 rounded-full bg-black/70 flex items-center justify-center opacity-0 group-hover:opacity-100"><X className="h-3 w-3 text-white" /></button></div>))}</div>}
+
+        {/* Format selector */}
+        <div>
+          <p className="text-[11px] text-white/40 mb-2 font-medium">Output Format</p>
+          {renderFormatSelector(FORMAT_PRESETS, selectedImageFormat, setSelectedImageFormat)}
         </div>
-        <div className="mt-auto flex items-center gap-3">
+
+        {/* Quality + Generate */}
+        <div className="mt-auto flex items-center gap-2 flex-wrap">
           <Select value={qualityMode} onValueChange={v => setQualityMode(v as QualityMode)}>
-            <SelectTrigger className="bg-white/5 border-white/10 text-white h-9 text-xs w-[140px]"><SelectValue /></SelectTrigger>
-            <SelectContent className="bg-[hsl(220,40%,10%)] border-white/10"><SelectItem value="best" className="text-white text-xs">Best Quality</SelectItem><SelectItem value="high" className="text-white text-xs">High Quality</SelectItem></SelectContent>
+            <SelectTrigger className="bg-white/5 border-white/10 text-white h-9 text-xs w-[150px]"><SelectValue /></SelectTrigger>
+            <SelectContent className="bg-[hsl(220,40%,10%)] border-white/10">
+              <SelectItem value="best" className="text-white text-xs"><div className="flex items-center gap-2"><Shield className="h-3 w-3" /> Best Quality</div></SelectItem>
+              <SelectItem value="uncensored" className="text-white text-xs"><div className="flex items-center gap-2"><ShieldOff className="h-3 w-3 text-red-400" /> Uncensored</div></SelectItem>
+              <SelectItem value="high" className="text-white text-xs">High Quality</SelectItem>
+            </SelectContent>
           </Select>
-          <Button onClick={generateImage} disabled={!imagePrompt.trim() || isStreaming} className="flex-1 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white text-sm h-9">
-            {isStreaming ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Sparkles className="h-4 w-4 mr-2" />}Generate
+          <Button onClick={generateImage} disabled={!imagePrompt.trim() || isGeneratingImage} className="flex-1 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white text-sm h-9">
+            {isGeneratingImage ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Sparkles className="h-4 w-4 mr-2" />}Generate
           </Button>
         </div>
       </div>
-      <div className="flex-1 flex flex-col overflow-hidden">{renderScaleControls()}<ScrollArea className="flex-1 p-4">{renderContentGallery(generatedImages, "image")}</ScrollArea></div>
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {renderScaleControls()}
+        <ScrollArea className="flex-1 p-4">
+          {renderContentGallery(generatedImages, "image", isGeneratingImage, imageProgress, imageProgressLabel)}
+        </ScrollArea>
+      </div>
     </div>
   );
 
   const renderVideoPanel = () => (
     <div className="flex flex-1 overflow-hidden">
-      <div className="w-[400px] border-r border-white/[0.06] p-5 flex flex-col gap-4 overflow-y-auto shrink-0">
+      <div className="w-[420px] border-r border-white/[0.06] p-5 flex flex-col gap-4 overflow-y-auto shrink-0">
         <div className="flex items-center justify-between">
           <p className="text-sm font-medium text-white/70">Video Prompt</p>
           <Badge variant="outline" className="text-[9px] border-accent/20 text-accent">Cinematic</Badge>
         </div>
-        <Textarea value={videoPrompt} onChange={e => setVideoPrompt(e.target.value)} placeholder="Describe your video..." className="bg-white/5 border-white/10 text-white text-sm min-h-[130px] resize-none placeholder:text-white/20" onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); generateVideo(); } }} />
+        <Textarea value={videoPrompt} onChange={e => setVideoPrompt(e.target.value)} placeholder="Describe your video..." className="bg-white/5 border-white/10 text-white text-sm min-h-[110px] resize-none placeholder:text-white/20" onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); generateVideo(); } }} />
         <div className="flex gap-3">
-          <div className="border-2 border-dashed border-white/10 rounded-xl p-4 flex flex-col items-center justify-center gap-1 cursor-pointer hover:border-white/20 transition-colors flex-1 min-h-[100px] relative" onClick={() => videoFrameInputRef.current?.click()}>
+          <div className="border-2 border-dashed border-white/10 rounded-xl p-4 flex flex-col items-center justify-center gap-1 cursor-pointer hover:border-white/20 transition-colors flex-1 min-h-[90px] relative" onClick={() => videoFrameInputRef.current?.click()}>
             {videoStartFrame ? (<><img src={videoStartFrame.url} alt="" className="w-full h-full object-cover rounded-lg absolute inset-0" /><button onClick={(e) => { e.stopPropagation(); setVideoStartFrame(null); }} className="absolute top-1 right-1 h-5 w-5 rounded-full bg-black/70 flex items-center justify-center z-10"><X className="h-3 w-3 text-white" /></button></>)
               : (<><Upload className="h-5 w-5 text-white/20" /><p className="text-[10px] text-white/30">Start Frame</p></>)}
           </div>
-          <div className="border-2 border-dashed border-white/10 rounded-xl p-4 flex flex-col items-center justify-center gap-1 flex-1 min-h-[100px] opacity-40"><Upload className="h-5 w-5 text-white/20" /><p className="text-[10px] text-white/30">End Frame</p></div>
+          <div className="border-2 border-dashed border-white/10 rounded-xl p-4 flex flex-col items-center justify-center gap-1 flex-1 min-h-[90px] opacity-40"><Upload className="h-5 w-5 text-white/20" /><p className="text-[10px] text-white/30">End Frame</p></div>
         </div>
         <input ref={videoFrameInputRef} type="file" accept="image/*" className="hidden" onChange={handleVideoFrameUpload} />
+
+        {/* Duration */}
         <div>
           <p className="text-[11px] text-white/40 mb-2">Duration: <span className="text-accent font-medium">{videoDuration}s</span></p>
           <Slider value={[videoDuration]} onValueChange={([v]) => setVideoDuration(v)} min={1} max={60} step={1} className="w-full" />
           <div className="flex justify-between text-[9px] text-white/20 mt-1"><span>1s</span><span>30s</span><span>60s</span></div>
         </div>
+
+        {/* Format selector */}
+        <div>
+          <p className="text-[11px] text-white/40 mb-2 font-medium">Output Format</p>
+          {renderFormatSelector(VIDEO_FORMAT_PRESETS, selectedVideoFormat, setSelectedVideoFormat)}
+        </div>
+
         <div className="mt-auto flex items-center gap-3">
           <Select value={qualityMode} onValueChange={v => setQualityMode(v as QualityMode)}>
             <SelectTrigger className="bg-white/5 border-white/10 text-white h-9 text-xs w-[140px]"><SelectValue /></SelectTrigger>
-            <SelectContent className="bg-[hsl(220,40%,10%)] border-white/10"><SelectItem value="best" className="text-white text-xs">Best Quality</SelectItem><SelectItem value="high" className="text-white text-xs">High Quality</SelectItem></SelectContent>
+            <SelectContent className="bg-[hsl(220,40%,10%)] border-white/10">
+              <SelectItem value="best" className="text-white text-xs">Best Quality</SelectItem>
+              <SelectItem value="high" className="text-white text-xs">High Quality</SelectItem>
+            </SelectContent>
           </Select>
-          <Button onClick={generateVideo} disabled={!videoPrompt.trim() || isStreaming} className="flex-1 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white text-sm h-9">
-            {isStreaming ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Sparkles className="h-4 w-4 mr-2" />}Generate
+          <Button onClick={generateVideo} disabled={!videoPrompt.trim() || isGeneratingVideo} className="flex-1 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white text-sm h-9">
+            {isGeneratingVideo ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Sparkles className="h-4 w-4 mr-2" />}Generate
           </Button>
         </div>
       </div>
-      <div className="flex-1 flex flex-col overflow-hidden">{renderScaleControls()}<ScrollArea className="flex-1 p-4">{renderContentGallery(generatedVideos, "video")}</ScrollArea></div>
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {renderScaleControls()}
+        <ScrollArea className="flex-1 p-4">
+          {renderContentGallery(generatedVideos, "video", isGeneratingVideo, videoProgress, videoProgressLabel)}
+        </ScrollArea>
+      </div>
     </div>
   );
 
   const renderAudioPanel = () => (
     <div className="flex flex-1 overflow-hidden">
-      {/* Left: Voice list + text input */}
       <div className="w-[400px] border-r border-white/[0.06] flex flex-col overflow-hidden shrink-0">
-        {/* Header */}
         <div className="p-4 border-b border-white/[0.06] flex items-center justify-between">
           <div className="flex items-center gap-2">
             <p className="text-sm font-medium text-white">My Voices</p>
@@ -855,8 +1066,6 @@ const AICoPilot = () => {
             <Plus className="h-3 w-3" /> Create a voice
           </Button>
         </div>
-
-        {/* Voice list */}
         <ScrollArea className="flex-1">
           <div className="p-3 space-y-1">
             {voices.length === 0 && <p className="text-[11px] text-white/20 text-center py-8">No voices yet. Create one to get started!</p>}
@@ -868,7 +1077,7 @@ const AICoPilot = () => {
                 </div>
                 {(v.preview_url || (v.sample_urls && v.sample_urls.length > 0)) && (
                   <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); const a = new Audio(v.preview_url || v.sample_urls![0]); a.play().catch(() => {}); }}
-                    className="h-7 w-7 p-0 text-white/30 hover:text-white shrink-0" title="Preview cloned voice"><Play className="h-3 w-3" /></Button>
+                    className="h-7 w-7 p-0 text-white/30 hover:text-white shrink-0" title="Preview"><Play className="h-3 w-3" /></Button>
                 )}
                 <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); setEditingVoiceId(v.id); setVoiceParams(loadVoiceParams(v.id)); setShowVoiceEditor(true); }}
                   className="h-7 w-7 p-0 text-white/20 hover:text-white shrink-0"><SlidersHorizontal className="h-3 w-3" /></Button>
@@ -878,8 +1087,6 @@ const AICoPilot = () => {
             ))}
           </div>
         </ScrollArea>
-
-        {/* Text input + Generate */}
         <div className="border-t border-white/[0.06] p-4 space-y-3">
           {selectedVoice && <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2"><p className="text-[10px] text-amber-300/70">Selected: {voices.find(v => v.id === selectedVoice)?.name || "—"}</p></div>}
           <div>
@@ -895,8 +1102,6 @@ const AICoPilot = () => {
           </Button>
         </div>
       </div>
-
-      {/* Right: Audio gallery with waveforms */}
       <ScrollArea className="flex-1">{renderAudioGallery()}</ScrollArea>
     </div>
   );
@@ -1024,6 +1229,15 @@ const AICoPilot = () => {
           {(mode === "chat" || mode === "freeWill") && renderChatPanel()}
         </div>
       </div>
+
+      {/* Full image preview dialog */}
+      <Dialog open={!!imageFullPreview} onOpenChange={() => setImageFullPreview(null)}>
+        <DialogContent className="bg-black/95 border-white/10 max-w-[90vw] max-h-[90vh] p-2">
+          {imageFullPreview && (
+            <img src={imageFullPreview} alt="" className="w-full h-full object-contain rounded-lg" />
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Create Voice Dialog */}
       <Dialog open={showCreateVoice} onOpenChange={setShowCreateVoice}>
