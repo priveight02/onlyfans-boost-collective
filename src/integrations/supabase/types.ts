@@ -464,6 +464,45 @@ export type Database = {
           },
         ]
       }
+      copilot_voices: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          elevenlabs_voice_id: string | null
+          id: string
+          is_preset: boolean | null
+          name: string
+          preview_url: string | null
+          sample_urls: string[] | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          elevenlabs_voice_id?: string | null
+          id?: string
+          is_preset?: boolean | null
+          name: string
+          preview_url?: string | null
+          sample_urls?: string[] | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          elevenlabs_voice_id?: string | null
+          id?: string
+          is_preset?: boolean | null
+          name?: string
+          preview_url?: string | null
+          sample_urls?: string[] | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       fan_emotional_profiles: {
         Row: {
           account_id: string
