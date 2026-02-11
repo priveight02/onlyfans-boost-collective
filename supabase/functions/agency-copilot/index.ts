@@ -212,9 +212,9 @@ serve(async (req) => {
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              model: "fluently-xl",
+              model: "lustify-sdxl",
               prompt: enhancedPrompt,
-              negative_prompt: "low quality, blurry, distorted, deformed, ugly, bad anatomy, watermark, text",
+              negative_prompt: "low quality, blurry, distorted, deformed, ugly, bad anatomy, watermark, text, censored",
               width: 1024,
               height: 1024,
               steps: 30,
@@ -222,6 +222,7 @@ serve(async (req) => {
               seed: Math.floor(Math.random() * 2147483647),
               safe_mode: false,
               format: "png",
+              embed_exif_metadata: false,
             }),
           });
 
