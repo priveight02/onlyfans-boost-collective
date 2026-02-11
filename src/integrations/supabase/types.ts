@@ -79,6 +79,44 @@ export type Database = {
         }
         Relationships: []
       }
+      auto_respond_state: {
+        Row: {
+          account_id: string
+          id: string
+          is_active: boolean
+          redirect_url: string | null
+          trigger_keywords: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          account_id: string
+          id?: string
+          is_active?: boolean
+          redirect_url?: string | null
+          trigger_keywords?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          account_id?: string
+          id?: string
+          is_active?: boolean
+          redirect_url?: string | null
+          trigger_keywords?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "auto_respond_state_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: true
+            referencedRelation: "managed_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       automation_workflows: {
         Row: {
           account_id: string | null
