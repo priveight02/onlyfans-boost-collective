@@ -196,6 +196,7 @@ const SocialMediaHub = () => {
   };
 
   const connectPlatform = async () => {
+    if (!selectedAccount) { toast.error("Select an account first"); return; }
     if (!connectForm.access_token || !connectForm.platform_username) { toast.error("Fill in username and access token"); return; }
     const { error } = await supabase.from("social_connections").upsert({
       account_id: selectedAccount, platform: connectForm.platform, platform_user_id: connectForm.platform_user_id,
