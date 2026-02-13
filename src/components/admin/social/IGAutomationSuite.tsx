@@ -98,8 +98,8 @@ const IGAutomationSuite = ({ selectedAccount }: Props) => {
           <Badge variant="outline" className="text-[10px]">{SECTIONS.length} modules</Badge>
         </div>
         <div className="flex gap-1">
-          <Button size="sm" variant="ghost" onClick={expandAll} className="text-xs h-7">Expand All</Button>
-          <Button size="sm" variant="ghost" onClick={collapseAll} className="text-xs h-7">Collapse All</Button>
+          <Button size="sm" variant="ghost" onClick={expandAll} className="text-xs h-7 text-foreground">Expand All</Button>
+          <Button size="sm" variant="ghost" onClick={collapseAll} className="text-xs h-7 text-foreground">Collapse All</Button>
         </div>
       </div>
 

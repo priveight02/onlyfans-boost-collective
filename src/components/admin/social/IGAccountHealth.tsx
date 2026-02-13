@@ -303,9 +303,9 @@ Return JSON array.`,
     <div className="space-y-3 pt-3">
       <Tabs defaultValue="health">
         <TabsList className="bg-muted/50 border border-border p-0.5 rounded-lg gap-0.5">
-          <TabsTrigger value="health" className="text-xs data-[state=active]:bg-background"><Activity className="h-3 w-3 mr-1" />Health Score</TabsTrigger>
-          <TabsTrigger value="memory" className="text-xs data-[state=active]:bg-background"><Brain className="h-3 w-3 mr-1" />DM Memory</TabsTrigger>
-          <TabsTrigger value="funnel" className="text-xs data-[state=active]:bg-background"><Target className="h-3 w-3 mr-1" />Auto Funnel</TabsTrigger>
+          <TabsTrigger value="health" className="text-xs text-foreground data-[state=active]:bg-background"><Activity className="h-3 w-3 mr-1" />Health Score</TabsTrigger>
+          <TabsTrigger value="memory" className="text-xs text-foreground data-[state=active]:bg-background"><Brain className="h-3 w-3 mr-1" />DM Memory</TabsTrigger>
+          <TabsTrigger value="funnel" className="text-xs text-foreground data-[state=active]:bg-background"><Target className="h-3 w-3 mr-1" />Auto Funnel</TabsTrigger>
         </TabsList>
 
         <TabsContent value="health" className="space-y-3 mt-3">

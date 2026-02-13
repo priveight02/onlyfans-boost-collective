@@ -100,6 +100,11 @@ const SocialMediaHub = () => {
   // Connect form
   const [connectForm, setConnectForm] = useState({ platform: "instagram", platform_user_id: "", platform_username: "", access_token: "", refresh_token: "" });
 
+  // Direct OAuth link
+  const [oauthAppId, setOauthAppId] = useState("");
+  const [oauthRedirectUri, setOauthRedirectUri] = useState(window.location.origin + "/admin");
+  const [oauthListening, setOauthListening] = useState(false);
+
   useEffect(() => { loadAccounts(); }, []);
   useEffect(() => {
     if (selectedAccount) {
@@ -1038,9 +1043,71 @@ const SocialMediaHub = () => {
 
         {/* ===== CONNECT ===== */}
         <TabsContent value="connect" className="space-y-4 mt-4">
+          {/* Direct OAuth Link Connection */}
           <Card>
             <CardContent className="p-4 space-y-3">
-              <h4 className="text-sm font-semibold text-foreground">Connect Platform</h4>
+              <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><ExternalLink className="h-4 w-4 text-blue-400" />Connect via Direct OAuth Link</h4>
+              <p className="text-[10px] text-muted-foreground">Opens a new browser window to authenticate with Meta/Instagram. The access token is automatically captured from the redirect URL.</p>
+              <div className="grid grid-cols-2 gap-2">
+                <Input value={oauthAppId} onChange={e => setOauthAppId(e.target.value)} placeholder="Meta App ID" className="text-sm" />
+                <Input value={oauthRedirectUri} onChange={e => setOauthRedirectUri(e.target.value)} placeholder="Redirect URI" className="text-sm" />
+              </div>
+              <div className="flex gap-2">
+                <Button size="sm" onClick={() => {
+                  if (!oauthAppId) { toast.error("Enter your Meta App ID"); return; }
+                  const scopes = [
+                    "instagram_basic", "instagram_manage_messages", "instagram_manage_comments",
+                    "instagram_manage_insights", "instagram_content_publish", "pages_show_list",
+                    "pages_read_engagement", "business_management", "ads_read", "ads_management",
+                    "instagram_shopping_tag_products", "instagram_manage_upcoming_events",
+                    "instagram_branded_content_ads_brand", "instagram_branded_content_brand",
+                    "catalog_management", "email", "public_profile",
+                  ].join(",");
+                  const authUrl = `https://www.facebook.com/v24.0/dialog/oauth?client_id=${oauthAppId}&redirect_uri=${encodeURIComponent(oauthRedirectUri)}&scope=${scopes}&response_type=token`;
+                  
+                  const authWindow = window.open(authUrl, "meta_oauth", "width=600,height=700,scrollbars=yes");
+                  setOauthListening(true);
+                  
+                  // Listen for the redirect with access_token in the hash
+                  const interval = setInterval(() => {
+                    try {
+                      if (!authWindow || authWindow.closed) {
+                        clearInterval(interval);
+                        setOauthListening(false);
+                        return;
+                      }
+                      const url = authWindow.location.href;
+                      if (url.includes("access_token=")) {
+                        const hash = authWindow.location.hash.substring(1);
+                        const params = new URLSearchParams(hash);
+                        const token = params.get("access_token");
+                        authWindow.close();
+                        clearInterval(interval);
+                        setOauthListening(false);
+                        if (token) {
+                          setConnectForm(prev => ({ ...prev, access_token: token }));
+                          toast.success("Access token captured! Fill in username & ID, then click Connect.");
+                        }
+                      }
+                    } catch {
+                      // Cross-origin — keep polling until redirect comes back to our domain
+                    }
+                  }, 500);
+                }}>
+                  <ExternalLink className="h-3.5 w-3.5 mr-1" />
+                  {oauthListening ? "Waiting for auth..." : "Open Auth Window"}
+                </Button>
+                {oauthListening && (
+                  <Badge className="bg-yellow-500/15 text-yellow-400 text-xs animate-pulse">Listening for callback...</Badge>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Manual Connection */}
+          <Card>
+            <CardContent className="p-4 space-y-3">
+              <h4 className="text-sm font-semibold text-foreground">Manual Connection</h4>
               <select value={connectForm.platform} onChange={e => setConnectForm(p => ({ ...p, platform: e.target.value }))} className="w-full bg-background border border-border text-foreground rounded-lg px-2 py-1.5 text-sm">
                 <option value="instagram">Instagram</option>
                 <option value="tiktok">TikTok</option>

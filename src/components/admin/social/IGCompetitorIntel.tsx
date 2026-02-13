@@ -220,9 +220,9 @@ Return JSON: { competitors: [{ username, hookPatterns, captionFrameworks, aiInsi
     <div className="space-y-3 pt-3">
       <Tabs defaultValue="competitors">
         <TabsList className="bg-muted/50 border border-border p-0.5 rounded-lg gap-0.5">
-          <TabsTrigger value="competitors" className="text-xs data-[state=active]:bg-background"><Users className="h-3 w-3 mr-1" />Competitors</TabsTrigger>
-          <TabsTrigger value="hashtags" className="text-xs data-[state=active]:bg-background"><Hash className="h-3 w-3 mr-1" />Hashtag Intel</TabsTrigger>
-          <TabsTrigger value="gaps" className="text-xs data-[state=active]:bg-background"><Target className="h-3 w-3 mr-1" />Blue Ocean</TabsTrigger>
+          <TabsTrigger value="competitors" className="text-xs text-foreground data-[state=active]:bg-background"><Users className="h-3 w-3 mr-1" />Competitors</TabsTrigger>
+          <TabsTrigger value="hashtags" className="text-xs text-foreground data-[state=active]:bg-background"><Hash className="h-3 w-3 mr-1" />Hashtag Intel</TabsTrigger>
+          <TabsTrigger value="gaps" className="text-xs text-foreground data-[state=active]:bg-background"><Target className="h-3 w-3 mr-1" />Blue Ocean</TabsTrigger>
         </TabsList>
 
         <TabsContent value="competitors" className="space-y-3 mt-3">

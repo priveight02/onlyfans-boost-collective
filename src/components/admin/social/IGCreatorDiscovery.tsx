@@ -133,10 +133,10 @@ const IGCreatorDiscovery = ({ selectedAccount }: Props) => {
 
       <Tabs defaultValue="discover">
         <TabsList className="bg-muted/50 border border-border p-0.5 rounded-lg gap-0.5">
-          <TabsTrigger value="discover" className="text-xs data-[state=active]:bg-background"><Search className="h-3 w-3 mr-1" />Discover</TabsTrigger>
-          <TabsTrigger value="branded" className="text-xs data-[state=active]:bg-background"><Shield className="h-3 w-3 mr-1" />Branded</TabsTrigger>
-          <TabsTrigger value="shopping" className="text-xs data-[state=active]:bg-background"><ShoppingBag className="h-3 w-3 mr-1" />Shopping</TabsTrigger>
-          <TabsTrigger value="events" className="text-xs data-[state=active]:bg-background"><Calendar className="h-3 w-3 mr-1" />Events</TabsTrigger>
+          <TabsTrigger value="discover" className="text-xs text-foreground data-[state=active]:bg-background"><Search className="h-3 w-3 mr-1" />Discover</TabsTrigger>
+          <TabsTrigger value="branded" className="text-xs text-foreground data-[state=active]:bg-background"><Shield className="h-3 w-3 mr-1" />Branded</TabsTrigger>
+          <TabsTrigger value="shopping" className="text-xs text-foreground data-[state=active]:bg-background"><ShoppingBag className="h-3 w-3 mr-1" />Shopping</TabsTrigger>
+          <TabsTrigger value="events" className="text-xs text-foreground data-[state=active]:bg-background"><Calendar className="h-3 w-3 mr-1" />Events</TabsTrigger>
         </TabsList>
 
         {/* DISCOVER */}

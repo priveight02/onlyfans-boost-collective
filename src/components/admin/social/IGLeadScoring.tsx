@@ -203,9 +203,9 @@ Return as JSON array with fields: participant_id, score, label, sentiment, signa
     <div className="space-y-3 pt-3">
       <Tabs defaultValue="scoring">
         <TabsList className="bg-muted/50 border border-border p-0.5 rounded-lg gap-0.5">
-          <TabsTrigger value="scoring" className="text-xs data-[state=active]:bg-background"><Target className="h-3 w-3 mr-1" />Lead Scoring</TabsTrigger>
-          <TabsTrigger value="agent" className="text-xs data-[state=active]:bg-background"><Shield className="h-3 w-3 mr-1" />AI Sales Agent</TabsTrigger>
-          <TabsTrigger value="pipeline" className="text-xs data-[state=active]:bg-background"><TrendingUp className="h-3 w-3 mr-1" />Pipeline</TabsTrigger>
+          <TabsTrigger value="scoring" className="text-xs text-foreground data-[state=active]:bg-background"><Target className="h-3 w-3 mr-1" />Lead Scoring</TabsTrigger>
+          <TabsTrigger value="agent" className="text-xs text-foreground data-[state=active]:bg-background"><Shield className="h-3 w-3 mr-1" />AI Sales Agent</TabsTrigger>
+          <TabsTrigger value="pipeline" className="text-xs text-foreground data-[state=active]:bg-background"><TrendingUp className="h-3 w-3 mr-1" />Pipeline</TabsTrigger>
         </TabsList>
 
         <TabsContent value="scoring" className="space-y-3 mt-3">

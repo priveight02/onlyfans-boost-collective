@@ -208,9 +208,9 @@ Return JSON: { viralScore: 0-100, prediction: "string", reachEstimate: "string",
     <div className="space-y-3 pt-3">
       <Tabs defaultValue="predict">
         <TabsList className="bg-muted/50 border border-border p-0.5 rounded-lg gap-0.5">
-          <TabsTrigger value="predict" className="text-xs data-[state=active]:bg-background"><TrendingUp className="h-3 w-3 mr-1" />Viral Predictor</TabsTrigger>
-          <TabsTrigger value="autopilot" className="text-xs data-[state=active]:bg-background"><Zap className="h-3 w-3 mr-1" />Content Autopilot</TabsTrigger>
-          <TabsTrigger value="analysis" className="text-xs data-[state=active]:bg-background"><BarChart3 className="h-3 w-3 mr-1" />Post Analysis</TabsTrigger>
+          <TabsTrigger value="predict" className="text-xs text-foreground data-[state=active]:bg-background"><TrendingUp className="h-3 w-3 mr-1" />Viral Predictor</TabsTrigger>
+          <TabsTrigger value="autopilot" className="text-xs text-foreground data-[state=active]:bg-background"><Zap className="h-3 w-3 mr-1" />Content Autopilot</TabsTrigger>
+          <TabsTrigger value="analysis" className="text-xs text-foreground data-[state=active]:bg-background"><BarChart3 className="h-3 w-3 mr-1" />Post Analysis</TabsTrigger>
         </TabsList>
 
         <TabsContent value="predict" className="space-y-3 mt-3">
