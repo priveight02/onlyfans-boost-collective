@@ -236,8 +236,8 @@ Return JSON array: [{ campaignName, type, currentBudget, suggestedBudget, reason
     <div className="space-y-3 pt-3">
       <Tabs defaultValue="creative">
         <TabsList className="bg-muted/50 border border-border p-0.5 rounded-lg gap-0.5">
-          <TabsTrigger value="creative" className="text-xs data-[state=active]:bg-background"><Eye className="h-3 w-3 mr-1" />Creative Analyzer</TabsTrigger>
-          <TabsTrigger value="budget" className="text-xs data-[state=active]:bg-background"><DollarSign className="h-3 w-3 mr-1" />Budget Optimizer</TabsTrigger>
+          <TabsTrigger value="creative" className="text-xs text-foreground data-[state=active]:bg-background"><Eye className="h-3 w-3 mr-1" />Creative Analyzer</TabsTrigger>
+          <TabsTrigger value="budget" className="text-xs text-foreground data-[state=active]:bg-background"><DollarSign className="h-3 w-3 mr-1" />Budget Optimizer</TabsTrigger>
         </TabsList>
 
         <TabsContent value="creative" className="space-y-3 mt-3">

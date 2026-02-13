@@ -237,10 +237,10 @@ const IGAdsManager = ({ selectedAccount }: Props) => {
 
       <Tabs value={activeView} onValueChange={setActiveView}>
         <TabsList className="bg-muted/50 border border-border p-0.5 rounded-lg gap-0.5">
-          <TabsTrigger value="overview" className="text-xs data-[state=active]:bg-background">Campaigns</TabsTrigger>
-          <TabsTrigger value="create" className="text-xs data-[state=active]:bg-background">Create</TabsTrigger>
-          <TabsTrigger value="targeting" className="text-xs data-[state=active]:bg-background">Targeting</TabsTrigger>
-          <TabsTrigger value="insights" className="text-xs data-[state=active]:bg-background">Insights</TabsTrigger>
+          <TabsTrigger value="overview" className="text-xs text-foreground data-[state=active]:bg-background">Campaigns</TabsTrigger>
+          <TabsTrigger value="create" className="text-xs text-foreground data-[state=active]:bg-background">Create</TabsTrigger>
+          <TabsTrigger value="targeting" className="text-xs text-foreground data-[state=active]:bg-background">Targeting</TabsTrigger>
+          <TabsTrigger value="insights" className="text-xs text-foreground data-[state=active]:bg-background">Insights</TabsTrigger>
         </TabsList>
 
         {/* CAMPAIGNS OVERVIEW */}
