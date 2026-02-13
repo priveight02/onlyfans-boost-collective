@@ -209,8 +209,32 @@ ${keywords_trigger ? `if they mention any of these: ${keywords_trigger}, redirec
 
         const aiResult = await response.json();
         let reply = (aiResult.choices?.[0]?.message?.content || "").replace(/\[.*?\]/g, "").trim();
+
+        // Calculate natural typing delay based on reply length
+        const wordCount = reply.split(/\s+/).length;
+        const charCount = reply.length;
+        
+        // Base typing speed: ~40-70ms per character (simulates real typing)
+        const baseTypingMs = charCount * (40 + Math.random() * 30);
+        // Clamp between 1.5s min and 6s max for typing simulation
+        const typingDelay = Math.min(Math.max(baseTypingMs, 1500), 6000);
+        
+        // Determine message position from conversation context length
+        const msgCount = (conversation_context?.length || 0) + 1;
+        
+        // Occasionally add a "life pause" (as if she got distracted) - more likely as convo progresses
+        // ~15% chance after message 4, simulates 30-90 second gaps
+        const shouldPause = msgCount > 4 && Math.random() < 0.15;
+        const lifePauseMs = shouldPause ? (30000 + Math.random() * 60000) : 0;
+        
+        // Total delay before reply should appear
+        const totalDelayMs = Math.round(typingDelay + lifePauseMs);
+
         result = {
           reply,
+          typing_delay_ms: Math.round(typingDelay),
+          life_pause_ms: Math.round(lifePauseMs),
+          total_delay_ms: totalDelayMs,
           model: aiResult.model,
           usage: aiResult.usage,
         };
