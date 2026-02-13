@@ -101,9 +101,9 @@ const SocialMediaHub = () => {
   const [connectForm, setConnectForm] = useState({ platform: "instagram", platform_user_id: "", platform_username: "", access_token: "", refresh_token: "" });
 
   // Direct OAuth link
-  const [oauthAppId, setOauthAppId] = useState(() => localStorage.getItem("meta_oauth_app_id") || "");
+  const [oauthAppId, setOauthAppId] = useState("");
+  const [oauthRedirectUri, setOauthRedirectUri] = useState(window.location.origin + "/admin");
   const [oauthListening, setOauthListening] = useState(false);
-  const [oauthProcessing, setOauthProcessing] = useState(false);
 
   useEffect(() => { loadAccounts(); }, []);
   useEffect(() => {
@@ -112,92 +112,6 @@ const SocialMediaHub = () => {
       loadAutoRespondState();
     }
   }, [selectedAccount]);
-
-  // Auto-capture OAuth token from URL hash on redirect back
-  const autoConnectFromToken = useCallback(async (token: string) => {
-    setOauthProcessing(true);
-    toast.info("Token captured — auto-connecting...");
-    try {
-      const pagesRes = await fetch(`https://graph.facebook.com/v24.0/me/accounts?access_token=${token}&fields=id,name,instagram_business_account`);
-      const pagesData = await pagesRes.json();
-      
-      let igUserId = "";
-      let igUsername = "";
-      let igName = "";
-      let igProfilePic = "";
-      let igFollowers = 0;
-      let igMediaCount = 0;
-
-      const pageWithIG = pagesData.data?.find((p: any) => p.instagram_business_account);
-      if (pageWithIG?.instagram_business_account?.id) {
-        igUserId = pageWithIG.instagram_business_account.id;
-        const igRes = await fetch(`https://graph.facebook.com/v24.0/${igUserId}?fields=id,username,name,profile_picture_url,followers_count,media_count,biography&access_token=${token}`);
-        const igData = await igRes.json();
-        igUsername = igData.username || "";
-        igName = igData.name || igData.username || "";
-        igProfilePic = igData.profile_picture_url || "";
-        igFollowers = igData.followers_count || 0;
-        igMediaCount = igData.media_count || 0;
-      } else {
-        const meRes = await fetch(`https://graph.instagram.com/v24.0/me?fields=id,username&access_token=${token}`);
-        const meData = await meRes.json();
-        igUserId = meData.id || "";
-        igUsername = meData.username || "";
-        igName = meData.username || "";
-      }
-
-      if (!igUsername) { toast.error("Could not detect Instagram account from this token"); setOauthProcessing(false); return; }
-
-      let accountId = selectedAccount;
-      const { data: existingAccounts } = await supabase.from("managed_accounts").select("id").eq("username", igUsername).limit(1);
-      if (existingAccounts?.length) {
-        accountId = existingAccounts[0].id;
-      } else {
-        const { data: newAcct, error: createErr } = await supabase.from("managed_accounts").insert({
-          username: igUsername, display_name: igName, avatar_url: igProfilePic || null,
-          platform: "instagram", status: "active", subscriber_count: igFollowers,
-          content_count: igMediaCount,
-          social_links: { instagram: `https://instagram.com/${igUsername}`, ig_user_id: igUserId },
-          last_activity_at: new Date().toISOString(),
-        }).select("id").single();
-        if (createErr || !newAcct) { toast.error(createErr?.message || "Failed to create account"); setOauthProcessing(false); return; }
-        accountId = newAcct.id;
-      }
-
-      await supabase.from("social_connections").upsert({
-        account_id: accountId, platform: "instagram", platform_user_id: igUserId,
-        platform_username: igUsername, access_token: token, is_connected: true,
-        scopes: ["instagram_basic", "instagram_manage_messages", "instagram_manage_comments", "instagram_manage_insights", "instagram_content_publish", "pages_show_list", "pages_read_engagement", "business_management", "ads_read", "ads_management"],
-        metadata: { profile_picture_url: igProfilePic, name: igName, followers_count: igFollowers, media_count: igMediaCount, connected_via: "one_click_oauth", connected_at_readable: new Date().toLocaleString() },
-      }, { onConflict: "account_id,platform" });
-
-      setSelectedAccount(accountId);
-      setIgProfile({ profile_picture_url: igProfilePic, name: igName, username: igUsername, followers_count: igFollowers, media_count: igMediaCount });
-      await loadAccounts();
-      await loadData(accountId);
-      toast.success(`@${igUsername} connected automatically!`);
-    } catch (apiErr: any) {
-      console.error("Auto-connect error:", apiErr);
-      toast.error("Auto-connect failed: " + (apiErr.message || "Unknown error"));
-      setConnectForm(prev => ({ ...prev, access_token: token, platform: "instagram" }));
-    }
-    setOauthProcessing(false);
-  }, [selectedAccount]);
-
-  useEffect(() => {
-    const hash = window.location.hash;
-    if (hash.includes("access_token=")) {
-      const params = new URLSearchParams(hash.substring(1));
-      const token = params.get("access_token");
-      // Clear hash from URL
-      window.history.replaceState(null, "", window.location.pathname + window.location.search);
-      if (token) {
-        // Switch to connect tab to show progress
-        setActiveSubTab("connect");
-        autoConnectFromToken(token);
-      }
-    }
-  }, []);
 
   // Restore profile data from stored connection metadata on session load
   useEffect(() => {
@@ -1127,45 +1041,20 @@ const SocialMediaHub = () => {
           <IGAutomationSuite selectedAccount={selectedAccount} />
         </TabsContent>
 
+        {/* ===== CONNECT ===== */}
         <TabsContent value="connect" className="space-y-4 mt-4">
-          {/* Processing indicator */}
-          {oauthProcessing && (
-            <Card className="border-green-500/30 bg-green-500/5">
-              <CardContent className="p-4 flex items-center gap-3">
-                <RefreshCw className="h-5 w-5 text-green-400 animate-spin" />
-                <div>
-                  <p className="text-sm font-semibold text-foreground">Auto-connecting Instagram...</p>
-                  <p className="text-xs text-muted-foreground">Fetching profile data and saving credentials</p>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* One-Click Instagram Connect — opens in new tab to bypass iframe restrictions */}
-          <Card className="border-primary/30">
+          {/* Direct OAuth Link Connection */}
+          <Card>
             <CardContent className="p-4 space-y-3">
-              <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                <Zap className="h-4 w-4 text-yellow-400" />
-                Automatic Instagram Connect
-              </h4>
-              <p className="text-xs text-muted-foreground">
-                Opens Meta login in a new browser tab. Authorize your Instagram, and it auto-connects — no manual input.
-              </p>
-              <Input
-                value={oauthAppId}
-                onChange={e => {
-                  setOauthAppId(e.target.value);
-                  localStorage.setItem("meta_oauth_app_id", e.target.value);
-                }}
-                placeholder="Meta App ID (from developers.facebook.com)"
-                className="text-sm"
-              />
-              <Button
-                size="sm"
-                className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white w-full sm:w-auto"
-                disabled={oauthProcessing}
-                onClick={() => {
-                  if (!oauthAppId) { toast.error("Enter your Meta App ID first"); return; }
+              <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><ExternalLink className="h-4 w-4 text-blue-400" />Connect via Direct OAuth Link</h4>
+              <p className="text-[10px] text-muted-foreground">Opens a new browser window to authenticate with Meta/Instagram. The access token is automatically captured from the redirect URL.</p>
+              <div className="grid grid-cols-2 gap-2">
+                <Input value={oauthAppId} onChange={e => setOauthAppId(e.target.value)} placeholder="Meta App ID" className="text-sm" />
+                <Input value={oauthRedirectUri} onChange={e => setOauthRedirectUri(e.target.value)} placeholder="Redirect URI" className="text-sm" />
+              </div>
+              <div className="flex gap-2">
+                <Button size="sm" onClick={() => {
+                  if (!oauthAppId) { toast.error("Enter your Meta App ID"); return; }
                   const scopes = [
                     "instagram_basic", "instagram_manage_messages", "instagram_manage_comments",
                     "instagram_manage_insights", "instagram_content_publish", "pages_show_list",
@@ -1174,64 +1063,60 @@ const SocialMediaHub = () => {
                     "instagram_branded_content_ads_brand", "instagram_branded_content_brand",
                     "catalog_management", "email", "public_profile",
                   ].join(",");
-                  // Use the published URL as redirect so it works from any context
-                  const redirectUri = window.location.origin + "/admin";
-                  const authUrl = `https://www.facebook.com/v24.0/dialog/oauth?client_id=${oauthAppId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scopes}&response_type=token`;
-                  // Open in a completely new browser tab — bypasses iframe/preview restrictions
-                  window.open(authUrl, "_blank", "noopener,noreferrer");
-                  toast.info("Authorize in the new tab. You'll be redirected back here automatically.");
-                }}
-              >
-                <Instagram className="h-4 w-4 mr-1.5" />
-                {oauthProcessing ? "Connecting..." : "Connect Instagram"}
-              </Button>
-              <p className="text-[10px] text-muted-foreground">Requires a Meta App with Instagram permissions in Live mode. Get your App ID from <a href="https://developers.facebook.com/apps/" target="_blank" rel="noopener noreferrer" className="text-primary underline">developers.facebook.com</a></p>
+                  const authUrl = `https://www.facebook.com/v24.0/dialog/oauth?client_id=${oauthAppId}&redirect_uri=${encodeURIComponent(oauthRedirectUri)}&scope=${scopes}&response_type=token`;
+                  
+                  const authWindow = window.open(authUrl, "meta_oauth", "width=600,height=700,scrollbars=yes");
+                  setOauthListening(true);
+                  
+                  // Listen for the redirect with access_token in the hash
+                  const interval = setInterval(() => {
+                    try {
+                      if (!authWindow || authWindow.closed) {
+                        clearInterval(interval);
+                        setOauthListening(false);
+                        return;
+                      }
+                      const url = authWindow.location.href;
+                      if (url.includes("access_token=")) {
+                        const hash = authWindow.location.hash.substring(1);
+                        const params = new URLSearchParams(hash);
+                        const token = params.get("access_token");
+                        authWindow.close();
+                        clearInterval(interval);
+                        setOauthListening(false);
+                        if (token) {
+                          setConnectForm(prev => ({ ...prev, access_token: token }));
+                          toast.success("Access token captured! Fill in username & ID, then click Connect.");
+                        }
+                      }
+                    } catch {
+                      // Cross-origin — keep polling until redirect comes back to our domain
+                    }
+                  }, 500);
+                }}>
+                  <ExternalLink className="h-3.5 w-3.5 mr-1" />
+                  {oauthListening ? "Waiting for auth..." : "Open Auth Window"}
+                </Button>
+                {oauthListening && (
+                  <Badge className="bg-yellow-500/15 text-yellow-400 text-xs animate-pulse">Listening for callback...</Badge>
+                )}
+              </div>
             </CardContent>
           </Card>
 
-          {/* Alternative: Direct Token Paste */}
-          <Card className="border-border">
-            <CardContent className="p-4 space-y-3">
-              <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                <Shield className="h-4 w-4 text-blue-400" />
-                Connect via Access Token
-              </h4>
-              <p className="text-xs text-muted-foreground">
-                Already have an access token from the <a href="https://developers.facebook.com/tools/explorer/" target="_blank" rel="noopener noreferrer" className="text-primary underline">Graph API Explorer</a> or your own OAuth flow? Paste it here.
-              </p>
-              <Input
-                value={connectForm.access_token}
-                onChange={e => setConnectForm(p => ({ ...p, access_token: e.target.value }))}
-                placeholder="Paste your Instagram/Meta access token"
-                type="password"
-                className="text-sm"
-              />
-              <Button
-                size="sm"
-                variant="outline"
-                className="text-foreground"
-                disabled={oauthProcessing || !connectForm.access_token}
-                onClick={async () => {
-                  if (!connectForm.access_token) { toast.error("Paste an access token"); return; }
-                  setOauthProcessing(true);
-                  await autoConnectFromToken(connectForm.access_token);
-                  setConnectForm(prev => ({ ...prev, access_token: "" }));
-                }}
-              >
-                <CheckCircle2 className="h-4 w-4 mr-1.5" />
-                Connect with Token
-              </Button>
-            </CardContent>
-          </Card>
-
-          {/* Manual Connection (TikTok / advanced) */}
+          {/* Manual Connection */}
           <Card>
             <CardContent className="p-4 space-y-3">
-              <h4 className="text-sm font-semibold text-foreground">Manual Connection (TikTok)</h4>
-              <Input value={connectForm.platform_username} onChange={e => setConnectForm(p => ({ ...p, platform_username: e.target.value, platform: "tiktok" }))} placeholder="TikTok Username" className="text-sm" />
-              <Input value={connectForm.platform_user_id} onChange={e => setConnectForm(p => ({ ...p, platform_user_id: e.target.value }))} placeholder="User ID" className="text-sm" />
+              <h4 className="text-sm font-semibold text-foreground">Manual Connection</h4>
+              <select value={connectForm.platform} onChange={e => setConnectForm(p => ({ ...p, platform: e.target.value }))} className="w-full bg-background border border-border text-foreground rounded-lg px-2 py-1.5 text-sm">
+                <option value="instagram">Instagram</option>
+                <option value="tiktok">TikTok</option>
+              </select>
+              <Input value={connectForm.platform_username} onChange={e => setConnectForm(p => ({ ...p, platform_username: e.target.value }))} placeholder="Username" className="text-sm" />
+              <Input value={connectForm.platform_user_id} onChange={e => setConnectForm(p => ({ ...p, platform_user_id: e.target.value }))} placeholder="User/Page ID" className="text-sm" />
               <Input value={connectForm.access_token} onChange={e => setConnectForm(p => ({ ...p, access_token: e.target.value }))} placeholder="Access Token" type="password" className="text-sm" />
-              <Button onClick={() => { setConnectForm(p => ({ ...p, platform: "tiktok" })); connectPlatform(); }} size="sm"><Plus className="h-3.5 w-3.5 mr-1" />Connect TikTok</Button>
+              <Input value={connectForm.refresh_token} onChange={e => setConnectForm(p => ({ ...p, refresh_token: e.target.value }))} placeholder="Refresh Token (optional)" type="password" className="text-sm" />
+              <Button onClick={connectPlatform} size="sm"><Plus className="h-3.5 w-3.5 mr-1" />Connect</Button>
             </CardContent>
           </Card>
 
@@ -1249,6 +1134,7 @@ const SocialMediaHub = () => {
                     return (
                       <div key={c.id} className={`rounded-xl p-4 border ${c.is_connected ? "bg-green-500/5 border-green-500/20" : "bg-muted/20 border-border"}`}>
                         <div className="flex items-center gap-3">
+                          {/* Profile picture + platform badge */}
                           <div className="relative">
                             {profilePic ? (
                               <img src={profilePic} alt={name} className="h-12 w-12 rounded-full object-cover border-2 border-green-500/30" />
@@ -1261,6 +1147,7 @@ const SocialMediaHub = () => {
                               {c.platform === "instagram" ? <Instagram className="h-3 w-3 text-white" /> : <Music2 className="h-3 w-3 text-white" />}
                             </div>
                           </div>
+                          {/* Info */}
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
                               <p className="text-sm font-bold text-foreground truncate">{name}</p>
@@ -1274,6 +1161,7 @@ const SocialMediaHub = () => {
                               </div>
                             )}
                           </div>
+                          {/* Actions */}
                           <div className="flex flex-col gap-1">
                             <Badge className={c.is_connected ? "bg-green-500/15 text-green-400 text-[10px]" : "bg-muted text-muted-foreground text-[10px]"}>
                               {c.is_connected ? "● Live" : "Offline"}
@@ -1285,6 +1173,7 @@ const SocialMediaHub = () => {
                             )}
                           </div>
                         </div>
+                        {/* Connection details */}
                         <div className="mt-2 pt-2 border-t border-border/50 flex items-center gap-3 text-[10px] text-muted-foreground">
                           <span>ID: {c.platform_user_id || "—"}</span>
                           <span>·</span>
