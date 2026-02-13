@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import SocialAITools from "./SocialAITools";
+import LiveDMConversations from "./LiveDMConversations";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -727,6 +728,21 @@ const SocialMediaHub = () => {
                   </div>
                 </div>
               )}
+            </CardContent>
+          </Card>
+
+          {/* Live Conversations Panel */}
+          <Card>
+            <CardContent className="p-4">
+              <h4 className="text-sm font-semibold text-foreground flex items-center gap-2 mb-3">
+                <MessageCircle className="h-4 w-4 text-blue-400" />
+                Live AI Conversations
+              </h4>
+              <LiveDMConversations
+                accountId={selectedAccount}
+                autoRespondActive={autoRespondActive}
+                onToggleAutoRespond={toggleAutoRespond}
+              />
             </CardContent>
           </Card>
         </TabsContent>
