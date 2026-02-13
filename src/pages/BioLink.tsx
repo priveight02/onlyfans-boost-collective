@@ -64,11 +64,17 @@ const BioLink = () => {
     ? { background: data.background_color || "linear-gradient(135deg, #667eea 0%, #764ba2 100%)" }
     : data.theme === "light"
     ? { background: "#f8f9fa" }
+    : data.theme === "neon"
+    ? { background: data.background_color || "#000000" }
+    : data.theme === "sunset"
+    ? { background: data.background_color || "linear-gradient(135deg, #f97316 0%, #dc2626 100%)" }
+    : data.theme === "ocean"
+    ? { background: data.background_color || "linear-gradient(135deg, #06b6d4 0%, #2563eb 100%)" }
     : { background: "linear-gradient(135deg, #0f0f0f 0%, #1a1a2e 50%, #16213e 100%)" };
 
-  const textColor = data.theme === "light" ? "text-gray-900" : "text-white";
-  const cardBg = data.theme === "light" ? "bg-white/80 hover:bg-white" : "bg-white/10 hover:bg-white/20";
-  const subtextColor = data.theme === "light" ? "text-gray-500" : "text-white/60";
+  const textColor = data.theme === "light" ? "text-gray-900" : data.theme === "neon" ? "text-green-400" : "text-white";
+  const cardBg = data.theme === "light" ? "bg-white/80 hover:bg-white" : data.theme === "neon" ? "bg-green-500/10 hover:bg-green-500/20 border-green-500/30" : "bg-white/10 hover:bg-white/20";
+  const subtextColor = data.theme === "light" ? "text-gray-500" : data.theme === "neon" ? "text-green-300/60" : "text-white/60";
 
   const enabledLinks = (data.links || []).filter((l: any) => l.enabled !== false);
 
