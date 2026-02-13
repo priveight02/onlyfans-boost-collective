@@ -79,6 +79,137 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_dm_conversations: {
+        Row: {
+          account_id: string
+          ai_enabled: boolean
+          created_at: string
+          id: string
+          last_ai_reply_at: string | null
+          last_message_at: string | null
+          message_count: number | null
+          metadata: Json | null
+          participant_avatar_url: string | null
+          participant_id: string
+          participant_name: string | null
+          participant_username: string | null
+          platform: string
+          platform_conversation_id: string | null
+          redirect_sent: boolean | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          ai_enabled?: boolean
+          created_at?: string
+          id?: string
+          last_ai_reply_at?: string | null
+          last_message_at?: string | null
+          message_count?: number | null
+          metadata?: Json | null
+          participant_avatar_url?: string | null
+          participant_id: string
+          participant_name?: string | null
+          participant_username?: string | null
+          platform?: string
+          platform_conversation_id?: string | null
+          redirect_sent?: boolean | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          ai_enabled?: boolean
+          created_at?: string
+          id?: string
+          last_ai_reply_at?: string | null
+          last_message_at?: string | null
+          message_count?: number | null
+          metadata?: Json | null
+          participant_avatar_url?: string | null
+          participant_id?: string
+          participant_name?: string | null
+          participant_username?: string | null
+          platform?: string
+          platform_conversation_id?: string | null
+          redirect_sent?: boolean | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_dm_conversations_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "managed_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_dm_messages: {
+        Row: {
+          account_id: string
+          ai_model: string | null
+          content: string
+          conversation_id: string
+          created_at: string
+          id: string
+          life_pause_ms: number | null
+          metadata: Json | null
+          platform_message_id: string | null
+          sender_name: string | null
+          sender_type: string
+          status: string
+          typing_delay_ms: number | null
+        }
+        Insert: {
+          account_id: string
+          ai_model?: string | null
+          content: string
+          conversation_id: string
+          created_at?: string
+          id?: string
+          life_pause_ms?: number | null
+          metadata?: Json | null
+          platform_message_id?: string | null
+          sender_name?: string | null
+          sender_type: string
+          status?: string
+          typing_delay_ms?: number | null
+        }
+        Update: {
+          account_id?: string
+          ai_model?: string | null
+          content?: string
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          life_pause_ms?: number | null
+          metadata?: Json | null
+          platform_message_id?: string | null
+          sender_name?: string | null
+          sender_type?: string
+          status?: string
+          typing_delay_ms?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_dm_messages_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "managed_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_dm_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "ai_dm_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       auto_respond_state: {
         Row: {
           account_id: string

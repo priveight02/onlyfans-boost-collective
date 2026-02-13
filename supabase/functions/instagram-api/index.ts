@@ -300,6 +300,21 @@ serve(async (req) => {
         result = await igFetch(`/${igUserId}?fields=business_discovery.fields(media.limit(${params?.limit || 25}).after(${params?.after || ""}){id,caption,media_type,like_count,comments_count,permalink,timestamp,media_url})&username=${params.username}`, token);
         break;
 
+      // ===== CONVERSATIONS (DM Inbox) =====
+      case "get_conversations": {
+        // Fetch IG DM conversations - uses the Instagram Messaging API
+        const limit = params?.limit || 20;
+        result = await igFetch(`/${igUserId}/conversations?fields=participants,messages.limit(${params?.messages_limit || 5}){id,message,from,to,created_time},updated_time,id&limit=${limit}&platform=instagram`, token);
+        break;
+      }
+
+      case "get_conversation_messages": {
+        if (!params?.conversation_id) throw new Error("conversation_id required");
+        const msgLimit = params?.limit || 20;
+        result = await igFetch(`/${params.conversation_id}?fields=messages.limit(${msgLimit}){id,message,from,to,created_time}`, token);
+        break;
+      }
+
       // ===== MESSAGING (Send to IG Direct) =====
       case "send_message":
         result = await igFetch(`/${igUserId}/messages`, token, "POST", {

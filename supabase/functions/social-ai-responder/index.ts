@@ -596,6 +596,233 @@ Rules:
         break;
       }
 
+      case "process_live_dm": {
+        // Full pipeline: fetch conversations from IG, find new messages, generate AI replies, send them back
+        const igFuncUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/instagram-api`;
+        const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+        
+        // Helper to call instagram-api edge function
+        const callIG = async (igAction: string, igParams: any = {}) => {
+          const resp = await fetch(igFuncUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
+            body: JSON.stringify({ action: igAction, account_id, params: igParams }),
+          });
+          const d = await resp.json();
+          if (!d.success) throw new Error(d.error || `IG API ${igAction} failed`);
+          return d.data;
+        };
+
+        // 1. Fetch conversations from IG
+        const convos = await callIG("get_conversations", { limit: 20, messages_limit: 10 });
+        const conversations = convos?.data || [];
+        
+        // Get auto-respond config
+        const { data: autoConfig } = await supabase
+          .from("auto_respond_state")
+          .select("*")
+          .eq("account_id", account_id)
+          .single();
+        
+        if (!autoConfig?.is_active) {
+          result = { processed: 0, message: "Auto-respond is not active" };
+          break;
+        }
+
+        // Get persona
+        let personaInfo = DEFAULT_PERSONA;
+        const { data: persona } = await supabase
+          .from("persona_profiles")
+          .select("*")
+          .eq("account_id", account_id)
+          .single();
+        if (persona) {
+          personaInfo += `\nAdditional persona: Tone=${persona.tone}, Style=${persona.vocabulary_style}, Boundaries=${persona.boundaries || "none"}`;
+        }
+
+        // Get the IG connection to know our user ID
+        const { data: igConn } = await supabase
+          .from("social_connections")
+          .select("platform_user_id, platform_username")
+          .eq("account_id", account_id)
+          .eq("platform", "instagram")
+          .single();
+        
+        const ourIgUserId = igConn?.platform_user_id;
+        let processed = 0;
+        const processedConvos: any[] = [];
+
+        for (const convo of conversations) {
+          try {
+            const messages = convo.messages?.data || [];
+            if (messages.length === 0) continue;
+
+            // Identify the other participant
+            const otherParticipant = convo.participants?.data?.find((p: any) => p.id !== ourIgUserId);
+            if (!otherParticipant) continue;
+
+            const latestMsg = messages[0]; // Most recent message
+            const isFromFan = latestMsg.from?.id !== ourIgUserId;
+            
+            if (!isFromFan) continue; // Skip if latest message is from us
+
+            // Check if we already processed this message
+            const { data: existing } = await supabase
+              .from("ai_dm_messages")
+              .select("id")
+              .eq("platform_message_id", latestMsg.id)
+              .limit(1);
+            if (existing && existing.length > 0) continue;
+
+            // Upsert conversation record
+            const { data: dbConvo } = await supabase
+              .from("ai_dm_conversations")
+              .upsert({
+                account_id,
+                platform: "instagram",
+                platform_conversation_id: convo.id,
+                participant_id: otherParticipant.id,
+                participant_username: otherParticipant.username || otherParticipant.name,
+                participant_name: otherParticipant.name || otherParticipant.username,
+                status: "active",
+                ai_enabled: true,
+                last_message_at: new Date(latestMsg.created_time).toISOString(),
+                message_count: messages.length,
+              }, { onConflict: "account_id,platform_conversation_id" })
+              .select("id")
+              .single();
+            
+            if (!dbConvo) continue;
+
+            // Store the fan's message
+            await supabase.from("ai_dm_messages").insert({
+              conversation_id: dbConvo.id,
+              account_id,
+              platform_message_id: latestMsg.id,
+              sender_type: "fan",
+              sender_name: otherParticipant.username || otherParticipant.name || "fan",
+              content: latestMsg.message || "",
+              status: "sent",
+              created_at: new Date(latestMsg.created_time).toISOString(),
+            });
+
+            // Build conversation context from DB history
+            const { data: dbMessages } = await supabase
+              .from("ai_dm_messages")
+              .select("sender_type, content, created_at")
+              .eq("conversation_id", dbConvo.id)
+              .order("created_at", { ascending: true })
+              .limit(20);
+
+            const conversationContext = (dbMessages || []).map(m => ({
+              role: m.sender_type === "fan" ? "fan" : "creator",
+              text: m.content,
+            }));
+
+            // Insert a "typing" placeholder
+            const { data: typingMsg } = await supabase
+              .from("ai_dm_messages")
+              .insert({
+                conversation_id: dbConvo.id,
+                account_id,
+                sender_type: "ai",
+                sender_name: igConn?.platform_username || "creator",
+                content: "...",
+                status: "typing",
+              })
+              .select("id")
+              .single();
+
+            // Generate AI reply
+            const systemPrompt = `${personaInfo}
+${autoConfig.redirect_url ? `IMPORTANT: when it makes sense, naturally guide toward this link: ${autoConfig.redirect_url}` : ""}
+${autoConfig.trigger_keywords ? `if they mention any of these: ${autoConfig.trigger_keywords}, redirect them to the link` : ""}`;
+
+            const aiMessages: any[] = [{ role: "system", content: systemPrompt }];
+            for (const ctx of conversationContext) {
+              aiMessages.push({ role: ctx.role === "creator" ? "assistant" : "user", content: ctx.text });
+            }
+
+            const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+              method: "POST",
+              headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+              body: JSON.stringify({
+                model: "google/gemini-3-flash-preview",
+                messages: aiMessages,
+                max_tokens: 200,
+                temperature: 0.85,
+              }),
+            });
+
+            if (!aiResponse.ok) {
+              // Update typing message to failed
+              if (typingMsg) {
+                await supabase.from("ai_dm_messages").update({ status: "failed", content: "AI generation failed" }).eq("id", typingMsg.id);
+              }
+              continue;
+            }
+
+            const aiResult = await aiResponse.json();
+            let reply = (aiResult.choices?.[0]?.message?.content || "").replace(/\[.*?\]/g, "").trim();
+
+            if (!reply) {
+              if (typingMsg) {
+                await supabase.from("ai_dm_messages").update({ status: "failed", content: "Empty AI response" }).eq("id", typingMsg.id);
+              }
+              continue;
+            }
+
+            // Calculate typing delay
+            const charCount = reply.length;
+            const typingDelay = Math.min(Math.max(charCount * (40 + Math.random() * 30), 1500), 6000);
+
+            // Send the reply via IG API
+            try {
+              const sendResult = await callIG("send_message", {
+                recipient_id: otherParticipant.id,
+                message: reply,
+              });
+
+              // Update the typing message with real content
+              await supabase.from("ai_dm_messages").update({
+                content: reply,
+                status: "sent",
+                platform_message_id: sendResult?.message_id || null,
+                ai_model: aiResult.model,
+                typing_delay_ms: Math.round(typingDelay),
+              }).eq("id", typingMsg?.id);
+
+              // Update conversation
+              await supabase.from("ai_dm_conversations").update({
+                last_ai_reply_at: new Date().toISOString(),
+                message_count: (dbMessages?.length || 0) + 1,
+              }).eq("id", dbConvo.id);
+
+              processed++;
+              processedConvos.push({
+                conversation_id: dbConvo.id,
+                fan: otherParticipant.username || otherParticipant.name,
+                fan_message: latestMsg.message,
+                ai_reply: reply,
+              });
+            } catch (sendErr: any) {
+              console.error("Failed to send DM:", sendErr);
+              if (typingMsg) {
+                await supabase.from("ai_dm_messages").update({ status: "failed", content: reply, metadata: { error: sendErr.message } }).eq("id", typingMsg.id);
+              }
+            }
+          } catch (convoErr) {
+            console.error("Error processing conversation:", convoErr);
+          }
+          
+          // Small delay between conversations to avoid rate limiting
+          await new Promise(r => setTimeout(r, 500));
+        }
+
+        result = { processed, conversations: processedConvos, total_checked: conversations.length };
+        break;
+      }
+
       default:
         throw new Error(`Unknown action: ${action}`);
     }
