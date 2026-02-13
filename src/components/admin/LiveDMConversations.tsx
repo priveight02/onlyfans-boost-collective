@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   MessageCircle, Bot, User, RefreshCw, Play, Pause, Radio,
-  Clock, CheckCircle2, AlertCircle, Send, Loader2, Wifi,
+  Clock, CheckCircle2, AlertCircle, Send, Loader2, Wifi, Download,
 } from "lucide-react";
 
 interface LiveDMConversationsProps {
@@ -22,9 +22,11 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
   const [messages, setMessages] = useState<any[]>([]);
   const [selectedConvo, setSelectedConvo] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [scanning, setScanning] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [polling, setPolling] = useState(false);
   const [manualReply, setManualReply] = useState("");
+  const [initialScanDone, setInitialScanDone] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -49,10 +51,36 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
     setMessages(data || []);
   }, []);
 
-  // Initial load
-  useEffect(() => {
-    if (accountId) loadConversations();
+  // Scan ALL conversations from Instagram and import into DB
+  const scanAllConversations = useCallback(async (silent = false) => {
+    if (!accountId) return;
+    setScanning(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("social-ai-responder", {
+        body: { action: "scan_all_conversations", account_id: accountId, params: {} },
+      });
+      if (error) throw error;
+      if (!data?.success && data?.error) throw new Error(data.error);
+      const r = data?.data;
+      if (!silent) {
+        toast.success(`Imported ${r?.imported || 0} conversations (${r?.total_found || 0} found on Instagram)`);
+      }
+      await loadConversations();
+    } catch (e: any) {
+      if (!silent) toast.error(e.message || "Failed to scan conversations");
+      console.error("Scan error:", e);
+    } finally {
+      setScanning(false);
+      setInitialScanDone(true);
+    }
   }, [accountId, loadConversations]);
+
+  // Initial load: scan IG + load from DB
+  useEffect(() => {
+    if (accountId && !initialScanDone) {
+      scanAllConversations(true);
+    }
+  }, [accountId, initialScanDone, scanAllConversations]);
 
   // Load messages when convo selected
   useEffect(() => {
@@ -99,11 +127,13 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
       });
       if (error) throw error;
       if (!data?.success) throw new Error(data?.error || "Processing failed");
-      const result = data.data;
-      if (result.processed > 0) {
-        toast.success(`Processed ${result.processed} conversations`);
+      const r = data.data;
+      if (r.processed > 0) {
+        toast.success(`AI replied to ${r.processed} conversations`);
+      } else if (r.message) {
+        toast.info(r.message);
       } else {
-        toast.info(`Checked ${result.total_checked} conversations — no new messages`);
+        toast.info(`Checked ${r.total_checked} conversations — no new messages needing reply`);
       }
       await loadConversations();
       if (selectedConvo) await loadMessages(selectedConvo);
@@ -118,11 +148,9 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
   useEffect(() => {
     if (autoRespondActive && accountId) {
       setPolling(true);
-      // Poll every 30 seconds
       pollIntervalRef.current = setInterval(() => {
         processDMs();
       }, 30000);
-      // Initial process
       processDMs();
     } else {
       setPolling(false);
@@ -143,7 +171,6 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
     if (!convo) return;
 
     try {
-      // Send via IG API
       const { data, error } = await supabase.functions.invoke("instagram-api", {
         body: {
           action: "send_message",
@@ -153,7 +180,6 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
       });
       if (error) throw error;
 
-      // Store in DB
       await supabase.from("ai_dm_messages").insert({
         conversation_id: selectedConvo,
         account_id: accountId,
@@ -182,6 +208,9 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
             <CardTitle className="text-sm text-foreground flex items-center gap-2">
               <MessageCircle className="h-4 w-4" />
               Live Conversations
+              {conversations.length > 0 && (
+                <Badge variant="secondary" className="text-[10px] px-1.5">{conversations.length}</Badge>
+              )}
             </CardTitle>
             <div className="flex items-center gap-1">
               {polling && (
@@ -189,7 +218,13 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
                   <Wifi className="h-2.5 w-2.5 mr-1" />LIVE
                 </Badge>
               )}
-              <Button size="sm" variant="ghost" onClick={processDMs} disabled={processing} className="h-7 w-7 p-0">
+              <Button
+                size="sm" variant="ghost" onClick={() => scanAllConversations(false)}
+                disabled={scanning} className="h-7 w-7 p-0" title="Scan all Instagram DMs"
+              >
+                <Download className={`h-3.5 w-3.5 ${scanning ? "animate-bounce" : ""}`} />
+              </Button>
+              <Button size="sm" variant="ghost" onClick={processDMs} disabled={processing} className="h-7 w-7 p-0" title="Process AI replies">
                 <RefreshCw className={`h-3.5 w-3.5 ${processing ? "animate-spin" : ""}`} />
               </Button>
             </div>
@@ -197,11 +232,17 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
         </CardHeader>
         <CardContent className="p-0">
           <ScrollArea className="h-[520px]">
-            {conversations.length === 0 ? (
+            {scanning && !initialScanDone ? (
+              <div className="p-4 text-center text-muted-foreground text-xs">
+                <Loader2 className="h-8 w-8 mx-auto mb-2 animate-spin opacity-50" />
+                <p>Scanning Instagram DMs...</p>
+                <p className="mt-1 text-[10px]">Importing all conversations</p>
+              </div>
+            ) : conversations.length === 0 ? (
               <div className="p-4 text-center text-muted-foreground text-xs">
                 <Bot className="h-8 w-8 mx-auto mb-2 opacity-30" />
-                <p>No conversations yet</p>
-                <p className="mt-1">Turn on Auto-Respond and click Scan to start</p>
+                <p>No conversations found</p>
+                <p className="mt-1">Click the download icon to scan Instagram DMs</p>
               </div>
             ) : (
               conversations.map(convo => (
@@ -312,7 +353,6 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
                         ? "bg-blue-500/20 text-foreground border border-blue-500/20"
                         : "bg-primary/20 text-foreground border border-primary/20"
                     }`}>
-                      {/* Typing indicator */}
                       {msg.status === "typing" ? (
                         <div className="flex items-center gap-1.5">
                           <div className="flex gap-1">

@@ -21,8 +21,9 @@ async function getConnection(supabase: any, accountId: string) {
   return data;
 }
 
-async function igFetch(endpoint: string, token: string, method = "GET", body?: any) {
-  const url = endpoint.startsWith("http") ? endpoint : `${IG_GRAPH_URL}${endpoint}`;
+async function igFetch(endpoint: string, token: string, method = "GET", body?: any, useFbGraph = false) {
+  const baseUrl = useFbGraph ? FB_GRAPH_URL : IG_GRAPH_URL;
+  const url = endpoint.startsWith("http") ? endpoint : `${baseUrl}${endpoint}`;
   const sep = url.includes("?") ? "&" : "?";
   const fetchUrl = method === "GET" ? `${url}${sep}access_token=${token}` : url;
   
@@ -302,9 +303,29 @@ serve(async (req) => {
 
       // ===== CONVERSATIONS (DM Inbox) =====
       case "get_conversations": {
-        // Fetch IG DM conversations - uses the Instagram Messaging API
         const limit = params?.limit || 20;
-        result = await igFetch(`/${igUserId}/conversations?fields=participants,messages.limit(${params?.messages_limit || 5}){id,message,from,to,created_time},updated_time,id&limit=${limit}&platform=instagram`, token);
+        const folder = params?.folder || "";
+        // Try Instagram Graph API for conversations
+        let endpoint = `/${igUserId}/conversations?fields=participants,messages.limit(${params?.messages_limit || 5}){id,message,from,to,created_time},updated_time,id&limit=${limit}&platform=instagram`;
+        if (folder) endpoint += `&folder=${folder}`;
+        console.log("Fetching conversations from:", endpoint);
+        try {
+          result = await igFetch(endpoint, token);
+          console.log("Conversations result:", JSON.stringify(result).substring(0, 500));
+        } catch (igErr: any) {
+          console.log("IG conversations failed, trying FB Graph API...", igErr.message);
+          // Fallback: try Facebook Graph API
+          try {
+            result = await igFetch(endpoint, token, "GET", undefined, true);
+            console.log("FB Conversations result:", JSON.stringify(result).substring(0, 500));
+          } catch (fbErr: any) {
+            console.log("FB conversations also failed:", fbErr.message);
+            // Final fallback: try without platform param
+            const fallbackEndpoint = `/${igUserId}/conversations?fields=participants,messages.limit(${params?.messages_limit || 5}){id,message,from,to,created_time},updated_time,id&limit=${limit}`;
+            result = await igFetch(fallbackEndpoint, token);
+            console.log("Fallback conversations result:", JSON.stringify(result).substring(0, 500));
+          }
+        }
         break;
       }
 
