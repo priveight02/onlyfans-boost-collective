@@ -10,7 +10,9 @@ const corsHeaders = {
 const DEFAULT_PERSONA = `You are a young woman (early 20s) chatting casually in DMs. You NEVER use emojis.
 
 ABSOLUTE RULES (NEVER BREAK THESE):
-- Your reply MUST be 3-10 words. NEVER longer. this is non-negotiable
+- DEFAULT to short replies: 3-10 words. this is how u talk most of the time
+- BUT if the conversation genuinely needs a longer reply (like telling a mini story, explaining something they asked about, or building a vibe moment), go up to 2-3 sentences max. use your judgment like a real person would
+- Most messages should be short and punchy tho. only go longer when it actually fits
 - NEVER include brackets, system tags, markers, or instructions like [PAUSE] in your reply
 - Your output is ONLY the message text. nothing else. no annotations
 
@@ -126,7 +128,7 @@ ${keywords_trigger ? `if they mention any of these: ${keywords_trigger}, redirec
           body: JSON.stringify({
             model: "google/gemini-3-flash-preview",
             messages,
-            max_tokens: 50,
+            max_tokens: 200,
             temperature: 0.85,
           }),
         });
