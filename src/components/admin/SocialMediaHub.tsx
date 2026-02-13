@@ -196,37 +196,54 @@ const SocialMediaHub = () => {
   };
 
   const connectPlatform = async () => {
-    if (!selectedAccount) { toast.error("Select an account first"); return; }
     if (!connectForm.access_token || !connectForm.platform_username) { toast.error("Fill in username and access token"); return; }
+    
+    // Auto-create managed account if none selected or none exist
+    let accountId = selectedAccount;
+    if (!accountId) {
+      const { data: newAccount, error: createErr } = await supabase.from("managed_accounts").insert({
+        username: connectForm.platform_username,
+        display_name: connectForm.platform_username,
+        platform: connectForm.platform,
+        status: "active",
+      }).select("id").single();
+      if (createErr || !newAccount) { toast.error(createErr?.message || "Failed to create account"); return; }
+      accountId = newAccount.id;
+      setSelectedAccount(accountId);
+      await loadAccounts();
+      toast.success(`Account @${connectForm.platform_username} created`);
+    }
+
     const { error } = await supabase.from("social_connections").upsert({
-      account_id: selectedAccount, platform: connectForm.platform, platform_user_id: connectForm.platform_user_id,
+      account_id: accountId, platform: connectForm.platform, platform_user_id: connectForm.platform_user_id,
       platform_username: connectForm.platform_username, access_token: connectForm.access_token,
       refresh_token: connectForm.refresh_token || null, is_connected: true, scopes: [],
       metadata: { connected_via: "social_hub", connected_at_readable: new Date().toLocaleString() },
     }, { onConflict: "account_id,platform" });
     if (error) { toast.error(error.message); return; }
     toast.success(`${connectForm.platform} connected!`);
+    setSelectedAccount(accountId);
     await loadData();
+    const savedForm = { ...connectForm };
     setConnectForm({ platform: "instagram", platform_user_id: "", platform_username: "", access_token: "", refresh_token: "" });
     // Auto-fetch profile to get avatar & sync to managed_accounts
     try {
-      if (connectForm.platform === "instagram") {
+      if (savedForm.platform === "instagram") {
         const profileData = await callApi("instagram-api", { action: "get_profile" });
         if (profileData) {
           setIgProfile(profileData);
-          // Store profile pic in connection metadata
           await supabase.from("social_connections").update({
             metadata: { profile_picture_url: profileData.profile_picture_url, name: profileData.name, followers_count: profileData.followers_count, media_count: profileData.media_count, connected_via: "social_hub" },
-          }).eq("account_id", selectedAccount).eq("platform", "instagram");
-          // Sync to managed_accounts
+          }).eq("account_id", accountId).eq("platform", "instagram");
           await supabase.from("managed_accounts").update({
             avatar_url: profileData.profile_picture_url || undefined,
-            display_name: profileData.name || connectForm.platform_username,
+            display_name: profileData.name || savedForm.platform_username,
             subscriber_count: profileData.followers_count || 0,
             content_count: profileData.media_count || 0,
-            social_links: { instagram: `https://instagram.com/${profileData.username}`, ig_user_id: connectForm.platform_user_id },
+            social_links: { instagram: `https://instagram.com/${profileData.username}`, ig_user_id: savedForm.platform_user_id },
             last_activity_at: new Date().toISOString(),
-          }).eq("id", selectedAccount);
+          }).eq("id", accountId);
+          await loadAccounts();
           await loadData();
         }
       }
