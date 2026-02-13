@@ -6,8 +6,8 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const IG_GRAPH_URL = "https://graph.instagram.com/v21.0";
-const FB_GRAPH_URL = "https://graph.facebook.com/v21.0";
+const IG_GRAPH_URL = "https://graph.instagram.com/v24.0";
+const FB_GRAPH_URL = "https://graph.facebook.com/v24.0";
 
 async function getConnection(supabase: any, accountId: string) {
   const { data } = await supabase
