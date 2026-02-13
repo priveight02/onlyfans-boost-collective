@@ -2,10 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import SocialAITools from "./SocialAITools";
 import LiveDMConversations from "./LiveDMConversations";
-import IGAdsManager from "./social/IGAdsManager";
-import IGAdvancedInsights from "./social/IGAdvancedInsights";
-import IGAutoScheduler from "./social/IGAutoScheduler";
-import IGCreatorDiscovery from "./social/IGCreatorDiscovery";
+import IGAutomationSuite from "./social/IGAutomationSuite";
 import BioLinksManager from "./social/BioLinksManager";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -570,10 +567,7 @@ const SocialMediaHub = () => {
               { v: "ai-tools", icon: Wand2, l: "AI Tools" },
               { v: "analytics", icon: BarChart3, l: "Analytics" },
               { v: "biolink", icon: Link2, l: "Bio Links" },
-              { v: "scheduler", icon: Calendar, l: "Scheduler" },
-              { v: "ads", icon: Megaphone, l: "Ads" },
-              { v: "insights", icon: PieChart, l: "Insights+" },
-              { v: "creators", icon: Star, l: "Creators" },
+              { v: "automation", icon: Zap, l: "IG Automation" },
               { v: "connect", icon: Plus, l: "Connect" },
             ].map(t => (
               <TabsTrigger key={t.v} value={t.v} className="data-[state=active]:bg-background data-[state=active]:text-foreground text-muted-foreground rounded-md gap-1 text-xs px-2.5 py-1.5 whitespace-nowrap">
@@ -1037,24 +1031,9 @@ const SocialMediaHub = () => {
           <BioLinksManager selectedAccount={selectedAccount} />
         </TabsContent>
 
-        {/* ===== SCHEDULER ===== */}
-        <TabsContent value="scheduler" className="mt-4">
-          <IGAutoScheduler selectedAccount={selectedAccount} />
-        </TabsContent>
-
-        {/* ===== ADS ===== */}
-        <TabsContent value="ads" className="mt-4">
-          <IGAdsManager selectedAccount={selectedAccount} />
-        </TabsContent>
-
-        {/* ===== INSIGHTS+ ===== */}
-        <TabsContent value="insights" className="mt-4">
-          <IGAdvancedInsights selectedAccount={selectedAccount} />
-        </TabsContent>
-
-        {/* ===== CREATORS ===== */}
-        <TabsContent value="creators" className="mt-4">
-          <IGCreatorDiscovery selectedAccount={selectedAccount} />
+        {/* ===== IG AUTOMATION SUITE ===== */}
+        <TabsContent value="automation" className="mt-4">
+          <IGAutomationSuite selectedAccount={selectedAccount} />
         </TabsContent>
 
         {/* ===== CONNECT ===== */}
