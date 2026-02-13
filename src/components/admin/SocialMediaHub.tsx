@@ -6,6 +6,7 @@ import IGAdsManager from "./social/IGAdsManager";
 import IGAdvancedInsights from "./social/IGAdvancedInsights";
 import IGAutoScheduler from "./social/IGAutoScheduler";
 import IGCreatorDiscovery from "./social/IGCreatorDiscovery";
+import BioLinksManager from "./social/BioLinksManager";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -1032,39 +1033,8 @@ const SocialMediaHub = () => {
         </TabsContent>
 
         {/* ===== BIO LINKS ===== */}
-        <TabsContent value="biolink" className="space-y-4 mt-4">
-          <Card>
-            <CardContent className="p-4 space-y-3">
-              <h4 className="text-sm font-semibold text-foreground">Create Bio Link</h4>
-              <div className="grid grid-cols-2 gap-2">
-                <Input value={newBioLink.slug} onChange={e => setNewBioLink(p => ({ ...p, slug: e.target.value }))} placeholder="slug (e.g. myname)" className="text-sm" />
-                <Input value={newBioLink.title} onChange={e => setNewBioLink(p => ({ ...p, title: e.target.value }))} placeholder="Display name" className="text-sm" />
-              </div>
-              <Input value={newBioLink.of_link} onChange={e => setNewBioLink(p => ({ ...p, of_link: e.target.value }))} placeholder="OF link" className="text-sm" />
-              <Textarea value={newBioLink.bio} onChange={e => setNewBioLink(p => ({ ...p, bio: e.target.value }))} placeholder="Bio..." rows={2} className="text-sm" />
-              <Button size="sm" onClick={createBioLink}><Link2 className="h-3.5 w-3.5 mr-1" />Create</Button>
-            </CardContent>
-          </Card>
-          {bioLinks.length > 0 && (
-            <Card>
-              <CardContent className="p-4">
-                <div className="space-y-2">
-                  {bioLinks.map(bl => (
-                    <div key={bl.id} className="bg-muted/30 rounded-lg p-3 flex justify-between items-center">
-                      <div>
-                        <p className="text-sm font-medium text-foreground">{bl.title}</p>
-                        <p className="text-xs text-muted-foreground">/link/{bl.slug}</p>
-                      </div>
-                      <div className="flex gap-1">
-                        <Button size="sm" variant="ghost" onClick={() => window.open(`/link/${bl.slug}`, "_blank")} className="h-7 w-7 p-0"><ExternalLink className="h-3 w-3" /></Button>
-                        <Button size="sm" variant="ghost" onClick={() => deleteBioLink(bl.id)} className="h-7 w-7 p-0 text-red-400"><Trash2 className="h-3 w-3" /></Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
+        <TabsContent value="biolink" className="mt-4">
+          <BioLinksManager selectedAccount={selectedAccount} />
         </TabsContent>
 
         {/* ===== SCHEDULER ===== */}
