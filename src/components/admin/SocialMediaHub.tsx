@@ -101,8 +101,9 @@ const SocialMediaHub = () => {
   const [connectForm, setConnectForm] = useState({ platform: "instagram", platform_user_id: "", platform_username: "", access_token: "", refresh_token: "" });
 
   // Direct OAuth link
-  const [oauthAppId, setOauthAppId] = useState("");
+  const [oauthAppId, setOauthAppId] = useState(() => localStorage.getItem("meta_oauth_app_id") || "");
   const [oauthListening, setOauthListening] = useState(false);
+  const [oauthProcessing, setOauthProcessing] = useState(false);
 
   useEffect(() => { loadAccounts(); }, []);
   useEffect(() => {
@@ -111,6 +112,92 @@ const SocialMediaHub = () => {
       loadAutoRespondState();
     }
   }, [selectedAccount]);
+
+  // Auto-capture OAuth token from URL hash on redirect back
+  const autoConnectFromToken = useCallback(async (token: string) => {
+    setOauthProcessing(true);
+    toast.info("Token captured — auto-connecting...");
+    try {
+      const pagesRes = await fetch(`https://graph.facebook.com/v24.0/me/accounts?access_token=${token}&fields=id,name,instagram_business_account`);
+      const pagesData = await pagesRes.json();
+      
+      let igUserId = "";
+      let igUsername = "";
+      let igName = "";
+      let igProfilePic = "";
+      let igFollowers = 0;
+      let igMediaCount = 0;
+
+      const pageWithIG = pagesData.data?.find((p: any) => p.instagram_business_account);
+      if (pageWithIG?.instagram_business_account?.id) {
+        igUserId = pageWithIG.instagram_business_account.id;
+        const igRes = await fetch(`https://graph.facebook.com/v24.0/${igUserId}?fields=id,username,name,profile_picture_url,followers_count,media_count,biography&access_token=${token}`);
+        const igData = await igRes.json();
+        igUsername = igData.username || "";
+        igName = igData.name || igData.username || "";
+        igProfilePic = igData.profile_picture_url || "";
+        igFollowers = igData.followers_count || 0;
+        igMediaCount = igData.media_count || 0;
+      } else {
+        const meRes = await fetch(`https://graph.instagram.com/v24.0/me?fields=id,username&access_token=${token}`);
+        const meData = await meRes.json();
+        igUserId = meData.id || "";
+        igUsername = meData.username || "";
+        igName = meData.username || "";
+      }
+
+      if (!igUsername) { toast.error("Could not detect Instagram account from this token"); setOauthProcessing(false); return; }
+
+      let accountId = selectedAccount;
+      const { data: existingAccounts } = await supabase.from("managed_accounts").select("id").eq("username", igUsername).limit(1);
+      if (existingAccounts?.length) {
+        accountId = existingAccounts[0].id;
+      } else {
+        const { data: newAcct, error: createErr } = await supabase.from("managed_accounts").insert({
+          username: igUsername, display_name: igName, avatar_url: igProfilePic || null,
+          platform: "instagram", status: "active", subscriber_count: igFollowers,
+          content_count: igMediaCount,
+          social_links: { instagram: `https://instagram.com/${igUsername}`, ig_user_id: igUserId },
+          last_activity_at: new Date().toISOString(),
+        }).select("id").single();
+        if (createErr || !newAcct) { toast.error(createErr?.message || "Failed to create account"); setOauthProcessing(false); return; }
+        accountId = newAcct.id;
+      }
+
+      await supabase.from("social_connections").upsert({
+        account_id: accountId, platform: "instagram", platform_user_id: igUserId,
+        platform_username: igUsername, access_token: token, is_connected: true,
+        scopes: ["instagram_basic", "instagram_manage_messages", "instagram_manage_comments", "instagram_manage_insights", "instagram_content_publish", "pages_show_list", "pages_read_engagement", "business_management", "ads_read", "ads_management"],
+        metadata: { profile_picture_url: igProfilePic, name: igName, followers_count: igFollowers, media_count: igMediaCount, connected_via: "one_click_oauth", connected_at_readable: new Date().toLocaleString() },
+      }, { onConflict: "account_id,platform" });
+
+      setSelectedAccount(accountId);
+      setIgProfile({ profile_picture_url: igProfilePic, name: igName, username: igUsername, followers_count: igFollowers, media_count: igMediaCount });
+      await loadAccounts();
+      await loadData(accountId);
+      toast.success(`@${igUsername} connected automatically!`);
+    } catch (apiErr: any) {
+      console.error("Auto-connect error:", apiErr);
+      toast.error("Auto-connect failed: " + (apiErr.message || "Unknown error"));
+      setConnectForm(prev => ({ ...prev, access_token: token, platform: "instagram" }));
+    }
+    setOauthProcessing(false);
+  }, [selectedAccount]);
+
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash.includes("access_token=")) {
+      const params = new URLSearchParams(hash.substring(1));
+      const token = params.get("access_token");
+      // Clear hash from URL
+      window.history.replaceState(null, "", window.location.pathname + window.location.search);
+      if (token) {
+        // Switch to connect tab to show progress
+        setActiveSubTab("connect");
+        autoConnectFromToken(token);
+      }
+    }
+  }, []);
 
   // Restore profile data from stored connection metadata on session load
   useEffect(() => {
@@ -1040,8 +1127,20 @@ const SocialMediaHub = () => {
           <IGAutomationSuite selectedAccount={selectedAccount} />
         </TabsContent>
 
-        {/* ===== CONNECT ===== */}
         <TabsContent value="connect" className="space-y-4 mt-4">
+          {/* Processing indicator */}
+          {oauthProcessing && (
+            <Card className="border-green-500/30 bg-green-500/5">
+              <CardContent className="p-4 flex items-center gap-3">
+                <RefreshCw className="h-5 w-5 text-green-400 animate-spin" />
+                <div>
+                  <p className="text-sm font-semibold text-foreground">Auto-connecting Instagram...</p>
+                  <p className="text-xs text-muted-foreground">Fetching profile data and saving credentials</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* One-Click Automated OAuth Connection */}
           <Card className="border-primary/30">
             <CardContent className="p-4 space-y-3">
@@ -1050,15 +1149,23 @@ const SocialMediaHub = () => {
                 One-Click Instagram Connect
               </h4>
               <p className="text-xs text-muted-foreground">
-                Click the button below — a Meta login window opens, you authorize, and the account is automatically connected with all permissions. No manual input needed.
+                Click the button below — you'll be redirected to Meta to authorize, then automatically returned here with your account connected. No manual input needed.
               </p>
-              <Input value={oauthAppId} onChange={e => setOauthAppId(e.target.value)} placeholder="Meta App ID (from developers.facebook.com)" className="text-sm" />
-              <div className="flex gap-2 items-center">
+              <Input
+                value={oauthAppId}
+                onChange={e => {
+                  setOauthAppId(e.target.value);
+                  localStorage.setItem("meta_oauth_app_id", e.target.value);
+                }}
+                placeholder="Meta App ID (from developers.facebook.com)"
+                className="text-sm"
+              />
+              <div className="flex gap-2 items-center flex-wrap">
                 <Button
                   size="sm"
                   className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white"
-                  disabled={oauthListening}
-                  onClick={async () => {
+                  disabled={oauthProcessing}
+                  onClick={() => {
                     if (!oauthAppId) { toast.error("Enter your Meta App ID first"); return; }
                     const scopes = [
                       "instagram_basic", "instagram_manage_messages", "instagram_manage_comments",
@@ -1070,132 +1177,38 @@ const SocialMediaHub = () => {
                     ].join(",");
                     const redirectUri = window.location.origin + "/admin";
                     const authUrl = `https://www.facebook.com/v24.0/dialog/oauth?client_id=${oauthAppId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scopes}&response_type=token`;
-
-                    const authWindow = window.open(authUrl, "meta_oauth", "width=600,height=700,scrollbars=yes");
-                    if (!authWindow) { toast.error("Popup blocked — allow popups for this site"); return; }
-                    setOauthListening(true);
-                    toast.info("Authorize in the popup window...");
-
-                    const interval = setInterval(async () => {
-                      try {
-                        if (!authWindow || authWindow.closed) {
-                          clearInterval(interval);
-                          setOauthListening(false);
-                          return;
-                        }
-                        const url = authWindow.location.href;
-                        if (url.includes("access_token=")) {
-                          const hash = authWindow.location.hash.substring(1);
-                          const params = new URLSearchParams(hash);
-                          const token = params.get("access_token");
-                          authWindow.close();
-                          clearInterval(interval);
-
-                          if (!token) { setOauthListening(false); toast.error("No token received"); return; }
-                          toast.success("Token captured — auto-connecting...");
-
-                          // Step 1: Fetch profile using the token directly via Graph API
-                          try {
-                            // Get Facebook pages first, then find the IG business account
-                            const pagesRes = await fetch(`https://graph.facebook.com/v24.0/me/accounts?access_token=${token}&fields=id,name,instagram_business_account`);
-                            const pagesData = await pagesRes.json();
-                            
-                            let igUserId = "";
-                            let igUsername = "";
-                            let igName = "";
-                            let igProfilePic = "";
-                            let igFollowers = 0;
-                            let igMediaCount = 0;
-
-                            // Try to get IG business account from pages
-                            const pageWithIG = pagesData.data?.find((p: any) => p.instagram_business_account);
-                            if (pageWithIG?.instagram_business_account?.id) {
-                              igUserId = pageWithIG.instagram_business_account.id;
-                              // Fetch IG profile
-                              const igRes = await fetch(`https://graph.facebook.com/v24.0/${igUserId}?fields=id,username,name,profile_picture_url,followers_count,media_count,biography&access_token=${token}`);
-                              const igData = await igRes.json();
-                              igUsername = igData.username || "";
-                              igName = igData.name || igData.username || "";
-                              igProfilePic = igData.profile_picture_url || "";
-                              igFollowers = igData.followers_count || 0;
-                              igMediaCount = igData.media_count || 0;
-                            } else {
-                              // Fallback: try /me endpoint for IG basic
-                              const meRes = await fetch(`https://graph.instagram.com/v24.0/me?fields=id,username&access_token=${token}`);
-                              const meData = await meRes.json();
-                              igUserId = meData.id || "";
-                              igUsername = meData.username || "";
-                              igName = meData.username || "";
-                            }
-
-                            if (!igUsername) { toast.error("Could not detect Instagram account from this token"); setOauthListening(false); return; }
-
-                            // Step 2: Auto-create managed account
-                            let accountId = selectedAccount;
-                            const existingConn = connections.find(c => c.platform === "instagram" && c.platform_username === igUsername);
-                            if (existingConn) {
-                              accountId = existingConn.account_id;
-                            } else {
-                              const { data: newAcct, error: createErr } = await supabase.from("managed_accounts").insert({
-                                username: igUsername,
-                                display_name: igName,
-                                avatar_url: igProfilePic || null,
-                                platform: "instagram",
-                                status: "active",
-                                subscriber_count: igFollowers,
-                                content_count: igMediaCount,
-                                social_links: { instagram: `https://instagram.com/${igUsername}`, ig_user_id: igUserId },
-                                last_activity_at: new Date().toISOString(),
-                              }).select("id").single();
-                              if (createErr || !newAcct) { toast.error(createErr?.message || "Failed to create account"); setOauthListening(false); return; }
-                              accountId = newAcct.id;
-                            }
-
-                            // Step 3: Save connection with token
-                            await supabase.from("social_connections").upsert({
-                              account_id: accountId,
-                              platform: "instagram",
-                              platform_user_id: igUserId,
-                              platform_username: igUsername,
-                              access_token: token,
-                              is_connected: true,
-                              scopes: ["instagram_basic", "instagram_manage_messages", "instagram_manage_comments", "instagram_manage_insights", "instagram_content_publish", "pages_show_list", "pages_read_engagement", "business_management", "ads_read", "ads_management"],
-                              metadata: {
-                                profile_picture_url: igProfilePic,
-                                name: igName,
-                                followers_count: igFollowers,
-                                media_count: igMediaCount,
-                                connected_via: "one_click_oauth",
-                                connected_at_readable: new Date().toLocaleString(),
-                              },
-                            }, { onConflict: "account_id,platform" });
-
-                            setSelectedAccount(accountId);
-                            setIgProfile({ profile_picture_url: igProfilePic, name: igName, username: igUsername, followers_count: igFollowers, media_count: igMediaCount });
-                            await loadAccounts();
-                            await loadData(accountId);
-
-                            toast.success(`@${igUsername} connected automatically!`);
-                          } catch (apiErr: any) {
-                            console.error("Auto-connect error:", apiErr);
-                            toast.error("Token captured but auto-connect failed: " + (apiErr.message || "Unknown error"));
-                            // Fallback: put token in manual form
-                            setConnectForm(prev => ({ ...prev, access_token: token, platform: "instagram" }));
-                          }
-                          setOauthListening(false);
-                        }
-                      } catch {
-                        // Cross-origin — keep polling
-                      }
-                    }, 500);
+                    // Full page redirect instead of popup — works in all environments
+                    window.location.href = authUrl;
                   }}
                 >
                   <Instagram className="h-4 w-4 mr-1.5" />
-                  {oauthListening ? "Authorizing..." : "Connect Instagram"}
+                  Connect Instagram
                 </Button>
-                {oauthListening && (
-                  <Badge className="bg-yellow-500/15 text-yellow-400 text-xs animate-pulse">Waiting for authorization...</Badge>
-                )}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="text-foreground"
+                  disabled={oauthProcessing}
+                  onClick={() => {
+                    if (!oauthAppId) { toast.error("Enter your Meta App ID first"); return; }
+                    const scopes = [
+                      "instagram_basic", "instagram_manage_messages", "instagram_manage_comments",
+                      "instagram_manage_insights", "instagram_content_publish", "pages_show_list",
+                      "pages_read_engagement", "business_management", "ads_read", "ads_management",
+                      "instagram_shopping_tag_products", "instagram_manage_upcoming_events",
+                      "instagram_branded_content_ads_brand", "instagram_branded_content_brand",
+                      "catalog_management", "email", "public_profile",
+                    ].join(",");
+                    const redirectUri = window.location.origin + "/admin";
+                    const authUrl = `https://www.facebook.com/v24.0/dialog/oauth?client_id=${oauthAppId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scopes}&response_type=token`;
+                    navigator.clipboard.writeText(authUrl);
+                    window.open(authUrl, "_blank");
+                    toast.success("Auth URL copied & opened in new tab. After authorizing, you'll be redirected back here.");
+                  }}
+                >
+                  <ExternalLink className="h-4 w-4 mr-1.5" />
+                  Open in New Tab
+                </Button>
               </div>
               <p className="text-[10px] text-muted-foreground">Requires a Meta App with Instagram permissions in Live mode. Get your App ID from <a href="https://developers.facebook.com/apps/" target="_blank" rel="noopener noreferrer" className="text-primary underline">developers.facebook.com</a></p>
             </CardContent>
@@ -1231,7 +1244,6 @@ const SocialMediaHub = () => {
                     return (
                       <div key={c.id} className={`rounded-xl p-4 border ${c.is_connected ? "bg-green-500/5 border-green-500/20" : "bg-muted/20 border-border"}`}>
                         <div className="flex items-center gap-3">
-                          {/* Profile picture + platform badge */}
                           <div className="relative">
                             {profilePic ? (
                               <img src={profilePic} alt={name} className="h-12 w-12 rounded-full object-cover border-2 border-green-500/30" />
@@ -1244,7 +1256,6 @@ const SocialMediaHub = () => {
                               {c.platform === "instagram" ? <Instagram className="h-3 w-3 text-white" /> : <Music2 className="h-3 w-3 text-white" />}
                             </div>
                           </div>
-                          {/* Info */}
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
                               <p className="text-sm font-bold text-foreground truncate">{name}</p>
@@ -1258,7 +1269,6 @@ const SocialMediaHub = () => {
                               </div>
                             )}
                           </div>
-                          {/* Actions */}
                           <div className="flex flex-col gap-1">
                             <Badge className={c.is_connected ? "bg-green-500/15 text-green-400 text-[10px]" : "bg-muted text-muted-foreground text-[10px]"}>
                               {c.is_connected ? "● Live" : "Offline"}
@@ -1270,7 +1280,6 @@ const SocialMediaHub = () => {
                             )}
                           </div>
                         </div>
-                        {/* Connection details */}
                         <div className="mt-2 pt-2 border-t border-border/50 flex items-center gap-3 text-[10px] text-muted-foreground">
                           <span>ID: {c.platform_user_id || "—"}</span>
                           <span>·</span>
