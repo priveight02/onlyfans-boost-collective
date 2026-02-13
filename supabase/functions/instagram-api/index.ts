@@ -21,23 +21,19 @@ async function getConnection(supabase: any, accountId: string) {
   return data;
 }
 
-// Resolve the Facebook Page ID linked to this IG account (needed for Conversations API)
 async function getPageId(token: string, igUserId: string): Promise<{ pageId: string; pageToken: string } | null> {
   try {
-    // First get the user's pages via FB Graph
     const pagesResp = await fetch(`${FB_GRAPH_URL}/me/accounts?fields=id,name,instagram_business_account,access_token&access_token=${token}`);
     const pagesData = await pagesResp.json();
     console.log("Pages response:", JSON.stringify(pagesData).substring(0, 500));
     
     if (pagesData.data) {
       for (const page of pagesData.data) {
-        // Check if this page's IG business account matches our IG user ID
         if (page.instagram_business_account?.id === igUserId) {
           console.log(`Found linked Page: ${page.name} (${page.id}) for IG user ${igUserId}`);
           return { pageId: page.id, pageToken: page.access_token || token };
         }
       }
-      // If no match found but there's only one page, use it
       if (pagesData.data.length === 1) {
         const page = pagesData.data[0];
         console.log(`Using only available Page: ${page.name} (${page.id})`);
@@ -66,6 +62,23 @@ async function igFetch(endpoint: string, token: string, method = "GET", body?: a
   const resp = await fetch(fetchUrl, opts);
   const data = await resp.json();
   if (data.error) throw new Error(`IG API: ${data.error.message}`);
+  return data;
+}
+
+// Helper for Facebook Graph API calls (ads, business)
+async function fbFetch(endpoint: string, token: string, method = "GET", body?: any) {
+  const url = endpoint.startsWith("http") ? endpoint : `${FB_GRAPH_URL}${endpoint}`;
+  const sep = url.includes("?") ? "&" : "?";
+  const fetchUrl = method === "GET" ? `${url}${sep}access_token=${token}` : url;
+  
+  const opts: any = { method, headers: { "Content-Type": "application/json" } };
+  if (method !== "GET") {
+    opts.body = JSON.stringify({ ...body, access_token: token });
+  }
+  
+  const resp = await fetch(fetchUrl, opts);
+  const data = await resp.json();
+  if (data.error) throw new Error(`FB API: ${data.error.message}`);
   return data;
 }
 
@@ -338,7 +351,6 @@ serve(async (req) => {
         const folder = params?.folder || "";
         const richFields = `id,participants,messages.limit(${params?.messages_limit || 5}){id,text,from,to,timestamp},updated_time`;
         
-        // Resolve the real user ID — the stored one may be outdated
         let realUserId = igUserId;
         try {
           const meResp = await fetch(`${IG_GRAPH_URL}/me?fields=id&access_token=${token}`);
@@ -346,12 +358,10 @@ serve(async (req) => {
           if (meData?.id && meData.id !== igUserId) {
             console.log(`ID mismatch: stored=${igUserId}, real=${meData.id} — using real ID`);
             realUserId = meData.id;
-            // Update stored ID for future calls
             await supabase.from("social_connections").update({ platform_user_id: realUserId }).eq("account_id", account_id).eq("platform", "instagram");
           }
         } catch {}
         
-        // Helper: follow ALL pagination even if first page returns data:[]
         const fetchWithPagination = async (url: string, maxPages = 10): Promise<any[]> => {
           const allData: any[] = [];
           let currentUrl: string | null = url;
@@ -371,7 +381,6 @@ serve(async (req) => {
           return allData;
         };
         
-        // Try /me/conversations first (recommended by Meta docs), then /{id}/conversations
         const endpoints = [
           `${IG_GRAPH_URL}/me/conversations?platform=instagram&limit=${limit}&fields=${richFields}&access_token=${token}`,
           `${IG_GRAPH_URL}/${realUserId}/conversations?platform=instagram&limit=${limit}&fields=${richFields}&access_token=${token}`,
@@ -385,7 +394,6 @@ serve(async (req) => {
           allConvos = await fetchWithPagination(url);
           if (allConvos.length > 0) break;
           
-          // Retry with simple fields
           const simpleUrl = url.replace(richFields, "id,updated_time,participants");
           console.log("Retrying simple fields...");
           allConvos = await fetchWithPagination(simpleUrl);
@@ -397,13 +405,11 @@ serve(async (req) => {
         break;
       }
 
-      // Fetch ALL conversation folders with full pagination
       case "get_all_conversations": {
         const allLimit = params?.limit || 50;
         const msgLimit = params?.messages_limit || 10;
         const richFields = `id,participants,messages.limit(${msgLimit}){id,text,from,to,timestamp},updated_time`;
         
-        // Resolve real user ID
         let realUserId = igUserId;
         try {
           const meResp = await fetch(`${IG_GRAPH_URL}/me?fields=id&access_token=${token}`);
@@ -434,7 +440,6 @@ serve(async (req) => {
         };
         
         const fetchFolder = async (folderName: string): Promise<any[]> => {
-          // Try /me/conversations first, then /{realUserId}/conversations
           for (const base of [`${IG_GRAPH_URL}/me`, `${IG_GRAPH_URL}/${realUserId}`]) {
             let url = `${base}/conversations?platform=instagram&limit=${allLimit}&fields=${richFields}&access_token=${token}`;
             if (folderName) url += `&folder=${folderName}`;
@@ -442,7 +447,6 @@ serve(async (req) => {
             let convos = await fetchWithPagination(url);
             if (convos.length > 0) return convos;
             
-            // Retry with simple fields
             let simpleUrl = `${base}/conversations?platform=instagram&limit=${allLimit}&fields=id,updated_time,participants&access_token=${token}`;
             if (folderName) simpleUrl += `&folder=${folderName}`;
             convos = await fetchWithPagination(simpleUrl);
@@ -464,9 +468,7 @@ serve(async (req) => {
         break;
       }
 
-      // Debug: raw API response for troubleshooting
       case "debug_conversations": {
-        // Resolve real user ID
         let realId = igUserId;
         try {
           const meResp = await fetch(`${IG_GRAPH_URL}/me?fields=id,user_id,username&access_token=${token}`);
@@ -476,36 +478,30 @@ serve(async (req) => {
         
         const debugResults: any = { stored_ig_user_id: igUserId, resolved_id: realId, attempts: [] };
         
-        // 1. Try /me/conversations 
         try {
           const r1 = await fetch(`${IG_GRAPH_URL}/me/conversations?platform=instagram&limit=5&access_token=${token}`);
           const d1 = await r1.json();
           debugResults.attempts.push({ method: "/me/conversations", status: r1.status, response: d1 });
         } catch (e: any) { debugResults.attempts.push({ method: "/me/conversations", error: e.message }); }
         
-        // 2. Try /{realId}/conversations
         try {
           const r2 = await fetch(`${IG_GRAPH_URL}/${realId}/conversations?platform=instagram&limit=5&access_token=${token}`);
           const d2 = await r2.json();
           debugResults.attempts.push({ method: `/${realId}/conversations`, status: r2.status, response: d2 });
         } catch (e: any) { debugResults.attempts.push({ method: `/${realId}/conversations`, error: e.message }); }
         
-        // 3. Check what permissions the token has by trying to access messaging-specific endpoints
         const permChecks: any = {};
         try {
-          // Test: can we access messaging?
           const msgTest = await fetch(`${IG_GRAPH_URL}/me?fields=id,username&access_token=${token}`);
           permChecks.me = await msgTest.json();
         } catch {}
         
-        // 4. Try listing conversations without platform param
         try {
           const r4 = await fetch(`${IG_GRAPH_URL}/${realId}/conversations?limit=5&access_token=${token}`);
           const d4 = await r4.json();
           debugResults.attempts.push({ method: `/${realId}/conversations (no platform)`, status: r4.status, response: d4 });
         } catch (e: any) { debugResults.attempts.push({ method: "no platform", error: e.message }); }
         
-        // 5. Follow pagination on first attempt if it has paging.next
         if (debugResults.attempts[0]?.response?.paging?.next) {
           try {
             const nextUrl = debugResults.attempts[0].response.paging.next;
@@ -513,7 +509,6 @@ serve(async (req) => {
             const d5 = await r5.json();
             debugResults.attempts.push({ method: "page 2 of /me/conversations", response: d5 });
             
-            // Follow one more page
             if (d5?.paging?.next) {
               const r6 = await fetch(d5.paging.next);
               const d6 = await r6.json();
@@ -524,7 +519,7 @@ serve(async (req) => {
         
         debugResults.perm_checks = permChecks;
         debugResults.token_prefix = token.substring(0, 10) + "...";
-        debugResults.recommendation = "If all conversations return empty data, your token needs the instagram_business_manage_messages permission. Generate a new token in Meta App Dashboard > Instagram API Setup with this permission enabled.";
+        debugResults.recommendation = "If all conversations return empty data, your token needs the instagram_business_manage_messages permission.";
         
         result = debugResults;
         break;
@@ -537,7 +532,7 @@ serve(async (req) => {
         break;
       }
 
-      // ===== MESSAGING (Send to IG Direct) =====
+      // ===== MESSAGING =====
       case "send_message":
         result = await igFetch(`/${igUserId}/messages`, token, "POST", {
           recipient: { id: params.recipient_id },
@@ -557,6 +552,16 @@ serve(async (req) => {
         });
         break;
 
+      // ===== HUMAN AGENT TAG =====
+      case "send_human_agent_message":
+        result = await igFetch(`/${igUserId}/messages`, token, "POST", {
+          recipient: { id: params.recipient_id },
+          message: { text: params.message },
+          messaging_type: "MESSAGE_TAG",
+          tag: "HUMAN_AGENT",
+        });
+        break;
+
       // ===== CONTENT PUBLISHING STATUS =====
       case "get_content_publishing_limit":
         result = await igFetch(`/${igUserId}/content_publishing_limit?fields=config,quota_usage`, token);
@@ -570,6 +575,320 @@ serve(async (req) => {
       case "get_product_tags":
         result = await igFetch(`/${params.media_id}?fields=product_tags`, token);
         break;
+
+      case "tag_products":
+        result = await igFetch(`/${params.media_id}`, token, "POST", {
+          product_tags: params.product_tags,
+        });
+        break;
+
+      case "get_available_catalogs":
+        result = await igFetch(`/${igUserId}/available_catalogs?fields=id,name,product_count`, token);
+        break;
+
+      case "appeal_product_rejection":
+        result = await igFetch(`/${params.media_id}/product_appeal`, token, "POST", {
+          appeal_reason: params.reason,
+        });
+        break;
+
+      // ===== UPCOMING EVENTS =====
+      case "get_upcoming_events":
+        result = await igFetch(`/${igUserId}/upcoming_events?fields=id,title,start_time,end_time,event_url,cover_media_url,description`, token);
+        break;
+
+      case "create_upcoming_event":
+        result = await igFetch(`/${igUserId}/upcoming_events`, token, "POST", {
+          title: params.title,
+          start_time: params.start_time,
+          ...(params.end_time ? { end_time: params.end_time } : {}),
+          ...(params.event_url ? { event_url: params.event_url } : {}),
+          ...(params.cover_media_url ? { cover_media_url: params.cover_media_url } : {}),
+          ...(params.description ? { description: params.description } : {}),
+        });
+        break;
+
+      case "delete_upcoming_event":
+        result = await igFetch(`/${params.event_id}`, token, "DELETE");
+        break;
+
+      // ===== BRANDED CONTENT =====
+      case "get_branded_content_ad_permissions": {
+        result = await igFetch(`/${igUserId}?fields=branded_content_ad_permissions`, token);
+        break;
+      }
+
+      case "get_approved_creators":
+        result = await igFetch(`/${igUserId}/branded_content_ad_permissions?fields=id,username`, token);
+        break;
+
+      case "add_approved_creator":
+        result = await igFetch(`/${igUserId}/branded_content_ad_permissions`, token, "POST", {
+          creator_instagram_account: params.creator_id,
+        });
+        break;
+
+      case "remove_approved_creator":
+        result = await igFetch(`/${igUserId}/branded_content_ad_permissions`, token, "DELETE", {
+          creator_instagram_account: params.creator_id,
+        });
+        break;
+
+      case "get_branded_content_posts":
+        result = await igFetch(`/${igUserId}/branded_content_ad_permissions?fields=permission_type,partner{id,username,name,profile_picture_url}`, token);
+        break;
+
+      // ===== CREATOR MARKETPLACE DISCOVERY =====
+      case "discover_creators": {
+        // Uses business_discovery to find creators by username
+        const creators: any[] = [];
+        const usernames = params.usernames || [];
+        for (const username of usernames.slice(0, 10)) {
+          try {
+            const d = await igFetch(`/${igUserId}?fields=business_discovery.fields(id,username,name,biography,profile_picture_url,followers_count,follows_count,media_count,media.limit(6){id,caption,media_type,like_count,comments_count,permalink,timestamp})&username=${username}`, token);
+            if (d?.business_discovery) {
+              const bd = d.business_discovery;
+              const engRate = bd.media?.data?.length > 0
+                ? bd.media.data.reduce((s: number, m: any) => s + (m.like_count || 0) + (m.comments_count || 0), 0) / bd.media.data.length / Math.max(bd.followers_count, 1) * 100
+                : 0;
+              creators.push({ ...bd, engagement_rate: Math.round(engRate * 100) / 100 });
+            }
+          } catch (e: any) {
+            creators.push({ username, error: e.message });
+          }
+        }
+        result = { creators, total: creators.filter(c => !c.error).length };
+        break;
+      }
+
+      // ===== ADS MANAGEMENT (Facebook Marketing API) =====
+      case "get_ad_accounts": {
+        result = await fbFetch(`/me/adaccounts?fields=id,name,account_id,account_status,currency,timezone_name,amount_spent,balance,business_name,business_street,daily_spend_limit,spend_cap&limit=25`, token);
+        break;
+      }
+
+      case "get_ad_campaigns": {
+        if (!params?.ad_account_id) throw new Error("ad_account_id required");
+        const fields = "id,name,objective,status,effective_status,daily_budget,lifetime_budget,budget_remaining,start_time,stop_time,created_time,updated_time,buying_type,special_ad_categories";
+        result = await fbFetch(`/${params.ad_account_id}/campaigns?fields=${fields}&limit=${params?.limit || 25}`, token);
+        break;
+      }
+
+      case "get_ad_sets": {
+        if (!params?.campaign_id && !params?.ad_account_id) throw new Error("campaign_id or ad_account_id required");
+        const endpoint = params.campaign_id ? `/${params.campaign_id}/adsets` : `/${params.ad_account_id}/adsets`;
+        const fields = "id,name,status,effective_status,daily_budget,lifetime_budget,budget_remaining,targeting,optimization_goal,billing_event,bid_amount,start_time,end_time,created_time";
+        result = await fbFetch(`${endpoint}?fields=${fields}&limit=${params?.limit || 25}`, token);
+        break;
+      }
+
+      case "get_ads": {
+        if (!params?.ad_set_id && !params?.ad_account_id) throw new Error("ad_set_id or ad_account_id required");
+        const endpoint = params.ad_set_id ? `/${params.ad_set_id}/ads` : `/${params.ad_account_id}/ads`;
+        const fields = "id,name,status,effective_status,creative{id,title,body,image_url,thumbnail_url,object_story_spec},created_time,updated_time";
+        result = await fbFetch(`${endpoint}?fields=${fields}&limit=${params?.limit || 25}`, token);
+        break;
+      }
+
+      case "get_ad_insights": {
+        if (!params?.object_id) throw new Error("object_id required (campaign, adset, or ad id)");
+        const metrics = params?.metrics || "impressions,reach,spend,clicks,cpc,cpm,ctr,actions,cost_per_action_type,frequency,social_spend";
+        const datePreset = params?.date_preset || "last_30d";
+        let url = `/${params.object_id}/insights?fields=${metrics}&date_preset=${datePreset}`;
+        if (params?.time_increment) url += `&time_increment=${params.time_increment}`;
+        if (params?.breakdowns) url += `&breakdowns=${params.breakdowns}`;
+        result = await fbFetch(url, token);
+        break;
+      }
+
+      case "get_ad_account_insights": {
+        if (!params?.ad_account_id) throw new Error("ad_account_id required");
+        const metrics = params?.metrics || "impressions,reach,spend,clicks,cpc,cpm,ctr,actions,cost_per_action_type,frequency";
+        const datePreset = params?.date_preset || "last_30d";
+        let url = `/${params.ad_account_id}/insights?fields=${metrics}&date_preset=${datePreset}`;
+        if (params?.time_increment) url += `&time_increment=${params.time_increment}`;
+        result = await fbFetch(url, token);
+        break;
+      }
+
+      case "create_ad_campaign": {
+        if (!params?.ad_account_id) throw new Error("ad_account_id required");
+        result = await fbFetch(`/${params.ad_account_id}/campaigns`, token, "POST", {
+          name: params.name,
+          objective: params.objective || "OUTCOME_TRAFFIC",
+          status: params.status || "PAUSED",
+          special_ad_categories: params.special_ad_categories || [],
+          ...(params.daily_budget ? { daily_budget: params.daily_budget } : {}),
+          ...(params.lifetime_budget ? { lifetime_budget: params.lifetime_budget } : {}),
+          ...(params.buying_type ? { buying_type: params.buying_type } : {}),
+        });
+        break;
+      }
+
+      case "create_ad_set": {
+        if (!params?.ad_account_id || !params?.campaign_id) throw new Error("ad_account_id and campaign_id required");
+        result = await fbFetch(`/${params.ad_account_id}/adsets`, token, "POST", {
+          name: params.name,
+          campaign_id: params.campaign_id,
+          daily_budget: params.daily_budget || 1000,
+          billing_event: params.billing_event || "IMPRESSIONS",
+          optimization_goal: params.optimization_goal || "LINK_CLICKS",
+          bid_amount: params.bid_amount || undefined,
+          targeting: params.targeting || { geo_locations: { countries: ["US"] }, age_min: 18, age_max: 65 },
+          status: params.status || "PAUSED",
+          start_time: params.start_time || undefined,
+          end_time: params.end_time || undefined,
+          promoted_object: params.promoted_object || undefined,
+        });
+        break;
+      }
+
+      case "create_ad": {
+        if (!params?.ad_account_id || !params?.adset_id) throw new Error("ad_account_id and adset_id required");
+        // First create ad creative
+        let creativeId = params.creative_id;
+        if (!creativeId && params.creative) {
+          const creative = await fbFetch(`/${params.ad_account_id}/adcreatives`, token, "POST", {
+            name: params.creative.name || params.name,
+            object_story_spec: {
+              page_id: params.creative.page_id,
+              instagram_actor_id: igUserId,
+              ...(params.creative.link_data ? {
+                link_data: {
+                  message: params.creative.message || "",
+                  link: params.creative.link || "",
+                  image_hash: params.creative.image_hash || undefined,
+                  picture: params.creative.picture || undefined,
+                  call_to_action: params.creative.cta ? { type: params.creative.cta, value: { link: params.creative.link } } : undefined,
+                },
+              } : {}),
+              ...(params.creative.video_data ? {
+                video_data: {
+                  video_id: params.creative.video_id,
+                  message: params.creative.message || "",
+                  title: params.creative.title || "",
+                  call_to_action: params.creative.cta ? { type: params.creative.cta, value: { link: params.creative.link } } : undefined,
+                },
+              } : {}),
+            },
+          });
+          creativeId = creative.id;
+        }
+        result = await fbFetch(`/${params.ad_account_id}/ads`, token, "POST", {
+          name: params.name,
+          adset_id: params.adset_id,
+          creative: { creative_id: creativeId },
+          status: params.status || "PAUSED",
+        });
+        break;
+      }
+
+      case "update_campaign_status": {
+        result = await fbFetch(`/${params.campaign_id}`, token, "POST", {
+          status: params.status,
+        });
+        break;
+      }
+
+      case "update_adset_status": {
+        result = await fbFetch(`/${params.adset_id}`, token, "POST", {
+          status: params.status,
+        });
+        break;
+      }
+
+      case "update_ad_status": {
+        result = await fbFetch(`/${params.ad_id}`, token, "POST", {
+          status: params.status,
+        });
+        break;
+      }
+
+      case "delete_campaign":
+        result = await fbFetch(`/${params.campaign_id}`, token, "DELETE");
+        break;
+
+      case "get_ad_creatives": {
+        if (!params?.ad_account_id) throw new Error("ad_account_id required");
+        result = await fbFetch(`/${params.ad_account_id}/adcreatives?fields=id,name,title,body,image_url,thumbnail_url,object_story_spec,effective_object_story_id&limit=${params?.limit || 25}`, token);
+        break;
+      }
+
+      case "get_ad_images": {
+        if (!params?.ad_account_id) throw new Error("ad_account_id required");
+        result = await fbFetch(`/${params.ad_account_id}/adimages?fields=id,name,hash,url,url_128,created_time&limit=50`, token);
+        break;
+      }
+
+      case "upload_ad_image": {
+        if (!params?.ad_account_id || !params?.image_url) throw new Error("ad_account_id and image_url required");
+        // Download image and upload as bytes
+        result = await fbFetch(`/${params.ad_account_id}/adimages`, token, "POST", {
+          url: params.image_url,
+        });
+        break;
+      }
+
+      case "get_targeting_options": {
+        const searchType = params?.type || "adinterest";
+        const q = encodeURIComponent(params?.query || "");
+        result = await fbFetch(`/search?type=${searchType}&q=${q}&limit=${params?.limit || 25}`, token);
+        break;
+      }
+
+      case "get_reach_estimate": {
+        if (!params?.ad_account_id) throw new Error("ad_account_id required");
+        const targeting = encodeURIComponent(JSON.stringify(params.targeting || {}));
+        result = await fbFetch(`/${params.ad_account_id}/reachestimate?targeting_spec=${targeting}&optimize_for=IMPRESSIONS`, token);
+        break;
+      }
+
+      // ===== BUSINESS MANAGEMENT =====
+      case "get_business_accounts": {
+        result = await fbFetch(`/me/businesses?fields=id,name,created_time,profile_picture_uri,link,verification_status,permitted_tasks`, token);
+        break;
+      }
+
+      case "get_business_pages": {
+        if (!params?.business_id) throw new Error("business_id required");
+        result = await fbFetch(`/${params.business_id}/owned_pages?fields=id,name,fan_count,picture,link,instagram_business_account{id,username}`, token);
+        break;
+      }
+
+      case "get_business_ad_accounts": {
+        if (!params?.business_id) throw new Error("business_id required");
+        result = await fbFetch(`/${params.business_id}/owned_ad_accounts?fields=id,name,account_id,account_status,currency,amount_spent,balance`, token);
+        break;
+      }
+
+      case "get_business_instagram_accounts": {
+        if (!params?.business_id) throw new Error("business_id required");
+        result = await fbFetch(`/${params.business_id}/instagram_accounts?fields=id,username,name,profile_pic,followers_count,follows_count,media_count`, token);
+        break;
+      }
+
+      // ===== PAGE ENGAGEMENT (pages_read_engagement) =====
+      case "get_page_posts": {
+        const pageInfo = await getPageId(token, igUserId);
+        if (!pageInfo) throw new Error("No linked Facebook Page found");
+        result = await fbFetch(`/${pageInfo.pageId}/posts?fields=id,message,created_time,full_picture,permalink_url,shares,reactions.summary(true),comments.summary(true)&limit=${params?.limit || 25}`, pageInfo.pageToken);
+        break;
+      }
+
+      case "get_page_insights": {
+        const pageInfo = await getPageId(token, igUserId);
+        if (!pageInfo) throw new Error("No linked Facebook Page found");
+        const metrics = params?.metrics || "page_impressions,page_engaged_users,page_fans,page_fan_adds,page_views_total";
+        result = await fbFetch(`/${pageInfo.pageId}/insights?metric=${metrics}&period=${params?.period || "day"}`, pageInfo.pageToken);
+        break;
+      }
+
+      case "get_page_followers": {
+        const pageInfo = await getPageId(token, igUserId);
+        if (!pageInfo) throw new Error("No linked Facebook Page found");
+        result = await fbFetch(`/${pageInfo.pageId}?fields=fan_count,followers_count,new_like_count,talking_about_count`, pageInfo.pageToken);
+        break;
+      }
 
       // ===== oEMBED =====
       case "get_oembed":
@@ -603,7 +922,6 @@ serve(async (req) => {
     });
   } catch (e) {
     console.error("Instagram API error:", e);
-    // Return 200 with success:false so callers don't get non-2xx errors
     return new Response(JSON.stringify({ success: false, error: e instanceof Error ? e.message : "Unknown error" }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
