@@ -626,106 +626,103 @@ Rules:
         }
 
         const ourIdScan = igConnScan.platform_user_id;
-        let allConversations: any[] = [];
-        let nextUrl: string | null = null;
+        let imported = 0;
+        let totalFound = 0;
 
-        // Fetch all conversations with pagination
-        console.log("Scanning all IG conversations...");
-        const firstPage = await callIG("get_conversations", { limit: 20, messages_limit: 10 });
-        allConversations = firstPage?.data || [];
-        nextUrl = firstPage?.paging?.next || null;
-
-        // Fetch subsequent pages (up to 5 pages = ~100 conversations)
-        let pageCount = 1;
-        while (nextUrl && pageCount < 5) {
+        // Fetch all folders at once
+        let allFolderData: { folder: string; conversations: any[] }[] = [];
+        try {
+          const allData = await callIG("get_all_conversations", { limit: 20, messages_limit: 10 });
+          allFolderData = [
+            { folder: "primary", conversations: allData?.primary || [] },
+            { folder: "general", conversations: allData?.general || [] },
+            { folder: "requests", conversations: allData?.requests || [] },
+          ];
+          totalFound = allFolderData.reduce((sum, f) => sum + f.conversations.length, 0);
+          console.log(`Found conversations: primary=${allData?.primary?.length || 0}, general=${allData?.general?.length || 0}, requests=${allData?.requests?.length || 0}`);
+        } catch (allErr: any) {
+          console.log("get_all_conversations failed:", allErr.message, "- falling back to single fetch");
+          // Fallback to single fetch
           try {
-            const resp = await fetch(`${nextUrl}&access_token=_`, { // token already in URL from IG API
-              headers: { "Content-Type": "application/json" },
-            });
-            // Actually we need to call through our function for proper token handling
-            // The paging.next URL already contains the token from FB
-            const nextResp = await fetch(nextUrl);
-            const nextData = await nextResp.json();
-            if (nextData?.data) {
-              allConversations = [...allConversations, ...nextData.data];
-              nextUrl = nextData?.paging?.next || null;
-            } else {
-              break;
-            }
-          } catch {
+            const singleData = await callIG("get_conversations", { limit: 20, messages_limit: 10 });
+            allFolderData = [{ folder: "primary", conversations: singleData?.data || [] }];
+            totalFound = allFolderData[0].conversations.length;
+          } catch (singleErr: any) {
+            console.error("All conversation fetch methods failed:", singleErr.message);
+            result = { error: singleErr.message, imported: 0, total_found: 0 };
             break;
           }
-          pageCount++;
-          await new Promise(r => setTimeout(r, 300));
         }
 
-        console.log(`Found ${allConversations.length} conversations total`);
-        let imported = 0;
+        // Process each folder
+        for (const { folder, conversations: folderConvos } of allFolderData) {
+          for (const convo of folderConvos) {
+            try {
+              const messages = convo.messages?.data || [];
+              const participants = convo.participants?.data || [];
+              const fan = participants.find((p: any) => p.id !== ourIdScan);
+              if (!fan) continue;
 
-        for (const convo of allConversations) {
-          try {
-            const messages = convo.messages?.data || [];
-            const participants = convo.participants?.data || [];
-            
-            // Identify the fan (non-us participant)
-            const fan = participants.find((p: any) => p.id !== ourIdScan);
-            if (!fan) continue;
+              // Get last message preview
+              const lastMsg = messages[0];
+              const lastPreview = lastMsg?.message?.substring(0, 100) || null;
+              const isFromFanLast = lastMsg?.from?.id !== ourIdScan;
 
-            // Upsert conversation
-            const { data: dbConvo } = await supabase
-              .from("ai_dm_conversations")
-              .upsert({
-                account_id,
-                platform: "instagram",
-                platform_conversation_id: convo.id,
-                participant_id: fan.id,
-                participant_username: fan.username || fan.name || fan.id,
-                participant_name: fan.name || fan.username || "Unknown",
-                status: "active",
-                ai_enabled: true,
-                last_message_at: convo.updated_time ? new Date(convo.updated_time).toISOString() : new Date().toISOString(),
-                message_count: messages.length,
-              }, { onConflict: "account_id,platform_conversation_id" })
-              .select("id")
-              .single();
-            
-            if (!dbConvo) continue;
-
-            // Import ALL messages for this conversation (reverse to get chronological order)
-            const sortedMsgs = [...messages].reverse();
-            for (const msg of sortedMsgs) {
-              if (!msg.message && !msg.id) continue;
-              
-              // Check if already exists
-              const { data: existing } = await supabase
-                .from("ai_dm_messages")
+              // Upsert conversation
+              const { data: dbConvo } = await supabase
+                .from("ai_dm_conversations")
+                .upsert({
+                  account_id,
+                  platform: "instagram",
+                  platform_conversation_id: convo.id,
+                  participant_id: fan.id,
+                  participant_username: fan.username || fan.name || fan.id,
+                  participant_name: fan.name || fan.username || "Unknown",
+                  status: "active",
+                  ai_enabled: true,
+                  folder,
+                  is_read: !isFromFanLast,
+                  last_message_preview: lastPreview ? (isFromFanLast ? lastPreview : `You: ${lastPreview}`) : null,
+                  last_message_at: convo.updated_time ? new Date(convo.updated_time).toISOString() : new Date().toISOString(),
+                  message_count: messages.length,
+                }, { onConflict: "account_id,platform_conversation_id" })
                 .select("id")
-                .eq("platform_message_id", msg.id)
-                .limit(1);
+                .single();
               
-              if (existing && existing.length > 0) continue;
+              if (!dbConvo) continue;
 
-              const isFromFan = msg.from?.id !== ourIdScan;
-              await supabase.from("ai_dm_messages").insert({
-                conversation_id: dbConvo.id,
-                account_id,
-                platform_message_id: msg.id,
-                sender_type: isFromFan ? "fan" : "ai",
-                sender_name: isFromFan ? (fan.username || fan.name || "fan") : (igConnScan.platform_username || "creator"),
-                content: msg.message || "[media]",
-                status: "sent",
-                created_at: msg.created_time ? new Date(msg.created_time).toISOString() : new Date().toISOString(),
-              });
+              // Import messages
+              const sortedMsgs = [...messages].reverse();
+              for (const msg of sortedMsgs) {
+                if (!msg.message && !msg.id) continue;
+                const { data: existing } = await supabase
+                  .from("ai_dm_messages")
+                  .select("id")
+                  .eq("platform_message_id", msg.id)
+                  .limit(1);
+                if (existing && existing.length > 0) continue;
+
+                const isFromFan = msg.from?.id !== ourIdScan;
+                await supabase.from("ai_dm_messages").insert({
+                  conversation_id: dbConvo.id,
+                  account_id,
+                  platform_message_id: msg.id,
+                  sender_type: isFromFan ? "fan" : "ai",
+                  sender_name: isFromFan ? (fan.username || fan.name || "fan") : (igConnScan.platform_username || "creator"),
+                  content: msg.message || "[media]",
+                  status: "sent",
+                  created_at: msg.created_time ? new Date(msg.created_time).toISOString() : new Date().toISOString(),
+                });
+              }
+              imported++;
+            } catch (e) {
+              console.error("Error importing conversation:", e);
             }
-
-            imported++;
-          } catch (e) {
-            console.error("Error importing conversation:", e);
+            await new Promise(r => setTimeout(r, 200));
           }
-          await new Promise(r => setTimeout(r, 200));
         }
 
-        result = { imported, total_found: allConversations.length };
+        result = { imported, total_found: totalFound };
         break;
       }
 
