@@ -663,9 +663,9 @@ Rules:
               const fan = participants.find((p: any) => p.id !== ourIdScan);
               if (!fan) continue;
 
-              // Get last message preview
+              // Get last message preview - 2026 API uses "text" and "timestamp"
               const lastMsg = messages[0];
-              const lastPreview = lastMsg?.message?.substring(0, 100) || null;
+              const lastPreview = (lastMsg?.text || lastMsg?.message)?.substring(0, 100) || null;
               const isFromFanLast = lastMsg?.from?.id !== ourIdScan;
 
               // Upsert conversation
@@ -691,10 +691,11 @@ Rules:
               
               if (!dbConvo) continue;
 
-              // Import messages
+              // Import messages - 2026 API uses "text" and "timestamp"
               const sortedMsgs = [...messages].reverse();
               for (const msg of sortedMsgs) {
-                if (!msg.message && !msg.id) continue;
+                const msgText = msg.text || msg.message;
+                if (!msgText && !msg.id) continue;
                 const { data: existing } = await supabase
                   .from("ai_dm_messages")
                   .select("id")
@@ -703,15 +704,16 @@ Rules:
                 if (existing && existing.length > 0) continue;
 
                 const isFromFan = msg.from?.id !== ourIdScan;
+                const msgTimestamp = msg.timestamp || msg.created_time;
                 await supabase.from("ai_dm_messages").insert({
                   conversation_id: dbConvo.id,
                   account_id,
                   platform_message_id: msg.id,
                   sender_type: isFromFan ? "fan" : "ai",
                   sender_name: isFromFan ? (fan.username || fan.name || "fan") : (igConnScan.platform_username || "creator"),
-                  content: msg.message || "[media]",
+                  content: msgText || "[media]",
                   status: "sent",
-                  created_at: msg.created_time ? new Date(msg.created_time).toISOString() : new Date().toISOString(),
+                  created_at: msgTimestamp ? new Date(msgTimestamp).toISOString() : new Date().toISOString(),
                 });
               }
               imported++;
@@ -791,19 +793,21 @@ Rules:
             if (!scDbConvo) continue;
             
             for (const scMsg of [...scMsgs].reverse()) {
-              if (!scMsg.message && !scMsg.id) continue;
+              const scMsgText = scMsg.text || scMsg.message;
+              if (!scMsgText && !scMsg.id) continue;
               const { data: scEx } = await supabase.from("ai_dm_messages").select("id").eq("platform_message_id", scMsg.id).limit(1);
               if (scEx && scEx.length > 0) continue;
               const scIsFromFan = scMsg.from?.id !== ourIdScan2;
+              const scMsgTimestamp = scMsg.timestamp || scMsg.created_time;
               await supabase.from("ai_dm_messages").insert({
                 conversation_id: scDbConvo.id,
                 account_id,
                 platform_message_id: scMsg.id,
                 sender_type: scIsFromFan ? "fan" : "ai",
                 sender_name: scIsFromFan ? (scFan.username || scFan.name || "fan") : (igConnScan2?.platform_username || "creator"),
-                content: scMsg.message || "[media]",
+                content: scMsgText || "[media]",
                 status: "sent",
-                created_at: scMsg.created_time ? new Date(scMsg.created_time).toISOString() : new Date().toISOString(),
+                created_at: scMsgTimestamp ? new Date(scMsgTimestamp).toISOString() : new Date().toISOString(),
               });
             }
             await new Promise(r => setTimeout(r, 200));
