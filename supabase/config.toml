@@ -44,3 +44,24 @@ verify_jwt = false
 
 [functions.telegram-api]
 verify_jwt = false
+
+[functions.snapchat-api]
+verify_jwt = false
+
+[functions.threads-api]
+verify_jwt = false
+
+[functions.whatsapp-api]
+verify_jwt = false
+
+[functions.signal-api]
+verify_jwt = false
+
+[functions.youtube-api]
+verify_jwt = false
+
+[functions.pinterest-api]
+verify_jwt = false
+
+[functions.discord-api]
+verify_jwt = false
