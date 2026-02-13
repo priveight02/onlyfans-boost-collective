@@ -122,14 +122,16 @@ const SocialMediaHub = () => {
     if (data?.[0]) setSelectedAccount(data[0].id);
   };
 
-  const loadData = async () => {
+  const loadData = async (overrideAccountId?: string) => {
+    const acctId = overrideAccountId || selectedAccount;
+    if (!acctId) return;
     setLoading(true);
     const [conns, socialPosts, links, stats, replies] = await Promise.all([
-      supabase.from("social_connections").select("*").eq("account_id", selectedAccount),
-      supabase.from("social_posts").select("*").eq("account_id", selectedAccount).order("created_at", { ascending: false }).limit(50),
-      supabase.from("bio_links").select("*").eq("account_id", selectedAccount).order("created_at", { ascending: false }),
-      supabase.from("social_analytics").select("*").eq("account_id", selectedAccount).order("fetched_at", { ascending: false }).limit(50),
-      supabase.from("social_comment_replies").select("*").eq("account_id", selectedAccount).order("created_at", { ascending: false }).limit(50),
+      supabase.from("social_connections").select("*").eq("account_id", acctId),
+      supabase.from("social_posts").select("*").eq("account_id", acctId).order("created_at", { ascending: false }).limit(50),
+      supabase.from("bio_links").select("*").eq("account_id", acctId).order("created_at", { ascending: false }),
+      supabase.from("social_analytics").select("*").eq("account_id", acctId).order("fetched_at", { ascending: false }).limit(50),
+      supabase.from("social_comment_replies").select("*").eq("account_id", acctId).order("created_at", { ascending: false }).limit(50),
     ]);
     setConnections(conns.data || []);
     setPosts(socialPosts.data || []);
@@ -180,10 +182,12 @@ const SocialMediaHub = () => {
     else toast.success("Config saved");
   };
 
-  const callApi = async (funcName: string, body: any) => {
+  const callApi = async (funcName: string, body: any, overrideAccountId?: string) => {
+    const acctId = overrideAccountId || selectedAccount;
+    if (!acctId) { toast.error("No account selected"); return null; }
     setApiLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke(funcName, { body: { ...body, account_id: selectedAccount } });
+      const { data, error } = await supabase.functions.invoke(funcName, { body: { ...body, account_id: acctId } });
       if (error) throw error;
       if (!data?.success) throw new Error(data?.error || "API call failed");
       return data.data;
@@ -223,13 +227,13 @@ const SocialMediaHub = () => {
     if (error) { toast.error(error.message); return; }
     toast.success(`${connectForm.platform} connected!`);
     setSelectedAccount(accountId);
-    await loadData();
+    await loadData(accountId);
     const savedForm = { ...connectForm };
     setConnectForm({ platform: "instagram", platform_user_id: "", platform_username: "", access_token: "", refresh_token: "" });
     // Auto-fetch profile to get avatar & sync to managed_accounts
     try {
       if (savedForm.platform === "instagram") {
-        const profileData = await callApi("instagram-api", { action: "get_profile" });
+        const profileData = await callApi("instagram-api", { action: "get_profile" }, accountId);
         if (profileData) {
           setIgProfile(profileData);
           await supabase.from("social_connections").update({
@@ -244,7 +248,7 @@ const SocialMediaHub = () => {
             last_activity_at: new Date().toISOString(),
           }).eq("id", accountId);
           await loadAccounts();
-          await loadData();
+          await loadData(accountId);
         }
       }
     } catch (e) { console.error("Auto-sync after connect:", e); }
