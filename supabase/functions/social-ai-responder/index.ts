@@ -596,12 +596,11 @@ Rules:
         break;
       }
 
-      case "process_live_dm": {
-        // Full pipeline: fetch conversations from IG, find new messages, generate AI replies, send them back
+      case "scan_all_conversations": {
+        // Import ALL conversations from IG into DB - works regardless of auto-respond state
         const igFuncUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/instagram-api`;
         const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
         
-        // Helper to call instagram-api edge function
         const callIG = async (igAction: string, igParams: any = {}) => {
           const resp = await fetch(igFuncUrl, {
             method: "POST",
@@ -613,10 +612,139 @@ Rules:
           return d.data;
         };
 
-        // 1. Fetch conversations from IG
-        const convos = await callIG("get_conversations", { limit: 20, messages_limit: 10 });
-        const conversations = convos?.data || [];
+        // Get our IG user ID
+        const { data: igConnScan } = await supabase
+          .from("social_connections")
+          .select("platform_user_id, platform_username")
+          .eq("account_id", account_id)
+          .eq("platform", "instagram")
+          .single();
         
+        if (!igConnScan?.platform_user_id) {
+          result = { error: "Instagram not connected", imported: 0 };
+          break;
+        }
+
+        const ourIdScan = igConnScan.platform_user_id;
+        let allConversations: any[] = [];
+        let nextUrl: string | null = null;
+
+        // Fetch all conversations with pagination
+        console.log("Scanning all IG conversations...");
+        const firstPage = await callIG("get_conversations", { limit: 20, messages_limit: 10 });
+        allConversations = firstPage?.data || [];
+        nextUrl = firstPage?.paging?.next || null;
+
+        // Fetch subsequent pages (up to 5 pages = ~100 conversations)
+        let pageCount = 1;
+        while (nextUrl && pageCount < 5) {
+          try {
+            const resp = await fetch(`${nextUrl}&access_token=_`, { // token already in URL from IG API
+              headers: { "Content-Type": "application/json" },
+            });
+            // Actually we need to call through our function for proper token handling
+            // The paging.next URL already contains the token from FB
+            const nextResp = await fetch(nextUrl);
+            const nextData = await nextResp.json();
+            if (nextData?.data) {
+              allConversations = [...allConversations, ...nextData.data];
+              nextUrl = nextData?.paging?.next || null;
+            } else {
+              break;
+            }
+          } catch {
+            break;
+          }
+          pageCount++;
+          await new Promise(r => setTimeout(r, 300));
+        }
+
+        console.log(`Found ${allConversations.length} conversations total`);
+        let imported = 0;
+
+        for (const convo of allConversations) {
+          try {
+            const messages = convo.messages?.data || [];
+            const participants = convo.participants?.data || [];
+            
+            // Identify the fan (non-us participant)
+            const fan = participants.find((p: any) => p.id !== ourIdScan);
+            if (!fan) continue;
+
+            // Upsert conversation
+            const { data: dbConvo } = await supabase
+              .from("ai_dm_conversations")
+              .upsert({
+                account_id,
+                platform: "instagram",
+                platform_conversation_id: convo.id,
+                participant_id: fan.id,
+                participant_username: fan.username || fan.name || fan.id,
+                participant_name: fan.name || fan.username || "Unknown",
+                status: "active",
+                ai_enabled: true,
+                last_message_at: convo.updated_time ? new Date(convo.updated_time).toISOString() : new Date().toISOString(),
+                message_count: messages.length,
+              }, { onConflict: "account_id,platform_conversation_id" })
+              .select("id")
+              .single();
+            
+            if (!dbConvo) continue;
+
+            // Import ALL messages for this conversation (reverse to get chronological order)
+            const sortedMsgs = [...messages].reverse();
+            for (const msg of sortedMsgs) {
+              if (!msg.message && !msg.id) continue;
+              
+              // Check if already exists
+              const { data: existing } = await supabase
+                .from("ai_dm_messages")
+                .select("id")
+                .eq("platform_message_id", msg.id)
+                .limit(1);
+              
+              if (existing && existing.length > 0) continue;
+
+              const isFromFan = msg.from?.id !== ourIdScan;
+              await supabase.from("ai_dm_messages").insert({
+                conversation_id: dbConvo.id,
+                account_id,
+                platform_message_id: msg.id,
+                sender_type: isFromFan ? "fan" : "ai",
+                sender_name: isFromFan ? (fan.username || fan.name || "fan") : (igConnScan.platform_username || "creator"),
+                content: msg.message || "[media]",
+                status: "sent",
+                created_at: msg.created_time ? new Date(msg.created_time).toISOString() : new Date().toISOString(),
+              });
+            }
+
+            imported++;
+          } catch (e) {
+            console.error("Error importing conversation:", e);
+          }
+          await new Promise(r => setTimeout(r, 200));
+        }
+
+        result = { imported, total_found: allConversations.length };
+        break;
+      }
+
+      case "process_live_dm": {
+        // Full pipeline: fetch conversations from IG, find new messages, generate AI replies, send them back
+        const igFuncUrl2 = `${Deno.env.get("SUPABASE_URL")}/functions/v1/instagram-api`;
+        const serviceKey2 = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+        
+        const callIG2 = async (igAction: string, igParams: any = {}) => {
+          const resp = await fetch(igFuncUrl2, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey2}` },
+            body: JSON.stringify({ action: igAction, account_id, params: igParams }),
+          });
+          const d = await resp.json();
+          if (!d.success) throw new Error(d.error || `IG API ${igAction} failed`);
+          return d.data;
+        };
+
         // Get auto-respond config
         const { data: autoConfig } = await supabase
           .from("auto_respond_state")
@@ -629,84 +757,116 @@ Rules:
           break;
         }
 
+        // 1. First scan/import all conversations by calling IG API directly
+        try {
+          const scanConvos = await callIG2("get_conversations", { limit: 20, messages_limit: 10 });
+          const scanConvoList = scanConvos?.data || [];
+          const { data: igConnScan2 } = await supabase
+            .from("social_connections")
+            .select("platform_user_id, platform_username")
+            .eq("account_id", account_id)
+            .eq("platform", "instagram")
+            .single();
+          const ourIdScan2 = igConnScan2?.platform_user_id;
+          
+          for (const sc of scanConvoList) {
+            const scMsgs = sc.messages?.data || [];
+            const scFan = sc.participants?.data?.find((p: any) => p.id !== ourIdScan2);
+            if (!scFan) continue;
+            
+            const { data: scDbConvo } = await supabase
+              .from("ai_dm_conversations")
+              .upsert({
+                account_id,
+                platform: "instagram",
+                platform_conversation_id: sc.id,
+                participant_id: scFan.id,
+                participant_username: scFan.username || scFan.name || scFan.id,
+                participant_name: scFan.name || scFan.username || "Unknown",
+                status: "active",
+                ai_enabled: true,
+                last_message_at: sc.updated_time ? new Date(sc.updated_time).toISOString() : new Date().toISOString(),
+                message_count: scMsgs.length,
+              }, { onConflict: "account_id,platform_conversation_id" })
+              .select("id")
+              .single();
+            
+            if (!scDbConvo) continue;
+            
+            for (const scMsg of [...scMsgs].reverse()) {
+              if (!scMsg.message && !scMsg.id) continue;
+              const { data: scEx } = await supabase.from("ai_dm_messages").select("id").eq("platform_message_id", scMsg.id).limit(1);
+              if (scEx && scEx.length > 0) continue;
+              const scIsFromFan = scMsg.from?.id !== ourIdScan2;
+              await supabase.from("ai_dm_messages").insert({
+                conversation_id: scDbConvo.id,
+                account_id,
+                platform_message_id: scMsg.id,
+                sender_type: scIsFromFan ? "fan" : "ai",
+                sender_name: scIsFromFan ? (scFan.username || scFan.name || "fan") : (igConnScan2?.platform_username || "creator"),
+                content: scMsg.message || "[media]",
+                status: "sent",
+                created_at: scMsg.created_time ? new Date(scMsg.created_time).toISOString() : new Date().toISOString(),
+              });
+            }
+            await new Promise(r => setTimeout(r, 200));
+          }
+          console.log(`Scan imported ${scanConvoList.length} conversations`);
+        } catch (scanErr) {
+          console.error("Scan during process_live_dm failed:", scanErr);
+        }
+
         // Get persona
-        let personaInfo = DEFAULT_PERSONA;
-        const { data: persona } = await supabase
+        let personaInfo2 = DEFAULT_PERSONA;
+        const { data: persona2 } = await supabase
           .from("persona_profiles")
           .select("*")
           .eq("account_id", account_id)
           .single();
-        if (persona) {
-          personaInfo += `\nAdditional persona: Tone=${persona.tone}, Style=${persona.vocabulary_style}, Boundaries=${persona.boundaries || "none"}`;
+        if (persona2) {
+          personaInfo2 += `\nAdditional persona: Tone=${persona2.tone}, Style=${persona2.vocabulary_style}, Boundaries=${persona2.boundaries || "none"}`;
         }
 
-        // Get the IG connection to know our user ID
-        const { data: igConn } = await supabase
+        // Get connection info
+        const { data: igConn2 } = await supabase
           .from("social_connections")
           .select("platform_user_id, platform_username")
           .eq("account_id", account_id)
           .eq("platform", "instagram")
           .single();
         
-        const ourIgUserId = igConn?.platform_user_id;
+        if (!igConn2?.platform_user_id) {
+          result = { processed: 0, error: "Instagram not connected" };
+          break;
+        }
+
+        // 2. Find conversations with unanswered fan messages
+        // Get all active conversations from DB
+        const { data: activeConvos } = await supabase
+          .from("ai_dm_conversations")
+          .select("*")
+          .eq("account_id", account_id)
+          .eq("ai_enabled", true)
+          .eq("status", "active");
+
         let processed = 0;
         const processedConvos: any[] = [];
 
-        for (const convo of conversations) {
+        for (const dbConvo of (activeConvos || [])) {
           try {
-            const messages = convo.messages?.data || [];
-            if (messages.length === 0) continue;
-
-            // Identify the other participant
-            const otherParticipant = convo.participants?.data?.find((p: any) => p.id !== ourIgUserId);
-            if (!otherParticipant) continue;
-
-            const latestMsg = messages[0]; // Most recent message
-            const isFromFan = latestMsg.from?.id !== ourIgUserId;
-            
-            if (!isFromFan) continue; // Skip if latest message is from us
-
-            // Check if we already processed this message
-            const { data: existing } = await supabase
+            // Get the latest message in this conversation
+            const { data: latestMsgs } = await supabase
               .from("ai_dm_messages")
-              .select("id")
-              .eq("platform_message_id", latestMsg.id)
+              .select("*")
+              .eq("conversation_id", dbConvo.id)
+              .order("created_at", { ascending: false })
               .limit(1);
-            if (existing && existing.length > 0) continue;
 
-            // Upsert conversation record
-            const { data: dbConvo } = await supabase
-              .from("ai_dm_conversations")
-              .upsert({
-                account_id,
-                platform: "instagram",
-                platform_conversation_id: convo.id,
-                participant_id: otherParticipant.id,
-                participant_username: otherParticipant.username || otherParticipant.name,
-                participant_name: otherParticipant.name || otherParticipant.username,
-                status: "active",
-                ai_enabled: true,
-                last_message_at: new Date(latestMsg.created_time).toISOString(),
-                message_count: messages.length,
-              }, { onConflict: "account_id,platform_conversation_id" })
-              .select("id")
-              .single();
-            
-            if (!dbConvo) continue;
+            const latestMsg = latestMsgs?.[0];
+            // Only process if last message is from a fan (needs a reply)
+            if (!latestMsg || latestMsg.sender_type !== "fan") continue;
 
-            // Store the fan's message
-            await supabase.from("ai_dm_messages").insert({
-              conversation_id: dbConvo.id,
-              account_id,
-              platform_message_id: latestMsg.id,
-              sender_type: "fan",
-              sender_name: otherParticipant.username || otherParticipant.name || "fan",
-              content: latestMsg.message || "",
-              status: "sent",
-              created_at: new Date(latestMsg.created_time).toISOString(),
-            });
-
-            // Build conversation context from DB history
+            // Build conversation context from DB
             const { data: dbMessages } = await supabase
               .from("ai_dm_messages")
               .select("sender_type, content, created_at")
@@ -719,14 +879,14 @@ Rules:
               text: m.content,
             }));
 
-            // Insert a "typing" placeholder
+            // Insert a "typing" placeholder for real-time UI
             const { data: typingMsg } = await supabase
               .from("ai_dm_messages")
               .insert({
                 conversation_id: dbConvo.id,
                 account_id,
                 sender_type: "ai",
-                sender_name: igConn?.platform_username || "creator",
+                sender_name: igConn2.platform_username || "creator",
                 content: "...",
                 status: "typing",
               })
@@ -734,7 +894,7 @@ Rules:
               .single();
 
             // Generate AI reply
-            const systemPrompt = `${personaInfo}
+            const systemPrompt = `${personaInfo2}
 ${autoConfig.redirect_url ? `IMPORTANT: when it makes sense, naturally guide toward this link: ${autoConfig.redirect_url}` : ""}
 ${autoConfig.trigger_keywords ? `if they mention any of these: ${autoConfig.trigger_keywords}, redirect them to the link` : ""}`;
 
@@ -755,7 +915,6 @@ ${autoConfig.trigger_keywords ? `if they mention any of these: ${autoConfig.trig
             });
 
             if (!aiResponse.ok) {
-              // Update typing message to failed
               if (typingMsg) {
                 await supabase.from("ai_dm_messages").update({ status: "failed", content: "AI generation failed" }).eq("id", typingMsg.id);
               }
@@ -778,12 +937,11 @@ ${autoConfig.trigger_keywords ? `if they mention any of these: ${autoConfig.trig
 
             // Send the reply via IG API
             try {
-              const sendResult = await callIG("send_message", {
-                recipient_id: otherParticipant.id,
+              const sendResult = await callIG2("send_message", {
+                recipient_id: dbConvo.participant_id,
                 message: reply,
               });
 
-              // Update the typing message with real content
               await supabase.from("ai_dm_messages").update({
                 content: reply,
                 status: "sent",
@@ -792,17 +950,17 @@ ${autoConfig.trigger_keywords ? `if they mention any of these: ${autoConfig.trig
                 typing_delay_ms: Math.round(typingDelay),
               }).eq("id", typingMsg?.id);
 
-              // Update conversation
               await supabase.from("ai_dm_conversations").update({
                 last_ai_reply_at: new Date().toISOString(),
+                last_message_at: new Date().toISOString(),
                 message_count: (dbMessages?.length || 0) + 1,
               }).eq("id", dbConvo.id);
 
               processed++;
               processedConvos.push({
                 conversation_id: dbConvo.id,
-                fan: otherParticipant.username || otherParticipant.name,
-                fan_message: latestMsg.message,
+                fan: dbConvo.participant_username,
+                fan_message: latestMsg.content,
                 ai_reply: reply,
               });
             } catch (sendErr: any) {
@@ -814,12 +972,10 @@ ${autoConfig.trigger_keywords ? `if they mention any of these: ${autoConfig.trig
           } catch (convoErr) {
             console.error("Error processing conversation:", convoErr);
           }
-          
-          // Small delay between conversations to avoid rate limiting
           await new Promise(r => setTimeout(r, 500));
         }
 
-        result = { processed, conversations: processedConvos, total_checked: conversations.length };
+        result = { processed, conversations: processedConvos, total_checked: activeConvos?.length || 0 };
         break;
       }
 
