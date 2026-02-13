@@ -35,3 +35,12 @@ verify_jwt = false
 
 [functions.social-ai-responder]
 verify_jwt = false
+
+[functions.twitter-api]
+verify_jwt = false
+
+[functions.reddit-api]
+verify_jwt = false
+
+[functions.telegram-api]
+verify_jwt = false

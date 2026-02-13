@@ -23,7 +23,7 @@ import {
   Activity, Copy, Wifi, WifiOff,
   MessageCircle, LayoutDashboard, Compass,
   Sparkles, Bot, Brain, Wand2, AtSign, Megaphone, FolderOpen,
-  PieChart, Layers,
+  PieChart, Layers, Twitter, Phone,
 } from "lucide-react";
 
 const SocialMediaHub = () => {
@@ -41,6 +41,9 @@ const SocialMediaHub = () => {
   // Profiles
   const [igProfile, setIgProfile] = useState<any>(null);
   const [ttProfile, setTtProfile] = useState<any>(null);
+  const [xProfile, setXProfile] = useState<any>(null);
+  const [redditProfile, setRedditProfile] = useState<any>(null);
+  const [telegramProfile, setTelegramProfile] = useState<any>(null);
 
   // Discovery
   const [discoveryUsername, setDiscoveryUsername] = useState("");
@@ -110,8 +113,19 @@ const SocialMediaHub = () => {
    const [ttClientSecret, setTtClientSecret] = useState("");
    const [ttOauthListening, setTtOauthListening] = useState(false);
 
-  // Automated connect loading
-  const [autoConnectLoading, setAutoConnectLoading] = useState<string | null>(null);
+   // Twitter/X OAuth
+   const [xClientId, setXClientId] = useState("");
+   const [xClientSecret, setXClientSecret] = useState("");
+
+   // Reddit OAuth
+   const [redditClientId, setRedditClientId] = useState("");
+   const [redditClientSecret, setRedditClientSecret] = useState("");
+
+   // Telegram
+   const [telegramBotToken, setTelegramBotToken] = useState("");
+
+   // Automated connect loading
+   const [autoConnectLoading, setAutoConnectLoading] = useState<string | null>(null);
 
   useEffect(() => { loadAccounts(); }, []);
   useEffect(() => {
@@ -455,6 +469,150 @@ const SocialMediaHub = () => {
      }, 500);
    };
 
+   // ===== AUTOMATED TWITTER/X CONNECT =====
+   const automatedTwitterConnect = () => {
+     if (!xClientId) { toast.error("Enter your X/Twitter Client ID first"); return; }
+     const codeVerifier = Math.random().toString(36).substring(2) + Math.random().toString(36).substring(2);
+     sessionStorage.setItem("x_code_verifier", codeVerifier);
+     const state = Math.random().toString(36).substring(2);
+     sessionStorage.setItem("x_csrf", state);
+     const scopes = "tweet.read tweet.write users.read follows.read follows.write offline.access like.read like.write";
+     const authUrl = `https://twitter.com/i/oauth2/authorize?response_type=code&client_id=${xClientId}&redirect_uri=${encodeURIComponent(oauthRedirectUri)}&scope=${encodeURIComponent(scopes)}&state=${state}&code_challenge=${codeVerifier}&code_challenge_method=plain`;
+     const authWindow = window.open(authUrl, "x_oauth", "width=600,height=700,scrollbars=yes");
+     setAutoConnectLoading("twitter");
+     toast.info("Authenticate with X/Twitter in the popup...");
+
+     const interval = setInterval(async () => {
+       try {
+         if (!authWindow || authWindow.closed) { clearInterval(interval); setAutoConnectLoading(null); return; }
+         const url = authWindow.location.href;
+         if (url.includes("code=")) {
+           const urlParams = new URL(url).searchParams;
+           const code = urlParams.get("code");
+           authWindow.close(); clearInterval(interval);
+           if (!code) { setAutoConnectLoading(null); toast.error("No auth code received"); return; }
+           toast.info("Auth code captured! Exchanging for token...");
+           const storedVerifier = sessionStorage.getItem("x_code_verifier") || codeVerifier;
+           const { data, error } = await supabase.functions.invoke("twitter-api", {
+             body: { action: "exchange_code", params: { code, client_id: xClientId, client_secret: xClientSecret, redirect_uri: oauthRedirectUri, code_verifier: storedVerifier } },
+           });
+           if (error || !data?.success) { toast.error(data?.error || error?.message || "Token exchange failed"); setAutoConnectLoading(null); return; }
+           const tokenData = data.data;
+           const accessToken = tokenData?.access_token;
+           if (!accessToken) { toast.error("No access token in response"); setAutoConnectLoading(null); return; }
+           toast.info("Fetching X profile...");
+           const profileRes = await fetch(`https://api.x.com/2/users/me?user.fields=id,name,username,profile_image_url,public_metrics`, {
+             headers: { "Authorization": `Bearer ${accessToken}` },
+           });
+           const profileJson = await profileRes.json();
+           const xUser = profileJson.data || {};
+           const username = xUser.username || "x_user";
+           let accountId = selectedAccount;
+           if (!accountId) {
+             const { data: newAcct, error: err } = await supabase.from("managed_accounts").insert({
+               username, display_name: xUser.name || username, platform: "twitter", status: "active", avatar_url: xUser.profile_image_url || null,
+             }).select("id").single();
+             if (err || !newAcct) { toast.error(err?.message || "Failed to create account"); setAutoConnectLoading(null); return; }
+             accountId = newAcct.id; setSelectedAccount(accountId);
+           }
+           await supabase.from("social_connections").upsert({
+             account_id: accountId, platform: "twitter", platform_user_id: xUser.id || "", platform_username: username, access_token: accessToken,
+             refresh_token: tokenData?.refresh_token || null, is_connected: true, scopes: [],
+             metadata: { profile_image_url: xUser.profile_image_url, name: xUser.name, public_metrics: xUser.public_metrics, connected_via: "automated_oauth" },
+           }, { onConflict: "account_id,platform" });
+           setXProfile(xUser); await loadAccounts(); await loadData(accountId);
+           toast.success(`✅ @${username} X/Twitter connected!`);
+           setAutoConnectLoading(null);
+         }
+       } catch { /* cross-origin polling */ }
+     }, 500);
+   };
+
+   // ===== AUTOMATED REDDIT CONNECT =====
+   const automatedRedditConnect = () => {
+     if (!redditClientId) { toast.error("Enter your Reddit App ID first"); return; }
+     const state = Math.random().toString(36).substring(2);
+     sessionStorage.setItem("reddit_csrf", state);
+     const scopes = "identity edit flair history modconfig modflair modlog modposts modwiki mysubreddits privatemessages read report save submit subscribe vote wikiedit wikiread";
+     const authUrl = `https://www.reddit.com/api/v1/authorize?client_id=${redditClientId}&response_type=code&state=${state}&redirect_uri=${encodeURIComponent(oauthRedirectUri)}&duration=permanent&scope=${encodeURIComponent(scopes)}`;
+     const authWindow = window.open(authUrl, "reddit_oauth", "width=600,height=700,scrollbars=yes");
+     setAutoConnectLoading("reddit");
+     toast.info("Authenticate with Reddit in the popup...");
+
+     const interval = setInterval(async () => {
+       try {
+         if (!authWindow || authWindow.closed) { clearInterval(interval); setAutoConnectLoading(null); return; }
+         const url = authWindow.location.href;
+         if (url.includes("code=")) {
+           const urlParams = new URL(url).searchParams;
+           const code = urlParams.get("code");
+           authWindow.close(); clearInterval(interval);
+           if (!code) { setAutoConnectLoading(null); toast.error("No auth code received"); return; }
+           toast.info("Auth code captured! Exchanging for token...");
+           const { data, error } = await supabase.functions.invoke("reddit-api", {
+             body: { action: "exchange_code", params: { code, client_id: redditClientId, client_secret: redditClientSecret, redirect_uri: oauthRedirectUri } },
+           });
+           if (error || !data?.success) { toast.error(data?.error || error?.message || "Token exchange failed"); setAutoConnectLoading(null); return; }
+           const tokenData = data.data;
+           const accessToken = tokenData?.access_token;
+           if (!accessToken) { toast.error("No access token in response"); setAutoConnectLoading(null); return; }
+           toast.info("Fetching Reddit profile...");
+           const profileRes = await fetch("https://oauth.reddit.com/api/v1/me", {
+             headers: { "Authorization": `Bearer ${accessToken}`, "User-Agent": "OZC-Agency-Hub/1.0" },
+           });
+           const redditUser = await profileRes.json();
+           const username = redditUser.name || "reddit_user";
+           let accountId = selectedAccount;
+           if (!accountId) {
+             const { data: newAcct, error: err } = await supabase.from("managed_accounts").insert({
+               username, display_name: username, platform: "reddit", status: "active", avatar_url: redditUser.icon_img || null,
+             }).select("id").single();
+             if (err || !newAcct) { toast.error(err?.message || "Failed to create account"); setAutoConnectLoading(null); return; }
+             accountId = newAcct.id; setSelectedAccount(accountId);
+           }
+           await supabase.from("social_connections").upsert({
+             account_id: accountId, platform: "reddit", platform_user_id: redditUser.id || "", platform_username: username, access_token: accessToken,
+             refresh_token: tokenData?.refresh_token || null, is_connected: true, scopes: [],
+             metadata: { icon_img: redditUser.icon_img, link_karma: redditUser.link_karma, comment_karma: redditUser.comment_karma, connected_via: "automated_oauth" },
+           }, { onConflict: "account_id,platform" });
+           setRedditProfile(redditUser); await loadAccounts(); await loadData(accountId);
+           toast.success(`✅ u/${username} Reddit connected!`);
+           setAutoConnectLoading(null);
+         }
+       } catch { /* cross-origin polling */ }
+     }, 500);
+   };
+
+   // ===== AUTOMATED TELEGRAM CONNECT (Bot Token) =====
+   const automatedTelegramConnect = async () => {
+     if (!telegramBotToken) { toast.error("Enter your Telegram Bot Token first"); return; }
+     setAutoConnectLoading("telegram");
+     try {
+       const { data, error } = await supabase.functions.invoke("telegram-api", {
+         body: { action: "validate_token", params: { bot_token: telegramBotToken } },
+       });
+       if (error || !data?.success) { toast.error(data?.error || error?.message || "Invalid bot token"); setAutoConnectLoading(null); return; }
+       const botInfo = data.data;
+       const username = botInfo.username || "telegram_bot";
+       let accountId = selectedAccount;
+       if (!accountId) {
+         const { data: newAcct, error: err } = await supabase.from("managed_accounts").insert({
+           username, display_name: botInfo.first_name || username, platform: "telegram", status: "active",
+         }).select("id").single();
+         if (err || !newAcct) { toast.error(err?.message || "Failed to create account"); setAutoConnectLoading(null); return; }
+         accountId = newAcct.id; setSelectedAccount(accountId);
+       }
+       await supabase.from("social_connections").upsert({
+         account_id: accountId, platform: "telegram", platform_user_id: String(botInfo.id), platform_username: username, access_token: telegramBotToken,
+         is_connected: true, scopes: [],
+         metadata: { first_name: botInfo.first_name, is_bot: botInfo.is_bot, can_join_groups: botInfo.can_join_groups, connected_via: "automated_bot_token" },
+       }, { onConflict: "account_id,platform" });
+       setTelegramProfile(botInfo); await loadAccounts(); await loadData(accountId);
+       toast.success(`✅ @${username} Telegram bot connected!`);
+     } catch (e: any) { toast.error(e.message); }
+     setAutoConnectLoading(null);
+   };
+
   const schedulePost = async () => {
     if (!newPost.caption && !newPost.media_url) { toast.error("Add caption or media"); return; }
     const { error } = await supabase.from("social_posts").insert({
@@ -647,6 +805,9 @@ const SocialMediaHub = () => {
 
   const igConnected = connections.some(c => c.platform === "instagram" && c.is_connected);
   const ttConnected = connections.some(c => c.platform === "tiktok" && c.is_connected);
+  const xConnected = connections.some(c => c.platform === "twitter" && c.is_connected);
+  const redditConnected = connections.some(c => c.platform === "reddit" && c.is_connected);
+  const telegramConnected = connections.some(c => c.platform === "telegram" && c.is_connected);
 
   return (
     <div className="space-y-4">
@@ -672,6 +833,15 @@ const SocialMediaHub = () => {
         <Badge className={ttConnected ? "bg-green-500/15 text-green-400 border-green-500/30" : "bg-muted text-muted-foreground"}>
           <Music2 className="h-3 w-3 mr-1" />{ttConnected ? "TT Live" : "TT Offline"}
         </Badge>
+        <Badge className={xConnected ? "bg-green-500/15 text-green-400 border-green-500/30" : "bg-muted text-muted-foreground"}>
+          <Twitter className="h-3 w-3 mr-1" />{xConnected ? "X Live" : "X Offline"}
+        </Badge>
+        <Badge className={redditConnected ? "bg-green-500/15 text-green-400 border-green-500/30" : "bg-muted text-muted-foreground"}>
+          <Globe className="h-3 w-3 mr-1" />{redditConnected ? "Reddit Live" : "Reddit Offline"}
+        </Badge>
+        <Badge className={telegramConnected ? "bg-green-500/15 text-green-400 border-green-500/30" : "bg-muted text-muted-foreground"}>
+          <Phone className="h-3 w-3 mr-1" />{telegramConnected ? "TG Live" : "TG Offline"}
+        </Badge>
         {autoRespondActive && (
           <Badge className="bg-red-500/15 text-red-400 border-red-500/30 animate-pulse">
             <Radio className="h-3 w-3 mr-1" />AI Auto-Responding
@@ -680,11 +850,11 @@ const SocialMediaHub = () => {
         {/* Mini avatars of connected accounts */}
         {connections.filter(c => c.is_connected).map(c => (
           <div key={c.id} className="flex items-center gap-1.5 bg-muted/40 rounded-full px-2 py-0.5 border border-border">
-            {(c.metadata as any)?.profile_picture_url ? (
-              <img src={(c.metadata as any).profile_picture_url} alt="" className="h-5 w-5 rounded-full object-cover" />
+            {(c.metadata as any)?.profile_picture_url || (c.metadata as any)?.profile_image_url || (c.metadata as any)?.icon_img || (c.metadata as any)?.avatar_url ? (
+              <img src={(c.metadata as any).profile_picture_url || (c.metadata as any).profile_image_url || (c.metadata as any).icon_img || (c.metadata as any).avatar_url} alt="" className="h-5 w-5 rounded-full object-cover" />
             ) : (
               <div className="h-5 w-5 rounded-full bg-muted flex items-center justify-center">
-                {c.platform === "instagram" ? <Instagram className="h-3 w-3 text-pink-400" /> : <Music2 className="h-3 w-3 text-cyan-400" />}
+                {c.platform === "instagram" ? <Instagram className="h-3 w-3 text-pink-400" /> : c.platform === "tiktok" ? <Music2 className="h-3 w-3 text-cyan-400" /> : c.platform === "twitter" ? <Twitter className="h-3 w-3 text-blue-400" /> : c.platform === "reddit" ? <Globe className="h-3 w-3 text-orange-400" /> : <Phone className="h-3 w-3 text-blue-400" />}
               </div>
             )}
             <span className="text-xs text-foreground font-medium">@{c.platform_username}</span>
@@ -992,6 +1162,9 @@ const SocialMediaHub = () => {
                 <select value={newPost.platform} onChange={e => setNewPost(p => ({ ...p, platform: e.target.value }))} className="bg-background border border-border text-foreground rounded-lg px-2 py-1.5 text-sm">
                   <option value="instagram">Instagram</option>
                   <option value="tiktok">TikTok</option>
+                  <option value="twitter">X / Twitter</option>
+                  <option value="reddit">Reddit</option>
+                  <option value="telegram">Telegram</option>
                 </select>
                 <select value={newPost.post_type} onChange={e => setNewPost(p => ({ ...p, post_type: e.target.value }))} className="bg-background border border-border text-foreground rounded-lg px-2 py-1.5 text-sm">
                   <option value="feed">Photo</option>
@@ -1028,7 +1201,7 @@ const SocialMediaHub = () => {
                       <div key={p.id} className="bg-muted/30 rounded-lg p-3 flex justify-between items-start">
                         <div className="flex-1 min-w-0 mr-2">
                           <div className="flex items-center gap-1.5 mb-1">
-                            {p.platform === "instagram" ? <Instagram className="h-3 w-3 text-pink-400" /> : <Music2 className="h-3 w-3 text-cyan-400" />}
+                            {p.platform === "instagram" ? <Instagram className="h-3 w-3 text-pink-400" /> : p.platform === "tiktok" ? <Music2 className="h-3 w-3 text-cyan-400" /> : p.platform === "twitter" ? <Twitter className="h-3 w-3 text-blue-400" /> : p.platform === "reddit" ? <Globe className="h-3 w-3 text-orange-400" /> : <Phone className="h-3 w-3 text-blue-400" />}
                             <Badge variant="outline" className="text-[10px]">{p.post_type}</Badge>
                             <Badge className={`text-[10px] ${p.status === "published" ? "bg-green-500/15 text-green-400" : p.status === "scheduled" ? "bg-yellow-500/15 text-yellow-400" : "bg-muted text-muted-foreground"}`}>{p.status}</Badge>
                           </div>
@@ -1142,6 +1315,9 @@ const SocialMediaHub = () => {
           <div className="flex gap-2">
             <Button size="sm" variant="outline" onClick={async () => { await callApi("instagram-api", { action: "get_account_insights", params: { period: "day" } }); toast.success("Updated"); loadData(); }} disabled={!igConnected || apiLoading}><Instagram className="h-3.5 w-3.5 mr-1" />Sync IG</Button>
             <Button size="sm" variant="outline" onClick={async () => { await callApi("tiktok-api", { action: "get_user_info" }); toast.success("Updated"); loadData(); }} disabled={!ttConnected || apiLoading}><Music2 className="h-3.5 w-3.5 mr-1" />Sync TT</Button>
+            <Button size="sm" variant="outline" onClick={async () => { await callApi("twitter-api", { action: "get_profile" }); toast.success("Updated"); loadData(); }} disabled={!xConnected || apiLoading}><Twitter className="h-3.5 w-3.5 mr-1" />Sync X</Button>
+            <Button size="sm" variant="outline" onClick={async () => { await callApi("reddit-api", { action: "get_profile" }); toast.success("Updated"); loadData(); }} disabled={!redditConnected || apiLoading}><Globe className="h-3.5 w-3.5 mr-1" />Sync Reddit</Button>
+            <Button size="sm" variant="outline" onClick={async () => { await callApi("telegram-api", { action: "get_me" }); toast.success("Updated"); loadData(); }} disabled={!telegramConnected || apiLoading}><Phone className="h-3.5 w-3.5 mr-1" />Sync TG</Button>
           </div>
           {analytics.length > 0 ? (
             <Card>
@@ -1249,7 +1425,95 @@ const SocialMediaHub = () => {
             </CardContent>
           </Card>
 
-          {/* ===== MANUAL CONNECTION ===== */}
+          {/* ===== AUTOMATED TWITTER/X ===== */}
+          <Card className="border-blue-500/20">
+            <CardContent className="p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                  <Twitter className="h-4 w-4 text-blue-400" />
+                  X / Twitter — One-Click Connect
+                </h4>
+                {xConnected && <Badge className="bg-green-500/15 text-green-400 text-[10px]">● Connected</Badge>}
+              </div>
+              <p className="text-[10px] text-muted-foreground">Opens X OAuth2 (PKCE) in a new window. Token is captured and profile synced automatically.</p>
+              <Input value={xClientId} onChange={e => setXClientId(e.target.value)} placeholder="X/Twitter Client ID (from developer.x.com)" className="text-sm" />
+              <Input value={xClientSecret} onChange={e => setXClientSecret(e.target.value)} placeholder="X/Twitter Client Secret" type="password" className="text-sm" />
+              <Button
+                onClick={automatedTwitterConnect}
+                disabled={autoConnectLoading === "twitter"}
+                className="w-full bg-gradient-to-r from-blue-600 to-sky-600 hover:from-blue-700 hover:to-sky-700 text-white"
+              >
+                {autoConnectLoading === "twitter" ? (
+                  <><RefreshCw className="h-4 w-4 mr-2 animate-spin" />Connecting...</>
+                ) : (
+                  <><Twitter className="h-4 w-4 mr-2" />Connect X/Twitter Automatically</>
+                )}
+              </Button>
+              {autoConnectLoading === "twitter" && (
+                <Badge className="bg-yellow-500/15 text-yellow-400 text-xs animate-pulse w-full justify-center">Waiting for authentication popup...</Badge>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* ===== AUTOMATED REDDIT ===== */}
+          <Card className="border-orange-500/20">
+            <CardContent className="p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                  <Globe className="h-4 w-4 text-orange-400" />
+                  Reddit — One-Click Connect
+                </h4>
+                {redditConnected && <Badge className="bg-green-500/15 text-green-400 text-[10px]">● Connected</Badge>}
+              </div>
+              <p className="text-[10px] text-muted-foreground">Opens Reddit OAuth in a new window. Auth code is exchanged for a token automatically and profile is synced.</p>
+              <Input value={redditClientId} onChange={e => setRedditClientId(e.target.value)} placeholder="Reddit App ID (from reddit.com/prefs/apps)" className="text-sm" />
+              <Input value={redditClientSecret} onChange={e => setRedditClientSecret(e.target.value)} placeholder="Reddit App Secret" type="password" className="text-sm" />
+              <Button
+                onClick={automatedRedditConnect}
+                disabled={autoConnectLoading === "reddit"}
+                className="w-full bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white"
+              >
+                {autoConnectLoading === "reddit" ? (
+                  <><RefreshCw className="h-4 w-4 mr-2 animate-spin" />Connecting...</>
+                ) : (
+                  <><Globe className="h-4 w-4 mr-2" />Connect Reddit Automatically</>
+                )}
+              </Button>
+              {autoConnectLoading === "reddit" && (
+                <Badge className="bg-yellow-500/15 text-yellow-400 text-xs animate-pulse w-full justify-center">Waiting for authentication popup...</Badge>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* ===== AUTOMATED TELEGRAM ===== */}
+          <Card className="border-blue-400/20">
+            <CardContent className="p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                  <Phone className="h-4 w-4 text-blue-400" />
+                  Telegram — Bot Connect
+                </h4>
+                {telegramConnected && <Badge className="bg-green-500/15 text-green-400 text-[10px]">● Connected</Badge>}
+              </div>
+              <p className="text-[10px] text-muted-foreground">Enter your Telegram Bot Token (from @BotFather). The bot is verified and connected instantly — no popup needed.</p>
+              <Input value={telegramBotToken} onChange={e => setTelegramBotToken(e.target.value)} placeholder="Bot Token (e.g. 123456789:ABCdef...)" type="password" className="text-sm" />
+              <Button
+                onClick={automatedTelegramConnect}
+                disabled={autoConnectLoading === "telegram"}
+                className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white"
+              >
+                {autoConnectLoading === "telegram" ? (
+                  <><RefreshCw className="h-4 w-4 mr-2 animate-spin" />Verifying...</>
+                ) : (
+                  <><Phone className="h-4 w-4 mr-2" />Connect Telegram Bot</>
+                )}
+              </Button>
+              {autoConnectLoading === "telegram" && (
+                <Badge className="bg-yellow-500/15 text-yellow-400 text-xs animate-pulse w-full justify-center">Validating bot token...</Badge>
+              )}
+            </CardContent>
+          </Card>
+
           <Card>
             <CardContent className="p-4 space-y-3">
               <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><Shield className="h-4 w-4 text-muted-foreground" />Manual Connection</h4>
@@ -1257,6 +1521,9 @@ const SocialMediaHub = () => {
               <select value={connectForm.platform} onChange={e => setConnectForm(p => ({ ...p, platform: e.target.value }))} className="w-full bg-background border border-border text-foreground rounded-lg px-2 py-1.5 text-sm">
                 <option value="instagram">Instagram</option>
                 <option value="tiktok">TikTok</option>
+                <option value="twitter">X / Twitter</option>
+                <option value="reddit">Reddit</option>
+                <option value="telegram">Telegram</option>
               </select>
               <Input value={connectForm.platform_username} onChange={e => setConnectForm(p => ({ ...p, platform_username: e.target.value }))} placeholder="Username" className="text-sm" />
               <Input value={connectForm.platform_user_id} onChange={e => setConnectForm(p => ({ ...p, platform_user_id: e.target.value }))} placeholder="User/Page ID" className="text-sm" />
@@ -1274,7 +1541,7 @@ const SocialMediaHub = () => {
                 <div className="space-y-3">
                   {connections.map(c => {
                     const meta = (c.metadata || {}) as any;
-                    const profilePic = meta.profile_picture_url || meta.avatar_url;
+                    const profilePic = meta.profile_picture_url || meta.avatar_url || meta.profile_image_url || meta.icon_img;
                     const name = meta.name || meta.display_name || c.platform_username;
                     const followers = meta.followers_count;
                     const mediaCount = meta.media_count;
@@ -1289,8 +1556,8 @@ const SocialMediaHub = () => {
                                 <Users className="h-5 w-5 text-muted-foreground" />
                               </div>
                             )}
-                            <div className={`absolute -bottom-0.5 -right-0.5 h-5 w-5 rounded-full flex items-center justify-center ${c.platform === "instagram" ? "bg-gradient-to-br from-purple-500 to-pink-500" : "bg-black"}`}>
-                              {c.platform === "instagram" ? <Instagram className="h-3 w-3 text-white" /> : <Music2 className="h-3 w-3 text-white" />}
+                            <div className={`absolute -bottom-0.5 -right-0.5 h-5 w-5 rounded-full flex items-center justify-center ${c.platform === "instagram" ? "bg-gradient-to-br from-purple-500 to-pink-500" : c.platform === "twitter" ? "bg-black" : c.platform === "reddit" ? "bg-orange-600" : c.platform === "telegram" ? "bg-blue-500" : "bg-black"}`}>
+                              {c.platform === "instagram" ? <Instagram className="h-3 w-3 text-white" /> : c.platform === "tiktok" ? <Music2 className="h-3 w-3 text-white" /> : c.platform === "twitter" ? <Twitter className="h-3 w-3 text-white" /> : c.platform === "reddit" ? <Globe className="h-3 w-3 text-white" /> : <Phone className="h-3 w-3 text-white" />}
                             </div>
                           </div>
                           <div className="flex-1 min-w-0">
