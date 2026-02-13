@@ -21,6 +21,37 @@ async function getConnection(supabase: any, accountId: string) {
   return data;
 }
 
+// Resolve the Facebook Page ID linked to this IG account (needed for Conversations API)
+async function getPageId(token: string, igUserId: string): Promise<{ pageId: string; pageToken: string } | null> {
+  try {
+    // First get the user's pages via FB Graph
+    const pagesResp = await fetch(`${FB_GRAPH_URL}/me/accounts?fields=id,name,instagram_business_account,access_token&access_token=${token}`);
+    const pagesData = await pagesResp.json();
+    console.log("Pages response:", JSON.stringify(pagesData).substring(0, 500));
+    
+    if (pagesData.data) {
+      for (const page of pagesData.data) {
+        // Check if this page's IG business account matches our IG user ID
+        if (page.instagram_business_account?.id === igUserId) {
+          console.log(`Found linked Page: ${page.name} (${page.id}) for IG user ${igUserId}`);
+          return { pageId: page.id, pageToken: page.access_token || token };
+        }
+      }
+      // If no match found but there's only one page, use it
+      if (pagesData.data.length === 1) {
+        const page = pagesData.data[0];
+        console.log(`Using only available Page: ${page.name} (${page.id})`);
+        return { pageId: page.id, pageToken: page.access_token || token };
+      }
+    }
+    console.log("No linked Facebook Page found for IG user:", igUserId);
+    return null;
+  } catch (e: any) {
+    console.log("getPageId error:", e.message);
+    return null;
+  }
+}
+
 async function igFetch(endpoint: string, token: string, method = "GET", body?: any, useFbGraph = false) {
   const baseUrl = useFbGraph ? FB_GRAPH_URL : IG_GRAPH_URL;
   const url = endpoint.startsWith("http") ? endpoint : `${baseUrl}${endpoint}`;
@@ -305,29 +336,56 @@ serve(async (req) => {
       case "get_conversations": {
         const limit = params?.limit || 20;
         const folder = params?.folder || "";
-        // 2026 Instagram Graph API: GET /{ig_user_id}/conversations?platform=instagram
-        // Fields: messages use "text" and "timestamp" (NOT "message"/"created_time")
         const fields = `participants,messages.limit(${params?.messages_limit || 5}){id,text,from,to,timestamp},updated_time,id`;
-        let endpoint = `/${igUserId}/conversations?fields=${fields}&limit=${limit}&platform=instagram`;
-        if (folder) endpoint += `&folder=${folder}`;
         
-        console.log("Fetching conversations:", endpoint);
+        // Strategy: Try IG Graph with IG user ID, then FB Graph with Page ID
+        // The Conversations API often requires the PAGE ID via FB Graph, not IG user ID
+        let gotConvos = false;
         
-        // Use IG Graph API (graph.instagram.com) - the official 2026 endpoint
+        // Attempt 1: IG Graph API with IG user ID
         try {
+          let endpoint = `/${igUserId}/conversations?fields=${fields}&limit=${limit}&platform=instagram`;
+          if (folder) endpoint += `&folder=${folder}`;
+          console.log("Attempt 1 - IG Graph:", endpoint);
           result = await igFetch(endpoint, token);
-          console.log(`Got ${result?.data?.length || 0} conversations`);
-        } catch (igErr: any) {
-          console.log("IG Graph failed:", igErr.message, "- trying FB Graph fallback...");
-          // Fallback to FB Graph if IG Graph fails
+          console.log(`IG Graph: Got ${result?.data?.length || 0} conversations`);
+          if (result?.data?.length > 0) gotConvos = true;
+        } catch (e: any) {
+          console.log("IG Graph failed:", e.message);
+        }
+        
+        // Attempt 2: FB Graph API with Page ID (conversations live on the Page, not IG account)
+        if (!gotConvos) {
+          const pageInfo = await getPageId(token, igUserId);
+          if (pageInfo) {
+            try {
+              let endpoint = `/${pageInfo.pageId}/conversations?fields=${fields}&limit=${limit}&platform=instagram`;
+              if (folder) endpoint += `&folder=${folder}`;
+              console.log("Attempt 2 - FB Graph with Page ID:", endpoint);
+              result = await igFetch(endpoint, pageInfo.pageToken, "GET", undefined, true);
+              console.log(`FB Graph (Page): Got ${result?.data?.length || 0} conversations`);
+              if (result?.data?.length > 0) gotConvos = true;
+            } catch (e: any) {
+              console.log("FB Graph (Page) failed:", e.message);
+            }
+          }
+        }
+        
+        // Attempt 3: FB Graph with IG user ID directly
+        if (!gotConvos) {
           try {
+            let endpoint = `/${igUserId}/conversations?fields=${fields}&limit=${limit}&platform=instagram`;
+            if (folder) endpoint += `&folder=${folder}`;
+            console.log("Attempt 3 - FB Graph with IG user ID:", endpoint);
             result = await igFetch(endpoint, token, "GET", undefined, true);
-            console.log(`Got ${result?.data?.length || 0} conversations via FB Graph`);
-          } catch (fbErr: any) {
-            console.log("Both APIs failed:", fbErr.message);
+            console.log(`FB Graph (IG ID): Got ${result?.data?.length || 0} conversations`);
+          } catch (e: any) {
+            console.log("FB Graph (IG ID) also failed:", e.message);
             result = { data: [] };
           }
         }
+        
+        if (!result) result = { data: [] };
         break;
       }
 
@@ -335,8 +393,14 @@ serve(async (req) => {
       case "get_all_conversations": {
         const allLimit = params?.limit || 50;
         const msgLimit = params?.messages_limit || 10;
-        // 2026 IG Graph API: use "text" and "timestamp" fields
         const fields = `participants,messages.limit(${msgLimit}){id,text,from,to,timestamp},updated_time,id`;
+        
+        // Resolve Page ID first — conversations often live on the Page
+        const pageInfo = await getPageId(token, igUserId);
+        const convoOwnerId = pageInfo?.pageId || igUserId;
+        const convoToken = pageInfo?.pageToken || token;
+        const useFb = !!pageInfo;
+        console.log(`Using ${useFb ? "Page ID " + convoOwnerId : "IG user ID " + igUserId} for conversations`);
         
         const fetchAllPages = async (folderName: string): Promise<any[]> => {
           const allConvos: any[] = [];
@@ -344,19 +408,31 @@ serve(async (req) => {
           const maxPages = 5;
           
           const baseEp = folderName 
-            ? `/${igUserId}/conversations?fields=${fields}&limit=${allLimit}&platform=instagram&folder=${folderName}`
-            : `/${igUserId}/conversations?fields=${fields}&limit=${allLimit}&platform=instagram`;
+            ? `/${convoOwnerId}/conversations?fields=${fields}&limit=${allLimit}&platform=instagram&folder=${folderName}`
+            : `/${convoOwnerId}/conversations?fields=${fields}&limit=${allLimit}&platform=instagram`;
           
           try {
             let resp: any;
+            // Try primary API first
             try {
-              resp = await igFetch(baseEp, token);
+              resp = await igFetch(baseEp, convoToken, "GET", undefined, useFb);
             } catch {
+              // Fallback to other graph
               try {
-                resp = await igFetch(baseEp, token, "GET", undefined, true);
-              } catch (e2: any) {
-                console.log(`Folder ${folderName || "primary"} both APIs failed:`, e2.message);
-                return [];
+                resp = await igFetch(baseEp, convoToken, "GET", undefined, !useFb);
+              } catch {
+                // Final fallback: try with IG user ID on IG graph
+                if (convoOwnerId !== igUserId) {
+                  const fallbackEp = baseEp.replace(convoOwnerId, igUserId);
+                  try {
+                    resp = await igFetch(fallbackEp, token);
+                  } catch (e3: any) {
+                    console.log(`Folder ${folderName || "primary"} all attempts failed:`, e3.message);
+                    return [];
+                  }
+                } else {
+                  return [];
+                }
               }
             }
             
@@ -367,17 +443,13 @@ serve(async (req) => {
             while (nextUrl && attempts < maxPages) {
               attempts++;
               try {
-                const pageResp = await fetch(`${nextUrl}&access_token=${token}`);
+                const pageResp = await fetch(nextUrl);
                 const pageData = await pageResp.json();
                 if (pageData.error) break;
-                if (pageData.data?.length > 0) {
-                  allConvos.push(...pageData.data);
-                }
+                if (pageData.data?.length > 0) allConvos.push(...pageData.data);
                 nextUrl = pageData?.paging?.next || null;
                 if (!pageData.data?.length) break;
-              } catch {
-                break;
-              }
+              } catch { break; }
             }
           } catch (e: any) {
             console.log(`Folder ${folderName || "primary"} fetch failed:`, e.message);
@@ -402,10 +474,49 @@ serve(async (req) => {
         break;
       }
 
+      // Debug: raw API response for troubleshooting
+      case "debug_conversations": {
+        const debugResults: any = { ig_user_id: igUserId, attempts: [] };
+        
+        // 1. Try IG Graph with IG user ID
+        try {
+          const r1 = await fetch(`${IG_GRAPH_URL}/${igUserId}/conversations?platform=instagram&limit=5&access_token=${token}`);
+          const d1 = await r1.json();
+          debugResults.attempts.push({ method: "IG Graph + IG user ID", status: r1.status, response: d1 });
+        } catch (e: any) { debugResults.attempts.push({ method: "IG Graph + IG user ID", error: e.message }); }
+        
+        // 2. Get Page ID and try FB Graph with Page ID
+        const debugPageInfo = await getPageId(token, igUserId);
+        debugResults.page_info = debugPageInfo;
+        if (debugPageInfo) {
+          try {
+            const r2 = await fetch(`${FB_GRAPH_URL}/${debugPageInfo.pageId}/conversations?platform=instagram&limit=5&access_token=${debugPageInfo.pageToken}`);
+            const d2 = await r2.json();
+            debugResults.attempts.push({ method: "FB Graph + Page ID", page_id: debugPageInfo.pageId, status: r2.status, response: d2 });
+          } catch (e: any) { debugResults.attempts.push({ method: "FB Graph + Page ID", error: e.message }); }
+        }
+        
+        // 3. Try FB Graph with IG user ID
+        try {
+          const r3 = await fetch(`${FB_GRAPH_URL}/${igUserId}/conversations?platform=instagram&limit=5&access_token=${token}`);
+          const d3 = await r3.json();
+          debugResults.attempts.push({ method: "FB Graph + IG user ID", status: r3.status, response: d3 });
+        } catch (e: any) { debugResults.attempts.push({ method: "FB Graph + IG user ID", error: e.message }); }
+        
+        // 4. Check token permissions
+        try {
+          const r4 = await fetch(`${FB_GRAPH_URL}/debug_token?input_token=${token}&access_token=${token}`);
+          const d4 = await r4.json();
+          debugResults.token_debug = d4;
+        } catch (e: any) { debugResults.token_error = e.message; }
+
+        result = debugResults;
+        break;
+      }
+
       case "get_conversation_messages": {
         if (!params?.conversation_id) throw new Error("conversation_id required");
         const msgLimit = params?.limit || 20;
-        // 2026 IG Graph API: use "text" and "timestamp" fields
         result = await igFetch(`/${params.conversation_id}?fields=messages.limit(${msgLimit}){id,text,from,to,timestamp}`, token);
         break;
       }
