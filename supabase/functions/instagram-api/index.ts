@@ -305,27 +305,75 @@ serve(async (req) => {
       case "get_conversations": {
         const limit = params?.limit || 20;
         const folder = params?.folder || "";
-        // Try Instagram Graph API for conversations
-        let endpoint = `/${igUserId}/conversations?fields=participants,messages.limit(${params?.messages_limit || 5}){id,message,from,to,created_time},updated_time,id&limit=${limit}&platform=instagram`;
+        // Use Facebook Graph API for Instagram messaging (requires instagram_manage_messages permission)
+        const fields = `participants,messages.limit(${params?.messages_limit || 5}){id,message,from,to,created_time},updated_time,id`;
+        let endpoint = `/${igUserId}/conversations?fields=${fields}&limit=${limit}&platform=instagram`;
         if (folder) endpoint += `&folder=${folder}`;
-        console.log("Fetching conversations from:", endpoint);
+        
+        console.log("Fetching conversations:", endpoint);
+        
+        // Try FB Graph API first (required for IG messaging)
         try {
-          result = await igFetch(endpoint, token);
-          console.log("Conversations result:", JSON.stringify(result).substring(0, 500));
-        } catch (igErr: any) {
-          console.log("IG conversations failed, trying FB Graph API...", igErr.message);
-          // Fallback: try Facebook Graph API
+          result = await igFetch(endpoint, token, "GET", undefined, true);
+          console.log(`Got ${result?.data?.length || 0} conversations`);
+        } catch (fbErr: any) {
+          console.log("FB Graph failed:", fbErr.message, "- trying IG Graph...");
           try {
-            result = await igFetch(endpoint, token, "GET", undefined, true);
-            console.log("FB Conversations result:", JSON.stringify(result).substring(0, 500));
-          } catch (fbErr: any) {
-            console.log("FB conversations also failed:", fbErr.message);
-            // Final fallback: try without platform param
-            const fallbackEndpoint = `/${igUserId}/conversations?fields=participants,messages.limit(${params?.messages_limit || 5}){id,message,from,to,created_time},updated_time,id&limit=${limit}`;
-            result = await igFetch(fallbackEndpoint, token);
-            console.log("Fallback conversations result:", JSON.stringify(result).substring(0, 500));
+            result = await igFetch(endpoint, token);
+            console.log(`Got ${result?.data?.length || 0} conversations via IG Graph`);
+          } catch (igErr: any) {
+            console.log("IG Graph also failed:", igErr.message, "- trying without platform param...");
+            // Final attempt without platform filter
+            const fallback = `/${igUserId}/conversations?fields=${fields}&limit=${limit}`;
+            try {
+              result = await igFetch(fallback, token, "GET", undefined, true);
+            } catch {
+              result = await igFetch(fallback, token);
+            }
           }
         }
+        break;
+      }
+
+      // Fetch ALL conversation folders (primary + general + requests)
+      case "get_all_conversations": {
+        const allLimit = params?.limit || 20;
+        const msgLimit = params?.messages_limit || 5;
+        const fields = `participants,messages.limit(${msgLimit}){id,message,from,to,created_time},updated_time,id`;
+        
+        const fetchFolder = async (folderName: string) => {
+          try {
+            const ep = folderName 
+              ? `/${igUserId}/conversations?fields=${fields}&limit=${allLimit}&platform=instagram&folder=${folderName}`
+              : `/${igUserId}/conversations?fields=${fields}&limit=${allLimit}&platform=instagram`;
+            // Try FB Graph first
+            try {
+              return await igFetch(ep, token, "GET", undefined, true);
+            } catch {
+              return await igFetch(ep, token);
+            }
+          } catch (e: any) {
+            console.log(`Folder ${folderName} fetch failed:`, e.message);
+            return { data: [] };
+          }
+        };
+        
+        const [primary, general, requests] = await Promise.all([
+          fetchFolder(""),
+          fetchFolder("general"),  
+          fetchFolder("other"), // IG API uses "other" for message requests
+        ]);
+        
+        result = {
+          primary: primary?.data || [],
+          general: general?.data || [],
+          requests: requests?.data || [],
+          paging: {
+            primary: primary?.paging,
+            general: general?.paging,
+            requests: requests?.paging,
+          },
+        };
         break;
       }
 

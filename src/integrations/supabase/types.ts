@@ -84,9 +84,12 @@ export type Database = {
           account_id: string
           ai_enabled: boolean
           created_at: string
+          folder: string
           id: string
+          is_read: boolean
           last_ai_reply_at: string | null
           last_message_at: string | null
+          last_message_preview: string | null
           message_count: number | null
           metadata: Json | null
           participant_avatar_url: string | null
@@ -103,9 +106,12 @@ export type Database = {
           account_id: string
           ai_enabled?: boolean
           created_at?: string
+          folder?: string
           id?: string
+          is_read?: boolean
           last_ai_reply_at?: string | null
           last_message_at?: string | null
+          last_message_preview?: string | null
           message_count?: number | null
           metadata?: Json | null
           participant_avatar_url?: string | null
@@ -122,9 +128,12 @@ export type Database = {
           account_id?: string
           ai_enabled?: boolean
           created_at?: string
+          folder?: string
           id?: string
+          is_read?: boolean
           last_ai_reply_at?: string | null
           last_message_at?: string | null
+          last_message_preview?: string | null
           message_count?: number | null
           metadata?: Json | null
           participant_avatar_url?: string | null
