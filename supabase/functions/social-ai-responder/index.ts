@@ -986,7 +986,7 @@ ${autoConfig.trigger_keywords ? `if they mention any of these: ${autoConfig.trig
   } catch (e) {
     console.error("Social AI Responder error:", e);
     return new Response(JSON.stringify({ success: false, error: e instanceof Error ? e.message : "Unknown error" }), {
-      status: 400,
+      status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }

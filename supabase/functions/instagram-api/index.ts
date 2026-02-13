@@ -335,44 +335,77 @@ serve(async (req) => {
         break;
       }
 
-      // Fetch ALL conversation folders (primary + general + requests)
+      // Fetch ALL conversation folders (primary + general + requests) with full pagination
       case "get_all_conversations": {
-        const allLimit = params?.limit || 20;
-        const msgLimit = params?.messages_limit || 5;
+        const allLimit = params?.limit || 50;
+        const msgLimit = params?.messages_limit || 10;
         const fields = `participants,messages.limit(${msgLimit}){id,message,from,to,created_time},updated_time,id`;
         
-        const fetchFolder = async (folderName: string) => {
+        const fetchAllPages = async (folderName: string): Promise<any[]> => {
+          const allConvos: any[] = [];
+          let nextUrl: string | null = null;
+          let attempts = 0;
+          const maxPages = 5; // Safety limit
+          
+          const baseEp = folderName 
+            ? `/${igUserId}/conversations?fields=${fields}&limit=${allLimit}&platform=instagram&folder=${folderName}`
+            : `/${igUserId}/conversations?fields=${fields}&limit=${allLimit}&platform=instagram`;
+          
           try {
-            const ep = folderName 
-              ? `/${igUserId}/conversations?fields=${fields}&limit=${allLimit}&platform=instagram&folder=${folderName}`
-              : `/${igUserId}/conversations?fields=${fields}&limit=${allLimit}&platform=instagram`;
-            // Try FB Graph first
+            // Try IG Graph (works with IGAA tokens)
+            let resp: any;
             try {
-              return await igFetch(ep, token, "GET", undefined, true);
+              resp = await igFetch(baseEp, token);
             } catch {
-              return await igFetch(ep, token);
+              // Fallback to FB Graph
+              try {
+                resp = await igFetch(baseEp, token, "GET", undefined, true);
+              } catch (e2: any) {
+                console.log(`Folder ${folderName} both APIs failed:`, e2.message);
+                return [];
+              }
+            }
+            
+            console.log(`Folder ${folderName}: got ${resp?.data?.length || 0} conversations`);
+            if (resp?.data) allConvos.push(...resp.data);
+            nextUrl = resp?.paging?.next || null;
+            
+            // Follow pagination
+            while (nextUrl && attempts < maxPages) {
+              attempts++;
+              try {
+                const pageResp = await fetch(`${nextUrl}&access_token=${token}`);
+                const pageData = await pageResp.json();
+                if (pageData.error) break;
+                if (pageData.data?.length > 0) {
+                  allConvos.push(...pageData.data);
+                  console.log(`Folder ${folderName} page ${attempts}: +${pageData.data.length} conversations`);
+                }
+                nextUrl = pageData?.paging?.next || null;
+                if (!pageData.data?.length) break; // No more data
+              } catch {
+                break;
+              }
             }
           } catch (e: any) {
             console.log(`Folder ${folderName} fetch failed:`, e.message);
-            return { data: [] };
           }
+          return allConvos;
         };
         
         const [primary, general, requests] = await Promise.all([
-          fetchFolder(""),
-          fetchFolder("general"),  
-          fetchFolder("other"), // IG API uses "other" for message requests
+          fetchAllPages(""),
+          fetchAllPages("general"),  
+          fetchAllPages("other"), // IG API uses "other" for message requests
         ]);
         
+        console.log(`Found ${primary.length + general.length + requests.length} conversations total`);
+        
         result = {
-          primary: primary?.data || [],
-          general: general?.data || [],
-          requests: requests?.data || [],
-          paging: {
-            primary: primary?.paging,
-            general: general?.paging,
-            requests: requests?.paging,
-          },
+          primary,
+          general,
+          requests,
+          total: primary.length + general.length + requests.length,
         };
         break;
       }
@@ -450,8 +483,9 @@ serve(async (req) => {
     });
   } catch (e) {
     console.error("Instagram API error:", e);
+    // Return 200 with success:false so callers don't get non-2xx errors
     return new Response(JSON.stringify({ success: false, error: e instanceof Error ? e.message : "Unknown error" }), {
-      status: 400,
+      status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
