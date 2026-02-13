@@ -105,6 +105,13 @@ const SocialMediaHub = () => {
   const [oauthRedirectUri, setOauthRedirectUri] = useState(window.location.origin + "/admin");
   const [oauthListening, setOauthListening] = useState(false);
 
+  // TikTok OAuth
+  const [ttClientKey, setTtClientKey] = useState("");
+  const [ttOauthListening, setTtOauthListening] = useState(false);
+
+  // Automated connect loading
+  const [autoConnectLoading, setAutoConnectLoading] = useState<string | null>(null);
+
   useEffect(() => { loadAccounts(); }, []);
   useEffect(() => {
     if (selectedAccount) {
@@ -318,6 +325,132 @@ const SocialMediaHub = () => {
     
     toast.success("Disconnected & credentials wiped");
     await loadData();
+  };
+
+  // ===== AUTOMATED ONE-CLICK CONNECT =====
+  const automatedInstagramConnect = () => {
+    if (!oauthAppId) { toast.error("Enter your Meta App ID first"); return; }
+    const scopes = [
+      "instagram_basic", "instagram_manage_messages", "instagram_manage_comments",
+      "instagram_manage_insights", "instagram_content_publish", "pages_show_list",
+      "pages_read_engagement", "business_management", "ads_read", "ads_management",
+      "instagram_shopping_tag_products", "instagram_manage_upcoming_events",
+      "instagram_branded_content_ads_brand", "instagram_branded_content_brand",
+      "catalog_management", "email", "public_profile",
+    ].join(",");
+    const authUrl = `https://www.facebook.com/v24.0/dialog/oauth?client_id=${oauthAppId}&redirect_uri=${encodeURIComponent(oauthRedirectUri)}&scope=${scopes}&response_type=token`;
+    const authWindow = window.open(authUrl, "meta_oauth", "width=600,height=700,scrollbars=yes");
+    setAutoConnectLoading("instagram");
+    toast.info("Authenticate in the popup window...");
+
+    const interval = setInterval(async () => {
+      try {
+        if (!authWindow || authWindow.closed) { clearInterval(interval); setAutoConnectLoading(null); return; }
+        const url = authWindow.location.href;
+        if (url.includes("access_token=")) {
+          const hash = authWindow.location.hash.substring(1);
+          const params = new URLSearchParams(hash);
+          const token = params.get("access_token");
+          authWindow.close();
+          clearInterval(interval);
+          if (!token) { setAutoConnectLoading(null); toast.error("No token received"); return; }
+          toast.info("Token captured! Fetching profile...");
+          try {
+            const profileRes = await fetch(`https://graph.instagram.com/v24.0/me?fields=id,username,name,profile_picture_url,followers_count,follows_count,media_count&access_token=${token}`);
+            let profileData = await profileRes.json();
+            if (profileData.error) {
+              const pagesRes = await fetch(`https://graph.facebook.com/v24.0/me/accounts?fields=id,name,instagram_business_account{id,username,name,profile_picture_url,followers_count,media_count}&access_token=${token}`);
+              const pagesData = await pagesRes.json();
+              const igAccount = pagesData.data?.find((p: any) => p.instagram_business_account)?.instagram_business_account;
+              if (igAccount) profileData = igAccount;
+              else { toast.error("No Instagram Business account found"); setAutoConnectLoading(null); return; }
+            }
+            const username = profileData.username || profileData.name || "instagram_user";
+            const userId = profileData.id || "";
+            let accountId = selectedAccount;
+            if (!accountId) {
+              const { data: newAcct, error: err } = await supabase.from("managed_accounts").insert({
+                username, display_name: profileData.name || username, platform: "instagram", status: "active",
+                avatar_url: profileData.profile_picture_url || null, subscriber_count: profileData.followers_count || 0, content_count: profileData.media_count || 0,
+              }).select("id").single();
+              if (err || !newAcct) { toast.error(err?.message || "Failed to create account"); setAutoConnectLoading(null); return; }
+              accountId = newAcct.id; setSelectedAccount(accountId);
+            }
+            await supabase.from("social_connections").upsert({
+              account_id: accountId, platform: "instagram", platform_user_id: userId, platform_username: username, access_token: token, is_connected: true, scopes: [],
+              metadata: { profile_picture_url: profileData.profile_picture_url, name: profileData.name, followers_count: profileData.followers_count, media_count: profileData.media_count, connected_via: "automated_oauth" },
+            }, { onConflict: "account_id,platform" });
+            await supabase.from("managed_accounts").update({
+              avatar_url: profileData.profile_picture_url || undefined, display_name: profileData.name || username,
+              subscriber_count: profileData.followers_count || 0, content_count: profileData.media_count || 0,
+              social_links: { instagram: `https://instagram.com/${username}`, ig_user_id: userId }, last_activity_at: new Date().toISOString(),
+            }).eq("id", accountId);
+            setIgProfile(profileData);
+            await loadAccounts(); await loadData(accountId);
+            toast.success(`✅ @${username} connected automatically!`);
+          } catch (e: any) { toast.error("Profile fetch failed: " + e.message); }
+          setAutoConnectLoading(null);
+        }
+      } catch { /* cross-origin polling */ }
+    }, 500);
+  };
+
+  const automatedTikTokConnect = () => {
+    if (!ttClientKey) { toast.error("Enter your TikTok Client Key first"); return; }
+    const csrfState = Math.random().toString(36).substring(2);
+    sessionStorage.setItem("tt_csrf", csrfState);
+    const scopes = "user.info.basic,user.info.profile,user.info.stats,video.list,video.publish,video.upload";
+    const authUrl = `https://www.tiktok.com/v2/auth/authorize/?client_key=${ttClientKey}&scope=${scopes}&response_type=code&redirect_uri=${encodeURIComponent(oauthRedirectUri)}&state=${csrfState}`;
+    const authWindow = window.open(authUrl, "tiktok_oauth", "width=600,height=700,scrollbars=yes");
+    setAutoConnectLoading("tiktok");
+    toast.info("Authenticate with TikTok in the popup...");
+
+    const interval = setInterval(async () => {
+      try {
+        if (!authWindow || authWindow.closed) { clearInterval(interval); setAutoConnectLoading(null); return; }
+        const url = authWindow.location.href;
+        if (url.includes("code=")) {
+          const urlParams = new URL(url).searchParams;
+          const code = urlParams.get("code");
+          authWindow.close(); clearInterval(interval);
+          if (!code) { setAutoConnectLoading(null); toast.error("No auth code received"); return; }
+          toast.info("Auth code captured! Exchanging for token...");
+          const { data, error } = await supabase.functions.invoke("tiktok-api", {
+            body: { action: "exchange_code", params: { code, client_key: ttClientKey, redirect_uri: oauthRedirectUri } },
+          });
+          if (error || !data?.success) { toast.error(data?.error || error?.message || "Token exchange failed"); setAutoConnectLoading(null); return; }
+          const tokenData = data.data;
+          const accessToken = tokenData?.access_token;
+          const openId = tokenData?.open_id;
+          if (!accessToken) { toast.error("No access token in response"); setAutoConnectLoading(null); return; }
+          toast.info("Fetching TikTok profile...");
+          const profileRes = await supabase.functions.invoke("tiktok-api", {
+            body: { action: "get_user_info", account_id: selectedAccount || "temp", params: { access_token_override: accessToken } },
+          });
+          const ttUser = profileRes.data?.data?.data?.user || profileRes.data?.data?.user || {};
+          const username = ttUser.username || ttUser.display_name || "tiktok_user";
+          let accountId = selectedAccount;
+          if (!accountId) {
+            const { data: newAcct, error: err } = await supabase.from("managed_accounts").insert({
+              username, display_name: ttUser.display_name || username, platform: "tiktok", status: "active", avatar_url: ttUser.avatar_url || null,
+            }).select("id").single();
+            if (err || !newAcct) { toast.error(err?.message || "Failed to create account"); setAutoConnectLoading(null); return; }
+            accountId = newAcct.id; setSelectedAccount(accountId);
+          }
+          await supabase.from("social_connections").upsert({
+            account_id: accountId, platform: "tiktok", platform_user_id: openId || "", platform_username: username, access_token: accessToken,
+            refresh_token: tokenData?.refresh_token || null, is_connected: true, scopes: [],
+            metadata: { avatar_url: ttUser.avatar_url, display_name: ttUser.display_name, connected_via: "automated_oauth" },
+          }, { onConflict: "account_id,platform" });
+          await supabase.from("managed_accounts").update({
+            avatar_url: ttUser.avatar_url || undefined, display_name: ttUser.display_name || username, last_activity_at: new Date().toISOString(),
+          }).eq("id", accountId);
+          setTtProfile(ttUser); await loadAccounts(); await loadData(accountId);
+          toast.success(`✅ @${username} TikTok connected automatically!`);
+          setAutoConnectLoading(null);
+        }
+      } catch { /* cross-origin polling */ }
+    }, 500);
   };
 
   const schedulePost = async () => {
@@ -1043,71 +1176,81 @@ const SocialMediaHub = () => {
 
         {/* ===== CONNECT ===== */}
         <TabsContent value="connect" className="space-y-4 mt-4">
-          {/* Direct OAuth Link Connection */}
+          {/* Redirect URI config */}
           <Card>
-            <CardContent className="p-4 space-y-3">
-              <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><ExternalLink className="h-4 w-4 text-blue-400" />Connect via Direct OAuth Link</h4>
-              <p className="text-[10px] text-muted-foreground">Opens a new browser window to authenticate with Meta/Instagram. The access token is automatically captured from the redirect URL.</p>
-              <div className="grid grid-cols-2 gap-2">
-                <Input value={oauthAppId} onChange={e => setOauthAppId(e.target.value)} placeholder="Meta App ID" className="text-sm" />
-                <Input value={oauthRedirectUri} onChange={e => setOauthRedirectUri(e.target.value)} placeholder="Redirect URI" className="text-sm" />
-              </div>
+            <CardContent className="p-4 space-y-2">
+              <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><Globe className="h-4 w-4 text-blue-400" />OAuth Redirect URI</h4>
+              <p className="text-[10px] text-muted-foreground">Set this as the redirect URI in your Meta/TikTok developer app settings</p>
               <div className="flex gap-2">
-                <Button size="sm" onClick={() => {
-                  if (!oauthAppId) { toast.error("Enter your Meta App ID"); return; }
-                  const scopes = [
-                    "instagram_basic", "instagram_manage_messages", "instagram_manage_comments",
-                    "instagram_manage_insights", "instagram_content_publish", "pages_show_list",
-                    "pages_read_engagement", "business_management", "ads_read", "ads_management",
-                    "instagram_shopping_tag_products", "instagram_manage_upcoming_events",
-                    "instagram_branded_content_ads_brand", "instagram_branded_content_brand",
-                    "catalog_management", "email", "public_profile",
-                  ].join(",");
-                  const authUrl = `https://www.facebook.com/v24.0/dialog/oauth?client_id=${oauthAppId}&redirect_uri=${encodeURIComponent(oauthRedirectUri)}&scope=${scopes}&response_type=token`;
-                  
-                  const authWindow = window.open(authUrl, "meta_oauth", "width=600,height=700,scrollbars=yes");
-                  setOauthListening(true);
-                  
-                  // Listen for the redirect with access_token in the hash
-                  const interval = setInterval(() => {
-                    try {
-                      if (!authWindow || authWindow.closed) {
-                        clearInterval(interval);
-                        setOauthListening(false);
-                        return;
-                      }
-                      const url = authWindow.location.href;
-                      if (url.includes("access_token=")) {
-                        const hash = authWindow.location.hash.substring(1);
-                        const params = new URLSearchParams(hash);
-                        const token = params.get("access_token");
-                        authWindow.close();
-                        clearInterval(interval);
-                        setOauthListening(false);
-                        if (token) {
-                          setConnectForm(prev => ({ ...prev, access_token: token }));
-                          toast.success("Access token captured! Fill in username & ID, then click Connect.");
-                        }
-                      }
-                    } catch {
-                      // Cross-origin — keep polling until redirect comes back to our domain
-                    }
-                  }, 500);
-                }}>
-                  <ExternalLink className="h-3.5 w-3.5 mr-1" />
-                  {oauthListening ? "Waiting for auth..." : "Open Auth Window"}
-                </Button>
-                {oauthListening && (
-                  <Badge className="bg-yellow-500/15 text-yellow-400 text-xs animate-pulse">Listening for callback...</Badge>
-                )}
+                <Input value={oauthRedirectUri} onChange={e => setOauthRedirectUri(e.target.value)} placeholder="Redirect URI" className="text-sm flex-1" />
+                <Button size="sm" variant="outline" onClick={() => { navigator.clipboard.writeText(oauthRedirectUri); toast.success("Copied!"); }}><Copy className="h-3.5 w-3.5" /></Button>
               </div>
             </CardContent>
           </Card>
 
-          {/* Manual Connection */}
+          {/* ===== AUTOMATED INSTAGRAM ===== */}
+          <Card className="border-pink-500/20">
+            <CardContent className="p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                  <Instagram className="h-4 w-4 text-pink-400" />
+                  Instagram — One-Click Connect
+                </h4>
+                {igConnected && <Badge className="bg-green-500/15 text-green-400 text-[10px]">● Connected</Badge>}
+              </div>
+              <p className="text-[10px] text-muted-foreground">Opens Meta OAuth in a new window. Profile, username, avatar, and token are captured automatically — zero manual input.</p>
+              <Input value={oauthAppId} onChange={e => setOauthAppId(e.target.value)} placeholder="Meta App ID (from developers.facebook.com)" className="text-sm" />
+              <Button
+                onClick={automatedInstagramConnect}
+                disabled={autoConnectLoading === "instagram"}
+                className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white"
+              >
+                {autoConnectLoading === "instagram" ? (
+                  <><RefreshCw className="h-4 w-4 mr-2 animate-spin" />Connecting...</>
+                ) : (
+                  <><Instagram className="h-4 w-4 mr-2" />Connect Instagram Automatically</>
+                )}
+              </Button>
+              {autoConnectLoading === "instagram" && (
+                <Badge className="bg-yellow-500/15 text-yellow-400 text-xs animate-pulse w-full justify-center">Waiting for authentication popup...</Badge>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* ===== AUTOMATED TIKTOK ===== */}
+          <Card className="border-cyan-500/20">
+            <CardContent className="p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                  <Music2 className="h-4 w-4 text-cyan-400" />
+                  TikTok — One-Click Connect
+                </h4>
+                {ttConnected && <Badge className="bg-green-500/15 text-green-400 text-[10px]">● Connected</Badge>}
+              </div>
+              <p className="text-[10px] text-muted-foreground">Opens TikTok Login Kit in a new window. Auth code is exchanged for a token automatically and profile is synced.</p>
+              <Input value={ttClientKey} onChange={e => setTtClientKey(e.target.value)} placeholder="TikTok Client Key (from developers.tiktok.com)" className="text-sm" />
+              <Button
+                onClick={automatedTikTokConnect}
+                disabled={autoConnectLoading === "tiktok"}
+                className="w-full bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-700 hover:to-teal-700 text-white"
+              >
+                {autoConnectLoading === "tiktok" ? (
+                  <><RefreshCw className="h-4 w-4 mr-2 animate-spin" />Connecting...</>
+                ) : (
+                  <><Music2 className="h-4 w-4 mr-2" />Connect TikTok Automatically</>
+                )}
+              </Button>
+              {autoConnectLoading === "tiktok" && (
+                <Badge className="bg-yellow-500/15 text-yellow-400 text-xs animate-pulse w-full justify-center">Waiting for authentication popup...</Badge>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* ===== MANUAL CONNECTION ===== */}
           <Card>
             <CardContent className="p-4 space-y-3">
-              <h4 className="text-sm font-semibold text-foreground">Manual Connection</h4>
+              <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><Shield className="h-4 w-4 text-muted-foreground" />Manual Connection</h4>
+              <p className="text-[10px] text-muted-foreground">Paste credentials directly if you already have an access token.</p>
               <select value={connectForm.platform} onChange={e => setConnectForm(p => ({ ...p, platform: e.target.value }))} className="w-full bg-background border border-border text-foreground rounded-lg px-2 py-1.5 text-sm">
                 <option value="instagram">Instagram</option>
                 <option value="tiktok">TikTok</option>
@@ -1116,10 +1259,11 @@ const SocialMediaHub = () => {
               <Input value={connectForm.platform_user_id} onChange={e => setConnectForm(p => ({ ...p, platform_user_id: e.target.value }))} placeholder="User/Page ID" className="text-sm" />
               <Input value={connectForm.access_token} onChange={e => setConnectForm(p => ({ ...p, access_token: e.target.value }))} placeholder="Access Token" type="password" className="text-sm" />
               <Input value={connectForm.refresh_token} onChange={e => setConnectForm(p => ({ ...p, refresh_token: e.target.value }))} placeholder="Refresh Token (optional)" type="password" className="text-sm" />
-              <Button onClick={connectPlatform} size="sm"><Plus className="h-3.5 w-3.5 mr-1" />Connect</Button>
+              <Button onClick={connectPlatform} size="sm" variant="outline"><Plus className="h-3.5 w-3.5 mr-1" />Connect Manually</Button>
             </CardContent>
           </Card>
 
+          {/* ===== CONNECTED ACCOUNTS ===== */}
           {connections.length > 0 && (
             <Card>
               <CardContent className="p-4">
@@ -1127,14 +1271,13 @@ const SocialMediaHub = () => {
                 <div className="space-y-3">
                   {connections.map(c => {
                     const meta = (c.metadata || {}) as any;
-                    const profilePic = meta.profile_picture_url;
-                    const name = meta.name || c.platform_username;
+                    const profilePic = meta.profile_picture_url || meta.avatar_url;
+                    const name = meta.name || meta.display_name || c.platform_username;
                     const followers = meta.followers_count;
                     const mediaCount = meta.media_count;
                     return (
                       <div key={c.id} className={`rounded-xl p-4 border ${c.is_connected ? "bg-green-500/5 border-green-500/20" : "bg-muted/20 border-border"}`}>
                         <div className="flex items-center gap-3">
-                          {/* Profile picture + platform badge */}
                           <div className="relative">
                             {profilePic ? (
                               <img src={profilePic} alt={name} className="h-12 w-12 rounded-full object-cover border-2 border-green-500/30" />
@@ -1147,7 +1290,6 @@ const SocialMediaHub = () => {
                               {c.platform === "instagram" ? <Instagram className="h-3 w-3 text-white" /> : <Music2 className="h-3 w-3 text-white" />}
                             </div>
                           </div>
-                          {/* Info */}
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
                               <p className="text-sm font-bold text-foreground truncate">{name}</p>
@@ -1161,7 +1303,6 @@ const SocialMediaHub = () => {
                               </div>
                             )}
                           </div>
-                          {/* Actions */}
                           <div className="flex flex-col gap-1">
                             <Badge className={c.is_connected ? "bg-green-500/15 text-green-400 text-[10px]" : "bg-muted text-muted-foreground text-[10px]"}>
                               {c.is_connected ? "● Live" : "Offline"}
@@ -1173,12 +1314,11 @@ const SocialMediaHub = () => {
                             )}
                           </div>
                         </div>
-                        {/* Connection details */}
                         <div className="mt-2 pt-2 border-t border-border/50 flex items-center gap-3 text-[10px] text-muted-foreground">
                           <span>ID: {c.platform_user_id || "—"}</span>
                           <span>·</span>
                           <span>Connected: {new Date(c.connected_at).toLocaleDateString()}</span>
-                          {c.token_expires_at && <><span>·</span><span>Token expires: {new Date(c.token_expires_at).toLocaleDateString()}</span></>}
+                          {(meta.connected_via) && <><span>·</span><span>Via: {meta.connected_via}</span></>}
                         </div>
                       </div>
                     );
