@@ -54,9 +54,34 @@ serve(async (req) => {
     let result: any;
 
     switch (action) {
+      // ===== OAUTH TOKEN EXCHANGE =====
+      case "exchange_code": {
+        const { code, client_key, client_secret, redirect_uri } = params;
+        if (!code || !client_key || !client_secret) {
+          throw new Error("Missing code, client_key, or client_secret");
+        }
+        const tokenRes = await fetch("https://open.tiktokapis.com/v2/oauth/token/", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams({
+            client_key,
+            client_secret,
+            code,
+            grant_type: "authorization_code",
+            redirect_uri: redirect_uri || "",
+          }).toString(),
+        });
+        const tokenData = await tokenRes.json();
+        if (tokenData.error) throw new Error(`Token exchange failed: ${tokenData.error_description}`);
+        result = { success: true, data: tokenData.data };
+        break;
+      }
+
       // ===== USER INFO =====
       case "get_user_info":
-        result = await ttFetch("/user/info/?fields=open_id,union_id,avatar_url,display_name,bio_description,profile_deep_link,is_verified,follower_count,following_count,likes_count,video_count,username", token);
+        // If access_token_override provided (for new connections), use it instead of stored token
+        const useToken = params?.access_token_override || token;
+        result = await ttFetch("/user/info/?fields=open_id,union_id,avatar_url,display_name,bio_description,profile_deep_link,is_verified,follower_count,following_count,likes_count,video_count,username", useToken);
         break;
 
       // ===== VIDEO LIST =====
