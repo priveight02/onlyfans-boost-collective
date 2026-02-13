@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import SocialAITools from "./SocialAITools";
 import LiveDMConversations from "./LiveDMConversations";
 import IGAutomationSuite from "./social/IGAutomationSuite";
+import SocialNetworksTab from "./social/SocialNetworksTab";
 import BioLinksManager from "./social/BioLinksManager";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -878,6 +879,7 @@ const SocialMediaHub = () => {
               { v: "analytics", icon: BarChart3, l: "Analytics" },
               { v: "biolink", icon: Link2, l: "Bio Links" },
               { v: "automation", icon: Zap, l: "IG Automation" },
+              { v: "social-networks", icon: Globe, l: "Networks" },
               { v: "connect", icon: Plus, l: "Connect" },
             ].map(t => (
               <TabsTrigger key={t.v} value={t.v} className="data-[state=active]:bg-background data-[state=active]:text-foreground text-muted-foreground rounded-md gap-1 text-xs px-2.5 py-1.5 whitespace-nowrap">
@@ -1350,6 +1352,11 @@ const SocialMediaHub = () => {
         {/* ===== IG AUTOMATION SUITE ===== */}
         <TabsContent value="automation" className="mt-4">
           <IGAutomationSuite selectedAccount={selectedAccount} />
+        </TabsContent>
+
+        {/* ===== SOCIAL NETWORKS (X, Reddit, TG, TikTok) ===== */}
+        <TabsContent value="social-networks" className="mt-4">
+          <SocialNetworksTab selectedAccount={selectedAccount} />
         </TabsContent>
 
         {/* ===== CONNECT ===== */}
