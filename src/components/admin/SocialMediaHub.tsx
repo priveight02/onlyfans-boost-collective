@@ -98,7 +98,42 @@ const SocialMediaHub = () => {
   const [connectForm, setConnectForm] = useState({ platform: "instagram", platform_user_id: "", platform_username: "", access_token: "", refresh_token: "" });
 
   useEffect(() => { loadAccounts(); }, []);
-  useEffect(() => { if (selectedAccount) { loadData(); loadAutoRespondState(); } }, [selectedAccount]);
+  useEffect(() => {
+    if (selectedAccount) {
+      loadData();
+      loadAutoRespondState();
+    }
+  }, [selectedAccount]);
+
+  // Restore profile data from stored connection metadata on session load
+  useEffect(() => {
+    if (connections.length > 0) {
+      const igConn = connections.find(c => c.platform === "instagram" && c.is_connected);
+      const ttConn = connections.find(c => c.platform === "tiktok" && c.is_connected);
+      if (igConn?.metadata && !igProfile) {
+        const meta = igConn.metadata as any;
+        if (meta.profile_picture_url || meta.name) {
+          setIgProfile({
+            profile_picture_url: meta.profile_picture_url,
+            name: meta.name,
+            username: igConn.platform_username,
+            followers_count: meta.followers_count,
+            media_count: meta.media_count,
+          });
+        }
+      }
+      if (ttConn?.metadata && !ttProfile) {
+        const meta = ttConn.metadata as any;
+        if (meta.avatar_url || meta.display_name) {
+          setTtProfile({
+            avatar_url: meta.avatar_url,
+            display_name: meta.display_name,
+            username: ttConn.platform_username,
+          });
+        }
+      }
+    }
+  }, [connections]);
 
   // Real-time sync for auto_respond_state
   useEffect(() => {
@@ -119,7 +154,13 @@ const SocialMediaHub = () => {
   const loadAccounts = async () => {
     const { data } = await supabase.from("managed_accounts").select("id, username, display_name, avatar_url").order("created_at", { ascending: false });
     setAccounts(data || []);
-    if (data?.[0]) setSelectedAccount(data[0].id);
+    // Auto-select first account if none selected or current selection no longer exists
+    if (data?.length) {
+      const currentExists = data.some(a => a.id === selectedAccount);
+      if (!selectedAccount || !currentExists) {
+        setSelectedAccount(data[0].id);
+      }
+    }
   };
 
   const loadData = async (overrideAccountId?: string) => {
@@ -255,8 +296,20 @@ const SocialMediaHub = () => {
   };
 
   const disconnectPlatform = async (id: string) => {
-    await supabase.from("social_connections").update({ is_connected: false }).eq("id", id);
-    toast.success("Disconnected"); loadData();
+    // Find platform before deleting for cleanup
+    const conn = connections.find(c => c.id === id);
+    const platform = conn?.platform;
+    
+    // Fully delete the connection row — wipes access_token, refresh_token, all credentials
+    const { error } = await supabase.from("social_connections").delete().eq("id", id);
+    if (error) { toast.error("Failed to disconnect: " + error.message); return; }
+    
+    // Clear local profile state
+    if (platform === "instagram") setIgProfile(null);
+    if (platform === "tiktok") setTtProfile(null);
+    
+    toast.success("Disconnected & credentials wiped");
+    await loadData();
   };
 
   const schedulePost = async () => {
