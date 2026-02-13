@@ -202,9 +202,35 @@ const SocialMediaHub = () => {
       account_id: selectedAccount, platform: connectForm.platform, platform_user_id: connectForm.platform_user_id,
       platform_username: connectForm.platform_username, access_token: connectForm.access_token,
       refresh_token: connectForm.refresh_token || null, is_connected: true, scopes: [],
+      metadata: { connected_via: "social_hub", connected_at_readable: new Date().toLocaleString() },
     }, { onConflict: "account_id,platform" });
-    if (error) toast.error(error.message);
-    else { toast.success(`${connectForm.platform} connected!`); loadData(); setConnectForm({ platform: "instagram", platform_user_id: "", platform_username: "", access_token: "", refresh_token: "" }); }
+    if (error) { toast.error(error.message); return; }
+    toast.success(`${connectForm.platform} connected!`);
+    await loadData();
+    setConnectForm({ platform: "instagram", platform_user_id: "", platform_username: "", access_token: "", refresh_token: "" });
+    // Auto-fetch profile to get avatar & sync to managed_accounts
+    try {
+      if (connectForm.platform === "instagram") {
+        const profileData = await callApi("instagram-api", { action: "get_profile" });
+        if (profileData) {
+          setIgProfile(profileData);
+          // Store profile pic in connection metadata
+          await supabase.from("social_connections").update({
+            metadata: { profile_picture_url: profileData.profile_picture_url, name: profileData.name, followers_count: profileData.followers_count, media_count: profileData.media_count, connected_via: "social_hub" },
+          }).eq("account_id", selectedAccount).eq("platform", "instagram");
+          // Sync to managed_accounts
+          await supabase.from("managed_accounts").update({
+            avatar_url: profileData.profile_picture_url || undefined,
+            display_name: profileData.name || connectForm.platform_username,
+            subscriber_count: profileData.followers_count || 0,
+            content_count: profileData.media_count || 0,
+            social_links: { instagram: `https://instagram.com/${profileData.username}`, ig_user_id: connectForm.platform_user_id },
+            last_activity_at: new Date().toISOString(),
+          }).eq("id", selectedAccount);
+          await loadData();
+        }
+      }
+    } catch (e) { console.error("Auto-sync after connect:", e); }
   };
 
   const disconnectPlatform = async (id: string) => {
@@ -421,8 +447,8 @@ const SocialMediaHub = () => {
         </div>
       </div>
 
-      {/* Connection chips */}
-      <div className="flex gap-2">
+      {/* Connection chips + connected accounts mini bar */}
+      <div className="flex gap-2 flex-wrap items-center">
         <Badge className={igConnected ? "bg-green-500/15 text-green-400 border-green-500/30" : "bg-muted text-muted-foreground"}>
           <Instagram className="h-3 w-3 mr-1" />{igConnected ? "IG Live" : "IG Offline"}
         </Badge>
@@ -434,6 +460,20 @@ const SocialMediaHub = () => {
             <Radio className="h-3 w-3 mr-1" />AI Auto-Responding
           </Badge>
         )}
+        {/* Mini avatars of connected accounts */}
+        {connections.filter(c => c.is_connected).map(c => (
+          <div key={c.id} className="flex items-center gap-1.5 bg-muted/40 rounded-full px-2 py-0.5 border border-border">
+            {(c.metadata as any)?.profile_picture_url ? (
+              <img src={(c.metadata as any).profile_picture_url} alt="" className="h-5 w-5 rounded-full object-cover" />
+            ) : (
+              <div className="h-5 w-5 rounded-full bg-muted flex items-center justify-center">
+                {c.platform === "instagram" ? <Instagram className="h-3 w-3 text-pink-400" /> : <Music2 className="h-3 w-3 text-cyan-400" />}
+              </div>
+            )}
+            <span className="text-xs text-foreground font-medium">@{c.platform_username}</span>
+            <div className="h-1.5 w-1.5 rounded-full bg-green-400 animate-pulse" />
+          </div>
+        ))}
       </div>
 
       {/* Tabs */}
@@ -949,20 +989,66 @@ const SocialMediaHub = () => {
           {connections.length > 0 && (
             <Card>
               <CardContent className="p-4">
-                <h4 className="text-sm font-semibold text-foreground mb-2">Connected</h4>
-                <div className="space-y-2">
-                  {connections.map(c => (
-                    <div key={c.id} className="bg-muted/30 rounded-lg p-3 flex justify-between items-center">
-                      <div className="flex items-center gap-2">
-                        {c.platform === "instagram" ? <Instagram className="h-4 w-4 text-pink-400" /> : <Music2 className="h-4 w-4 text-cyan-400" />}
-                        <div>
-                          <p className="text-sm font-medium text-foreground">@{c.platform_username}</p>
-                          <Badge className={c.is_connected ? "bg-green-500/15 text-green-400 text-[10px]" : "bg-muted text-muted-foreground text-[10px]"}>{c.is_connected ? "Connected" : "Disconnected"}</Badge>
+                <h4 className="text-sm font-semibold text-foreground mb-3">Connected Accounts</h4>
+                <div className="space-y-3">
+                  {connections.map(c => {
+                    const meta = (c.metadata || {}) as any;
+                    const profilePic = meta.profile_picture_url;
+                    const name = meta.name || c.platform_username;
+                    const followers = meta.followers_count;
+                    const mediaCount = meta.media_count;
+                    return (
+                      <div key={c.id} className={`rounded-xl p-4 border ${c.is_connected ? "bg-green-500/5 border-green-500/20" : "bg-muted/20 border-border"}`}>
+                        <div className="flex items-center gap-3">
+                          {/* Profile picture + platform badge */}
+                          <div className="relative">
+                            {profilePic ? (
+                              <img src={profilePic} alt={name} className="h-12 w-12 rounded-full object-cover border-2 border-green-500/30" />
+                            ) : (
+                              <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center border-2 border-border">
+                                <Users className="h-5 w-5 text-muted-foreground" />
+                              </div>
+                            )}
+                            <div className={`absolute -bottom-0.5 -right-0.5 h-5 w-5 rounded-full flex items-center justify-center ${c.platform === "instagram" ? "bg-gradient-to-br from-purple-500 to-pink-500" : "bg-black"}`}>
+                              {c.platform === "instagram" ? <Instagram className="h-3 w-3 text-white" /> : <Music2 className="h-3 w-3 text-white" />}
+                            </div>
+                          </div>
+                          {/* Info */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <p className="text-sm font-bold text-foreground truncate">{name}</p>
+                              {c.is_connected && <CheckCircle2 className="h-3.5 w-3.5 text-green-400 flex-shrink-0" />}
+                            </div>
+                            <p className="text-xs text-muted-foreground">@{c.platform_username} · {c.platform}</p>
+                            {(followers || mediaCount) && (
+                              <div className="flex gap-3 mt-1">
+                                {followers && <span className="text-xs text-muted-foreground"><Users className="h-3 w-3 inline mr-0.5" />{Number(followers).toLocaleString()}</span>}
+                                {mediaCount && <span className="text-xs text-muted-foreground"><Image className="h-3 w-3 inline mr-0.5" />{Number(mediaCount).toLocaleString()}</span>}
+                              </div>
+                            )}
+                          </div>
+                          {/* Actions */}
+                          <div className="flex flex-col gap-1">
+                            <Badge className={c.is_connected ? "bg-green-500/15 text-green-400 text-[10px]" : "bg-muted text-muted-foreground text-[10px]"}>
+                              {c.is_connected ? "● Live" : "Offline"}
+                            </Badge>
+                            {c.is_connected && (
+                              <Button size="sm" variant="ghost" onClick={() => disconnectPlatform(c.id)} className="text-red-400 text-xs h-6 px-2">
+                                <WifiOff className="h-3 w-3 mr-1" />Disconnect
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                        {/* Connection details */}
+                        <div className="mt-2 pt-2 border-t border-border/50 flex items-center gap-3 text-[10px] text-muted-foreground">
+                          <span>ID: {c.platform_user_id || "—"}</span>
+                          <span>·</span>
+                          <span>Connected: {new Date(c.connected_at).toLocaleDateString()}</span>
+                          {c.token_expires_at && <><span>·</span><span>Token expires: {new Date(c.token_expires_at).toLocaleDateString()}</span></>}
                         </div>
                       </div>
-                      {c.is_connected && <Button size="sm" variant="ghost" onClick={() => disconnectPlatform(c.id)} className="text-red-400 text-xs">Disconnect</Button>}
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>
