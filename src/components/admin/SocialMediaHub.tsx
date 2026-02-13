@@ -70,6 +70,9 @@ const SocialMediaHub = () => {
   const [aiTestMessage, setAiTestMessage] = useState("");
   const [aiTestReply, setAiTestReply] = useState("");
   const [aiTestSender, setAiTestSender] = useState("");
+  const [aiTyping, setAiTyping] = useState(false);
+  const [aiTypingDelay, setAiTypingDelay] = useState(0);
+  const [aiLifePause, setAiLifePause] = useState(false);
 
   // AI Comment Reply
   const [aiAutoReplyRedirect, setAiAutoReplyRedirect] = useState("");
@@ -288,11 +291,34 @@ const SocialMediaHub = () => {
   // AI Functions
   const generateAiDmReply = async () => {
     if (!aiTestMessage) return;
+    setAiTestReply("");
     const d = await callApi("social-ai-responder", {
       action: "generate_dm_reply",
       params: { message_text: aiTestMessage, sender_name: aiTestSender || "fan", auto_redirect_url: aiDmRedirectUrl, keywords_trigger: aiDmKeywords },
     });
-    if (d) setAiTestReply(d.reply);
+    if (d) {
+      const typingDelay = d.typing_delay_ms || 2000;
+      const lifePauseMs = d.life_pause_ms || 0;
+      
+      // Show life pause first if applicable
+      if (lifePauseMs > 0) {
+        setAiLifePause(true);
+        setAiTypingDelay(Math.round(lifePauseMs / 1000));
+        // Simulate the pause with a countdown (show seconds)
+        const pauseSeconds = Math.round(lifePauseMs / 1000);
+        for (let i = pauseSeconds; i > 0; i--) {
+          setAiTypingDelay(i);
+          await new Promise(r => setTimeout(r, 1000));
+        }
+        setAiLifePause(false);
+      }
+      
+      // Then show typing indicator
+      setAiTyping(true);
+      await new Promise(r => setTimeout(r, typingDelay));
+      setAiTyping(false);
+      setAiTestReply(d.reply);
+    }
   };
 
   const bulkGenerateReplies = async () => {
@@ -559,8 +585,24 @@ const SocialMediaHub = () => {
                 <Input value={aiTestSender} onChange={e => setAiTestSender(e.target.value)} placeholder="Sender name" className="text-sm" />
                 <Input value={aiTestMessage} onChange={e => setAiTestMessage(e.target.value)} placeholder="Type a test DM..." className="text-sm col-span-2" onKeyDown={e => e.key === "Enter" && generateAiDmReply()} />
               </div>
-              <Button onClick={generateAiDmReply} disabled={apiLoading || !aiTestMessage} size="sm"><Brain className="h-3.5 w-3.5 mr-1.5" />Generate Reply</Button>
-              {aiTestReply && (
+              <Button onClick={generateAiDmReply} disabled={apiLoading || aiTyping || aiLifePause || !aiTestMessage} size="sm"><Brain className="h-3.5 w-3.5 mr-1.5" />Generate Reply</Button>
+              {aiLifePause && (
+                <div className="bg-muted/50 rounded-lg p-3 border border-border flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-muted-foreground animate-pulse" />
+                  <p className="text-sm text-muted-foreground italic">away for {aiTypingDelay}s... (simulating natural pause)</p>
+                </div>
+              )}
+              {aiTyping && !aiLifePause && (
+                <div className="bg-muted/50 rounded-lg p-3 border border-border flex items-center gap-2">
+                  <div className="flex gap-1">
+                    <span className="w-1.5 h-1.5 bg-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <span className="w-1.5 h-1.5 bg-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <span className="w-1.5 h-1.5 bg-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                  </div>
+                  <p className="text-sm text-muted-foreground italic">typing...</p>
+                </div>
+              )}
+              {aiTestReply && !aiTyping && !aiLifePause && (
                 <div className="bg-muted/50 rounded-lg p-3 border border-border">
                   <p className="text-xs text-muted-foreground mb-1">AI Reply:</p>
                   <p className="text-sm text-foreground">{aiTestReply}</p>
