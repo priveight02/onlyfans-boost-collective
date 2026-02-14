@@ -125,6 +125,9 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
   // ===== MESSAGE CACHE =====
   const messageCacheRef = useRef<Map<string, Message[]>>(new Map());
   const igSyncedRef = useRef<Set<string>>(new Set());
+  const syncInFlightRef = useRef(false);
+  const bgSyncInFlightRef = useRef(false);
+  const pollInFlightRef = useRef(false);
   // Persist deleted IG message IDs in localStorage so they survive page refreshes
   const deletedPlatformIdsRef = useRef<Set<string>>(new Set<string>());
   
@@ -639,27 +642,28 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
     }
   }, [selectedConvo, loadMessages, fetchIGMessages]);
 
-  // Periodic re-sync of selected conversation + top conversations for real-time preview updates
+  // Periodic re-sync of selected conversation — 200ms, skip if previous still running
   useEffect(() => {
     if (!selectedConvo) return;
-    // Sync selected convo every 8s
-    const resyncInterval = setInterval(() => {
-      fetchIGMessages(selectedConvo);
-    }, 8000);
+    const resyncInterval = setInterval(async () => {
+      if (syncInFlightRef.current) return;
+      syncInFlightRef.current = true;
+      try { await fetchIGMessages(selectedConvo); } finally { syncInFlightRef.current = false; }
+    }, 200);
     return () => clearInterval(resyncInterval);
   }, [selectedConvo, fetchIGMessages]);
 
-  // Periodic background sync of top 5 conversations to keep previews/ordering up-to-date
+  // Background sync top 5 convos every 2s, skip if in-flight
   useEffect(() => {
     if (!accountId || conversations.length === 0) return;
     const bgSyncInterval = setInterval(async () => {
-      const top = conversations
-        .filter(c => c.platform_conversation_id)
-        .slice(0, 5);
-      for (const c of top) {
-        await fetchIGMessages(c.id, c);
-      }
-    }, 15000); // Every 15s
+      if (bgSyncInFlightRef.current) return;
+      bgSyncInFlightRef.current = true;
+      try {
+        const top = conversations.filter(c => c.platform_conversation_id).slice(0, 5);
+        for (const c of top) await fetchIGMessages(c.id, c);
+      } finally { bgSyncInFlightRef.current = false; }
+    }, 2000);
     return () => clearInterval(bgSyncInterval);
   }, [accountId, conversations, fetchIGMessages]);
 
@@ -858,10 +862,12 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
     setPolling(true);
     // Run immediately
     processDMs();
-    // Then continuous 3s cycle
-    pollIntervalRef.current = setInterval(() => {
-      processDMs();
-    }, 3000);
+    // Then continuous 500ms cycle — ultra fast, skip if in-flight
+    pollIntervalRef.current = setInterval(async () => {
+      if (pollInFlightRef.current) return;
+      pollInFlightRef.current = true;
+      try { await processDMs(); } finally { pollInFlightRef.current = false; }
+    }, 500);
     return () => { if (pollIntervalRef.current) clearInterval(pollIntervalRef.current); };
   }, [autoRespondActive, accountId]);
 
