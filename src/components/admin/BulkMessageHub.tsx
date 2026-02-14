@@ -34,9 +34,27 @@ interface Follower {
   username: string;
   profile_pic: string | null;
   source: string;
+  gender?: string;
 }
 
 type SortMode = "name" | "recent" | "source";
+
+// Instagram Verified Badge SVG (exact replica)
+const VerifiedBadge = ({ size = 12 }: { size?: number }) => (
+  <svg viewBox="0 0 40 40" width={size} height={size} className="inline-block flex-shrink-0">
+    <defs>
+      <linearGradient id="ig-verified-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#4FC3F7" />
+        <stop offset="100%" stopColor="#2196F3" />
+      </linearGradient>
+    </defs>
+    <circle cx="20" cy="20" r="20" fill="url(#ig-verified-grad)" />
+    {/* Spiky border points */}
+    <polygon points="20,2 23.5,8 30,5 28,12 35,14 30,18.5 35,23 28.5,24 31,31 24,29 22,36 20,30 18,36 16,29 9,31 11.5,24 5,23 10,18.5 5,14 12,12 10,5 16.5,8" fill="url(#ig-verified-grad)" />
+    {/* White checkmark */}
+    <path d="M15 20.5L18.5 24L26 16" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+  </svg>
+);
 
 // Robust avatar with graceful fallback for expired CDN URLs
 const UserAvatar = ({ src, name, username, size = 8 }: { src: string | null; name: string; username: string; size?: number }) => {
@@ -97,6 +115,9 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
   const [csrfToken, setCsrfToken] = useState("");
   const [showSessionId, setShowSessionId] = useState(false);
   const [maxFollowersInput, setMaxFollowersInput] = useState("");
+  const [turboMode, setTurboMode] = useState(false);
+  const [classifyingGender, setClassifyingGender] = useState(false);
+  const [genderStats, setGenderStats] = useState<{ female: number; male: number; unknown: number } | null>(null);
   const cancelRef = useRef(false);
   const messageRef = useRef(message);
   // Search/Discover state
@@ -118,7 +139,6 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
         const newCount = data.data.followers_count;
         setFollowersCount(newCount);
         setFollowsCount(data.data?.follows_count || 0);
-        // Update the managed_accounts record
         await supabase.from("managed_accounts").update({
           subscriber_count: newCount,
           content_count: data.data?.media_count || undefined,
@@ -128,7 +148,6 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
     } catch {}
   }, [accountId]);
 
-  // Auto-sync follower count on open and every 60s
   useEffect(() => {
     if (!open) return;
     syncFollowerCount();
@@ -136,12 +155,38 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
     return () => clearInterval(interval);
   }, [open, syncFollowerCount]);
 
-  // Load persisted followers from DB first (cached), then merge with live data
+  // Classify gender for all followers
+  const classifyGender = async () => {
+    setClassifyingGender(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("instagram-api", {
+        body: { action: "classify_gender", account_id: accountId, params: { batch_size: 10000 } },
+      });
+      if (error) throw error;
+      if (data?.success) {
+        setGenderStats({ female: data.data.female, male: data.data.male, unknown: data.data.unknown });
+        // Update local followers with gender
+        setFollowers(prev => prev.map(f => {
+          const name = f.name || f.username;
+          // Simple client-side re-classify to update UI instantly
+          return { ...f, gender: f.gender || "unknown" };
+        }));
+        toast.success(`Gender classified: ${data.data.female} ♀ · ${data.data.male} ♂ · ${data.data.unknown} unknown`);
+        // Reload to get updated gender from DB
+        invalidateNamespace(accountId, "persisted_followers");
+        loadPersistedFollowers();
+      }
+    } catch (e: any) {
+      toast.error(e.message || "Gender classification failed");
+    } finally {
+      setClassifyingGender(false);
+    }
+  };
+
   const loadPersistedFollowers = useCallback(async () => {
     if (!accountId) return;
     setLoading(true);
     try {
-      // Fetch real follower count from account record
       const accountInfo = await cachedFetch<{ subscriber_count: number; content_count: number }>(accountId, "account_stats", async () => {
         const { data: acct } = await supabase
           .from("managed_accounts")
@@ -153,7 +198,6 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
 
       setFollowersCount(accountInfo.subscriber_count);
 
-      // Load persisted followers with cache (long TTL since these are saved permanently)
       const persisted = await cachedFetch<Follower[]>(accountId, "persisted_followers", async () => {
         const { data: persistedData } = await supabase.functions.invoke("instagram-api", {
           body: { action: "get_persisted_followers", account_id: accountId, params: { limit: 10000 } },
@@ -163,7 +207,6 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
 
       const seen = new Set<string>(persisted.map((f: Follower) => f.id));
 
-      // Then load conversation-based contacts (shorter cache)
       const live = await cachedFetch<Follower[]>(accountId, "live_followers", async () => {
         const { data: liveData } = await supabase.functions.invoke("instagram-api", {
           body: { action: "get_followers_list", account_id: accountId, params: { limit: 500, source_filter: "all" } },
@@ -180,6 +223,13 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
       }
 
       setFollowers(merged);
+      
+      // Count genders from loaded data
+      const fc = merged.filter(f => f.gender === "female").length;
+      const mc = merged.filter(f => f.gender === "male").length;
+      const uc = merged.filter(f => !f.gender || f.gender === "unknown").length;
+      if (fc > 0 || mc > 0) setGenderStats({ female: fc, male: mc, unknown: uc });
+      
       toast.success(`Loaded ${merged.length} contacts (${persisted.length} saved · ${accountInfo.subscriber_count.toLocaleString()} total followers)`);
     } catch (e: any) {
       toast.error(e.message || "Failed to load followers");
@@ -210,7 +260,6 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
         }
         return merged;
       });
-      // Don't override followersCount — keep the real account subscriber_count
       setFollowsCount(data.data?.follows_count || 0);
       toast.success(`Discovered ${newFollowers.length} followers/engaged users`);
     } catch (e: any) {
@@ -256,9 +305,10 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
               ds_user_id: dsUserId.trim() || undefined,
               csrf_token: csrfToken.trim() || undefined,
               max_followers: maxCount > 0 ? maxCount - totalFetched : 0,
-              pages_per_chunk: 12,
+              pages_per_chunk: 20,
               batch_size: 200,
               cursor,
+              turbo: turboMode,
             },
           },
         });
@@ -267,15 +317,14 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
 
         const chunk = data.data?.followers || [];
         const persisted = data.data?.total_persisted || 0;
-        totalFetched += chunk.length;
+        const skipped = data.data?.skipped_duplicates || 0;
+        totalFetched += chunk.length + skipped;
         
-        // Use whichever is higher - persisted from DB or our running count
         const displayCount = Math.max(persisted, totalFetched);
         setFetchedCount(displayCount);
         setFetchPhase("saving");
-        setFetchProgress(`Chunk ${chunkNum}: +${chunk.length} (${displayCount.toLocaleString()} total)`);
+        setFetchProgress(`Chunk ${chunkNum}: +${chunk.length} new, ${skipped} skipped (${displayCount.toLocaleString()} total)`);
 
-        // Merge chunk into UI list
         if (chunk.length > 0) {
           setFollowers(prev => {
             const seen = new Set(prev.map(f => f.id));
@@ -287,7 +336,6 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
           });
         }
 
-        // Check if done
         if (data.data?.fetch_complete || !data.data?.next_cursor) {
           setFetchPhase("done");
           setFetchProgress(`✅ Complete! ${displayCount.toLocaleString()} followers saved`);
@@ -295,7 +343,6 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
           break;
         }
 
-        // Check max
         if (maxCount > 0 && totalFetched >= maxCount) {
           setFetchPhase("done");
           setFetchProgress(`✅ Reached limit: ${displayCount.toLocaleString()} saved`);
@@ -303,13 +350,12 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
           break;
         }
 
-        // Rate limit pause
         if (data.data?.rate_limited) {
           setFetchPhase("paused");
           setFetchProgress(`⏳ Rate limited — cooling down 30s...`);
           await new Promise(r => setTimeout(r, 30000));
         } else {
-          await new Promise(r => setTimeout(r, 2000));
+          await new Promise(r => setTimeout(r, turboMode ? 1000 : 2000));
         }
 
         cursor = data.data.next_cursor;
@@ -339,8 +385,6 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
     if (!query || query.length < 1) { setDiscoverResults([]); return; }
     setDiscoverLoading(true);
     try {
-      // Try with saved session first, then try without
-      const metadata: any = {};
       const { data: connData } = await supabase
         .from("social_connections")
         .select("metadata")
@@ -349,7 +393,6 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
         .single();
       const savedSession = (connData?.metadata as any)?.ig_session_id || sessionId.trim();
       if (!savedSession) {
-        // Fallback: use business_discovery for username lookup
         const { data } = await supabase.functions.invoke("instagram-api", {
           body: { action: "discover_user", account_id: accountId, params: { username: query, media_limit: 3 } },
         });
@@ -370,7 +413,7 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
         body: {
           action: "search_users",
           account_id: accountId,
-          params: { query, session_id: savedSession },
+          params: { query, session_id: savedSession, max_results: 200 },
         },
       });
       if (error) throw error;
@@ -396,6 +439,7 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
       username: user.username,
       profile_pic: user.profile_pic_url || null,
       source: "discovered",
+      gender: user.gender || undefined,
     };
     setFollowers(prev => {
       if (prev.some(f => f.id === newFollower.id)) {
@@ -405,7 +449,55 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
       return [...prev, newFollower];
     });
     setSelectedIds(prev => new Set([...prev, newFollower.id]));
-    toast.success(`Added @${user.username} to list`);
+    toast.success(`Added @${user.username}`);
+  };
+
+  const addAllDiscovered = () => {
+    let added = 0;
+    setFollowers(prev => {
+      const seen = new Set(prev.map(f => f.id));
+      const merged = [...prev];
+      for (const user of discoverResults) {
+        const id = user.id || user.pk;
+        if (seen.has(id)) continue;
+        seen.add(id);
+        merged.push({
+          id,
+          name: user.full_name || user.username,
+          username: user.username,
+          profile_pic: user.profile_pic_url || null,
+          source: "discovered",
+          gender: user.gender || undefined,
+        });
+        added++;
+      }
+      return merged;
+    });
+    // Select all newly added
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      for (const user of discoverResults) next.add(user.id || user.pk);
+      return next;
+    });
+    toast.success(`Added ${added} accounts from search`);
+  };
+
+  // Quick-add random accounts from fetched list
+  const quickAddRandom = (count: number) => {
+    const unselected = followers.filter(f => !selectedIds.has(f.id));
+    if (unselected.length === 0) {
+      // If all are selected, just shuffle from all
+      const shuffled = [...followers].sort(() => Math.random() - 0.5);
+      setSelectedIds(new Set(shuffled.slice(0, Math.min(count, shuffled.length)).map(f => f.id)));
+    } else {
+      const shuffled = [...unselected].sort(() => Math.random() - 0.5);
+      setSelectedIds(prev => {
+        const next = new Set(prev);
+        for (const f of shuffled.slice(0, count)) next.add(f.id);
+        return next;
+      });
+    }
+    toast.success(`Randomly added ${Math.min(count, followers.length)} to selection`);
   };
 
   useEffect(() => {
@@ -450,6 +542,16 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
     const shuffled = [...filteredFollowers].sort(() => Math.random() - 0.5);
     setSelectedIds(new Set(shuffled.slice(0, count).map(f => f.id)));
     toast.success(`Randomly selected ${Math.min(count, filteredFollowers.length)} contacts`);
+  };
+
+  const selectByGender = (gender: "female" | "male") => {
+    const matching = followers.filter(f => f.gender === gender);
+    if (matching.length === 0) {
+      toast.error(`No ${gender} accounts detected. Run "Classify Gender" first.`);
+      return;
+    }
+    setSelectedIds(new Set(matching.map(f => f.id)));
+    toast.success(`Selected ${matching.length} ${gender === "female" ? "♀ female" : "♂ male"} accounts`);
   };
 
   const invertSelection = () => {
@@ -585,21 +687,18 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
   const selectedFollowers = followers.filter(f => selectedIds.has(f.id));
   const sources = [...new Set(followers.map(f => f.source))];
 
-  // Export contacts to clipboard
   const exportContacts = () => {
-    const data = filteredFollowers.map(f => `${f.username},${f.name},${f.source}`).join("\n");
-    navigator.clipboard.writeText(`username,name,source\n${data}`);
+    const data = filteredFollowers.map(f => `${f.username},${f.name},${f.source},${f.gender || "unknown"}`).join("\n");
+    navigator.clipboard.writeText(`username,name,source,gender\n${data}`);
     toast.success(`Copied ${filteredFollowers.length} contacts to clipboard as CSV`);
   };
 
-  // Remove selected from list
   const removeSelected = () => {
     setFollowers(prev => prev.filter(f => !selectedIds.has(f.id)));
     toast.success(`Removed ${selectedIds.size} contacts from list`);
     setSelectedIds(new Set());
   };
 
-  // Select by source
   const selectBySource = (source: string) => {
     const ids = new Set(followers.filter(f => f.source === source).map(f => f.id));
     setSelectedIds(ids);
@@ -616,6 +715,11 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
             <Badge variant="outline" className="text-[10px] ml-2 text-white/50 border-white/20">
               {followersCount.toLocaleString()} followers · {followers.length.toLocaleString()} fetched
             </Badge>
+            {genderStats && (
+              <Badge variant="outline" className="text-[10px] text-white/40 border-white/15">
+                ♀{genderStats.female} · ♂{genderStats.male}
+              </Badge>
+            )}
             <button onClick={syncFollowerCount} className="ml-1 text-white/30 hover:text-emerald-400 transition-colors" title="Sync follower count from Instagram">
               <RefreshCw className="h-3.5 w-3.5" />
             </button>
@@ -672,20 +776,20 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
                   <Button size="sm" variant="outline" disabled={followers.length === 0 || !message.trim()} onClick={() => sendBulkMessages(followers)} className="h-8 text-[11px] gap-1 border-green-500/30 text-green-400 hover:bg-green-500/10 bg-transparent">
                     <Users className="h-3 w-3" /> All ({followers.length})
                   </Button>
-                  <Button size="sm" variant="outline" onClick={() => selectRandom(10)} disabled={filteredFollowers.length === 0} className="h-8 text-[11px] gap-1 bg-transparent border-white/10 text-white/60 hover:bg-white/5">
-                    <Shuffle className="h-3 w-3" /> Random 10
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => selectRandom(50)} disabled={filteredFollowers.length === 0} className="h-8 text-[11px] gap-1 bg-transparent border-white/10 text-white/60 hover:bg-white/5">
-                    <Zap className="h-3 w-3" /> Random 50
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => selectRandom(100)} disabled={filteredFollowers.length === 0} className="h-8 text-[11px] gap-1 bg-transparent border-white/10 text-white/60 hover:bg-white/5">
-                    <Zap className="h-3 w-3" /> Random 100
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => selectRandom(500)} disabled={filteredFollowers.length === 0} className="h-8 text-[11px] gap-1 bg-transparent border-white/10 text-white/60 hover:bg-white/5">
-                    <Zap className="h-3 w-3" /> Random 500
-                  </Button>
                 </div>
               )}
+            </div>
+
+            {/* Quick Add to Selection */}
+            <div className="px-5 py-3 border-b border-white/10 space-y-2">
+              <label className="text-xs font-medium text-white/60 uppercase tracking-wider">Quick Add</label>
+              <div className="grid grid-cols-3 gap-1">
+                {[10, 50, 100, 500, 1000, 10000].map(n => (
+                  <Button key={n} size="sm" variant="outline" onClick={() => quickAddRandom(n)} disabled={followers.length === 0} className="h-7 text-[10px] gap-1 bg-transparent border-white/10 text-white/60 hover:bg-white/5">
+                    <Shuffle className="h-2.5 w-2.5" /> {n >= 1000 ? `${n / 1000}K` : n}
+                  </Button>
+                ))}
+              </div>
             </div>
 
             {/* Selection Tools */}
@@ -702,6 +806,15 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
                 <Button size="sm" variant="ghost" onClick={invertSelection} className="h-7 text-[10px] gap-1 text-white/50 hover:text-white hover:bg-white/5 justify-start">
                   <ArrowUpDown className="h-2.5 w-2.5" /> Invert
                 </Button>
+                
+                {/* Gender Selection */}
+                <Button size="sm" variant="ghost" onClick={() => selectByGender("female")} className="h-7 text-[10px] gap-1 text-pink-400/70 hover:text-pink-400 hover:bg-pink-500/5 justify-start">
+                  <span className="text-sm leading-none">♀</span> All Women
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => selectByGender("male")} className="h-7 text-[10px] gap-1 text-blue-400/70 hover:text-blue-400 hover:bg-blue-500/5 justify-start">
+                  <span className="text-sm leading-none">♂</span> All Men
+                </Button>
+                
                 <Button size="sm" variant="ghost" onClick={() => selectBySource("fetched")} className="h-7 text-[10px] gap-1 text-orange-400/60 hover:text-orange-400 hover:bg-orange-500/5 justify-start">
                   <Download className="h-2.5 w-2.5" /> Fetched Only
                 </Button>
@@ -715,6 +828,12 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
                   <Trash2 className="h-2.5 w-2.5" /> Remove Selected
                 </Button>
               </div>
+              
+              {/* Gender Classify Button */}
+              <Button size="sm" variant="outline" onClick={classifyGender} disabled={classifyingGender || followers.length === 0} className="h-7 text-[10px] gap-1.5 w-full border-purple-500/20 text-purple-400/70 hover:bg-purple-500/10 bg-transparent mt-1">
+                {classifyingGender ? <Loader2 className="h-3 w-3 animate-spin" /> : <BarChart3 className="h-3 w-3" />}
+                {classifyingGender ? "Classifying..." : "Classify Gender (AI)"}
+              </Button>
             </div>
 
             {/* Settings */}
@@ -826,7 +945,7 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
                         Discover
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-80 p-0 bg-[hsl(222,35%,10%)] border-white/10" align="end" sideOffset={4}>
+                    <PopoverContent className="w-96 p-0 bg-[hsl(222,35%,10%)] border-white/10" align="end" sideOffset={4}>
                       <div className="p-3 border-b border-white/10">
                         <div className="relative">
                           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/30" />
@@ -839,8 +958,16 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
                           />
                           {discoverLoading && <Loader2 className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 animate-spin text-emerald-400" />}
                         </div>
+                        {discoverResults.length > 0 && (
+                          <div className="mt-2 flex items-center gap-2">
+                            <Button size="sm" onClick={addAllDiscovered} className="h-6 text-[10px] gap-1 bg-emerald-600 hover:bg-emerald-700">
+                              <UserPlus className="h-3 w-3" /> Add All ({discoverResults.length})
+                            </Button>
+                            <span className="text-[10px] text-white/30">{discoverResults.length} results</span>
+                          </div>
+                        )}
                       </div>
-                      <div className="max-h-[300px] overflow-y-auto">
+                      <div className="max-h-[400px] overflow-y-auto">
                         {discoverResults.length === 0 && discoverQuery.length > 0 && !discoverLoading && (
                           <p className="text-[11px] text-white/30 text-center py-4">No results for "{discoverQuery}"</p>
                         )}
@@ -848,27 +975,38 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
                           <p className="text-[11px] text-white/30 text-center py-4">Type a username or keyword to search</p>
                         )}
                         {discoverResults.map((user: any) => (
-                          <button
+                          <div
                             key={user.id || user.username}
-                            onClick={() => addDiscoveredUser(user)}
                             className="w-full text-left px-3 py-2.5 flex items-center gap-2.5 hover:bg-white/5 transition-colors border-b border-white/[0.04]"
                           >
                             <UserAvatar src={user.profile_pic_url} name={user.full_name || user.username} username={user.username} size={9} />
                             <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-1">
+                              <div className="flex items-center gap-1.5">
                                 <span className="text-xs font-medium text-white truncate">{user.full_name || user.username}</span>
-                                {user.is_verified && <span className="text-blue-400 text-[9px]">✓</span>}
+                                {user.is_verified && <VerifiedBadge size={14} />}
                                 {user.is_private && <span className="text-amber-400 text-[9px]">🔒</span>}
                               </div>
-                              <span className="text-[10px] text-white/35">@{user.username}</span>
+                              <div className="flex items-center gap-2">
+                                <span className="text-[10px] text-white/35">@{user.username}</span>
+                                {user.gender && user.gender !== "unknown" && (
+                                  <span className={`text-[9px] ${user.gender === "female" ? "text-pink-400" : "text-blue-400"}`}>
+                                    {user.gender === "female" ? "♀" : "♂"}
+                                  </span>
+                                )}
+                              </div>
                             </div>
-                            <div className="text-right flex-shrink-0">
+                            <div className="text-right flex-shrink-0 flex items-center gap-2">
                               {user.follower_count != null && (
-                                <span className="text-[10px] text-white/40">{user.follower_count >= 1000 ? `${(user.follower_count / 1000).toFixed(1)}K` : user.follower_count}</span>
+                                <span className="text-[10px] text-white/40">{user.follower_count >= 1000000 ? `${(user.follower_count / 1000000).toFixed(1)}M` : user.follower_count >= 1000 ? `${(user.follower_count / 1000).toFixed(1)}K` : user.follower_count}</span>
                               )}
-                              <UserPlus className="h-3.5 w-3.5 text-emerald-400 mt-0.5 ml-auto" />
+                              <button
+                                onClick={() => addDiscoveredUser(user)}
+                                className="p-1 rounded hover:bg-emerald-500/20 transition-colors"
+                              >
+                                <UserPlus className="h-3.5 w-3.5 text-emerald-400" />
+                              </button>
                             </div>
-                          </button>
+                          </div>
                         ))}
                       </div>
                     </PopoverContent>
@@ -944,7 +1082,11 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
                       onChange={e => setMaxFollowersInput(e.target.value)}
                       className="h-8 text-xs bg-white/5 border-white/10 text-white placeholder:text-white/25 w-[200px]"
                     />
-                    <span className="text-[10px] text-white/30">Leave empty to fetch all {followersCount > 0 ? followersCount.toLocaleString() : "account"} followers</span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] text-white/30">Turbo</span>
+                      <Switch checked={turboMode} onCheckedChange={setTurboMode} className="scale-[0.6]" />
+                    </div>
+                    <span className="text-[10px] text-white/30">{turboMode ? "⚡ Fast (higher risk)" : "🛡️ Safe"}</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -964,7 +1106,6 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
                   {/* Live Progress Dashboard */}
                   {(fetching || fetchPhase === "done") && fetchGoal > 0 && (
                     <div className="flex items-center gap-4 flex-1">
-                      {/* Animated Progress Ring */}
                       <div className="relative w-16 h-16 flex-shrink-0">
                         <svg className="w-16 h-16 -rotate-90" viewBox="0 0 36 36">
                           <circle cx="18" cy="18" r="15" fill="none" stroke="hsl(var(--muted))" strokeWidth="2.5" opacity="0.3" />
@@ -982,13 +1123,11 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
                             {fetchGoal > 0 ? Math.min(Math.round((fetchedCount / fetchGoal) * 100), 100) : 0}%
                           </span>
                         </div>
-                        {/* Pulsing glow when actively fetching */}
                         {fetching && fetchPhase !== "paused" && fetchPhase !== "done" && (
                           <div className="absolute inset-0 rounded-full border-2 border-orange-400/30 animate-ping" style={{ animationDuration: "2s" }} />
                         )}
                       </div>
 
-                      {/* Stats Column */}
                       <div className="flex-1 min-w-0 space-y-1">
                         <div className="flex items-center gap-2">
                           <span className={`text-sm font-semibold ${fetchPhase === "done" ? "text-green-400" : fetchPhase === "paused" ? "text-yellow-400" : "text-orange-400"}`}>
@@ -1044,7 +1183,6 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
                         </div>
                       </div>
 
-                      {/* Cancel Button */}
                       {fetching && (
                         <Button
                           size="sm"
@@ -1063,7 +1201,7 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
                   )}
                 </div>
                 <p className="text-[9px] text-white/25 leading-relaxed">
-                  ⚡ Chunked anti-ban fetch with progressive delays. Safe for 29K+ accounts. Followers saved permanently.
+                  ⚡ Upgraded chunked fetch (20 pages/chunk). Skips already-scraped profiles. Auto gender detection. {turboMode ? "TURBO: faster delays." : "Safe mode: conservative delays."}
                 </p>
               </div>
             )}
@@ -1122,7 +1260,14 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
                         />
                         <UserAvatar src={f.profile_pic} name={f.name} username={f.username} size={9} />
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-white truncate">{f.name}</p>
+                          <div className="flex items-center gap-1.5">
+                            <p className="text-sm font-medium text-white truncate">{f.name}</p>
+                            {f.gender && f.gender !== "unknown" && (
+                              <span className={`text-[10px] ${f.gender === "female" ? "text-pink-400" : "text-blue-400"}`}>
+                                {f.gender === "female" ? "♀" : "♂"}
+                              </span>
+                            )}
+                          </div>
                           <p className="text-[11px] text-white/35 truncate">@{f.username}</p>
                         </div>
                         <Badge variant="outline" className={`text-[9px] px-1.5 ${

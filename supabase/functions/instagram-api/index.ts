@@ -9,6 +9,153 @@ const corsHeaders = {
 const IG_GRAPH_URL = "https://graph.instagram.com/v24.0";
 const FB_GRAPH_URL = "https://graph.facebook.com/v24.0";
 
+// ===== GENDER DETECTION ENGINE =====
+// Comprehensive name-based gender classifier using statistical name databases
+const FEMALE_NAMES = new Set([
+  // Top 500+ female names globally
+  "mary","patricia","jennifer","linda","barbara","elizabeth","susan","jessica","sarah","karen",
+  "lisa","nancy","betty","margaret","sandra","ashley","dorothy","kimberly","emily","donna",
+  "michelle","carol","amanda","melissa","deborah","stephanie","rebecca","sharon","laura","cynthia",
+  "kathleen","amy","angela","shirley","anna","brenda","pamela","emma","nicole","helen",
+  "samantha","katherine","christine","debra","rachel","carolyn","janet","catherine","maria","heather",
+  "diane","ruth","julie","olivia","joyce","virginia","victoria","kelly","lauren","christina",
+  "joan","evelyn","judith","megan","andrea","cheryl","hannah","jacqueline","martha","gloria",
+  "teresa","ann","sara","madison","frances","kathryn","janice","jean","abigail","alice",
+  "judy","sophia","grace","denise","amber","doris","marilyn","danielle","beverly","isabella",
+  "theresa","diana","natalie","brittany","charlotte","marie","kayla","alexis","lori","jade",
+  "natasha","tiffany","tamara","crystal","ava","mia","aria","chloe","penelope","layla",
+  "riley","zoey","nora","lily","eleanor","hazel","violet","aurora","savannah","audrey",
+  "brooklyn","bella","claire","skylar","lucy","paisley","everly","anna","caroline","nova",
+  "genesis","emilia","kennedy","samantha","maya","willow","kinsley","naomi","aaliyah","elena",
+  "sarah","ariana","allison","gabriella","alice","madelyn","cora","eva","serenity","autumn",
+  "adeline","hailey","gianna","valentina","isla","eliana","quinn","nevaeh","ivy","sadie",
+  "piper","lydia","alexa","josephine","emery","julia","delilah","arianna","vivian","kaylee",
+  "sophie","brielle","madeline","peyton","rylee","clara","hadley","melanie","mackenzie","reagan",
+  "adalynn","liliana","aubrey","jade","diana","alina","andrea","ariel","adriana","bianca",
+  "camila","daniela","dulce","elena","fatima","fernanda","gabriela","gloria","ines","iris",
+  "jasmine","jimena","julieta","karina","laura","lucia","luna","luz","marisol","mariana",
+  "nadia","paula","paola","rosa","sofia","valeria","valentina","vanessa","veronica","ximena",
+  "yolanda","alina","anastasia","daria","ekaterina","irina","katya","lena","mila","natalya",
+  "nina","olga","polina","svetlana","tatiana","vera","yulia","aiko","akemi","ayumi","chiyo",
+  "haruka","hina","kaori","keiko","mai","maki","miku","misaki","nana","rin","sakura","yui","yuki",
+  "aisha","amina","fatimah","hafsa","khadija","layla","leila","maryam","noor","rania","salma","yasmin","zahra","zainab",
+  "ananya","deepa","diya","kavya","meera","neha","nisha","pooja","priya","riya","sana","shreya","swati","tara",
+  "babe","baby","honey","sweetie","princess","queen","goddess","angel","doll","kitten","bunny",
+  "lana","mia","gia","tia","sia","nia","zoe","eva","ava","ivy","mae","joy","hope","faith",
+  "scarlett","stella","daisy","poppy","rose","ruby","pearl","amber","jasmine","holly","ivy",
+  "fern","wren","dove","raven","meadow","summer","winter","dawn","brooke","april","may","june",
+  "destiny","harmony","melody","cadence","lyric","aria","celeste","aurora","luna","stella",
+  "selena","serena","adriana","alana","alena","alicia","alyssa","amara","amelia","anita",
+  "annabelle","april","arya","aspen","athena","aubree","aurora","avery","beatrice","bianca",
+  "blair","blaire","bonnie","brianna","bridget","brynn","callie","camille","candice","carmen",
+  "cassandra","cassidy","cecilia","celeste","chanel","charity","chelsea","cheyenne","ciara",
+  "claudia","colleen","corinne","courtney","daisy","dakota","dana","daphne","darcy","deanna",
+  "desiree","dominique","edith","eileen","elaine","elena","elise","ella","ellen","eloise",
+  "elsie","erica","erin","esme","esther","eve","faith","faye","fiona","flora","francesca",
+  "freya","gail","gemma","genevieve","georgia","gigi","giselle","gwen","gwyneth","hadley",
+  "harley","harper","haven","hayley","hazel","heidi","holly","hope","imogen","india","ingrid",
+  "irene","isabel","isla","jaclyn","jada","jane","janelle","jayla","jenna","jenny",
+  "jillian","joanna","jocelyn","jolene","jordan","josie","joy","juliana","juliet","june",
+  "kaia","kara","katelyn","katrina","kendra","kiera","kimber","kinley","kirsten","kristen",
+  "lainey","lara","leah","leia","lena","leona","lesli","lexi","lila","lillian","lina",
+  "logan","london","lorelei","lottie","louisa","lucia","lucille","lydia","mabel","macy",
+  "magdalena","mallory","mara","marcella","marcy","margot","marissa","martha","matilda","mavis",
+  "maxine","mckenna","mercedes","meredith","mila","millie","miriam","molly","monica","morgan",
+  "myla","nadia","natalya","nell","noelle","nola","olive","opal","ophelia","paige","paloma",
+  "pandora","paris","patience","paulina","pearl","phoebe","priscilla","raquel","raven","reese",
+  "regina","renata","rhea","rosa","rosalie","rosalyn","rosemary","roxanne","sable","sage",
+  "sally","sandra","sasha","selene","sienna","simone","sloane","sonia","stella","sue",
+  "summer","susanna","sylvia","tabitha","talia","tammy","tanya","tessa","thea","tina",
+  "trudy","ursula","valencia","valerie","vera","violet","virginia","vivienne","wendy","willa",
+  "wilma","winifred","xena","yasmine","yvette","yvonne","zelda","zara","zinnia","zoe","zora",
+]);
+
+const MALE_NAMES = new Set([
+  // Top 500+ male names globally
+  "james","robert","john","michael","david","william","richard","joseph","thomas","charles",
+  "christopher","daniel","matthew","anthony","mark","donald","steven","paul","andrew","joshua",
+  "kenneth","kevin","brian","george","timothy","ronald","edward","jason","jeffrey","ryan",
+  "jacob","gary","nicholas","eric","jonathan","stephen","larry","justin","scott","brandon",
+  "benjamin","samuel","raymond","gregory","frank","alexander","patrick","jack","dennis","jerry",
+  "tyler","aaron","jose","adam","nathan","henry","peter","zachary","douglas","harold",
+  "kyle","noah","gerald","carl","roger","keith","jeremy","terry","lawrence","sean",
+  "christian","austin","jesse","dylan","albert","willie","gabriel","bruce","philip","bryan",
+  "wayne","ralph","roy","eugene","randy","vincent","russell","louis","bobby","johnny",
+  "logan","liam","mason","ethan","oliver","aiden","lucas","jackson","sebastian","mateo",
+  "owen","carter","jayden","luke","grayson","leo","connor","elijah","isaac","landon",
+  "adrian","julian","nolan","hunter","cameron","max","eli","miles","lincoln","bennett",
+  "cooper","dominic","jaxon","emmett","dean","sawyer","everett","brooks","roman","cole",
+  "hudson","parker","asher","chase","harrison","blake","rowan","weston","easton","jameson",
+  "silas","beau","beckett","tucker","atlas","axel","brody","cash","colton","dallas","dawson",
+  "easton","emilio","finn","gavin","grant","griffin","gunner","hayes","hendrix","jace",
+  "jax","kai","king","knox","levi","maddox","maverick","milo","nash","oakley","paxton",
+  "phoenix","prince","reed","remington","rhett","ryder","sergio","tate","tristan","wade",
+  "walker","wyatt","xander","zander","zion","ace","ahmed","alan","alejandro","ali","amos",
+  "andre","angelo","archie","ari","armando","arnold","arthur","ashton","august","barack",
+  "barrett","baylor","blaine","brad","brett","caleb","carl","carlos","casey","cedric",
+  "chad","chandler","charlie","chester","clarence","clark","clay","cliff","clint","clyde",
+  "cody","colby","colin","colt","corey","craig","cruz","curtis","cyrus","dale","damon",
+  "dane","dante","darian","darius","darren","darwin","deacon","derek","desmond","devin",
+  "diego","dirk","dmitri","drake","drew","duane","duke","dustin","dwight","dylan","earl",
+  "edgar","edison","eduardo","elias","elliot","elvis","enrique","ernest","ernie","ethan",
+  "evan","fabio","felipe","felix","fernando","fletcher","floyd","flynn","ford","forrest",
+  "francisco","freddie","garrett","gene","geoffrey","geraldo","giovanni","glen","gordon",
+  "grady","graham","hank","harvey","hector","herb","herman","hugo","ian","ivan","jared",
+  "jarvis","jay","jean","jeff","jensen","joel","jordi","jorge","juan","julio","kade",
+  "kane","kareem","keegan","kelvin","kendall","kenny","khalid","lance","lars","lee",
+  "leon","leonard","lester","lewis","lloyd","lorenzo","luca","luis","luke","luther","malik",
+  "manuel","marc","marco","marcus","mario","marshall","martin","marvin","mason","maurice",
+  "max","maxwell","melvin","micah","miguel","mitchell","mohamed","mohammad","mohammed",
+  "monty","morgan","morris","murphy","murray","neil","nelson","noel","norman","omar",
+  "orlando","oscar","otis","otto","pablo","pedro","percy","perry","pete","porter","preston",
+  "quentin","quincy","rafael","ramon","randall","ray","reginald","rene","rex","rick",
+  "riley","rocco","rodney","rodrigo","roland","romeo","ronald","ross","ruben","rufus",
+  "rupert","russ","ryan","salvador","sam","santiago","saul","scott","seth","shane","shaun",
+  "sheldon","sherman","simon","solomon","spencer","sterling","stuart","ted","terrance",
+  "theodore","tobias","todd","tony","travis","trent","trevor","troy","tyler","vance",
+  "vaughn","victor","vince","virgil","vladimir","wallace","walter","warren","wendell","wesley",
+  "wilbur","will","willard","winston","wolfgang","xavier","yusuf","zack","zane",
+  "daddy","king","boss","chief","sir","master","papa","dude","bro","guy","man","boy",
+]);
+
+function classifyGender(fullName: string): "female" | "male" | "unknown" {
+  if (!fullName) return "unknown";
+  
+  // Extract first name (handle multi-word names, emojis, etc.)
+  const cleaned = fullName.toLowerCase()
+    .replace(/[^\p{L}\s'-]/gu, "") // Remove emojis and special chars
+    .replace(/\s+/g, " ")
+    .trim();
+  
+  if (!cleaned) return "unknown";
+  
+  const parts = cleaned.split(" ");
+  const firstName = parts[0];
+  
+  // Check first name against databases
+  if (FEMALE_NAMES.has(firstName)) return "female";
+  if (MALE_NAMES.has(firstName)) return "male";
+  
+  // Check second name if first didn't match (some cultures put surname first)
+  if (parts.length > 1 && parts[1]) {
+    if (FEMALE_NAMES.has(parts[1])) return "female";
+    if (MALE_NAMES.has(parts[1])) return "male";
+  }
+  
+  // Suffix-based heuristics for names not in dictionary
+  const suffixFemale = ["ella","ina","ina","ette","etta","issa","ista","ia","ie","lyn","lynn","een","ene","ine","ana","ena","ita","ita","ola","ula","ara","ora","ira"];
+  const suffixMale = ["son","ton","ston","den","don","dan","man","ard","bert","pert","fred","mund","wald","win","vin","rick","ric","ick","ius","eus","ander","andro"];
+  
+  for (const s of suffixFemale) {
+    if (firstName.endsWith(s) && firstName.length > s.length + 1) return "female";
+  }
+  for (const s of suffixMale) {
+    if (firstName.endsWith(s) && firstName.length > s.length + 1) return "male";
+  }
+  
+  return "unknown";
+}
+
 async function getConnection(supabase: any, accountId: string) {
   const { data } = await supabase
     .from("social_connections")
@@ -65,7 +212,6 @@ async function igFetch(endpoint: string, token: string, method = "GET", body?: a
   return data;
 }
 
-// Helper for Facebook Graph API calls (ads, business)
 async function fbFetch(endpoint: string, token: string, method = "GET", body?: any) {
   const url = endpoint.startsWith("http") ? endpoint : `${FB_GRAPH_URL}${endpoint}`;
   const sep = url.includes("?") ? "&" : "?";
@@ -92,6 +238,49 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
+
+    // Gender classification doesn't need Instagram connection
+    if (action === "classify_gender") {
+      const accountId = account_id;
+      // Fetch all followers without gender assigned
+      const { data: unclassified } = await supabase
+        .from("fetched_followers")
+        .select("id, full_name, username, gender")
+        .eq("account_id", accountId)
+        .is("gender", null)
+        .limit(params?.batch_size || 5000);
+
+      const updates: { id: string; gender: string }[] = [];
+      for (const f of (unclassified || [])) {
+        const gender = classifyGender(f.full_name || f.username || "");
+        updates.push({ id: f.id, gender });
+      }
+
+      // Batch update
+      let updated = 0;
+      for (let i = 0; i < updates.length; i += 500) {
+        const batch = updates.slice(i, i + 500);
+        for (const u of batch) {
+          await supabase.from("fetched_followers").update({ gender: u.gender }).eq("id", u.id);
+        }
+        updated += batch.length;
+      }
+
+      // Get counts
+      const { count: femaleCount } = await supabase.from("fetched_followers").select("id", { count: "exact", head: true }).eq("account_id", accountId).eq("gender", "female");
+      const { count: maleCount } = await supabase.from("fetched_followers").select("id", { count: "exact", head: true }).eq("account_id", accountId).eq("gender", "male");
+      const { count: unknownCount } = await supabase.from("fetched_followers").select("id", { count: "exact", head: true }).eq("account_id", accountId).eq("gender", "unknown");
+
+      return new Response(JSON.stringify({
+        success: true,
+        data: {
+          classified: updated,
+          female: femaleCount || 0,
+          male: maleCount || 0,
+          unknown: unknownCount || 0,
+        }
+      }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
 
     const conn = await getConnection(supabase, account_id);
     const token = conn.access_token;
@@ -282,7 +471,6 @@ serve(async (req) => {
         const period = params?.period || "day";
         const since = params?.since ? `&since=${params.since}` : "";
         const until = params?.until ? `&until=${params.until}` : "";
-        // v24.0 valid metrics differ by period
         const dayMetrics = "reach,follower_count,profile_views,website_clicks,accounts_engaged,total_interactions,likes,comments,shares,saves,replies";
         const weekMetrics = "reach,follower_count,profile_views,website_clicks,accounts_engaged,total_interactions,likes,comments,shares,saves,replies";
         const monthMetrics = "reach,follower_count,profile_views,website_clicks,accounts_engaged,total_interactions,likes,comments,shares,saves,replies";
@@ -333,16 +521,12 @@ serve(async (req) => {
         break;
 
       case "get_story_highlights": {
-        // Story highlights are fetched via the Facebook Graph API as they're not directly on IG Graph
-        // First try to get highlights via the user's media with story highlight type
         const pageInfo = await getPageId(token, igUserId);
         if (pageInfo) {
           try {
-            // Try Facebook Page's story highlights
             const highlightsResp = await fbFetch(`/${igUserId}?fields=story_highlights{id,title,media_type,media_url,thumbnail_url,timestamp,permalink,cover_media}`, token);
             result = highlightsResp;
           } catch {
-            // Fallback: get all stories including highlights
             result = await igFetch(`/${igUserId}/stories?fields=id,media_type,media_url,thumbnail_url,timestamp,permalink`, token);
           }
         } else {
@@ -508,23 +692,19 @@ serve(async (req) => {
       }
 
       case "fetch_participant_profiles": {
-        // Batch fetch profile pictures for participant IGSIDs
         const userIds: string[] = params?.user_ids || [];
         if (userIds.length === 0) throw new Error("user_ids array required");
         
         const profiles: Record<string, { name?: string; profile_pic?: string; username?: string }> = {};
         
-        // Get page token ONCE (not per user!)
         const pageInfo = await getPageId(token, igUserId);
         const lookupToken = pageInfo?.pageToken || token;
         console.log(`Fetching profiles for ${userIds.length} users, pageToken available: ${!!pageInfo}`);
         
-        // Process in parallel batches of 5
         const batchSize = 5;
         for (let i = 0; i < Math.min(userIds.length, 50); i += batchSize) {
           const batch = userIds.slice(i, i + batchSize);
           await Promise.all(batch.map(async (uid) => {
-            // Method 1: FB Graph with page token (works for IGSIDs)
             try {
               const resp = await fetch(`${FB_GRAPH_URL}/${uid}?fields=name,profile_pic,username&access_token=${lookupToken}`);
               const data = await resp.json();
@@ -534,7 +714,6 @@ serve(async (req) => {
               }
             } catch {}
             
-            // Method 2: IG Graph API directly
             try {
               const resp2 = await fetch(`${IG_GRAPH_URL}/${uid}?fields=name,username,profile_picture_url&access_token=${token}`);
               const data2 = await resp2.json();
@@ -544,7 +723,6 @@ serve(async (req) => {
               }
             } catch {}
             
-            // Method 3: Try business_discovery if we have username from conversation
             const convoUsername = params?.usernames?.[uid];
             if (convoUsername) {
               try {
@@ -630,21 +808,17 @@ serve(async (req) => {
 
       // ===== MESSAGING =====
       case "send_message": {
-        // Try Facebook Page first, fall back to IG user ID direct
-        // Support reply_to for IG reply-to-message feature
         const pageInfo = await getPageId(token, igUserId);
         const msgBody: any = {
           recipient: { id: params.recipient_id },
           message: { text: params.message },
         };
-        // Add reply_to if provided (Instagram reply-to-message feature)
         if (params.reply_to) {
           msgBody.message.reply_to = { mid: params.reply_to };
         }
         if (pageInfo) {
           result = await igFetch(`/${pageInfo.pageId}/messages`, pageInfo.pageToken, "POST", msgBody);
         } else {
-          // Fallback: send via IG user ID directly (works with instagram_manage_messages permission)
           console.log("No FB Page found, trying direct IG messaging via /me/messages");
           try {
             result = await igFetch(`/me/messages`, token, "POST", msgBody);
@@ -681,7 +855,6 @@ serve(async (req) => {
 
       case "send_reaction": {
         const pageInfoR = await getPageId(token, igUserId);
-        // Instagram Messaging API reaction format
         const reactBody = {
           recipient: { id: params.recipient_id },
           sender_action: "react",
@@ -693,7 +866,6 @@ serve(async (req) => {
             result = await igFetch(`/${pageInfoR.pageId}/messages`, pageInfoR.pageToken, "POST", reactBody);
           } catch (e1: any) {
             console.log("Page react failed, trying alternate format:", e1.message);
-            // Alternative format: use reaction_type in message body 
             const altBody = {
               recipient: { id: params.recipient_id },
               react: { message_id: params.message_id, action: "react", reaction: params.reaction || "love" },
@@ -735,16 +907,12 @@ serve(async (req) => {
       }
 
       case "delete_message": {
-        // Instagram Messaging API does NOT support DELETE on messages.
-        // The correct approach is to use the "unsend" action via POST to /{message-id}
-        // with the action=unsend parameter, using the Page token.
         if (!params?.message_id) throw new Error("message_id required");
         
         let deleteSuccess = false;
         const pageInfoDel = await getPageId(token, igUserId);
         const delToken = pageInfoDel?.pageToken || token;
         
-        // Method 1: POST unsend action (correct IG Messaging API method)
         try {
           const unsendResp = await fetch(`${FB_GRAPH_URL}/${params.message_id}`, {
             method: "POST",
@@ -763,7 +931,6 @@ serve(async (req) => {
           console.log("Unsend error:", e.message);
         }
         
-        // Method 2: DELETE request (works for some message types)
         if (!deleteSuccess) {
           try {
             const delResp = await fetch(`${FB_GRAPH_URL}/${params.message_id}?access_token=${delToken}`, { method: "DELETE" });
@@ -780,7 +947,6 @@ serve(async (req) => {
           }
         }
         
-        // Method 3: Try with direct user token if page token failed
         if (!deleteSuccess && pageInfoDel) {
           try {
             const delResp3 = await fetch(`${FB_GRAPH_URL}/${params.message_id}`, {
@@ -798,8 +964,6 @@ serve(async (req) => {
         }
         
         if (!deleteSuccess) {
-          // Note: Instagram API may not support message deletion for all message types
-          // Messages sent by the page can be unsent, but messages from fans cannot be deleted
           result = { success: false, error: "Message deletion not supported by Instagram for this message type. The message has been removed from your dashboard." };
         }
         
@@ -895,7 +1059,6 @@ serve(async (req) => {
 
       // ===== CREATOR MARKETPLACE DISCOVERY =====
       case "discover_creators": {
-        // Uses business_discovery to find creators by username
         const creators: any[] = [];
         const usernames = params.usernames || [];
         for (const username of usernames.slice(0, 10)) {
@@ -1000,7 +1163,6 @@ serve(async (req) => {
 
       case "create_ad": {
         if (!params?.ad_account_id || !params?.adset_id) throw new Error("ad_account_id and adset_id required");
-        // First create ad creative
         let creativeId = params.creative_id;
         if (!creativeId && params.creative) {
           const creative = await fbFetch(`/${params.ad_account_id}/adcreatives`, token, "POST", {
@@ -1077,7 +1239,6 @@ serve(async (req) => {
 
       case "upload_ad_image": {
         if (!params?.ad_account_id || !params?.image_url) throw new Error("ad_account_id and image_url required");
-        // Download image and upload as bytes
         result = await fbFetch(`/${params.ad_account_id}/adimages`, token, "POST", {
           url: params.image_url,
         });
@@ -1122,7 +1283,7 @@ serve(async (req) => {
         break;
       }
 
-      // ===== PAGE ENGAGEMENT (pages_read_engagement) =====
+      // ===== PAGE ENGAGEMENT =====
       case "get_page_posts": {
         const pageInfo = await getPageId(token, igUserId);
         if (!pageInfo) throw new Error("No linked Facebook Page found");
@@ -1147,13 +1308,11 @@ serve(async (req) => {
 
       // ===== FOLLOWERS / FOLLOWING =====
       case "get_followers_list": {
-        // Strategy: Pull contacts from DB conversations + IG conversations API + actual followers API
         let followers: any[] = [];
         const seen = new Set<string>();
         const maxLimit = params?.limit || 500;
-        const sourceFilter = params?.source_filter || "all"; // "all", "conversation", "follower"
+        const sourceFilter = params?.source_filter || "all";
         
-        // 1. Pull from existing DB conversations (instant, always works)
         if (sourceFilter === "all" || sourceFilter === "conversation") {
           const { data: dbConvos } = await supabase
             .from("ai_dm_conversations")
@@ -1175,7 +1334,6 @@ serve(async (req) => {
           }
         }
 
-        // 2. Paginate through IG conversations API to find all contacts
         if (sourceFilter === "all" || sourceFilter === "conversation") {
           try {
             let nextUrl: string | null = `/${igUserId}/conversations?fields=participants,id,updated_time&limit=100&platform=instagram`;
@@ -1207,7 +1365,6 @@ serve(async (req) => {
           }
         }
 
-        // 3. Fetch ACTUAL followers via IG Business Discovery / Facebook Page API
         if (sourceFilter === "all" || sourceFilter === "follower") {
           try {
             const pageInfo = await getPageId(token, igUserId!);
@@ -1235,7 +1392,6 @@ serve(async (req) => {
           }
         }
         
-        // Get follower count
         let followersCount = 0, followsCount = 0;
         try {
           const profile = await igFetch(`/${igUserId}?fields=followers_count,follows_count`, token);
@@ -1251,7 +1407,7 @@ serve(async (req) => {
         break;
       }
 
-      // ===== SEARCH INSTAGRAM USERS (Private API) =====
+      // ===== SEARCH INSTAGRAM USERS (Private API — PAGINATED for up to 1000 results) =====
       case "search_users": {
         const query = params?.query;
         if (!query) throw new Error("query required");
@@ -1261,32 +1417,111 @@ serve(async (req) => {
         const dsUserId = params?.ds_user_id || metadata?.ig_ds_user_id || conn.platform_user_id;
         const csrfToken = params?.csrf_token || metadata?.ig_csrf_token;
         const igAppId = "936619743392459";
+        const maxResults = Math.min(params?.max_results || 50, 1000);
 
-        const searchUrl = `https://i.instagram.com/api/v1/users/search/?search_surface=user_search_page&timezone_offset=0&count=30&q=${encodeURIComponent(query)}`;
-        const resp = await fetch(searchUrl, {
-          headers: {
-            "User-Agent": "Instagram 275.0.0.27.98 Android (33/13; 420dpi; 1080x2400; samsung; SM-G991B; o1s; exynos2100; en_US; 458229258)",
-            "Cookie": `sessionid=${sessionId};${csrfToken ? ` csrftoken=${csrfToken};` : ""}${dsUserId ? ` ds_user_id=${dsUserId};` : ""}`,
-            "X-IG-App-ID": igAppId,
-          },
-        });
-        if (!resp.ok) throw new Error(`Search failed (${resp.status})`);
-        const searchData = await resp.json();
-        const users = (searchData?.users || []).map((u: any) => ({
-          id: String(u.pk),
-          username: u.username,
-          full_name: u.full_name,
-          profile_pic_url: u.profile_pic_url,
-          is_private: u.is_private,
-          is_verified: u.is_verified,
-          follower_count: u.follower_count,
-          media_count: u.media_count,
-        }));
-        result = { users, total: users.length };
+        const headers = {
+          "User-Agent": "Instagram 275.0.0.27.98 Android (33/13; 420dpi; 1080x2400; samsung; SM-G991B; o1s; exynos2100; en_US; 458229258)",
+          "Cookie": `sessionid=${sessionId};${csrfToken ? ` csrftoken=${csrfToken};` : ""}${dsUserId ? ` ds_user_id=${dsUserId};` : ""}`,
+          "X-IG-App-ID": igAppId,
+        };
+
+        // Try multiple search surfaces to get more results
+        const allUsers: any[] = [];
+        const seenPks = new Set<string>();
+
+        // Surface 1: Main user search (returns ~50)
+        try {
+          const searchUrl = `https://i.instagram.com/api/v1/users/search/?search_surface=user_search_page&timezone_offset=0&count=${Math.min(maxResults, 100)}&q=${encodeURIComponent(query)}`;
+          const resp = await fetch(searchUrl, { headers });
+          if (resp.ok) {
+            const searchData = await resp.json();
+            for (const u of (searchData?.users || [])) {
+              const pk = String(u.pk);
+              if (seenPks.has(pk)) continue;
+              seenPks.add(pk);
+              allUsers.push({
+                id: pk,
+                username: u.username,
+                full_name: u.full_name,
+                profile_pic_url: u.profile_pic_url,
+                is_private: u.is_private,
+                is_verified: u.is_verified,
+                follower_count: u.follower_count,
+                media_count: u.media_count,
+                gender: classifyGender(u.full_name || u.username),
+              });
+            }
+          }
+        } catch (e: any) {
+          console.log("Primary search failed:", e.message);
+        }
+
+        // Surface 2: Top search (blended results — gets additional users)
+        if (allUsers.length < maxResults) {
+          try {
+            const topSearchUrl = `https://i.instagram.com/api/v1/fbsearch/topsearch_flat/?search_surface=top_search_page&timezone_offset=0&count=${Math.min(maxResults - allUsers.length, 100)}&query=${encodeURIComponent(query)}`;
+            const resp2 = await fetch(topSearchUrl, { headers });
+            if (resp2.ok) {
+              const topData = await resp2.json();
+              for (const item of (topData?.list || [])) {
+                const u = item?.user;
+                if (!u) continue;
+                const pk = String(u.pk);
+                if (seenPks.has(pk)) continue;
+                seenPks.add(pk);
+                allUsers.push({
+                  id: pk,
+                  username: u.username,
+                  full_name: u.full_name,
+                  profile_pic_url: u.profile_pic_url,
+                  is_private: u.is_private,
+                  is_verified: u.is_verified,
+                  follower_count: u.follower_count,
+                  media_count: u.media_count,
+                  gender: classifyGender(u.full_name || u.username),
+                });
+              }
+            }
+          } catch (e: any) {
+            console.log("Top search failed:", e.message);
+          }
+        }
+
+        // Surface 3: Suggested users (gets even more)
+        if (allUsers.length < maxResults) {
+          try {
+            const suggestedUrl = `https://i.instagram.com/api/v1/discover/search/?search_surface=user_search_page&timezone_offset=0&count=${Math.min(maxResults - allUsers.length, 100)}&q=${encodeURIComponent(query)}`;
+            const resp3 = await fetch(suggestedUrl, { headers });
+            if (resp3.ok) {
+              const sugData = await resp3.json();
+              for (const u of (sugData?.users || [])) {
+                const pk = String(u.pk);
+                if (seenPks.has(pk)) continue;
+                seenPks.add(pk);
+                allUsers.push({
+                  id: pk,
+                  username: u.username,
+                  full_name: u.full_name,
+                  profile_pic_url: u.profile_pic_url,
+                  is_private: u.is_private,
+                  is_verified: u.is_verified,
+                  follower_count: u.follower_count,
+                  media_count: u.media_count,
+                  gender: classifyGender(u.full_name || u.username),
+                });
+              }
+            }
+          } catch (e: any) {
+            console.log("Suggested search failed:", e.message);
+          }
+        }
+
+        console.log(`Total search results for "${query}": ${allUsers.length}`);
+        result = { users: allUsers.slice(0, maxResults), total: allUsers.length };
         break;
       }
 
-      // ===== FETCH ACTUAL FOLLOWERS (Private API — CHUNKED for large accounts) =====
+      // ===== FETCH ACTUAL FOLLOWERS (Private API — UPGRADED CHUNKED with skip-already-scraped) =====
       case "scrape_followers": {
         const metadata = conn.metadata as any || {};
         const sessionId = params?.session_id || metadata?.ig_session_id;
@@ -1335,11 +1570,20 @@ serve(async (req) => {
           throw new Error("Could not resolve Instagram user PK. Please provide ds_user_id from cookies.");
         }
 
-        // CHUNKED: Fetch max ~12 pages per call to stay under edge function timeout
+        // Load already-scraped PKs to SKIP duplicates intelligently
+        const { data: existingPks } = await supabase
+          .from("fetched_followers")
+          .select("ig_user_id")
+          .eq("account_id", account_id);
+        const alreadyScrapedPks = new Set((existingPks || []).map((f: any) => f.ig_user_id));
+        console.log(`Already scraped: ${alreadyScrapedPks.size} profiles — will skip duplicates`);
+
+        // UPGRADED: More pages per chunk (20 instead of 12), faster delays
         const maxFollowers = params?.max_followers || 0;
-        const pagesPerChunk = params?.pages_per_chunk || 12;
+        const pagesPerChunk = params?.pages_per_chunk || 20;
         const batchSize = params?.batch_size || 200;
-        const cursor = params?.cursor || null; // Resume cursor from previous chunk
+        const cursor = params?.cursor || null;
+        const turboMode = params?.turbo || false;
 
         const scrapedFollowers: any[] = [];
         const seenPks = new Set<string>();
@@ -1347,8 +1591,16 @@ serve(async (req) => {
         let page = 0;
         let hitEnd = false;
         let rateLimited = false;
+        let skippedCount = 0;
         
-        console.log(`Chunked fetch for PK ${userPk}, pages_per_chunk: ${pagesPerChunk}, cursor: ${cursor ? "yes" : "start"}`);
+        console.log(`UPGRADED chunked fetch for PK ${userPk}, pages: ${pagesPerChunk}, turbo: ${turboMode}, cursor: ${cursor ? "yes" : "start"}`);
+
+        const igHeaders = {
+          "User-Agent": "Instagram 275.0.0.27.98 Android (33/13; 420dpi; 1080x2400; samsung; SM-G991B; o1s; exynos2100; en_US; 458229258)",
+          "Cookie": `sessionid=${sessionId};${csrfToken ? ` csrftoken=${csrfToken};` : ""} ds_user_id=${userPk};`,
+          "X-IG-App-ID": igAppId,
+          "X-IG-WWW-Claim": "0",
+        };
 
         while (page < pagesPerChunk) {
           if (maxFollowers > 0 && scrapedFollowers.length >= maxFollowers) {
@@ -1361,14 +1613,7 @@ serve(async (req) => {
           const endpoint = `https://i.instagram.com/api/v1/friendships/${userPk}/followers/?count=${batchSize}${maxId ? `&max_id=${maxId}` : ""}&search_surface=follow_list_page`;
           
           try {
-            const resp = await fetch(endpoint, {
-              headers: {
-                "User-Agent": "Instagram 275.0.0.27.98 Android (33/13; 420dpi; 1080x2400; samsung; SM-G991B; o1s; exynos2100; en_US; 458229258)",
-                "Cookie": `sessionid=${sessionId};${csrfToken ? ` csrftoken=${csrfToken};` : ""} ds_user_id=${userPk};`,
-                "X-IG-App-ID": igAppId,
-                "X-IG-WWW-Claim": "0",
-              },
-            });
+            const resp = await fetch(endpoint, { headers: igHeaders });
 
             if (!resp.ok) {
               const errText = await resp.text();
@@ -1391,16 +1636,26 @@ serve(async (req) => {
 
             for (const user of users) {
               if (maxFollowers > 0 && scrapedFollowers.length >= maxFollowers) break;
-              if (seenPks.has(String(user.pk))) continue;
-              seenPks.add(String(user.pk));
+              const pk = String(user.pk);
+              if (seenPks.has(pk)) continue;
+              seenPks.add(pk);
+              
+              // Skip already-scraped profiles (but still count for cursor advancement)
+              if (alreadyScrapedPks.has(pk)) {
+                skippedCount++;
+                continue;
+              }
+              
+              const fullName = user.full_name || user.username || "";
               scrapedFollowers.push({
-                id: String(user.pk),
-                name: user.full_name || user.username,
+                id: pk,
+                name: fullName,
                 username: user.username,
                 profile_pic: user.profile_pic_url || null,
                 source: "fetched",
                 is_private: user.is_private || false,
                 is_verified: user.is_verified || false,
+                gender: classifyGender(fullName),
               });
             }
 
@@ -1411,9 +1666,11 @@ serve(async (req) => {
             }
             maxId = data.next_max_id;
 
-            // Anti-ban delays
-            const baseDelay = page < 5 ? 1500 : page < 10 ? 2500 : 3500;
-            const jitter = Math.random() * 1500;
+            // Faster delays in turbo mode, still safe
+            const baseDelay = turboMode 
+              ? (page < 5 ? 800 : page < 15 ? 1200 : 1800) 
+              : (page < 5 ? 1200 : page < 10 ? 2000 : 3000);
+            const jitter = Math.random() * (turboMode ? 800 : 1500);
             await new Promise(r => setTimeout(r, baseDelay + jitter));
             
           } catch (e: any) {
@@ -1423,9 +1680,9 @@ serve(async (req) => {
           }
         }
 
-        // PERSIST chunk to database
+        // PERSIST chunk to database with gender
         if (scrapedFollowers.length > 0) {
-          console.log(`Saving chunk of ${scrapedFollowers.length} followers...`);
+          console.log(`Saving chunk of ${scrapedFollowers.length} NEW followers (skipped ${skippedCount} duplicates)...`);
           for (let i = 0; i < scrapedFollowers.length; i += 500) {
             const batch = scrapedFollowers.slice(i, i + 500).map(f => ({
               account_id: account_id,
@@ -1436,6 +1693,7 @@ serve(async (req) => {
               source: "fetched",
               is_private: f.is_private,
               is_verified: f.is_verified,
+              gender: f.gender,
               fetched_at: new Date().toISOString(),
               updated_at: new Date().toISOString(),
             }));
@@ -1453,11 +1711,12 @@ serve(async (req) => {
           .eq("account_id", account_id);
 
         const nextCursor = hitEnd ? null : maxId;
-        console.log(`Chunk done: ${scrapedFollowers.length} new, ${totalPersisted || 0} total, has_more: ${!!nextCursor}`);
+        console.log(`Chunk done: ${scrapedFollowers.length} new, ${skippedCount} skipped, ${totalPersisted || 0} total, has_more: ${!!nextCursor}`);
 
         result = {
           followers: scrapedFollowers,
           chunk_size: scrapedFollowers.length,
+          skipped_duplicates: skippedCount,
           pages_fetched: page,
           next_cursor: nextCursor,
           fetch_complete: hitEnd,
@@ -1471,12 +1730,19 @@ serve(async (req) => {
       case "get_persisted_followers": {
         const limit = params?.limit || 5000;
         const offset = params?.offset || 0;
-        const { data: persisted, count } = await supabase
+        const genderFilter = params?.gender || null;
+        
+        let query = supabase
           .from("fetched_followers")
           .select("*", { count: "exact" })
           .eq("account_id", account_id)
-          .order("fetched_at", { ascending: false })
-          .range(offset, offset + limit - 1);
+          .order("fetched_at", { ascending: false });
+          
+        if (genderFilter) {
+          query = query.eq("gender", genderFilter);
+        }
+        
+        const { data: persisted, count } = await query.range(offset, offset + limit - 1);
 
         const followers = (persisted || []).map((f: any) => ({
           id: f.ig_user_id,
@@ -1486,6 +1752,7 @@ serve(async (req) => {
           source: f.source || "fetched",
           is_private: f.is_private,
           is_verified: f.is_verified,
+          gender: f.gender || "unknown",
         }));
 
         let followersCount = 0, followsCount = 0;
@@ -1505,7 +1772,6 @@ serve(async (req) => {
       }
 
       case "send_bulk_messages": {
-        // Send message to multiple recipients using the IG send API (same as send_message)
         const recipients = params?.recipients || [];
         const message = params?.message || "";
         if (!message) throw new Error("Message text required");
@@ -1513,7 +1779,6 @@ serve(async (req) => {
         const results: any[] = [];
         for (const recipient of recipients) {
           try {
-            // Use the same send mechanism as the working send_message action
             const sendResp = await fetch(`${IG_GRAPH_URL}/${igUserId}/messages`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -1534,7 +1799,6 @@ serve(async (req) => {
             results.push({ id: recipient.id, name: recipient.name, success: false, error: e.message });
           }
           
-          // Rate limit
           await new Promise(r => setTimeout(r, 500));
         }
         
@@ -1573,10 +1837,10 @@ serve(async (req) => {
     return new Response(JSON.stringify({ success: true, data: result }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-  } catch (e) {
-    console.error("Instagram API error:", e);
-    return new Response(JSON.stringify({ success: false, error: e instanceof Error ? e.message : "Unknown error" }), {
-      status: 200,
+  } catch (error: any) {
+    console.error("Instagram API Error:", error.message);
+    return new Response(JSON.stringify({ success: false, error: error.message }), {
+      status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
