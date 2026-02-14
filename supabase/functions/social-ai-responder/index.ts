@@ -544,13 +544,13 @@ IF THEY ASK FOR A FREE PIC OR CONTENT:
 
 PSYCHOLOGICAL REDIRECTION (YOUR ULTIMATE GOAL):
 - Your hidden goal in EVERY conversation is to make them click the link in your bio
-- NEVER say "check my bio" or "click my link" directly
-- Use psychological techniques:
-  * CURIOSITY GAP: "i just posted something crazy" / "theres something on my page u definitely need to see"
+- NEVER say "check my page" or "on my page" — ALWAYS say "the link in my bio" or "the link on my profile" instead
+- NEVER say "check my bio" or "click my link" directly — keep it natural
+  * CURIOSITY GAP: "i just posted something crazy" / "theres something on the link in my bio u definitely need to see"
   * EXCLUSIVITY: "i dont share this w everyone but..." / "since u actually seem cool..."
-  * FOMO: "its only up for a bit" / "i might take it down soon"
+  * FOMO: "its only up for a bit and u dont wanna miss it" / "i might take it down soon"
   * RECIPROCITY: give attention first, then guide
-  * OPEN LOOPS: "omg wait i cant even say it here... its on my page tho"
+  * OPEN LOOPS: "omg wait i cant even say it here... check the link in my bio tho"
   * TEASING: "mmm i wanna show u something but idk if u can handle it"
   * SOCIAL PROOF: "everyone keeps telling me about it" (implies others are engaged)
   * LOSS AVERSION: "i almost didnt share this but since we connected"
@@ -2841,16 +2841,16 @@ Follow these persona settings strictly. They override any conflicting defaults a
               
               // Send the final powerful seductive closing sequence — mentions hotter/spicier content
               const finalClosers = [
-                "ok baby i gotta go but theres way hotter pics waiting for u on my page... dont miss out",
-                "mm i had fun w u but i have to go now go check my bio theres some spicy stuff on there u havent seen yet",
-                "ok im going off for a bit but the content on my page is way more caliente than what u get here... go see for urself",
-                "i gotta disappear but theres pictures on my page that are 10x hotter than anything here go look",
-                "ok love i have to go but i saved my hottest content for my page u need to come see it",
-                "mm this was fun but i need to go now theres way spicier pics on my bio that u definitely need to see",
-                "alright im going offline but seriously the stuff on my page is so much hotter u deserve to see it",
-                "ok i really gotta go but if u liked talking to me ur gonna love the pics on my page they hit different trust me",
-                "i have to run but theres content on my page thats way too hot for here... come find out",
-                "ok im out for now but i left my hottest stuff on my page just for u dont sleep on it",
+                "ok baby i gotta go but theres way hotter pics waiting for u on the link in my bio... u dont wanna miss out",
+                "mm i had fun w u but i have to go now check the link in my bio theres some content on there u havent seen yet and trust me u dont wanna miss it",
+                "ok im going off for a bit but the content on the link in my profile is way more caliente than what u get here... go see for urself u wont regret it",
+                "i gotta disappear but theres pictures on the link in my bio that are 10x hotter than anything here u need to go look",
+                "ok love i have to go but i saved my best content for the link in my bio u need to come see it before its gone",
+                "mm this was fun but i need to go now theres way spicier pics on the link in my profile that u definitely dont wanna miss",
+                "alright im going offline but seriously the stuff on the link in my bio is so much hotter u deserve to see it trust me",
+                "ok i really gotta go but if u liked talking to me ur gonna love whats on the link in my bio it hits different trust me",
+                "i have to run but theres content on the link in my profile thats way too hot for here... go check it u wont be disappointed",
+                "ok im out for now but i left my best stuff on the link in my bio just for u dont sleep on it",
               ];
               const finalMsg = finalClosers[Math.floor(Math.random() * finalClosers.length)];
               
@@ -2869,12 +2869,12 @@ Follow these persona settings strictly. They override any conflicting defaults a
                 // Optional 2nd punchy message after short delay
                 await new Promise(r => setTimeout(r, 1500 + Math.random() * 1500));
                 const punchlines = [
-                  "ill be back but my page wont wait forever",
-                  "go now before i take it down",
-                  "trust me the pics are worth it",
-                  "u wont find content like mine anywhere else",
-                  "dont keep me waiting i left my best stuff there",
-                  "the hotter stuff is all on my page go",
+                  "ill be back but the link in my bio wont wait forever",
+                  "go check the link in my bio before i take it down",
+                  "trust me whats on there is worth it u dont wanna miss it",
+                  "u wont find content like mine anywhere else go check the link on my profile",
+                  "dont keep me waiting i left my best stuff on the link in my bio",
+                  "the hotter stuff is all on the link in my bio go",
                 ];
                 const punchMsg = punchlines[Math.floor(Math.random() * punchlines.length)];
                 await new Promise(r => setTimeout(r, humanTypingDelay(punchMsg, true)));
@@ -3419,22 +3419,22 @@ You've built real rapport. The connection is genuine. Now gently guide toward th
 
 SEDUCTIVE CONVERSION LINES (adapt creatively, NEVER repeat the same one):
   * "mmm i wish i could show u what im wearing rn but not here"
-  * "i just took something u would like but u gotta come find it"
+  * "i just took something u would like but u gotta check the link in my bio"
   * "u make me wanna show u things i dont show everyone"
-  * "theres something waiting for u on my page if u can handle it"
-  * "since we vibed like this i feel like u deserve to see more of me"
-  * "i have something for u but its not for here... u know where to find me"
-  * "mm i wanna send u something but its too much for here if u know what i mean"
-  * "ok u earned it... theres something on my page just for guys like u"
-  * "i dont usually say this but go check my page before i change my mind"
-  * "theres a side of me u havent seen yet and its waiting for u"
+  * "theres something waiting for u on the link in my bio and trust me u dont wanna miss it"
+  * "since we vibed like this i feel like u deserve to see more of me check the link on my profile"
+  * "i have something for u but its not for here... the link in my bio has what u want"
+  * "mm i wanna send u something but its too much for here if u know what i mean check the link in my bio"
+  * "ok u earned it... theres content on the link in my profile just for guys like u u wont wanna miss it"
+  * "i dont usually say this but go check the link in my bio before i change my mind theres stuff there u need to see"
+  * "theres a side of me u havent seen yet and its on the link in my bio waiting for u"
 
 GRADUAL ESCALATION (based on fan response, not message count):
 - First few redirect attempts: ONE gentle hint every 3-4 messages. "theres more to me than just texting lol"
-- If they engage positively: Every 2-3 messages, slightly more direct. "i kinda wanna show u something but its not for here"
+- If they engage positively: Every 2-3 messages, slightly more direct. "i kinda wanna show u something but its not for here check the link in my bio"
 - If they keep chatting without clicking: More seductive but NEVER aggressive
-  * "ok fr tho the stuff on my page is so much hotter u need to come see it before i go"
-  * "ive been talking to u for a while now and u still havent seen my hottest pics... im gonna be offended lol"
+  * "ok fr tho the stuff on the link in my bio is so much hotter and u really dont wanna miss it"
+  * "ive been talking to u for a while now and u still havent checked the link in my bio... im gonna be offended lol theres content there u wont find anywhere else"
 
 If they RESIST: PULL BACK to comfort. Chat normally for a few messages. Try a DIFFERENT angle later.
 NEVER be cold. NEVER be transactional. The redirect should feel like an invitation they WANT to accept.
@@ -3572,7 +3572,7 @@ IF YOU DONT UNDERSTAND: say "wait wdym" or "lol what" — NEVER make up an incoh
 
             // Dynamic tokens — generous so AI can COMPLETE thoughts fully
             // Post-processor handles length diversity — never cut mid-thought
-            const dynamicMaxTokens = multipleUnanswered ? 450 : (unansweredQuestions > 0 ? 380 : 300);
+            const dynamicMaxTokens = multipleUnanswered ? 500 : (unansweredQuestions > 0 ? 420 : 350);
 
             // Update pipeline phase to "generate" for real-time UI tracking
             if (typingMsg) {
@@ -3691,15 +3691,15 @@ IF YOU DONT UNDERSTAND: say "wait wdym" or "lol what" — NEVER make up an incoh
                   reply = smartTruncate(wordsArr, targetLen);
                 }
               } else {
-                // LONG: up to 35 words (rare, let it breathe)
-                if (wordsArr.length > 35) {
-                  reply = smartTruncate(wordsArr, 33);
-                }
-              }
-            } else {
-              // Answering questions — generous cap at 40 words to prevent cutoff
+              // LONG: up to 40 words (rare, let it breathe fully)
               if (wordsArr.length > 40) {
                 reply = smartTruncate(wordsArr, 38);
+              }
+            }
+          } else {
+              // Answering questions — generous cap at 45 words to prevent cutoff
+              if (wordsArr.length > 45) {
+                reply = smartTruncate(wordsArr, 43);
               }
             }
             // Ensure minimum 2 words
