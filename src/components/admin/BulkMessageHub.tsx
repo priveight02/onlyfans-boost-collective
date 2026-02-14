@@ -56,6 +56,8 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
   const [showFetchSetup, setShowFetchSetup] = useState(false);
   const [fetching, setFetching] = useState(false);
   const [fetchProgress, setFetchProgress] = useState("");
+  const [fetchedCount, setFetchedCount] = useState(0);
+  const [fetchGoal, setFetchGoal] = useState(0);
   const [sessionId, setSessionId] = useState("");
   const [dsUserId, setDsUserId] = useState("");
   const [csrfToken, setCsrfToken] = useState("");
@@ -146,6 +148,9 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
     }
     setFetching(true);
     const maxCount = maxFollowersInput ? parseInt(maxFollowersInput) : 0;
+    const goal = maxCount > 0 ? maxCount : (followersCount || 29000);
+    setFetchGoal(goal);
+    setFetchedCount(0);
     setFetchProgress(`Fetching followers${maxCount > 0 ? ` (max ${maxCount})` : " (all)"}...`);
     try {
       const { data, error } = await supabase.functions.invoke("instagram-api", {
@@ -167,6 +172,7 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
 
       const fetched = data.data?.followers || [];
       const totalPersisted = data.data?.total_persisted || fetched.length;
+      setFetchedCount(fetched.length);
       setFetchProgress(`Fetched ${fetched.length} new followers · ${totalPersisted} total saved`);
 
       // Merge with existing list
@@ -602,7 +608,7 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
                   <span className="text-[9px] text-white/30">Leave empty to fetch all {followersCount > 0 ? followersCount.toLocaleString() : ""} followers</span>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3">
                 <Button
                   size="sm"
                   onClick={fetchAllFollowers}
@@ -610,12 +616,39 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
                   className="h-7 text-[10px] gap-1 bg-orange-600 hover:bg-orange-700 text-white"
                 >
                   {fetching ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />}
-                  {fetching ? "Fetching..." : maxFollowersInput ? `Fetch ${parseInt(maxFollowersInput).toLocaleString()} Followers` : "Fetch All Followers"}
+                  {fetching ? "Fetching..." : maxFollowersInput ? `Fetch ${parseInt(maxFollowersInput || "0").toLocaleString()} Followers` : "Fetch All Followers"}
                 </Button>
                 <Button size="sm" variant="ghost" onClick={() => setShowFetchSetup(false)} className="h-7 text-[10px] text-white/40 hover:text-white/60">
                   Cancel
                 </Button>
-                {fetchProgress && (
+
+                {/* Progress Ring */}
+                {fetching && fetchGoal > 0 && (
+                  <div className="flex items-center gap-2">
+                    <div className="relative w-10 h-10">
+                      <svg className="w-10 h-10 -rotate-90" viewBox="0 0 36 36">
+                        <circle cx="18" cy="18" r="15" fill="none" stroke="hsl(var(--muted))" strokeWidth="3" />
+                        <circle
+                          cx="18" cy="18" r="15" fill="none"
+                          stroke="hsl(30, 90%, 55%)"
+                          strokeWidth="3"
+                          strokeLinecap="round"
+                          strokeDasharray={`${Math.min((fetchedCount / fetchGoal) * 94.25, 94.25)} 94.25`}
+                          className="transition-all duration-500"
+                        />
+                      </svg>
+                      <span className="absolute inset-0 flex items-center justify-center text-[8px] font-bold text-orange-400">
+                        {fetchGoal > 0 ? Math.min(Math.round((fetchedCount / fetchGoal) * 100), 100) : 0}%
+                      </span>
+                    </div>
+                    <div className="text-[9px] text-white/50 leading-tight">
+                      <div className="text-orange-400 font-medium">{fetchedCount.toLocaleString()} / {fetchGoal.toLocaleString()}</div>
+                      <div>followers fetched</div>
+                    </div>
+                  </div>
+                )}
+
+                {!fetching && fetchProgress && (
                   <span className="text-[9px] text-white/40">{fetchProgress}</span>
                 )}
               </div>
