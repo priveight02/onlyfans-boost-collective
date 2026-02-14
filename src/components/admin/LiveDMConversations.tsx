@@ -986,14 +986,13 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
     } catch {}
   };
 
-  // Filter conversations
+  // Filter conversations — all in primary (no folder filtering)
   const filteredConversations = conversations.filter(c => {
-    const folderMatch = c.folder === activeFolder;
     const searchMatch = !searchQuery ||
       (c.participant_username || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
       (c.participant_name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
       (c.last_message_preview || "").toLowerCase().includes(searchQuery.toLowerCase());
-    return folderMatch && searchMatch;
+    return searchMatch;
   });
 
   const folderCounts = {
@@ -1070,32 +1069,17 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
             </div>
           </div>
 
-          {/* Folder Tabs */}
-          <Tabs value={activeFolder} onValueChange={setActiveFolder}>
-            <TabsList className="w-full bg-muted/30 h-8">
-              <TabsTrigger value="primary" className="flex-1 text-xs h-7 data-[state=active]:bg-background gap-1">
-                <Inbox className="h-3 w-3" />
-                Primary
-                {unreadCounts.primary > 0 && (
-                  <span className="bg-blue-500 text-white rounded-full text-[9px] min-w-[16px] h-4 flex items-center justify-center px-1">{unreadCounts.primary}</span>
-                )}
-              </TabsTrigger>
-              <TabsTrigger value="general" className="flex-1 text-xs h-7 data-[state=active]:bg-background gap-1">
-                <MessageSquare className="h-3 w-3" />
-                General
-                {unreadCounts.general > 0 && (
-                  <span className="bg-muted-foreground/50 text-white rounded-full text-[9px] min-w-[16px] h-4 flex items-center justify-center px-1">{unreadCounts.general}</span>
-                )}
-              </TabsTrigger>
-              <TabsTrigger value="requests" className="flex-1 text-xs h-7 data-[state=active]:bg-background gap-1">
-                <Shield className="h-3 w-3" />
-                Requests
-                {unreadCounts.requests > 0 && (
-                  <span className="bg-orange-500 text-white rounded-full text-[9px] min-w-[16px] h-4 flex items-center justify-center px-1">{unreadCounts.requests}</span>
-                )}
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
+          {/* All Messages - Single inbox */}
+          <div className="flex items-center gap-2 mt-1">
+            <Inbox className="h-3.5 w-3.5 text-muted-foreground" />
+            <span className="text-xs text-muted-foreground">All Messages</span>
+            <Badge variant="outline" className="text-[9px] px-1.5 py-0">{conversations.length}</Badge>
+            {conversations.filter(c => !c.is_read).length > 0 && (
+              <span className="bg-blue-500 text-white rounded-full text-[9px] min-w-[16px] h-4 flex items-center justify-center px-1">
+                {conversations.filter(c => !c.is_read).length}
+              </span>
+            )}
+          </div>
 
           {/* Search */}
           <div className="relative mt-2">

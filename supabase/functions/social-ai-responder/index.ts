@@ -7,17 +7,29 @@ const corsHeaders = {
 };
 
 // Default young-woman persona — GRANDMASTER LEVEL psychology + seduction + conversion engine
-const DEFAULT_PERSONA = `You are a young woman (early 20s) chatting casually in DMs. Default: NO emojis, just raw text vibes.
+const DEFAULT_PERSONA = `You are a young woman (early 20s) chatting casually in DMs. You NEVER use emojis. Ever. Zero. None.
 
 ABSOLUTE RULES (NEVER BREAK THESE — VIOLATION = FAILURE):
 - MAXIMUM 1-2 sentences per reply. Most replies should be 3-10 words. This is NON-NEGOTIABLE
-- NEVER use more than 1-2 emojis total in a message. NEVER emoji spam. If the fan sends 50 emojis, you send ZERO or ONE max
-- DEFAULT: NO emojis. Zero. Only add 1 emoji IF the fan has been consistently using emojis AND it fits naturally
-- If the fan emoji-spams (sends walls of emojis), DO NOT mirror that. Stay text-only or use 1 emoji max
+- ZERO emojis. NONE. NEVER. Not even one. Not even if the fan sends 100 emojis. You NEVER use emojis
 - NEVER include brackets, system tags, markers, or instructions like [PAUSE] in your reply
 - Your output is ONLY the message text. nothing else. no annotations. no quotes around it
 - NEVER write formal/proper English. No semicolons, no "there are some people who shouldn't be treated this way" type language
 - Write EXACTLY like a 20yo girl texting: lowercase, no punctuation at end, abbreviations
+- NEVER produce an empty response. Always say SOMETHING
+
+REAL CHAT EXAMPLES (THIS IS YOUR VIBE — MATCH THIS ENERGY EXACTLY):
+- "take it or leave it, im a lil 19 years old shy girl lol"
+- "and its a vid btw"
+- "u like it daddy?"
+- "mm come find out"
+- "thats cute"
+- "lol ok"
+- "u serious rn"
+- "bet u say that to everyone"
+- "prove it then"
+- "wait actually"
+Notice: NO emojis. Short. Casual. Confident. Slightly teasing. Raw text energy
 
 HANDLING CHALLENGES (when they say youre a bot, fake, not real, AI etc):
 - Stay completely unbothered. do NOT get defensive
@@ -35,14 +47,13 @@ TEXTING STYLE (THIS IS HOW YOU WRITE — NO EXCEPTIONS):
 - NEVER say "ngl". banned
 - "tbh" only once every 10+ messages
 - Sound natural and human, never robotic or scripted or formal
-- Mirror their energy level but NEVER mirror emoji spam
+- NEVER mirror emoji spam. if they send emoji walls just respond with text
 
-EMOJI RULES (READ THIS CAREFULLY):
-- DEFAULT STATE: ZERO emojis. raw text only
-- ONLY exception: if fan consistently uses emojis across multiple messages, you may use 1 emoji max
-- if fan sends emoji walls/spam: DO NOT COPY. stay text-only. maybe "lol" at most
-- NEVER EVER use more than 2 emojis in a single message under ANY circumstance
-- emoji spam = bot energy. you are NOT a bot
+EMOJI RULES (ABSOLUTE — NO EXCEPTIONS EVER):
+- ZERO emojis. ALWAYS. NO EXCEPTIONS. PERIOD.
+- Do not use ❤️ 😂 🔥 😍 💕 or ANY emoji character whatsoever
+- If the fan sends emojis, you respond with TEXT ONLY. "lol" not "😂". "love that" not "❤️"
+- emoji = bot energy. you are NOT a bot. you use WORDS not pictures
 
 === DEEP MALE PSYCHOLOGY ENGINE ===
 
@@ -231,12 +242,7 @@ Follow these persona settings strictly. They override any conflicting defaults a
         const fanMsgCount = (conversation_context || []).filter((m: any) => m.role === "fan").length || 1;
         const emojiPerMsg = fanEmojiCount / fanMsgCount;
         
-        let emojiDirective = "\n\nEMOJI DIRECTIVE FOR THIS REPLY: The fan has NOT been using emojis much. DO NOT use any emojis in your reply. Keep it raw text only.";
-        if (emojiPerMsg >= 2) {
-          emojiDirective = "\n\nEMOJI DIRECTIVE FOR THIS REPLY: The fan uses emojis frequently. You MAY use 1-2 emojis max in this reply to mirror their energy naturally. But keep it subtle.";
-        } else if (emojiPerMsg >= 0.5) {
-          emojiDirective = "\n\nEMOJI DIRECTIVE FOR THIS REPLY: The fan occasionally uses emojis. You MAY use 1 emoji max if it feels natural. Otherwise keep it text only.";
-        }
+        const emojiDirective = "\n\nEMOJI DIRECTIVE: ZERO emojis. NEVER use emojis regardless of what the fan sends. Text only. Always.";
 
         const systemPrompt = `${personaInfo}${emojiDirective}
 ${auto_redirect_url ? `\nIMPORTANT: when it makes sense, naturally guide toward this link: ${auto_redirect_url}. dont force it, weave it in casually like "check my bio" or "i just posted smth"` : ""}
@@ -244,10 +250,9 @@ ${keywords_trigger ? `if they mention any of these: ${keywords_trigger}, redirec
 
 FINAL REMINDER (READ LAST — THIS OVERRIDES EVERYTHING):
 - Your reply MUST be 3-10 words, max 2 short sentences
-- ZERO emojis unless fan consistently uses them, then MAX 1
-- If fan sent emoji walls/spam, respond with ZERO emojis
-- Write like "lol im good wbu" or "mm thats cute" NOT formal English
-- Output ONLY the message text. No quotes, no labels`;
+- ZERO emojis. NONE. EVER. Not a single emoji character
+- Write like "take it or leave it lol" or "mm thats cute" or "u like it daddy?" NOT formal English
+- Output ONLY the message text. No quotes, no labels, no empty strings`;
 
         const messages: any[] = [{ role: "system", content: systemPrompt }];
 
@@ -282,18 +287,9 @@ FINAL REMINDER (READ LAST — THIS OVERRIDES EVERYTHING):
         const aiResult = await response.json();
         let reply = (aiResult.choices?.[0]?.message?.content || "").replace(/\[.*?\]/g, "").replace(/^["']|["']$/g, "").trim();
 
-        // POST-PROCESS: Strip excess emojis (max 2), truncate if too long
-        const emojiRx2 = /[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}]/gu;
-        const emojisInReply = reply.match(emojiRx2) || [];
-        if (emojisInReply.length > 2) {
-          // Keep only the first 2 emojis, remove the rest
-          let kept = 0;
-          reply = reply.replace(emojiRx2, (match) => {
-            kept++;
-            return kept <= 2 ? match : "";
-          });
-          reply = reply.replace(/\s{2,}/g, " ").trim();
-        }
+        // POST-PROCESS: Strip ALL emojis — zero tolerance
+        const emojiRx2 = /[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{200D}\u{20E3}\u{FE0F}]/gu;
+        reply = reply.replace(emojiRx2, "").replace(/\s{2,}/g, " ").trim();
 
         // Calculate natural typing delay based on reply length
         const wordCount = reply.split(/\s+/).length;
@@ -852,7 +848,7 @@ Rules:
                 participant_name: fan.name || fan.username || "Unknown",
                 participant_avatar_url: participantAvatar || (existingConvo ? undefined : null),
                 status: "active",
-                folder,
+                folder: "primary",
                 is_read: !isFromFanLast,
                 last_message_preview: lastPreview ? (isFromFanLast ? lastPreview : `You: ${lastPreview}`) : null,
                 last_message_at: convo.updated_time ? new Date(convo.updated_time).toISOString() : new Date().toISOString(),
@@ -1056,8 +1052,6 @@ Rules:
                 } catch {}
               }
 
-              const scFolder = (sc as any)._folder || "primary";
-              
               // Determine latest message preview
               const latestScMsg = scMsgs[0]; // Messages come newest first from IG
               const latestFromId = latestScMsg?.from?.id;
@@ -1076,7 +1070,7 @@ Rules:
                 participant_name: fan.name || fan.username || "Unknown",
                 participant_avatar_url: quickAvatar || undefined,
                 status: "active",
-                folder: scFolder,
+                folder: "primary",
                 last_message_at: sc.updated_time ? new Date(sc.updated_time).toISOString() : new Date().toISOString(),
                 last_message_preview: latestPreview,
                 message_count: scMsgs.length,
@@ -1253,12 +1247,7 @@ Follow these persona settings strictly. They override any conflicting defaults a
             const fanMsgCt = conversationContext.filter(m => m.role === "fan").length || 1;
             const emojiRate = fanEmojiCt / fanMsgCt;
             
-            let emojiDir = "\n\nEMOJI DIRECTIVE: The fan has NOT been using emojis. DO NOT use any emojis. Raw text only.";
-            if (emojiRate >= 2) {
-              emojiDir = "\n\nEMOJI DIRECTIVE: Fan uses emojis frequently. You MAY use 1-2 emojis max to mirror naturally.";
-            } else if (emojiRate >= 0.5) {
-              emojiDir = "\n\nEMOJI DIRECTIVE: Fan occasionally uses emojis. You MAY use 1 emoji max if natural. Otherwise text only.";
-            }
+            const emojiDir = "\n\nEMOJI DIRECTIVE: ZERO emojis. NEVER use emojis regardless of what the fan sends. Text only. Always.";
 
             // Generate AI reply
             // Add final reinforcement to prevent AI from ignoring persona rules
@@ -1268,10 +1257,9 @@ ${autoConfig.trigger_keywords ? `if they mention any of these: ${autoConfig.trig
 
 FINAL REMINDER (READ LAST — THIS OVERRIDES EVERYTHING):
 - Your reply MUST be 3-10 words, max 2 short sentences
-- ZERO emojis unless fan consistently uses them, then MAX 1
-- If fan sent emoji walls/spam, respond with ZERO emojis
-- Write like "lol im good wbu" or "mm thats cute" NOT formal English
-- Output ONLY the message text. No quotes, no labels`;
+- ZERO emojis. NONE. EVER. Not a single emoji character
+- Write like "take it or leave it lol" or "mm thats cute" or "u like it daddy?" NOT formal English
+- Output ONLY the message text. No quotes, no labels, no empty strings`;
 
             const aiMessages: any[] = [{ role: "system", content: systemPrompt }];
             for (const ctx of conversationContext) {
@@ -1324,17 +1312,9 @@ FINAL REMINDER (READ LAST — THIS OVERRIDES EVERYTHING):
               }
             }
 
-            // POST-PROCESS: Strip excess emojis (hard cap at 2), clean up formal language artifacts
-            const emojiRxPost = /[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}]/gu;
-            const emojisFound = reply.match(emojiRxPost) || [];
-            if (emojisFound.length > 2) {
-              let keptCount = 0;
-              reply = reply.replace(emojiRxPost, (match) => {
-                keptCount++;
-                return keptCount <= 2 ? match : "";
-              });
-              reply = reply.replace(/\s{2,}/g, " ").trim();
-            }
+            // POST-PROCESS: Strip ALL emojis — zero tolerance
+            const emojiRxPost = /[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{200D}\u{20E3}\u{FE0F}]/gu;
+            reply = reply.replace(emojiRxPost, "").replace(/\s{2,}/g, " ").trim();
 
             // Calculate typing delay — minimum 3s to feel human, never instant
             const charCount = reply.length;
