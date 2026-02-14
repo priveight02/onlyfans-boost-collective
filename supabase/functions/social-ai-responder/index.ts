@@ -10,13 +10,13 @@ const corsHeaders = {
 // Simulates realistic human typing speed with randomness
 function humanTypingDelay(text: string): number {
   const charCount = text.length;
-  // Fast typing: 50-90ms per char with minimal think time
-  const baseMs = charCount * (50 + Math.random() * 40); // 50-90ms per char
-  const thinkMs = 400 + Math.random() * 800; // 0.4-1.2s think time
-  const jitter = Math.random() * 500; // 0-0.5s jitter
+  // Fast typing: 40-70ms per char with minimal think time
+  const baseMs = charCount * (40 + Math.random() * 30); // 40-70ms per char
+  const thinkMs = 300 + Math.random() * 600; // 0.3-0.9s think time
+  const jitter = Math.random() * 300; // 0-0.3s jitter
   const total = thinkMs + baseMs + jitter;
-  // Clamp: min 1s, max 4s — fast and snappy
-  return Math.min(Math.max(total, 1000), 4000);
+  // Clamp: min 0.8s, max 3s — snappier
+  return Math.min(Math.max(total, 800), 3000);
 }
 
 // Inter-message delay — prevents sending 2 msgs at exact same time
