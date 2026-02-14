@@ -1040,6 +1040,54 @@ export type Database = {
           },
         ]
       }
+      fetched_followers: {
+        Row: {
+          account_id: string
+          created_at: string
+          fetched_at: string
+          full_name: string | null
+          id: string
+          ig_user_id: string
+          is_private: boolean | null
+          is_verified: boolean | null
+          metadata: Json | null
+          profile_pic_url: string | null
+          source: string
+          updated_at: string
+          username: string
+        }
+        Insert: {
+          account_id: string
+          created_at?: string
+          fetched_at?: string
+          full_name?: string | null
+          id?: string
+          ig_user_id: string
+          is_private?: boolean | null
+          is_verified?: boolean | null
+          metadata?: Json | null
+          profile_pic_url?: string | null
+          source?: string
+          updated_at?: string
+          username: string
+        }
+        Update: {
+          account_id?: string
+          created_at?: string
+          fetched_at?: string
+          full_name?: string | null
+          id?: string
+          ig_user_id?: string
+          is_private?: boolean | null
+          is_verified?: boolean | null
+          metadata?: Json | null
+          profile_pic_url?: string | null
+          source?: string
+          updated_at?: string
+          username?: string
+        }
+        Relationships: []
+      }
       financial_records: {
         Row: {
           account_id: string | null
