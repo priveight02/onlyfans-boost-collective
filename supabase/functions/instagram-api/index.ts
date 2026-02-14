@@ -1147,47 +1147,61 @@ serve(async (req) => {
 
       // ===== FOLLOWERS / FOLLOWING =====
       case "get_followers_list": {
-        // Strategy: Pull contacts from DB conversations (reliable) + IG conversations API
+        // Strategy: Pull contacts from DB conversations + paginate IG conversations API
         let followers: any[] = [];
         const seen = new Set<string>();
+        const maxLimit = params?.limit || 500;
         
         // 1. Pull from existing DB conversations (instant, always works)
         const { data: dbConvos } = await supabase
           .from("ai_dm_conversations")
           .select("participant_id, participant_name, participant_username, participant_avatar_url")
           .eq("account_id", account_id)
-          .order("last_message_at", { ascending: false });
+          .order("last_message_at", { ascending: false })
+          .limit(maxLimit);
         
         for (const c of (dbConvos || [])) {
           if (!c.participant_id || seen.has(c.participant_id)) continue;
           seen.add(c.participant_id);
           followers.push({
             id: c.participant_id,
-            name: c.participant_name || c.participant_username || "Unknown",
+            name: c.participant_name || c.participant_username || c.participant_id?.substring(0, 8),
             username: c.participant_username || c.participant_id,
             profile_pic: c.participant_avatar_url || null,
             source: "conversation",
           });
         }
 
-        // 2. Also try IG conversations API to find any not yet in DB
+        // 2. Paginate through IG conversations API to find all contacts
         try {
-          const convosResp = await igFetch(`/${igUserId}/conversations?fields=participants,id,updated_time&limit=100&platform=instagram`, token);
-          for (const convo of (convosResp?.data || [])) {
-            for (const p of (convo?.participants?.data || [])) {
-              if (p.id === igUserId || seen.has(p.id)) continue;
-              seen.add(p.id);
-              followers.push({
-                id: p.id,
-                name: p.name || "Unknown",
-                username: p.name?.toLowerCase().replace(/\s+/g, '') || p.id,
-                profile_pic: null,
-                source: "ig_api",
-              });
+          let nextUrl: string | null = `/${igUserId}/conversations?fields=participants,id,updated_time&limit=100&platform=instagram`;
+          let pages = 0;
+          const maxPages = 5; // up to 500 contacts from API
+
+          while (nextUrl && pages < maxPages && followers.length < maxLimit) {
+            const convosResp = await igFetch(nextUrl, token);
+            for (const convo of (convosResp?.data || [])) {
+              for (const p of (convo?.participants?.data || [])) {
+                if (p.id === igUserId || seen.has(p.id)) continue;
+                seen.add(p.id);
+                const pName = p.name && p.name !== p.id ? p.name : null;
+                followers.push({
+                  id: p.id,
+                  name: pName || p.username || p.id?.substring(0, 8),
+                  username: p.username || pName?.toLowerCase().replace(/\s+/g, '') || p.id,
+                  profile_pic: p.profile_pic || null,
+                  source: "ig_api",
+                });
+              }
             }
+            nextUrl = convosResp?.paging?.next ? convosResp.paging.next : null;
+            // For next pages, use the full URL directly
+            if (nextUrl) nextUrl = nextUrl; // already full URL from paging
+            pages++;
           }
+          console.log(`Fetched ${pages} pages of IG conversations, total contacts: ${followers.length}`);
         } catch (e: any) {
-          console.log("IG conversations API fallback failed:", e.message);
+          console.log("IG conversations API pagination failed:", e.message);
         }
         
         // Get follower count
