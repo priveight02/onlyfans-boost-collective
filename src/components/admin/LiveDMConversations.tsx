@@ -747,29 +747,60 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
                                   {(() => {
                                     const attachments = msg.metadata?.attachments;
                                     const hasMedia = Array.isArray(attachments) && attachments.length > 0;
+                                    const stickerData = msg.metadata?.sticker;
+                                    const sharesData = msg.metadata?.shares;
+                                    
                                     if (hasMedia) {
                                       return (
                                         <div>
                                           {attachments.map((att: any, i: number) => {
                                             const url = att.file_url || att.image_data?.url || att.video_data?.url || att.url;
-                                            const mimeType = att.mime_type || "";
+                                            const mimeType = att.mime_type || att.type || "";
                                             if (!url) return null;
-                                            if (mimeType.startsWith("video") || att.video_data) {
+                                            if (mimeType.includes("video") || att.video_data) {
                                               return <video key={i} src={url} controls className="max-w-full rounded-lg max-h-48 mb-1" />;
                                             }
-                                            return <img key={i} src={url} alt="" className="max-w-full rounded-lg max-h-48 mb-1" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />;
+                                            if (mimeType.includes("audio")) {
+                                              return <audio key={i} src={url} controls className="max-w-full mb-1" />;
+                                            }
+                                            return <img key={i} src={url} alt="" className="max-w-full rounded-lg max-h-48 mb-1 cursor-pointer" onClick={() => window.open(url, '_blank')} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />;
                                           })}
-                                          {msg.content && msg.content !== "[media]" && (
+                                          {msg.content && !msg.content.startsWith("[") && (
                                             <p className="text-[13px] leading-relaxed mt-1 whitespace-pre-wrap">{msg.content}</p>
                                           )}
                                         </div>
                                       );
                                     }
-                                    if (msg.content === "[media]") {
+                                    if (stickerData) {
+                                      const stickerUrl = stickerData.url || stickerData.image?.url;
+                                      return stickerUrl ? (
+                                        <img src={stickerUrl} alt="sticker" className="max-w-[120px] max-h-[120px]" />
+                                      ) : (
+                                        <span className="text-[13px] italic opacity-70">🏷️ Sticker</span>
+                                      );
+                                    }
+                                    if (sharesData) {
+                                      const shareLink = sharesData.link || sharesData[0]?.link;
+                                      return (
+                                        <div>
+                                          <a href={shareLink} target="_blank" rel="noopener noreferrer" className="text-[13px] underline opacity-80 hover:opacity-100">
+                                            📎 Shared post
+                                          </a>
+                                          {msg.content && !msg.content.startsWith("[") && (
+                                            <p className="text-[13px] leading-relaxed mt-1 whitespace-pre-wrap">{msg.content}</p>
+                                          )}
+                                        </div>
+                                      );
+                                    }
+                                    // Regular text message
+                                    if (msg.content && msg.content.startsWith("[") && msg.content.endsWith("]")) {
+                                      // Tagged content like [photo], [video], [sticker] etc
+                                      const tag = msg.content.slice(1, -1);
+                                      const icons: Record<string, string> = { photo: "📷", video: "🎥", audio: "🎵", sticker: "🏷️", "shared post": "📎", attachment: "📎", media: "📷" };
                                       return (
                                         <div className="flex items-center gap-1.5 opacity-70">
-                                          <ImageIcon className="h-4 w-4" />
-                                          <span className="text-[13px] italic">Photo/Video</span>
+                                          <span>{icons[tag] || "📎"}</span>
+                                          <span className="text-[13px] italic capitalize">{tag}</span>
                                         </div>
                                       );
                                     }
