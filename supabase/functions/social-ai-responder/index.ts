@@ -2833,8 +2833,8 @@ Follow these persona settings strictly. They override any conflicting defaults a
 
             // === RANDOMIZED HARD CAP (39-45) — FINAL SEDUCTIVE REDIRECT + 24H PAUSE ===
             // If conversation was manually unpaused, only count messages AFTER the unpause timestamp
-            const convoMeta = (dbConvo.metadata as any) || {};
-            const unpausedAt = convoMeta.unpaused_at ? new Date(convoMeta.unpaused_at).getTime() : 0;
+            const hardCapMeta = (dbConvo.metadata as any) || {};
+            const unpausedAt = hardCapMeta.unpaused_at ? new Date(hardCapMeta.unpaused_at).getTime() : 0;
             const relevantMessages = unpausedAt > 0
               ? (dbMessages || []).filter((m: any) => new Date(m.created_at).getTime() > unpausedAt)
               : (dbMessages || []);
