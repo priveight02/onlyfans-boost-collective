@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { cachedFetch, invalidateNamespace } from "@/lib/supabaseCache";
 import CRMAccountSearch from "./CRMAccountSearch";
 import CRMAccountCard from "./CRMAccountCard";
 import CRMAccountDetail from "./CRMAccountDetail";
@@ -19,17 +20,20 @@ const CRMAccountsTab = () => {
   const [showAdd, setShowAdd] = useState(false);
   const [connectAccount, setConnectAccount] = useState<any | null>(null);
 
-  const fetchAccounts = async () => {
+  const fetchAccounts = async (forceRefresh = false) => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("managed_accounts")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    if (error) {
+    try {
+      const data = await cachedFetch("global", "crm_accounts", async () => {
+        const { data, error } = await supabase
+          .from("managed_accounts")
+          .select("*")
+          .order("created_at", { ascending: false });
+        if (error) throw error;
+        return data || [];
+      }, undefined, { ttlMs: 5 * 60 * 1000, forceRefresh });
+      setAccounts(data);
+    } catch {
       toast.error("Failed to load accounts");
-    } else {
-      setAccounts(data || []);
     }
     setLoading(false);
   };
@@ -61,7 +65,9 @@ const CRMAccountsTab = () => {
       toast.error("Failed to delete");
     } else {
       toast.success("Account deleted");
-      fetchAccounts();
+      invalidateNamespace("global", "crm_accounts");
+      invalidateNamespace("global", "managed_accounts");
+      fetchAccounts(true);
     }
   };
 

@@ -5,6 +5,7 @@ import { TrendingUp, DollarSign, Users, BarChart3, Crown, AlertTriangle, ArrowUp
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { cachedFetch } from "@/lib/supabaseCache";
 
 const COLORS = ["hsl(200,100%,50%)", "hsl(260,100%,65%)", "hsl(340,80%,55%)", "hsl(160,70%,45%)", "hsl(30,90%,55%)"];
 
@@ -16,21 +17,37 @@ const EnhancedDashboard = () => {
   const [visits, setVisits] = useState<any[]>([]);
 
   useEffect(() => {
-    const fetch = async () => {
-      const [accts, tasksRes, teamRes, actRes, visitsRes] = await Promise.all([
-        supabase.from("managed_accounts").select("*").order("monthly_revenue", { ascending: false }),
-        supabase.from("tasks").select("*"),
-        supabase.from("team_members").select("*"),
-        supabase.from("account_activities").select("*").order("created_at", { ascending: false }).limit(10),
-        supabase.from("site_visits").select("*").order("created_at", { ascending: false }).limit(100),
+    const load = async () => {
+      const cacheId = "global";
+      const [accts, tasksData, teamData, actData, visitsData] = await Promise.all([
+        cachedFetch(cacheId, "managed_accounts", async () => {
+          const { data } = await supabase.from("managed_accounts").select("*").order("monthly_revenue", { ascending: false });
+          return data || [];
+        }, undefined, { ttlMs: 5 * 60 * 1000 }),
+        cachedFetch(cacheId, "tasks", async () => {
+          const { data } = await supabase.from("tasks").select("*");
+          return data || [];
+        }, undefined, { ttlMs: 5 * 60 * 1000 }),
+        cachedFetch(cacheId, "team_members", async () => {
+          const { data } = await supabase.from("team_members").select("*");
+          return data || [];
+        }, undefined, { ttlMs: 5 * 60 * 1000 }),
+        cachedFetch(cacheId, "account_activities", async () => {
+          const { data } = await supabase.from("account_activities").select("*").order("created_at", { ascending: false }).limit(10);
+          return data || [];
+        }, undefined, { ttlMs: 2 * 60 * 1000 }),
+        cachedFetch(cacheId, "site_visits", async () => {
+          const { data } = await supabase.from("site_visits").select("*").order("created_at", { ascending: false }).limit(100);
+          return data || [];
+        }, undefined, { ttlMs: 2 * 60 * 1000 }),
       ]);
-      setAccounts(accts.data || []);
-      setTasks(tasksRes.data || []);
-      setTeamMembers(teamRes.data || []);
-      setActivities(actRes.data || []);
-      setVisits(visitsRes.data || []);
+      setAccounts(accts);
+      setTasks(tasksData);
+      setTeamMembers(teamData);
+      setActivities(actData);
+      setVisits(visitsData);
     };
-    fetch();
+    load();
   }, []);
 
   const totalRevenue = accounts.reduce((s, a) => s + (a.monthly_revenue || 0), 0);
