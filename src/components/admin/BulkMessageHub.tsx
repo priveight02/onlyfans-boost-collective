@@ -142,7 +142,7 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
         }
         return merged;
       });
-      setFollowersCount(data.data?.followers_count || 0);
+      // Don't override followersCount — keep the real account subscriber_count
       setFollowsCount(data.data?.follows_count || 0);
       toast.success(`Discovered ${newFollowers.length} followers/engaged users`);
     } catch (e: any) {
@@ -198,7 +198,7 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
         }
         return merged;
       });
-      setFollowersCount(data.data?.followers_count || 0);
+      // Don't override followersCount — keep real account subscriber_count
       setFollowsCount(data.data?.follows_count || 0);
       toast.success(`🔥 Fetched ${fetched.length} followers! ${totalPersisted} total saved permanently.`);
       // Invalidate cache so next load picks up new data
@@ -616,7 +616,7 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
                     onChange={e => setMaxFollowersInput(e.target.value)}
                     className="h-7 text-xs bg-white/5 border-white/10 text-white placeholder:text-white/25 w-[200px]"
                   />
-                  <span className="text-[9px] text-white/30">Leave empty to fetch all {followersCount > 0 ? followersCount.toLocaleString() : ""} followers</span>
+                  <span className="text-[9px] text-white/30">Leave empty to fetch all {followersCount > 0 ? followersCount.toLocaleString() : "account"} followers (new only)</span>
                 </div>
               </div>
               <div className="flex items-center gap-3">
