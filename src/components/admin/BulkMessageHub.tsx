@@ -13,7 +13,7 @@ import {
 import {
   Send, Search, Loader2, Users, Bot, Sparkles, CheckCheck,
   RefreshCw, User, XCircle, Square, Zap, MessageCircle,
-  Filter, Clock, Shuffle, Heart, Star, ArrowUpDown,
+  Filter, Clock, Shuffle, Heart, Star, ArrowUpDown, UserPlus,
 } from "lucide-react";
 
 interface BulkMessageHubProps {
@@ -47,6 +47,8 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
   const [sendResults, setSendResults] = useState<any[] | null>(null);
   const [sortMode, setSortMode] = useState<SortMode>("name");
   const [filterSource, setFilterSource] = useState<string>("all");
+  const [activeTab, setActiveTab] = useState<"all" | "conversations" | "followers">("all");
+  const [fetchingFollowers, setFetchingFollowers] = useState(false);
   const [delayBetweenMs, setDelayBetweenMs] = useState(1500);
   const [personalizeMode, setPersonalizeMode] = useState(false);
   const cancelRef = useRef(false);
@@ -54,12 +56,12 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
 
   useEffect(() => { messageRef.current = message; }, [message]);
 
-  const fetchFollowers = useCallback(async () => {
+  const fetchFollowers = useCallback(async (sourceFilter?: string) => {
     if (!accountId) return;
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke("instagram-api", {
-        body: { action: "get_followers_list", account_id: accountId, params: { limit: 500 } },
+        body: { action: "get_followers_list", account_id: accountId, params: { limit: 500, source_filter: sourceFilter || "all" } },
       });
       if (error) throw error;
       if (!data?.success) throw new Error(data?.error || "Failed to fetch followers");
@@ -76,6 +78,39 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
     }
   }, [accountId]);
 
+  const fetchRealFollowers = async () => {
+    if (!accountId) return;
+    setFetchingFollowers(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("instagram-api", {
+        body: { action: "get_followers_list", account_id: accountId, params: { limit: 500, source_filter: "follower" } },
+      });
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || "Failed to fetch followers");
+
+      const newFollowers = data.data?.followers || [];
+      // Merge with existing, dedup by id
+      setFollowers(prev => {
+        const seen = new Set(prev.map(f => f.id));
+        const merged = [...prev];
+        for (const f of newFollowers) {
+          if (!seen.has(f.id)) {
+            seen.add(f.id);
+            merged.push(f);
+          }
+        }
+        return merged;
+      });
+      setFollowersCount(data.data?.followers_count || 0);
+      setFollowsCount(data.data?.follows_count || 0);
+      toast.success(`Discovered ${newFollowers.length} followers/engaged users`);
+    } catch (e: any) {
+      toast.error(e.message || "Failed to fetch followers");
+    } finally {
+      setFetchingFollowers(false);
+    }
+  };
+
   useEffect(() => {
     if (open && followers.length === 0) fetchFollowers();
   }, [open, fetchFollowers]);
@@ -91,7 +126,10 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
       f.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       f.username.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesFilter = filterSource === "all" || f.source === filterSource;
-    return matchesSearch && matchesFilter;
+    const matchesTab = activeTab === "all" || 
+      (activeTab === "conversations" && (f.source === "conversation" || f.source === "ig_api")) ||
+      (activeTab === "followers" && f.source === "follower");
+    return matchesSearch && matchesFilter && matchesTab;
   });
 
   const toggleSelect = (id: string) => {
@@ -336,7 +374,7 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
               <Button size="sm" variant="ghost" onClick={invertSelection} className="h-6 text-[10px] gap-1 text-white/50 hover:text-white hover:bg-white/5 px-2">
                 <ArrowUpDown className="h-2.5 w-2.5" /> Invert
               </Button>
-              <Button size="sm" variant="ghost" disabled={loading} onClick={fetchFollowers} className="h-6 text-[10px] gap-1 text-white/50 hover:text-white hover:bg-white/5 px-2">
+              <Button size="sm" variant="ghost" disabled={loading} onClick={() => fetchFollowers()} className="h-6 text-[10px] gap-1 text-white/50 hover:text-white hover:bg-white/5 px-2">
                 <RefreshCw className={`h-2.5 w-2.5 ${loading ? "animate-spin" : ""}`} /> Refresh
               </Button>
 
@@ -377,6 +415,47 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
             </div>
           )}
 
+          {/* Source Tabs */}
+          <div className="px-5 py-2 border-b border-white/10 flex-shrink-0">
+            <div className="flex items-center gap-1">
+              {([
+                { key: "all" as const, label: "All Contacts", icon: Users },
+                { key: "conversations" as const, label: "Past Convos", icon: MessageCircle },
+                { key: "followers" as const, label: "Followers & Engaged", icon: UserPlus },
+              ]).map(tab => (
+                <button
+                  key={tab.key}
+                  onClick={() => setActiveTab(tab.key)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-medium transition-colors ${
+                    activeTab === tab.key 
+                      ? "bg-purple-500/20 text-purple-400" 
+                      : "text-white/40 hover:text-white/60 hover:bg-white/5"
+                  }`}
+                >
+                  <tab.icon className="h-3 w-3" />
+                  {tab.label}
+                  <span className="text-[8px] opacity-60">
+                    ({followers.filter(f => 
+                      tab.key === "all" ? true : 
+                      tab.key === "conversations" ? (f.source === "conversation" || f.source === "ig_api") :
+                      f.source === "follower"
+                    ).length})
+                  </span>
+                </button>
+              ))}
+              <Button 
+                size="sm" 
+                variant="outline" 
+                onClick={fetchRealFollowers} 
+                disabled={fetchingFollowers}
+                className="ml-auto h-6 text-[9px] gap-1 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 bg-transparent"
+              >
+                {fetchingFollowers ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <UserPlus className="h-2.5 w-2.5" />}
+                Discover Followers
+              </Button>
+            </div>
+          </div>
+
           {/* Search + Filters */}
           <div className="px-5 py-2 border-b border-white/10 flex-shrink-0">
             <div className="flex items-center gap-2">
@@ -394,17 +473,6 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
                 <ArrowUpDown className="h-2.5 w-2.5" />
                 {sortMode === "name" ? "A-Z" : "Source"}
               </button>
-              {/* Filter by source */}
-              {sources.length > 1 && (
-                <select
-                  value={filterSource}
-                  onChange={e => setFilterSource(e.target.value)}
-                  className="text-[9px] text-white/60 bg-white/5 border border-white/10 rounded px-1.5 py-1 outline-none"
-                >
-                  <option value="all">All sources</option>
-                  {sources.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
-              )}
             </div>
           </div>
 
@@ -422,7 +490,7 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
                   {followers.length === 0 ? "No contacts found — sync your inbox first" : "No matches"}
                 </p>
                 {followers.length === 0 && (
-                  <Button size="sm" variant="outline" onClick={fetchFollowers} className="mt-3 text-xs h-7 bg-transparent border-white/10 text-white/60">
+                  <Button size="sm" variant="outline" onClick={() => fetchFollowers()} className="mt-3 text-xs h-7 bg-transparent border-white/10 text-white/60">
                     <RefreshCw className="h-3 w-3 mr-1" />Fetch Contacts
                   </Button>
                 )}
@@ -454,8 +522,8 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
                         <p className="text-sm font-medium text-white truncate">{f.name}</p>
                         <p className="text-[10px] text-white/35 truncate">@{f.username}</p>
                       </div>
-                      <Badge variant="outline" className="text-[8px] text-white/25 border-white/10 px-1.5">
-                        {f.source === "conversation" ? "DM" : "IG"}
+                      <Badge variant="outline" className={`text-[8px] px-1.5 ${f.source === "follower" ? "text-emerald-400 border-emerald-500/20" : "text-white/25 border-white/10"}`}>
+                        {f.source === "conversation" ? "DM" : f.source === "follower" ? "Follower" : "IG"}
                       </Badge>
                       {sendResult && (
                         <Badge

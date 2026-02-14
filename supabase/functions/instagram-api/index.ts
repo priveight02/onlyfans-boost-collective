@@ -1147,61 +1147,126 @@ serve(async (req) => {
 
       // ===== FOLLOWERS / FOLLOWING =====
       case "get_followers_list": {
-        // Strategy: Pull contacts from DB conversations + paginate IG conversations API
+        // Strategy: Pull contacts from DB conversations + IG conversations API + actual followers API
         let followers: any[] = [];
         const seen = new Set<string>();
         const maxLimit = params?.limit || 500;
+        const sourceFilter = params?.source_filter || "all"; // "all", "conversation", "follower"
         
         // 1. Pull from existing DB conversations (instant, always works)
-        const { data: dbConvos } = await supabase
-          .from("ai_dm_conversations")
-          .select("participant_id, participant_name, participant_username, participant_avatar_url")
-          .eq("account_id", account_id)
-          .order("last_message_at", { ascending: false })
-          .limit(maxLimit);
-        
-        for (const c of (dbConvos || [])) {
-          if (!c.participant_id || seen.has(c.participant_id)) continue;
-          seen.add(c.participant_id);
-          followers.push({
-            id: c.participant_id,
-            name: c.participant_name || c.participant_username || c.participant_id?.substring(0, 8),
-            username: c.participant_username || c.participant_id,
-            profile_pic: c.participant_avatar_url || null,
-            source: "conversation",
-          });
+        if (sourceFilter === "all" || sourceFilter === "conversation") {
+          const { data: dbConvos } = await supabase
+            .from("ai_dm_conversations")
+            .select("participant_id, participant_name, participant_username, participant_avatar_url")
+            .eq("account_id", account_id)
+            .order("last_message_at", { ascending: false })
+            .limit(maxLimit);
+          
+          for (const c of (dbConvos || [])) {
+            if (!c.participant_id || seen.has(c.participant_id)) continue;
+            seen.add(c.participant_id);
+            followers.push({
+              id: c.participant_id,
+              name: c.participant_name || c.participant_username || c.participant_id?.substring(0, 8),
+              username: c.participant_username || c.participant_id,
+              profile_pic: c.participant_avatar_url || null,
+              source: "conversation",
+            });
+          }
         }
 
         // 2. Paginate through IG conversations API to find all contacts
-        try {
-          let nextUrl: string | null = `/${igUserId}/conversations?fields=participants,id,updated_time&limit=100&platform=instagram`;
-          let pages = 0;
-          const maxPages = 5; // up to 500 contacts from API
+        if (sourceFilter === "all" || sourceFilter === "conversation") {
+          try {
+            let nextUrl: string | null = `/${igUserId}/conversations?fields=participants,id,updated_time&limit=100&platform=instagram`;
+            let pages = 0;
+            const maxPages = 5;
 
-          while (nextUrl && pages < maxPages && followers.length < maxLimit) {
-            const convosResp = await igFetch(nextUrl, token);
-            for (const convo of (convosResp?.data || [])) {
-              for (const p of (convo?.participants?.data || [])) {
-                if (p.id === igUserId || seen.has(p.id)) continue;
-                seen.add(p.id);
-                const pName = p.name && p.name !== p.id ? p.name : null;
-                followers.push({
-                  id: p.id,
-                  name: pName || p.username || p.id?.substring(0, 8),
-                  username: p.username || pName?.toLowerCase().replace(/\s+/g, '') || p.id,
-                  profile_pic: p.profile_pic || null,
-                  source: "ig_api",
-                });
+            while (nextUrl && pages < maxPages && followers.length < maxLimit) {
+              const convosResp = await igFetch(nextUrl, token);
+              for (const convo of (convosResp?.data || [])) {
+                for (const p of (convo?.participants?.data || [])) {
+                  if (p.id === igUserId || seen.has(p.id)) continue;
+                  seen.add(p.id);
+                  const pName = p.name && p.name !== p.id ? p.name : null;
+                  followers.push({
+                    id: p.id,
+                    name: pName || p.username || p.id?.substring(0, 8),
+                    username: p.username || pName?.toLowerCase().replace(/\s+/g, '') || p.id,
+                    profile_pic: p.profile_pic || null,
+                    source: "ig_api",
+                  });
+                }
+              }
+              nextUrl = convosResp?.paging?.next ? convosResp.paging.next : null;
+              pages++;
+            }
+            console.log(`Fetched ${pages} pages of IG conversations, total contacts: ${followers.length}`);
+          } catch (e: any) {
+            console.log("IG conversations API pagination failed:", e.message);
+          }
+        }
+
+        // 3. Fetch ACTUAL followers via IG Business Discovery / Facebook Page API
+        if (sourceFilter === "all" || sourceFilter === "follower") {
+          try {
+            // Use Facebook Page API to get followers who follow the IG business account
+            const pageInfo = await getPageId(token, igUserId!);
+            if (pageInfo) {
+              // Try to get page followers / engaged users
+              // IG Graph API doesn't have a direct followers list endpoint, but we can:
+              // a) Get users who recently engaged (commented/liked) on our posts
+              const mediaResp = await igFetch(`/${igUserId}/media?fields=id,comments.limit(50){from{id,username,profile_picture_url}},likes.limit(50)&limit=20`, token);
+              
+              for (const media of (mediaResp?.data || [])) {
+                // Extract from comments
+                for (const comment of (media?.comments?.data || [])) {
+                  const from = comment?.from;
+                  if (!from?.id || from.id === igUserId || seen.has(from.id)) continue;
+                  seen.add(from.id);
+                  followers.push({
+                    id: from.id,
+                    name: from.username || from.id?.substring(0, 8),
+                    username: from.username || from.id,
+                    profile_pic: from.profile_picture_url || null,
+                    source: "follower",
+                  });
+                }
+              }
+              console.log(`Fetched engaged followers from posts, total: ${followers.length}`);
+            }
+            
+            // b) Also try to get mentioned/tagged users
+            try {
+              const tagsResp = await igFetch(`/${igUserId}/tags?fields=id,username,timestamp&limit=50`, token);
+              for (const tag of (tagsResp?.data || [])) {
+                if (!tag?.id || tag.id === igUserId || seen.has(tag.id)) continue;
+                // We only have the media ID here, not the tagger, skip if no user info
+              }
+            } catch {}
+
+            // c) Try business_discovery for specific usernames if provided
+            if (params?.discover_usernames?.length) {
+              for (const uname of params.discover_usernames.slice(0, 20)) {
+                try {
+                  const disc = await igFetch(`/${igUserId}?fields=business_discovery.fields(id,username,name,profile_picture_url).username(${uname})`, token);
+                  const bd = disc?.business_discovery;
+                  if (bd?.id && !seen.has(bd.id)) {
+                    seen.add(bd.id);
+                    followers.push({
+                      id: bd.id,
+                      name: bd.name || bd.username || uname,
+                      username: bd.username || uname,
+                      profile_pic: bd.profile_picture_url || null,
+                      source: "follower",
+                    });
+                  }
+                } catch {}
               }
             }
-            nextUrl = convosResp?.paging?.next ? convosResp.paging.next : null;
-            // For next pages, use the full URL directly
-            if (nextUrl) nextUrl = nextUrl; // already full URL from paging
-            pages++;
+          } catch (e: any) {
+            console.log("Followers discovery failed:", e.message);
           }
-          console.log(`Fetched ${pages} pages of IG conversations, total contacts: ${followers.length}`);
-        } catch (e: any) {
-          console.log("IG conversations API pagination failed:", e.message);
         }
         
         // Get follower count
