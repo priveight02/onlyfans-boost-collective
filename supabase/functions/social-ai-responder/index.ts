@@ -2970,6 +2970,28 @@ Follow these persona settings strictly. They override any conflicting defaults a
                       },
                     }, { onConflict: "account_id,fan_identifier" });
                   } catch {}
+                  
+                  // === ALSO SAVE TO fetched_followers for discovery/CRM ===
+                  try {
+                    await supabase.from("fetched_followers").upsert({
+                      account_id,
+                      ig_user_id: bd.id || dbConvo.participant_id,
+                      username: dbConvo.participant_username,
+                      full_name: bd.name || dbConvo.participant_name || null,
+                      profile_pic_url: bd.profile_picture_url || dbConvo.participant_avatar_url || null,
+                      source: "dm_scan",
+                      is_private: bd.is_private || false,
+                      is_verified: bd.is_verified || false,
+                      metadata: {
+                        bio: bd.biography || null,
+                        followers_count: bd.followers_count || 0,
+                        follows_count: bd.follows_count || 0,
+                        media_count: bd.media_count || 0,
+                        scanned_at: new Date().toISOString(),
+                      },
+                    }, { onConflict: "account_id,ig_user_id" });
+                  } catch {}
+                  
                   console.log(`[FAN SCAN] @${dbConvo.participant_username}: scanned profile — bio: ${bd.biography?.substring(0, 50) || "none"}, ${recentCaptions.length} posts`);
                 }
               }
