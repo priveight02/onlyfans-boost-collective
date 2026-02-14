@@ -698,37 +698,63 @@ Rules:
         const ourUsernameScan = igConnScan.platform_username?.toLowerCase() || "";
         
         // Helper: find the fan (non-owner) participant using name + message-based detection
+        // Also enriches fan object with username/name from messages if missing
         const findFanParticipant = (participants: any[], msgs?: any[]) => {
           if (!participants || participants.length === 0) return null;
           if (participants.length === 1) return participants[0];
           
           // Method 1: Match by name/username (most reliable for IG)
+          let fan: any = null;
           if (ourUsernameScan) {
-            const fan = participants.find((p: any) => {
+            fan = participants.find((p: any) => {
               const pName = (p.name || p.username || "").toLowerCase();
               return pName !== ourUsernameScan && pName !== "";
             });
-            if (fan) return fan;
           }
           
           // Method 2: Match by stored ID
-          const byId = participants.find((p: any) => p.id !== ourIdScan);
-          if (byId) return byId;
+          if (!fan) {
+            fan = participants.find((p: any) => p.id !== ourIdScan);
+          }
           
           // Method 3: Use message from.name to determine our IGSU ID
-          if (msgs && msgs.length > 0) {
+          if (!fan && msgs && msgs.length > 0) {
             for (const msg of msgs) {
               const fromName = (msg.from?.name || msg.from?.username || "").toLowerCase();
               if (fromName === ourUsernameScan && msg.from?.id) {
                 const ourIgsuId = msg.from.id;
-                const fan = participants.find((p: any) => p.id !== ourIgsuId);
-                if (fan) return fan;
+                fan = participants.find((p: any) => p.id !== ourIgsuId);
+                if (fan) break;
               }
             }
           }
           
           // Fallback: return second participant (first is typically the page/business)
-          return participants[1] || participants[0];
+          if (!fan) fan = participants[1] || participants[0];
+          
+          // ENRICH: If fan has no username/name, try to extract from messages
+          if (fan && (!fan.username || fan.username === fan.id) && (!fan.name || fan.name === fan.id)) {
+            if (msgs && msgs.length > 0) {
+              for (const msg of msgs) {
+                const fromId = msg.from?.id;
+                const fromName = msg.from?.name || msg.from?.username || "";
+                // If message is FROM the fan (not from us), use their name
+                if (fromId === fan.id && fromName && fromName !== fan.id) {
+                  fan.name = fromName;
+                  if (msg.from?.username) fan.username = msg.from.username;
+                  break;
+                }
+                // If message is NOT from us and not from our known ID, it's likely the fan
+                if (fromId && fromId !== ourIdScan && fromName && fromName !== ourUsernameScan) {
+                  fan.name = fromName;
+                  if (msg.from?.username) fan.username = msg.from.username;
+                  break;
+                }
+              }
+            }
+          }
+          
+          return fan;
         };
         let imported = 0;
         let totalFound = 0;
@@ -965,12 +991,34 @@ Rules:
               const participants = sc.participants?.data || [];
               const fan = (() => {
                 if (!participants || participants.length === 0) return null;
+                let found: any = null;
                 if (ourUsernameQuick) {
-                  const byUsername = participants.find((p: any) => (p.username || p.name || "").toLowerCase() !== ourUsernameQuick);
-                  if (byUsername) return byUsername;
+                  found = participants.find((p: any) => (p.username || p.name || "").toLowerCase() !== ourUsernameQuick);
                 }
-                const byId = participants.find((p: any) => p.id !== ourIdQuick);
-                return byId || (participants.length === 2 ? participants[1] : participants[0]);
+                if (!found) {
+                  found = participants.find((p: any) => p.id !== ourIdQuick);
+                }
+                if (!found) found = participants.length === 2 ? participants[1] : participants[0];
+                
+                // Enrich fan name from messages if missing
+                if (found && (!found.username || found.username === found.id) && (!found.name || found.name === found.id)) {
+                  for (const msg of scMsgs) {
+                    const fromId = msg.from?.id;
+                    const fromName = msg.from?.name || msg.from?.username || "";
+                    if (fromId === found.id && fromName && fromName !== found.id) {
+                      found.name = fromName;
+                      if (msg.from?.username) found.username = msg.from.username;
+                      break;
+                    }
+                    if (fromId && fromId !== ourIdQuick && fromName && fromName !== ourUsernameQuick) {
+                      found.name = fromName;
+                      if (msg.from?.username) found.username = msg.from.username;
+                      break;
+                    }
+                  }
+                }
+                
+                return found;
               })();
               if (!fan) continue;
               
