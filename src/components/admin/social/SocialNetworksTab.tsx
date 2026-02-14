@@ -115,13 +115,25 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
     { id: "linkedin", name: "LinkedIn", borderColor: "border-sky-600/30", bgColor: "bg-sky-600/10", funcName: "linkedin-api" },
   ];
 
-  const downloadMedia = (url: string, filename?: string) => {
-    const a = document.createElement("a");
-    a.href = url;
-    a.target = "_blank";
-    a.download = filename || "media";
-    a.rel = "noopener noreferrer";
-    a.click();
+  const downloadMedia = async (url: string, filename?: string) => {
+    try {
+      toast.info("Downloading...");
+      const res = await fetch(url);
+      const blob = await res.blob();
+      const ext = blob.type.includes("video") ? "mp4" : blob.type.includes("png") ? "png" : "jpg";
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = `${filename || "media"}.${ext}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(blobUrl);
+      toast.success("Downloaded!");
+    } catch {
+      // Fallback: open in new tab
+      window.open(url, "_blank");
+    }
   };
 
   // Visual API response renderer
@@ -135,8 +147,8 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
       if (hasMedia) {
         return (
           <div className="space-y-3">
-            <p className="text-[11px] font-medium" style={{ color: "#ccc" }}>{data.length} items returned</p>
-            <div className="grid grid-cols-5 gap-2">
+            <p className="text-sm font-medium" style={{ color: "#ccc" }}>{data.length} items returned</p>
+            <div className="grid grid-cols-5 gap-2.5">
               {data.map((item: any, i: number) => {
                 const imgUrl = item.media_url || item.thumbnail_url || item.image_url;
                 const vidUrl = item.video_url;
@@ -144,29 +156,29 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
                 return (
                   <div key={i} className="group relative rounded-lg overflow-hidden border border-white/10 aspect-square" style={{ background: "hsl(222, 30%, 10%)" }}>
                     {displayUrl ? (
-                      <img src={displayUrl} alt={item.caption?.slice(0,30) || `Media ${i+1}`} className="w-full h-full object-cover" loading="lazy" />
+                      <img src={displayUrl} alt={item.caption?.slice(0,30) || `Media ${i+1}`} className="w-full h-full object-cover object-center" loading="lazy" />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center"><Image className="h-6 w-6 text-white/20" /></div>
+                      <div className="w-full h-full flex items-center justify-center"><Image className="h-8 w-8 text-white/20" /></div>
                     )}
                     {item.media_type && (
-                      <span className="absolute top-1 left-1 text-[8px] px-1.5 py-0.5 rounded font-bold uppercase" style={{ background: "rgba(0,0,0,0.7)", color: "#fff" }}>{item.media_type}</span>
+                      <span className="absolute top-1.5 left-1.5 text-[11px] px-2 py-0.5 rounded font-bold uppercase" style={{ background: "rgba(0,0,0,0.75)", color: "#fff" }}>{item.media_type}</span>
                     )}
-                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-1.5">
-                      <div className="flex justify-end gap-1">
+                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-2">
+                      <div className="flex justify-end gap-1.5">
                         {displayUrl && (
-                          <button onClick={() => downloadMedia(displayUrl, `media_${i+1}`)} className="p-1 rounded bg-white/20 hover:bg-white/40 transition-colors" title="Download">
-                            <ArrowDown className="h-3 w-3 text-white" />
+                          <button onClick={() => downloadMedia(displayUrl, `media_${i+1}`)} className="p-1.5 rounded bg-white/20 hover:bg-white/40 transition-colors" title="Download">
+                            <ArrowDown className="h-4 w-4 text-white" />
                           </button>
                         )}
                         {item.permalink && (
-                          <a href={item.permalink} target="_blank" rel="noopener noreferrer" className="p-1 rounded bg-white/20 hover:bg-white/40 transition-colors" title="View">
-                            <Link2 className="h-3 w-3 text-white" />
+                          <a href={item.permalink} target="_blank" rel="noopener noreferrer" className="p-1.5 rounded bg-white/20 hover:bg-white/40 transition-colors" title="View on platform">
+                            <Link2 className="h-4 w-4 text-white" />
                           </a>
                         )}
                       </div>
-                      <div className="space-y-0.5">
-                        {item.caption && <p className="text-[8px] text-white line-clamp-2 leading-tight">{item.caption}</p>}
-                        <div className="flex flex-wrap gap-1.5 text-[8px] text-white/80">
+                      <div className="space-y-1">
+                        {item.caption && <p className="text-xs text-white line-clamp-2 leading-snug">{item.caption}</p>}
+                        <div className="flex flex-wrap gap-2 text-xs text-white/90 font-medium">
                           {item.like_count !== undefined && <span>❤ {item.like_count?.toLocaleString()}</span>}
                           {item.likes !== undefined && <span>❤ {item.likes?.toLocaleString()}</span>}
                           {item.comments_count !== undefined && <span>💬 {item.comments_count?.toLocaleString()}</span>}
