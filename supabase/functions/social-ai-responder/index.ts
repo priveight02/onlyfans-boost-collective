@@ -743,6 +743,16 @@ Rules:
                 .eq("platform_conversation_id", convo.id)
                 .single();
 
+              // Try to fetch participant avatar via business_discovery
+              let participantAvatar: string | null = null;
+              const fanUsername = fan.username || fan.name;
+              if (fanUsername && !existingConvo) {
+                try {
+                  const discoveryData = await callIG("discover_user", { username: fanUsername, media_limit: 0 });
+                  participantAvatar = discoveryData?.business_discovery?.profile_picture_url || null;
+                } catch { /* Not all users are discoverable */ }
+              }
+
               const upsertData: any = {
                 account_id,
                 platform: "instagram",
@@ -750,6 +760,7 @@ Rules:
                 participant_id: fan.id,
                 participant_username: fan.username || fan.name || fan.id,
                 participant_name: fan.name || fan.username || "Unknown",
+                participant_avatar_url: participantAvatar || (existingConvo ? undefined : null),
                 status: "active",
                 folder,
                 is_read: !isFromFanLast,
@@ -871,9 +882,19 @@ Rules:
             const ourIdQuick = igConnQuick.platform_user_id;
             const ourUsernameQuick = igConnQuick.platform_username?.toLowerCase() || "";
             
-            // Only fetch first page of conversations (latest updates)
-            const quickScan = await callIG2("get_conversations", { limit: 20, messages_limit: 3, folder: "inbox" });
-            const quickConvoList = quickScan?.data || [];
+            // Scan all folders for new messages (not just inbox)
+            const allQuickConvos: any[] = [];
+            for (const folder of ["inbox", "general", "other"]) {
+              try {
+                const quickScan = await callIG2("get_conversations", { limit: 20, messages_limit: 3, folder });
+                const folderConvos = quickScan?.data || [];
+                for (const c of folderConvos) {
+                  (c as any)._folder = folder === "inbox" ? "primary" : folder === "other" ? "requests" : folder;
+                }
+                allQuickConvos.push(...folderConvos);
+              } catch { /* folder might not exist */ }
+            }
+            const quickConvoList = allQuickConvos;
             
             for (const sc of quickConvoList) {
               const scMsgs = sc.messages?.data || [];
@@ -913,6 +934,17 @@ Rules:
                 .eq("platform_conversation_id", sc.id)
                 .single();
               
+              // Fetch avatar for new conversations
+              let quickAvatar: string | null = null;
+              const fanUn = fan.username || fan.name;
+              if (!existingConvo && fanUn) {
+                try {
+                  const disc = await callIG2("discover_user", { username: fanUn, media_limit: 0 });
+                  quickAvatar = disc?.business_discovery?.profile_picture_url || null;
+                } catch {}
+              }
+
+              const scFolder = (sc as any)._folder || "primary";
               const upsertData: any = {
                 account_id,
                 platform: "instagram",
@@ -920,7 +952,9 @@ Rules:
                 participant_id: fan.id,
                 participant_username: fan.username || fan.name || fan.id,
                 participant_name: fan.name || fan.username || "Unknown",
+                participant_avatar_url: quickAvatar || undefined,
                 status: "active",
+                folder: scFolder,
                 last_message_at: sc.updated_time ? new Date(sc.updated_time).toISOString() : new Date().toISOString(),
                 message_count: scMsgs.length,
               };

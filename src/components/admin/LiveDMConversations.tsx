@@ -152,7 +152,7 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
     }
   }, [accountId]);
 
-  // Load conversations from DB
+  // Load conversations from DB — MERGE instead of replace to avoid re-renders
   const loadConversations = useCallback(async () => {
     if (!accountId) return;
     const { data } = await supabase
@@ -160,7 +160,26 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
       .select("*")
       .eq("account_id", accountId)
       .order("last_message_at", { ascending: false, nullsFirst: false });
-    if (data) setConversations(data as Conversation[]);
+    if (data) {
+      setConversations(prev => {
+        // If first load or structure changed significantly, replace
+        if (prev.length === 0) return data as Conversation[];
+        // Smart merge: keep references for unchanged items, add new ones at top
+        const newMap = new Map(data.map((c: any) => [c.id, c as Conversation]));
+        const merged: Conversation[] = [];
+        // First add items in new order
+        for (const d of data) {
+          const existing = prev.find(p => p.id === d.id);
+          // Only create new reference if data actually changed
+          if (existing && JSON.stringify(existing) === JSON.stringify(d)) {
+            merged.push(existing);
+          } else {
+            merged.push(d as Conversation);
+          }
+        }
+        return merged;
+      });
+    }
     return data as Conversation[] | null;
   }, [accountId]);
 
@@ -182,7 +201,7 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
     const cached = messageCacheRef.current.get(convoId);
     if (cached && cached.length > 0) {
       setMessages(cached);
-      // Refresh in background
+      // Refresh in background without blocking
       loadMessagesToCache(convoId).then(fresh => {
         if (selectedConvo === convoId) setMessages(fresh);
       });
@@ -439,24 +458,85 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
     }
   }, [selectedConvo, loadMessages, fetchIGMessages]);
 
-  // Real-time subscriptions
+  // Real-time subscriptions — MERGE changes instead of full reload
   useEffect(() => {
     if (!accountId) return;
     const ch1 = supabase
       .channel(`dm-convos-${accountId}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "ai_dm_conversations", filter: `account_id=eq.${accountId}` }, () => loadConversations())
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "ai_dm_conversations", filter: `account_id=eq.${accountId}` }, (payload) => {
+        // New conversation — prepend to list without reloading everything
+        const newConvo = payload.new as Conversation;
+        setConversations(prev => {
+          if (prev.find(c => c.id === newConvo.id)) return prev;
+          return [newConvo, ...prev];
+        });
+      })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "ai_dm_conversations", filter: `account_id=eq.${accountId}` }, (payload) => {
+        const updated = payload.new as Conversation;
+        setConversations(prev => {
+          const idx = prev.findIndex(c => c.id === updated.id);
+          if (idx === -1) return [updated, ...prev];
+          const next = [...prev];
+          next[idx] = updated;
+          // Re-sort by last_message_at
+          next.sort((a, b) => {
+            const ta = a.last_message_at ? new Date(a.last_message_at).getTime() : 0;
+            const tb = b.last_message_at ? new Date(b.last_message_at).getTime() : 0;
+            return tb - ta;
+          });
+          return next;
+        });
+      })
+      .on("postgres_changes", { event: "DELETE", schema: "public", table: "ai_dm_conversations", filter: `account_id=eq.${accountId}` }, (payload) => {
+        const oldId = (payload.old as any)?.id;
+        if (oldId) setConversations(prev => prev.filter(c => c.id !== oldId));
+      })
       .subscribe();
     return () => { supabase.removeChannel(ch1); };
-  }, [accountId, loadConversations]);
+  }, [accountId]);
 
+  // Real-time message subscription — MERGE instead of full reload
   useEffect(() => {
     if (!selectedConvo) return;
     const ch2 = supabase
       .channel(`dm-msgs-${selectedConvo}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "ai_dm_messages", filter: `conversation_id=eq.${selectedConvo}` }, () => loadMessages(selectedConvo))
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "ai_dm_messages", filter: `conversation_id=eq.${selectedConvo}` }, (payload) => {
+        const newMsg = payload.new as Message;
+        setMessages(prev => {
+          // Skip if already exists (optimistic insert)
+          if (prev.find(m => m.id === newMsg.id)) return prev;
+          // Skip if we have a temp version
+          if (prev.find(m => m.id.startsWith("temp-") && m.content === newMsg.content)) return prev;
+          return [...prev, newMsg];
+        });
+        // Update cache too
+        const cached = messageCacheRef.current.get(selectedConvo);
+        if (cached && !cached.find(m => m.id === newMsg.id)) {
+          messageCacheRef.current.set(selectedConvo, [...cached, newMsg]);
+        }
+      })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "ai_dm_messages", filter: `conversation_id=eq.${selectedConvo}` }, (payload) => {
+        const updated = payload.new as Message;
+        setMessages(prev => prev.map(m => m.id === updated.id ? updated : m));
+        // Update cache
+        const cached = messageCacheRef.current.get(selectedConvo);
+        if (cached) {
+          messageCacheRef.current.set(selectedConvo, cached.map(m => m.id === updated.id ? updated : m));
+        }
+      })
+      .on("postgres_changes", { event: "DELETE", schema: "public", table: "ai_dm_messages", filter: `conversation_id=eq.${selectedConvo}` }, (payload) => {
+        const oldId = (payload.old as any)?.id;
+        if (oldId) {
+          setMessages(prev => prev.filter(m => m.id !== oldId));
+          const cached = messageCacheRef.current.get(selectedConvo);
+          if (cached) {
+            messageCacheRef.current.set(selectedConvo, cached.filter(m => m.id !== oldId));
+          }
+        }
+      })
       .subscribe();
     return () => { supabase.removeChannel(ch2); };
-  }, [selectedConvo, loadMessages]);
+  }, [selectedConvo]);
 
   // Auto-scroll
   useEffect(() => {
@@ -491,11 +571,7 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
           addLog("system", `Checked ${r?.total_checked || 0} — no new`, "info");
         }
       }
-      await loadConversations();
-      if (selectedConvo) {
-        const fresh = await loadMessagesToCache(selectedConvo);
-        setMessages(fresh);
-      }
+      // Realtime subscriptions handle UI updates — no need for full reload
     } catch (e: any) {
       addLog("system", `Error: ${e.message}`, "error");
     } finally {
@@ -503,18 +579,22 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
       setAiCurrentPhase("");
       setAiCurrentConvoId(null);
     }
-  }, [accountId, processing, loadConversations, selectedConvo, loadMessagesToCache, addLog]);
+  }, [accountId, processing, addLog]);
 
-  // Auto-polling
+  // Continuous adaptive polling — 3s base, immediate retry on activity
   useEffect(() => {
-    if (autoRespondActive && accountId) {
-      setPolling(true);
-      pollIntervalRef.current = setInterval(() => processDMs(), 5000);
-      processDMs();
-    } else {
+    if (!autoRespondActive || !accountId) {
       setPolling(false);
       if (pollIntervalRef.current) { clearInterval(pollIntervalRef.current); pollIntervalRef.current = null; }
+      return;
     }
+    setPolling(true);
+    // Run immediately
+    processDMs();
+    // Then continuous 3s cycle
+    pollIntervalRef.current = setInterval(() => {
+      processDMs();
+    }, 3000);
     return () => { if (pollIntervalRef.current) clearInterval(pollIntervalRef.current); };
   }, [autoRespondActive, accountId]);
 
@@ -1556,7 +1636,7 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
             {!processing && (
               <div className="flex items-center gap-2 mt-2 text-muted-foreground/50">
                 <Clock className="h-3 w-3" />
-                <span className="text-[10px]">Next scan in 5s</span>
+                <span className="text-[10px]">Continuous sync active</span>
               </div>
             )}
           </div>
