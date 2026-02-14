@@ -1410,23 +1410,25 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
                 <div className="rounded-xl p-4 border border-white/10" style={{ background: "hsl(222, 30%, 12%)" }}>
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
-                      <div className="h-2 w-2 rounded-full bg-green-400" />
-                      <p className="text-xs font-semibold" style={{ color: "#ffffff" }}>Response</p>
-                      <Badge variant="outline" className="text-[9px] h-4 border-white/10" style={{ color: "#ccc" }}>
+                      <div className="h-2.5 w-2.5 rounded-full bg-green-400 animate-pulse" />
+                      <p className="text-sm font-bold" style={{ color: "#ffffff" }}>Response</p>
+                      <Badge variant="outline" className="text-[10px] h-5 px-2 border-white/15 rounded-md" style={{ color: "#ccc", background: "hsl(222, 30%, 16%)" }}>
                         {Array.isArray(result) ? `${result.length} items` : Array.isArray(result?.data) ? `${result.data.length} items` : "object"}
                       </Badge>
                     </div>
-                    <div className="flex gap-1">
-                      <Button size="sm" variant="ghost" className="h-6 text-[10px] hover:bg-white/10" style={{ color: "#fff" }} onClick={() => { navigator.clipboard.writeText(JSON.stringify(result, null, 2)); toast.success("Copied"); }}>
-                        <Copy className="h-3 w-3 mr-1" />Copy
+                    <div className="flex gap-1.5">
+                      <Button size="sm" variant="ghost" className="h-7 text-xs gap-1.5 hover:bg-white/10 rounded-lg" style={{ color: "#e0e0e0" }} onClick={() => { navigator.clipboard.writeText(JSON.stringify(result, null, 2)); toast.success("Copied to clipboard"); }}>
+                        <Copy className="h-3.5 w-3.5" />Copy
                       </Button>
-                      <Button size="sm" variant="ghost" className="h-6 text-[10px] hover:bg-white/10" style={{ color: "#fff" }} onClick={() => setResult(null)}>
-                        <Trash2 className="h-3 w-3 mr-1" />Clear
+                      <Button size="sm" variant="ghost" className="h-7 text-xs gap-1.5 hover:bg-white/10 rounded-lg" style={{ color: "#e0e0e0" }} onClick={() => setResult(null)}>
+                        <Trash2 className="h-3.5 w-3.5" />Clear
                       </Button>
                     </div>
                   </div>
-                  <ScrollArea className="max-h-[450px]">
-                    {renderVisualResponse(result)}
+                  <ScrollArea className="h-[420px]">
+                    <div className="pr-3">
+                      {renderVisualResponse(result)}
+                    </div>
                   </ScrollArea>
                 </div>
                 
