@@ -1431,6 +1431,7 @@ serve(async (req) => {
         const csrfToken = params?.csrf_token || metadata?.ig_csrf_token;
         const igAppId = "936619743392459";
         const maxResults = Math.min(params?.max_results || 50, 1000);
+        const expanded = params?.expanded || false;
 
         const headers = {
           "User-Agent": "Instagram 275.0.0.27.98 Android (33/13; 420dpi; 1080x2400; samsung; SM-G991B; o1s; exynos2100; en_US; 458229258)",
@@ -1442,30 +1443,34 @@ serve(async (req) => {
         const allUsers: any[] = [];
         const seenPks = new Set<string>();
 
+        const addUsers = (users: any[], source: string) => {
+          for (const u of users) {
+            const pk = String(u.pk);
+            if (seenPks.has(pk)) continue;
+            seenPks.add(pk);
+            allUsers.push({
+              id: pk,
+              username: u.username,
+              full_name: u.full_name,
+              profile_pic_url: u.profile_pic_url,
+              is_private: u.is_private,
+              is_verified: u.is_verified,
+              follower_count: u.follower_count,
+              following_count: u.following_count,
+              media_count: u.media_count,
+              biography: u.biography,
+              gender: classifyGender(u.full_name || u.username),
+            });
+          }
+        };
+
         // Surface 1: Main user search (returns ~50)
         try {
           const searchUrl = `https://i.instagram.com/api/v1/users/search/?search_surface=user_search_page&timezone_offset=0&count=${Math.min(maxResults, 100)}&q=${encodeURIComponent(query)}`;
           const resp = await fetch(searchUrl, { headers });
           if (resp.ok) {
             const searchData = await resp.json();
-            for (const u of (searchData?.users || [])) {
-              const pk = String(u.pk);
-              if (seenPks.has(pk)) continue;
-              seenPks.add(pk);
-              allUsers.push({
-                id: pk,
-                username: u.username,
-                full_name: u.full_name,
-                profile_pic_url: u.profile_pic_url,
-                is_private: u.is_private,
-                is_verified: u.is_verified,
-                follower_count: u.follower_count,
-                following_count: u.following_count,
-                media_count: u.media_count,
-                biography: u.biography,
-                gender: classifyGender(u.full_name || u.username),
-              });
-            }
+            addUsers(searchData?.users || [], "primary");
           }
         } catch (e: any) {
           console.log("Primary search failed:", e.message);
@@ -1479,24 +1484,7 @@ serve(async (req) => {
             if (resp2.ok) {
               const topData = await resp2.json();
               for (const item of (topData?.list || [])) {
-                const u = item?.user;
-                if (!u) continue;
-                const pk = String(u.pk);
-                if (seenPks.has(pk)) continue;
-                seenPks.add(pk);
-                allUsers.push({
-                  id: pk,
-                  username: u.username,
-                  full_name: u.full_name,
-                  profile_pic_url: u.profile_pic_url,
-                  is_private: u.is_private,
-                  is_verified: u.is_verified,
-                  follower_count: u.follower_count,
-                  following_count: u.following_count,
-                  media_count: u.media_count,
-                  biography: u.biography,
-                  gender: classifyGender(u.full_name || u.username),
-                });
+                if (item?.user) addUsers([item.user], "top");
               }
             }
           } catch (e: any) {
@@ -1511,31 +1499,67 @@ serve(async (req) => {
             const resp3 = await fetch(suggestedUrl, { headers });
             if (resp3.ok) {
               const sugData = await resp3.json();
-              for (const u of (sugData?.users || [])) {
-                const pk = String(u.pk);
-                if (seenPks.has(pk)) continue;
-                seenPks.add(pk);
-                allUsers.push({
-                  id: pk,
-                  username: u.username,
-                  full_name: u.full_name,
-                  profile_pic_url: u.profile_pic_url,
-                  is_private: u.is_private,
-                  is_verified: u.is_verified,
-                  follower_count: u.follower_count,
-                  following_count: u.following_count,
-                  media_count: u.media_count,
-                  biography: u.biography,
-                  gender: classifyGender(u.full_name || u.username),
-                });
-              }
+              addUsers(sugData?.users || [], "suggested");
             }
           } catch (e: any) {
             console.log("Suggested search failed:", e.message);
           }
         }
 
-        console.log(`Total search results for "${query}": ${allUsers.length}`);
+        // Expanded mode: additional search surfaces for deeper results
+        if (expanded && allUsers.length < maxResults) {
+          // Surface 4: Keyword variations (partial matches)
+          const variations = [
+            query.toLowerCase(),
+            query.toLowerCase().replace(/\s+/g, ""),
+            query.toLowerCase().replace(/\s+/g, "_"),
+          ];
+          for (const variant of variations) {
+            if (allUsers.length >= maxResults) break;
+            if (variant === query) continue;
+            try {
+              const varUrl = `https://i.instagram.com/api/v1/users/search/?search_surface=user_search_page&timezone_offset=0&count=100&q=${encodeURIComponent(variant)}`;
+              const resp = await fetch(varUrl, { headers });
+              if (resp.ok) {
+                const d = await resp.json();
+                addUsers(d?.users || [], "variant");
+              }
+              await new Promise(r => setTimeout(r, 300));
+            } catch {}
+          }
+
+          // Surface 5: Web search (different ranking algorithm)
+          if (allUsers.length < maxResults) {
+            try {
+              const webUrl = `https://i.instagram.com/api/v1/web/search/topsearch/?context=blended&query=${encodeURIComponent(query)}&include_reel=false`;
+              const resp = await fetch(webUrl, { headers });
+              if (resp.ok) {
+                const d = await resp.json();
+                for (const item of (d?.users || [])) {
+                  if (item?.user) addUsers([item.user], "web");
+                }
+              }
+            } catch {}
+          }
+
+          // Surface 6: Null state suggestions (related accounts)
+          if (allUsers.length < maxResults) {
+            try {
+              const nullUrl = `https://i.instagram.com/api/v1/fbsearch/nullstate_dynamic_sections/?type=blended&search_surface=top_search_page`;
+              const resp = await fetch(nullUrl, { headers });
+              if (resp.ok) {
+                const d = await resp.json();
+                for (const section of (d?.sections || [])) {
+                  for (const item of (section?.items || [])) {
+                    if (item?.user) addUsers([item.user], "nullstate");
+                  }
+                }
+              }
+            } catch {}
+          }
+        }
+
+        console.log(`Total search results for "${query}" (expanded: ${expanded}): ${allUsers.length}`);
         result = { users: allUsers.slice(0, maxResults), total: allUsers.length };
         break;
       }
