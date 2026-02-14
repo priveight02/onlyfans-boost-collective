@@ -241,7 +241,7 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
     setLoading(false);
   }, [loadMessagesToCache]);
 
-  // IG sync for a single conversation (imports/updates messages from IG API + detects deleted msgs)
+  // IG sync for a single conversation — BATCHED: 1 IG API call + 1 DB read + minimal writes
   const fetchIGMessages = useCallback(async (convoId: string, convo?: Conversation) => {
     const c = convo || conversations.find(cv => cv.id === convoId);
     if (!c?.platform_conversation_id) return;
@@ -251,39 +251,47 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
     const ourIgId = conn?.platform_user_id || "";
 
     try {
+      // 1 API call to IG
       const { data, error } = await supabase.functions.invoke("instagram-api", {
         body: { action: "get_conversation_messages", account_id: accountId, params: { conversation_id: c.platform_conversation_id, limit: 50 } },
       });
       if (error || !data?.success) return;
-      const igMessages = data.data?.messages?.data || [];
-      let changed = false;
+      const igMessages: any[] = data.data?.messages?.data || [];
+      if (igMessages.length === 0) return;
 
-      // Build set of IG message IDs that still exist on Instagram
-      const igMessageIds = new Set(igMessages.map((m: any) => m.id).filter(Boolean));
-
-      // REAL-TIME DELETION SYNC: Find DB messages with platform_message_id that no longer exist on IG
+      // 1 DB call — fetch ALL existing messages for this convo (already cached most times)
       const cached = messageCacheRef.current.get(convoId) || [];
-      const dbMsgsWithPlatformId = cached.filter(m => m.platform_message_id && !m.id.startsWith("temp-"));
-      for (const dbMsg of dbMsgsWithPlatformId) {
-        if (dbMsg.platform_message_id && !igMessageIds.has(dbMsg.platform_message_id) && !deletedPlatformIdsRef.current.has(dbMsg.platform_message_id)) {
-          // Message was deleted on Instagram — remove from DB
-          await supabase.from("ai_dm_messages").delete().eq("id", dbMsg.id);
-          deletedPlatformIdsRef.current.add(dbMsg.platform_message_id);
-          persistDeletedIds();
-          changed = true;
-          addLog(`@${c.participant_username}`, `Message removed (deleted on IG)`, "info");
-        }
+      const dbByPlatformId = new Map<string, Message>();
+      for (const m of cached) {
+        if (m.platform_message_id) dbByPlatformId.set(m.platform_message_id, m);
       }
 
+      const igMessageIds = new Set(igMessages.map((m: any) => m.id).filter(Boolean));
+      let changed = false;
+
+      // BATCH: detect deleted messages (exist in DB but not on IG anymore)
+      const toDelete: string[] = [];
+      for (const dbMsg of cached) {
+        if (dbMsg.platform_message_id && !dbMsg.id.startsWith("temp-") && 
+            !igMessageIds.has(dbMsg.platform_message_id) && 
+            !deletedPlatformIdsRef.current.has(dbMsg.platform_message_id)) {
+          toDelete.push(dbMsg.id);
+          deletedPlatformIdsRef.current.add(dbMsg.platform_message_id);
+        }
+      }
+      if (toDelete.length > 0) {
+        await supabase.from("ai_dm_messages").delete().in("id", toDelete);
+        persistDeletedIds();
+        changed = true;
+        addLog(`@${c.participant_username}`, `${toDelete.length} msg(s) unsent/deleted on IG`, "info");
+      }
+
+      // BATCH: collect inserts and updates
+      const toInsert: any[] = [];
+      const toUpdate: { id: string; updates: any }[] = [];
+
       for (const igMsg of igMessages) {
-        // Skip messages that were locally deleted
         if (igMsg.id && deletedPlatformIdsRef.current.has(igMsg.id)) continue;
-        
-        const { data: existing } = await supabase
-          .from("ai_dm_messages")
-          .select("id, content, metadata")
-          .eq("platform_message_id", igMsg.id)
-          .limit(1);
 
         const msgText = igMsg.message || igMsg.text || "";
         const rawAtt = igMsg.attachments?.data || igMsg.attachments;
@@ -308,30 +316,25 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
           else if (igMsg.story) contentText = "[story reply]";
         }
 
-        if (existing && existing.length > 0) {
-          const ex = existing[0];
+        const existing = dbByPlatformId.get(igMsg.id);
+        if (existing) {
           const updates: any = {};
-          if (contentText && contentText !== ex.content) updates.content = contentText;
-          if (attData && JSON.stringify(attData) !== JSON.stringify(ex.metadata)) updates.metadata = attData;
+          if (contentText && contentText !== existing.content) updates.content = contentText;
+          if (attData && JSON.stringify(attData) !== JSON.stringify(existing.metadata)) updates.metadata = attData;
           if (igMsg.created_time || igMsg.timestamp) {
             updates.created_at = new Date(igMsg.created_time || igMsg.timestamp).toISOString();
           }
           if (Object.keys(updates).length > 0) {
-            await supabase.from("ai_dm_messages").update(updates).eq("id", ex.id);
-            changed = true;
+            toUpdate.push({ id: existing.id, updates });
           }
         } else {
           const fromName = (igMsg.from?.username || igMsg.from?.name || "").toLowerCase();
           const fromId = igMsg.from?.id;
-          const isFromFan = fromId
-            ? (fromId === c.participant_id || (fromId !== ourIgId && fromName !== ourUsername && fromName !== ""))
-            : true;
           const isActuallyFromFan = fromId === c.participant_id ? true : 
             (fromId === ourIgId || fromName === ourUsername) ? false :
-            (fromId && fromId !== c.participant_id && fromId !== ourIgId) ? false :
-            isFromFan;
+            (fromId && fromId !== c.participant_id && fromId !== ourIgId) ? false : true;
 
-          await supabase.from("ai_dm_messages").insert({
+          toInsert.push({
             conversation_id: convoId,
             account_id: accountId,
             platform_message_id: igMsg.id,
@@ -342,8 +345,18 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
             created_at: igMsg.created_time || igMsg.timestamp ? new Date(igMsg.created_time || igMsg.timestamp).toISOString() : new Date().toISOString(),
             metadata: attData,
           });
-          changed = true;
         }
+      }
+
+      // Execute batched writes (max 2 DB calls instead of N)
+      if (toInsert.length > 0) {
+        await supabase.from("ai_dm_messages").insert(toInsert);
+        changed = true;
+      }
+      // Updates must be individual (different data per row) but fire in parallel
+      if (toUpdate.length > 0) {
+        await Promise.all(toUpdate.map(u => supabase.from("ai_dm_messages").update(u.updates).eq("id", u.id)));
+        changed = true;
       }
 
       if (changed) {
@@ -354,7 +367,7 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
         });
       }
 
-      // ALWAYS update conversation preview & timestamp from latest cached message
+      // Update conversation preview from cache
       const allMsgs = messageCacheRef.current.get(convoId) || [];
       if (allMsgs.length > 0) {
         const latestMsg = allMsgs[allMsgs.length - 1];
@@ -364,21 +377,18 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
           : latestMsg.content?.substring(0, 80) || "[media]";
         const latestTime = latestMsg.created_at;
         
-        // Update DB (non-blocking)
         supabase.from("ai_dm_conversations").update({
           last_message_preview: previewText,
           last_message_at: latestTime,
           message_count: allMsgs.length,
         }).eq("id", convoId).then();
         
-        // Update local state immediately for instant UI refresh
         setConversations(prev => {
           const idx = prev.findIndex(cv => cv.id === convoId);
           if (idx === -1) return prev;
           const updated = { ...prev[idx], last_message_preview: previewText, last_message_at: latestTime, message_count: allMsgs.length };
           const next = [...prev];
           next[idx] = updated;
-          // Re-sort by last_message_at (most recent first)
           next.sort((a, b) => {
             const ta = a.last_message_at ? new Date(a.last_message_at).getTime() : 0;
             const tb = b.last_message_at ? new Date(b.last_message_at).getTime() : 0;
@@ -642,30 +652,36 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
     }
   }, [selectedConvo, loadMessages, fetchIGMessages]);
 
-  // FAST DB POLL: sync AI-sent messages from DB every 200ms (lightweight query, no IG API)
+  // FAST DB POLL: lightweight count check every 300ms, full load only when changed
   useEffect(() => {
     if (!selectedConvo) return;
-    const dbPollRef = { inFlight: false };
+    const pollState = { inFlight: false, lastCount: -1, lastId: "" };
     const dbPollInterval = setInterval(async () => {
-      if (dbPollRef.inFlight) return;
-      dbPollRef.inFlight = true;
+      if (pollState.inFlight) return;
+      pollState.inFlight = true;
       try {
+        // Lightweight query: only count + latest message id (minimal tokens/bandwidth)
+        const { count } = await supabase
+          .from("ai_dm_messages")
+          .select("id", { count: "exact", head: true })
+          .eq("conversation_id", selectedConvo);
+        const currentCount = count || 0;
+        
+        // Quick check: if count unchanged and we have cache, skip full load
+        const cached = messageCacheRef.current.get(selectedConvo);
+        if (cached && cached.length === currentCount && pollState.lastCount === currentCount) {
+          return; // No change — skip
+        }
+        pollState.lastCount = currentCount;
+        
+        // Something changed — do full load
         const fresh = await loadMessagesToCache(selectedConvo);
         setSelectedConvo(prev => {
-          if (prev === selectedConvo) {
-            setMessages(current => {
-              // Only update if message count or last message changed
-              if (current.length !== fresh.length || 
-                  (current.length > 0 && fresh.length > 0 && current[current.length - 1].id !== fresh[fresh.length - 1].id)) {
-                return fresh;
-              }
-              return current;
-            });
-          }
+          if (prev === selectedConvo) setMessages(fresh);
           return prev;
         });
-      } finally { dbPollRef.inFlight = false; }
-    }, 200);
+      } finally { pollState.inFlight = false; }
+    }, 300);
     return () => clearInterval(dbPollInterval);
   }, [selectedConvo, loadMessagesToCache]);
 
