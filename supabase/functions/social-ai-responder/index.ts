@@ -2896,7 +2896,13 @@ FINAL REMINDER — MESSAGE LENGTH (MOST IMPORTANT RULE):
 - Output ONLY the message text`;
 
             const aiMessages: any[] = [{ role: "system", content: systemPrompt }];
-            for (const ctx of conversationContext) {
+            
+            // CRITICAL FIX: Only send the LAST 10 messages as conversation context
+            // The FAN MEMORY ENGINE already captures all historical facts (name, location, age, job, etc.)
+            // Sending ALL messages confuses the AI — it answers old questions instead of the latest one
+            // 10 messages = enough context to understand the current flow without mixing up old topics
+            const recentContext = conversationContext.slice(-10);
+            for (const ctx of recentContext) {
               aiMessages.push({ role: ctx.role === "creator" ? "assistant" : "user", content: ctx.text });
             }
 
