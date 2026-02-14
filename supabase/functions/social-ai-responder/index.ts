@@ -10,13 +10,13 @@ const corsHeaders = {
 // Simulates realistic human typing speed with randomness
 function humanTypingDelay(text: string): number {
   const charCount = text.length;
-  // Fast typing: 40-70ms per char with minimal think time
-  const baseMs = charCount * (40 + Math.random() * 30); // 40-70ms per char
-  const thinkMs = 300 + Math.random() * 600; // 0.3-0.9s think time
-  const jitter = Math.random() * 300; // 0-0.3s jitter
+  // Moderate typing: 50-80ms per char with think time
+  const baseMs = charCount * (50 + Math.random() * 30); // 50-80ms per char
+  const thinkMs = 500 + Math.random() * 1000; // 0.5-1.5s think time
+  const jitter = Math.random() * 500; // 0-0.5s jitter
   const total = thinkMs + baseMs + jitter;
-  // Clamp: min 0.8s, max 3s — snappier
-  return Math.min(Math.max(total, 800), 3000);
+  // Clamp: min 1.2s, max 4s — slightly more human
+  return Math.min(Math.max(total, 1200), 4000);
 }
 
 // Inter-message delay — prevents sending 2 msgs at exact same time
@@ -2023,7 +2023,7 @@ Rules:
             const allQuickConvos: any[] = [];
             for (const folder of ["inbox", "general", "other"]) {
               try {
-                const quickScan = await callIG2("get_conversations", { limit: 20, messages_limit: 3, folder });
+                const quickScan = await callIG2("get_conversations", { limit: 50, messages_limit: 3, folder });
                 const folderConvos = quickScan?.data || [];
                 for (const c of folderConvos) {
                   (c as any)._folder = folder === "inbox" ? "primary" : folder === "other" ? "requests" : folder;
@@ -2333,10 +2333,17 @@ Follow these persona settings strictly. They override any conflicting defaults a
             // CRITICAL: Check if we already handled this message (e.g. user deleted our reply)
             // If last_ai_reply_at is AFTER the fan's message, we already replied — skip
             // BUT: skip this check if free pic is pending (Phase 2 needs to run)
+            // STALENESS RECOVERY: If last_ai_reply_at is > 90s old but fan message is newer, force process (stuck lock)
             if (!hasPendingPic && dbConvo.last_ai_reply_at && latestMsg?.created_at) {
               const aiReplyTime = new Date(dbConvo.last_ai_reply_at).getTime();
               const fanMsgTime = new Date(latestMsg.created_at).getTime();
-              if (aiReplyTime >= fanMsgTime) continue;
+              const lockAge = Date.now() - aiReplyTime;
+              // Normal skip: we already replied after the fan's message AND it's recent (< 90s)
+              if (aiReplyTime >= fanMsgTime && lockAge < 90000) continue;
+              // If lock is > 90s old and fan sent something newer, treat as stuck lock — force process
+              if (aiReplyTime >= fanMsgTime && lockAge >= 90000) {
+                console.log(`[STALENESS RECOVERY] @${dbConvo.participant_username}: lock is ${Math.round(lockAge/1000)}s old, forcing reprocess`);
+              }
             }
 
             // RACE CONDITION GUARD: Atomically lock this conversation so concurrent invocations can't process it twice
@@ -2884,6 +2891,9 @@ FINAL REMINDER — MESSAGE LENGTH (MOST IMPORTANT RULE):
               if (typingMsg) {
                 await supabase.from("ai_dm_messages").update({ status: "failed", content: "AI generation failed" }).eq("id", typingMsg.id);
               }
+              // RESTORE LOCK so this convo can be retried on next cycle
+              await supabase.from("ai_dm_conversations").update({ last_ai_reply_at: latestMsg?.created_at ? new Date(new Date(latestMsg.created_at).getTime() - 1000).toISOString() : null }).eq("id", dbConvo.id);
+              console.log(`[LOCK RESTORE] @${dbConvo.participant_username}: AI failed, lock restored for retry`);
               continue;
             }
 
@@ -3030,9 +3040,16 @@ FINAL REMINDER — MESSAGE LENGTH (MOST IMPORTANT RULE):
               if (typingMsg) {
                 await supabase.from("ai_dm_messages").update({ status: "failed", content: reply, metadata: { error: sendErr.message } }).eq("id", typingMsg.id);
               }
+              // RESTORE LOCK on send failure so convo isn't stuck
+              await supabase.from("ai_dm_conversations").update({ last_ai_reply_at: latestMsg?.created_at ? new Date(new Date(latestMsg.created_at).getTime() - 1000).toISOString() : null }).eq("id", dbConvo.id);
+              console.log(`[LOCK RESTORE] @${dbConvo.participant_username}: send failed, lock restored for retry`);
             }
           } catch (convoErr) {
             console.error("Error processing conversation:", convoErr);
+            // RESTORE LOCK on any error so convo isn't stuck forever
+            try {
+              await supabase.from("ai_dm_conversations").update({ last_ai_reply_at: null }).eq("id", dbConvo.id);
+            } catch {}
           }
           // Inter-message delay — cant send 2 msgs at the exact same time
           await new Promise(r => setTimeout(r, interMessageDelay()));
