@@ -1251,7 +1251,42 @@ serve(async (req) => {
         break;
       }
 
-      // ===== FETCH ACTUAL FOLLOWERS (Private API workaround) =====
+      // ===== SEARCH INSTAGRAM USERS (Private API) =====
+      case "search_users": {
+        const query = params?.query;
+        if (!query) throw new Error("query required");
+        const metadata = conn.metadata as any || {};
+        const sessionId = params?.session_id || metadata?.ig_session_id;
+        if (!sessionId) throw new Error("Instagram session cookie required for user search");
+        const dsUserId = params?.ds_user_id || metadata?.ig_ds_user_id || conn.platform_user_id;
+        const csrfToken = params?.csrf_token || metadata?.ig_csrf_token;
+        const igAppId = "936619743392459";
+
+        const searchUrl = `https://i.instagram.com/api/v1/users/search/?search_surface=user_search_page&timezone_offset=0&count=30&q=${encodeURIComponent(query)}`;
+        const resp = await fetch(searchUrl, {
+          headers: {
+            "User-Agent": "Instagram 275.0.0.27.98 Android (33/13; 420dpi; 1080x2400; samsung; SM-G991B; o1s; exynos2100; en_US; 458229258)",
+            "Cookie": `sessionid=${sessionId};${csrfToken ? ` csrftoken=${csrfToken};` : ""}${dsUserId ? ` ds_user_id=${dsUserId};` : ""}`,
+            "X-IG-App-ID": igAppId,
+          },
+        });
+        if (!resp.ok) throw new Error(`Search failed (${resp.status})`);
+        const searchData = await resp.json();
+        const users = (searchData?.users || []).map((u: any) => ({
+          id: String(u.pk),
+          username: u.username,
+          full_name: u.full_name,
+          profile_pic_url: u.profile_pic_url,
+          is_private: u.is_private,
+          is_verified: u.is_verified,
+          follower_count: u.follower_count,
+          media_count: u.media_count,
+        }));
+        result = { users, total: users.length };
+        break;
+      }
+
+      // ===== FETCH ACTUAL FOLLOWERS (Private API — CHUNKED for large accounts) =====
       case "scrape_followers": {
         const metadata = conn.metadata as any || {};
         const sessionId = params?.session_id || metadata?.ig_session_id;
@@ -1300,22 +1335,25 @@ serve(async (req) => {
           throw new Error("Could not resolve Instagram user PK. Please provide ds_user_id from cookies.");
         }
 
-        // Determine max followers to fetch
-        const maxFollowers = params?.max_followers || 0; // 0 = fetch all
-        const maxPages = params?.max_pages || 500; // up to 500 pages = ~100k followers
+        // CHUNKED: Fetch max ~12 pages per call to stay under edge function timeout
+        const maxFollowers = params?.max_followers || 0;
+        const pagesPerChunk = params?.pages_per_chunk || 12;
         const batchSize = params?.batch_size || 200;
+        const cursor = params?.cursor || null; // Resume cursor from previous chunk
 
         const scrapedFollowers: any[] = [];
         const seenPks = new Set<string>();
-        let maxId: string | null = null;
+        let maxId: string | null = cursor;
         let page = 0;
+        let hitEnd = false;
+        let rateLimited = false;
         
-        console.log(`Starting follower fetch for PK ${userPk}, max_followers: ${maxFollowers || "ALL"}, max pages: ${maxPages}`);
+        console.log(`Chunked fetch for PK ${userPk}, pages_per_chunk: ${pagesPerChunk}, cursor: ${cursor ? "yes" : "start"}`);
 
-        while (page < maxPages) {
-          // Stop if we hit the max followers limit
+        while (page < pagesPerChunk) {
           if (maxFollowers > 0 && scrapedFollowers.length >= maxFollowers) {
             console.log(`Reached max followers limit: ${maxFollowers}`);
+            hitEnd = true;
             break;
           }
 
@@ -1334,16 +1372,14 @@ serve(async (req) => {
 
             if (!resp.ok) {
               const errText = await resp.text();
-              console.log(`Fetch page ${page} failed (${resp.status}):`, errText.substring(0, 200));
-              
+              console.log(`Page ${page} failed (${resp.status}):`, errText.substring(0, 200));
               if (resp.status === 401 || resp.status === 403) {
                 throw new Error("Session expired. Please update your Instagram session cookie.");
               }
               if (resp.status === 429) {
-                // Rate limited — wait longer and retry once
-                console.log("Rate limited, waiting 30s before retry...");
-                await new Promise(r => setTimeout(r, 30000));
-                continue;
+                console.log("Rate limited — returning chunk so far");
+                rateLimited = true;
+                break;
               }
               break;
             }
@@ -1351,7 +1387,7 @@ serve(async (req) => {
             const data = await resp.json();
             const users = data?.users || [];
             
-            console.log(`Page ${page}: got ${users.length} followers, total so far: ${scrapedFollowers.length + users.length}`);
+            console.log(`Page ${page}: ${users.length} followers`);
 
             for (const user of users) {
               if (maxFollowers > 0 && scrapedFollowers.length >= maxFollowers) break;
@@ -1369,27 +1405,27 @@ serve(async (req) => {
             }
 
             if (!data?.next_max_id || users.length === 0) {
-              console.log("No more pages, fetching complete");
+              console.log("No more pages — fetching complete");
+              hitEnd = true;
               break;
             }
             maxId = data.next_max_id;
 
-            // Anti-ban: progressive delays — slower as we go deeper
-            const baseDelay = page < 10 ? 2000 : page < 50 ? 3000 : 5000;
-            const jitter = Math.random() * 2000;
+            // Anti-ban delays
+            const baseDelay = page < 5 ? 1500 : page < 10 ? 2500 : 3500;
+            const jitter = Math.random() * 1500;
             await new Promise(r => setTimeout(r, baseDelay + jitter));
             
           } catch (e: any) {
-            console.error(`Fetch page ${page} error:`, e.message);
+            console.error(`Page ${page} error:`, e.message);
             if (e.message.includes("Session expired")) throw e;
             break;
           }
         }
 
-        // ===== PERSIST TO DATABASE =====
+        // PERSIST chunk to database
         if (scrapedFollowers.length > 0) {
-          console.log(`Saving ${scrapedFollowers.length} followers to database...`);
-          // Upsert in batches of 500
+          console.log(`Saving chunk of ${scrapedFollowers.length} followers...`);
           for (let i = 0; i < scrapedFollowers.length; i += 500) {
             const batch = scrapedFollowers.slice(i, i + 500).map(f => ({
               account_id: account_id,
@@ -1408,15 +1444,7 @@ serve(async (req) => {
               .upsert(batch, { onConflict: "account_id,ig_user_id" });
             if (upsertError) console.log(`Upsert batch error:`, upsertError.message);
           }
-          console.log(`Saved all followers to DB`);
         }
-
-        let scrapedFollowersCount = 0, scrapedFollowsCount = 0;
-        try {
-          const profile = await igFetch(`/${igUserId}?fields=followers_count,follows_count`, token);
-          scrapedFollowersCount = profile?.followers_count || 0;
-          scrapedFollowsCount = profile?.follows_count || 0;
-        } catch {}
 
         // Get total persisted count
         const { count: totalPersisted } = await supabase
@@ -1424,14 +1452,16 @@ serve(async (req) => {
           .select("id", { count: "exact", head: true })
           .eq("account_id", account_id);
 
-        console.log(`Fetch complete: ${scrapedFollowers.length} new, ${totalPersisted || 0} total persisted`);
+        const nextCursor = hitEnd ? null : maxId;
+        console.log(`Chunk done: ${scrapedFollowers.length} new, ${totalPersisted || 0} total, has_more: ${!!nextCursor}`);
 
         result = {
           followers: scrapedFollowers,
-          followers_count: scrapedFollowersCount,
-          follows_count: scrapedFollowsCount,
+          chunk_size: scrapedFollowers.length,
           pages_fetched: page,
-          fetch_complete: page < maxPages || !maxId,
+          next_cursor: nextCursor,
+          fetch_complete: hitEnd,
+          rate_limited: rateLimited,
           total_persisted: totalPersisted || 0,
         };
         break;
