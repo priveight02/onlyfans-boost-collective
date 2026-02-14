@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { cachedFetch } from "@/lib/supabaseCache";
 import SocialAITools from "./SocialAITools";
 import LiveDMConversations from "./LiveDMConversations";
 import IGAutomationSuite from "./social/IGAutomationSuite";
@@ -215,11 +216,13 @@ const SocialMediaHub = () => {
   }, [selectedAccount]);
 
   const loadAccounts = async () => {
-    const { data } = await supabase.from("managed_accounts").select("id, username, display_name, avatar_url").order("created_at", { ascending: false });
-    setAccounts(data || []);
-    // Auto-select first account if none selected or current selection no longer exists
+    const data = await cachedFetch("global", "smh_accounts", async () => {
+      const { data } = await supabase.from("managed_accounts").select("id, username, display_name, avatar_url").order("created_at", { ascending: false });
+      return data || [];
+    }, undefined, { ttlMs: 5 * 60 * 1000 });
+    setAccounts(data);
     if (data?.length) {
-      const currentExists = data.some(a => a.id === selectedAccount);
+      const currentExists = data.some((a: any) => a.id === selectedAccount);
       if (!selectedAccount || !currentExists) {
         setSelectedAccount(data[0].id);
       }
@@ -230,18 +233,33 @@ const SocialMediaHub = () => {
     const acctId = overrideAccountId || selectedAccount;
     if (!acctId) return;
     setLoading(true);
-    const [conns, socialPosts, links, stats, replies] = await Promise.all([
-      supabase.from("social_connections").select("*").eq("account_id", acctId),
-      supabase.from("social_posts").select("*").eq("account_id", acctId).order("created_at", { ascending: false }).limit(50),
-      supabase.from("bio_links").select("*").eq("account_id", acctId).order("created_at", { ascending: false }),
-      supabase.from("social_analytics").select("*").eq("account_id", acctId).order("fetched_at", { ascending: false }).limit(50),
-      supabase.from("social_comment_replies").select("*").eq("account_id", acctId).order("created_at", { ascending: false }).limit(50),
+    const [connsData, socialPostsData, linksData, statsData, repliesData] = await Promise.all([
+      cachedFetch(acctId, "social_connections", async () => {
+        const { data } = await supabase.from("social_connections").select("*").eq("account_id", acctId);
+        return data || [];
+      }, undefined, { ttlMs: 3 * 60 * 1000 }),
+      cachedFetch(acctId, "social_posts", async () => {
+        const { data } = await supabase.from("social_posts").select("*").eq("account_id", acctId).order("created_at", { ascending: false }).limit(50);
+        return data || [];
+      }, undefined, { ttlMs: 2 * 60 * 1000 }),
+      cachedFetch(acctId, "bio_links", async () => {
+        const { data } = await supabase.from("bio_links").select("*").eq("account_id", acctId).order("created_at", { ascending: false });
+        return data || [];
+      }, undefined, { ttlMs: 5 * 60 * 1000 }),
+      cachedFetch(acctId, "social_analytics", async () => {
+        const { data } = await supabase.from("social_analytics").select("*").eq("account_id", acctId).order("fetched_at", { ascending: false }).limit(50);
+        return data || [];
+      }, undefined, { ttlMs: 2 * 60 * 1000 }),
+      cachedFetch(acctId, "social_comment_replies", async () => {
+        const { data } = await supabase.from("social_comment_replies").select("*").eq("account_id", acctId).order("created_at", { ascending: false }).limit(50);
+        return data || [];
+      }, undefined, { ttlMs: 2 * 60 * 1000 }),
     ]);
-    setConnections(conns.data || []);
-    setPosts(socialPosts.data || []);
-    setBioLinks(links.data || []);
-    setAnalytics(stats.data || []);
-    setCommentReplies(replies.data || []);
+    setConnections(connsData);
+    setPosts(socialPostsData);
+    setBioLinks(linksData);
+    setAnalytics(statsData);
+    setCommentReplies(repliesData);
     setLoading(false);
   };
 

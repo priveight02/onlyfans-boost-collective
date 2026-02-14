@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { cachedFetch, invalidateNamespace } from "@/lib/supabaseCache";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -65,25 +66,29 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
 
   useEffect(() => { messageRef.current = message; }, [message]);
 
-  // Load persisted followers from DB first, then merge with live data
+  // Load persisted followers from DB first (cached), then merge with live data
   const loadPersistedFollowers = useCallback(async () => {
     if (!accountId) return;
     setLoading(true);
     try {
-      // First load persisted/fetched followers from DB
-      const { data: persistedData } = await supabase.functions.invoke("instagram-api", {
-        body: { action: "get_persisted_followers", account_id: accountId, params: { limit: 10000 } },
-      });
+      // Load persisted followers with cache (long TTL since these are saved permanently)
+      const persisted = await cachedFetch<Follower[]>(accountId, "persisted_followers", async () => {
+        const { data: persistedData } = await supabase.functions.invoke("instagram-api", {
+          body: { action: "get_persisted_followers", account_id: accountId, params: { limit: 10000 } },
+        });
+        return persistedData?.data?.followers || [];
+      }, undefined, { ttlMs: 10 * 60 * 1000 });
 
-      const persisted = persistedData?.data?.followers || [];
       const seen = new Set<string>(persisted.map((f: Follower) => f.id));
 
-      // Then load conversation-based contacts
-      const { data: liveData } = await supabase.functions.invoke("instagram-api", {
-        body: { action: "get_followers_list", account_id: accountId, params: { limit: 500, source_filter: "all" } },
-      });
+      // Then load conversation-based contacts (shorter cache)
+      const live = await cachedFetch<Follower[]>(accountId, "live_followers", async () => {
+        const { data: liveData } = await supabase.functions.invoke("instagram-api", {
+          body: { action: "get_followers_list", account_id: accountId, params: { limit: 500, source_filter: "all" } },
+        });
+        return liveData?.data?.followers || [];
+      }, undefined, { ttlMs: 3 * 60 * 1000 });
 
-      const live = liveData?.data?.followers || [];
       const merged = [...persisted];
       for (const f of live) {
         if (!seen.has(f.id)) {
@@ -93,8 +98,7 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
       }
 
       setFollowers(merged);
-      setFollowersCount(persistedData?.data?.followers_count || liveData?.data?.followers_count || 0);
-      setFollowsCount(persistedData?.data?.follows_count || liveData?.data?.follows_count || 0);
+      setFollowersCount(merged.length);
       toast.success(`Loaded ${merged.length} contacts (${persisted.length} saved)`);
     } catch (e: any) {
       toast.error(e.message || "Failed to load followers");
@@ -180,6 +184,9 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
       setFollowersCount(data.data?.followers_count || 0);
       setFollowsCount(data.data?.follows_count || 0);
       toast.success(`🔥 Fetched ${fetched.length} followers! ${totalPersisted} total saved permanently.`);
+      // Invalidate cache so next load picks up new data
+      invalidateNamespace(accountId, "persisted_followers");
+      invalidateNamespace(accountId, "live_followers");
       setShowFetchSetup(false);
       setActiveTab("fetched");
     } catch (e: any) {
