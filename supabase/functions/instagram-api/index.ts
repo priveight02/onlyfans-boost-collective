@@ -1147,109 +1147,88 @@ serve(async (req) => {
 
       // ===== FOLLOWERS / FOLLOWING =====
       case "get_followers_list": {
-        // Instagram Graph API doesn't provide follower lists for IG Business accounts.
-        // We use the Facebook Page approach: get conversations (people who messaged us)
-        // and also use business_discovery to look up specific users.
-        // For actual follower data, we fetch from the IG API follower demographics
-        // and build a list from conversations + discovered users.
-        
-        const limit = params?.limit || 100;
-        const after = params?.after || "";
-        const pageInfo = await getPageId(token, igUserId);
-        
-        // Strategy: Get all conversation participants as "followers" proxy
-        // This gives us people who have interacted via DM
-        const convosUrl = pageInfo
-          ? `/${pageInfo.pageId}/conversations?fields=participants,id,updated_time&limit=${limit}&platform=instagram${after ? `&after=${after}` : ""}`
-          : null;
-        
+        // Strategy: Pull contacts from DB conversations (reliable) + IG conversations API
         let followers: any[] = [];
-        let paging: any = null;
+        const seen = new Set<string>();
         
-        if (convosUrl && pageInfo) {
-          const convosData = await fbFetch(convosUrl, pageInfo.pageToken);
-          paging = convosData?.paging;
-          const seen = new Set<string>();
-          
-          for (const convo of (convosData?.data || [])) {
+        // 1. Pull from existing DB conversations (instant, always works)
+        const { data: dbConvos } = await supabase
+          .from("ai_dm_conversations")
+          .select("participant_id, participant_name, participant_username, participant_avatar_url")
+          .eq("account_id", account_id)
+          .order("last_message_at", { ascending: false });
+        
+        for (const c of (dbConvos || [])) {
+          if (!c.participant_id || seen.has(c.participant_id)) continue;
+          seen.add(c.participant_id);
+          followers.push({
+            id: c.participant_id,
+            name: c.participant_name || c.participant_username || "Unknown",
+            username: c.participant_username || c.participant_id,
+            profile_pic: c.participant_avatar_url || null,
+            source: "conversation",
+          });
+        }
+
+        // 2. Also try IG conversations API to find any not yet in DB
+        try {
+          const convosResp = await igFetch(`/${igUserId}/conversations?fields=participants,id,updated_time&limit=100&platform=instagram`, token);
+          for (const convo of (convosResp?.data || [])) {
             for (const p of (convo?.participants?.data || [])) {
-              // Skip our own page
-              if (p.id === pageInfo.pageId || p.id === igUserId) continue;
-              if (seen.has(p.id)) continue;
+              if (p.id === igUserId || seen.has(p.id)) continue;
               seen.add(p.id);
-              
-              // Try to get profile pic
-              let profilePic = null;
-              let username = null;
-              try {
-                const profileResp = await fetch(`${FB_GRAPH_URL}/${p.id}?fields=name,profile_pic,username&access_token=${pageInfo.pageToken}`);
-                const profileData = await profileResp.json();
-                profilePic = profileData?.profile_pic || null;
-                username = profileData?.username || null;
-              } catch {}
-              
               followers.push({
                 id: p.id,
                 name: p.name || "Unknown",
-                username: username || p.name?.toLowerCase().replace(/\s+/g, '') || p.id,
-                profile_pic: profilePic,
-                source: "dm_participant",
+                username: p.name?.toLowerCase().replace(/\s+/g, '') || p.id,
+                profile_pic: null,
+                source: "ig_api",
               });
             }
           }
+        } catch (e: any) {
+          console.log("IG conversations API fallback failed:", e.message);
         }
         
-        // Also get follower count for reference
-        const profile = await igFetch(`/${igUserId}?fields=followers_count,follows_count`, token);
+        // Get follower count
+        let followersCount = 0, followsCount = 0;
+        try {
+          const profile = await igFetch(`/${igUserId}?fields=followers_count,follows_count`, token);
+          followersCount = profile?.followers_count || 0;
+          followsCount = profile?.follows_count || 0;
+        } catch {}
         
         result = {
           followers,
-          followers_count: profile?.followers_count || 0,
-          follows_count: profile?.follows_count || 0,
-          paging,
+          followers_count: followersCount,
+          follows_count: followsCount,
         };
         break;
       }
 
       case "send_bulk_messages": {
-        // Send message to multiple recipients
+        // Send message to multiple recipients using the IG send API (same as send_message)
         const recipients = params?.recipients || [];
         const message = params?.message || "";
         if (!message) throw new Error("Message text required");
         
-        const pageInfo = await getPageId(token, igUserId);
-        if (!pageInfo) throw new Error("No linked Facebook Page found for sending messages");
-        
         const results: any[] = [];
         for (const recipient of recipients) {
           try {
-            const sendResp = await fetch(`${FB_GRAPH_URL}/${pageInfo.pageId}/messages`, {
+            // Use the same send mechanism as the working send_message action
+            const sendResp = await fetch(`${IG_GRAPH_URL}/${igUserId}/messages`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 recipient: { id: recipient.id },
                 message: { text: message },
-                messaging_type: "MESSAGE_TAG",
-                tag: "CONFIRMED_EVENT_UPDATE",
-                access_token: pageInfo.pageToken,
+                access_token: token,
               }),
             });
             const sendData = await sendResp.json();
             
             if (sendData.error) {
-              // Try without tag (for users within 24h window)
-              const retryResp = await fetch(`${FB_GRAPH_URL}/${pageInfo.pageId}/messages`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  recipient: { id: recipient.id },
-                  message: { text: message },
-                  messaging_type: "RESPONSE",
-                  access_token: pageInfo.pageToken,
-                }),
-              });
-              const retryData = await retryResp.json();
-              results.push({ id: recipient.id, name: recipient.name, success: !retryData.error, error: retryData.error?.message });
+              results.push({ id: recipient.id, name: recipient.name, success: false, error: sendData.error.message });
             } else {
               results.push({ id: recipient.id, name: recipient.name, success: true, message_id: sendData.message_id });
             }
@@ -1257,7 +1236,7 @@ serve(async (req) => {
             results.push({ id: recipient.id, name: recipient.name, success: false, error: e.message });
           }
           
-          // Rate limit: small delay between sends
+          // Rate limit
           await new Promise(r => setTimeout(r, 500));
         }
         
