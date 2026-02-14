@@ -1319,25 +1319,57 @@ ${autoConfig.trigger_keywords ? `if they mention any of these: ${autoConfig.trig
       }
 
       case "generate_opener": {
-        // Generate a conversation opener using the AI persona
-        const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-        if (!LOVABLE_API_KEY) throw new Error("AI API key not configured");
+        // Generate a short, impactful conversation opener synced with active persona
+        let personaPrompt = DEFAULT_PERSONA;
+        if (account_id) {
+          const { data: persona } = await supabase
+            .from("persona_profiles")
+            .select("*")
+            .eq("account_id", account_id)
+            .single();
+          if (persona) {
+            personaPrompt += `\n\n--- ACTIVE PERSONA OVERRIDE ---
+Tone: ${persona.tone}
+Vocabulary Style: ${persona.vocabulary_style}
+Emotional Range: ${persona.emotional_range || "default"}
+${persona.boundaries ? `Hard Boundaries: ${persona.boundaries}` : ""}
+${persona.brand_identity ? `Brand Identity: ${persona.brand_identity}` : ""}
+${persona.communication_rules ? `Communication Rules: ${JSON.stringify(persona.communication_rules)}` : ""}
+Follow these persona settings strictly.`;
+          }
+        }
 
-        const openerResp = await fetch("https://api.lovable.dev/v1/chat/completions", {
+        const openerResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${LOVABLE_API_KEY}` },
           body: JSON.stringify({
-            model: "google/gemini-2.5-flash",
+            model: "google/gemini-3-flash-preview",
             messages: [
-              { role: "system", content: DEFAULT_PERSONA + "\n\nGenerate ONLY a single opening DM message to start a conversation with a new follower. This is the FIRST message - make it casual, intriguing, and subtly suggestive. Keep it 5-15 words. Output ONLY the message text, nothing else." },
-              { role: "user", content: "Generate a conversation opener for a new follower DM." },
+              { role: "system", content: personaPrompt + `\n\nYou are generating a FIRST DM opener to a new follower. Rules:
+- MAXIMUM 1 sentence, ideally 3-8 words
+- Must be intriguing enough they WANT to reply
+- Casual, confident, slightly mysterious
+- No generic "hey how are you" type messages
+- Make them curious about you
+- Stay in character with the persona above
+- Output ONLY the message text, absolutely nothing else
+- No quotes, no labels, no explanations` },
+              { role: "user", content: "Generate one short DM opener." },
             ],
-            temperature: 0.9,
-            max_tokens: 100,
+            temperature: 0.95,
+            max_tokens: 60,
           }),
         });
+
+        if (!openerResp.ok) {
+          if (openerResp.status === 429) throw new Error("Rate limited - try again in a moment");
+          if (openerResp.status === 402) throw new Error("AI credits exhausted");
+          throw new Error(`AI gateway error: ${openerResp.status}`);
+        }
+
         const openerData = await openerResp.json();
-        const openerMsg = openerData?.choices?.[0]?.message?.content?.trim() || "hey cutie, noticed u following me 💕 whats good";
+        let openerMsg = (openerData?.choices?.[0]?.message?.content || "").replace(/^["']|["']$/g, "").trim();
+        if (!openerMsg) openerMsg = "u caught my attention ngl";
         result = { message: openerMsg };
         break;
       }
