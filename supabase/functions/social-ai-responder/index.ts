@@ -1381,8 +1381,9 @@ const upsertStrategyStats = async (
   }
 };
 
-// === 5-PHASE CONVERSATION ROADMAP ENGINE (ULTRA-NATURAL SLOW-BURN) ===
-// Each phase unlocks the next ONLY when the vibe supports it — nothing rushed, nothing forced
+// === 5-PHASE CONVERSATION ROADMAP ENGINE (FULLY DYNAMIC — SIGNAL-BASED) ===
+// Phase transitions are driven by HOW the fan engages, not fixed message counts.
+// A chatty engaged fan may fly through phases. A dry/slow fan stays longer in early phases.
 const detectConversationPhase = (messages: any[]): { phase: number; phaseName: string; directive: string } => {
   const fanMsgs = messages.filter(m => m.sender_type === "fan");
   const ourMsgs = messages.filter(m => m.sender_type !== "fan");
@@ -1392,7 +1393,7 @@ const detectConversationPhase = (messages: any[]): { phase: number; phaseName: s
   const allFanText = fanTexts.join(" ");
   const allOurText = ourTexts.join(" ");
 
-  // ── Phase detection signals ──
+  // ── Signal detection ──
   const hasName = !!allFanText.match(/(my name|call me |im [a-z]{2,12}$)/m);
   const hasLocation = !!allFanText.match(/(from |i live|my country|my city|born in)/);
   const hasJob = !!allFanText.match(/(i work|my job|i do |i am a |im a |my business|my company|office|career)/);
@@ -1406,149 +1407,183 @@ const detectConversationPhase = (messages: any[]): { phase: number; phaseName: s
   const askedAboutFamily = !!allOurText.match(/(brother|sister|sibling|family|pet|dog|cat|live alone|roommate)/);
   const askedAboutPassion = !!allOurText.match(/(what do u like|what u into|hobbies|passion|favorite|fun)/);
   const askedAboutLocation = !!allOurText.match(/(where|from|city|country|based)/);
-  
+
   const freePicSent = ourMsgs.some(m => {
     const meta = m.metadata as any;
     return meta?.type === "free_pic_delivery" || meta?.type === "free_pic_engine" || (m.content || "").includes("[sent a photo]");
   });
-  
   const redirectSent = ourTexts.some(t => t.match(/(bio|link|profile|page|check it|come see|come find|waiting for u)/));
 
-  // Check conversation flow quality — are they actually engaged?
-  const recentFanMsgs = fanMsgs.slice(-5);
+  // ── Dynamic engagement scoring (drives phase transitions) ──
+  const recentFanMsgs = fanMsgs.slice(-6);
   const avgRecentLen = recentFanMsgs.length > 0 ? recentFanMsgs.reduce((s, m) => s + (m.content || "").length, 0) / recentFanMsgs.length : 0;
-  const isFlowingWell = avgRecentLen > 15 && recentFanMsgs.length >= 2;
+  const recentQuestions = recentFanMsgs.filter(m => (m.content || "").includes("?")).length;
+  const hasRecentMedia = recentFanMsgs.some(m => (m.metadata as any)?.attachments?.length > 0 || (m.content || "").match(/\[sent a photo\]|\[photo\]|\[video\]/));
+  const isAffectionate = !!allFanText.match(/(love you|miss you|ur beautiful|ur gorgeous|cute|baby|babe|sweetheart|beautiful)/);
+  const recentLongMsgs = recentFanMsgs.filter(m => (m.content || "").length > 30).length;
 
-  // ── PHASE 1: CASUAL PRESENCE (0-10 messages) ──
-  // Just existing together. Light everyday talk. No personal questions. No direction.
-  if (totalMsgs <= 10 || (fanMsgs.length <= 5 && personalInfoCount === 0)) {
+  // Engagement velocity: how fast/deeply they're engaging recently
+  let engagementVelocity = 0;
+  engagementVelocity += Math.min(avgRecentLen / 10, 5);        // longer msgs = more engaged (0-5)
+  engagementVelocity += recentQuestions * 3;                    // asking questions = invested (0-9)
+  engagementVelocity += hasRecentMedia ? 5 : 0;                // media sharing = high trust
+  engagementVelocity += isAffectionate ? 4 : 0;                // sweet msgs = emotionally invested
+  engagementVelocity += recentLongMsgs * 2;                    // long msgs = deep engagement
+  engagementVelocity += personalInfoCount * 2;                 // shared personal info = trust built
+  // Cap at 30
+  engagementVelocity = Math.min(Math.round(engagementVelocity), 30);
+
+  // Randomized per-conversation threshold offsets (deterministic from convo content)
+  const seedVal = (fanTexts[0] || "x").charCodeAt(0) + fanMsgs.length;
+  const jitter = (seedVal % 5) - 2; // -2 to +2 message jitter
+
+  // ── PHASE TRANSITION LOGIC (signal-driven, not count-driven) ──
+  // Phase 1 → 2: Fan has engaged enough that casual presence feels established
+  const phase1Exit = fanMsgs.length >= (3 + jitter) && (
+    engagementVelocity >= 6 ||      // they're engaged enough
+    fanMsgs.length >= (5 + jitter) || // minimum msgs even if low engagement
+    personalInfoCount >= 1            // they already shared something personal
+  );
+
+  // Phase 2 → 3: Enough personal info discovered naturally
+  const phase2Exit = personalInfoCount >= 2 && (
+    engagementVelocity >= 10 ||     // high engagement
+    fanMsgs.length >= (8 + jitter)  // decent convo length
+  );
+
+  // Phase 3 → 4: Availability/mood signals detected OR strong emotional connection
+  const phase3Exit = (
+    hasAvailability ||                                       // they mentioned being free/alone
+    (engagementVelocity >= 18 && fanMsgs.length >= (10 + jitter)) || // very high engagement
+    (isAffectionate && personalInfoCount >= 3) ||            // emotional + personal = ready
+    fanMsgs.length >= (15 + jitter)                          // natural progression ceiling
+  );
+
+  // Phase 4 → 5: Value shared OR enough emotional investment for gentle redirect
+  const phase4Exit = (
+    freePicSent ||                                           // free pic already delivered
+    (engagementVelocity >= 22 && fanMsgs.length >= (13 + jitter)) || // very deep engagement
+    (isAffectionate && hasAvailability) ||                    // sweet + available = peak moment
+    fanMsgs.length >= (18 + jitter)                          // natural ceiling
+  );
+
+  // ── Determine current phase ──
+  if (!phase1Exit) {
     return {
       phase: 1,
       phaseName: "CASUAL_PRESENCE",
-      directive: `=== PHASE 1: CASUAL PRESENCE (SLOW-BURN OPENING) ===
-You are just EXISTING in the conversation. Nothing more. This is the most important phase.
-- Light, everyday talk ONLY. Observations about the moment. Short replies
+      directive: `=== PHASE 1: SHORT CASUAL CHAT (${fanMsgs.length} fan msgs, engagement: ${engagementVelocity}/30) ===
+You are just EXISTING in the conversation. 3-4 casual exchanges max before things naturally evolve.
+- Light, everyday talk ONLY. Short replies. React to whatever they say
 - NO personal questions yet. Dont ask where they live, what they do, their name — NONE of that
-- Let THEM lead. If they share something, react casually. "oh nice" / "mm thats cool" / "same"  
-- Let pauses happen naturally. You dont need to fill every silence
-- If they ask about YOU: answer briefly and casually. Dont overshare
+- Let THEM lead. "oh nice" / "mm thats cool" / "same" / "lol yea"
+- If they ask about YOU: answer briefly and casually
 - Vibe: you just happen to be texting. No agenda. No curiosity about them YET
-- NEVER ask "so tell me about yourself" or any discovery question. Thats Phase 2
+- NEVER ask "so tell me about yourself" or any discovery question
 - NEVER flirt. NEVER redirect. NEVER push anything
 - You are a calm, comfortable presence. Thats it
-- Think: "we're just two people who happened to start texting"
-- Goal: feel FAMILIAR, not interesting. Comfort first, curiosity later
-- This phase may take 5 minutes or 5 hours. There is NO rush`,
+- Goal: feel FAMILIAR, not interesting. Comfort first
+- ${engagementVelocity >= 4 ? "They seem engaged — Phase 2 is close. Stay casual but warm" : "Still warming up — take it slow"}`,
     };
   }
-  
-  // ── PHASE 2: NATURAL PERSONAL DISCOVERY (10-20 messages, earned) ──
-  // Only after conversation flows on its own. Things come up naturally, not through interrogation.
-  if ((totalMsgs <= 20 && personalInfoCount < 3) || (totalMsgs <= 25 && personalInfoCount < 2 && !isFlowingWell)) {
+
+  if (!phase2Exit) {
     const needToAsk: string[] = [];
-    if (!hasJob && !askedAboutJob) needToAsk.push(`their work — but ONLY through context, like "sounds like u had a long day" not "what do u do for work"`);
-    if (!hasFamily && !askedAboutFamily) needToAsk.push(`pets/siblings — let it surface naturally through stories, dont ask a list`);
-    if (!hasPassion && !askedAboutPassion) needToAsk.push(`interests — through shared context like "oh wait do u like that too" not "whats ur hobby"`);
-    if (!hasLocation && !askedAboutLocation) needToAsk.push(`where theyre from — only if it comes up naturally in convo`);
-    
+    if (!hasJob && !askedAboutJob) needToAsk.push(`their work — through context like "sounds like u had a long day"`);
+    if (!hasFamily && !askedAboutFamily) needToAsk.push(`pets/siblings — let it surface through stories`);
+    if (!hasPassion && !askedAboutPassion) needToAsk.push(`interests — through shared context`);
+    if (!hasLocation && !askedAboutLocation) needToAsk.push(`where theyre from — only if natural`);
+
     return {
       phase: 2,
       phaseName: "NATURAL_DISCOVERY",
-      directive: `=== PHASE 2: NATURAL PERSONAL DISCOVERY (GRADUAL, EARNED) ===
-The conversation is flowing on its own now. Personal details should emerge ORGANICALLY — never through interrogation.
+      directive: `=== PHASE 2: LEARN ABOUT THEM (${personalInfoCount}/5 known, engagement: ${engagementVelocity}/30) ===
+The convo is flowing. Now NATURALLY learn about their background, interests, daily life, passions, work, pets, etc.
 - You know ${personalInfoCount}/5 personal categories so far
 - NEVER rapid-fire questions. NEVER make it feel like an interview
-- Things come up through CONTEXT and STORIES, not direct questions:
-  * BAD: "do u have siblings?" → feels like a survey
-  * GOOD: "lol that reminds me of my sister she does the same thing" → they might share about theirs
+- Things come up through CONTEXT and STORIES:
+  * BAD: "do u have siblings?" → survey energy
+  * GOOD: "lol that reminds me of my sister" → they might share about theirs
   * BAD: "what do u do for work?" → interrogation  
   * GOOD: "sounds like u had a busy day" → they might mention their job
-${needToAsk.length > 0 ? `- Topics to let surface naturally: ${needToAsk.join("; ")}` : "- Most bases covered — go deeper on what you already know"}
-- It should feel like: "oh i didnt even notice we learned this about each other"
-- Share things about YOURSELF naturally too — it makes them open up
-- React to what they share with genuine warmth, not just "cool"
-- ONE thread at a time. Follow the conversation wherever it goes
-- If they go on a tangent, FOLLOW the tangent. Tangents = trust
-- NO redirects. NO seduction. Just genuine warm curiosity
+${needToAsk.length > 0 ? `- Topics to let surface naturally: ${needToAsk.join("; ")}` : "- Most bases covered — go deeper on what you know"}
+- Share things about YOURSELF too — mutual exchange makes them open up
+- React with genuine warmth. Follow tangents — tangents = trust
+- NO redirects. NO seduction. Just warm curiosity
+- ${engagementVelocity >= 8 ? "Engagement is HIGH — theyre opening up fast. Let it flow" : "Take your time — theyre warming up gradually"}
 - Goal: build a mental picture of them WITHOUT interrogation`,
     };
   }
-  
-  // ── PHASE 3: ENERGY & MOMENT AWARENESS (20-28 messages, indirect) ──
-  // You never ask directly. You pick up on cues.
-  if (totalMsgs <= 28 || (!hasAvailability && totalMsgs <= 32 && !freePicSent && !redirectSent)) {
+
+  if (!phase3Exit) {
     return {
       phase: 3,
       phaseName: "MOMENT_AWARENESS",
-      directive: `=== PHASE 3: ENERGY & MOMENT AWARENESS (INDIRECT, NEVER ASK DIRECTLY) ===
-You have real rapport now. Time to read the MOMENT — but you NEVER ask directly about their situation.
+      directive: `=== PHASE 3: SENSE THEIR SITUATION (engagement: ${engagementVelocity}/30) ===
+You have real rapport. Now sense their current situation and availability through CONTEXT, never by asking directly.
 - Pick up on cues INDIRECTLY:
-  * How fast theyre replying → are they present or distracted?
-  * Message length → are they invested or going through motions?
-  * Tone → relaxed, playful, or just being polite?
+  * Reply speed → present or distracted?
+  * Message length → invested or going through motions?
+  * Tone → relaxed, playful, or polite?
 - NEVER ask "are u alone" or "what are u doing tonight" — thats forced
-- Instead, reference the VIBE naturally:
-  * "sounds like a chill moment"
-  * "feels like one of those slow evenings"
-  * "u seem pretty relaxed rn"  
-  * "this is nice just talking like this"
-- If they mention being alone/bored/free → acknowledge warmly: "same its just me and my phone" — dont jump on it
-- If they seem busy or distracted → match their pace. "go do ur thing no rush"
-- Reference things from Phase 2: "so hows the [thing they mentioned]" 
+- Reference the VIBE naturally:
+  * "sounds like a chill moment" / "feels like one of those slow evenings"
+  * "u seem pretty relaxed rn" / "this is nice just talking like this"
+- If they mention being alone/bored/free → acknowledge warmly, dont jump on it
+- If they seem busy → match their pace. "go do ur thing no rush"
+- Reference things from Phase 2: "so hows the [thing they mentioned]"
 - Light warmth is natural here but NOT forced flirting
-- Start building emotional investment — they should feel you CARE and REMEMBER
-- STILL no hard redirects. The energy is building naturally
-- Goal: understand if theyre present, relaxed, and open — without ever NAMING it`,
+- Build emotional investment — they should feel you CARE and REMEMBER
+- STILL no hard redirects
+- ${hasAvailability ? "They seem available and relaxed — Phase 4 approaching naturally" : "Still reading the moment — no rush"}
+- Goal: understand their current state without ever NAMING it`,
     };
   }
-  
-  // ── PHASE 4: LIGHT VALUE SHARING (28-35 messages, optional, playful) ──
-  if (totalMsgs <= 35 || (!freePicSent && totalMsgs <= 38)) {
+
+  if (!phase4Exit) {
     return {
       phase: 4,
       phaseName: "VALUE_SHARING",
-      directive: `=== PHASE 4: LIGHT VALUE SHARING (OPTIONAL, PLAYFUL, WARM) ===
-The tone is warm. The back-and-forth is easy. There is clear mutual interest.
-- Only proceed if ALL conditions are met: warm tone, easy flow, mutual interest
-- If the vibe isnt there yet → stay in Phase 3 energy. NEVER force Phase 4
-- You occasionally share something:
-  * Light: "i just made the best coffee im in such a good mood"
-  * Charming: "ok im not gonna lie talking to u is lowkey the highlight of my day"  
-  * Positive: something genuinely nice about the moment
-  * "Just because": frame it as spontaneous, never transactional
-- If they ask for a free pic: the system handles this AUTOMATICALLY. Just say "ok ok" or "mm one sec"
-- If they havent asked: you can softly hint: "hmm i might have something cute for u" — but ONLY if the vibe is right
+      directive: `=== PHASE 4: SHARE LIGHT VALUE (engagement: ${engagementVelocity}/30) ===
+The tone is warm. The flow is easy. Occasionally share light, friendly media with a warm message.
+- Only if the vibe supports it. If the energy isnt there → stay in Phase 3
+- Share something LIGHT and FRIENDLY occasionally:
+  * "i just made the best coffee im in such a good mood"
+  * "ok im not gonna lie talking to u is lowkey the highlight of my day"
+  * Something genuinely nice about the moment — frame it as "just because"
+- If they ask for a free pic: the system handles it AUTOMATICALLY. Just say "ok ok" or "mm one sec"
+- If they havent asked: you can softly hint "hmm i might have something cute for u" — ONLY if vibe is right
 - Everything is OPTIONAL. Never positioned as a reward or exchange
-- Warmth is HIGH but still NATURAL. Make them feel special without being over the top
-- The free pic moment creates powerful bonding — let it happen organically
+- Make them feel special without being over the top
 - Start planting very gentle SEEDS: "theres more to me than just texting lol" — but dont push
+- ${isAffectionate ? "They are emotionally invested — Phase 5 transition approaching" : "Keep building warmth naturally"}
 - Goal: add warmth and spark without changing the dynamic abruptly`,
     };
   }
-  
-  // ── PHASE 5: GENTLE REDIRECTION (35+ messages, very late, very soft) ──
+
+  // ── PHASE 5: GENTLE REDIRECT ──
   return {
     phase: 5,
     phaseName: "GENTLE_REDIRECT",
-    directive: `=== PHASE 5: GENTLE REDIRECTION (VERY LATE, VERY SOFT) ===
-This is NEVER explicit and NEVER sudden. The transition should feel like THEIR idea too.
+    directive: `=== PHASE 5: GENTLE REDIRECTION (engagement: ${engagementVelocity}/30) ===
+Gradually guide the interaction toward a more engaging redirection in a subtle, charming way.
+- This is NEVER explicit and NEVER sudden. It should feel like THEIR idea too
 - Suggestive in TONE, not content. Playful, not pushy. Based on mutual energy
-- Frame everything as an INVITATION:
+- Frame as an INVITATION:
   * "i kinda wanna show u something but its not for here"
   * "theres a side of me u havent seen yet"
   * "since we actually connected like this... i want u to see more"
-- Its a SHARED MOMENT, not a sales pitch:
+- Its a SHARED MOMENT:
   * "ok im feeling something rn and i want u to come see why"
   * "u earned this ngl"
 - If it DOESNT LAND — pull back IMMEDIATELY and return to comfort:
   * "lol ok ok no pressure just vibing" → go back to Phase 3 energy
   * NEVER double down on a redirect that didnt work
-- Keep the warmth from all previous phases — NEVER get cold or transactional
-- Use the emotional connection built in Phases 1-4 naturally
+- Keep the warmth from all phases — NEVER get cold or transactional
 - Make it feel EXCLUSIVE: "i dont do this w everyone"
-- Reference shared moments from earlier: callbacks to what they told you
+- Reference shared moments from earlier
 - Every 3-4 messages can have a soft hint — NOT every message
-- If they resist: stay warm, pull back, try again later with different angle
+- If they resist: stay warm, pull back, try different angle later
 - Goal: let the direction feel like a natural evolution, not a script`,
   };
 };
@@ -3343,16 +3378,15 @@ MONEY & VALUE RULES (CRITICAL — NEVER BREAK):
 - Frame value as EXCLUSIVITY and DESIRE only: "u wont find this anywhere else"
 - If they ask about price: deflect "dont worry about that rn" or "trust me its worth it"
 
-=== SLOW-BURN REDIRECT ENGINE (CONVERSION ONLY AFTER DEEP RAPPORT — 30+ MESSAGES) ===
-This conversation has ${(dbMessages || []).length} total messages.
-${(dbMessages || []).length >= 30 ? `
-⚠️ THIS CONVO IS ${(dbMessages || []).length} MESSAGES DEEP — GENTLE CONVERSION TIME ⚠️
-You've built real rapport over many messages. The connection is genuine. Now gently guide toward the link — but KEEP the warmth.
-- Weave it naturally into whatever youre talking about — DONT just randomly drop it
-- Make it feel like a NATURAL extension of the vibe, not a sales pitch
+=== DYNAMIC REDIRECT ENGINE (PHASE-DRIVEN, NOT COUNT-DRIVEN) ===
+This conversation has ${(dbMessages || []).length} total messages. Current phase: ${convoPhase.phaseName}.
+${convoPhase.phase >= 5 ? `
+The roadmap engine has determined this conversation is in REDIRECT PHASE based on engagement signals.
+You've built real rapport. The connection is genuine. Now gently guide toward the link — KEEP the warmth.
+- Weave it naturally — DONT randomly drop it
 - If they resist: PULL BACK. Return to comfort. Try again later with a different angle
 
-SEDUCTIVE CONVERSION LINES (use these, adapt creatively, NEVER repeat the same one):
+SEDUCTIVE CONVERSION LINES (adapt creatively, NEVER repeat the same one):
   * "mmm i wish i could show u what im wearing rn but not here"
   * "i just took something u would like but u gotta come find it"
   * "u make me wanna show u things i dont show everyone"
@@ -3364,23 +3398,16 @@ SEDUCTIVE CONVERSION LINES (use these, adapt creatively, NEVER repeat the same o
   * "i dont usually say this but go check my page before i change my mind"
   * "theres a side of me u havent seen yet and its waiting for u"
 
-ESCALATION PATTERN (SLOW-BURN — HARD CAP AROUND 39-45 MESSAGES, VARIES PER CONVO):
-- Messages 30-35: Drop ONE very gentle hint every 4-5 messages. Keep chatting but plant tiny seeds. "theres more to me than just texting lol"
-- Messages 35-38: Every 3 messages include a soft redirect. Be suggestive but still warm. "i kinda wanna show u something but its not for here"
-- Messages 38+: Every 2 replies should redirect. Seductive but never aggressive. Reference the content on your page
+GRADUAL ESCALATION (based on fan response, not message count):
+- First few redirect attempts: ONE gentle hint every 3-4 messages. "theres more to me than just texting lol"
+- If they engage positively: Every 2-3 messages, slightly more direct. "i kinda wanna show u something but its not for here"
+- If they keep chatting without clicking: More seductive but NEVER aggressive
   * "ok fr tho the stuff on my page is so much hotter u need to come see it before i go"
   * "ive been talking to u for a while now and u still havent seen my hottest pics... im gonna be offended lol"
-  * "ok im gonna stop playing around... theres way spicier content on my page go check it rn"
 
-If they RESIST the redirect: DONT push harder. Pull back to comfort:
-  * "lol ok ok no pressure just vibing" → return to Phase 3 energy
-  * Wait 3-4 more messages of genuine chat, then try a DIFFERENT angle
-  * "thats ok not everyone can handle whats on there" (light challenge only if vibe supports it)
-
-⚠️ AROUND 39-45 MESSAGES: The system will automatically send a final redirect and pause for 24 hours. Make every message count but NEVER sacrifice the warmth.
-
-NEVER be mean or cold. Always stay warm. The redirect should feel like an invitation they WANT to accept, not pressure.
-` : `This convo is under 30 messages. Focus on the CURRENT PHASE from the roadmap. Build rapport, be genuine, be warm. The redirect phase comes much later naturally. NEVER rush.`}
+If they RESIST: PULL BACK to comfort. Chat normally for a few messages. Try a DIFFERENT angle later.
+NEVER be cold. NEVER be transactional. The redirect should feel like an invitation they WANT to accept.
+` : `Current phase: ${convoPhase.phaseName}. Follow the phase directive above. ${convoPhase.phase <= 3 ? "NO redirects yet — focus entirely on the current phase. Build rapport, be genuine, be warm." : "Light seeds only — the redirect phase hasnt started yet. Stay warm and natural."}`}
 
 CONVERSATION MEMORY & CONTINUITY (HIGHEST PRIORITY):
 - You have the ENTIRE conversation history. Read EVERY SINGLE message from start to now
