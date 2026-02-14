@@ -147,6 +147,37 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
     setLoading(false);
   }, []);
 
+  // Fetch fresh messages from IG API to get attachments/media
+  const fetchIGMessages = async (convoId: string) => {
+    const convo = conversations.find(c => c.id === convoId);
+    if (!convo?.platform_conversation_id) return;
+    try {
+      const { data, error } = await supabase.functions.invoke("instagram-api", {
+        body: { action: "get_conversation_messages", account_id: accountId, params: { conversation_id: convo.platform_conversation_id, limit: 50 } },
+      });
+      if (error || !data?.success) return;
+      const igMessages = data.data?.messages?.data || [];
+      let updated = false;
+      for (const igMsg of igMessages) {
+        if (igMsg.attachments) {
+          const { data: updatedRows } = await supabase.from("ai_dm_messages")
+            .update({ metadata: { attachments: igMsg.attachments?.data || igMsg.attachments } })
+            .eq("platform_message_id", igMsg.id)
+            .select("id");
+          if (updatedRows && updatedRows.length > 0) updated = true;
+        }
+      }
+      if (updated) {
+        const { data: freshMsgs } = await supabase
+          .from("ai_dm_messages")
+          .select("*")
+          .eq("conversation_id", convoId)
+          .order("created_at", { ascending: true });
+        if (freshMsgs) setMessages(freshMsgs as Message[]);
+      }
+    } catch {}
+  };
+
   // Scan ALL conversations from Instagram
   const scanAllConversations = useCallback(async (silent = false) => {
     if (!accountId) return;
@@ -183,7 +214,7 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
     }
   }, [accountId, loadConversations, addLog]);
 
-  // Initial load
+
   useEffect(() => {
     if (accountId) {
       checkConnection();
@@ -196,6 +227,7 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
   useEffect(() => {
     if (selectedConvo) {
       loadMessages(selectedConvo);
+      fetchIGMessages(selectedConvo);
       supabase.from("ai_dm_conversations").update({ is_read: true }).eq("id", selectedConvo).then();
     }
   }, [selectedConvo, loadMessages]);
@@ -712,7 +744,37 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
                                       : "bg-primary text-primary-foreground"
                                     : "bg-muted/60 text-foreground"
                                 }`}>
-                                  <p className="text-[13px] leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                                  {(() => {
+                                    const attachments = msg.metadata?.attachments;
+                                    const hasMedia = Array.isArray(attachments) && attachments.length > 0;
+                                    if (hasMedia) {
+                                      return (
+                                        <div>
+                                          {attachments.map((att: any, i: number) => {
+                                            const url = att.file_url || att.image_data?.url || att.video_data?.url || att.url;
+                                            const mimeType = att.mime_type || "";
+                                            if (!url) return null;
+                                            if (mimeType.startsWith("video") || att.video_data) {
+                                              return <video key={i} src={url} controls className="max-w-full rounded-lg max-h-48 mb-1" />;
+                                            }
+                                            return <img key={i} src={url} alt="" className="max-w-full rounded-lg max-h-48 mb-1" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />;
+                                          })}
+                                          {msg.content && msg.content !== "[media]" && (
+                                            <p className="text-[13px] leading-relaxed mt-1 whitespace-pre-wrap">{msg.content}</p>
+                                          )}
+                                        </div>
+                                      );
+                                    }
+                                    if (msg.content === "[media]") {
+                                      return (
+                                        <div className="flex items-center gap-1.5 opacity-70">
+                                          <ImageIcon className="h-4 w-4" />
+                                          <span className="text-[13px] italic">Photo/Video</span>
+                                        </div>
+                                      );
+                                    }
+                                    return <p className="text-[13px] leading-relaxed whitespace-pre-wrap">{msg.content}</p>;
+                                  })()}
                                 </div>
 
                                 {/* Message meta */}

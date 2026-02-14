@@ -628,26 +628,38 @@ Rules:
         const ourIdScan = igConnScan.platform_user_id;
         const ourUsernameScan = igConnScan.platform_username?.toLowerCase() || "";
         
-        // Helper: find the fan (non-owner) participant with multiple fallback checks
-        const findFanParticipant = (participants: any[]) => {
+        // Helper: find the fan (non-owner) participant using name + message-based detection
+        const findFanParticipant = (participants: any[], msgs?: any[]) => {
           if (!participants || participants.length === 0) return null;
-          // Try by ID match first
-          const byId = participants.find((p: any) => p.id !== ourIdScan);
-          if (byId && participants.length === 2) return byId;
-          // Try by username match (in case IDs are in different formats)
+          if (participants.length === 1) return participants[0];
+          
+          // Method 1: Match by name/username (most reliable for IG)
           if (ourUsernameScan) {
-            const byUsername = participants.find((p: any) => 
-              (p.username || p.name || "").toLowerCase() !== ourUsernameScan
-            );
-            if (byUsername) return byUsername;
+            const fan = participants.find((p: any) => {
+              const pName = (p.name || p.username || "").toLowerCase();
+              return pName !== ourUsernameScan && pName !== "";
+            });
+            if (fan) return fan;
           }
-          // If only 2 participants and one matches our ID or username, return the other
-          if (participants.length === 2) {
-            const isFirst = participants[0].id === ourIdScan || (participants[0].username || "").toLowerCase() === ourUsernameScan;
-            return isFirst ? participants[1] : participants[0];
+          
+          // Method 2: Match by stored ID
+          const byId = participants.find((p: any) => p.id !== ourIdScan);
+          if (byId) return byId;
+          
+          // Method 3: Use message from.name to determine our IGSU ID
+          if (msgs && msgs.length > 0) {
+            for (const msg of msgs) {
+              const fromName = (msg.from?.name || msg.from?.username || "").toLowerCase();
+              if (fromName === ourUsernameScan && msg.from?.id) {
+                const ourIgsuId = msg.from.id;
+                const fan = participants.find((p: any) => p.id !== ourIgsuId);
+                if (fan) return fan;
+              }
+            }
           }
-          // Last resort: return first participant that isn't obviously us
-          return participants.find((p: any) => p.id !== ourIdScan) || participants[0];
+          
+          // Fallback: return second participant (first is typically the page/business)
+          return participants[1] || participants[0];
         };
         let imported = 0;
         let totalFound = 0;
@@ -688,7 +700,7 @@ Rules:
               
               const messages = convo.messages?.data || [];
               const participants = convo.participants?.data || [];
-              const fan = findFanParticipant(participants);
+              const fan = findFanParticipant(participants, messages);
               if (!fan) continue;
 
               // Determine if last message is from fan using both ID and username matching
@@ -740,6 +752,9 @@ Rules:
                   (msgFromId !== ourIdScan && msgFromName !== ourUsernameScan) : 
                   true;
                 const msgTimestamp = msg.timestamp || msg.created_time;
+                const attachmentData = (msg.attachments || msg.sticker || msg.shares) 
+                  ? { attachments: msg.attachments?.data || msg.attachments, sticker: msg.sticker, shares: msg.shares } 
+                  : null;
                 await supabase.from("ai_dm_messages").insert({
                   conversation_id: dbConvo.id,
                   account_id,
@@ -749,6 +764,7 @@ Rules:
                   content: msgText || "[media]",
                   status: "sent",
                   created_at: msgTimestamp ? new Date(msgTimestamp).toISOString() : new Date().toISOString(),
+                  metadata: attachmentData,
                 });
               }
               imported++;
