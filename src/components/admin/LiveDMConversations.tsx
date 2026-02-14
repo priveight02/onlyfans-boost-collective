@@ -745,22 +745,22 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
           return prev;
         });
       } finally { pollState.inFlight = false; }
-    }, 500);
+    }, 300);
     return () => clearInterval(dbPollInterval);
   }, [selectedConvo, loadMessagesToCache]);
 
-  // IG API sync for selected convo — every 5s (throttled per-convo inside fetchIGMessages)
+  // IG API sync for selected convo — every 2.5s
   useEffect(() => {
     if (!selectedConvo) return;
     const resyncInterval = setInterval(async () => {
       if (syncInFlightRef.current) return;
       syncInFlightRef.current = true;
       try { await fetchIGMessages(selectedConvo); } finally { syncInFlightRef.current = false; }
-    }, 5000);
+    }, 2500);
     return () => clearInterval(resyncInterval);
   }, [selectedConvo, fetchIGMessages]);
 
-  // Background sync top 5 convos every 8s
+  // Background sync top 5 convos every 5s
   useEffect(() => {
     if (!accountId || conversations.length === 0) return;
     const bgSyncInterval = setInterval(async () => {
@@ -770,7 +770,7 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
         const top = conversations.filter(c => c.platform_conversation_id).slice(0, 5);
         for (const c of top) await fetchIGMessages(c.id, c);
       } finally { bgSyncInFlightRef.current = false; }
-    }, 8000);
+    }, 5000);
     return () => clearInterval(bgSyncInterval);
   }, [accountId, conversations, fetchIGMessages]);
 
