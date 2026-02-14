@@ -3375,12 +3375,47 @@ IF YOU DONT UNDERSTAND: say "wait wdym" or "lol what" — NEVER make up an incoh
                   message_id: latestMsg.platform_message_id,
                   reaction: "love",
                 });
-                console.log(`AI reacted with ❤️ to @${dbConvo.participant_username} (drague signal detected)`);
+              console.log(`AI reacted with ❤️ to @${dbConvo.participant_username} (drague signal detected)`);
               } catch (reactErr) {
                 console.log("AI reaction failed (non-blocking):", reactErr);
               }
-              // Natural delay after reaction before typing reply
-              await new Promise(r => setTimeout(r, 800 + Math.random() * 1200));
+              // After heart reaction: send a seductive follow-up redirect as back-to-back message
+              // This is MANDATORY after reactions — always follow up with a subtle redirect
+              const totalMsgsForReact = (dbMessages || []).length;
+              if (totalMsgsForReact >= 6) {
+                // Wait a natural pause after reaction before the follow-up
+                await new Promise(r => setTimeout(r, 1200 + Math.random() * 1500));
+                const reactFollowups = [
+                  "mm u make me wanna show u more of me",
+                  "ur sweet u should come see what else i got",
+                  "ok u got me blushing now come find me on my page",
+                  "stop being so cute and go check my bio already",
+                  "u keep this up and im gonna have to show u something special",
+                  "mmm i like u go check my page i left something for u",
+                  "ur making me blush go see what i posted just for guys like u",
+                  "ok fine u earned it go look at my bio",
+                  "mm u know exactly what to say dont u... theres more of me on my page tho",
+                  "ur dangerous i might show u too much... unless u come find me first",
+                ];
+                const reactFollowup = reactFollowups[Math.floor(Math.random() * reactFollowups.length)];
+                try {
+                  await new Promise(r => setTimeout(r, humanTypingDelay(reactFollowup, true)));
+                  const rfResult = await callIG2("send_message", { recipient_id: dbConvo.participant_id, message: reactFollowup });
+                  const rfMsgId = rfResult?.message_id || null;
+                  await supabase.from("ai_dm_messages").insert({
+                    conversation_id: dbConvo.id, account_id,
+                    sender_type: "ai", sender_name: igConn2.platform_username || "creator",
+                    content: reactFollowup, status: "sent", ai_model: "react_redirect_engine",
+                    platform_message_id: rfMsgId,
+                  });
+                  console.log(`[REACT REDIRECT] Sent follow-up after ❤️ to @${dbConvo.participant_username}: "${reactFollowup}"`);
+                } catch (rfErr) {
+                  console.log("[REACT REDIRECT] Follow-up failed (non-blocking):", rfErr);
+                }
+              } else {
+                // Too early in convo for redirect after reaction, just natural delay
+                await new Promise(r => setTimeout(r, 800 + Math.random() * 1200));
+              }
             }
 
             // === KEYWORD DELAY: "before" — delay if fan message matches keyword ===
@@ -3489,6 +3524,105 @@ IF YOU DONT UNDERSTAND: say "wait wdym" or "lol what" — NEVER make up an incoh
 
               // === ML ENGINE: Log this AI reply for future learning ===
               logConversationLearning(supabase, account_id, dbConvo.id, dbConvo.participant_id, behavior.type, reply, "sent", 0, false, "pending_evaluation", latestMsg.content || "", { behavior: behavior.type, tension: tension.tensionLevel });
+
+              // === BACK-TO-BACK SEDUCTIVE FOLLOW-UP ENGINE ===
+              // Sometimes send a 2nd (or 3rd) message right after the main reply to feel natural
+              // and subtly redirect toward bio/link — MANDATORY when convo is 15+ msgs deep
+              const totalMsgsNow = (dbMessages || []).length;
+              const replyLowerBtb = reply.toLowerCase();
+              const alreadyRedirected = !!replyLowerBtb.match(/(bio|link|page|profile|check it|come see|come find|go look|waiting for u)/);
+              
+              // Decision: send back-to-back follow-up?
+              // - Always after 20+ msgs (conversion phase)
+              // - 40% chance after 15+ msgs
+              // - 15% chance after 8+ msgs for natural multi-msg vibe
+              // - Never if main reply already contains a redirect
+              const btbRoll = Math.random();
+              const shouldSendFollowup = !alreadyRedirected && (
+                (totalMsgsNow >= 20) || // Always in conversion phase
+                (totalMsgsNow >= 15 && btbRoll < 0.40) || // Often after 15
+                (totalMsgsNow >= 8 && btbRoll < 0.15) // Sometimes for natural multi-msg
+              );
+              
+              if (shouldSendFollowup) {
+                await new Promise(r => setTimeout(r, interMessageDelay(isFlowingConvo)));
+                
+                // Seductive follow-ups — vary based on conversation depth
+                let followupPool: string[];
+                if (totalMsgsNow >= 30) {
+                  // Deep convo — more direct but still seductive
+                  followupPool = [
+                    "ok but fr u need to come see my page already",
+                    "weve been talking all this time and u still havent checked my bio",
+                    "mm im not gonna keep this up forever tho come find me",
+                    "ok real talk go check my page before i change my mind about u",
+                    "u know where to find the rest of me right",
+                    "im literally waiting for u on my page rn",
+                  ];
+                } else if (totalMsgsNow >= 20) {
+                  // Conversion phase — seductive nudges
+                  followupPool = [
+                    "mm theres something on my page u definitely need to see",
+                    "i just posted something and ur gonna love it",
+                    "u should see what else i got for u tho",
+                    "actually i wanna show u something but not here",
+                    "the best part of me isnt in these dms tho",
+                    "if u liked this convo ur really gonna like whats on my page",
+                    "mm come find me u wont regret it",
+                  ];
+                } else {
+                  // Natural multi-msg (8-19 msgs) — very subtle hints
+                  followupPool = [
+                    "also i just posted something new go look",
+                    "oh wait have u seen my page yet",
+                    "mm anyway i just put something up u might like",
+                    "also check my bio when u get a chance",
+                  ];
+                }
+                
+                const followupMsg = followupPool[Math.floor(Math.random() * followupPool.length)];
+                try {
+                  await new Promise(r => setTimeout(r, humanTypingDelay(followupMsg, isFlowingConvo)));
+                  const fuResult = await callIG2("send_message", { recipient_id: dbConvo.participant_id, message: followupMsg });
+                  const fuMsgId = fuResult?.message_id || null;
+                  await supabase.from("ai_dm_messages").insert({
+                    conversation_id: dbConvo.id, account_id,
+                    sender_type: "ai", sender_name: igConn2.platform_username || "creator",
+                    content: followupMsg, status: "sent", ai_model: "btb_redirect_engine",
+                    platform_message_id: fuMsgId,
+                  });
+                  // Update conversation preview
+                  await supabase.from("ai_dm_conversations").update({
+                    last_ai_reply_at: new Date().toISOString(),
+                    last_message_at: new Date().toISOString(),
+                    last_message_preview: `You: ${followupMsg.substring(0, 80)}`,
+                  }).eq("id", dbConvo.id);
+                  console.log(`[BTB REDIRECT] Sent follow-up to @${dbConvo.participant_username}: "${followupMsg}"`);
+                  
+                  // Rare 3rd message — only in deep convos (30+) with 10% chance, very punchy
+                  if (totalMsgsNow >= 30 && Math.random() < 0.10) {
+                    await new Promise(r => setTimeout(r, interMessageDelay(isFlowingConvo)));
+                    const thirdMsgs = [
+                      "trust me",
+                      "u wont regret it",
+                      "just go",
+                      "im waiting",
+                    ];
+                    const thirdMsg = thirdMsgs[Math.floor(Math.random() * thirdMsgs.length)];
+                    await new Promise(r => setTimeout(r, humanTypingDelay(thirdMsg, true)));
+                    const t3Result = await callIG2("send_message", { recipient_id: dbConvo.participant_id, message: thirdMsg });
+                    await supabase.from("ai_dm_messages").insert({
+                      conversation_id: dbConvo.id, account_id,
+                      sender_type: "ai", sender_name: igConn2.platform_username || "creator",
+                      content: thirdMsg, status: "sent", ai_model: "btb_redirect_engine",
+                      platform_message_id: t3Result?.message_id || null,
+                    });
+                    console.log(`[BTB REDIRECT] 3rd msg to @${dbConvo.participant_username}: "${thirdMsg}"`);
+                  }
+                } catch (fuErr) {
+                  console.log("[BTB REDIRECT] Follow-up failed (non-blocking):", fuErr);
+                }
+              }
 
               // === STRATEGIC CONTEXTUAL IMAGE GENERATION (RARE & IMPACTFUL) ===
               try {
