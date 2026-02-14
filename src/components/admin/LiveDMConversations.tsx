@@ -391,6 +391,49 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
     prefetchingRef.current = false;
   }, [accountId, fetchIGMessages, addLog, selectedConvo]);
 
+  // ===== FETCH PROFILE PICTURES FOR CONVERSATIONS =====
+  const fetchAvatars = useCallback(async (convos: Conversation[]) => {
+    // Find conversations missing avatars
+    const needAvatars = convos.filter(c => !c.participant_avatar_url && c.participant_id);
+    if (needAvatars.length === 0) return;
+
+    const userIds = needAvatars.map(c => c.participant_id);
+    try {
+      const { data, error } = await supabase.functions.invoke("instagram-api", {
+        body: { action: "fetch_participant_profiles", account_id: accountId, params: { user_ids: userIds } },
+      });
+      if (error || !data?.success) return;
+
+      const profiles = data.data?.profiles || {};
+      const updates: { id: string; avatar_url: string; name?: string }[] = [];
+
+      for (const c of needAvatars) {
+        const profile = profiles[c.participant_id];
+        if (profile?.profile_pic) {
+          updates.push({ id: c.id, avatar_url: profile.profile_pic, name: profile.name });
+        }
+      }
+
+      // Batch update DB and local state
+      for (const u of updates) {
+        const updateData: any = { participant_avatar_url: u.avatar_url };
+        if (u.name) updateData.participant_name = u.name;
+        supabase.from("ai_dm_conversations").update(updateData).eq("id", u.id).then();
+      }
+
+      if (updates.length > 0) {
+        setConversations(prev => prev.map(c => {
+          const upd = updates.find(u => u.id === c.id);
+          if (!upd) return c;
+          return { ...c, participant_avatar_url: upd.avatar_url, participant_name: upd.name || c.participant_name };
+        }));
+        addLog("system", `Fetched ${updates.length} profile pictures`, "success");
+      }
+    } catch (e) {
+      console.error("fetchAvatars error:", e);
+    }
+  }, [accountId, addLog]);
+
   // Scan ALL conversations from Instagram
   const scanAllConversations = useCallback(async (silent = false) => {
     if (!accountId) return;
@@ -417,9 +460,10 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
         }
       }
       const freshConvos = await loadConversations();
-      // Trigger background prefetch after scan
+      // Trigger background prefetch + avatar fetch after scan
       if (freshConvos && freshConvos.length > 0) {
         prefetchAllMessages(freshConvos);
+        fetchAvatars(freshConvos);
       }
     } catch (e: any) {
       addLog("system", `Sync error: ${e.message}`, "error");
@@ -436,7 +480,10 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
     if (accountId) {
       checkConnection();
       loadConversations().then(convos => {
-        if (convos && convos.length > 0) prefetchAllMessages(convos);
+        if (convos && convos.length > 0) {
+          prefetchAllMessages(convos);
+          fetchAvatars(convos);
+        }
       });
       if (!initialScanDone) scanAllConversations(true);
     }
@@ -727,7 +774,7 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
       }).catch(() => {});
     }
     
-    toast.success("Message deleted");
+    toast.success("Message removed from dashboard (Instagram API does not support message deletion)");
   };
 
   // Map emoji to IG reaction type
