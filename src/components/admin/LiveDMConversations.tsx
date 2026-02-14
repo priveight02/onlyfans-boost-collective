@@ -203,9 +203,12 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
     const cached = messageCacheRef.current.get(convoId);
     if (cached && cached.length > 0) {
       setMessages(cached);
-      // Refresh in background without blocking
+      // Refresh in background without blocking — use functional state check to avoid stale closure
       loadMessagesToCache(convoId).then(fresh => {
-        if (selectedConvo === convoId) setMessages(fresh);
+        setSelectedConvo(prev => {
+          if (prev === convoId) setMessages(fresh);
+          return prev;
+        });
       });
       return;
     }
@@ -214,7 +217,7 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
     const msgs = await loadMessagesToCache(convoId);
     setMessages(msgs);
     setLoading(false);
-  }, [loadMessagesToCache, selectedConvo]);
+  }, [loadMessagesToCache]);
 
   // IG sync for a single conversation (imports/updates messages from IG API + detects deleted msgs)
   const fetchIGMessages = useCallback(async (convoId: string, convo?: Conversation) => {
@@ -323,14 +326,17 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
 
       if (changed) {
         const fresh = await loadMessagesToCache(convoId);
-        if (selectedConvo === convoId) setMessages(fresh);
+        setSelectedConvo(prev => {
+          if (prev === convoId) setMessages(fresh);
+          return prev;
+        });
       }
 
       igSyncedRef.current.add(convoId);
     } catch (e) {
       console.error("fetchIGMessages error:", e);
     }
-  }, [accountId, conversations, loadMessagesToCache, selectedConvo, addLog, persistDeletedIds]);
+  }, [accountId, conversations, loadMessagesToCache, addLog, persistDeletedIds]);
 
   // ===== BACKGROUND PREFETCH ALL CONVERSATIONS =====
   const prefetchAllMessages = useCallback(async (convos: Conversation[]) => {
@@ -371,10 +377,13 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
       }
     }
 
-    // Update current view if cached
-    if (selectedConvo && messageCacheRef.current.has(selectedConvo)) {
-      setMessages(messageCacheRef.current.get(selectedConvo) || []);
-    }
+    // Update current view if cached — use functional check to avoid stale closure
+    setSelectedConvo(prev => {
+      if (prev && messageCacheRef.current.has(prev)) {
+        setMessages(messageCacheRef.current.get(prev) || []);
+      }
+      return prev;
+    });
 
     addLog("system", `Cached ${allMessages.length} messages from ${convos.length} convos`, "success");
 
@@ -404,7 +413,7 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
     }
 
     prefetchingRef.current = false;
-  }, [accountId, fetchIGMessages, addLog, selectedConvo]);
+  }, [accountId, fetchIGMessages, addLog]);
 
   // ===== FETCH PROFILE PICTURES FOR CONVERSATIONS =====
   const fetchAvatars = useCallback(async (convos: Conversation[]) => {
@@ -1094,7 +1103,11 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between">
                     <span className={`text-sm truncate ${!convo.is_read ? "font-bold text-foreground" : "font-normal text-foreground/80"}`}>
-                      {convo.participant_name || convo.participant_username || "Unknown"}
+                      {convo.participant_name && convo.participant_name !== "Unknown" 
+                        ? convo.participant_name 
+                        : convo.participant_username && convo.participant_username !== convo.participant_id 
+                          ? convo.participant_username 
+                          : convo.participant_id?.substring(0, 12) || "User"}
                     </span>
                     <span className={`text-[10px] flex-shrink-0 ml-2 ${!convo.is_read ? "text-blue-400 font-medium" : "text-muted-foreground"}`}>
                       {formatTime(convo.last_message_at)}
