@@ -1697,7 +1697,7 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
                       <button
                         onClick={async (e) => {
                           e.stopPropagation();
-                          const newMeta = { ...(convo.metadata || {}), paused_until: null, paused_reason: null };
+                          const newMeta = { ...(convo.metadata || {}), paused_until: null, paused_reason: null, free_pic_delivered: null, free_pic_pending_at: null, free_pic_deliver_at: null };
                           // Optimistic update
                           setConversations(prev => prev.map(c => c.id === convo.id ? { ...c, metadata: newMeta } : c));
                           // Clear pause + reset message count by deleting all messages for this convo
