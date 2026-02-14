@@ -1222,7 +1222,7 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
   };
 
   return (
-    <div className="space-y-4" style={{ zoom: 1.5, transformOrigin: "top left" }}>
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Globe className="h-5 w-5 text-primary" />
@@ -1273,7 +1273,7 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
       </div>
 
       <Dialog open={!!expandedPlatform} onOpenChange={(open) => { if (!open) setExpandedPlatform(null); }}>
-        <DialogContent className="max-w-4xl max-h-[85vh] overflow-hidden border-border text-foreground" style={{ zoom: 1, background: "hsl(222, 30%, 8%)", color: "hsl(0, 0%, 95%)" }}>
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden border-border text-foreground" style={{ zoom: 1.35, transformOrigin: "center center", background: "hsl(222, 30%, 8%)", color: "hsl(0, 0%, 95%)" }}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-3 text-foreground">
               {expandedPlatform && (() => {
