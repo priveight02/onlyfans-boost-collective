@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { getCached, setCache } from "@/lib/supabaseCache";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -125,6 +126,7 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
   // ===== MESSAGE CACHE =====
   const messageCacheRef = useRef<Map<string, Message[]>>(new Map());
   const igSyncedRef = useRef<Set<string>>(new Set());
+  const igSyncTimestamps = useRef<Map<string, number>>(new Map()); // throttle IG API calls per convo
   const syncInFlightRef = useRef(false);
   const bgSyncInFlightRef = useRef(false);
   const pollInFlightRef = useRef(false);
@@ -207,8 +209,16 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
     return data as Conversation[] | null;
   }, [accountId]);
 
-  // Load messages for a conversation into cache
-  const loadMessagesToCache = useCallback(async (convoId: string): Promise<Message[]> => {
+  // Load messages for a conversation into cache (checks supabaseCache first)
+  const loadMessagesToCache = useCallback(async (convoId: string, forceRefresh = false): Promise<Message[]> => {
+    // Check persistent cache first (10s TTL — very short to stay fresh)
+    if (!forceRefresh) {
+      const cached = getCached<Message[]>(accountId, `dm_msgs_${convoId}`);
+      if (cached) {
+        messageCacheRef.current.set(convoId, cached);
+        return cached;
+      }
+    }
     const { data } = await supabase
       .from("ai_dm_messages")
       .select("*")
@@ -216,8 +226,9 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
       .order("created_at", { ascending: true });
     const msgs = (data || []) as Message[];
     messageCacheRef.current.set(convoId, msgs);
+    setCache(accountId, `dm_msgs_${convoId}`, msgs, undefined, 10000); // 10s TTL
     return msgs;
-  }, []);
+  }, [accountId]);
 
   // Load messages for selected conversation (instant from cache, then refresh)
   const loadMessages = useCallback(async (convoId: string) => {
@@ -241,10 +252,15 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
     setLoading(false);
   }, [loadMessagesToCache]);
 
-  // IG sync for a single conversation — BATCHED: 1 IG API call + 1 DB read + minimal writes
-  const fetchIGMessages = useCallback(async (convoId: string, convo?: Conversation) => {
+  // IG sync for a single conversation — BATCHED + THROTTLED (min 5s between syncs per convo)
+  const fetchIGMessages = useCallback(async (convoId: string, convo?: Conversation, force = false) => {
     const c = convo || conversations.find(cv => cv.id === convoId);
     if (!c?.platform_conversation_id) return;
+
+    // Throttle: skip if last sync was < 5s ago (unless forced)
+    const lastSync = igSyncTimestamps.current.get(convoId) || 0;
+    if (!force && Date.now() - lastSync < 5000) return;
+    igSyncTimestamps.current.set(convoId, Date.now());
 
     const conn = igConnRef.current;
     const ourUsername = conn?.platform_username?.toLowerCase() || "";
@@ -360,7 +376,7 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
       }
 
       if (changed) {
-        const fresh = await loadMessagesToCache(convoId);
+        const fresh = await loadMessagesToCache(convoId, true); // force refresh after writes
         setSelectedConvo(prev => {
           if (prev === convoId) setMessages(fresh);
           return prev;
@@ -435,11 +451,13 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
     }
     for (const [cid, msgs] of grouped) {
       messageCacheRef.current.set(cid, msgs);
+      setCache(accountId, `dm_msgs_${cid}`, msgs, undefined, 10000);
     }
     // Also set empty arrays for convos with no messages yet
     for (const c of convos) {
       if (!messageCacheRef.current.has(c.id)) {
         messageCacheRef.current.set(c.id, []);
+        setCache(accountId, `dm_msgs_${c.id}`, [], undefined, 10000);
       }
     }
 
@@ -652,15 +670,15 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
     }
   }, [selectedConvo, loadMessages, fetchIGMessages]);
 
-  // FAST DB POLL: lightweight count check every 300ms, full load only when changed
+  // FAST DB POLL: lightweight count check every 500ms, full load only when changed
   useEffect(() => {
     if (!selectedConvo) return;
-    const pollState = { inFlight: false, lastCount: -1, lastId: "" };
+    const pollState = { inFlight: false, lastCount: -1 };
     const dbPollInterval = setInterval(async () => {
       if (pollState.inFlight) return;
       pollState.inFlight = true;
       try {
-        // Lightweight query: only count + latest message id (minimal tokens/bandwidth)
+        // Lightweight query: only count (minimal bandwidth)
         const { count } = await supabase
           .from("ai_dm_messages")
           .select("id", { count: "exact", head: true })
@@ -674,29 +692,29 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
         }
         pollState.lastCount = currentCount;
         
-        // Something changed — do full load
-        const fresh = await loadMessagesToCache(selectedConvo);
+        // Something changed — do full load (force refresh to bypass cache TTL)
+        const fresh = await loadMessagesToCache(selectedConvo, true);
         setSelectedConvo(prev => {
           if (prev === selectedConvo) setMessages(fresh);
           return prev;
         });
       } finally { pollState.inFlight = false; }
-    }, 300);
+    }, 500);
     return () => clearInterval(dbPollInterval);
   }, [selectedConvo, loadMessagesToCache]);
 
-  // IG API sync for selected convo — every 3s (heavier, syncs from Instagram)
+  // IG API sync for selected convo — every 5s (throttled per-convo inside fetchIGMessages)
   useEffect(() => {
     if (!selectedConvo) return;
     const resyncInterval = setInterval(async () => {
       if (syncInFlightRef.current) return;
       syncInFlightRef.current = true;
       try { await fetchIGMessages(selectedConvo); } finally { syncInFlightRef.current = false; }
-    }, 3000);
+    }, 5000);
     return () => clearInterval(resyncInterval);
   }, [selectedConvo, fetchIGMessages]);
 
-  // Background sync top 5 convos every 5s
+  // Background sync top 5 convos every 8s
   useEffect(() => {
     if (!accountId || conversations.length === 0) return;
     const bgSyncInterval = setInterval(async () => {
@@ -706,7 +724,7 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
         const top = conversations.filter(c => c.platform_conversation_id).slice(0, 5);
         for (const c of top) await fetchIGMessages(c.id, c);
       } finally { bgSyncInFlightRef.current = false; }
-    }, 5000);
+    }, 8000);
     return () => clearInterval(bgSyncInterval);
   }, [accountId, conversations, fetchIGMessages]);
 
@@ -784,19 +802,22 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
           if (prev.find(m => m.id.startsWith("temp-") && m.content === newMsg.content)) return prev;
           return [...prev, newMsg];
         });
-        // Update cache too
+        // Update both memory + persistent cache
         const cached = messageCacheRef.current.get(selectedConvo);
         if (cached && !cached.find(m => m.id === newMsg.id)) {
-          messageCacheRef.current.set(selectedConvo, [...cached, newMsg]);
+          const updated = [...cached, newMsg];
+          messageCacheRef.current.set(selectedConvo, updated);
+          setCache(accountId, `dm_msgs_${selectedConvo}`, updated, undefined, 10000);
         }
       })
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "ai_dm_messages", filter: `conversation_id=eq.${selectedConvo}` }, (payload) => {
         const updated = payload.new as Message;
         setMessages(prev => prev.map(m => m.id === updated.id ? updated : m));
-        // Update cache
         const cached = messageCacheRef.current.get(selectedConvo);
         if (cached) {
-          messageCacheRef.current.set(selectedConvo, cached.map(m => m.id === updated.id ? updated : m));
+          const fresh = cached.map(m => m.id === updated.id ? updated : m);
+          messageCacheRef.current.set(selectedConvo, fresh);
+          setCache(accountId, `dm_msgs_${selectedConvo}`, fresh, undefined, 10000);
         }
       })
       .on("postgres_changes", { event: "DELETE", schema: "public", table: "ai_dm_messages", filter: `conversation_id=eq.${selectedConvo}` }, (payload) => {
@@ -805,7 +826,9 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
           setMessages(prev => prev.filter(m => m.id !== oldId));
           const cached = messageCacheRef.current.get(selectedConvo);
           if (cached) {
-            messageCacheRef.current.set(selectedConvo, cached.filter(m => m.id !== oldId));
+            const fresh = cached.filter(m => m.id !== oldId);
+            messageCacheRef.current.set(selectedConvo, fresh);
+            setCache(accountId, `dm_msgs_${selectedConvo}`, fresh, undefined, 10000);
           }
         }
       })
