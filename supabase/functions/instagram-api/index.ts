@@ -1506,17 +1506,40 @@ serve(async (req) => {
           }
         }
 
-        // Expanded mode: additional search surfaces for deeper results
+        // Expanded mode: aggressive multi-surface + paginated scanning for 500+ results
         if (expanded && allUsers.length < maxResults) {
-          // Surface 4: Keyword variations (partial matches)
-          const variations = [
-            query.toLowerCase(),
-            query.toLowerCase().replace(/\s+/g, ""),
-            query.toLowerCase().replace(/\s+/g, "_"),
-          ];
+          const delay = (ms: number) => new Promise(r => setTimeout(r, ms));
+          const rankToken = `${dsUserId || "0"}_${Date.now()}`;
+
+          // Strategy 1: Paginated primary search with rank_token (up to 5 pages)
+          for (let page = 0; page < 5 && allUsers.length < maxResults; page++) {
+            try {
+              const pageUrl = `https://i.instagram.com/api/v1/users/search/?search_surface=user_search_page&timezone_offset=0&count=100&q=${encodeURIComponent(query)}&rank_token=${rankToken}&page=${page}`;
+              const resp = await fetch(pageUrl, { headers });
+              if (resp.ok) {
+                const d = await resp.json();
+                const before = allUsers.length;
+                addUsers(d?.users || [], "paginated");
+                if (allUsers.length === before) break; // no new results
+              }
+              await delay(250);
+            } catch {}
+          }
+
+          // Strategy 2: Keyword variations (no-space, underscore, dot, truncated)
+          const baseQ = query.toLowerCase().trim();
+          const variations = new Set([
+            baseQ.replace(/\s+/g, ""),
+            baseQ.replace(/\s+/g, "_"),
+            baseQ.replace(/\s+/g, "."),
+            baseQ.slice(0, Math.max(3, Math.floor(baseQ.length * 0.6))),
+            baseQ + "s",
+            baseQ + " official",
+            baseQ + " real",
+          ]);
+          variations.delete(query); // skip original
           for (const variant of variations) {
             if (allUsers.length >= maxResults) break;
-            if (variant === query) continue;
             try {
               const varUrl = `https://i.instagram.com/api/v1/users/search/?search_surface=user_search_page&timezone_offset=0&count=100&q=${encodeURIComponent(variant)}`;
               const resp = await fetch(varUrl, { headers });
@@ -1524,11 +1547,26 @@ serve(async (req) => {
                 const d = await resp.json();
                 addUsers(d?.users || [], "variant");
               }
-              await new Promise(r => setTimeout(r, 300));
+              await delay(200);
             } catch {}
           }
 
-          // Surface 5: Web search (different ranking algorithm)
+          // Strategy 3: Alphabet prefix scanning (query + a, query + b, ... query + z)
+          const alphabet = "abcdefghijklmnopqrstuvwxyz";
+          for (const letter of alphabet) {
+            if (allUsers.length >= maxResults) break;
+            try {
+              const prefixUrl = `https://i.instagram.com/api/v1/users/search/?search_surface=user_search_page&timezone_offset=0&count=100&q=${encodeURIComponent(baseQ + letter)}`;
+              const resp = await fetch(prefixUrl, { headers });
+              if (resp.ok) {
+                const d = await resp.json();
+                addUsers(d?.users || [], "alpha");
+              }
+              await delay(150);
+            } catch {}
+          }
+
+          // Strategy 4: Web blended search
           if (allUsers.length < maxResults) {
             try {
               const webUrl = `https://i.instagram.com/api/v1/web/search/topsearch/?context=blended&query=${encodeURIComponent(query)}&include_reel=false`;
@@ -1542,18 +1580,31 @@ serve(async (req) => {
             } catch {}
           }
 
-          // Surface 6: Null state suggestions (related accounts)
-          if (allUsers.length < maxResults) {
+          // Strategy 5: Top search flat with rank_token pages
+          for (let page = 0; page < 3 && allUsers.length < maxResults; page++) {
             try {
-              const nullUrl = `https://i.instagram.com/api/v1/fbsearch/nullstate_dynamic_sections/?type=blended&search_surface=top_search_page`;
-              const resp = await fetch(nullUrl, { headers });
+              const topUrl = `https://i.instagram.com/api/v1/fbsearch/topsearch_flat/?search_surface=top_search_page&timezone_offset=0&count=100&query=${encodeURIComponent(query)}&rank_token=${rankToken}&page=${page}`;
+              const resp = await fetch(topUrl, { headers });
               if (resp.ok) {
                 const d = await resp.json();
-                for (const section of (d?.sections || [])) {
-                  for (const item of (section?.items || [])) {
-                    if (item?.user) addUsers([item.user], "nullstate");
-                  }
+                const before = allUsers.length;
+                for (const item of (d?.list || [])) {
+                  if (item?.user) addUsers([item.user], "top_paged");
                 }
+                if (allUsers.length === before) break;
+              }
+              await delay(200);
+            } catch {}
+          }
+
+          // Strategy 6: Suggested/discover search
+          if (allUsers.length < maxResults) {
+            try {
+              const sugUrl = `https://i.instagram.com/api/v1/discover/search/?search_surface=user_search_page&timezone_offset=0&count=100&q=${encodeURIComponent(query)}`;
+              const resp = await fetch(sugUrl, { headers });
+              if (resp.ok) {
+                const d = await resp.json();
+                addUsers(d?.users || [], "discover");
               }
             } catch {}
           }
