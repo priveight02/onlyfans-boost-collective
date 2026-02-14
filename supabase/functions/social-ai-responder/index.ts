@@ -2729,9 +2729,9 @@ FINAL REMINDER:
             // ANTI-REPETITION POST-PROCESSING: Block repeated questions/statements
             reply = antiRepetitionCheck(reply, conversationContext);
 
-            // Calculate typing delay — minimum 3s to feel human, never instant
+            // Calculate typing delay — feels human but FAST. 2-5s max, never laggy
             const charCount = reply.length;
-            const typingDelay = Math.min(Math.max(charCount * (60 + Math.random() * 40), 3000), 8000);
+            const typingDelay = Math.min(Math.max(charCount * 50, 1500), 5000);
 
             // === AI CONTEXTUAL REACTION (1-5% — rare, impactful only) ===
             // Only react when the fan's message is emotionally charged or contains emojis
@@ -2767,6 +2767,9 @@ FINAL REMINDER:
               // Natural delay after reaction
               await new Promise(r => setTimeout(r, 800 + Math.random() * 1200));
             }
+
+            // Wait typing delay to feel natural (1.5-5s)
+            await new Promise(r => setTimeout(r, typingDelay));
 
             // Send the reply via IG API
             try {
@@ -2823,7 +2826,7 @@ FINAL REMINDER:
           } catch (convoErr) {
             console.error("Error processing conversation:", convoErr);
           }
-          await new Promise(r => setTimeout(r, 500));
+          await new Promise(r => setTimeout(r, 200));
         }
 
         result = { processed, conversations: processedConvos, total_checked: activeConvos?.length || 0 };
@@ -3075,8 +3078,9 @@ FINAL REMINDER:
             replyRL = antiRepetitionCheck(replyRL, richContext);
             if (!replyRL) replyRL = "hey";
 
-            // Typing delay
-            const typingDelayRL = Math.min(Math.max(replyRL.length * (60 + Math.random() * 40), 3000), 8000);
+            // Typing delay — fast but natural
+            const typingDelayRL = Math.min(Math.max(replyRL.length * 50, 1500), 5000);
+            await new Promise(r => setTimeout(r, typingDelayRL));
 
             // Send via IG
             try {
@@ -3418,7 +3422,8 @@ FINAL REMINDER:
             replyRAT = replyRAT.replace(emojiRxRAT, "").replace(/\s{2,}/g, " ").trim();
             replyRAT = antiRepetitionCheck(replyRAT, richCtx);
 
-            const typingDelayRAT = Math.min(Math.max(replyRAT.length * (60 + Math.random() * 40), 3000), 8000);
+            const typingDelayRAT = Math.min(Math.max(replyRAT.length * 50, 1500), 5000);
+            await new Promise(r => setTimeout(r, typingDelayRAT));
 
             try {
               const sendResultRAT = await callIGRAT("send_message", { recipient_id: tc.participant_id, message: replyRAT });
