@@ -332,6 +332,38 @@ serve(async (req) => {
         result = await igFetch(`/${igUserId}/stories?fields=id,media_type,media_url,timestamp,permalink`, token);
         break;
 
+      case "get_story_highlights": {
+        // Story highlights are fetched via the Facebook Graph API as they're not directly on IG Graph
+        // First try to get highlights via the user's media with story highlight type
+        const pageInfo = await getPageId(token, igUserId);
+        if (pageInfo) {
+          try {
+            // Try Facebook Page's story highlights
+            const highlightsResp = await fbFetch(`/${igUserId}?fields=story_highlights{id,title,media_type,media_url,thumbnail_url,timestamp,permalink,cover_media}`, token);
+            result = highlightsResp;
+          } catch {
+            // Fallback: get all stories including highlights
+            result = await igFetch(`/${igUserId}/stories?fields=id,media_type,media_url,thumbnail_url,timestamp,permalink`, token);
+          }
+        } else {
+          result = await igFetch(`/${igUserId}/stories?fields=id,media_type,media_url,thumbnail_url,timestamp,permalink`, token);
+        }
+        break;
+      }
+
+      // ===== CONTENT INTERACTION =====
+      case "like_comment":
+        result = await igFetch(`/${params.comment_id}/likes`, token, "POST");
+        break;
+
+      case "unlike_comment":
+        result = await igFetch(`/${params.comment_id}/likes`, token, "DELETE");
+        break;
+
+      case "get_media_children":
+        result = await igFetch(`/${params.media_id}/children?fields=id,media_type,media_url,thumbnail_url,timestamp`, token);
+        break;
+
       // ===== HASHTAG SEARCH =====
       case "search_hashtag":
         result = await igFetch(`/ig_hashtag_search?q=${encodeURIComponent(params.hashtag)}&user_id=${igUserId}`, token);
