@@ -812,7 +812,12 @@ serve(async (req) => {
       case "get_conversation_messages": {
         if (!params?.conversation_id) throw new Error("conversation_id required");
         const msgLimit = params?.limit || 20;
-        result = await igFetch(`/${params.conversation_id}?fields=messages.limit(${msgLimit}){id,message,from,to,created_time,attachments,shares,story,sticker}`, token);
+        try {
+          result = await igFetch(`/${params.conversation_id}?fields=messages.limit(${msgLimit}){id,message,from,to,created_time,attachments,shares,story,sticker}`, token);
+        } catch (convErr: any) {
+          console.error("get_conversation_messages error:", convErr.message);
+          result = { error_fallback: true, message: convErr.message, conversation_id: params.conversation_id, data: { messages: { data: [] } } };
+        }
         break;
       }
 
