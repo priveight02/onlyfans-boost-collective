@@ -1725,6 +1725,345 @@ FINAL REMINDER (READ LAST — THIS OVERRIDES EVERYTHING):
         break;
       }
 
+      case "relaunch_all_today": {
+        // Deep-scan ALL conversations from today (or with recent activity), load full history, resume each
+        const { data: igConnRAT } = await supabase
+          .from("social_connections")
+          .select("platform_user_id, platform_username")
+          .eq("account_id", account_id)
+          .eq("platform", "instagram")
+          .single();
+
+        if (!igConnRAT?.platform_user_id) {
+          result = { error: "Instagram not connected", processed: 0 };
+          break;
+        }
+
+        const igFuncUrlRAT = `${Deno.env.get("SUPABASE_URL")}/functions/v1/instagram-api`;
+        const serviceKeyRAT = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+        const callIGRAT = async (igAction: string, igParams: any = {}) => {
+          const resp = await fetch(igFuncUrlRAT, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKeyRAT}` },
+            body: JSON.stringify({ action: igAction, account_id, params: igParams }),
+          });
+          const d = await resp.json();
+          if (!d.success) throw new Error(d.error || `IG API ${igAction} failed`);
+          return d.data;
+        };
+
+        // Get persona
+        let personaRAT = DEFAULT_PERSONA;
+        const { data: personaDataRAT } = await supabase
+          .from("persona_profiles")
+          .select("*")
+          .eq("account_id", account_id)
+          .single();
+        if (personaDataRAT) {
+          personaRAT += `\n\n--- ACTIVE PERSONA OVERRIDE ---
+Tone: ${personaDataRAT.tone}
+Vocabulary Style: ${personaDataRAT.vocabulary_style}
+Emotional Range: ${personaDataRAT.emotional_range || "default"}
+${personaDataRAT.boundaries ? `Hard Boundaries: ${personaDataRAT.boundaries}` : ""}
+${personaDataRAT.brand_identity ? `Brand Identity: ${personaDataRAT.brand_identity}` : ""}
+${personaDataRAT.communication_rules ? `Communication Rules: ${JSON.stringify(personaDataRAT.communication_rules)}` : ""}
+Follow these persona settings strictly.`;
+        }
+
+        const { data: autoConfigRAT } = await supabase
+          .from("auto_respond_state")
+          .select("*")
+          .eq("account_id", account_id)
+          .single();
+
+        // Get today's start
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+
+        // Find ALL conversations with activity today (or specified via params)
+        const { data: todayConvos } = await supabase
+          .from("ai_dm_conversations")
+          .select("*")
+          .eq("account_id", account_id)
+          .eq("ai_enabled", true)
+          .eq("status", "active")
+          .gte("last_message_at", todayStart.toISOString())
+          .order("last_message_at", { ascending: false });
+
+        let ratProcessed = 0;
+        const ratResults: any[] = [];
+
+        for (const tc of (todayConvos || [])) {
+          try {
+            // Load FULL conversation history for deep context
+            const { data: fullHist } = await supabase
+              .from("ai_dm_messages")
+              .select("*")
+              .eq("conversation_id", tc.id)
+              .order("created_at", { ascending: true })
+              .limit(50);
+
+            if (!fullHist || fullHist.length === 0) continue;
+
+            // Check if last message is from fan (needs reply)
+            const lastMsg = fullHist[fullHist.length - 1];
+            if (lastMsg.sender_type !== "fan") continue;
+
+            // Skip if we already replied after this message
+            if (tc.last_ai_reply_at) {
+              const aiTime = new Date(tc.last_ai_reply_at).getTime();
+              const fanTime = new Date(lastMsg.created_at).getTime();
+              if (aiTime >= fanTime) continue;
+            }
+
+            // Build RICH context with media descriptions
+            const richCtx: any[] = [];
+            for (const msg of fullHist) {
+              let ctxText = msg.content || "";
+              if (msg.metadata) {
+                const meta = msg.metadata as any;
+                const atts = meta?.attachments || [];
+                const mediaDescs: string[] = [];
+                for (const att of (Array.isArray(atts) ? atts : [])) {
+                  const mt = att?.mime_type || att?.type || "";
+                  if (mt.includes("image") || mt.includes("photo")) mediaDescs.push("[sent a photo]");
+                  else if (mt.includes("video")) mediaDescs.push("[sent a video]");
+                  else if (mt.includes("audio")) mediaDescs.push("[sent a voice message]");
+                }
+                if (meta?.sticker) mediaDescs.push("[sent a sticker]");
+                if (meta?.shares) {
+                  const shareData = meta.shares?.data?.[0] || meta.shares;
+                  const shareLink = shareData?.link || "";
+                  mediaDescs.push(shareLink ? `[shared a post: ${shareLink}]` : "[shared a post]");
+                }
+                if (meta?.story) mediaDescs.push("[replied to your story]");
+                if (mediaDescs.length > 0) {
+                  ctxText = ctxText ? `${ctxText} ${mediaDescs.join(" ")}` : mediaDescs.join(" ");
+                }
+              }
+              richCtx.push({ role: msg.sender_type === "fan" ? "fan" : "creator", text: ctxText || "[empty]" });
+            }
+
+            const emojiDirRAT = "\n\nEMOJI DIRECTIVE: ZERO emojis. NEVER use emojis. Text only. Always.";
+            const systemPromptRAT = `${personaRAT}${emojiDirRAT}
+${autoConfigRAT?.redirect_url ? `\nIMPORTANT: when it makes sense, naturally guide toward this link: ${autoConfigRAT.redirect_url}. But NEVER redirect during genuine bonding moments` : ""}
+${autoConfigRAT?.trigger_keywords ? `if they mention any of these: ${autoConfigRAT.trigger_keywords}, redirect them to the link` : ""}
+
+CONVERSATION RESUMPTION CONTEXT:
+You are picking up a conversation from today. You have the FULL chat history above.
+- Read EVERY message carefully. understand what theyve been talking about
+- If they shared photos/videos, react to the ACTUAL CONTENT specifically
+- Continue naturally as if you just got back to your phone
+- Pick up the vibe — if it was flirty stay flirty, if they were sharing personal stuff stay warm and curious
+- If they shared something about their country/culture, show genuine interest
+
+CONTEXT AWARENESS (CRITICAL):
+- Your reply MUST directly relate to what the fan last said or shared
+- NEVER ignore their photos, stories, or personal messages with a generic line
+- Be warm, empathetic, and genuinely interested
+
+FINAL REMINDER:
+- Your reply MUST be 3-10 words, max 2 short sentences
+- ZERO emojis. NONE. EVER
+- Write like a real girl texting — warm, casual, contextually relevant
+- Output ONLY the message text`;
+
+            const aiMsgsRAT: any[] = [{ role: "system", content: systemPromptRAT }];
+            for (const ctx of richCtx) {
+              aiMsgsRAT.push({ role: ctx.role === "creator" ? "assistant" : "user", content: ctx.text });
+            }
+
+            // Insert typing placeholder
+            const { data: typingMsgRAT } = await supabase
+              .from("ai_dm_messages")
+              .insert({
+                conversation_id: tc.id,
+                account_id,
+                sender_type: "ai",
+                sender_name: igConnRAT.platform_username || "creator",
+                content: "...",
+                status: "typing",
+              })
+              .select("id")
+              .single();
+
+            const aiRespRAT = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+              method: "POST",
+              headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+              body: JSON.stringify({ model: "google/gemini-3-flash-preview", messages: aiMsgsRAT, max_tokens: 80, temperature: 0.8 }),
+            });
+
+            if (!aiRespRAT.ok) {
+              if (typingMsgRAT) await supabase.from("ai_dm_messages").update({ status: "failed", content: "AI failed" }).eq("id", typingMsgRAT.id);
+              continue;
+            }
+
+            const aiResultRAT = await aiRespRAT.json();
+            let replyRAT = (aiResultRAT.choices?.[0]?.message?.content || "").replace(/\[.*?\]/g, "").replace(/^["']|["']$/g, "").trim();
+            
+            if (!replyRAT) {
+              const fallbacks = ["hey", "hmm", "wdym", "lol", "oh really", "tell me more", "thats interesting"];
+              replyRAT = fallbacks[Math.floor(Math.random() * fallbacks.length)];
+            }
+
+            // Strip emojis
+            const emojiRxRAT = /[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{200D}\u{20E3}\u{FE0F}]/gu;
+            replyRAT = replyRAT.replace(emojiRxRAT, "").replace(/\s{2,}/g, " ").trim();
+
+            const typingDelayRAT = Math.min(Math.max(replyRAT.length * (60 + Math.random() * 40), 3000), 8000);
+
+            try {
+              const sendResultRAT = await callIGRAT("send_message", { recipient_id: tc.participant_id, message: replyRAT });
+
+              await supabase.from("ai_dm_messages").update({
+                content: replyRAT,
+                status: "sent",
+                platform_message_id: sendResultRAT?.message_id || null,
+                ai_model: aiResultRAT.model,
+                typing_delay_ms: Math.round(typingDelayRAT),
+              }).eq("id", typingMsgRAT?.id);
+
+              await supabase.from("ai_dm_conversations").update({
+                last_ai_reply_at: new Date().toISOString(),
+                last_message_at: new Date().toISOString(),
+                last_message_preview: `You: ${replyRAT.substring(0, 80)}`,
+                is_read: true,
+              }).eq("id", tc.id);
+
+              ratProcessed++;
+              ratResults.push({ conversation_id: tc.id, fan: tc.participant_username, context_messages: fullHist.length, ai_reply: replyRAT });
+            } catch (sendErrRAT: any) {
+              if (typingMsgRAT) await supabase.from("ai_dm_messages").update({ status: "failed", content: replyRAT, metadata: { error: sendErrRAT.message } }).eq("id", typingMsgRAT.id);
+            }
+          } catch (tcErr) {
+            console.error("Error relaunching today convo:", tcErr);
+          }
+          await new Promise(r => setTimeout(r, 800));
+        }
+
+        result = { processed: ratProcessed, total_today: todayConvos?.length || 0, conversations: ratResults };
+        break;
+      }
+
+      case "relaunch_single": {
+        // Deep relaunch a SINGLE conversation by ID
+        const { conversation_id } = params;
+        if (!conversation_id) { result = { error: "No conversation_id provided" }; break; }
+
+        const { data: igConnRS } = await supabase
+          .from("social_connections")
+          .select("platform_user_id, platform_username")
+          .eq("account_id", account_id)
+          .eq("platform", "instagram")
+          .single();
+        if (!igConnRS?.platform_user_id) { result = { error: "Instagram not connected" }; break; }
+
+        const igFuncUrlRS = `${Deno.env.get("SUPABASE_URL")}/functions/v1/instagram-api`;
+        const serviceKeyRS = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+        const callIGRS = async (igAction: string, igParams: any = {}) => {
+          const resp = await fetch(igFuncUrlRS, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKeyRS}` }, body: JSON.stringify({ action: igAction, account_id, params: igParams }) });
+          const d = await resp.json();
+          if (!d.success) throw new Error(d.error || `IG API ${igAction} failed`);
+          return d.data;
+        };
+
+        let personaRS = DEFAULT_PERSONA;
+        const { data: personaDataRS } = await supabase.from("persona_profiles").select("*").eq("account_id", account_id).single();
+        if (personaDataRS) {
+          personaRS += `\n\n--- ACTIVE PERSONA OVERRIDE ---
+Tone: ${personaDataRS.tone}
+Vocabulary Style: ${personaDataRS.vocabulary_style}
+Emotional Range: ${personaDataRS.emotional_range || "default"}
+${personaDataRS.boundaries ? `Hard Boundaries: ${personaDataRS.boundaries}` : ""}
+${personaDataRS.brand_identity ? `Brand Identity: ${personaDataRS.brand_identity}` : ""}`;
+        }
+
+        const { data: autoConfigRS } = await supabase.from("auto_respond_state").select("*").eq("account_id", account_id).single();
+
+        const { data: convoRS } = await supabase.from("ai_dm_conversations").select("*").eq("id", conversation_id).single();
+        if (!convoRS) { result = { error: "Conversation not found" }; break; }
+
+        const { data: fullHistRS } = await supabase.from("ai_dm_messages").select("*").eq("conversation_id", conversation_id).order("created_at", { ascending: true }).limit(50);
+        if (!fullHistRS || fullHistRS.length === 0) { result = { error: "No messages in conversation" }; break; }
+
+        const lastMsgRS = fullHistRS[fullHistRS.length - 1];
+        if (lastMsgRS.sender_type !== "fan") { result = { error: "Last message is not from fan", skipped: true }; break; }
+
+        // Build rich context
+        const richCtxRS: any[] = [];
+        for (const msg of fullHistRS) {
+          let ctxText = msg.content || "";
+          if (msg.metadata) {
+            const meta = msg.metadata as any;
+            const atts = meta?.attachments || [];
+            const mediaDescs: string[] = [];
+            for (const att of (Array.isArray(atts) ? atts : [])) {
+              const mt = att?.mime_type || att?.type || "";
+              if (mt.includes("image") || mt.includes("photo")) mediaDescs.push("[sent a photo]");
+              else if (mt.includes("video")) mediaDescs.push("[sent a video]");
+              else if (mt.includes("audio")) mediaDescs.push("[sent a voice message]");
+            }
+            if (meta?.sticker) mediaDescs.push("[sent a sticker]");
+            if (meta?.shares) mediaDescs.push("[shared a post]");
+            if (meta?.story) mediaDescs.push("[replied to your story]");
+            if (mediaDescs.length > 0) ctxText = ctxText ? `${ctxText} ${mediaDescs.join(" ")}` : mediaDescs.join(" ");
+          }
+          richCtxRS.push({ role: msg.sender_type === "fan" ? "fan" : "creator", text: ctxText || "[empty]" });
+        }
+
+        const emojiDirRS = "\n\nEMOJI DIRECTIVE: ZERO emojis. NEVER use emojis. Text only. Always.";
+        const systemPromptRS = `${personaRS}${emojiDirRS}
+${autoConfigRS?.redirect_url ? `\nIMPORTANT: when it makes sense, naturally guide toward: ${autoConfigRS.redirect_url}. But NEVER during bonding moments` : ""}
+
+CONTEXT AWARENESS (CRITICAL):
+- Read ALL messages above. Your reply MUST directly relate to what the fan last said
+- If they sent photos/videos, react specifically to the content
+- Be warm, empathetic, genuinely interested
+- NEVER use generic canned lines that ignore their message
+
+FINAL REMINDER:
+- 3-10 words, max 2 short sentences
+- ZERO emojis
+- Warm, casual, contextually relevant
+- Output ONLY the message text`;
+
+        const aiMsgsRS: any[] = [{ role: "system", content: systemPromptRS }];
+        for (const ctx of richCtxRS) aiMsgsRS.push({ role: ctx.role === "creator" ? "assistant" : "user", content: ctx.text });
+
+        const { data: typingMsgRS } = await supabase.from("ai_dm_messages").insert({
+          conversation_id, account_id, sender_type: "ai", sender_name: igConnRS.platform_username || "creator", content: "...", status: "typing",
+        }).select("id").single();
+
+        const aiRespRS = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ model: "google/gemini-3-flash-preview", messages: aiMsgsRS, max_tokens: 80, temperature: 0.8 }),
+        });
+
+        if (!aiRespRS.ok) {
+          if (typingMsgRS) await supabase.from("ai_dm_messages").update({ status: "failed", content: "AI failed" }).eq("id", typingMsgRS.id);
+          result = { error: `AI error: ${aiRespRS.status}` };
+          break;
+        }
+
+        const aiResultRS = await aiRespRS.json();
+        let replyRS = (aiResultRS.choices?.[0]?.message?.content || "").replace(/\[.*?\]/g, "").replace(/^["']|["']$/g, "").trim();
+        if (!replyRS) replyRS = "hey";
+        const emojiRxRS = /[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{200D}\u{20E3}\u{FE0F}]/gu;
+        replyRS = replyRS.replace(emojiRxRS, "").replace(/\s{2,}/g, " ").trim();
+
+        try {
+          const sendResultRS = await callIGRS("send_message", { recipient_id: convoRS.participant_id, message: replyRS });
+          await supabase.from("ai_dm_messages").update({ content: replyRS, status: "sent", platform_message_id: sendResultRS?.message_id || null, ai_model: aiResultRS.model }).eq("id", typingMsgRS?.id);
+          await supabase.from("ai_dm_conversations").update({ last_ai_reply_at: new Date().toISOString(), last_message_at: new Date().toISOString(), last_message_preview: `You: ${replyRS.substring(0, 80)}`, is_read: true }).eq("id", conversation_id);
+          result = { success: true, reply: replyRS, context_messages: fullHistRS.length };
+        } catch (sendErrRS: any) {
+          if (typingMsgRS) await supabase.from("ai_dm_messages").update({ status: "failed", content: replyRS, metadata: { error: sendErrRS.message } }).eq("id", typingMsgRS.id);
+          result = { error: sendErrRS.message };
+        }
+        break;
+      }
+
       case "generate_opener": {
         // Generate a short, impactful conversation opener synced with active persona
         let personaPrompt = DEFAULT_PERSONA;
