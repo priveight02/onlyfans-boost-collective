@@ -483,7 +483,7 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
   useEffect(() => {
     if (autoRespondActive && accountId) {
       setPolling(true);
-      pollIntervalRef.current = setInterval(() => processDMs(), 30000);
+      pollIntervalRef.current = setInterval(() => processDMs(), 5000);
       processDMs();
     } else {
       setPolling(false);
@@ -1361,7 +1361,7 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
             {!processing && (
               <div className="flex items-center gap-2 mt-2 text-muted-foreground/50">
                 <Clock className="h-3 w-3" />
-                <span className="text-[10px]">Next scan in 30s</span>
+                <span className="text-[10px]">Next scan in 5s</span>
               </div>
             )}
           </div>
