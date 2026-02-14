@@ -12,10 +12,13 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  Popover, PopoverContent, PopoverTrigger,
+} from "@/components/ui/popover";
+import {
   Send, Search, Loader2, Users, Bot, Sparkles, CheckCheck,
   RefreshCw, User, XCircle, Square, Zap, MessageCircle,
   Filter, Clock, Shuffle, Heart, Star, ArrowUpDown, UserPlus,
-  Download, Key, Eye, EyeOff, AlertTriangle,
+  Download, Key, Eye, EyeOff, AlertTriangle, Globe,
 } from "lucide-react";
 
 interface BulkMessageHubProps {
@@ -65,6 +68,12 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
   const [maxFollowersInput, setMaxFollowersInput] = useState("");
   const cancelRef = useRef(false);
   const messageRef = useRef(message);
+  // Search/Discover state
+  const [discoverQuery, setDiscoverQuery] = useState("");
+  const [discoverResults, setDiscoverResults] = useState<any[]>([]);
+  const [discoverLoading, setDiscoverLoading] = useState(false);
+  const [showDiscover, setShowDiscover] = useState(false);
+  const discoverTimeout = useRef<any>(null);
 
   useEffect(() => { messageRef.current = message; }, [message]);
 
@@ -158,50 +167,89 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
       return;
     }
     setFetching(true);
+    cancelRef.current = false;
     const maxCount = maxFollowersInput ? parseInt(maxFollowersInput) : 0;
     const goal = maxCount > 0 ? maxCount : (followersCount || 29000);
     setFetchGoal(goal);
     setFetchedCount(0);
-    setFetchProgress(`Fetching followers${maxCount > 0 ? ` (max ${maxCount})` : " (all)"}...`);
+    setFetchProgress("Starting chunked fetch...");
+
+    let cursor: string | null = null;
+    let totalFetched = 0;
+    let chunkNum = 0;
+
     try {
-      const { data, error } = await supabase.functions.invoke("instagram-api", {
-        body: {
-          action: "scrape_followers",
-          account_id: accountId,
-          params: {
-            session_id: sessionId.trim(),
-            ds_user_id: dsUserId.trim() || undefined,
-            csrf_token: csrfToken.trim() || undefined,
-            max_followers: maxCount,
-            max_pages: maxCount > 0 ? Math.ceil(maxCount / 200) + 5 : 500,
-            batch_size: 200,
+      while (!cancelRef.current) {
+        chunkNum++;
+        setFetchProgress(`Chunk ${chunkNum}: fetching...`);
+
+        const { data, error } = await supabase.functions.invoke("instagram-api", {
+          body: {
+            action: "scrape_followers",
+            account_id: accountId,
+            params: {
+              session_id: sessionId.trim(),
+              ds_user_id: dsUserId.trim() || undefined,
+              csrf_token: csrfToken.trim() || undefined,
+              max_followers: maxCount > 0 ? maxCount - totalFetched : 0,
+              pages_per_chunk: 12,
+              batch_size: 200,
+              cursor,
+            },
           },
-        },
-      });
-      if (error) throw error;
-      if (!data?.success) throw new Error(data?.error || "Fetch failed");
+        });
+        if (error) throw error;
+        if (!data?.success) throw new Error(data?.error || "Fetch failed");
 
-      const fetched = data.data?.followers || [];
-      const totalPersisted = data.data?.total_persisted || fetched.length;
-      setFetchedCount(fetched.length);
-      setFetchProgress(`Fetched ${fetched.length} new followers · ${totalPersisted} total saved`);
+        const chunk = data.data?.followers || [];
+        const persisted = data.data?.total_persisted || 0;
+        totalFetched += chunk.length;
+        setFetchedCount(persisted);
+        setFetchProgress(`Chunk ${chunkNum}: +${chunk.length} (${persisted} total saved)`);
 
-      // Merge with existing list
-      setFollowers(prev => {
-        const seen = new Set(prev.map(f => f.id));
-        const merged = [...prev];
-        for (const f of fetched) {
-          if (!seen.has(f.id)) {
-            seen.add(f.id);
-            merged.push(f);
-          }
+        // Merge chunk into UI list
+        if (chunk.length > 0) {
+          setFollowers(prev => {
+            const seen = new Set(prev.map(f => f.id));
+            const merged = [...prev];
+            for (const f of chunk) {
+              if (!seen.has(f.id)) { seen.add(f.id); merged.push(f); }
+            }
+            return merged;
+          });
         }
-        return merged;
-      });
-      // Don't override followersCount — keep real account subscriber_count
-      setFollowsCount(data.data?.follows_count || 0);
-      toast.success(`🔥 Fetched ${fetched.length} followers! ${totalPersisted} total saved permanently.`);
-      // Invalidate cache so next load picks up new data
+
+        // Check if done
+        if (data.data?.fetch_complete || !data.data?.next_cursor) {
+          setFetchProgress(`✅ Complete! ${persisted} followers saved`);
+          toast.success(`🔥 Fetched all followers! ${persisted} total saved.`);
+          break;
+        }
+
+        // Check max
+        if (maxCount > 0 && totalFetched >= maxCount) {
+          setFetchProgress(`✅ Reached limit: ${persisted} saved`);
+          toast.success(`Fetched ${totalFetched} followers (limit: ${maxCount})`);
+          break;
+        }
+
+        // Rate limit pause
+        if (data.data?.rate_limited) {
+          setFetchProgress(`⏳ Rate limited — waiting 30s before next chunk...`);
+          await new Promise(r => setTimeout(r, 30000));
+        } else {
+          // Small pause between chunks
+          await new Promise(r => setTimeout(r, 2000));
+        }
+
+        cursor = data.data.next_cursor;
+      }
+
+      if (cancelRef.current) {
+        setFetchProgress(`Cancelled after ${totalFetched} followers`);
+        toast.info(`Cancelled. ${totalFetched} followers saved so far.`);
+      }
+
       invalidateNamespace(accountId, "persisted_followers");
       invalidateNamespace(accountId, "live_followers");
       setShowFetchSetup(false);
@@ -212,6 +260,80 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
     } finally {
       setFetching(false);
     }
+  };
+
+  // ===== INSTAGRAM USER SEARCH (Discover) =====
+  const searchInstagramUsers = useCallback(async (query: string) => {
+    if (!query || query.length < 1) { setDiscoverResults([]); return; }
+    setDiscoverLoading(true);
+    try {
+      // Try with saved session first, then try without
+      const metadata: any = {};
+      const { data: connData } = await supabase
+        .from("social_connections")
+        .select("metadata")
+        .eq("account_id", accountId)
+        .eq("platform", "instagram")
+        .single();
+      const savedSession = (connData?.metadata as any)?.ig_session_id || sessionId.trim();
+      if (!savedSession) {
+        // Fallback: use business_discovery for username lookup
+        const { data } = await supabase.functions.invoke("instagram-api", {
+          body: { action: "discover_user", account_id: accountId, params: { username: query, media_limit: 3 } },
+        });
+        if (data?.success && data.data?.business_discovery) {
+          const bd = data.data.business_discovery;
+          setDiscoverResults([{
+            id: bd.id, username: bd.username, full_name: bd.name,
+            profile_pic_url: bd.profile_picture_url, follower_count: bd.followers_count,
+            is_verified: false, is_private: false,
+          }]);
+        } else {
+          setDiscoverResults([]);
+        }
+        return;
+      }
+
+      const { data, error } = await supabase.functions.invoke("instagram-api", {
+        body: {
+          action: "search_users",
+          account_id: accountId,
+          params: { query, session_id: savedSession },
+        },
+      });
+      if (error) throw error;
+      setDiscoverResults(data?.data?.users || []);
+    } catch (e: any) {
+      console.error("Search failed:", e.message);
+      setDiscoverResults([]);
+    } finally {
+      setDiscoverLoading(false);
+    }
+  }, [accountId, sessionId]);
+
+  const onDiscoverQueryChange = (val: string) => {
+    setDiscoverQuery(val);
+    if (discoverTimeout.current) clearTimeout(discoverTimeout.current);
+    discoverTimeout.current = setTimeout(() => searchInstagramUsers(val), 400);
+  };
+
+  const addDiscoveredUser = (user: any) => {
+    const newFollower: Follower = {
+      id: user.id || user.pk,
+      name: user.full_name || user.username,
+      username: user.username,
+      profile_pic: user.profile_pic_url || null,
+      source: "discovered",
+    };
+    setFollowers(prev => {
+      if (prev.some(f => f.id === newFollower.id)) {
+        toast.info(`${user.username} already in list`);
+        return prev;
+      }
+      return [...prev, newFollower];
+    });
+    setSelectedIds(prev => new Set([...prev, newFollower.id]));
+    toast.success(`Added @${user.username} to list`);
   };
 
   useEffect(() => {
@@ -232,7 +354,7 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
     const matchesTab = activeTab === "all" || 
       (activeTab === "conversations" && (f.source === "conversation" || f.source === "ig_api")) ||
       (activeTab === "followers" && (f.source === "follower" || f.source === "engaged")) ||
-      (activeTab === "fetched" && f.source === "fetched");
+      (activeTab === "fetched" && (f.source === "fetched" || f.source === "discovered"));
     return matchesSearch && matchesFilter && matchesTab;
   });
 
@@ -541,22 +663,78 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
                       tab.key === "all" ? true : 
                       tab.key === "conversations" ? (f.source === "conversation" || f.source === "ig_api") :
                       tab.key === "followers" ? (f.source === "follower" || f.source === "engaged") :
-                      f.source === "fetched"
+                      (f.source === "fetched" || f.source === "discovered")
                     ).length})
                   </span>
                 </button>
               ))}
               <div className="ml-auto flex items-center gap-1">
-                <Button 
-                  size="sm" 
-                  variant="outline" 
-                  onClick={fetchRealFollowers} 
-                  disabled={fetchingFollowers}
-                  className="h-6 text-[9px] gap-1 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 bg-transparent"
-                >
-                  {fetchingFollowers ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <UserPlus className="h-2.5 w-2.5" />}
-                  Discover
-                </Button>
+                {/* DISCOVER — Instagram Search Popover */}
+                <Popover open={showDiscover} onOpenChange={setShowDiscover}>
+                  <PopoverTrigger asChild>
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      className="h-6 text-[9px] gap-1 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 bg-transparent"
+                    >
+                      <Globe className="h-2.5 w-2.5" />
+                      Discover
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-80 p-0 bg-[hsl(222,35%,10%)] border-white/10" align="end" sideOffset={4}>
+                    <div className="p-3 border-b border-white/10">
+                      <div className="relative">
+                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/30" />
+                        <Input
+                          placeholder="Search Instagram users..."
+                          value={discoverQuery}
+                          onChange={e => onDiscoverQueryChange(e.target.value)}
+                          className="pl-8 h-8 text-xs bg-white/5 border-white/10 text-white placeholder:text-white/30"
+                          autoFocus
+                        />
+                        {discoverLoading && <Loader2 className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 animate-spin text-emerald-400" />}
+                      </div>
+                    </div>
+                    <div className="max-h-[300px] overflow-y-auto">
+                      {discoverResults.length === 0 && discoverQuery.length > 0 && !discoverLoading && (
+                        <p className="text-[10px] text-white/30 text-center py-4">No results for "{discoverQuery}"</p>
+                      )}
+                      {discoverResults.length === 0 && discoverQuery.length === 0 && (
+                        <p className="text-[10px] text-white/30 text-center py-4">Type a username or keyword to search</p>
+                      )}
+                      {discoverResults.map((user: any) => (
+                        <button
+                          key={user.id || user.username}
+                          onClick={() => addDiscoveredUser(user)}
+                          className="w-full text-left px-3 py-2 flex items-center gap-2.5 hover:bg-white/5 transition-colors border-b border-white/[0.04]"
+                        >
+                          {user.profile_pic_url ? (
+                            <img src={user.profile_pic_url} alt="" className="h-8 w-8 rounded-full object-cover flex-shrink-0" />
+                          ) : (
+                            <div className="h-8 w-8 rounded-full bg-gradient-to-br from-emerald-500 to-cyan-400 flex items-center justify-center flex-shrink-0">
+                              <span className="text-white text-xs font-bold">{(user.username || "?")[0]?.toUpperCase()}</span>
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1">
+                              <span className="text-xs font-medium text-white truncate">{user.full_name || user.username}</span>
+                              {user.is_verified && <span className="text-blue-400 text-[8px]">✓</span>}
+                              {user.is_private && <span className="text-amber-400 text-[8px]">🔒</span>}
+                            </div>
+                            <span className="text-[10px] text-white/35">@{user.username}</span>
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            {user.follower_count != null && (
+                              <span className="text-[9px] text-white/40">{user.follower_count >= 1000 ? `${(user.follower_count / 1000).toFixed(1)}K` : user.follower_count}</span>
+                            )}
+                            <UserPlus className="h-3 w-3 text-emerald-400 mt-0.5 ml-auto" />
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+
                 <Button 
                   size="sm" 
                   variant="outline" 
