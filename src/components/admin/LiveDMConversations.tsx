@@ -214,7 +214,7 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
     setLoading(false);
   }, [loadMessagesToCache, selectedConvo]);
 
-  // IG sync for a single conversation (imports/updates messages from IG API)
+  // IG sync for a single conversation (imports/updates messages from IG API + detects deleted msgs)
   const fetchIGMessages = useCallback(async (convoId: string, convo?: Conversation) => {
     const c = convo || conversations.find(cv => cv.id === convoId);
     if (!c?.platform_conversation_id) return;
@@ -230,6 +230,23 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
       if (error || !data?.success) return;
       const igMessages = data.data?.messages?.data || [];
       let changed = false;
+
+      // Build set of IG message IDs that still exist on Instagram
+      const igMessageIds = new Set(igMessages.map((m: any) => m.id).filter(Boolean));
+
+      // REAL-TIME DELETION SYNC: Find DB messages with platform_message_id that no longer exist on IG
+      const cached = messageCacheRef.current.get(convoId) || [];
+      const dbMsgsWithPlatformId = cached.filter(m => m.platform_message_id && !m.id.startsWith("temp-"));
+      for (const dbMsg of dbMsgsWithPlatformId) {
+        if (dbMsg.platform_message_id && !igMessageIds.has(dbMsg.platform_message_id) && !deletedPlatformIdsRef.current.has(dbMsg.platform_message_id)) {
+          // Message was deleted on Instagram — remove from DB
+          await supabase.from("ai_dm_messages").delete().eq("id", dbMsg.id);
+          deletedPlatformIdsRef.current.add(dbMsg.platform_message_id);
+          persistDeletedIds();
+          changed = true;
+          addLog(`@${c.participant_username}`, `Message removed (deleted on IG)`, "info");
+        }
+      }
 
       for (const igMsg of igMessages) {
         // Skip messages that were locally deleted
@@ -279,16 +296,12 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
         } else {
           const fromName = (igMsg.from?.username || igMsg.from?.name || "").toLowerCase();
           const fromId = igMsg.from?.id;
-          // Detect if from fan: must match fan's participant ID, or NOT match our ID/username
-          // Messages sent via Page API have from.id = page_id (different from ourIgId)
           const isFromFan = fromId
             ? (fromId === c.participant_id || (fromId !== ourIgId && fromName !== ourUsername && fromName !== ""))
             : true;
-          // Override: if fromId doesn't match fan AND doesn't match us, it's likely the Page → it's us
           const isActuallyFromFan = fromId === c.participant_id ? true : 
             (fromId === ourIgId || fromName === ourUsername) ? false :
-            // Unknown ID: check if it matches the fan's known ID
-            (fromId && fromId !== c.participant_id && fromId !== ourIgId) ? false : // Likely page
+            (fromId && fromId !== c.participant_id && fromId !== ourIgId) ? false :
             isFromFan;
 
           await supabase.from("ai_dm_messages").insert({
@@ -315,7 +328,7 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
     } catch (e) {
       console.error("fetchIGMessages error:", e);
     }
-  }, [accountId, conversations, loadMessagesToCache, selectedConvo]);
+  }, [accountId, conversations, loadMessagesToCache, selectedConvo, addLog, persistDeletedIds]);
 
   // ===== BACKGROUND PREFETCH ALL CONVERSATIONS =====
   const prefetchAllMessages = useCallback(async (convos: Conversation[]) => {
@@ -397,52 +410,82 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
     const needAvatars = convos.filter(c => !c.participant_avatar_url && c.participant_id);
     if (needAvatars.length === 0) return;
 
-    const userIds = needAvatars.map(c => c.participant_id);
-    // Build username map for business_discovery fallback
-    const usernames: Record<string, string> = {};
-    for (const c of needAvatars) {
-      if (c.participant_username) usernames[c.participant_id] = c.participant_username;
+    addLog("system", `Fetching ${needAvatars.length} profile pictures...`, "processing");
+
+    // Strategy 1: Use business_discovery (most reliable for public IG accounts)
+    // This works with usernames, not IGSIDs
+    const updates: { id: string; avatar_url: string; name?: string; username?: string }[] = [];
+    
+    // Process in batches of 3 to avoid rate limits
+    for (let i = 0; i < needAvatars.length; i += 3) {
+      const batch = needAvatars.slice(i, i + 3);
+      await Promise.all(batch.map(async (c) => {
+        const username = c.participant_username;
+        if (!username || username === c.participant_id) return; // Skip if no username
+        
+        try {
+          // Use discover_user which uses business_discovery API - most reliable for profile pics
+          const { data, error } = await supabase.functions.invoke("instagram-api", {
+            body: { action: "discover_user", account_id: accountId, params: { username, media_limit: 0 } },
+          });
+          if (!error && data?.success) {
+            const bd = data.data?.business_discovery;
+            if (bd?.profile_picture_url) {
+              updates.push({
+                id: c.id,
+                avatar_url: bd.profile_picture_url,
+                name: bd.name || c.participant_name,
+                username: bd.username || c.participant_username,
+              });
+            }
+          }
+        } catch (e) {
+          // Not all users are discoverable - that's fine
+        }
+      }));
     }
 
-    try {
-      const { data, error } = await supabase.functions.invoke("instagram-api", {
-        body: { action: "fetch_participant_profiles", account_id: accountId, params: { user_ids: userIds, usernames } },
-      });
-      if (error || !data?.success) {
-        console.error("fetchAvatars API error:", error, data);
-        return;
+    // Strategy 2: For remaining ones without avatars, try the batch IGSID fetch
+    const stillMissing = needAvatars.filter(c => !updates.find(u => u.id === c.id));
+    if (stillMissing.length > 0) {
+      const userIds = stillMissing.map(c => c.participant_id);
+      const usernames: Record<string, string> = {};
+      for (const c of stillMissing) {
+        if (c.participant_username) usernames[c.participant_id] = c.participant_username;
       }
-
-      const profiles = data.data?.profiles || {};
-      const updates: { id: string; avatar_url: string; name?: string; username?: string }[] = [];
-
-      for (const c of needAvatars) {
-        const profile = profiles[c.participant_id];
-        if (profile?.profile_pic) {
-          updates.push({ id: c.id, avatar_url: profile.profile_pic, name: profile.name, username: profile.username });
+      try {
+        const { data, error } = await supabase.functions.invoke("instagram-api", {
+          body: { action: "fetch_participant_profiles", account_id: accountId, params: { user_ids: userIds, usernames } },
+        });
+        if (!error && data?.success) {
+          const profiles = data.data?.profiles || {};
+          for (const c of stillMissing) {
+            const profile = profiles[c.participant_id];
+            if (profile?.profile_pic) {
+              updates.push({ id: c.id, avatar_url: profile.profile_pic, name: profile.name, username: profile.username });
+            }
+          }
         }
-      }
+      } catch {}
+    }
 
-      // Batch update DB and local state
-      for (const u of updates) {
-        const updateData: any = { participant_avatar_url: u.avatar_url };
-        if (u.name) updateData.participant_name = u.name;
-        if (u.username) updateData.participant_username = u.username;
-        supabase.from("ai_dm_conversations").update(updateData).eq("id", u.id).then();
-      }
+    // Batch update DB and local state
+    for (const u of updates) {
+      const updateData: any = { participant_avatar_url: u.avatar_url };
+      if (u.name) updateData.participant_name = u.name;
+      if (u.username) updateData.participant_username = u.username;
+      supabase.from("ai_dm_conversations").update(updateData).eq("id", u.id).then();
+    }
 
-      if (updates.length > 0) {
-        setConversations(prev => prev.map(c => {
-          const upd = updates.find(u => u.id === c.id);
-          if (!upd) return c;
-          return { ...c, participant_avatar_url: upd.avatar_url, participant_name: upd.name || c.participant_name, participant_username: upd.username || c.participant_username };
-        }));
-        addLog("system", `Fetched ${updates.length} profile pictures`, "success");
-      } else {
-        addLog("system", `No profile pics found for ${needAvatars.length} users (API limitation)`, "info");
-      }
-    } catch (e) {
-      console.error("fetchAvatars error:", e);
+    if (updates.length > 0) {
+      setConversations(prev => prev.map(c => {
+        const upd = updates.find(u => u.id === c.id);
+        if (!upd) return c;
+        return { ...c, participant_avatar_url: upd.avatar_url, participant_name: upd.name || c.participant_name, participant_username: upd.username || c.participant_username };
+      }));
+      addLog("system", `Fetched ${updates.length}/${needAvatars.length} profile pictures`, "success");
+    } else {
+      addLog("system", `Profile pics: 0/${needAvatars.length} found (private/restricted accounts)`, "info");
     }
   }, [accountId, addLog]);
 
@@ -516,6 +559,15 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
       }).eq("id", selectedConvo).then();
     }
   }, [selectedConvo, loadMessages, fetchIGMessages]);
+
+  // Periodic re-sync of selected conversation to detect IG-side deletions in real-time
+  useEffect(() => {
+    if (!selectedConvo || !autoRespondActive) return;
+    const resyncInterval = setInterval(() => {
+      fetchIGMessages(selectedConvo);
+    }, 10000); // Every 10s
+    return () => clearInterval(resyncInterval);
+  }, [selectedConvo, autoRespondActive, fetchIGMessages]);
 
   // Real-time subscriptions — MERGE changes instead of full reload
   useEffect(() => {
@@ -1746,35 +1798,41 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
             </div>
           </div>
 
-          {/* Current Phase */}
+          {/* Current Phase - ALWAYS animating when polling */}
           <div className="px-3 py-2.5 border-b border-border/50">
             <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2">Pipeline</p>
             <div className="space-y-1">
-              {AI_PHASES.map((step) => {
+              {AI_PHASES.map((step, stepIdx) => {
                 const isActive = processing && aiCurrentPhase === step.id;
-                const isPast = processing && AI_PHASES.findIndex(p => p.id === aiCurrentPhase) > AI_PHASES.findIndex(p => p.id === step.id);
+                const isPast = processing && AI_PHASES.findIndex(p => p.id === aiCurrentPhase) > stepIdx;
+                // When polling but not actively processing, show continuous scan animation
+                const isScanning = !processing && polling && step.id === "scan";
+                const isScanningDetect = !processing && polling && step.id === "detect";
                 return (
                   <div key={step.id} className="flex items-center gap-2">
                     {isPast ? (
                       <Check className="h-3 w-3 text-green-400" />
-                    ) : isActive ? (
+                    ) : isActive || isScanning ? (
                       <Loader2 className="h-3 w-3 animate-spin text-blue-400" />
+                    ) : isScanningDetect ? (
+                      <Eye className="h-3 w-3 text-blue-400/60 animate-pulse" />
                     ) : (
                       <CircleDot className={`h-3 w-3 ${processing ? "text-muted-foreground/30" : "text-muted-foreground/20"}`} />
                     )}
                     <span className={`text-[10px] ${
-                      isActive ? "text-blue-400 font-semibold" :
+                      isActive || isScanning ? "text-blue-400 font-semibold" :
+                      isScanningDetect ? "text-blue-400/60 font-medium" :
                       isPast ? "text-green-400/70" :
                       "text-muted-foreground/40"
-                    }`}>{step.label}</span>
+                    }`}>{step.label}{isScanning ? "..." : ""}</span>
                   </div>
                 );
               })}
             </div>
-            {!processing && (
-              <div className="flex items-center gap-2 mt-2 text-muted-foreground/50">
-                <Clock className="h-3 w-3" />
-                <span className="text-[10px]">Continuous sync active</span>
+            {polling && !processing && (
+              <div className="flex items-center gap-2 mt-2 text-blue-400/60">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                <span className="text-[10px] animate-pulse">Scanning inbox...</span>
               </div>
             )}
           </div>
