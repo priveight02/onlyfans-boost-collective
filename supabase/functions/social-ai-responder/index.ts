@@ -397,62 +397,9 @@ const detectTension = (messages: any[]): { isTense: boolean; tensionLevel: numbe
   return { isTense, tensionLevel, tensionContext };
 };
 
-// === DEFAULT FREE PIC — Downloaded from source, saved to Supabase Storage as me.png ===
-const GOOGLE_DRIVE_FILE_ID = "1_uF0b5TU5dAfCqqPdApRgRVysUXF7pWx";
-const GOOGLE_DRIVE_DOWNLOAD_URL = `https://drive.google.com/uc?export=download&id=${GOOGLE_DRIVE_FILE_ID}`;
+// === DEFAULT FREE PIC — stored directly in Supabase Storage ===
 const STORAGE_BUCKET = "default-assets";
-const STORAGE_FILE_NAME = "me.png";
-const DEFAULT_FREE_PIC_URL = `https://ufsnuobtvkciydftsyff.supabase.co/storage/v1/object/public/${STORAGE_BUCKET}/${STORAGE_FILE_NAME}`;
-
-// Downloads the free pic from Google Drive and uploads to Supabase Storage as me.png
-// Returns the public URL. If already exists, just returns the URL.
-const ensureFreePicInStorage = async (supabaseClient: any): Promise<string> => {
-  try {
-    // Check if me.png already exists in storage
-    const { data: existingFiles } = await supabaseClient.storage
-      .from(STORAGE_BUCKET)
-      .list("", { search: STORAGE_FILE_NAME });
-    
-    if (existingFiles && existingFiles.some((f: any) => f.name === STORAGE_FILE_NAME)) {
-      console.log("me.png already exists in storage, using cached version");
-      return DEFAULT_FREE_PIC_URL;
-    }
-
-    // Download from Google Drive
-    console.log("Downloading free pic from Google Drive...");
-    const driveResp = await fetch(GOOGLE_DRIVE_DOWNLOAD_URL, { redirect: "follow" });
-    if (!driveResp.ok) {
-      // If redirect page (virus scan warning for large files), try confirm URL
-      const confirmUrl = `https://drive.google.com/uc?export=download&confirm=t&id=${GOOGLE_DRIVE_FILE_ID}`;
-      const driveResp2 = await fetch(confirmUrl, { redirect: "follow" });
-      if (!driveResp2.ok) throw new Error(`Drive download failed: ${driveResp2.status}`);
-      const blob = await driveResp2.arrayBuffer();
-      const { error } = await supabaseClient.storage
-        .from(STORAGE_BUCKET)
-        .upload(STORAGE_FILE_NAME, new Uint8Array(blob), {
-          contentType: "image/png",
-          upsert: true,
-        });
-      if (error) throw error;
-    } else {
-      const blob = await driveResp.arrayBuffer();
-      const { error } = await supabaseClient.storage
-        .from(STORAGE_BUCKET)
-        .upload(STORAGE_FILE_NAME, new Uint8Array(blob), {
-          contentType: "image/png",
-          upsert: true,
-        });
-      if (error) throw error;
-    }
-
-    console.log("Free pic uploaded to storage as me.png");
-    return DEFAULT_FREE_PIC_URL;
-  } catch (err) {
-    console.error("ensureFreePicInStorage error:", err);
-    // Fallback to direct URL
-    return DEFAULT_FREE_PIC_URL;
-  }
-};
+const DEFAULT_FREE_PIC_URL = `https://ufsnuobtvkciydftsyff.supabase.co/storage/v1/object/public/${STORAGE_BUCKET}/free-pic.png`;
 
 // === FREE PIC REQUEST DETECTION ENGINE ===
 // Detects when a fan is asking for a free picture/preview and whether they've already received one
@@ -2296,6 +2243,11 @@ Follow these persona settings strictly. They override any conflicting defaults a
               };
 
               try {
+                // IMMEDIATELY lock this conversation to prevent duplicate processing
+                await supabase.from("ai_dm_conversations").update({
+                  last_ai_reply_at: new Date().toISOString(),
+                }).eq("id", dbConvo.id);
+
                 // Step 1: Insert typing placeholder
                 const { data: fpTyping } = await supabase.from("ai_dm_messages").insert({
                   conversation_id: dbConvo.id, account_id,
@@ -2313,7 +2265,8 @@ Follow these persona settings strictly. They override any conflicting defaults a
                   "mm ok since we vibed",
                 ];
                 const shyMsg = shyPrefixes[Math.floor(Math.random() * shyPrefixes.length)];
-                await callIGFP("send_message", { recipient_id: dbConvo.participant_id, message: shyMsg });
+                const shyResult = await callIGFP("send_message", { recipient_id: dbConvo.participant_id, message: shyMsg });
+                console.log(`[FREE PIC] Shy msg result:`, JSON.stringify(shyResult));
                 
                 // Update typing placeholder with shy message
                 if (fpTyping) {
@@ -2322,37 +2275,18 @@ Follow these persona settings strictly. They override any conflicting defaults a
                   }).eq("id", fpTyping.id);
                 }
 
-                // Brief delay then "brb" message to simulate taking the pic
-                await new Promise(r => setTimeout(r, 1500 + Math.random() * 1500));
+                // Brief delay then send the pic directly (no brb message — just send it)
+                await new Promise(r => setTimeout(r, 2000 + Math.random() * 1500));
                 
-                const brbMessages = [
-                  "ok gimme like 2 min",
-                  "hold on lemme take one rn",
-                  "ok wait 2 sec",
-                  "one sec lemme get one for u",
-                  "ok brb 2 min",
-                  "wait lemme go take smth real quick",
-                ];
-                const brbMsg = brbMessages[Math.floor(Math.random() * brbMessages.length)];
-                await callIGFP("send_message", { recipient_id: dbConvo.participant_id, message: brbMsg });
-                
-                // Log brb message in DB
-                await supabase.from("ai_dm_messages").insert({
-                  conversation_id: dbConvo.id, account_id,
-                  sender_type: "ai", sender_name: igConn2.platform_username || "creator",
-                  content: brbMsg, status: "sent", ai_model: "free_pic_engine",
-                });
-                
-                // Brief pause to simulate getting the pic (keep short to avoid edge function timeout)
-                await new Promise(r => setTimeout(r, 3000 + Math.random() * 2000));
-                
-                // Step 3: Download free pic from Drive, save to storage as me.png, then send
-                const freePicUrl = await ensureFreePicInStorage(supabase);
-                await callIGFP("send_media_message", {
+                // Step 3: Send free pic from storage
+                const freePicUrl = DEFAULT_FREE_PIC_URL;
+                console.log(`[FREE PIC] Sending image: ${freePicUrl}`);
+                const mediaResult = await callIGFP("send_media_message", {
                   recipient_id: dbConvo.participant_id,
                   media_type: "image",
                   media_url: freePicUrl,
                 });
+                console.log(`[FREE PIC] Media send result:`, JSON.stringify(mediaResult));
                 
                 // Log the pic send in DB
                 await supabase.from("ai_dm_messages").insert({
