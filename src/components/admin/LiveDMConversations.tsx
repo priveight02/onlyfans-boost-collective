@@ -96,9 +96,16 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
   const [connectionStatus, setConnectionStatus] = useState<"connected" | "error" | "checking">("checking");
   const [connectionError, setConnectionError] = useState<string>("");
   const [sendingMessage, setSendingMessage] = useState(false);
+  const [prefetchProgress, setPrefetchProgress] = useState<{ done: number; total: number } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // ===== MESSAGE CACHE =====
+  const messageCacheRef = useRef<Map<string, Message[]>>(new Map());
+  const igSyncedRef = useRef<Set<string>>(new Set());
+  const prefetchingRef = useRef(false);
+  const igConnRef = useRef<{ platform_user_id: string; platform_username: string } | null>(null);
 
   const addLog = useCallback((convo: string, phase: string, status: AiLogEntry["status"] = "info") => {
     setAiLog(prev => [{ convo, phase, time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }), status }, ...prev].slice(0, 50));
@@ -118,6 +125,7 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
     if (data?.access_token) {
       setConnectionStatus("connected");
       setConnectionError("");
+      igConnRef.current = { platform_user_id: data.platform_user_id || "", platform_username: data.platform_username || "" };
     } else {
       setConnectionStatus("error");
       setConnectionError("Instagram not connected — connect in Social Hub settings");
@@ -133,44 +141,58 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
       .eq("account_id", accountId)
       .order("last_message_at", { ascending: false, nullsFirst: false });
     if (data) setConversations(data as Conversation[]);
+    return data as Conversation[] | null;
   }, [accountId]);
 
-  // Load messages for selected conversation
-  const loadMessages = useCallback(async (convoId: string) => {
-    setLoading(true);
+  // Load messages for a conversation into cache
+  const loadMessagesToCache = useCallback(async (convoId: string): Promise<Message[]> => {
     const { data } = await supabase
       .from("ai_dm_messages")
       .select("*")
       .eq("conversation_id", convoId)
       .order("created_at", { ascending: true });
-    if (data) setMessages(data as Message[]);
-    setLoading(false);
+    const msgs = (data || []) as Message[];
+    messageCacheRef.current.set(convoId, msgs);
+    return msgs;
   }, []);
 
-  // Fetch fresh messages from IG API to get attachments/media
-  const fetchIGMessages = async (convoId: string) => {
-    const convo = conversations.find(c => c.id === convoId);
-    if (!convo?.platform_conversation_id) return;
+  // Load messages for selected conversation (instant from cache, then refresh)
+  const loadMessages = useCallback(async (convoId: string) => {
+    // Serve from cache instantly if available
+    const cached = messageCacheRef.current.get(convoId);
+    if (cached && cached.length > 0) {
+      setMessages(cached);
+      // Refresh in background
+      loadMessagesToCache(convoId).then(fresh => {
+        if (selectedConvo === convoId) setMessages(fresh);
+      });
+      return;
+    }
+    // No cache — load with spinner
+    setLoading(true);
+    const msgs = await loadMessagesToCache(convoId);
+    setMessages(msgs);
+    setLoading(false);
+  }, [loadMessagesToCache, selectedConvo]);
+
+  // IG sync for a single conversation (imports/updates messages from IG API)
+  const fetchIGMessages = useCallback(async (convoId: string, convo?: Conversation) => {
+    const c = convo || conversations.find(cv => cv.id === convoId);
+    if (!c?.platform_conversation_id) return;
+
+    const conn = igConnRef.current;
+    const ourUsername = conn?.platform_username?.toLowerCase() || "";
+    const ourIgId = conn?.platform_user_id || "";
+
     try {
       const { data, error } = await supabase.functions.invoke("instagram-api", {
-        body: { action: "get_conversation_messages", account_id: accountId, params: { conversation_id: convo.platform_conversation_id, limit: 50 } },
+        body: { action: "get_conversation_messages", account_id: accountId, params: { conversation_id: c.platform_conversation_id, limit: 50 } },
       });
       if (error || !data?.success) return;
       const igMessages = data.data?.messages?.data || [];
       let changed = false;
 
-      // Get our IG connection info for sender detection
-      const { data: igConn } = await supabase
-        .from("social_connections")
-        .select("platform_user_id, platform_username")
-        .eq("account_id", accountId)
-        .eq("platform", "instagram")
-        .single();
-      const ourUsername = igConn?.platform_username?.toLowerCase() || "";
-      const ourIgId = igConn?.platform_user_id || "";
-
       for (const igMsg of igMessages) {
-        // Check if this message exists in DB
         const { data: existing } = await supabase
           .from("ai_dm_messages")
           .select("id, content, metadata")
@@ -200,21 +222,18 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
         }
 
         if (existing && existing.length > 0) {
-          // Always overwrite content & metadata from IG API to fix any stale/wrong data
           const ex = existing[0];
           const updates: any = {};
           if (contentText && contentText !== ex.content) updates.content = contentText;
           if (attData && JSON.stringify(attData) !== JSON.stringify(ex.metadata)) updates.metadata = attData;
           if (igMsg.created_time || igMsg.timestamp) {
-            const ts = new Date(igMsg.created_time || igMsg.timestamp).toISOString();
-            updates.created_at = ts;
+            updates.created_at = new Date(igMsg.created_time || igMsg.timestamp).toISOString();
           }
           if (Object.keys(updates).length > 0) {
             await supabase.from("ai_dm_messages").update(updates).eq("id", ex.id);
             changed = true;
           }
         } else {
-          // Import missing message
           const fromName = (igMsg.from?.username || igMsg.from?.name || "").toLowerCase();
           const isFromFan = igMsg.from?.id
             ? (igMsg.from.id !== ourIgId && fromName !== ourUsername)
@@ -225,7 +244,7 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
             account_id: accountId,
             platform_message_id: igMsg.id,
             sender_type: isFromFan ? "fan" : "manual",
-            sender_name: isFromFan ? (convo.participant_username || convo.participant_name || "fan") : (ourUsername || "you"),
+            sender_name: isFromFan ? (c.participant_username || c.participant_name || "fan") : (ourUsername || "you"),
             content: contentText || "",
             status: "sent",
             created_at: igMsg.created_time || igMsg.timestamp ? new Date(igMsg.created_time || igMsg.timestamp).toISOString() : new Date().toISOString(),
@@ -236,17 +255,89 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
       }
 
       if (changed) {
-        const { data: freshMsgs } = await supabase
-          .from("ai_dm_messages")
-          .select("*")
-          .eq("conversation_id", convoId)
-          .order("created_at", { ascending: true });
-        if (freshMsgs) setMessages(freshMsgs as Message[]);
+        const fresh = await loadMessagesToCache(convoId);
+        if (selectedConvo === convoId) setMessages(fresh);
       }
+
+      igSyncedRef.current.add(convoId);
     } catch (e) {
       console.error("fetchIGMessages error:", e);
     }
-  };
+  }, [accountId, conversations, loadMessagesToCache, selectedConvo]);
+
+  // ===== BACKGROUND PREFETCH ALL CONVERSATIONS =====
+  const prefetchAllMessages = useCallback(async (convos: Conversation[]) => {
+    if (prefetchingRef.current || convos.length === 0) return;
+    prefetchingRef.current = true;
+
+    // Phase 1: Load all DB messages in one batch query (very fast)
+    const convoIds = convos.map(c => c.id);
+    const batchSize = 500;
+    let allMessages: Message[] = [];
+    
+    // Fetch all messages for all convos in batches
+    for (let i = 0; i < convoIds.length; i += 20) {
+      const batch = convoIds.slice(i, i + 20);
+      const { data } = await supabase
+        .from("ai_dm_messages")
+        .select("*")
+        .in("conversation_id", batch)
+        .order("created_at", { ascending: true })
+        .limit(batchSize);
+      if (data) allMessages = allMessages.concat(data as Message[]);
+    }
+
+    // Group by conversation_id and populate cache
+    const grouped = new Map<string, Message[]>();
+    for (const msg of allMessages) {
+      const arr = grouped.get(msg.conversation_id) || [];
+      arr.push(msg);
+      grouped.set(msg.conversation_id, arr);
+    }
+    for (const [cid, msgs] of grouped) {
+      messageCacheRef.current.set(cid, msgs);
+    }
+    // Also set empty arrays for convos with no messages yet
+    for (const c of convos) {
+      if (!messageCacheRef.current.has(c.id)) {
+        messageCacheRef.current.set(c.id, []);
+      }
+    }
+
+    // Update current view if cached
+    if (selectedConvo && messageCacheRef.current.has(selectedConvo)) {
+      setMessages(messageCacheRef.current.get(selectedConvo) || []);
+    }
+
+    addLog("system", `Cached ${allMessages.length} messages from ${convos.length} convos`, "success");
+
+    // Phase 2: Background IG sync for conversations with platform IDs (3 concurrent)
+    const toSync = convos.filter(c => c.platform_conversation_id && !igSyncedRef.current.has(c.id));
+    if (toSync.length > 0) {
+      setPrefetchProgress({ done: 0, total: toSync.length });
+      const concurrency = 3;
+      let done = 0;
+
+      const syncOne = async (c: Conversation) => {
+        try {
+          await fetchIGMessages(c.id, c);
+        } catch {}
+        done++;
+        setPrefetchProgress({ done, total: toSync.length });
+      };
+
+      // Process in batches of `concurrency`
+      for (let i = 0; i < toSync.length; i += concurrency) {
+        const batch = toSync.slice(i, i + concurrency);
+        await Promise.all(batch.map(syncOne));
+      }
+
+      setPrefetchProgress(null);
+      addLog("system", `IG sync complete: ${toSync.length} convos`, "success");
+    }
+
+    prefetchingRef.current = false;
+  }, [accountId, fetchIGMessages, addLog, selectedConvo]);
 
   // Scan ALL conversations from Instagram
   const scanAllConversations = useCallback(async (silent = false) => {
@@ -273,7 +364,11 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
           else toast.success(`${found} conversations already up to date`);
         }
       }
-      await loadConversations();
+      const freshConvos = await loadConversations();
+      // Trigger background prefetch after scan
+      if (freshConvos && freshConvos.length > 0) {
+        prefetchAllMessages(freshConvos);
+      }
     } catch (e: any) {
       addLog("system", `Sync error: ${e.message}`, "error");
       if (!silent) toast.error(e.message || "Failed to scan");
@@ -282,25 +377,30 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
       setInitialScanDone(true);
       setAiCurrentPhase("");
     }
-  }, [accountId, loadConversations, addLog]);
+  }, [accountId, loadConversations, addLog, prefetchAllMessages]);
 
-
+  // Initial load
   useEffect(() => {
     if (accountId) {
       checkConnection();
-      loadConversations();
+      loadConversations().then(convos => {
+        if (convos && convos.length > 0) prefetchAllMessages(convos);
+      });
       if (!initialScanDone) scanAllConversations(true);
     }
   }, [accountId]);
 
-  // Load messages when convo selected
+  // Load messages when convo selected — instant from cache
   useEffect(() => {
     if (selectedConvo) {
       loadMessages(selectedConvo);
-      fetchIGMessages(selectedConvo);
+      // If not yet synced from IG, do it now
+      if (!igSyncedRef.current.has(selectedConvo)) {
+        fetchIGMessages(selectedConvo);
+      }
       supabase.from("ai_dm_conversations").update({ is_read: true }).eq("id", selectedConvo).then();
     }
-  }, [selectedConvo, loadMessages]);
+  }, [selectedConvo, loadMessages, fetchIGMessages]);
 
   // Real-time subscriptions
   useEffect(() => {
@@ -549,6 +649,22 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
               className="pl-8 h-8 text-xs bg-muted/30 border-0 rounded-lg"
             />
           </div>
+
+          {/* Background prefetch progress */}
+          {prefetchProgress && (
+            <div className="px-4 py-1.5 border-b border-border">
+              <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                <span>Caching messages {prefetchProgress.done}/{prefetchProgress.total}</span>
+              </div>
+              <div className="mt-1 h-1 bg-muted/30 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-accent/60 rounded-full transition-all duration-300"
+                  style={{ width: `${Math.round((prefetchProgress.done / prefetchProgress.total) * 100)}%` }}
+                />
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Conversation List */}
