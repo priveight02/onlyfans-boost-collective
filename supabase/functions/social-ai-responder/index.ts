@@ -1221,10 +1221,26 @@ Follow these persona settings strictly. They override any conflicting defaults a
               .order("created_at", { ascending: true })
               .limit(20);
 
-            const conversationContext = (dbMessages || []).map(m => ({
-              role: m.sender_type === "fan" ? "fan" : "creator",
-              text: m.content,
-            }));
+            const conversationContext = (dbMessages || []).map(m => {
+              let contextText = m.content || "";
+              // Include media context so AI knows what was shared
+              if (m.metadata) {
+                const meta = m.metadata as any;
+                const atts = meta?.attachments || [];
+                const mediaDescs: string[] = [];
+                for (const att of (Array.isArray(atts) ? atts : [])) {
+                  const mt = att?.mime_type || att?.type || "";
+                  if (mt.includes("image") || mt.includes("photo")) mediaDescs.push("[photo]");
+                  else if (mt.includes("video")) mediaDescs.push("[video]");
+                  else if (mt.includes("audio")) mediaDescs.push("[voice]");
+                }
+                if (meta?.sticker) mediaDescs.push("[sticker]");
+                if (meta?.shares) mediaDescs.push("[shared post]");
+                if (meta?.story) mediaDescs.push("[story reply]");
+                if (mediaDescs.length > 0) contextText = contextText ? `${contextText} ${mediaDescs.join(" ")}` : mediaDescs.join(" ");
+              }
+              return { role: m.sender_type === "fan" ? "fan" : "creator", text: contextText || "[empty]" };
+            });
 
             // Insert a "typing" placeholder for real-time UI
             const { data: typingMsg } = await supabase
@@ -1398,6 +1414,259 @@ FINAL REMINDER (READ LAST — THIS OVERRIDES EVERYTHING):
         }
 
         result = { processed, conversations: processedConvos, total_checked: activeConvos?.length || 0 };
+        break;
+      }
+
+      case "relaunch_unread": {
+        // Deep-scan ALL unread convos, load full history + media context, resume where left off
+        const { data: igConnRL } = await supabase
+          .from("social_connections")
+          .select("platform_user_id, platform_username")
+          .eq("account_id", account_id)
+          .eq("platform", "instagram")
+          .single();
+
+        if (!igConnRL?.platform_user_id) {
+          result = { error: "Instagram not connected", processed: 0 };
+          break;
+        }
+
+        const igFuncUrlRL = `${Deno.env.get("SUPABASE_URL")}/functions/v1/instagram-api`;
+        const serviceKeyRL = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+        const callIGRL = async (igAction: string, igParams: any = {}) => {
+          const resp = await fetch(igFuncUrlRL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKeyRL}` },
+            body: JSON.stringify({ action: igAction, account_id, params: igParams }),
+          });
+          const d = await resp.json();
+          if (!d.success) throw new Error(d.error || `IG API ${igAction} failed`);
+          return d.data;
+        };
+
+        // Get persona
+        let personaRL = DEFAULT_PERSONA;
+        const { data: personaDataRL } = await supabase
+          .from("persona_profiles")
+          .select("*")
+          .eq("account_id", account_id)
+          .single();
+        if (personaDataRL) {
+          personaRL += `\n\n--- ACTIVE PERSONA OVERRIDE ---
+Tone: ${personaDataRL.tone}
+Vocabulary Style: ${personaDataRL.vocabulary_style}
+Emotional Range: ${personaDataRL.emotional_range || "default"}
+${personaDataRL.boundaries ? `Hard Boundaries: ${personaDataRL.boundaries}` : ""}
+${personaDataRL.brand_identity ? `Brand Identity: ${personaDataRL.brand_identity}` : ""}
+${personaDataRL.communication_rules ? `Communication Rules: ${JSON.stringify(personaDataRL.communication_rules)}` : ""}
+Follow these persona settings strictly. They override any conflicting defaults above.`;
+        }
+
+        // Get auto-respond config
+        const { data: autoConfigRL } = await supabase
+          .from("auto_respond_state")
+          .select("*")
+          .eq("account_id", account_id)
+          .single();
+
+        // Find ALL unread conversations with AI enabled
+        const { data: unreadConvos } = await supabase
+          .from("ai_dm_conversations")
+          .select("*")
+          .eq("account_id", account_id)
+          .eq("is_read", false)
+          .eq("ai_enabled", true)
+          .eq("status", "active")
+          .order("last_message_at", { ascending: false });
+
+        let rlProcessed = 0;
+        const rlResults: any[] = [];
+
+        for (const uc of (unreadConvos || [])) {
+          try {
+            // Load FULL conversation history (up to 50 messages for deep context)
+            const { data: fullHistory } = await supabase
+              .from("ai_dm_messages")
+              .select("*")
+              .eq("conversation_id", uc.id)
+              .order("created_at", { ascending: true })
+              .limit(50);
+
+            if (!fullHistory || fullHistory.length === 0) continue;
+
+            // Check if last message is from fan
+            const lastMsg = fullHistory[fullHistory.length - 1];
+            if (lastMsg.sender_type !== "fan") continue;
+
+            // Skip if we already replied after this message
+            if (uc.last_ai_reply_at) {
+              const aiTime = new Date(uc.last_ai_reply_at).getTime();
+              const fanTime = new Date(lastMsg.created_at).getTime();
+              if (aiTime >= fanTime) continue;
+            }
+
+            // Build RICH context including media descriptions
+            const richContext: any[] = [];
+            for (const msg of fullHistory) {
+              let contextText = msg.content || "";
+              
+              // Analyze media/images in message metadata
+              if (msg.metadata) {
+                const meta = msg.metadata as any;
+                const attachments = meta?.attachments || [];
+                const mediaDescriptions: string[] = [];
+                
+                for (const att of (Array.isArray(attachments) ? attachments : [])) {
+                  const mimeType = att?.mime_type || att?.type || "";
+                  const url = att?.url || att?.image_data?.url || att?.video_data?.url || "";
+                  
+                  if (mimeType.includes("image") || mimeType.includes("photo")) {
+                    mediaDescriptions.push("[sent a photo]");
+                  } else if (mimeType.includes("video")) {
+                    mediaDescriptions.push("[sent a video]");
+                  } else if (mimeType.includes("audio")) {
+                    mediaDescriptions.push("[sent a voice message]");
+                  }
+                }
+                
+                if (meta?.sticker) mediaDescriptions.push("[sent a sticker]");
+                if (meta?.shares) {
+                  const shareData = meta.shares?.data?.[0] || meta.shares;
+                  const shareLink = shareData?.link || "";
+                  mediaDescriptions.push(shareLink ? `[shared a post: ${shareLink}]` : "[shared a post]");
+                }
+                if (meta?.story) mediaDescriptions.push("[replied to your story]");
+                
+                if (mediaDescriptions.length > 0) {
+                  contextText = contextText 
+                    ? `${contextText} ${mediaDescriptions.join(" ")}` 
+                    : mediaDescriptions.join(" ");
+                }
+              }
+              
+              richContext.push({
+                role: msg.sender_type === "fan" ? "fan" : "creator",
+                text: contextText || "[empty]",
+              });
+            }
+
+            // Build system prompt with deep context awareness
+            const emojiDirRL = "\n\nEMOJI DIRECTIVE: ZERO emojis. NEVER use emojis. Text only. Always.";
+            const systemPromptRL = `${personaRL}${emojiDirRL}
+${autoConfigRL?.redirect_url ? `\nIMPORTANT: when it makes sense, naturally guide toward this link: ${autoConfigRL.redirect_url}` : ""}
+${autoConfigRL?.trigger_keywords ? `if they mention any of these: ${autoConfigRL.trigger_keywords}, redirect them to the link` : ""}
+
+CONVERSATION RESUMPTION CONTEXT:
+You are RESUMING a conversation after a gap. You have the FULL chat history above.
+- Analyze the entire conversation flow, mood, and where things left off
+- Note any media they sent (photos, videos, story replies, shared posts) and reference them naturally if relevant
+- Continue the conversation naturally as if you just got back to your phone
+- Dont apologize for being late — be casual about it like "oh hey" or "lol sorry i was busy"
+- Pick up the vibe from where it was — if it was flirty, stay flirty. if casual, stay casual
+- If they sent media, acknowledge it naturally: "that was cute" or "mm i saw that"
+
+FINAL REMINDER (READ LAST — THIS OVERRIDES EVERYTHING):
+- Your reply MUST be 3-10 words, max 2 short sentences
+- ZERO emojis. NONE. EVER. Not a single emoji character
+- Write like "take it or leave it lol" or "mm thats cute" NOT formal English
+- Output ONLY the message text. No quotes, no labels, no empty strings`;
+
+            const aiMsgsRL: any[] = [{ role: "system", content: systemPromptRL }];
+            for (const ctx of richContext) {
+              aiMsgsRL.push({ role: ctx.role === "creator" ? "assistant" : "user", content: ctx.text });
+            }
+
+            // Insert typing placeholder
+            const { data: typingMsgRL } = await supabase
+              .from("ai_dm_messages")
+              .insert({
+                conversation_id: uc.id,
+                account_id,
+                sender_type: "ai",
+                sender_name: igConnRL.platform_username || "creator",
+                content: "...",
+                status: "typing",
+              })
+              .select("id")
+              .single();
+
+            // Generate reply with full context
+            const aiRespRL = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+              method: "POST",
+              headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+              body: JSON.stringify({
+                model: "google/gemini-3-flash-preview",
+                messages: aiMsgsRL,
+                max_tokens: 80,
+                temperature: 0.8,
+              }),
+            });
+
+            if (!aiRespRL.ok) {
+              if (typingMsgRL) await supabase.from("ai_dm_messages").update({ status: "failed", content: "AI generation failed" }).eq("id", typingMsgRL.id);
+              continue;
+            }
+
+            const aiResultRL = await aiRespRL.json();
+            let replyRL = (aiResultRL.choices?.[0]?.message?.content || "").replace(/\[.*?\]/g, "").replace(/^["']|["']$/g, "").trim();
+
+            // Fallback
+            if (!replyRL) {
+              const fallbacksRL = ["hey", "oh hey", "lol sorry was busy", "mm hey u", "yo", "hi cutie", "haha hey", "missed this", "oh wait hey"];
+              replyRL = fallbacksRL[Math.floor(Math.random() * fallbacksRL.length)];
+            }
+
+            // Strip emojis
+            const emojiRxRL = /[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{200D}\u{20E3}\u{FE0F}]/gu;
+            replyRL = replyRL.replace(emojiRxRL, "").replace(/\s{2,}/g, " ").trim();
+            if (!replyRL) replyRL = "hey";
+
+            // Typing delay
+            const typingDelayRL = Math.min(Math.max(replyRL.length * (60 + Math.random() * 40), 3000), 8000);
+
+            // Send via IG
+            try {
+              const sendResultRL = await callIGRL("send_message", {
+                recipient_id: uc.participant_id,
+                message: replyRL,
+              });
+
+              await supabase.from("ai_dm_messages").update({
+                content: replyRL,
+                status: "sent",
+                platform_message_id: sendResultRL?.message_id || null,
+                ai_model: aiResultRL.model,
+                typing_delay_ms: Math.round(typingDelayRL),
+              }).eq("id", typingMsgRL?.id);
+
+              await supabase.from("ai_dm_conversations").update({
+                last_ai_reply_at: new Date().toISOString(),
+                last_message_at: new Date().toISOString(),
+                last_message_preview: `You: ${replyRL.substring(0, 80)}`,
+                is_read: true,
+              }).eq("id", uc.id);
+
+              rlProcessed++;
+              rlResults.push({
+                conversation_id: uc.id,
+                fan: uc.participant_username,
+                context_messages: fullHistory.length,
+                ai_reply: replyRL,
+              });
+            } catch (sendErrRL: any) {
+              console.error("Relaunch send failed:", sendErrRL);
+              if (typingMsgRL) {
+                await supabase.from("ai_dm_messages").update({ status: "failed", content: replyRL, metadata: { error: sendErrRL.message } }).eq("id", typingMsgRL.id);
+              }
+            }
+          } catch (ucErr) {
+            console.error("Error relaunching conversation:", ucErr);
+          }
+          // Small delay between convos to avoid rate limits
+          await new Promise(r => setTimeout(r, 800));
+        }
+
+        result = { processed: rlProcessed, total_unread: unreadConvos?.length || 0, conversations: rlResults };
         break;
       }
 
