@@ -79,6 +79,54 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_conversation_learnings: {
+        Row: {
+          account_id: string
+          behavior_type: string
+          context_snapshot: Json | null
+          conversation_id: string | null
+          created_at: string
+          engagement_delta: number | null
+          fan_identifier: string | null
+          fan_response: string | null
+          id: string
+          message_sent: string
+          outcome: string
+          redirect_success: boolean | null
+          strategy_type: string
+        }
+        Insert: {
+          account_id: string
+          behavior_type?: string
+          context_snapshot?: Json | null
+          conversation_id?: string | null
+          created_at?: string
+          engagement_delta?: number | null
+          fan_identifier?: string | null
+          fan_response?: string | null
+          id?: string
+          message_sent: string
+          outcome?: string
+          redirect_success?: boolean | null
+          strategy_type?: string
+        }
+        Update: {
+          account_id?: string
+          behavior_type?: string
+          context_snapshot?: Json | null
+          conversation_id?: string | null
+          created_at?: string
+          engagement_delta?: number | null
+          fan_identifier?: string | null
+          fan_response?: string | null
+          id?: string
+          message_sent?: string
+          outcome?: string
+          redirect_success?: boolean | null
+          strategy_type?: string
+        }
+        Relationships: []
+      }
       ai_dm_conversations: {
         Row: {
           account_id: string
@@ -218,6 +266,54 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      ai_learned_strategies: {
+        Row: {
+          account_id: string
+          avg_engagement_score: number | null
+          behavior_type: string
+          best_hooks: Json | null
+          best_openers: Json | null
+          best_recovery_lines: Json | null
+          id: string
+          losing_patterns: Json | null
+          redirect_success_rate: number | null
+          strategy_type: string
+          total_samples: number | null
+          updated_at: string
+          winning_patterns: Json | null
+        }
+        Insert: {
+          account_id: string
+          avg_engagement_score?: number | null
+          behavior_type: string
+          best_hooks?: Json | null
+          best_openers?: Json | null
+          best_recovery_lines?: Json | null
+          id?: string
+          losing_patterns?: Json | null
+          redirect_success_rate?: number | null
+          strategy_type: string
+          total_samples?: number | null
+          updated_at?: string
+          winning_patterns?: Json | null
+        }
+        Update: {
+          account_id?: string
+          avg_engagement_score?: number | null
+          behavior_type?: string
+          best_hooks?: Json | null
+          best_openers?: Json | null
+          best_recovery_lines?: Json | null
+          id?: string
+          losing_patterns?: Json | null
+          redirect_success_rate?: number | null
+          strategy_type?: string
+          total_samples?: number | null
+          updated_at?: string
+          winning_patterns?: Json | null
+        }
+        Relationships: []
       }
       auto_respond_state: {
         Row: {
