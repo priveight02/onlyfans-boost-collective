@@ -2229,8 +2229,120 @@ Follow these persona settings strictly. They override any conflicting defaults a
             const fanProfileForPic = fanProfileForPicPreCheck;
             const freePicCheck = freePicPreCheck;
 
+            // === FREE PIC PENDING CHECK (Phase 2 — deliver pic after delay) ===
+            const convoMeta = dbConvo.metadata as any || {};
+            const freePicPendingAt = convoMeta?.free_pic_pending_at;
+            
+            if (freePicPendingAt) {
+              const pendingTime = new Date(freePicPendingAt).getTime();
+              const elapsed = Date.now() - pendingTime;
+              const delayMs = 90000 + Math.random() * 60000; // 1.5-2.5 min
+              
+              if (elapsed < 80000) {
+                // Not enough time has passed — skip this conversation, wait for next cycle
+                console.log(`[FREE PIC PHASE 2] @${dbConvo.participant_username}: waiting (${Math.round(elapsed/1000)}s elapsed, need ~90s)`);
+                continue;
+              }
+              
+              // Enough time passed — deliver the pic now
+              console.log(`[FREE PIC PHASE 2] @${dbConvo.participant_username}: delivering pic (${Math.round(elapsed/1000)}s elapsed)`);
+              const igFuncUrlFP2 = `${Deno.env.get("SUPABASE_URL")}/functions/v1/instagram-api`;
+              const serviceKeyFP2 = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+              const callIGFP2 = async (igAction: string, igParams: any = {}) => {
+                const resp = await fetch(igFuncUrlFP2, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKeyFP2}` },
+                  body: JSON.stringify({ action: igAction, account_id, params: igParams }),
+                });
+                return resp.json();
+              };
+              
+              try {
+                // Lock conversation
+                await supabase.from("ai_dm_conversations").update({
+                  last_ai_reply_at: new Date().toISOString(),
+                }).eq("id", dbConvo.id);
+                
+                // Send the pic
+                const freePicUrl = DEFAULT_FREE_PIC_URL;
+                console.log(`[FREE PIC PHASE 2] Sending image: ${freePicUrl}`);
+                const mediaResult = await callIGFP2("send_media_message", {
+                  recipient_id: dbConvo.participant_id,
+                  media_type: "image",
+                  media_url: freePicUrl,
+                });
+                console.log(`[FREE PIC PHASE 2] Media result:`, JSON.stringify(mediaResult));
+                
+                // Log pic in DB (single entry only)
+                await supabase.from("ai_dm_messages").insert({
+                  conversation_id: dbConvo.id, account_id,
+                  sender_type: "ai", sender_name: igConn2.platform_username || "creator",
+                  content: "[sent free pic]", status: "sent",
+                  metadata: { free_pic: true, url: freePicUrl },
+                  ai_model: "free_pic_engine",
+                });
+                
+                // Brief delay then redirect
+                await new Promise(r => setTimeout(r, 2000 + Math.random() * 1500));
+                
+                const redirectMsgs = [
+                  "theres way more where that came from tho check my bio",
+                  "u should see what else i got tho its in my bio",
+                  "mm thats just a taste go check my page for the real thing",
+                  "that was just a preview u gotta come see the rest",
+                  "ok now go check my bio before i change my mind",
+                ];
+                const redirectMsg = redirectMsgs[Math.floor(Math.random() * redirectMsgs.length)];
+                await callIGFP2("send_message", { recipient_id: dbConvo.participant_id, message: redirectMsg });
+                
+                // Log redirect in DB (single entry only)
+                await supabase.from("ai_dm_messages").insert({
+                  conversation_id: dbConvo.id, account_id,
+                  sender_type: "ai", sender_name: igConn2.platform_username || "creator",
+                  content: redirectMsg, status: "sent",
+                  ai_model: "free_pic_engine",
+                });
+                
+                // Mark free pic as sent in fan profile
+                const currentTags2 = fanProfileForPic?.tags || [];
+                await supabase.from("fan_emotional_profiles").upsert({
+                  account_id,
+                  fan_identifier: dbConvo.participant_id,
+                  fan_name: dbConvo.participant_username || dbConvo.participant_name,
+                  tags: [...currentTags2.filter((t: string) => t !== "free_pic_sent"), "free_pic_sent"],
+                }, { onConflict: "account_id,fan_identifier" });
+                
+                // Clear pending state + update conversation
+                await supabase.from("ai_dm_conversations").update({
+                  last_ai_reply_at: new Date().toISOString(),
+                  last_message_at: new Date().toISOString(),
+                  last_message_preview: `You: ${redirectMsg.substring(0, 80)}`,
+                  redirect_sent: true,
+                  is_read: true,
+                  metadata: { ...convoMeta, free_pic_pending_at: null },
+                }).eq("id", dbConvo.id);
+                
+                processed++;
+                processedConvos.push({
+                  conversation_id: dbConvo.id,
+                  fan: dbConvo.participant_username,
+                  fan_message: "free_pic_phase2",
+                  ai_reply: `[FREE PIC DELIVERED + REDIRECT] → ${redirectMsg}`,
+                  ml_behavior: "free_pic_delivery",
+                });
+                console.log(`[FREE PIC PHASE 2] Delivered to @${dbConvo.participant_username}`);
+              } catch (fp2Err) {
+                console.error("[FREE PIC PHASE 2] Failed:", fp2Err);
+                // Clear pending state on failure so it doesn't loop forever
+                await supabase.from("ai_dm_conversations").update({
+                  metadata: { ...convoMeta, free_pic_pending_at: null },
+                }).eq("id", dbConvo.id);
+              }
+              continue;
+            }
+
             if (freePicCheck.isEligible) {
-              // ELIGIBLE: Send default free pic THEN immediately redirect
+              // === FREE PIC PHASE 1: Send shy msg + brb, then set pending state ===
               const igFuncUrlFP = `${Deno.env.get("SUPABASE_URL")}/functions/v1/instagram-api`;
               const serviceKeyFP = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
               const callIGFP = async (igAction: string, igParams: any = {}) => {
@@ -2243,19 +2355,12 @@ Follow these persona settings strictly. They override any conflicting defaults a
               };
 
               try {
-                // IMMEDIATELY lock this conversation to prevent duplicate processing
+                // Lock conversation immediately
                 await supabase.from("ai_dm_conversations").update({
                   last_ai_reply_at: new Date().toISOString(),
                 }).eq("id", dbConvo.id);
 
-                // Step 1: Insert typing placeholder
-                const { data: fpTyping } = await supabase.from("ai_dm_messages").insert({
-                  conversation_id: dbConvo.id, account_id,
-                  sender_type: "ai", sender_name: igConn2.platform_username || "creator",
-                  content: "...", status: "typing",
-                }).select("id").single();
-
-                // Step 2: Send a shy/teasing text before the pic
+                // Send shy/teasing text
                 const shyPrefixes = [
                   "ok fine just this once tho",
                   "mm ok since u asked nicely",
@@ -2265,75 +2370,40 @@ Follow these persona settings strictly. They override any conflicting defaults a
                   "mm ok since we vibed",
                 ];
                 const shyMsg = shyPrefixes[Math.floor(Math.random() * shyPrefixes.length)];
-                const shyResult = await callIGFP("send_message", { recipient_id: dbConvo.participant_id, message: shyMsg });
-                console.log(`[FREE PIC] Shy msg result:`, JSON.stringify(shyResult));
+                await callIGFP("send_message", { recipient_id: dbConvo.participant_id, message: shyMsg });
                 
-                // Update typing placeholder with shy message
-                if (fpTyping) {
-                  await supabase.from("ai_dm_messages").update({
-                    content: shyMsg, status: "sent", ai_model: "free_pic_engine",
-                  }).eq("id", fpTyping.id);
-                }
-
-                // Brief delay then send the pic directly (no brb message — just send it)
-                await new Promise(r => setTimeout(r, 2000 + Math.random() * 1500));
-                
-                // Step 3: Send free pic from storage
-                const freePicUrl = DEFAULT_FREE_PIC_URL;
-                console.log(`[FREE PIC] Sending image: ${freePicUrl}`);
-                const mediaResult = await callIGFP("send_media_message", {
-                  recipient_id: dbConvo.participant_id,
-                  media_type: "image",
-                  media_url: freePicUrl,
-                });
-                console.log(`[FREE PIC] Media send result:`, JSON.stringify(mediaResult));
-                
-                // Log the pic send in DB
+                // Log shy msg in DB (single entry)
                 await supabase.from("ai_dm_messages").insert({
                   conversation_id: dbConvo.id, account_id,
                   sender_type: "ai", sender_name: igConn2.platform_username || "creator",
-                  content: "[sent free pic]", status: "sent",
-                  metadata: { free_pic: true, url: DEFAULT_FREE_PIC_URL },
+                  content: shyMsg, status: "sent", ai_model: "free_pic_engine",
                 });
-                
-                // Brief delay before redirect
-                await new Promise(r => setTimeout(r, 1500 + Math.random() * 1500));
 
-                // Step 4: IMMEDIATELY redirect to bio link
-                const redirectUrl = autoConfig?.redirect_url || "";
-                const redirectMsgs = [
-                  "theres way more where that came from tho check my bio",
-                  "u should see what else i got tho its in my bio",
-                  "mm thats just a taste go check my page for the real thing",
-                  "that was just a preview u gotta come see the rest",
-                  "ok now go check my bio before i change my mind",
+                // Brief delay then brb message
+                await new Promise(r => setTimeout(r, 1500 + Math.random() * 1000));
+                
+                const brbMessages = [
+                  "ok gimme like 2 min",
+                  "hold on lemme take one rn",
+                  "ok wait 2 sec let me take smth",
+                  "one sec lemme get one for u",
+                  "ok brb 2 min",
+                  "wait lemme go take smth real quick",
                 ];
-                const redirectMsg = redirectMsgs[Math.floor(Math.random() * redirectMsgs.length)];
-                await callIGFP("send_message", { recipient_id: dbConvo.participant_id, message: redirectMsg });
+                const brbMsg = brbMessages[Math.floor(Math.random() * brbMessages.length)];
+                await callIGFP("send_message", { recipient_id: dbConvo.participant_id, message: brbMsg });
                 
-                // Log redirect
+                // Log brb msg in DB (single entry)
                 await supabase.from("ai_dm_messages").insert({
                   conversation_id: dbConvo.id, account_id,
                   sender_type: "ai", sender_name: igConn2.platform_username || "creator",
-                  content: redirectMsg, status: "sent",
+                  content: brbMsg, status: "sent", ai_model: "free_pic_engine",
                 });
-                
-                // Step 5: Mark free pic as sent in fan profile tags (NEVER send again)
-                const currentTags = fanProfileForPic?.tags || [];
-                await supabase.from("fan_emotional_profiles").upsert({
-                  account_id,
-                  fan_identifier: dbConvo.participant_id,
-                  fan_name: dbConvo.participant_username || dbConvo.participant_name,
-                  tags: [...currentTags.filter((t: string) => t !== "free_pic_sent"), "free_pic_sent"],
-                }, { onConflict: "account_id,fan_identifier" });
 
-                // Update conversation
+                // Set pending state — pic will be delivered on a future cycle (~2 min later)
                 await supabase.from("ai_dm_conversations").update({
                   last_ai_reply_at: new Date().toISOString(),
-                  last_message_at: new Date().toISOString(),
-                  last_message_preview: `You: ${redirectMsg.substring(0, 80)}`,
-                  redirect_sent: true,
-                  is_read: true,
+                  metadata: { ...convoMeta, free_pic_pending_at: new Date().toISOString() },
                 }).eq("id", dbConvo.id);
 
                 processed++;
@@ -2341,13 +2411,13 @@ Follow these persona settings strictly. They override any conflicting defaults a
                   conversation_id: dbConvo.id,
                   fan: dbConvo.participant_username,
                   fan_message: latestMsg.content,
-                  ai_reply: `[FREE PIC SENT + REDIRECT] ${shyMsg} → pic → ${redirectMsg}`,
-                  ml_behavior: "free_pic_delivery",
+                  ai_reply: `[FREE PIC PHASE 1] ${shyMsg} → ${brbMsg} → pending delivery`,
+                  ml_behavior: "free_pic_phase1",
                 });
-                console.log(`Free pic delivered to @${dbConvo.participant_username} + redirect`);
-                continue; // Skip normal AI reply — free pic flow handled everything
+                console.log(`[FREE PIC PHASE 1] @${dbConvo.participant_username}: shy+brb sent, pic pending in ~2min`);
+                continue;
               } catch (fpErr) {
-                console.error("Free pic delivery failed:", fpErr);
+                console.error("[FREE PIC PHASE 1] Failed:", fpErr);
                 // Fall through to normal AI reply
               }
             } else if (freePicCheck.isRequesting && freePicCheck.alreadySent) {
