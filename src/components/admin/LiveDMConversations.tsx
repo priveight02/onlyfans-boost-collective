@@ -642,18 +642,45 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
     }
   }, [selectedConvo, loadMessages, fetchIGMessages]);
 
-  // Periodic re-sync of selected conversation — 200ms, skip if previous still running
+  // FAST DB POLL: sync AI-sent messages from DB every 200ms (lightweight query, no IG API)
+  useEffect(() => {
+    if (!selectedConvo) return;
+    const dbPollRef = { inFlight: false };
+    const dbPollInterval = setInterval(async () => {
+      if (dbPollRef.inFlight) return;
+      dbPollRef.inFlight = true;
+      try {
+        const fresh = await loadMessagesToCache(selectedConvo);
+        setSelectedConvo(prev => {
+          if (prev === selectedConvo) {
+            setMessages(current => {
+              // Only update if message count or last message changed
+              if (current.length !== fresh.length || 
+                  (current.length > 0 && fresh.length > 0 && current[current.length - 1].id !== fresh[fresh.length - 1].id)) {
+                return fresh;
+              }
+              return current;
+            });
+          }
+          return prev;
+        });
+      } finally { dbPollRef.inFlight = false; }
+    }, 200);
+    return () => clearInterval(dbPollInterval);
+  }, [selectedConvo, loadMessagesToCache]);
+
+  // IG API sync for selected convo — every 3s (heavier, syncs from Instagram)
   useEffect(() => {
     if (!selectedConvo) return;
     const resyncInterval = setInterval(async () => {
       if (syncInFlightRef.current) return;
       syncInFlightRef.current = true;
       try { await fetchIGMessages(selectedConvo); } finally { syncInFlightRef.current = false; }
-    }, 200);
+    }, 3000);
     return () => clearInterval(resyncInterval);
   }, [selectedConvo, fetchIGMessages]);
 
-  // Background sync top 5 convos every 2s, skip if in-flight
+  // Background sync top 5 convos every 5s
   useEffect(() => {
     if (!accountId || conversations.length === 0) return;
     const bgSyncInterval = setInterval(async () => {
@@ -663,7 +690,7 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
         const top = conversations.filter(c => c.platform_conversation_id).slice(0, 5);
         for (const c of top) await fetchIGMessages(c.id, c);
       } finally { bgSyncInFlightRef.current = false; }
-    }, 2000);
+    }, 5000);
     return () => clearInterval(bgSyncInterval);
   }, [accountId, conversations, fetchIGMessages]);
 
