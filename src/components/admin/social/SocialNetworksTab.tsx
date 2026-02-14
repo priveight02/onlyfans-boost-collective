@@ -123,18 +123,18 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
     if (Array.isArray(data)) {
       return (
         <div className="space-y-2">
-          <p className="text-[10px] text-muted-foreground">{data.length} items returned</p>
+          <p className="text-[10px]" style={{ color: "#999" }}>{data.length} items returned</p>
           {data.slice(0, 20).map((item: any, i: number) => (
-            <div key={i} className="bg-white/[0.03] border border-white/[0.06] rounded-lg p-3 space-y-1.5">
-              {item.caption && <p className="text-xs text-foreground line-clamp-2">{item.caption}</p>}
-              {item.text && <p className="text-xs text-foreground line-clamp-2">{item.text}</p>}
-              {item.title && <p className="text-xs font-medium text-foreground">{item.title}</p>}
-              {item.content && <p className="text-xs text-foreground line-clamp-2">{item.content}</p>}
-              {item.message && <p className="text-xs text-foreground">{item.message}</p>}
-              {item.name && !item.title && <p className="text-xs font-medium text-foreground">{item.name}</p>}
-              {item.description && <p className="text-[11px] text-muted-foreground line-clamp-1">{item.description}</p>}
+            <div key={i} className="rounded-lg p-3 space-y-1.5 border border-white/[0.08]" style={{ background: "hsl(222, 30%, 10%)" }}>
+              {item.caption && <p className="text-xs line-clamp-2" style={{ color: "#e8e8e8" }}>{item.caption}</p>}
+              {item.text && <p className="text-xs line-clamp-2" style={{ color: "#e8e8e8" }}>{item.text}</p>}
+              {item.title && <p className="text-xs font-medium" style={{ color: "#f0f0f0" }}>{item.title}</p>}
+              {item.content && <p className="text-xs line-clamp-2" style={{ color: "#e8e8e8" }}>{item.content}</p>}
+              {item.message && <p className="text-xs" style={{ color: "#e8e8e8" }}>{item.message}</p>}
+              {item.name && !item.title && <p className="text-xs font-medium" style={{ color: "#f0f0f0" }}>{item.name}</p>}
+              {item.description && <p className="text-[11px] line-clamp-1" style={{ color: "#aaa" }}>{item.description}</p>}
               {item.username && <span className="text-[10px] text-primary">@{item.username}</span>}
-              <div className="flex flex-wrap gap-3 text-[10px] text-muted-foreground">
+              <div className="flex flex-wrap gap-3 text-[10px]" style={{ color: "#999" }}>
                 {item.like_count !== undefined && <span>❤ {item.like_count?.toLocaleString()}</span>}
                 {item.likes !== undefined && <span>❤ {item.likes?.toLocaleString()}</span>}
                 {item.comments_count !== undefined && <span>💬 {item.comments_count?.toLocaleString()}</span>}
@@ -145,7 +145,7 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
                 {item.followers_count !== undefined && <span>👥 {item.followers_count?.toLocaleString()}</span>}
                 {item.subscriber_count !== undefined && <span>👥 {item.subscriber_count?.toLocaleString()}</span>}
                 {item.media_count !== undefined && <span>📷 {item.media_count?.toLocaleString()}</span>}
-                {item.media_type && <span className="bg-white/[0.06] px-1.5 py-0.5 rounded">{item.media_type}</span>}
+                {item.media_type && <span className="px-1.5 py-0.5 rounded border border-white/10" style={{ background: "hsl(222, 30%, 14%)", color: "#ccc" }}>{item.media_type}</span>}
                 {item.timestamp && <span>{new Date(item.timestamp).toLocaleDateString()}</span>}
                 {item.created_at && <span>{new Date(item.created_at).toLocaleDateString()}</span>}
                 {item.permalink && <a href={item.permalink} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">View ↗</a>}
@@ -167,20 +167,20 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
     // Handle single object (profile, insights, etc.)
     if (typeof data === "object" && data !== null) {
       const entries = Object.entries(data).filter(([_, v]) => v !== null && v !== undefined);
-      if (entries.length === 0) return <p className="text-xs text-muted-foreground">Empty response</p>;
+      if (entries.length === 0) return <p className="text-xs" style={{ color: "#999" }}>Empty response</p>;
       
       return (
         <div className="space-y-1">
           {entries.map(([key, value]) => (
             <div key={key} className="flex items-start gap-2 py-1.5 border-b border-white/[0.04] last:border-0">
-              <span className="text-[10px] font-mono text-primary min-w-[100px] shrink-0">{key}</span>
-              <span className="text-xs text-foreground break-all">
+              <span className="text-[10px] font-mono min-w-[100px] shrink-0" style={{ color: "hsl(210, 100%, 70%)" }}>{key}</span>
+              <span className="text-xs break-all" style={{ color: "#e0e0e0" }}>
                 {typeof value === "object" ? (
-                  <span className="text-muted-foreground font-mono text-[10px]">{JSON.stringify(value, null, 1)}</span>
+                  <span className="font-mono text-[10px]" style={{ color: "#999" }}>{JSON.stringify(value, null, 1)}</span>
                 ) : typeof value === "number" ? (
-                  <span className="font-semibold">{value.toLocaleString()}</span>
+                  <span className="font-semibold" style={{ color: "#f0f0f0" }}>{value.toLocaleString()}</span>
                 ) : typeof value === "boolean" ? (
-                  <span className={value ? "text-green-400" : "text-red-400"}>{value ? "Yes" : "No"}</span>
+                  <span style={{ color: value ? "#4ade80" : "#f87171" }}>{value ? "Yes" : "No"}</span>
                 ) : String(value)}
               </span>
             </div>
@@ -196,7 +196,7 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
   const renderActionButton = (label: string, funcName: string, action: string, params: any = {}, icon?: any) => {
     const Icon = icon || Zap;
     return (
-      <Button size="sm" variant="outline" onClick={() => callApi(funcName, action, params)} disabled={loading} className="text-xs h-8 gap-1 text-foreground border-border hover:bg-muted/50">
+      <Button size="sm" variant="outline" onClick={() => callApi(funcName, action, params)} disabled={loading} className="text-xs h-8 gap-1 border-white/10 hover:bg-white/10" style={{ color: "#e0e0e0" }}>
         <Icon className="h-3 w-3" />{label}
       </Button>
     );
@@ -205,11 +205,11 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
   const renderInputAction = (label: string, funcName: string, action: string, inputKeys: { key: string; placeholder: string; type?: string }[], buildParams: () => any, icon?: any) => {
     const Icon = icon || Send;
     return (
-      <div className="space-y-1.5 p-2.5 bg-muted/20 rounded-lg border border-border">
-        <p className="text-[10px] font-semibold text-foreground uppercase tracking-wider">{label}</p>
+      <div className="space-y-1.5 p-2.5 rounded-lg border border-white/10" style={{ background: "hsl(222, 30%, 12%)" }}>
+        <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "#e0e0e0" }}>{label}</p>
         <div className="flex gap-1.5 flex-wrap">
           {inputKeys.map(ik => (
-            <Input key={ik.key} value={getInput(ik.key)} onChange={e => setInput(ik.key, e.target.value)} placeholder={ik.placeholder} type={ik.type || "text"} className="text-xs h-7 flex-1 min-w-[120px] bg-background border-border text-foreground placeholder:text-muted-foreground" />
+            <Input key={ik.key} value={getInput(ik.key)} onChange={e => setInput(ik.key, e.target.value)} placeholder={ik.placeholder} type={ik.type || "text"} className="text-xs h-7 flex-1 min-w-[120px] border-white/10 placeholder:text-white/30" style={{ background: "hsl(222, 30%, 16%)", color: "#f0f0f0" }} />
           ))}
           <Button size="sm" variant="default" onClick={() => callApi(funcName, action, buildParams())} disabled={loading} className="text-xs h-7 gap-1 text-primary-foreground">
             {loading ? <RefreshCw className="h-3 w-3 animate-spin" /> : <Icon className="h-3 w-3" />}Go
@@ -222,9 +222,9 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
   // ===== INSTAGRAM =====
   const renderInstagramContent = () => (
     <Tabs defaultValue="media" className="w-full">
-      <TabsList className="bg-muted/50 border border-border p-0.5 rounded-lg gap-0.5 flex-wrap h-auto">
+       <TabsList className="border border-white/10 p-0.5 rounded-lg gap-0.5 flex-wrap h-auto" style={{ background: "hsl(222, 30%, 12%)" }}>
         {[{v:"media",l:"Media",icon:Image},{v:"publish",l:"Publish",icon:Upload},{v:"stories",l:"Stories",icon:Play},{v:"comments",l:"Comments",icon:MessageSquare},{v:"dms",l:"DMs",icon:Send},{v:"insights",l:"Insights",icon:BarChart3},{v:"discovery",l:"Discovery",icon:Search},{v:"hashtags",l:"Hashtags",icon:Hash},{v:"ai",l:"AI Auto",icon:Brain}].map(t=>(
-          <TabsTrigger key={t.v} value={t.v} className="text-[10px] gap-1 px-2 py-1 data-[state=active]:bg-background"><t.icon className="h-3 w-3"/>{t.l}</TabsTrigger>
+          <TabsTrigger key={t.v} value={t.v} className="text-[10px] gap-1 px-2 py-1 text-white/60 data-[state=active]:text-white data-[state=active]:bg-white/10"><t.icon className="h-3 w-3"/>{t.l}</TabsTrigger>
         ))}
       </TabsList>
       <TabsContent value="media" className="space-y-2 mt-3">
@@ -293,9 +293,9 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
   // ===== TWITTER =====
   const renderTwitterContent = () => (
     <Tabs defaultValue="tweets" className="w-full">
-      <TabsList className="bg-muted/50 border border-border p-0.5 rounded-lg gap-0.5 flex-wrap h-auto">
+      <TabsList className="border border-white/10 p-0.5 rounded-lg gap-0.5 flex-wrap h-auto" style={{ background: "hsl(222, 30%, 12%)" }}>
         {[{v:"tweets",l:"Tweets",icon:MessageSquare},{v:"engage",l:"Engage",icon:Heart},{v:"social",l:"Social",icon:Users},{v:"moderate",l:"Moderate",icon:Shield},{v:"dms",l:"DMs",icon:Send},{v:"lists",l:"Lists",icon:List},{v:"search",l:"Search",icon:Search},{v:"spaces",l:"Spaces",icon:Radio},{v:"ai",l:"AI Auto",icon:Brain}].map(t=>(
-          <TabsTrigger key={t.v} value={t.v} className="text-[10px] gap-1 px-2 py-1 data-[state=active]:bg-background"><t.icon className="h-3 w-3"/>{t.l}</TabsTrigger>
+          <TabsTrigger key={t.v} value={t.v} className="text-[10px] gap-1 px-2 py-1 text-white/60 data-[state=active]:text-white data-[state=active]:bg-white/10"><t.icon className="h-3 w-3"/>{t.l}</TabsTrigger>
         ))}
       </TabsList>
       <TabsContent value="tweets" className="space-y-2 mt-3">
@@ -390,9 +390,9 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
   // ===== REDDIT =====
   const renderRedditContent = () => (
     <Tabs defaultValue="posts" className="w-full">
-      <TabsList className="bg-muted/50 border border-border p-0.5 rounded-lg gap-0.5 flex-wrap h-auto">
+      <TabsList className="border border-white/10 p-0.5 rounded-lg gap-0.5 flex-wrap h-auto" style={{ background: "hsl(222, 30%, 12%)" }}>
         {[{v:"posts",l:"Posts",icon:FileText},{v:"comments",l:"Comments",icon:MessageSquare},{v:"subs",l:"Subreddits",icon:Hash},{v:"browse",l:"Browse",icon:TrendingUp},{v:"messages",l:"Messages",icon:Send},{v:"mod",l:"Mod",icon:Shield},{v:"profile",l:"Profile",icon:Users},{v:"search",l:"Search",icon:Search},{v:"ai",l:"AI",icon:Brain}].map(t=>(
-          <TabsTrigger key={t.v} value={t.v} className="text-[10px] gap-1 px-2 py-1 data-[state=active]:bg-background"><t.icon className="h-3 w-3"/>{t.l}</TabsTrigger>
+          <TabsTrigger key={t.v} value={t.v} className="text-[10px] gap-1 px-2 py-1 text-white/60 data-[state=active]:text-white data-[state=active]:bg-white/10"><t.icon className="h-3 w-3"/>{t.l}</TabsTrigger>
         ))}
       </TabsList>
       <TabsContent value="posts" className="space-y-2 mt-3">
@@ -489,9 +489,9 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
   // ===== TELEGRAM =====
   const renderTelegramContent = () => (
     <Tabs defaultValue="messages" className="w-full">
-      <TabsList className="bg-muted/50 border border-border p-0.5 rounded-lg gap-0.5 flex-wrap h-auto">
+      <TabsList className="border border-white/10 p-0.5 rounded-lg gap-0.5 flex-wrap h-auto" style={{ background: "hsl(222, 30%, 12%)" }}>
         {[{v:"messages",l:"Messages",icon:Send},{v:"media",l:"Media",icon:Image},{v:"special",l:"Special",icon:Dice1},{v:"chat",l:"Chat Mgmt",icon:Settings},{v:"members",l:"Members",icon:Users},{v:"bot",l:"Bot",icon:Bot},{v:"forum",l:"Forum",icon:Layers},{v:"webhook",l:"Webhook",icon:Zap},{v:"ai",l:"AI",icon:Brain}].map(t=>(
-          <TabsTrigger key={t.v} value={t.v} className="text-[10px] gap-1 px-2 py-1 data-[state=active]:bg-background"><t.icon className="h-3 w-3"/>{t.l}</TabsTrigger>
+          <TabsTrigger key={t.v} value={t.v} className="text-[10px] gap-1 px-2 py-1 text-white/60 data-[state=active]:text-white data-[state=active]:bg-white/10"><t.icon className="h-3 w-3"/>{t.l}</TabsTrigger>
         ))}
       </TabsList>
       <TabsContent value="messages" className="space-y-2 mt-3">
@@ -581,9 +581,9 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
   // ===== TIKTOK =====
   const renderTikTokContent = () => (
     <Tabs defaultValue="videos" className="w-full">
-      <TabsList className="bg-muted/50 border border-border p-0.5 rounded-lg gap-0.5 flex-wrap h-auto">
+      <TabsList className="border border-white/10 p-0.5 rounded-lg gap-0.5 flex-wrap h-auto" style={{ background: "hsl(222, 30%, 12%)" }}>
         {[{v:"videos",l:"Videos",icon:Video},{v:"publish",l:"Publish",icon:Upload},{v:"comments",l:"Comments",icon:MessageSquare},{v:"dms",l:"DMs",icon:Send},{v:"playlists",l:"Playlists",icon:List},{v:"research",l:"Research",icon:Search},{v:"ai",l:"AI",icon:Brain}].map(t=>(
-          <TabsTrigger key={t.v} value={t.v} className="text-[10px] gap-1 px-2 py-1 data-[state=active]:bg-background"><t.icon className="h-3 w-3"/>{t.l}</TabsTrigger>
+          <TabsTrigger key={t.v} value={t.v} className="text-[10px] gap-1 px-2 py-1 text-white/60 data-[state=active]:text-white data-[state=active]:bg-white/10"><t.icon className="h-3 w-3"/>{t.l}</TabsTrigger>
         ))}
       </TabsList>
       <TabsContent value="videos" className="space-y-2 mt-3">
@@ -638,9 +638,9 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
 
   const renderSnapchatContent = () => (
     <Tabs defaultValue="account" className="w-full">
-      <TabsList className="bg-muted/50 border border-border p-0.5 rounded-lg gap-0.5 flex-wrap h-auto">
+      <TabsList className="border border-white/10 p-0.5 rounded-lg gap-0.5 flex-wrap h-auto" style={{ background: "hsl(222, 30%, 12%)" }}>
         {[{v:"account",l:"Account",icon:Users},{v:"campaigns",l:"Campaigns",icon:Target},{v:"ads",l:"Ads",icon:Megaphone},{v:"creatives",l:"Creatives",icon:Image},{v:"audiences",l:"Audiences",icon:Users},{v:"analytics",l:"Analytics",icon:BarChart3},{v:"catalogs",l:"Catalogs",icon:Layers},{v:"pixels",l:"Pixels",icon:Activity},{v:"ai",l:"AI",icon:Brain}].map(t=>(
-          <TabsTrigger key={t.v} value={t.v} className="text-[10px] gap-1 px-2 py-1 data-[state=active]:bg-background"><t.icon className="h-3 w-3"/>{t.l}</TabsTrigger>
+          <TabsTrigger key={t.v} value={t.v} className="text-[10px] gap-1 px-2 py-1 text-white/60 data-[state=active]:text-white data-[state=active]:bg-white/10"><t.icon className="h-3 w-3"/>{t.l}</TabsTrigger>
         ))}
       </TabsList>
       <TabsContent value="account" className="space-y-2 mt-3">
@@ -702,9 +702,9 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
 
   const renderThreadsContent = () => (
     <Tabs defaultValue="posts" className="w-full">
-      <TabsList className="bg-muted/50 border border-border p-0.5 rounded-lg gap-0.5 flex-wrap h-auto">
+      <TabsList className="border border-white/10 p-0.5 rounded-lg gap-0.5 flex-wrap h-auto" style={{ background: "hsl(222, 30%, 12%)" }}>
         {[{v:"posts",l:"Posts",icon:MessageSquare},{v:"publish",l:"Publish",icon:Send},{v:"replies",l:"Replies",icon:MessageCircle},{v:"insights",l:"Insights",icon:BarChart3},{v:"ai",l:"AI",icon:Brain}].map(t=>(
-          <TabsTrigger key={t.v} value={t.v} className="text-[10px] gap-1 px-2 py-1 data-[state=active]:bg-background"><t.icon className="h-3 w-3"/>{t.l}</TabsTrigger>
+          <TabsTrigger key={t.v} value={t.v} className="text-[10px] gap-1 px-2 py-1 text-white/60 data-[state=active]:text-white data-[state=active]:bg-white/10"><t.icon className="h-3 w-3"/>{t.l}</TabsTrigger>
         ))}
       </TabsList>
       <TabsContent value="posts" className="space-y-2 mt-3">
@@ -746,9 +746,9 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
 
   const renderWhatsAppContent = () => (
     <Tabs defaultValue="messages" className="w-full">
-      <TabsList className="bg-muted/50 border border-border p-0.5 rounded-lg gap-0.5 flex-wrap h-auto">
+      <TabsList className="border border-white/10 p-0.5 rounded-lg gap-0.5 flex-wrap h-auto" style={{ background: "hsl(222, 30%, 12%)" }}>
         {[{v:"messages",l:"Messages",icon:Send},{v:"interactive",l:"Interactive",icon:Zap},{v:"media",l:"Media",icon:Image},{v:"templates",l:"Templates",icon:FileText},{v:"business",l:"Business",icon:Briefcase},{v:"analytics",l:"Analytics",icon:BarChart3},{v:"flows",l:"Flows",icon:Activity},{v:"ai",l:"AI",icon:Brain}].map(t=>(
-          <TabsTrigger key={t.v} value={t.v} className="text-[10px] gap-1 px-2 py-1 data-[state=active]:bg-background"><t.icon className="h-3 w-3"/>{t.l}</TabsTrigger>
+          <TabsTrigger key={t.v} value={t.v} className="text-[10px] gap-1 px-2 py-1 text-white/60 data-[state=active]:text-white data-[state=active]:bg-white/10"><t.icon className="h-3 w-3"/>{t.l}</TabsTrigger>
         ))}
       </TabsList>
       <TabsContent value="messages" className="space-y-2 mt-3">
@@ -805,9 +805,9 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
 
   const renderSignalContent = () => (
     <Tabs defaultValue="messages" className="w-full">
-      <TabsList className="bg-muted/50 border border-border p-0.5 rounded-lg gap-0.5 flex-wrap h-auto">
+      <TabsList className="border border-white/10 p-0.5 rounded-lg gap-0.5 flex-wrap h-auto" style={{ background: "hsl(222, 30%, 12%)" }}>
         {[{v:"messages",l:"Messages",icon:Send},{v:"groups",l:"Groups",icon:Users},{v:"contacts",l:"Contacts",icon:Users},{v:"identity",l:"Identity",icon:Shield},{v:"setup",l:"Setup",icon:Settings},{v:"ai",l:"AI",icon:Brain}].map(t=>(
-          <TabsTrigger key={t.v} value={t.v} className="text-[10px] gap-1 px-2 py-1 data-[state=active]:bg-background"><t.icon className="h-3 w-3"/>{t.l}</TabsTrigger>
+          <TabsTrigger key={t.v} value={t.v} className="text-[10px] gap-1 px-2 py-1 text-white/60 data-[state=active]:text-white data-[state=active]:bg-white/10"><t.icon className="h-3 w-3"/>{t.l}</TabsTrigger>
         ))}
       </TabsList>
       <TabsContent value="messages" className="space-y-2 mt-3">
@@ -856,9 +856,9 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
 
   const renderYouTubeContent = () => (
     <Tabs defaultValue="channel" className="w-full">
-      <TabsList className="bg-muted/50 border border-border p-0.5 rounded-lg gap-0.5 flex-wrap h-auto">
+      <TabsList className="border border-white/10 p-0.5 rounded-lg gap-0.5 flex-wrap h-auto" style={{ background: "hsl(222, 30%, 12%)" }}>
         {[{v:"channel",l:"Channel",icon:Users},{v:"videos",l:"Videos",icon:Video},{v:"comments",l:"Comments",icon:MessageSquare},{v:"playlists",l:"Playlists",icon:List},{v:"subs",l:"Subs",icon:Bell},{v:"search",l:"Search",icon:Search},{v:"live",l:"Live",icon:Radio},{v:"analytics",l:"Analytics",icon:BarChart3},{v:"ai",l:"AI",icon:Brain}].map(t=>(
-          <TabsTrigger key={t.v} value={t.v} className="text-[10px] gap-1 px-2 py-1 data-[state=active]:bg-background"><t.icon className="h-3 w-3"/>{t.l}</TabsTrigger>
+          <TabsTrigger key={t.v} value={t.v} className="text-[10px] gap-1 px-2 py-1 text-white/60 data-[state=active]:text-white data-[state=active]:bg-white/10"><t.icon className="h-3 w-3"/>{t.l}</TabsTrigger>
         ))}
       </TabsList>
       <TabsContent value="channel" className="space-y-2 mt-3">
@@ -934,9 +934,9 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
 
   const renderPinterestContent = () => (
     <Tabs defaultValue="pins" className="w-full">
-      <TabsList className="bg-muted/50 border border-border p-0.5 rounded-lg gap-0.5 flex-wrap h-auto">
+      <TabsList className="border border-white/10 p-0.5 rounded-lg gap-0.5 flex-wrap h-auto" style={{ background: "hsl(222, 30%, 12%)" }}>
         {[{v:"pins",l:"Pins",icon:Image},{v:"boards",l:"Boards",icon:Layers},{v:"search",l:"Search",icon:Search},{v:"analytics",l:"Analytics",icon:BarChart3},{v:"ads",l:"Ads",icon:Megaphone},{v:"catalogs",l:"Catalogs",icon:Briefcase},{v:"ai",l:"AI",icon:Brain}].map(t=>(
-          <TabsTrigger key={t.v} value={t.v} className="text-[10px] gap-1 px-2 py-1 data-[state=active]:bg-background"><t.icon className="h-3 w-3"/>{t.l}</TabsTrigger>
+          <TabsTrigger key={t.v} value={t.v} className="text-[10px] gap-1 px-2 py-1 text-white/60 data-[state=active]:text-white data-[state=active]:bg-white/10"><t.icon className="h-3 w-3"/>{t.l}</TabsTrigger>
         ))}
       </TabsList>
       <TabsContent value="pins" className="space-y-2 mt-3">
@@ -996,9 +996,9 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
 
   const renderDiscordContent = () => (
     <Tabs defaultValue="messages" className="w-full">
-      <TabsList className="bg-muted/50 border border-border p-0.5 rounded-lg gap-0.5 flex-wrap h-auto">
+      <TabsList className="border border-white/10 p-0.5 rounded-lg gap-0.5 flex-wrap h-auto" style={{ background: "hsl(222, 30%, 12%)" }}>
         {[{v:"messages",l:"Messages",icon:Send},{v:"guilds",l:"Servers",icon:Globe},{v:"members",l:"Members",icon:Users},{v:"roles",l:"Roles",icon:Shield},{v:"channels",l:"Channels",icon:Hash},{v:"threads",l:"Threads",icon:Layers},{v:"webhooks",l:"Webhooks",icon:Zap},{v:"events",l:"Events",icon:Calendar},{v:"ai",l:"AI",icon:Brain}].map(t=>(
-          <TabsTrigger key={t.v} value={t.v} className="text-[10px] gap-1 px-2 py-1 data-[state=active]:bg-background"><t.icon className="h-3 w-3"/>{t.l}</TabsTrigger>
+          <TabsTrigger key={t.v} value={t.v} className="text-[10px] gap-1 px-2 py-1 text-white/60 data-[state=active]:text-white data-[state=active]:bg-white/10"><t.icon className="h-3 w-3"/>{t.l}</TabsTrigger>
         ))}
       </TabsList>
       <TabsContent value="messages" className="space-y-2 mt-3">
@@ -1080,9 +1080,9 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
 
   const renderFacebookContent = () => (
     <Tabs defaultValue="pages" className="w-full">
-      <TabsList className="bg-muted/50 border border-border p-0.5 rounded-lg gap-0.5 flex-wrap h-auto">
+      <TabsList className="border border-white/10 p-0.5 rounded-lg gap-0.5 flex-wrap h-auto" style={{ background: "hsl(222, 30%, 12%)" }}>
         {[{v:"pages",l:"Pages",icon:Globe},{v:"posts",l:"Posts",icon:FileText},{v:"publish",l:"Publish",icon:Send},{v:"comments",l:"Comments",icon:MessageSquare},{v:"groups",l:"Groups",icon:Users},{v:"inbox",l:"Inbox",icon:MessageCircle},{v:"insights",l:"Insights",icon:BarChart3},{v:"ai",l:"AI",icon:Brain}].map(t=>(
-          <TabsTrigger key={t.v} value={t.v} className="text-[10px] gap-1 px-2 py-1 data-[state=active]:bg-background"><t.icon className="h-3 w-3"/>{t.l}</TabsTrigger>
+          <TabsTrigger key={t.v} value={t.v} className="text-[10px] gap-1 px-2 py-1 text-white/60 data-[state=active]:text-white data-[state=active]:bg-white/10"><t.icon className="h-3 w-3"/>{t.l}</TabsTrigger>
         ))}
       </TabsList>
       <TabsContent value="pages" className="space-y-2 mt-3">
@@ -1143,9 +1143,9 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
 
   const renderLinkedInContent = () => (
     <Tabs defaultValue="profile" className="w-full">
-      <TabsList className="bg-muted/50 border border-border p-0.5 rounded-lg gap-0.5 flex-wrap h-auto">
+      <TabsList className="border border-white/10 p-0.5 rounded-lg gap-0.5 flex-wrap h-auto" style={{ background: "hsl(222, 30%, 12%)" }}>
         {[{v:"profile",l:"Profile",icon:Users},{v:"posts",l:"Posts",icon:FileText},{v:"publish",l:"Publish",icon:Send},{v:"engage",l:"Engage",icon:Heart},{v:"comments",l:"Comments",icon:MessageSquare},{v:"org",l:"Organization",icon:Briefcase},{v:"messaging",l:"Messages",icon:MessageCircle},{v:"search",l:"Search",icon:Search},{v:"ai",l:"AI",icon:Brain}].map(t=>(
-          <TabsTrigger key={t.v} value={t.v} className="text-[10px] gap-1 px-2 py-1 data-[state=active]:bg-background"><t.icon className="h-3 w-3"/>{t.l}</TabsTrigger>
+          <TabsTrigger key={t.v} value={t.v} className="text-[10px] gap-1 px-2 py-1 text-white/60 data-[state=active]:text-white data-[state=active]:bg-white/10"><t.icon className="h-3 w-3"/>{t.l}</TabsTrigger>
         ))}
       </TabsList>
       <TabsContent value="profile" className="space-y-2 mt-3">
@@ -1273,7 +1273,7 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
       </div>
 
       <Dialog open={!!expandedPlatform} onOpenChange={(open) => { if (!open) setExpandedPlatform(null); }}>
-        <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden border-border text-foreground" style={{ zoom: 1.35, transformOrigin: "center center", background: "hsl(222, 30%, 8%)", color: "hsl(0, 0%, 95%)" }}>
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden border border-white/10" style={{ zoom: 1.15, transformOrigin: "center center", background: "hsl(222, 35%, 7%)", color: "#f0f0f0" }}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-3 text-foreground">
               {expandedPlatform && (() => {
@@ -1290,20 +1290,20 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
             {/* Visual API Response */}
             {result && (
               <div className="mt-4 space-y-3">
-                <div className="bg-muted/30 border border-border rounded-xl p-4">
+                <div className="rounded-xl p-4 border border-white/10" style={{ background: "hsl(222, 30%, 12%)" }}>
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
                       <div className="h-2 w-2 rounded-full bg-green-400" />
-                      <p className="text-xs font-semibold text-foreground">Response</p>
-                      <Badge variant="outline" className="text-[9px] h-4 border-border text-muted-foreground">
+                      <p className="text-xs font-semibold" style={{ color: "#f0f0f0" }}>Response</p>
+                      <Badge variant="outline" className="text-[9px] h-4 border-white/10" style={{ color: "#aaa" }}>
                         {Array.isArray(result) ? `${result.length} items` : Array.isArray(result?.data) ? `${result.data.length} items` : "object"}
                       </Badge>
                     </div>
                     <div className="flex gap-1">
-                      <Button size="sm" variant="ghost" className="h-6 text-[10px] text-foreground hover:bg-muted/50" onClick={() => { navigator.clipboard.writeText(JSON.stringify(result, null, 2)); toast.success("Copied"); }}>
+                      <Button size="sm" variant="ghost" className="h-6 text-[10px] hover:bg-white/10" style={{ color: "#ddd" }} onClick={() => { navigator.clipboard.writeText(JSON.stringify(result, null, 2)); toast.success("Copied"); }}>
                         <Copy className="h-3 w-3 mr-1" />Copy
                       </Button>
-                      <Button size="sm" variant="ghost" className="h-6 text-[10px] text-foreground hover:bg-muted/50" onClick={() => setResult(null)}>
+                      <Button size="sm" variant="ghost" className="h-6 text-[10px] hover:bg-white/10" style={{ color: "#ddd" }} onClick={() => setResult(null)}>
                         <Trash2 className="h-3 w-3 mr-1" />Clear
                       </Button>
                     </div>
@@ -1318,7 +1318,7 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
                     <ChevronRight className="h-3 w-3 group-open:rotate-90 transition-transform" />
                     Raw API Response (JSON)
                   </summary>
-                  <pre className="mt-2 text-[10px] text-muted-foreground bg-muted/20 border border-border rounded-lg p-3 overflow-auto max-h-[200px] whitespace-pre-wrap break-all font-mono">
+                  <pre className="mt-2 text-[10px] border border-white/10 rounded-lg p-3 overflow-auto max-h-[200px] whitespace-pre-wrap break-all font-mono" style={{ background: "hsl(222, 30%, 10%)", color: "#bbb" }}>
                     {JSON.stringify(result, null, 2)}
                   </pre>
                 </details>
