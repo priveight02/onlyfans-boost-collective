@@ -88,10 +88,22 @@ const PersonaCreatorDialog = ({ accountId, open, onOpenChange }: PersonaCreatorD
   const [persona, setPersona] = useState<PersonaData>({ ...defaultPersona });
   const [newTrait, setNewTrait] = useState("");
   const [loading, setLoading] = useState(false);
+  const [activePersonaId, setActivePersonaId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (open) { loadPersonas(); setStep(0); setPersona({ ...defaultPersona }); }
+    if (open) { loadPersonas(); loadActivePersona(); setStep(0); setPersona({ ...defaultPersona }); }
   }, [open, accountId]);
+
+  const loadActivePersona = async () => {
+    const { data } = await supabase.from("managed_accounts").select("active_persona_id").eq("id", accountId).single();
+    setActivePersonaId((data as any)?.active_persona_id || null);
+  };
+
+  const activatePersona = async (personaId: string | null) => {
+    await supabase.from("managed_accounts").update({ active_persona_id: personaId } as any).eq("id", accountId);
+    setActivePersonaId(personaId);
+    toast.success(personaId ? "Persona activated — AI will use this persona" : "Switched to default persona");
+  };
 
   const loadPersonas = async () => {
     setLoading(true);
@@ -199,27 +211,47 @@ const PersonaCreatorDialog = ({ accountId, open, onOpenChange }: PersonaCreatorD
               </div>
             </div>
 
-            {/* Custom Personas */}
-            {personas.length > 0 && (
-              <div className="p-3 border-b border-white/[0.06] flex-shrink-0">
-                <p className="text-[9px] text-white/30 mb-2 tracking-widest uppercase font-medium">Custom Personas</p>
-                <div className="space-y-1.5">
-                  {personas.map(p => (
-                    <div key={p.id} className="p-2 rounded-lg bg-white/[0.03] border border-white/[0.08] relative group hover:border-white/15 transition-all">
+            {/* Persona List — select & apply */}
+            <div className="p-3 border-b border-white/[0.06] flex-shrink-0 max-h-[220px] overflow-y-auto">
+              <p className="text-[9px] text-white/30 mb-2 tracking-widest uppercase font-medium">Persona List</p>
+              <div className="space-y-1.5">
+                {/* Default persona option */}
+                <button
+                  onClick={() => activatePersona(null)}
+                  className={`w-full p-2 rounded-lg text-left transition-all ${
+                    !activePersonaId ? "bg-gradient-to-r from-emerald-500/15 to-blue-500/10 border border-emerald-400/30" : "bg-white/[0.03] border border-white/[0.08] hover:border-white/15"
+                  }`}
+                >
+                  <div className="flex items-center gap-1.5">
+                    <Crown className="h-3 w-3 text-amber-400" />
+                    <span className="text-[10px] font-medium text-white/70">Default Persona</span>
+                    {!activePersonaId && <span className="text-[6px] font-bold tracking-wider uppercase bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-1 py-0.5 rounded-full ml-auto">ACTIVE</span>}
+                  </div>
+                </button>
+                {personas.map(p => {
+                  const pName = p.brand_identity?.match(/^\[(.*?)\]/)?.[1] || p.tone;
+                  const isActive = activePersonaId === p.id;
+                  return (
+                    <div key={p.id} className={`p-2 rounded-lg relative group transition-all ${
+                      isActive ? "bg-gradient-to-r from-purple-500/15 to-blue-500/10 border border-purple-400/30" : "bg-white/[0.03] border border-white/[0.08] hover:border-white/15"
+                    }`}>
                       <button onClick={() => deletePersona(p.id)} className="absolute top-1 right-1.5 text-red-400/0 group-hover:text-red-400/70 text-xs hover:text-red-300 transition-all">×</button>
-                      <div className="flex items-center gap-1.5">
-                        <User className="h-3 w-3 text-white/30" />
-                        <span className="text-[10px] font-medium text-white/70 truncate">{p.brand_identity?.match(/^\[(.*?)\]/)?.[1] || p.tone}</span>
-                      </div>
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        <span className="text-[7px] px-1 py-0.5 rounded-full bg-white/5 text-white/35 capitalize">{p.tone}</span>
-                        <span className="text-[7px] px-1 py-0.5 rounded-full bg-white/5 text-white/35 capitalize">{p.vocabulary_style}</span>
-                      </div>
+                      <button onClick={() => activatePersona(p.id)} className="w-full text-left">
+                        <div className="flex items-center gap-1.5">
+                          <User className="h-3 w-3 text-white/30" />
+                          <span className="text-[10px] font-medium text-white/70 truncate">{pName}</span>
+                          {isActive && <span className="text-[6px] font-bold tracking-wider uppercase bg-purple-500/20 text-purple-400 border border-purple-500/30 px-1 py-0.5 rounded-full ml-auto">ACTIVE</span>}
+                        </div>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          <span className="text-[7px] px-1 py-0.5 rounded-full bg-white/5 text-white/35 capitalize">{p.tone}</span>
+                          <span className="text-[7px] px-1 py-0.5 rounded-full bg-white/5 text-white/35 capitalize">{p.vocabulary_style}</span>
+                        </div>
+                      </button>
                     </div>
-                  ))}
-                </div>
+                  );
+                })}
               </div>
-            )}
+            </div>
 
             {/* Step Navigation — vertical */}
             <div className="p-3 flex-1">

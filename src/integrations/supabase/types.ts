@@ -1086,6 +1086,7 @@ export type Database = {
       }
       managed_accounts: {
         Row: {
+          active_persona_id: string | null
           avatar_url: string | null
           bio: string | null
           contact_email: string | null
@@ -1116,6 +1117,7 @@ export type Database = {
           username: string
         }
         Insert: {
+          active_persona_id?: string | null
           avatar_url?: string | null
           bio?: string | null
           contact_email?: string | null
@@ -1146,6 +1148,7 @@ export type Database = {
           username: string
         }
         Update: {
+          active_persona_id?: string | null
           avatar_url?: string | null
           bio?: string | null
           contact_email?: string | null
@@ -1175,7 +1178,15 @@ export type Database = {
           updated_at?: string
           username?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "managed_accounts_active_persona_id_fkey"
+            columns: ["active_persona_id"]
+            isOneToOne: false
+            referencedRelation: "persona_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       message_threads: {
         Row: {
