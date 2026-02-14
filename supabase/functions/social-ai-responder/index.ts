@@ -1275,43 +1275,73 @@ ${autoConfig.trigger_keywords ? `if they mention any of these: ${autoConfig.trig
             const aiResult = await aiResponse.json();
             let reply = (aiResult.choices?.[0]?.message?.content || "").replace(/\[.*?\]/g, "").trim();
 
+            // NEVER leave empty — retry once, then fallback to persona-consistent response
             if (!reply) {
-              if (typingMsg) {
-                await supabase.from("ai_dm_messages").update({ status: "failed", content: "Empty AI response" }).eq("id", typingMsg.id);
+              console.log("Empty AI response, retrying...");
+              try {
+                const retryResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+                  method: "POST",
+                  headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    model: "google/gemini-2.5-flash",
+                    messages: aiMessages,
+                    max_tokens: 150,
+                    temperature: 0.9,
+                  }),
+                });
+                if (retryResp.ok) {
+                  const retryResult = await retryResp.json();
+                  reply = (retryResult.choices?.[0]?.message?.content || "").replace(/\[.*?\]/g, "").trim();
+                }
+              } catch {}
+              // If still empty, generate a short persona-consistent fallback
+              if (!reply) {
+                const fallbacks = [
+                  "hey", "hmm", "wdym", "lol", "oh really", "tell me more",
+                  "thats interesting", "wait what", "u serious", "go on",
+                  "haha ok", "mm", "oh", "yea", "sure",
+                ];
+                reply = fallbacks[Math.floor(Math.random() * fallbacks.length)];
+                console.log(`Used fallback reply: "${reply}"`);
               }
-              continue;
             }
 
             // Calculate typing delay
             const charCount = reply.length;
             const typingDelay = Math.min(Math.max(charCount * (40 + Math.random() * 30), 1500), 6000);
 
-            // === AI CONTEXTUAL REACTION ===
-            // Before replying, contextually react to the fan's last message when appropriate
-            // React ~40% of the time to feel natural, not every message
-            const shouldReact = Math.random() < 0.4;
+            // === AI CONTEXTUAL REACTION (1-5% — rare, impactful only) ===
+            // Only react when the fan's message is emotionally charged or contains emojis
+            // This makes each reaction feel genuine and special, not robotic
+            const msgLower = (latestMsg.content || "").toLowerCase();
+            const fanMsgEmojis = (latestMsg.content || "").match(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FAFF}]/gu);
+            const hasEmojis = fanMsgEmojis && fanMsgEmojis.length > 0;
+            const isEmotional = !!msgLower.match(/(love|miss u|ur amazing|gorgeous|beautiful|so hot|damn|omg|haha|lmao|lol|😂|🤣|❤️|🔥|😍|💕|🥰|thank|appreciate|🙏)/);
+            
+            // Only consider reacting if the message is emotionally charged or has emojis
+            const reactionCandidate = hasEmojis || isEmotional;
+            // ~3% base chance, but only on impactful messages
+            const shouldReact = reactionCandidate && Math.random() < 0.03;
+            
             if (shouldReact && latestMsg.platform_message_id) {
               try {
-                // Determine best reaction based on message content
-                const msgLower = (latestMsg.content || "").toLowerCase();
-                let reaction = "love"; // default
+                let reaction = "love"; // default for emotional messages
                 if (msgLower.match(/(lol|lmao|haha|😂|🤣|funny|joke|dead)/)) reaction = "haha";
                 else if (msgLower.match(/(wow|omg|no way|crazy|insane|😮|🤯)/)) reaction = "wow";
                 else if (msgLower.match(/(sad|miss|sorry|😢|💔|hurt)/)) reaction = "sad";
-                else if (msgLower.match(/(🔥|hot|sexy|damn|fire|gorgeous|beautiful)/)) reaction = "love";
-                else if (msgLower.match(/(thanks|thank|appreciate|🙏|cool|nice|great|good)/)) reaction = "like";
-                // Only love, haha, wow, sad, like are standard IG reactions
+                else if (msgLower.match(/(🔥|hot|sexy|damn|fire|gorgeous|beautiful|😍|🥰|❤️|💕)/)) reaction = "love";
+                else if (msgLower.match(/(thanks|thank|appreciate|🙏|cool|nice|great|good|👍)/)) reaction = "like";
 
                 await callIG2("send_reaction", {
                   recipient_id: dbConvo.participant_id,
                   message_id: latestMsg.platform_message_id,
                   reaction,
                 });
-                console.log(`AI reacted with ${reaction} to message from @${dbConvo.participant_username}`);
+                console.log(`AI reacted with ${reaction} to @${dbConvo.participant_username} (rare impactful reaction)`);
               } catch (reactErr) {
                 console.log("AI reaction failed (non-blocking):", reactErr);
               }
-              // Small delay after reaction before typing
+              // Natural delay after reaction
               await new Promise(r => setTimeout(r, 800 + Math.random() * 1200));
             }
 
