@@ -30,6 +30,7 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
   const [expandedPlatform, setExpandedPlatform] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
+  const [persistedResults, setPersistedResults] = useState<Record<string, any>>({});
   const [inputValues, setInputValues] = useState<Record<string, string>>({});
   const [connectedPlatforms, setConnectedPlatforms] = useState<string[]>([]);
   const setInput = (key: string, val: string) => setInputValues(p => ({ ...p, [key]: val }));
@@ -57,7 +58,13 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
       onNavigateToConnect?.(platformId);
       return;
     }
-    setExpandedPlatform(expandedPlatform === platformId ? null : platformId);
+    if (expandedPlatform === platformId) {
+      setExpandedPlatform(null);
+    } else {
+      setExpandedPlatform(platformId);
+      // Restore persisted result for this platform
+      setResult(persistedResults[platformId] || null);
+    }
   };
 
   const callApi = async (funcName: string, action: string, params: any = {}) => {
@@ -70,6 +77,10 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
       if (error) throw error;
       if (!data?.success) throw new Error(data?.error || "API call failed");
       setResult(data.data);
+      // Persist result keyed by platform
+      if (expandedPlatform) {
+        setPersistedResults(prev => ({ ...prev, [expandedPlatform]: data.data }));
+      }
       toast.success(`${action} completed`);
       return data.data;
     } catch (e: any) {
@@ -348,28 +359,38 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
         <div className="flex gap-1.5 flex-wrap">
           {renderActionButton("Profile","instagram-api","get_profile",{},Users)}
           {renderActionButton("My Posts","instagram-api","get_media",{limit:100},Image)}
-          {renderActionButton("Highlighted Stories","instagram-api","get_stories",{highlighted:true},Star)}
-          {renderActionButton("Reposts","instagram-api","get_media",{limit:100,media_type:"REPOST"},Repeat)}
+          {renderActionButton("Stories","instagram-api","get_stories",{},Play)}
+          {renderActionButton("Highlighted Stories","instagram-api","get_story_highlights",{},Star)}
+          {renderActionButton("Tagged","instagram-api","get_tagged_media",{limit:50},Users)}
+          {renderActionButton("Mentioned","instagram-api","get_mentioned_media",{limit:50},Bell)}
+          {renderActionButton("Live Media","instagram-api","get_live_media",{},Radio)}
         </div>
-        {renderInputAction("Get Media","instagram-api","get_media_by_id",[{key:"ig_media_id",placeholder:"Media ID"}],()=>({media_id:getInput("ig_media_id")}),Eye)}
+        {renderInputAction("Get Post by ID","instagram-api","get_media_details",[{key:"ig_media_id",placeholder:"Media ID"}],()=>({media_id:getInput("ig_media_id")}),Eye)}
         {renderInputAction("Children (Carousel)","instagram-api","get_media_children",[{key:"ig_carousel_id",placeholder:"Carousel ID"}],()=>({media_id:getInput("ig_carousel_id")}),Layers)}
+        {renderInputAction("Delete Post","instagram-api","delete_media",[{key:"ig_del_media",placeholder:"Media ID"}],()=>({media_id:getInput("ig_del_media")}),Trash2)}
+        {renderInputAction("Update Caption","instagram-api","update_media_caption",[{key:"ig_uc_id",placeholder:"Media ID"},{key:"ig_uc_cap",placeholder:"New caption"}],()=>({media_id:getInput("ig_uc_id"),caption:getInput("ig_uc_cap")}),FileText)}
       </TabsContent>
       <TabsContent value="publish" className="space-y-2 mt-3">
         {renderInputAction("Photo Post","instagram-api","create_photo_post",[{key:"ig_ph_url",placeholder:"Image URL"},{key:"ig_ph_cap",placeholder:"Caption"}],()=>({image_url:getInput("ig_ph_url"),caption:getInput("ig_ph_cap")}),Image)}
-        {renderInputAction("Carousel Post","instagram-api","create_carousel_post",[{key:"ig_car_urls",placeholder:"Image URLs (comma sep)"},{key:"ig_car_cap",placeholder:"Caption"}],()=>({image_urls:getInput("ig_car_urls").split(",").map(s=>s.trim()),caption:getInput("ig_car_cap")}),Layers)}
+        {renderInputAction("Carousel Post","instagram-api","create_carousel",[{key:"ig_car_urls",placeholder:"Image URLs (comma sep)"},{key:"ig_car_cap",placeholder:"Caption"}],()=>({items:getInput("ig_car_urls").split(",").map(s=>({image_url:s.trim()})),caption:getInput("ig_car_cap")}),Layers)}
         {renderInputAction("Reel","instagram-api","create_reel",[{key:"ig_reel_url",placeholder:"Video URL"},{key:"ig_reel_cap",placeholder:"Caption"},{key:"ig_reel_cover",placeholder:"Cover URL (optional)"}],()=>({video_url:getInput("ig_reel_url"),caption:getInput("ig_reel_cap"),cover_url:getInput("ig_reel_cover")}),Video)}
         {renderInputAction("Story (Image)","instagram-api","create_story",[{key:"ig_st_url",placeholder:"Image URL"}],()=>({image_url:getInput("ig_st_url")}),Play)}
-        {renderInputAction("Story (Video)","instagram-api","create_video_story",[{key:"ig_stv_url",placeholder:"Video URL"}],()=>({video_url:getInput("ig_stv_url")}),Video)}
+        {renderInputAction("Story (Video)","instagram-api","create_story",[{key:"ig_stv_url",placeholder:"Video URL"}],()=>({video_url:getInput("ig_stv_url")}),Video)}
       </TabsContent>
       <TabsContent value="stories" className="space-y-2 mt-3">
-        {renderActionButton("My Stories","instagram-api","get_stories",{},Play)}
-        {renderInputAction("Story Insights","instagram-api","get_story_insights",[{key:"ig_si_id",placeholder:"Story ID"}],()=>({story_id:getInput("ig_si_id")}),BarChart3)}
+        {renderActionButton("Active Stories","instagram-api","get_stories",{},Play)}
+        {renderActionButton("Highlighted Stories","instagram-api","get_story_highlights",{},Star)}
+        {renderInputAction("Story Insights","instagram-api","get_story_insights",[{key:"ig_si_id",placeholder:"Story/Media ID"}],()=>({media_id:getInput("ig_si_id")}),BarChart3)}
       </TabsContent>
       <TabsContent value="comments" className="space-y-2 mt-3">
         {renderInputAction("Get Comments","instagram-api","get_comments",[{key:"ig_cmt_media",placeholder:"Media ID"}],()=>({media_id:getInput("ig_cmt_media"),limit:50}),MessageSquare)}
-        {renderInputAction("Reply","instagram-api","reply_to_comment",[{key:"ig_rply_cmt",placeholder:"Comment ID"},{key:"ig_rply_text",placeholder:"Reply..."}],()=>({comment_id:getInput("ig_rply_cmt"),message:getInput("ig_rply_text")}),Send)}
+        {renderInputAction("Reply to Comment","instagram-api","reply_to_comment",[{key:"ig_rply_cmt",placeholder:"Comment ID"},{key:"ig_rply_text",placeholder:"Reply..."}],()=>({comment_id:getInput("ig_rply_cmt"),message:getInput("ig_rply_text")}),Send)}
+        {renderInputAction("Like Comment","instagram-api","like_comment",[{key:"ig_like_cmt",placeholder:"Comment ID"}],()=>({comment_id:getInput("ig_like_cmt")}),Heart)}
         {renderInputAction("Delete Comment","instagram-api","delete_comment",[{key:"ig_del_cmt",placeholder:"Comment ID"}],()=>({comment_id:getInput("ig_del_cmt")}),Trash2)}
         {renderInputAction("Hide Comment","instagram-api","hide_comment",[{key:"ig_hide_cmt",placeholder:"Comment ID"}],()=>({comment_id:getInput("ig_hide_cmt")}),EyeOff)}
+        {renderInputAction("Unhide Comment","instagram-api","unhide_comment",[{key:"ig_unhide_cmt",placeholder:"Comment ID"}],()=>({comment_id:getInput("ig_unhide_cmt")}),Eye)}
+        {renderInputAction("Enable Comments","instagram-api","enable_comments",[{key:"ig_ec_mid",placeholder:"Media ID"}],()=>({media_id:getInput("ig_ec_mid")}),MessageSquare)}
+        {renderInputAction("Disable Comments","instagram-api","disable_comments",[{key:"ig_dc_mid",placeholder:"Media ID"}],()=>({media_id:getInput("ig_dc_mid")}),EyeOff)}
       </TabsContent>
       <TabsContent value="dms" className="space-y-2 mt-3">
         {renderActionButton("Conversations","instagram-api","get_conversations",{limit:20},MessageSquare)}
@@ -378,17 +399,22 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
         {renderInputAction("Send Image DM","instagram-api","send_dm_image",[{key:"ig_dmi_to",placeholder:"Recipient ID"},{key:"ig_dmi_url",placeholder:"Image URL"}],()=>({recipient_id:getInput("ig_dmi_to"),image_url:getInput("ig_dmi_url")}),Image)}
       </TabsContent>
       <TabsContent value="insights" className="space-y-2 mt-3">
-        {renderActionButton("Account Insights (Day)","instagram-api","get_account_insights",{period:"day"},BarChart3)}
-        {renderActionButton("Account Insights (Week)","instagram-api","get_account_insights",{period:"week"},BarChart3)}
-        {renderActionButton("Demographics","instagram-api","get_account_insights_demographics",{},Users)}
-        {renderActionButton("Online Followers","instagram-api","get_account_insights_online_followers",{},Clock)}
+        <div className="flex gap-1.5 flex-wrap">
+          {renderActionButton("Day Insights","instagram-api","get_account_insights",{period:"day"},BarChart3)}
+          {renderActionButton("Week Insights","instagram-api","get_account_insights",{period:"week"},BarChart3)}
+          {renderActionButton("Month Insights","instagram-api","get_account_insights",{period:"days_28"},BarChart3)}
+          {renderActionButton("Demographics","instagram-api","get_account_insights_demographics",{},Users)}
+          {renderActionButton("Online Followers","instagram-api","get_account_insights_online_followers",{},Clock)}
+        </div>
         {renderInputAction("Media Insights","instagram-api","get_media_insights",[{key:"ig_mi_id",placeholder:"Media ID"}],()=>({media_id:getInput("ig_mi_id")}),BarChart3)}
         {renderInputAction("Reel Insights","instagram-api","get_reel_insights",[{key:"ig_ri_id",placeholder:"Reel ID"}],()=>({media_id:getInput("ig_ri_id")}),Video)}
+        {renderInputAction("Story Insights","instagram-api","get_story_insights",[{key:"ig_sti_id",placeholder:"Story ID"}],()=>({media_id:getInput("ig_sti_id")}),Play)}
       </TabsContent>
       <TabsContent value="discovery" className="space-y-2 mt-3">
         {renderInputAction("Discover User","instagram-api","discover_user",[{key:"ig_disc_user",placeholder:"@username"}],()=>({username:getInput("ig_disc_user")}),Search)}
-        {renderInputAction("User Media","instagram-api","discover_user_media",[{key:"ig_disc_uid",placeholder:"User ID"}],()=>({user_id:getInput("ig_disc_uid"),limit:12}),Image)}
+        {renderInputAction("User Media","instagram-api","discover_user_media",[{key:"ig_disc_uid",placeholder:"@username"},{key:"ig_disc_lim",placeholder:"Limit (25)"}],()=>({username:getInput("ig_disc_uid"),limit:parseInt(getInput("ig_disc_lim")||"25")}),Image)}
         {renderInputAction("Hashtag Search","instagram-api","search_hashtag",[{key:"ig_ht_q",placeholder:"Hashtag (no #)"}],()=>({hashtag:getInput("ig_ht_q")}),Hash)}
+        {renderInputAction("oEmbed Preview","instagram-api","get_oembed",[{key:"ig_oembed_url",placeholder:"Instagram post URL"}],()=>({url:getInput("ig_oembed_url")}),Link2)}
       </TabsContent>
       <TabsContent value="hashtags" className="space-y-2 mt-3">
         {renderInputAction("Hashtag ID","instagram-api","search_hashtag",[{key:"ig_htid_q",placeholder:"Hashtag"}],()=>({hashtag:getInput("ig_htid_q")}),Hash)}
@@ -396,14 +422,21 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
         {renderInputAction("Recent Media","instagram-api","get_hashtag_recent_media",[{key:"ig_ht_rec_id",placeholder:"Hashtag ID"}],()=>({hashtag_id:getInput("ig_ht_rec_id")}),Clock)}
       </TabsContent>
       <TabsContent value="ai" className="space-y-2 mt-3">
-        {renderInputAction("AI Caption","social-ai-responder","generate_caption",[{key:"ai_ig_topic",placeholder:"Topic"}],()=>({topic:getInput("ai_ig_topic"),platform:"instagram",include_cta:true}),Brain)}
+        <p className="text-xs font-bold text-white/60 uppercase tracking-wider mb-2">🤖 AI Content Generation</p>
+        {renderInputAction("AI Caption Writer","social-ai-responder","generate_caption",[{key:"ai_ig_topic",placeholder:"Post topic / describe the photo"}],()=>({topic:getInput("ai_ig_topic"),platform:"instagram",include_cta:true}),Brain)}
+        {renderInputAction("AI Reel Script","social-ai-responder","generate_caption",[{key:"ai_ig_reel",placeholder:"Reel topic"}],()=>({topic:`Write a viral Instagram Reel script (15-30 sec) with hook, content, CTA for: ${getInput("ai_ig_reel")}`,platform:"instagram",include_cta:true}),Video)}
+        {renderInputAction("AI Story Ideas","social-ai-responder","generate_caption",[{key:"ai_ig_story_topic",placeholder:"Topic for stories"}],()=>({topic:`Generate 10 Instagram story ideas with captions for: ${getInput("ai_ig_story_topic")}`,platform:"instagram",include_cta:false}),Play)}
+        {renderInputAction("AI Content Calendar","social-ai-responder","generate_caption",[{key:"ai_ig_cal",placeholder:"Niche for 7-day plan"}],()=>({topic:`Create a 7-day Instagram content calendar with post types, captions and hashtags for: ${getInput("ai_ig_cal")}`,platform:"instagram",include_cta:false}),Calendar)}
+        <p className="text-xs font-bold text-white/60 uppercase tracking-wider mb-2 mt-4">💬 AI Engagement Automation</p>
         {renderInputAction("AI DM Reply","social-ai-responder","generate_dm_reply",[{key:"ai_ig_dm",placeholder:"Incoming DM text..."}],()=>({message_text:getInput("ai_ig_dm"),sender_name:"fan"}),Zap)}
         {renderInputAction("AI Comment Reply","social-ai-responder","generate_dm_reply",[{key:"ai_ig_cmt_text",placeholder:"Comment text..."}],()=>({message_text:getInput("ai_ig_cmt_text"),sender_name:"commenter"}),MessageSquare)}
-        {renderInputAction("AI Hashtag Gen","social-ai-responder","generate_caption",[{key:"ai_ig_ht_topic",placeholder:"Niche/Topic for hashtags"}],()=>({topic:`Generate 30 relevant hashtags for: ${getInput("ai_ig_ht_topic")}`,platform:"instagram",include_cta:false}),Hash)}
-        {renderInputAction("AI Bio Writer","social-ai-responder","generate_caption",[{key:"ai_ig_bio_topic",placeholder:"Describe your brand/niche"}],()=>({topic:`Write a compelling Instagram bio for: ${getInput("ai_ig_bio_topic")}`,platform:"instagram",include_cta:false}),Users)}
-        {renderInputAction("AI Story Ideas","social-ai-responder","generate_caption",[{key:"ai_ig_story_topic",placeholder:"Topic for stories"}],()=>({topic:`Generate 10 Instagram story ideas for: ${getInput("ai_ig_story_topic")}`,platform:"instagram",include_cta:false}),Play)}
-        {renderInputAction("AI Reel Script","social-ai-responder","generate_caption",[{key:"ai_ig_reel",placeholder:"Reel topic"}],()=>({topic:`Write a viral Instagram Reel script (15-30 sec) with hook, content, CTA for: ${getInput("ai_ig_reel")}`,platform:"instagram",include_cta:true}),Video)}
-        {renderInputAction("AI Content Calendar","social-ai-responder","generate_caption",[{key:"ai_ig_cal",placeholder:"Niche for 7-day plan"}],()=>({topic:`Create a 7-day Instagram content calendar with post types and captions for: ${getInput("ai_ig_cal")}`,platform:"instagram",include_cta:false}),Calendar)}
+        {renderInputAction("AI Mass Comment Ideas","social-ai-responder","generate_caption",[{key:"ai_ig_mass_cmt",placeholder:"Target account niche"}],()=>({topic:`Generate 20 authentic, non-spammy comment templates to leave on posts in the ${getInput("ai_ig_mass_cmt")} niche for growth. Mix compliments, questions, and opinions.`,platform:"instagram",include_cta:false}),MessageSquare)}
+        <p className="text-xs font-bold text-white/60 uppercase tracking-wider mb-2 mt-4">🔍 AI Research & Strategy</p>
+        {renderInputAction("AI Hashtag Strategy","social-ai-responder","generate_caption",[{key:"ai_ig_ht_topic",placeholder:"Niche for hashtags"}],()=>({topic:`Generate 30 Instagram hashtags (10 high-volume, 10 mid, 10 niche) for: ${getInput("ai_ig_ht_topic")}`,platform:"instagram",include_cta:false}),Hash)}
+        {renderInputAction("AI Bio Writer","social-ai-responder","generate_caption",[{key:"ai_ig_bio_topic",placeholder:"Describe your brand/niche"}],()=>({topic:`Write 5 compelling Instagram bio variations (150 chars each) for: ${getInput("ai_ig_bio_topic")}`,platform:"instagram",include_cta:false}),Users)}
+        {renderInputAction("AI Competitor Analysis","social-ai-responder","generate_caption",[{key:"ai_ig_comp",placeholder:"Competitor @username or niche"}],()=>({topic:`Analyze Instagram growth strategy and suggest actionable tactics to outperform competitors in: ${getInput("ai_ig_comp")}`,platform:"instagram",include_cta:false}),Target)}
+        {renderInputAction("AI Viral Hook Generator","social-ai-responder","generate_caption",[{key:"ai_ig_hook",placeholder:"Content topic"}],()=>({topic:`Write 10 scroll-stopping Instagram caption hooks for: ${getInput("ai_ig_hook")}. Include pattern interrupts, curiosity gaps, and emotional triggers.`,platform:"instagram",include_cta:false}),Zap)}
+        {renderInputAction("AI CTA Generator","social-ai-responder","generate_caption",[{key:"ai_ig_cta",placeholder:"Goal (sales/follows/DMs)"}],()=>({topic:`Generate 15 powerful Instagram CTAs optimized for: ${getInput("ai_ig_cta")}`,platform:"instagram",include_cta:true}),Target)}
       </TabsContent>
     </Tabs>
   );
@@ -700,13 +733,13 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
   const renderTikTokContent = () => (
     <Tabs defaultValue="videos" className="w-full">
       <TabsList className="border border-white/10 p-0.5 rounded-lg gap-0.5 flex-wrap h-auto" style={{ background: "hsl(222, 30%, 12%)" }}>
-        {[{v:"videos",l:"Videos",icon:Video},{v:"publish",l:"Publish",icon:Upload},{v:"comments",l:"Comments",icon:MessageSquare},{v:"dms",l:"DMs",icon:Send},{v:"playlists",l:"Playlists",icon:List},{v:"research",l:"Research",icon:Search},{v:"ai",l:"AI",icon:Brain}].map(t=>(
+        {[{v:"videos",l:"Videos",icon:Video},{v:"publish",l:"Publish",icon:Upload},{v:"comments",l:"Comments",icon:MessageSquare},{v:"dms",l:"DMs",icon:Send},{v:"playlists",l:"Playlists",icon:List},{v:"research",l:"Research",icon:Search},{v:"analytics",l:"Analytics",icon:BarChart3},{v:"ai",l:"AI Auto",icon:Brain}].map(t=>(
           <TabsTrigger key={t.v} value={t.v} className="text-[10px] gap-1 px-2.5 py-1.5 data-[state=active]:bg-white/15 data-[state=active]:shadow-sm" style={{ color: "rgba(255,255,255,0.7)" }}><t.icon className="h-3 w-3"/>{t.l}</TabsTrigger>
         ))}
       </TabsList>
       <TabsContent value="videos" className="space-y-2 mt-3">
         <div className="flex gap-1.5 flex-wrap">
-          {renderActionButton("My Videos","tiktok-api","get_videos",{limit:20},Video)}
+          {renderActionButton("My Videos","tiktok-api","get_videos",{limit:50},Video)}
           {renderActionButton("User Info","tiktok-api","get_user_info",{},Users)}
           {renderActionButton("Creator Info","tiktok-api","get_creator_info",{},Star)}
         </div>
@@ -714,14 +747,17 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
         {renderInputAction("Publish Status","tiktok-api","check_publish_status",[{key:"tt_ps_id",placeholder:"Publish ID"}],()=>({publish_id:getInput("tt_ps_id")}),Activity)}
       </TabsContent>
       <TabsContent value="publish" className="space-y-2 mt-3">
-        {renderInputAction("Publish Video","tiktok-api","publish_video_by_url",[{key:"tt_pub_url",placeholder:"Video URL"},{key:"tt_pub_title",placeholder:"Caption"}],()=>({video_url:getInput("tt_pub_url"),title:getInput("tt_pub_title"),privacy_level:"PUBLIC_TO_EVERYONE"}),Upload)}
+        {renderInputAction("Publish Video (URL)","tiktok-api","publish_video_by_url",[{key:"tt_pub_url",placeholder:"Video URL"},{key:"tt_pub_title",placeholder:"Caption"}],()=>({video_url:getInput("tt_pub_url"),title:getInput("tt_pub_title"),privacy_level:"PUBLIC_TO_EVERYONE"}),Upload)}
         {renderInputAction("Publish Photo","tiktok-api","publish_photo",[{key:"tt_ph_title",placeholder:"Title"},{key:"tt_ph_urls",placeholder:"Image URLs (comma sep)"}],()=>({title:getInput("tt_ph_title"),image_urls:getInput("tt_ph_urls").split(",").map(s=>s.trim()),privacy_level:"PUBLIC_TO_EVERYONE"}),Image)}
         {renderInputAction("Carousel","tiktok-api","publish_carousel",[{key:"tt_car_title",placeholder:"Title"},{key:"tt_car_urls",placeholder:"Image URLs (comma sep)"}],()=>({title:getInput("tt_car_title"),image_urls:getInput("tt_car_urls").split(",").map(s=>s.trim()),privacy_level:"PUBLIC_TO_EVERYONE"}),Layers)}
+        {renderInputAction("Private Video","tiktok-api","publish_video_by_url",[{key:"tt_priv_url",placeholder:"Video URL"},{key:"tt_priv_title",placeholder:"Caption"}],()=>({video_url:getInput("tt_priv_url"),title:getInput("tt_priv_title"),privacy_level:"SELF_ONLY"}),Lock)}
+        {renderInputAction("Friends Only Video","tiktok-api","publish_video_by_url",[{key:"tt_fr_url",placeholder:"Video URL"},{key:"tt_fr_title",placeholder:"Caption"}],()=>({video_url:getInput("tt_fr_url"),title:getInput("tt_fr_title"),privacy_level:"MUTUAL_FOLLOW_FRIENDS"}),Users)}
       </TabsContent>
       <TabsContent value="comments" className="space-y-2 mt-3">
         {renderInputAction("Get Comments","tiktok-api","get_comments",[{key:"tt_cmt_vid",placeholder:"Video ID"}],()=>({video_id:getInput("tt_cmt_vid"),limit:50}),MessageSquare)}
         {renderInputAction("Comment Replies","tiktok-api","get_comment_replies",[{key:"tt_cr_vid",placeholder:"Video ID"},{key:"tt_cr_cmt",placeholder:"Comment ID"}],()=>({video_id:getInput("tt_cr_vid"),comment_id:getInput("tt_cr_cmt"),limit:20}),MessageSquare)}
-        {renderInputAction("Reply","tiktok-api","reply_to_comment",[{key:"tt_rply_vid",placeholder:"Video ID"},{key:"tt_rply_cmt",placeholder:"Comment ID"},{key:"tt_rply_text",placeholder:"Reply"}],()=>({video_id:getInput("tt_rply_vid"),comment_id:getInput("tt_rply_cmt"),message:getInput("tt_rply_text")}),Send)}
+        {renderInputAction("Reply to Comment","tiktok-api","reply_to_comment",[{key:"tt_rply_vid",placeholder:"Video ID"},{key:"tt_rply_cmt",placeholder:"Comment ID"},{key:"tt_rply_text",placeholder:"Reply"}],()=>({video_id:getInput("tt_rply_vid"),comment_id:getInput("tt_rply_cmt"),message:getInput("tt_rply_text")}),Send)}
+        {renderInputAction("Research Comments","tiktok-api","research_comments",[{key:"tt_resc_vid",placeholder:"Video ID"}],()=>({video_id:getInput("tt_resc_vid"),limit:100}),Search)}
       </TabsContent>
       <TabsContent value="dms" className="space-y-2 mt-3">
         {renderActionButton("Conversations","tiktok-api","get_conversations",{},MessageSquare)}
@@ -734,18 +770,36 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
       </TabsContent>
       <TabsContent value="research" className="space-y-2 mt-3">
         {renderInputAction("Research User","tiktok-api","research_user",[{key:"tt_ru",placeholder:"Username"}],()=>({username:getInput("tt_ru")}),Users)}
-        {renderInputAction("Research Videos","tiktok-api","research_videos",[{key:"tt_rv",placeholder:"Keywords (comma sep)"}],()=>({keywords:getInput("tt_rv").split(",").map(s=>s.trim()),limit:20}),Search)}
+        {renderInputAction("Research Videos","tiktok-api","research_videos",[{key:"tt_rv",placeholder:"Keywords (comma sep)"},{key:"tt_rv_lim",placeholder:"Limit (20)"}],()=>({keywords:getInput("tt_rv").split(",").map(s=>s.trim()),limit:parseInt(getInput("tt_rv_lim")||"20")}),Search)}
         {renderInputAction("Research Hashtag","tiktok-api","research_hashtag",[{key:"tt_rh",placeholder:"Hashtags (comma sep)"}],()=>({hashtags:getInput("tt_rh").split(",").map(s=>s.trim())}),Hash)}
         {renderInputAction("Research Comments","tiktok-api","research_comments",[{key:"tt_rc_vid",placeholder:"Video ID"}],()=>({video_id:getInput("tt_rc_vid"),limit:100}),MessageSquare)}
+        {renderInputAction("Creator Insights","tiktok-api","get_creator_insights",[{key:"tt_ci_user",placeholder:"Username"}],()=>({username:getInput("tt_ci_user")}),BarChart3)}
+      </TabsContent>
+      <TabsContent value="analytics" className="space-y-2 mt-3">
+        <div className="flex gap-1.5 flex-wrap">
+          {renderActionButton("Creator Info","tiktok-api","get_creator_info",{},Star)}
+          {renderActionButton("My Videos (50)","tiktok-api","get_videos",{limit:50},Video)}
+        </div>
+        {renderInputAction("Video Performance","tiktok-api","get_video_details",[{key:"tt_perf_ids",placeholder:"Video IDs (comma sep)"}],()=>({video_ids:getInput("tt_perf_ids").split(",").map(s=>s.trim())}),BarChart3)}
+        {renderInputAction("Creator Insights","tiktok-api","get_creator_insights",[{key:"tt_ana_user",placeholder:"Username"}],()=>({username:getInput("tt_ana_user")}),TrendingUp)}
       </TabsContent>
       <TabsContent value="ai" className="space-y-2 mt-3">
-        {renderInputAction("AI Caption","social-ai-responder","generate_caption",[{key:"ai_tt_topic",placeholder:"Topic"}],()=>({topic:getInput("ai_tt_topic"),platform:"tiktok",include_cta:true}),Brain)}
-        {renderInputAction("AI DM Auto-Reply","social-ai-responder","generate_dm_reply",[{key:"ai_tt_dm",placeholder:"Incoming DM..."}],()=>({message_text:getInput("ai_tt_dm"),sender_name:"fan"}),Send)}
-        {renderInputAction("AI Comment Reply","social-ai-responder","generate_dm_reply",[{key:"ai_tt_cmt",placeholder:"Comment text..."}],()=>({message_text:getInput("ai_tt_cmt"),sender_name:"viewer"}),MessageSquare)}
-        {renderInputAction("AI Hashtag Strategy","social-ai-responder","generate_caption",[{key:"ai_tt_ht",placeholder:"Niche/content type"}],()=>({topic:`Generate 30 TikTok hashtags (mix of trending + niche) for: ${getInput("ai_tt_ht")}`,platform:"tiktok",include_cta:false}),Hash)}
-        {renderInputAction("AI Video Ideas","social-ai-responder","generate_caption",[{key:"ai_tt_ideas",placeholder:"Your niche"}],()=>({topic:`Generate 10 viral TikTok video ideas with hooks for: ${getInput("ai_tt_ideas")}`,platform:"tiktok",include_cta:false}),Video)}
+        <p className="text-xs font-bold text-white/60 uppercase tracking-wider mb-2">🎬 AI Content Creation</p>
+        {renderInputAction("AI Caption Writer","social-ai-responder","generate_caption",[{key:"ai_tt_topic",placeholder:"Video topic"}],()=>({topic:getInput("ai_tt_topic"),platform:"tiktok",include_cta:true}),Brain)}
+        {renderInputAction("AI Video Script","social-ai-responder","generate_caption",[{key:"ai_tt_script",placeholder:"Video concept"}],()=>({topic:`Write a complete TikTok video script (15-60 sec) with hook, body, CTA, and on-screen text suggestions for: ${getInput("ai_tt_script")}`,platform:"tiktok",include_cta:true}),Video)}
         {renderInputAction("AI Hook Generator","social-ai-responder","generate_caption",[{key:"ai_tt_hook",placeholder:"Video topic"}],()=>({topic:`Write 10 attention-grabbing TikTok video hooks (first 3 seconds) for: ${getInput("ai_tt_hook")}`,platform:"tiktok",include_cta:false}),Zap)}
+        {renderInputAction("AI Trending Sound Ideas","social-ai-responder","generate_caption",[{key:"ai_tt_sound",placeholder:"Your niche"}],()=>({topic:`Suggest 10 viral TikTok sound/music trends and how to use them for: ${getInput("ai_tt_sound")}`,platform:"tiktok",include_cta:false}),Music2)}
+        <p className="text-xs font-bold text-white/60 uppercase tracking-wider mb-2 mt-4">💬 AI Engagement</p>
+        {renderInputAction("AI DM Reply","social-ai-responder","generate_dm_reply",[{key:"ai_tt_dm",placeholder:"Incoming DM..."}],()=>({message_text:getInput("ai_tt_dm"),sender_name:"fan"}),Send)}
+        {renderInputAction("AI Comment Reply","social-ai-responder","generate_dm_reply",[{key:"ai_tt_cmt",placeholder:"Comment text..."}],()=>({message_text:getInput("ai_tt_cmt"),sender_name:"viewer"}),MessageSquare)}
+        {renderInputAction("AI Mass Comment Ideas","social-ai-responder","generate_caption",[{key:"ai_tt_mass",placeholder:"Target niche for commenting"}],()=>({topic:`Generate 20 authentic, non-spammy comment templates for engaging on TikTok posts in: ${getInput("ai_tt_mass")}`,platform:"tiktok",include_cta:false}),MessageSquare)}
         {renderInputAction("AI Duet/Stitch Ideas","social-ai-responder","generate_caption",[{key:"ai_tt_duet",placeholder:"Original video topic"}],()=>({topic:`Generate 5 creative duet/stitch response ideas for a TikTok about: ${getInput("ai_tt_duet")}`,platform:"tiktok",include_cta:false}),Repeat)}
+        <p className="text-xs font-bold text-white/60 uppercase tracking-wider mb-2 mt-4">📊 AI Strategy</p>
+        {renderInputAction("AI Hashtag Strategy","social-ai-responder","generate_caption",[{key:"ai_tt_ht",placeholder:"Niche/content type"}],()=>({topic:`Generate 30 TikTok hashtags (10 trending, 10 mid-tier, 10 niche) with expected reach for: ${getInput("ai_tt_ht")}`,platform:"tiktok",include_cta:false}),Hash)}
+        {renderInputAction("AI Video Ideas","social-ai-responder","generate_caption",[{key:"ai_tt_ideas",placeholder:"Your niche"}],()=>({topic:`Generate 10 viral TikTok video ideas with hooks, formats, and estimated virality score for: ${getInput("ai_tt_ideas")}`,platform:"tiktok",include_cta:false}),Video)}
+        {renderInputAction("AI Content Calendar","social-ai-responder","generate_caption",[{key:"ai_tt_cal",placeholder:"Niche for 7-day plan"}],()=>({topic:`Create a 7-day TikTok content calendar with video types, hooks, hashtags, and posting times for: ${getInput("ai_tt_cal")}`,platform:"tiktok",include_cta:false}),Calendar)}
+        {renderInputAction("AI Competitor Analysis","social-ai-responder","generate_caption",[{key:"ai_tt_comp",placeholder:"Competitor username or niche"}],()=>({topic:`Analyze TikTok growth strategy and suggest actionable tactics to outperform: ${getInput("ai_tt_comp")}`,platform:"tiktok",include_cta:false}),Target)}
+        {renderInputAction("AI Bio Optimizer","social-ai-responder","generate_caption",[{key:"ai_tt_bio",placeholder:"Your brand/niche"}],()=>({topic:`Write 5 compelling TikTok bio variations (80 chars) with link-in-bio CTAs for: ${getInput("ai_tt_bio")}`,platform:"tiktok",include_cta:false}),Users)}
       </TabsContent>
     </Tabs>
   );
@@ -1421,7 +1475,7 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
                       <Button size="sm" variant="ghost" className="h-7 text-xs gap-1.5 hover:bg-white/10 rounded-lg" style={{ color: "#e0e0e0" }} onClick={() => { navigator.clipboard.writeText(JSON.stringify(result, null, 2)); toast.success("Copied to clipboard"); }}>
                         <Copy className="h-3.5 w-3.5" />Copy
                       </Button>
-                      <Button size="sm" variant="ghost" className="h-7 text-xs gap-1.5 hover:bg-white/10 rounded-lg" style={{ color: "#e0e0e0" }} onClick={() => setResult(null)}>
+                      <Button size="sm" variant="ghost" className="h-7 text-xs gap-1.5 hover:bg-white/10 rounded-lg" style={{ color: "#e0e0e0" }} onClick={() => { setResult(null); if (expandedPlatform) setPersistedResults(prev => { const n = {...prev}; delete n[expandedPlatform]; return n; }); }}>
                         <Trash2 className="h-3.5 w-3.5" />Clear
                       </Button>
                     </div>
