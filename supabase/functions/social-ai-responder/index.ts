@@ -2233,7 +2233,11 @@ Follow these persona settings strictly. They override any conflicting defaults a
             const convoMeta = dbConvo.metadata as any || {};
             const freePicPendingAt = convoMeta?.free_pic_pending_at;
             
-            if (freePicPendingAt) {
+            // Hard guard: if pic was already delivered for this convo, skip free pic logic entirely
+            if (convoMeta?.free_pic_delivered) {
+              console.log(`[FREE PIC] @${dbConvo.participant_username}: pic already delivered in this convo, skipping`);
+              // Fall through to normal AI (which has freePicCtx injected to deflect)
+            } else if (freePicPendingAt) {
               const pendingTime = new Date(freePicPendingAt).getTime();
               const elapsed = Date.now() - pendingTime;
               const delayMs = 90000 + Math.random() * 60000; // 1.5-2.5 min
@@ -2319,7 +2323,7 @@ Follow these persona settings strictly. They override any conflicting defaults a
                   last_message_preview: `You: ${redirectMsg.substring(0, 80)}`,
                   redirect_sent: true,
                   is_read: true,
-                  metadata: { ...convoMeta, free_pic_pending_at: null },
+                  metadata: { ...convoMeta, free_pic_pending_at: null, free_pic_delivered: true },
                 }).eq("id", dbConvo.id);
                 
                 processed++;
@@ -2339,9 +2343,7 @@ Follow these persona settings strictly. They override any conflicting defaults a
                 }).eq("id", dbConvo.id);
               }
               continue;
-            }
-
-            if (freePicCheck.isEligible) {
+            } else if (freePicCheck.isEligible && !convoMeta?.free_pic_delivered) {
               // === FREE PIC PHASE 1: Send shy msg + brb, then set pending state ===
               const igFuncUrlFP = `${Deno.env.get("SUPABASE_URL")}/functions/v1/instagram-api`;
               const serviceKeyFP = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
