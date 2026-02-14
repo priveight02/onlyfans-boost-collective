@@ -155,8 +155,7 @@ const PersonaCreatorDialog = ({ accountId, open, onOpenChange }: PersonaCreatorD
     </div>
   );
 
-  const defaultProfile = personas[0];
-  const extraPersonas = personas.slice(1);
+  
   const progressPct = Math.round(((step + 1) / STEPS.length) * 100);
 
   return (
@@ -180,28 +179,30 @@ const PersonaCreatorDialog = ({ accountId, open, onOpenChange }: PersonaCreatorD
           <div className="px-5 py-3 border-b border-white/[0.06] flex-shrink-0">
             <p className="text-[9px] text-white/30 mb-2 tracking-widest uppercase font-medium">Active Personas</p>
             <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
-              {defaultProfile ? (
-                <div className="min-w-[190px] p-3 rounded-xl bg-gradient-to-br from-purple-500/15 via-blue-500/10 to-pink-500/5 border border-purple-400/25 relative backdrop-blur-sm">
-                  <div className="absolute top-2 right-2">
-                    <span className="text-[7px] font-bold tracking-wider uppercase bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-1.5 py-0.5 rounded-full">DEFAULT</span>
-                  </div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <Crown className="h-3.5 w-3.5 text-amber-400" />
-                    <span className="text-[11px] font-semibold text-white truncate">
-                      {defaultProfile.brand_identity?.replace(/^\[.*?\]\s*/, "").substring(0, 22) || defaultProfile.tone}
-                    </span>
-                  </div>
-                  <div className="flex flex-wrap gap-1">
-                    <span className="text-[8px] px-1.5 py-0.5 rounded-full bg-purple-500/15 text-purple-300 border border-purple-500/20 capitalize">{defaultProfile.tone}</span>
-                    <span className="text-[8px] px-1.5 py-0.5 rounded-full bg-blue-500/15 text-blue-300 border border-blue-500/20 capitalize">{defaultProfile.vocabulary_style}</span>
-                  </div>
+              {/* Default Persona — always visible */}
+              <div className="min-w-[260px] p-3 rounded-xl bg-gradient-to-br from-purple-500/15 via-blue-500/10 to-pink-500/5 border border-purple-400/25 relative backdrop-blur-sm">
+                <div className="absolute top-2 right-2 flex gap-1.5">
+                  <span className="text-[7px] font-bold tracking-wider uppercase bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-1.5 py-0.5 rounded-full">DEFAULT</span>
+                  <span className="text-[7px] font-bold tracking-wider uppercase bg-blue-500/20 text-blue-400 border border-blue-500/30 px-1.5 py-0.5 rounded-full">ACTIVE</span>
                 </div>
-              ) : (
-                <div className="min-w-[190px] p-3 rounded-xl bg-white/[0.02] border border-dashed border-white/15 flex items-center justify-center">
-                  <span className="text-[10px] text-white/25">No default persona yet</span>
+                <div className="flex items-center gap-2 mb-2">
+                  <Crown className="h-3.5 w-3.5 text-amber-400" />
+                  <span className="text-[11px] font-semibold text-white">Default Persona</span>
                 </div>
-              )}
-              {extraPersonas.map(p => (
+                <div className="space-y-0.5 text-[8px] text-white/50 leading-relaxed">
+                  <p>• Young woman, early 20s — chill, warm, subtly seductive</p>
+                  <p>• No emojis, no apostrophes, minimal punctuation</p>
+                  <p>• Max 1-2 abbreviations (u, rn, tho, w)</p>
+                  <p>• Messages 3-5 words, quick fire replies</p>
+                  <p>• Never says "ngl" or "tbh"</p>
+                  <p>• Natural pauses after 3-4 messages</p>
+                  <p>• Subtle psychological redirection to bio link</p>
+                  <p>• Closes convo after successful redirect</p>
+                  <p>• Consistent voice throughout conversation</p>
+                </div>
+              </div>
+              {/* Custom personas from DB */}
+              {personas.map(p => (
                 <div key={p.id} className="min-w-[160px] p-3 rounded-xl bg-white/[0.03] border border-white/[0.08] relative group hover:border-white/15 transition-all">
                   <button onClick={() => deletePersona(p.id)} className="absolute top-1.5 right-2 text-red-400/0 group-hover:text-red-400/70 text-xs hover:text-red-300 transition-all">×</button>
                   <div className="flex items-center gap-2 mb-1.5">

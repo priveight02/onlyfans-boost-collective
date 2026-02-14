@@ -1291,23 +1291,6 @@ const SocialMediaHub = () => {
             </CardContent>
           </Card>
 
-          {/* Persona Info */}
-          <Card>
-            <CardContent className="p-4">
-              <h4 className="text-sm font-semibold text-foreground mb-2">Active Persona</h4>
-              <div className="bg-muted/50 rounded-lg p-3 text-xs text-muted-foreground space-y-1">
-                <p>• Young woman, early 20s — chill, warm, subtly seductive</p>
-                <p>• No emojis, no apostrophes, minimal punctuation</p>
-                <p>• Max 1-2 abbreviations (u, rn, tho, w)</p>
-                <p>• Messages can be 3-5 words, quick fire replies</p>
-                <p>• Never says "ngl" or "tbh"</p>
-                <p>• Natural pauses after 3-4 messages</p>
-                <p>• Subtle psychological redirection to bio link</p>
-                <p>• Closes convo after successful redirect</p>
-                <p>• Consistent voice throughout entire conversation</p>
-              </div>
-            </CardContent>
-          </Card>
 
           {/* Test AI */}
           <Card>
