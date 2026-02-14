@@ -155,12 +155,14 @@ ADVANCED PSYCHOLOGICAL TACTICS:
 9. OBJECTION HANDLING (MASTER LEVEL):
 - "youre just trying to sell me something": "lol i literally just talk to people i vibe with"
 - "send me something free": "maybe if u earn it... depends how this convo goes"
-- "I dont pay for that stuff": "its literally less than ur morning coffee and way better"
+- "I dont pay for that stuff": "i mean its up to u but u dont wanna miss out"
 - "youre not real": "believe what u want lol i know who i am"
 - "I can find it for free": "sure but u wont find ME anywhere else"
-- "I'm broke": "lol stop. its like nothing. plus i made it worth it trust me"
-- "show me first then ill pay": "thats not how this works baby but i promise u wont regret it"
+- "I'm broke": "lol ok well when u change ur mind u know where to find me"
+- "show me first then ill pay": "thats not how this works but i promise u wont regret it"
+- "how much": "dont even worry about that rn just come see"
 - Always stay warm, never get annoyed or desperate when handling objections
+- NEVER mention specific prices, dollar amounts, or currency. EVER. Frame everything as exclusive access and desire
 
 10. CONVERSATION MEMORY & CONTINUITY:
 - Reference things from earlier in the convo to show you remember
@@ -1341,34 +1343,86 @@ Follow these persona settings strictly. They override any conflicting defaults a
             
             const emojiDir = "\n\nEMOJI DIRECTIVE: ZERO emojis. NEVER use emojis regardless of what the fan sends. Text only. Always.";
 
+            // === FAN BEHAVIOR CLASSIFICATION for process_live_dm ===
+            const fanMsgsLive = (dbMessages || []).filter(m => m.sender_type === "fan");
+            const fanTextsLive = fanMsgsLive.map(m => m.content || "").filter(t => t && t.length > 2);
+            const allFanTextLive = fanTextsLive.join(" ").toLowerCase();
+            const avgMsgLenLive = fanMsgsLive.length > 0 ? fanTextsLive.reduce((s, t) => s + t.length, 0) / fanMsgsLive.length : 0;
+            const photoCntLive = fanMsgsLive.filter(m => (m.content || "").match(/\[photo\]|\[sent a photo\]/)).length;
+            const hasPersonalLive = !!allFanTextLive.match(/(from |my name|my country|i live|years old|i work)/);
+            const isAffectLive = !!allFanTextLive.match(/(love you|miss you|ur beautiful|ur gorgeous|ur amazing|baby|babe)/);
+            const isSkeptLive = !!allFanTextLive.match(/(fake|bot|not real|ai |scam|catfish|prove)/);
+            const isAggressLive = !!allFanTextLive.match(/(send me|show me|free|now|hurry|wtf|fuck)/) && !isAffectLive;
+            const isDryLive = avgMsgLenLive < 15 && fanMsgsLive.length > 3;
+            
+            let fanBehaviorLive = "casual_chatter";
+            if (isSkeptLive) fanBehaviorLive = "skeptic";
+            else if (isAggressLive) fanBehaviorLive = "aggressive";
+            else if (isAffectLive && hasPersonalLive) fanBehaviorLive = "genuine_connector";
+            else if (isAffectLive) fanBehaviorLive = "romantic";
+            else if (hasPersonalLive && photoCntLive > 0) fanBehaviorLive = "life_sharer";
+            else if (photoCntLive > 0) fanBehaviorLive = "visual_engager";
+            else if (isDryLive) fanBehaviorLive = "low_effort";
+            else if (avgMsgLenLive > 50) fanBehaviorLive = "deep_talker";
+            else if (fanMsgsLive.length <= 2) fanBehaviorLive = "new_lead";
+            
+            // Auto-save fan behavior (non-blocking)
+            try {
+              await supabase.from("fan_emotional_profiles").upsert({
+                account_id,
+                fan_identifier: dbConvo.participant_id,
+                fan_name: dbConvo.participant_username || dbConvo.participant_name,
+                behavior_type: fanBehaviorLive,
+                behavior_confidence: Math.min(fanMsgsLive.length * 10, 100),
+                behavior_updated_at: new Date().toISOString(),
+                conversation_style: isAffectLive ? "warm" : isDryLive ? "minimal" : "normal",
+                response_pattern: fanMsgsLive.length > 5 ? "engaged" : fanMsgsLive.length > 2 ? "moderate" : "new",
+                media_shared_count: photoCntLive,
+                avg_message_length: Math.round(avgMsgLenLive),
+                interaction_count: fanMsgsLive.length,
+                last_interaction_at: new Date().toISOString(),
+                last_behavior_analysis: { type: fanBehaviorLive, confidence: Math.min(fanMsgsLive.length * 10, 100), analyzed_at: new Date().toISOString() },
+              }, { onConflict: "account_id,fan_identifier" });
+            } catch {}
+
+            const behaviorCtxLive = `\n\n=== FAN BEHAVIOR: ${fanBehaviorLive.toUpperCase()} ===
+${fanBehaviorLive === "genuine_connector" ? "Warm & personal fan. Build real rapport." : ""}
+${fanBehaviorLive === "romantic" ? "Romantically interested. Be sweet, maintain mystique." : ""}
+${fanBehaviorLive === "life_sharer" ? "Shares their life openly. Be genuinely interested." : ""}
+${fanBehaviorLive === "visual_engager" ? "Communicates through media. React to photos/videos." : ""}
+${fanBehaviorLive === "skeptic" ? "Doubts youre real. Stay unbothered, be interesting." : ""}
+${fanBehaviorLive === "aggressive" ? "Pushy fan. Stay calm, redirect smoothly." : ""}
+${fanBehaviorLive === "low_effort" ? "Short messages. Create intrigue." : ""}
+${fanBehaviorLive === "deep_talker" ? "Writes long messages. Engage but keep replies short." : ""}
+${fanBehaviorLive === "new_lead" ? "New convo. Build rapport first." : ""}`;
+
             // Generate AI reply
-            // Add final reinforcement to prevent AI from ignoring persona rules
-            const systemPrompt = `${personaInfo2}${emojiDir}${fanMemoryBlock}
+            const systemPrompt = `${personaInfo2}${emojiDir}${fanMemoryBlock}${behaviorCtxLive}
 ${autoConfig.redirect_url ? `\nIMPORTANT: when it makes sense, naturally guide toward this link: ${autoConfig.redirect_url}. But NEVER redirect during genuine bonding moments — wait for a natural transition` : ""}
 ${autoConfig.trigger_keywords ? `if they mention any of these: ${autoConfig.trigger_keywords}, redirect them to the link` : ""}
 
+MONEY & VALUE RULES (CRITICAL — NEVER BREAK):
+- NEVER mention money, dollars, prices, costs, fees, payment, currency, "$"
+- NEVER say "its cheap", "its nothing", "less than a coffee", "just $X" — BANNED
+- Frame value as EXCLUSIVITY and DESIRE only: "u wont find this anywhere else"
+- If they ask about price: deflect "dont worry about that rn" or "trust me its worth it"
+
 CONVERSATION MEMORY & CONTINUITY (HIGHEST PRIORITY):
-- You have the ENTIRE conversation history above. Read EVERY SINGLE message before replying
-- REMEMBER everything the fan told you: their name, where theyre from, what they do, their interests, what photos they shared
-- If they told you something earlier in the convo, you KNOW it. reference it naturally when it fits
-- If they shared photos of their country/city/life earlier, you remember seeing them
-- Build on what was already discussed. dont repeat questions they already answered
-- Your reply should show you have been paying attention to EVERYTHING they said
+- You have the ENTIRE conversation history. Read EVERY SINGLE message
+- REMEMBER everything: their name, location, interests, what photos they shared
+- Build on what was discussed. dont repeat questions they already answered
 
-CONTEXT AWARENESS (CRITICAL — READ BEFORE REPLYING):
-- Your reply MUST directly relate to what the fan JUST said (latest messages)
-- But also take into account EVERYTHING from earlier in the convo
-- If they sent [sent a photo] or [sent a video]: react to it warmly and specifically
-- If they shared something personal (their country, life, feelings): acknowledge it with genuine interest
-- If they were sweet or affectionate: be warm back, not dismissive
-- NEVER use a generic canned line that ignores their message content
-- Match the emotional energy of the conversation
+CONTEXT AWARENESS (CRITICAL):
+- Your reply MUST directly relate to what the fan JUST said
+- If they sent [sent a photo] or [sent a video]: react warmly and specifically
+- If they shared something personal: acknowledge with genuine interest
+- NEVER use a generic canned line that ignores their message
 
-FINAL REMINDER (READ LAST — THIS OVERRIDES EVERYTHING):
-- Your reply MUST be 3-10 words, max 2 short sentences
-- ZERO emojis. NONE. EVER. Not a single emoji character
-- Write like a real girl texting — warm, casual, contextually relevant
-- Output ONLY the message text. No quotes, no labels, no empty strings`;
+FINAL REMINDER:
+- 3-10 words, max 2 short sentences
+- ZERO emojis. NONE. EVER
+- Warm, casual, contextually relevant
+- Output ONLY the message text`;
 
             const aiMessages: any[] = [{ role: "system", content: systemPrompt }];
             for (const ctx of conversationContext) {
@@ -1878,15 +1932,18 @@ Follow these persona settings strictly.`;
 
             if (!fullHist || fullHist.length === 0) continue;
 
-            // Check if last message is from fan (needs reply)
             const lastMsg = fullHist[fullHist.length - 1];
-            if (lastMsg.sender_type !== "fan") continue;
-
-            // Skip if we already replied after this message
+            
+            // For relaunch_all_today: process ALL convos, not just unanswered ones
+            // If last message is from us, send a follow-up/re-engagement message
+            // If last message is from fan, reply to what they said
+            const isFollowUp = lastMsg.sender_type !== "fan";
+            
+            // Skip ONLY if we VERY recently replied (within last 5 minutes) to avoid spam
             if (tc.last_ai_reply_at) {
               const aiTime = new Date(tc.last_ai_reply_at).getTime();
-              const fanTime = new Date(lastMsg.created_at).getTime();
-              if (aiTime >= fanTime) continue;
+              const now = Date.now();
+              if (now - aiTime < 5 * 60 * 1000) continue; // Skip if replied < 5 min ago
             }
 
             // Build RICH context with media descriptions
@@ -1940,33 +1997,93 @@ Follow these persona settings strictly.`;
               ? `\n\n=== FAN MEMORY ===\n${fanMemNotesRAT.join("\n")}\nUse this knowledge naturally.`
               : "";
 
+            // === FAN BEHAVIOR CLASSIFICATION (auto machine learning) ===
+            let fanBehaviorType = "unknown";
+            const fanMsgCountRAT = fanMsgsRAT.length;
+            const avgMsgLenRAT = fanMsgCountRAT > 0 ? fanTextsRAT.reduce((sum, t) => sum + t.length, 0) / fanMsgCountRAT : 0;
+            const hasSharedMedia = photoCntRAT > 0;
+            const hasSharedPersonal = allFanTextRAT.match(/(from |my name|my country|i live|years old|i work|my job|my hobby|i like |i love )/);
+            const isAffectionate = allFanTextRAT.match(/(love you|miss you|ur beautiful|ur gorgeous|ur amazing|so pretty|so hot|baby|babe|sweetheart)/);
+            const isAggressive = allFanTextRAT.match(/(send me|show me|free|now|hurry|come on|wtf|fuck)/);
+            const isSkeptical = allFanTextRAT.match(/(fake|bot|not real|ai |scam|catfish|prove)/);
+            const isDry = avgMsgLenRAT < 15 && fanMsgCountRAT > 3;
+            
+            if (isSkeptical) fanBehaviorType = "skeptic";
+            else if (isAggressive && !isAffectionate) fanBehaviorType = "aggressive";
+            else if (isAffectionate && hasSharedPersonal) fanBehaviorType = "genuine_connector";
+            else if (isAffectionate) fanBehaviorType = "romantic";
+            else if (hasSharedPersonal && hasSharedMedia) fanBehaviorType = "life_sharer";
+            else if (hasSharedMedia) fanBehaviorType = "visual_engager";
+            else if (isDry) fanBehaviorType = "low_effort";
+            else if (avgMsgLenRAT > 50) fanBehaviorType = "deep_talker";
+            else if (fanMsgCountRAT <= 2) fanBehaviorType = "new_lead";
+            else fanBehaviorType = "casual_chatter";
+            
+            // Auto-save fan behavior profile (non-blocking)
+            try {
+              await supabase.from("fan_emotional_profiles").upsert({
+                account_id,
+                fan_identifier: tc.participant_id,
+                fan_name: tc.participant_username || tc.participant_name,
+                behavior_type: fanBehaviorType,
+                behavior_confidence: Math.min(fanMsgCountRAT * 10, 100),
+                behavior_updated_at: new Date().toISOString(),
+                conversation_style: isAffectionate ? "warm" : isDry ? "minimal" : "normal",
+                response_pattern: fanMsgCountRAT > 5 ? "engaged" : fanMsgCountRAT > 2 ? "moderate" : "new",
+                media_shared_count: photoCntRAT,
+                avg_message_length: Math.round(avgMsgLenRAT),
+                topics_discussed: fanMemNotesRAT.map(n => n.substring(0, 50)),
+                interaction_count: fanMsgCountRAT,
+                last_interaction_at: new Date().toISOString(),
+                last_behavior_analysis: { type: fanBehaviorType, confidence: Math.min(fanMsgCountRAT * 10, 100), analyzed_at: new Date().toISOString() },
+              }, { onConflict: "account_id,fan_identifier" });
+            } catch (profileErr) { console.log("Fan profile save (non-blocking):", profileErr); }
+
+            const behaviorContext = `\n\n=== FAN BEHAVIOR ANALYSIS (adapt your style) ===
+Fan type: ${fanBehaviorType}
+${fanBehaviorType === "genuine_connector" ? "This fan genuinely wants to connect. Be warm, curious, build real rapport." : ""}
+${fanBehaviorType === "romantic" ? "This fan is romantically interested. Be sweet but maintain mystique." : ""}
+${fanBehaviorType === "life_sharer" ? "This fan shares their life openly. Show genuine interest in their stories." : ""}
+${fanBehaviorType === "visual_engager" ? "This fan communicates through media. Always react to their photos/videos." : ""}
+${fanBehaviorType === "skeptic" ? "This fan doubts youre real. Stay unbothered, be genuinely interesting." : ""}
+${fanBehaviorType === "aggressive" ? "This fan is pushy. Stay calm, redirect smoothly, never submit." : ""}
+${fanBehaviorType === "low_effort" ? "This fan sends short messages. Match energy but create intrigue to pull them in." : ""}
+${fanBehaviorType === "deep_talker" ? "This fan sends long messages. Engage thoughtfully but keep YOUR replies short." : ""}
+${fanBehaviorType === "new_lead" ? "New conversation. Focus on rapport building, ask about them." : ""}
+${fanBehaviorType === "casual_chatter" ? "Casual vibe. Keep it light and fun." : ""}`;
+
             const emojiDirRAT = "\n\nEMOJI DIRECTIVE: ZERO emojis. NEVER use emojis. Text only. Always.";
-            const systemPromptRAT = `${personaRAT}${emojiDirRAT}${fanMemBlockRAT}
+            const systemPromptRAT = `${personaRAT}${emojiDirRAT}${fanMemBlockRAT}${behaviorContext}
 ${autoConfigRAT?.redirect_url ? `\nIMPORTANT: when it makes sense, naturally guide toward this link: ${autoConfigRAT.redirect_url}. But NEVER redirect during genuine bonding moments` : ""}
 ${autoConfigRAT?.trigger_keywords ? `if they mention any of these: ${autoConfigRAT.trigger_keywords}, redirect them to the link` : ""}
 
-CONVERSATION MEMORY & CONTINUITY (HIGHEST PRIORITY):
+MONEY & VALUE RULES (CRITICAL — NEVER BREAK):
+- NEVER mention money, dollars, prices, costs, fees, payment, currency, "$", or any financial terms
+- NEVER say "its cheap", "its nothing", "less than a coffee", "just $X" — BANNED
+- If the topic of value comes up, frame it as EXCLUSIVITY and DESIRE: "u wont find this anywhere else", "i made this just for u"
+- Content value is implied through scarcity and desire, NEVER through price discussion
+- Be bold about the VALUE of what you offer but NEVER mention the cost
+- If they ask about price: deflect smoothly "dont worry about that rn" or "trust me its worth it"
+
+${isFollowUp ? `FOLLOW-UP MODE (you are re-engaging — YOU spoke last):
+- You are sending a follow-up because they havent replied yet
+- Be casual and natural: "hey u disappeared on me", "so u just gonna leave me hanging", "was thinking about what u said earlier"
+- Reference something specific from the conversation — a photo they shared, something they told you
+- Create curiosity or slight FOMO to pull them back in
+- NEVER be needy or desperate. stay cool and intriguing
+- Keep it to ONE short message, 3-10 words` : `REPLY MODE (fan spoke last — respond to what they said):
+- Your reply MUST directly relate to what the fan JUST said
+- If they shared photos/videos, react to the ACTUAL CONTENT specifically`}
+
+CONVERSATION MEMORY & CONTINUITY:
 - You have the ENTIRE conversation history. You remember EVERYTHING
 - Reference things the fan told you: their name, location, interests, photos
 - Build on established rapport. dont repeat questions they already answered
 
-CONVERSATION RESUMPTION CONTEXT:
-You are picking up a conversation from today. You have the FULL chat history above.
-- Read EVERY message carefully. understand what theyve been talking about
-- If they shared photos/videos, react to the ACTUAL CONTENT specifically
-- Continue naturally as if you just got back to your phone
-- Pick up the vibe — if it was flirty stay flirty, if they were sharing personal stuff stay warm and curious
-- If they shared something about their country/culture, show genuine interest
-
-CONTEXT AWARENESS (CRITICAL):
-- Your reply MUST directly relate to what the fan last said or shared
-- NEVER ignore their photos, stories, or personal messages with a generic line
-- Be warm, empathetic, and genuinely interested
-
 FINAL REMINDER:
-- Your reply MUST be 3-10 words, max 2 short sentences
+- 3-10 words, max 2 short sentences
 - ZERO emojis. NONE. EVER
-- Write like a real girl texting — warm, casual, contextually relevant
+- Warm, casual, contextually relevant
 - Output ONLY the message text`;
 
             const aiMsgsRAT: any[] = [{ role: "system", content: systemPromptRAT }];

@@ -847,60 +847,90 @@ export type Database = {
         Row: {
           account_id: string
           attachment_level: number | null
+          avg_message_length: number | null
+          behavior_confidence: number | null
+          behavior_type: string | null
+          behavior_updated_at: string | null
           churn_risk: number | null
           conflict_risk: number | null
+          conversation_style: string | null
           created_at: string
           emotional_triggers: Json | null
+          engagement_velocity: number | null
           fan_identifier: string
           fan_name: string | null
           id: string
           interaction_count: number | null
+          last_behavior_analysis: Json | null
           last_interaction_at: string | null
+          media_shared_count: number | null
           notes: string | null
           obsession_risk: number | null
+          response_pattern: string | null
           sentiment_history: Json | null
           spending_motivation: string | null
           tags: string[] | null
+          topics_discussed: string[] | null
           total_spent: number | null
           updated_at: string
         }
         Insert: {
           account_id: string
           attachment_level?: number | null
+          avg_message_length?: number | null
+          behavior_confidence?: number | null
+          behavior_type?: string | null
+          behavior_updated_at?: string | null
           churn_risk?: number | null
           conflict_risk?: number | null
+          conversation_style?: string | null
           created_at?: string
           emotional_triggers?: Json | null
+          engagement_velocity?: number | null
           fan_identifier: string
           fan_name?: string | null
           id?: string
           interaction_count?: number | null
+          last_behavior_analysis?: Json | null
           last_interaction_at?: string | null
+          media_shared_count?: number | null
           notes?: string | null
           obsession_risk?: number | null
+          response_pattern?: string | null
           sentiment_history?: Json | null
           spending_motivation?: string | null
           tags?: string[] | null
+          topics_discussed?: string[] | null
           total_spent?: number | null
           updated_at?: string
         }
         Update: {
           account_id?: string
           attachment_level?: number | null
+          avg_message_length?: number | null
+          behavior_confidence?: number | null
+          behavior_type?: string | null
+          behavior_updated_at?: string | null
           churn_risk?: number | null
           conflict_risk?: number | null
+          conversation_style?: string | null
           created_at?: string
           emotional_triggers?: Json | null
+          engagement_velocity?: number | null
           fan_identifier?: string
           fan_name?: string | null
           id?: string
           interaction_count?: number | null
+          last_behavior_analysis?: Json | null
           last_interaction_at?: string | null
+          media_shared_count?: number | null
           notes?: string | null
           obsession_risk?: number | null
+          response_pattern?: string | null
           sentiment_history?: Json | null
           spending_motivation?: string | null
           tags?: string[] | null
+          topics_discussed?: string[] | null
           total_spent?: number | null
           updated_at?: string
         }
