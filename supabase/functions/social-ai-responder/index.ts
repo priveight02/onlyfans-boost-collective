@@ -1561,6 +1561,7 @@ The tone is warm. The flow is easy. Occasionally share light, friendly media wit
 - Everything is OPTIONAL. Never positioned as a reward or exchange
 - Make them feel special without being over the top
 - Start planting very gentle SEEDS: "theres more to me than just texting lol" — but dont push
+- EMOJI UNLOCKED: You can now use cute emojis sparingly (😘 🥰 😏 💕) — max 1 per message, ~30% of messages. Use them to add warmth and playfulness. Example: "mm ur sweet 😏" or "talking to u is nice 💕"
 - ${isAffectionate ? "They are emotionally invested — Phase 5 transition approaching" : "Keep building warmth naturally"}
 - Goal: add warmth and spark without changing the dynamic abruptly`,
     };
@@ -1575,18 +1576,19 @@ Gradually guide the interaction toward a more engaging redirection in a subtle, 
 - This is NEVER explicit and NEVER sudden. It should feel like THEIR idea too
 - Suggestive in TONE, not content. Playful, not pushy. Based on mutual energy
 - Frame as an INVITATION:
-  * "i kinda wanna show u something but its not for here"
-  * "theres a side of me u havent seen yet"
-  * "since we actually connected like this... i want u to see more"
+  * "i kinda wanna show u something but its not for here 😏"
+  * "theres a side of me u havent seen yet 🔥"
+  * "since we actually connected like this... i want u to see more 💋"
 - Its a SHARED MOMENT:
-  * "ok im feeling something rn and i want u to come see why"
-  * "u earned this ngl"
+  * "ok im feeling something rn and i want u to come see why 😘"
+  * "u earned this ngl 🥰"
 - If it DOESNT LAND — pull back IMMEDIATELY and return to comfort:
   * "lol ok ok no pressure just vibing" → go back to Phase 3 energy
   * NEVER double down on a redirect that didnt work
 - Keep the warmth from all phases — NEVER get cold or transactional
-- Make it feel EXCLUSIVE: "i dont do this w everyone"
+- Make it feel EXCLUSIVE: "i dont do this w everyone 💕"
 - Reference shared moments from earlier
+- EMOJI UNLOCKED: Use seductive/cute emojis freely in redirect messages (😘 🥰 😏 💋 🔥 😍 🤭 😜). Use 1-2 per message ~40-50% of the time. They add charm and make redirects feel warmer and more inviting. Example: "mm come see what im up to 😏🔥"
 - Every 3-4 messages can have a soft hint — NOT every message
 - If they resist: stay warm, pull back, try different angle later
 - Goal: let the direction feel like a natural evolution, not a script`,
@@ -3371,7 +3373,9 @@ Follow these persona settings strictly. They override any conflicting defaults a
               .select("id")
               .single();
 
-            const emojiDir = "\n\nEMOJI DIRECTIVE: ZERO emojis. NEVER use emojis regardless of what they send. Text only. Always.";
+            const emojiDir = convoPhase.phase >= 4
+              ? "\n\nEMOJI DIRECTIVE: You CAN now use cute/seductive emojis SPARINGLY in this phase. Use them to add warmth and flirtiness to redirect messages. Allowed emojis: 😘 🥰 😏 💋 🔥 😍 💕 ❤️ 🤭 😜 — max 1-2 per message, NOT every message. Use them ~30% of the time to keep it feeling special. Never spam emojis. Never use generic ones like 😂 👍 🙏. Only cute/seductive ones that fit the mood."
+              : "\n\nEMOJI DIRECTIVE: ZERO emojis. NEVER use emojis regardless of what they send. Text only. Always.";
             const behaviorCtxLive = `\n\n=== PERSON BEHAVIOR: ${behavior.type.toUpperCase()} ===\n${behavior.context}`;
             const tensionCtxLive = tension.tensionContext;
 
@@ -3624,9 +3628,23 @@ IF YOU DONT UNDERSTAND: say "wait wdym" or "lol what" — NEVER make up an incoh
               }
             }
 
-            // POST-PROCESS: Strip ALL emojis — zero tolerance
-            const emojiRxPost = /[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{200D}\u{20E3}\u{FE0F}]/gu;
-            reply = reply.replace(emojiRxPost, "").replace(/\s{2,}/g, " ").trim();
+            // POST-PROCESS: Strip emojis in early phases, allow cute ones in Phase 4-5
+            if (convoPhase.phase >= 4) {
+              // Phase 4-5: Only allow seductive/cute emojis, strip everything else
+              const allowedEmojis = new Set(['😘', '🥰', '😏', '💋', '🔥', '😍', '💕', '❤️', '🤭', '😜', '💗', '✨', '🫦', '😈']);
+              const allEmojiRx = /(\p{Emoji_Presentation}|\p{Extended_Pictographic})/gu;
+              reply = reply.replace(allEmojiRx, (match) => allowedEmojis.has(match) ? match : "").replace(/\s{2,}/g, " ").trim();
+              // Cap at max 2 emojis per message
+              let emojiCount = 0;
+              reply = reply.replace(allEmojiRx, (match) => {
+                if (allowedEmojis.has(match) && emojiCount < 2) { emojiCount++; return match; }
+                return allowedEmojis.has(match) ? "" : "";
+              }).replace(/\s{2,}/g, " ").trim();
+            } else {
+              // Phase 1-3: Strip ALL emojis — zero tolerance
+              const emojiRxPost = /[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{200D}\u{20E3}\u{FE0F}]/gu;
+              reply = reply.replace(emojiRxPost, "").replace(/\s{2,}/g, " ").trim();
+            }
             
             // === SMART MESSAGE LENGTH ENGINE ===
             // Preserves full replies when answering questions or multiple unanswered msgs
