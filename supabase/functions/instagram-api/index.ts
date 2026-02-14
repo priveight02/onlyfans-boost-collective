@@ -1430,7 +1430,7 @@ serve(async (req) => {
         const dsUserId = params?.ds_user_id || metadata?.ig_ds_user_id || conn.platform_user_id;
         const csrfToken = params?.csrf_token || metadata?.ig_csrf_token;
         const igAppId = "936619743392459";
-        const maxResults = Math.min(params?.max_results || 50, 1000);
+        const maxResults = Math.min(params?.max_results || 50, 100000);
         const expanded = params?.expanded || false;
 
         const headers = {
