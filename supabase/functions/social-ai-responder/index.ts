@@ -35,6 +35,187 @@ function interMessageDelay(isFlowing = false): number {
   return 1000 + Math.random() * 2000;
 }
 
+// === STRATEGIC IMAGE GENERATION ENGINE ===
+// Decides whether to generate and send an ultra-realistic image during conversation
+// RARE (~5% of messages) and only when contextually impactful
+const shouldGenerateContextualImage = (messages: any[], reply: string): { shouldGenerate: boolean; imagePrompt: string } => {
+  const NO = { shouldGenerate: false, imagePrompt: "" };
+  
+  // Basic gate: need at least 8 messages for enough context
+  if (!messages || messages.length < 8) return NO;
+  
+  // RARITY GATE: only ~5% chance to even consider
+  if (Math.random() > 0.05) return NO;
+  
+  // Never send images right after redirect attempts or during tense moments
+  const replyLower = reply.toLowerCase();
+  if (replyLower.match(/(bio|link|profile|page|check it|come see|come find)/)) return NO;
+  
+  // Scan recent conversation for image-worthy topics
+  const recentMsgs = messages.slice(-10);
+  const fanTexts = recentMsgs.filter((m: any) => m.sender_type === "fan").map((m: any) => (m.content || "").toLowerCase()).join(" ");
+  
+  // Detect contextual topics that would make an image impactful
+  const topicMatches: { topic: string; prompt: string }[] = [];
+  
+  // Travel / Location / Nature
+  if (fanTexts.match(/(beach|ocean|sea|sunset|sunrise|mountain|lake|river|island|tropical|paradise|nature|forest|waterfall|sky|stars|moon|night sky)/)) {
+    const place = fanTexts.match(/(beach|ocean|sunset|mountain|lake|island|tropical|forest|waterfall)/)?.[0] || "sunset beach";
+    topicMatches.push({ topic: "nature", prompt: `Ultra realistic photograph of a breathtaking ${place} scene, golden hour lighting, cinematic composition, 8k quality, no people, serene and peaceful atmosphere` });
+  }
+  
+  // City / Country discussions
+  if (fanTexts.match(/(paris|france|cannes|la |los angeles|new york|tokyo|london|dubai|miami|bali|maldives|italy|spain|greece|santorini)/)) {
+    const city = fanTexts.match(/(paris|cannes|los angeles|new york|tokyo|london|dubai|miami|bali|maldives|italy|spain|greece|santorini)/)?.[0] || "cannes";
+    topicMatches.push({ topic: "city", prompt: `Ultra realistic photograph of ${city}, iconic landmark view, beautiful lighting, cinematic wide shot, vibrant colors, 8k quality` });
+  }
+  
+  // Weather / Sky
+  if (fanTexts.match(/(rain|snow|storm|clouds|cloudy|sunny|cold|winter|summer|autumn|fall|spring)/)) {
+    const weather = fanTexts.match(/(rain|snow|storm|sunset|cloudy|sunny|winter|autumn)/)?.[0] || "sunset";
+    topicMatches.push({ topic: "weather", prompt: `Ultra realistic photograph of a dramatic ${weather} scene, moody atmospheric lighting, cinematic composition, 8k quality, breathtaking landscape` });
+  }
+  
+  // Food
+  if (fanTexts.match(/(food|cook|restaurant|dinner|lunch|breakfast|pizza|sushi|pasta|wine|coffee|croissant|cheese)/)) {
+    const food = fanTexts.match(/(pizza|sushi|pasta|wine|coffee|croissant|cheese|food)/)?.[0] || "gourmet meal";
+    topicMatches.push({ topic: "food", prompt: `Ultra realistic food photography of ${food === "food" ? "a beautiful gourmet meal" : food}, professional studio lighting, appetizing presentation, shallow depth of field, 8k quality` });
+  }
+  
+  // Night / Evening vibes
+  if (fanTexts.match(/(night|evening|late|cant sleep|insomnia|dark|cozy|chill|vibing|relaxing|calm)/)) {
+    topicMatches.push({ topic: "night", prompt: `Ultra realistic photograph of a cozy nighttime scene, warm ambient lighting, city skyline at night with bokeh lights, peaceful and atmospheric, 8k quality` });
+  }
+  
+  // Pets
+  if (fanTexts.match(/(dog|cat|puppy|kitten|pet|animal|cute animal)/)) {
+    const animal = fanTexts.match(/(dog|puppy|cat|kitten)/)?.[0] || "puppy";
+    topicMatches.push({ topic: "pet", prompt: `Ultra realistic photograph of an adorable ${animal}, soft natural lighting, shallow depth of field, heartwarming expression, professional pet photography, 8k quality` });
+  }
+  
+  // Fitness / Gym
+  if (fanTexts.match(/(gym|workout|fitness|exercise|training|sport|running|yoga)/)) {
+    topicMatches.push({ topic: "fitness", prompt: `Ultra realistic photograph of a beautiful modern gym or fitness scene, dramatic lighting, motivational atmosphere, professional sports photography, 8k quality` });
+  }
+  
+  // Cars / Luxury
+  if (fanTexts.match(/(car|drive|lamborghini|ferrari|porsche|bmw|mercedes|luxury|mansion|yacht)/)) {
+    const item = fanTexts.match(/(lamborghini|ferrari|porsche|bmw|mercedes|yacht|mansion)/)?.[0] || "luxury sports car";
+    topicMatches.push({ topic: "luxury", prompt: `Ultra realistic photograph of a ${item}, dramatic cinematic lighting, reflections, professional automotive photography, 8k quality` });
+  }
+  
+  if (topicMatches.length === 0) return NO;
+  
+  const chosen = topicMatches[Math.floor(Math.random() * topicMatches.length)];
+  return { shouldGenerate: true, imagePrompt: chosen.prompt };
+};
+
+// Generate an image and send it in conversation via IG DM
+const generateAndSendContextualImage = async (
+  supabase: any,
+  accountId: string, 
+  conversationId: string,
+  recipientId: string,
+  participantUsername: string,
+  imagePrompt: string,
+  callIGFunc: (action: string, params: any) => Promise<any>,
+  LOVABLE_API_KEY: string,
+): Promise<boolean> => {
+  try {
+    console.log(`[IMAGE GEN] Generating contextual image for @${participantUsername}: "${imagePrompt.substring(0, 80)}..."`);
+    
+    const imgResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash-image",
+        messages: [{ role: "user", content: imagePrompt }],
+        modalities: ["image", "text"],
+      }),
+    });
+    
+    if (!imgResponse.ok) {
+      console.log(`[IMAGE GEN] Generation failed: ${imgResponse.status}`);
+      return false;
+    }
+    
+    const imgResult = await imgResponse.json();
+    const generatedImages = imgResult.choices?.[0]?.message?.images || [];
+    if (generatedImages.length === 0) {
+      console.log("[IMAGE GEN] No images returned");
+      return false;
+    }
+    
+    const imgData = generatedImages[0]?.image_url?.url;
+    if (!imgData) return false;
+    
+    const base64Data = imgData.replace(/^data:image\/\w+;base64,/, "");
+    const binaryData = Uint8Array.from(atob(base64Data), (c: string) => c.charCodeAt(0));
+    const fileName = `generated/${accountId}/ctx_${Date.now()}.png`;
+    
+    const { error: uploadError } = await supabase.storage
+      .from("default-assets")
+      .upload(fileName, binaryData, { contentType: "image/png", upsert: true });
+    
+    if (uploadError) {
+      console.log("[IMAGE GEN] Upload failed:", uploadError.message);
+      return false;
+    }
+    
+    const { data: urlData } = supabase.storage.from("default-assets").getPublicUrl(fileName);
+    const imageUrl = urlData?.publicUrl;
+    if (!imageUrl) return false;
+    
+    // Small delay — feels like she took a photo or found something
+    await new Promise(r => setTimeout(r, 1500 + Math.random() * 2000));
+    
+    // Send via IG
+    try {
+      await callIGFunc("send_media_message", {
+        recipient_id: recipientId,
+        media_type: "image",
+        media_url: imageUrl,
+      });
+      console.log(`[IMAGE GEN] Sent contextual image to @${participantUsername}`);
+    } catch {
+      try {
+        await callIGFunc("send_message", {
+          recipient_id: recipientId,
+          message: "",
+          attachment_url: imageUrl,
+        });
+        console.log(`[IMAGE GEN] Sent contextual image (fallback) to @${participantUsername}`);
+      } catch {
+        console.log("[IMAGE GEN] Both send methods failed");
+        return false;
+      }
+    }
+    
+    // Log to DB
+    await supabase.from("ai_dm_messages").insert({
+      conversation_id: conversationId,
+      account_id: accountId,
+      sender_type: "ai",
+      content: "[sent a photo]",
+      status: "sent",
+      metadata: { type: "contextual_image", prompt: imagePrompt.substring(0, 200) },
+    });
+    
+    await supabase.from("copilot_generated_content").insert({
+      account_id: accountId,
+      content_type: "image",
+      url: imageUrl,
+      prompt: imagePrompt,
+      metadata: { source: "contextual_dm_image", conversation_id: conversationId, fan: participantUsername },
+    });
+    
+    return true;
+  } catch (err) {
+    console.error("[IMAGE GEN] Error:", err);
+    return false;
+  }
+};
+
 // Default young-woman persona — GRANDMASTER LEVEL psychology + seduction + conversion engine
 const DEFAULT_PERSONA = `You are a young woman (early 20s) from Cannes, France 🇫🇷 — currently on vacation in LA. You NEVER use emojis. Ever. Zero. None.
 
@@ -3308,6 +3489,21 @@ IF YOU DONT UNDERSTAND: say "wait wdym" or "lol what" — NEVER make up an incoh
 
               // === ML ENGINE: Log this AI reply for future learning ===
               logConversationLearning(supabase, account_id, dbConvo.id, dbConvo.participant_id, behavior.type, reply, "sent", 0, false, "pending_evaluation", latestMsg.content || "", { behavior: behavior.type, tension: tension.tensionLevel });
+
+              // === STRATEGIC CONTEXTUAL IMAGE GENERATION (RARE & IMPACTFUL) ===
+              try {
+                const imgDecision = shouldGenerateContextualImage(dbMessages || [], reply);
+                if (imgDecision.shouldGenerate) {
+                  console.log(`[IMAGE GEN] Triggered for @${dbConvo.participant_username}`);
+                  await generateAndSendContextualImage(
+                    supabase, account_id, dbConvo.id,
+                    dbConvo.participant_id, dbConvo.participant_username || "",
+                    imgDecision.imagePrompt, callIG2, LOVABLE_API_KEY
+                  );
+                }
+              } catch (imgErr) {
+                console.log("[IMAGE GEN] Non-blocking error:", imgErr);
+              }
 
               processed++;
               processedConvos.push({
