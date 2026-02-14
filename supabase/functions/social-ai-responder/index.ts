@@ -11,28 +11,28 @@ const corsHeaders = {
 // When isFlowing=true (active back-and-forth within 90s), cap delay at 2s
 function humanTypingDelay(text: string, isFlowing = false): number {
   if (isFlowing) {
-    // Flowing conversation — quick replies, max 2s
-    const quickBase = text.length * (20 + Math.random() * 15); // 20-35ms per char
-    const quickThink = 300 + Math.random() * 400; // 0.3-0.7s think
+    // Flowing conversation — quick replies, max 0.7s
+    const quickBase = text.length * (7 + Math.random() * 5); // 7-12ms per char
+    const quickThink = 100 + Math.random() * 150; // 0.1-0.25s think
     const total = quickThink + quickBase;
-    return Math.min(Math.max(total, 500), 2000); // 0.5-2s
+    return Math.min(Math.max(total, 200), 700); // 0.2-0.7s
   }
   const charCount = text.length;
-  // Moderate typing: 50-80ms per char with think time
-  const baseMs = charCount * (50 + Math.random() * 30); // 50-80ms per char
-  const thinkMs = 500 + Math.random() * 1000; // 0.5-1.5s think time
-  const jitter = Math.random() * 500; // 0-0.5s jitter
+  // Fast typing: 15-25ms per char with minimal think time
+  const baseMs = charCount * (15 + Math.random() * 10); // 15-25ms per char
+  const thinkMs = 150 + Math.random() * 350; // 0.15-0.5s think time
+  const jitter = Math.random() * 150; // 0-0.15s jitter
   const total = thinkMs + baseMs + jitter;
-  // Clamp: min 1.2s, max 4s — slightly more human
-  return Math.min(Math.max(total, 1200), 4000);
+  // Clamp: min 0.4s, max 1.3s — 3x faster
+  return Math.min(Math.max(total, 400), 1300);
 }
 
 // Inter-message delay — prevents sending 2 msgs at exact same time
 // When isFlowing=true, minimal delay
 function interMessageDelay(isFlowing = false): number {
-  if (isFlowing) return 300 + Math.random() * 400; // 0.3-0.7s when flowing
-  // 1-3 seconds between messages to different people
-  return 1000 + Math.random() * 2000;
+  if (isFlowing) return 100 + Math.random() * 200; // 0.1-0.3s when flowing
+  // 0.3-1s between messages — 3x faster
+  return 300 + Math.random() * 700;
 }
 
 // === STRATEGIC IMAGE GENERATION ENGINE ===
@@ -3258,7 +3258,7 @@ Follow these persona settings strictly. They override any conflicting defaults a
               }, { onConflict: "account_id,fan_identifier" });
             } catch {}
 
-            // Insert a "typing" placeholder for real-time UI
+            // Insert a "typing" placeholder for real-time UI — include phase info for pipeline tracking
             const { data: typingMsg } = await supabase
               .from("ai_dm_messages")
               .insert({
@@ -3268,6 +3268,7 @@ Follow these persona settings strictly. They override any conflicting defaults a
                 sender_name: igConn2.platform_username || "creator",
                 content: "...",
                 status: "typing",
+                metadata: { pipeline_phase: "analyze", pipeline_started_at: new Date().toISOString(), fan_username: dbConvo.participant_username },
               })
               .select("id")
               .single();
@@ -3480,6 +3481,11 @@ IF YOU DONT UNDERSTAND: say "wait wdym" or "lol what" — NEVER make up an incoh
             // Higher tokens = better comprehension. Post-processor handles length trimming after
             const dynamicMaxTokens = multipleUnanswered ? 120 : (unansweredQuestions > 0 ? 100 : 80);
 
+            // Update pipeline phase to "generate" for real-time UI tracking
+            if (typingMsg) {
+              supabase.from("ai_dm_messages").update({ metadata: { pipeline_phase: "generate", pipeline_started_at: new Date().toISOString(), fan_username: dbConvo.participant_username } }).eq("id", typingMsg.id).then();
+            }
+
             const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
               method: "POST",
               headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
@@ -3593,6 +3599,11 @@ IF YOU DONT UNDERSTAND: say "wait wdym" or "lol what" — NEVER make up an incoh
             // Human-like typing delay — reduced when conversation is flowing
             const typingDelay = humanTypingDelay(reply, isFlowingConvo);
 
+            // Update pipeline phase to "typing" with delay info for real-time UI countdown
+            if (typingMsg) {
+              supabase.from("ai_dm_messages").update({ metadata: { pipeline_phase: "typing", typing_delay_ms: Math.round(typingDelay), typing_started_at: new Date().toISOString(), fan_username: dbConvo.participant_username } }).eq("id", typingMsg.id).then();
+            }
+
             // === AI CONTEXTUAL REACTION (RARE — drague/flirting signals ONLY) ===
             // Only react with ❤️ when the fan sends a CLEAR flirting/sweet signal
             // Examples: "hope you have a great time 😎", "youre beautiful", "i miss you", compliments with emojis
@@ -3699,6 +3710,11 @@ IF YOU DONT UNDERSTAND: say "wait wdym" or "lol what" — NEVER make up an incoh
 
             // Wait typing delay to feel natural (0.8-3s)
             await new Promise(r => setTimeout(r, typingDelay));
+
+            // Update pipeline phase to "send" for real-time UI
+            if (typingMsg) {
+              supabase.from("ai_dm_messages").update({ metadata: { pipeline_phase: "send", fan_username: dbConvo.participant_username } }).eq("id", typingMsg.id).then();
+            }
 
             // Send the reply via IG API
             try {
