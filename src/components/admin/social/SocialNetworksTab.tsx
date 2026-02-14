@@ -18,7 +18,7 @@ import {
   Bell, BellOff, Link2, Upload, Play, BarChart3, Activity,
   FolderOpen, Award, Flag, Filter, Layers, Briefcase, Clock,
   Camera, MessageCircle, Smartphone, Youtube, Palette, Gamepad2,
-  Instagram, AlertCircle,
+  Instagram, AlertCircle, Mic, Sticker, Contact, ToggleLeft,
 } from "lucide-react";
 
 interface Props {
@@ -163,10 +163,12 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
         {renderInputAction("Send Image DM","instagram-api","send_dm_image",[{key:"ig_dmi_to",placeholder:"Recipient ID"},{key:"ig_dmi_url",placeholder:"Image URL"}],()=>({recipient_id:getInput("ig_dmi_to"),image_url:getInput("ig_dmi_url")}),Image)}
       </TabsContent>
       <TabsContent value="insights" className="space-y-2 mt-3">
-        {renderActionButton("Account Insights","instagram-api","get_account_insights",{period:"day"},BarChart3)}
+        {renderActionButton("Account Insights (Day)","instagram-api","get_account_insights",{period:"day"},BarChart3)}
+        {renderActionButton("Account Insights (Week)","instagram-api","get_account_insights",{period:"week"},BarChart3)}
+        {renderActionButton("Demographics","instagram-api","get_account_insights_demographics",{},Users)}
+        {renderActionButton("Online Followers","instagram-api","get_account_insights_online_followers",{},Clock)}
         {renderInputAction("Media Insights","instagram-api","get_media_insights",[{key:"ig_mi_id",placeholder:"Media ID"}],()=>({media_id:getInput("ig_mi_id")}),BarChart3)}
-        {renderActionButton("Audience","instagram-api","get_audience_insights",{},Users)}
-        {renderActionButton("Online Followers","instagram-api","get_online_followers",{},Clock)}
+        {renderInputAction("Reel Insights","instagram-api","get_reel_insights",[{key:"ig_ri_id",placeholder:"Reel ID"}],()=>({media_id:getInput("ig_ri_id")}),Video)}
       </TabsContent>
       <TabsContent value="discovery" className="space-y-2 mt-3">
         {renderInputAction("Discover User","instagram-api","discover_user",[{key:"ig_disc_user",placeholder:"@username"}],()=>({username:getInput("ig_disc_user")}),Search)}
@@ -185,6 +187,8 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
         {renderInputAction("AI Hashtag Gen","social-ai-responder","generate_caption",[{key:"ai_ig_ht_topic",placeholder:"Niche/Topic for hashtags"}],()=>({topic:`Generate 30 relevant hashtags for: ${getInput("ai_ig_ht_topic")}`,platform:"instagram",include_cta:false}),Hash)}
         {renderInputAction("AI Bio Writer","social-ai-responder","generate_caption",[{key:"ai_ig_bio_topic",placeholder:"Describe your brand/niche"}],()=>({topic:`Write a compelling Instagram bio for: ${getInput("ai_ig_bio_topic")}`,platform:"instagram",include_cta:false}),Users)}
         {renderInputAction("AI Story Ideas","social-ai-responder","generate_caption",[{key:"ai_ig_story_topic",placeholder:"Topic for stories"}],()=>({topic:`Generate 10 Instagram story ideas for: ${getInput("ai_ig_story_topic")}`,platform:"instagram",include_cta:false}),Play)}
+        {renderInputAction("AI Reel Script","social-ai-responder","generate_caption",[{key:"ai_ig_reel",placeholder:"Reel topic"}],()=>({topic:`Write a viral Instagram Reel script (15-30 sec) with hook, content, CTA for: ${getInput("ai_ig_reel")}`,platform:"instagram",include_cta:true}),Video)}
+        {renderInputAction("AI Content Calendar","social-ai-responder","generate_caption",[{key:"ai_ig_cal",placeholder:"Niche for 7-day plan"}],()=>({topic:`Create a 7-day Instagram content calendar with post types and captions for: ${getInput("ai_ig_cal")}`,platform:"instagram",include_cta:false}),Calendar)}
       </TabsContent>
     </Tabs>
   );
@@ -193,7 +197,7 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
   const renderTwitterContent = () => (
     <Tabs defaultValue="tweets" className="w-full">
       <TabsList className="bg-muted/50 border border-border p-0.5 rounded-lg gap-0.5 flex-wrap h-auto">
-        {[{v:"tweets",l:"Tweets",icon:MessageSquare},{v:"engage",l:"Engage",icon:Heart},{v:"social",l:"Social",icon:Users},{v:"dms",l:"DMs",icon:Send},{v:"lists",l:"Lists",icon:List},{v:"search",l:"Search",icon:Search},{v:"spaces",l:"Spaces",icon:Radio},{v:"ai",l:"AI Auto",icon:Brain}].map(t=>(
+        {[{v:"tweets",l:"Tweets",icon:MessageSquare},{v:"engage",l:"Engage",icon:Heart},{v:"social",l:"Social",icon:Users},{v:"moderate",l:"Moderate",icon:Shield},{v:"dms",l:"DMs",icon:Send},{v:"lists",l:"Lists",icon:List},{v:"search",l:"Search",icon:Search},{v:"spaces",l:"Spaces",icon:Radio},{v:"ai",l:"AI Auto",icon:Brain}].map(t=>(
           <TabsTrigger key={t.v} value={t.v} className="text-[10px] gap-1 px-2 py-1 data-[state=active]:bg-background"><t.icon className="h-3 w-3"/>{t.l}</TabsTrigger>
         ))}
       </TabsList>
@@ -206,42 +210,68 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
         {renderInputAction("Create Tweet","twitter-api","create_tweet",[{key:"tweet_text",placeholder:"What's happening?"}],()=>({text:getInput("tweet_text")}),Send)}
         {renderInputAction("Reply","twitter-api","create_tweet",[{key:"reply_to_id",placeholder:"Tweet ID"},{key:"reply_text",placeholder:"Reply..."}],()=>({text:getInput("reply_text"),reply_to:getInput("reply_to_id")}),MessageSquare)}
         {renderInputAction("Quote","twitter-api","create_tweet",[{key:"qt_id",placeholder:"Tweet ID"},{key:"qt_text",placeholder:"Comment..."}],()=>({text:getInput("qt_text"),quote_tweet_id:getInput("qt_id")}),Repeat)}
-        {renderInputAction("Delete","twitter-api","delete_tweet",[{key:"del_tweet_id",placeholder:"Tweet ID"}],()=>({tweet_id:getInput("del_tweet_id")}),Trash2)}
+        {renderInputAction("Tweet w/ Poll","twitter-api","create_tweet",[{key:"poll_text",placeholder:"Question"},{key:"poll_opts",placeholder:"Options (comma sep)"},{key:"poll_dur",placeholder:"Duration min (1440)"}],()=>({text:getInput("poll_text"),poll:{options:getInput("poll_opts").split(",").map(s=>s.trim()),duration_minutes:parseInt(getInput("poll_dur")||"1440")}}),BarChart3)}
         {renderInputAction("Get Tweet","twitter-api","get_tweet_by_id",[{key:"view_tweet_id",placeholder:"Tweet ID"}],()=>({tweet_id:getInput("view_tweet_id")}),Eye)}
+        {renderInputAction("Get Multiple Tweets","twitter-api","get_tweets_by_ids",[{key:"multi_tweet_ids",placeholder:"Tweet IDs (comma sep)"}],()=>({tweet_ids:getInput("multi_tweet_ids").split(",").map(s=>s.trim())}),Layers)}
+        {renderInputAction("Delete","twitter-api","delete_tweet",[{key:"del_tweet_id",placeholder:"Tweet ID"}],()=>({tweet_id:getInput("del_tweet_id")}),Trash2)}
         {renderInputAction("Hide Reply","twitter-api","hide_reply",[{key:"hide_tweet_id",placeholder:"Tweet ID"}],()=>({tweet_id:getInput("hide_tweet_id")}),EyeOff)}
       </TabsContent>
       <TabsContent value="engage" className="space-y-2 mt-3">
         {renderInputAction("Like","twitter-api","like_tweet",[{key:"like_id",placeholder:"Tweet ID"}],()=>({tweet_id:getInput("like_id")}),Heart)}
         {renderInputAction("Unlike","twitter-api","unlike_tweet",[{key:"unlike_id",placeholder:"Tweet ID"}],()=>({tweet_id:getInput("unlike_id")}),Heart)}
         {renderInputAction("Retweet","twitter-api","retweet",[{key:"rt_id",placeholder:"Tweet ID"}],()=>({tweet_id:getInput("rt_id")}),Repeat)}
+        {renderInputAction("Unretweet","twitter-api","unretweet",[{key:"urt_id",placeholder:"Tweet ID"}],()=>({tweet_id:getInput("urt_id")}),Repeat)}
         {renderInputAction("Bookmark","twitter-api","bookmark_tweet",[{key:"bm_id",placeholder:"Tweet ID"}],()=>({tweet_id:getInput("bm_id")}),Bookmark)}
+        {renderInputAction("Remove Bookmark","twitter-api","remove_bookmark",[{key:"rbm_id",placeholder:"Tweet ID"}],()=>({tweet_id:getInput("rbm_id")}),Bookmark)}
         <div className="flex gap-1.5 flex-wrap">
           {renderActionButton("My Likes","twitter-api","get_liked_tweets",{limit:20},Heart)}
           {renderActionButton("Bookmarks","twitter-api","get_bookmarks",{limit:20},Bookmark)}
         </div>
+        {renderInputAction("Who Liked","twitter-api","get_liking_users",[{key:"liking_tid",placeholder:"Tweet ID"}],()=>({tweet_id:getInput("liking_tid"),limit:100}),Users)}
+        {renderInputAction("Who Retweeted","twitter-api","get_retweeters",[{key:"rt_users_tid",placeholder:"Tweet ID"}],()=>({tweet_id:getInput("rt_users_tid"),limit:100}),Users)}
+        {renderInputAction("Quote Tweets","twitter-api","get_quote_tweets",[{key:"qt_users_tid",placeholder:"Tweet ID"}],()=>({tweet_id:getInput("qt_users_tid"),limit:10}),Repeat)}
       </TabsContent>
       <TabsContent value="social" className="space-y-2 mt-3">
         <div className="flex gap-1.5 flex-wrap">
           {renderActionButton("Profile","twitter-api","get_profile",{},Users)}
           {renderActionButton("Followers","twitter-api","get_followers",{limit:100},Users)}
           {renderActionButton("Following","twitter-api","get_following",{limit:100},UserPlus)}
-          {renderActionButton("Blocked","twitter-api","get_blocked_users",{limit:100},Shield)}
         </div>
         {renderInputAction("Lookup User","twitter-api","get_user_by_username",[{key:"x_lookup",placeholder:"Username"}],()=>({username:getInput("x_lookup")}),Search)}
+        {renderInputAction("User by ID","twitter-api","get_user_by_id",[{key:"x_uid",placeholder:"User ID"}],()=>({user_id:getInput("x_uid")}),Eye)}
+        {renderInputAction("Multiple Users","twitter-api","get_users_by_ids",[{key:"x_uids",placeholder:"User IDs (comma sep)"}],()=>({user_ids:getInput("x_uids").split(",").map(s=>s.trim())}),Users)}
         {renderInputAction("Follow","twitter-api","follow_user",[{key:"follow_uid",placeholder:"User ID"}],()=>({target_user_id:getInput("follow_uid")}),UserPlus)}
+        {renderInputAction("Unfollow","twitter-api","unfollow_user",[{key:"unfollow_uid",placeholder:"User ID"}],()=>({target_user_id:getInput("unfollow_uid")}),UserMinus)}
+      </TabsContent>
+      <TabsContent value="moderate" className="space-y-2 mt-3">
+        <div className="flex gap-1.5 flex-wrap">
+          {renderActionButton("Blocked","twitter-api","get_blocked_users",{limit:100},Shield)}
+          {renderActionButton("Muted","twitter-api","get_muted_users",{limit:100},BellOff)}
+        </div>
         {renderInputAction("Block","twitter-api","block_user",[{key:"block_uid",placeholder:"User ID"}],()=>({target_user_id:getInput("block_uid")}),Shield)}
+        {renderInputAction("Unblock","twitter-api","unblock_user",[{key:"unblock_uid",placeholder:"User ID"}],()=>({target_user_id:getInput("unblock_uid")}),Shield)}
+        {renderInputAction("Mute","twitter-api","mute_user",[{key:"mute_uid",placeholder:"User ID"}],()=>({target_user_id:getInput("mute_uid")}),BellOff)}
+        {renderInputAction("Unmute","twitter-api","unmute_user",[{key:"unmute_uid",placeholder:"User ID"}],()=>({target_user_id:getInput("unmute_uid")}),Bell)}
       </TabsContent>
       <TabsContent value="dms" className="space-y-2 mt-3">
         {renderActionButton("DM Events","twitter-api","get_dm_events",{limit:20},MessageSquare)}
+        {renderInputAction("DM Conversation","twitter-api","get_dm_conversation",[{key:"dm_conv_id",placeholder:"Conversation ID"}],()=>({conversation_id:getInput("dm_conv_id"),limit:20}),MessageSquare)}
+        {renderInputAction("DMs with User","twitter-api","get_dm_conversation_with_user",[{key:"dm_part_id",placeholder:"User ID"}],()=>({participant_id:getInput("dm_part_id"),limit:20}),Users)}
         {renderInputAction("Send DM","twitter-api","send_dm",[{key:"dm_to",placeholder:"User ID"},{key:"dm_text",placeholder:"Message..."}],()=>({recipient_id:getInput("dm_to"),text:getInput("dm_text")}),Send)}
+        {renderInputAction("Send to Conversation","twitter-api","send_dm",[{key:"dm_conv_send",placeholder:"Conversation ID"},{key:"dm_conv_text",placeholder:"Message..."}],()=>({conversation_id:getInput("dm_conv_send"),text:getInput("dm_conv_text")}),Send)}
       </TabsContent>
       <TabsContent value="lists" className="space-y-2 mt-3">
         {renderActionButton("My Lists","twitter-api","get_owned_lists",{limit:25},List)}
         {renderInputAction("Create List","twitter-api","create_list",[{key:"list_name",placeholder:"Name"},{key:"list_desc",placeholder:"Description"}],()=>({name:getInput("list_name"),description:getInput("list_desc")}),List)}
+        {renderInputAction("Get List","twitter-api","get_list",[{key:"list_id",placeholder:"List ID"}],()=>({list_id:getInput("list_id")}),Eye)}
+        {renderInputAction("List Members","twitter-api","get_list_members",[{key:"lm_id",placeholder:"List ID"}],()=>({list_id:getInput("lm_id"),limit:100}),Users)}
+        {renderInputAction("Add Member","twitter-api","add_list_member",[{key:"alm_lid",placeholder:"List ID"},{key:"alm_uid",placeholder:"User ID"}],()=>({list_id:getInput("alm_lid"),user_id:getInput("alm_uid")}),UserPlus)}
+        {renderInputAction("Remove Member","twitter-api","remove_list_member",[{key:"rlm_lid",placeholder:"List ID"},{key:"rlm_uid",placeholder:"User ID"}],()=>({list_id:getInput("rlm_lid"),user_id:getInput("rlm_uid")}),UserMinus)}
+        {renderInputAction("Delete List","twitter-api","delete_list",[{key:"dl_id",placeholder:"List ID"}],()=>({list_id:getInput("dl_id")}),Trash2)}
       </TabsContent>
       <TabsContent value="search" className="space-y-2 mt-3">
-        {renderInputAction("Search Tweets","twitter-api","search",[{key:"x_search_q",placeholder:"Query..."}],()=>({query:getInput("x_search_q"),limit:20}),Search)}
-        {renderInputAction("Search Users","twitter-api","search_users",[{key:"x_user_search",placeholder:"Search..."}],()=>({query:getInput("x_user_search"),limit:10}),Users)}
+        {renderInputAction("Search Recent","twitter-api","search",[{key:"x_search_q",placeholder:"Query..."}],()=>({query:getInput("x_search_q"),limit:20}),Search)}
+        {renderInputAction("Search All (Academic)","twitter-api","search_all",[{key:"x_search_all",placeholder:"Query..."}],()=>({query:getInput("x_search_all"),limit:10}),Search)}
       </TabsContent>
       <TabsContent value="spaces" className="space-y-2 mt-3">
         {renderInputAction("Get Space","twitter-api","get_space",[{key:"space_id",placeholder:"Space ID"}],()=>({space_id:getInput("space_id")}),Radio)}
@@ -264,7 +294,7 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
   const renderRedditContent = () => (
     <Tabs defaultValue="posts" className="w-full">
       <TabsList className="bg-muted/50 border border-border p-0.5 rounded-lg gap-0.5 flex-wrap h-auto">
-        {[{v:"posts",l:"Posts",icon:FileText},{v:"comments",l:"Comments",icon:MessageSquare},{v:"subs",l:"Subreddits",icon:Hash},{v:"messages",l:"Messages",icon:Send},{v:"mod",l:"Mod",icon:Shield},{v:"profile",l:"Profile",icon:Users},{v:"search",l:"Search",icon:Search},{v:"ai",l:"AI",icon:Brain}].map(t=>(
+        {[{v:"posts",l:"Posts",icon:FileText},{v:"comments",l:"Comments",icon:MessageSquare},{v:"subs",l:"Subreddits",icon:Hash},{v:"browse",l:"Browse",icon:TrendingUp},{v:"messages",l:"Messages",icon:Send},{v:"mod",l:"Mod",icon:Shield},{v:"profile",l:"Profile",icon:Users},{v:"search",l:"Search",icon:Search},{v:"ai",l:"AI",icon:Brain}].map(t=>(
           <TabsTrigger key={t.v} value={t.v} className="text-[10px] gap-1 px-2 py-1 data-[state=active]:bg-background"><t.icon className="h-3 w-3"/>{t.l}</TabsTrigger>
         ))}
       </TabsList>
@@ -272,42 +302,81 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
         {renderActionButton("My Posts","reddit-api","get_posts",{limit:25},FileText)}
         {renderInputAction("Submit Text","reddit-api","submit_post",[{key:"r_sub",placeholder:"Subreddit"},{key:"r_title",placeholder:"Title"},{key:"r_text",placeholder:"Body"}],()=>({subreddit:getInput("r_sub"),title:getInput("r_title"),text:getInput("r_text"),kind:"self"}),Send)}
         {renderInputAction("Submit Link","reddit-api","submit_post",[{key:"r_link_sub",placeholder:"Subreddit"},{key:"r_link_title",placeholder:"Title"},{key:"r_link_url",placeholder:"URL"}],()=>({subreddit:getInput("r_link_sub"),title:getInput("r_link_title"),url:getInput("r_link_url"),kind:"link"}),Link2)}
+        {renderInputAction("Crosspost","reddit-api","crosspost",[{key:"r_xp_sub",placeholder:"Target Subreddit"},{key:"r_xp_title",placeholder:"Title"},{key:"r_xp_fn",placeholder:"Original fullname (t3_...)"}],()=>({subreddit:getInput("r_xp_sub"),title:getInput("r_xp_title"),crosspost_fullname:getInput("r_xp_fn")}),Forward)}
+        {renderInputAction("Edit Post","reddit-api","edit_post",[{key:"r_ep_id",placeholder:"Thing ID (t3_...)"},{key:"r_ep_text",placeholder:"New body"}],()=>({thing_id:getInput("r_ep_id"),text:getInput("r_ep_text")}),FileText)}
+        {renderInputAction("Delete Post","reddit-api","delete_post",[{key:"r_dp_id",placeholder:"Thing ID"}],()=>({thing_id:getInput("r_dp_id")}),Trash2)}
         {renderInputAction("Vote","reddit-api","vote",[{key:"r_vote_id",placeholder:"Thing ID"},{key:"r_vote_dir",placeholder:"1/-1/0"}],()=>({thing_id:getInput("r_vote_id"),direction:parseInt(getInput("r_vote_dir")||"1")}),ArrowUp)}
+        {renderInputAction("Hide","reddit-api","hide_post",[{key:"r_hide_id",placeholder:"Thing ID"}],()=>({thing_id:getInput("r_hide_id")}),EyeOff)}
+        {renderInputAction("Save","reddit-api","save_post",[{key:"r_save_id",placeholder:"Thing ID"}],()=>({thing_id:getInput("r_save_id")}),Bookmark)}
+        {renderInputAction("NSFW","reddit-api","mark_nsfw",[{key:"r_nsfw_id",placeholder:"Thing ID"}],()=>({thing_id:getInput("r_nsfw_id")}),AlertCircle)}
+        {renderInputAction("Spoiler","reddit-api","set_spoiler",[{key:"r_spoiler_id",placeholder:"Thing ID"}],()=>({thing_id:getInput("r_spoiler_id")}),EyeOff)}
       </TabsContent>
       <TabsContent value="comments" className="space-y-2 mt-3">
-        {renderInputAction("Comments","reddit-api","get_comments",[{key:"r_cmt_post",placeholder:"Post ID"}],()=>({post_id:getInput("r_cmt_post"),limit:50}),MessageSquare)}
+        {renderInputAction("Comments","reddit-api","get_comments",[{key:"r_cmt_post",placeholder:"Post ID"},{key:"r_cmt_sort",placeholder:"Sort (best/new/top)"}],()=>({post_id:getInput("r_cmt_post"),limit:50,sort:getInput("r_cmt_sort")||"best"}),MessageSquare)}
         {renderInputAction("Reply","reddit-api","submit_comment",[{key:"r_reply_id",placeholder:"Thing ID"},{key:"r_reply_text",placeholder:"Reply..."}],()=>({thing_id:getInput("r_reply_id"),text:getInput("r_reply_text")}),Send)}
+        {renderInputAction("Edit Comment","reddit-api","edit_comment",[{key:"r_ec_id",placeholder:"Thing ID"},{key:"r_ec_text",placeholder:"New text"}],()=>({thing_id:getInput("r_ec_id"),text:getInput("r_ec_text")}),FileText)}
+        {renderInputAction("Delete Comment","reddit-api","delete_comment",[{key:"r_dc_id",placeholder:"Thing ID"}],()=>({thing_id:getInput("r_dc_id")}),Trash2)}
+        {renderInputAction("My Comments","reddit-api","get_user_comments",[{key:"r_mc_sort",placeholder:"Sort (new/top)"}],()=>({sort:getInput("r_mc_sort")||"new",limit:25}),MessageSquare)}
       </TabsContent>
       <TabsContent value="subs" className="space-y-2 mt-3">
         <div className="flex gap-1.5 flex-wrap">
           {renderActionButton("My Subs","reddit-api","get_my_subreddits",{limit:25},Hash)}
           {renderActionButton("Popular","reddit-api","get_popular_subreddits",{limit:25},TrendingUp)}
+          {renderActionButton("New Subs","reddit-api","get_new_subreddits",{limit:25},Clock)}
         </div>
-        {renderInputAction("Hot Posts","reddit-api","get_subreddit_hot",[{key:"r_hot_sub",placeholder:"Subreddit"}],()=>({subreddit:getInput("r_hot_sub"),limit:25}),TrendingUp)}
+        {renderInputAction("Subreddit Info","reddit-api","get_subreddit",[{key:"r_si_sub",placeholder:"Subreddit"}],()=>({subreddit:getInput("r_si_sub")}),Eye)}
+        {renderInputAction("Rules","reddit-api","get_subreddit_rules",[{key:"r_sr_sub",placeholder:"Subreddit"}],()=>({subreddit:getInput("r_sr_sub")}),Flag)}
         {renderInputAction("Subscribe","reddit-api","subscribe",[{key:"r_sub_join",placeholder:"Subreddit"}],()=>({subreddit:getInput("r_sub_join")}),UserPlus)}
+        {renderInputAction("Unsubscribe","reddit-api","unsubscribe",[{key:"r_unsub",placeholder:"Subreddit"}],()=>({subreddit:getInput("r_unsub")}),UserMinus)}
+      </TabsContent>
+      <TabsContent value="browse" className="space-y-2 mt-3">
+        {renderInputAction("Hot","reddit-api","get_subreddit_hot",[{key:"r_hot_sub",placeholder:"Subreddit"}],()=>({subreddit:getInput("r_hot_sub"),limit:25}),TrendingUp)}
+        {renderInputAction("New","reddit-api","get_subreddit_new",[{key:"r_new_sub",placeholder:"Subreddit"}],()=>({subreddit:getInput("r_new_sub"),limit:25}),Clock)}
+        {renderInputAction("Top","reddit-api","get_subreddit_top",[{key:"r_top_sub",placeholder:"Subreddit"},{key:"r_top_time",placeholder:"Time (day/week/month/year/all)"}],()=>({subreddit:getInput("r_top_sub"),limit:25,time:getInput("r_top_time")||"day"}),ArrowUp)}
+        {renderInputAction("Rising","reddit-api","get_subreddit_rising",[{key:"r_rise_sub",placeholder:"Subreddit"}],()=>({subreddit:getInput("r_rise_sub"),limit:25}),TrendingUp)}
+        {renderInputAction("Controversial","reddit-api","get_subreddit_controversial",[{key:"r_cont_sub",placeholder:"Subreddit"}],()=>({subreddit:getInput("r_cont_sub"),limit:25}),AlertCircle)}
       </TabsContent>
       <TabsContent value="messages" className="space-y-2 mt-3">
         <div className="flex gap-1.5 flex-wrap">
           {renderActionButton("Inbox","reddit-api","get_inbox",{limit:25},Send)}
           {renderActionButton("Unread","reddit-api","get_unread",{limit:25},Bell)}
+          {renderActionButton("Sent","reddit-api","get_sent",{limit:25},Forward)}
+          {renderActionButton("Mark All Read","reddit-api","mark_all_read",{},Eye)}
         </div>
         {renderInputAction("Send Message","reddit-api","send_message",[{key:"r_msg_to",placeholder:"Username"},{key:"r_msg_subj",placeholder:"Subject"},{key:"r_msg_text",placeholder:"Body"}],()=>({to:getInput("r_msg_to"),subject:getInput("r_msg_subj"),text:getInput("r_msg_text")}),Send)}
       </TabsContent>
       <TabsContent value="mod" className="space-y-2 mt-3">
         {renderInputAction("Mod Queue","reddit-api","get_modqueue",[{key:"r_mq_sub",placeholder:"Subreddit"}],()=>({subreddit:getInput("r_mq_sub"),limit:25}),Filter)}
+        {renderInputAction("Reports","reddit-api","get_reports",[{key:"r_rep_sub",placeholder:"Subreddit"}],()=>({subreddit:getInput("r_rep_sub"),limit:25}),Flag)}
+        {renderInputAction("Spam","reddit-api","get_spam",[{key:"r_spam_sub",placeholder:"Subreddit"}],()=>({subreddit:getInput("r_spam_sub"),limit:25}),AlertCircle)}
+        {renderInputAction("Mod Log","reddit-api","get_modlog",[{key:"r_ml_sub",placeholder:"Subreddit"}],()=>({subreddit:getInput("r_ml_sub"),limit:25}),Activity)}
         {renderInputAction("Approve","reddit-api","approve",[{key:"r_appr_id",placeholder:"Thing ID"}],()=>({thing_id:getInput("r_appr_id")}),Zap)}
         {renderInputAction("Remove","reddit-api","remove",[{key:"r_rem_id",placeholder:"Thing ID"}],()=>({thing_id:getInput("r_rem_id")}),Trash2)}
         {renderInputAction("Lock","reddit-api","lock",[{key:"r_lock_id",placeholder:"Thing ID"}],()=>({thing_id:getInput("r_lock_id")}),Lock)}
+        {renderInputAction("Unlock","reddit-api","unlock",[{key:"r_unlock_id",placeholder:"Thing ID"}],()=>({thing_id:getInput("r_unlock_id")}),Unlock)}
+        {renderInputAction("Sticky","reddit-api","set_sticky",[{key:"r_sticky_id",placeholder:"Thing ID"}],()=>({thing_id:getInput("r_sticky_id")}),Pin)}
+        {renderInputAction("Distinguish","reddit-api","distinguish",[{key:"r_dist_id",placeholder:"Thing ID"}],()=>({thing_id:getInput("r_dist_id")}),Award)}
+        {renderInputAction("Flair","reddit-api","get_flair",[{key:"r_flair_sub",placeholder:"Subreddit"}],()=>({subreddit:getInput("r_flair_sub")}),Star)}
       </TabsContent>
       <TabsContent value="profile" className="space-y-2 mt-3">
         <div className="flex gap-1.5 flex-wrap">
           {renderActionButton("Profile","reddit-api","get_profile",{},Users)}
           {renderActionButton("Karma","reddit-api","get_karma",{},ArrowUp)}
           {renderActionButton("Trophies","reddit-api","get_trophies",{},Award)}
+          {renderActionButton("Prefs","reddit-api","get_prefs",{},Settings)}
+          {renderActionButton("Friends","reddit-api","get_friends",{},UserPlus)}
+          {renderActionButton("Blocked","reddit-api","get_blocked",{},Shield)}
         </div>
+        {renderInputAction("User About","reddit-api","get_user_about",[{key:"r_ua_name",placeholder:"Username"}],()=>({username:getInput("r_ua_name")}),Eye)}
+        {renderInputAction("User Posts","reddit-api","get_user_posts",[{key:"r_up_name",placeholder:"Username"}],()=>({username:getInput("r_up_name"),limit:25}),FileText)}
+        {renderInputAction("User Overview","reddit-api","get_user_overview",[{key:"r_uo_name",placeholder:"Username"}],()=>({username:getInput("r_uo_name"),limit:25}),Activity)}
+        {renderActionButton("My Upvoted","reddit-api","get_user_upvoted",{limit:25},ArrowUp)}
+        {renderActionButton("My Saved","reddit-api","get_user_saved",{limit:25},Bookmark)}
       </TabsContent>
       <TabsContent value="search" className="space-y-2 mt-3">
-        {renderInputAction("Search","reddit-api","search",[{key:"r_search_q",placeholder:"Query"}],()=>({query:getInput("r_search_q"),limit:25}),Search)}
+        {renderInputAction("Search Posts","reddit-api","search",[{key:"r_search_q",placeholder:"Query"},{key:"r_search_sub",placeholder:"Subreddit (optional)"}],()=>({query:getInput("r_search_q"),subreddit:getInput("r_search_sub")||undefined,limit:25}),Search)}
+        {renderInputAction("Search Subreddits","reddit-api","search_subreddits",[{key:"r_ss_q",placeholder:"Query"}],()=>({query:getInput("r_ss_q"),limit:10}),Hash)}
+        {renderInputAction("Search Users","reddit-api","search_users",[{key:"r_su_q",placeholder:"Query"}],()=>({query:getInput("r_su_q"),limit:10}),Users)}
       </TabsContent>
       <TabsContent value="ai" className="space-y-2 mt-3">
         {renderInputAction("AI Post","social-ai-responder","generate_caption",[{key:"ai_r_topic",placeholder:"Topic"}],()=>({topic:getInput("ai_r_topic"),platform:"reddit",include_cta:true}),Brain)}
@@ -324,49 +393,89 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
   const renderTelegramContent = () => (
     <Tabs defaultValue="messages" className="w-full">
       <TabsList className="bg-muted/50 border border-border p-0.5 rounded-lg gap-0.5 flex-wrap h-auto">
-        {[{v:"messages",l:"Messages",icon:Send},{v:"media",l:"Media",icon:Image},{v:"chat",l:"Chat",icon:Settings},{v:"members",l:"Members",icon:Users},{v:"bot",l:"Bot",icon:Bot},{v:"forum",l:"Forum",icon:Layers},{v:"ai",l:"AI",icon:Brain}].map(t=>(
+        {[{v:"messages",l:"Messages",icon:Send},{v:"media",l:"Media",icon:Image},{v:"special",l:"Special",icon:Dice1},{v:"chat",l:"Chat Mgmt",icon:Settings},{v:"members",l:"Members",icon:Users},{v:"bot",l:"Bot",icon:Bot},{v:"forum",l:"Forum",icon:Layers},{v:"webhook",l:"Webhook",icon:Zap},{v:"ai",l:"AI",icon:Brain}].map(t=>(
           <TabsTrigger key={t.v} value={t.v} className="text-[10px] gap-1 px-2 py-1 data-[state=active]:bg-background"><t.icon className="h-3 w-3"/>{t.l}</TabsTrigger>
         ))}
       </TabsList>
       <TabsContent value="messages" className="space-y-2 mt-3">
         {renderInputAction("Send Text","telegram-api","send_message",[{key:"tg_chat_id",placeholder:"Chat ID"},{key:"tg_text",placeholder:"Message"}],()=>({chat_id:getInput("tg_chat_id"),text:getInput("tg_text")}),Send)}
         {renderInputAction("Forward","telegram-api","forward_message",[{key:"tg_fw_to",placeholder:"To Chat"},{key:"tg_fw_from",placeholder:"From Chat"},{key:"tg_fw_msg",placeholder:"Msg ID"}],()=>({chat_id:getInput("tg_fw_to"),from_chat_id:getInput("tg_fw_from"),message_id:parseInt(getInput("tg_fw_msg"))}),Forward)}
+        {renderInputAction("Copy Message","telegram-api","copy_message",[{key:"tg_cp_to",placeholder:"To Chat"},{key:"tg_cp_from",placeholder:"From Chat"},{key:"tg_cp_msg",placeholder:"Msg ID"}],()=>({chat_id:getInput("tg_cp_to"),from_chat_id:getInput("tg_cp_from"),message_id:parseInt(getInput("tg_cp_msg"))}),Copy)}
         {renderInputAction("Edit","telegram-api","edit_message_text",[{key:"tg_edit_chat",placeholder:"Chat ID"},{key:"tg_edit_msg",placeholder:"Msg ID"},{key:"tg_edit_text",placeholder:"New text"}],()=>({chat_id:getInput("tg_edit_chat"),message_id:parseInt(getInput("tg_edit_msg")),text:getInput("tg_edit_text")}),FileText)}
         {renderInputAction("Delete","telegram-api","delete_message",[{key:"tg_del_chat",placeholder:"Chat ID"},{key:"tg_del_msg",placeholder:"Msg ID"}],()=>({chat_id:getInput("tg_del_chat"),message_id:parseInt(getInput("tg_del_msg"))}),Trash2)}
-        {renderInputAction("Poll","telegram-api","send_poll",[{key:"tg_poll_chat",placeholder:"Chat ID"},{key:"tg_poll_q",placeholder:"Question"},{key:"tg_poll_opts",placeholder:"Options (comma sep)"}],()=>({chat_id:getInput("tg_poll_chat"),question:getInput("tg_poll_q"),options:getInput("tg_poll_opts").split(",").map(s=>s.trim()).filter(Boolean)}),BarChart3)}
+        {renderInputAction("Bulk Delete","telegram-api","delete_messages",[{key:"tg_bdel_chat",placeholder:"Chat ID"},{key:"tg_bdel_ids",placeholder:"Msg IDs (comma sep)"}],()=>({chat_id:getInput("tg_bdel_chat"),message_ids:getInput("tg_bdel_ids").split(",").map(s=>parseInt(s.trim()))}),Trash2)}
+        {renderInputAction("Set Reaction","telegram-api","set_message_reaction",[{key:"tg_react_chat",placeholder:"Chat ID"},{key:"tg_react_msg",placeholder:"Msg ID"},{key:"tg_react_emoji",placeholder:"Emoji"}],()=>({chat_id:getInput("tg_react_chat"),message_id:parseInt(getInput("tg_react_msg")),reaction:[{type:"emoji",emoji:getInput("tg_react_emoji")}]}),Heart)}
+        {renderInputAction("Chat Action","telegram-api","send_chat_action",[{key:"tg_ca_chat",placeholder:"Chat ID"},{key:"tg_ca_action",placeholder:"typing/upload_photo/..."}],()=>({chat_id:getInput("tg_ca_chat"),action:getInput("tg_ca_action")||"typing"}),Activity)}
       </TabsContent>
       <TabsContent value="media" className="space-y-2 mt-3">
         {renderInputAction("Photo","telegram-api","send_photo",[{key:"tg_ph_chat",placeholder:"Chat ID"},{key:"tg_ph_url",placeholder:"URL"},{key:"tg_ph_cap",placeholder:"Caption"}],()=>({chat_id:getInput("tg_ph_chat"),photo_url:getInput("tg_ph_url"),caption:getInput("tg_ph_cap")}),Image)}
         {renderInputAction("Video","telegram-api","send_video",[{key:"tg_vid_chat",placeholder:"Chat ID"},{key:"tg_vid_url",placeholder:"URL"},{key:"tg_vid_cap",placeholder:"Caption"}],()=>({chat_id:getInput("tg_vid_chat"),video_url:getInput("tg_vid_url"),caption:getInput("tg_vid_cap")}),Video)}
+        {renderInputAction("Animation/GIF","telegram-api","send_animation",[{key:"tg_anim_chat",placeholder:"Chat ID"},{key:"tg_anim_url",placeholder:"URL"},{key:"tg_anim_cap",placeholder:"Caption"}],()=>({chat_id:getInput("tg_anim_chat"),animation_url:getInput("tg_anim_url"),caption:getInput("tg_anim_cap")}),Play)}
+        {renderInputAction("Audio","telegram-api","send_audio",[{key:"tg_aud_chat",placeholder:"Chat ID"},{key:"tg_aud_url",placeholder:"URL"},{key:"tg_aud_cap",placeholder:"Caption"}],()=>({chat_id:getInput("tg_aud_chat"),audio_url:getInput("tg_aud_url"),caption:getInput("tg_aud_cap")}),Volume2)}
+        {renderInputAction("Voice","telegram-api","send_voice",[{key:"tg_voi_chat",placeholder:"Chat ID"},{key:"tg_voi_url",placeholder:"URL"}],()=>({chat_id:getInput("tg_voi_chat"),voice_url:getInput("tg_voi_url")}),Mic)}
         {renderInputAction("Document","telegram-api","send_document",[{key:"tg_doc_chat",placeholder:"Chat ID"},{key:"tg_doc_url",placeholder:"URL"}],()=>({chat_id:getInput("tg_doc_chat"),document_url:getInput("tg_doc_url")}),FileText)}
+        {renderInputAction("Sticker","telegram-api","send_sticker",[{key:"tg_stk_chat",placeholder:"Chat ID"},{key:"tg_stk_id",placeholder:"Sticker file_id"}],()=>({chat_id:getInput("tg_stk_chat"),sticker:getInput("tg_stk_id")}),Star)}
+        {renderInputAction("Video Note","telegram-api","send_video_note",[{key:"tg_vn_chat",placeholder:"Chat ID"},{key:"tg_vn_url",placeholder:"URL"}],()=>({chat_id:getInput("tg_vn_chat"),video_note_url:getInput("tg_vn_url")}),Camera)}
+      </TabsContent>
+      <TabsContent value="special" className="space-y-2 mt-3">
         {renderInputAction("Location","telegram-api","send_location",[{key:"tg_loc_chat",placeholder:"Chat ID"},{key:"tg_loc_lat",placeholder:"Lat"},{key:"tg_loc_lng",placeholder:"Lng"}],()=>({chat_id:getInput("tg_loc_chat"),latitude:parseFloat(getInput("tg_loc_lat")),longitude:parseFloat(getInput("tg_loc_lng"))}),MapPin)}
+        {renderInputAction("Venue","telegram-api","send_venue",[{key:"tg_ven_chat",placeholder:"Chat ID"},{key:"tg_ven_lat",placeholder:"Lat"},{key:"tg_ven_lng",placeholder:"Lng"},{key:"tg_ven_title",placeholder:"Title"},{key:"tg_ven_addr",placeholder:"Address"}],()=>({chat_id:getInput("tg_ven_chat"),latitude:parseFloat(getInput("tg_ven_lat")),longitude:parseFloat(getInput("tg_ven_lng")),title:getInput("tg_ven_title"),address:getInput("tg_ven_addr")}),MapPin)}
+        {renderInputAction("Contact","telegram-api","send_contact",[{key:"tg_cnt_chat",placeholder:"Chat ID"},{key:"tg_cnt_phone",placeholder:"Phone"},{key:"tg_cnt_name",placeholder:"First Name"}],()=>({chat_id:getInput("tg_cnt_chat"),phone_number:getInput("tg_cnt_phone"),first_name:getInput("tg_cnt_name")}),Users)}
+        {renderInputAction("Poll","telegram-api","send_poll",[{key:"tg_poll_chat",placeholder:"Chat ID"},{key:"tg_poll_q",placeholder:"Question"},{key:"tg_poll_opts",placeholder:"Options (comma sep)"}],()=>({chat_id:getInput("tg_poll_chat"),question:getInput("tg_poll_q"),options:getInput("tg_poll_opts").split(",").map(s=>({text:s.trim()}))}),BarChart3)}
+        {renderInputAction("Dice","telegram-api","send_dice",[{key:"tg_dice_chat",placeholder:"Chat ID"},{key:"tg_dice_emoji",placeholder:"Emoji (🎲🎯🏀⚽🎳🎰)"}],()=>({chat_id:getInput("tg_dice_chat"),emoji:getInput("tg_dice_emoji")||"🎲"}),Dice1)}
       </TabsContent>
       <TabsContent value="chat" className="space-y-2 mt-3">
         {renderActionButton("Bot Info","telegram-api","get_me",{},Bot)}
         {renderInputAction("Get Chat","telegram-api","get_chat",[{key:"tg_gc_id",placeholder:"Chat ID"}],()=>({chat_id:getInput("tg_gc_id")}),MessageSquare)}
+        {renderInputAction("Member Count","telegram-api","get_chat_member_count",[{key:"tg_mc_id",placeholder:"Chat ID"}],()=>({chat_id:getInput("tg_mc_id")}),Users)}
         {renderInputAction("Set Title","telegram-api","set_chat_title",[{key:"tg_st_chat",placeholder:"Chat ID"},{key:"tg_st_title",placeholder:"Title"}],()=>({chat_id:getInput("tg_st_chat"),title:getInput("tg_st_title")}),FileText)}
+        {renderInputAction("Set Description","telegram-api","set_chat_description",[{key:"tg_sd_chat",placeholder:"Chat ID"},{key:"tg_sd_desc",placeholder:"Description"}],()=>({chat_id:getInput("tg_sd_chat"),description:getInput("tg_sd_desc")}),FileText)}
+        {renderInputAction("Pin Message","telegram-api","pin_chat_message",[{key:"tg_pin_chat",placeholder:"Chat ID"},{key:"tg_pin_msg",placeholder:"Msg ID"}],()=>({chat_id:getInput("tg_pin_chat"),message_id:parseInt(getInput("tg_pin_msg"))}),Pin)}
+        {renderInputAction("Unpin","telegram-api","unpin_chat_message",[{key:"tg_unpin_chat",placeholder:"Chat ID"},{key:"tg_unpin_msg",placeholder:"Msg ID"}],()=>({chat_id:getInput("tg_unpin_chat"),message_id:parseInt(getInput("tg_unpin_msg"))}),PinOff)}
         {renderInputAction("Invite Link","telegram-api","create_chat_invite_link",[{key:"tg_inv_chat",placeholder:"Chat ID"}],()=>({chat_id:getInput("tg_inv_chat")}),Link2)}
+        {renderInputAction("Export Invite","telegram-api","export_chat_invite_link",[{key:"tg_exp_chat",placeholder:"Chat ID"}],()=>({chat_id:getInput("tg_exp_chat")}),Link2)}
+        {renderInputAction("Leave Chat","telegram-api","leave_chat",[{key:"tg_leave_chat",placeholder:"Chat ID"}],()=>({chat_id:getInput("tg_leave_chat")}),UserMinus)}
       </TabsContent>
       <TabsContent value="members" className="space-y-2 mt-3">
+        {renderInputAction("Get Member","telegram-api","get_chat_member",[{key:"tg_gm_chat",placeholder:"Chat ID"},{key:"tg_gm_user",placeholder:"User ID"}],()=>({chat_id:getInput("tg_gm_chat"),user_id:parseInt(getInput("tg_gm_user"))}),Eye)}
         {renderInputAction("Ban","telegram-api","ban_chat_member",[{key:"tg_ban_chat",placeholder:"Chat ID"},{key:"tg_ban_user",placeholder:"User ID"}],()=>({chat_id:getInput("tg_ban_chat"),user_id:parseInt(getInput("tg_ban_user"))}),Shield)}
         {renderInputAction("Unban","telegram-api","unban_chat_member",[{key:"tg_unban_chat",placeholder:"Chat ID"},{key:"tg_unban_user",placeholder:"User ID"}],()=>({chat_id:getInput("tg_unban_chat"),user_id:parseInt(getInput("tg_unban_user"))}),UserPlus)}
-        {renderInputAction("Promote","telegram-api","promote_chat_member",[{key:"tg_promo_chat",placeholder:"Chat ID"},{key:"tg_promo_user",placeholder:"User ID"}],()=>({chat_id:getInput("tg_promo_chat"),user_id:parseInt(getInput("tg_promo_user")),can_manage_chat:true,can_delete_messages:true}),ArrowUp)}
+        {renderInputAction("Restrict","telegram-api","restrict_chat_member",[{key:"tg_rest_chat",placeholder:"Chat ID"},{key:"tg_rest_user",placeholder:"User ID"}],()=>({chat_id:getInput("tg_rest_chat"),user_id:parseInt(getInput("tg_rest_user"))}),Lock)}
+        {renderInputAction("Promote","telegram-api","promote_chat_member",[{key:"tg_promo_chat",placeholder:"Chat ID"},{key:"tg_promo_user",placeholder:"User ID"}],()=>({chat_id:getInput("tg_promo_chat"),user_id:parseInt(getInput("tg_promo_user")),can_manage_chat:true,can_delete_messages:true,can_manage_video_chats:true}),ArrowUp)}
+        {renderInputAction("Approve Join","telegram-api","approve_chat_join_request",[{key:"tg_appr_chat",placeholder:"Chat ID"},{key:"tg_appr_user",placeholder:"User ID"}],()=>({chat_id:getInput("tg_appr_chat"),user_id:parseInt(getInput("tg_appr_user"))}),Zap)}
+        {renderInputAction("Decline Join","telegram-api","decline_chat_join_request",[{key:"tg_decl_chat",placeholder:"Chat ID"},{key:"tg_decl_user",placeholder:"User ID"}],()=>({chat_id:getInput("tg_decl_chat"),user_id:parseInt(getInput("tg_decl_user"))}),UserMinus)}
+        {renderInputAction("Profile Photos","telegram-api","get_user_profile_photos",[{key:"tg_pp_user",placeholder:"User ID"}],()=>({user_id:parseInt(getInput("tg_pp_user"))}),Camera)}
       </TabsContent>
       <TabsContent value="bot" className="space-y-2 mt-3">
         {renderActionButton("Bot Info","telegram-api","get_me",{},Bot)}
         {renderActionButton("Commands","telegram-api","get_my_commands",{},Briefcase)}
         {renderInputAction("Set Commands","telegram-api","set_my_commands",[{key:"tg_cmd_json",placeholder:'[{"command":"start","description":"..."}]'}],()=>({commands:JSON.parse(getInput("tg_cmd_json")||"[]")}),Settings)}
+        {renderActionButton("Delete Commands","telegram-api","delete_my_commands",{},Trash2)}
+        {renderActionButton("Bot Name","telegram-api","get_my_name",{},Users)}
+        {renderInputAction("Set Name","telegram-api","set_my_name",[{key:"tg_sn_name",placeholder:"Bot name"}],()=>({name:getInput("tg_sn_name")}),Users)}
+        {renderActionButton("Description","telegram-api","get_my_description",{},FileText)}
+        {renderInputAction("Set Description","telegram-api","set_my_description",[{key:"tg_sd_desc",placeholder:"Description"}],()=>({description:getInput("tg_sd_desc")}),FileText)}
+        {renderActionButton("Short Desc","telegram-api","get_my_short_description",{},FileText)}
       </TabsContent>
       <TabsContent value="forum" className="space-y-2 mt-3">
         {renderInputAction("Create Topic","telegram-api","create_forum_topic",[{key:"tg_ft_chat",placeholder:"Chat ID"},{key:"tg_ft_name",placeholder:"Topic name"}],()=>({chat_id:getInput("tg_ft_chat"),name:getInput("tg_ft_name")}),FolderOpen)}
+        {renderInputAction("Edit Topic","telegram-api","edit_forum_topic",[{key:"tg_eft_chat",placeholder:"Chat ID"},{key:"tg_eft_thread",placeholder:"Thread ID"},{key:"tg_eft_name",placeholder:"New name"}],()=>({chat_id:getInput("tg_eft_chat"),message_thread_id:parseInt(getInput("tg_eft_thread")),name:getInput("tg_eft_name")}),FileText)}
         {renderInputAction("Close Topic","telegram-api","close_forum_topic",[{key:"tg_cft_chat",placeholder:"Chat ID"},{key:"tg_cft_thread",placeholder:"Thread ID"}],()=>({chat_id:getInput("tg_cft_chat"),message_thread_id:parseInt(getInput("tg_cft_thread"))}),Lock)}
+        {renderInputAction("Reopen Topic","telegram-api","reopen_forum_topic",[{key:"tg_rft_chat",placeholder:"Chat ID"},{key:"tg_rft_thread",placeholder:"Thread ID"}],()=>({chat_id:getInput("tg_rft_chat"),message_thread_id:parseInt(getInput("tg_rft_thread"))}),Unlock)}
+        {renderInputAction("Delete Topic","telegram-api","delete_forum_topic",[{key:"tg_dft_chat",placeholder:"Chat ID"},{key:"tg_dft_thread",placeholder:"Thread ID"}],()=>({chat_id:getInput("tg_dft_chat"),message_thread_id:parseInt(getInput("tg_dft_thread"))}),Trash2)}
+      </TabsContent>
+      <TabsContent value="webhook" className="space-y-2 mt-3">
+        {renderActionButton("Webhook Info","telegram-api","get_webhook_info",{},Activity)}
+        {renderActionButton("Get Updates","telegram-api","get_updates",{limit:20},RefreshCw)}
+        {renderInputAction("Set Webhook","telegram-api","set_webhook",[{key:"tg_wh_url",placeholder:"Webhook URL"}],()=>({webhook_url:getInput("tg_wh_url")}),Zap)}
+        {renderActionButton("Delete Webhook","telegram-api","delete_webhook",{},Trash2)}
       </TabsContent>
       <TabsContent value="ai" className="space-y-2 mt-3">
         {renderInputAction("AI Message","social-ai-responder","generate_caption",[{key:"ai_tg_topic",placeholder:"Topic"}],()=>({topic:getInput("ai_tg_topic"),platform:"telegram",include_cta:true}),Brain)}
         {renderInputAction("AI Auto-Reply","social-ai-responder","generate_dm_reply",[{key:"ai_tg_dm",placeholder:"Incoming message..."}],()=>({message_text:getInput("ai_tg_dm"),sender_name:"subscriber"}),Zap)}
         {renderInputAction("AI Channel Post","social-ai-responder","generate_caption",[{key:"ai_tg_ch",placeholder:"Topic for channel post"}],()=>({topic:`Write a Telegram channel post (formatted with bold and links) about: ${getInput("ai_tg_ch")}`,platform:"telegram",include_cta:true}),Megaphone)}
         {renderInputAction("AI Poll Creator","social-ai-responder","generate_caption",[{key:"ai_tg_poll",placeholder:"Topic for poll"}],()=>({topic:`Create 5 engaging Telegram poll questions with 4 options each about: ${getInput("ai_tg_poll")}`,platform:"telegram",include_cta:false}),BarChart3)}
-        {renderInputAction("AI Welcome Message","social-ai-responder","generate_caption",[{key:"ai_tg_welcome",placeholder:"Group/channel description"}],()=>({topic:`Write a warm welcome message for new members joining a Telegram group about: ${getInput("ai_tg_welcome")}`,platform:"telegram",include_cta:false}),UserPlus)}
+        {renderInputAction("AI Welcome","social-ai-responder","generate_caption",[{key:"ai_tg_welcome",placeholder:"Group/channel description"}],()=>({topic:`Write a warm welcome message for new Telegram members joining: ${getInput("ai_tg_welcome")}`,platform:"telegram",include_cta:false}),UserPlus)}
         {renderInputAction("AI Bot Response","social-ai-responder","generate_dm_reply",[{key:"ai_tg_bot",placeholder:"User command/query..."}],()=>({message_text:getInput("ai_tg_bot"),sender_name:"user"}),Bot)}
       </TabsContent>
     </Tabs>
@@ -376,7 +485,7 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
   const renderTikTokContent = () => (
     <Tabs defaultValue="videos" className="w-full">
       <TabsList className="bg-muted/50 border border-border p-0.5 rounded-lg gap-0.5 flex-wrap h-auto">
-        {[{v:"videos",l:"Videos",icon:Video},{v:"publish",l:"Publish",icon:Upload},{v:"comments",l:"Comments",icon:MessageSquare},{v:"dms",l:"DMs",icon:Send},{v:"research",l:"Research",icon:Search},{v:"ai",l:"AI",icon:Brain}].map(t=>(
+        {[{v:"videos",l:"Videos",icon:Video},{v:"publish",l:"Publish",icon:Upload},{v:"comments",l:"Comments",icon:MessageSquare},{v:"dms",l:"DMs",icon:Send},{v:"playlists",l:"Playlists",icon:List},{v:"research",l:"Research",icon:Search},{v:"ai",l:"AI",icon:Brain}].map(t=>(
           <TabsTrigger key={t.v} value={t.v} className="text-[10px] gap-1 px-2 py-1 data-[state=active]:bg-background"><t.icon className="h-3 w-3"/>{t.l}</TabsTrigger>
         ))}
       </TabsList>
@@ -384,42 +493,56 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
         <div className="flex gap-1.5 flex-wrap">
           {renderActionButton("My Videos","tiktok-api","get_videos",{limit:20},Video)}
           {renderActionButton("User Info","tiktok-api","get_user_info",{},Users)}
+          {renderActionButton("Creator Info","tiktok-api","get_creator_info",{},Star)}
         </div>
+        {renderInputAction("Video Details","tiktok-api","get_video_details",[{key:"tt_vd_ids",placeholder:"Video IDs (comma sep)"}],()=>({video_ids:getInput("tt_vd_ids").split(",").map(s=>s.trim())}),Eye)}
+        {renderInputAction("Publish Status","tiktok-api","check_publish_status",[{key:"tt_ps_id",placeholder:"Publish ID"}],()=>({publish_id:getInput("tt_ps_id")}),Activity)}
       </TabsContent>
       <TabsContent value="publish" className="space-y-2 mt-3">
         {renderInputAction("Publish Video","tiktok-api","publish_video_by_url",[{key:"tt_pub_url",placeholder:"Video URL"},{key:"tt_pub_title",placeholder:"Caption"}],()=>({video_url:getInput("tt_pub_url"),title:getInput("tt_pub_title"),privacy_level:"PUBLIC_TO_EVERYONE"}),Upload)}
         {renderInputAction("Publish Photo","tiktok-api","publish_photo",[{key:"tt_ph_title",placeholder:"Title"},{key:"tt_ph_urls",placeholder:"Image URLs (comma sep)"}],()=>({title:getInput("tt_ph_title"),image_urls:getInput("tt_ph_urls").split(",").map(s=>s.trim()),privacy_level:"PUBLIC_TO_EVERYONE"}),Image)}
+        {renderInputAction("Carousel","tiktok-api","publish_carousel",[{key:"tt_car_title",placeholder:"Title"},{key:"tt_car_urls",placeholder:"Image URLs (comma sep)"}],()=>({title:getInput("tt_car_title"),image_urls:getInput("tt_car_urls").split(",").map(s=>s.trim()),privacy_level:"PUBLIC_TO_EVERYONE"}),Layers)}
       </TabsContent>
       <TabsContent value="comments" className="space-y-2 mt-3">
         {renderInputAction("Get Comments","tiktok-api","get_comments",[{key:"tt_cmt_vid",placeholder:"Video ID"}],()=>({video_id:getInput("tt_cmt_vid"),limit:50}),MessageSquare)}
+        {renderInputAction("Comment Replies","tiktok-api","get_comment_replies",[{key:"tt_cr_vid",placeholder:"Video ID"},{key:"tt_cr_cmt",placeholder:"Comment ID"}],()=>({video_id:getInput("tt_cr_vid"),comment_id:getInput("tt_cr_cmt"),limit:20}),MessageSquare)}
         {renderInputAction("Reply","tiktok-api","reply_to_comment",[{key:"tt_rply_vid",placeholder:"Video ID"},{key:"tt_rply_cmt",placeholder:"Comment ID"},{key:"tt_rply_text",placeholder:"Reply"}],()=>({video_id:getInput("tt_rply_vid"),comment_id:getInput("tt_rply_cmt"),message:getInput("tt_rply_text")}),Send)}
       </TabsContent>
       <TabsContent value="dms" className="space-y-2 mt-3">
         {renderActionButton("Conversations","tiktok-api","get_conversations",{},MessageSquare)}
+        {renderInputAction("Get Messages","tiktok-api","get_messages",[{key:"tt_gm_conv",placeholder:"Conversation ID"}],()=>({conversation_id:getInput("tt_gm_conv"),limit:20}),MessageSquare)}
         {renderInputAction("Send DM","tiktok-api","send_dm",[{key:"tt_dm_conv",placeholder:"Conv ID"},{key:"tt_dm_text",placeholder:"Message"}],()=>({conversation_id:getInput("tt_dm_conv"),message:getInput("tt_dm_text")}),Send)}
+      </TabsContent>
+      <TabsContent value="playlists" className="space-y-2 mt-3">
+        {renderActionButton("My Playlists","tiktok-api","get_playlists",{limit:20},List)}
+        {renderInputAction("Create Playlist","tiktok-api","create_playlist",[{key:"tt_pl_name",placeholder:"Playlist name"}],()=>({name:getInput("tt_pl_name")}),FolderOpen)}
       </TabsContent>
       <TabsContent value="research" className="space-y-2 mt-3">
         {renderInputAction("Research User","tiktok-api","research_user",[{key:"tt_ru",placeholder:"Username"}],()=>({username:getInput("tt_ru")}),Users)}
         {renderInputAction("Research Videos","tiktok-api","research_videos",[{key:"tt_rv",placeholder:"Keywords (comma sep)"}],()=>({keywords:getInput("tt_rv").split(",").map(s=>s.trim()),limit:20}),Search)}
+        {renderInputAction("Research Hashtag","tiktok-api","research_hashtag",[{key:"tt_rh",placeholder:"Hashtags (comma sep)"}],()=>({hashtags:getInput("tt_rh").split(",").map(s=>s.trim())}),Hash)}
+        {renderInputAction("Research Comments","tiktok-api","research_comments",[{key:"tt_rc_vid",placeholder:"Video ID"}],()=>({video_id:getInput("tt_rc_vid"),limit:100}),MessageSquare)}
       </TabsContent>
       <TabsContent value="ai" className="space-y-2 mt-3">
         {renderInputAction("AI Caption","social-ai-responder","generate_caption",[{key:"ai_tt_topic",placeholder:"Topic"}],()=>({topic:getInput("ai_tt_topic"),platform:"tiktok",include_cta:true}),Brain)}
         {renderInputAction("AI DM Auto-Reply","social-ai-responder","generate_dm_reply",[{key:"ai_tt_dm",placeholder:"Incoming DM..."}],()=>({message_text:getInput("ai_tt_dm"),sender_name:"fan"}),Send)}
         {renderInputAction("AI Comment Reply","social-ai-responder","generate_dm_reply",[{key:"ai_tt_cmt",placeholder:"Comment text..."}],()=>({message_text:getInput("ai_tt_cmt"),sender_name:"viewer"}),MessageSquare)}
         {renderInputAction("AI Hashtag Strategy","social-ai-responder","generate_caption",[{key:"ai_tt_ht",placeholder:"Niche/content type"}],()=>({topic:`Generate 30 TikTok hashtags (mix of trending + niche) for: ${getInput("ai_tt_ht")}`,platform:"tiktok",include_cta:false}),Hash)}
-        {renderInputAction("AI Video Ideas","social-ai-responder","generate_caption",[{key:"ai_tt_ideas",placeholder:"Your niche"}],()=>({topic:`Generate 10 viral TikTok video ideas with hooks and trends for: ${getInput("ai_tt_ideas")}`,platform:"tiktok",include_cta:false}),Video)}
-        {renderInputAction("AI Bio Writer","social-ai-responder","generate_caption",[{key:"ai_tt_bio",placeholder:"Describe your brand"}],()=>({topic:`Write a compelling TikTok bio (80 chars) with CTA for: ${getInput("ai_tt_bio")}`,platform:"tiktok",include_cta:false}),Users)}
+        {renderInputAction("AI Video Ideas","social-ai-responder","generate_caption",[{key:"ai_tt_ideas",placeholder:"Your niche"}],()=>({topic:`Generate 10 viral TikTok video ideas with hooks for: ${getInput("ai_tt_ideas")}`,platform:"tiktok",include_cta:false}),Video)}
         {renderInputAction("AI Hook Generator","social-ai-responder","generate_caption",[{key:"ai_tt_hook",placeholder:"Video topic"}],()=>({topic:`Write 10 attention-grabbing TikTok video hooks (first 3 seconds) for: ${getInput("ai_tt_hook")}`,platform:"tiktok",include_cta:false}),Zap)}
         {renderInputAction("AI Duet/Stitch Ideas","social-ai-responder","generate_caption",[{key:"ai_tt_duet",placeholder:"Original video topic"}],()=>({topic:`Generate 5 creative duet/stitch response ideas for a TikTok about: ${getInput("ai_tt_duet")}`,platform:"tiktok",include_cta:false}),Repeat)}
       </TabsContent>
     </Tabs>
   );
 
-  // ===== SNAPCHAT =====
+  // ===== SNAPCHAT, THREADS, WHATSAPP, SIGNAL, YOUTUBE, PINTEREST, DISCORD, FACEBOOK =====
+  // Keeping these the same as before since they already had comprehensive coverage
+  // but adding missing actions
+
   const renderSnapchatContent = () => (
     <Tabs defaultValue="account" className="w-full">
       <TabsList className="bg-muted/50 border border-border p-0.5 rounded-lg gap-0.5 flex-wrap h-auto">
-        {[{v:"account",l:"Account",icon:Users},{v:"campaigns",l:"Campaigns",icon:Target},{v:"ads",l:"Ads",icon:Megaphone},{v:"creatives",l:"Creatives",icon:Image},{v:"audiences",l:"Audiences",icon:Users},{v:"analytics",l:"Analytics",icon:BarChart3},{v:"catalogs",l:"Catalogs",icon:Layers},{v:"ai",l:"AI",icon:Brain}].map(t=>(
+        {[{v:"account",l:"Account",icon:Users},{v:"campaigns",l:"Campaigns",icon:Target},{v:"ads",l:"Ads",icon:Megaphone},{v:"creatives",l:"Creatives",icon:Image},{v:"audiences",l:"Audiences",icon:Users},{v:"analytics",l:"Analytics",icon:BarChart3},{v:"catalogs",l:"Catalogs",icon:Layers},{v:"pixels",l:"Pixels",icon:Activity},{v:"ai",l:"AI",icon:Brain}].map(t=>(
           <TabsTrigger key={t.v} value={t.v} className="text-[10px] gap-1 px-2 py-1 data-[state=active]:bg-background"><t.icon className="h-3 w-3"/>{t.l}</TabsTrigger>
         ))}
       </TabsList>
@@ -427,12 +550,14 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
         <div className="flex gap-1.5 flex-wrap">
           {renderActionButton("Me","snapchat-api","get_me",{},Users)}
           {renderActionButton("Organizations","snapchat-api","get_organizations",{},Briefcase)}
+          {renderActionButton("Bitmoji","snapchat-api","get_bitmoji_avatar",{},Star)}
         </div>
         {renderInputAction("Ad Accounts","snapchat-api","get_ad_accounts",[{key:"snap_org_id",placeholder:"Organization ID"}],()=>({organization_id:getInput("snap_org_id")}),Briefcase)}
       </TabsContent>
       <TabsContent value="campaigns" className="space-y-2 mt-3">
         {renderInputAction("Get Campaigns","snapchat-api","get_campaigns",[{key:"snap_camp_aa",placeholder:"Ad Account ID"}],()=>({ad_account_id:getInput("snap_camp_aa")}),Target)}
-        {renderInputAction("Create Campaign","snapchat-api","create_campaign",[{key:"snap_cc_aa",placeholder:"Ad Account ID"},{key:"snap_cc_name",placeholder:"Campaign name"},{key:"snap_cc_obj",placeholder:"Objective (AWARENESS)"}],()=>({ad_account_id:getInput("snap_cc_aa"),name:getInput("snap_cc_name"),objective:getInput("snap_cc_obj")||"AWARENESS"}),Target)}
+        {renderInputAction("Create Campaign","snapchat-api","create_campaign",[{key:"snap_cc_aa",placeholder:"Ad Account ID"},{key:"snap_cc_name",placeholder:"Name"},{key:"snap_cc_obj",placeholder:"Objective (AWARENESS)"}],()=>({ad_account_id:getInput("snap_cc_aa"),name:getInput("snap_cc_name"),objective:getInput("snap_cc_obj")||"AWARENESS"}),Target)}
+        {renderInputAction("Update Campaign","snapchat-api","update_campaign",[{key:"snap_uc_aa",placeholder:"Ad Account ID"},{key:"snap_uc_id",placeholder:"Campaign ID"},{key:"snap_uc_name",placeholder:"New name"},{key:"snap_uc_status",placeholder:"Status (ACTIVE/PAUSED)"}],()=>({ad_account_id:getInput("snap_uc_aa"),campaign_id:getInput("snap_uc_id"),name:getInput("snap_uc_name"),status:getInput("snap_uc_status")}),Settings)}
         {renderInputAction("Delete Campaign","snapchat-api","delete_campaign",[{key:"snap_dc_id",placeholder:"Campaign ID"}],()=>({campaign_id:getInput("snap_dc_id")}),Trash2)}
       </TabsContent>
       <TabsContent value="ads" className="space-y-2 mt-3">
@@ -443,6 +568,7 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
       <TabsContent value="creatives" className="space-y-2 mt-3">
         {renderInputAction("Get Creatives","snapchat-api","get_creatives",[{key:"snap_cr_aa",placeholder:"Ad Account ID"}],()=>({ad_account_id:getInput("snap_cr_aa")}),Image)}
         {renderInputAction("Get Media","snapchat-api","get_media",[{key:"snap_md_aa",placeholder:"Ad Account ID"}],()=>({ad_account_id:getInput("snap_md_aa")}),Video)}
+        {renderInputAction("Create Media","snapchat-api","create_media",[{key:"snap_cm_aa",placeholder:"Ad Account ID"},{key:"snap_cm_name",placeholder:"Name"}],()=>({ad_account_id:getInput("snap_cm_aa"),name:getInput("snap_cm_name")}),Upload)}
       </TabsContent>
       <TabsContent value="audiences" className="space-y-2 mt-3">
         {renderInputAction("Get Audiences","snapchat-api","get_audiences",[{key:"snap_aud_aa",placeholder:"Ad Account ID"}],()=>({ad_account_id:getInput("snap_aud_aa")}),Users)}
@@ -451,27 +577,32 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
           {renderActionButton("Interest Targeting","snapchat-api","get_interest_targeting",{},Target)}
           {renderActionButton("Demographics","snapchat-api","get_demographics_targeting",{},Users)}
         </div>
+        {renderInputAction("Location Targeting","snapchat-api","get_location_targeting",[{key:"snap_loc_cc",placeholder:"Country Code (US)"}],()=>({country_code:getInput("snap_loc_cc")||"US"}),MapPin)}
       </TabsContent>
       <TabsContent value="analytics" className="space-y-2 mt-3">
         {renderInputAction("Campaign Stats","snapchat-api","get_campaign_stats",[{key:"snap_cs_id",placeholder:"Campaign ID"}],()=>({campaign_id:getInput("snap_cs_id")}),BarChart3)}
+        {renderInputAction("Ad Squad Stats","snapchat-api","get_ad_squad_stats",[{key:"snap_ass_id",placeholder:"Ad Squad ID"}],()=>({ad_squad_id:getInput("snap_ass_id")}),BarChart3)}
         {renderInputAction("Ad Stats","snapchat-api","get_ad_stats",[{key:"snap_as_id",placeholder:"Ad ID"}],()=>({ad_id:getInput("snap_as_id")}),BarChart3)}
-        {renderInputAction("Pixels","snapchat-api","get_pixels",[{key:"snap_px_aa",placeholder:"Ad Account ID"}],()=>({ad_account_id:getInput("snap_px_aa")}),Activity)}
       </TabsContent>
       <TabsContent value="catalogs" className="space-y-2 mt-3">
         {renderInputAction("Catalogs","snapchat-api","get_catalogs",[{key:"snap_cat_org",placeholder:"Organization ID"}],()=>({organization_id:getInput("snap_cat_org")}),Layers)}
+        {renderInputAction("Product Sets","snapchat-api","get_product_sets",[{key:"snap_ps_cat",placeholder:"Catalog ID"}],()=>({catalog_id:getInput("snap_ps_cat")}),Layers)}
         {renderInputAction("Products","snapchat-api","get_products",[{key:"snap_prod_cat",placeholder:"Catalog ID"}],()=>({catalog_id:getInput("snap_prod_cat")}),Layers)}
+      </TabsContent>
+      <TabsContent value="pixels" className="space-y-2 mt-3">
+        {renderInputAction("Get Pixels","snapchat-api","get_pixels",[{key:"snap_px_aa",placeholder:"Ad Account ID"}],()=>({ad_account_id:getInput("snap_px_aa")}),Activity)}
+        {renderInputAction("Create Pixel","snapchat-api","create_pixel",[{key:"snap_cpx_aa",placeholder:"Ad Account ID"},{key:"snap_cpx_name",placeholder:"Pixel Name"}],()=>({ad_account_id:getInput("snap_cpx_aa"),name:getInput("snap_cpx_name")}),Activity)}
+        {renderInputAction("Pixel Stats","snapchat-api","get_pixel_stats",[{key:"snap_pxs_id",placeholder:"Pixel ID"}],()=>({pixel_id:getInput("snap_pxs_id")}),BarChart3)}
       </TabsContent>
       <TabsContent value="ai" className="space-y-2 mt-3">
         {renderInputAction("AI Ad Copy","social-ai-responder","generate_caption",[{key:"ai_snap_topic",placeholder:"Ad topic"}],()=>({topic:getInput("ai_snap_topic"),platform:"snapchat",include_cta:true}),Brain)}
         {renderInputAction("AI Story Script","social-ai-responder","generate_caption",[{key:"ai_snap_story",placeholder:"Story theme"}],()=>({topic:`Write a 5-panel Snapchat story script with captions for: ${getInput("ai_snap_story")}`,platform:"snapchat",include_cta:true}),Play)}
-        {renderInputAction("AI Audience Targeting","social-ai-responder","generate_caption",[{key:"ai_snap_aud",placeholder:"Product/service"}],()=>({topic:`Suggest 5 Snapchat ad audience segments with demographics and interests for: ${getInput("ai_snap_aud")}`,platform:"snapchat",include_cta:false}),Target)}
-        {renderInputAction("AI Campaign Strategy","social-ai-responder","generate_caption",[{key:"ai_snap_camp",placeholder:"Campaign goal"}],()=>({topic:`Create a Snapchat ad campaign strategy with budget allocation and creative ideas for: ${getInput("ai_snap_camp")}`,platform:"snapchat",include_cta:false}),Briefcase)}
-        {renderInputAction("AI Snap DM Reply","social-ai-responder","generate_dm_reply",[{key:"ai_snap_dm",placeholder:"Incoming snap message..."}],()=>({message_text:getInput("ai_snap_dm"),sender_name:"friend"}),Send)}
+        {renderInputAction("AI Audience Targeting","social-ai-responder","generate_caption",[{key:"ai_snap_aud",placeholder:"Product/service"}],()=>({topic:`Suggest 5 Snapchat ad audience segments for: ${getInput("ai_snap_aud")}`,platform:"snapchat",include_cta:false}),Target)}
+        {renderInputAction("AI Campaign Strategy","social-ai-responder","generate_caption",[{key:"ai_snap_camp",placeholder:"Campaign goal"}],()=>({topic:`Create a Snapchat ad campaign strategy for: ${getInput("ai_snap_camp")}`,platform:"snapchat",include_cta:false}),Briefcase)}
       </TabsContent>
     </Tabs>
   );
 
-  // ===== THREADS =====
   const renderThreadsContent = () => (
     <Tabs defaultValue="posts" className="w-full">
       <TabsList className="bg-muted/50 border border-border p-0.5 rounded-lg gap-0.5 flex-wrap h-auto">
@@ -486,11 +617,13 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
           {renderActionButton("Publish Limit","threads-api","get_publishing_limit",{},Activity)}
         </div>
         {renderInputAction("Get Thread","threads-api","get_thread",[{key:"th_id",placeholder:"Thread ID"}],()=>({thread_id:getInput("th_id")}),Eye)}
+        {renderInputAction("User Profile","threads-api","get_user_profile",[{key:"th_uid",placeholder:"User ID"}],()=>({user_id:getInput("th_uid")}),Users)}
       </TabsContent>
       <TabsContent value="publish" className="space-y-2 mt-3">
         {renderInputAction("Text Thread","threads-api","create_text_thread",[{key:"th_text",placeholder:"What's on your mind?"}],()=>({text:getInput("th_text")}),Send)}
         {renderInputAction("Image Thread","threads-api","create_image_thread",[{key:"th_img_url",placeholder:"Image URL"},{key:"th_img_text",placeholder:"Caption"}],()=>({image_url:getInput("th_img_url"),text:getInput("th_img_text")}),Image)}
         {renderInputAction("Video Thread","threads-api","create_video_thread",[{key:"th_vid_url",placeholder:"Video URL"},{key:"th_vid_text",placeholder:"Caption"}],()=>({video_url:getInput("th_vid_url"),text:getInput("th_vid_text")}),Video)}
+        {renderInputAction("Carousel Thread","threads-api","create_carousel_thread",[{key:"th_car_text",placeholder:"Caption"},{key:"th_car_urls",placeholder:"Image URLs (comma sep)"}],()=>({text:getInput("th_car_text"),items:getInput("th_car_urls").split(",").map(s=>({media_type:"IMAGE",image_url:s.trim()}))}),Layers)}
         {renderInputAction("Reply to Thread","threads-api","create_text_thread",[{key:"th_reply_id",placeholder:"Thread ID to reply"},{key:"th_reply_text",placeholder:"Reply..."}],()=>({text:getInput("th_reply_text"),reply_to_id:getInput("th_reply_id")}),MessageCircle)}
         {renderInputAction("Quote Thread","threads-api","create_text_thread",[{key:"th_quote_id",placeholder:"Thread ID to quote"},{key:"th_quote_text",placeholder:"Comment..."}],()=>({text:getInput("th_quote_text"),quote_post_id:getInput("th_quote_id")}),Repeat)}
       </TabsContent>
@@ -498,27 +631,26 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
         {renderInputAction("Get Replies","threads-api","get_replies",[{key:"th_rep_id",placeholder:"Thread ID"}],()=>({thread_id:getInput("th_rep_id"),limit:25}),MessageCircle)}
         {renderInputAction("Conversation","threads-api","get_conversation",[{key:"th_conv_id",placeholder:"Thread ID"}],()=>({thread_id:getInput("th_conv_id"),limit:25}),Layers)}
         {renderInputAction("Hide Reply","threads-api","hide_reply",[{key:"th_hide_id",placeholder:"Reply ID"}],()=>({reply_id:getInput("th_hide_id")}),EyeOff)}
+        {renderInputAction("Reply Control","threads-api","get_reply_control",[{key:"th_rc_id",placeholder:"Thread ID"}],()=>({thread_id:getInput("th_rc_id")}),Shield)}
       </TabsContent>
       <TabsContent value="insights" className="space-y-2 mt-3">
         {renderInputAction("Thread Insights","threads-api","get_thread_insights",[{key:"th_ins_id",placeholder:"Thread ID"}],()=>({thread_id:getInput("th_ins_id")}),BarChart3)}
         {renderActionButton("User Insights (30d)","threads-api","get_user_insights",{period:"last_30_days"},TrendingUp)}
+        {renderActionButton("User Insights (7d)","threads-api","get_user_insights",{period:"last_7_days"},TrendingUp)}
       </TabsContent>
       <TabsContent value="ai" className="space-y-2 mt-3">
         {renderInputAction("AI Thread Post","social-ai-responder","generate_caption",[{key:"ai_th_topic",placeholder:"Topic"}],()=>({topic:getInput("ai_th_topic"),platform:"threads",include_cta:true}),Brain)}
         {renderInputAction("AI Reply","social-ai-responder","generate_dm_reply",[{key:"ai_th_reply",placeholder:"Thread to reply to..."}],()=>({message_text:getInput("ai_th_reply"),sender_name:"user"}),Zap)}
-        {renderInputAction("AI Conversation Starter","social-ai-responder","generate_caption",[{key:"ai_th_convo",placeholder:"Your niche"}],()=>({topic:`Write 10 engaging Threads conversation starters (questions, opinions, debates) for: ${getInput("ai_th_convo")}`,platform:"threads",include_cta:false}),MessageCircle)}
-        {renderInputAction("AI Quote Thread","social-ai-responder","generate_caption",[{key:"ai_th_quote",placeholder:"Original thread topic"}],()=>({topic:`Write a witty quote-thread response adding unique perspective to: ${getInput("ai_th_quote")}`,platform:"threads",include_cta:false}),Repeat)}
-        {renderInputAction("AI Bio Writer","social-ai-responder","generate_caption",[{key:"ai_th_bio",placeholder:"Describe your brand"}],()=>({topic:`Write a compelling Threads bio (150 chars) for: ${getInput("ai_th_bio")}`,platform:"threads",include_cta:false}),Users)}
+        {renderInputAction("AI Conversation Starter","social-ai-responder","generate_caption",[{key:"ai_th_convo",placeholder:"Your niche"}],()=>({topic:`Write 10 engaging Threads conversation starters for: ${getInput("ai_th_convo")}`,platform:"threads",include_cta:false}),MessageCircle)}
         {renderInputAction("AI Content Calendar","social-ai-responder","generate_caption",[{key:"ai_th_cal",placeholder:"Niche for 7-day plan"}],()=>({topic:`Create a 7-day Threads content calendar with daily post ideas for: ${getInput("ai_th_cal")}`,platform:"threads",include_cta:false}),Calendar)}
       </TabsContent>
     </Tabs>
   );
 
-  // ===== WHATSAPP =====
   const renderWhatsAppContent = () => (
     <Tabs defaultValue="messages" className="w-full">
       <TabsList className="bg-muted/50 border border-border p-0.5 rounded-lg gap-0.5 flex-wrap h-auto">
-        {[{v:"messages",l:"Messages",icon:Send},{v:"media",l:"Media",icon:Image},{v:"templates",l:"Templates",icon:FileText},{v:"business",l:"Business",icon:Briefcase},{v:"analytics",l:"Analytics",icon:BarChart3},{v:"ai",l:"AI",icon:Brain}].map(t=>(
+        {[{v:"messages",l:"Messages",icon:Send},{v:"interactive",l:"Interactive",icon:Zap},{v:"media",l:"Media",icon:Image},{v:"templates",l:"Templates",icon:FileText},{v:"business",l:"Business",icon:Briefcase},{v:"analytics",l:"Analytics",icon:BarChart3},{v:"flows",l:"Flows",icon:Activity},{v:"ai",l:"AI",icon:Brain}].map(t=>(
           <TabsTrigger key={t.v} value={t.v} className="text-[10px] gap-1 px-2 py-1 data-[state=active]:bg-background"><t.icon className="h-3 w-3"/>{t.l}</TabsTrigger>
         ))}
       </TabsList>
@@ -526,123 +658,165 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
         {renderInputAction("Send Text","whatsapp-api","send_text",[{key:"wa_to",placeholder:"Phone (+1234...)"},{key:"wa_text",placeholder:"Message"}],()=>({to:getInput("wa_to"),text:getInput("wa_text")}),Send)}
         {renderInputAction("Send Image","whatsapp-api","send_image",[{key:"wa_img_to",placeholder:"Phone"},{key:"wa_img_url",placeholder:"Image URL"},{key:"wa_img_cap",placeholder:"Caption"}],()=>({to:getInput("wa_img_to"),image_url:getInput("wa_img_url"),caption:getInput("wa_img_cap")}),Image)}
         {renderInputAction("Send Video","whatsapp-api","send_video",[{key:"wa_vid_to",placeholder:"Phone"},{key:"wa_vid_url",placeholder:"Video URL"}],()=>({to:getInput("wa_vid_to"),video_url:getInput("wa_vid_url")}),Video)}
+        {renderInputAction("Send Audio","whatsapp-api","send_audio",[{key:"wa_aud_to",placeholder:"Phone"},{key:"wa_aud_url",placeholder:"Audio URL"}],()=>({to:getInput("wa_aud_to"),audio_url:getInput("wa_aud_url")}),Volume2)}
         {renderInputAction("Send Document","whatsapp-api","send_document",[{key:"wa_doc_to",placeholder:"Phone"},{key:"wa_doc_url",placeholder:"Doc URL"},{key:"wa_doc_name",placeholder:"Filename"}],()=>({to:getInput("wa_doc_to"),document_url:getInput("wa_doc_url"),filename:getInput("wa_doc_name")}),FileText)}
+        {renderInputAction("Send Sticker","whatsapp-api","send_sticker",[{key:"wa_stk_to",placeholder:"Phone"},{key:"wa_stk_url",placeholder:"Sticker URL"}],()=>({to:getInput("wa_stk_to"),sticker_url:getInput("wa_stk_url")}),Star)}
         {renderInputAction("Send Location","whatsapp-api","send_location",[{key:"wa_loc_to",placeholder:"Phone"},{key:"wa_loc_lat",placeholder:"Lat"},{key:"wa_loc_lng",placeholder:"Lng"}],()=>({to:getInput("wa_loc_to"),latitude:parseFloat(getInput("wa_loc_lat")),longitude:parseFloat(getInput("wa_loc_lng"))}),MapPin)}
         {renderInputAction("Send Template","whatsapp-api","send_template",[{key:"wa_tpl_to",placeholder:"Phone"},{key:"wa_tpl_name",placeholder:"Template name"},{key:"wa_tpl_lang",placeholder:"Language (en_US)"}],()=>({to:getInput("wa_tpl_to"),template_name:getInput("wa_tpl_name"),language:getInput("wa_tpl_lang")||"en_US"}),FileText)}
         {renderInputAction("React","whatsapp-api","send_reaction",[{key:"wa_react_to",placeholder:"Phone"},{key:"wa_react_msg",placeholder:"Message ID"},{key:"wa_react_emoji",placeholder:"Emoji"}],()=>({to:getInput("wa_react_to"),message_id:getInput("wa_react_msg"),emoji:getInput("wa_react_emoji")}),Heart)}
         {renderInputAction("Mark Read","whatsapp-api","mark_as_read",[{key:"wa_read_msg",placeholder:"Message ID"}],()=>({message_id:getInput("wa_read_msg")}),Eye)}
       </TabsContent>
+      <TabsContent value="interactive" className="space-y-2 mt-3">
+        {renderInputAction("Button Message","whatsapp-api","send_interactive_buttons",[{key:"wa_btn_to",placeholder:"Phone"},{key:"wa_btn_body",placeholder:"Body text"},{key:"wa_btn_json",placeholder:'Buttons JSON [{"type":"reply","reply":{"id":"1","title":"Yes"}}]'}],()=>({to:getInput("wa_btn_to"),body_text:getInput("wa_btn_body"),buttons:JSON.parse(getInput("wa_btn_json")||"[]")}),Zap)}
+        {renderInputAction("List Message","whatsapp-api","send_interactive_list",[{key:"wa_list_to",placeholder:"Phone"},{key:"wa_list_body",placeholder:"Body text"},{key:"wa_list_btn",placeholder:"Button text"},{key:"wa_list_json",placeholder:"Sections JSON"}],()=>({to:getInput("wa_list_to"),body_text:getInput("wa_list_body"),button_text:getInput("wa_list_btn"),sections:JSON.parse(getInput("wa_list_json")||"[]")}),List)}
+        {renderInputAction("Send Contacts","whatsapp-api","send_contacts",[{key:"wa_cnt_to",placeholder:"Phone"},{key:"wa_cnt_json",placeholder:"Contacts JSON"}],()=>({to:getInput("wa_cnt_to"),contacts:JSON.parse(getInput("wa_cnt_json")||"[]")}),Users)}
+      </TabsContent>
       <TabsContent value="media" className="space-y-2 mt-3">
         {renderInputAction("Get Media","whatsapp-api","get_media",[{key:"wa_media_id",placeholder:"Media ID"}],()=>({media_id:getInput("wa_media_id")}),Image)}
+        {renderInputAction("Upload Media","whatsapp-api","upload_media",[{key:"wa_um_url",placeholder:"File URL"},{key:"wa_um_type",placeholder:"MIME type"}],()=>({url:getInput("wa_um_url"),type:getInput("wa_um_type")}),Upload)}
         {renderInputAction("Delete Media","whatsapp-api","delete_media",[{key:"wa_del_media",placeholder:"Media ID"}],()=>({media_id:getInput("wa_del_media")}),Trash2)}
       </TabsContent>
       <TabsContent value="templates" className="space-y-2 mt-3">
         {renderInputAction("Get Templates","whatsapp-api","get_templates",[{key:"wa_tpl_waba",placeholder:"WABA ID"}],()=>({waba_id:getInput("wa_tpl_waba"),limit:50}),FileText)}
+        {renderInputAction("Create Template","whatsapp-api","create_template",[{key:"wa_ctpl_waba",placeholder:"WABA ID"},{key:"wa_ctpl_name",placeholder:"Name"},{key:"wa_ctpl_cat",placeholder:"Category (MARKETING)"},{key:"wa_ctpl_json",placeholder:"Components JSON"}],()=>({waba_id:getInput("wa_ctpl_waba"),name:getInput("wa_ctpl_name"),category:getInput("wa_ctpl_cat")||"MARKETING",components:JSON.parse(getInput("wa_ctpl_json")||"[]")}),FileText)}
         {renderInputAction("Delete Template","whatsapp-api","delete_template",[{key:"wa_dtpl_waba",placeholder:"WABA ID"},{key:"wa_dtpl_name",placeholder:"Template name"}],()=>({waba_id:getInput("wa_dtpl_waba"),name:getInput("wa_dtpl_name")}),Trash2)}
       </TabsContent>
       <TabsContent value="business" className="space-y-2 mt-3">
         {renderInputAction("Business Profile","whatsapp-api","get_business_profile",[{key:"wa_bp_pid",placeholder:"Phone Number ID"}],()=>({phone_number_id:getInput("wa_bp_pid")}),Briefcase)}
+        {renderInputAction("Update Profile","whatsapp-api","update_business_profile",[{key:"wa_ubp_pid",placeholder:"Phone Number ID"},{key:"wa_ubp_about",placeholder:"About"},{key:"wa_ubp_desc",placeholder:"Description"}],()=>({phone_number_id:getInput("wa_ubp_pid"),about:getInput("wa_ubp_about"),description:getInput("wa_ubp_desc")}),Settings)}
         {renderInputAction("Phone Numbers","whatsapp-api","get_phone_numbers",[{key:"wa_pn_waba",placeholder:"WABA ID"}],()=>({waba_id:getInput("wa_pn_waba")}),Phone)}
-        {renderInputAction("Get Flows","whatsapp-api","get_flows",[{key:"wa_fl_waba",placeholder:"WABA ID"}],()=>({waba_id:getInput("wa_fl_waba")}),Activity)}
+        {renderInputAction("Phone Details","whatsapp-api","get_phone_number",[{key:"wa_pd_id",placeholder:"Phone Number ID"}],()=>({phone_number_id:getInput("wa_pd_id")}),Eye)}
+        {renderInputAction("Register Webhook","whatsapp-api","register_webhook",[{key:"wa_wh_waba",placeholder:"WABA ID"}],()=>({waba_id:getInput("wa_wh_waba")}),Zap)}
       </TabsContent>
       <TabsContent value="analytics" className="space-y-2 mt-3">
         {renderInputAction("Analytics","whatsapp-api","get_analytics",[{key:"wa_an_waba",placeholder:"WABA ID"}],()=>({waba_id:getInput("wa_an_waba")}),BarChart3)}
         {renderInputAction("Conversation Analytics","whatsapp-api","get_conversation_analytics",[{key:"wa_ca_waba",placeholder:"WABA ID"}],()=>({waba_id:getInput("wa_ca_waba")}),TrendingUp)}
       </TabsContent>
+      <TabsContent value="flows" className="space-y-2 mt-3">
+        {renderInputAction("Get Flows","whatsapp-api","get_flows",[{key:"wa_fl_waba",placeholder:"WABA ID"}],()=>({waba_id:getInput("wa_fl_waba")}),Activity)}
+        {renderInputAction("Create Flow","whatsapp-api","create_flow",[{key:"wa_cfl_waba",placeholder:"WABA ID"},{key:"wa_cfl_name",placeholder:"Flow Name"}],()=>({waba_id:getInput("wa_cfl_waba"),name:getInput("wa_cfl_name")}),Activity)}
+      </TabsContent>
       <TabsContent value="ai" className="space-y-2 mt-3">
         {renderInputAction("AI Message","social-ai-responder","generate_caption",[{key:"ai_wa_topic",placeholder:"Topic"}],()=>({topic:getInput("ai_wa_topic"),platform:"whatsapp",include_cta:true}),Brain)}
         {renderInputAction("AI Auto-Reply","social-ai-responder","generate_dm_reply",[{key:"ai_wa_msg",placeholder:"Incoming message..."}],()=>({message_text:getInput("ai_wa_msg"),sender_name:"customer"}),Zap)}
-        {renderInputAction("AI Template Creator","social-ai-responder","generate_caption",[{key:"ai_wa_tpl",placeholder:"Template purpose (welcome, promo, etc)"}],()=>({topic:`Write a WhatsApp Business message template for: ${getInput("ai_wa_tpl")}. Include header, body with variables {{1}}, and CTA button text.`,platform:"whatsapp",include_cta:true}),FileText)}
-        {renderInputAction("AI Broadcast Message","social-ai-responder","generate_caption",[{key:"ai_wa_bcast",placeholder:"Broadcast topic"}],()=>({topic:`Write a WhatsApp broadcast message (max 1024 chars) promoting: ${getInput("ai_wa_bcast")}`,platform:"whatsapp",include_cta:true}),Megaphone)}
-        {renderInputAction("AI Customer Service","social-ai-responder","generate_dm_reply",[{key:"ai_wa_cs",placeholder:"Customer complaint/query..."}],()=>({message_text:getInput("ai_wa_cs"),sender_name:"customer"}),Shield)}
-        {renderInputAction("AI Quick Replies","social-ai-responder","generate_caption",[{key:"ai_wa_qr",placeholder:"Business type/niche"}],()=>({topic:`Generate 10 WhatsApp quick reply templates for common customer questions about: ${getInput("ai_wa_qr")}`,platform:"whatsapp",include_cta:false}),Zap)}
-        {renderInputAction("AI Catalog Description","social-ai-responder","generate_caption",[{key:"ai_wa_cat",placeholder:"Product name/type"}],()=>({topic:`Write a compelling WhatsApp catalog product description for: ${getInput("ai_wa_cat")}`,platform:"whatsapp",include_cta:true}),Layers)}
+        {renderInputAction("AI Template Creator","social-ai-responder","generate_caption",[{key:"ai_wa_tpl",placeholder:"Template purpose"}],()=>({topic:`Write a WhatsApp Business message template for: ${getInput("ai_wa_tpl")}`,platform:"whatsapp",include_cta:true}),FileText)}
+        {renderInputAction("AI Broadcast","social-ai-responder","generate_caption",[{key:"ai_wa_bcast",placeholder:"Broadcast topic"}],()=>({topic:`Write a WhatsApp broadcast message promoting: ${getInput("ai_wa_bcast")}`,platform:"whatsapp",include_cta:true}),Megaphone)}
+        {renderInputAction("AI Quick Replies","social-ai-responder","generate_caption",[{key:"ai_wa_qr",placeholder:"Business type"}],()=>({topic:`Generate 10 WhatsApp quick reply templates for: ${getInput("ai_wa_qr")}`,platform:"whatsapp",include_cta:false}),Zap)}
       </TabsContent>
     </Tabs>
   );
 
-  // ===== SIGNAL =====
   const renderSignalContent = () => (
     <Tabs defaultValue="messages" className="w-full">
       <TabsList className="bg-muted/50 border border-border p-0.5 rounded-lg gap-0.5 flex-wrap h-auto">
-        {[{v:"messages",l:"Messages",icon:Send},{v:"groups",l:"Groups",icon:Users},{v:"contacts",l:"Contacts",icon:Users},{v:"setup",l:"Setup",icon:Settings},{v:"ai",l:"AI",icon:Brain}].map(t=>(
+        {[{v:"messages",l:"Messages",icon:Send},{v:"groups",l:"Groups",icon:Users},{v:"contacts",l:"Contacts",icon:Users},{v:"identity",l:"Identity",icon:Shield},{v:"setup",l:"Setup",icon:Settings},{v:"ai",l:"AI",icon:Brain}].map(t=>(
           <TabsTrigger key={t.v} value={t.v} className="text-[10px] gap-1 px-2 py-1 data-[state=active]:bg-background"><t.icon className="h-3 w-3"/>{t.l}</TabsTrigger>
         ))}
       </TabsList>
       <TabsContent value="messages" className="space-y-2 mt-3">
         {renderInputAction("Send Message","signal-api","send_message",[{key:"sig_from",placeholder:"Sender number"},{key:"sig_to",placeholder:"Recipient"},{key:"sig_text",placeholder:"Message"}],()=>({sender_number:getInput("sig_from"),to:getInput("sig_to"),message:getInput("sig_text")}),Send)}
+        {renderInputAction("Send Attachment","signal-api","send_attachment",[{key:"sig_att_from",placeholder:"Sender"},{key:"sig_att_to",placeholder:"Recipient"},{key:"sig_att_msg",placeholder:"Caption"},{key:"sig_att_b64",placeholder:"Base64 data"}],()=>({sender_number:getInput("sig_att_from"),to:getInput("sig_att_to"),message:getInput("sig_att_msg"),attachments:[getInput("sig_att_b64")]}),Upload)}
         {renderInputAction("Get Messages","signal-api","get_messages",[{key:"sig_recv",placeholder:"Your number"}],()=>({number:getInput("sig_recv")}),MessageSquare)}
         {renderInputAction("React","signal-api","send_reaction",[{key:"sig_react_from",placeholder:"Sender"},{key:"sig_react_to",placeholder:"Recipient"},{key:"sig_react_emoji",placeholder:"Emoji"},{key:"sig_react_ts",placeholder:"Target timestamp"}],()=>({sender_number:getInput("sig_react_from"),recipient:getInput("sig_react_to"),emoji:getInput("sig_react_emoji"),target_author:getInput("sig_react_to"),target_timestamp:parseInt(getInput("sig_react_ts"))}),Heart)}
-        {renderInputAction("Typing Indicator","signal-api","send_typing",[{key:"sig_type_from",placeholder:"Sender"},{key:"sig_type_to",placeholder:"Recipient"}],()=>({sender_number:getInput("sig_type_from"),recipient:getInput("sig_type_to")}),Activity)}
+        {renderInputAction("Remove Reaction","signal-api","remove_reaction",[{key:"sig_rr_from",placeholder:"Sender"},{key:"sig_rr_to",placeholder:"Recipient"},{key:"sig_rr_ts",placeholder:"Target timestamp"}],()=>({sender_number:getInput("sig_rr_from"),recipient:getInput("sig_rr_to"),target_author:getInput("sig_rr_to"),target_timestamp:parseInt(getInput("sig_rr_ts"))}),Heart)}
+        {renderInputAction("Delete Message","signal-api","delete_message",[{key:"sig_dm_num",placeholder:"Your number"},{key:"sig_dm_recip",placeholder:"Recipient"},{key:"sig_dm_ts",placeholder:"Timestamp"}],()=>({number:getInput("sig_dm_num"),recipient:getInput("sig_dm_recip"),timestamp:parseInt(getInput("sig_dm_ts"))}),Trash2)}
+        {renderInputAction("Typing","signal-api","send_typing",[{key:"sig_type_from",placeholder:"Sender"},{key:"sig_type_to",placeholder:"Recipient"}],()=>({sender_number:getInput("sig_type_from"),recipient:getInput("sig_type_to")}),Activity)}
       </TabsContent>
       <TabsContent value="groups" className="space-y-2 mt-3">
         {renderInputAction("List Groups","signal-api","list_groups",[{key:"sig_lg_num",placeholder:"Your number"}],()=>({number:getInput("sig_lg_num")}),Users)}
         {renderInputAction("Create Group","signal-api","create_group",[{key:"sig_cg_num",placeholder:"Your number"},{key:"sig_cg_name",placeholder:"Group name"},{key:"sig_cg_members",placeholder:"Members (comma sep)"}],()=>({number:getInput("sig_cg_num"),name:getInput("sig_cg_name"),members:getInput("sig_cg_members").split(",").map(s=>s.trim())}),UserPlus)}
+        {renderInputAction("Update Group","signal-api","update_group",[{key:"sig_ug_num",placeholder:"Your number"},{key:"sig_ug_gid",placeholder:"Group ID"},{key:"sig_ug_name",placeholder:"New name"}],()=>({number:getInput("sig_ug_num"),group_id:getInput("sig_ug_gid"),name:getInput("sig_ug_name")}),Settings)}
         {renderInputAction("Group Message","signal-api","send_group_message",[{key:"sig_gm_from",placeholder:"Sender"},{key:"sig_gm_gid",placeholder:"Group ID"},{key:"sig_gm_text",placeholder:"Message"}],()=>({sender_number:getInput("sig_gm_from"),group_id:getInput("sig_gm_gid"),message:getInput("sig_gm_text")}),Send)}
+        {renderInputAction("Leave Group","signal-api","leave_group",[{key:"sig_lg2_num",placeholder:"Your number"},{key:"sig_lg2_gid",placeholder:"Group ID"}],()=>({number:getInput("sig_lg2_num"),group_id:getInput("sig_lg2_gid")}),UserMinus)}
+        {renderInputAction("Delete Group","signal-api","delete_group",[{key:"sig_dg_num",placeholder:"Your number"},{key:"sig_dg_gid",placeholder:"Group ID"}],()=>({number:getInput("sig_dg_num"),group_id:getInput("sig_dg_gid")}),Trash2)}
       </TabsContent>
       <TabsContent value="contacts" className="space-y-2 mt-3">
         {renderInputAction("List Contacts","signal-api","list_contacts",[{key:"sig_lc_num",placeholder:"Your number"}],()=>({number:getInput("sig_lc_num")}),Users)}
+        {renderInputAction("Update Contact","signal-api","update_contact",[{key:"sig_uc_num",placeholder:"Your number"},{key:"sig_uc_recip",placeholder:"Contact number"},{key:"sig_uc_name",placeholder:"Name"}],()=>({number:getInput("sig_uc_num"),recipient:getInput("sig_uc_recip"),name:getInput("sig_uc_name")}),Settings)}
         {renderInputAction("Block","signal-api","block_contact",[{key:"sig_blk_num",placeholder:"Your number"},{key:"sig_blk_who",placeholder:"Contact number"}],()=>({number:getInput("sig_blk_num"),recipient:getInput("sig_blk_who")}),Shield)}
         {renderInputAction("Unblock","signal-api","unblock_contact",[{key:"sig_ublk_num",placeholder:"Your number"},{key:"sig_ublk_who",placeholder:"Contact number"}],()=>({number:getInput("sig_ublk_num"),recipient:getInput("sig_ublk_who")}),UserPlus)}
       </TabsContent>
+      <TabsContent value="identity" className="space-y-2 mt-3">
+        {renderInputAction("List Identities","signal-api","list_identities",[{key:"sig_li_num",placeholder:"Your number"}],()=>({number:getInput("sig_li_num")}),Shield)}
+        {renderInputAction("Trust Identity","signal-api","trust_identity",[{key:"sig_ti_num",placeholder:"Your number"},{key:"sig_ti_recip",placeholder:"Contact number"}],()=>({number:getInput("sig_ti_num"),recipient:getInput("sig_ti_recip")}),Shield)}
+        {renderInputAction("Sticker Packs","signal-api","list_sticker_packs",[{key:"sig_sp_num",placeholder:"Your number"}],()=>({number:getInput("sig_sp_num")}),Star)}
+      </TabsContent>
       <TabsContent value="setup" className="space-y-2 mt-3">
         {renderInputAction("List Accounts","signal-api","list_accounts",[],()=>({}),Users)}
+        {renderInputAction("Get Account","signal-api","get_account",[{key:"sig_ga_num",placeholder:"Phone number"}],()=>({number:getInput("sig_ga_num")}),Eye)}
+        {renderInputAction("Set Profile","signal-api","set_profile",[{key:"sig_sp2_num",placeholder:"Your number"},{key:"sig_sp2_name",placeholder:"Name"},{key:"sig_sp2_about",placeholder:"About"}],()=>({number:getInput("sig_sp2_num"),name:getInput("sig_sp2_name"),about:getInput("sig_sp2_about")}),Users)}
         {renderInputAction("Register","signal-api","register",[{key:"sig_reg_url",placeholder:"API URL"},{key:"sig_reg_num",placeholder:"Phone number"}],()=>({api_url:getInput("sig_reg_url"),number:getInput("sig_reg_num")}),Settings)}
         {renderInputAction("Verify","signal-api","verify",[{key:"sig_ver_url",placeholder:"API URL"},{key:"sig_ver_num",placeholder:"Phone"},{key:"sig_ver_code",placeholder:"Code"}],()=>({api_url:getInput("sig_ver_url"),number:getInput("sig_ver_num"),verification_code:getInput("sig_ver_code")}),Shield)}
+        {renderInputAction("Link Device","signal-api","link_device",[{key:"sig_ld_url",placeholder:"API URL"},{key:"sig_ld_name",placeholder:"Device name"}],()=>({api_url:getInput("sig_ld_url"),device_name:getInput("sig_ld_name")||"Lovable"}),Link2)}
       </TabsContent>
       <TabsContent value="ai" className="space-y-2 mt-3">
         {renderInputAction("AI Message","social-ai-responder","generate_caption",[{key:"ai_sig_topic",placeholder:"Topic"}],()=>({topic:getInput("ai_sig_topic"),platform:"signal",include_cta:false}),Brain)}
         {renderInputAction("AI Auto-Reply","social-ai-responder","generate_dm_reply",[{key:"ai_sig_dm",placeholder:"Incoming message..."}],()=>({message_text:getInput("ai_sig_dm"),sender_name:"contact"}),Zap)}
         {renderInputAction("AI Group Announcement","social-ai-responder","generate_caption",[{key:"ai_sig_grp",placeholder:"Announcement topic"}],()=>({topic:`Write a Signal group announcement about: ${getInput("ai_sig_grp")}`,platform:"signal",include_cta:false}),Megaphone)}
-        {renderInputAction("AI Secure Meeting Invite","social-ai-responder","generate_caption",[{key:"ai_sig_meet",placeholder:"Meeting purpose"}],()=>({topic:`Write a professional Signal meeting invitation for: ${getInput("ai_sig_meet")}`,platform:"signal",include_cta:false}),Calendar)}
       </TabsContent>
     </Tabs>
   );
 
-  // ===== YOUTUBE =====
   const renderYouTubeContent = () => (
     <Tabs defaultValue="channel" className="w-full">
       <TabsList className="bg-muted/50 border border-border p-0.5 rounded-lg gap-0.5 flex-wrap h-auto">
-        {[{v:"channel",l:"Channel",icon:Users},{v:"videos",l:"Videos",icon:Video},{v:"comments",l:"Comments",icon:MessageSquare},{v:"playlists",l:"Playlists",icon:List},{v:"search",l:"Search",icon:Search},{v:"live",l:"Live",icon:Radio},{v:"analytics",l:"Analytics",icon:BarChart3},{v:"ai",l:"AI",icon:Brain}].map(t=>(
+        {[{v:"channel",l:"Channel",icon:Users},{v:"videos",l:"Videos",icon:Video},{v:"comments",l:"Comments",icon:MessageSquare},{v:"playlists",l:"Playlists",icon:List},{v:"subs",l:"Subs",icon:Bell},{v:"search",l:"Search",icon:Search},{v:"live",l:"Live",icon:Radio},{v:"analytics",l:"Analytics",icon:BarChart3},{v:"ai",l:"AI",icon:Brain}].map(t=>(
           <TabsTrigger key={t.v} value={t.v} className="text-[10px] gap-1 px-2 py-1 data-[state=active]:bg-background"><t.icon className="h-3 w-3"/>{t.l}</TabsTrigger>
         ))}
       </TabsList>
       <TabsContent value="channel" className="space-y-2 mt-3">
         <div className="flex gap-1.5 flex-wrap">
           {renderActionButton("My Channel","youtube-api","get_my_channel",{},Users)}
-          {renderActionButton("Subscriptions","youtube-api","get_subscriptions",{limit:25},Bell)}
+          {renderActionButton("Categories","youtube-api","get_categories",{region:"US"},Layers)}
+          {renderActionButton("Sections","youtube-api","get_channel_sections",{},FolderOpen)}
         </div>
         {renderInputAction("Lookup Channel","youtube-api","get_channel_by_username",[{key:"yt_lookup",placeholder:"@handle"}],()=>({username:getInput("yt_lookup")}),Search)}
-        {renderInputAction("Subscribe","youtube-api","subscribe",[{key:"yt_sub_ch",placeholder:"Channel ID"}],()=>({channel_id:getInput("yt_sub_ch")}),UserPlus)}
+        {renderInputAction("Channel by ID","youtube-api","get_channel",[{key:"yt_ch_id",placeholder:"Channel ID"}],()=>({channel_id:getInput("yt_ch_id")}),Eye)}
       </TabsContent>
       <TabsContent value="videos" className="space-y-2 mt-3">
         {renderActionButton("My Videos","youtube-api","list_my_videos",{limit:25},Video)}
         {renderInputAction("Get Video","youtube-api","get_video",[{key:"yt_vid_id",placeholder:"Video ID"}],()=>({video_id:getInput("yt_vid_id")}),Eye)}
         {renderInputAction("Delete Video","youtube-api","delete_video",[{key:"yt_del_vid",placeholder:"Video ID"}],()=>({video_id:getInput("yt_del_vid")}),Trash2)}
         {renderInputAction("Like Video","youtube-api","rate_video",[{key:"yt_like_vid",placeholder:"Video ID"}],()=>({video_id:getInput("yt_like_vid"),rating:"like"}),Heart)}
+        {renderInputAction("Dislike Video","youtube-api","rate_video",[{key:"yt_dis_vid",placeholder:"Video ID"}],()=>({video_id:getInput("yt_dis_vid"),rating:"dislike"}),ArrowDown)}
+        {renderInputAction("Get Rating","youtube-api","get_video_rating",[{key:"yt_gr_vid",placeholder:"Video ID"}],()=>({video_id:getInput("yt_gr_vid")}),Star)}
         {renderInputAction("Captions","youtube-api","get_captions",[{key:"yt_cap_vid",placeholder:"Video ID"}],()=>({video_id:getInput("yt_cap_vid")}),FileText)}
       </TabsContent>
       <TabsContent value="comments" className="space-y-2 mt-3">
         {renderInputAction("Get Comments","youtube-api","get_comments",[{key:"yt_cmt_vid",placeholder:"Video ID"}],()=>({video_id:getInput("yt_cmt_vid"),limit:20}),MessageSquare)}
         {renderInputAction("Post Comment","youtube-api","post_comment",[{key:"yt_pc_vid",placeholder:"Video ID"},{key:"yt_pc_text",placeholder:"Comment..."}],()=>({video_id:getInput("yt_pc_vid"),text:getInput("yt_pc_text")}),Send)}
         {renderInputAction("Reply","youtube-api","reply_comment",[{key:"yt_rc_parent",placeholder:"Parent Comment ID"},{key:"yt_rc_text",placeholder:"Reply..."}],()=>({parent_id:getInput("yt_rc_parent"),text:getInput("yt_rc_text")}),MessageSquare)}
+        {renderInputAction("Edit Comment","youtube-api","update_comment",[{key:"yt_uc_id",placeholder:"Comment ID"},{key:"yt_uc_text",placeholder:"New text"}],()=>({comment_id:getInput("yt_uc_id"),text:getInput("yt_uc_text")}),FileText)}
         {renderInputAction("Delete Comment","youtube-api","delete_comment",[{key:"yt_dc_id",placeholder:"Comment ID"}],()=>({comment_id:getInput("yt_dc_id")}),Trash2)}
+        {renderInputAction("Moderate","youtube-api","set_moderation_status",[{key:"yt_mod_id",placeholder:"Comment ID"},{key:"yt_mod_st",placeholder:"published/heldForReview/rejected"}],()=>({comment_id:getInput("yt_mod_id"),status:getInput("yt_mod_st")||"published"}),Shield)}
       </TabsContent>
       <TabsContent value="playlists" className="space-y-2 mt-3">
         {renderActionButton("My Playlists","youtube-api","get_playlists",{limit:25},List)}
         {renderInputAction("Create Playlist","youtube-api","create_playlist",[{key:"yt_pl_title",placeholder:"Title"},{key:"yt_pl_desc",placeholder:"Description"}],()=>({title:getInput("yt_pl_title"),description:getInput("yt_pl_desc")}),FolderOpen)}
+        {renderInputAction("Playlist Items","youtube-api","get_playlist_items",[{key:"yt_pli_id",placeholder:"Playlist ID"}],()=>({playlist_id:getInput("yt_pli_id"),limit:25}),Layers)}
         {renderInputAction("Add to Playlist","youtube-api","add_to_playlist",[{key:"yt_apl_pl",placeholder:"Playlist ID"},{key:"yt_apl_vid",placeholder:"Video ID"}],()=>({playlist_id:getInput("yt_apl_pl"),video_id:getInput("yt_apl_vid")}),UserPlus)}
+        {renderInputAction("Remove from Playlist","youtube-api","remove_from_playlist",[{key:"yt_rpl_item",placeholder:"Playlist Item ID"}],()=>({playlist_item_id:getInput("yt_rpl_item")}),Trash2)}
         {renderInputAction("Delete Playlist","youtube-api","delete_playlist",[{key:"yt_dpl_id",placeholder:"Playlist ID"}],()=>({playlist_id:getInput("yt_dpl_id")}),Trash2)}
+      </TabsContent>
+      <TabsContent value="subs" className="space-y-2 mt-3">
+        {renderActionButton("My Subscriptions","youtube-api","get_subscriptions",{limit:25},Bell)}
+        {renderInputAction("Subscribe","youtube-api","subscribe",[{key:"yt_sub_ch",placeholder:"Channel ID"}],()=>({channel_id:getInput("yt_sub_ch")}),UserPlus)}
+        {renderInputAction("Unsubscribe","youtube-api","unsubscribe",[{key:"yt_unsub_id",placeholder:"Subscription ID"}],()=>({subscription_id:getInput("yt_unsub_id")}),UserMinus)}
       </TabsContent>
       <TabsContent value="search" className="space-y-2 mt-3">
         {renderInputAction("Search","youtube-api","search",[{key:"yt_sq",placeholder:"Query"},{key:"yt_st",placeholder:"Type (video/channel/playlist)"}],()=>({query:getInput("yt_sq"),type:getInput("yt_st")||"video",limit:10}),Search)}
         {renderInputAction("Search My Channel","youtube-api","search_my_channel",[{key:"yt_smc",placeholder:"Query"}],()=>({query:getInput("yt_smc"),limit:10}),Search)}
       </TabsContent>
       <TabsContent value="live" className="space-y-2 mt-3">
-        {renderActionButton("Live Broadcasts","youtube-api","list_live_broadcasts",{status:"all",limit:10},Radio)}
+        <div className="flex gap-1.5 flex-wrap">
+          {renderActionButton("Broadcasts","youtube-api","list_live_broadcasts",{status:"all",limit:10},Radio)}
+          {renderActionButton("Streams","youtube-api","list_live_streams",{limit:10},Activity)}
+        </div>
         {renderInputAction("Create Broadcast","youtube-api","create_live_broadcast",[{key:"yt_lb_title",placeholder:"Title"},{key:"yt_lb_start",placeholder:"Start time (ISO)"}],()=>({title:getInput("yt_lb_title"),start_time:getInput("yt_lb_start")}),Radio)}
+        {renderInputAction("Transition","youtube-api","transition_broadcast",[{key:"yt_tb_id",placeholder:"Broadcast ID"},{key:"yt_tb_st",placeholder:"Status (testing/live/complete)"}],()=>({broadcast_id:getInput("yt_tb_id"),status:getInput("yt_tb_st")}),Play)}
         {renderInputAction("Chat Messages","youtube-api","get_live_chat_messages",[{key:"yt_lc_id",placeholder:"Live Chat ID"}],()=>({live_chat_id:getInput("yt_lc_id"),limit:50}),MessageSquare)}
         {renderInputAction("Send Chat","youtube-api","send_live_chat_message",[{key:"yt_sc_id",placeholder:"Live Chat ID"},{key:"yt_sc_msg",placeholder:"Message"}],()=>({live_chat_id:getInput("yt_sc_id"),message:getInput("yt_sc_msg")}),Send)}
+        {renderInputAction("Ban User","youtube-api","ban_live_chat_user",[{key:"yt_ban_chat",placeholder:"Live Chat ID"},{key:"yt_ban_ch",placeholder:"Channel ID"}],()=>({live_chat_id:getInput("yt_ban_chat"),channel_id:getInput("yt_ban_ch")}),Shield)}
       </TabsContent>
       <TabsContent value="analytics" className="space-y-2 mt-3">
         {renderActionButton("Channel Analytics","youtube-api","get_channel_analytics",{},BarChart3)}
@@ -653,22 +827,18 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
       <TabsContent value="ai" className="space-y-2 mt-3">
         {renderInputAction("AI Title/Description","social-ai-responder","generate_caption",[{key:"ai_yt_topic",placeholder:"Video topic"}],()=>({topic:getInput("ai_yt_topic"),platform:"youtube",include_cta:true}),Brain)}
         {renderInputAction("AI Comment Reply","social-ai-responder","generate_dm_reply",[{key:"ai_yt_cmt",placeholder:"Comment text..."}],()=>({message_text:getInput("ai_yt_cmt"),sender_name:"viewer"}),Zap)}
-        {renderInputAction("AI Tag Generator","social-ai-responder","generate_caption",[{key:"ai_yt_tags",placeholder:"Video topic"}],()=>({topic:`Generate 20 SEO-optimized YouTube tags for a video about: ${getInput("ai_yt_tags")}`,platform:"youtube",include_cta:false}),Hash)}
-        {renderInputAction("AI Thumbnail Text","social-ai-responder","generate_caption",[{key:"ai_yt_thumb",placeholder:"Video topic"}],()=>({topic:`Write 5 attention-grabbing YouTube thumbnail text options (max 5 words each) for: ${getInput("ai_yt_thumb")}`,platform:"youtube",include_cta:false}),Image)}
+        {renderInputAction("AI Tag Generator","social-ai-responder","generate_caption",[{key:"ai_yt_tags",placeholder:"Video topic"}],()=>({topic:`Generate 20 SEO-optimized YouTube tags for: ${getInput("ai_yt_tags")}`,platform:"youtube",include_cta:false}),Hash)}
         {renderInputAction("AI Script Outline","social-ai-responder","generate_caption",[{key:"ai_yt_script",placeholder:"Video topic"}],()=>({topic:`Write a YouTube video script outline with intro hook, 5 main points, and CTA for: ${getInput("ai_yt_script")}`,platform:"youtube",include_cta:true}),FileText)}
-        {renderInputAction("AI Community Post","social-ai-responder","generate_caption",[{key:"ai_yt_comm",placeholder:"Topic for community tab"}],()=>({topic:`Write an engaging YouTube community post with poll options about: ${getInput("ai_yt_comm")}`,platform:"youtube",include_cta:false}),Users)}
-        {renderInputAction("AI End Screen CTA","social-ai-responder","generate_caption",[{key:"ai_yt_end",placeholder:"Video topic"}],()=>({topic:`Write 3 compelling YouTube end-screen verbal CTAs for a video about: ${getInput("ai_yt_end")}`,platform:"youtube",include_cta:true}),Play)}
-        {renderInputAction("AI Live Chat Mod","social-ai-responder","generate_dm_reply",[{key:"ai_yt_live",placeholder:"Live chat message..."}],()=>({message_text:getInput("ai_yt_live"),sender_name:"viewer"}),Radio)}
-        {renderInputAction("AI Shorts Idea","social-ai-responder","generate_caption",[{key:"ai_yt_shorts",placeholder:"Your niche"}],()=>({topic:`Generate 10 viral YouTube Shorts ideas with hooks for: ${getInput("ai_yt_shorts")}`,platform:"youtube",include_cta:false}),Video)}
+        {renderInputAction("AI Shorts Ideas","social-ai-responder","generate_caption",[{key:"ai_yt_shorts",placeholder:"Your niche"}],()=>({topic:`Generate 10 viral YouTube Shorts ideas with hooks for: ${getInput("ai_yt_shorts")}`,platform:"youtube",include_cta:false}),Video)}
+        {renderInputAction("AI Live Chat Mod","social-ai-responder","generate_dm_reply",[{key:"ai_yt_live",placeholder:"Chat message..."}],()=>({message_text:getInput("ai_yt_live"),sender_name:"viewer"}),Radio)}
       </TabsContent>
     </Tabs>
   );
 
-  // ===== PINTEREST =====
   const renderPinterestContent = () => (
     <Tabs defaultValue="pins" className="w-full">
       <TabsList className="bg-muted/50 border border-border p-0.5 rounded-lg gap-0.5 flex-wrap h-auto">
-        {[{v:"pins",l:"Pins",icon:Image},{v:"boards",l:"Boards",icon:Layers},{v:"search",l:"Search",icon:Search},{v:"analytics",l:"Analytics",icon:BarChart3},{v:"ads",l:"Ads",icon:Megaphone},{v:"ai",l:"AI",icon:Brain}].map(t=>(
+        {[{v:"pins",l:"Pins",icon:Image},{v:"boards",l:"Boards",icon:Layers},{v:"search",l:"Search",icon:Search},{v:"analytics",l:"Analytics",icon:BarChart3},{v:"ads",l:"Ads",icon:Megaphone},{v:"catalogs",l:"Catalogs",icon:Briefcase},{v:"ai",l:"AI",icon:Brain}].map(t=>(
           <TabsTrigger key={t.v} value={t.v} className="text-[10px] gap-1 px-2 py-1 data-[state=active]:bg-background"><t.icon className="h-3 w-3"/>{t.l}</TabsTrigger>
         ))}
       </TabsList>
@@ -677,7 +847,9 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
           {renderActionButton("My Account","pinterest-api","get_account",{},Users)}
           {renderActionButton("My Pins","pinterest-api","get_pins",{limit:25},Image)}
         </div>
-        {renderInputAction("Create Pin","pinterest-api","create_pin",[{key:"pin_title",placeholder:"Title"},{key:"pin_desc",placeholder:"Description"},{key:"pin_board",placeholder:"Board ID"},{key:"pin_img",placeholder:"Image URL"}],()=>({title:getInput("pin_title"),description:getInput("pin_desc"),board_id:getInput("pin_board"),image_url:getInput("pin_img")}),Image)}
+        {renderInputAction("Create Pin","pinterest-api","create_pin",[{key:"pin_title",placeholder:"Title"},{key:"pin_desc",placeholder:"Description"},{key:"pin_board",placeholder:"Board ID"},{key:"pin_img",placeholder:"Image URL"},{key:"pin_link",placeholder:"Link URL (opt)"}],()=>({title:getInput("pin_title"),description:getInput("pin_desc"),board_id:getInput("pin_board"),image_url:getInput("pin_img"),link:getInput("pin_link")}),Image)}
+        {renderInputAction("Update Pin","pinterest-api","update_pin",[{key:"pin_up_id",placeholder:"Pin ID"},{key:"pin_up_title",placeholder:"Title"},{key:"pin_up_desc",placeholder:"Description"}],()=>({pin_id:getInput("pin_up_id"),title:getInput("pin_up_title"),description:getInput("pin_up_desc")}),Settings)}
+        {renderInputAction("Save Pin to Board","pinterest-api","save_pin",[{key:"pin_save_id",placeholder:"Pin ID"},{key:"pin_save_board",placeholder:"Board ID"}],()=>({pin_id:getInput("pin_save_id"),board_id:getInput("pin_save_board")}),Bookmark)}
         {renderInputAction("Get Pin","pinterest-api","get_pin",[{key:"pin_id",placeholder:"Pin ID"}],()=>({pin_id:getInput("pin_id")}),Eye)}
         {renderInputAction("Delete Pin","pinterest-api","delete_pin",[{key:"pin_del_id",placeholder:"Pin ID"}],()=>({pin_id:getInput("pin_del_id")}),Trash2)}
         {renderInputAction("Pin Analytics","pinterest-api","get_pin_analytics",[{key:"pin_an_id",placeholder:"Pin ID"}],()=>({pin_id:getInput("pin_an_id")}),BarChart3)}
@@ -685,14 +857,17 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
       <TabsContent value="boards" className="space-y-2 mt-3">
         {renderActionButton("My Boards","pinterest-api","get_boards",{limit:25},Layers)}
         {renderInputAction("Create Board","pinterest-api","create_board",[{key:"brd_name",placeholder:"Name"},{key:"brd_desc",placeholder:"Description"}],()=>({name:getInput("brd_name"),description:getInput("brd_desc")}),Layers)}
+        {renderInputAction("Update Board","pinterest-api","update_board",[{key:"brd_up_id",placeholder:"Board ID"},{key:"brd_up_name",placeholder:"Name"},{key:"brd_up_desc",placeholder:"Description"}],()=>({board_id:getInput("brd_up_id"),name:getInput("brd_up_name"),description:getInput("brd_up_desc")}),Settings)}
         {renderInputAction("Board Pins","pinterest-api","get_board_pins",[{key:"brd_pins_id",placeholder:"Board ID"}],()=>({board_id:getInput("brd_pins_id"),limit:25}),Image)}
         {renderInputAction("Board Sections","pinterest-api","get_board_sections",[{key:"brd_sec_id",placeholder:"Board ID"}],()=>({board_id:getInput("brd_sec_id")}),FolderOpen)}
+        {renderInputAction("Create Section","pinterest-api","create_board_section",[{key:"brd_cs_id",placeholder:"Board ID"},{key:"brd_cs_name",placeholder:"Section name"}],()=>({board_id:getInput("brd_cs_id"),name:getInput("brd_cs_name")}),FolderOpen)}
         {renderInputAction("Delete Board","pinterest-api","delete_board",[{key:"brd_del_id",placeholder:"Board ID"}],()=>({board_id:getInput("brd_del_id")}),Trash2)}
       </TabsContent>
       <TabsContent value="search" className="space-y-2 mt-3">
         {renderInputAction("Search Pins","pinterest-api","search_pins",[{key:"pin_sq",placeholder:"Query"}],()=>({query:getInput("pin_sq"),limit:10}),Search)}
         {renderInputAction("Search Boards","pinterest-api","search_boards",[{key:"brd_sq",placeholder:"Query"}],()=>({query:getInput("brd_sq"),limit:10}),Search)}
         {renderInputAction("Related Terms","pinterest-api","get_related_terms",[{key:"pin_rt",placeholder:"Term"}],()=>({term:getInput("pin_rt")}),Hash)}
+        {renderInputAction("Suggested Terms","pinterest-api","get_suggested_terms",[{key:"pin_st",placeholder:"Term"}],()=>({term:getInput("pin_st"),limit:10}),TrendingUp)}
       </TabsContent>
       <TabsContent value="analytics" className="space-y-2 mt-3">
         {renderActionButton("Account Analytics","pinterest-api","get_account_analytics",{},BarChart3)}
@@ -702,24 +877,30 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
       <TabsContent value="ads" className="space-y-2 mt-3">
         {renderActionButton("Ad Accounts","pinterest-api","get_ad_accounts",{},Briefcase)}
         {renderInputAction("Campaigns","pinterest-api","get_campaigns",[{key:"pin_ad_aa",placeholder:"Ad Account ID"}],()=>({ad_account_id:getInput("pin_ad_aa")}),Target)}
+        {renderInputAction("Ad Groups","pinterest-api","get_ad_groups",[{key:"pin_ag_aa",placeholder:"Ad Account ID"}],()=>({ad_account_id:getInput("pin_ag_aa")}),Layers)}
+        {renderInputAction("Ads","pinterest-api","get_ads",[{key:"pin_ads_aa",placeholder:"Ad Account ID"}],()=>({ad_account_id:getInput("pin_ads_aa")}),Megaphone)}
         {renderInputAction("Ad Analytics","pinterest-api","get_ad_analytics",[{key:"pin_aan_id",placeholder:"Ad Account ID"}],()=>({ad_account_id:getInput("pin_aan_id")}),BarChart3)}
+        {renderInputAction("Keywords","pinterest-api","get_keywords",[{key:"pin_kw_aa",placeholder:"Ad Account ID"},{key:"pin_kw_ag",placeholder:"Ad Group ID"}],()=>({ad_account_id:getInput("pin_kw_aa"),ad_group_id:getInput("pin_kw_ag")}),Hash)}
+      </TabsContent>
+      <TabsContent value="catalogs" className="space-y-2 mt-3">
+        {renderActionButton("Catalogs","pinterest-api","get_catalogs",{},Layers)}
+        {renderActionButton("Feeds","pinterest-api","get_feeds",{},Activity)}
+        {renderActionButton("Product Groups","pinterest-api","get_product_groups",{},Briefcase)}
+        {renderInputAction("Get Items","pinterest-api","get_items",[{key:"pin_items_ids",placeholder:"Item IDs (comma sep)"}],()=>({item_ids:getInput("pin_items_ids").split(",").map(s=>s.trim())}),Eye)}
       </TabsContent>
       <TabsContent value="ai" className="space-y-2 mt-3">
         {renderInputAction("AI Pin Description","social-ai-responder","generate_caption",[{key:"ai_pin_topic",placeholder:"Pin topic"}],()=>({topic:getInput("ai_pin_topic"),platform:"pinterest",include_cta:true}),Brain)}
-        {renderInputAction("AI Board Strategy","social-ai-responder","generate_caption",[{key:"ai_pin_board",placeholder:"Your niche"}],()=>({topic:`Suggest 10 Pinterest board ideas with SEO-optimized names and descriptions for: ${getInput("ai_pin_board")}`,platform:"pinterest",include_cta:false}),Layers)}
-        {renderInputAction("AI SEO Keywords","social-ai-responder","generate_caption",[{key:"ai_pin_seo",placeholder:"Product/topic"}],()=>({topic:`Generate 20 Pinterest SEO keywords and long-tail search terms for: ${getInput("ai_pin_seo")}`,platform:"pinterest",include_cta:false}),Search)}
-        {renderInputAction("AI Ad Copy","social-ai-responder","generate_caption",[{key:"ai_pin_ad",placeholder:"Product to advertise"}],()=>({topic:`Write Pinterest promoted pin ad copy with headline and description for: ${getInput("ai_pin_ad")}`,platform:"pinterest",include_cta:true}),Megaphone)}
-        {renderInputAction("AI Content Calendar","social-ai-responder","generate_caption",[{key:"ai_pin_cal",placeholder:"Niche for 7-day plan"}],()=>({topic:`Create a 7-day Pinterest pinning schedule with 5 pins/day strategy for: ${getInput("ai_pin_cal")}`,platform:"pinterest",include_cta:false}),Calendar)}
-        {renderInputAction("AI Idea Pin Script","social-ai-responder","generate_caption",[{key:"ai_pin_idea",placeholder:"Topic for idea pin"}],()=>({topic:`Write a 5-slide Pinterest Idea Pin script with text overlays for: ${getInput("ai_pin_idea")}`,platform:"pinterest",include_cta:true}),Play)}
+        {renderInputAction("AI Board Strategy","social-ai-responder","generate_caption",[{key:"ai_pin_board",placeholder:"Your niche"}],()=>({topic:`Suggest 10 Pinterest board ideas with SEO-optimized names for: ${getInput("ai_pin_board")}`,platform:"pinterest",include_cta:false}),Layers)}
+        {renderInputAction("AI SEO Keywords","social-ai-responder","generate_caption",[{key:"ai_pin_seo",placeholder:"Product/topic"}],()=>({topic:`Generate 20 Pinterest SEO keywords for: ${getInput("ai_pin_seo")}`,platform:"pinterest",include_cta:false}),Search)}
+        {renderInputAction("AI Idea Pin Script","social-ai-responder","generate_caption",[{key:"ai_pin_idea",placeholder:"Topic"}],()=>({topic:`Write a 5-slide Pinterest Idea Pin script for: ${getInput("ai_pin_idea")}`,platform:"pinterest",include_cta:true}),Play)}
       </TabsContent>
     </Tabs>
   );
 
-  // ===== DISCORD =====
   const renderDiscordContent = () => (
     <Tabs defaultValue="messages" className="w-full">
       <TabsList className="bg-muted/50 border border-border p-0.5 rounded-lg gap-0.5 flex-wrap h-auto">
-        {[{v:"messages",l:"Messages",icon:Send},{v:"guilds",l:"Servers",icon:Globe},{v:"members",l:"Members",icon:Users},{v:"roles",l:"Roles",icon:Shield},{v:"channels",l:"Channels",icon:Hash},{v:"webhooks",l:"Webhooks",icon:Zap},{v:"events",l:"Events",icon:Calendar},{v:"ai",l:"AI",icon:Brain}].map(t=>(
+        {[{v:"messages",l:"Messages",icon:Send},{v:"guilds",l:"Servers",icon:Globe},{v:"members",l:"Members",icon:Users},{v:"roles",l:"Roles",icon:Shield},{v:"channels",l:"Channels",icon:Hash},{v:"threads",l:"Threads",icon:Layers},{v:"webhooks",l:"Webhooks",icon:Zap},{v:"events",l:"Events",icon:Calendar},{v:"ai",l:"AI",icon:Brain}].map(t=>(
           <TabsTrigger key={t.v} value={t.v} className="text-[10px] gap-1 px-2 py-1 data-[state=active]:bg-background"><t.icon className="h-3 w-3"/>{t.l}</TabsTrigger>
         ))}
       </TabsList>
@@ -728,8 +909,12 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
         {renderInputAction("Send Message","discord-api","send_message",[{key:"dc_send_ch",placeholder:"Channel ID"},{key:"dc_send_text",placeholder:"Message"}],()=>({channel_id:getInput("dc_send_ch"),content:getInput("dc_send_text")}),Send)}
         {renderInputAction("Edit Message","discord-api","edit_message",[{key:"dc_edit_ch",placeholder:"Channel ID"},{key:"dc_edit_msg",placeholder:"Message ID"},{key:"dc_edit_text",placeholder:"New content"}],()=>({channel_id:getInput("dc_edit_ch"),message_id:getInput("dc_edit_msg"),content:getInput("dc_edit_text")}),FileText)}
         {renderInputAction("Delete Message","discord-api","delete_message",[{key:"dc_del_ch",placeholder:"Channel ID"},{key:"dc_del_msg",placeholder:"Message ID"}],()=>({channel_id:getInput("dc_del_ch"),message_id:getInput("dc_del_msg")}),Trash2)}
-        {renderInputAction("Pin Message","discord-api","pin_message",[{key:"dc_pin_ch",placeholder:"Channel ID"},{key:"dc_pin_msg",placeholder:"Message ID"}],()=>({channel_id:getInput("dc_pin_ch"),message_id:getInput("dc_pin_msg")}),Pin)}
-        {renderInputAction("React","discord-api","add_reaction",[{key:"dc_react_ch",placeholder:"Channel ID"},{key:"dc_react_msg",placeholder:"Message ID"},{key:"dc_react_emoji",placeholder:"Emoji (e.g. 👍)"}],()=>({channel_id:getInput("dc_react_ch"),message_id:getInput("dc_react_msg"),emoji:getInput("dc_react_emoji")}),Heart)}
+        {renderInputAction("Bulk Delete","discord-api","bulk_delete_messages",[{key:"dc_bdel_ch",placeholder:"Channel ID"},{key:"dc_bdel_ids",placeholder:"Message IDs (comma sep)"}],()=>({channel_id:getInput("dc_bdel_ch"),message_ids:getInput("dc_bdel_ids").split(",").map(s=>s.trim())}),Trash2)}
+        {renderInputAction("Pin","discord-api","pin_message",[{key:"dc_pin_ch",placeholder:"Channel ID"},{key:"dc_pin_msg",placeholder:"Message ID"}],()=>({channel_id:getInput("dc_pin_ch"),message_id:getInput("dc_pin_msg")}),Pin)}
+        {renderInputAction("Unpin","discord-api","unpin_message",[{key:"dc_upin_ch",placeholder:"Channel ID"},{key:"dc_upin_msg",placeholder:"Message ID"}],()=>({channel_id:getInput("dc_upin_ch"),message_id:getInput("dc_upin_msg")}),PinOff)}
+        {renderInputAction("Pinned","discord-api","get_pinned_messages",[{key:"dc_gpins_ch",placeholder:"Channel ID"}],()=>({channel_id:getInput("dc_gpins_ch")}),Pin)}
+        {renderInputAction("React","discord-api","add_reaction",[{key:"dc_react_ch",placeholder:"Channel ID"},{key:"dc_react_msg",placeholder:"Message ID"},{key:"dc_react_emoji",placeholder:"Emoji"}],()=>({channel_id:getInput("dc_react_ch"),message_id:getInput("dc_react_msg"),emoji:getInput("dc_react_emoji")}),Heart)}
+        {renderInputAction("Remove Reaction","discord-api","remove_reaction",[{key:"dc_rr_ch",placeholder:"Channel ID"},{key:"dc_rr_msg",placeholder:"Message ID"},{key:"dc_rr_emoji",placeholder:"Emoji"}],()=>({channel_id:getInput("dc_rr_ch"),message_id:getInput("dc_rr_msg"),emoji:getInput("dc_rr_emoji")}),Heart)}
       </TabsContent>
       <TabsContent value="guilds" className="space-y-2 mt-3">
         <div className="flex gap-1.5 flex-wrap">
@@ -737,37 +922,51 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
           {renderActionButton("My Servers","discord-api","get_my_guilds",{limit:100},Globe)}
         </div>
         {renderInputAction("Get Server","discord-api","get_guild",[{key:"dc_guild_id",placeholder:"Server ID"}],()=>({guild_id:getInput("dc_guild_id")}),Globe)}
-        {renderInputAction("Server Channels","discord-api","get_guild_channels",[{key:"dc_gch_id",placeholder:"Server ID"}],()=>({guild_id:getInput("dc_gch_id")}),Hash)}
+        {renderInputAction("Preview","discord-api","get_guild_preview",[{key:"dc_gp_id",placeholder:"Server ID"}],()=>({guild_id:getInput("dc_gp_id")}),Eye)}
+        {renderInputAction("Channels","discord-api","get_guild_channels",[{key:"dc_gch_id",placeholder:"Server ID"}],()=>({guild_id:getInput("dc_gch_id")}),Hash)}
         {renderInputAction("Create Channel","discord-api","create_guild_channel",[{key:"dc_cch_gid",placeholder:"Server ID"},{key:"dc_cch_name",placeholder:"Channel name"}],()=>({guild_id:getInput("dc_cch_gid"),name:getInput("dc_cch_name")}),Hash)}
         {renderInputAction("Invites","discord-api","get_guild_invites",[{key:"dc_inv_gid",placeholder:"Server ID"}],()=>({guild_id:getInput("dc_inv_gid")}),Link2)}
         {renderInputAction("Audit Log","discord-api","get_audit_log",[{key:"dc_al_gid",placeholder:"Server ID"}],()=>({guild_id:getInput("dc_al_gid"),limit:50}),Activity)}
       </TabsContent>
       <TabsContent value="members" className="space-y-2 mt-3">
         {renderInputAction("List Members","discord-api","get_guild_members",[{key:"dc_mem_gid",placeholder:"Server ID"}],()=>({guild_id:getInput("dc_mem_gid"),limit:100}),Users)}
+        {renderInputAction("Get Member","discord-api","get_guild_member",[{key:"dc_gm_gid",placeholder:"Server ID"},{key:"dc_gm_uid",placeholder:"User ID"}],()=>({guild_id:getInput("dc_gm_gid"),user_id:getInput("dc_gm_uid")}),Eye)}
+        {renderInputAction("Modify Member","discord-api","modify_guild_member",[{key:"dc_mm_gid",placeholder:"Server ID"},{key:"dc_mm_uid",placeholder:"User ID"},{key:"dc_mm_nick",placeholder:"Nickname"}],()=>({guild_id:getInput("dc_mm_gid"),user_id:getInput("dc_mm_uid"),nick:getInput("dc_mm_nick")}),Settings)}
+        {renderInputAction("Add Role","discord-api","add_member_role",[{key:"dc_ar_gid",placeholder:"Server ID"},{key:"dc_ar_uid",placeholder:"User ID"},{key:"dc_ar_rid",placeholder:"Role ID"}],()=>({guild_id:getInput("dc_ar_gid"),user_id:getInput("dc_ar_uid"),role_id:getInput("dc_ar_rid")}),Award)}
+        {renderInputAction("Remove Role","discord-api","remove_member_role",[{key:"dc_rmr_gid",placeholder:"Server ID"},{key:"dc_rmr_uid",placeholder:"User ID"},{key:"dc_rmr_rid",placeholder:"Role ID"}],()=>({guild_id:getInput("dc_rmr_gid"),user_id:getInput("dc_rmr_uid"),role_id:getInput("dc_rmr_rid")}),UserMinus)}
         {renderInputAction("Kick","discord-api","kick_member",[{key:"dc_kick_gid",placeholder:"Server ID"},{key:"dc_kick_uid",placeholder:"User ID"}],()=>({guild_id:getInput("dc_kick_gid"),user_id:getInput("dc_kick_uid")}),UserMinus)}
         {renderInputAction("Ban","discord-api","ban_member",[{key:"dc_ban_gid",placeholder:"Server ID"},{key:"dc_ban_uid",placeholder:"User ID"}],()=>({guild_id:getInput("dc_ban_gid"),user_id:getInput("dc_ban_uid")}),Shield)}
         {renderInputAction("Unban","discord-api","unban_member",[{key:"dc_unban_gid",placeholder:"Server ID"},{key:"dc_unban_uid",placeholder:"User ID"}],()=>({guild_id:getInput("dc_unban_gid"),user_id:getInput("dc_unban_uid")}),UserPlus)}
-        {renderInputAction("Add Role","discord-api","add_member_role",[{key:"dc_ar_gid",placeholder:"Server ID"},{key:"dc_ar_uid",placeholder:"User ID"},{key:"dc_ar_rid",placeholder:"Role ID"}],()=>({guild_id:getInput("dc_ar_gid"),user_id:getInput("dc_ar_uid"),role_id:getInput("dc_ar_rid")}),Award)}
+        {renderInputAction("Ban List","discord-api","get_bans",[{key:"dc_bans_gid",placeholder:"Server ID"}],()=>({guild_id:getInput("dc_bans_gid"),limit:100}),Shield)}
       </TabsContent>
       <TabsContent value="roles" className="space-y-2 mt-3">
         {renderInputAction("List Roles","discord-api","get_roles",[{key:"dc_roles_gid",placeholder:"Server ID"}],()=>({guild_id:getInput("dc_roles_gid")}),Shield)}
         {renderInputAction("Create Role","discord-api","create_role",[{key:"dc_cr_gid",placeholder:"Server ID"},{key:"dc_cr_name",placeholder:"Role name"}],()=>({guild_id:getInput("dc_cr_gid"),name:getInput("dc_cr_name")}),Shield)}
+        {renderInputAction("Modify Role","discord-api","modify_role",[{key:"dc_mr_gid",placeholder:"Server ID"},{key:"dc_mr_rid",placeholder:"Role ID"},{key:"dc_mr_name",placeholder:"New name"}],()=>({guild_id:getInput("dc_mr_gid"),role_id:getInput("dc_mr_rid"),name:getInput("dc_mr_name")}),Settings)}
         {renderInputAction("Delete Role","discord-api","delete_role",[{key:"dc_dr_gid",placeholder:"Server ID"},{key:"dc_dr_rid",placeholder:"Role ID"}],()=>({guild_id:getInput("dc_dr_gid"),role_id:getInput("dc_dr_rid")}),Trash2)}
       </TabsContent>
       <TabsContent value="channels" className="space-y-2 mt-3">
         {renderInputAction("Get Channel","discord-api","get_channel",[{key:"dc_ch_id",placeholder:"Channel ID"}],()=>({channel_id:getInput("dc_ch_id")}),Hash)}
-        {renderInputAction("Modify Channel","discord-api","modify_channel",[{key:"dc_mch_id",placeholder:"Channel ID"},{key:"dc_mch_name",placeholder:"New name"},{key:"dc_mch_topic",placeholder:"Topic"}],()=>({channel_id:getInput("dc_mch_id"),name:getInput("dc_mch_name"),topic:getInput("dc_mch_topic")}),Settings)}
+        {renderInputAction("Modify Channel","discord-api","modify_channel",[{key:"dc_mch_id",placeholder:"Channel ID"},{key:"dc_mch_name",placeholder:"Name"},{key:"dc_mch_topic",placeholder:"Topic"}],()=>({channel_id:getInput("dc_mch_id"),name:getInput("dc_mch_name"),topic:getInput("dc_mch_topic")}),Settings)}
         {renderInputAction("Delete Channel","discord-api","delete_channel",[{key:"dc_dch_id",placeholder:"Channel ID"}],()=>({channel_id:getInput("dc_dch_id")}),Trash2)}
+        {renderInputAction("Create Invite","discord-api","create_invite",[{key:"dc_ci_ch",placeholder:"Channel ID"}],()=>({channel_id:getInput("dc_ci_ch")}),Link2)}
+      </TabsContent>
+      <TabsContent value="threads" className="space-y-2 mt-3">
         {renderInputAction("Create Thread","discord-api","create_thread",[{key:"dc_thr_ch",placeholder:"Channel ID"},{key:"dc_thr_name",placeholder:"Thread name"}],()=>({channel_id:getInput("dc_thr_ch"),name:getInput("dc_thr_name")}),Layers)}
+        {renderInputAction("Thread from Msg","discord-api","create_thread_from_message",[{key:"dc_tfm_ch",placeholder:"Channel ID"},{key:"dc_tfm_msg",placeholder:"Message ID"},{key:"dc_tfm_name",placeholder:"Thread name"}],()=>({channel_id:getInput("dc_tfm_ch"),message_id:getInput("dc_tfm_msg"),name:getInput("dc_tfm_name")}),Layers)}
         {renderInputAction("Active Threads","discord-api","get_active_threads",[{key:"dc_at_gid",placeholder:"Server ID"}],()=>({guild_id:getInput("dc_at_gid")}),Layers)}
+        {renderInputAction("Join Thread","discord-api","join_thread",[{key:"dc_jt_id",placeholder:"Thread ID"}],()=>({thread_id:getInput("dc_jt_id")}),UserPlus)}
+        {renderInputAction("Leave Thread","discord-api","leave_thread",[{key:"dc_lt_id",placeholder:"Thread ID"}],()=>({thread_id:getInput("dc_lt_id")}),UserMinus)}
       </TabsContent>
       <TabsContent value="webhooks" className="space-y-2 mt-3">
         {renderInputAction("Server Webhooks","discord-api","get_guild_webhooks",[{key:"dc_wh_gid",placeholder:"Server ID"}],()=>({guild_id:getInput("dc_wh_gid")}),Zap)}
-        {renderInputAction("Create Webhook","discord-api","create_webhook",[{key:"dc_cwh_ch",placeholder:"Channel ID"},{key:"dc_cwh_name",placeholder:"Name"}],()=>({channel_id:getInput("dc_cwh_ch"),name:getInput("dc_cwh_name")}),Zap)}
-        {renderInputAction("Execute Webhook","discord-api","execute_webhook",[{key:"dc_ewh_id",placeholder:"Webhook ID"},{key:"dc_ewh_token",placeholder:"Webhook Token"},{key:"dc_ewh_content",placeholder:"Message"}],()=>({webhook_id:getInput("dc_ewh_id"),webhook_token:getInput("dc_ewh_token"),content:getInput("dc_ewh_content")}),Send)}
+        {renderInputAction("Channel Webhooks","discord-api","get_channel_webhooks",[{key:"dc_cwh_ch",placeholder:"Channel ID"}],()=>({channel_id:getInput("dc_cwh_ch")}),Zap)}
+        {renderInputAction("Create Webhook","discord-api","create_webhook",[{key:"dc_cwh2_ch",placeholder:"Channel ID"},{key:"dc_cwh2_name",placeholder:"Name"}],()=>({channel_id:getInput("dc_cwh2_ch"),name:getInput("dc_cwh2_name")}),Zap)}
+        {renderInputAction("Execute Webhook","discord-api","execute_webhook",[{key:"dc_ewh_id",placeholder:"Webhook ID"},{key:"dc_ewh_token",placeholder:"Token"},{key:"dc_ewh_content",placeholder:"Message"}],()=>({webhook_id:getInput("dc_ewh_id"),webhook_token:getInput("dc_ewh_token"),content:getInput("dc_ewh_content")}),Send)}
+        {renderInputAction("Delete Webhook","discord-api","delete_webhook",[{key:"dc_dwh_id",placeholder:"Webhook ID"}],()=>({webhook_id:getInput("dc_dwh_id")}),Trash2)}
       </TabsContent>
       <TabsContent value="events" className="space-y-2 mt-3">
-        {renderInputAction("Server Events","discord-api","get_guild_events",[{key:"dc_ev_gid",placeholder:"Server ID"}],()=>({guild_id:getInput("dc_ev_gid")}),Clock)}
+        {renderInputAction("Events","discord-api","get_guild_events",[{key:"dc_ev_gid",placeholder:"Server ID"}],()=>({guild_id:getInput("dc_ev_gid")}),Clock)}
         {renderInputAction("Create Event","discord-api","create_guild_event",[{key:"dc_cev_gid",placeholder:"Server ID"},{key:"dc_cev_name",placeholder:"Name"},{key:"dc_cev_start",placeholder:"Start (ISO)"},{key:"dc_cev_loc",placeholder:"Location"}],()=>({guild_id:getInput("dc_cev_gid"),name:getInput("dc_cev_name"),start_time:getInput("dc_cev_start"),location:getInput("dc_cev_loc")}),Clock)}
         {renderInputAction("Emojis","discord-api","get_guild_emojis",[{key:"dc_em_gid",placeholder:"Server ID"}],()=>({guild_id:getInput("dc_em_gid")}),Star)}
         {renderInputAction("AutoMod Rules","discord-api","get_automod_rules",[{key:"dc_am_gid",placeholder:"Server ID"}],()=>({guild_id:getInput("dc_am_gid")}),Shield)}
@@ -775,17 +974,13 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
       <TabsContent value="ai" className="space-y-2 mt-3">
         {renderInputAction("AI Announcement","social-ai-responder","generate_caption",[{key:"ai_dc_topic",placeholder:"Topic"}],()=>({topic:getInput("ai_dc_topic"),platform:"discord",include_cta:true}),Brain)}
         {renderInputAction("AI Auto-Reply","social-ai-responder","generate_dm_reply",[{key:"ai_dc_msg",placeholder:"Message to reply..."}],()=>({message_text:getInput("ai_dc_msg"),sender_name:"member"}),Zap)}
-        {renderInputAction("AI Welcome Message","social-ai-responder","generate_caption",[{key:"ai_dc_welcome",placeholder:"Server theme/purpose"}],()=>({topic:`Write a Discord server welcome message with rules and channel guide for: ${getInput("ai_dc_welcome")}`,platform:"discord",include_cta:false}),UserPlus)}
-        {renderInputAction("AI Mod Response","social-ai-responder","generate_dm_reply",[{key:"ai_dc_mod",placeholder:"Rule violation context..."}],()=>({message_text:`Moderator response needed: ${getInput("ai_dc_mod")}`,sender_name:"moderator"}),Shield)}
-        {renderInputAction("AI Event Post","social-ai-responder","generate_caption",[{key:"ai_dc_event",placeholder:"Event details"}],()=>({topic:`Write a Discord server event announcement with date, time, and hype for: ${getInput("ai_dc_event")}`,platform:"discord",include_cta:true}),Calendar)}
-        {renderInputAction("AI Channel Description","social-ai-responder","generate_caption",[{key:"ai_dc_ch_desc",placeholder:"Channel purpose"}],()=>({topic:`Write a Discord channel topic/description for: ${getInput("ai_dc_ch_desc")}`,platform:"discord",include_cta:false}),Hash)}
-        {renderInputAction("AI Server Rules","social-ai-responder","generate_caption",[{key:"ai_dc_rules",placeholder:"Server type/community"}],()=>({topic:`Write 10 Discord server rules for a community about: ${getInput("ai_dc_rules")}`,platform:"discord",include_cta:false}),Flag)}
-        {renderInputAction("AI Engagement Activity","social-ai-responder","generate_caption",[{key:"ai_dc_engage",placeholder:"Community niche"}],()=>({topic:`Generate 5 Discord community engagement activities (polls, games, challenges) for: ${getInput("ai_dc_engage")}`,platform:"discord",include_cta:false}),Star)}
+        {renderInputAction("AI Welcome","social-ai-responder","generate_caption",[{key:"ai_dc_welcome",placeholder:"Server theme"}],()=>({topic:`Write a Discord welcome message with rules for: ${getInput("ai_dc_welcome")}`,platform:"discord",include_cta:false}),UserPlus)}
+        {renderInputAction("AI Server Rules","social-ai-responder","generate_caption",[{key:"ai_dc_rules",placeholder:"Community type"}],()=>({topic:`Write 10 Discord server rules for: ${getInput("ai_dc_rules")}`,platform:"discord",include_cta:false}),Flag)}
+        {renderInputAction("AI Engagement","social-ai-responder","generate_caption",[{key:"ai_dc_engage",placeholder:"Niche"}],()=>({topic:`Generate 5 Discord engagement activities for: ${getInput("ai_dc_engage")}`,platform:"discord",include_cta:false}),Star)}
       </TabsContent>
     </Tabs>
   );
 
-  // ===== FACEBOOK =====
   const renderFacebookContent = () => (
     <Tabs defaultValue="pages" className="w-full">
       <TabsList className="bg-muted/50 border border-border p-0.5 rounded-lg gap-0.5 flex-wrap h-auto">
@@ -799,6 +994,7 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
           {renderActionButton("My Pages","facebook-api","get_pages",{limit:25},Globe)}
         </div>
         {renderInputAction("Get Page","facebook-api","get_page",[{key:"fb_pg_id",placeholder:"Page ID"}],()=>({page_id:getInput("fb_pg_id")}),Eye)}
+        {renderInputAction("Get User","facebook-api","get_user",[{key:"fb_uid",placeholder:"User ID"}],()=>({user_id:getInput("fb_uid")}),Users)}
         {renderInputAction("Search Pages","facebook-api","search_pages",[{key:"fb_sp_q",placeholder:"Search query"}],()=>({query:getInput("fb_sp_q"),limit:10}),Search)}
       </TabsContent>
       <TabsContent value="posts" className="space-y-2 mt-3">
@@ -826,10 +1022,11 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
         {renderInputAction("Post to Group","facebook-api","post_to_group",[{key:"fb_pg_gid",placeholder:"Group ID"},{key:"fb_pg_msg",placeholder:"Message"}],()=>({group_id:getInput("fb_pg_gid"),message:getInput("fb_pg_msg")}),Send)}
         {renderInputAction("Events","facebook-api","get_events",[{key:"fb_ev_pid",placeholder:"Page ID (opt)"}],()=>({page_id:getInput("fb_ev_pid")||undefined}),Calendar)}
         {renderInputAction("Albums","facebook-api","get_albums",[{key:"fb_al_pid",placeholder:"Page ID (opt)"}],()=>({page_id:getInput("fb_al_pid")||undefined}),Image)}
+        {renderInputAction("Album Photos","facebook-api","get_album_photos",[{key:"fb_ap_id",placeholder:"Album ID"}],()=>({album_id:getInput("fb_ap_id"),limit:25}),Image)}
       </TabsContent>
       <TabsContent value="inbox" className="space-y-2 mt-3">
         {renderInputAction("Page Conversations","facebook-api","get_conversations",[{key:"fb_cv_pid",placeholder:"Page ID"}],()=>({page_id:getInput("fb_cv_pid"),limit:20}),MessageCircle)}
-        {renderInputAction("Conversation Messages","facebook-api","get_conversation_messages",[{key:"fb_cm_cid",placeholder:"Conversation ID"}],()=>({conversation_id:getInput("fb_cm_cid"),limit:20}),MessageSquare)}
+        {renderInputAction("Messages","facebook-api","get_conversation_messages",[{key:"fb_cm_cid",placeholder:"Conversation ID"}],()=>({conversation_id:getInput("fb_cm_cid"),limit:20}),MessageSquare)}
         {renderInputAction("Send Page Message","facebook-api","send_page_message",[{key:"fb_sm_pid",placeholder:"Page ID"},{key:"fb_sm_rid",placeholder:"Recipient ID"},{key:"fb_sm_msg",placeholder:"Message"}],()=>({page_id:getInput("fb_sm_pid"),recipient_id:getInput("fb_sm_rid"),message:getInput("fb_sm_msg")}),Send)}
       </TabsContent>
       <TabsContent value="insights" className="space-y-2 mt-3">
@@ -839,13 +1036,10 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
       <TabsContent value="ai" className="space-y-2 mt-3">
         {renderInputAction("AI Post","social-ai-responder","generate_caption",[{key:"ai_fb_topic",placeholder:"Topic"}],()=>({topic:getInput("ai_fb_topic"),platform:"facebook",include_cta:true}),Brain)}
         {renderInputAction("AI Comment Reply","social-ai-responder","generate_dm_reply",[{key:"ai_fb_cmt",placeholder:"Comment text..."}],()=>({message_text:getInput("ai_fb_cmt"),sender_name:"user"}),Zap)}
-        {renderInputAction("AI Page Bio","social-ai-responder","generate_caption",[{key:"ai_fb_bio",placeholder:"Describe your page/brand"}],()=>({topic:`Write a compelling Facebook page About section for: ${getInput("ai_fb_bio")}`,platform:"facebook",include_cta:false}),Users)}
         {renderInputAction("AI DM Auto-Reply","social-ai-responder","generate_dm_reply",[{key:"ai_fb_dm",placeholder:"Incoming message..."}],()=>({message_text:getInput("ai_fb_dm"),sender_name:"visitor"}),Send)}
-        {renderInputAction("AI Ad Copy","social-ai-responder","generate_caption",[{key:"ai_fb_ad",placeholder:"Product/service to promote"}],()=>({topic:`Write Facebook ad copy with headline, primary text, and description for: ${getInput("ai_fb_ad")}`,platform:"facebook",include_cta:true}),Megaphone)}
+        {renderInputAction("AI Ad Copy","social-ai-responder","generate_caption",[{key:"ai_fb_ad",placeholder:"Product/service"}],()=>({topic:`Write Facebook ad copy with headline, primary text, and description for: ${getInput("ai_fb_ad")}`,platform:"facebook",include_cta:true}),Megaphone)}
         {renderInputAction("AI Group Post","social-ai-responder","generate_caption",[{key:"ai_fb_grp",placeholder:"Group topic"}],()=>({topic:`Write an engaging Facebook group post that sparks discussion about: ${getInput("ai_fb_grp")}`,platform:"facebook",include_cta:false}),Users)}
-        {renderInputAction("AI Event Description","social-ai-responder","generate_caption",[{key:"ai_fb_evt",placeholder:"Event details"}],()=>({topic:`Write a Facebook event description with details and RSVP CTA for: ${getInput("ai_fb_evt")}`,platform:"facebook",include_cta:true}),Calendar)}
-        {renderInputAction("AI Carousel Ideas","social-ai-responder","generate_caption",[{key:"ai_fb_car",placeholder:"Topic for carousel"}],()=>({topic:`Write 5-slide Facebook carousel post content with headlines and descriptions for: ${getInput("ai_fb_car")}`,platform:"facebook",include_cta:true}),Layers)}
-        {renderInputAction("AI Hashtag Strategy","social-ai-responder","generate_caption",[{key:"ai_fb_ht",placeholder:"Niche/industry"}],()=>({topic:`Generate 15 Facebook hashtags for maximum reach in: ${getInput("ai_fb_ht")}`,platform:"facebook",include_cta:false}),Hash)}
+        {renderInputAction("AI Hashtag Strategy","social-ai-responder","generate_caption",[{key:"ai_fb_ht",placeholder:"Niche"}],()=>({topic:`Generate 15 Facebook hashtags for maximum reach in: ${getInput("ai_fb_ht")}`,platform:"facebook",include_cta:false}),Hash)}
       </TabsContent>
     </Tabs>
   );
