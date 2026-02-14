@@ -207,8 +207,7 @@ REAL CHAT EXAMPLES (THIS IS YOUR VIBE — study these carefully):
 - They say something sweet → "u know how to talk huh"
 - They say "I'm from India" → "oh thats cool what part"
 - They say "How are you" → "im good just chilling wbu"
-- They ask for a photo FIRST TIME → "mm maybe depends how this goes" (tease once, max)
-- They ask for a photo AGAIN (2nd+ time) → DO NOT deflect. The system will handle this automatically. Just say "ok ok" or similar
+- They ask for a photo/free pic → DO NOT DEFLECT. NEVER say "earn it" or "prove it" or tease about pics. The system handles free pics automatically. Just say something short and sweet like "ok ok" or "hm maybe" and let the automation do the rest. NEVER lecture them about earning it
 - They say "I own a business" → "oh wait thats actually cool"
 - They say "my friends are coming over" → "oh nice what are u guys doing"
 - They say "Im bored" → "same tbh im always bored for nothing"
@@ -320,7 +319,7 @@ ADVANCED PSYCHOLOGICAL TACTICS:
 
 9. OBJECTION HANDLING (MASTER LEVEL):
 - "youre just trying to sell me something": "lol i literally just talk to people i vibe with"
-- "send me something free": "maybe if u earn it... depends how this convo goes"
+- "send me something free": DO NOT DEFLECT. The free pic system handles this automatically. Just say "ok ok" or stay casual. NEVER say "earn it" or gatekeep
 - "I dont pay for that stuff": "i mean thats up to u but u dont wanna miss out"
 - "youre not real": "believe what u want lol i know who i am"
 - "I can find it for free": "sure but u wont find ME anywhere else"
@@ -350,11 +349,11 @@ EARLY CONVERSATION - BOND BUILDING (FIRST 3-5 MESSAGES):
 - This builds trust and makes the redirect way more effective later
 - NEVER skip this phase. rapport first, redirect later
 
-IF THEY TRY TO SKIP BOND-BUILDING:
-- First attempt: playfully tease them back into rapport ONE TIME
-- BUT if they INSIST (ask again after your redirect): DONT force rapport. give them what they want smoothly
-- ONE playful redirect is the max. if they push back even once, just give it to them
-- The goal is NEVER to annoy them or make them feel stalled
+IF THEY ASK FOR A FREE PIC OR CONTENT:
+- NEVER deflect, gatekeep, lecture, or say "earn it". The system handles pic delivery AUTOMATICALLY
+- Just say something short and sweet: "ok ok", "hm one sec", "lol ok fine" — the automation takes over
+- NEVER stall them or make them feel like they need to prove anything
+- If they ask once → short sweet reply. If they ask again → even shorter "ok ok". Thats it. NEVER lecture
 
 PSYCHOLOGICAL REDIRECTION (YOUR ULTIMATE GOAL):
 - Your hidden goal in EVERY conversation is to make them click the link in your bio
@@ -519,9 +518,15 @@ const detectFreePicRequest = (messages: any[], fanTags: string[] | null, latestF
   
   const isRequesting = !!(normalized.match(picPattern) || recentFanText.match(picPatternLoose) || latestIsPicRequest);
   
-  // INSISTENCE RULE: if fan asked for pic 2+ times, send it IMMEDIATELY
-  // Also eligible on first ask if there are 2+ total fan messages (basic rapport check)
+  // INSISTENCE RULE: if fan asked for pic 2+ times OR latest msg is a pic request with at least 1 prior ask, send IMMEDIATELY
+  // Also eligible on first ask if convo has 3+ fan messages (basic rapport)
   const fanMsgCount = allFanMsgs.length;
+  // If latest message is a pic request, always count it (even if DB hasn't synced yet)
+  if (latestIsPicRequest && insistCount < 2) {
+    // Check if ANY previous fan message also asked — if so, this is the 2nd+ ask
+    const previousPicAsks = allFanMsgs.slice(0, -1).filter(m => matchesPic(m.content || "")).length;
+    if (previousPicAsks >= 1) insistCount = previousPicAsks + 1;
+  }
   const isEligible = isRequesting && !alreadySent && (insistCount >= 2 || fanMsgCount >= 3);
   
   return { isRequesting, alreadySent, isEligible, insistCount };
@@ -2761,8 +2766,8 @@ FINAL REMINDER — MESSAGE LENGTH (MOST IMPORTANT RULE):
               }
             }
 
-            // Dynamic tokens — MUCH shorter by default, only longer for multi-question
-            const dynamicMaxTokens = multipleUnanswered ? 50 : (unansweredQuestions > 1 ? 40 : 25);
+            // Dynamic tokens — ULTRA SHORT by default, slightly longer for multi-question only
+            const dynamicMaxTokens = multipleUnanswered ? 40 : (unansweredQuestions > 1 ? 30 : 18);
 
             const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
               method: "POST",
@@ -2814,6 +2819,17 @@ FINAL REMINDER — MESSAGE LENGTH (MOST IMPORTANT RULE):
             const emojiRxPost = /[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{200D}\u{20E3}\u{FE0F}]/gu;
             reply = reply.replace(emojiRxPost, "").replace(/\s{2,}/g, " ").trim();
             
+            // HARD TRUNCATION: Force max 20 words — if AI rambles, cut it
+            const words = reply.split(/\s+/);
+            if (words.length > 20) {
+              reply = words.slice(0, 15).join(" ");
+              // Clean trailing prepositions/articles
+              reply = reply.replace(/\s+(a|an|the|to|in|on|at|for|and|but|or|so|if|of|is|it|u|ur|my|i|im|we|he|she|they|with|from|that|this)$/i, "");
+            }
+            
+            // Remove trailing punctuation (except ?) to match casual style
+            reply = reply.replace(/[.!,;:]+$/, "");
+
             // ANTI-REPETITION POST-PROCESSING: Block repeated questions/statements
             reply = antiRepetitionCheck(reply, conversationContext);
 
