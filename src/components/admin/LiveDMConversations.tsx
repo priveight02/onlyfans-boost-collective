@@ -1697,12 +1697,14 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
                       <button
                         onClick={async (e) => {
                           e.stopPropagation();
-                          const newMeta = { ...(convo.metadata || {}), paused_until: null };
+                          const newMeta = { ...(convo.metadata || {}), paused_until: null, paused_reason: null };
                           // Optimistic update
                           setConversations(prev => prev.map(c => c.id === convo.id ? { ...c, metadata: newMeta } : c));
-                          await supabase.from("ai_dm_conversations").update({ metadata: newMeta }).eq("id", convo.id);
-                          toast.success(`Unpaused @${convo.participant_username}`);
-                          addLog(`@${convo.participant_username}`, "Manual unpause — 24h timeout cleared", "info");
+                          // Clear pause + reset message count by deleting all messages for this convo
+                          await supabase.from("ai_dm_conversations").update({ metadata: newMeta, message_count: 0 }).eq("id", convo.id);
+                          await supabase.from("ai_dm_messages").delete().eq("conversation_id", convo.id);
+                          toast.success(`Unpaused @${convo.participant_username} — message count reset to 0`);
+                          addLog(`@${convo.participant_username}`, "Manual unpause — 24h timeout cleared + messages reset to 0", "info");
                         }}
                         className="p-1 rounded-md border border-orange-500/30 bg-orange-500/10 hover:bg-orange-500/20 transition-colors"
                         title="Remove 24h pause — resume AI immediately"
