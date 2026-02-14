@@ -2307,8 +2307,29 @@ Follow these persona settings strictly. They override any conflicting defaults a
                   }).eq("id", fpTyping.id);
                 }
 
-                // Brief delay to feel natural
-                await new Promise(r => setTimeout(r, 2000 + Math.random() * 2000));
+                // Brief delay then "brb" message to simulate taking the pic
+                await new Promise(r => setTimeout(r, 1500 + Math.random() * 1500));
+                
+                const brbMessages = [
+                  "ok gimme like 2 min",
+                  "hold on lemme take one rn",
+                  "ok wait 2 sec",
+                  "one sec lemme get one for u",
+                  "ok brb 2 min",
+                  "wait lemme go take smth real quick",
+                ];
+                const brbMsg = brbMessages[Math.floor(Math.random() * brbMessages.length)];
+                await callIGFP("send_message", { recipient_id: dbConvo.participant_id, message: brbMsg });
+                
+                // Log brb message in DB
+                await supabase.from("ai_dm_messages").insert({
+                  conversation_id: dbConvo.id, account_id,
+                  sender_type: "ai", sender_name: igConn2.platform_username || "creator",
+                  content: brbMsg, status: "sent", ai_model: "free_pic_engine",
+                });
+                
+                // Wait ~2 minutes to simulate actually taking the picture
+                await new Promise(r => setTimeout(r, 90000 + Math.random() * 60000));
                 
                 // Step 3: Download free pic from Drive, save to storage as me.png, then send
                 const freePicUrl = await ensureFreePicInStorage(supabase);
@@ -3684,6 +3705,34 @@ Follow these persona settings strictly.`;
         
         const igFuncUrlMFP = `${Deno.env.get("SUPABASE_URL")}/functions/v1/instagram-api`;
         const serviceKeyMFP = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+        
+        // Send "brb" message first to simulate taking the pic
+        const brbMsgsManual = [
+          "ok gimme like 2 min",
+          "hold on lemme take one rn",
+          "ok wait 2 sec",
+          "one sec lemme get one for u",
+          "ok brb 2 min",
+          "wait lemme go take smth real quick",
+        ];
+        const brbMsgManual = brbMsgsManual[Math.floor(Math.random() * brbMsgsManual.length)];
+        
+        const igFuncUrlBrb = igFuncUrlMFP;
+        await fetch(igFuncUrlBrb, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKeyMFP}` },
+          body: JSON.stringify({ action: "send_message", account_id, params: { recipient_id, message: brbMsgManual } }),
+        });
+        
+        // Log brb message
+        await supabase.from("ai_dm_messages").insert({
+          conversation_id, account_id,
+          sender_type: "manual", sender_name: "creator",
+          content: brbMsgManual, status: "sent",
+        });
+        
+        // Wait ~2 minutes to simulate taking the picture
+        await new Promise(r => setTimeout(r, 90000 + Math.random() * 60000));
         
         // Download free pic from Drive, save to storage as me.png, then send
         const freePicUrlManual = await ensureFreePicInStorage(supabase);
