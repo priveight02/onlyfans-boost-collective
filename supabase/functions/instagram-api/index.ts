@@ -509,37 +509,57 @@ serve(async (req) => {
 
       case "fetch_participant_profiles": {
         // Batch fetch profile pictures for participant IGSIDs
-        // Uses the IG Graph API user endpoint: /{user-id}?fields=name,profile_pic
         const userIds: string[] = params?.user_ids || [];
         if (userIds.length === 0) throw new Error("user_ids array required");
         
         const profiles: Record<string, { name?: string; profile_pic?: string; username?: string }> = {};
         
-        // Try multiple approaches for each user
-        for (const uid of userIds.slice(0, 50)) {
-          try {
-            // Method 1: Direct user lookup via FB Graph (works for IGSIDs with page token)
-            const pageInfo = await getPageId(token, igUserId);
-            const lookupToken = pageInfo?.pageToken || token;
+        // Get page token ONCE (not per user!)
+        const pageInfo = await getPageId(token, igUserId);
+        const lookupToken = pageInfo?.pageToken || token;
+        console.log(`Fetching profiles for ${userIds.length} users, pageToken available: ${!!pageInfo}`);
+        
+        // Process in parallel batches of 5
+        const batchSize = 5;
+        for (let i = 0; i < Math.min(userIds.length, 50); i += batchSize) {
+          const batch = userIds.slice(i, i + batchSize);
+          await Promise.all(batch.map(async (uid) => {
+            // Method 1: FB Graph with page token (works for IGSIDs)
+            try {
+              const resp = await fetch(`${FB_GRAPH_URL}/${uid}?fields=name,profile_pic,username&access_token=${lookupToken}`);
+              const data = await resp.json();
+              if (!data.error && (data.profile_pic || data.name)) {
+                profiles[uid] = { name: data.name, profile_pic: data.profile_pic, username: data.username };
+                return;
+              }
+            } catch {}
             
-            const resp = await fetch(`${FB_GRAPH_URL}/${uid}?fields=name,profile_pic,username&access_token=${lookupToken}`);
-            const data = await resp.json();
-            if (!data.error && (data.profile_pic || data.name)) {
-              profiles[uid] = { name: data.name, profile_pic: data.profile_pic, username: data.username };
-              continue;
+            // Method 2: IG Graph API directly
+            try {
+              const resp2 = await fetch(`${IG_GRAPH_URL}/${uid}?fields=name,username,profile_picture_url&access_token=${token}`);
+              const data2 = await resp2.json();
+              if (!data2.error && (data2.profile_picture_url || data2.name)) {
+                profiles[uid] = { name: data2.name, profile_pic: data2.profile_picture_url, username: data2.username };
+                return;
+              }
+            } catch {}
+            
+            // Method 3: Try business_discovery if we have username from conversation
+            const convoUsername = params?.usernames?.[uid];
+            if (convoUsername) {
+              try {
+                const resp3 = await fetch(`${IG_GRAPH_URL}/${igUserId}?fields=business_discovery.fields(profile_picture_url,name,username){username=${convoUsername}}&access_token=${token}`);
+                const data3 = await resp3.json();
+                const bd = data3?.business_discovery;
+                if (bd?.profile_picture_url) {
+                  profiles[uid] = { name: bd.name, profile_pic: bd.profile_picture_url, username: bd.username };
+                }
+              } catch {}
             }
-          } catch {}
-          
-          try {
-            // Method 2: Try IG Graph API directly
-            const resp2 = await fetch(`${IG_GRAPH_URL}/${uid}?fields=name,username,profile_picture_url&access_token=${token}`);
-            const data2 = await resp2.json();
-            if (!data2.error && (data2.profile_picture_url || data2.name)) {
-              profiles[uid] = { name: data2.name, profile_pic: data2.profile_picture_url, username: data2.username };
-            }
-          } catch {}
+          }));
         }
         
+        console.log(`Fetched ${Object.keys(profiles).length}/${userIds.length} profiles`);
         result = { profiles, fetched: Object.keys(profiles).length, total: userIds.length };
         break;
       }

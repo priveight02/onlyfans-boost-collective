@@ -398,19 +398,28 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
     if (needAvatars.length === 0) return;
 
     const userIds = needAvatars.map(c => c.participant_id);
+    // Build username map for business_discovery fallback
+    const usernames: Record<string, string> = {};
+    for (const c of needAvatars) {
+      if (c.participant_username) usernames[c.participant_id] = c.participant_username;
+    }
+
     try {
       const { data, error } = await supabase.functions.invoke("instagram-api", {
-        body: { action: "fetch_participant_profiles", account_id: accountId, params: { user_ids: userIds } },
+        body: { action: "fetch_participant_profiles", account_id: accountId, params: { user_ids: userIds, usernames } },
       });
-      if (error || !data?.success) return;
+      if (error || !data?.success) {
+        console.error("fetchAvatars API error:", error, data);
+        return;
+      }
 
       const profiles = data.data?.profiles || {};
-      const updates: { id: string; avatar_url: string; name?: string }[] = [];
+      const updates: { id: string; avatar_url: string; name?: string; username?: string }[] = [];
 
       for (const c of needAvatars) {
         const profile = profiles[c.participant_id];
         if (profile?.profile_pic) {
-          updates.push({ id: c.id, avatar_url: profile.profile_pic, name: profile.name });
+          updates.push({ id: c.id, avatar_url: profile.profile_pic, name: profile.name, username: profile.username });
         }
       }
 
@@ -418,6 +427,7 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
       for (const u of updates) {
         const updateData: any = { participant_avatar_url: u.avatar_url };
         if (u.name) updateData.participant_name = u.name;
+        if (u.username) updateData.participant_username = u.username;
         supabase.from("ai_dm_conversations").update(updateData).eq("id", u.id).then();
       }
 
@@ -425,9 +435,11 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
         setConversations(prev => prev.map(c => {
           const upd = updates.find(u => u.id === c.id);
           if (!upd) return c;
-          return { ...c, participant_avatar_url: upd.avatar_url, participant_name: upd.name || c.participant_name };
+          return { ...c, participant_avatar_url: upd.avatar_url, participant_name: upd.name || c.participant_name, participant_username: upd.username || c.participant_username };
         }));
         addLog("system", `Fetched ${updates.length} profile pictures`, "success");
+      } else {
+        addLog("system", `No profile pics found for ${needAvatars.length} users (API limitation)`, "info");
       }
     } catch (e) {
       console.error("fetchAvatars error:", e);
@@ -1280,6 +1292,12 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
                                   if (storyData) {
                                     const storyUrl = storyData.url || storyData.link || storyData.mention?.link || storyData.mention?.url;
                                     const storyMediaUrl = storyData.media_url || storyData.mention?.media_url;
+                                    const storyMediaSrc = storyMediaUrl || storyUrl;
+                                    const isStoryVideo = storyMediaSrc && (
+                                      storyMediaSrc.includes(".mp4") || 
+                                      storyMediaSrc.includes("ig_messaging_cdn") || 
+                                      storyMediaSrc.includes("/video/")
+                                    );
                                     return (
                                       <div className="relative">
                                         <div className="rounded-2xl overflow-hidden border border-border/30 max-w-[220px]">
@@ -1287,10 +1305,45 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
                                             <span className="text-base">📖</span>
                                             <span className="font-medium">Replied to your story</span>
                                           </div>
-                                          {(storyMediaUrl || storyUrl) && (
-                                            <div className="relative cursor-pointer" onClick={() => window.open(storyUrl || storyMediaUrl, "_blank")}>
-                                              <img src={storyMediaUrl || storyUrl} alt="story" className="w-full max-h-[200px] object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
-                                              <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
+                                          {storyMediaSrc && (
+                                            <div className="relative cursor-pointer" onClick={() => !isStoryVideo && window.open(storyUrl || storyMediaSrc, "_blank")}>
+                                              {isStoryVideo ? (
+                                                <video 
+                                                  src={storyMediaSrc} 
+                                                  controls 
+                                                  preload="metadata" 
+                                                  playsInline 
+                                                  className="w-full max-h-[200px] object-cover"
+                                                  onError={(e) => {
+                                                    const vid = e.target as HTMLVideoElement;
+                                                    vid.style.display = "none";
+                                                    const img = document.createElement("img");
+                                                    img.src = storyMediaSrc;
+                                                    img.className = "w-full max-h-[200px] object-cover";
+                                                    img.onerror = () => { img.style.display = "none"; };
+                                                    vid.parentElement?.appendChild(img);
+                                                  }}
+                                                />
+                                              ) : (
+                                                <img 
+                                                  src={storyMediaSrc} 
+                                                  alt="story" 
+                                                  className="w-full max-h-[200px] object-cover" 
+                                                  onError={(e) => {
+                                                    const img = e.target as HTMLImageElement;
+                                                    img.style.display = "none";
+                                                    // Try as video
+                                                    const vid = document.createElement("video");
+                                                    vid.src = storyMediaSrc;
+                                                    vid.controls = true;
+                                                    vid.playsInline = true;
+                                                    vid.className = "w-full max-h-[200px] object-cover";
+                                                    vid.onerror = () => { vid.style.display = "none"; };
+                                                    img.parentElement?.appendChild(vid);
+                                                  }} 
+                                                />
+                                              )}
+                                              {!isStoryVideo && <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />}
                                             </div>
                                           )}
                                           {msg.content && !msg.content.startsWith("[") && (
@@ -1313,19 +1366,19 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
                                     const shareImage = share?.image_url || share?.media_url || share?.thumbnail_url || share?.cover_url;
                                     const isReel = shareLink?.includes("/reel/") || shareLink?.includes("/reels/") || share?.type === "reel";
                                     
-                                    // Try to extract direct media URL from the share or attachments
-                                    const directMediaUrl = shareImage || shareLink;
-                                    const isCdnUrl = directMediaUrl && (
-                                      directMediaUrl.includes("lookaside.fbsbx.com") ||
-                                      directMediaUrl.includes("scontent") ||
-                                      directMediaUrl.includes("cdninstagram") ||
-                                      directMediaUrl.includes("fbcdn") ||
-                                      directMediaUrl.includes(".jpg") ||
-                                      directMediaUrl.includes(".png") ||
-                                      directMediaUrl.includes(".mp4") ||
-                                      directMediaUrl.includes(".webp")
+                                    // Determine the best media URL — prefer image/video fields, fall back to link if it's a CDN URL
+                                    const cdnDomains = ["lookaside.fbsbx.com", "scontent", "cdninstagram", "fbcdn", "instagram.f"];
+                                    const isCdnLink = shareLink && cdnDomains.some(d => shareLink.includes(d));
+                                    const mediaUrl = shareImage || (isCdnLink ? shareLink : null);
+                                    
+                                    // For CDN URLs without file extensions, we need to try video first then image
+                                    // ig_messaging_cdn URLs are typically video (reels, shared posts)
+                                    const isLikelyVideo = mediaUrl && (
+                                      mediaUrl.includes(".mp4") || 
+                                      mediaUrl.includes("ig_messaging_cdn") || 
+                                      mediaUrl.includes("/video/") ||
+                                      isReel
                                     );
-                                    const isVideoUrl = directMediaUrl && (directMediaUrl.includes(".mp4") || directMediaUrl.includes("video") || isReel);
                                     
                                     return (
                                       <div className="relative">
@@ -1334,39 +1387,69 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
                                             <span>{isReel ? "🎬" : "📎"}</span>
                                             <span className="font-medium">Shared {isReel ? "reel" : "post"}</span>
                                           </div>
-                                          {directMediaUrl && (
+                                          {mediaUrl && (
                                             <div className="relative">
-                                              {isVideoUrl ? (
+                                              {isLikelyVideo ? (
                                                 <video 
-                                                  src={directMediaUrl} 
+                                                  src={mediaUrl} 
                                                   controls 
                                                   preload="metadata" 
                                                   playsInline 
                                                   className="w-full max-h-[300px] object-cover"
-                                                  poster={shareImage && !shareImage.includes(".mp4") ? shareImage : undefined}
+                                                  poster={shareImage && shareImage !== mediaUrl ? shareImage : undefined}
+                                                  onError={(e) => {
+                                                    // If video fails, swap to image
+                                                    const vid = e.target as HTMLVideoElement;
+                                                    vid.style.display = "none";
+                                                    const img = document.createElement("img");
+                                                    img.src = mediaUrl;
+                                                    img.className = "w-full max-h-[300px] object-cover cursor-pointer";
+                                                    img.onclick = () => window.open(shareLink || mediaUrl, "_blank");
+                                                    img.onerror = () => {
+                                                      img.style.display = "none";
+                                                      if (shareLink) {
+                                                        const link = document.createElement("a");
+                                                        link.href = shareLink;
+                                                        link.target = "_blank";
+                                                        link.className = "block px-3 py-2 text-[11px] text-accent hover:underline truncate";
+                                                        link.textContent = shareLink;
+                                                        vid.parentElement?.appendChild(link);
+                                                      }
+                                                    };
+                                                    vid.parentElement?.appendChild(img);
+                                                  }}
                                                 />
                                               ) : (
                                                 <img 
-                                                  src={directMediaUrl} 
+                                                  src={mediaUrl} 
                                                   alt={shareName || "Shared post"} 
                                                   className="w-full max-h-[300px] object-cover cursor-pointer hover:opacity-95 transition-opacity" 
-                                                  onClick={() => window.open(directMediaUrl, "_blank")}
+                                                  onClick={() => window.open(shareLink || mediaUrl, "_blank")}
                                                   onError={(e) => {
-                                                    // If image fails, show the link as fallback
-                                                    const parent = (e.target as HTMLImageElement).parentElement;
-                                                    if (parent && shareLink) {
-                                                      (e.target as HTMLImageElement).style.display = "none";
-                                                      const link = document.createElement("a");
-                                                      link.href = shareLink;
-                                                      link.target = "_blank";
-                                                      link.className = "block px-3 py-2 text-[11px] text-accent hover:underline truncate";
-                                                      link.textContent = shareLink;
-                                                      parent.appendChild(link);
-                                                    }
+                                                    // If image fails, try as video
+                                                    const img = e.target as HTMLImageElement;
+                                                    img.style.display = "none";
+                                                    const vid = document.createElement("video");
+                                                    vid.src = mediaUrl;
+                                                    vid.controls = true;
+                                                    vid.playsInline = true;
+                                                    vid.className = "w-full max-h-[300px] object-cover";
+                                                    vid.onerror = () => {
+                                                      vid.style.display = "none";
+                                                      if (shareLink) {
+                                                        const link = document.createElement("a");
+                                                        link.href = shareLink;
+                                                        link.target = "_blank";
+                                                        link.className = "block px-3 py-2 text-[11px] text-accent hover:underline truncate";
+                                                        link.textContent = shareLink;
+                                                        img.parentElement?.appendChild(link);
+                                                      }
+                                                    };
+                                                    img.parentElement?.appendChild(vid);
                                                   }}
                                                 />
                                               )}
-                                              {isReel && !isVideoUrl && (
+                                              {isReel && !isLikelyVideo && (
                                                 <div className="absolute bottom-2 left-2 bg-black/60 rounded-full px-2 py-0.5 flex items-center gap-1">
                                                   <span className="text-[10px]">🎬</span>
                                                   <span className="text-[10px] text-white font-medium">Reel</span>
@@ -1379,7 +1462,7 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
                                               <p className="text-xs text-foreground/80 line-clamp-2">{shareName}</p>
                                             </div>
                                           )}
-                                          {!directMediaUrl && shareLink && (
+                                          {!mediaUrl && shareLink && (
                                             <a href={shareLink} target="_blank" rel="noopener noreferrer" className="block px-3 py-2 text-[11px] text-accent hover:underline truncate">
                                               {shareLink}
                                             </a>
