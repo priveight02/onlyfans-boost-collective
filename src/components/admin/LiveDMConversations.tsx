@@ -1785,66 +1785,129 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
                 size="sm"
                 variant="outline"
                 className="w-full h-8 text-[10px] justify-start gap-2 border-blue-500/20 text-blue-400 hover:bg-blue-500/10"
-                disabled={processing}
+                disabled={relaunching || processing}
                 onClick={async () => {
-                  const unread = conversations.filter(c => !c.is_read);
-                  if (unread.length === 0) { toast.info("No unopened conversations"); return; }
-                  for (const c of unread) {
-                    if (!c.ai_enabled) {
-                      await supabase.from("ai_dm_conversations").update({ ai_enabled: true }).eq("id", c.id);
+                  const unread = conversations.filter(c => !c.is_read && c.ai_enabled);
+                  if (unread.length === 0) { toast.info("No unopened conversations with AI enabled"); return; }
+                  setRelaunching(true);
+                  addLog("system", `Answering ${unread.length} unopened convos (deep context scan)...`, "processing");
+                  setAiCurrentPhase("analyze");
+                  toast.info(`Scanning & answering ${unread.length} unopened conversations...`);
+                  try {
+                    const { data, error } = await supabase.functions.invoke("social-ai-responder", {
+                      body: { action: "relaunch_unread", account_id: accountId, params: {} },
+                    });
+                    if (error) throw error;
+                    const r = data?.data;
+                    if (r?.processed > 0) {
+                      for (const c of (r.conversations || [])) {
+                        addLog(`@${c.fan}`, `Replied (${c.context_messages} msgs scanned): "${c.ai_reply?.substring(0, 50)}..."`, "success");
+                      }
+                      toast.success(`Answered ${r.processed}/${r.total_unread} unopened conversations`);
+                    } else {
+                      toast.info("No unopened conversations needed replies");
                     }
+                  } catch (e: any) {
+                    addLog("system", `Error: ${e.message}`, "error");
+                    toast.error(e.message || "Failed");
+                  } finally {
+                    setRelaunching(false);
+                    setAiCurrentPhase("");
+                    await loadConversations();
                   }
-                  addLog("system", `Targeting ${unread.length} unopened convos`, "processing");
-                  toast.info(`Processing ${unread.length} unopened conversations...`);
-                  await processDMs();
-                  await loadConversations();
                 }}
               >
-                <Inbox className="h-3 w-3" />
+                {relaunching ? <Loader2 className="h-3 w-3 animate-spin" /> : <Inbox className="h-3 w-3" />}
                 Answer All Unopened ({conversations.filter(c => !c.is_read).length})
               </Button>
               <Button
                 size="sm"
                 variant="outline"
                 className="w-full h-8 text-[10px] justify-start gap-2 border-purple-500/20 text-purple-400 hover:bg-purple-500/10"
-                disabled={processing}
+                disabled={relaunching || processing}
                 onClick={async () => {
-                  if (selectedConvo) {
-                    const convo = conversations.find(c => c.id === selectedConvo);
-                    if (!convo) return;
-                    await supabase.from("ai_dm_conversations").update({ ai_enabled: true, is_read: false }).eq("id", selectedConvo);
-                    addLog(`@${convo.participant_username}`, "Relaunching conversation", "processing");
-                    toast.info(`Relaunching convo with @${convo.participant_username}...`);
-                    await processDMs();
+                  if (!selectedConvo) { toast.error("Select a conversation to relaunch"); return; }
+                  const convo = conversations.find(c => c.id === selectedConvo);
+                  if (!convo) return;
+                  setRelaunching(true);
+                  addLog(`@${convo.participant_username}`, "Deep relaunching conversation (full context scan)...", "processing");
+                  setAiCurrentPhase("analyze");
+                  toast.info(`Relaunching convo with @${convo.participant_username}...`);
+                  try {
+                    const { data, error } = await supabase.functions.invoke("social-ai-responder", {
+                      body: { action: "relaunch_single", account_id: accountId, params: { conversation_id: selectedConvo } },
+                    });
+                    if (error) throw error;
+                    const r = data?.data;
+                    if (r?.success) {
+                      addLog(`@${convo.participant_username}`, `Replied (${r.context_messages} msgs scanned): "${r.reply?.substring(0, 50)}..."`, "success");
+                      toast.success(`Replied to @${convo.participant_username}`);
+                    } else if (r?.skipped) {
+                      toast.info(r.error || "Last message is not from fan — nothing to reply to");
+                    } else {
+                      toast.error(r?.error || "Failed to relaunch");
+                    }
+                  } catch (e: any) {
+                    addLog("system", `Error: ${e.message}`, "error");
+                    toast.error(e.message || "Relaunch failed");
+                  } finally {
+                    setRelaunching(false);
+                    setAiCurrentPhase("");
                     await loadConversations();
                     if (selectedConvo) await loadMessages(selectedConvo);
-                  } else {
-                    toast.error("Select a conversation to relaunch");
                   }
                 }}
               >
-                <RefreshCw className="h-3 w-3" />
+                {relaunching ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
                 Relaunch Current Convo
               </Button>
               <Button
                 size="sm"
                 variant="outline"
                 className="w-full h-8 text-[10px] justify-start gap-2 border-orange-500/20 text-orange-400 hover:bg-orange-500/10"
-                disabled={processing}
+                disabled={relaunching || processing}
                 onClick={async () => {
-                  const count = conversations.length;
-                  if (count === 0) { toast.info("No conversations"); return; }
-                  for (const c of conversations) {
-                    await supabase.from("ai_dm_conversations").update({ ai_enabled: true, is_read: false }).eq("id", c.id);
+                  const count = conversations.filter(c => {
+                    if (!c.last_message_at) return false;
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    return new Date(c.last_message_at) >= today;
+                  }).length;
+                  if (count === 0) { toast.info("No conversations with activity today"); return; }
+                  setRelaunching(true);
+                  addLog("system", `Relaunching ALL ${count} today's conversations (deep context scan)...`, "processing");
+                  setAiCurrentPhase("analyze");
+                  toast.info(`Scanning & relaunching ${count} conversations from today...`);
+                  try {
+                    const { data, error } = await supabase.functions.invoke("social-ai-responder", {
+                      body: { action: "relaunch_all_today", account_id: accountId, params: {} },
+                    });
+                    if (error) throw error;
+                    const r = data?.data;
+                    if (r?.processed > 0) {
+                      for (const c of (r.conversations || [])) {
+                        addLog(`@${c.fan}`, `Resumed (${c.context_messages} msgs): "${c.ai_reply?.substring(0, 50)}..."`, "success");
+                      }
+                      toast.success(`Relaunched ${r.processed}/${r.total_today} today's conversations`);
+                    } else {
+                      toast.info(`${r?.total_today || 0} today convos — none needed replies`);
+                    }
+                  } catch (e: any) {
+                    addLog("system", `Error: ${e.message}`, "error");
+                    toast.error(e.message || "Relaunch failed");
+                  } finally {
+                    setRelaunching(false);
+                    setAiCurrentPhase("");
+                    await loadConversations();
                   }
-                  addLog("system", `Relaunching ALL ${count} conversations`, "processing");
-                  toast.info(`Relaunching ${count} conversations...`);
-                  await processDMs();
-                  await loadConversations();
                 }}
               >
-                <Zap className="h-3 w-3" />
-                Relaunch All ({conversations.length})
+                {relaunching ? <Loader2 className="h-3 w-3 animate-spin" /> : <Zap className="h-3 w-3" />}
+                Relaunch All Today ({conversations.filter(c => {
+                  if (!c.last_message_at) return false;
+                  const today = new Date(); today.setHours(0, 0, 0, 0);
+                  return new Date(c.last_message_at) >= today;
+                }).length})
               </Button>
               <Button
                 size="sm"
