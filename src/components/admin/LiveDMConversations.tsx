@@ -449,14 +449,8 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
     if (processing) return;
     setProcessing(true);
     
-    const phases = ["scan", "detect", "analyze", "generate", "typing", "send"];
-    
-    addLog("system", "Starting AI processing cycle", "processing");
-    
-    for (const phase of phases.slice(0, 2)) {
-      setAiCurrentPhase(phase);
-      await new Promise(r => setTimeout(r, 300));
-    }
+    addLog("system", "AI processing cycle", "processing");
+    setAiCurrentPhase("scan");
     
     try {
       const { data, error } = await supabase.functions.invoke("social-ai-responder", {
@@ -470,19 +464,19 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
         if (r?.conversations?.length > 0) {
           for (const c of r.conversations) {
             setAiCurrentConvoId(c.conversation_id);
-            for (const phase of phases.slice(2)) {
-              setAiCurrentPhase(phase);
-              await new Promise(r => setTimeout(r, 200));
-            }
+            setAiCurrentPhase("send");
             addLog(`@${c.fan}`, `Replied: "${c.ai_reply?.substring(0, 60)}..."`, "success");
           }
           toast.success(`AI replied to ${r.processed} conversations`);
         } else {
-          addLog("system", `Checked ${r?.total_checked || 0} conversations — no new messages`, "info");
+          addLog("system", `Checked ${r?.total_checked || 0} — no new`, "info");
         }
       }
       await loadConversations();
-      if (selectedConvo) await loadMessages(selectedConvo);
+      if (selectedConvo) {
+        const fresh = await loadMessagesToCache(selectedConvo);
+        setMessages(fresh);
+      }
     } catch (e: any) {
       addLog("system", `Error: ${e.message}`, "error");
     } finally {
@@ -490,7 +484,7 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
       setAiCurrentPhase("");
       setAiCurrentConvoId(null);
     }
-  }, [accountId, processing, loadConversations, selectedConvo, loadMessages, addLog]);
+  }, [accountId, processing, loadConversations, selectedConvo, loadMessagesToCache, addLog]);
 
   // Auto-polling
   useEffect(() => {
@@ -514,6 +508,24 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
     setMessageInput("");
     setSendingMessage(true);
 
+    // OPTIMISTIC: Add to UI instantly
+    const tempId = `temp-${Date.now()}`;
+    const optimisticMsg: Message = {
+      id: tempId,
+      conversation_id: selectedConvo,
+      sender_type: "manual",
+      sender_name: "you",
+      content: text,
+      status: "sending",
+      platform_message_id: null,
+      ai_model: null,
+      typing_delay_ms: null,
+      life_pause_ms: null,
+      created_at: new Date().toISOString(),
+      metadata: null,
+    };
+    setMessages(prev => [...prev, optimisticMsg]);
+
     try {
       const { data, error } = await supabase.functions.invoke("instagram-api", {
         body: { action: "send_message", account_id: accountId, params: { recipient_id: convo.participant_id, message: text } },
@@ -521,7 +533,8 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
       if (error) throw error;
       if (!data?.success) throw new Error(data?.error || "Send failed");
 
-      await supabase.from("ai_dm_messages").insert({
+      // Replace optimistic message with real one
+      const { data: inserted } = await supabase.from("ai_dm_messages").insert({
         conversation_id: selectedConvo,
         account_id: accountId,
         sender_type: "manual",
@@ -529,16 +542,27 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
         content: text,
         status: "sent",
         platform_message_id: data?.data?.message_id || null,
-      });
+      }).select("*").single();
 
-      await supabase.from("ai_dm_conversations").update({
+      if (inserted) {
+        setMessages(prev => prev.map(m => m.id === tempId ? (inserted as Message) : m));
+        // Update cache
+        const cached = messageCacheRef.current.get(selectedConvo);
+        if (cached) {
+          messageCacheRef.current.set(selectedConvo, [...cached.filter(m => m.id !== tempId), inserted as Message]);
+        }
+      }
+
+      supabase.from("ai_dm_conversations").update({
         last_message_at: new Date().toISOString(),
         last_message_preview: `You: ${text.substring(0, 80)}`,
         is_read: true,
-      }).eq("id", selectedConvo);
+      }).eq("id", selectedConvo).then();
       
       addLog(`@${convo.participant_username}`, `Sent: "${text.substring(0, 50)}"`, "success");
     } catch (e: any) {
+      // Mark optimistic message as failed
+      setMessages(prev => prev.map(m => m.id === tempId ? { ...m, status: "failed" } : m));
       toast.error(e.message || "Failed to send");
       setMessageInput(text);
       addLog("system", `Send failed: ${e.message}`, "error");
@@ -569,27 +593,32 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
       deletedPlatformIdsRef.current.add(msg.platform_message_id);
     }
     
-    // Try to delete on IG via Page API
-    if (msg?.platform_message_id) {
-      try {
-        const { data, error } = await supabase.functions.invoke("instagram-api", {
-          body: { action: "delete_message", account_id: accountId, params: { message_id: msg.platform_message_id } },
-        });
-        if (!error && data?.success !== false) {
-          addLog("system", `Deleted on IG: ${msg.content?.substring(0, 30)}...`, "success");
-        }
-      } catch (e: any) {
-        // IG may not support DM deletion — that's OK, we still remove locally
-        console.warn("IG delete attempt:", e);
+    // OPTIMISTIC: Remove from UI instantly
+    setMessages(prev => prev.filter(m => m.id !== msgId));
+    // Also update cache instantly
+    if (selectedConvo) {
+      const cached = messageCacheRef.current.get(selectedConvo);
+      if (cached) {
+        messageCacheRef.current.set(selectedConvo, cached.filter(m => m.id !== msgId));
       }
     }
     
-    // Always delete locally
-    await supabase.from("ai_dm_messages").delete().eq("id", msgId);
-    if (selectedConvo) {
-      const fresh = await loadMessagesToCache(selectedConvo);
-      setMessages(fresh);
+    // Delete from DB instantly (don't wait)
+    supabase.from("ai_dm_messages").delete().eq("id", msgId).then();
+    
+    // Try to unsend on IG in background (non-blocking)
+    if (msg?.platform_message_id) {
+      supabase.functions.invoke("instagram-api", {
+        body: { action: "delete_message", account_id: accountId, params: { message_id: msg.platform_message_id } },
+      }).then(({ data }) => {
+        if (data?.data?.success !== false) {
+          addLog("system", `Unsent on IG: ${msg.content?.substring(0, 30)}...`, "success");
+        } else {
+          addLog("system", `IG unsend: ${data?.data?.error || "not supported for this message"}`, "info");
+        }
+      }).catch(() => {});
     }
+    
     toast.success("Message deleted");
   };
 
