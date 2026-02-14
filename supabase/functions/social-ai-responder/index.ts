@@ -2246,9 +2246,21 @@ Follow these persona settings strictly. They override any conflicting defaults a
               .order("created_at", { ascending: true })
               .limit(50);
 
+            // === FREE PIC PRE-CHECK (must run BEFORE post-redirect to override it) ===
+            const { data: fanProfileForPicPreCheck } = await supabase
+              .from("fan_emotional_profiles")
+              .select("tags")
+              .eq("account_id", account_id)
+              .eq("fan_identifier", dbConvo.participant_id)
+              .single();
+            
+            const freePicPreCheck = detectFreePicRequest(dbMessages || [], fanProfileForPicPreCheck?.tags || []);
+            console.log(`[FREE PIC PRE-CHECK] @${dbConvo.participant_username}: isRequesting=${freePicPreCheck.isRequesting}, alreadySent=${freePicPreCheck.alreadySent}, isEligible=${freePicPreCheck.isEligible}, fanMsgs=${(dbMessages || []).filter(m => m.sender_type === "fan").length}`);
+
             // === POST-REDIRECT DETECTION (auto-responder) ===
+            // SKIP post-redirect block if fan is requesting a free pic (free pic overrides redirect)
             const redirectCheckLive = detectPostRedirect(dbMessages || []);
-            if (redirectCheckLive.shouldStop) {
+            if (redirectCheckLive.shouldStop && !freePicPreCheck.isEligible) {
               if (redirectCheckLive.shouldReact && latestMsg.platform_message_id) {
                 try {
                   const igFuncUrl3 = `${Deno.env.get("SUPABASE_URL")}/functions/v1/instagram-api`;
@@ -2266,16 +2278,10 @@ Follow these persona settings strictly. They override any conflicting defaults a
             }
 
             // === FREE PIC DETECTION & DELIVERY ENGINE ===
-            // Check if fan is asking for a free pic and if they're eligible
-            const { data: fanProfileForPic } = await supabase
-              .from("fan_emotional_profiles")
-              .select("tags")
-              .eq("account_id", account_id)
-              .eq("fan_identifier", dbConvo.participant_id)
-              .single();
-            
-            const freePicCheck = detectFreePicRequest(dbMessages || [], fanProfileForPic?.tags || []);
-            
+            // Reuse the pre-check from above (already queried fan profile and ran detection)
+            const fanProfileForPic = fanProfileForPicPreCheck;
+            const freePicCheck = freePicPreCheck;
+
             if (freePicCheck.isEligible) {
               // ELIGIBLE: Send default free pic THEN immediately redirect
               const igFuncUrlFP = `${Deno.env.get("SUPABASE_URL")}/functions/v1/instagram-api`;
