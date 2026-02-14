@@ -1120,7 +1120,7 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
                                     );
                                   }
 
-                                  // Shared post / reel
+                                  // Shared post / reel — render media inline
                                   if (sharesData) {
                                     const shareArr = sharesData?.data || (Array.isArray(sharesData) ? sharesData : [sharesData]);
                                     const share = shareArr?.[0] || sharesData;
@@ -1128,31 +1128,79 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
                                     const shareName = share?.name || share?.title || share?.description;
                                     const shareImage = share?.image_url || share?.media_url || share?.thumbnail_url || share?.cover_url;
                                     const isReel = shareLink?.includes("/reel/") || shareLink?.includes("/reels/") || share?.type === "reel";
-                                    const isPost = shareLink?.includes("/p/") || !isReel;
+                                    
+                                    // Try to extract direct media URL from the share or attachments
+                                    const directMediaUrl = shareImage || shareLink;
+                                    const isCdnUrl = directMediaUrl && (
+                                      directMediaUrl.includes("lookaside.fbsbx.com") ||
+                                      directMediaUrl.includes("scontent") ||
+                                      directMediaUrl.includes("cdninstagram") ||
+                                      directMediaUrl.includes("fbcdn") ||
+                                      directMediaUrl.includes(".jpg") ||
+                                      directMediaUrl.includes(".png") ||
+                                      directMediaUrl.includes(".mp4") ||
+                                      directMediaUrl.includes(".webp")
+                                    );
+                                    const isVideoUrl = directMediaUrl && (directMediaUrl.includes(".mp4") || directMediaUrl.includes("video") || isReel);
+                                    
                                     return (
                                       <div className="relative">
-                                        <a href={shareLink} target="_blank" rel="noopener noreferrer" className="block rounded-2xl overflow-hidden border border-border/30 max-w-[260px] hover:border-border/60 transition-colors group/share">
-                                          {shareImage && (
+                                        <div className="rounded-2xl overflow-hidden border border-border/30 max-w-[260px]">
+                                          <div className="px-2.5 py-1.5 bg-muted/20 text-[10px] text-muted-foreground flex items-center gap-1.5">
+                                            <span>{isReel ? "🎬" : "📎"}</span>
+                                            <span className="font-medium">Shared {isReel ? "reel" : "post"}</span>
+                                          </div>
+                                          {directMediaUrl && (
                                             <div className="relative">
-                                              <img src={shareImage} alt="" className="w-full max-h-[200px] object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
-                                              {isReel && (
+                                              {isVideoUrl ? (
+                                                <video 
+                                                  src={directMediaUrl} 
+                                                  controls 
+                                                  preload="metadata" 
+                                                  playsInline 
+                                                  className="w-full max-h-[300px] object-cover"
+                                                  poster={shareImage && !shareImage.includes(".mp4") ? shareImage : undefined}
+                                                />
+                                              ) : (
+                                                <img 
+                                                  src={directMediaUrl} 
+                                                  alt={shareName || "Shared post"} 
+                                                  className="w-full max-h-[300px] object-cover cursor-pointer hover:opacity-95 transition-opacity" 
+                                                  onClick={() => window.open(directMediaUrl, "_blank")}
+                                                  onError={(e) => {
+                                                    // If image fails, show the link as fallback
+                                                    const parent = (e.target as HTMLImageElement).parentElement;
+                                                    if (parent && shareLink) {
+                                                      (e.target as HTMLImageElement).style.display = "none";
+                                                      const link = document.createElement("a");
+                                                      link.href = shareLink;
+                                                      link.target = "_blank";
+                                                      link.className = "block px-3 py-2 text-[11px] text-accent hover:underline truncate";
+                                                      link.textContent = shareLink;
+                                                      parent.appendChild(link);
+                                                    }
+                                                  }}
+                                                />
+                                              )}
+                                              {isReel && !isVideoUrl && (
                                                 <div className="absolute bottom-2 left-2 bg-black/60 rounded-full px-2 py-0.5 flex items-center gap-1">
                                                   <span className="text-[10px]">🎬</span>
                                                   <span className="text-[10px] text-white font-medium">Reel</span>
                                                 </div>
                                               )}
-                                              <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent opacity-0 group-hover/share:opacity-100 transition-opacity" />
                                             </div>
                                           )}
-                                          <div className="px-3 py-2 bg-muted/30">
-                                            <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground mb-1">
-                                              <span>{isReel ? "🎬" : "📎"}</span>
-                                              <span className="font-medium">Shared {isReel ? "reel" : "post"}</span>
+                                          {shareName && (
+                                            <div className="px-3 py-1.5 bg-muted/10">
+                                              <p className="text-xs text-foreground/80 line-clamp-2">{shareName}</p>
                                             </div>
-                                            {shareName && <p className="text-xs font-medium text-foreground line-clamp-2">{shareName}</p>}
-                                            {shareLink && <p className="text-[10px] text-accent truncate mt-1">{shareLink}</p>}
-                                          </div>
-                                        </a>
+                                          )}
+                                          {!directMediaUrl && shareLink && (
+                                            <a href={shareLink} target="_blank" rel="noopener noreferrer" className="block px-3 py-2 text-[11px] text-accent hover:underline truncate">
+                                              {shareLink}
+                                            </a>
+                                          )}
+                                        </div>
                                         {msg.content && !msg.content.startsWith("[") && (
                                           <div className={`rounded-2xl px-3.5 py-2 mt-0.5 ${isMe ? "bg-primary text-primary-foreground" : "bg-muted/60 text-foreground"}`}>
                                             <p className="text-[13px] leading-relaxed whitespace-pre-wrap">{msg.content}</p>
