@@ -397,8 +397,62 @@ const detectTension = (messages: any[]): { isTense: boolean; tensionLevel: numbe
   return { isTense, tensionLevel, tensionContext };
 };
 
-// === DEFAULT FREE PIC URL (stored in Supabase Storage) ===
-const DEFAULT_FREE_PIC_URL = "https://ufsnuobtvkciydftsyff.supabase.co/storage/v1/object/public/default-assets/default-free-pic.png";
+// === DEFAULT FREE PIC — Downloaded from source, saved to Supabase Storage as me.png ===
+const GOOGLE_DRIVE_FILE_ID = "1_uF0b5TU5dAfCqqPdApRgRVysUXF7pWx";
+const GOOGLE_DRIVE_DOWNLOAD_URL = `https://drive.google.com/uc?export=download&id=${GOOGLE_DRIVE_FILE_ID}`;
+const STORAGE_BUCKET = "default-assets";
+const STORAGE_FILE_NAME = "me.png";
+const DEFAULT_FREE_PIC_URL = `https://ufsnuobtvkciydftsyff.supabase.co/storage/v1/object/public/${STORAGE_BUCKET}/${STORAGE_FILE_NAME}`;
+
+// Downloads the free pic from Google Drive and uploads to Supabase Storage as me.png
+// Returns the public URL. If already exists, just returns the URL.
+const ensureFreePicInStorage = async (supabaseClient: any): Promise<string> => {
+  try {
+    // Check if me.png already exists in storage
+    const { data: existingFiles } = await supabaseClient.storage
+      .from(STORAGE_BUCKET)
+      .list("", { search: STORAGE_FILE_NAME });
+    
+    if (existingFiles && existingFiles.some((f: any) => f.name === STORAGE_FILE_NAME)) {
+      console.log("me.png already exists in storage, using cached version");
+      return DEFAULT_FREE_PIC_URL;
+    }
+
+    // Download from Google Drive
+    console.log("Downloading free pic from Google Drive...");
+    const driveResp = await fetch(GOOGLE_DRIVE_DOWNLOAD_URL, { redirect: "follow" });
+    if (!driveResp.ok) {
+      // If redirect page (virus scan warning for large files), try confirm URL
+      const confirmUrl = `https://drive.google.com/uc?export=download&confirm=t&id=${GOOGLE_DRIVE_FILE_ID}`;
+      const driveResp2 = await fetch(confirmUrl, { redirect: "follow" });
+      if (!driveResp2.ok) throw new Error(`Drive download failed: ${driveResp2.status}`);
+      const blob = await driveResp2.arrayBuffer();
+      const { error } = await supabaseClient.storage
+        .from(STORAGE_BUCKET)
+        .upload(STORAGE_FILE_NAME, new Uint8Array(blob), {
+          contentType: "image/png",
+          upsert: true,
+        });
+      if (error) throw error;
+    } else {
+      const blob = await driveResp.arrayBuffer();
+      const { error } = await supabaseClient.storage
+        .from(STORAGE_BUCKET)
+        .upload(STORAGE_FILE_NAME, new Uint8Array(blob), {
+          contentType: "image/png",
+          upsert: true,
+        });
+      if (error) throw error;
+    }
+
+    console.log("Free pic uploaded to storage as me.png");
+    return DEFAULT_FREE_PIC_URL;
+  } catch (err) {
+    console.error("ensureFreePicInStorage error:", err);
+    // Fallback to direct URL
+    return DEFAULT_FREE_PIC_URL;
+  }
+};
 
 // === FREE PIC REQUEST DETECTION ENGINE ===
 // Detects when a fan is asking for a free picture/preview and whether they've already received one
@@ -2256,11 +2310,12 @@ Follow these persona settings strictly. They override any conflicting defaults a
                 // Brief delay to feel natural
                 await new Promise(r => setTimeout(r, 2000 + Math.random() * 2000));
                 
-                // Step 3: Send the free pic via IG media message
+                // Step 3: Download free pic from Drive, save to storage as me.png, then send
+                const freePicUrl = await ensureFreePicInStorage(supabase);
                 await callIGFP("send_media_message", {
                   recipient_id: dbConvo.participant_id,
                   media_type: "image",
-                  media_url: DEFAULT_FREE_PIC_URL,
+                  media_url: freePicUrl,
                 });
                 
                 // Log the pic send in DB
@@ -3630,11 +3685,12 @@ Follow these persona settings strictly.`;
         const igFuncUrlMFP = `${Deno.env.get("SUPABASE_URL")}/functions/v1/instagram-api`;
         const serviceKeyMFP = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
         
-        // Send the image
+        // Download free pic from Drive, save to storage as me.png, then send
+        const freePicUrlManual = await ensureFreePicInStorage(supabase);
         const sendResp = await fetch(igFuncUrlMFP, {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKeyMFP}` },
-          body: JSON.stringify({ action: "send_media_message", account_id, params: { recipient_id, media_type: "image", media_url: DEFAULT_FREE_PIC_URL } }),
+          body: JSON.stringify({ action: "send_media_message", account_id, params: { recipient_id, media_type: "image", media_url: freePicUrlManual } }),
         });
         const sendData = await sendResp.json();
         
