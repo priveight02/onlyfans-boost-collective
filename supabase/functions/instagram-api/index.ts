@@ -572,12 +572,19 @@ serve(async (req) => {
       }
 
       // ===== MESSAGING =====
-      case "send_message":
-        result = await igFetch(`/${igUserId}/messages`, token, "POST", {
+      case "send_message": {
+        // Instagram messaging requires sending via the linked Facebook Page
+        const pageInfo = await getPageId(token, igUserId);
+        if (!pageInfo) throw new Error("No linked Facebook Page found. Messaging requires a Page connected to this Instagram account.");
+        const sendToken = pageInfo.pageToken;
+        const senderId = pageInfo.pageId;
+        
+        result = await igFetch(`/${senderId}/messages`, sendToken, "POST", {
           recipient: { id: params.recipient_id },
           message: { text: params.message },
         });
         break;
+      }
 
       case "send_media_message":
         result = await igFetch(`/${igUserId}/messages`, token, "POST", {

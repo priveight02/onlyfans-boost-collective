@@ -737,7 +737,7 @@ Rules:
               // Import messages
               const sortedMsgs = [...messages].reverse();
               for (const msg of sortedMsgs) {
-                const msgText = msg.text || msg.message;
+                const msgText = msg.text || msg.message || "";
                 if (!msgText && !msg.id) continue;
                 const { data: existing } = await supabase
                   .from("ai_dm_messages")
@@ -752,16 +752,36 @@ Rules:
                   (msgFromId !== ourIdScan && msgFromName !== ourUsernameScan) : 
                   true;
                 const msgTimestamp = msg.timestamp || msg.created_time;
-                const attachmentData = (msg.attachments || msg.sticker || msg.shares) 
-                  ? { attachments: msg.attachments?.data || msg.attachments, sticker: msg.sticker, shares: msg.shares } 
-                  : null;
+                const rawAttachments = msg.attachments?.data || msg.attachments;
+                const hasAttachments = rawAttachments && (Array.isArray(rawAttachments) ? rawAttachments.length > 0 : true);
+                const attachmentData = hasAttachments 
+                  ? { attachments: Array.isArray(rawAttachments) ? rawAttachments : [rawAttachments], sticker: msg.sticker || null, shares: msg.shares || null } 
+                  : (msg.sticker ? { sticker: msg.sticker } : (msg.shares ? { shares: msg.shares } : null));
+                
+                // Determine content: use text if available, describe attachment type if not
+                let contentText = msgText;
+                if (!contentText && hasAttachments) {
+                  const attArr = Array.isArray(rawAttachments) ? rawAttachments : [rawAttachments];
+                  const attType = attArr[0]?.mime_type || attArr[0]?.type || "";
+                  if (attType.includes("video")) contentText = "[video]";
+                  else if (attType.includes("image") || attType.includes("photo")) contentText = "[photo]";
+                  else if (attType.includes("audio")) contentText = "[audio]";
+                  else if (msg.sticker) contentText = "[sticker]";
+                  else if (msg.shares) contentText = "[shared post]";
+                  else contentText = "[attachment]";
+                } else if (!contentText) {
+                  if (msg.sticker) contentText = "[sticker]";
+                  else if (msg.shares) contentText = "[shared post]";
+                  else contentText = "";
+                }
+                
                 await supabase.from("ai_dm_messages").insert({
                   conversation_id: dbConvo.id,
                   account_id,
                   platform_message_id: msg.id,
                   sender_type: isFromFan ? "fan" : "ai",
                   sender_name: isFromFan ? (fan.username || fan.name || "fan") : (igConnScan.platform_username || "creator"),
-                  content: msgText || "[media]",
+                  content: contentText || "",
                   status: "sent",
                   created_at: msgTimestamp ? new Date(msgTimestamp).toISOString() : new Date().toISOString(),
                   metadata: attachmentData,
@@ -858,7 +878,7 @@ Rules:
             if (!scDbConvo) continue;
             
             for (const scMsg of [...scMsgs].reverse()) {
-              const scMsgText = scMsg.text || scMsg.message;
+              const scMsgText = scMsg.text || scMsg.message || "";
               if (!scMsgText && !scMsg.id) continue;
               const { data: scEx } = await supabase.from("ai_dm_messages").select("id").eq("platform_message_id", scMsg.id).limit(1);
               if (scEx && scEx.length > 0) continue;
@@ -866,15 +886,36 @@ Rules:
               const scIsFromFan = scMsg.from?.id ? 
                 (scMsg.from.id !== ourIdScan2 && scFromName !== ourUsernameScan2) : true;
               const scMsgTimestamp = scMsg.timestamp || scMsg.created_time;
+              const scRawAtt = scMsg.attachments?.data || scMsg.attachments;
+              const scHasAtt = scRawAtt && (Array.isArray(scRawAtt) ? scRawAtt.length > 0 : true);
+              const scAttData = scHasAtt 
+                ? { attachments: Array.isArray(scRawAtt) ? scRawAtt : [scRawAtt], sticker: scMsg.sticker || null, shares: scMsg.shares || null } 
+                : (scMsg.sticker ? { sticker: scMsg.sticker } : (scMsg.shares ? { shares: scMsg.shares } : null));
+              let scContent = scMsgText;
+              if (!scContent && scHasAtt) {
+                const scAttArr = Array.isArray(scRawAtt) ? scRawAtt : [scRawAtt];
+                const scAttType = scAttArr[0]?.mime_type || scAttArr[0]?.type || "";
+                if (scAttType.includes("video")) scContent = "[video]";
+                else if (scAttType.includes("image") || scAttType.includes("photo")) scContent = "[photo]";
+                else if (scAttType.includes("audio")) scContent = "[audio]";
+                else if (scMsg.sticker) scContent = "[sticker]";
+                else if (scMsg.shares) scContent = "[shared post]";
+                else scContent = "[attachment]";
+              } else if (!scContent) {
+                if (scMsg.sticker) scContent = "[sticker]";
+                else if (scMsg.shares) scContent = "[shared post]";
+                else scContent = "";
+              }
               await supabase.from("ai_dm_messages").insert({
                 conversation_id: scDbConvo.id,
                 account_id,
                 platform_message_id: scMsg.id,
                 sender_type: scIsFromFan ? "fan" : "ai",
                 sender_name: scIsFromFan ? (scFan.username || scFan.name || "fan") : (igConnScan2?.platform_username || "creator"),
-                content: scMsgText || "[media]",
+                content: scContent || "",
                 status: "sent",
                 created_at: scMsgTimestamp ? new Date(scMsgTimestamp).toISOString() : new Date().toISOString(),
+                metadata: scAttData,
               });
             }
           }
