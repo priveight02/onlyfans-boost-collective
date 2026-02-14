@@ -1046,6 +1046,7 @@ export type Database = {
           created_at: string
           fetched_at: string
           full_name: string | null
+          gender: string | null
           id: string
           ig_user_id: string
           is_private: boolean | null
@@ -1061,6 +1062,7 @@ export type Database = {
           created_at?: string
           fetched_at?: string
           full_name?: string | null
+          gender?: string | null
           id?: string
           ig_user_id: string
           is_private?: boolean | null
@@ -1076,6 +1078,7 @@ export type Database = {
           created_at?: string
           fetched_at?: string
           full_name?: string | null
+          gender?: string | null
           id?: string
           ig_user_id?: string
           is_private?: boolean | null
