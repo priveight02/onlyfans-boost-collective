@@ -93,6 +93,7 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
     { id: "youtube", name: "YouTube", icon: Youtube, color: "text-red-400", borderColor: "border-red-500/30", bgColor: "bg-red-500/10", funcName: "youtube-api" },
     { id: "pinterest", name: "Pinterest", icon: Palette, color: "text-rose-400", borderColor: "border-rose-500/30", bgColor: "bg-rose-500/10", funcName: "pinterest-api" },
     { id: "discord", name: "Discord", icon: Gamepad2, color: "text-indigo-400", borderColor: "border-indigo-500/30", bgColor: "bg-indigo-500/10", funcName: "discord-api" },
+    { id: "facebook", name: "Facebook", icon: Globe, color: "text-blue-500", borderColor: "border-blue-600/30", bgColor: "bg-blue-600/10", funcName: "facebook-api" },
   ];
 
   const renderActionButton = (label: string, funcName: string, action: string, params: any = {}, icon?: any) => {
@@ -726,6 +727,65 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
     </Tabs>
   );
 
+  // ===== FACEBOOK =====
+  const renderFacebookContent = () => (
+    <Tabs defaultValue="pages" className="w-full">
+      <TabsList className="bg-muted/50 border border-border p-0.5 rounded-lg gap-0.5 flex-wrap h-auto">
+        {[{v:"pages",l:"Pages",icon:Globe},{v:"posts",l:"Posts",icon:FileText},{v:"publish",l:"Publish",icon:Send},{v:"comments",l:"Comments",icon:MessageSquare},{v:"groups",l:"Groups",icon:Users},{v:"inbox",l:"Inbox",icon:MessageCircle},{v:"insights",l:"Insights",icon:BarChart3},{v:"ai",l:"AI",icon:Brain}].map(t=>(
+          <TabsTrigger key={t.v} value={t.v} className="text-[10px] gap-1 px-2 py-1 data-[state=active]:bg-background"><t.icon className="h-3 w-3"/>{t.l}</TabsTrigger>
+        ))}
+      </TabsList>
+      <TabsContent value="pages" className="space-y-2 mt-3">
+        <div className="flex gap-1.5 flex-wrap">
+          {renderActionButton("Profile","facebook-api","get_profile",{},Users)}
+          {renderActionButton("My Pages","facebook-api","get_pages",{limit:25},Globe)}
+        </div>
+        {renderInputAction("Get Page","facebook-api","get_page",[{key:"fb_pg_id",placeholder:"Page ID"}],()=>({page_id:getInput("fb_pg_id")}),Eye)}
+        {renderInputAction("Search Pages","facebook-api","search_pages",[{key:"fb_sp_q",placeholder:"Search query"}],()=>({query:getInput("fb_sp_q"),limit:10}),Search)}
+      </TabsContent>
+      <TabsContent value="posts" className="space-y-2 mt-3">
+        {renderActionButton("My Feed","facebook-api","get_feed",{limit:25},FileText)}
+        {renderInputAction("Page Feed","facebook-api","get_feed",[{key:"fb_pf_id",placeholder:"Page ID"}],()=>({page_id:getInput("fb_pf_id"),limit:25}),FileText)}
+        {renderInputAction("Get Post","facebook-api","get_post",[{key:"fb_gp_id",placeholder:"Post ID"}],()=>({post_id:getInput("fb_gp_id")}),Eye)}
+        {renderInputAction("Delete Post","facebook-api","delete_post",[{key:"fb_dp_id",placeholder:"Post ID"}],()=>({post_id:getInput("fb_dp_id")}),Trash2)}
+      </TabsContent>
+      <TabsContent value="publish" className="space-y-2 mt-3">
+        {renderInputAction("Text Post","facebook-api","create_post",[{key:"fb_cp_msg",placeholder:"Message"},{key:"fb_cp_pid",placeholder:"Page ID (opt)"}],()=>({message:getInput("fb_cp_msg"),page_id:getInput("fb_cp_pid")||undefined}),Send)}
+        {renderInputAction("Link Post","facebook-api","create_post",[{key:"fb_lp_msg",placeholder:"Message"},{key:"fb_lp_link",placeholder:"URL"},{key:"fb_lp_pid",placeholder:"Page ID (opt)"}],()=>({message:getInput("fb_lp_msg"),link:getInput("fb_lp_link"),page_id:getInput("fb_lp_pid")||undefined}),Link2)}
+        {renderInputAction("Photo Post","facebook-api","create_photo_post",[{key:"fb_pp_url",placeholder:"Image URL"},{key:"fb_pp_cap",placeholder:"Caption"},{key:"fb_pp_pid",placeholder:"Page ID (opt)"}],()=>({image_url:getInput("fb_pp_url"),caption:getInput("fb_pp_cap"),page_id:getInput("fb_pp_pid")||undefined}),Image)}
+        {renderInputAction("Video Post","facebook-api","create_video_post",[{key:"fb_vp_url",placeholder:"Video URL"},{key:"fb_vp_desc",placeholder:"Description"},{key:"fb_vp_pid",placeholder:"Page ID (opt)"}],()=>({video_url:getInput("fb_vp_url"),description:getInput("fb_vp_desc"),page_id:getInput("fb_vp_pid")||undefined}),Video)}
+      </TabsContent>
+      <TabsContent value="comments" className="space-y-2 mt-3">
+        {renderInputAction("Get Comments","facebook-api","get_comments",[{key:"fb_gc_oid",placeholder:"Post/Object ID"}],()=>({object_id:getInput("fb_gc_oid"),limit:50}),MessageSquare)}
+        {renderInputAction("Post Comment","facebook-api","post_comment",[{key:"fb_pc_oid",placeholder:"Post ID"},{key:"fb_pc_msg",placeholder:"Comment..."}],()=>({object_id:getInput("fb_pc_oid"),message:getInput("fb_pc_msg")}),Send)}
+        {renderInputAction("Delete Comment","facebook-api","delete_comment",[{key:"fb_dc_id",placeholder:"Comment ID"}],()=>({comment_id:getInput("fb_dc_id")}),Trash2)}
+        {renderInputAction("Hide Comment","facebook-api","hide_comment",[{key:"fb_hc_id",placeholder:"Comment ID"}],()=>({comment_id:getInput("fb_hc_id")}),EyeOff)}
+        {renderInputAction("Get Reactions","facebook-api","get_reactions",[{key:"fb_gr_oid",placeholder:"Post/Object ID"}],()=>({object_id:getInput("fb_gr_oid"),limit:50}),Heart)}
+      </TabsContent>
+      <TabsContent value="groups" className="space-y-2 mt-3">
+        {renderActionButton("My Groups","facebook-api","get_groups",{limit:25},Users)}
+        {renderInputAction("Group Feed","facebook-api","get_group_feed",[{key:"fb_gf_id",placeholder:"Group ID"}],()=>({group_id:getInput("fb_gf_id"),limit:25}),FileText)}
+        {renderInputAction("Post to Group","facebook-api","post_to_group",[{key:"fb_pg_gid",placeholder:"Group ID"},{key:"fb_pg_msg",placeholder:"Message"}],()=>({group_id:getInput("fb_pg_gid"),message:getInput("fb_pg_msg")}),Send)}
+        {renderInputAction("Events","facebook-api","get_events",[{key:"fb_ev_pid",placeholder:"Page ID (opt)"}],()=>({page_id:getInput("fb_ev_pid")||undefined}),Calendar)}
+        {renderInputAction("Albums","facebook-api","get_albums",[{key:"fb_al_pid",placeholder:"Page ID (opt)"}],()=>({page_id:getInput("fb_al_pid")||undefined}),Image)}
+      </TabsContent>
+      <TabsContent value="inbox" className="space-y-2 mt-3">
+        {renderInputAction("Page Conversations","facebook-api","get_conversations",[{key:"fb_cv_pid",placeholder:"Page ID"}],()=>({page_id:getInput("fb_cv_pid"),limit:20}),MessageCircle)}
+        {renderInputAction("Conversation Messages","facebook-api","get_conversation_messages",[{key:"fb_cm_cid",placeholder:"Conversation ID"}],()=>({conversation_id:getInput("fb_cm_cid"),limit:20}),MessageSquare)}
+        {renderInputAction("Send Page Message","facebook-api","send_page_message",[{key:"fb_sm_pid",placeholder:"Page ID"},{key:"fb_sm_rid",placeholder:"Recipient ID"},{key:"fb_sm_msg",placeholder:"Message"}],()=>({page_id:getInput("fb_sm_pid"),recipient_id:getInput("fb_sm_rid"),message:getInput("fb_sm_msg")}),Send)}
+      </TabsContent>
+      <TabsContent value="insights" className="space-y-2 mt-3">
+        {renderInputAction("Page Insights","facebook-api","get_page_insights",[{key:"fb_pi_pid",placeholder:"Page ID"}],()=>({page_id:getInput("fb_pi_pid")}),BarChart3)}
+        {renderInputAction("Post Insights","facebook-api","get_post_insights",[{key:"fb_poi_pid",placeholder:"Post ID"}],()=>({post_id:getInput("fb_poi_pid")}),TrendingUp)}
+      </TabsContent>
+      <TabsContent value="ai" className="space-y-2 mt-3">
+        {renderInputAction("AI Post","social-ai-responder","generate_caption",[{key:"ai_fb_topic",placeholder:"Topic"}],()=>({topic:getInput("ai_fb_topic"),platform:"facebook",include_cta:true}),Brain)}
+        {renderInputAction("AI Comment Reply","social-ai-responder","generate_dm_reply",[{key:"ai_fb_cmt",placeholder:"Comment text..."}],()=>({message_text:getInput("ai_fb_cmt"),sender_name:"user"}),Zap)}
+        {renderInputAction("AI Page Bio","social-ai-responder","generate_caption",[{key:"ai_fb_bio",placeholder:"Describe your page/brand"}],()=>({topic:`Write a compelling Facebook page About section for: ${getInput("ai_fb_bio")}`,platform:"facebook",include_cta:false}),Users)}
+      </TabsContent>
+    </Tabs>
+  );
+
   const renderPlatformContent = (platformId: string) => {
     switch (platformId) {
       case "instagram": return renderInstagramContent();
@@ -740,6 +800,7 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
       case "youtube": return renderYouTubeContent();
       case "pinterest": return renderPinterestContent();
       case "discord": return renderDiscordContent();
+      case "facebook": return renderFacebookContent();
       default: return null;
     }
   };
@@ -750,7 +811,7 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
         <div className="flex items-center gap-2">
           <Globe className="h-5 w-5 text-primary" />
           <h3 className="text-sm font-bold text-foreground">Social Networks API Hub</h3>
-          <Badge variant="outline" className="text-[10px]">12 platforms</Badge>
+          <Badge variant="outline" className="text-[10px]">13 platforms</Badge>
         </div>
       </div>
 

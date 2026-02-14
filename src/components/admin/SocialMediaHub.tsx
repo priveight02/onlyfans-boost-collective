@@ -24,7 +24,7 @@ import {
   Activity, Copy, Wifi, WifiOff,
   MessageCircle, LayoutDashboard, Compass,
   Sparkles, Bot, Brain, Wand2, AtSign, Megaphone, FolderOpen,
-  PieChart, Layers, Twitter, Phone,
+  PieChart, Layers, Twitter, Phone, Camera, Gamepad2,
 } from "lucide-react";
 
 const SocialMediaHub = () => {
@@ -124,6 +124,38 @@ const SocialMediaHub = () => {
 
    // Telegram
    const [telegramBotToken, setTelegramBotToken] = useState("");
+
+   // Snapchat OAuth
+   const [snapClientId, setSnapClientId] = useState("");
+   const [snapClientSecret, setSnapClientSecret] = useState("");
+
+   // Threads (Meta) OAuth
+   const [threadsAppId, setThreadsAppId] = useState("");
+   const [threadsAppSecret, setThreadsAppSecret] = useState("");
+
+   // WhatsApp Business
+   const [waPhoneNumberId, setWaPhoneNumberId] = useState("");
+   const [waAccessToken, setWaAccessToken] = useState("");
+   const [waBusinessId, setWaBusinessId] = useState("");
+
+   // Signal
+   const [signalApiUrl, setSignalApiUrl] = useState("");
+   const [signalPhoneNumber, setSignalPhoneNumber] = useState("");
+
+   // YouTube OAuth
+   const [ytClientId, setYtClientId] = useState("");
+   const [ytClientSecret, setYtClientSecret] = useState("");
+
+   // Pinterest OAuth
+   const [pinAppId, setPinAppId] = useState("");
+   const [pinAppSecret, setPinAppSecret] = useState("");
+
+   // Discord Bot
+   const [discordBotToken, setDiscordBotToken] = useState("");
+
+   // Facebook OAuth
+   const [fbAppId, setFbAppId] = useState("");
+   const [fbAppSecret, setFbAppSecret] = useState("");
 
    // Automated connect loading
    const [autoConnectLoading, setAutoConnectLoading] = useState<string | null>(null);
@@ -614,6 +646,263 @@ const SocialMediaHub = () => {
      setAutoConnectLoading(null);
    };
 
+
+   // ===== AUTOMATED SNAPCHAT CONNECT =====
+   const automatedSnapchatConnect = () => {
+     if (!snapClientId) { toast.error("Enter your Snapchat Client ID first"); return; }
+     const state = Math.random().toString(36).substring(2);
+     const scopes = "snapchat-marketing-api";
+     const authUrl = `https://accounts.snapchat.com/login/oauth2/authorize?client_id=${snapClientId}&redirect_uri=${encodeURIComponent(oauthRedirectUri)}&response_type=code&scope=${encodeURIComponent(scopes)}&state=${state}`;
+     const authWindow = window.open(authUrl, "snap_oauth", "width=600,height=700,scrollbars=yes");
+     setAutoConnectLoading("snapchat");
+     toast.info("Authenticate with Snapchat in the popup...");
+     const interval = setInterval(async () => {
+       try {
+         if (!authWindow || authWindow.closed) { clearInterval(interval); setAutoConnectLoading(null); return; }
+         const url = authWindow.location.href;
+         if (url.includes("code=")) {
+           const urlParams = new URL(url).searchParams;
+           const code = urlParams.get("code");
+           authWindow.close(); clearInterval(interval);
+           if (!code) { setAutoConnectLoading(null); toast.error("No auth code received"); return; }
+           toast.info("Exchanging for token...");
+           const { data, error } = await supabase.functions.invoke("snapchat-api", { body: { action: "exchange_code", params: { code, client_id: snapClientId, client_secret: snapClientSecret, redirect_uri: oauthRedirectUri } } });
+           if (error || !data?.success) { toast.error(data?.error || error?.message || "Token exchange failed"); setAutoConnectLoading(null); return; }
+           const accessToken = data.data?.access_token;
+           if (!accessToken) { toast.error("No access token"); setAutoConnectLoading(null); return; }
+           let accountId = selectedAccount;
+           if (!accountId) {
+             const { data: newAcct, error: err } = await supabase.from("managed_accounts").insert({ username: "snapchat_user", display_name: "Snapchat", platform: "snapchat", status: "active" }).select("id").single();
+             if (err || !newAcct) { toast.error(err?.message || "Failed"); setAutoConnectLoading(null); return; }
+             accountId = newAcct.id; setSelectedAccount(accountId);
+           }
+           await supabase.from("social_connections").upsert({ account_id: accountId, platform: "snapchat", platform_user_id: "", platform_username: "snapchat_user", access_token: accessToken, refresh_token: data.data?.refresh_token || null, is_connected: true, scopes: [], metadata: { connected_via: "automated_oauth" } }, { onConflict: "account_id,platform" });
+           await loadAccounts(); await loadData(accountId);
+           toast.success("✅ Snapchat connected!");
+           setAutoConnectLoading(null);
+         }
+       } catch { /* cross-origin */ }
+     }, 500);
+   };
+
+   // ===== AUTOMATED THREADS CONNECT =====
+   const automatedThreadsConnect = () => {
+     if (!threadsAppId) { toast.error("Enter your Threads App ID first"); return; }
+     const scopes = "threads_basic,threads_content_publish,threads_manage_insights,threads_manage_replies,threads_read_replies";
+     const authUrl = `https://threads.net/oauth/authorize?client_id=${threadsAppId}&redirect_uri=${encodeURIComponent(oauthRedirectUri)}&scope=${scopes}&response_type=code`;
+     const authWindow = window.open(authUrl, "threads_oauth", "width=600,height=700,scrollbars=yes");
+     setAutoConnectLoading("threads");
+     toast.info("Authenticate with Threads...");
+     const interval = setInterval(async () => {
+       try {
+         if (!authWindow || authWindow.closed) { clearInterval(interval); setAutoConnectLoading(null); return; }
+         const url = authWindow.location.href;
+         if (url.includes("code=")) {
+           const urlParams = new URL(url).searchParams;
+           const code = urlParams.get("code");
+           authWindow.close(); clearInterval(interval);
+           if (!code) { setAutoConnectLoading(null); toast.error("No auth code"); return; }
+           const { data, error } = await supabase.functions.invoke("threads-api", { body: { action: "exchange_code", params: { code, client_id: threadsAppId, client_secret: threadsAppSecret, redirect_uri: oauthRedirectUri } } });
+           if (error || !data?.success) { toast.error(data?.error || error?.message || "Failed"); setAutoConnectLoading(null); return; }
+           const accessToken = data.data?.access_token;
+           if (!accessToken) { toast.error("No token"); setAutoConnectLoading(null); return; }
+           const profileRes = await fetch(`https://graph.threads.net/v1.0/me?fields=id,username,name,threads_profile_picture_url&access_token=${accessToken}`);
+           const profile = await profileRes.json();
+           const username = profile.username || "threads_user";
+           let accountId = selectedAccount;
+           if (!accountId) {
+             const { data: newAcct, error: err } = await supabase.from("managed_accounts").insert({ username, display_name: profile.name || username, platform: "threads", status: "active", avatar_url: profile.threads_profile_picture_url || null }).select("id").single();
+             if (err || !newAcct) { toast.error(err?.message || "Failed"); setAutoConnectLoading(null); return; }
+             accountId = newAcct.id; setSelectedAccount(accountId);
+           }
+           await supabase.from("social_connections").upsert({ account_id: accountId, platform: "threads", platform_user_id: profile.id || "", platform_username: username, access_token: accessToken, is_connected: true, scopes: [], metadata: { name: profile.name, threads_profile_picture_url: profile.threads_profile_picture_url, connected_via: "automated_oauth" } }, { onConflict: "account_id,platform" });
+           await loadAccounts(); await loadData(accountId);
+           toast.success(`✅ @${username} Threads connected!`);
+           setAutoConnectLoading(null);
+         }
+       } catch { /* cross-origin */ }
+     }, 500);
+   };
+
+   // ===== AUTOMATED WHATSAPP CONNECT =====
+   const automatedWhatsAppConnect = async () => {
+     if (!waAccessToken || !waPhoneNumberId) { toast.error("Enter Phone Number ID and Access Token"); return; }
+     setAutoConnectLoading("whatsapp");
+     try {
+       const profileRes = await fetch(`https://graph.facebook.com/v24.0/${waPhoneNumberId}?fields=verified_name,display_phone_number,quality_rating&access_token=${waAccessToken}`);
+       const profile = await profileRes.json();
+       if (profile.error) throw new Error(profile.error.message);
+       const username = profile.display_phone_number || waPhoneNumberId;
+       let accountId = selectedAccount;
+       if (!accountId) {
+         const { data: newAcct, error: err } = await supabase.from("managed_accounts").insert({ username, display_name: profile.verified_name || username, platform: "whatsapp", status: "active" }).select("id").single();
+         if (err || !newAcct) { toast.error(err?.message || "Failed"); setAutoConnectLoading(null); return; }
+         accountId = newAcct.id; setSelectedAccount(accountId);
+       }
+       await supabase.from("social_connections").upsert({ account_id: accountId, platform: "whatsapp", platform_user_id: waPhoneNumberId, platform_username: username, access_token: waAccessToken, is_connected: true, scopes: [], metadata: { verified_name: profile.verified_name, display_phone_number: profile.display_phone_number, quality_rating: profile.quality_rating, waba_id: waBusinessId, connected_via: "automated_token" } }, { onConflict: "account_id,platform" });
+       await loadAccounts(); await loadData(accountId);
+       toast.success(`✅ WhatsApp ${profile.verified_name || username} connected!`);
+     } catch (e: any) { toast.error(e.message); }
+     setAutoConnectLoading(null);
+   };
+
+   // ===== AUTOMATED SIGNAL CONNECT =====
+   const automatedSignalConnect = async () => {
+     if (!signalApiUrl || !signalPhoneNumber) { toast.error("Enter Signal API URL and phone number"); return; }
+     setAutoConnectLoading("signal");
+     try {
+       let accountId = selectedAccount;
+       if (!accountId) {
+         const { data: newAcct, error: err } = await supabase.from("managed_accounts").insert({ username: signalPhoneNumber, display_name: signalPhoneNumber, platform: "signal", status: "active" }).select("id").single();
+         if (err || !newAcct) { toast.error(err?.message || "Failed"); setAutoConnectLoading(null); return; }
+         accountId = newAcct.id; setSelectedAccount(accountId);
+       }
+       await supabase.from("social_connections").upsert({ account_id: accountId, platform: "signal", platform_user_id: signalPhoneNumber, platform_username: signalPhoneNumber, access_token: signalApiUrl, is_connected: true, scopes: [], metadata: { api_url: signalApiUrl, phone_number: signalPhoneNumber, connected_via: "automated_api" } }, { onConflict: "account_id,platform" });
+       await loadAccounts(); await loadData(accountId);
+       toast.success(`✅ Signal ${signalPhoneNumber} connected!`);
+     } catch (e: any) { toast.error(e.message); }
+     setAutoConnectLoading(null);
+   };
+
+   // ===== AUTOMATED YOUTUBE CONNECT =====
+   const automatedYouTubeConnect = () => {
+     if (!ytClientId) { toast.error("Enter your YouTube/Google Client ID first"); return; }
+     const scopes = "https://www.googleapis.com/auth/youtube https://www.googleapis.com/auth/youtube.force-ssl https://www.googleapis.com/auth/yt-analytics.readonly";
+     const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${ytClientId}&redirect_uri=${encodeURIComponent(oauthRedirectUri)}&response_type=code&scope=${encodeURIComponent(scopes)}&access_type=offline&state=${Math.random().toString(36).substring(2)}&prompt=consent`;
+     const authWindow = window.open(authUrl, "youtube_oauth", "width=600,height=700,scrollbars=yes");
+     setAutoConnectLoading("youtube");
+     toast.info("Authenticate with Google/YouTube...");
+     const interval = setInterval(async () => {
+       try {
+         if (!authWindow || authWindow.closed) { clearInterval(interval); setAutoConnectLoading(null); return; }
+         const url = authWindow.location.href;
+         if (url.includes("code=")) {
+           const urlParams = new URL(url).searchParams;
+           const code = urlParams.get("code");
+           authWindow.close(); clearInterval(interval);
+           if (!code) { setAutoConnectLoading(null); toast.error("No auth code"); return; }
+           const { data, error } = await supabase.functions.invoke("youtube-api", { body: { action: "exchange_code", params: { code, client_id: ytClientId, client_secret: ytClientSecret, redirect_uri: oauthRedirectUri } } });
+           if (error || !data?.success) { toast.error(data?.error || error?.message || "Failed"); setAutoConnectLoading(null); return; }
+           const accessToken = data.data?.access_token;
+           if (!accessToken) { toast.error("No token"); setAutoConnectLoading(null); return; }
+           const channelRes = await fetch("https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics&mine=true", { headers: { Authorization: `Bearer ${accessToken}` } });
+           const channelData = await channelRes.json();
+           const channel = channelData.items?.[0];
+           const username = channel?.snippet?.title || "youtube_user";
+           let accountId = selectedAccount;
+           if (!accountId) {
+             const { data: newAcct, error: err } = await supabase.from("managed_accounts").insert({ username, display_name: username, platform: "youtube", status: "active", avatar_url: channel?.snippet?.thumbnails?.default?.url || null }).select("id").single();
+             if (err || !newAcct) { toast.error(err?.message || "Failed"); setAutoConnectLoading(null); return; }
+             accountId = newAcct.id; setSelectedAccount(accountId);
+           }
+           await supabase.from("social_connections").upsert({ account_id: accountId, platform: "youtube", platform_user_id: channel?.id || "", platform_username: username, access_token: accessToken, refresh_token: data.data?.refresh_token || null, is_connected: true, scopes: [], metadata: { title: channel?.snippet?.title, thumbnail: channel?.snippet?.thumbnails?.default?.url, subscribers: channel?.statistics?.subscriberCount, connected_via: "automated_oauth" } }, { onConflict: "account_id,platform" });
+           await loadAccounts(); await loadData(accountId);
+           toast.success(`✅ ${username} YouTube connected!`);
+           setAutoConnectLoading(null);
+         }
+       } catch { /* cross-origin */ }
+     }, 500);
+   };
+
+   // ===== AUTOMATED PINTEREST CONNECT =====
+   const automatedPinterestConnect = () => {
+     if (!pinAppId) { toast.error("Enter your Pinterest App ID first"); return; }
+     const scopes = "boards:read,boards:write,pins:read,pins:write,user_accounts:read,ads:read,ads:write,catalogs:read,catalogs:write";
+     const authUrl = `https://www.pinterest.com/oauth/?client_id=${pinAppId}&redirect_uri=${encodeURIComponent(oauthRedirectUri)}&response_type=code&scope=${encodeURIComponent(scopes)}&state=${Math.random().toString(36).substring(2)}`;
+     const authWindow = window.open(authUrl, "pinterest_oauth", "width=600,height=700,scrollbars=yes");
+     setAutoConnectLoading("pinterest");
+     toast.info("Authenticate with Pinterest...");
+     const interval = setInterval(async () => {
+       try {
+         if (!authWindow || authWindow.closed) { clearInterval(interval); setAutoConnectLoading(null); return; }
+         const url = authWindow.location.href;
+         if (url.includes("code=")) {
+           const urlParams = new URL(url).searchParams;
+           const code = urlParams.get("code");
+           authWindow.close(); clearInterval(interval);
+           if (!code) { setAutoConnectLoading(null); toast.error("No auth code"); return; }
+           const { data, error } = await supabase.functions.invoke("pinterest-api", { body: { action: "exchange_code", params: { code, client_id: pinAppId, client_secret: pinAppSecret, redirect_uri: oauthRedirectUri } } });
+           if (error || !data?.success) { toast.error(data?.error || error?.message || "Failed"); setAutoConnectLoading(null); return; }
+           const accessToken = data.data?.access_token;
+           if (!accessToken) { toast.error("No token"); setAutoConnectLoading(null); return; }
+           const profileRes = await fetch("https://api.pinterest.com/v5/user_account", { headers: { Authorization: `Bearer ${accessToken}` } });
+           const profile = await profileRes.json();
+           const username = profile.username || "pinterest_user";
+           let accountId = selectedAccount;
+           if (!accountId) {
+             const { data: newAcct, error: err } = await supabase.from("managed_accounts").insert({ username, display_name: profile.business_name || username, platform: "pinterest", status: "active", avatar_url: profile.profile_image || null }).select("id").single();
+             if (err || !newAcct) { toast.error(err?.message || "Failed"); setAutoConnectLoading(null); return; }
+             accountId = newAcct.id; setSelectedAccount(accountId);
+           }
+           await supabase.from("social_connections").upsert({ account_id: accountId, platform: "pinterest", platform_user_id: profile.id || "", platform_username: username, access_token: accessToken, refresh_token: data.data?.refresh_token || null, is_connected: true, scopes: [], metadata: { business_name: profile.business_name, profile_image: profile.profile_image, connected_via: "automated_oauth" } }, { onConflict: "account_id,platform" });
+           await loadAccounts(); await loadData(accountId);
+           toast.success(`✅ @${username} Pinterest connected!`);
+           setAutoConnectLoading(null);
+         }
+       } catch { /* cross-origin */ }
+     }, 500);
+   };
+
+   // ===== AUTOMATED DISCORD CONNECT =====
+   const automatedDiscordConnect = async () => {
+     if (!discordBotToken) { toast.error("Enter your Discord Bot Token first"); return; }
+     setAutoConnectLoading("discord");
+     try {
+       const resp = await fetch("https://discord.com/api/v10/users/@me", { headers: { Authorization: `Bot ${discordBotToken}` } });
+       const botInfo = await resp.json();
+       if (botInfo.code) throw new Error(botInfo.message || "Invalid token");
+       const username = botInfo.username || "discord_bot";
+       let accountId = selectedAccount;
+       if (!accountId) {
+         const { data: newAcct, error: err } = await supabase.from("managed_accounts").insert({ username, display_name: username, platform: "discord", status: "active", avatar_url: botInfo.avatar ? `https://cdn.discordapp.com/avatars/${botInfo.id}/${botInfo.avatar}.png` : null }).select("id").single();
+         if (err || !newAcct) { toast.error(err?.message || "Failed"); setAutoConnectLoading(null); return; }
+         accountId = newAcct.id; setSelectedAccount(accountId);
+       }
+       await supabase.from("social_connections").upsert({ account_id: accountId, platform: "discord", platform_user_id: botInfo.id || "", platform_username: username, access_token: discordBotToken, is_connected: true, scopes: [], metadata: { username: botInfo.username, discriminator: botInfo.discriminator, avatar: botInfo.avatar, connected_via: "automated_bot_token" } }, { onConflict: "account_id,platform" });
+       await loadAccounts(); await loadData(accountId);
+       toast.success(`✅ ${username} Discord bot connected!`);
+     } catch (e: any) { toast.error(e.message); }
+     setAutoConnectLoading(null);
+   };
+
+   // ===== AUTOMATED FACEBOOK CONNECT =====
+   const automatedFacebookConnect = () => {
+     if (!fbAppId) { toast.error("Enter your Facebook App ID first"); return; }
+     const scopes = "public_profile,email,pages_show_list,pages_read_engagement,pages_manage_posts,pages_manage_metadata,pages_read_user_content,pages_messaging,publish_video,groups_access_member_info,business_management";
+     const authUrl = `https://www.facebook.com/v24.0/dialog/oauth?client_id=${fbAppId}&redirect_uri=${encodeURIComponent(oauthRedirectUri)}&scope=${scopes}&response_type=token`;
+     const authWindow = window.open(authUrl, "fb_oauth", "width=600,height=700,scrollbars=yes");
+     setAutoConnectLoading("facebook");
+     toast.info("Authenticate with Facebook...");
+     const interval = setInterval(async () => {
+       try {
+         if (!authWindow || authWindow.closed) { clearInterval(interval); setAutoConnectLoading(null); return; }
+         const url = authWindow.location.href;
+         if (url.includes("access_token=")) {
+           const hash = authWindow.location.hash.substring(1);
+           const pms = new URLSearchParams(hash);
+           const token = pms.get("access_token");
+           authWindow.close(); clearInterval(interval);
+           if (!token) { setAutoConnectLoading(null); toast.error("No token"); return; }
+           const profileRes = await fetch(`https://graph.facebook.com/v24.0/me?fields=id,name,email,picture.width(200)&access_token=${token}`);
+           const profile = await profileRes.json();
+           if (profile.error) { toast.error(profile.error.message); setAutoConnectLoading(null); return; }
+           const username = profile.name || "facebook_user";
+           let accountId = selectedAccount;
+           if (!accountId) {
+             const { data: newAcct, error: err } = await supabase.from("managed_accounts").insert({ username, display_name: profile.name, platform: "facebook", status: "active", avatar_url: profile.picture?.data?.url || null }).select("id").single();
+             if (err || !newAcct) { toast.error(err?.message || "Failed"); setAutoConnectLoading(null); return; }
+             accountId = newAcct.id; setSelectedAccount(accountId);
+           }
+           await supabase.from("social_connections").upsert({ account_id: accountId, platform: "facebook", platform_user_id: profile.id || "", platform_username: username, access_token: token, is_connected: true, scopes: [], metadata: { name: profile.name, picture_url: profile.picture?.data?.url, email: profile.email, connected_via: "automated_oauth" } }, { onConflict: "account_id,platform" });
+           await loadAccounts(); await loadData(accountId);
+           toast.success(`✅ ${username} Facebook connected!`);
+           setAutoConnectLoading(null);
+         }
+       } catch { /* cross-origin */ }
+     }, 500);
+   };
+
+
   const schedulePost = async () => {
     if (!newPost.caption && !newPost.media_url) { toast.error("Add caption or media"); return; }
     const { error } = await supabase.from("social_posts").insert({
@@ -816,6 +1105,7 @@ const SocialMediaHub = () => {
   const youtubeConnected = connections.some(c => c.platform === "youtube" && c.is_connected);
   const pinterestConnected = connections.some(c => c.platform === "pinterest" && c.is_connected);
   const discordConnected = connections.some(c => c.platform === "discord" && c.is_connected);
+  const facebookConnected = connections.some(c => c.platform === "facebook" && c.is_connected);
 
   const navigateToConnect = (platform: string) => {
     setActiveSubTab("connect");
@@ -1372,11 +1662,10 @@ const SocialMediaHub = () => {
 
         {/* ===== CONNECT ===== */}
         <TabsContent value="connect" className="space-y-4 mt-4">
-          {/* Redirect URI config */}
           <Card>
             <CardContent className="p-4 space-y-2">
               <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><Globe className="h-4 w-4 text-blue-400" />OAuth Redirect URI</h4>
-              <p className="text-[10px] text-muted-foreground">Set this as the redirect URI in your Meta/TikTok developer app settings</p>
+              <p className="text-[10px] text-muted-foreground">Set this as the redirect URI in all your developer app settings</p>
               <div className="flex gap-2">
                 <Input value={oauthRedirectUri} onChange={e => setOauthRedirectUri(e.target.value)} placeholder="Redirect URI" className="text-sm flex-1" />
                 <Button size="sm" variant="outline" onClick={() => { navigator.clipboard.writeText(oauthRedirectUri); toast.success("Copied!"); }}><Copy className="h-3.5 w-3.5" /></Button>
@@ -1384,176 +1673,108 @@ const SocialMediaHub = () => {
             </CardContent>
           </Card>
 
-          {/* ===== AUTOMATED INSTAGRAM ===== */}
-          <Card className="border-pink-500/20">
-            <CardContent className="p-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                  <Instagram className="h-4 w-4 text-pink-400" />
-                  Instagram — One-Click Connect
-                </h4>
-                {igConnected && <Badge className="bg-green-500/15 text-green-400 text-[10px]">● Connected</Badge>}
-              </div>
-              <p className="text-[10px] text-muted-foreground">Opens Meta OAuth in a new window. Profile, username, avatar, and token are captured automatically — zero manual input.</p>
-              <Input value={oauthAppId} onChange={e => setOauthAppId(e.target.value)} placeholder="Meta App ID (from developers.facebook.com)" className="text-sm" />
-              <Button
-                onClick={automatedInstagramConnect}
-                disabled={autoConnectLoading === "instagram"}
-                className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white"
-              >
-                {autoConnectLoading === "instagram" ? (
-                  <><RefreshCw className="h-4 w-4 mr-2 animate-spin" />Connecting...</>
-                ) : (
-                  <><Instagram className="h-4 w-4 mr-2" />Connect Instagram Automatically</>
+          {/* ===== AUTO CONNECT CARDS ===== */}
+          {[
+            { id: "instagram", name: "Instagram", icon: Instagram, color: "text-pink-400", gradient: "from-purple-600 to-pink-600", connected: igConnected, desc: "Meta OAuth popup — profile synced automatically.", fields: [{ val: oauthAppId, set: setOauthAppId, placeholder: "Meta App ID (developers.facebook.com)", type: "text" }], action: automatedInstagramConnect },
+            { id: "facebook", name: "Facebook", icon: Globe, color: "text-blue-500", gradient: "from-blue-600 to-indigo-600", connected: facebookConnected, desc: "Meta OAuth popup — pages, groups, and profile synced.", fields: [{ val: fbAppId, set: setFbAppId, placeholder: "Facebook App ID (developers.facebook.com)", type: "text" }], action: automatedFacebookConnect },
+            { id: "tiktok", name: "TikTok", icon: Music2, color: "text-cyan-400", gradient: "from-cyan-600 to-teal-600", connected: ttConnected, desc: "TikTok Login Kit — auth code exchanged for token automatically.", fields: [{ val: ttClientKey, set: setTtClientKey, placeholder: "TikTok Client Key", type: "text" }, { val: ttClientSecret, set: setTtClientSecret, placeholder: "TikTok Client Secret", type: "password" }], action: automatedTikTokConnect },
+            { id: "twitter", name: "X / Twitter", icon: Twitter, color: "text-blue-400", gradient: "from-blue-600 to-sky-600", connected: xConnected, desc: "OAuth2 PKCE — token captured and profile synced.", fields: [{ val: xClientId, set: setXClientId, placeholder: "X Client ID (developer.x.com)", type: "text" }, { val: xClientSecret, set: setXClientSecret, placeholder: "X Client Secret", type: "password" }], action: automatedTwitterConnect },
+            { id: "reddit", name: "Reddit", icon: Globe, color: "text-orange-400", gradient: "from-orange-600 to-red-600", connected: redditConnected, desc: "Reddit OAuth — auth code exchanged for token.", fields: [{ val: redditClientId, set: setRedditClientId, placeholder: "Reddit App ID (reddit.com/prefs/apps)", type: "text" }, { val: redditClientSecret, set: setRedditClientSecret, placeholder: "Reddit App Secret", type: "password" }], action: automatedRedditConnect },
+            { id: "telegram", name: "Telegram", icon: Phone, color: "text-blue-400", gradient: "from-blue-500 to-indigo-600", connected: telegramConnected, desc: "Enter Bot Token from @BotFather — verified instantly.", fields: [{ val: telegramBotToken, set: setTelegramBotToken, placeholder: "Bot Token (123456789:ABCdef...)", type: "password" }], action: automatedTelegramConnect },
+            { id: "threads", name: "Threads", icon: MessageCircle, color: "text-purple-400", gradient: "from-purple-600 to-violet-600", connected: threadsConnected, desc: "Threads OAuth — profile and posting access.", fields: [{ val: threadsAppId, set: setThreadsAppId, placeholder: "Threads App ID (developers.facebook.com)", type: "text" }, { val: threadsAppSecret, set: setThreadsAppSecret, placeholder: "Threads App Secret", type: "password" }], action: automatedThreadsConnect },
+            { id: "whatsapp", name: "WhatsApp", icon: Phone, color: "text-green-400", gradient: "from-green-600 to-emerald-600", connected: whatsappConnected, desc: "WhatsApp Business API — enter Phone Number ID and token.", fields: [{ val: waPhoneNumberId, set: setWaPhoneNumberId, placeholder: "Phone Number ID", type: "text" }, { val: waAccessToken, set: setWaAccessToken, placeholder: "Permanent Access Token", type: "password" }, { val: waBusinessId, set: setWaBusinessId, placeholder: "WABA ID (optional)", type: "text" }], action: automatedWhatsAppConnect },
+            { id: "snapchat", name: "Snapchat", icon: Camera, color: "text-yellow-400", gradient: "from-yellow-500 to-orange-500", connected: snapchatConnected, desc: "Snapchat Marketing API OAuth.", fields: [{ val: snapClientId, set: setSnapClientId, placeholder: "Snapchat Client ID", type: "text" }, { val: snapClientSecret, set: setSnapClientSecret, placeholder: "Snapchat Client Secret", type: "password" }], action: automatedSnapchatConnect },
+            { id: "youtube", name: "YouTube", icon: Play, color: "text-red-400", gradient: "from-red-600 to-rose-600", connected: youtubeConnected, desc: "Google OAuth — channel and analytics access.", fields: [{ val: ytClientId, set: setYtClientId, placeholder: "Google Client ID (console.cloud.google.com)", type: "text" }, { val: ytClientSecret, set: setYtClientSecret, placeholder: "Google Client Secret", type: "password" }], action: automatedYouTubeConnect },
+            { id: "pinterest", name: "Pinterest", icon: Target, color: "text-rose-400", gradient: "from-rose-600 to-pink-600", connected: pinterestConnected, desc: "Pinterest OAuth — pins, boards, and ads access.", fields: [{ val: pinAppId, set: setPinAppId, placeholder: "Pinterest App ID", type: "text" }, { val: pinAppSecret, set: setPinAppSecret, placeholder: "Pinterest App Secret", type: "password" }], action: automatedPinterestConnect },
+            { id: "discord", name: "Discord", icon: Gamepad2, color: "text-indigo-400", gradient: "from-indigo-600 to-violet-600", connected: discordConnected, desc: "Enter Bot Token — verified instantly.", fields: [{ val: discordBotToken, set: setDiscordBotToken, placeholder: "Discord Bot Token (discord.com/developers)", type: "password" }], action: automatedDiscordConnect },
+            { id: "signal", name: "Signal", icon: Shield, color: "text-blue-300", gradient: "from-blue-500 to-sky-500", connected: signalConnected, desc: "Signal CLI REST API — enter API URL and phone.", fields: [{ val: signalApiUrl, set: setSignalApiUrl, placeholder: "Signal API URL (e.g. http://localhost:8080)", type: "text" }, { val: signalPhoneNumber, set: setSignalPhoneNumber, placeholder: "Phone number (+1234...)", type: "text" }], action: automatedSignalConnect },
+          ].map(p => (
+            <Card key={p.id} className={`border-${p.color.replace("text-","").split("-")[0]}-500/20`}>
+              <CardContent className="p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                    <p.icon className={`h-4 w-4 ${p.color}`} />
+                    {p.name} — {p.id === "telegram" || p.id === "discord" ? "Token Connect" : p.id === "whatsapp" || p.id === "signal" ? "API Connect" : "One-Click Connect"}
+                  </h4>
+                  {p.connected && <Badge className="bg-green-500/15 text-green-400 text-[10px]">● Connected</Badge>}
+                </div>
+                <p className="text-[10px] text-muted-foreground">{p.desc}</p>
+                {p.fields.map((f, i) => (
+                  <Input key={i} value={f.val} onChange={e => f.set(e.target.value)} placeholder={f.placeholder} type={f.type} className="text-sm" />
+                ))}
+                <Button
+                  onClick={p.action}
+                  disabled={autoConnectLoading === p.id}
+                  className={`w-full bg-gradient-to-r ${p.gradient} text-white`}
+                >
+                  {autoConnectLoading === p.id ? (
+                    <><RefreshCw className="h-4 w-4 mr-2 animate-spin" />Connecting...</>
+                  ) : (
+                    <><p.icon className="h-4 w-4 mr-2" />Connect {p.name}</>
+                  )}
+                </Button>
+                {autoConnectLoading === p.id && (
+                  <Badge className="bg-yellow-500/15 text-yellow-400 text-xs animate-pulse w-full justify-center">Processing...</Badge>
                 )}
-              </Button>
-              {autoConnectLoading === "instagram" && (
-                <Badge className="bg-yellow-500/15 text-yellow-400 text-xs animate-pulse w-full justify-center">Waiting for authentication popup...</Badge>
-              )}
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          ))}
 
-          {/* ===== AUTOMATED TIKTOK ===== */}
-          <Card className="border-cyan-500/20">
-            <CardContent className="p-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                  <Music2 className="h-4 w-4 text-cyan-400" />
-                  TikTok — One-Click Connect
-                </h4>
-                {ttConnected && <Badge className="bg-green-500/15 text-green-400 text-[10px]">● Connected</Badge>}
-              </div>
-               <p className="text-[10px] text-muted-foreground">Opens TikTok Login Kit in a new window. Auth code is exchanged for a token automatically and profile is synced.</p>
-               <Input value={ttClientKey} onChange={e => setTtClientKey(e.target.value)} placeholder="TikTok Client Key (from developers.tiktok.com)" className="text-sm" />
-               <Input value={ttClientSecret} onChange={e => setTtClientSecret(e.target.value)} placeholder="TikTok Client Secret (from developers.tiktok.com)" type="password" className="text-sm" />
-              <Button
-                onClick={automatedTikTokConnect}
-                disabled={autoConnectLoading === "tiktok"}
-                className="w-full bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-700 hover:to-teal-700 text-white"
-              >
-                {autoConnectLoading === "tiktok" ? (
-                  <><RefreshCw className="h-4 w-4 mr-2 animate-spin" />Connecting...</>
-                ) : (
-                  <><Music2 className="h-4 w-4 mr-2" />Connect TikTok Automatically</>
-                )}
-              </Button>
-              {autoConnectLoading === "tiktok" && (
-                <Badge className="bg-yellow-500/15 text-yellow-400 text-xs animate-pulse w-full justify-center">Waiting for authentication popup...</Badge>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* ===== AUTOMATED TWITTER/X ===== */}
-          <Card className="border-blue-500/20">
-            <CardContent className="p-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                  <Twitter className="h-4 w-4 text-blue-400" />
-                  X / Twitter — One-Click Connect
-                </h4>
-                {xConnected && <Badge className="bg-green-500/15 text-green-400 text-[10px]">● Connected</Badge>}
-              </div>
-              <p className="text-[10px] text-muted-foreground">Opens X OAuth2 (PKCE) in a new window. Token is captured and profile synced automatically.</p>
-              <Input value={xClientId} onChange={e => setXClientId(e.target.value)} placeholder="X/Twitter Client ID (from developer.x.com)" className="text-sm" />
-              <Input value={xClientSecret} onChange={e => setXClientSecret(e.target.value)} placeholder="X/Twitter Client Secret" type="password" className="text-sm" />
-              <Button
-                onClick={automatedTwitterConnect}
-                disabled={autoConnectLoading === "twitter"}
-                className="w-full bg-gradient-to-r from-blue-600 to-sky-600 hover:from-blue-700 hover:to-sky-700 text-white"
-              >
-                {autoConnectLoading === "twitter" ? (
-                  <><RefreshCw className="h-4 w-4 mr-2 animate-spin" />Connecting...</>
-                ) : (
-                  <><Twitter className="h-4 w-4 mr-2" />Connect X/Twitter Automatically</>
-                )}
-              </Button>
-              {autoConnectLoading === "twitter" && (
-                <Badge className="bg-yellow-500/15 text-yellow-400 text-xs animate-pulse w-full justify-center">Waiting for authentication popup...</Badge>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* ===== AUTOMATED REDDIT ===== */}
-          <Card className="border-orange-500/20">
-            <CardContent className="p-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                  <Globe className="h-4 w-4 text-orange-400" />
-                  Reddit — One-Click Connect
-                </h4>
-                {redditConnected && <Badge className="bg-green-500/15 text-green-400 text-[10px]">● Connected</Badge>}
-              </div>
-              <p className="text-[10px] text-muted-foreground">Opens Reddit OAuth in a new window. Auth code is exchanged for a token automatically and profile is synced.</p>
-              <Input value={redditClientId} onChange={e => setRedditClientId(e.target.value)} placeholder="Reddit App ID (from reddit.com/prefs/apps)" className="text-sm" />
-              <Input value={redditClientSecret} onChange={e => setRedditClientSecret(e.target.value)} placeholder="Reddit App Secret" type="password" className="text-sm" />
-              <Button
-                onClick={automatedRedditConnect}
-                disabled={autoConnectLoading === "reddit"}
-                className="w-full bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white"
-              >
-                {autoConnectLoading === "reddit" ? (
-                  <><RefreshCw className="h-4 w-4 mr-2 animate-spin" />Connecting...</>
-                ) : (
-                  <><Globe className="h-4 w-4 mr-2" />Connect Reddit Automatically</>
-                )}
-              </Button>
-              {autoConnectLoading === "reddit" && (
-                <Badge className="bg-yellow-500/15 text-yellow-400 text-xs animate-pulse w-full justify-center">Waiting for authentication popup...</Badge>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* ===== AUTOMATED TELEGRAM ===== */}
-          <Card className="border-blue-400/20">
-            <CardContent className="p-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                  <Phone className="h-4 w-4 text-blue-400" />
-                  Telegram — Bot Connect
-                </h4>
-                {telegramConnected && <Badge className="bg-green-500/15 text-green-400 text-[10px]">● Connected</Badge>}
-              </div>
-              <p className="text-[10px] text-muted-foreground">Enter your Telegram Bot Token (from @BotFather). The bot is verified and connected instantly — no popup needed.</p>
-              <Input value={telegramBotToken} onChange={e => setTelegramBotToken(e.target.value)} placeholder="Bot Token (e.g. 123456789:ABCdef...)" type="password" className="text-sm" />
-              <Button
-                onClick={automatedTelegramConnect}
-                disabled={autoConnectLoading === "telegram"}
-                className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white"
-              >
-                {autoConnectLoading === "telegram" ? (
-                  <><RefreshCw className="h-4 w-4 mr-2 animate-spin" />Verifying...</>
-                ) : (
-                  <><Phone className="h-4 w-4 mr-2" />Connect Telegram Bot</>
-                )}
-              </Button>
-              {autoConnectLoading === "telegram" && (
-                <Badge className="bg-yellow-500/15 text-yellow-400 text-xs animate-pulse w-full justify-center">Validating bot token...</Badge>
-              )}
-            </CardContent>
-          </Card>
-
+          {/* ===== MANUAL CONNECTION ===== */}
           <Card>
             <CardContent className="p-4 space-y-3">
               <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><Shield className="h-4 w-4 text-muted-foreground" />Manual Connection</h4>
-              <p className="text-[10px] text-muted-foreground">Paste credentials directly if you already have an access token.</p>
+              <p className="text-[10px] text-muted-foreground">Paste credentials directly if you already have them.</p>
               <select value={connectForm.platform} onChange={e => setConnectForm(p => ({ ...p, platform: e.target.value }))} className="w-full bg-background border border-border text-foreground rounded-lg px-2 py-1.5 text-sm">
-                <option value="instagram">Instagram</option>
-                <option value="tiktok">TikTok</option>
-                <option value="twitter">X / Twitter</option>
-                <option value="reddit">Reddit</option>
-                <option value="telegram">Telegram</option>
-                <option value="snapchat">Snapchat</option>
-                <option value="threads">Threads</option>
-                <option value="whatsapp">WhatsApp</option>
-                <option value="signal">Signal</option>
-                <option value="youtube">YouTube</option>
-                <option value="pinterest">Pinterest</option>
-                <option value="discord">Discord</option>
+                {["instagram","facebook","tiktok","twitter","reddit","telegram","snapchat","threads","whatsapp","signal","youtube","pinterest","discord"].map(pl => (
+                  <option key={pl} value={pl}>{pl.charAt(0).toUpperCase() + pl.slice(1)}</option>
+                ))}
               </select>
-              <Input value={connectForm.platform_username} onChange={e => setConnectForm(p => ({ ...p, platform_username: e.target.value }))} placeholder="Username" className="text-sm" />
-              <Input value={connectForm.platform_user_id} onChange={e => setConnectForm(p => ({ ...p, platform_user_id: e.target.value }))} placeholder="User/Page ID" className="text-sm" />
-              <Input value={connectForm.access_token} onChange={e => setConnectForm(p => ({ ...p, access_token: e.target.value }))} placeholder="Access Token" type="password" className="text-sm" />
-              <Input value={connectForm.refresh_token} onChange={e => setConnectForm(p => ({ ...p, refresh_token: e.target.value }))} placeholder="Refresh Token (optional)" type="password" className="text-sm" />
+
+              {/* Platform-specific fields */}
+              {["instagram","facebook","threads","whatsapp"].includes(connectForm.platform) ? (
+                <>
+                  <Input value={connectForm.platform_username} onChange={e => setConnectForm(p => ({ ...p, platform_username: e.target.value }))} placeholder={connectForm.platform === "whatsapp" ? "Phone Number" : "Username"} className="text-sm" />
+                  <Input value={connectForm.platform_user_id} onChange={e => setConnectForm(p => ({ ...p, platform_user_id: e.target.value }))} placeholder={connectForm.platform === "whatsapp" ? "Phone Number ID" : connectForm.platform === "facebook" ? "User/Page ID" : "User ID"} className="text-sm" />
+                  <Input value={connectForm.access_token} onChange={e => setConnectForm(p => ({ ...p, access_token: e.target.value }))} placeholder="Access Token" type="password" className="text-sm" />
+                  <Input value={connectForm.refresh_token} onChange={e => setConnectForm(p => ({ ...p, refresh_token: e.target.value }))} placeholder="Refresh Token (optional)" type="password" className="text-sm" />
+                </>
+              ) : connectForm.platform === "telegram" ? (
+                <>
+                  <Input value={connectForm.platform_username} onChange={e => setConnectForm(p => ({ ...p, platform_username: e.target.value }))} placeholder="Bot Username" className="text-sm" />
+                  <Input value={connectForm.access_token} onChange={e => setConnectForm(p => ({ ...p, access_token: e.target.value }))} placeholder="Bot Token (from @BotFather)" type="password" className="text-sm" />
+                </>
+              ) : connectForm.platform === "discord" ? (
+                <>
+                  <Input value={connectForm.platform_username} onChange={e => setConnectForm(p => ({ ...p, platform_username: e.target.value }))} placeholder="Bot Username" className="text-sm" />
+                  <Input value={connectForm.access_token} onChange={e => setConnectForm(p => ({ ...p, access_token: e.target.value }))} placeholder="Bot Token (from discord.com/developers)" type="password" className="text-sm" />
+                </>
+              ) : connectForm.platform === "signal" ? (
+                <>
+                  <Input value={connectForm.platform_username} onChange={e => setConnectForm(p => ({ ...p, platform_username: e.target.value }))} placeholder="Phone Number (+1234...)" className="text-sm" />
+                  <Input value={connectForm.access_token} onChange={e => setConnectForm(p => ({ ...p, access_token: e.target.value }))} placeholder="Signal API URL (http://localhost:8080)" className="text-sm" />
+                </>
+              ) : connectForm.platform === "youtube" ? (
+                <>
+                  <Input value={connectForm.platform_username} onChange={e => setConnectForm(p => ({ ...p, platform_username: e.target.value }))} placeholder="Channel Name" className="text-sm" />
+                  <Input value={connectForm.platform_user_id} onChange={e => setConnectForm(p => ({ ...p, platform_user_id: e.target.value }))} placeholder="Channel ID" className="text-sm" />
+                  <Input value={connectForm.access_token} onChange={e => setConnectForm(p => ({ ...p, access_token: e.target.value }))} placeholder="OAuth Access Token" type="password" className="text-sm" />
+                  <Input value={connectForm.refresh_token} onChange={e => setConnectForm(p => ({ ...p, refresh_token: e.target.value }))} placeholder="Refresh Token" type="password" className="text-sm" />
+                </>
+              ) : connectForm.platform === "snapchat" ? (
+                <>
+                  <Input value={connectForm.platform_username} onChange={e => setConnectForm(p => ({ ...p, platform_username: e.target.value }))} placeholder="Organization/Account Name" className="text-sm" />
+                  <Input value={connectForm.access_token} onChange={e => setConnectForm(p => ({ ...p, access_token: e.target.value }))} placeholder="OAuth Access Token" type="password" className="text-sm" />
+                  <Input value={connectForm.refresh_token} onChange={e => setConnectForm(p => ({ ...p, refresh_token: e.target.value }))} placeholder="Refresh Token" type="password" className="text-sm" />
+                </>
+              ) : (
+                <>
+                  <Input value={connectForm.platform_username} onChange={e => setConnectForm(p => ({ ...p, platform_username: e.target.value }))} placeholder="Username" className="text-sm" />
+                  <Input value={connectForm.platform_user_id} onChange={e => setConnectForm(p => ({ ...p, platform_user_id: e.target.value }))} placeholder="User ID" className="text-sm" />
+                  <Input value={connectForm.access_token} onChange={e => setConnectForm(p => ({ ...p, access_token: e.target.value }))} placeholder="Access Token / API Key" type="password" className="text-sm" />
+                  <Input value={connectForm.refresh_token} onChange={e => setConnectForm(p => ({ ...p, refresh_token: e.target.value }))} placeholder="Refresh Token (optional)" type="password" className="text-sm" />
+                </>
+              )}
               <Button onClick={connectPlatform} size="sm" variant="outline"><Plus className="h-3.5 w-3.5 mr-1" />Connect Manually</Button>
             </CardContent>
           </Card>
@@ -1566,10 +1787,8 @@ const SocialMediaHub = () => {
                 <div className="space-y-3">
                   {connections.map(c => {
                     const meta = (c.metadata || {}) as any;
-                    const profilePic = meta.profile_picture_url || meta.avatar_url || meta.profile_image_url || meta.icon_img;
-                    const name = meta.name || meta.display_name || c.platform_username;
-                    const followers = meta.followers_count;
-                    const mediaCount = meta.media_count;
+                    const profilePic = meta.profile_picture_url || meta.avatar_url || meta.profile_image_url || meta.icon_img || meta.picture_url || meta.thumbnail;
+                    const name = meta.name || meta.display_name || meta.verified_name || meta.title || c.platform_username;
                     return (
                       <div key={c.id} className={`rounded-xl p-4 border ${c.is_connected ? "bg-green-500/5 border-green-500/20" : "bg-muted/20 border-border"}`}>
                         <div className="flex items-center gap-3">
@@ -1581,9 +1800,6 @@ const SocialMediaHub = () => {
                                 <Users className="h-5 w-5 text-muted-foreground" />
                               </div>
                             )}
-                            <div className={`absolute -bottom-0.5 -right-0.5 h-5 w-5 rounded-full flex items-center justify-center ${c.platform === "instagram" ? "bg-gradient-to-br from-purple-500 to-pink-500" : c.platform === "twitter" ? "bg-black" : c.platform === "reddit" ? "bg-orange-600" : c.platform === "telegram" ? "bg-blue-500" : "bg-black"}`}>
-                              {c.platform === "instagram" ? <Instagram className="h-3 w-3 text-white" /> : c.platform === "tiktok" ? <Music2 className="h-3 w-3 text-white" /> : c.platform === "twitter" ? <Twitter className="h-3 w-3 text-white" /> : c.platform === "reddit" ? <Globe className="h-3 w-3 text-white" /> : <Phone className="h-3 w-3 text-white" />}
-                            </div>
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
@@ -1591,12 +1807,6 @@ const SocialMediaHub = () => {
                               {c.is_connected && <CheckCircle2 className="h-3.5 w-3.5 text-green-400 flex-shrink-0" />}
                             </div>
                             <p className="text-xs text-muted-foreground">@{c.platform_username} · {c.platform}</p>
-                            {(followers || mediaCount) && (
-                              <div className="flex gap-3 mt-1">
-                                {followers && <span className="text-xs text-muted-foreground"><Users className="h-3 w-3 inline mr-0.5" />{Number(followers).toLocaleString()}</span>}
-                                {mediaCount && <span className="text-xs text-muted-foreground"><Image className="h-3 w-3 inline mr-0.5" />{Number(mediaCount).toLocaleString()}</span>}
-                              </div>
-                            )}
                           </div>
                           <div className="flex flex-col gap-1">
                             <Badge className={c.is_connected ? "bg-green-500/15 text-green-400 text-[10px]" : "bg-muted text-muted-foreground text-[10px]"}>
