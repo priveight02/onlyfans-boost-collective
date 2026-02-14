@@ -99,7 +99,7 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
   const renderActionButton = (label: string, funcName: string, action: string, params: any = {}, icon?: any) => {
     const Icon = icon || Zap;
     return (
-      <Button size="sm" variant="outline" onClick={() => callApi(funcName, action, params)} disabled={loading} className="text-xs h-8 gap-1">
+      <Button size="sm" variant="outline" onClick={() => callApi(funcName, action, params)} disabled={loading} className="text-xs h-8 gap-1 text-foreground">
         <Icon className="h-3 w-3" />{label}
       </Button>
     );
@@ -114,7 +114,7 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
           {inputKeys.map(ik => (
             <Input key={ik.key} value={getInput(ik.key)} onChange={e => setInput(ik.key, e.target.value)} placeholder={ik.placeholder} type={ik.type || "text"} className="text-xs h-7 flex-1 min-w-[120px]" />
           ))}
-          <Button size="sm" variant="default" onClick={() => callApi(funcName, action, buildParams())} disabled={loading} className="text-xs h-7 gap-1">
+          <Button size="sm" variant="default" onClick={() => callApi(funcName, action, buildParams())} disabled={loading} className="text-xs h-7 gap-1 text-primary-foreground">
             {loading ? <RefreshCw className="h-3 w-3 animate-spin" /> : <Icon className="h-3 w-3" />}Go
           </Button>
         </div>
@@ -248,8 +248,14 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
         {renderInputAction("Search Spaces","twitter-api","search_spaces",[{key:"space_query",placeholder:"Query"}],()=>({query:getInput("space_query"),state:"live"}),Search)}
       </TabsContent>
       <TabsContent value="ai" className="space-y-2 mt-3">
-        {renderInputAction("AI Tweet","social-ai-responder","generate_caption",[{key:"ai_x_topic",placeholder:"Topic"}],()=>({topic:getInput("ai_x_topic"),platform:"twitter",include_cta:true}),Brain)}
+        {renderInputAction("AI Tweet","social-ai-responder","generate_caption",[{key:"ai_x_topic",placeholder:"Topic/niche"}],()=>({topic:getInput("ai_x_topic"),platform:"twitter",include_cta:true}),Brain)}
         {renderInputAction("AI Reply","social-ai-responder","generate_dm_reply",[{key:"ai_x_mention",placeholder:"Mention text..."}],()=>({message_text:getInput("ai_x_mention"),sender_name:"mention"}),Zap)}
+        {renderInputAction("AI DM Auto-Reply","social-ai-responder","generate_dm_reply",[{key:"ai_x_dm",placeholder:"Incoming DM text..."}],()=>({message_text:getInput("ai_x_dm"),sender_name:"follower"}),Send)}
+        {renderInputAction("AI Thread Writer","social-ai-responder","generate_caption",[{key:"ai_x_thread",placeholder:"Topic for thread (10 tweets)"}],()=>({topic:`Write a viral Twitter/X thread (10 tweets) about: ${getInput("ai_x_thread")}`,platform:"twitter",include_cta:true}),Layers)}
+        {renderInputAction("AI Hashtag Gen","social-ai-responder","generate_caption",[{key:"ai_x_ht",placeholder:"Niche/topic"}],()=>({topic:`Generate 15 trending Twitter hashtags for: ${getInput("ai_x_ht")}`,platform:"twitter",include_cta:false}),Hash)}
+        {renderInputAction("AI Bio Writer","social-ai-responder","generate_caption",[{key:"ai_x_bio",placeholder:"Describe your brand"}],()=>({topic:`Write a compelling X/Twitter bio (160 chars) for: ${getInput("ai_x_bio")}`,platform:"twitter",include_cta:false}),Users)}
+        {renderInputAction("AI Engagement Bait","social-ai-responder","generate_caption",[{key:"ai_x_engage",placeholder:"Niche"}],()=>({topic:`Write 5 high-engagement tweet ideas (polls, questions, hot takes) for: ${getInput("ai_x_engage")}`,platform:"twitter",include_cta:false}),TrendingUp)}
+        {renderInputAction("AI Content Calendar","social-ai-responder","generate_caption",[{key:"ai_x_cal",placeholder:"Niche for 7-day plan"}],()=>({topic:`Create a 7-day Twitter content calendar with tweet ideas for: ${getInput("ai_x_cal")}`,platform:"twitter",include_cta:false}),Calendar)}
       </TabsContent>
     </Tabs>
   );
@@ -305,6 +311,11 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
       </TabsContent>
       <TabsContent value="ai" className="space-y-2 mt-3">
         {renderInputAction("AI Post","social-ai-responder","generate_caption",[{key:"ai_r_topic",placeholder:"Topic"}],()=>({topic:getInput("ai_r_topic"),platform:"reddit",include_cta:true}),Brain)}
+        {renderInputAction("AI Comment Reply","social-ai-responder","generate_dm_reply",[{key:"ai_r_cmt",placeholder:"Comment to reply to..."}],()=>({message_text:getInput("ai_r_cmt"),sender_name:"redditor"}),MessageSquare)}
+        {renderInputAction("AI Title Generator","social-ai-responder","generate_caption",[{key:"ai_r_title",placeholder:"Content/topic for title"}],()=>({topic:`Generate 5 click-worthy Reddit post titles for: ${getInput("ai_r_title")}`,platform:"reddit",include_cta:false}),FileText)}
+        {renderInputAction("AI Subreddit Finder","social-ai-responder","generate_caption",[{key:"ai_r_sub",placeholder:"Describe your niche"}],()=>({topic:`List 15 best subreddits to promote content about: ${getInput("ai_r_sub")}`,platform:"reddit",include_cta:false}),Search)}
+        {renderInputAction("AI DM Auto-Reply","social-ai-responder","generate_dm_reply",[{key:"ai_r_dm",placeholder:"Incoming DM text..."}],()=>({message_text:getInput("ai_r_dm"),sender_name:"user"}),Send)}
+        {renderInputAction("AI AMA Generator","social-ai-responder","generate_caption",[{key:"ai_r_ama",placeholder:"Your expertise/niche"}],()=>({topic:`Write an AMA (Ask Me Anything) post intro and 10 expected Q&A pairs for: ${getInput("ai_r_ama")}`,platform:"reddit",include_cta:false}),Star)}
       </TabsContent>
     </Tabs>
   );
@@ -352,6 +363,11 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
       </TabsContent>
       <TabsContent value="ai" className="space-y-2 mt-3">
         {renderInputAction("AI Message","social-ai-responder","generate_caption",[{key:"ai_tg_topic",placeholder:"Topic"}],()=>({topic:getInput("ai_tg_topic"),platform:"telegram",include_cta:true}),Brain)}
+        {renderInputAction("AI Auto-Reply","social-ai-responder","generate_dm_reply",[{key:"ai_tg_dm",placeholder:"Incoming message..."}],()=>({message_text:getInput("ai_tg_dm"),sender_name:"subscriber"}),Zap)}
+        {renderInputAction("AI Channel Post","social-ai-responder","generate_caption",[{key:"ai_tg_ch",placeholder:"Topic for channel post"}],()=>({topic:`Write a Telegram channel post (formatted with bold and links) about: ${getInput("ai_tg_ch")}`,platform:"telegram",include_cta:true}),Megaphone)}
+        {renderInputAction("AI Poll Creator","social-ai-responder","generate_caption",[{key:"ai_tg_poll",placeholder:"Topic for poll"}],()=>({topic:`Create 5 engaging Telegram poll questions with 4 options each about: ${getInput("ai_tg_poll")}`,platform:"telegram",include_cta:false}),BarChart3)}
+        {renderInputAction("AI Welcome Message","social-ai-responder","generate_caption",[{key:"ai_tg_welcome",placeholder:"Group/channel description"}],()=>({topic:`Write a warm welcome message for new members joining a Telegram group about: ${getInput("ai_tg_welcome")}`,platform:"telegram",include_cta:false}),UserPlus)}
+        {renderInputAction("AI Bot Response","social-ai-responder","generate_dm_reply",[{key:"ai_tg_bot",placeholder:"User command/query..."}],()=>({message_text:getInput("ai_tg_bot"),sender_name:"user"}),Bot)}
       </TabsContent>
     </Tabs>
   );
@@ -388,6 +404,13 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
       </TabsContent>
       <TabsContent value="ai" className="space-y-2 mt-3">
         {renderInputAction("AI Caption","social-ai-responder","generate_caption",[{key:"ai_tt_topic",placeholder:"Topic"}],()=>({topic:getInput("ai_tt_topic"),platform:"tiktok",include_cta:true}),Brain)}
+        {renderInputAction("AI DM Auto-Reply","social-ai-responder","generate_dm_reply",[{key:"ai_tt_dm",placeholder:"Incoming DM..."}],()=>({message_text:getInput("ai_tt_dm"),sender_name:"fan"}),Send)}
+        {renderInputAction("AI Comment Reply","social-ai-responder","generate_dm_reply",[{key:"ai_tt_cmt",placeholder:"Comment text..."}],()=>({message_text:getInput("ai_tt_cmt"),sender_name:"viewer"}),MessageSquare)}
+        {renderInputAction("AI Hashtag Strategy","social-ai-responder","generate_caption",[{key:"ai_tt_ht",placeholder:"Niche/content type"}],()=>({topic:`Generate 30 TikTok hashtags (mix of trending + niche) for: ${getInput("ai_tt_ht")}`,platform:"tiktok",include_cta:false}),Hash)}
+        {renderInputAction("AI Video Ideas","social-ai-responder","generate_caption",[{key:"ai_tt_ideas",placeholder:"Your niche"}],()=>({topic:`Generate 10 viral TikTok video ideas with hooks and trends for: ${getInput("ai_tt_ideas")}`,platform:"tiktok",include_cta:false}),Video)}
+        {renderInputAction("AI Bio Writer","social-ai-responder","generate_caption",[{key:"ai_tt_bio",placeholder:"Describe your brand"}],()=>({topic:`Write a compelling TikTok bio (80 chars) with CTA for: ${getInput("ai_tt_bio")}`,platform:"tiktok",include_cta:false}),Users)}
+        {renderInputAction("AI Hook Generator","social-ai-responder","generate_caption",[{key:"ai_tt_hook",placeholder:"Video topic"}],()=>({topic:`Write 10 attention-grabbing TikTok video hooks (first 3 seconds) for: ${getInput("ai_tt_hook")}`,platform:"tiktok",include_cta:false}),Zap)}
+        {renderInputAction("AI Duet/Stitch Ideas","social-ai-responder","generate_caption",[{key:"ai_tt_duet",placeholder:"Original video topic"}],()=>({topic:`Generate 5 creative duet/stitch response ideas for a TikTok about: ${getInput("ai_tt_duet")}`,platform:"tiktok",include_cta:false}),Repeat)}
       </TabsContent>
     </Tabs>
   );
@@ -440,6 +463,10 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
       </TabsContent>
       <TabsContent value="ai" className="space-y-2 mt-3">
         {renderInputAction("AI Ad Copy","social-ai-responder","generate_caption",[{key:"ai_snap_topic",placeholder:"Ad topic"}],()=>({topic:getInput("ai_snap_topic"),platform:"snapchat",include_cta:true}),Brain)}
+        {renderInputAction("AI Story Script","social-ai-responder","generate_caption",[{key:"ai_snap_story",placeholder:"Story theme"}],()=>({topic:`Write a 5-panel Snapchat story script with captions for: ${getInput("ai_snap_story")}`,platform:"snapchat",include_cta:true}),Play)}
+        {renderInputAction("AI Audience Targeting","social-ai-responder","generate_caption",[{key:"ai_snap_aud",placeholder:"Product/service"}],()=>({topic:`Suggest 5 Snapchat ad audience segments with demographics and interests for: ${getInput("ai_snap_aud")}`,platform:"snapchat",include_cta:false}),Target)}
+        {renderInputAction("AI Campaign Strategy","social-ai-responder","generate_caption",[{key:"ai_snap_camp",placeholder:"Campaign goal"}],()=>({topic:`Create a Snapchat ad campaign strategy with budget allocation and creative ideas for: ${getInput("ai_snap_camp")}`,platform:"snapchat",include_cta:false}),Briefcase)}
+        {renderInputAction("AI Snap DM Reply","social-ai-responder","generate_dm_reply",[{key:"ai_snap_dm",placeholder:"Incoming snap message..."}],()=>({message_text:getInput("ai_snap_dm"),sender_name:"friend"}),Send)}
       </TabsContent>
     </Tabs>
   );
@@ -477,7 +504,12 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
         {renderActionButton("User Insights (30d)","threads-api","get_user_insights",{period:"last_30_days"},TrendingUp)}
       </TabsContent>
       <TabsContent value="ai" className="space-y-2 mt-3">
-        {renderInputAction("AI Thread","social-ai-responder","generate_caption",[{key:"ai_th_topic",placeholder:"Topic"}],()=>({topic:getInput("ai_th_topic"),platform:"threads",include_cta:true}),Brain)}
+        {renderInputAction("AI Thread Post","social-ai-responder","generate_caption",[{key:"ai_th_topic",placeholder:"Topic"}],()=>({topic:getInput("ai_th_topic"),platform:"threads",include_cta:true}),Brain)}
+        {renderInputAction("AI Reply","social-ai-responder","generate_dm_reply",[{key:"ai_th_reply",placeholder:"Thread to reply to..."}],()=>({message_text:getInput("ai_th_reply"),sender_name:"user"}),Zap)}
+        {renderInputAction("AI Conversation Starter","social-ai-responder","generate_caption",[{key:"ai_th_convo",placeholder:"Your niche"}],()=>({topic:`Write 10 engaging Threads conversation starters (questions, opinions, debates) for: ${getInput("ai_th_convo")}`,platform:"threads",include_cta:false}),MessageCircle)}
+        {renderInputAction("AI Quote Thread","social-ai-responder","generate_caption",[{key:"ai_th_quote",placeholder:"Original thread topic"}],()=>({topic:`Write a witty quote-thread response adding unique perspective to: ${getInput("ai_th_quote")}`,platform:"threads",include_cta:false}),Repeat)}
+        {renderInputAction("AI Bio Writer","social-ai-responder","generate_caption",[{key:"ai_th_bio",placeholder:"Describe your brand"}],()=>({topic:`Write a compelling Threads bio (150 chars) for: ${getInput("ai_th_bio")}`,platform:"threads",include_cta:false}),Users)}
+        {renderInputAction("AI Content Calendar","social-ai-responder","generate_caption",[{key:"ai_th_cal",placeholder:"Niche for 7-day plan"}],()=>({topic:`Create a 7-day Threads content calendar with daily post ideas for: ${getInput("ai_th_cal")}`,platform:"threads",include_cta:false}),Calendar)}
       </TabsContent>
     </Tabs>
   );
@@ -520,6 +552,11 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
       <TabsContent value="ai" className="space-y-2 mt-3">
         {renderInputAction("AI Message","social-ai-responder","generate_caption",[{key:"ai_wa_topic",placeholder:"Topic"}],()=>({topic:getInput("ai_wa_topic"),platform:"whatsapp",include_cta:true}),Brain)}
         {renderInputAction("AI Auto-Reply","social-ai-responder","generate_dm_reply",[{key:"ai_wa_msg",placeholder:"Incoming message..."}],()=>({message_text:getInput("ai_wa_msg"),sender_name:"customer"}),Zap)}
+        {renderInputAction("AI Template Creator","social-ai-responder","generate_caption",[{key:"ai_wa_tpl",placeholder:"Template purpose (welcome, promo, etc)"}],()=>({topic:`Write a WhatsApp Business message template for: ${getInput("ai_wa_tpl")}. Include header, body with variables {{1}}, and CTA button text.`,platform:"whatsapp",include_cta:true}),FileText)}
+        {renderInputAction("AI Broadcast Message","social-ai-responder","generate_caption",[{key:"ai_wa_bcast",placeholder:"Broadcast topic"}],()=>({topic:`Write a WhatsApp broadcast message (max 1024 chars) promoting: ${getInput("ai_wa_bcast")}`,platform:"whatsapp",include_cta:true}),Megaphone)}
+        {renderInputAction("AI Customer Service","social-ai-responder","generate_dm_reply",[{key:"ai_wa_cs",placeholder:"Customer complaint/query..."}],()=>({message_text:getInput("ai_wa_cs"),sender_name:"customer"}),Shield)}
+        {renderInputAction("AI Quick Replies","social-ai-responder","generate_caption",[{key:"ai_wa_qr",placeholder:"Business type/niche"}],()=>({topic:`Generate 10 WhatsApp quick reply templates for common customer questions about: ${getInput("ai_wa_qr")}`,platform:"whatsapp",include_cta:false}),Zap)}
+        {renderInputAction("AI Catalog Description","social-ai-responder","generate_caption",[{key:"ai_wa_cat",placeholder:"Product name/type"}],()=>({topic:`Write a compelling WhatsApp catalog product description for: ${getInput("ai_wa_cat")}`,platform:"whatsapp",include_cta:true}),Layers)}
       </TabsContent>
     </Tabs>
   );
@@ -555,6 +592,9 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
       </TabsContent>
       <TabsContent value="ai" className="space-y-2 mt-3">
         {renderInputAction("AI Message","social-ai-responder","generate_caption",[{key:"ai_sig_topic",placeholder:"Topic"}],()=>({topic:getInput("ai_sig_topic"),platform:"signal",include_cta:false}),Brain)}
+        {renderInputAction("AI Auto-Reply","social-ai-responder","generate_dm_reply",[{key:"ai_sig_dm",placeholder:"Incoming message..."}],()=>({message_text:getInput("ai_sig_dm"),sender_name:"contact"}),Zap)}
+        {renderInputAction("AI Group Announcement","social-ai-responder","generate_caption",[{key:"ai_sig_grp",placeholder:"Announcement topic"}],()=>({topic:`Write a Signal group announcement about: ${getInput("ai_sig_grp")}`,platform:"signal",include_cta:false}),Megaphone)}
+        {renderInputAction("AI Secure Meeting Invite","social-ai-responder","generate_caption",[{key:"ai_sig_meet",placeholder:"Meeting purpose"}],()=>({topic:`Write a professional Signal meeting invitation for: ${getInput("ai_sig_meet")}`,platform:"signal",include_cta:false}),Calendar)}
       </TabsContent>
     </Tabs>
   );
@@ -613,6 +653,13 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
       <TabsContent value="ai" className="space-y-2 mt-3">
         {renderInputAction("AI Title/Description","social-ai-responder","generate_caption",[{key:"ai_yt_topic",placeholder:"Video topic"}],()=>({topic:getInput("ai_yt_topic"),platform:"youtube",include_cta:true}),Brain)}
         {renderInputAction("AI Comment Reply","social-ai-responder","generate_dm_reply",[{key:"ai_yt_cmt",placeholder:"Comment text..."}],()=>({message_text:getInput("ai_yt_cmt"),sender_name:"viewer"}),Zap)}
+        {renderInputAction("AI Tag Generator","social-ai-responder","generate_caption",[{key:"ai_yt_tags",placeholder:"Video topic"}],()=>({topic:`Generate 20 SEO-optimized YouTube tags for a video about: ${getInput("ai_yt_tags")}`,platform:"youtube",include_cta:false}),Hash)}
+        {renderInputAction("AI Thumbnail Text","social-ai-responder","generate_caption",[{key:"ai_yt_thumb",placeholder:"Video topic"}],()=>({topic:`Write 5 attention-grabbing YouTube thumbnail text options (max 5 words each) for: ${getInput("ai_yt_thumb")}`,platform:"youtube",include_cta:false}),Image)}
+        {renderInputAction("AI Script Outline","social-ai-responder","generate_caption",[{key:"ai_yt_script",placeholder:"Video topic"}],()=>({topic:`Write a YouTube video script outline with intro hook, 5 main points, and CTA for: ${getInput("ai_yt_script")}`,platform:"youtube",include_cta:true}),FileText)}
+        {renderInputAction("AI Community Post","social-ai-responder","generate_caption",[{key:"ai_yt_comm",placeholder:"Topic for community tab"}],()=>({topic:`Write an engaging YouTube community post with poll options about: ${getInput("ai_yt_comm")}`,platform:"youtube",include_cta:false}),Users)}
+        {renderInputAction("AI End Screen CTA","social-ai-responder","generate_caption",[{key:"ai_yt_end",placeholder:"Video topic"}],()=>({topic:`Write 3 compelling YouTube end-screen verbal CTAs for a video about: ${getInput("ai_yt_end")}`,platform:"youtube",include_cta:true}),Play)}
+        {renderInputAction("AI Live Chat Mod","social-ai-responder","generate_dm_reply",[{key:"ai_yt_live",placeholder:"Live chat message..."}],()=>({message_text:getInput("ai_yt_live"),sender_name:"viewer"}),Radio)}
+        {renderInputAction("AI Shorts Idea","social-ai-responder","generate_caption",[{key:"ai_yt_shorts",placeholder:"Your niche"}],()=>({topic:`Generate 10 viral YouTube Shorts ideas with hooks for: ${getInput("ai_yt_shorts")}`,platform:"youtube",include_cta:false}),Video)}
       </TabsContent>
     </Tabs>
   );
@@ -659,6 +706,11 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
       </TabsContent>
       <TabsContent value="ai" className="space-y-2 mt-3">
         {renderInputAction("AI Pin Description","social-ai-responder","generate_caption",[{key:"ai_pin_topic",placeholder:"Pin topic"}],()=>({topic:getInput("ai_pin_topic"),platform:"pinterest",include_cta:true}),Brain)}
+        {renderInputAction("AI Board Strategy","social-ai-responder","generate_caption",[{key:"ai_pin_board",placeholder:"Your niche"}],()=>({topic:`Suggest 10 Pinterest board ideas with SEO-optimized names and descriptions for: ${getInput("ai_pin_board")}`,platform:"pinterest",include_cta:false}),Layers)}
+        {renderInputAction("AI SEO Keywords","social-ai-responder","generate_caption",[{key:"ai_pin_seo",placeholder:"Product/topic"}],()=>({topic:`Generate 20 Pinterest SEO keywords and long-tail search terms for: ${getInput("ai_pin_seo")}`,platform:"pinterest",include_cta:false}),Search)}
+        {renderInputAction("AI Ad Copy","social-ai-responder","generate_caption",[{key:"ai_pin_ad",placeholder:"Product to advertise"}],()=>({topic:`Write Pinterest promoted pin ad copy with headline and description for: ${getInput("ai_pin_ad")}`,platform:"pinterest",include_cta:true}),Megaphone)}
+        {renderInputAction("AI Content Calendar","social-ai-responder","generate_caption",[{key:"ai_pin_cal",placeholder:"Niche for 7-day plan"}],()=>({topic:`Create a 7-day Pinterest pinning schedule with 5 pins/day strategy for: ${getInput("ai_pin_cal")}`,platform:"pinterest",include_cta:false}),Calendar)}
+        {renderInputAction("AI Idea Pin Script","social-ai-responder","generate_caption",[{key:"ai_pin_idea",placeholder:"Topic for idea pin"}],()=>({topic:`Write a 5-slide Pinterest Idea Pin script with text overlays for: ${getInput("ai_pin_idea")}`,platform:"pinterest",include_cta:true}),Play)}
       </TabsContent>
     </Tabs>
   );
@@ -723,6 +775,12 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
       <TabsContent value="ai" className="space-y-2 mt-3">
         {renderInputAction("AI Announcement","social-ai-responder","generate_caption",[{key:"ai_dc_topic",placeholder:"Topic"}],()=>({topic:getInput("ai_dc_topic"),platform:"discord",include_cta:true}),Brain)}
         {renderInputAction("AI Auto-Reply","social-ai-responder","generate_dm_reply",[{key:"ai_dc_msg",placeholder:"Message to reply..."}],()=>({message_text:getInput("ai_dc_msg"),sender_name:"member"}),Zap)}
+        {renderInputAction("AI Welcome Message","social-ai-responder","generate_caption",[{key:"ai_dc_welcome",placeholder:"Server theme/purpose"}],()=>({topic:`Write a Discord server welcome message with rules and channel guide for: ${getInput("ai_dc_welcome")}`,platform:"discord",include_cta:false}),UserPlus)}
+        {renderInputAction("AI Mod Response","social-ai-responder","generate_dm_reply",[{key:"ai_dc_mod",placeholder:"Rule violation context..."}],()=>({message_text:`Moderator response needed: ${getInput("ai_dc_mod")}`,sender_name:"moderator"}),Shield)}
+        {renderInputAction("AI Event Post","social-ai-responder","generate_caption",[{key:"ai_dc_event",placeholder:"Event details"}],()=>({topic:`Write a Discord server event announcement with date, time, and hype for: ${getInput("ai_dc_event")}`,platform:"discord",include_cta:true}),Calendar)}
+        {renderInputAction("AI Channel Description","social-ai-responder","generate_caption",[{key:"ai_dc_ch_desc",placeholder:"Channel purpose"}],()=>({topic:`Write a Discord channel topic/description for: ${getInput("ai_dc_ch_desc")}`,platform:"discord",include_cta:false}),Hash)}
+        {renderInputAction("AI Server Rules","social-ai-responder","generate_caption",[{key:"ai_dc_rules",placeholder:"Server type/community"}],()=>({topic:`Write 10 Discord server rules for a community about: ${getInput("ai_dc_rules")}`,platform:"discord",include_cta:false}),Flag)}
+        {renderInputAction("AI Engagement Activity","social-ai-responder","generate_caption",[{key:"ai_dc_engage",placeholder:"Community niche"}],()=>({topic:`Generate 5 Discord community engagement activities (polls, games, challenges) for: ${getInput("ai_dc_engage")}`,platform:"discord",include_cta:false}),Star)}
       </TabsContent>
     </Tabs>
   );
@@ -782,6 +840,12 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
         {renderInputAction("AI Post","social-ai-responder","generate_caption",[{key:"ai_fb_topic",placeholder:"Topic"}],()=>({topic:getInput("ai_fb_topic"),platform:"facebook",include_cta:true}),Brain)}
         {renderInputAction("AI Comment Reply","social-ai-responder","generate_dm_reply",[{key:"ai_fb_cmt",placeholder:"Comment text..."}],()=>({message_text:getInput("ai_fb_cmt"),sender_name:"user"}),Zap)}
         {renderInputAction("AI Page Bio","social-ai-responder","generate_caption",[{key:"ai_fb_bio",placeholder:"Describe your page/brand"}],()=>({topic:`Write a compelling Facebook page About section for: ${getInput("ai_fb_bio")}`,platform:"facebook",include_cta:false}),Users)}
+        {renderInputAction("AI DM Auto-Reply","social-ai-responder","generate_dm_reply",[{key:"ai_fb_dm",placeholder:"Incoming message..."}],()=>({message_text:getInput("ai_fb_dm"),sender_name:"visitor"}),Send)}
+        {renderInputAction("AI Ad Copy","social-ai-responder","generate_caption",[{key:"ai_fb_ad",placeholder:"Product/service to promote"}],()=>({topic:`Write Facebook ad copy with headline, primary text, and description for: ${getInput("ai_fb_ad")}`,platform:"facebook",include_cta:true}),Megaphone)}
+        {renderInputAction("AI Group Post","social-ai-responder","generate_caption",[{key:"ai_fb_grp",placeholder:"Group topic"}],()=>({topic:`Write an engaging Facebook group post that sparks discussion about: ${getInput("ai_fb_grp")}`,platform:"facebook",include_cta:false}),Users)}
+        {renderInputAction("AI Event Description","social-ai-responder","generate_caption",[{key:"ai_fb_evt",placeholder:"Event details"}],()=>({topic:`Write a Facebook event description with details and RSVP CTA for: ${getInput("ai_fb_evt")}`,platform:"facebook",include_cta:true}),Calendar)}
+        {renderInputAction("AI Carousel Ideas","social-ai-responder","generate_caption",[{key:"ai_fb_car",placeholder:"Topic for carousel"}],()=>({topic:`Write 5-slide Facebook carousel post content with headlines and descriptions for: ${getInput("ai_fb_car")}`,platform:"facebook",include_cta:true}),Layers)}
+        {renderInputAction("AI Hashtag Strategy","social-ai-responder","generate_caption",[{key:"ai_fb_ht",placeholder:"Niche/industry"}],()=>({topic:`Generate 15 Facebook hashtags for maximum reach in: ${getInput("ai_fb_ht")}`,platform:"facebook",include_cta:false}),Hash)}
       </TabsContent>
     </Tabs>
   );
@@ -819,23 +883,29 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
         {platforms.map(p => {
           const connected = isConnected(p.id);
           return (
-            <Card key={p.id} className={`transition-all cursor-pointer hover:border-primary/30 ${!connected ? "opacity-50 grayscale" : ""} ${expandedPlatform === p.id ? p.borderColor : ""}`}>
+            <Card key={p.id} className={`transition-all cursor-pointer ${
+              connected
+                ? "border-green-500/40 bg-green-500/5 hover:border-green-400/60 hover:bg-green-500/10"
+                : "border-red-500/30 bg-red-500/5 hover:border-red-400/50 hover:bg-red-500/10"
+            } ${expandedPlatform === p.id ? p.borderColor : ""}`}>
               <button
                 onClick={() => handlePlatformClick(p.id)}
-                className="w-full p-3 flex items-center gap-3 hover:bg-muted/30 transition-colors rounded-xl"
+                className="w-full p-3 flex items-center gap-3 transition-colors rounded-xl"
               >
-                <div className={`h-10 w-10 rounded-lg ${p.bgColor} flex items-center justify-center ${p.color}`}>
+                <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${connected ? p.bgColor + " " + p.color : "bg-red-500/10 text-red-400"}`}>
                   <p.icon className="h-5 w-5" />
                 </div>
                 <div className="flex-1 text-left">
-                  <p className="text-sm font-semibold text-foreground">{p.name}</p>
-                  <p className="text-[10px] text-muted-foreground">{connected ? "Full API · AI tools" : "Not connected — click to connect"}</p>
+                  <p className={`text-sm font-semibold ${connected ? "text-foreground" : "text-red-300"}`}>{p.name}</p>
+                  <p className={`text-[10px] ${connected ? "text-green-400" : "text-red-400"}`}>
+                    {connected ? "✅ Connected · Full API · AI Automation Ready" : "⛔ Not connected — Click to set up in Connect tab"}
+                  </p>
                 </div>
                 <div className="flex items-center gap-2">
                   {connected ? (
-                    <Badge className="bg-green-500/15 text-green-400 text-[10px] border-green-500/30">Live</Badge>
+                    <Badge className="bg-green-500/20 text-green-400 text-[10px] border-green-500/40">● Live</Badge>
                   ) : (
-                    <Badge className="bg-muted text-muted-foreground text-[10px]"><AlertCircle className="h-3 w-3 mr-0.5" />Offline</Badge>
+                    <Badge className="bg-red-500/20 text-red-400 text-[10px] border-red-500/40"><AlertCircle className="h-3 w-3 mr-0.5" />Disconnected</Badge>
                   )}
                   <ChevronRight className={`h-4 w-4 text-muted-foreground transition-transform ${expandedPlatform === p.id ? "rotate-90" : ""}`} />
                 </div>
