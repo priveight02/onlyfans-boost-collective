@@ -1437,34 +1437,36 @@ const detectConversationPhase = (messages: any[]): { phase: number; phaseName: s
   const seedVal = (fanTexts[0] || "x").charCodeAt(0) + fanMsgs.length;
   const jitter = (seedVal % 5) - 2; // -2 to +2 message jitter
 
-  // ── PHASE TRANSITION LOGIC (signal-driven, not count-driven) ──
-  // Phase 1 → 2: Fan has engaged enough that casual presence feels established
-  const phase1Exit = fanMsgs.length >= (3 + jitter) && (
-    engagementVelocity >= 6 ||      // they're engaged enough
-    fanMsgs.length >= (5 + jitter) || // minimum msgs even if low engagement
-    personalInfoCount >= 1            // they already shared something personal
+  // ── PHASE TRANSITION LOGIC ──
+  // CRITICAL: phases should be SLOW. Even with high engagement, enforce minimum fan message counts.
+  // The conversation in the screenshots had only ~6 fan msgs and hit Phase 5 — that should NEVER happen.
+  
+  // Phase 1 → 2: At least 4-6 fan messages of casual chat before ANY discovery
+  const phase1Exit = fanMsgs.length >= (5 + jitter) && (
+    engagementVelocity >= 8 ||         // decent engagement
+    fanMsgs.length >= (7 + jitter)     // minimum msgs even if low engagement
   );
 
-  // Phase 2 → 3: Enough personal info discovered naturally
-  const phase2Exit = personalInfoCount >= 2 && (
-    engagementVelocity >= 10 ||     // high engagement
-    fanMsgs.length >= (8 + jitter)  // decent convo length
+  // Phase 2 → 3: MINIMUM 10 fan msgs + enough personal info discovered naturally
+  const phase2Exit = fanMsgs.length >= (10 + jitter) && personalInfoCount >= 2 && (
+    engagementVelocity >= 12 ||        // solid engagement
+    fanMsgs.length >= (14 + jitter)    // natural progression
   );
 
-  // Phase 3 → 4: Availability/mood signals detected OR strong emotional connection
-  const phase3Exit = (
-    hasAvailability ||                                       // they mentioned being free/alone
-    (engagementVelocity >= 18 && fanMsgs.length >= (10 + jitter)) || // very high engagement
-    (isAffectionate && personalInfoCount >= 3) ||            // emotional + personal = ready
-    fanMsgs.length >= (15 + jitter)                          // natural progression ceiling
+  // Phase 3 → 4: MINIMUM 16 fan msgs + availability/mood signals OR very deep connection
+  const phase3Exit = fanMsgs.length >= (16 + jitter) && (
+    hasAvailability ||                                        // they mentioned being free/alone
+    (engagementVelocity >= 20 && fanMsgs.length >= (20 + jitter)) || // very high engagement + lots of msgs
+    (isAffectionate && personalInfoCount >= 3 && fanMsgs.length >= (18 + jitter)) || // emotional + personal + enough msgs
+    fanMsgs.length >= (22 + jitter)                           // natural progression ceiling
   );
 
-  // Phase 4 → 5: Value shared OR enough emotional investment for gentle redirect
-  const phase4Exit = (
-    freePicSent ||                                           // free pic already delivered
-    (engagementVelocity >= 22 && fanMsgs.length >= (13 + jitter)) || // very deep engagement
-    (isAffectionate && hasAvailability) ||                    // sweet + available = peak moment
-    fanMsgs.length >= (18 + jitter)                          // natural ceiling
+  // Phase 4 → 5: MINIMUM 22 fan msgs + value shared OR deep emotional investment
+  const phase4Exit = fanMsgs.length >= (22 + jitter) && (
+    freePicSent ||                                            // free pic already delivered
+    (engagementVelocity >= 24 && fanMsgs.length >= (25 + jitter)) || // very deep engagement
+    (isAffectionate && hasAvailability && fanMsgs.length >= (24 + jitter)) || // sweet + available + enough msgs
+    fanMsgs.length >= (28 + jitter)                           // natural ceiling
   );
 
   // ── Determine current phase ──
