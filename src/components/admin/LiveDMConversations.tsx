@@ -100,6 +100,7 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
   const [prefetchProgress, setPrefetchProgress] = useState<{ done: number; total: number } | null>(null);
   const [bulkHubOpen, setBulkHubOpen] = useState(false);
   const [followAI, setFollowAI] = useState(false);
+  const [relaunching, setRelaunching] = useState(false);
   const followAIRef = useRef(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -777,6 +778,43 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
     }
   }, [accountId, processing, addLog]);
 
+  // Relaunch all unread conversations — deep context scan + resume
+  const relaunchUnread = useCallback(async () => {
+    if (relaunching) return;
+    setRelaunching(true);
+    addLog("system", "Relaunching all unread conversations...", "processing");
+    setAiCurrentPhase("analyze");
+    
+    try {
+      const { data, error } = await supabase.functions.invoke("social-ai-responder", {
+        body: { action: "relaunch_unread", account_id: accountId, params: {} },
+      });
+      if (error) throw error;
+      if (!data?.success && data?.error) {
+        addLog("system", data.error, "error");
+        toast.error(data.error);
+      } else {
+        const r = data?.data;
+        if (r?.processed > 0) {
+          for (const c of (r.conversations || [])) {
+            addLog(`@${c.fan}`, `Resumed (${c.context_messages} msgs scanned): "${c.ai_reply?.substring(0, 50)}..."`, "success");
+          }
+          toast.success(`Relaunched ${r.processed}/${r.total_unread} unread conversations`);
+        } else {
+          addLog("system", `${r?.total_unread || 0} unread — none needed replies`, "info");
+          toast.info("No unread conversations need replies");
+        }
+      }
+      await loadConversations();
+    } catch (e: any) {
+      addLog("system", `Relaunch error: ${e.message}`, "error");
+      toast.error(e.message || "Relaunch failed");
+    } finally {
+      setRelaunching(false);
+      setAiCurrentPhase("");
+    }
+  }, [accountId, relaunching, addLog, loadConversations]);
+
   // Continuous adaptive polling — 3s base, immediate retry on activity
   useEffect(() => {
     if (!autoRespondActive || !accountId) {
@@ -1051,6 +1089,9 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
               </Button>
               <Button size="sm" variant="ghost" onClick={() => setBulkHubOpen(true)} className="h-7 w-7 p-0" title="Bulk Message Hub">
                 <SendHorizonal className="h-3.5 w-3.5" />
+              </Button>
+              <Button size="sm" variant="ghost" onClick={relaunchUnread} disabled={relaunching} className={`h-7 w-7 p-0 ${relaunching ? "text-orange-400" : ""}`} title="Relaunch all unread — deep scan full history + media, resume where left off">
+                <RefreshCw className={`h-3.5 w-3.5 ${relaunching ? "animate-spin text-orange-400" : ""}`} />
               </Button>
               <Button
                 size="sm"
