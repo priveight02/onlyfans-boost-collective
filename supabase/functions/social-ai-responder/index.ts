@@ -475,7 +475,7 @@ const detectFreePicRequest = (messages: any[], fanTags: string[] | null, latestF
   const alreadySent = (fanTags || []).includes("free_pic_sent");
   
   const picPattern = /(send (me )?(a |the )?(free )?(pic|photo|picture|image|preview|sample|taste|something|smth|content|nude|nudes|naked))|((free|one|the|a) (pic|photo|picture|image|preview|sample|content))|((can i|could i|let me|i want to|i want|i wanna|want to) (see|get|have) (a |some |one |the )?(free |)?(pic|photo|picture|preview|sample|content|something))|((show|give|send) (me )?(a |some |the )?(free |)?(pic|photo|picture|preview|sample|something|content))|(anything free)|(free stuff)|(prove it.*(pic|photo|show))|(just one.*(pic|photo|free))|(one free)|(freebie)|(sneak peek)|(preview)|(taste of (you|your|urself|yourself))|(i want a? ?(free )?pic)|(the free pic)|(free picture)|(send (me )?the pic)|(give (me )?the pic)|(the pic i want)|(send me pic)|(send pic)|(pic first)|(i want (to )?see)/;
-  const picPatternLoose = /(free.*pic|pic.*free|want.*pic|send.*pic|see.*pic|taste|want.*see.*you|show.*me|give.*pic|free.*picture|picture.*free|the pic|send me.*pic|give me.*pic|pic first|i want to see)/;
+  const picPatternLoose = /(free.*pic|pic.*free|want.*pic|send.*pic|see.*pic|want.*see.*you|show.*me.*pic|give.*pic|free.*picture|picture.*free|send me.*pic|give me.*pic|pic first|i want to see.*pic)/;
 
   // Helper to check if a single text matches pic request
   const matchesPic = (raw: string): boolean => {
@@ -529,8 +529,10 @@ const detectFreePicRequest = (messages: any[], fanTags: string[] | null, latestF
     const latestAlreadyCounted = allFanMsgs.some(m => (m.content || "").toLowerCase().trim() === (latestFanContent || "").toLowerCase().trim());
     insistCount = latestAlreadyCounted ? previousPicAsks : previousPicAsks + 1;
   }
-  // AGGRESSIVE: eligible if they asked even ONCE and there's been any conversation, OR insistCount >= 2
-  const isEligible = isRequesting && !alreadySent && (insistCount >= 2 || (insistCount >= 1 && fanMsgCount >= 2));
+  // CRITICAL: Only eligible if the LATEST message is actually a pic request (or insistCount >= 2 from history)
+  // This prevents triggering on random "thanks" or unrelated messages just because history had pic keywords
+  const latestMsgIsPicRequest = latestIsPicRequest || (latestFanContent ? matchesPic(latestFanContent) : false);
+  const isEligible = isRequesting && !alreadySent && latestMsgIsPicRequest && (insistCount >= 2 || (insistCount >= 1 && fanMsgCount >= 2));
   
   return { isRequesting, alreadySent, isEligible, insistCount };
 };
