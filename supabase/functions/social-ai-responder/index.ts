@@ -1379,6 +1379,144 @@ const upsertStrategyStats = async (
   }
 };
 
+// === 5-PHASE CONVERSATION ROADMAP ENGINE ===
+// Determines which phase of the conversational funnel we're in based on signals
+const detectConversationPhase = (messages: any[]): { phase: number; phaseName: string; directive: string } => {
+  const fanMsgs = messages.filter(m => m.sender_type === "fan");
+  const ourMsgs = messages.filter(m => m.sender_type !== "fan");
+  const totalMsgs = messages.length;
+  const fanTexts = fanMsgs.map(m => (m.content || "").toLowerCase());
+  const ourTexts = ourMsgs.map(m => (m.content || "").toLowerCase());
+  const allFanText = fanTexts.join(" ");
+  const allOurText = ourTexts.join(" ");
+
+  // ── Phase detection signals ──
+  // Personal info shared by fan
+  const hasName = !!allFanText.match(/(my name|call me |im [a-z]{2,12}$)/m);
+  const hasLocation = !!allFanText.match(/(from |i live|my country|my city|born in)/);
+  const hasJob = !!allFanText.match(/(i work|my job|i do |i am a |im a |my business|my company|office|career)/);
+  const hasFamily = !!allFanText.match(/(brother|sister|sibling|mom|dad|parent|family|son|daughter|wife|husband|girlfriend|boyfriend|single|married|pet|dog|cat|puppy|kitten)/);
+  const hasPassion = !!allFanText.match(/(i like|i love|passion|hobby|hobbies|i enjoy|i play|favorite|into |fan of)/);
+  const hasAvailability = !!allFanText.match(/(alone|by myself|home alone|nothing to do|bored|free rn|just chilling|nobody here|empty house|roommate.*(gone|out|away)|alone at home|got the place|doing nothing)/);
+  
+  // Count how many personal categories we've learned
+  const personalInfoCount = [hasName, hasLocation, hasJob, hasFamily, hasPassion].filter(Boolean).length;
+  
+  // Count how many personal questions WE asked
+  const askedAboutJob = !!allOurText.match(/(what do u do|ur job|what u do for|work)/);
+  const askedAboutFamily = !!allOurText.match(/(brother|sister|sibling|family|pet|dog|cat|live alone|roommate)/);
+  const askedAboutPassion = !!allOurText.match(/(what do u like|what u into|hobbies|passion|favorite|fun)/);
+  const askedAboutLocation = !!allOurText.match(/(where|from|city|country|based)/);
+  const personalQuestionsAsked = [askedAboutJob, askedAboutFamily, askedAboutPassion, askedAboutLocation].filter(Boolean).length;
+  
+  // Did we send free pic already?
+  const freePicSent = ourMsgs.some(m => {
+    const meta = m.metadata as any;
+    return meta?.type === "free_pic_delivery" || meta?.type === "free_pic_engine" || (m.content || "").includes("[sent a photo]");
+  });
+  
+  // Did we already redirect?
+  const redirectSent = ourTexts.some(t => t.match(/(bio|link|profile|page|check it|come see|come find|waiting for u)/));
+  
+  // ── Phase determination ──
+  // Phase 1: Warm Entry (0-6 messages) — casual, light, establish rapport
+  if (totalMsgs <= 6 || (fanMsgs.length <= 3 && personalInfoCount === 0)) {
+    return {
+      phase: 1,
+      phaseName: "WARM_ENTRY",
+      directive: `=== PHASE 1: WARM ENTRY & RAPPORT BUILDING ===
+You are in the OPENING phase. Your ONLY job is to be warm, friendly, and make them feel comfortable.
+- Keep it light and casual. Smile energy. Relaxed vibes
+- Ask ONE simple question per reply to get them talking: "hey how are u", "whats going on", "where are u from"
+- React genuinely to whatever they say. Show you're listening
+- NO redirects. NO flirting yet. NO pushing anything. Just be a cool girl they enjoy texting
+- Match their energy — if theyre excited, be excited back. If theyre chill, be chill
+- Goal: make them WANT to keep talking to you because you seem real and fun
+- This phase ends when you know at least their name or location`,
+    };
+  }
+  
+  // Phase 2: Personal Discovery (7-15 messages OR low personal info) — learn about them
+  if ((totalMsgs <= 15 && personalInfoCount < 3) || (totalMsgs <= 20 && personalInfoCount < 2)) {
+    const needToAsk: string[] = [];
+    if (!hasJob && !askedAboutJob) needToAsk.push(`their job/work ("so what do u do" or "u work or study")`);
+    if (!hasFamily && !askedAboutFamily) needToAsk.push(`siblings/pets/family ("do u have siblings" or "any pets" or "u live alone or with fam")`);
+    if (!hasPassion && !askedAboutPassion) needToAsk.push(`passions/interests ("whats ur thing like what do u do for fun" or "what are u into")`);
+    if (!hasLocation && !askedAboutLocation) needToAsk.push(`where theyre from ("where are u based")`);
+    
+    return {
+      phase: 2,
+      phaseName: "PERSONAL_DISCOVERY",
+      directive: `=== PHASE 2: PERSONAL CONTEXT DISCOVERY ===
+You are learning about this person. Be GENUINELY curious — not interrogative.
+- You know ${personalInfoCount}/5 personal categories about them so far
+${needToAsk.length > 0 ? `- NATURALLY work in questions about: ${needToAsk.join(", ")}` : "- You've covered most bases — go deeper on what you know"}
+- Ask ONE question per message max — never rapid-fire questions
+- REACT to their answers before asking the next thing. "oh thats cool" → follow-up → then new topic
+- Show genuine interest: "wait really? tell me more about that" / "thats actually interesting"
+- Share small things about yourself too so it feels mutual: "oh i love dogs too" / "thats sick my friend does that"
+- NO redirects yet. NO strong flirting. Just warm curiosity and connection
+- If they ask about YOU: answer genuinely (youre from Cannes, in LA, 21, etc.)
+- Goal: know their job, whether they have siblings/pets, what theyre passionate about, where theyre from`,
+    };
+  }
+  
+  // Phase 3: Availability & Engagement Readiness (15-20 messages OR high personal info)
+  if (totalMsgs <= 20 || (!hasAvailability && totalMsgs <= 25 && !freePicSent && !redirectSent)) {
+    return {
+      phase: 3,
+      phaseName: "AVAILABILITY_CHECK",
+      directive: `=== PHASE 3: AVAILABILITY & ENGAGEMENT READINESS ===
+You have good rapport now. Time to gauge their current state — but SUBTLY through conversation, never by asking directly.
+- Pick up on cues: are they responding fast? Using longer messages? Seem relaxed and present?
+- Naturally weave in availability cues: "so whats ur night looking like" / "u busy rn or just vibing" / "doing anything fun tonight"
+- If they say theyre alone, bored, free, chilling → they are READY for Phase 4. Acknowledge warmly: "oh same just me and my phone rn"
+- If they seem busy, distracted, or short → match their pace. "oh ok no worries go do ur thing" — dont push
+- Start light flirting if the vibe is right: "u seem fun to hang out with" / "ok ur growing on me"
+- Reference things they told you in Phase 2: "so hows the [their job]" / "did u walk ur dog today"
+- Build emotional investment — they should feel like you REMEMBER them and care
+- NO hard redirects yet. Very light seductive energy starting to emerge
+- Goal: understand if theyre present, relaxed, and open to deeper engagement right now`,
+    };
+  }
+  
+  // Phase 4: Value Sharing / Free Pic territory (20-25 messages)
+  if (totalMsgs <= 25 || (!freePicSent && totalMsgs <= 28)) {
+    return {
+      phase: 4,
+      phaseName: "VALUE_SHARING",
+      directive: `=== PHASE 4: VALUE SHARING (FREE CONTENT TERRITORY) ===
+The rapport is strong. They trust you. Time to share VALUE and deepen the emotional connection.
+- Be extra warm and charming. Make them feel special: "im not gonna lie i like talking to u" / "ur actually different from most guys"
+- If they ask for a free pic: the system handles this automatically. Just say "ok ok" or "mm one sec" — NEVER block it
+- If they HAVENT asked for a pic yet: you can OFFER subtly: "hmm i might have something cute for u" / "i took something earlier u might like"
+- Send cute, playful messages that build anticipation: "u make me wanna share more w u"
+- The free pic flow creates a powerful bonding moment — use it
+- Light seductive undertones are natural here: "mmm" / "u know how to make a girl feel special"
+- Start planting SEEDS for the redirect but dont push: "i have way more stuff but not for here"
+- Goal: create a high-trust, high-emotion moment. The free pic + cute message = peak emotional investment`,
+    };
+  }
+  
+  // Phase 5: Gentle Direction & Transition (25+ messages)
+  return {
+    phase: 5,
+    phaseName: "GENTLE_REDIRECT",
+    directive: `=== PHASE 5: GENTLE DIRECTION & TRANSITION ===
+Maximum rapport achieved. They are emotionally invested. Time for smooth, seductive conversion.
+- Every 2-3 messages should contain a NATURAL hint toward your page/bio
+- Frame it as an INVITATION, never a demand: "i want to show u more but its on my page" / "come see what else ive got"
+- Use the emotional connection built in Phases 1-4: "since we connected like this u deserve to see more"
+- Make it feel EXCLUSIVE: "i dont share this w everyone" / "only for guys i actually vibe with"
+- Keep the warmth — NEVER get cold, transactional, or pushy
+- If they resist: stay warm, use psychology (FOMO, ego challenge, scarcity)
+- If they keep chatting without going to the link: gradually increase urgency but ALWAYS stay seductive and warm
+- The redirect should feel like a NATURAL next step in the relationship, not a sales pitch
+- Reference shared moments: "remember when u told me about [thing]? i saved something special for guys like u"
+- Goal: smooth transition to the link/bio while maintaining trust and emotional connection`,
+  };
+};
+
 // === UPGRADED BEHAVIOR CLASSIFICATION ENGINE ===
 const classifyFanBehavior = (messages: any[]): { type: string; context: string; engagementScore: number } => {
   const fanMsgs = messages.filter(m => m.sender_type === "fan");
@@ -3092,6 +3230,8 @@ Follow these persona settings strictly. They override any conflicting defaults a
             const { memoryBlock: fanMemoryBlock } = buildFanMemory(dbMessages || []);
             const behavior = classifyFanBehavior(dbMessages || []);
             const tension = detectTension(dbMessages || []);
+            const convoPhase = detectConversationPhase(dbMessages || []);
+            console.log(`[PHASE] @${dbConvo.participant_username}: Phase ${convoPhase.phase} (${convoPhase.phaseName}), ${(dbMessages || []).length} msgs, behavior: ${behavior.type}`);
 
             // Auto-save fan behavior with deep metadata (non-blocking)
             const convMeta = extractConversationMetadata(dbMessages || []);
@@ -3154,8 +3294,9 @@ Follow these persona settings strictly. They override any conflicting defaults a
               ? `\n\n=== FREE PIC ALREADY SENT ===\nYou already sent this person a free pic. Do NOT promise or offer more free content. If they ask again: "i already showed u something nice now u gotta come see the rest" / "u already got ur freebie" / "thats all u get for free lol the rest is worth it tho". Then redirect to bio.`
               : "";
 
-            // Generate AI reply
-            const systemPrompt = `${personaInfo2}${emojiDir}${fanMemoryBlock}${fanProfileCtx}${behaviorCtxLive}${tensionCtxLive}${learnedStrategiesCtx}${crossEngineBridge}${mediaPatterns}${freePicCtx}
+            // Generate AI reply — inject 5-phase roadmap directive
+            const phaseDirective = `\n\n${convoPhase.directive}`;
+            const systemPrompt = `${personaInfo2}${emojiDir}${fanMemoryBlock}${fanProfileCtx}${behaviorCtxLive}${tensionCtxLive}${learnedStrategiesCtx}${crossEngineBridge}${mediaPatterns}${freePicCtx}${phaseDirective}
 ${autoConfig.redirect_url ? `\nIMPORTANT: when it makes sense, naturally guide toward this link: ${autoConfig.redirect_url}. But NEVER redirect during genuine bonding moments — wait for a natural transition. NEVER redirect when the vibe is tense or dry — fix the vibe first` : ""}
 ${autoConfig.trigger_keywords ? `if they mention any of these: ${autoConfig.trigger_keywords}, redirect them to the link` : ""}
 
@@ -3480,7 +3621,7 @@ IF YOU DONT UNDERSTAND: say "wait wdym" or "lol what" — NEVER make up an incoh
               // After heart reaction: send a seductive follow-up redirect as back-to-back message
               // This is MANDATORY after reactions — always follow up with a subtle redirect
               const totalMsgsForReact = (dbMessages || []).length;
-              if (totalMsgsForReact >= 6) {
+              if (totalMsgsForReact >= 6 && convoPhase.phase >= 4) {
                 // Wait a natural pause after reaction before the follow-up
                 await new Promise(r => setTimeout(r, 1200 + Math.random() * 1500));
                 const reactFollowups = [
@@ -3744,6 +3885,7 @@ IF YOU DONT UNDERSTAND: say "wait wdym" or "lol what" — NEVER make up an incoh
                 fan_message: latestMsg.content,
                 ai_reply: reply,
                 ml_behavior: behavior.type,
+                phase: `${convoPhase.phase}_${convoPhase.phaseName}`,
               });
             } catch (sendErr: any) {
               console.error("Failed to send DM:", sendErr);
