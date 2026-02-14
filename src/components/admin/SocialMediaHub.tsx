@@ -28,6 +28,15 @@ import {
   PieChart, Layers, Twitter, Phone, Camera, Gamepad2,
 } from "lucide-react";
 
+const VerifiedBadge = ({ size = 12 }: { size?: number }) => (
+  <svg viewBox="0 0 40 40" width={size} height={size} className="inline-block flex-shrink-0">
+    <defs><linearGradient id="smh-verified-grad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#4FC3F7" /><stop offset="100%" stopColor="#2196F3" /></linearGradient></defs>
+    <circle cx="20" cy="20" r="20" fill="url(#smh-verified-grad)" />
+    <polygon points="20,2 23.5,8 30,5 28,12 35,14 30,18.5 35,23 28.5,24 31,31 24,29 22,36 20,30 18,36 16,29 9,31 11.5,24 5,23 10,18.5 5,14 12,12 10,5 16.5,8" fill="url(#smh-verified-grad)" />
+    <path d="M15 20.5L18.5 24L26 16" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+  </svg>
+);
+
 const SocialMediaHub = () => {
   const [activeSubTab, setActiveSubTab] = useState("dashboard");
   const [accounts, setAccounts] = useState<any[]>([]);
@@ -1405,15 +1414,15 @@ const SocialMediaHub = () => {
                                 )}
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-1.5">
-                                    <p className="text-sm font-medium text-foreground">{bd.name || bd.username}</p>
-                                    {bd.is_verified && <span className="text-blue-400 text-xs">✓</span>}
+                                    <p className="text-sm font-medium text-white">{bd.name || bd.username}</p>
+                                    {bd.is_verified && <VerifiedBadge size={14} />}
                                   </div>
-                                  <p className="text-[11px] text-muted-foreground">@{bd.username}</p>
-                                  <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{bd.biography}</p>
-                                  <div className="flex gap-3 mt-1.5 text-[11px] text-muted-foreground">
-                                    <span><span className="font-semibold text-foreground">{fmtNum(bd.followers_count || 0)}</span> followers</span>
-                                    <span><span className="font-semibold text-foreground">{fmtNum(bd.follows_count || 0)}</span> following</span>
-                                    <span><span className="font-semibold text-foreground">{fmtNum(bd.media_count || 0)}</span> posts</span>
+                                  <p className="text-[11px] text-white/50">@{bd.username}</p>
+                                  <p className="text-xs text-white/40 line-clamp-2 mt-0.5">{bd.biography}</p>
+                                  <div className="flex gap-3 mt-1.5 text-[11px] text-white/40">
+                                    <span><span className="font-semibold text-white">{fmtNum(bd.followers_count || 0)}</span> followers</span>
+                                    <span><span className="font-semibold text-white">{fmtNum(bd.follows_count || 0)}</span> following</span>
+                                    <span><span className="font-semibold text-white">{fmtNum(bd.media_count || 0)}</span> posts</span>
                                   </div>
                                 </div>
                               </div>
