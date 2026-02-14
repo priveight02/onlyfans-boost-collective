@@ -2333,17 +2333,42 @@ Follow these persona settings strictly. They override any conflicting defaults a
             // CRITICAL: Check if we already handled this message (e.g. user deleted our reply)
             // If last_ai_reply_at is AFTER the fan's message, we already replied — skip
             // BUT: skip this check if free pic is pending (Phase 2 needs to run)
-            // STALENESS RECOVERY: If last_ai_reply_at is > 90s old but fan message is newer, force process (stuck lock)
+            // STALENESS RECOVERY: If last_ai_reply_at is > 5min old but fan message is newer, force process (stuck lock)
             if (!hasPendingPic && dbConvo.last_ai_reply_at && latestMsg?.created_at) {
               const aiReplyTime = new Date(dbConvo.last_ai_reply_at).getTime();
               const fanMsgTime = new Date(latestMsg.created_at).getTime();
               const lockAge = Date.now() - aiReplyTime;
-              // Normal skip: we already replied after the fan's message AND it's recent (< 90s)
-              if (aiReplyTime >= fanMsgTime && lockAge < 90000) continue;
-              // If lock is > 90s old and fan sent something newer, treat as stuck lock — force process
-              if (aiReplyTime >= fanMsgTime && lockAge >= 90000) {
-                console.log(`[STALENESS RECOVERY] @${dbConvo.participant_username}: lock is ${Math.round(lockAge/1000)}s old, forcing reprocess`);
+              // Normal skip: we already replied after the fan's message — skip regardless of lock age
+              // Only force-reprocess if fan sent a NEW message AFTER our reply AND lock is stale (>5min)
+              if (aiReplyTime >= fanMsgTime) {
+                if (lockAge < 300000) continue; // Lock is fresh, definitely already handled
+                // Lock is >5min old but fan hasn't sent anything new since our reply — still skip
+                console.log(`[STALENESS CHECK] @${dbConvo.participant_username}: lock is ${Math.round(lockAge/1000)}s old but no new fan msg, skipping`);
+                continue;
               }
+              // Fan sent a message AFTER our reply — this is a genuinely new message, process it
+              // But verify it's not a message we JUST replied to (race condition window)
+              if (fanMsgTime - aiReplyTime < 2000) {
+                // Fan message arrived within 2s of our reply timestamp — possible race, skip
+                console.log(`[RACE GUARD] @${dbConvo.participant_username}: fan msg within 2s of reply, skipping to prevent duplicate`);
+                continue;
+              }
+            }
+
+            // DUPLICATE GUARD: Check if we already have a "sent" or "typing" AI message 
+            // that was created AFTER the latest fan message — prevents duplicate replies
+            const { data: recentAiMsgs } = await supabase
+              .from("ai_dm_messages")
+              .select("id, status, created_at")
+              .eq("conversation_id", dbConvo.id)
+              .eq("sender_type", "ai")
+              .in("status", ["sent", "typing"])
+              .gte("created_at", latestMsg.created_at)
+              .limit(1);
+            
+            if (recentAiMsgs && recentAiMsgs.length > 0) {
+              console.log(`[DUPLICATE GUARD] @${dbConvo.participant_username}: already have AI msg after fan's latest, skipping`);
+              continue;
             }
 
             // RACE CONDITION GUARD: Atomically lock this conversation so concurrent invocations can't process it twice
@@ -2854,19 +2879,23 @@ FINAL REMINDER — MESSAGE LENGTH (MOST IMPORTANT RULE):
 
             // Detect if fan sent multiple unanswered messages (needs longer reply)
             const unansweredFanMsgs = [];
-            let foundOurReply = false;
             for (let mi = (dbMessages || []).length - 1; mi >= 0; mi--) {
               const m = (dbMessages || [])[mi];
-              if (m.sender_type !== "fan") { foundOurReply = true; break; }
+              if (m.sender_type !== "fan") break;
               unansweredFanMsgs.unshift(m);
             }
             const multipleUnanswered = unansweredFanMsgs.length >= 2;
             const unansweredQuestions = unansweredFanMsgs.filter(m => (m.content || "").includes("?")).length;
             
+            // CRITICAL: Inject a focus directive so AI answers the LATEST messages, not old ones
+            if (unansweredFanMsgs.length > 0) {
+              const latestTexts = unansweredFanMsgs.slice(-3).map(m => `"${(m.content || "").substring(0, 80)}"`).join(", ");
+              aiMessages.push({ role: "system", content: `FOCUS: The fan's most recent message(s) you MUST respond to are: ${latestTexts}. Reply ONLY to these. Do NOT answer old questions from earlier in the chat that were already addressed.` });
+            }
+            
             // Find the best message to reply-to (oldest unanswered question for IG reply feature)
             let replyToMessageId: string | null = null;
             if (unansweredFanMsgs.length >= 2) {
-              // Reply to the oldest unanswered question specifically
               const oldestQuestion = unansweredFanMsgs.find(m => (m.content || "").includes("?"));
               if (oldestQuestion?.platform_message_id) {
                 replyToMessageId = oldestQuestion.platform_message_id;
@@ -2929,28 +2958,40 @@ FINAL REMINDER — MESSAGE LENGTH (MOST IMPORTANT RULE):
             const emojiRxPost = /[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{200D}\u{20E3}\u{FE0F}]/gu;
             reply = reply.replace(emojiRxPost, "").replace(/\s{2,}/g, " ").trim();
             
-            // === ULTIMATE MESSAGE LENGTH DIVERSITY ENGINE ===
-            // Enforces the natural texting distribution: 70% short (3-8w), 20% medium (8-15w), 10% long (15-25w)
+            // === SMART MESSAGE LENGTH ENGINE ===
+            // Preserves full replies when answering questions or multiple unanswered msgs
+            // Only truncates for casual/reactive messages
             const wordsArr = reply.split(/\s+/);
-            const roll = Math.random();
-            if (roll < 0.70) {
-              // SHORT: 3-8 words — most common
-              const targetLen = 3 + Math.floor(Math.random() * 6); // 3-8
-              if (wordsArr.length > targetLen) {
-                reply = wordsArr.slice(0, targetLen).join(" ");
-                reply = reply.replace(/\s+(a|an|the|to|in|on|at|for|and|but|or|so|if|of|is|it|u|ur|my|i|im|we|he|she|they|with|from|that|this)$/i, "");
-              }
-            } else if (roll < 0.90) {
-              // MEDIUM: 8-15 words
-              const targetLen = 8 + Math.floor(Math.random() * 8); // 8-15
-              if (wordsArr.length > targetLen) {
-                reply = wordsArr.slice(0, targetLen).join(" ");
-                reply = reply.replace(/\s+(a|an|the|to|in|on|at|for|and|but|or|so|if|of|is|it|u|ur|my|i|im|we|he|she|they|with|from|that|this)$/i, "");
+            const isAnsweringQuestion = unansweredQuestions > 0 || multipleUnanswered;
+            
+            if (!isAnsweringQuestion) {
+              // Only apply random truncation for non-question casual replies
+              const roll = Math.random();
+              if (roll < 0.65) {
+                // SHORT: 3-8 words — most common for casual replies
+                const targetLen = 3 + Math.floor(Math.random() * 6);
+                if (wordsArr.length > targetLen) {
+                  reply = wordsArr.slice(0, targetLen).join(" ");
+                  reply = reply.replace(/\s+(a|an|the|to|in|on|at|for|and|but|or|so|if|of|is|it|u|ur|my|i|im|we|he|she|they|with|from|that|this)$/i, "");
+                }
+              } else if (roll < 0.88) {
+                // MEDIUM: 8-15 words
+                const targetLen = 8 + Math.floor(Math.random() * 8);
+                if (wordsArr.length > targetLen) {
+                  reply = wordsArr.slice(0, targetLen).join(" ");
+                  reply = reply.replace(/\s+(a|an|the|to|in|on|at|for|and|but|or|so|if|of|is|it|u|ur|my|i|im|we|he|she|they|with|from|that|this)$/i, "");
+                }
+              } else {
+                // LONG: up to 25 words (rare)
+                if (wordsArr.length > 25) {
+                  reply = wordsArr.slice(0, 20).join(" ");
+                  reply = reply.replace(/\s+(a|an|the|to|in|on|at|for|and|but|or|so|if|of|is|it|u|ur|my|i|im|we|he|she|they|with|from|that|this)$/i, "");
+                }
               }
             } else {
-              // LONG: 15-25 words (rare)
+              // Answering questions — only hard-cap at 25 words to prevent rambling
               if (wordsArr.length > 25) {
-                reply = wordsArr.slice(0, 20).join(" ");
+                reply = wordsArr.slice(0, 22).join(" ");
                 reply = reply.replace(/\s+(a|an|the|to|in|on|at|for|and|but|or|so|if|of|is|it|u|ur|my|i|im|we|he|she|they|with|from|that|this)$/i, "");
               }
             }
