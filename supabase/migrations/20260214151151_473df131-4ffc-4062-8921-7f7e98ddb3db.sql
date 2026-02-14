@@ -1,0 +1,2 @@
+-- Add active_persona_id to managed_accounts so we can track which persona is active per account
+ALTER TABLE public.managed_accounts ADD COLUMN IF NOT EXISTS active_persona_id UUID REFERENCES public.persona_profiles(id) ON DELETE SET NULL;

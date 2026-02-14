@@ -312,10 +312,18 @@ CONVERSATION ANALYSIS:
 - Give them what they want emotionally first, then weave in the redirect
 - If they compliment: accept sweetly, tease about having more to show
 - If they flirt: match energy, escalate slightly, redirect
-- If they ask questions: answer briefly, pivot to something intriguing on your page
+- If they ask questions: ANSWER THE QUESTION DIRECTLY FIRST, then pivot. NEVER reply to a question with another question. If they ask "where are you from" — ANSWER IT ("im in la") then optionally ask them back
 - If they share media/photos: ALWAYS acknowledge and react genuinely before anything else
 - If theyre sharing personal stuff: be warm and interested, build rapport, keep them talking
-- If theyre dry/boring: ask an interesting question, create excitement and curiosity to pull them in`;
+- If theyre dry/boring: ask an interesting question, create excitement and curiosity to pull them in
+
+CRITICAL ANTI-PATTERN — NEVER ANSWER A QUESTION WITH A QUESTION:
+- If they ask "what are you doing" → ANSWER: "just chilling rn" NOT "what about u"
+- If they ask "where are you from" → ANSWER: "im in la" NOT "where are u from"
+- If they ask "how old are you" → ANSWER: "im 21" NOT "how old are u"
+- If they ask "tell me something fun about your country" → ANSWER with something fun, dont deflect
+- You can ASK BACK after answering, but ALWAYS answer their question FIRST
+- Answering questions directly = trust = conversion. Dodging questions = bot energy = they leave`;
 
 // === TENSION / AWKWARDNESS DETECTION ENGINE ===
 // Detects cold, dry, or tense conversation mood and generates de-escalation context
@@ -2034,13 +2042,35 @@ Rules:
           break;
         }
 
-        // Get persona
+        // Get persona — check if account has a specific active_persona_id set
         let personaInfo2 = DEFAULT_PERSONA;
-        const { data: persona2 } = await supabase
-          .from("persona_profiles")
-          .select("*")
-          .eq("account_id", account_id)
+        const { data: accountData } = await supabase
+          .from("managed_accounts")
+          .select("active_persona_id")
+          .eq("id", account_id)
           .single();
+        
+        let persona2: any = null;
+        if (accountData?.active_persona_id) {
+          // Fetch the specifically selected persona
+          const { data: p } = await supabase
+            .from("persona_profiles")
+            .select("*")
+            .eq("id", accountData.active_persona_id)
+            .single();
+          persona2 = p;
+        }
+        if (!persona2) {
+          // Fallback: get first persona for this account
+          const { data: p } = await supabase
+            .from("persona_profiles")
+            .select("*")
+            .eq("account_id", account_id)
+            .order("created_at", { ascending: true })
+            .limit(1)
+            .single();
+          persona2 = p;
+        }
         if (persona2) {
           personaInfo2 += `\n\n--- ACTIVE PERSONA OVERRIDE ---
 Tone: ${persona2.tone}
@@ -2248,16 +2278,27 @@ CONTEXT AWARENESS (CRITICAL):
 - NEVER use a generic canned line that ignores their message
 - NEVER be dismissive — if theyre being sweet or opening up, match that energy warmly
 
+QUESTION ANSWERING (CRITICAL — NEVER BREAK):
+- When they ask a question, ANSWER IT DIRECTLY. Do NOT reply with another question
+- "where are you from?" → "im in la" NOT "where are u from"
+- "what are you doing?" → "just chilling rn" NOT "what about u haha"
+- "how old are you?" → "im 21" NOT "guess lol"
+- "tell me something fun about your country" → actually tell them something fun. DONT deflect
+- You CAN ask them back AFTER answering: "im in la wbu" but ALWAYS answer FIRST
+- Deflecting questions = bot energy. Real girls answer then ask back
+
 MULTI-QUESTION RULE (CRITICAL):
 - If the fan sent MULTIPLE messages since your last reply, READ ALL OF THEM
 - If any contain questions (even implied ones like "what are you doing"), ANSWER EVERY SINGLE ONE
 - Use natural connectors: "and yea" / "oh and" / "also" to address multiple topics
 - NEVER ignore a question because another message came after it
+- When replying to multiple questions, the system may use Instagram's reply-to-message feature to thread your response to a specific question
 
 FINAL REMINDER:
 - 3-15 words (longer when answering multiple questions), max 2-3 short sentences
 - ZERO emojis. NONE. EVER
 - Warm, casual, contextually relevant, INVITES a response
+- ANSWER questions directly — never dodge with another question
 - Output ONLY the message text`;
 
             const aiMessages: any[] = [{ role: "system", content: systemPrompt }];
@@ -2394,13 +2435,19 @@ FINAL REMINDER:
               }
               const sendResult = await callIG2("send_message", sendParams);
 
-              await supabase.from("ai_dm_messages").update({
+              const msgUpdateData: any = {
                 content: reply,
                 status: "sent",
                 platform_message_id: sendResult?.message_id || null,
                 ai_model: aiResult.model,
                 typing_delay_ms: Math.round(typingDelay),
-              }).eq("id", typingMsg?.id);
+              };
+              // Store reply-to metadata so the UI can render it
+              if (replyToMessageId) {
+                const repliedToMsg = unansweredFanMsgs.find(m => m.platform_message_id === replyToMessageId);
+                msgUpdateData.metadata = { reply_to: { message_id: replyToMessageId, content: repliedToMsg?.content?.substring(0, 100) || "" } };
+              }
+              await supabase.from("ai_dm_messages").update(msgUpdateData).eq("id", typingMsg?.id);
 
               await supabase.from("ai_dm_conversations").update({
                 last_ai_reply_at: new Date().toISOString(),

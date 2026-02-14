@@ -13,7 +13,7 @@ import {
   Smile, Image as ImageIcon, Heart, ChevronLeft, Zap,
   Brain, Eye, Sparkles, ArrowRight, Shield, WifiOff,
   CircleDot, MessageSquare, Inbox, SendHorizonal, Lock, Unlock,
-  Play, Pause, Plus,
+  Play, Pause, Plus, Crown,
 } from "lucide-react";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
@@ -113,6 +113,8 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
   const [relaunching, setRelaunching] = useState(false);
   const [relaunchingConvoId, setRelaunchingConvoId] = useState<string | null>(null);
   const [replyToMsg, setReplyToMsg] = useState<Message | null>(null);
+  const [personas, setPersonas] = useState<any[]>([]);
+  const [activePersonaId, setActivePersonaId] = useState<string | null>(null);
   const followAIRef = useRef(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -591,9 +593,24 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
   }, [accountId, loadConversations, addLog, prefetchAllMessages]);
 
   // Initial load
+  // Load personas for selector
+  const loadPersonas = useCallback(async () => {
+    const { data } = await supabase.from("persona_profiles").select("*").eq("account_id", accountId).order("created_at");
+    setPersonas(data || []);
+    const { data: acc } = await supabase.from("managed_accounts").select("active_persona_id").eq("id", accountId).single();
+    setActivePersonaId((acc as any)?.active_persona_id || null);
+  }, [accountId]);
+
+  const switchPersona = useCallback(async (personaId: string | null) => {
+    await supabase.from("managed_accounts").update({ active_persona_id: personaId } as any).eq("id", accountId);
+    setActivePersonaId(personaId);
+    toast.success(personaId ? "Persona switched — AI will use this persona" : "Switched to default persona");
+  }, [accountId]);
+
   useEffect(() => {
     if (accountId) {
       checkConnection();
+      loadPersonas();
       loadConversations().then(convos => {
         if (convos && convos.length > 0) {
           prefetchAllMessages(convos);
@@ -1125,6 +1142,36 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
           <span className="text-[9px] text-muted-foreground w-6">{msgSize}px</span>
         </div>
         <div className="flex items-center gap-1.5">
+          {/* Persona Selector */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" variant="outline" className="h-7 text-[10px] gap-1 border-purple-500/30 text-purple-300 hover:bg-purple-500/10 max-w-[140px]">
+                <User className="h-3 w-3 flex-shrink-0" />
+                <span className="truncate">
+                  {activePersonaId
+                    ? (personas.find(p => p.id === activePersonaId)?.brand_identity?.match(/^\[(.*?)\]/)?.[1] || "Custom")
+                    : "Default"}
+                </span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem onClick={() => switchPersona(null)} className="text-xs gap-2">
+                <Crown className="h-3 w-3 text-amber-400" />
+                Default Persona
+                {!activePersonaId && <Check className="h-3 w-3 ml-auto text-emerald-400" />}
+              </DropdownMenuItem>
+              {personas.map(p => {
+                const pName = p.brand_identity?.match(/^\[(.*?)\]/)?.[1] || p.tone;
+                return (
+                  <DropdownMenuItem key={p.id} onClick={() => switchPersona(p.id)} className="text-xs gap-2">
+                    <User className="h-3 w-3 text-purple-400" />
+                    <span className="truncate">{pName}</span>
+                    {activePersonaId === p.id && <Check className="h-3 w-3 ml-auto text-purple-400" />}
+                  </DropdownMenuItem>
+                );
+              })}
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button
             size="sm"
             variant={autoRespondActive ? "default" : "outline"}
