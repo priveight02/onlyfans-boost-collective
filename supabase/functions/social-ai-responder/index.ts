@@ -1286,6 +1286,35 @@ ${autoConfig.trigger_keywords ? `if they mention any of these: ${autoConfig.trig
             const charCount = reply.length;
             const typingDelay = Math.min(Math.max(charCount * (40 + Math.random() * 30), 1500), 6000);
 
+            // === AI CONTEXTUAL REACTION ===
+            // Before replying, contextually react to the fan's last message when appropriate
+            // React ~40% of the time to feel natural, not every message
+            const shouldReact = Math.random() < 0.4;
+            if (shouldReact && latestMsg.platform_message_id) {
+              try {
+                // Determine best reaction based on message content
+                const msgLower = (latestMsg.content || "").toLowerCase();
+                let reaction = "love"; // default
+                if (msgLower.match(/(lol|lmao|haha|😂|🤣|funny|joke|dead)/)) reaction = "haha";
+                else if (msgLower.match(/(wow|omg|no way|crazy|insane|😮|🤯)/)) reaction = "wow";
+                else if (msgLower.match(/(sad|miss|sorry|😢|💔|hurt)/)) reaction = "sad";
+                else if (msgLower.match(/(🔥|hot|sexy|damn|fire|gorgeous|beautiful)/)) reaction = "love";
+                else if (msgLower.match(/(thanks|thank|appreciate|🙏|cool|nice|great|good)/)) reaction = "like";
+                // Only love, haha, wow, sad, like are standard IG reactions
+
+                await callIG2("send_reaction", {
+                  recipient_id: dbConvo.participant_id,
+                  message_id: latestMsg.platform_message_id,
+                  reaction,
+                });
+                console.log(`AI reacted with ${reaction} to message from @${dbConvo.participant_username}`);
+              } catch (reactErr) {
+                console.log("AI reaction failed (non-blocking):", reactErr);
+              }
+              // Small delay after reaction before typing
+              await new Promise(r => setTimeout(r, 800 + Math.random() * 1200));
+            }
+
             // Send the reply via IG API
             try {
               const sendResult = await callIG2("send_message", {
