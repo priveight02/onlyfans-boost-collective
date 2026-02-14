@@ -470,14 +470,32 @@ const DEFAULT_FREE_PIC_URL = `https://ufsnuobtvkciydftsyff.supabase.co/storage/v
 
 // === FREE PIC REQUEST DETECTION ENGINE ===
 // Detects when a fan is asking for a free picture/preview and whether they've already received one
-const detectFreePicRequest = (messages: any[], fanTags: string[] | null): { isRequesting: boolean; alreadySent: boolean; isEligible: boolean } => {
+const detectFreePicRequest = (messages: any[], fanTags: string[] | null): { isRequesting: boolean; alreadySent: boolean; isEligible: boolean; insistCount: number } => {
   const alreadySent = (fanTags || []).includes("free_pic_sent");
   
-  // Check the last 5 fan messages for free pic request patterns
-  const recentFan = messages.filter(m => m.sender_type === "fan").slice(-5);
+  const picPattern = /(send (me )?(a )?(free )?(pic|photo|picture|image|preview|sample|taste|something|smth|content|nude|nudes|naked))|((free|one) (pic|photo|picture|image|preview|sample|content))|((can i|could i|let me|i want to|i want|want to) (see|get|have) (a |some |one )?(free |)?(pic|photo|picture|preview|sample|content|something))|((show|give) (me )?(a |some )?(free |)?(pic|photo|picture|preview|sample|something|content))|(anything free)|(free stuff)|(prove it.*(pic|photo|show))|(just one.*(pic|photo|free))|(one free)|(freebie)|(sneak peek)|(preview)|(taste of (you|your|urself|yourself))|(i want a? ?(free )?pic)/;
+  const picPatternLoose = /(free.*pic|pic.*free|want.*pic|send.*pic|see.*pic|taste|want.*see.*you|show.*me|give.*pic)/;
+
+  // Count how many SEPARATE fan messages contain pic requests (insistence detection)
+  const allFanMsgs = messages.filter(m => m.sender_type === "fan");
+  let insistCount = 0;
+  for (const msg of allFanMsgs) {
+    const txt = (msg.content || "").toLowerCase().replace(/[^a-z0-9\s?!]/g, "");
+    const norm = txt
+      .replace(/\bwabt\b/g, "want")
+      .replace(/\bwanna\b/g, "want to")
+      .replace(/\bgimme\b/g, "give me")
+      .replace(/\blemme\b/g, "let me")
+      .replace(/\ba(pic|picture|photo|free|preview|taste|sample)/g, "a $1")
+      .replace(/\b(pic|picture|photo|image)(ture|ure)?\b/g, "pic");
+    if (norm.match(picPattern) || txt.match(picPatternLoose)) {
+      insistCount++;
+    }
+  }
+
+  // Check the last 5 fan messages for current request
+  const recentFan = allFanMsgs.slice(-5);
   const recentFanText = recentFan.map(m => (m.content || "").toLowerCase().replace(/[^a-z0-9\s?!]/g, "")).join(" ");
-  
-  // Normalize common typos: wabt→want, wanna→want, gimme→give me, lemme→let me, apic→a pic, afree→a free
   const normalized = recentFanText
     .replace(/\bwabt\b/g, "want")
     .replace(/\bwanna\b/g, "want to")
@@ -486,13 +504,14 @@ const detectFreePicRequest = (messages: any[], fanTags: string[] | null): { isRe
     .replace(/\ba(pic|picture|photo|free|preview|taste|sample)/g, "a $1")
     .replace(/\b(pic|picture|photo|image)(ture|ure)?\b/g, "pic");
   
-  const isRequesting = !!(normalized.match(/(send (me )?(a )?(free )?(pic|photo|picture|image|preview|sample|taste|something|smth|content|nude|nudes|naked))|((free|one) (pic|photo|picture|image|preview|sample|content))|((can i|could i|let me|i want to|i want|want to) (see|get|have) (a |some |one )?(free |)?(pic|photo|picture|preview|sample|content|something))|((show|give) (me )?(a |some )?(free |)?(pic|photo|picture|preview|sample|something|content))|(anything free)|(free stuff)|(prove it.*(pic|photo|show))|(just one.*(pic|photo|free))|(one free)|(freebie)|(sneak peek)|(preview)|(taste of (you|your|urself|yourself))|(i want a? ?(free )?pic)/) || recentFanText.match(/(free.*pic|pic.*free|want.*pic|send.*pic|see.*pic|taste|want.*see.*you|show.*me|give.*pic)/));
+  const isRequesting = !!(normalized.match(picPattern) || recentFanText.match(picPatternLoose));
   
-  // Eligible only after at least 2 total messages from the fan (1-2 shy exchanges)
-  const fanMsgCount = messages.filter(m => m.sender_type === "fan").length;
-  const isEligible = isRequesting && !alreadySent && fanMsgCount >= 2;
+  // INSISTENCE RULE: if fan asked for pic 2+ times across the convo, send it directly
+  // No more shy exchanges — they've earned it by insisting
+  const fanMsgCount = allFanMsgs.length;
+  const isEligible = isRequesting && !alreadySent && (insistCount >= 2 || fanMsgCount >= 2);
   
-  return { isRequesting, alreadySent, isEligible };
+  return { isRequesting, alreadySent, isEligible, insistCount };
 };
 
 // === POST-REDIRECT DETECTION ENGINE ===
@@ -2288,7 +2307,7 @@ Follow these persona settings strictly. They override any conflicting defaults a
               .single();
             
             const freePicPreCheck = detectFreePicRequest(dbMessages || [], fanProfileForPicPreCheck?.tags || []);
-            console.log(`[FREE PIC PRE-CHECK] @${dbConvo.participant_username}: isRequesting=${freePicPreCheck.isRequesting}, alreadySent=${freePicPreCheck.alreadySent}, isEligible=${freePicPreCheck.isEligible}, fanMsgs=${(dbMessages || []).filter(m => m.sender_type === "fan").length}`);
+            console.log(`[FREE PIC PRE-CHECK] @${dbConvo.participant_username}: isRequesting=${freePicPreCheck.isRequesting}, alreadySent=${freePicPreCheck.alreadySent}, isEligible=${freePicPreCheck.isEligible}, insistCount=${freePicPreCheck.insistCount}, fanMsgs=${(dbMessages || []).filter(m => m.sender_type === "fan").length}`);
 
             // === POST-REDIRECT DETECTION (auto-responder) ===
             // SKIP post-redirect block if fan is requesting a free pic (free pic overrides redirect)
@@ -2451,8 +2470,15 @@ Follow these persona settings strictly. They override any conflicting defaults a
                   last_ai_reply_at: new Date().toISOString(),
                 }).eq("id", dbConvo.id);
 
-                // Send shy/teasing text with human typing delay
-                const shyPrefixes = [
+                // Send cute message — different vibe if they insisted vs first ask
+                const shyPrefixes = freePicCheck.insistCount >= 2 ? [
+                  "ok ok u win here u go",
+                  "lol ur persistent i like that ok fine",
+                  "ok since u keep asking here",
+                  "alright alright u earned it",
+                  "ok fine u wore me down lol",
+                  "haha ok ok here just for u tho",
+                ] : [
                   "ok fine just this once tho",
                   "mm ok since u asked nicely",
                   "ok but dont say i never gave u anything",
