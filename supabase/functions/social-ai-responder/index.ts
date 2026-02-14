@@ -270,6 +270,16 @@ CONVERSATION CLOSING (AFTER REDIRECT):
 - Keep the closer short, warm, slightly teasing
 - The goal is redirect then graceful exit - not endless conversation
 
+POST-REDIRECT AWARENESS (CRITICAL — KNOW WHEN TO STOP):
+- If you already sent the person to your bio/link AND they acknowledged it (said "ok", "okay", "sure", "alright", "bet", "yea", "yes"), DO NOT keep texting
+- After redirect acknowledgment: the conversation is DONE. Wait for THEM to start talking again
+- Do NOT send another message after they acknowledge the redirect — you already won
+- If they say "ok" or acknowledge after redirect, the BEST response is NO response or just a reaction (heart)
+- NEVER keep pushing after they said ok to a redirect. Thats desperate and kills the vibe
+- If you fucked up a message sequence and they got confused or annoyed, use recovery phrases:
+  * "im playing with u" / "lol im just messing with u" / "im teasing u silly"
+  * This diffuses tension and makes you seem playful, not robotic
+
 CONVERSATION ANALYSIS:
 - Before replying, analyze what the person wants (attention, connection, flirting, validation)
 - Give them what they want emotionally first, then weave in the redirect
@@ -279,6 +289,57 @@ CONVERSATION ANALYSIS:
 - If they share media/photos: ALWAYS acknowledge and react genuinely before anything else
 - If theyre sharing personal stuff: be warm and interested, build rapport, keep them talking
 - If theyre dry/boring: ask an interesting question, create excitement and curiosity to pull them in`;
+
+// === POST-REDIRECT DETECTION ENGINE ===
+// Detects if we already redirected and the fan acknowledged, meaning we should NOT reply
+const detectPostRedirect = (messages: any[]): { shouldStop: boolean; shouldReact: boolean; reactionType: string } => {
+  if (!messages || messages.length < 3) return { shouldStop: false, shouldReact: false, reactionType: "love" };
+  
+  // Look at the last 5 messages for a redirect → acknowledgment pattern
+  const recent = messages.slice(-6);
+  
+  // Find if WE recently sent a redirect message
+  let redirectSentIdx = -1;
+  for (let i = recent.length - 1; i >= 0; i--) {
+    const msg = recent[i];
+    if (msg.sender_type !== "fan") {
+      const txt = (msg.content || "").toLowerCase();
+      if (txt.match(/(bio|link|profile|page|check it|go look|find me|come see|come find|wont regret|waiting for u|see u there|in my bio|my page|my profile)/)) {
+        redirectSentIdx = i;
+        break;
+      }
+    }
+  }
+  
+  if (redirectSentIdx === -1) return { shouldStop: false, shouldReact: false, reactionType: "love" };
+  
+  // Check if AFTER the redirect, the fan acknowledged
+  const msgsAfterRedirect = recent.slice(redirectSentIdx + 1);
+  const fanAckMsgs = msgsAfterRedirect.filter(m => m.sender_type === "fan");
+  
+  if (fanAckMsgs.length === 0) return { shouldStop: false, shouldReact: false, reactionType: "love" };
+  
+  const lastFanMsg = fanAckMsgs[fanAckMsgs.length - 1];
+  const fanTxt = (lastFanMsg.content || "").toLowerCase().trim();
+  
+  // Short acknowledgment after redirect = STOP
+  const isAck = !!fanTxt.match(/^(ok|okay|sure|alright|bet|yea|yes|yep|yeah|cool|got it|will do|k|kk|okey|oki|aight|say less|fs|for sure|ight|thanks|ty|thank u|thank you|word)$/i) ||
+    (fanTxt.length <= 10 && !!fanTxt.match(/(ok|okay|sure|bet|yea|yes|cool|got it|k$)/));
+  
+  if (isAck) {
+    return { shouldStop: true, shouldReact: true, reactionType: "love" };
+  }
+  
+  // If they asked a follow-up question after redirect, continue the convo
+  if (fanTxt.includes("?")) return { shouldStop: false, shouldReact: false, reactionType: "love" };
+  
+  // If they sent something very short and generic after redirect, still stop
+  if (fanTxt.length <= 5 && msgsAfterRedirect.filter(m => m.sender_type !== "fan").length > 0) {
+    return { shouldStop: true, shouldReact: true, reactionType: "love" };
+  }
+  
+  return { shouldStop: false, shouldReact: false, reactionType: "love" };
+};
 
 // === ANTI-REPETITION POST-PROCESSOR ===
 // Scans AI reply against conversation history and blocks repeated questions/statements
@@ -301,7 +362,6 @@ const antiRepetitionCheck = (reply: string, conversationHistory: any[]): string 
   const locationAsked = replyLower.match(/(where (are |r )?u from|where (are |r )?u based|where u at|where is that)/);
   const locationAlreadyAnswered = allTheirText.match(/(im from |i live in |i am from |from [a-z]{3,}|my country|born in )/);
   if (locationAsked && locationAlreadyAnswered) {
-    // They already told us where they're from — generate a context-aware alternative
     const alternatives = [
       "so whats it like there rn",
       "thats cool do u like it there",
@@ -315,24 +375,33 @@ const antiRepetitionCheck = (reply: string, conversationHistory: any[]): string 
   // Check for exact/near-exact repeats of our own messages
   for (const prev of ourPrevMessages) {
     if (!prev || prev.length < 5) continue;
-    // If our new reply is 80%+ similar to something we already said, block it
     const prevWords = prev.split(/\s+/);
     const overlap = replyWords.filter(w => prevWords.includes(w)).length;
     const similarity = overlap / Math.max(replyWords.length, 1);
-    if (similarity > 0.7 && replyWords.length > 2) {
-      // Too similar to something we already said
+    if (similarity > 0.6 && replyWords.length > 2) {
       const pivots = [
         "so what else is going on w u",
         "tell me something i dont know about u",
         "mm what are u up to rn",
         "ok but fr whats ur vibe today",
         "wait i wanna know more about u",
+        "u seem interesting tell me more",
+        "ok so whats ur thing",
       ];
       return pivots[Math.floor(Math.random() * pivots.length)];
     }
   }
   
-  return reply; // No repetition detected, keep original
+  // Check if we're asking the same question as our last message
+  if (ourPrevMessages.length > 0) {
+    const lastOurs = ourPrevMessages[ourPrevMessages.length - 1];
+    if (lastOurs && replyLower === lastOurs) {
+      const pivots = ["hmm go on", "wait tell me more", "thats interesting", "oh really", "mm what else"];
+      return pivots[Math.floor(Math.random() * pivots.length)];
+    }
+  }
+  
+  return reply;
 };
 
 // === UPGRADED FAN MEMORY ENGINE ===
@@ -1493,6 +1562,25 @@ Follow these persona settings strictly. They override any conflicting defaults a
               .order("created_at", { ascending: true })
               .limit(50);
 
+            // === POST-REDIRECT DETECTION (auto-responder) ===
+            const redirectCheckLive = detectPostRedirect(dbMessages || []);
+            if (redirectCheckLive.shouldStop) {
+              if (redirectCheckLive.shouldReact && latestMsg.platform_message_id) {
+                try {
+                  const igFuncUrl3 = `${Deno.env.get("SUPABASE_URL")}/functions/v1/instagram-api`;
+                  const serviceKey3 = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+                  await fetch(igFuncUrl3, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey3}` },
+                    body: JSON.stringify({ action: "send_reaction", account_id, params: { recipient_id: dbConvo.participant_id, message_id: latestMsg.platform_message_id, reaction: redirectCheckLive.reactionType } }),
+                  });
+                  console.log(`Auto-responder: post-redirect react to @${dbConvo.participant_username}`);
+                } catch {}
+              }
+              await supabase.from("ai_dm_conversations").update({ last_ai_reply_at: new Date().toISOString(), is_read: true }).eq("id", dbConvo.id);
+              continue;
+            }
+
             // Build rich context with media descriptions
             const conversationContext = (dbMessages || []).map(m => {
               let contextText = m.content || "";
@@ -1783,12 +1871,11 @@ Follow these persona settings strictly. They override any conflicting defaults a
           .eq("account_id", account_id)
           .single();
 
-        // Find ALL unread conversations with AI enabled
+        // Find ALL active conversations with AI enabled — process ALL, not just unread
         const { data: unreadConvos } = await supabase
           .from("ai_dm_conversations")
           .select("*")
           .eq("account_id", account_id)
-          .eq("is_read", false)
           .eq("ai_enabled", true)
           .eq("status", "active")
           .order("last_message_at", { ascending: false });
@@ -1808,41 +1895,52 @@ Follow these persona settings strictly. They override any conflicting defaults a
 
             if (!fullHistory || fullHistory.length === 0) continue;
 
-            // Check if last message is from fan
             const lastMsg = fullHistory[fullHistory.length - 1];
-            if (lastMsg.sender_type !== "fan") continue;
+            const isFollowUpRL = lastMsg.sender_type !== "fan";
 
-            // Skip if we already replied after this message
+            // Skip ONLY if we VERY recently replied (within last 5 minutes) to avoid spam
             if (uc.last_ai_reply_at) {
               const aiTime = new Date(uc.last_ai_reply_at).getTime();
-              const fanTime = new Date(lastMsg.created_at).getTime();
-              if (aiTime >= fanTime) continue;
+              const now = Date.now();
+              if (now - aiTime < 5 * 60 * 1000) continue;
+            }
+
+            // === POST-REDIRECT DETECTION ===
+            const redirectCheckRL = detectPostRedirect(fullHistory);
+            if (redirectCheckRL.shouldStop) {
+              if (redirectCheckRL.shouldReact && lastMsg.platform_message_id) {
+                try {
+                  await callIGRL("send_reaction", {
+                    recipient_id: uc.participant_id,
+                    message_id: lastMsg.platform_message_id,
+                    reaction: redirectCheckRL.reactionType,
+                  });
+                  console.log(`Post-redirect: reacted to @${uc.participant_username} and stopped`);
+                } catch {}
+              }
+              await supabase.from("ai_dm_conversations").update({
+                last_ai_reply_at: new Date().toISOString(),
+                is_read: true,
+              }).eq("id", uc.id);
+              rlProcessed++;
+              rlResults.push({ conversation_id: uc.id, fan: uc.participant_username, action: "reacted", ai_reply: "[heart reaction — post-redirect stop]" });
+              continue;
             }
 
             // Build RICH context including media descriptions
             const richContext: any[] = [];
             for (const msg of fullHistory) {
               let contextText = msg.content || "";
-              
-              // Analyze media/images in message metadata
               if (msg.metadata) {
                 const meta = msg.metadata as any;
                 const attachments = meta?.attachments || [];
                 const mediaDescriptions: string[] = [];
-                
                 for (const att of (Array.isArray(attachments) ? attachments : [])) {
                   const mimeType = att?.mime_type || att?.type || "";
-                  const url = att?.url || att?.image_data?.url || att?.video_data?.url || "";
-                  
-                  if (mimeType.includes("image") || mimeType.includes("photo")) {
-                    mediaDescriptions.push("[sent a photo]");
-                  } else if (mimeType.includes("video")) {
-                    mediaDescriptions.push("[sent a video]");
-                  } else if (mimeType.includes("audio")) {
-                    mediaDescriptions.push("[sent a voice message]");
-                  }
+                  if (mimeType.includes("image") || mimeType.includes("photo")) mediaDescriptions.push("[sent a photo]");
+                  else if (mimeType.includes("video")) mediaDescriptions.push("[sent a video]");
+                  else if (mimeType.includes("audio")) mediaDescriptions.push("[sent a voice message]");
                 }
-                
                 if (meta?.sticker) mediaDescriptions.push("[sent a sticker]");
                 if (meta?.shares) {
                   const shareData = meta.shares?.data?.[0] || meta.shares;
@@ -1850,18 +1948,11 @@ Follow these persona settings strictly. They override any conflicting defaults a
                   mediaDescriptions.push(shareLink ? `[shared a post: ${shareLink}]` : "[shared a post]");
                 }
                 if (meta?.story) mediaDescriptions.push("[replied to your story]");
-                
                 if (mediaDescriptions.length > 0) {
-                  contextText = contextText 
-                    ? `${contextText} ${mediaDescriptions.join(" ")}` 
-                    : mediaDescriptions.join(" ");
+                  contextText = contextText ? `${contextText} ${mediaDescriptions.join(" ")}` : mediaDescriptions.join(" ");
                 }
               }
-              
-              richContext.push({
-                role: msg.sender_type === "fan" ? "fan" : "creator",
-                text: contextText || "[empty]",
-              });
+              richContext.push({ role: msg.sender_type === "fan" ? "fan" : "creator", text: contextText || "[empty]" });
             }
 
             // === USE UPGRADED HELPER FUNCTIONS ===
@@ -1887,18 +1978,26 @@ Follow these persona settings strictly. They override any conflicting defaults a
 ${autoConfigRL?.redirect_url ? `\nIMPORTANT: when it makes sense, naturally guide toward this link: ${autoConfigRL.redirect_url}. But NEVER redirect during genuine bonding moments` : ""}
 ${autoConfigRL?.trigger_keywords ? `if they mention any of these: ${autoConfigRL.trigger_keywords}, redirect them to the link` : ""}
 
-CONVERSATION RESUMPTION CONTEXT:
-You are RESUMING a conversation after a gap. You have the FULL chat history above.
-- Read EVERY message carefully. understand what theyve been talking about
-- NEVER repeat questions they already answered or that you already asked
+${isFollowUpRL ? `FOLLOW-UP MODE (you are re-engaging — YOU spoke last):
+- You are sending a follow-up because they havent replied yet
+- Be casual: "hey u disappeared on me", "so u just gonna leave me hanging"
+- Reference something specific from the conversation
+- Create curiosity or FOMO to pull them back in
+- NEVER be needy or desperate
+- ONE short message, 3-10 words` : `REPLY MODE (they spoke last — respond to what they said):
+- Your reply MUST directly relate to what they JUST said
+- If they sent photos/videos, react to the ACTUAL CONTENT specifically`}
+
+CONVERSATION RESUMPTION:
+- You are RESUMING after a gap. FULL chat history above
+- NEVER repeat questions already answered or asked
 - Continue naturally as if you just got back to your phone
-- Dont apologize for being late — be casual like "oh hey" or "lol sorry i was busy"
-- Pick up the vibe — if it was flirty stay flirty, if they were sharing personal stuff stay warm and curious
-- If they sent media, react to the ACTUAL CONTENT specifically
-- Keep them talking — end your reply with something that invites a response
+
+RECOVERY PHRASES (use when vibe got awkward or you messed up):
+- "im playing with u" / "lol im just messing with u" / "im teasing u silly"
 
 FINAL REMINDER:
-- 3-10 words, max 2 short sentences. ZERO emojis. Warm, casual, contextually relevant
+- 3-10 words, max 2 short sentences. ZERO emojis
 - Output ONLY the message text`;
 
             const aiMsgsRL: any[] = [{ role: "system", content: systemPromptRL }];
@@ -1997,7 +2096,7 @@ FINAL REMINDER:
           await new Promise(r => setTimeout(r, 800));
         }
 
-        result = { processed: rlProcessed, total_unread: unreadConvos?.length || 0, conversations: rlResults };
+        result = { processed: rlProcessed, total_checked: unreadConvos?.length || 0, conversations: rlResults };
         break;
       }
 
@@ -2355,7 +2454,20 @@ ${personaDataRS.brand_identity ? `Brand Identity: ${personaDataRS.brand_identity
         if (!fullHistRS || fullHistRS.length === 0) { result = { error: "No messages in conversation" }; break; }
 
         const lastMsgRS = fullHistRS[fullHistRS.length - 1];
-        if (lastMsgRS.sender_type !== "fan") { result = { error: "Last message is not from fan", skipped: true }; break; }
+        const isFollowUpRS = lastMsgRS.sender_type !== "fan";
+
+        // Post-redirect detection
+        const redirectCheckRS = detectPostRedirect(fullHistRS);
+        if (redirectCheckRS.shouldStop) {
+          if (redirectCheckRS.shouldReact && lastMsgRS.platform_message_id) {
+            try {
+              await callIGRS("send_reaction", { recipient_id: convoRS.participant_id, message_id: lastMsgRS.platform_message_id, reaction: redirectCheckRS.reactionType });
+            } catch {}
+          }
+          await supabase.from("ai_dm_conversations").update({ last_ai_reply_at: new Date().toISOString(), is_read: true }).eq("id", conversation_id);
+          result = { success: true, reply: "[heart reaction — post-redirect stop]", context_messages: fullHistRS.length };
+          break;
+        }
 
         // Build rich context
         const richCtxRS: any[] = [];
@@ -2406,21 +2518,24 @@ ${personaDataRS.brand_identity ? `Brand Identity: ${personaDataRS.brand_identity
         const systemPromptRS = `${personaRS}${emojiDirRS}${fanMemBlockRS}
 ${autoConfigRS?.redirect_url ? `\nIMPORTANT: when it makes sense, naturally guide toward: ${autoConfigRS.redirect_url}. But NEVER during bonding moments` : ""}
 
-CONVERSATION MEMORY & CONTINUITY (HIGHEST PRIORITY):
-- You have the ENTIRE conversation history. You remember EVERYTHING the fan told you
-- Reference things from earlier: their name, location, interests, photos they shared
-- Build on established rapport. dont repeat questions they already answered
+${isFollowUpRS ? `FOLLOW-UP MODE (YOU spoke last — re-engage them):
+- Be casual: "hey u disappeared on me", "so u just gonna leave me hanging"
+- Reference something specific from the conversation
+- Create curiosity or FOMO. NEVER be needy
+- ONE short message, 3-10 words` : `REPLY MODE (they spoke last):
+- Your reply MUST directly relate to what they JUST said
+- If they sent photos/videos, react specifically to the content`}
 
-CONTEXT AWARENESS (CRITICAL):
-- Read ALL messages above. Your reply MUST directly relate to what the fan last said
-- If they sent photos/videos, react specifically to the content
-- Be warm, empathetic, genuinely interested
-- NEVER use generic canned lines that ignore their message
+CONVERSATION MEMORY & CONTINUITY:
+- You have the ENTIRE conversation history. You remember EVERYTHING
+- Reference things from earlier: name, location, interests, photos
+- Build on rapport. NEVER repeat questions already answered
+
+RECOVERY PHRASES (use when vibe got awkward):
+- "im playing with u" / "lol im just messing with u" / "im teasing u silly"
 
 FINAL REMINDER:
-- 3-10 words, max 2 short sentences
-- ZERO emojis
-- Warm, casual, contextually relevant
+- 3-10 words, max 2 short sentences. ZERO emojis
 - Output ONLY the message text`;
 
         const aiMsgsRS: any[] = [{ role: "system", content: systemPromptRS }];

@@ -1787,12 +1787,12 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
                 className="w-full h-8 text-[10px] justify-start gap-2 border-blue-500/20 text-blue-400 hover:bg-blue-500/10"
                 disabled={relaunching || processing}
                 onClick={async () => {
-                  const unread = conversations.filter(c => !c.is_read && c.ai_enabled);
-                  if (unread.length === 0) { toast.info("No unopened conversations with AI enabled"); return; }
+                  const aiEnabled = conversations.filter(c => c.ai_enabled);
+                  if (aiEnabled.length === 0) { toast.info("No conversations with AI enabled"); return; }
                   setRelaunching(true);
-                  addLog("system", `Answering ${unread.length} unopened convos (deep context scan)...`, "processing");
+                  addLog("system", `Scanning & resuming ${aiEnabled.length} convos (deep context analysis)...`, "processing");
                   setAiCurrentPhase("analyze");
-                  toast.info(`Scanning & answering ${unread.length} unopened conversations...`);
+                  toast.info(`Scanning & resuming all ${aiEnabled.length} conversations...`);
                   try {
                     const { data, error } = await supabase.functions.invoke("social-ai-responder", {
                       body: { action: "relaunch_unread", account_id: accountId, params: {} },
@@ -1801,11 +1801,11 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
                     const r = data?.data;
                     if (r?.processed > 0) {
                       for (const c of (r.conversations || [])) {
-                        addLog(`@${c.fan}`, `Replied (${c.context_messages} msgs scanned): "${c.ai_reply?.substring(0, 50)}..."`, "success");
+                        addLog(`@${c.fan}`, `${c.action === "reacted" ? "Reacted ❤️ (post-redirect)" : `Replied (${c.context_messages} msgs): "${c.ai_reply?.substring(0, 50)}..."`}`, "success");
                       }
-                      toast.success(`Answered ${r.processed}/${r.total_unread} unopened conversations`);
+                      toast.success(`Processed ${r.processed}/${r.total_checked} conversations`);
                     } else {
-                      toast.info("No unopened conversations needed replies");
+                      toast.info(`Checked ${r?.total_checked || 0} convos — all recently handled`);
                     }
                   } catch (e: any) {
                     addLog("system", `Error: ${e.message}`, "error");
@@ -1818,7 +1818,7 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
                 }}
               >
                 {relaunching ? <Loader2 className="h-3 w-3 animate-spin" /> : <Inbox className="h-3 w-3" />}
-                Answer All Unopened ({conversations.filter(c => !c.is_read).length})
+                Resume All Conversations ({conversations.filter(c => c.ai_enabled).length})
               </Button>
               <Button
                 size="sm"
