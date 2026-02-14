@@ -1847,6 +1847,9 @@ serve(async (req) => {
           is_private: f.is_private,
           is_verified: f.is_verified,
           gender: f.gender || "unknown",
+          follower_count: f.metadata?.follower_count ?? null,
+          following_count: f.metadata?.following_count ?? null,
+          media_count: f.metadata?.media_count ?? null,
         }));
 
         let followersCount = 0, followsCount = 0;
