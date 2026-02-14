@@ -2279,12 +2279,19 @@ Follow these persona settings strictly. They override any conflicting defaults a
               .limit(1);
 
             const latestMsg = latestMsgs?.[0];
-            // Only process if last message is from a fan (needs a reply)
-            if (!latestMsg || latestMsg.sender_type !== "fan") continue;
+            
+            // FREE PIC PENDING: If this conversation has a pending pic delivery, bypass the "already replied" check
+            // because Phase 1 set last_ai_reply_at but Phase 2 still needs to run
+            const earlyMeta = dbConvo.metadata as any || {};
+            const hasPendingPic = !!earlyMeta?.free_pic_pending_at && !earlyMeta?.free_pic_delivered;
+            
+            // Only process if last message is from a fan (needs a reply) — UNLESS free pic is pending
+            if (!hasPendingPic && (!latestMsg || latestMsg.sender_type !== "fan")) continue;
 
             // CRITICAL: Check if we already handled this message (e.g. user deleted our reply)
             // If last_ai_reply_at is AFTER the fan's message, we already replied — skip
-            if (dbConvo.last_ai_reply_at && latestMsg.created_at) {
+            // BUT: skip this check if free pic is pending (Phase 2 needs to run)
+            if (!hasPendingPic && dbConvo.last_ai_reply_at && latestMsg?.created_at) {
               const aiReplyTime = new Date(dbConvo.last_ai_reply_at).getTime();
               const fanMsgTime = new Date(latestMsg.created_at).getTime();
               if (aiReplyTime >= fanMsgTime) continue;
@@ -2369,8 +2376,11 @@ Follow these persona settings strictly. They override any conflicting defaults a
               const delayMs = 90000 + Math.random() * 60000; // 1.5-2.5 min
               
               if (elapsed < 80000) {
-                // Not enough time has passed — skip this conversation, wait for next cycle
-                console.log(`[FREE PIC PHASE 2] @${dbConvo.participant_username}: waiting (${Math.round(elapsed/1000)}s elapsed, need ~90s)`);
+                // Not enough time has passed — RESTORE lock so next cycle re-enters
+                await supabase.from("ai_dm_conversations").update({
+                  last_ai_reply_at: dbConvo.last_ai_reply_at || null,
+                }).eq("id", dbConvo.id);
+                console.log(`[FREE PIC PHASE 2] @${dbConvo.participant_username}: waiting (${Math.round(elapsed/1000)}s elapsed, need ~90s), lock restored`);
                 continue;
               }
               
