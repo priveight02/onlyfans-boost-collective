@@ -13,12 +13,13 @@ import {
   Smile, Image as ImageIcon, Heart, ChevronLeft, Zap,
   Brain, Eye, Sparkles, ArrowRight, Shield, WifiOff,
   CircleDot, MessageSquare, Inbox, SendHorizonal, Lock, Unlock,
-  Play, Pause,
+  Play, Pause, Plus,
 } from "lucide-react";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import BulkMessageHub from "./BulkMessageHub";
+import PersonaCreatorDialog from "./PersonaCreatorDialog";
 
 interface LiveDMConversationsProps {
   accountId: string;
@@ -100,6 +101,7 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
   const [sendingMessage, setSendingMessage] = useState(false);
   const [prefetchProgress, setPrefetchProgress] = useState<{ done: number; total: number } | null>(null);
   const [bulkHubOpen, setBulkHubOpen] = useState(false);
+  const [personaCreatorOpen, setPersonaCreatorOpen] = useState(false);
   const [followAI, setFollowAI] = useState(false);
   const [lockChatView, setLockChatView] = useState(false);
   const [uiScale, setUiScale] = useState(() => {
@@ -1164,6 +1166,9 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
               <Button size="sm" variant="ghost" onClick={() => setBulkHubOpen(true)} className="h-7 w-7 p-0" title="Bulk Message Hub">
                 <SendHorizonal className="h-3.5 w-3.5" />
               </Button>
+              <Button size="sm" variant="ghost" onClick={() => setPersonaCreatorOpen(true)} className="h-7 w-7 p-0" title="Create / Manage Personas">
+                <Plus className="h-3.5 w-3.5" />
+              </Button>
               <Button size="sm" variant="ghost" onClick={relaunchUnread} disabled={relaunching} className={`h-7 w-7 p-0 ${relaunching ? "text-orange-400" : ""}`} title="Relaunch all unread — deep scan full history + media, resume where left off">
                 <RefreshCw className={`h-3.5 w-3.5 ${relaunching ? "animate-spin text-orange-400" : ""}`} />
               </Button>
@@ -2210,6 +2215,8 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
 
       {/* Bulk Message Hub Dialog */}
       <BulkMessageHub accountId={accountId} open={bulkHubOpen} onOpenChange={setBulkHubOpen} />
+      {/* Persona Creator Dialog */}
+      <PersonaCreatorDialog accountId={accountId} open={personaCreatorOpen} onOpenChange={setPersonaCreatorOpen} />
     </div>
     </div>
   );
