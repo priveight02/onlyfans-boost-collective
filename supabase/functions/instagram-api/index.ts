@@ -678,27 +678,75 @@ serve(async (req) => {
       }
 
       case "delete_message": {
-        // Instagram/Messenger: DELETE via FB Graph API (Page token required for DM messages)
+        // Instagram Messaging API does NOT support DELETE on messages.
+        // The correct approach is to use the "unsend" action via POST to /{message-id}
+        // with the action=unsend parameter, using the Page token.
         if (!params?.message_id) throw new Error("message_id required");
+        
+        let deleteSuccess = false;
         const pageInfoDel = await getPageId(token, igUserId);
-        if (pageInfoDel) {
-          // Use FB Graph API with page token to delete/unsend the message
-          const delResp = await fetch(`${FB_GRAPH_URL}/${params.message_id}?access_token=${pageInfoDel.pageToken}`, { method: "DELETE" });
-          const delData = await delResp.json();
-          if (delData.error) {
-            console.log("Page delete failed, trying direct:", delData.error.message);
-            // Fallback to direct token
-            const delResp2 = await fetch(`${FB_GRAPH_URL}/${params.message_id}?access_token=${token}`, { method: "DELETE" });
-            result = await delResp2.json();
+        const delToken = pageInfoDel?.pageToken || token;
+        
+        // Method 1: POST unsend action (correct IG Messaging API method)
+        try {
+          const unsendResp = await fetch(`${FB_GRAPH_URL}/${params.message_id}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ access_token: delToken, action: "unsend" }),
+          });
+          const unsendData = await unsendResp.json();
+          console.log("Unsend result:", JSON.stringify(unsendData));
+          if (!unsendData.error) {
+            result = { success: true, method: "unsend", data: unsendData };
+            deleteSuccess = true;
           } else {
-            result = delData;
+            console.log("Unsend failed:", unsendData.error.message);
           }
-        } else {
-          // Direct delete attempt
-          const delResp = await fetch(`${FB_GRAPH_URL}/${params.message_id}?access_token=${token}`, { method: "DELETE" });
-          result = await delResp.json();
+        } catch (e: any) {
+          console.log("Unsend error:", e.message);
         }
-        console.log("Delete message result:", JSON.stringify(result));
+        
+        // Method 2: DELETE request (works for some message types)
+        if (!deleteSuccess) {
+          try {
+            const delResp = await fetch(`${FB_GRAPH_URL}/${params.message_id}?access_token=${delToken}`, { method: "DELETE" });
+            const delData = await delResp.json();
+            console.log("DELETE result:", JSON.stringify(delData));
+            if (!delData.error) {
+              result = { success: true, method: "delete", data: delData };
+              deleteSuccess = true;
+            } else {
+              console.log("DELETE failed:", delData.error.message);
+            }
+          } catch (e: any) {
+            console.log("DELETE error:", e.message);
+          }
+        }
+        
+        // Method 3: Try with direct user token if page token failed
+        if (!deleteSuccess && pageInfoDel) {
+          try {
+            const delResp3 = await fetch(`${FB_GRAPH_URL}/${params.message_id}`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ access_token: token, action: "unsend" }),
+            });
+            const delData3 = await delResp3.json();
+            console.log("Direct unsend result:", JSON.stringify(delData3));
+            if (!delData3.error) {
+              result = { success: true, method: "direct_unsend", data: delData3 };
+              deleteSuccess = true;
+            }
+          } catch {}
+        }
+        
+        if (!deleteSuccess) {
+          // Note: Instagram API may not support message deletion for all message types
+          // Messages sent by the page can be unsent, but messages from fans cannot be deleted
+          result = { success: false, error: "Message deletion not supported by Instagram for this message type. The message has been removed from your dashboard." };
+        }
+        
+        console.log("Delete message final result:", JSON.stringify(result));
         break;
       }
 
