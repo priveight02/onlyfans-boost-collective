@@ -68,3 +68,6 @@ verify_jwt = false
 
 [functions.facebook-api]
 verify_jwt = false
+
+[functions.linkedin-api]
+verify_jwt = false

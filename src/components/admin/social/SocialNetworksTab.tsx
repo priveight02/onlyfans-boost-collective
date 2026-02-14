@@ -80,36 +80,39 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
     }
   };
 
+  const iconSize = "h-7 w-7";
   const platformLogos: Record<string, JSX.Element> = {
-    instagram: <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none"><defs><linearGradient id="ig" x1="0" y1="24" x2="24" y2="0"><stop offset="0%" stopColor="#feda75"/><stop offset="25%" stopColor="#fa7e1e"/><stop offset="50%" stopColor="#d62976"/><stop offset="75%" stopColor="#962fbf"/><stop offset="100%" stopColor="#4f5bd5"/></linearGradient></defs><rect x="2" y="2" width="20" height="20" rx="5" stroke="url(#ig)" strokeWidth="2"/><circle cx="12" cy="12" r="5" stroke="url(#ig)" strokeWidth="2"/><circle cx="17.5" cy="6.5" r="1.5" fill="url(#ig)"/></svg>,
-    twitter: <svg viewBox="0 0 24 24" className="h-5 w-5" fill="white"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>,
-    reddit: <svg viewBox="0 0 24 24" className="h-5 w-5" fill="#FF4500"><path d="M12 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0zm5.01 4.744c.688 0 1.25.561 1.25 1.249a1.25 1.25 0 0 1-2.498.056l-2.597-.547-.8 3.747c1.824.07 3.48.632 4.674 1.488.308-.309.73-.491 1.207-.491.968 0 1.754.786 1.754 1.754 0 .716-.435 1.333-1.01 1.614a3.111 3.111 0 0 1 .042.52c0 2.694-3.13 4.87-7.004 4.87-3.874 0-7.004-2.176-7.004-4.87 0-.183.015-.366.043-.534A1.748 1.748 0 0 1 4.028 12c0-.968.786-1.754 1.754-1.754.463 0 .898.196 1.207.49 1.207-.883 2.878-1.43 4.744-1.487l.885-4.182a.342.342 0 0 1 .14-.197.35.35 0 0 1 .238-.042l2.906.617a1.214 1.214 0 0 1 1.108-.701zM9.25 12C8.561 12 8 12.562 8 13.25c0 .687.561 1.248 1.25 1.248.687 0 1.248-.561 1.248-1.249 0-.688-.561-1.249-1.249-1.249zm5.5 0c-.687 0-1.248.561-1.248 1.25 0 .687.561 1.248 1.249 1.248.688 0 1.249-.561 1.249-1.249 0-.687-.562-1.249-1.25-1.249zm-5.466 3.99a.327.327 0 0 0-.231.094.33.33 0 0 0 0 .463c.842.842 2.484.913 2.961.913.477 0 2.105-.056 2.961-.913a.361.361 0 0 0 0-.463.327.327 0 0 0-.462 0c-.547.533-1.684.73-2.512.73-.828 0-1.979-.196-2.512-.73a.326.326 0 0 0-.231-.094z"/></svg>,
-    telegram: <svg viewBox="0 0 24 24" className="h-5 w-5" fill="#26A5E4"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>,
-    tiktok: <svg viewBox="0 0 24 24" className="h-5 w-5"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z" fill="currentColor" className="text-white"/></svg>,
-    snapchat: <svg viewBox="0 0 24 24" className="h-5 w-5" fill="#FFFC00"><path d="M12.206.793c.99 0 4.347.276 5.93 3.821.529 1.193.403 3.219.299 4.847l-.003.06c-.012.18-.022.345-.03.51.075.045.203.09.401.09.3-.016.659-.12 1.033-.301.165-.088.344-.104.464-.104.182 0 .299.028.376.049a.534.534 0 0 1 .331.298c.036.105.043.18.043.28 0 .266-.137.479-.316.618-.399.316-.89.509-1.465.716l-.059.022c-.246.09-.465.17-.633.271-.166.099-.273.199-.32.305l-.007.016c-.043.12-.039.271.029.508l.006.018c.174.448.495.868.84 1.292.293.374.612.748.862 1.163.728 1.191.391 2.208-.15 2.68-.467.41-1.156.626-2.026.626-.216 0-.434-.017-.665-.063l-.046-.01a5.04 5.04 0 0 0-.818-.082c-.21.001-.42.022-.626.064l-.028.006c-.397.09-.782.283-1.208.498-.5.253-1.063.539-1.783.645a3.18 3.18 0 0 1-.47.039c-.336 0-.674-.054-1.002-.16-.388-.118-.73-.322-1.046-.54-.316-.216-.596-.445-.836-.651a9.473 9.473 0 0 0-.357-.28 1.15 1.15 0 0 0-.237-.121c-.114.006-.346.057-.629.12l-.04.009c-.17.034-.329.048-.469.048-.813 0-1.452-.214-1.898-.612-.544-.488-.878-1.496-.125-2.694.237-.4.556-.782.86-1.163.344-.424.666-.843.838-1.29.067-.233.073-.385.03-.505l-.008-.017a.886.886 0 0 0-.318-.303c-.169-.102-.39-.183-.636-.272l-.059-.022c-.58-.21-1.065-.397-1.465-.716A.818.818 0 0 1 1 11.14c0-.14.024-.26.074-.39a.545.545 0 0 1 .33-.298.703.703 0 0 1 .378-.049c.12 0 .296.018.458.104.373.18.73.301 1.03.301.197 0 .327-.045.402-.09a20.85 20.85 0 0 1-.028-.51l-.003-.06c-.105-1.63-.23-3.656.3-4.848C5.848 1.07 9.214.793 10.203.793h.01z"/></svg>,
-    threads: <svg viewBox="0 0 24 24" className="h-5 w-5" fill="white"><path d="M12.186 24h-.007c-3.581-.024-6.334-1.205-8.184-3.509C2.35 18.44 1.5 15.586 1.472 12.01v-.017c.03-3.579.879-6.43 2.525-8.482C5.845 1.205 8.6.024 12.18 0h.014c2.746.02 5.043.725 6.826 2.098 1.677 1.29 2.858 3.13 3.509 5.467l-2.04.569c-1.104-3.96-3.898-5.984-8.304-6.015-2.91.022-5.11.936-6.54 2.717C4.307 6.504 3.616 8.914 3.589 12c.027 3.086.718 5.496 2.057 7.164 1.43 1.783 3.631 2.698 6.54 2.717 2.623-.02 4.358-.631 5.8-2.045 1.647-1.613 1.618-3.593 1.09-4.798-.31-.71-.873-1.3-1.634-1.75-.192 1.352-.622 2.446-1.284 3.272-.886 1.102-2.14 1.704-3.73 1.79-1.202.065-2.361-.218-3.259-.801-1.063-.689-1.685-1.74-1.752-2.964-.065-1.19.408-2.285 1.33-3.082.88-.762 2.098-1.213 3.455-1.321.915-.073 1.8-.034 2.643.116-.1-.58-.303-1.07-.606-1.439-.46-.56-1.163-.85-2.083-.86h-.038c-.73 0-1.67.254-2.248.668l-1.103-1.752c.938-.592 2.16-.976 3.351-.976h.063c1.558.022 2.758.585 3.566 1.67.633.85 1.02 1.939 1.159 3.282a7.53 7.53 0 0 1 2.159 1.582c1.118 1.207 1.807 2.87 1.916 4.79h.002c-.001.024-.001.05-.002.075 0 .037-.002.075-.003.112a8.47 8.47 0 0 1-.021.325c-.169 2.478-1.18 4.527-3.024 6.104C17.902 23.246 15.39 23.98 12.186 24zM9.286 15.012c-.055 0-.11.002-.163.007-.785.063-1.37.3-1.737.703-.408.446-.488 1.04-.444 1.383.132.962 1.118 1.626 2.468 1.556 1.292-.07 3.053-.835 3.395-4.482-.7-.147-1.459-.203-2.214-.166-.434.025-.87.068-1.305.133v-.002l-.001-.001v.003z"/></svg>,
-    whatsapp: <svg viewBox="0 0 24 24" className="h-5 w-5" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z"/></svg>,
-    signal: <svg viewBox="0 0 24 24" className="h-5 w-5" fill="#3A76F0"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm0 3.6c4.636 0 8.4 3.764 8.4 8.4 0 4.636-3.764 8.4-8.4 8.4-1.476 0-2.862-.38-4.068-1.049l-4.332 1.1 1.122-4.2A8.345 8.345 0 0 1 3.6 12c0-4.636 3.764-8.4 8.4-8.4z"/></svg>,
-    youtube: <svg viewBox="0 0 24 24" className="h-5 w-5" fill="#FF0000"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>,
-    pinterest: <svg viewBox="0 0 24 24" className="h-5 w-5" fill="#BD081C"><path d="M12.017 0C5.396 0 .029 5.367.029 11.987c0 5.079 3.158 9.417 7.618 11.162-.105-.949-.199-2.403.041-3.439.219-.937 1.406-5.957 1.406-5.957s-.359-.72-.359-1.781c0-1.668.967-2.914 2.171-2.914 1.023 0 1.518.769 1.518 1.69 0 1.029-.653 2.567-.992 3.992-.285 1.193.6 2.165 1.775 2.165 2.128 0 3.768-2.245 3.768-5.487 0-2.861-2.063-4.869-5.008-4.869-3.41 0-5.409 2.562-5.409 5.199 0 1.033.394 2.143.889 2.741.099.12.112.225.085.345-.09.375-.293 1.199-.334 1.363-.053.225-.174.271-.401.165-1.495-.69-2.433-2.878-2.433-4.646 0-3.776 2.748-7.252 7.92-7.252 4.158 0 7.392 2.967 7.392 6.923 0 4.135-2.607 7.462-6.233 7.462-1.214 0-2.354-.629-2.758-1.379l-.749 2.848c-.269 1.045-1.004 2.352-1.498 3.146 1.123.345 2.306.535 3.55.535 6.607 0 11.985-5.365 11.985-11.987C23.97 5.39 18.592.026 11.985.026z"/></svg>,
-    discord: <svg viewBox="0 0 24 24" className="h-5 w-5" fill="#5865F2"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>,
-    facebook: <svg viewBox="0 0 24 24" className="h-5 w-5" fill="#1877F2"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>,
+    instagram: <svg viewBox="0 0 24 24" className={iconSize} fill="none"><defs><linearGradient id="ig" x1="0" y1="24" x2="24" y2="0"><stop offset="0%" stopColor="#feda75"/><stop offset="25%" stopColor="#fa7e1e"/><stop offset="50%" stopColor="#d62976"/><stop offset="75%" stopColor="#962fbf"/><stop offset="100%" stopColor="#4f5bd5"/></linearGradient></defs><rect x="2" y="2" width="20" height="20" rx="5" stroke="url(#ig)" strokeWidth="1.5"/><circle cx="12" cy="12" r="5" stroke="url(#ig)" strokeWidth="1.5"/><circle cx="17.5" cy="6.5" r="1.5" fill="url(#ig)"/></svg>,
+    twitter: <svg viewBox="0 0 24 24" className={iconSize} fill="white"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>,
+    reddit: <svg viewBox="0 0 24 24" className={iconSize} fill="#FF4500"><path d="M12 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0zm5.01 4.744c.688 0 1.25.561 1.25 1.249a1.25 1.25 0 0 1-2.498.056l-2.597-.547-.8 3.747c1.824.07 3.48.632 4.674 1.488.308-.309.73-.491 1.207-.491.968 0 1.754.786 1.754 1.754 0 .716-.435 1.333-1.01 1.614a3.111 3.111 0 0 1 .042.52c0 2.694-3.13 4.87-7.004 4.87-3.874 0-7.004-2.176-7.004-4.87 0-.183.015-.366.043-.534A1.748 1.748 0 0 1 4.028 12c0-.968.786-1.754 1.754-1.754.463 0 .898.196 1.207.49 1.207-.883 2.878-1.43 4.744-1.487l.885-4.182a.342.342 0 0 1 .14-.197.35.35 0 0 1 .238-.042l2.906.617a1.214 1.214 0 0 1 1.108-.701zM9.25 12C8.561 12 8 12.562 8 13.25c0 .687.561 1.248 1.25 1.248.687 0 1.248-.561 1.248-1.249 0-.688-.561-1.249-1.249-1.249zm5.5 0c-.687 0-1.248.561-1.248 1.25 0 .687.561 1.248 1.249 1.248.688 0 1.249-.561 1.249-1.249 0-.687-.562-1.249-1.25-1.249zm-5.466 3.99a.327.327 0 0 0-.231.094.33.33 0 0 0 0 .463c.842.842 2.484.913 2.961.913.477 0 2.105-.056 2.961-.913a.361.361 0 0 0 0-.463.327.327 0 0 0-.462 0c-.547.533-1.684.73-2.512.73-.828 0-1.979-.196-2.512-.73a.326.326 0 0 0-.231-.094z"/></svg>,
+    telegram: <svg viewBox="0 0 24 24" className={iconSize} fill="#26A5E4"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>,
+    tiktok: <svg viewBox="0 0 24 24" className={iconSize} fill="white"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/></svg>,
+    snapchat: <svg viewBox="0 0 24 24" className={iconSize} fill="#FFFC00"><path d="M12.206.793c.99 0 4.347.276 5.93 3.821.529 1.193.403 3.219.299 4.847l-.003.06c-.012.18-.022.345-.03.51.075.045.203.09.401.09.3-.016.659-.12 1.033-.301.165-.088.344-.104.464-.104.182 0 .299.028.376.049a.534.534 0 0 1 .331.298c.036.105.043.18.043.28 0 .266-.137.479-.316.618-.399.316-.89.509-1.465.716l-.059.022c-.246.09-.465.17-.633.271-.166.099-.273.199-.32.305l-.007.016c-.043.12-.039.271.029.508l.006.018c.174.448.495.868.84 1.292.293.374.612.748.862 1.163.728 1.191.391 2.208-.15 2.68-.467.41-1.156.626-2.026.626-.216 0-.434-.017-.665-.063l-.046-.01a5.04 5.04 0 0 0-.818-.082c-.21.001-.42.022-.626.064l-.028.006c-.397.09-.782.283-1.208.498-.5.253-1.063.539-1.783.645a3.18 3.18 0 0 1-.47.039c-.336 0-.674-.054-1.002-.16-.388-.118-.73-.322-1.046-.54-.316-.216-.596-.445-.836-.651a9.473 9.473 0 0 0-.357-.28 1.15 1.15 0 0 0-.237-.121c-.114.006-.346.057-.629.12l-.04.009c-.17.034-.329.048-.469.048-.813 0-1.452-.214-1.898-.612-.544-.488-.878-1.496-.125-2.694.237-.4.556-.782.86-1.163.344-.424.666-.843.838-1.29.067-.233.073-.385.03-.505l-.008-.017a.886.886 0 0 0-.318-.303c-.169-.102-.39-.183-.636-.272l-.059-.022c-.58-.21-1.065-.397-1.465-.716A.818.818 0 0 1 1 11.14c0-.14.024-.26.074-.39a.545.545 0 0 1 .33-.298.703.703 0 0 1 .378-.049c.12 0 .296.018.458.104.373.18.73.301 1.03.301.197 0 .327-.045.402-.09a20.85 20.85 0 0 1-.028-.51l-.003-.06c-.105-1.63-.23-3.656.3-4.848C5.848 1.07 9.214.793 10.203.793h.01z"/></svg>,
+    threads: <svg viewBox="0 0 24 24" className={iconSize} fill="white"><path d="M12.186 24h-.007c-3.581-.024-6.334-1.205-8.184-3.509C2.35 18.44 1.5 15.586 1.472 12.01v-.017c.03-3.579.879-6.43 2.525-8.482C5.845 1.205 8.6.024 12.18 0h.014c2.746.02 5.043.725 6.826 2.098 1.677 1.29 2.858 3.13 3.509 5.467l-2.04.569c-1.104-3.96-3.898-5.984-8.304-6.015-2.91.022-5.11.936-6.54 2.717C4.307 6.504 3.616 8.914 3.589 12c.027 3.086.718 5.496 2.057 7.164 1.43 1.783 3.631 2.698 6.54 2.717 2.623-.02 4.358-.631 5.8-2.045 1.647-1.613 1.618-3.593 1.09-4.798-.31-.71-.873-1.3-1.634-1.75-.192 1.352-.622 2.446-1.284 3.272-.886 1.102-2.14 1.704-3.73 1.79-1.202.065-2.361-.218-3.259-.801-1.063-.689-1.685-1.74-1.752-2.964-.065-1.19.408-2.285 1.33-3.082.88-.762 2.098-1.213 3.455-1.321.915-.073 1.8-.034 2.643.116-.1-.58-.303-1.07-.606-1.439-.46-.56-1.163-.85-2.083-.86h-.038c-.73 0-1.67.254-2.248.668l-1.103-1.752c.938-.592 2.16-.976 3.351-.976h.063c1.558.022 2.758.585 3.566 1.67.633.85 1.02 1.939 1.159 3.282a7.53 7.53 0 0 1 2.159 1.582c1.118 1.207 1.807 2.87 1.916 4.79h.002c-.001.024-.001.05-.002.075 0 .037-.002.075-.003.112a8.47 8.47 0 0 1-.021.325c-.169 2.478-1.18 4.527-3.024 6.104C17.902 23.246 15.39 23.98 12.186 24zM9.286 15.012c-.055 0-.11.002-.163.007-.785.063-1.37.3-1.737.703-.408.446-.488 1.04-.444 1.383.132.962 1.118 1.626 2.468 1.556 1.292-.07 3.053-.835 3.395-4.482-.7-.147-1.459-.203-2.214-.166-.434.025-.87.068-1.305.133v-.002l-.001-.001v.003z"/></svg>,
+    whatsapp: <svg viewBox="0 0 24 24" className={iconSize} fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z"/></svg>,
+    signal: <svg viewBox="0 0 24 24" className={iconSize} fill="#3A76F0"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm0 3.6c4.636 0 8.4 3.764 8.4 8.4 0 4.636-3.764 8.4-8.4 8.4-1.476 0-2.862-.38-4.068-1.049l-4.332 1.1 1.122-4.2A8.345 8.345 0 0 1 3.6 12c0-4.636 3.764-8.4 8.4-8.4z"/></svg>,
+    youtube: <svg viewBox="0 0 24 24" className={iconSize} fill="#FF0000"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>,
+    pinterest: <svg viewBox="0 0 24 24" className={iconSize} fill="#BD081C"><path d="M12.017 0C5.396 0 .029 5.367.029 11.987c0 5.079 3.158 9.417 7.618 11.162-.105-.949-.199-2.403.041-3.439.219-.937 1.406-5.957 1.406-5.957s-.359-.72-.359-1.781c0-1.668.967-2.914 2.171-2.914 1.023 0 1.518.769 1.518 1.69 0 1.029-.653 2.567-.992 3.992-.285 1.193.6 2.165 1.775 2.165 2.128 0 3.768-2.245 3.768-5.487 0-2.861-2.063-4.869-5.008-4.869-3.41 0-5.409 2.562-5.409 5.199 0 1.033.394 2.143.889 2.741.099.12.112.225.085.345-.09.375-.293 1.199-.334 1.363-.053.225-.174.271-.401.165-1.495-.69-2.433-2.878-2.433-4.646 0-3.776 2.748-7.252 7.92-7.252 4.158 0 7.392 2.967 7.392 6.923 0 4.135-2.607 7.462-6.233 7.462-1.214 0-2.354-.629-2.758-1.379l-.749 2.848c-.269 1.045-1.004 2.352-1.498 3.146 1.123.345 2.306.535 3.55.535 6.607 0 11.985-5.365 11.985-11.987C23.97 5.39 18.592.026 11.985.026z"/></svg>,
+    discord: <svg viewBox="0 0 24 24" className={iconSize} fill="#5865F2"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>,
+    facebook: <svg viewBox="0 0 24 24" className={iconSize} fill="#1877F2"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>,
+    linkedin: <svg viewBox="0 0 24 24" className={iconSize} fill="#0A66C2"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>,
   };
 
   const platforms = [
-    { id: "instagram", name: "Instagram", icon: Instagram, color: "text-pink-400", borderColor: "border-pink-500/30", bgColor: "bg-gradient-to-br from-purple-600/20 to-orange-500/20", brandBg: "bg-gradient-to-br from-purple-600 to-orange-500", funcName: "instagram-api" },
-    { id: "twitter", name: "X / Twitter", icon: Twitter, color: "text-white", borderColor: "border-white/20", bgColor: "bg-neutral-800/50", brandBg: "bg-black", funcName: "twitter-api" },
-    { id: "reddit", name: "Reddit", icon: Globe, color: "text-orange-500", borderColor: "border-orange-500/30", bgColor: "bg-orange-500/10", brandBg: "bg-orange-600", funcName: "reddit-api" },
-    { id: "telegram", name: "Telegram", icon: Phone, color: "text-sky-400", borderColor: "border-sky-500/30", bgColor: "bg-sky-500/10", brandBg: "bg-sky-500", funcName: "telegram-api" },
-    { id: "tiktok", name: "TikTok", icon: Music2, color: "text-white", borderColor: "border-white/20", bgColor: "bg-neutral-800/50", brandBg: "bg-black", funcName: "tiktok-api" },
-    { id: "snapchat", name: "Snapchat", icon: Camera, color: "text-yellow-400", borderColor: "border-yellow-500/30", bgColor: "bg-yellow-500/10", brandBg: "bg-yellow-400", funcName: "snapchat-api" },
-    { id: "threads", name: "Threads", icon: MessageCircle, color: "text-white", borderColor: "border-white/20", bgColor: "bg-neutral-800/50", brandBg: "bg-black", funcName: "threads-api" },
-    { id: "whatsapp", name: "WhatsApp", icon: Smartphone, color: "text-green-500", borderColor: "border-green-500/30", bgColor: "bg-green-500/10", brandBg: "bg-green-600", funcName: "whatsapp-api" },
-    { id: "signal", name: "Signal", icon: Shield, color: "text-blue-400", borderColor: "border-blue-400/30", bgColor: "bg-blue-400/10", brandBg: "bg-blue-500", funcName: "signal-api" },
-    { id: "youtube", name: "YouTube", icon: Youtube, color: "text-red-500", borderColor: "border-red-500/30", bgColor: "bg-red-500/10", brandBg: "bg-red-600", funcName: "youtube-api" },
-    { id: "pinterest", name: "Pinterest", icon: Palette, color: "text-red-600", borderColor: "border-red-600/30", bgColor: "bg-red-600/10", brandBg: "bg-red-700", funcName: "pinterest-api" },
-    { id: "discord", name: "Discord", icon: Gamepad2, color: "text-indigo-400", borderColor: "border-indigo-500/30", bgColor: "bg-indigo-500/10", brandBg: "bg-indigo-600", funcName: "discord-api" },
-    { id: "facebook", name: "Facebook", icon: Globe, color: "text-blue-500", borderColor: "border-blue-500/30", bgColor: "bg-blue-500/10", brandBg: "bg-blue-600", funcName: "facebook-api" },
+    { id: "instagram", name: "Instagram", borderColor: "border-pink-500/30", bgColor: "bg-gradient-to-br from-purple-600/20 to-orange-500/20", funcName: "instagram-api" },
+    { id: "twitter", name: "X / Twitter", borderColor: "border-white/20", bgColor: "bg-white/[0.06]", funcName: "twitter-api" },
+    { id: "reddit", name: "Reddit", borderColor: "border-orange-500/30", bgColor: "bg-orange-500/10", funcName: "reddit-api" },
+    { id: "telegram", name: "Telegram", borderColor: "border-sky-500/30", bgColor: "bg-sky-500/10", funcName: "telegram-api" },
+    { id: "tiktok", name: "TikTok", borderColor: "border-white/20", bgColor: "bg-white/[0.06]", funcName: "tiktok-api" },
+    { id: "snapchat", name: "Snapchat", borderColor: "border-yellow-500/30", bgColor: "bg-yellow-500/10", funcName: "snapchat-api" },
+    { id: "threads", name: "Threads", borderColor: "border-white/20", bgColor: "bg-white/[0.06]", funcName: "threads-api" },
+    { id: "whatsapp", name: "WhatsApp", borderColor: "border-green-500/30", bgColor: "bg-green-500/10", funcName: "whatsapp-api" },
+    { id: "signal", name: "Signal", borderColor: "border-blue-400/30", bgColor: "bg-blue-400/10", funcName: "signal-api" },
+    { id: "youtube", name: "YouTube", borderColor: "border-red-500/30", bgColor: "bg-red-500/10", funcName: "youtube-api" },
+    { id: "pinterest", name: "Pinterest", borderColor: "border-red-600/30", bgColor: "bg-red-600/10", funcName: "pinterest-api" },
+    { id: "discord", name: "Discord", borderColor: "border-indigo-500/30", bgColor: "bg-indigo-500/10", funcName: "discord-api" },
+    { id: "facebook", name: "Facebook", borderColor: "border-blue-500/30", bgColor: "bg-blue-500/10", funcName: "facebook-api" },
+    { id: "linkedin", name: "LinkedIn", borderColor: "border-sky-600/30", bgColor: "bg-sky-600/10", funcName: "linkedin-api" },
   ];
 
   // Visual API response renderer
@@ -193,7 +196,7 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
   const renderActionButton = (label: string, funcName: string, action: string, params: any = {}, icon?: any) => {
     const Icon = icon || Zap;
     return (
-      <Button size="sm" variant="outline" onClick={() => callApi(funcName, action, params)} disabled={loading} className="text-xs h-8 gap-1 text-foreground">
+      <Button size="sm" variant="outline" onClick={() => callApi(funcName, action, params)} disabled={loading} className="text-xs h-8 gap-1 text-foreground border-border hover:bg-muted/50">
         <Icon className="h-3 w-3" />{label}
       </Button>
     );
@@ -202,11 +205,11 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
   const renderInputAction = (label: string, funcName: string, action: string, inputKeys: { key: string; placeholder: string; type?: string }[], buildParams: () => any, icon?: any) => {
     const Icon = icon || Send;
     return (
-      <div className="space-y-1.5 p-2 bg-muted/20 rounded-lg border border-border/50">
+      <div className="space-y-1.5 p-2.5 bg-muted/20 rounded-lg border border-border">
         <p className="text-[10px] font-semibold text-foreground uppercase tracking-wider">{label}</p>
         <div className="flex gap-1.5 flex-wrap">
           {inputKeys.map(ik => (
-            <Input key={ik.key} value={getInput(ik.key)} onChange={e => setInput(ik.key, e.target.value)} placeholder={ik.placeholder} type={ik.type || "text"} className="text-xs h-7 flex-1 min-w-[120px]" />
+            <Input key={ik.key} value={getInput(ik.key)} onChange={e => setInput(ik.key, e.target.value)} placeholder={ik.placeholder} type={ik.type || "text"} className="text-xs h-7 flex-1 min-w-[120px] bg-background border-border text-foreground placeholder:text-muted-foreground" />
           ))}
           <Button size="sm" variant="default" onClick={() => callApi(funcName, action, buildParams())} disabled={loading} className="text-xs h-7 gap-1 text-primary-foreground">
             {loading ? <RefreshCw className="h-3 w-3 animate-spin" /> : <Icon className="h-3 w-3" />}Go
@@ -1138,6 +1141,66 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
     </Tabs>
   );
 
+  const renderLinkedInContent = () => (
+    <Tabs defaultValue="profile" className="w-full">
+      <TabsList className="bg-white/[0.04] border border-white/[0.08] p-0.5 rounded-lg gap-0.5 flex-wrap h-auto">
+        {[{v:"profile",l:"Profile",icon:Users},{v:"posts",l:"Posts",icon:FileText},{v:"publish",l:"Publish",icon:Send},{v:"engage",l:"Engage",icon:Heart},{v:"comments",l:"Comments",icon:MessageSquare},{v:"org",l:"Organization",icon:Briefcase},{v:"messaging",l:"Messages",icon:MessageCircle},{v:"search",l:"Search",icon:Search},{v:"ai",l:"AI",icon:Brain}].map(t=>(
+          <TabsTrigger key={t.v} value={t.v} className="text-[10px] gap-1 px-2 py-1 text-foreground data-[state=active]:bg-white/[0.1] data-[state=active]:text-foreground"><t.icon className="h-3 w-3"/>{t.l}</TabsTrigger>
+        ))}
+      </TabsList>
+      <TabsContent value="profile" className="space-y-2 mt-3">
+        <div className="flex gap-1.5 flex-wrap">
+          {renderActionButton("Profile","linkedin-api","get_profile",{},Users)}
+          {renderActionButton("Full Profile","linkedin-api","get_me",{},Eye)}
+          {renderActionButton("Connections","linkedin-api","get_connections",{limit:50},UserPlus)}
+        </div>
+      </TabsContent>
+      <TabsContent value="posts" className="space-y-2 mt-3">
+        {renderActionButton("My Posts","linkedin-api","get_posts",{limit:20},FileText)}
+        {renderInputAction("Delete Post","linkedin-api","delete_post",[{key:"li_del_urn",placeholder:"Post URN"}],()=>({post_urn:getInput("li_del_urn")}),Trash2)}
+      </TabsContent>
+      <TabsContent value="publish" className="space-y-2 mt-3">
+        {renderInputAction("Text Post","linkedin-api","create_text_post",[{key:"li_text",placeholder:"What do you want to talk about?"}],()=>({text:getInput("li_text")}),Send)}
+        {renderInputAction("Article Post","linkedin-api","create_article_post",[{key:"li_art_text",placeholder:"Commentary"},{key:"li_art_url",placeholder:"Article URL"},{key:"li_art_title",placeholder:"Title"}],()=>({text:getInput("li_art_text"),article_url:getInput("li_art_url"),title:getInput("li_art_title")}),Link2)}
+        {renderInputAction("Image Post","linkedin-api","create_image_post",[{key:"li_img_text",placeholder:"Caption"},{key:"li_img_url",placeholder:"Image URL"}],()=>({text:getInput("li_img_text"),image_url:getInput("li_img_url")}),Image)}
+      </TabsContent>
+      <TabsContent value="engage" className="space-y-2 mt-3">
+        {renderInputAction("React (LIKE)","linkedin-api","react_to_post",[{key:"li_react_urn",placeholder:"Post URN"}],()=>({post_urn:getInput("li_react_urn"),reaction_type:"LIKE"}),Heart)}
+        {renderInputAction("React (CELEBRATE)","linkedin-api","react_to_post",[{key:"li_cele_urn",placeholder:"Post URN"}],()=>({post_urn:getInput("li_cele_urn"),reaction_type:"PRAISE"}),Star)}
+        {renderInputAction("React (SUPPORT)","linkedin-api","react_to_post",[{key:"li_supp_urn",placeholder:"Post URN"}],()=>({post_urn:getInput("li_supp_urn"),reaction_type:"EMPATHY"}),Heart)}
+        {renderInputAction("Remove Reaction","linkedin-api","delete_reaction",[{key:"li_unreact_urn",placeholder:"Post URN"}],()=>({post_urn:getInput("li_unreact_urn")}),Heart)}
+        {renderInputAction("Get Reactions","linkedin-api","get_reactions",[{key:"li_gr_urn",placeholder:"Post URN"}],()=>({post_urn:getInput("li_gr_urn"),limit:20}),TrendingUp)}
+      </TabsContent>
+      <TabsContent value="comments" className="space-y-2 mt-3">
+        {renderInputAction("Get Comments","linkedin-api","get_comments",[{key:"li_gc_urn",placeholder:"Post URN"}],()=>({post_urn:getInput("li_gc_urn"),limit:20}),MessageSquare)}
+        {renderInputAction("Add Comment","linkedin-api","create_comment",[{key:"li_cc_urn",placeholder:"Post URN"},{key:"li_cc_text",placeholder:"Comment..."}],()=>({post_urn:getInput("li_cc_urn"),text:getInput("li_cc_text")}),Send)}
+        {renderInputAction("Delete Comment","linkedin-api","delete_comment",[{key:"li_dc_urn",placeholder:"Post URN"},{key:"li_dc_cid",placeholder:"Comment ID"}],()=>({post_urn:getInput("li_dc_urn"),comment_id:getInput("li_dc_cid")}),Trash2)}
+      </TabsContent>
+      <TabsContent value="org" className="space-y-2 mt-3">
+        {renderInputAction("Get Organization","linkedin-api","get_organization",[{key:"li_org_id",placeholder:"Organization ID"}],()=>({org_id:getInput("li_org_id")}),Briefcase)}
+        {renderInputAction("Org Followers","linkedin-api","get_organization_followers",[{key:"li_of_id",placeholder:"Organization ID"}],()=>({org_id:getInput("li_of_id")}),Users)}
+        {renderInputAction("Org Posts","linkedin-api","get_organization_posts",[{key:"li_op_id",placeholder:"Organization ID"}],()=>({org_id:getInput("li_op_id"),limit:20}),FileText)}
+        {renderInputAction("Post as Org","linkedin-api","create_org_post",[{key:"li_cop_id",placeholder:"Organization ID"},{key:"li_cop_text",placeholder:"Post text"}],()=>({org_id:getInput("li_cop_id"),text:getInput("li_cop_text")}),Send)}
+        {renderInputAction("Share Stats","linkedin-api","get_share_statistics",[{key:"li_ss_org",placeholder:"Organization ID (opt)"}],()=>({org_id:getInput("li_ss_org")||undefined}),BarChart3)}
+      </TabsContent>
+      <TabsContent value="messaging" className="space-y-2 mt-3">
+        {renderActionButton("Conversations","linkedin-api","get_conversations",{limit:20},MessageCircle)}
+        {renderInputAction("Send Message","linkedin-api","send_message",[{key:"li_msg_to",placeholder:"Recipient Person ID"},{key:"li_msg_text",placeholder:"Message"}],()=>({recipient_id:getInput("li_msg_to"),text:getInput("li_msg_text")}),Send)}
+      </TabsContent>
+      <TabsContent value="search" className="space-y-2 mt-3">
+        {renderInputAction("Search People","linkedin-api","search_people",[{key:"li_sp_q",placeholder:"Keywords"}],()=>({query:getInput("li_sp_q"),limit:10}),Search)}
+      </TabsContent>
+      <TabsContent value="ai" className="space-y-2 mt-3">
+        {renderInputAction("AI Post","social-ai-responder","generate_caption",[{key:"ai_li_topic",placeholder:"Topic"}],()=>({topic:getInput("ai_li_topic"),platform:"linkedin",include_cta:true}),Brain)}
+        {renderInputAction("AI Comment Reply","social-ai-responder","generate_dm_reply",[{key:"ai_li_cmt",placeholder:"Comment text..."}],()=>({message_text:getInput("ai_li_cmt"),sender_name:"connection"}),Zap)}
+        {renderInputAction("AI Article Outline","social-ai-responder","generate_caption",[{key:"ai_li_article",placeholder:"Article topic"}],()=>({topic:`Write a professional LinkedIn article outline with sections for: ${getInput("ai_li_article")}`,platform:"linkedin",include_cta:true}),FileText)}
+        {renderInputAction("AI InMail","social-ai-responder","generate_caption",[{key:"ai_li_inmail",placeholder:"Purpose of outreach"}],()=>({topic:`Write a professional LinkedIn InMail/connection request for: ${getInput("ai_li_inmail")}`,platform:"linkedin",include_cta:false}),Send)}
+        {renderInputAction("AI Headline","social-ai-responder","generate_caption",[{key:"ai_li_headline",placeholder:"Your role/expertise"}],()=>({topic:`Write 5 compelling LinkedIn headline options for someone who: ${getInput("ai_li_headline")}`,platform:"linkedin",include_cta:false}),Users)}
+        {renderInputAction("AI Content Calendar","social-ai-responder","generate_caption",[{key:"ai_li_cal",placeholder:"Industry/niche"}],()=>({topic:`Create a 7-day LinkedIn content calendar with post types and hooks for: ${getInput("ai_li_cal")}`,platform:"linkedin",include_cta:false}),Calendar)}
+      </TabsContent>
+    </Tabs>
+  );
+
   const renderPlatformContent = (platformId: string) => {
     switch (platformId) {
       case "instagram": return renderInstagramContent();
@@ -1153,51 +1216,52 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
       case "pinterest": return renderPinterestContent();
       case "discord": return renderDiscordContent();
       case "facebook": return renderFacebookContent();
+      case "linkedin": return renderLinkedInContent();
       default: return null;
     }
   };
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Globe className="h-5 w-5 text-primary" />
           <h3 className="text-sm font-bold text-foreground">Social Networks API Hub</h3>
-          <Badge variant="outline" className="text-[10px]">13 platforms</Badge>
+          <Badge variant="outline" className="text-[10px] text-foreground border-border">14 platforms</Badge>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {platforms.map(p => {
           const connected = isConnected(p.id);
           const logo = platformLogos[p.id];
           return (
-            <Card key={p.id} className={`transition-all cursor-pointer border ${
+            <Card key={p.id} className={`transition-all duration-200 cursor-pointer border ${
               connected
-                ? `${p.borderColor} bg-white/[0.02] hover:bg-white/[0.04]`
-                : "border-white/[0.06] bg-white/[0.01] hover:bg-white/[0.03] opacity-60 hover:opacity-80"
+                ? `${p.borderColor} bg-card hover:bg-accent/10`
+                : "border-border bg-card/50 hover:bg-card/80 opacity-70 hover:opacity-90"
             }`}>
               <button
                 onClick={() => handlePlatformClick(p.id)}
-                className="w-full p-3 flex items-center gap-3 transition-colors rounded-xl"
+                className="w-full p-5 flex items-center gap-4 transition-colors rounded-xl"
               >
-                <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${connected ? p.bgColor : "bg-white/[0.04]"}`}>
+                <div className={`h-14 w-14 rounded-xl flex items-center justify-center shrink-0 ${connected ? p.bgColor : "bg-muted/30"}`}>
                   {logo}
                 </div>
-                <div className="flex-1 text-left">
-                  <p className="text-sm font-semibold text-foreground">{p.name}</p>
-                  <p className={`text-[10px] ${connected ? "text-green-400" : "text-muted-foreground"}`}>
+                <div className="flex-1 text-left min-w-0">
+                  <p className="text-base font-semibold text-foreground">{p.name}</p>
+                  <p className={`text-xs mt-0.5 ${connected ? "text-green-400" : "text-muted-foreground"}`}>
                     {connected ? "Connected · Full API · AI Automation Ready" : "Not connected — Click to set up in Connect tab"}
                   </p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 shrink-0">
                   {connected ? (
-                    <Badge className="bg-green-500/15 text-green-400 text-[10px] border border-green-500/30 gap-1">
-                      <span className="h-1.5 w-1.5 rounded-full bg-green-400 animate-pulse" />Live
+                    <Badge className="bg-green-500/15 text-green-400 text-[10px] border border-green-500/30 gap-1.5 px-2.5 py-1">
+                      <span className="h-2 w-2 rounded-full bg-green-400 animate-pulse" />Live
                     </Badge>
                   ) : (
-                    <Badge variant="outline" className="text-muted-foreground text-[10px] border-white/[0.08] gap-1">
-                      <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground" />Offline
+                    <Badge variant="outline" className="text-muted-foreground text-[10px] border-border gap-1.5 px-2.5 py-1">
+                      <span className="h-2 w-2 rounded-full bg-muted-foreground" />Offline
                     </Badge>
                   )}
                   <ChevronRight className={`h-4 w-4 text-muted-foreground transition-transform ${expandedPlatform === p.id ? "rotate-90" : ""}`} />
@@ -1209,14 +1273,14 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
       </div>
 
       <Dialog open={!!expandedPlatform} onOpenChange={(open) => { if (!open) setExpandedPlatform(null); }}>
-        <DialogContent className="max-w-4xl max-h-[85vh] overflow-hidden bg-[hsl(222,30%,8%)] border-white/[0.08] text-foreground">
+        <DialogContent className="max-w-4xl max-h-[85vh] overflow-hidden bg-card border-border text-foreground">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-3 text-foreground">
               {expandedPlatform && (() => {
                 const p = platforms.find(pl => pl.id === expandedPlatform);
                 if (!p) return null;
                 const logo = platformLogos[p.id];
-                return (<><div className={`h-8 w-8 rounded-lg flex items-center justify-center ${p.bgColor}`}>{logo}</div><span>{p.name} — Full API Control Center</span></>);
+                return (<><div className={`h-9 w-9 rounded-lg flex items-center justify-center ${p.bgColor}`}>{logo}</div><span>{p.name} — Full API Control Center</span></>);
               })()}
             </DialogTitle>
           </DialogHeader>
@@ -1226,21 +1290,20 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
             {/* Visual API Response */}
             {result && (
               <div className="mt-4 space-y-3">
-                {/* Visual display */}
-                <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-4">
+                <div className="bg-muted/30 border border-border rounded-xl p-4">
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
                       <div className="h-2 w-2 rounded-full bg-green-400" />
                       <p className="text-xs font-semibold text-foreground">Response</p>
-                      <Badge variant="outline" className="text-[9px] h-4 border-white/[0.08] text-muted-foreground">
+                      <Badge variant="outline" className="text-[9px] h-4 border-border text-muted-foreground">
                         {Array.isArray(result) ? `${result.length} items` : Array.isArray(result?.data) ? `${result.data.length} items` : "object"}
                       </Badge>
                     </div>
                     <div className="flex gap-1">
-                      <Button size="sm" variant="ghost" className="h-6 text-[10px] text-foreground hover:bg-white/[0.06]" onClick={() => { navigator.clipboard.writeText(JSON.stringify(result, null, 2)); toast.success("Copied"); }}>
+                      <Button size="sm" variant="ghost" className="h-6 text-[10px] text-foreground hover:bg-muted/50" onClick={() => { navigator.clipboard.writeText(JSON.stringify(result, null, 2)); toast.success("Copied"); }}>
                         <Copy className="h-3 w-3 mr-1" />Copy
                       </Button>
-                      <Button size="sm" variant="ghost" className="h-6 text-[10px] text-foreground hover:bg-white/[0.06]" onClick={() => setResult(null)}>
+                      <Button size="sm" variant="ghost" className="h-6 text-[10px] text-foreground hover:bg-muted/50" onClick={() => setResult(null)}>
                         <Trash2 className="h-3 w-3 mr-1" />Clear
                       </Button>
                     </div>
@@ -1250,13 +1313,12 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
                   </ScrollArea>
                 </div>
                 
-                {/* Raw JSON collapsible */}
                 <details className="group">
                   <summary className="text-[10px] text-muted-foreground cursor-pointer hover:text-foreground transition-colors flex items-center gap-1">
                     <ChevronRight className="h-3 w-3 group-open:rotate-90 transition-transform" />
                     Raw API Response (JSON)
                   </summary>
-                  <pre className="mt-2 text-[10px] text-muted-foreground bg-black/30 border border-white/[0.04] rounded-lg p-3 overflow-auto max-h-[200px] whitespace-pre-wrap break-all font-mono">
+                  <pre className="mt-2 text-[10px] text-muted-foreground bg-muted/20 border border-border rounded-lg p-3 overflow-auto max-h-[200px] whitespace-pre-wrap break-all font-mono">
                     {JSON.stringify(result, null, 2)}
                   </pre>
                 </details>
