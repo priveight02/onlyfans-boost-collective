@@ -821,7 +821,7 @@ Rules:
       }
 
       case "process_live_dm": {
-        // Full pipeline: fetch conversations from IG, find new messages, generate AI replies, send them back
+        // Lightweight pipeline: skip heavy IG re-scan, just check DB for unanswered fan messages and reply
         const igFuncUrl2 = `${Deno.env.get("SUPABASE_URL")}/functions/v1/instagram-api`;
         const serviceKey2 = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
         
@@ -836,7 +836,134 @@ Rules:
           return d.data;
         };
 
-        // Get auto-respond config
+        // Quick IG check: only fetch latest messages for conversations we already have in DB
+        // This is MUCH faster than scanning all 50 conversations
+        try {
+          const { data: igConnQuick } = await supabase
+            .from("social_connections")
+            .select("platform_user_id, platform_username")
+            .eq("account_id", account_id)
+            .eq("platform", "instagram")
+            .single();
+          
+          if (igConnQuick?.platform_user_id) {
+            const ourIdQuick = igConnQuick.platform_user_id;
+            const ourUsernameQuick = igConnQuick.platform_username?.toLowerCase() || "";
+            
+            // Only fetch first page of conversations (latest updates)
+            const quickScan = await callIG2("get_conversations", { limit: 20, messages_limit: 3, folder: "inbox" });
+            const quickConvoList = quickScan?.data || [];
+            
+            for (const sc of quickConvoList) {
+              const scMsgs = sc.messages?.data || [];
+              if (scMsgs.length === 0) continue;
+              
+              // Check if we already have the latest message
+              const latestMsgId = scMsgs[0]?.id;
+              if (!latestMsgId) continue;
+              
+              const { data: existingMsg } = await supabase
+                .from("ai_dm_messages")
+                .select("id")
+                .eq("platform_message_id", latestMsgId)
+                .limit(1);
+              
+              // If we already have the latest message, skip this conversation
+              if (existingMsg && existingMsg.length > 0) continue;
+              
+              // New message found — import it
+              const participants = sc.participants?.data || [];
+              const fan = (() => {
+                if (!participants || participants.length === 0) return null;
+                if (ourUsernameQuick) {
+                  const byUsername = participants.find((p: any) => (p.username || p.name || "").toLowerCase() !== ourUsernameQuick);
+                  if (byUsername) return byUsername;
+                }
+                const byId = participants.find((p: any) => p.id !== ourIdQuick);
+                return byId || (participants.length === 2 ? participants[1] : participants[0]);
+              })();
+              if (!fan) continue;
+              
+              // Upsert conversation (preserve ai_enabled)
+              const { data: existingConvo } = await supabase
+                .from("ai_dm_conversations")
+                .select("id, ai_enabled")
+                .eq("account_id", account_id)
+                .eq("platform_conversation_id", sc.id)
+                .single();
+              
+              const upsertData: any = {
+                account_id,
+                platform: "instagram",
+                platform_conversation_id: sc.id,
+                participant_id: fan.id,
+                participant_username: fan.username || fan.name || fan.id,
+                participant_name: fan.name || fan.username || "Unknown",
+                status: "active",
+                last_message_at: sc.updated_time ? new Date(sc.updated_time).toISOString() : new Date().toISOString(),
+                message_count: scMsgs.length,
+              };
+              if (!existingConvo) upsertData.ai_enabled = true;
+              
+              const { data: scDbConvo } = await supabase
+                .from("ai_dm_conversations")
+                .upsert(upsertData, { onConflict: "account_id,platform_conversation_id" })
+                .select("id")
+                .single();
+              if (!scDbConvo) continue;
+              
+              // Import only NEW messages
+              for (const scMsg of [...scMsgs].reverse()) {
+                const scMsgText = scMsg.message || scMsg.text || "";
+                if (!scMsgText && !scMsg.id && !scMsg.attachments) continue;
+                const { data: scEx } = await supabase.from("ai_dm_messages").select("id").eq("platform_message_id", scMsg.id).limit(1);
+                if (scEx && scEx.length > 0) continue;
+                
+                const fromId = scMsg?.from?.id;
+                const fromName = (scMsg?.from?.username || scMsg?.from?.name || "").toLowerCase();
+                const scIsFromUs = (fromId === ourIdQuick) || (fromName === ourUsernameQuick) || (fromId && fromId !== fan.id && fromId !== ourIdQuick);
+                
+                const scMsgTimestamp = scMsg.created_time || scMsg.timestamp;
+                const scRawAtt = scMsg.attachments?.data || scMsg.attachments;
+                const scHasAtt = scRawAtt && (Array.isArray(scRawAtt) ? scRawAtt.length > 0 : true);
+                const scAttData = scHasAtt 
+                  ? { attachments: Array.isArray(scRawAtt) ? scRawAtt : [scRawAtt], sticker: scMsg.sticker || null, shares: scMsg.shares || null } 
+                  : (scMsg.sticker ? { sticker: scMsg.sticker } : (scMsg.shares ? { shares: scMsg.shares } : null));
+                let scContent = scMsgText;
+                if (!scContent && scHasAtt) {
+                  const scAttArr = Array.isArray(scRawAtt) ? scRawAtt : [scRawAtt];
+                  const scAttType = scAttArr[0]?.mime_type || scAttArr[0]?.type || "";
+                  if (scAttType.includes("video")) scContent = "[video]";
+                  else if (scAttType.includes("image") || scAttType.includes("photo")) scContent = "[photo]";
+                  else if (scAttType.includes("audio")) scContent = "[audio]";
+                  else if (scMsg.sticker) scContent = "[sticker]";
+                  else if (scMsg.shares) scContent = "[shared post]";
+                  else scContent = "[attachment]";
+                } else if (!scContent) {
+                  if (scMsg.sticker) scContent = "[sticker]";
+                  else if (scMsg.shares) scContent = "[shared post]";
+                  else scContent = "";
+                }
+                await supabase.from("ai_dm_messages").insert({
+                  conversation_id: scDbConvo.id,
+                  account_id,
+                  platform_message_id: scMsg.id,
+                  sender_type: scIsFromUs ? "ai" : "fan",
+                  sender_name: scIsFromUs ? (igConnQuick.platform_username || "creator") : (fan.username || fan.name || "fan"),
+                  content: scContent || "",
+                  status: "sent",
+                  created_at: scMsgTimestamp ? new Date(scMsgTimestamp).toISOString() : new Date().toISOString(),
+                  metadata: scAttData,
+                });
+              }
+            }
+            console.log(`Quick scan: checked ${quickConvoList.length} convos for new messages`);
+          }
+        } catch (scanErr) {
+          console.error("Quick scan failed:", scanErr);
+        }
+
+        // Check auto-respond state
         const { data: autoConfig } = await supabase
           .from("auto_respond_state")
           .select("*")
@@ -844,146 +971,8 @@ Rules:
           .single();
         
         if (!autoConfig?.is_active) {
-          result = { processed: 0, message: "Auto-respond is not active" };
+          result = { processed: 0, total_checked: 0, message: "Auto-respond is not active" };
           break;
-        }
-
-        // 1. First scan/import all conversations by calling IG API directly
-        try {
-          const scanConvos = await callIG2("get_conversations", { limit: 50, messages_limit: 10, folder: "inbox" });
-          const scanConvoList = scanConvos?.data || [];
-          const { data: igConnScan2 } = await supabase
-            .from("social_connections")
-            .select("platform_user_id, platform_username")
-            .eq("account_id", account_id)
-            .eq("platform", "instagram")
-            .single();
-          const ourIdScan2 = igConnScan2?.platform_user_id;
-          const ourUsernameScan2 = igConnScan2?.platform_username?.toLowerCase() || "";
-          
-          // Also get the Page ID so we can detect messages sent by the page
-          let pageId: string | null = null;
-          try {
-            const pageData = await callIG2("get_profile_basic", {});
-            // The page ID is retrieved via a separate mechanism
-          } catch {}
-          
-          const findFan2 = (participants: any[]) => {
-            if (!participants || participants.length === 0) return null;
-            if (ourUsernameScan2) {
-              const byUsername = participants.find((p: any) => 
-                (p.username || p.name || "").toLowerCase() !== ourUsernameScan2
-              );
-              if (byUsername) return byUsername;
-            }
-            const byId = participants.find((p: any) => p.id !== ourIdScan2);
-            if (byId) return byId;
-            if (participants.length === 2) return participants[1];
-            return participants[0];
-          };
-
-          // Helper: detect if a message is from us (creator/page) — checks IG user ID, page ID, username
-          const isMessageFromUs = (msg: any, fanId: string): boolean => {
-            const fromId = msg?.from?.id;
-            const fromName = (msg?.from?.username || msg?.from?.name || "").toLowerCase();
-            
-            // If from.id matches our IG user ID → it's us
-            if (fromId && fromId === ourIdScan2) return true;
-            // If from username matches our username → it's us
-            if (fromName && fromName === ourUsernameScan2) return true;
-            // If from.id matches the known fan ID → NOT us
-            if (fromId && fromId === fanId) return false;
-            // If from.id is set but doesn't match fan or us, it's likely the Page ID → it's us
-            if (fromId && fromId !== fanId && fromId !== ourIdScan2) {
-              // This is likely the Facebook Page ID that sent on our behalf
-              return true;
-            }
-            return false;
-          };
-          
-          for (const sc of scanConvoList) {
-            const scMsgs = sc.messages?.data || [];
-            const scFan = findFan2(sc.participants?.data || []);
-            if (!scFan) continue;
-            
-            // Check if conversation already exists in DB — don't override ai_enabled
-            const { data: existingConvo } = await supabase
-              .from("ai_dm_conversations")
-              .select("id, ai_enabled")
-              .eq("account_id", account_id)
-              .eq("platform_conversation_id", sc.id)
-              .single();
-            
-            const upsertData: any = {
-              account_id,
-              platform: "instagram",
-              platform_conversation_id: sc.id,
-              participant_id: scFan.id,
-              participant_username: scFan.username || scFan.name || scFan.id,
-              participant_name: scFan.name || scFan.username || "Unknown",
-              status: "active",
-              last_message_at: sc.updated_time ? new Date(sc.updated_time).toISOString() : new Date().toISOString(),
-              message_count: scMsgs.length,
-            };
-            // Only set ai_enabled on NEW conversations, don't override existing
-            if (!existingConvo) {
-              upsertData.ai_enabled = true;
-            }
-
-            const { data: scDbConvo } = await supabase
-              .from("ai_dm_conversations")
-              .upsert(upsertData, { onConflict: "account_id,platform_conversation_id" })
-              .select("id")
-              .single();
-            
-            if (!scDbConvo) continue;
-            
-            for (const scMsg of [...scMsgs].reverse()) {
-              const scMsgText = scMsg.message || scMsg.text || "";
-              if (!scMsgText && !scMsg.id && !scMsg.attachments) continue;
-              const { data: scEx } = await supabase.from("ai_dm_messages").select("id").eq("platform_message_id", scMsg.id).limit(1);
-              if (scEx && scEx.length > 0) continue;
-              
-              // Use improved sender detection that accounts for Page-sent messages
-              const scIsFromUs = isMessageFromUs(scMsg, scFan.id);
-              
-              const scMsgTimestamp = scMsg.created_time || scMsg.timestamp;
-              const scRawAtt = scMsg.attachments?.data || scMsg.attachments;
-              const scHasAtt = scRawAtt && (Array.isArray(scRawAtt) ? scRawAtt.length > 0 : true);
-              const scAttData = scHasAtt 
-                ? { attachments: Array.isArray(scRawAtt) ? scRawAtt : [scRawAtt], sticker: scMsg.sticker || null, shares: scMsg.shares || null } 
-                : (scMsg.sticker ? { sticker: scMsg.sticker } : (scMsg.shares ? { shares: scMsg.shares } : null));
-              let scContent = scMsgText;
-              if (!scContent && scHasAtt) {
-                const scAttArr = Array.isArray(scRawAtt) ? scRawAtt : [scRawAtt];
-                const scAttType = scAttArr[0]?.mime_type || scAttArr[0]?.type || "";
-                if (scAttType.includes("video")) scContent = "[video]";
-                else if (scAttType.includes("image") || scAttType.includes("photo")) scContent = "[photo]";
-                else if (scAttType.includes("audio")) scContent = "[audio]";
-                else if (scMsg.sticker) scContent = "[sticker]";
-                else if (scMsg.shares) scContent = "[shared post]";
-                else scContent = "[attachment]";
-              } else if (!scContent) {
-                if (scMsg.sticker) scContent = "[sticker]";
-                else if (scMsg.shares) scContent = "[shared post]";
-                else scContent = "";
-              }
-              await supabase.from("ai_dm_messages").insert({
-                conversation_id: scDbConvo.id,
-                account_id,
-                platform_message_id: scMsg.id,
-                sender_type: scIsFromUs ? "ai" : "fan",
-                sender_name: scIsFromUs ? (igConnScan2?.platform_username || "creator") : (scFan.username || scFan.name || "fan"),
-                content: scContent || "",
-                status: "sent",
-                created_at: scMsgTimestamp ? new Date(scMsgTimestamp).toISOString() : new Date().toISOString(),
-                metadata: scAttData,
-              });
-            }
-          }
-          console.log(`Scan imported ${scanConvoList.length} conversations`);
-        } catch (scanErr) {
-          console.error("Scan during process_live_dm failed:", scanErr);
         }
 
         // Get persona
