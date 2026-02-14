@@ -332,6 +332,40 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
         });
       }
 
+      // ALWAYS update conversation preview & timestamp from latest cached message
+      const allMsgs = messageCacheRef.current.get(convoId) || [];
+      if (allMsgs.length > 0) {
+        const latestMsg = allMsgs[allMsgs.length - 1];
+        const isFromMe = latestMsg.sender_type !== "fan";
+        const previewText = isFromMe
+          ? `You: ${latestMsg.content?.substring(0, 80) || "[media]"}`
+          : latestMsg.content?.substring(0, 80) || "[media]";
+        const latestTime = latestMsg.created_at;
+        
+        // Update DB (non-blocking)
+        supabase.from("ai_dm_conversations").update({
+          last_message_preview: previewText,
+          last_message_at: latestTime,
+          message_count: allMsgs.length,
+        }).eq("id", convoId).then();
+        
+        // Update local state immediately for instant UI refresh
+        setConversations(prev => {
+          const idx = prev.findIndex(cv => cv.id === convoId);
+          if (idx === -1) return prev;
+          const updated = { ...prev[idx], last_message_preview: previewText, last_message_at: latestTime, message_count: allMsgs.length };
+          const next = [...prev];
+          next[idx] = updated;
+          // Re-sort by last_message_at (most recent first)
+          next.sort((a, b) => {
+            const ta = a.last_message_at ? new Date(a.last_message_at).getTime() : 0;
+            const tb = b.last_message_at ? new Date(b.last_message_at).getTime() : 0;
+            return tb - ta;
+          });
+          return next;
+        });
+      }
+
       igSyncedRef.current.add(convoId);
     } catch (e) {
       console.error("fetchIGMessages error:", e);
@@ -571,14 +605,29 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
     }
   }, [selectedConvo, loadMessages, fetchIGMessages]);
 
-  // Periodic re-sync of selected conversation to detect IG-side deletions in real-time
+  // Periodic re-sync of selected conversation + top conversations for real-time preview updates
   useEffect(() => {
-    if (!selectedConvo || !autoRespondActive) return;
+    if (!selectedConvo) return;
+    // Sync selected convo every 8s
     const resyncInterval = setInterval(() => {
       fetchIGMessages(selectedConvo);
-    }, 10000); // Every 10s
+    }, 8000);
     return () => clearInterval(resyncInterval);
-  }, [selectedConvo, autoRespondActive, fetchIGMessages]);
+  }, [selectedConvo, fetchIGMessages]);
+
+  // Periodic background sync of top 5 conversations to keep previews/ordering up-to-date
+  useEffect(() => {
+    if (!accountId || conversations.length === 0) return;
+    const bgSyncInterval = setInterval(async () => {
+      const top = conversations
+        .filter(c => c.platform_conversation_id)
+        .slice(0, 5);
+      for (const c of top) {
+        await fetchIGMessages(c.id, c);
+      }
+    }, 15000); // Every 15s
+    return () => clearInterval(bgSyncInterval);
+  }, [accountId, conversations, fetchIGMessages]);
 
   // Real-time subscriptions — MERGE changes instead of full reload
   useEffect(() => {

@@ -1041,6 +1041,16 @@ Rules:
               }
 
               const scFolder = (sc as any)._folder || "primary";
+              
+              // Determine latest message preview
+              const latestScMsg = scMsgs[0]; // Messages come newest first from IG
+              const latestFromId = latestScMsg?.from?.id;
+              const isLatestFromUs = latestFromId === igConnQuick.platform_user_id;
+              const latestPreviewText = latestScMsg?.message || latestScMsg?.text || "[media]";
+              const latestPreview = isLatestFromUs
+                ? `You: ${latestPreviewText.substring(0, 80)}`
+                : latestPreviewText.substring(0, 80);
+              
               const upsertData: any = {
                 account_id,
                 platform: "instagram",
@@ -1052,7 +1062,9 @@ Rules:
                 status: "active",
                 folder: scFolder,
                 last_message_at: sc.updated_time ? new Date(sc.updated_time).toISOString() : new Date().toISOString(),
+                last_message_preview: latestPreview,
                 message_count: scMsgs.length,
+                is_read: isLatestFromUs,
               };
               if (!existingConvo) upsertData.ai_enabled = true;
               
@@ -1292,7 +1304,9 @@ ${autoConfig.trigger_keywords ? `if they mention any of these: ${autoConfig.trig
               await supabase.from("ai_dm_conversations").update({
                 last_ai_reply_at: new Date().toISOString(),
                 last_message_at: new Date().toISOString(),
+                last_message_preview: `You: ${reply.substring(0, 80)}`,
                 message_count: (dbMessages?.length || 0) + 1,
+                is_read: true,
               }).eq("id", dbConvo.id);
 
               processed++;
