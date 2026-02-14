@@ -14,6 +14,7 @@ import {
   Send, Search, Loader2, Users, Bot, Sparkles, CheckCheck,
   RefreshCw, User, XCircle, Square, Zap, MessageCircle,
   Filter, Clock, Shuffle, Heart, Star, ArrowUpDown, UserPlus,
+  Download, Key, Eye, EyeOff, AlertTriangle,
 } from "lucide-react";
 
 interface BulkMessageHubProps {
@@ -47,10 +48,17 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
   const [sendResults, setSendResults] = useState<any[] | null>(null);
   const [sortMode, setSortMode] = useState<SortMode>("name");
   const [filterSource, setFilterSource] = useState<string>("all");
-  const [activeTab, setActiveTab] = useState<"all" | "conversations" | "followers">("all");
+  const [activeTab, setActiveTab] = useState<"all" | "conversations" | "followers" | "scraped">("all");
   const [fetchingFollowers, setFetchingFollowers] = useState(false);
   const [delayBetweenMs, setDelayBetweenMs] = useState(1500);
   const [personalizeMode, setPersonalizeMode] = useState(false);
+  const [showScrapeSetup, setShowScrapeSetup] = useState(false);
+  const [scraping, setScraping] = useState(false);
+  const [scrapeProgress, setScrapeProgress] = useState("");
+  const [sessionId, setSessionId] = useState("");
+  const [dsUserId, setDsUserId] = useState("");
+  const [csrfToken, setCsrfToken] = useState("");
+  const [showSessionId, setShowSessionId] = useState(false);
   const cancelRef = useRef(false);
   const messageRef = useRef(message);
 
@@ -89,7 +97,6 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
       if (!data?.success) throw new Error(data?.error || "Failed to fetch followers");
 
       const newFollowers = data.data?.followers || [];
-      // Merge with existing, dedup by id
       setFollowers(prev => {
         const seen = new Set(prev.map(f => f.id));
         const merged = [...prev];
@@ -111,6 +118,58 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
     }
   };
 
+  const scrapeAllFollowers = async () => {
+    if (!sessionId.trim()) {
+      toast.error("Session ID cookie is required");
+      return;
+    }
+    setScraping(true);
+    setScrapeProgress("Starting follower scrape...");
+    try {
+      const { data, error } = await supabase.functions.invoke("instagram-api", {
+        body: {
+          action: "scrape_followers",
+          account_id: accountId,
+          params: {
+            session_id: sessionId.trim(),
+            ds_user_id: dsUserId.trim() || undefined,
+            csrf_token: csrfToken.trim() || undefined,
+            max_pages: 50,
+            batch_size: 200,
+          },
+        },
+      });
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || "Scrape failed");
+
+      const scraped = data.data?.followers || [];
+      setScrapeProgress(`Scraped ${scraped.length} followers in ${data.data?.pages_scraped} pages`);
+
+      // Merge with existing
+      setFollowers(prev => {
+        const seen = new Set(prev.map(f => f.id));
+        const merged = [...prev];
+        for (const f of scraped) {
+          if (!seen.has(f.id)) {
+            seen.add(f.id);
+            merged.push(f);
+          }
+        }
+        return merged;
+      });
+      setFollowersCount(data.data?.followers_count || 0);
+      setFollowsCount(data.data?.follows_count || 0);
+      toast.success(`🔥 Scraped ${scraped.length} real followers!`);
+      setShowScrapeSetup(false);
+      setActiveTab("scraped");
+    } catch (e: any) {
+      toast.error(e.message || "Scrape failed");
+      setScrapeProgress(`Error: ${e.message}`);
+    } finally {
+      setScraping(false);
+    }
+  };
+
   useEffect(() => {
     if (open && followers.length === 0) fetchFollowers();
   }, [open, fetchFollowers]);
@@ -128,7 +187,8 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
     const matchesFilter = filterSource === "all" || f.source === filterSource;
     const matchesTab = activeTab === "all" || 
       (activeTab === "conversations" && (f.source === "conversation" || f.source === "ig_api")) ||
-      (activeTab === "followers" && f.source === "follower");
+      (activeTab === "followers" && (f.source === "follower" || f.source === "engaged")) ||
+      (activeTab === "scraped" && f.source === "scraped");
     return matchesSearch && matchesFilter && matchesTab;
   });
 
@@ -417,16 +477,17 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
 
           {/* Source Tabs */}
           <div className="px-5 py-2 border-b border-white/10 flex-shrink-0">
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 flex-wrap">
               {([
-                { key: "all" as const, label: "All Contacts", icon: Users },
+                { key: "all" as const, label: "All", icon: Users },
                 { key: "conversations" as const, label: "Past Convos", icon: MessageCircle },
-                { key: "followers" as const, label: "Followers & Engaged", icon: UserPlus },
+                { key: "followers" as const, label: "Engaged", icon: Heart },
+                { key: "scraped" as const, label: "Scraped Followers", icon: Download },
               ]).map(tab => (
                 <button
                   key={tab.key}
                   onClick={() => setActiveTab(tab.key)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-medium transition-colors ${
+                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-medium transition-colors ${
                     activeTab === tab.key 
                       ? "bg-purple-500/20 text-purple-400" 
                       : "text-white/40 hover:text-white/60 hover:bg-white/5"
@@ -438,23 +499,94 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
                     ({followers.filter(f => 
                       tab.key === "all" ? true : 
                       tab.key === "conversations" ? (f.source === "conversation" || f.source === "ig_api") :
-                      f.source === "follower"
+                      tab.key === "followers" ? (f.source === "follower" || f.source === "engaged") :
+                      f.source === "scraped"
                     ).length})
                   </span>
                 </button>
               ))}
-              <Button 
-                size="sm" 
-                variant="outline" 
-                onClick={fetchRealFollowers} 
-                disabled={fetchingFollowers}
-                className="ml-auto h-6 text-[9px] gap-1 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 bg-transparent"
-              >
-                {fetchingFollowers ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <UserPlus className="h-2.5 w-2.5" />}
-                Discover Followers
-              </Button>
+              <div className="ml-auto flex items-center gap-1">
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  onClick={fetchRealFollowers} 
+                  disabled={fetchingFollowers}
+                  className="h-6 text-[9px] gap-1 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 bg-transparent"
+                >
+                  {fetchingFollowers ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <UserPlus className="h-2.5 w-2.5" />}
+                  Discover
+                </Button>
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  onClick={() => setShowScrapeSetup(!showScrapeSetup)} 
+                  disabled={scraping}
+                  className="h-6 text-[9px] gap-1 border-orange-500/30 text-orange-400 hover:bg-orange-500/10 bg-transparent"
+                >
+                  {scraping ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <Download className="h-2.5 w-2.5" />}
+                  Scrape All Followers
+                </Button>
+              </div>
             </div>
           </div>
+
+          {/* Scrape Setup Panel */}
+          {showScrapeSetup && (
+            <div className="px-5 py-3 border-b border-orange-500/20 bg-orange-500/[0.03] flex-shrink-0 space-y-2">
+              <div className="flex items-center gap-2 text-[10px] text-orange-400">
+                <AlertTriangle className="h-3 w-3" />
+                <span className="font-medium">Instagram Session Cookie Required</span>
+              </div>
+              <p className="text-[9px] text-white/40 leading-relaxed">
+                Open <span className="text-white/70">instagram.com</span> → Right-click → Inspect → Application tab → Cookies → instagram.com → Copy <span className="text-orange-400 font-mono">sessionid</span>, <span className="text-orange-400 font-mono">ds_user_id</span>, and <span className="text-orange-400 font-mono">csrftoken</span> values.
+              </p>
+              <div className="space-y-1.5">
+                <div className="relative">
+                  <Input
+                    type={showSessionId ? "text" : "password"}
+                    placeholder="sessionid (required)"
+                    value={sessionId}
+                    onChange={e => setSessionId(e.target.value)}
+                    className="h-7 text-xs bg-white/5 border-white/10 text-white placeholder:text-white/25 pr-8 font-mono"
+                  />
+                  <button onClick={() => setShowSessionId(!showSessionId)} className="absolute right-2 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60">
+                    {showSessionId ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                  </button>
+                </div>
+                <div className="flex gap-1.5">
+                  <Input
+                    placeholder="ds_user_id (optional)"
+                    value={dsUserId}
+                    onChange={e => setDsUserId(e.target.value)}
+                    className="h-7 text-xs bg-white/5 border-white/10 text-white placeholder:text-white/25 font-mono"
+                  />
+                  <Input
+                    placeholder="csrftoken (optional)"
+                    value={csrfToken}
+                    onChange={e => setCsrfToken(e.target.value)}
+                    className="h-7 text-xs bg-white/5 border-white/10 text-white placeholder:text-white/25 font-mono"
+                  />
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  onClick={scrapeAllFollowers}
+                  disabled={scraping || !sessionId.trim()}
+                  className="h-7 text-[10px] gap-1 bg-orange-600 hover:bg-orange-700 text-white"
+                >
+                  {scraping ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />}
+                  {scraping ? "Scraping..." : "Start Scraping"}
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setShowScrapeSetup(false)} className="h-7 text-[10px] text-white/40 hover:text-white/60">
+                  Cancel
+                </Button>
+                {scrapeProgress && (
+                  <span className="text-[9px] text-white/40">{scrapeProgress}</span>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Search + Filters */}
           <div className="px-5 py-2 border-b border-white/10 flex-shrink-0">
@@ -522,8 +654,8 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
                         <p className="text-sm font-medium text-white truncate">{f.name}</p>
                         <p className="text-[10px] text-white/35 truncate">@{f.username}</p>
                       </div>
-                      <Badge variant="outline" className={`text-[8px] px-1.5 ${f.source === "follower" ? "text-emerald-400 border-emerald-500/20" : "text-white/25 border-white/10"}`}>
-                        {f.source === "conversation" ? "DM" : f.source === "follower" ? "Follower" : "IG"}
+                      <Badge variant="outline" className={`text-[8px] px-1.5 ${f.source === "scraped" ? "text-orange-400 border-orange-500/20" : f.source === "follower" || f.source === "engaged" ? "text-emerald-400 border-emerald-500/20" : "text-white/25 border-white/10"}`}>
+                        {f.source === "conversation" ? "DM" : f.source === "scraped" ? "Scraped" : f.source === "engaged" ? "Engaged" : f.source === "follower" ? "Follower" : "IG"}
                       </Badge>
                       {sendResult && (
                         <Badge
