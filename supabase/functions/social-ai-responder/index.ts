@@ -2416,7 +2416,76 @@ Follow these persona settings strictly. They override any conflicting defaults a
               .order("created_at", { ascending: true })
               .limit(50);
 
-            // === FREE PIC PRE-CHECK (must run BEFORE post-redirect to override it) ===
+            // === FAN PROFILE SCAN — fetch their IG bio, posts, reels for context ===
+            let fanProfileCtx = "";
+            try {
+              // Check if we already have a recent scan (cache for 1 hour)
+              const { data: cachedProfile } = await supabase
+                .from("fan_emotional_profiles")
+                .select("last_behavior_analysis")
+                .eq("account_id", account_id)
+                .eq("fan_identifier", dbConvo.participant_id)
+                .single();
+              
+              const cachedScan = (cachedProfile?.last_behavior_analysis as any)?.ig_profile_scan;
+              const scanAge = cachedScan?.scanned_at ? (Date.now() - new Date(cachedScan.scanned_at).getTime()) / 1000 : 99999;
+              
+              if (cachedScan && scanAge < 3600) {
+                // Use cached scan
+                fanProfileCtx = cachedScan.context || "";
+                console.log(`[FAN SCAN] @${dbConvo.participant_username}: using cached profile scan (${Math.round(scanAge)}s old)`);
+              } else if (dbConvo.participant_username) {
+                // Fetch fresh profile via business_discovery
+                const scanResult = await callIG2("discover_user", { username: dbConvo.participant_username, media_limit: 6 });
+                const bd = scanResult?.business_discovery || scanResult;
+                if (bd && (bd.biography || bd.media)) {
+                  const parts: string[] = [];
+                  if (bd.biography) parts.push(`Bio: "${bd.biography}"`);
+                  if (bd.followers_count) parts.push(`Followers: ${bd.followers_count}`);
+                  if (bd.follows_count) parts.push(`Following: ${bd.follows_count}`);
+                  
+                  // Extract recent post captions for topic context
+                  const mediaItems = bd.media?.data || [];
+                  const recentCaptions: string[] = [];
+                  for (const item of mediaItems.slice(0, 6)) {
+                    if (item.caption) {
+                      const shortCaption = item.caption.substring(0, 120).replace(/\n/g, " ");
+                      recentCaptions.push(`[${item.media_type || "post"}] ${shortCaption}`);
+                    }
+                  }
+                  if (recentCaptions.length > 0) parts.push(`Recent posts:\n${recentCaptions.join("\n")}`);
+                  
+                  fanProfileCtx = `\n\n=== FAN PROFILE INTEL (@${dbConvo.participant_username}) ===\n${parts.join("\n")}\nUse this to personalize your replies — reference their interests, comment on things they post about, find common ground. But NEVER say "i saw your profile" or "i checked your posts" — just naturally weave in shared interests.`;
+                  
+                  // Cache the scan result (non-blocking)
+                  try {
+                    const existingAnalysis = (cachedProfile?.last_behavior_analysis as any) || {};
+                    await supabase.from("fan_emotional_profiles").upsert({
+                      account_id,
+                      fan_identifier: dbConvo.participant_id,
+                      fan_name: dbConvo.participant_username,
+                      last_behavior_analysis: {
+                        ...existingAnalysis,
+                        ig_profile_scan: {
+                          context: fanProfileCtx,
+                          bio: bd.biography || null,
+                          followers: bd.followers_count || 0,
+                          following: bd.follows_count || 0,
+                          media_count: bd.media_count || 0,
+                          recent_topics: recentCaptions,
+                          scanned_at: new Date().toISOString(),
+                        },
+                      },
+                    }, { onConflict: "account_id,fan_identifier" });
+                  } catch {}
+                  console.log(`[FAN SCAN] @${dbConvo.participant_username}: scanned profile — bio: ${bd.biography?.substring(0, 50) || "none"}, ${recentCaptions.length} posts`);
+                }
+              }
+            } catch (scanErr) {
+              console.log(`[FAN SCAN] @${dbConvo.participant_username}: scan failed (non-blocking):`, scanErr);
+              // Non-blocking — continue without profile context
+            }
+
             const { data: fanProfileForPicPreCheck } = await supabase
               .from("fan_emotional_profiles")
               .select("tags")
@@ -2806,7 +2875,7 @@ Follow these persona settings strictly. They override any conflicting defaults a
               : "";
 
             // Generate AI reply
-            const systemPrompt = `${personaInfo2}${emojiDir}${fanMemoryBlock}${behaviorCtxLive}${tensionCtxLive}${learnedStrategiesCtx}${crossEngineBridge}${mediaPatterns}${freePicCtx}
+            const systemPrompt = `${personaInfo2}${emojiDir}${fanMemoryBlock}${fanProfileCtx}${behaviorCtxLive}${tensionCtxLive}${learnedStrategiesCtx}${crossEngineBridge}${mediaPatterns}${freePicCtx}
 ${autoConfig.redirect_url ? `\nIMPORTANT: when it makes sense, naturally guide toward this link: ${autoConfig.redirect_url}. But NEVER redirect during genuine bonding moments — wait for a natural transition. NEVER redirect when the vibe is tense or dry — fix the vibe first` : ""}
 ${autoConfig.trigger_keywords ? `if they mention any of these: ${autoConfig.trigger_keywords}, redirect them to the link` : ""}
 
