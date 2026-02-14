@@ -239,42 +239,146 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Gender classification doesn't need Instagram connection
+    // Gender classification — hybrid: dictionary first, then AI for unknowns
     if (action === "classify_gender") {
       const accountId = account_id;
-      // Fetch all followers without gender assigned
-      const { data: unclassified } = await supabase
+      const batchSize = params?.batch_size || 10000;
+      
+      // Fetch ALL followers (both null gender AND "unknown" for reclassification)
+      const { data: allFollowers } = await supabase
         .from("fetched_followers")
         .select("id, full_name, username, gender")
         .eq("account_id", accountId)
-        .is("gender", null)
-        .limit(params?.batch_size || 5000);
+        .or("gender.is.null,gender.eq.unknown")
+        .limit(batchSize);
 
-      const updates: { id: string; gender: string }[] = [];
-      for (const f of (unclassified || [])) {
-        const gender = classifyGender(f.full_name || f.username || "");
-        updates.push({ id: f.id, gender });
+      if (!allFollowers || allFollowers.length === 0) {
+        // Nothing to classify — just return counts
+        const { count: femaleCount } = await supabase.from("fetched_followers").select("id", { count: "exact", head: true }).eq("account_id", accountId).eq("gender", "female");
+        const { count: maleCount } = await supabase.from("fetched_followers").select("id", { count: "exact", head: true }).eq("account_id", accountId).eq("gender", "male");
+        const { count: unknownCount } = await supabase.from("fetched_followers").select("id", { count: "exact", head: true }).eq("account_id", accountId).or("gender.is.null,gender.eq.unknown");
+        return new Response(JSON.stringify({
+          success: true,
+          data: { classified: 0, female: femaleCount || 0, male: maleCount || 0, unknown: unknownCount || 0 }
+        }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
 
-      // Batch update
+      // PASS 1: Dictionary-based classification
+      const dictionaryResults: { id: string; gender: string }[] = [];
+      const needsAI: { id: string; name: string }[] = [];
+      
+      for (const f of allFollowers) {
+        const name = f.full_name || f.username || "";
+        const dictResult = classifyGender(name);
+        if (dictResult !== "unknown") {
+          dictionaryResults.push({ id: f.id, gender: dictResult });
+        } else {
+          needsAI.push({ id: f.id, name });
+        }
+      }
+
+      // Apply dictionary results immediately
       let updated = 0;
-      for (let i = 0; i < updates.length; i += 500) {
-        const batch = updates.slice(i, i + 500);
+      for (let i = 0; i < dictionaryResults.length; i += 500) {
+        const batch = dictionaryResults.slice(i, i + 500);
         for (const u of batch) {
           await supabase.from("fetched_followers").update({ gender: u.gender }).eq("id", u.id);
         }
         updated += batch.length;
       }
 
-      // Get counts
+      // PASS 2: AI classification for unknowns using Gemini
+      const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+      if (LOVABLE_API_KEY && needsAI.length > 0) {
+        const AI_BATCH_SIZE = 200;
+        for (let i = 0; i < needsAI.length; i += AI_BATCH_SIZE) {
+          const aiBatch = needsAI.slice(i, i + AI_BATCH_SIZE);
+          const nameList = aiBatch.map((f, idx) => `${idx}:${f.name}`).join("\n");
+          
+          try {
+            const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${LOVABLE_API_KEY}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                model: "google/gemini-2.5-flash-lite",
+                messages: [
+                  {
+                    role: "system",
+                    content: `You are a gender classification engine. Given a list of Instagram profile names/usernames, classify each as "F" (female), "M" (male), or "U" (truly unknown/brand/unisex).
+
+RULES:
+- Analyze the full name, username patterns, nicknames, diminutives, cultural variants
+- Names like "babe", "queen", "princess", "goddess", "bunny", "kitten", "doll", "sexy", "hot" → F
+- Names like "king", "boss", "daddy", "chief", "bro", "dude" → M  
+- Emoji-heavy feminine-coded names (💕🌸👸💋🦋✨🌺🎀💅🌙) → F
+- Emoji-heavy masculine-coded names (💪🔥👑🏋️⚡🦁🐺) → M
+- Consider cultural origins: Arabic, Indian, Russian, Japanese, Spanish, Portuguese, African names
+- Brands, businesses, meme accounts → U
+- When in doubt between M/F, make your best guess based on all signals. Only use U if truly impossible.
+
+OUTPUT FORMAT: One line per entry, just the index and letter separated by colon.
+Example:
+0:F
+1:M
+2:F
+3:U`
+                  },
+                  {
+                    role: "user",
+                    content: `Classify these ${aiBatch.length} profiles:\n${nameList}`
+                  }
+                ],
+                temperature: 0.1,
+                max_tokens: aiBatch.length * 5 + 100,
+              }),
+            });
+
+            if (aiResp.ok) {
+              const aiData = await aiResp.json();
+              const content = aiData.choices?.[0]?.message?.content || "";
+              const lines = content.split("\n").filter((l: string) => l.trim());
+              
+              const aiUpdates: { id: string; gender: string }[] = [];
+              for (const line of lines) {
+                const match = line.match(/^(\d+)\s*:\s*([FMU])/i);
+                if (match) {
+                  const idx = parseInt(match[1]);
+                  const code = match[2].toUpperCase();
+                  if (idx >= 0 && idx < aiBatch.length) {
+                    const gender = code === "F" ? "female" : code === "M" ? "male" : "unknown";
+                    aiUpdates.push({ id: aiBatch[idx].id, gender });
+                  }
+                }
+              }
+
+              // Apply AI results
+              for (const u of aiUpdates) {
+                await supabase.from("fetched_followers").update({ gender: u.gender }).eq("id", u.id);
+              }
+              updated += aiUpdates.length;
+              console.log(`[GENDER AI] Batch ${Math.floor(i / AI_BATCH_SIZE) + 1}: classified ${aiUpdates.length}/${aiBatch.length} profiles`);
+            } else {
+              console.error(`[GENDER AI] API error: ${aiResp.status}`);
+            }
+          } catch (aiErr) {
+            console.error("[GENDER AI] Error:", aiErr);
+          }
+        }
+      }
+
+      // Get final counts
       const { count: femaleCount } = await supabase.from("fetched_followers").select("id", { count: "exact", head: true }).eq("account_id", accountId).eq("gender", "female");
       const { count: maleCount } = await supabase.from("fetched_followers").select("id", { count: "exact", head: true }).eq("account_id", accountId).eq("gender", "male");
-      const { count: unknownCount } = await supabase.from("fetched_followers").select("id", { count: "exact", head: true }).eq("account_id", accountId).eq("gender", "unknown");
+      const { count: unknownCount } = await supabase.from("fetched_followers").select("id", { count: "exact", head: true }).eq("account_id", accountId).or("gender.is.null,gender.eq.unknown");
 
       return new Response(JSON.stringify({
         success: true,
         data: {
           classified: updated,
+          ai_classified: needsAI.length,
           female: femaleCount || 0,
           male: maleCount || 0,
           unknown: unknownCount || 0,
