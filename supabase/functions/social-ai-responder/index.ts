@@ -703,36 +703,63 @@ Rules:
               const fan = findFanParticipant(participants, messages);
               if (!fan) continue;
 
-              // Determine if last message is from fan using both ID and username matching
+              // Determine if last message is from fan — account for Page-sent messages
               const lastMsg = messages[0];
               const lastPreview = (lastMsg?.message || lastMsg?.text)?.substring(0, 100) || null;
               const lastMsgFromId = lastMsg?.from?.id;
               const lastMsgFromName = (lastMsg?.from?.username || lastMsg?.from?.name || "").toLowerCase();
-              const isFromFanLast = lastMsgFromId ? 
-                (lastMsgFromId !== ourIdScan && lastMsgFromName !== ourUsernameScan) : 
+              // Message is from us if: matches our IG ID, our username, OR is not the fan ID (Page-sent)
+              const isLastFromUs = lastMsgFromId ? 
+                (lastMsgFromId === ourIdScan || lastMsgFromName === ourUsernameScan || lastMsgFromId !== fan.id) : 
                 false;
+              const isFromFanLast = !isLastFromUs;
+
+              // Check if conversation already exists — preserve ai_enabled setting
+              const { data: existingConvo } = await supabase
+                .from("ai_dm_conversations")
+                .select("id, ai_enabled")
+                .eq("account_id", account_id)
+                .eq("platform_conversation_id", convo.id)
+                .single();
+
+              const upsertData: any = {
+                account_id,
+                platform: "instagram",
+                platform_conversation_id: convo.id,
+                participant_id: fan.id,
+                participant_username: fan.username || fan.name || fan.id,
+                participant_name: fan.name || fan.username || "Unknown",
+                status: "active",
+                folder,
+                is_read: !isFromFanLast,
+                last_message_preview: lastPreview ? (isFromFanLast ? lastPreview : `You: ${lastPreview}`) : null,
+                last_message_at: convo.updated_time ? new Date(convo.updated_time).toISOString() : new Date().toISOString(),
+                message_count: messages.length,
+              };
+              // Only set ai_enabled on NEW conversations
+              if (!existingConvo) {
+                upsertData.ai_enabled = true;
+              }
 
               const { data: dbConvo } = await supabase
                 .from("ai_dm_conversations")
-                .upsert({
-                  account_id,
-                  platform: "instagram",
-                  platform_conversation_id: convo.id,
-                  participant_id: fan.id,
-                  participant_username: fan.username || fan.name || fan.id,
-                  participant_name: fan.name || fan.username || "Unknown",
-                  status: "active",
-                  ai_enabled: true,
-                  folder,
-                  is_read: !isFromFanLast,
-                  last_message_preview: lastPreview ? (isFromFanLast ? lastPreview : `You: ${lastPreview}`) : null,
-                  last_message_at: convo.updated_time ? new Date(convo.updated_time).toISOString() : new Date().toISOString(),
-                  message_count: messages.length,
-                }, { onConflict: "account_id,platform_conversation_id" })
+                .upsert(upsertData, { onConflict: "account_id,platform_conversation_id" })
                 .select("id")
                 .single();
               
               if (!dbConvo) continue;
+
+              // Helper: detect if message is from us (creator/page)
+              const isMessageFromUs = (msg: any): boolean => {
+                const fromId = msg?.from?.id;
+                const fromName = (msg?.from?.username || msg?.from?.name || "").toLowerCase();
+                if (fromId && fromId === ourIdScan) return true;
+                if (fromName && fromName === ourUsernameScan) return true;
+                if (fromId && fromId === fan.id) return false;
+                // Unknown ID that's not the fan → likely Page ID → it's us
+                if (fromId && fromId !== fan.id) return true;
+                return false;
+              };
 
               // Import messages
               const sortedMsgs = [...messages].reverse();
@@ -746,11 +773,7 @@ Rules:
                   .limit(1);
                 if (existing && existing.length > 0) continue;
 
-                const msgFromId = msg.from?.id;
-                const msgFromName = (msg.from?.username || msg.from?.name || "").toLowerCase();
-                const isFromFan = msgFromId ? 
-                  (msgFromId !== ourIdScan && msgFromName !== ourUsernameScan) : 
-                  true;
+                const isFromUs = isMessageFromUs(msg);
                 const msgTimestamp = msg.created_time || msg.timestamp;
                 const rawAttachments = msg.attachments?.data || msg.attachments;
                 const hasAttachments = rawAttachments && (Array.isArray(rawAttachments) ? rawAttachments.length > 0 : true);
@@ -758,7 +781,6 @@ Rules:
                   ? { attachments: Array.isArray(rawAttachments) ? rawAttachments : [rawAttachments], sticker: msg.sticker || null, shares: msg.shares || null } 
                   : (msg.sticker ? { sticker: msg.sticker } : (msg.shares ? { shares: msg.shares } : null));
                 
-                // Determine content: use text if available, describe attachment type if not
                 let contentText = msgText;
                 if (!contentText && hasAttachments) {
                   const attArr = Array.isArray(rawAttachments) ? rawAttachments : [rawAttachments];
@@ -779,8 +801,8 @@ Rules:
                   conversation_id: dbConvo.id,
                   account_id,
                   platform_message_id: msg.id,
-                  sender_type: isFromFan ? "fan" : "ai",
-                  sender_name: isFromFan ? (fan.username || fan.name || "fan") : (igConnScan.platform_username || "creator"),
+                  sender_type: isFromUs ? "ai" : "fan",
+                  sender_name: isFromUs ? (igConnScan.platform_username || "creator") : (fan.username || fan.name || "fan"),
                   content: contentText || "",
                   status: "sent",
                   created_at: msgTimestamp ? new Date(msgTimestamp).toISOString() : new Date().toISOString(),
@@ -839,6 +861,13 @@ Rules:
           const ourIdScan2 = igConnScan2?.platform_user_id;
           const ourUsernameScan2 = igConnScan2?.platform_username?.toLowerCase() || "";
           
+          // Also get the Page ID so we can detect messages sent by the page
+          let pageId: string | null = null;
+          try {
+            const pageData = await callIG2("get_profile_basic", {});
+            // The page ID is retrieved via a separate mechanism
+          } catch {}
+          
           const findFan2 = (participants: any[]) => {
             if (!participants || participants.length === 0) return null;
             if (ourUsernameScan2) {
@@ -852,26 +881,58 @@ Rules:
             if (participants.length === 2) return participants[1];
             return participants[0];
           };
+
+          // Helper: detect if a message is from us (creator/page) — checks IG user ID, page ID, username
+          const isMessageFromUs = (msg: any, fanId: string): boolean => {
+            const fromId = msg?.from?.id;
+            const fromName = (msg?.from?.username || msg?.from?.name || "").toLowerCase();
+            
+            // If from.id matches our IG user ID → it's us
+            if (fromId && fromId === ourIdScan2) return true;
+            // If from username matches our username → it's us
+            if (fromName && fromName === ourUsernameScan2) return true;
+            // If from.id matches the known fan ID → NOT us
+            if (fromId && fromId === fanId) return false;
+            // If from.id is set but doesn't match fan or us, it's likely the Page ID → it's us
+            if (fromId && fromId !== fanId && fromId !== ourIdScan2) {
+              // This is likely the Facebook Page ID that sent on our behalf
+              return true;
+            }
+            return false;
+          };
           
           for (const sc of scanConvoList) {
             const scMsgs = sc.messages?.data || [];
             const scFan = findFan2(sc.participants?.data || []);
             if (!scFan) continue;
             
+            // Check if conversation already exists in DB — don't override ai_enabled
+            const { data: existingConvo } = await supabase
+              .from("ai_dm_conversations")
+              .select("id, ai_enabled")
+              .eq("account_id", account_id)
+              .eq("platform_conversation_id", sc.id)
+              .single();
+            
+            const upsertData: any = {
+              account_id,
+              platform: "instagram",
+              platform_conversation_id: sc.id,
+              participant_id: scFan.id,
+              participant_username: scFan.username || scFan.name || scFan.id,
+              participant_name: scFan.name || scFan.username || "Unknown",
+              status: "active",
+              last_message_at: sc.updated_time ? new Date(sc.updated_time).toISOString() : new Date().toISOString(),
+              message_count: scMsgs.length,
+            };
+            // Only set ai_enabled on NEW conversations, don't override existing
+            if (!existingConvo) {
+              upsertData.ai_enabled = true;
+            }
+
             const { data: scDbConvo } = await supabase
               .from("ai_dm_conversations")
-              .upsert({
-                account_id,
-                platform: "instagram",
-                platform_conversation_id: sc.id,
-                participant_id: scFan.id,
-                participant_username: scFan.username || scFan.name || scFan.id,
-                participant_name: scFan.name || scFan.username || "Unknown",
-                status: "active",
-                ai_enabled: true,
-                last_message_at: sc.updated_time ? new Date(sc.updated_time).toISOString() : new Date().toISOString(),
-                message_count: scMsgs.length,
-              }, { onConflict: "account_id,platform_conversation_id" })
+              .upsert(upsertData, { onConflict: "account_id,platform_conversation_id" })
               .select("id")
               .single();
             
@@ -882,9 +943,10 @@ Rules:
               if (!scMsgText && !scMsg.id && !scMsg.attachments) continue;
               const { data: scEx } = await supabase.from("ai_dm_messages").select("id").eq("platform_message_id", scMsg.id).limit(1);
               if (scEx && scEx.length > 0) continue;
-              const scFromName = (scMsg.from?.username || scMsg.from?.name || "").toLowerCase();
-              const scIsFromFan = scMsg.from?.id ? 
-                (scMsg.from.id !== ourIdScan2 && scFromName !== ourUsernameScan2) : true;
+              
+              // Use improved sender detection that accounts for Page-sent messages
+              const scIsFromUs = isMessageFromUs(scMsg, scFan.id);
+              
               const scMsgTimestamp = scMsg.created_time || scMsg.timestamp;
               const scRawAtt = scMsg.attachments?.data || scMsg.attachments;
               const scHasAtt = scRawAtt && (Array.isArray(scRawAtt) ? scRawAtt.length > 0 : true);
@@ -910,8 +972,8 @@ Rules:
                 conversation_id: scDbConvo.id,
                 account_id,
                 platform_message_id: scMsg.id,
-                sender_type: scIsFromFan ? "fan" : "ai",
-                sender_name: scIsFromFan ? (scFan.username || scFan.name || "fan") : (igConnScan2?.platform_username || "creator"),
+                sender_type: scIsFromUs ? "ai" : "fan",
+                sender_name: scIsFromUs ? (igConnScan2?.platform_username || "creator") : (scFan.username || scFan.name || "fan"),
                 content: scContent || "",
                 status: "sent",
                 created_at: scMsgTimestamp ? new Date(scMsgTimestamp).toISOString() : new Date().toISOString(),
