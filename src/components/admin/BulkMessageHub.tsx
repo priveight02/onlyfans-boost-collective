@@ -128,6 +128,7 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
   const [manuallyAddedIds, setManuallyAddedIds] = useState<Set<string>>(new Set());
   const [addAllBatchIds, setAddAllBatchIds] = useState<Set<string>>(new Set());
   const [expandedSearch, setExpandedSearch] = useState(false);
+  const [expanderTarget, setExpanderTarget] = useState(500);
   const discoverTimeout = useRef<any>(null);
 
   useEffect(() => { messageRef.current = message; }, [message]);
@@ -416,7 +417,7 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
         body: {
           action: "search_users",
           account_id: accountId,
-          params: { query, session_id: savedSession, max_results: expandedSearch ? 500 : 200, expanded: expandedSearch },
+          params: { query, session_id: savedSession, max_results: expandedSearch ? expanderTarget : 200, expanded: expandedSearch },
         },
       });
       if (error) throw error;
@@ -427,7 +428,7 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
     } finally {
       setDiscoverLoading(false);
     }
-  }, [accountId, sessionId, expandedSearch]);
+  }, [accountId, sessionId, expandedSearch, expanderTarget]);
 
   const onDiscoverQueryChange = (val: string) => {
     setDiscoverQuery(val);
@@ -1003,8 +1004,32 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
                             <span className="text-[10px] text-white/50">List Expander</span>
                             {expandedSearch && <Zap className="h-3 w-3 text-purple-400" />}
                           </div>
-                          <span className="text-[10px] text-white/30">{expandedSearch ? "Deep scan (500+)" : "Standard (200)"}</span>
+                          <span className="text-[10px] text-white/30">{expandedSearch ? `Target: ${expanderTarget.toLocaleString()}` : "Standard (200)"}</span>
                         </div>
+                        {expandedSearch && (
+                          <div className="mt-1.5 flex items-center gap-2">
+                            <input
+                              type="range"
+                              min={1}
+                              max={100000}
+                              step={100}
+                              value={expanderTarget}
+                              onChange={e => setExpanderTarget(Number(e.target.value))}
+                              className="flex-1 h-1.5 accent-purple-500 cursor-pointer"
+                            />
+                            <Input
+                              type="number"
+                              min={1}
+                              max={100000}
+                              value={expanderTarget}
+                              onChange={e => {
+                                const v = Math.max(1, Math.min(100000, Number(e.target.value) || 1));
+                                setExpanderTarget(v);
+                              }}
+                              className="w-20 h-6 text-[10px] text-center bg-white/5 border-white/10 text-white"
+                            />
+                          </div>
+                        )}
                         {/* Action buttons row */}
                         <div className="mt-2 flex items-center gap-1.5 flex-wrap">
                           {discoverResults.length > 0 && (
