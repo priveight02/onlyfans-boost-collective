@@ -89,6 +89,9 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
   const [fetchProgress, setFetchProgress] = useState("");
   const [fetchedCount, setFetchedCount] = useState(0);
   const [fetchGoal, setFetchGoal] = useState(0);
+  const [fetchStartTime, setFetchStartTime] = useState(0);
+  const [fetchChunkCount, setFetchChunkCount] = useState(0);
+  const [fetchPhase, setFetchPhase] = useState<"idle" | "connecting" | "fetching" | "saving" | "paused" | "done">("idle");
   const [sessionId, setSessionId] = useState("");
   const [dsUserId, setDsUserId] = useState("");
   const [csrfToken, setCsrfToken] = useState("");
@@ -228,7 +231,10 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
     const goal = maxCount > 0 ? maxCount : (followersCount || 29000);
     setFetchGoal(goal);
     setFetchedCount(0);
-    setFetchProgress("Starting chunked fetch...");
+    setFetchChunkCount(0);
+    setFetchStartTime(Date.now());
+    setFetchPhase("connecting");
+    setFetchProgress("Connecting to Instagram...");
 
     let cursor: string | null = null;
     let totalFetched = 0;
@@ -237,7 +243,9 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
     try {
       while (!cancelRef.current) {
         chunkNum++;
-        setFetchProgress(`Chunk ${chunkNum}: fetching...`);
+        setFetchChunkCount(chunkNum);
+        setFetchPhase("fetching");
+        setFetchProgress(`Chunk ${chunkNum}: requesting followers...`);
 
         const { data, error } = await supabase.functions.invoke("instagram-api", {
           body: {
@@ -260,8 +268,12 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
         const chunk = data.data?.followers || [];
         const persisted = data.data?.total_persisted || 0;
         totalFetched += chunk.length;
-        setFetchedCount(persisted);
-        setFetchProgress(`Chunk ${chunkNum}: +${chunk.length} (${persisted} total saved)`);
+        
+        // Use whichever is higher - persisted from DB or our running count
+        const displayCount = Math.max(persisted, totalFetched);
+        setFetchedCount(displayCount);
+        setFetchPhase("saving");
+        setFetchProgress(`Chunk ${chunkNum}: +${chunk.length} (${displayCount.toLocaleString()} total)`);
 
         // Merge chunk into UI list
         if (chunk.length > 0) {
@@ -277,24 +289,26 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
 
         // Check if done
         if (data.data?.fetch_complete || !data.data?.next_cursor) {
-          setFetchProgress(`✅ Complete! ${persisted} followers saved`);
-          toast.success(`🔥 Fetched all followers! ${persisted} total saved.`);
+          setFetchPhase("done");
+          setFetchProgress(`✅ Complete! ${displayCount.toLocaleString()} followers saved`);
+          toast.success(`🔥 Fetched all followers! ${displayCount.toLocaleString()} total saved.`);
           break;
         }
 
         // Check max
         if (maxCount > 0 && totalFetched >= maxCount) {
-          setFetchProgress(`✅ Reached limit: ${persisted} saved`);
+          setFetchPhase("done");
+          setFetchProgress(`✅ Reached limit: ${displayCount.toLocaleString()} saved`);
           toast.success(`Fetched ${totalFetched} followers (limit: ${maxCount})`);
           break;
         }
 
         // Rate limit pause
         if (data.data?.rate_limited) {
-          setFetchProgress(`⏳ Rate limited — waiting 30s before next chunk...`);
+          setFetchPhase("paused");
+          setFetchProgress(`⏳ Rate limited — cooling down 30s...`);
           await new Promise(r => setTimeout(r, 30000));
         } else {
-          // Small pause between chunks
           await new Promise(r => setTimeout(r, 2000));
         }
 
@@ -302,6 +316,7 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
       }
 
       if (cancelRef.current) {
+        setFetchPhase("done");
         setFetchProgress(`Cancelled after ${totalFetched} followers`);
         toast.info(`Cancelled. ${totalFetched} followers saved so far.`);
       }
@@ -312,6 +327,7 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
       setActiveTab("fetched");
     } catch (e: any) {
       toast.error(e.message || "Fetch failed");
+      setFetchPhase("idle");
       setFetchProgress(`Error: ${e.message}`);
     } finally {
       setFetching(false);
@@ -945,33 +961,104 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
                     Cancel
                   </Button>
 
-                  {/* Progress Ring */}
-                  {fetching && fetchGoal > 0 && (
-                    <div className="flex items-center gap-2">
-                      <div className="relative w-11 h-11">
-                        <svg className="w-11 h-11 -rotate-90" viewBox="0 0 36 36">
-                          <circle cx="18" cy="18" r="15" fill="none" stroke="hsl(var(--muted))" strokeWidth="3" />
+                  {/* Live Progress Dashboard */}
+                  {(fetching || fetchPhase === "done") && fetchGoal > 0 && (
+                    <div className="flex items-center gap-4 flex-1">
+                      {/* Animated Progress Ring */}
+                      <div className="relative w-16 h-16 flex-shrink-0">
+                        <svg className="w-16 h-16 -rotate-90" viewBox="0 0 36 36">
+                          <circle cx="18" cy="18" r="15" fill="none" stroke="hsl(var(--muted))" strokeWidth="2.5" opacity="0.3" />
                           <circle
                             cx="18" cy="18" r="15" fill="none"
-                            stroke="hsl(30, 90%, 55%)"
-                            strokeWidth="3"
+                            stroke={fetchPhase === "done" ? "hsl(142, 76%, 50%)" : fetchPhase === "paused" ? "hsl(45, 93%, 55%)" : "hsl(30, 90%, 55%)"}
+                            strokeWidth="2.5"
                             strokeLinecap="round"
                             strokeDasharray={`${Math.min((fetchedCount / fetchGoal) * 94.25, 94.25)} 94.25`}
-                            className="transition-all duration-500"
+                            className="transition-all duration-700 ease-out"
                           />
                         </svg>
-                        <span className="absolute inset-0 flex items-center justify-center text-[9px] font-bold text-orange-400">
-                          {fetchGoal > 0 ? Math.min(Math.round((fetchedCount / fetchGoal) * 100), 100) : 0}%
-                        </span>
+                        <div className="absolute inset-0 flex flex-col items-center justify-center">
+                          <span className={`text-sm font-bold ${fetchPhase === "done" ? "text-green-400" : fetchPhase === "paused" ? "text-yellow-400" : "text-orange-400"}`}>
+                            {fetchGoal > 0 ? Math.min(Math.round((fetchedCount / fetchGoal) * 100), 100) : 0}%
+                          </span>
+                        </div>
+                        {/* Pulsing glow when actively fetching */}
+                        {fetching && fetchPhase !== "paused" && fetchPhase !== "done" && (
+                          <div className="absolute inset-0 rounded-full border-2 border-orange-400/30 animate-ping" style={{ animationDuration: "2s" }} />
+                        )}
                       </div>
-                      <div className="text-[10px] text-white/50 leading-tight">
-                        <div className="text-orange-400 font-medium">{fetchedCount.toLocaleString()} / {fetchGoal.toLocaleString()}</div>
-                        <div>followers fetched</div>
+
+                      {/* Stats Column */}
+                      <div className="flex-1 min-w-0 space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className={`text-sm font-semibold ${fetchPhase === "done" ? "text-green-400" : fetchPhase === "paused" ? "text-yellow-400" : "text-orange-400"}`}>
+                            {fetchedCount.toLocaleString()}
+                          </span>
+                          <span className="text-[11px] text-white/30">/ {fetchGoal.toLocaleString()}</span>
+                          {fetching && fetchPhase !== "done" && (
+                            <Loader2 className="h-3 w-3 animate-spin text-orange-400/60" />
+                          )}
+                        </div>
+                        <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all duration-700 ease-out ${
+                              fetchPhase === "done" ? "bg-green-500" : fetchPhase === "paused" ? "bg-yellow-500" : "bg-gradient-to-r from-orange-500 to-pink-500"
+                            }`}
+                            style={{ width: `${Math.min((fetchedCount / fetchGoal) * 100, 100)}%` }}
+                          />
+                        </div>
+                        <div className="flex items-center gap-3 text-[10px] text-white/35">
+                          <span>Chunk #{fetchChunkCount}</span>
+                          {fetchStartTime > 0 && (
+                            <span>
+                              {(() => {
+                                const elapsed = Math.round((Date.now() - fetchStartTime) / 1000);
+                                const mins = Math.floor(elapsed / 60);
+                                const secs = elapsed % 60;
+                                return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+                              })()}
+                            </span>
+                          )}
+                          {fetchedCount > 0 && fetching && fetchStartTime > 0 && (
+                            <span className="text-orange-400/60">
+                              ETA: {(() => {
+                                const elapsed = (Date.now() - fetchStartTime) / 1000;
+                                const rate = fetchedCount / elapsed;
+                                const remaining = Math.max(0, fetchGoal - fetchedCount);
+                                const etaSecs = rate > 0 ? Math.round(remaining / rate) : 0;
+                                const etaMins = Math.floor(etaSecs / 60);
+                                return etaMins > 0 ? `~${etaMins}m` : `~${etaSecs}s`;
+                              })()}
+                            </span>
+                          )}
+                          <Badge variant="outline" className={`text-[8px] px-1 py-0 h-4 ${
+                            fetchPhase === "connecting" ? "text-blue-400 border-blue-500/20" :
+                            fetchPhase === "fetching" ? "text-orange-400 border-orange-500/20" :
+                            fetchPhase === "saving" ? "text-purple-400 border-purple-500/20" :
+                            fetchPhase === "paused" ? "text-yellow-400 border-yellow-500/20" :
+                            fetchPhase === "done" ? "text-green-400 border-green-500/20" :
+                            "text-white/20 border-white/10"
+                          }`}>
+                            {fetchPhase === "connecting" ? "Connecting" : fetchPhase === "fetching" ? "Fetching" : fetchPhase === "saving" ? "Saving" : fetchPhase === "paused" ? "Rate Limited" : fetchPhase === "done" ? "Complete" : "Idle"}
+                          </Badge>
+                        </div>
                       </div>
+
+                      {/* Cancel Button */}
+                      {fetching && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => { cancelRef.current = true; }}
+                          className="h-8 text-[10px] text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                        >
+                          <Square className="h-3 w-3 mr-1" /> Stop
+                        </Button>
+                      )}
                     </div>
                   )}
 
-                  {!fetching && fetchProgress && (
+                  {!fetching && fetchPhase !== "done" && fetchProgress && (
                     <span className="text-[10px] text-white/40">{fetchProgress}</span>
                   )}
                 </div>
