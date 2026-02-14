@@ -73,7 +73,6 @@ interface AiLogEntry {
 }
 
 const AI_PHASES = [
-  { id: "scan", icon: Download, label: "Scanning inbox" },
   { id: "detect", icon: Eye, label: "Detecting new messages" },
   { id: "analyze", icon: Brain, label: "Analyzing conversation" },
   { id: "generate", icon: Zap, label: "Generating reply" },
@@ -161,6 +160,30 @@ const ConvoPauseCountdown = ({ pausedUntil }: { pausedUntil: string }) => {
   );
 };
 
+// Pipeline Delay Countdown — shows remaining delay time in pipeline
+const PipelineDelayCountdown = ({ delay_ms, started_at }: { delay_ms: number; started_at: string }) => {
+  const [remaining, setRemaining] = useState<number>(() => {
+    const elapsed = Date.now() - new Date(started_at).getTime();
+    return Math.max(0, delay_ms - elapsed);
+  });
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const elapsed = Date.now() - new Date(started_at).getTime();
+      const rem = Math.max(0, delay_ms - elapsed);
+      setRemaining(rem);
+      if (rem <= 0) clearInterval(interval);
+    }, 50);
+    return () => clearInterval(interval);
+  }, [delay_ms, started_at]);
+
+  return (
+    <span className="text-[9px] text-blue-400/70 font-mono ml-1">
+      {(remaining / 1000).toFixed(1)}s
+    </span>
+  );
+};
+
 const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond }: LiveDMConversationsProps) => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -197,6 +220,8 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
   const [mlDebugMode, setMlDebugMode] = useState(false);
   const [mlDebugLogs, setMlDebugLogs] = useState<Array<{ msgId: string; annotations: Array<{ engine: string; label: string; detail: string; type: "learn" | "apply" | "cross" | "detect" }> }>>([]);
   const [replyToMsg, setReplyToMsg] = useState<Message | null>(null);
+  const [pipelineTypingDelay, setPipelineTypingDelay] = useState<{ delay_ms: number; started_at: string; fan: string } | null>(null);
+  const [pipelineFan, setPipelineFan] = useState<string>("");
   const [personas, setPersonas] = useState<any[]>([]);
   const [activePersonaId, setActivePersonaId] = useState<string | null>(null);
   const followAIRef = useRef(false);
@@ -670,7 +695,7 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
     if (!accountId) return;
     setScanning(true);
     addLog("system", "Starting inbox sync...", "processing");
-    setAiCurrentPhase("scan");
+    setAiCurrentPhase("detect");
     try {
       const { data, error } = await supabase.functions.invoke("social-ai-responder", {
         body: { action: "scan_all_conversations", account_id: accountId, params: {} },
@@ -869,6 +894,50 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
     return () => { supabase.removeChannel(ch); };
   }, [accountId, loadMessages, addLog]);
 
+  // Track pipeline phases from typing messages in real-time
+  useEffect(() => {
+    if (!accountId) return;
+    const pipelineCh = supabase
+      .channel(`pipeline-track-${accountId}`)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "ai_dm_messages", filter: `account_id=eq.${accountId}` }, (payload) => {
+        const msg = payload.new as any;
+        if (msg.status === "typing" && msg.metadata?.pipeline_phase) {
+          setAiCurrentPhase(msg.metadata.pipeline_phase);
+          setAiCurrentConvoId(msg.conversation_id);
+          setPipelineFan(msg.metadata?.fan_username || "");
+        }
+      })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "ai_dm_messages", filter: `account_id=eq.${accountId}` }, (payload) => {
+        const msg = payload.new as any;
+        if (msg.status === "typing" && msg.metadata?.pipeline_phase) {
+          const phase = msg.metadata.pipeline_phase;
+          setAiCurrentPhase(phase);
+          setPipelineFan(msg.metadata?.fan_username || "");
+          if (phase === "generate") {
+            addLog(`@${msg.metadata?.fan_username || "unknown"}`, "Generating reply...", "processing");
+          } else if (phase === "typing" && msg.metadata?.typing_delay_ms) {
+            setPipelineTypingDelay({
+              delay_ms: msg.metadata.typing_delay_ms,
+              started_at: msg.metadata.typing_started_at || new Date().toISOString(),
+              fan: msg.metadata?.fan_username || "",
+            });
+            addLog(`@${msg.metadata?.fan_username || "unknown"}`, `Typing (${(msg.metadata.typing_delay_ms / 1000).toFixed(1)}s)...`, "processing");
+          } else if (phase === "send") {
+            setPipelineTypingDelay(null);
+            addLog(`@${msg.metadata?.fan_username || "unknown"}`, "Sending message...", "processing");
+          }
+        }
+        if (msg.status === "sent" && msg.sender_type === "ai") {
+          setAiCurrentPhase("");
+          setAiCurrentConvoId(null);
+          setPipelineTypingDelay(null);
+          setPipelineFan("");
+        }
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(pipelineCh); };
+  }, [accountId, addLog]);
+
   // Real-time message subscription — MERGE instead of full reload
   useEffect(() => {
     if (!selectedConvo) return;
@@ -930,7 +999,7 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
     setProcessing(true);
     
     addLog("system", "AI processing cycle", "processing");
-    setAiCurrentPhase("scan");
+    setAiCurrentPhase("detect");
     
     try {
       const { data, error } = await supabase.functions.invoke("social-ai-responder", {
@@ -2444,41 +2513,44 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
           {/* Keyword Delays */}
           <KeywordDelayManager accountId={accountId} />
 
-          {/* Current Phase - ALWAYS animating when polling */}
+          {/* Current Phase - Real-time pipeline tracking */}
           <div className="px-3 py-2.5 border-b border-border/50">
             <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2">Pipeline</p>
+            {pipelineFan && (
+              <p className="text-[9px] text-blue-400/80 mb-1.5 truncate">→ @{pipelineFan}</p>
+            )}
             <div className="space-y-1">
               {AI_PHASES.map((step, stepIdx) => {
-                const isActive = processing && aiCurrentPhase === step.id;
-                const isPast = processing && AI_PHASES.findIndex(p => p.id === aiCurrentPhase) > stepIdx;
-                // When polling but not actively processing, show continuous scan animation
-                const isScanning = !processing && polling && step.id === "scan";
-                const isScanningDetect = !processing && polling && step.id === "detect";
+                const activePhaseIdx = AI_PHASES.findIndex(p => p.id === aiCurrentPhase);
+                const isActive = aiCurrentPhase === step.id;
+                const isPast = activePhaseIdx > stepIdx && activePhaseIdx >= 0;
+                const isTypingWithDelay = isActive && step.id === "typing" && pipelineTypingDelay;
                 return (
                   <div key={step.id} className="flex items-center gap-2">
                     {isPast ? (
                       <Check className="h-3 w-3 text-green-400" />
-                    ) : isActive || isScanning ? (
+                    ) : isActive ? (
                       <Loader2 className="h-3 w-3 animate-spin text-blue-400" />
-                    ) : isScanningDetect ? (
-                      <Eye className="h-3 w-3 text-blue-400/60 animate-pulse" />
                     ) : (
-                      <CircleDot className={`h-3 w-3 ${processing ? "text-muted-foreground/30" : "text-muted-foreground/20"}`} />
+                      <CircleDot className={`h-3 w-3 text-muted-foreground/20`} />
                     )}
                     <span className={`text-[10px] ${
-                      isActive || isScanning ? "text-blue-400 font-semibold" :
-                      isScanningDetect ? "text-blue-400/60 font-medium" :
+                      isActive ? "text-blue-400 font-semibold" :
                       isPast ? "text-green-400/70" :
                       "text-muted-foreground/40"
-                    }`}>{step.label}{isScanning ? "..." : ""}</span>
+                    }`}>
+                      {step.label}
+                      {isActive ? "..." : ""}
+                    </span>
+                    {isTypingWithDelay && <PipelineDelayCountdown delay_ms={pipelineTypingDelay.delay_ms} started_at={pipelineTypingDelay.started_at} />}
                   </div>
                 );
               })}
             </div>
-            {polling && !processing && (
-              <div className="flex items-center gap-2 mt-2 text-blue-400/60">
-                <Loader2 className="h-3 w-3 animate-spin" />
-                <span className="text-[10px] animate-pulse">Scanning inbox...</span>
+            {polling && !aiCurrentPhase && (
+              <div className="flex items-center gap-2 mt-2 text-green-400/50">
+                <div className="h-1.5 w-1.5 rounded-full bg-green-400 animate-pulse" />
+                <span className="text-[10px]">Listening for messages...</span>
               </div>
             )}
           </div>
