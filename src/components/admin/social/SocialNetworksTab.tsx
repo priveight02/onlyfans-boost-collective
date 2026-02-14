@@ -166,7 +166,7 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
                 <ArrowDown className="h-3.5 w-3.5" /> Download All
               </Button>
             </div>
-            <ScrollArea className="max-h-[500px]">
+            <div className="overflow-y-auto" style={{ maxHeight: "500px" }}>
               <div className="grid grid-cols-5 gap-3 pr-3">
                 {data.map((item: any, i: number) => {
                   const isVideo = item.media_type === "VIDEO";
@@ -220,22 +220,22 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
                           )}
                         </div>
                       </div>
-                      {/* Stats + caption below image, always visible on hover */}
-                      <div className="p-2 space-y-1 opacity-0 group-hover:opacity-100 transition-opacity" style={{ background: "hsl(222, 30%, 8%)" }}>
-                        <div className="flex flex-wrap gap-2 text-sm text-white font-semibold">
+                      {/* Stats + caption below image, always visible */}
+                      <div className="p-2 space-y-1" style={{ background: "hsl(222, 30%, 8%)" }}>
+                        <div className="flex flex-wrap gap-2 text-xs text-white/80 font-semibold">
                           {item.like_count !== undefined && <span>❤ {item.like_count?.toLocaleString()}</span>}
                           {item.likes !== undefined && <span>❤ {item.likes?.toLocaleString()}</span>}
                           {item.comments_count !== undefined && <span>💬 {item.comments_count?.toLocaleString()}</span>}
                           {item.view_count !== undefined && <span>👁 {item.view_count?.toLocaleString()}</span>}
                         </div>
-                        {item.caption && <p className="text-xs text-white/60 line-clamp-1">{item.caption}</p>}
-                        {item.timestamp && <p className="text-[10px] text-white/40">{new Date(item.timestamp).toLocaleDateString()}</p>}
+                        {item.caption && <p className="text-[10px] text-white/50 line-clamp-1">{item.caption}</p>}
+                        {item.timestamp && <p className="text-[9px] text-white/35">{new Date(item.timestamp).toLocaleDateString()}</p>}
                       </div>
                     </div>
                   );
                 })}
               </div>
-            </ScrollArea>
+            </div>
           </div>
         );
       }
@@ -347,8 +347,9 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
       <TabsContent value="media" className="space-y-2 mt-3">
         <div className="flex gap-1.5 flex-wrap">
           {renderActionButton("Profile","instagram-api","get_profile",{},Users)}
-          {renderActionButton("My Media","instagram-api","get_media",{limit:100},Image)}
-          {renderActionButton("Stories","instagram-api","get_stories",{},Play)}
+          {renderActionButton("My Posts","instagram-api","get_media",{limit:100},Image)}
+          {renderActionButton("Highlighted Stories","instagram-api","get_stories",{highlighted:true},Star)}
+          {renderActionButton("Reposts","instagram-api","get_media",{limit:100,media_type:"REPOST"},Repeat)}
         </div>
         {renderInputAction("Get Media","instagram-api","get_media_by_id",[{key:"ig_media_id",placeholder:"Media ID"}],()=>({media_id:getInput("ig_media_id")}),Eye)}
         {renderInputAction("Children (Carousel)","instagram-api","get_media_children",[{key:"ig_carousel_id",placeholder:"Carousel ID"}],()=>({media_id:getInput("ig_carousel_id")}),Layers)}
@@ -1425,11 +1426,9 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
                       </Button>
                     </div>
                   </div>
-                  <ScrollArea className="h-[420px]">
-                    <div className="pr-3">
-                      {renderVisualResponse(result)}
-                    </div>
-                  </ScrollArea>
+                  <div className="overflow-y-auto pr-1" style={{ maxHeight: "420px" }}>
+                    {renderVisualResponse(result)}
+                  </div>
                 </div>
                 
                 <details className="group">
