@@ -397,6 +397,27 @@ const detectTension = (messages: any[]): { isTense: boolean; tensionLevel: numbe
   return { isTense, tensionLevel, tensionContext };
 };
 
+// === DEFAULT FREE PIC URL (stored in Supabase Storage) ===
+const DEFAULT_FREE_PIC_URL = "https://ufsnuobtvkciydftsyff.supabase.co/storage/v1/object/public/default-assets/default-free-pic.png";
+
+// === FREE PIC REQUEST DETECTION ENGINE ===
+// Detects when a fan is asking for a free picture/preview and whether they've already received one
+const detectFreePicRequest = (messages: any[], fanTags: string[] | null): { isRequesting: boolean; alreadySent: boolean; isEligible: boolean } => {
+  const alreadySent = (fanTags || []).includes("free_pic_sent");
+  
+  // Check the last 3 fan messages for free pic request patterns
+  const recentFan = messages.filter(m => m.sender_type === "fan").slice(-3);
+  const recentFanText = recentFan.map(m => (m.content || "").toLowerCase()).join(" ");
+  
+  const isRequesting = !!recentFanText.match(/(send (me )?(a )?(free )?(pic|photo|picture|image|preview|sample|taste|something|smth|content|nude|nudes|naked))|((free|one) (pic|photo|picture|image|preview|sample|content))|((can i|could i|lemme|let me) (see|get|have) (a |some |one )?(free |)?(pic|photo|picture|preview|sample|content|something))|((show|give) (me )?(a |some )?(free |)?(pic|photo|picture|preview|sample|something|content))|(anything free)|(free stuff)|(prove it.*(pic|photo|show))|(just one.*(pic|photo|free))|(one free)|(freebie)|(sneak peek)|(preview)/);
+  
+  // Eligible only after at least 2 total messages from the fan (1-2 shy exchanges)
+  const fanMsgCount = messages.filter(m => m.sender_type === "fan").length;
+  const isEligible = isRequesting && !alreadySent && fanMsgCount >= 2;
+  
+  return { isRequesting, alreadySent, isEligible };
+};
+
 // === POST-REDIRECT DETECTION ENGINE ===
 // Detects if we already redirected and the fan acknowledged, meaning we should NOT reply
 const detectPostRedirect = (messages: any[]): { shouldStop: boolean; shouldReact: boolean; reactionType: string } => {
@@ -2181,6 +2202,134 @@ Follow these persona settings strictly. They override any conflicting defaults a
               continue;
             }
 
+            // === FREE PIC DETECTION & DELIVERY ENGINE ===
+            // Check if fan is asking for a free pic and if they're eligible
+            const { data: fanProfileForPic } = await supabase
+              .from("fan_emotional_profiles")
+              .select("tags")
+              .eq("account_id", account_id)
+              .eq("fan_identifier", dbConvo.participant_id)
+              .single();
+            
+            const freePicCheck = detectFreePicRequest(dbMessages || [], fanProfileForPic?.tags || []);
+            
+            if (freePicCheck.isEligible) {
+              // ELIGIBLE: Send default free pic THEN immediately redirect
+              const igFuncUrlFP = `${Deno.env.get("SUPABASE_URL")}/functions/v1/instagram-api`;
+              const serviceKeyFP = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+              const callIGFP = async (igAction: string, igParams: any = {}) => {
+                const resp = await fetch(igFuncUrlFP, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKeyFP}` },
+                  body: JSON.stringify({ action: igAction, account_id, params: igParams }),
+                });
+                return resp.json();
+              };
+
+              try {
+                // Step 1: Insert typing placeholder
+                const { data: fpTyping } = await supabase.from("ai_dm_messages").insert({
+                  conversation_id: dbConvo.id, account_id,
+                  sender_type: "ai", sender_name: igConn2.platform_username || "creator",
+                  content: "...", status: "typing",
+                }).select("id").single();
+
+                // Step 2: Send a shy/teasing text before the pic
+                const shyPrefixes = [
+                  "ok fine just this once tho",
+                  "mm ok since u asked nicely",
+                  "ok but dont say i never gave u anything",
+                  "fine u earned this one",
+                  "ok here but just for u",
+                  "mm ok since we vibed",
+                ];
+                const shyMsg = shyPrefixes[Math.floor(Math.random() * shyPrefixes.length)];
+                await callIGFP("send_message", { recipient_id: dbConvo.participant_id, message: shyMsg });
+                
+                // Update typing placeholder with shy message
+                if (fpTyping) {
+                  await supabase.from("ai_dm_messages").update({
+                    content: shyMsg, status: "sent", ai_model: "free_pic_engine",
+                  }).eq("id", fpTyping.id);
+                }
+
+                // Brief delay to feel natural
+                await new Promise(r => setTimeout(r, 2000 + Math.random() * 2000));
+                
+                // Step 3: Send the free pic via IG media message
+                await callIGFP("send_media_message", {
+                  recipient_id: dbConvo.participant_id,
+                  media_type: "image",
+                  media_url: DEFAULT_FREE_PIC_URL,
+                });
+                
+                // Log the pic send in DB
+                await supabase.from("ai_dm_messages").insert({
+                  conversation_id: dbConvo.id, account_id,
+                  sender_type: "ai", sender_name: igConn2.platform_username || "creator",
+                  content: "[sent free pic]", status: "sent",
+                  metadata: { free_pic: true, url: DEFAULT_FREE_PIC_URL },
+                });
+                
+                // Brief delay before redirect
+                await new Promise(r => setTimeout(r, 1500 + Math.random() * 1500));
+
+                // Step 4: IMMEDIATELY redirect to bio link
+                const redirectUrl = autoConfig?.redirect_url || "";
+                const redirectMsgs = [
+                  "theres way more where that came from tho check my bio",
+                  "u should see what else i got tho its in my bio",
+                  "mm thats just a taste go check my page for the real thing",
+                  "that was just a preview u gotta come see the rest",
+                  "ok now go check my bio before i change my mind",
+                ];
+                const redirectMsg = redirectMsgs[Math.floor(Math.random() * redirectMsgs.length)];
+                await callIGFP("send_message", { recipient_id: dbConvo.participant_id, message: redirectMsg });
+                
+                // Log redirect
+                await supabase.from("ai_dm_messages").insert({
+                  conversation_id: dbConvo.id, account_id,
+                  sender_type: "ai", sender_name: igConn2.platform_username || "creator",
+                  content: redirectMsg, status: "sent",
+                });
+                
+                // Step 5: Mark free pic as sent in fan profile tags (NEVER send again)
+                const currentTags = fanProfileForPic?.tags || [];
+                await supabase.from("fan_emotional_profiles").upsert({
+                  account_id,
+                  fan_identifier: dbConvo.participant_id,
+                  fan_name: dbConvo.participant_username || dbConvo.participant_name,
+                  tags: [...currentTags.filter((t: string) => t !== "free_pic_sent"), "free_pic_sent"],
+                }, { onConflict: "account_id,fan_identifier" });
+
+                // Update conversation
+                await supabase.from("ai_dm_conversations").update({
+                  last_ai_reply_at: new Date().toISOString(),
+                  last_message_at: new Date().toISOString(),
+                  last_message_preview: `You: ${redirectMsg.substring(0, 80)}`,
+                  redirect_sent: true,
+                  is_read: true,
+                }).eq("id", dbConvo.id);
+
+                processed++;
+                processedConvos.push({
+                  conversation_id: dbConvo.id,
+                  fan: dbConvo.participant_username,
+                  fan_message: latestMsg.content,
+                  ai_reply: `[FREE PIC SENT + REDIRECT] ${shyMsg} → pic → ${redirectMsg}`,
+                  ml_behavior: "free_pic_delivery",
+                });
+                console.log(`Free pic delivered to @${dbConvo.participant_username} + redirect`);
+                continue; // Skip normal AI reply — free pic flow handled everything
+              } catch (fpErr) {
+                console.error("Free pic delivery failed:", fpErr);
+                // Fall through to normal AI reply
+              }
+            } else if (freePicCheck.isRequesting && freePicCheck.alreadySent) {
+              // Already sent free pic — inject context so AI knows to deflect
+              // Will be handled in the system prompt below
+            }
+
             // Build rich context with media descriptions
             const conversationContext = (dbMessages || []).map(m => {
               let contextText = m.content || "";
@@ -2267,8 +2416,13 @@ Follow these persona settings strictly. They override any conflicting defaults a
             const crossEngineBridge = await buildCrossEngineBridge(supabase, account_id, dbConvo.participant_id, behavior.type);
             const mediaPatterns = analyzeMediaPatterns(dbMessages || []);
 
+            // === FREE PIC CONTEXT INJECTION ===
+            const freePicCtx = freePicCheck.alreadySent
+              ? `\n\n=== FREE PIC ALREADY SENT ===\nYou already sent this person a free pic. Do NOT promise or offer more free content. If they ask again: "i already showed u something nice now u gotta come see the rest" / "u already got ur freebie" / "thats all u get for free lol the rest is worth it tho". Then redirect to bio.`
+              : "";
+
             // Generate AI reply
-            const systemPrompt = `${personaInfo2}${emojiDir}${fanMemoryBlock}${behaviorCtxLive}${tensionCtxLive}${learnedStrategiesCtx}${crossEngineBridge}${mediaPatterns}
+            const systemPrompt = `${personaInfo2}${emojiDir}${fanMemoryBlock}${behaviorCtxLive}${tensionCtxLive}${learnedStrategiesCtx}${crossEngineBridge}${mediaPatterns}${freePicCtx}
 ${autoConfig.redirect_url ? `\nIMPORTANT: when it makes sense, naturally guide toward this link: ${autoConfig.redirect_url}. But NEVER redirect during genuine bonding moments — wait for a natural transition. NEVER redirect when the vibe is tense or dry — fix the vibe first` : ""}
 ${autoConfig.trigger_keywords ? `if they mention any of these: ${autoConfig.trigger_keywords}, redirect them to the link` : ""}
 
@@ -3380,6 +3534,130 @@ Follow these persona settings strictly.`;
         let openerMsg = (openerData?.choices?.[0]?.message?.content || "").replace(/^["']|["']$/g, "").trim();
         if (!openerMsg) openerMsg = "u caught my attention ngl";
         result = { message: openerMsg };
+        break;
+      }
+
+      case "generate_image": {
+        // Generate images via Lovable AI (Gemini image model) for use in conversations
+        const { prompt, aspect_ratio } = params;
+        if (!prompt) throw new Error("prompt is required");
+        
+        const imgResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: "google/gemini-2.5-flash-image",
+            messages: [{ role: "user", content: `${prompt}${aspect_ratio ? `. Aspect ratio: ${aspect_ratio}` : ""}` }],
+            modalities: ["image", "text"],
+          }),
+        });
+        if (!imgResponse.ok) throw new Error(`Image generation failed: ${imgResponse.status}`);
+        const imgResult = await imgResponse.json();
+        const generatedImages = imgResult.choices?.[0]?.message?.images || [];
+        const generatedText = imgResult.choices?.[0]?.message?.content || "";
+        
+        // If images were generated, upload to storage for persistent URL
+        const imageUrls: string[] = [];
+        for (let i = 0; i < generatedImages.length; i++) {
+          const imgData = generatedImages[i]?.image_url?.url;
+          if (!imgData) continue;
+          
+          // Convert base64 to blob and upload to storage
+          const base64Data = imgData.replace(/^data:image\/\w+;base64,/, "");
+          const binaryData = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+          const fileName = `generated/${account_id}/${Date.now()}_${i}.png`;
+          
+          const { data: uploadData, error: uploadError } = await supabase.storage
+            .from("default-assets")
+            .upload(fileName, binaryData, { contentType: "image/png", upsert: true });
+          
+          if (!uploadError && uploadData) {
+            const { data: urlData } = supabase.storage.from("default-assets").getPublicUrl(fileName);
+            if (urlData?.publicUrl) imageUrls.push(urlData.publicUrl);
+          }
+        }
+        
+        // Save to copilot_generated_content
+        for (const url of imageUrls) {
+          await supabase.from("copilot_generated_content").insert({
+            account_id, content_type: "image", url, prompt,
+            metadata: { source: "social_ai_responder", aspect_ratio },
+          });
+        }
+        
+        result = { images: imageUrls, text: generatedText, count: imageUrls.length };
+        break;
+      }
+
+      case "web_fetch": {
+        // Fetch content from the web (search, scrape images, documents) for conversation context
+        const { query, type, max_results } = params;
+        if (!query) throw new Error("query is required");
+        
+        // Use AI to search/summarize web content
+        const searchPrompt = type === "image" 
+          ? `Find and describe ${max_results || 5} relevant images for: "${query}". Return a JSON object with: images (array of {description, search_url, alt_text}). Suggest direct Google Image search URLs.`
+          : type === "document"
+          ? `Search for documents/resources about: "${query}". Return a JSON object with: documents (array of {title, description, url, type}).`
+          : `Search the web for information about: "${query}". Return a JSON object with: results (array of {title, snippet, url}), summary (string).`;
+        
+        const webResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: "google/gemini-3-flash-preview",
+            messages: [
+              { role: "system", content: "You are a web research assistant. Return ONLY valid JSON. No markdown wrapping." },
+              { role: "user", content: searchPrompt },
+            ],
+            max_tokens: 1000, temperature: 0.5,
+          }),
+        });
+        if (!webResponse.ok) throw new Error(`Web fetch failed: ${webResponse.status}`);
+        const webResult = await webResponse.json();
+        const raw = webResult.choices?.[0]?.message?.content || "{}";
+        let parsed;
+        try { parsed = JSON.parse(raw.replace(/```json\n?|\n?```/g, "")); } catch { parsed = { raw }; }
+        result = { ...parsed, query, type: type || "general" };
+        break;
+      }
+
+      case "send_free_pic": {
+        // Manually trigger the free pic delivery for a specific conversation
+        const { conversation_id, recipient_id } = params;
+        if (!conversation_id || !recipient_id) throw new Error("conversation_id and recipient_id required");
+        
+        const igFuncUrlMFP = `${Deno.env.get("SUPABASE_URL")}/functions/v1/instagram-api`;
+        const serviceKeyMFP = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+        
+        // Send the image
+        const sendResp = await fetch(igFuncUrlMFP, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKeyMFP}` },
+          body: JSON.stringify({ action: "send_media_message", account_id, params: { recipient_id, media_type: "image", media_url: DEFAULT_FREE_PIC_URL } }),
+        });
+        const sendData = await sendResp.json();
+        
+        // Log in DB
+        await supabase.from("ai_dm_messages").insert({
+          conversation_id, account_id,
+          sender_type: "manual", sender_name: "creator",
+          content: "[sent free pic]", status: "sent",
+          metadata: { free_pic: true, url: DEFAULT_FREE_PIC_URL },
+        });
+        
+        // Mark in fan profile
+        const { data: fanP } = await supabase.from("ai_dm_conversations").select("participant_id").eq("id", conversation_id).single();
+        if (fanP) {
+          const { data: ep } = await supabase.from("fan_emotional_profiles").select("tags").eq("account_id", account_id).eq("fan_identifier", fanP.participant_id).single();
+          const tags = (ep?.tags || []).filter((t: string) => t !== "free_pic_sent");
+          tags.push("free_pic_sent");
+          await supabase.from("fan_emotional_profiles").upsert({
+            account_id, fan_identifier: fanP.participant_id, tags,
+          }, { onConflict: "account_id,fan_identifier" });
+        }
+        
+        result = { success: true, message: "Free pic sent", data: sendData };
         break;
       }
 
