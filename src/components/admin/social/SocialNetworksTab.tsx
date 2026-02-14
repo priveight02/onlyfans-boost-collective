@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
@@ -18,19 +18,47 @@ import {
   Bell, BellOff, Link2, Upload, Play, BarChart3, Activity,
   FolderOpen, Award, Flag, Filter, Layers, Briefcase, Clock,
   Camera, MessageCircle, Smartphone, Youtube, Palette, Gamepad2,
+  Instagram, AlertCircle,
 } from "lucide-react";
 
 interface Props {
   selectedAccount: string;
+  onNavigateToConnect?: (platform: string) => void;
 }
 
-const SocialNetworksTab = ({ selectedAccount }: Props) => {
+const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
   const [expandedPlatform, setExpandedPlatform] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [inputValues, setInputValues] = useState<Record<string, string>>({});
+  const [connectedPlatforms, setConnectedPlatforms] = useState<string[]>([]);
   const setInput = (key: string, val: string) => setInputValues(p => ({ ...p, [key]: val }));
   const getInput = (key: string) => inputValues[key] || "";
+
+  useEffect(() => {
+    if (!selectedAccount) return;
+    const loadConnections = async () => {
+      const { data } = await supabase.from("social_connections").select("platform, is_connected").eq("account_id", selectedAccount);
+      setConnectedPlatforms((data || []).filter(c => c.is_connected).map(c => c.platform));
+    };
+    loadConnections();
+    const channel = supabase
+      .channel(`networks-conn-${selectedAccount}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "social_connections", filter: `account_id=eq.${selectedAccount}` }, () => loadConnections())
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [selectedAccount]);
+
+  const isConnected = (platform: string) => connectedPlatforms.includes(platform);
+
+  const handlePlatformClick = (platformId: string) => {
+    if (!isConnected(platformId)) {
+      toast.error(`${platformId} is not connected. Redirecting to Connect tab...`);
+      onNavigateToConnect?.(platformId);
+      return;
+    }
+    setExpandedPlatform(expandedPlatform === platformId ? null : platformId);
+  };
 
   const callApi = async (funcName: string, action: string, params: any = {}) => {
     if (!selectedAccount) { toast.error("No account selected"); return null; }
@@ -53,6 +81,7 @@ const SocialNetworksTab = ({ selectedAccount }: Props) => {
   };
 
   const platforms = [
+    { id: "instagram", name: "Instagram", icon: Instagram, color: "text-pink-400", borderColor: "border-pink-500/30", bgColor: "bg-pink-500/10", funcName: "instagram-api" },
     { id: "twitter", name: "X / Twitter", icon: Twitter, color: "text-blue-400", borderColor: "border-blue-500/30", bgColor: "bg-blue-500/10", funcName: "twitter-api" },
     { id: "reddit", name: "Reddit", icon: Globe, color: "text-orange-400", borderColor: "border-orange-500/30", bgColor: "bg-orange-500/10", funcName: "reddit-api" },
     { id: "telegram", name: "Telegram", icon: Phone, color: "text-sky-400", borderColor: "border-sky-500/30", bgColor: "bg-sky-500/10", funcName: "telegram-api" },
@@ -91,6 +120,73 @@ const SocialNetworksTab = ({ selectedAccount }: Props) => {
       </div>
     );
   };
+
+  // ===== INSTAGRAM =====
+  const renderInstagramContent = () => (
+    <Tabs defaultValue="media" className="w-full">
+      <TabsList className="bg-muted/50 border border-border p-0.5 rounded-lg gap-0.5 flex-wrap h-auto">
+        {[{v:"media",l:"Media",icon:Image},{v:"publish",l:"Publish",icon:Upload},{v:"stories",l:"Stories",icon:Play},{v:"comments",l:"Comments",icon:MessageSquare},{v:"dms",l:"DMs",icon:Send},{v:"insights",l:"Insights",icon:BarChart3},{v:"discovery",l:"Discovery",icon:Search},{v:"hashtags",l:"Hashtags",icon:Hash},{v:"ai",l:"AI Auto",icon:Brain}].map(t=>(
+          <TabsTrigger key={t.v} value={t.v} className="text-[10px] gap-1 px-2 py-1 data-[state=active]:bg-background"><t.icon className="h-3 w-3"/>{t.l}</TabsTrigger>
+        ))}
+      </TabsList>
+      <TabsContent value="media" className="space-y-2 mt-3">
+        <div className="flex gap-1.5 flex-wrap">
+          {renderActionButton("Profile","instagram-api","get_profile",{},Users)}
+          {renderActionButton("My Media","instagram-api","get_media",{limit:25},Image)}
+          {renderActionButton("Stories","instagram-api","get_stories",{},Play)}
+        </div>
+        {renderInputAction("Get Media","instagram-api","get_media_by_id",[{key:"ig_media_id",placeholder:"Media ID"}],()=>({media_id:getInput("ig_media_id")}),Eye)}
+        {renderInputAction("Children (Carousel)","instagram-api","get_media_children",[{key:"ig_carousel_id",placeholder:"Carousel ID"}],()=>({media_id:getInput("ig_carousel_id")}),Layers)}
+      </TabsContent>
+      <TabsContent value="publish" className="space-y-2 mt-3">
+        {renderInputAction("Photo Post","instagram-api","create_photo_post",[{key:"ig_ph_url",placeholder:"Image URL"},{key:"ig_ph_cap",placeholder:"Caption"}],()=>({image_url:getInput("ig_ph_url"),caption:getInput("ig_ph_cap")}),Image)}
+        {renderInputAction("Carousel Post","instagram-api","create_carousel_post",[{key:"ig_car_urls",placeholder:"Image URLs (comma sep)"},{key:"ig_car_cap",placeholder:"Caption"}],()=>({image_urls:getInput("ig_car_urls").split(",").map(s=>s.trim()),caption:getInput("ig_car_cap")}),Layers)}
+        {renderInputAction("Reel","instagram-api","create_reel",[{key:"ig_reel_url",placeholder:"Video URL"},{key:"ig_reel_cap",placeholder:"Caption"},{key:"ig_reel_cover",placeholder:"Cover URL (optional)"}],()=>({video_url:getInput("ig_reel_url"),caption:getInput("ig_reel_cap"),cover_url:getInput("ig_reel_cover")}),Video)}
+        {renderInputAction("Story (Image)","instagram-api","create_story",[{key:"ig_st_url",placeholder:"Image URL"}],()=>({image_url:getInput("ig_st_url")}),Play)}
+        {renderInputAction("Story (Video)","instagram-api","create_video_story",[{key:"ig_stv_url",placeholder:"Video URL"}],()=>({video_url:getInput("ig_stv_url")}),Video)}
+      </TabsContent>
+      <TabsContent value="stories" className="space-y-2 mt-3">
+        {renderActionButton("My Stories","instagram-api","get_stories",{},Play)}
+        {renderInputAction("Story Insights","instagram-api","get_story_insights",[{key:"ig_si_id",placeholder:"Story ID"}],()=>({story_id:getInput("ig_si_id")}),BarChart3)}
+      </TabsContent>
+      <TabsContent value="comments" className="space-y-2 mt-3">
+        {renderInputAction("Get Comments","instagram-api","get_comments",[{key:"ig_cmt_media",placeholder:"Media ID"}],()=>({media_id:getInput("ig_cmt_media"),limit:50}),MessageSquare)}
+        {renderInputAction("Reply","instagram-api","reply_to_comment",[{key:"ig_rply_cmt",placeholder:"Comment ID"},{key:"ig_rply_text",placeholder:"Reply..."}],()=>({comment_id:getInput("ig_rply_cmt"),message:getInput("ig_rply_text")}),Send)}
+        {renderInputAction("Delete Comment","instagram-api","delete_comment",[{key:"ig_del_cmt",placeholder:"Comment ID"}],()=>({comment_id:getInput("ig_del_cmt")}),Trash2)}
+        {renderInputAction("Hide Comment","instagram-api","hide_comment",[{key:"ig_hide_cmt",placeholder:"Comment ID"}],()=>({comment_id:getInput("ig_hide_cmt")}),EyeOff)}
+      </TabsContent>
+      <TabsContent value="dms" className="space-y-2 mt-3">
+        {renderActionButton("Conversations","instagram-api","get_conversations",{limit:20},MessageSquare)}
+        {renderInputAction("Get Messages","instagram-api","get_messages",[{key:"ig_conv_id",placeholder:"Conversation ID"}],()=>({conversation_id:getInput("ig_conv_id")}),MessageSquare)}
+        {renderInputAction("Send DM","instagram-api","send_dm",[{key:"ig_dm_to",placeholder:"Recipient ID"},{key:"ig_dm_text",placeholder:"Message..."}],()=>({recipient_id:getInput("ig_dm_to"),message:getInput("ig_dm_text")}),Send)}
+        {renderInputAction("Send Image DM","instagram-api","send_dm_image",[{key:"ig_dmi_to",placeholder:"Recipient ID"},{key:"ig_dmi_url",placeholder:"Image URL"}],()=>({recipient_id:getInput("ig_dmi_to"),image_url:getInput("ig_dmi_url")}),Image)}
+      </TabsContent>
+      <TabsContent value="insights" className="space-y-2 mt-3">
+        {renderActionButton("Account Insights","instagram-api","get_account_insights",{period:"day"},BarChart3)}
+        {renderInputAction("Media Insights","instagram-api","get_media_insights",[{key:"ig_mi_id",placeholder:"Media ID"}],()=>({media_id:getInput("ig_mi_id")}),BarChart3)}
+        {renderActionButton("Audience","instagram-api","get_audience_insights",{},Users)}
+        {renderActionButton("Online Followers","instagram-api","get_online_followers",{},Clock)}
+      </TabsContent>
+      <TabsContent value="discovery" className="space-y-2 mt-3">
+        {renderInputAction("Discover User","instagram-api","discover_user",[{key:"ig_disc_user",placeholder:"@username"}],()=>({username:getInput("ig_disc_user")}),Search)}
+        {renderInputAction("User Media","instagram-api","discover_user_media",[{key:"ig_disc_uid",placeholder:"User ID"}],()=>({user_id:getInput("ig_disc_uid"),limit:12}),Image)}
+        {renderInputAction("Hashtag Search","instagram-api","search_hashtag",[{key:"ig_ht_q",placeholder:"Hashtag (no #)"}],()=>({hashtag:getInput("ig_ht_q")}),Hash)}
+      </TabsContent>
+      <TabsContent value="hashtags" className="space-y-2 mt-3">
+        {renderInputAction("Hashtag ID","instagram-api","search_hashtag",[{key:"ig_htid_q",placeholder:"Hashtag"}],()=>({hashtag:getInput("ig_htid_q")}),Hash)}
+        {renderInputAction("Top Media","instagram-api","get_hashtag_top_media",[{key:"ig_ht_top_id",placeholder:"Hashtag ID"}],()=>({hashtag_id:getInput("ig_ht_top_id")}),TrendingUp)}
+        {renderInputAction("Recent Media","instagram-api","get_hashtag_recent_media",[{key:"ig_ht_rec_id",placeholder:"Hashtag ID"}],()=>({hashtag_id:getInput("ig_ht_rec_id")}),Clock)}
+      </TabsContent>
+      <TabsContent value="ai" className="space-y-2 mt-3">
+        {renderInputAction("AI Caption","social-ai-responder","generate_caption",[{key:"ai_ig_topic",placeholder:"Topic"}],()=>({topic:getInput("ai_ig_topic"),platform:"instagram",include_cta:true}),Brain)}
+        {renderInputAction("AI DM Reply","social-ai-responder","generate_dm_reply",[{key:"ai_ig_dm",placeholder:"Incoming DM text..."}],()=>({message_text:getInput("ai_ig_dm"),sender_name:"fan"}),Zap)}
+        {renderInputAction("AI Comment Reply","social-ai-responder","generate_dm_reply",[{key:"ai_ig_cmt_text",placeholder:"Comment text..."}],()=>({message_text:getInput("ai_ig_cmt_text"),sender_name:"commenter"}),MessageSquare)}
+        {renderInputAction("AI Hashtag Gen","social-ai-responder","generate_caption",[{key:"ai_ig_ht_topic",placeholder:"Niche/Topic for hashtags"}],()=>({topic:`Generate 30 relevant hashtags for: ${getInput("ai_ig_ht_topic")}`,platform:"instagram",include_cta:false}),Hash)}
+        {renderInputAction("AI Bio Writer","social-ai-responder","generate_caption",[{key:"ai_ig_bio_topic",placeholder:"Describe your brand/niche"}],()=>({topic:`Write a compelling Instagram bio for: ${getInput("ai_ig_bio_topic")}`,platform:"instagram",include_cta:false}),Users)}
+        {renderInputAction("AI Story Ideas","social-ai-responder","generate_caption",[{key:"ai_ig_story_topic",placeholder:"Topic for stories"}],()=>({topic:`Generate 10 Instagram story ideas for: ${getInput("ai_ig_story_topic")}`,platform:"instagram",include_cta:false}),Play)}
+      </TabsContent>
+    </Tabs>
+  );
 
   // ===== TWITTER =====
   const renderTwitterContent = () => (
@@ -632,6 +728,7 @@ const SocialNetworksTab = ({ selectedAccount }: Props) => {
 
   const renderPlatformContent = (platformId: string) => {
     switch (platformId) {
+      case "instagram": return renderInstagramContent();
       case "twitter": return renderTwitterContent();
       case "reddit": return renderRedditContent();
       case "telegram": return renderTelegramContent();
@@ -653,28 +750,38 @@ const SocialNetworksTab = ({ selectedAccount }: Props) => {
         <div className="flex items-center gap-2">
           <Globe className="h-5 w-5 text-primary" />
           <h3 className="text-sm font-bold text-foreground">Social Networks API Hub</h3>
-          <Badge variant="outline" className="text-[10px]">11 platforms</Badge>
+          <Badge variant="outline" className="text-[10px]">12 platforms</Badge>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-        {platforms.map(p => (
-          <Card key={p.id} className={`transition-all cursor-pointer hover:border-primary/30 ${expandedPlatform === p.id ? p.borderColor : ""}`}>
-            <button
-              onClick={() => setExpandedPlatform(expandedPlatform === p.id ? null : p.id)}
-              className="w-full p-3 flex items-center gap-3 hover:bg-muted/30 transition-colors rounded-xl"
-            >
-              <div className={`h-10 w-10 rounded-lg ${p.bgColor} flex items-center justify-center ${p.color}`}>
-                <p.icon className="h-5 w-5" />
-              </div>
-              <div className="flex-1 text-left">
-                <p className="text-sm font-semibold text-foreground">{p.name}</p>
-                <p className="text-[10px] text-muted-foreground">Full API · AI tools</p>
-              </div>
-              <ChevronRight className={`h-4 w-4 text-muted-foreground transition-transform ${expandedPlatform === p.id ? "rotate-90" : ""}`} />
-            </button>
-          </Card>
-        ))}
+        {platforms.map(p => {
+          const connected = isConnected(p.id);
+          return (
+            <Card key={p.id} className={`transition-all cursor-pointer hover:border-primary/30 ${!connected ? "opacity-50 grayscale" : ""} ${expandedPlatform === p.id ? p.borderColor : ""}`}>
+              <button
+                onClick={() => handlePlatformClick(p.id)}
+                className="w-full p-3 flex items-center gap-3 hover:bg-muted/30 transition-colors rounded-xl"
+              >
+                <div className={`h-10 w-10 rounded-lg ${p.bgColor} flex items-center justify-center ${p.color}`}>
+                  <p.icon className="h-5 w-5" />
+                </div>
+                <div className="flex-1 text-left">
+                  <p className="text-sm font-semibold text-foreground">{p.name}</p>
+                  <p className="text-[10px] text-muted-foreground">{connected ? "Full API · AI tools" : "Not connected — click to connect"}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  {connected ? (
+                    <Badge className="bg-green-500/15 text-green-400 text-[10px] border-green-500/30">Live</Badge>
+                  ) : (
+                    <Badge className="bg-muted text-muted-foreground text-[10px]"><AlertCircle className="h-3 w-3 mr-0.5" />Offline</Badge>
+                  )}
+                  <ChevronRight className={`h-4 w-4 text-muted-foreground transition-transform ${expandedPlatform === p.id ? "rotate-90" : ""}`} />
+                </div>
+              </button>
+            </Card>
+          );
+        })}
       </div>
 
       <Dialog open={!!expandedPlatform} onOpenChange={(open) => { if (!open) setExpandedPlatform(null); }}>
