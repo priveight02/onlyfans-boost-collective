@@ -267,6 +267,42 @@ export type Database = {
           },
         ]
       }
+      ai_keyword_delays: {
+        Row: {
+          account_id: string
+          created_at: string
+          delay_seconds: number
+          direction: string
+          id: string
+          is_active: boolean
+          keyword: string
+          match_type: string
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          created_at?: string
+          delay_seconds?: number
+          direction?: string
+          id?: string
+          is_active?: boolean
+          keyword: string
+          match_type?: string
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          created_at?: string
+          delay_seconds?: number
+          direction?: string
+          id?: string
+          is_active?: boolean
+          keyword?: string
+          match_type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       ai_learned_strategies: {
         Row: {
           account_id: string

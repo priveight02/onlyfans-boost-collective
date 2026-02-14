@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import BulkMessageHub from "./BulkMessageHub";
 import PersonaCreatorDialog from "./PersonaCreatorDialog";
+import KeywordDelayManager from "./KeywordDelayManager";
 
 interface LiveDMConversationsProps {
   accountId: string;
@@ -2401,6 +2402,9 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
               </Button>
             </div>
           </div>
+
+          {/* Keyword Delays */}
+          <KeywordDelayManager accountId={accountId} />
 
           {/* Current Phase - ALWAYS animating when polling */}
           <div className="px-3 py-2.5 border-b border-border/50">
