@@ -18,7 +18,8 @@ import {
   Send, Search, Loader2, Users, Bot, Sparkles, CheckCheck,
   RefreshCw, User, XCircle, Square, Zap, MessageCircle,
   Filter, Clock, Shuffle, Heart, Star, ArrowUpDown, UserPlus,
-  Download, Key, Eye, EyeOff, AlertTriangle, Globe,
+  Download, Key, Eye, EyeOff, AlertTriangle, Globe, Copy,
+  ListFilter, Tag, Trash2, FileDown, BarChart3, Shield,
 } from "lucide-react";
 
 interface BulkMessageHubProps {
@@ -36,6 +37,33 @@ interface Follower {
 }
 
 type SortMode = "name" | "recent" | "source";
+
+// Robust avatar with graceful fallback for expired CDN URLs
+const UserAvatar = ({ src, name, username, size = 8 }: { src: string | null; name: string; username: string; size?: number }) => {
+  const [failed, setFailed] = useState(false);
+  const initial = (name || username || "?")[0]?.toUpperCase();
+  const sizeClass = size === 10 ? "h-10 w-10" : size === 9 ? "h-9 w-9" : "h-8 w-8";
+  const textSize = size >= 10 ? "text-sm" : "text-xs";
+
+  if (!src || failed) {
+    return (
+      <div className={`${sizeClass} rounded-full bg-gradient-to-br from-purple-500 via-pink-500 to-orange-400 flex items-center justify-center flex-shrink-0`}>
+        <span className={`text-white ${textSize} font-bold`}>{initial}</span>
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={src}
+      alt=""
+      className={`${sizeClass} rounded-full object-cover flex-shrink-0`}
+      onError={() => setFailed(true)}
+      referrerPolicy="no-referrer"
+      crossOrigin="anonymous"
+    />
+  );
+};
 
 const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) => {
   const [followers, setFollowers] = useState<Follower[]>([]);
@@ -76,6 +104,34 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
   const discoverTimeout = useRef<any>(null);
 
   useEffect(() => { messageRef.current = message; }, [message]);
+
+  // Real-time follower count sync from Instagram
+  const syncFollowerCount = useCallback(async () => {
+    try {
+      const { data } = await supabase.functions.invoke("instagram-api", {
+        body: { action: "get_profile_basic", account_id: accountId },
+      });
+      if (data?.success && data.data?.followers_count) {
+        const newCount = data.data.followers_count;
+        setFollowersCount(newCount);
+        setFollowsCount(data.data?.follows_count || 0);
+        // Update the managed_accounts record
+        await supabase.from("managed_accounts").update({
+          subscriber_count: newCount,
+          content_count: data.data?.media_count || undefined,
+        }).eq("id", accountId);
+        invalidateNamespace(accountId, "account_stats");
+      }
+    } catch {}
+  }, [accountId]);
+
+  // Auto-sync follower count on open and every 60s
+  useEffect(() => {
+    if (!open) return;
+    syncFollowerCount();
+    const interval = setInterval(syncFollowerCount, 60000);
+    return () => clearInterval(interval);
+  }, [open, syncFollowerCount]);
 
   // Load persisted followers from DB first (cached), then merge with live data
   const loadPersistedFollowers = useCallback(async () => {
@@ -513,429 +569,505 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
   const selectedFollowers = followers.filter(f => selectedIds.has(f.id));
   const sources = [...new Set(followers.map(f => f.source))];
 
+  // Export contacts to clipboard
+  const exportContacts = () => {
+    const data = filteredFollowers.map(f => `${f.username},${f.name},${f.source}`).join("\n");
+    navigator.clipboard.writeText(`username,name,source\n${data}`);
+    toast.success(`Copied ${filteredFollowers.length} contacts to clipboard as CSV`);
+  };
+
+  // Remove selected from list
+  const removeSelected = () => {
+    setFollowers(prev => prev.filter(f => !selectedIds.has(f.id)));
+    toast.success(`Removed ${selectedIds.size} contacts from list`);
+    setSelectedIds(new Set());
+  };
+
+  // Select by source
+  const selectBySource = (source: string) => {
+    const ids = new Set(followers.filter(f => f.source === source).map(f => f.id));
+    setSelectedIds(ids);
+    toast.success(`Selected ${ids.size} ${source} contacts`);
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-0 gap-0 bg-[hsl(222,35%,8%)] border-white/10 text-white overflow-hidden">
-        <DialogHeader className="px-5 py-3 border-b border-white/10 flex-shrink-0">
-          <DialogTitle className="flex items-center gap-2 text-base text-white">
-            <Send className="h-4 w-4 text-purple-400" />
+      <DialogContent className="max-w-[95vw] w-[1200px] max-h-[88vh] flex flex-col p-0 gap-0 bg-[hsl(222,35%,8%)] border-white/10 text-white overflow-hidden">
+        <DialogHeader className="px-6 py-3 border-b border-white/10 flex-shrink-0">
+          <DialogTitle className="flex items-center gap-3 text-lg text-white">
+            <Send className="h-5 w-5 text-purple-400" />
             Bulk Message Hub
-            <Badge variant="outline" className="text-[9px] ml-2 text-white/50 border-white/20">
+            <Badge variant="outline" className="text-[10px] ml-2 text-white/50 border-white/20">
               {followersCount.toLocaleString()} followers · {followers.length.toLocaleString()} fetched
             </Badge>
+            <button onClick={syncFollowerCount} className="ml-1 text-white/30 hover:text-emerald-400 transition-colors" title="Sync follower count from Instagram">
+              <RefreshCw className="h-3.5 w-3.5" />
+            </button>
           </DialogTitle>
         </DialogHeader>
 
-        <div className="flex-1 flex flex-col overflow-hidden min-h-0">
-          {/* Message Composer */}
-          <div className="px-5 py-3 border-b border-white/10 space-y-2 flex-shrink-0">
-            <Textarea
-              value={message}
-              onChange={e => setMessage(e.target.value)}
-              placeholder={personalizeMode ? "hey {name} 💕 noticed u following me..." : "Type your message... or generate with AI"}
-              className="min-h-[56px] max-h-[90px] text-sm bg-white/5 border-white/10 text-white placeholder:text-white/30 resize-none focus:border-purple-500/50"
-            />
-            <div className="flex items-center gap-2 flex-wrap">
-              <Button size="sm" variant="outline" onClick={generateAIMessage} disabled={generatingAI} className="h-7 text-[10px] gap-1.5 border-purple-500/30 text-purple-400 hover:bg-purple-500/10 bg-transparent">
-                {generatingAI ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
-                AI Generate Opener
-              </Button>
-              <div className="flex items-center gap-1.5">
-                <span className="text-[10px] text-white/40">Personalize</span>
-                <Switch checked={personalizeMode} onCheckedChange={setPersonalizeMode} className="scale-[0.65]" />
+        {/* HORIZONTAL LAYOUT: Left = Composer + Actions | Right = Contact List */}
+        <div className="flex-1 flex overflow-hidden min-h-0">
+          {/* LEFT PANEL — Message Composer + Actions */}
+          <div className="w-[420px] flex-shrink-0 flex flex-col border-r border-white/10 overflow-y-auto">
+            {/* Message Composer */}
+            <div className="px-5 py-4 border-b border-white/10 space-y-3">
+              <label className="text-xs font-medium text-white/60 uppercase tracking-wider">Message</label>
+              <Textarea
+                value={message}
+                onChange={e => setMessage(e.target.value)}
+                placeholder={personalizeMode ? "hey {name} 💕 noticed u following me..." : "Type your message... or generate with AI"}
+                className="min-h-[100px] max-h-[160px] text-sm bg-white/5 border-white/10 text-white placeholder:text-white/30 resize-none focus:border-purple-500/50"
+              />
+              <div className="flex items-center gap-2 flex-wrap">
+                <Button size="sm" variant="outline" onClick={generateAIMessage} disabled={generatingAI} className="h-8 text-[11px] gap-1.5 border-purple-500/30 text-purple-400 hover:bg-purple-500/10 bg-transparent">
+                  {generatingAI ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                  AI Opener
+                </Button>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[11px] text-white/40">Personalize</span>
+                  <Switch checked={personalizeMode} onCheckedChange={setPersonalizeMode} className="scale-[0.7]" />
+                </div>
+                {personalizeMode && (
+                  <Badge variant="outline" className="text-[10px] text-amber-400 border-amber-500/20 bg-amber-500/5">
+                    {"{name}"} = recipient name
+                  </Badge>
+                )}
               </div>
-              {personalizeMode && (
-                <Badge variant="outline" className="text-[9px] text-amber-400 border-amber-500/20 bg-amber-500/5">
-                  Use {"{name}"} in message
-                </Badge>
-              )}
               {sending && (
-                <Badge variant="outline" className="text-[10px] text-amber-400 border-amber-500/30 animate-pulse">
-                  ✏️ Edit message — applies in real-time
+                <Badge variant="outline" className="text-[11px] text-amber-400 border-amber-500/30 animate-pulse w-full justify-center py-1">
+                  ✏️ Edit message — applies in real-time to unsent
                 </Badge>
               )}
-              <div className="flex items-center gap-1.5 ml-auto">
-                <span className="text-[10px] text-white/40">Auto-chat</span>
-                <Switch checked={autoChat} onCheckedChange={setAutoChat} className="scale-[0.65]" />
-                <Bot className={`h-3 w-3 ${autoChat ? "text-blue-400" : "text-white/20"}`} />
-              </div>
             </div>
-          </div>
 
-          {/* Bulk Action Buttons */}
-          <div className="px-5 py-2 border-b border-white/10 flex-shrink-0 space-y-2">
-            <div className="flex items-center gap-2 flex-wrap">
+            {/* Send Actions */}
+            <div className="px-5 py-3 border-b border-white/10 space-y-2">
+              <label className="text-xs font-medium text-white/60 uppercase tracking-wider">Actions</label>
               {sending ? (
-                <Button size="sm" variant="destructive" onClick={cancelSend} className="h-7 text-[10px] gap-1">
-                  <XCircle className="h-3 w-3" /> Cancel Send
+                <Button size="sm" variant="destructive" onClick={cancelSend} className="h-8 text-[11px] gap-1.5 w-full">
+                  <XCircle className="h-3.5 w-3.5" /> Cancel Send
                 </Button>
               ) : (
-                <>
-                  <Button size="sm" disabled={selectedIds.size === 0 || !message.trim()} onClick={() => sendBulkMessages(selectedFollowers)} className="h-7 text-[10px] gap-1 bg-purple-600 hover:bg-purple-700">
-                    <Send className="h-3 w-3" /> Send to Selected ({selectedIds.size})
+                <div className="grid grid-cols-2 gap-1.5">
+                  <Button size="sm" disabled={selectedIds.size === 0 || !message.trim()} onClick={() => sendBulkMessages(selectedFollowers)} className="h-8 text-[11px] gap-1 bg-purple-600 hover:bg-purple-700">
+                    <Send className="h-3 w-3" /> Selected ({selectedIds.size})
                   </Button>
-                  <Button size="sm" variant="outline" disabled={followers.length === 0 || !message.trim()} onClick={() => sendBulkMessages(followers)} className="h-7 text-[10px] gap-1 border-green-500/30 text-green-400 hover:bg-green-500/10 bg-transparent">
-                    <Users className="h-3 w-3" /> Send to All ({followers.length})
+                  <Button size="sm" variant="outline" disabled={followers.length === 0 || !message.trim()} onClick={() => sendBulkMessages(followers)} className="h-8 text-[11px] gap-1 border-green-500/30 text-green-400 hover:bg-green-500/10 bg-transparent">
+                    <Users className="h-3 w-3" /> All ({followers.length})
                   </Button>
-                  <Button size="sm" variant="outline" onClick={() => selectRandom(10)} disabled={filteredFollowers.length === 0} className="h-7 text-[10px] gap-1 bg-transparent border-white/10 text-white/60 hover:bg-white/5">
+                  <Button size="sm" variant="outline" onClick={() => selectRandom(10)} disabled={filteredFollowers.length === 0} className="h-8 text-[11px] gap-1 bg-transparent border-white/10 text-white/60 hover:bg-white/5">
                     <Shuffle className="h-3 w-3" /> Random 10
                   </Button>
-                  <Button size="sm" variant="outline" onClick={() => selectRandom(50)} disabled={filteredFollowers.length === 0} className="h-7 text-[10px] gap-1 bg-transparent border-white/10 text-white/60 hover:bg-white/5">
+                  <Button size="sm" variant="outline" onClick={() => selectRandom(50)} disabled={filteredFollowers.length === 0} className="h-8 text-[11px] gap-1 bg-transparent border-white/10 text-white/60 hover:bg-white/5">
                     <Zap className="h-3 w-3" /> Random 50
                   </Button>
-                </>
+                  <Button size="sm" variant="outline" onClick={() => selectRandom(100)} disabled={filteredFollowers.length === 0} className="h-8 text-[11px] gap-1 bg-transparent border-white/10 text-white/60 hover:bg-white/5">
+                    <Zap className="h-3 w-3" /> Random 100
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => selectRandom(500)} disabled={filteredFollowers.length === 0} className="h-8 text-[11px] gap-1 bg-transparent border-white/10 text-white/60 hover:bg-white/5">
+                    <Zap className="h-3 w-3" /> Random 500
+                  </Button>
+                </div>
               )}
             </div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <Button size="sm" variant="ghost" onClick={selectAll} className="h-6 text-[10px] gap-1 text-white/50 hover:text-white hover:bg-white/5 px-2">
-                {selectedIds.size === filteredFollowers.length && filteredFollowers.length > 0 ? (
-                  <><Square className="h-2.5 w-2.5" /> Deselect All</>
-                ) : (
-                  <><CheckCheck className="h-2.5 w-2.5" /> Select All ({filteredFollowers.length})</>
-                )}
-              </Button>
-              <Button size="sm" variant="ghost" onClick={invertSelection} className="h-6 text-[10px] gap-1 text-white/50 hover:text-white hover:bg-white/5 px-2">
-                <ArrowUpDown className="h-2.5 w-2.5" /> Invert
-              </Button>
-              <Button size="sm" variant="ghost" disabled={loading} onClick={() => loadPersistedFollowers()} className="h-6 text-[10px] gap-1 text-white/50 hover:text-white hover:bg-white/5 px-2">
-                <RefreshCw className={`h-2.5 w-2.5 ${loading ? "animate-spin" : ""}`} /> Refresh
-              </Button>
 
-              {/* Delay control */}
-              <div className="flex items-center gap-1 ml-auto">
-                <Clock className="h-2.5 w-2.5 text-white/30" />
-                <span className="text-[9px] text-white/30">Delay:</span>
-                {[500, 1500, 3000, 5000].map(ms => (
-                  <button
-                    key={ms}
-                    onClick={() => setDelayBetweenMs(ms)}
-                    className={`text-[9px] px-1.5 py-0.5 rounded ${delayBetweenMs === ms ? "bg-purple-500/20 text-purple-400" : "text-white/30 hover:text-white/60"}`}
-                  >
-                    {ms / 1000}s
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Send Progress */}
-          {sendProgress && (
-            <div className="px-5 py-2 border-b border-white/10 bg-white/[0.02] flex-shrink-0">
-              <div className="flex items-center gap-2 text-xs">
-                {sending ? <Loader2 className="h-3 w-3 animate-spin text-blue-400" /> : <CheckCheck className="h-3 w-3 text-green-400" />}
-                <span className={sending ? "text-blue-400" : "text-green-400"}>
-                  {sending ? `Sending... ${sendProgress.sent}/${sendProgress.total}` : `Done: ${sendProgress.sent}/${sendProgress.total} sent`}
-                </span>
-                {sendProgress.failed > 0 && <span className="text-red-400 text-[10px]">({sendProgress.failed} failed)</span>}
-                {cancelRef.current && sending && <span className="text-amber-400 text-[10px]">Cancelling...</span>}
-              </div>
-              <div className="mt-1 h-1.5 bg-white/5 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full transition-all duration-500"
-                  style={{ width: `${sendProgress.total > 0 ? Math.round((sendProgress.sent / sendProgress.total) * 100) : 0}%` }}
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Source Tabs */}
-          <div className="px-5 py-2 border-b border-white/10 flex-shrink-0">
-            <div className="flex items-center gap-1 flex-wrap">
-              {([
-                { key: "all" as const, label: "All", icon: Users },
-                { key: "conversations" as const, label: "Past Convos", icon: MessageCircle },
-                { key: "followers" as const, label: "Engaged", icon: Heart },
-                { key: "fetched" as const, label: "Fetched Followers", icon: Download },
-              ]).map(tab => (
-                <button
-                  key={tab.key}
-                  onClick={() => setActiveTab(tab.key)}
-                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-medium transition-colors ${
-                    activeTab === tab.key 
-                      ? "bg-purple-500/20 text-purple-400" 
-                      : "text-white/40 hover:text-white/60 hover:bg-white/5"
-                  }`}
-                >
-                  <tab.icon className="h-3 w-3" />
-                  {tab.label}
-                  <span className="text-[8px] opacity-60">
-                    ({followers.filter(f => 
-                      tab.key === "all" ? true : 
-                      tab.key === "conversations" ? (f.source === "conversation" || f.source === "ig_api") :
-                      tab.key === "followers" ? (f.source === "follower" || f.source === "engaged") :
-                      (f.source === "fetched" || f.source === "discovered")
-                    ).length})
-                  </span>
-                </button>
-              ))}
-              <div className="ml-auto flex items-center gap-1">
-                {/* DISCOVER — Instagram Search Popover */}
-                <Popover open={showDiscover} onOpenChange={setShowDiscover}>
-                  <PopoverTrigger asChild>
-                    <Button 
-                      size="sm" 
-                      variant="outline" 
-                      className="h-6 text-[9px] gap-1 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 bg-transparent"
-                    >
-                      <Globe className="h-2.5 w-2.5" />
-                      Discover
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-80 p-0 bg-[hsl(222,35%,10%)] border-white/10" align="end" sideOffset={4}>
-                    <div className="p-3 border-b border-white/10">
-                      <div className="relative">
-                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/30" />
-                        <Input
-                          placeholder="Search Instagram users..."
-                          value={discoverQuery}
-                          onChange={e => onDiscoverQueryChange(e.target.value)}
-                          className="pl-8 h-8 text-xs bg-white/5 border-white/10 text-white placeholder:text-white/30"
-                          autoFocus
-                        />
-                        {discoverLoading && <Loader2 className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 animate-spin text-emerald-400" />}
-                      </div>
-                    </div>
-                    <div className="max-h-[300px] overflow-y-auto">
-                      {discoverResults.length === 0 && discoverQuery.length > 0 && !discoverLoading && (
-                        <p className="text-[10px] text-white/30 text-center py-4">No results for "{discoverQuery}"</p>
-                      )}
-                      {discoverResults.length === 0 && discoverQuery.length === 0 && (
-                        <p className="text-[10px] text-white/30 text-center py-4">Type a username or keyword to search</p>
-                      )}
-                      {discoverResults.map((user: any) => (
-                        <button
-                          key={user.id || user.username}
-                          onClick={() => addDiscoveredUser(user)}
-                          className="w-full text-left px-3 py-2 flex items-center gap-2.5 hover:bg-white/5 transition-colors border-b border-white/[0.04]"
-                        >
-                          {user.profile_pic_url ? (
-                            <img src={user.profile_pic_url} alt="" className="h-8 w-8 rounded-full object-cover flex-shrink-0" />
-                          ) : (
-                            <div className="h-8 w-8 rounded-full bg-gradient-to-br from-emerald-500 to-cyan-400 flex items-center justify-center flex-shrink-0">
-                              <span className="text-white text-xs font-bold">{(user.username || "?")[0]?.toUpperCase()}</span>
-                            </div>
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-1">
-                              <span className="text-xs font-medium text-white truncate">{user.full_name || user.username}</span>
-                              {user.is_verified && <span className="text-blue-400 text-[8px]">✓</span>}
-                              {user.is_private && <span className="text-amber-400 text-[8px]">🔒</span>}
-                            </div>
-                            <span className="text-[10px] text-white/35">@{user.username}</span>
-                          </div>
-                          <div className="text-right flex-shrink-0">
-                            {user.follower_count != null && (
-                              <span className="text-[9px] text-white/40">{user.follower_count >= 1000 ? `${(user.follower_count / 1000).toFixed(1)}K` : user.follower_count}</span>
-                            )}
-                            <UserPlus className="h-3 w-3 text-emerald-400 mt-0.5 ml-auto" />
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  </PopoverContent>
-                </Popover>
-
-                <Button 
-                  size="sm" 
-                  variant="outline" 
-                  onClick={() => setShowFetchSetup(!showFetchSetup)} 
-                  disabled={fetching}
-                  className="h-6 text-[9px] gap-1 border-orange-500/30 text-orange-400 hover:bg-orange-500/10 bg-transparent"
-                >
-                  {fetching ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <Download className="h-2.5 w-2.5" />}
-                  Fetch All Followers
+            {/* Selection Tools */}
+            <div className="px-5 py-3 border-b border-white/10 space-y-2">
+              <label className="text-xs font-medium text-white/60 uppercase tracking-wider">Selection</label>
+              <div className="grid grid-cols-2 gap-1.5">
+                <Button size="sm" variant="ghost" onClick={selectAll} className="h-7 text-[10px] gap-1 text-white/50 hover:text-white hover:bg-white/5 justify-start">
+                  {selectedIds.size === filteredFollowers.length && filteredFollowers.length > 0 ? (
+                    <><Square className="h-2.5 w-2.5" /> Deselect All</>
+                  ) : (
+                    <><CheckCheck className="h-2.5 w-2.5" /> Select All</>
+                  )}
+                </Button>
+                <Button size="sm" variant="ghost" onClick={invertSelection} className="h-7 text-[10px] gap-1 text-white/50 hover:text-white hover:bg-white/5 justify-start">
+                  <ArrowUpDown className="h-2.5 w-2.5" /> Invert
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => selectBySource("fetched")} className="h-7 text-[10px] gap-1 text-orange-400/60 hover:text-orange-400 hover:bg-orange-500/5 justify-start">
+                  <Download className="h-2.5 w-2.5" /> Fetched Only
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => selectBySource("conversation")} className="h-7 text-[10px] gap-1 text-blue-400/60 hover:text-blue-400 hover:bg-blue-500/5 justify-start">
+                  <MessageCircle className="h-2.5 w-2.5" /> DM Only
+                </Button>
+                <Button size="sm" variant="ghost" onClick={exportContacts} className="h-7 text-[10px] gap-1 text-white/50 hover:text-white hover:bg-white/5 justify-start">
+                  <Copy className="h-2.5 w-2.5" /> Export CSV
+                </Button>
+                <Button size="sm" variant="ghost" onClick={removeSelected} disabled={selectedIds.size === 0} className="h-7 text-[10px] gap-1 text-red-400/60 hover:text-red-400 hover:bg-red-500/5 justify-start">
+                  <Trash2 className="h-2.5 w-2.5" /> Remove Selected
                 </Button>
               </div>
             </div>
-          </div>
 
-          {/* Fetch Setup Panel */}
-          {showFetchSetup && (
-            <div className="px-5 py-3 border-b border-orange-500/20 bg-orange-500/[0.03] flex-shrink-0 space-y-2">
-              <div className="flex items-center gap-2 text-[10px] text-orange-400">
-                <AlertTriangle className="h-3 w-3" />
-                <span className="font-medium">Instagram Session Cookie Required</span>
-              </div>
-              <p className="text-[9px] text-white/40 leading-relaxed">
-                Open <span className="text-white/70">instagram.com</span> → Right-click → Inspect → Application tab → Cookies → instagram.com → Copy <span className="text-orange-400 font-mono">sessionid</span>, <span className="text-orange-400 font-mono">ds_user_id</span>, and <span className="text-orange-400 font-mono">csrftoken</span> values.
-              </p>
-              <div className="space-y-1.5">
-                <div className="relative">
-                  <Input
-                    type={showSessionId ? "text" : "password"}
-                    placeholder="sessionid (required)"
-                    value={sessionId}
-                    onChange={e => setSessionId(e.target.value)}
-                    className="h-7 text-xs bg-white/5 border-white/10 text-white placeholder:text-white/25 pr-8 font-mono"
-                  />
-                  <button onClick={() => setShowSessionId(!showSessionId)} className="absolute right-2 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60">
-                    {showSessionId ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
-                  </button>
+            {/* Settings */}
+            <div className="px-5 py-3 border-b border-white/10 space-y-2">
+              <label className="text-xs font-medium text-white/60 uppercase tracking-wider">Settings</label>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] text-white/50 flex items-center gap-1.5"><Bot className="h-3 w-3" /> Auto-enable AI chat</span>
+                  <Switch checked={autoChat} onCheckedChange={setAutoChat} className="scale-[0.7]" />
                 </div>
-                <div className="flex gap-1.5">
-                  <Input
-                    placeholder="ds_user_id (optional)"
-                    value={dsUserId}
-                    onChange={e => setDsUserId(e.target.value)}
-                    className="h-7 text-xs bg-white/5 border-white/10 text-white placeholder:text-white/25 font-mono"
-                  />
-                  <Input
-                    placeholder="csrftoken (optional)"
-                    value={csrfToken}
-                    onChange={e => setCsrfToken(e.target.value)}
-                    className="h-7 text-xs bg-white/5 border-white/10 text-white placeholder:text-white/25 font-mono"
-                  />
-                </div>
-                <div className="flex gap-1.5 items-center">
-                  <Input
-                    type="number"
-                    placeholder="Max followers (empty = ALL)"
-                    value={maxFollowersInput}
-                    onChange={e => setMaxFollowersInput(e.target.value)}
-                    className="h-7 text-xs bg-white/5 border-white/10 text-white placeholder:text-white/25 w-[200px]"
-                  />
-                  <span className="text-[9px] text-white/30">Leave empty to fetch all {followersCount > 0 ? followersCount.toLocaleString() : "account"} followers (new only)</span>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <Button
-                  size="sm"
-                  onClick={fetchAllFollowers}
-                  disabled={fetching || !sessionId.trim()}
-                  className="h-7 text-[10px] gap-1 bg-orange-600 hover:bg-orange-700 text-white"
-                >
-                  {fetching ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />}
-                  {fetching ? "Fetching..." : maxFollowersInput ? `Fetch ${parseInt(maxFollowersInput || "0").toLocaleString()} Followers` : "Fetch All Followers"}
-                </Button>
-                <Button size="sm" variant="ghost" onClick={() => setShowFetchSetup(false)} className="h-7 text-[10px] text-white/40 hover:text-white/60">
-                  Cancel
-                </Button>
-
-                {/* Progress Ring */}
-                {fetching && fetchGoal > 0 && (
-                  <div className="flex items-center gap-2">
-                    <div className="relative w-10 h-10">
-                      <svg className="w-10 h-10 -rotate-90" viewBox="0 0 36 36">
-                        <circle cx="18" cy="18" r="15" fill="none" stroke="hsl(var(--muted))" strokeWidth="3" />
-                        <circle
-                          cx="18" cy="18" r="15" fill="none"
-                          stroke="hsl(30, 90%, 55%)"
-                          strokeWidth="3"
-                          strokeLinecap="round"
-                          strokeDasharray={`${Math.min((fetchedCount / fetchGoal) * 94.25, 94.25)} 94.25`}
-                          className="transition-all duration-500"
-                        />
-                      </svg>
-                      <span className="absolute inset-0 flex items-center justify-center text-[8px] font-bold text-orange-400">
-                        {fetchGoal > 0 ? Math.min(Math.round((fetchedCount / fetchGoal) * 100), 100) : 0}%
-                      </span>
-                    </div>
-                    <div className="text-[9px] text-white/50 leading-tight">
-                      <div className="text-orange-400 font-medium">{fetchedCount.toLocaleString()} / {fetchGoal.toLocaleString()}</div>
-                      <div>followers fetched</div>
-                    </div>
+                <div className="flex items-center gap-1.5">
+                  <Clock className="h-3 w-3 text-white/30" />
+                  <span className="text-[11px] text-white/40">Delay:</span>
+                  <div className="flex gap-1">
+                    {[500, 1500, 3000, 5000].map(ms => (
+                      <button
+                        key={ms}
+                        onClick={() => setDelayBetweenMs(ms)}
+                        className={`text-[10px] px-2 py-0.5 rounded ${delayBetweenMs === ms ? "bg-purple-500/20 text-purple-400" : "text-white/30 hover:text-white/60 bg-white/5"}`}
+                      >
+                        {ms / 1000}s
+                      </button>
+                    ))}
                   </div>
-                )}
-
-                {!fetching && fetchProgress && (
-                  <span className="text-[9px] text-white/40">{fetchProgress}</span>
-                )}
+                </div>
               </div>
-              <p className="text-[8px] text-white/25 leading-relaxed">
-                ⚡ Anti-ban: Progressive delays between requests. Safe for large accounts. Followers are saved permanently — no need to fetch again.
-              </p>
             </div>
-          )}
 
-          {/* Search + Filters */}
-          <div className="px-5 py-2 border-b border-white/10 flex-shrink-0">
-            <div className="flex items-center gap-2">
-              <div className="relative flex-1">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/30" />
-                <Input
-                  placeholder="Search contacts..."
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                  className="pl-8 h-7 text-xs bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-purple-500/50"
-                />
-              </div>
-              {/* Sort */}
-              <button onClick={() => setSortMode(sortMode === "name" ? "source" : "name")} className="text-[9px] text-white/40 hover:text-white/70 flex items-center gap-1 px-2 py-1 rounded bg-white/5">
-                <ArrowUpDown className="h-2.5 w-2.5" />
-                {sortMode === "name" ? "A-Z" : "Source"}
-              </button>
-            </div>
-          </div>
-
-          {/* Follower List — scrollable */}
-          <div className="flex-1 overflow-y-auto min-h-0">
-            {loading ? (
-              <div className="p-8 text-center">
-                <Loader2 className="h-8 w-8 mx-auto mb-3 animate-spin text-white/20" />
-                <p className="text-xs text-white/40">Loading contacts...</p>
-              </div>
-            ) : filteredFollowers.length === 0 ? (
-              <div className="p-8 text-center">
-                <Users className="h-10 w-10 mx-auto mb-3 text-white/10" />
-                <p className="text-xs text-white/40">
-                  {followers.length === 0 ? "No contacts found — fetch your followers first" : "No matches"}
-                </p>
-                {followers.length === 0 && (
-                  <Button size="sm" variant="outline" onClick={() => loadPersistedFollowers()} className="mt-3 text-xs h-7 bg-transparent border-white/10 text-white/60">
-                    <RefreshCw className="h-3 w-3 mr-1" />Fetch Contacts
-                  </Button>
-                )}
-              </div>
-            ) : (
-              <div className="divide-y divide-white/[0.04]">
-                {filteredFollowers.map(f => {
-                  const isSelected = selectedIds.has(f.id);
-                  const sendResult = sendResults?.find(r => r.id === f.id);
-                  return (
-                    <button
-                      key={f.id}
-                      onClick={() => toggleSelect(f.id)}
-                      className={`w-full text-left px-5 py-2 flex items-center gap-3 transition-colors hover:bg-white/[0.04] cursor-pointer ${isSelected ? "bg-purple-500/[0.08]" : ""}`}
-                    >
-                      <Checkbox
-                        checked={isSelected}
-                        onCheckedChange={() => toggleSelect(f.id)}
-                        className="flex-shrink-0 border-white/20 data-[state=checked]:bg-purple-500 data-[state=checked]:border-purple-500"
-                      />
-                      {f.profile_pic ? (
-                        <img src={f.profile_pic} alt="" className="h-8 w-8 rounded-full object-cover flex-shrink-0" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling && ((e.target as HTMLImageElement).nextElementSibling as HTMLElement).style.removeProperty('display'); }} />
-                      ) : null}
-                      <div className={`h-8 w-8 rounded-full bg-gradient-to-br from-purple-500 via-pink-500 to-orange-400 flex items-center justify-center flex-shrink-0 ${f.profile_pic ? "hidden" : ""}`}>
-                        <span className="text-white text-xs font-bold">{(f.name || f.username || "?")[0]?.toUpperCase()}</span>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-white truncate">{f.name}</p>
-                        <p className="text-[10px] text-white/35 truncate">@{f.username}</p>
-                      </div>
-                      <Badge variant="outline" className={`text-[8px] px-1.5 ${f.source === "fetched" ? "text-orange-400 border-orange-500/20" : f.source === "follower" || f.source === "engaged" ? "text-emerald-400 border-emerald-500/20" : "text-white/25 border-white/10"}`}>
-                        {f.source === "conversation" ? "DM" : f.source === "fetched" ? "Fetched" : f.source === "engaged" ? "Engaged" : f.source === "follower" ? "Follower" : "IG"}
-                      </Badge>
-                      {sendResult && (
-                        <Badge
-                          variant="outline"
-                          className={`text-[9px] ${sendResult.success ? "text-green-400 border-green-500/30" : "text-red-400 border-red-500/30"}`}
-                        >
-                          {sendResult.success ? "✓" : "✗"}
-                        </Badge>
-                      )}
-                    </button>
-                  );
-                })}
+            {/* Send Progress */}
+            {sendProgress && (
+              <div className="px-5 py-3 border-b border-white/10 bg-white/[0.02]">
+                <div className="flex items-center gap-2 text-xs">
+                  {sending ? <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-400" /> : <CheckCheck className="h-3.5 w-3.5 text-green-400" />}
+                  <span className={sending ? "text-blue-400" : "text-green-400"}>
+                    {sending ? `Sending... ${sendProgress.sent}/${sendProgress.total}` : `Done: ${sendProgress.sent}/${sendProgress.total} sent`}
+                  </span>
+                  {sendProgress.failed > 0 && <span className="text-red-400 text-[11px]">({sendProgress.failed} failed)</span>}
+                </div>
+                <div className="mt-2 h-2 bg-white/5 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full transition-all duration-500"
+                    style={{ width: `${sendProgress.total > 0 ? Math.round((sendProgress.sent / sendProgress.total) * 100) : 0}%` }}
+                  />
+                </div>
               </div>
             )}
+
+            {/* Stats Footer */}
+            <div className="px-5 py-3 mt-auto bg-white/[0.02]">
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <div>
+                  <div className="text-lg font-bold text-white">{followersCount.toLocaleString()}</div>
+                  <div className="text-[9px] text-white/30 uppercase">IG Followers</div>
+                </div>
+                <div>
+                  <div className="text-lg font-bold text-emerald-400">{followers.length.toLocaleString()}</div>
+                  <div className="text-[9px] text-white/30 uppercase">Fetched</div>
+                </div>
+                <div>
+                  <div className="text-lg font-bold text-purple-400">{selectedIds.size.toLocaleString()}</div>
+                  <div className="text-[9px] text-white/30 uppercase">Selected</div>
+                </div>
+              </div>
+            </div>
           </div>
 
-          {/* Footer */}
-          <div className="px-5 py-2 border-t border-white/10 bg-white/[0.02] text-[10px] text-white/40 flex items-center justify-between flex-shrink-0">
-            <span>{followers.length} contacts · {selectedIds.size} selected · {filteredFollowers.length} shown</span>
-            <div className="flex items-center gap-3">
-              {autoChat && <span className="text-blue-400 flex items-center gap-1"><Bot className="h-3 w-3" />Auto-chat ON</span>}
-              <span className="text-white/25">Delay: {delayBetweenMs / 1000}s</span>
+          {/* RIGHT PANEL — Contacts List */}
+          <div className="flex-1 flex flex-col overflow-hidden min-h-0">
+            {/* Source Tabs + Discover + Fetch */}
+            <div className="px-5 py-2 border-b border-white/10 flex-shrink-0">
+              <div className="flex items-center gap-1 flex-wrap">
+                {([
+                  { key: "all" as const, label: "All", icon: Users },
+                  { key: "conversations" as const, label: "DMs", icon: MessageCircle },
+                  { key: "followers" as const, label: "Engaged", icon: Heart },
+                  { key: "fetched" as const, label: "Fetched", icon: Download },
+                ]).map(tab => (
+                  <button
+                    key={tab.key}
+                    onClick={() => setActiveTab(tab.key)}
+                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-colors ${
+                      activeTab === tab.key 
+                        ? "bg-purple-500/20 text-purple-400" 
+                        : "text-white/40 hover:text-white/60 hover:bg-white/5"
+                    }`}
+                  >
+                    <tab.icon className="h-3 w-3" />
+                    {tab.label}
+                    <span className="text-[9px] opacity-60">
+                      ({followers.filter(f => 
+                        tab.key === "all" ? true : 
+                        tab.key === "conversations" ? (f.source === "conversation" || f.source === "ig_api") :
+                        tab.key === "followers" ? (f.source === "follower" || f.source === "engaged") :
+                        (f.source === "fetched" || f.source === "discovered")
+                      ).length})
+                    </span>
+                  </button>
+                ))}
+                <div className="ml-auto flex items-center gap-1">
+                  {/* DISCOVER — Instagram Search Popover */}
+                  <Popover open={showDiscover} onOpenChange={setShowDiscover}>
+                    <PopoverTrigger asChild>
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        className="h-7 text-[10px] gap-1 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 bg-transparent"
+                      >
+                        <Globe className="h-3 w-3" />
+                        Discover
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-80 p-0 bg-[hsl(222,35%,10%)] border-white/10" align="end" sideOffset={4}>
+                      <div className="p-3 border-b border-white/10">
+                        <div className="relative">
+                          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/30" />
+                          <Input
+                            placeholder="Search Instagram users..."
+                            value={discoverQuery}
+                            onChange={e => onDiscoverQueryChange(e.target.value)}
+                            className="pl-8 h-8 text-xs bg-white/5 border-white/10 text-white placeholder:text-white/30"
+                            autoFocus
+                          />
+                          {discoverLoading && <Loader2 className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 animate-spin text-emerald-400" />}
+                        </div>
+                      </div>
+                      <div className="max-h-[300px] overflow-y-auto">
+                        {discoverResults.length === 0 && discoverQuery.length > 0 && !discoverLoading && (
+                          <p className="text-[11px] text-white/30 text-center py-4">No results for "{discoverQuery}"</p>
+                        )}
+                        {discoverResults.length === 0 && discoverQuery.length === 0 && (
+                          <p className="text-[11px] text-white/30 text-center py-4">Type a username or keyword to search</p>
+                        )}
+                        {discoverResults.map((user: any) => (
+                          <button
+                            key={user.id || user.username}
+                            onClick={() => addDiscoveredUser(user)}
+                            className="w-full text-left px-3 py-2.5 flex items-center gap-2.5 hover:bg-white/5 transition-colors border-b border-white/[0.04]"
+                          >
+                            <UserAvatar src={user.profile_pic_url} name={user.full_name || user.username} username={user.username} size={9} />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1">
+                                <span className="text-xs font-medium text-white truncate">{user.full_name || user.username}</span>
+                                {user.is_verified && <span className="text-blue-400 text-[9px]">✓</span>}
+                                {user.is_private && <span className="text-amber-400 text-[9px]">🔒</span>}
+                              </div>
+                              <span className="text-[10px] text-white/35">@{user.username}</span>
+                            </div>
+                            <div className="text-right flex-shrink-0">
+                              {user.follower_count != null && (
+                                <span className="text-[10px] text-white/40">{user.follower_count >= 1000 ? `${(user.follower_count / 1000).toFixed(1)}K` : user.follower_count}</span>
+                              )}
+                              <UserPlus className="h-3.5 w-3.5 text-emerald-400 mt-0.5 ml-auto" />
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    onClick={fetchRealFollowers} 
+                    disabled={fetchingFollowers}
+                    className="h-7 text-[10px] gap-1 border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10 bg-transparent"
+                  >
+                    {fetchingFollowers ? <Loader2 className="h-3 w-3 animate-spin" /> : <UserPlus className="h-3 w-3" />}
+                    Engaged
+                  </Button>
+
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    onClick={() => setShowFetchSetup(!showFetchSetup)} 
+                    disabled={fetching}
+                    className="h-7 text-[10px] gap-1 border-orange-500/30 text-orange-400 hover:bg-orange-500/10 bg-transparent"
+                  >
+                    {fetching ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />}
+                    Fetch All
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            {/* Fetch Setup Panel */}
+            {showFetchSetup && (
+              <div className="px-5 py-3 border-b border-orange-500/20 bg-orange-500/[0.03] flex-shrink-0 space-y-2">
+                <div className="flex items-center gap-2 text-[11px] text-orange-400">
+                  <AlertTriangle className="h-3.5 w-3.5" />
+                  <span className="font-medium">Instagram Session Cookie Required</span>
+                </div>
+                <p className="text-[10px] text-white/40 leading-relaxed">
+                  Open <span className="text-white/70">instagram.com</span> → Right-click → Inspect → Application → Cookies → Copy <span className="text-orange-400 font-mono">sessionid</span>, <span className="text-orange-400 font-mono">ds_user_id</span>, and <span className="text-orange-400 font-mono">csrftoken</span>.
+                </p>
+                <div className="space-y-1.5">
+                  <div className="relative">
+                    <Input
+                      type={showSessionId ? "text" : "password"}
+                      placeholder="sessionid (required)"
+                      value={sessionId}
+                      onChange={e => setSessionId(e.target.value)}
+                      className="h-8 text-xs bg-white/5 border-white/10 text-white placeholder:text-white/25 pr-8 font-mono"
+                    />
+                    <button onClick={() => setShowSessionId(!showSessionId)} className="absolute right-2 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60">
+                      {showSessionId ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                    </button>
+                  </div>
+                  <div className="flex gap-1.5">
+                    <Input
+                      placeholder="ds_user_id (optional)"
+                      value={dsUserId}
+                      onChange={e => setDsUserId(e.target.value)}
+                      className="h-8 text-xs bg-white/5 border-white/10 text-white placeholder:text-white/25 font-mono"
+                    />
+                    <Input
+                      placeholder="csrftoken (optional)"
+                      value={csrfToken}
+                      onChange={e => setCsrfToken(e.target.value)}
+                      className="h-8 text-xs bg-white/5 border-white/10 text-white placeholder:text-white/25 font-mono"
+                    />
+                  </div>
+                  <div className="flex gap-1.5 items-center">
+                    <Input
+                      type="number"
+                      placeholder="Max followers (empty = ALL)"
+                      value={maxFollowersInput}
+                      onChange={e => setMaxFollowersInput(e.target.value)}
+                      className="h-8 text-xs bg-white/5 border-white/10 text-white placeholder:text-white/25 w-[200px]"
+                    />
+                    <span className="text-[10px] text-white/30">Leave empty to fetch all {followersCount > 0 ? followersCount.toLocaleString() : "account"} followers</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Button
+                    size="sm"
+                    onClick={fetchAllFollowers}
+                    disabled={fetching || !sessionId.trim()}
+                    className="h-8 text-[11px] gap-1.5 bg-orange-600 hover:bg-orange-700 text-white"
+                  >
+                    {fetching ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+                    {fetching ? "Fetching..." : maxFollowersInput ? `Fetch ${parseInt(maxFollowersInput || "0").toLocaleString()}` : "Fetch All Followers"}
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => setShowFetchSetup(false)} className="h-8 text-[11px] text-white/40 hover:text-white/60">
+                    Cancel
+                  </Button>
+
+                  {/* Progress Ring */}
+                  {fetching && fetchGoal > 0 && (
+                    <div className="flex items-center gap-2">
+                      <div className="relative w-11 h-11">
+                        <svg className="w-11 h-11 -rotate-90" viewBox="0 0 36 36">
+                          <circle cx="18" cy="18" r="15" fill="none" stroke="hsl(var(--muted))" strokeWidth="3" />
+                          <circle
+                            cx="18" cy="18" r="15" fill="none"
+                            stroke="hsl(30, 90%, 55%)"
+                            strokeWidth="3"
+                            strokeLinecap="round"
+                            strokeDasharray={`${Math.min((fetchedCount / fetchGoal) * 94.25, 94.25)} 94.25`}
+                            className="transition-all duration-500"
+                          />
+                        </svg>
+                        <span className="absolute inset-0 flex items-center justify-center text-[9px] font-bold text-orange-400">
+                          {fetchGoal > 0 ? Math.min(Math.round((fetchedCount / fetchGoal) * 100), 100) : 0}%
+                        </span>
+                      </div>
+                      <div className="text-[10px] text-white/50 leading-tight">
+                        <div className="text-orange-400 font-medium">{fetchedCount.toLocaleString()} / {fetchGoal.toLocaleString()}</div>
+                        <div>followers fetched</div>
+                      </div>
+                    </div>
+                  )}
+
+                  {!fetching && fetchProgress && (
+                    <span className="text-[10px] text-white/40">{fetchProgress}</span>
+                  )}
+                </div>
+                <p className="text-[9px] text-white/25 leading-relaxed">
+                  ⚡ Chunked anti-ban fetch with progressive delays. Safe for 29K+ accounts. Followers saved permanently.
+                </p>
+              </div>
+            )}
+
+            {/* Search + Sort */}
+            <div className="px-5 py-2 border-b border-white/10 flex-shrink-0">
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/30" />
+                  <Input
+                    placeholder="Search contacts..."
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    className="pl-8 h-8 text-xs bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-purple-500/50"
+                  />
+                </div>
+                <button onClick={() => setSortMode(sortMode === "name" ? "source" : "name")} className="text-[10px] text-white/40 hover:text-white/70 flex items-center gap-1 px-2.5 py-1.5 rounded bg-white/5">
+                  <ArrowUpDown className="h-3 w-3" />
+                  {sortMode === "name" ? "A-Z" : "Source"}
+                </button>
+                <Button size="sm" variant="ghost" disabled={loading} onClick={() => { invalidateNamespace(accountId, "persisted_followers"); invalidateNamespace(accountId, "live_followers"); loadPersistedFollowers(); }} className="h-8 text-[10px] gap-1 text-white/40 hover:text-white hover:bg-white/5 px-2">
+                  <RefreshCw className={`h-3 w-3 ${loading ? "animate-spin" : ""}`} /> Reload
+                </Button>
+              </div>
+            </div>
+
+            {/* Follower List — scrollable */}
+            <div className="flex-1 overflow-y-auto min-h-0">
+              {loading ? (
+                <div className="p-10 text-center">
+                  <Loader2 className="h-10 w-10 mx-auto mb-3 animate-spin text-white/20" />
+                  <p className="text-sm text-white/40">Loading contacts...</p>
+                </div>
+              ) : filteredFollowers.length === 0 ? (
+                <div className="p-10 text-center">
+                  <Users className="h-12 w-12 mx-auto mb-3 text-white/10" />
+                  <p className="text-sm text-white/40">
+                    {followers.length === 0 ? "No contacts — use Discover or Fetch All to get started" : "No matches"}
+                  </p>
+                </div>
+              ) : (
+                <div className="divide-y divide-white/[0.04]">
+                  {filteredFollowers.map(f => {
+                    const isSelected = selectedIds.has(f.id);
+                    const sendResult = sendResults?.find(r => r.id === f.id);
+                    return (
+                      <button
+                        key={f.id}
+                        onClick={() => toggleSelect(f.id)}
+                        className={`w-full text-left px-5 py-2.5 flex items-center gap-3 transition-colors hover:bg-white/[0.04] cursor-pointer ${isSelected ? "bg-purple-500/[0.08]" : ""}`}
+                      >
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={() => toggleSelect(f.id)}
+                          className="flex-shrink-0 border-white/20 data-[state=checked]:bg-purple-500 data-[state=checked]:border-purple-500"
+                        />
+                        <UserAvatar src={f.profile_pic} name={f.name} username={f.username} size={9} />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-white truncate">{f.name}</p>
+                          <p className="text-[11px] text-white/35 truncate">@{f.username}</p>
+                        </div>
+                        <Badge variant="outline" className={`text-[9px] px-1.5 ${
+                          f.source === "fetched" ? "text-orange-400 border-orange-500/20" : 
+                          f.source === "discovered" ? "text-emerald-400 border-emerald-500/20" :
+                          f.source === "follower" || f.source === "engaged" ? "text-cyan-400 border-cyan-500/20" : 
+                          "text-white/25 border-white/10"
+                        }`}>
+                          {f.source === "conversation" ? "DM" : f.source === "fetched" ? "Fetched" : f.source === "discovered" ? "Found" : f.source === "engaged" ? "Engaged" : f.source === "follower" ? "Follower" : "IG"}
+                        </Badge>
+                        {sendResult && (
+                          <Badge
+                            variant="outline"
+                            className={`text-[10px] ${sendResult.success ? "text-green-400 border-green-500/30" : "text-red-400 border-red-500/30"}`}
+                          >
+                            {sendResult.success ? "✓ Sent" : "✗ Failed"}
+                          </Badge>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="px-5 py-2 border-t border-white/10 bg-white/[0.02] text-[11px] text-white/40 flex items-center justify-between flex-shrink-0">
+              <span>{filteredFollowers.length} shown · {selectedIds.size} selected</span>
+              <div className="flex items-center gap-3">
+                {autoChat && <span className="text-blue-400 flex items-center gap-1"><Bot className="h-3 w-3" />AI Auto-chat</span>}
+                <span className="text-white/25">Delay: {delayBetweenMs / 1000}s</span>
+              </div>
             </div>
           </div>
         </div>
