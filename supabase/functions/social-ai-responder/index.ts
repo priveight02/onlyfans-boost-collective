@@ -551,6 +551,239 @@ const buildFanMemory = (messages: any[]): { memoryBlock: string; questionsAsked:
   return { memoryBlock, questionsAsked: questionsWeAsked, factsKnown: facts };
 };
 
+// === MACHINE LEARNING ENGINE — REAL-TIME LEARNING FROM EVERY CONVERSATION ===
+
+// Fetch winning strategies from ai_learned_strategies and format for system prompt injection
+const fetchLearnedStrategies = async (supabase: any, accountId: string, behaviorType: string): Promise<string> => {
+  try {
+    const { data: strategies } = await supabase
+      .from("ai_learned_strategies")
+      .select("*")
+      .eq("account_id", accountId)
+      .in("behavior_type", [behaviorType, "all"])
+      .order("avg_engagement_score", { ascending: false })
+      .limit(5);
+
+    if (!strategies || strategies.length === 0) return "";
+
+    const lines: string[] = ["\n\n=== ML LEARNED STRATEGIES (from past conversations — USE these) ==="];
+    for (const s of strategies) {
+      lines.push(`\nBehavior: ${s.behavior_type} | Strategy: ${s.strategy_type} | Success: ${Math.round((s.redirect_success_rate || 0) * 100)}% | Samples: ${s.total_samples || 0}`);
+      const openers = (s.best_openers as any[]) || [];
+      if (openers.length > 0) lines.push(`  Best openers: ${openers.slice(0, 3).map((o: any) => `"${typeof o === 'string' ? o : o.text || o}"`).join(", ")}`);
+      const hooks = (s.best_hooks as any[]) || [];
+      if (hooks.length > 0) lines.push(`  Best hooks: ${hooks.slice(0, 3).map((h: any) => `"${typeof h === 'string' ? h : h.text || h}"`).join(", ")}`);
+      const recovery = (s.best_recovery_lines as any[]) || [];
+      if (recovery.length > 0) lines.push(`  Best recovery lines: ${recovery.slice(0, 3).map((r: any) => `"${typeof r === 'string' ? r : r.text || r}"`).join(", ")}`);
+      const winning = (s.winning_patterns as any[]) || [];
+      if (winning.length > 0) lines.push(`  Winning patterns: ${winning.slice(0, 3).map((w: any) => `"${typeof w === 'string' ? w : w.pattern || w}"`).join(", ")}`);
+      const losing = (s.losing_patterns as any[]) || [];
+      if (losing.length > 0) lines.push(`  AVOID these (losing patterns): ${losing.slice(0, 3).map((l: any) => `"${typeof l === 'string' ? l : l.pattern || l}"`).join(", ")}`);
+    }
+    lines.push("Integrate these learnings naturally. Prioritize proven hooks and openers. Avoid losing patterns.");
+    return lines.join("\n");
+  } catch {
+    return "";
+  }
+};
+
+// Evaluate the effectiveness of our PREVIOUS AI message based on the fan's response
+const evaluatePreviousOutcome = (messages: any[]): { outcome: string; engagementDelta: number; redirectSuccess: boolean; previousAiMsg: string; fanResponse: string; strategyUsed: string } => {
+  const result = { outcome: "neutral", engagementDelta: 0, redirectSuccess: false, previousAiMsg: "", fanResponse: "", strategyUsed: "general" };
+  if (!messages || messages.length < 2) return result;
+
+  // Find the last AI message and the fan's response to it
+  let lastAiIdx = -1;
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i].sender_type !== "fan") { lastAiIdx = i; break; }
+  }
+  if (lastAiIdx === -1 || lastAiIdx >= messages.length - 1) return result;
+
+  const aiMsg = (messages[lastAiIdx].content || "").toLowerCase();
+  result.previousAiMsg = aiMsg;
+
+  // Collect all fan responses after our message
+  const fanResponses = messages.slice(lastAiIdx + 1).filter((m: any) => m.sender_type === "fan");
+  if (fanResponses.length === 0) return result;
+
+  const fanText = fanResponses.map((m: any) => m.content || "").join(" ").toLowerCase();
+  result.fanResponse = fanText;
+  const fanLen = fanText.length;
+
+  // Detect strategy type from the AI message
+  if (aiMsg.match(/(bio|link|profile|page|check it|come see|come find)/)) result.strategyUsed = "redirect";
+  else if (aiMsg.match(/(where|what do u|how old|ur name|tell me)/)) result.strategyUsed = "rapport_building";
+  else if (aiMsg.match(/(prove it|handle|bet u|earn it|convince me)/)) result.strategyUsed = "challenge";
+  else if (aiMsg.match(/(mm|hmm|oh|interesting|go on)/)) result.strategyUsed = "minimal_response";
+  else if (aiMsg.match(/(posted|something new|wont find|exclusive|special)/)) result.strategyUsed = "curiosity_hook";
+  else if (aiMsg.match(/(sweet|cute|making me|aww|thats nice)/)) result.strategyUsed = "validation";
+  else if (aiMsg.match(/(lol|haha|playing|messing|teasing)/)) result.strategyUsed = "playful_recovery";
+
+  // Check redirect success — did they acknowledge the redirect?
+  if (result.strategyUsed === "redirect" || result.strategyUsed === "curiosity_hook") {
+    const ackPattern = /^(ok|okay|sure|alright|bet|yea|yes|yep|yeah|cool|got it|will do|kk|okey|oki|aight|fs|for sure|thanks|ty|on it|going now|checking|let me see)/;
+    if (fanText.match(ackPattern)) {
+      result.redirectSuccess = true;
+      result.outcome = "redirect_success";
+      result.engagementDelta = 50;
+      return result;
+    }
+  }
+
+  // Evaluate engagement quality
+  const hasQuestion = fanText.includes("?");
+  const hasAffection = !!fanText.match(/(love|miss|beautiful|gorgeous|amazing|cute|babe|baby|sweetheart|❤|🔥|😍)/);
+  const hasPersonalShare = !!fanText.match(/(from |i live|my name|i work|i do |years old|my country)/);
+  const isLong = fanLen > 40;
+  const isDry = fanLen < 10 && !hasQuestion;
+  const isNegative = !!fanText.match(/(stop|leave|bye|block|fake|bot|annoying|fuck off|wtf|stfu|boring|waste)/);
+  const isDisengaged = !!fanText.match(/^(k|ok|cool|sure|yea|whatever|fine|mhm|hmm|nah|idk|idc|nope|lol)$/);
+
+  if (isNegative) {
+    result.outcome = "negative";
+    result.engagementDelta = -30;
+  } else if (isDisengaged || isDry) {
+    result.outcome = "disengaged";
+    result.engagementDelta = -10;
+  } else if (hasAffection && isLong) {
+    result.outcome = "highly_engaged";
+    result.engagementDelta = 40;
+  } else if (hasAffection || hasPersonalShare) {
+    result.outcome = "engaged";
+    result.engagementDelta = 25;
+  } else if (hasQuestion || isLong) {
+    result.outcome = "interested";
+    result.engagementDelta = 15;
+  } else {
+    result.outcome = "neutral";
+    result.engagementDelta = 5;
+  }
+
+  return result;
+};
+
+// Log every AI interaction to ai_conversation_learnings for the ML engine
+const logConversationLearning = async (
+  supabase: any,
+  accountId: string,
+  conversationId: string,
+  fanIdentifier: string,
+  behaviorType: string,
+  messageSent: string,
+  outcome: string,
+  engagementDelta: number,
+  redirectSuccess: boolean,
+  strategyType: string,
+  fanResponse: string,
+  contextSnapshot: any
+) => {
+  try {
+    await supabase.from("ai_conversation_learnings").insert({
+      account_id: accountId,
+      conversation_id: conversationId,
+      fan_identifier: fanIdentifier,
+      behavior_type: behaviorType,
+      strategy_type: strategyType,
+      message_sent: messageSent,
+      outcome,
+      engagement_delta: engagementDelta,
+      redirect_success: redirectSuccess,
+      fan_response: fanResponse.substring(0, 500),
+      context_snapshot: contextSnapshot,
+    });
+  } catch (e) {
+    console.error("ML logging failed (non-blocking):", e);
+  }
+};
+
+// Aggregate winning/losing patterns into ai_learned_strategies
+const upsertStrategyStats = async (
+  supabase: any,
+  accountId: string,
+  behaviorType: string,
+  strategyType: string,
+  messageSent: string,
+  outcome: string,
+  engagementDelta: number,
+  redirectSuccess: boolean
+) => {
+  try {
+    // Fetch existing strategy record
+    const { data: existing } = await supabase
+      .from("ai_learned_strategies")
+      .select("*")
+      .eq("account_id", accountId)
+      .eq("behavior_type", behaviorType)
+      .eq("strategy_type", strategyType)
+      .single();
+
+    const isWin = engagementDelta >= 15;
+    const isLoss = engagementDelta <= -10;
+    const msgEntry = { text: messageSent.substring(0, 200), score: engagementDelta, at: new Date().toISOString() };
+
+    if (existing) {
+      const totalSamples = (existing.total_samples || 0) + 1;
+      const prevTotal = existing.total_samples || 1;
+      const newAvg = ((existing.avg_engagement_score || 0) * prevTotal + engagementDelta) / totalSamples;
+
+      // Update redirect success rate (rolling average)
+      const prevRedirectRate = existing.redirect_success_rate || 0;
+      const newRedirectRate = ((prevRedirectRate * prevTotal) + (redirectSuccess ? 1 : 0)) / totalSamples;
+
+      // Append to winning/losing patterns (keep top 10 each)
+      let winning = (existing.winning_patterns as any[]) || [];
+      let losing = (existing.losing_patterns as any[]) || [];
+      let bestOpeners = (existing.best_openers as any[]) || [];
+      let bestHooks = (existing.best_hooks as any[]) || [];
+      let bestRecovery = (existing.best_recovery_lines as any[]) || [];
+
+      if (isWin) {
+        winning.push(msgEntry);
+        winning.sort((a: any, b: any) => (b.score || 0) - (a.score || 0));
+        winning = winning.slice(0, 10);
+        // Categorize into openers/hooks/recovery
+        if (strategyType === "rapport_building") { bestOpeners.push(msgEntry); bestOpeners = bestOpeners.sort((a: any, b: any) => (b.score || 0) - (a.score || 0)).slice(0, 5); }
+        if (strategyType === "curiosity_hook" || strategyType === "redirect") { bestHooks.push(msgEntry); bestHooks = bestHooks.sort((a: any, b: any) => (b.score || 0) - (a.score || 0)).slice(0, 5); }
+        if (strategyType === "playful_recovery") { bestRecovery.push(msgEntry); bestRecovery = bestRecovery.sort((a: any, b: any) => (b.score || 0) - (a.score || 0)).slice(0, 5); }
+      }
+      if (isLoss) {
+        losing.push(msgEntry);
+        losing.sort((a: any, b: any) => (a.score || 0) - (b.score || 0));
+        losing = losing.slice(0, 10);
+      }
+
+      await supabase.from("ai_learned_strategies").update({
+        total_samples: totalSamples,
+        avg_engagement_score: Math.round(newAvg * 100) / 100,
+        redirect_success_rate: Math.round(newRedirectRate * 1000) / 1000,
+        winning_patterns: winning,
+        losing_patterns: losing,
+        best_openers: bestOpeners,
+        best_hooks: bestHooks,
+        best_recovery_lines: bestRecovery,
+        updated_at: new Date().toISOString(),
+      }).eq("id", existing.id);
+    } else {
+      // Create new strategy record
+      await supabase.from("ai_learned_strategies").insert({
+        account_id: accountId,
+        behavior_type: behaviorType,
+        strategy_type: strategyType,
+        total_samples: 1,
+        avg_engagement_score: engagementDelta,
+        redirect_success_rate: redirectSuccess ? 1 : 0,
+        winning_patterns: isWin ? [msgEntry] : [],
+        losing_patterns: isLoss ? [msgEntry] : [],
+        best_openers: strategyType === "rapport_building" && isWin ? [msgEntry] : [],
+        best_hooks: (strategyType === "curiosity_hook" || strategyType === "redirect") && isWin ? [msgEntry] : [],
+        best_recovery_lines: strategyType === "playful_recovery" && isWin ? [msgEntry] : [],
+      });
+    }
+  } catch (e) {
+    console.error("Strategy upsert failed (non-blocking):", e);
+  }
+};
+
 // === UPGRADED BEHAVIOR CLASSIFICATION ENGINE ===
 const classifyFanBehavior = (messages: any[]): { type: string; context: string; engagementScore: number } => {
   const fanMsgs = messages.filter(m => m.sender_type === "fan");
@@ -1720,8 +1953,20 @@ Follow these persona settings strictly. They override any conflicting defaults a
             const behaviorCtxLive = `\n\n=== PERSON BEHAVIOR: ${behavior.type.toUpperCase()} ===\n${behavior.context}`;
             const tensionCtxLive = tension.tensionContext;
 
+            // === ML ENGINE: Evaluate previous AI message outcome ===
+            const prevOutcome = evaluatePreviousOutcome(dbMessages || []);
+            if (prevOutcome.previousAiMsg && prevOutcome.fanResponse) {
+              // Log the learning
+              logConversationLearning(supabase, account_id, dbConvo.id, dbConvo.participant_id, behavior.type, prevOutcome.previousAiMsg, prevOutcome.outcome, prevOutcome.engagementDelta, prevOutcome.redirectSuccess, prevOutcome.strategyUsed, prevOutcome.fanResponse, { tension: tension.tensionLevel, engagement: behavior.engagementScore });
+              // Update strategy aggregates
+              upsertStrategyStats(supabase, account_id, behavior.type, prevOutcome.strategyUsed, prevOutcome.previousAiMsg, prevOutcome.outcome, prevOutcome.engagementDelta, prevOutcome.redirectSuccess);
+            }
+
+            // === ML ENGINE: Fetch learned strategies for system prompt injection ===
+            const learnedStrategiesCtx = await fetchLearnedStrategies(supabase, account_id, behavior.type);
+
             // Generate AI reply
-            const systemPrompt = `${personaInfo2}${emojiDir}${fanMemoryBlock}${behaviorCtxLive}${tensionCtxLive}
+            const systemPrompt = `${personaInfo2}${emojiDir}${fanMemoryBlock}${behaviorCtxLive}${tensionCtxLive}${learnedStrategiesCtx}
 ${autoConfig.redirect_url ? `\nIMPORTANT: when it makes sense, naturally guide toward this link: ${autoConfig.redirect_url}. But NEVER redirect during genuine bonding moments — wait for a natural transition. NEVER redirect when the vibe is tense or dry — fix the vibe first` : ""}
 ${autoConfig.trigger_keywords ? `if they mention any of these: ${autoConfig.trigger_keywords}, redirect them to the link` : ""}
 
@@ -1882,12 +2127,16 @@ FINAL REMINDER:
                 is_read: true,
               }).eq("id", dbConvo.id);
 
+              // === ML ENGINE: Log this AI reply for future learning ===
+              logConversationLearning(supabase, account_id, dbConvo.id, dbConvo.participant_id, behavior.type, reply, "sent", 0, false, "pending_evaluation", latestMsg.content || "", { behavior: behavior.type, tension: tension.tensionLevel });
+
               processed++;
               processedConvos.push({
                 conversation_id: dbConvo.id,
                 fan: dbConvo.participant_username,
                 fan_message: latestMsg.content,
                 ai_reply: reply,
+                ml_behavior: behavior.type,
               });
             } catch (sendErr: any) {
               console.error("Failed to send DM:", sendErr);
@@ -2058,8 +2307,18 @@ Follow these persona settings strictly. They override any conflicting defaults a
               }, { onConflict: "account_id,fan_identifier" });
             } catch {}
 
+            // === ML ENGINE: Evaluate + learn from previous AI message ===
+            const prevOutcomeRL = evaluatePreviousOutcome(fullHistory);
+            if (prevOutcomeRL.previousAiMsg && prevOutcomeRL.fanResponse) {
+              logConversationLearning(supabase, account_id, uc.id, uc.participant_id, behaviorRL.type, prevOutcomeRL.previousAiMsg, prevOutcomeRL.outcome, prevOutcomeRL.engagementDelta, prevOutcomeRL.redirectSuccess, prevOutcomeRL.strategyUsed, prevOutcomeRL.fanResponse, { engagement: behaviorRL.engagementScore });
+              upsertStrategyStats(supabase, account_id, behaviorRL.type, prevOutcomeRL.strategyUsed, prevOutcomeRL.previousAiMsg, prevOutcomeRL.outcome, prevOutcomeRL.engagementDelta, prevOutcomeRL.redirectSuccess);
+            }
+
+            // === ML ENGINE: Inject learned strategies ===
+            const learnedStrategiesRL = await fetchLearnedStrategies(supabase, account_id, behaviorRL.type);
+
             const emojiDirRL = "\n\nEMOJI DIRECTIVE: ZERO emojis. NEVER use emojis. Text only. Always.";
-            const systemPromptRL = `${personaRL}${emojiDirRL}${fanMemBlockRL}
+            const systemPromptRL = `${personaRL}${emojiDirRL}${fanMemBlockRL}${learnedStrategiesRL}
 \n=== PERSON BEHAVIOR: ${behaviorRL.type.toUpperCase()} ===\n${behaviorRL.context}
 ${autoConfigRL?.redirect_url ? `\nIMPORTANT: when it makes sense, naturally guide toward this link: ${autoConfigRL.redirect_url}. But NEVER redirect during genuine bonding moments` : ""}
 ${autoConfigRL?.trigger_keywords ? `if they mention any of these: ${autoConfigRL.trigger_keywords}, redirect them to the link` : ""}
@@ -2163,12 +2422,16 @@ FINAL REMINDER:
                 is_read: true,
               }).eq("id", uc.id);
 
+              // === ML ENGINE: Log sent reply ===
+              logConversationLearning(supabase, account_id, uc.id, uc.participant_id, behaviorRL.type, replyRL, "sent", 0, false, "pending_evaluation", "", { engagement: behaviorRL.engagementScore });
+
               rlProcessed++;
               rlResults.push({
                 conversation_id: uc.id,
                 fan: uc.participant_username,
                 context_messages: fullHistory.length,
                 ai_reply: replyRL,
+                ml_behavior: behaviorRL.type,
               });
             } catch (sendErrRL: any) {
               console.error("Relaunch send failed:", sendErrRL);
@@ -2374,6 +2637,16 @@ Follow these persona settings strictly.`;
               }, { onConflict: "account_id,fan_identifier" });
             } catch (profileErr) { console.log("Fan profile save (non-blocking):", profileErr); }
 
+            // === ML ENGINE: Evaluate previous message + learn ===
+            const prevOutcomeRAT = evaluatePreviousOutcome(fullHist);
+            if (prevOutcomeRAT.previousAiMsg && prevOutcomeRAT.fanResponse) {
+              logConversationLearning(supabase, account_id, tc.id, tc.participant_id, fanBehaviorType, prevOutcomeRAT.previousAiMsg, prevOutcomeRAT.outcome, prevOutcomeRAT.engagementDelta, prevOutcomeRAT.redirectSuccess, prevOutcomeRAT.strategyUsed, prevOutcomeRAT.fanResponse, { engagement: fanMsgCountRAT });
+              upsertStrategyStats(supabase, account_id, fanBehaviorType, prevOutcomeRAT.strategyUsed, prevOutcomeRAT.previousAiMsg, prevOutcomeRAT.outcome, prevOutcomeRAT.engagementDelta, prevOutcomeRAT.redirectSuccess);
+            }
+
+            // === ML ENGINE: Inject learned strategies ===
+            const learnedStrategiesRAT = await fetchLearnedStrategies(supabase, account_id, fanBehaviorType);
+
             const behaviorContext = `\n\n=== FAN BEHAVIOR ANALYSIS (adapt your style) ===
 Fan type: ${fanBehaviorType}
 ${fanBehaviorType === "genuine_connector" ? "This fan genuinely wants to connect. Be warm, curious, build real rapport." : ""}
@@ -2388,7 +2661,7 @@ ${fanBehaviorType === "new_lead" ? "New conversation. Focus on rapport building,
 ${fanBehaviorType === "casual_chatter" ? "Casual vibe. Keep it light and fun." : ""}`;
 
             const emojiDirRAT = "\n\nEMOJI DIRECTIVE: ZERO emojis. NEVER use emojis. Text only. Always.";
-            const systemPromptRAT = `${personaRAT}${emojiDirRAT}${fanMemBlockRAT}${behaviorContext}
+            const systemPromptRAT = `${personaRAT}${emojiDirRAT}${fanMemBlockRAT}${behaviorContext}${learnedStrategiesRAT}
 ${autoConfigRAT?.redirect_url ? `\nIMPORTANT: when it makes sense, naturally guide toward this link: ${autoConfigRAT.redirect_url}. But NEVER redirect during genuine bonding moments` : ""}
 ${autoConfigRAT?.trigger_keywords ? `if they mention any of these: ${autoConfigRAT.trigger_keywords}, redirect them to the link` : ""}
 
@@ -2485,8 +2758,11 @@ FINAL REMINDER:
                 is_read: true,
               }).eq("id", tc.id);
 
+              // === ML ENGINE: Log sent reply ===
+              logConversationLearning(supabase, account_id, tc.id, tc.participant_id, fanBehaviorType, replyRAT, "sent", 0, false, "pending_evaluation", "", { engagement: fanMsgCountRAT });
+
               ratProcessed++;
-              ratResults.push({ conversation_id: tc.id, fan: tc.participant_username, context_messages: fullHist.length, ai_reply: replyRAT });
+              ratResults.push({ conversation_id: tc.id, fan: tc.participant_username, context_messages: fullHist.length, ai_reply: replyRAT, ml_behavior: fanBehaviorType });
             } catch (sendErrRAT: any) {
               if (typingMsgRAT) await supabase.from("ai_dm_messages").update({ status: "failed", content: replyRAT, metadata: { error: sendErrRAT.message } }).eq("id", typingMsgRAT.id);
             }
@@ -2602,8 +2878,17 @@ ${personaDataRS.brand_identity ? `Brand Identity: ${personaDataRS.brand_identity
           ? `\n\n=== FAN MEMORY ===\n${fanMemNotesRS.join("\n")}\nUse this knowledge naturally.`
           : "";
 
+        // === ML ENGINE for relaunch_single ===
+        const behaviorRS = classifyFanBehavior(fullHistRS);
+        const prevOutcomeRS = evaluatePreviousOutcome(fullHistRS);
+        if (prevOutcomeRS.previousAiMsg && prevOutcomeRS.fanResponse) {
+          logConversationLearning(supabase, account_id, conversation_id, convoRS.participant_id, behaviorRS.type, prevOutcomeRS.previousAiMsg, prevOutcomeRS.outcome, prevOutcomeRS.engagementDelta, prevOutcomeRS.redirectSuccess, prevOutcomeRS.strategyUsed, prevOutcomeRS.fanResponse, { engagement: behaviorRS.engagementScore });
+          upsertStrategyStats(supabase, account_id, behaviorRS.type, prevOutcomeRS.strategyUsed, prevOutcomeRS.previousAiMsg, prevOutcomeRS.outcome, prevOutcomeRS.engagementDelta, prevOutcomeRS.redirectSuccess);
+        }
+        const learnedStrategiesRS = await fetchLearnedStrategies(supabase, account_id, behaviorRS.type);
+
         const emojiDirRS = "\n\nEMOJI DIRECTIVE: ZERO emojis. NEVER use emojis. Text only. Always.";
-        const systemPromptRS = `${personaRS}${emojiDirRS}${fanMemBlockRS}
+        const systemPromptRS = `${personaRS}${emojiDirRS}${fanMemBlockRS}${learnedStrategiesRS}
 ${autoConfigRS?.redirect_url ? `\nIMPORTANT: when it makes sense, naturally guide toward: ${autoConfigRS.redirect_url}. But NEVER during bonding moments` : ""}
 
 ${isFollowUpRS ? `FOLLOW-UP MODE (YOU spoke last — re-engage them):
@@ -2656,7 +2941,9 @@ FINAL REMINDER:
           const sendResultRS = await callIGRS("send_message", { recipient_id: convoRS.participant_id, message: replyRS });
           await supabase.from("ai_dm_messages").update({ content: replyRS, status: "sent", platform_message_id: sendResultRS?.message_id || null, ai_model: aiResultRS.model }).eq("id", typingMsgRS?.id);
           await supabase.from("ai_dm_conversations").update({ last_ai_reply_at: new Date().toISOString(), last_message_at: new Date().toISOString(), last_message_preview: `You: ${replyRS.substring(0, 80)}`, is_read: true }).eq("id", conversation_id);
-          result = { success: true, reply: replyRS, context_messages: fullHistRS.length };
+          // === ML ENGINE: Log sent reply ===
+          logConversationLearning(supabase, account_id, conversation_id, convoRS.participant_id, behaviorRS.type, replyRS, "sent", 0, false, "pending_evaluation", "", { engagement: behaviorRS.engagementScore });
+          result = { success: true, reply: replyRS, context_messages: fullHistRS.length, ml_behavior: behaviorRS.type };
         } catch (sendErrRS: any) {
           if (typingMsgRS) await supabase.from("ai_dm_messages").update({ status: "failed", content: replyRS, metadata: { error: sendErrRS.message } }).eq("id", typingMsgRS.id);
           result = { error: sendErrRS.message };
