@@ -125,6 +125,9 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
   const [discoverResults, setDiscoverResults] = useState<any[]>([]);
   const [discoverLoading, setDiscoverLoading] = useState(false);
   const [showDiscover, setShowDiscover] = useState(false);
+  const [manuallyAddedIds, setManuallyAddedIds] = useState<Set<string>>(new Set());
+  const [addAllBatchIds, setAddAllBatchIds] = useState<Set<string>>(new Set());
+  const [expandedSearch, setExpandedSearch] = useState(false);
   const discoverTimeout = useRef<any>(null);
 
   useEffect(() => { messageRef.current = message; }, [message]);
@@ -413,7 +416,7 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
         body: {
           action: "search_users",
           account_id: accountId,
-          params: { query, session_id: savedSession, max_results: 200 },
+          params: { query, session_id: savedSession, max_results: expandedSearch ? 500 : 200, expanded: expandedSearch },
         },
       });
       if (error) throw error;
@@ -424,7 +427,7 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
     } finally {
       setDiscoverLoading(false);
     }
-  }, [accountId, sessionId]);
+  }, [accountId, sessionId, expandedSearch]);
 
   const onDiscoverQueryChange = (val: string) => {
     setDiscoverQuery(val);
@@ -449,11 +452,13 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
       return [...prev, newFollower];
     });
     setSelectedIds(prev => new Set([...prev, newFollower.id]));
+    setManuallyAddedIds(prev => new Set([...prev, newFollower.id]));
     toast.success(`Added @${user.username}`);
   };
 
   const addAllDiscovered = () => {
     let added = 0;
+    const batchIds: string[] = [];
     setFollowers(prev => {
       const seen = new Set(prev.map(f => f.id));
       const merged = [...prev];
@@ -469,17 +474,50 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
           source: "discovered",
           gender: user.gender || undefined,
         });
+        batchIds.push(id);
         added++;
       }
       return merged;
     });
-    // Select all newly added
     setSelectedIds(prev => {
       const next = new Set(prev);
       for (const user of discoverResults) next.add(user.id || user.pk);
       return next;
     });
+    setAddAllBatchIds(prev => {
+      const next = new Set(prev);
+      for (const id of batchIds) next.add(id);
+      return next;
+    });
     toast.success(`Added ${added} accounts from search`);
+  };
+
+  const removeAllDiscovered = () => {
+    const toRemove = addAllBatchIds;
+    if (toRemove.size === 0) { toast.info("No batch-added users to remove"); return; }
+    setFollowers(prev => prev.filter(f => !toRemove.has(f.id)));
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      for (const id of toRemove) next.delete(id);
+      return next;
+    });
+    const count = toRemove.size;
+    setAddAllBatchIds(new Set());
+    toast.success(`Removed ${count} batch-added accounts`);
+  };
+
+  const removeManuallyAdded = () => {
+    const toRemove = manuallyAddedIds;
+    if (toRemove.size === 0) { toast.info("No manually added users to remove"); return; }
+    setFollowers(prev => prev.filter(f => !toRemove.has(f.id)));
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      for (const id of toRemove) next.delete(id);
+      return next;
+    });
+    const count = toRemove.size;
+    setManuallyAddedIds(new Set());
+    toast.success(`Removed ${count} manually added accounts`);
   };
 
   // Quick-add random accounts from fetched list
@@ -945,7 +983,7 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
                         Discover
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-96 p-0 bg-[hsl(222,35%,10%)] border-white/10" align="end" sideOffset={4}>
+                    <PopoverContent className="w-[420px] p-0 bg-[hsl(222,35%,10%)] border-white/10" align="end" sideOffset={4}>
                       <div className="p-3 border-b border-white/10">
                         <div className="relative">
                           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/30" />
@@ -958,14 +996,36 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
                           />
                           {discoverLoading && <Loader2 className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 animate-spin text-emerald-400" />}
                         </div>
-                        {discoverResults.length > 0 && (
-                          <div className="mt-2 flex items-center gap-2">
+                        {/* Expander toggle */}
+                        <div className="flex items-center justify-between mt-2">
+                          <div className="flex items-center gap-1.5">
+                            <Switch checked={expandedSearch} onCheckedChange={setExpandedSearch} className="h-4 w-7 data-[state=checked]:bg-purple-500" />
+                            <span className="text-[10px] text-white/50">List Expander</span>
+                            {expandedSearch && <Zap className="h-3 w-3 text-purple-400" />}
+                          </div>
+                          <span className="text-[10px] text-white/30">{expandedSearch ? "Deep scan (500+)" : "Standard (200)"}</span>
+                        </div>
+                        {/* Action buttons row */}
+                        <div className="mt-2 flex items-center gap-1.5 flex-wrap">
+                          {discoverResults.length > 0 && (
                             <Button size="sm" onClick={addAllDiscovered} className="h-6 text-[10px] gap-1 bg-emerald-600 hover:bg-emerald-700">
                               <UserPlus className="h-3 w-3" /> Add All ({discoverResults.length})
                             </Button>
-                            <span className="text-[10px] text-white/30">{discoverResults.length} results</span>
-                          </div>
-                        )}
+                          )}
+                          {addAllBatchIds.size > 0 && (
+                            <Button size="sm" onClick={removeAllDiscovered} variant="outline" className="h-6 text-[10px] gap-1 border-red-500/30 text-red-400 hover:bg-red-500/10 bg-transparent">
+                              <Trash2 className="h-3 w-3" /> Remove Batch ({addAllBatchIds.size})
+                            </Button>
+                          )}
+                          {manuallyAddedIds.size > 0 && (
+                            <Button size="sm" onClick={removeManuallyAdded} variant="outline" className="h-6 text-[10px] gap-1 border-amber-500/30 text-amber-400 hover:bg-amber-500/10 bg-transparent">
+                              <XCircle className="h-3 w-3" /> Remove Manual ({manuallyAddedIds.size})
+                            </Button>
+                          )}
+                          {discoverResults.length > 0 && (
+                            <span className="text-[10px] text-white/30 ml-auto">{discoverResults.length} results</span>
+                          )}
+                        </div>
                       </div>
                       <div className="max-h-[400px] overflow-y-auto">
                         {discoverResults.length === 0 && discoverQuery.length > 0 && !discoverLoading && (
@@ -981,10 +1041,11 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
                             if (n >= 1000) return `${(n / 1000).toFixed(1)}K`;
                             return String(n);
                           };
+                          const isAdded = followers.some(f => f.id === (user.id || user.pk));
                           return (
                             <div
                               key={user.id || user.username}
-                              className="w-full text-left px-3 py-2.5 flex items-center gap-2.5 hover:bg-white/5 transition-colors border-b border-white/[0.04]"
+                              className={`w-full text-left px-3 py-2.5 flex items-center gap-2.5 hover:bg-white/5 transition-colors border-b border-white/[0.04] ${isAdded ? "bg-emerald-500/5" : ""}`}
                             >
                               <UserAvatar src={user.profile_pic_url} name={user.full_name || user.username} username={user.username} size={10} />
                               <div className="flex-1 min-w-0">
@@ -997,6 +1058,7 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
                                       {user.gender === "female" ? "♀" : "♂"}
                                     </span>
                                   )}
+                                  {isAdded && <span className="text-[8px] text-emerald-400">✓ added</span>}
                                 </div>
                                 <span className="text-[10px] text-white/50">@{user.username}</span>
                                 <div className="flex items-center gap-2.5 mt-0.5">
