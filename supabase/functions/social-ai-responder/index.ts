@@ -169,12 +169,33 @@ serve(async (req) => {
             .eq("account_id", account_id)
             .single();
           if (persona) {
-            personaInfo += `\nAdditional persona: Tone=${persona.tone}, Style=${persona.vocabulary_style}, Boundaries=${persona.boundaries || "none"}`;
+            personaInfo += `\n\n--- ACTIVE PERSONA OVERRIDE ---
+Tone: ${persona.tone}
+Vocabulary Style: ${persona.vocabulary_style}
+Emotional Range: ${persona.emotional_range || "default"}
+${persona.boundaries ? `Hard Boundaries: ${persona.boundaries}` : ""}
+${persona.brand_identity ? `Brand Identity: ${persona.brand_identity}` : ""}
+${persona.communication_rules ? `Communication Rules: ${JSON.stringify(persona.communication_rules)}` : ""}
+Follow these persona settings strictly. They override any conflicting defaults above.`;
           }
         }
 
-        const systemPrompt = `${personaInfo}
-${auto_redirect_url ? `IMPORTANT: when it makes sense, naturally guide toward this link: ${auto_redirect_url}. dont force it, weave it in casually like "check my bio" or "i just posted smth"` : ""}
+        // Analyze fan's emoji usage across conversation context to decide mirroring
+        const fanMessages = (conversation_context || []).filter((m: any) => m.role === "fan").map((m: any) => m.text).join(" ");
+        const emojiRegex = /[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{FE00}-\u{FE0F}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{200D}\u{20E3}]/gu;
+        const fanEmojiCount = (fanMessages.match(emojiRegex) || []).length;
+        const fanMsgCount = (conversation_context || []).filter((m: any) => m.role === "fan").length || 1;
+        const emojiPerMsg = fanEmojiCount / fanMsgCount;
+        
+        let emojiDirective = "\n\nEMOJI DIRECTIVE FOR THIS REPLY: The fan has NOT been using emojis much. DO NOT use any emojis in your reply. Keep it raw text only.";
+        if (emojiPerMsg >= 2) {
+          emojiDirective = "\n\nEMOJI DIRECTIVE FOR THIS REPLY: The fan uses emojis frequently. You MAY use 1-2 emojis max in this reply to mirror their energy naturally. But keep it subtle.";
+        } else if (emojiPerMsg >= 0.5) {
+          emojiDirective = "\n\nEMOJI DIRECTIVE FOR THIS REPLY: The fan occasionally uses emojis. You MAY use 1 emoji max if it feels natural. Otherwise keep it text only.";
+        }
+
+        const systemPrompt = `${personaInfo}${emojiDirective}
+${auto_redirect_url ? `\nIMPORTANT: when it makes sense, naturally guide toward this link: ${auto_redirect_url}. dont force it, weave it in casually like "check my bio" or "i just posted smth"` : ""}
 ${keywords_trigger ? `if they mention any of these: ${keywords_trigger}, redirect them to the link` : ""}`;
 
         const messages: any[] = [{ role: "system", content: systemPrompt }];
@@ -983,7 +1004,14 @@ Rules:
           .eq("account_id", account_id)
           .single();
         if (persona2) {
-          personaInfo2 += `\nAdditional persona: Tone=${persona2.tone}, Style=${persona2.vocabulary_style}, Boundaries=${persona2.boundaries || "none"}`;
+          personaInfo2 += `\n\n--- ACTIVE PERSONA OVERRIDE ---
+Tone: ${persona2.tone}
+Vocabulary Style: ${persona2.vocabulary_style}
+Emotional Range: ${persona2.emotional_range || "default"}
+${persona2.boundaries ? `Hard Boundaries: ${persona2.boundaries}` : ""}
+${persona2.brand_identity ? `Brand Identity: ${persona2.brand_identity}` : ""}
+${persona2.communication_rules ? `Communication Rules: ${JSON.stringify(persona2.communication_rules)}` : ""}
+Follow these persona settings strictly. They override any conflicting defaults above.`;
         }
 
         // Get connection info
@@ -1052,9 +1080,23 @@ Rules:
               .select("id")
               .single();
 
+            // Analyze fan emoji usage for this conversation
+            const fanMsgsText = conversationContext.filter(m => m.role === "fan").map(m => m.text).join(" ");
+            const emojiRx = /[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{FE00}-\u{FE0F}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{200D}\u{20E3}]/gu;
+            const fanEmojiCt = (fanMsgsText.match(emojiRx) || []).length;
+            const fanMsgCt = conversationContext.filter(m => m.role === "fan").length || 1;
+            const emojiRate = fanEmojiCt / fanMsgCt;
+            
+            let emojiDir = "\n\nEMOJI DIRECTIVE: The fan has NOT been using emojis. DO NOT use any emojis. Raw text only.";
+            if (emojiRate >= 2) {
+              emojiDir = "\n\nEMOJI DIRECTIVE: Fan uses emojis frequently. You MAY use 1-2 emojis max to mirror naturally.";
+            } else if (emojiRate >= 0.5) {
+              emojiDir = "\n\nEMOJI DIRECTIVE: Fan occasionally uses emojis. You MAY use 1 emoji max if natural. Otherwise text only.";
+            }
+
             // Generate AI reply
-            const systemPrompt = `${personaInfo2}
-${autoConfig.redirect_url ? `IMPORTANT: when it makes sense, naturally guide toward this link: ${autoConfig.redirect_url}` : ""}
+            const systemPrompt = `${personaInfo2}${emojiDir}
+${autoConfig.redirect_url ? `\nIMPORTANT: when it makes sense, naturally guide toward this link: ${autoConfig.redirect_url}` : ""}
 ${autoConfig.trigger_keywords ? `if they mention any of these: ${autoConfig.trigger_keywords}, redirect them to the link` : ""}`;
 
             const aiMessages: any[] = [{ role: "system", content: systemPrompt }];

@@ -104,7 +104,26 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
   // ===== MESSAGE CACHE =====
   const messageCacheRef = useRef<Map<string, Message[]>>(new Map());
   const igSyncedRef = useRef<Set<string>>(new Set());
-  const deletedPlatformIdsRef = useRef<Set<string>>(new Set()); // Track deleted IG message IDs to prevent re-import
+  // Persist deleted IG message IDs in localStorage so they survive page refreshes
+  const deletedPlatformIdsRef = useRef<Set<string>>(new Set<string>());
+  
+  // Load persisted deleted IDs on mount
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(`deleted_ig_msgs_${accountId}`);
+      if (stored) {
+        const ids: string[] = JSON.parse(stored);
+        ids.forEach(id => deletedPlatformIdsRef.current.add(id));
+      }
+    } catch {}
+  }, [accountId]);
+  
+  const persistDeletedIds = useCallback(() => {
+    try {
+      const arr = Array.from(deletedPlatformIdsRef.current).slice(-500); // Keep last 500
+      localStorage.setItem(`deleted_ig_msgs_${accountId}`, JSON.stringify(arr));
+    } catch {}
+  }, [accountId]);
   const prefetchingRef = useRef(false);
   const igConnRef = useRef<{ platform_user_id: string; platform_username: string } | null>(null);
 
@@ -588,9 +607,10 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
   const deleteMessage = async (msgId: string) => {
     const msg = messages.find(m => m.id === msgId);
     
-    // Track the platform_message_id so sync won't re-import it
+    // Track the platform_message_id so sync won't re-import it — persist to localStorage
     if (msg?.platform_message_id) {
       deletedPlatformIdsRef.current.add(msg.platform_message_id);
+      persistDeletedIds();
     }
     
     // OPTIMISTIC: Remove from UI instantly
