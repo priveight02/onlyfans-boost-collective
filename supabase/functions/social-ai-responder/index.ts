@@ -1270,6 +1270,30 @@ ${autoConfig.trigger_keywords ? `if they mention any of these: ${autoConfig.trig
         break;
       }
 
+      case "generate_opener": {
+        // Generate a conversation opener using the AI persona
+        const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+        if (!LOVABLE_API_KEY) throw new Error("AI API key not configured");
+
+        const openerResp = await fetch("https://api.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${LOVABLE_API_KEY}` },
+          body: JSON.stringify({
+            model: "google/gemini-2.5-flash",
+            messages: [
+              { role: "system", content: DEFAULT_PERSONA + "\n\nGenerate ONLY a single opening DM message to start a conversation with a new follower. This is the FIRST message - make it casual, intriguing, and subtly suggestive. Keep it 5-15 words. Output ONLY the message text, nothing else." },
+              { role: "user", content: "Generate a conversation opener for a new follower DM." },
+            ],
+            temperature: 0.9,
+            max_tokens: 100,
+          }),
+        });
+        const openerData = await openerResp.json();
+        const openerMsg = openerData?.choices?.[0]?.message?.content?.trim() || "hey cutie, noticed u following me 💕 whats good";
+        result = { message: openerMsg };
+        break;
+      }
+
       default:
         throw new Error(`Unknown action: ${action}`);
     }
