@@ -809,6 +809,17 @@ const SocialMediaHub = () => {
   const xConnected = connections.some(c => c.platform === "twitter" && c.is_connected);
   const redditConnected = connections.some(c => c.platform === "reddit" && c.is_connected);
   const telegramConnected = connections.some(c => c.platform === "telegram" && c.is_connected);
+  const snapchatConnected = connections.some(c => c.platform === "snapchat" && c.is_connected);
+  const threadsConnected = connections.some(c => c.platform === "threads" && c.is_connected);
+  const whatsappConnected = connections.some(c => c.platform === "whatsapp" && c.is_connected);
+  const signalConnected = connections.some(c => c.platform === "signal" && c.is_connected);
+  const youtubeConnected = connections.some(c => c.platform === "youtube" && c.is_connected);
+  const pinterestConnected = connections.some(c => c.platform === "pinterest" && c.is_connected);
+  const discordConnected = connections.some(c => c.platform === "discord" && c.is_connected);
+
+  const navigateToConnect = (platform: string) => {
+    setActiveSubTab("connect");
+  };
 
   return (
     <div className="space-y-4">
@@ -1356,7 +1367,7 @@ const SocialMediaHub = () => {
 
         {/* ===== SOCIAL NETWORKS (X, Reddit, TG, TikTok) ===== */}
         <TabsContent value="social-networks" className="mt-4">
-          <SocialNetworksTab selectedAccount={selectedAccount} />
+          <SocialNetworksTab selectedAccount={selectedAccount} onNavigateToConnect={navigateToConnect} />
         </TabsContent>
 
         {/* ===== CONNECT ===== */}
@@ -1531,6 +1542,13 @@ const SocialMediaHub = () => {
                 <option value="twitter">X / Twitter</option>
                 <option value="reddit">Reddit</option>
                 <option value="telegram">Telegram</option>
+                <option value="snapchat">Snapchat</option>
+                <option value="threads">Threads</option>
+                <option value="whatsapp">WhatsApp</option>
+                <option value="signal">Signal</option>
+                <option value="youtube">YouTube</option>
+                <option value="pinterest">Pinterest</option>
+                <option value="discord">Discord</option>
               </select>
               <Input value={connectForm.platform_username} onChange={e => setConnectForm(p => ({ ...p, platform_username: e.target.value }))} placeholder="Username" className="text-sm" />
               <Input value={connectForm.platform_user_id} onChange={e => setConnectForm(p => ({ ...p, platform_user_id: e.target.value }))} placeholder="User/Page ID" className="text-sm" />
