@@ -12,7 +12,8 @@ import {
   Check, CheckCheck, Clock, AlertCircle, Pencil, Trash2,
   Smile, Image as ImageIcon, Heart, ChevronLeft, Zap,
   Brain, Eye, Sparkles, ArrowRight, Shield, WifiOff,
-  CircleDot, MessageSquare, Inbox, SendHorizonal,
+  CircleDot, MessageSquare, Inbox, SendHorizonal, Lock, Unlock,
+  Play, Pause,
 } from "lucide-react";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
@@ -100,6 +101,7 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
   const [prefetchProgress, setPrefetchProgress] = useState<{ done: number; total: number } | null>(null);
   const [bulkHubOpen, setBulkHubOpen] = useState(false);
   const [followAI, setFollowAI] = useState(false);
+  const [lockChatView, setLockChatView] = useState(false);
   const [relaunching, setRelaunching] = useState(false);
   const [relaunchingConvoId, setRelaunchingConvoId] = useState<string | null>(null);
   const followAIRef = useRef(false);
@@ -736,10 +738,12 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
     return () => { supabase.removeChannel(ch2); };
   }, [selectedConvo]);
 
-  // Auto-scroll
+  // Auto-scroll (only when lock chat view is enabled)
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    if (lockChatView) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [messages, lockChatView]);
 
   // Process DMs with AI tracking
   const processDMs = useCallback(async () => {
@@ -1061,7 +1065,34 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
   };
 
   return (
-    <div className="flex h-[calc(100vh-220px)] min-h-[600px] bg-background rounded-lg border border-border overflow-hidden">
+    <div className="flex flex-col">
+      {/* Top Control Bar */}
+      <div className="flex items-center justify-end gap-2 px-3 py-2 border-b border-border bg-muted/10 rounded-t-lg">
+        <Button
+          size="sm"
+          variant={autoRespondActive ? "default" : "outline"}
+          onClick={onToggleAutoRespond}
+          className={`h-7 text-[10px] gap-1.5 ${autoRespondActive ? "bg-green-600 hover:bg-green-700 text-white" : "border-red-500/30 text-red-400 hover:bg-red-500/10"}`}
+          title={autoRespondActive ? "AI Auto-Responder is ON — click to pause" : "AI Auto-Responder is OFF — click to start"}
+        >
+          {autoRespondActive ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
+          {autoRespondActive ? "AI Running" : "AI Paused"}
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => {
+            setLockChatView(!lockChatView);
+            toast.success(lockChatView ? "Chat view unlocked — free scroll enabled" : "Chat view locked — auto-scroll to latest messages");
+          }}
+          className={`h-7 text-[10px] gap-1.5 ${lockChatView ? "text-amber-400 bg-amber-500/10" : "text-muted-foreground"}`}
+          title={lockChatView ? "Chat view locked — click to unlock free scroll" : "Chat view unlocked — click to lock & auto-scroll"}
+        >
+          {lockChatView ? <Lock className="h-3 w-3" /> : <Unlock className="h-3 w-3" />}
+          {lockChatView ? "Locked" : "Unlocked"}
+        </Button>
+      </div>
+    <div className="flex h-[calc(100vh-260px)] min-h-[600px] bg-background rounded-b-lg border border-t-0 border-border overflow-hidden">
       {/* LEFT PANEL - Conversation List */}
       <div className={`w-[340px] min-w-[340px] border-r border-border flex flex-col ${selectedConvo ? "hidden lg:flex" : "flex"}`}>
         {/* Header */}
@@ -2117,6 +2148,7 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
 
       {/* Bulk Message Hub Dialog */}
       <BulkMessageHub accountId={accountId} open={bulkHubOpen} onOpenChange={setBulkHubOpen} />
+    </div>
     </div>
   );
 };
