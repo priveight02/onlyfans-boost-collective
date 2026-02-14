@@ -1085,33 +1085,36 @@ Analyze every character in the name and username for any gender signal at all. L
       }
 
       case "send_reaction": {
+        // Instagram API requires emoji characters for reactions, not text labels
+        const reactionMap: Record<string, string> = {
+          "love": "\u2764\uFE0F", "heart": "\u2764\uFE0F", "❤️": "\u2764\uFE0F",
+          "laugh": "\uD83D\uDE02", "haha": "\uD83D\uDE02",
+          "wow": "\uD83D\uDE2E", "surprised": "\uD83D\uDE2E",
+          "sad": "\uD83D\uDE22", "cry": "\uD83D\uDE22",
+          "angry": "\uD83D\uDE20",
+          "like": "\uD83D\uDC4D", "thumbsup": "\uD83D\uDC4D",
+          "fire": "\uD83D\uDD25",
+        };
+        const rawReaction = params.reaction || "love";
+        const emojiReaction = reactionMap[rawReaction] || rawReaction;
+        
         const pageInfoR = await getPageId(token, igUserId);
         const reactBody = {
           recipient: { id: params.recipient_id },
           sender_action: "react",
-          payload: { message_id: params.message_id, reaction: params.reaction || "love" },
+          payload: { message_id: params.message_id, reaction: emojiReaction },
         };
         console.log("Sending reaction:", JSON.stringify(reactBody));
-        if (pageInfoR) {
-          try {
-            result = await igFetch(`/${pageInfoR.pageId}/messages`, pageInfoR.pageToken, "POST", reactBody);
-          } catch (e1: any) {
-            console.log("Page react failed, trying alternate format:", e1.message);
-            const altBody = {
-              recipient: { id: params.recipient_id },
-              react: { message_id: params.message_id, action: "react", reaction: params.reaction || "love" },
-            };
-            try {
-              result = await igFetch(`/${pageInfoR.pageId}/messages`, pageInfoR.pageToken, "POST", altBody);
-            } catch {
-              result = await igFetch(`/me/messages`, token, "POST", reactBody);
-            }
-          }
-        } else {
+        const reactToken = pageInfoR?.pageToken || token;
+        const reactEndpoint = pageInfoR ? `/${pageInfoR.pageId}/messages` : `/me/messages`;
+        try {
+          result = await igFetch(reactEndpoint, reactToken, "POST", reactBody);
+        } catch (e1: any) {
+          console.log("React failed, trying fallback:", e1.message);
           try {
             result = await igFetch(`/me/messages`, token, "POST", reactBody);
           } catch {
-            result = await igFetch(`/${igUserId}/messages`, token, "POST", reactBody);
+            result = { success: false, note: "Reaction API not supported for this conversation" };
           }
         }
         console.log("Reaction result:", JSON.stringify(result));
