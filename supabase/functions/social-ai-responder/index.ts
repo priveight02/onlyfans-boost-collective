@@ -2261,6 +2261,52 @@ Follow these persona settings strictly. They override any conflicting defaults a
           .eq("ai_enabled", true)
           .eq("status", "active");
 
+        // === KEYWORD DELAY ENGINE — Fetch active rules ===
+        const { data: keywordDelayRules } = await supabase
+          .from("ai_keyword_delays")
+          .select("*")
+          .eq("account_id", account_id)
+          .eq("is_active", true);
+        
+        const kwDelays = (keywordDelayRules || []) as Array<{
+          keyword: string; delay_seconds: number; direction: string; match_type: string;
+        }>;
+
+        // Keyword matching function — strict, no false positives
+        const matchesKeywordDelay = (text: string, direction: "before" | "after" | "both"): number => {
+          if (!text || kwDelays.length === 0) return 0;
+          const lower = text.toLowerCase().trim();
+          let maxDelay = 0;
+          for (const rule of kwDelays) {
+            if (rule.direction !== direction && rule.direction !== "both" && direction !== "both") continue;
+            // Only match if direction matches: rule.direction must be 'both' OR match the requested direction
+            if (rule.direction !== "both" && rule.direction !== direction) continue;
+            const kw = rule.keyword.toLowerCase().trim();
+            let matched = false;
+            switch (rule.match_type) {
+              case "exact":
+                // Exact word match with word boundaries
+                matched = new RegExp(`\\b${kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`).test(lower);
+                break;
+              case "contains":
+                // Word must appear as a whole word (not substring of another word)
+                matched = new RegExp(`\\b${kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`).test(lower);
+                break;
+              case "starts_with":
+                matched = lower.startsWith(kw) || lower.startsWith(kw + " ");
+                break;
+              case "ends_with":
+                matched = lower.endsWith(kw) || lower.endsWith(" " + kw);
+                break;
+            }
+            if (matched && rule.delay_seconds > maxDelay) {
+              maxDelay = rule.delay_seconds;
+              console.log(`[KEYWORD DELAY] Matched "${rule.keyword}" (${rule.match_type}, ${rule.direction}) → ${rule.delay_seconds}s delay`);
+            }
+          }
+          return maxDelay;
+        };
+
         let processed = 0;
         const processedConvos: any[] = [];
 
@@ -2919,7 +2965,15 @@ FINAL REMINDER — MESSAGE LENGTH (MOST IMPORTANT RULE):
               await new Promise(r => setTimeout(r, 800 + Math.random() * 1200));
             }
 
-            // Wait typing delay to feel natural (1.5-5s)
+            // === KEYWORD DELAY: "before" — delay if fan message matches keyword ===
+            const fanMsgText = (latestMsg?.content || "").toLowerCase();
+            const beforeDelaySec = matchesKeywordDelay(fanMsgText, "before");
+            if (beforeDelaySec > 0) {
+              console.log(`[KEYWORD DELAY] Applying ${beforeDelaySec}s BEFORE delay for @${dbConvo.participant_username}`);
+              await new Promise(r => setTimeout(r, beforeDelaySec * 1000));
+            }
+
+            // Wait typing delay to feel natural (0.8-3s)
             await new Promise(r => setTimeout(r, typingDelay));
 
             // Send the reply via IG API
@@ -2930,6 +2984,13 @@ FINAL REMINDER — MESSAGE LENGTH (MOST IMPORTANT RULE):
               };
               // NOTE: IG API does not support reply_to param — removed to prevent 400 errors
               const sendResult = await callIG2("send_message", sendParams);
+
+              // === KEYWORD DELAY: "after" — delay after AI reply if reply matches keyword ===
+              const afterDelaySec = matchesKeywordDelay(reply, "after");
+              if (afterDelaySec > 0) {
+                console.log(`[KEYWORD DELAY] Applying ${afterDelaySec}s AFTER delay for @${dbConvo.participant_username} (reply matched)`);
+                await new Promise(r => setTimeout(r, afterDelaySec * 1000));
+              }
 
               const msgUpdateData: any = {
                 content: reply,
