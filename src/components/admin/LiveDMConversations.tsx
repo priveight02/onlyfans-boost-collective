@@ -102,6 +102,12 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
   const [bulkHubOpen, setBulkHubOpen] = useState(false);
   const [followAI, setFollowAI] = useState(false);
   const [lockChatView, setLockChatView] = useState(false);
+  const [uiScale, setUiScale] = useState(() => {
+    try { return parseFloat(localStorage.getItem("dm_ui_scale") || "1"); } catch { return 1; }
+  });
+  const [msgSize, setMsgSize] = useState(() => {
+    try { return parseFloat(localStorage.getItem("dm_msg_size") || "13"); } catch { return 13; }
+  });
   const [relaunching, setRelaunching] = useState(false);
   const [relaunchingConvoId, setRelaunchingConvoId] = useState<string | null>(null);
   const followAIRef = useRef(false);
@@ -1067,32 +1073,68 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
   return (
     <div className="flex flex-col">
       {/* Top Control Bar */}
-      <div className="flex items-center justify-end gap-2 px-3 py-2 border-b border-border bg-muted/10 rounded-t-lg">
-        <Button
-          size="sm"
-          variant={autoRespondActive ? "default" : "outline"}
-          onClick={onToggleAutoRespond}
-          className={`h-7 text-[10px] gap-1.5 ${autoRespondActive ? "bg-green-600 hover:bg-green-700 text-white" : "border-red-500/30 text-red-400 hover:bg-red-500/10"}`}
-          title={autoRespondActive ? "AI Auto-Responder is ON — click to pause" : "AI Auto-Responder is OFF — click to start"}
-        >
-          {autoRespondActive ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
-          {autoRespondActive ? "AI Running" : "AI Paused"}
-        </Button>
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={() => {
-            setLockChatView(!lockChatView);
-            toast.success(lockChatView ? "Chat view unlocked — free scroll enabled" : "Chat view locked — auto-scroll to latest messages");
-          }}
-          className={`h-7 text-[10px] gap-1.5 ${lockChatView ? "text-amber-400 bg-amber-500/10" : "text-muted-foreground"}`}
-          title={lockChatView ? "Chat view locked — click to unlock free scroll" : "Chat view unlocked — click to lock & auto-scroll"}
-        >
-          {lockChatView ? <Lock className="h-3 w-3" /> : <Unlock className="h-3 w-3" />}
-          {lockChatView ? "Locked" : "Unlocked"}
-        </Button>
+      <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-border bg-muted/10 rounded-t-lg flex-wrap">
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] text-muted-foreground">Scale</span>
+          <input
+            type="range"
+            min="0.7"
+            max="1.5"
+            step="0.05"
+            value={uiScale}
+            onChange={e => {
+              const v = parseFloat(e.target.value);
+              setUiScale(v);
+              localStorage.setItem("dm_ui_scale", String(v));
+            }}
+            className="w-16 h-1 accent-primary"
+            title={`UI Scale: ${uiScale}x`}
+          />
+          <span className="text-[9px] text-muted-foreground w-6">{uiScale}x</span>
+          <span className="text-[10px] text-muted-foreground ml-2">Msg</span>
+          <input
+            type="range"
+            min="10"
+            max="18"
+            step="1"
+            value={msgSize}
+            onChange={e => {
+              const v = parseFloat(e.target.value);
+              setMsgSize(v);
+              localStorage.setItem("dm_msg_size", String(v));
+            }}
+            className="w-14 h-1 accent-primary"
+            title={`Message font size: ${msgSize}px`}
+          />
+          <span className="text-[9px] text-muted-foreground w-6">{msgSize}px</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <Button
+            size="sm"
+            variant={autoRespondActive ? "default" : "outline"}
+            onClick={onToggleAutoRespond}
+            className={`h-7 text-[10px] gap-1.5 ${autoRespondActive ? "bg-green-600 hover:bg-green-700 text-white" : "border-red-500/30 text-red-400 hover:bg-red-500/10"}`}
+            title={autoRespondActive ? "AI Auto-Responder is ON — click to pause" : "AI Auto-Responder is OFF — click to start"}
+          >
+            {autoRespondActive ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
+            {autoRespondActive ? "AI Running" : "AI Paused"}
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => {
+              setLockChatView(!lockChatView);
+              toast.success(lockChatView ? "Chat view unlocked — free scroll enabled" : "Chat view locked — auto-scroll to latest messages");
+            }}
+            className={`h-7 text-[10px] gap-1.5 ${lockChatView ? "text-amber-400 bg-amber-500/10" : "text-muted-foreground"}`}
+            title={lockChatView ? "Chat view locked — click to unlock free scroll" : "Chat view unlocked — click to lock & auto-scroll"}
+          >
+            {lockChatView ? <Lock className="h-3 w-3" /> : <Unlock className="h-3 w-3" />}
+            {lockChatView ? "Locked" : "Unlocked"}
+          </Button>
+        </div>
       </div>
-    <div className="flex h-[calc(100vh-260px)] min-h-[600px] bg-background rounded-b-lg border border-t-0 border-border overflow-hidden">
+    <div className="flex bg-background rounded-b-lg border border-t-0 border-border overflow-hidden" style={{ height: `calc((100vh - 260px) * ${uiScale})`, minHeight: 500 }}>
       {/* LEFT PANEL - Conversation List */}
       <div className={`w-[340px] min-w-[340px] border-r border-border flex flex-col ${selectedConvo ? "hidden lg:flex" : "flex"}`}>
         {/* Header */}
@@ -1407,7 +1449,7 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
             </div>
 
             {/* Messages Area */}
-            <ScrollArea className="flex-1 px-4 py-3">
+            <ScrollArea className="flex-1 px-4 py-3" style={{ fontSize: `${msgSize}px` }}>
               {loading ? (
                 <div className="h-full flex items-center justify-center">
                   <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
