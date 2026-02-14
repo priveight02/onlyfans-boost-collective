@@ -12,11 +12,12 @@ import {
   Check, CheckCheck, Clock, AlertCircle, Pencil, Trash2,
   Smile, Image as ImageIcon, Heart, ChevronLeft, Zap,
   Brain, Eye, Sparkles, ArrowRight, Shield, WifiOff,
-  CircleDot, MessageSquare, Inbox,
+  CircleDot, MessageSquare, Inbox, SendHorizonal,
 } from "lucide-react";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import BulkMessageHub from "./BulkMessageHub";
 
 interface LiveDMConversationsProps {
   accountId: string;
@@ -97,6 +98,7 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
   const [connectionError, setConnectionError] = useState<string>("");
   const [sendingMessage, setSendingMessage] = useState(false);
   const [prefetchProgress, setPrefetchProgress] = useState<{ done: number; total: number } | null>(null);
+  const [bulkHubOpen, setBulkHubOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -964,6 +966,9 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
               </Button>
               <Button size="sm" variant="ghost" onClick={processDMs} disabled={processing} className="h-7 w-7 p-0" title="Run AI processing">
                 <Brain className={`h-3.5 w-3.5 ${processing ? "animate-pulse text-blue-400" : ""}`} />
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setBulkHubOpen(true)} className="h-7 w-7 p-0" title="Bulk Message Hub">
+                <SendHorizonal className="h-3.5 w-3.5" />
               </Button>
             </div>
           </div>
@@ -1890,6 +1895,9 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
           </div>
         </div>
       )}
+
+      {/* Bulk Message Hub Dialog */}
+      <BulkMessageHub accountId={accountId} open={bulkHubOpen} onOpenChange={setBulkHubOpen} />
     </div>
   );
 };
