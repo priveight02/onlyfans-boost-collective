@@ -8,7 +8,15 @@ const corsHeaders = {
 
 // === HUMAN TYPING DELAY ENGINE ===
 // Simulates realistic human typing speed with randomness
-function humanTypingDelay(text: string): number {
+// When isFlowing=true (active back-and-forth within 90s), cap delay at 2s
+function humanTypingDelay(text: string, isFlowing = false): number {
+  if (isFlowing) {
+    // Flowing conversation — quick replies, max 2s
+    const quickBase = text.length * (20 + Math.random() * 15); // 20-35ms per char
+    const quickThink = 300 + Math.random() * 400; // 0.3-0.7s think
+    const total = quickThink + quickBase;
+    return Math.min(Math.max(total, 500), 2000); // 0.5-2s
+  }
   const charCount = text.length;
   // Moderate typing: 50-80ms per char with think time
   const baseMs = charCount * (50 + Math.random() * 30); // 50-80ms per char
@@ -20,7 +28,9 @@ function humanTypingDelay(text: string): number {
 }
 
 // Inter-message delay — prevents sending 2 msgs at exact same time
-function interMessageDelay(): number {
+// When isFlowing=true, minimal delay
+function interMessageDelay(isFlowing = false): number {
+  if (isFlowing) return 300 + Math.random() * 400; // 0.3-0.7s when flowing
   // 1-3 seconds between messages to different people
   return 1000 + Math.random() * 2000;
 }
@@ -1356,7 +1366,13 @@ FINAL REMINDER (READ LAST — THIS OVERRIDES EVERYTHING):
         
         // Occasionally add a "life pause" (as if she got distracted) - more likely as convo progresses
         // ~15% chance after message 4, simulates 30-90 second gaps
-        const shouldPause = msgCount > 4 && Math.random() < 0.15;
+        // BUT: if conversation is flowing (messages within 90s), NEVER add life pause
+        const lastTwoMsgs = (conversation_context || []).slice(-2);
+        const isFlowingCtx = lastTwoMsgs.length >= 2 && lastTwoMsgs.every((m: any) => {
+          const msgAge = (Date.now() - new Date(m.timestamp || Date.now()).getTime()) / 1000;
+          return msgAge < 120;
+        });
+        const shouldPause = !isFlowingCtx && msgCount > 4 && Math.random() < 0.15;
         const lifePauseMs = shouldPause ? (30000 + Math.random() * 60000) : 0;
         
         // Total delay before reply should appear
@@ -3076,8 +3092,17 @@ IF YOU DONT UNDERSTAND: say "wait wdym" or "lol what" — NEVER make up an incoh
             // ANTI-REPETITION POST-PROCESSING: Block repeated questions/statements
             reply = antiRepetitionCheck(reply, conversationContext);
 
-            // Human-like typing delay based on message length
-            const typingDelay = humanTypingDelay(reply);
+            // Detect flowing conversation: if fan replied within 90s of last AI reply, convo is active
+            const lastAiReplyTime = dbConvo.last_ai_reply_at ? new Date(dbConvo.last_ai_reply_at).getTime() : 0;
+            const fanMsgTime = latestMsg.created_at ? new Date(latestMsg.created_at).getTime() : Date.now();
+            const timeSinceAiReply = lastAiReplyTime > 0 ? (fanMsgTime - lastAiReplyTime) / 1000 : 999;
+            const isFlowingConvo = timeSinceAiReply <= 90 && lastAiReplyTime > 0;
+            if (isFlowingConvo) {
+              console.log(`[FLOW] @${dbConvo.participant_username}: conversation flowing (${Math.round(timeSinceAiReply)}s since last AI reply), using fast delays`);
+            }
+
+            // Human-like typing delay — reduced when conversation is flowing
+            const typingDelay = humanTypingDelay(reply, isFlowingConvo);
 
             // === AI CONTEXTUAL REACTION (RARE — drague/flirting signals ONLY) ===
             // Only react with ❤️ when the fan sends a CLEAR flirting/sweet signal
@@ -3239,8 +3264,8 @@ IF YOU DONT UNDERSTAND: say "wait wdym" or "lol what" — NEVER make up an incoh
               await supabase.from("ai_dm_conversations").update({ last_ai_reply_at: null }).eq("id", dbConvo.id);
             } catch {}
           }
-          // Inter-message delay — cant send 2 msgs at the exact same time
-          await new Promise(r => setTimeout(r, interMessageDelay()));
+          // Inter-message delay — minimal when conversation was flowing
+          await new Promise(r => setTimeout(r, interMessageDelay(typeof isFlowingConvo !== 'undefined' && isFlowingConvo)));
         }
 
         result = { processed, conversations: processedConvos, total_checked: activeConvos?.length || 0 };
