@@ -2362,19 +2362,19 @@ Follow these persona settings strictly. They override any conflicting defaults a
                   media_url: freePicUrl,
                 });
                 console.log(`[FREE PIC PHASE 2] Media result:`, JSON.stringify(mediaResult));
+                const picMsgId = mediaResult?.data?.message_id || mediaResult?.message_id || null;
                 
-                // Log pic in DB (single entry only)
+                // Log pic in DB with platform_message_id to prevent re-import
                 await supabase.from("ai_dm_messages").insert({
                   conversation_id: dbConvo.id, account_id,
                   sender_type: "ai", sender_name: igConn2.platform_username || "creator",
                   content: "[sent free pic]", status: "sent",
                   metadata: { free_pic: true, url: freePicUrl },
                   ai_model: "free_pic_engine",
+                  platform_message_id: picMsgId,
                 });
                 
-                // Brief delay then redirect
-                await new Promise(r => setTimeout(r, 2000 + Math.random() * 1500));
-                
+                // Human typing delay then redirect
                 const redirectMsgs = [
                   "theres way more where that came from tho check my bio",
                   "u should see what else i got tho its in my bio",
@@ -2383,14 +2383,17 @@ Follow these persona settings strictly. They override any conflicting defaults a
                   "ok now go check my bio before i change my mind",
                 ];
                 const redirectMsg = redirectMsgs[Math.floor(Math.random() * redirectMsgs.length)];
-                await callIGFP2("send_message", { recipient_id: dbConvo.participant_id, message: redirectMsg });
+                await new Promise(r => setTimeout(r, humanTypingDelay(redirectMsg)));
+                const redirectResult = await callIGFP2("send_message", { recipient_id: dbConvo.participant_id, message: redirectMsg });
+                const redirectMsgId = redirectResult?.data?.message_id || redirectResult?.message_id || null;
                 
-                // Log redirect in DB (single entry only)
+                // Log redirect in DB with platform_message_id to prevent re-import
                 await supabase.from("ai_dm_messages").insert({
                   conversation_id: dbConvo.id, account_id,
                   sender_type: "ai", sender_name: igConn2.platform_username || "creator",
                   content: redirectMsg, status: "sent",
                   ai_model: "free_pic_engine",
+                  platform_message_id: redirectMsgId,
                 });
                 
                 // Mark free pic as sent in fan profile
@@ -2448,7 +2451,7 @@ Follow these persona settings strictly. They override any conflicting defaults a
                   last_ai_reply_at: new Date().toISOString(),
                 }).eq("id", dbConvo.id);
 
-                // Send shy/teasing text
+                // Send shy/teasing text with human typing delay
                 const shyPrefixes = [
                   "ok fine just this once tho",
                   "mm ok since u asked nicely",
@@ -2458,17 +2461,20 @@ Follow these persona settings strictly. They override any conflicting defaults a
                   "mm ok since we vibed",
                 ];
                 const shyMsg = shyPrefixes[Math.floor(Math.random() * shyPrefixes.length)];
-                await callIGFP("send_message", { recipient_id: dbConvo.participant_id, message: shyMsg });
+                await new Promise(r => setTimeout(r, humanTypingDelay(shyMsg)));
+                const shyResult = await callIGFP("send_message", { recipient_id: dbConvo.participant_id, message: shyMsg });
+                const shyMsgId = shyResult?.data?.message_id || shyResult?.message_id || null;
                 
-                // Log shy msg in DB (single entry)
+                // Log shy msg in DB with platform_message_id to prevent re-import
                 await supabase.from("ai_dm_messages").insert({
                   conversation_id: dbConvo.id, account_id,
                   sender_type: "ai", sender_name: igConn2.platform_username || "creator",
                   content: shyMsg, status: "sent", ai_model: "free_pic_engine",
+                  platform_message_id: shyMsgId,
                 });
 
-                // Brief delay then brb message
-                await new Promise(r => setTimeout(r, 1500 + Math.random() * 1000));
+                // Inter-message delay then brb message
+                await new Promise(r => setTimeout(r, interMessageDelay()));
                 
                 const brbMessages = [
                   "ok gimme like 2 min",
@@ -2479,13 +2485,16 @@ Follow these persona settings strictly. They override any conflicting defaults a
                   "wait lemme go take smth real quick",
                 ];
                 const brbMsg = brbMessages[Math.floor(Math.random() * brbMessages.length)];
-                await callIGFP("send_message", { recipient_id: dbConvo.participant_id, message: brbMsg });
+                await new Promise(r => setTimeout(r, humanTypingDelay(brbMsg)));
+                const brbResult = await callIGFP("send_message", { recipient_id: dbConvo.participant_id, message: brbMsg });
+                const brbMsgId = brbResult?.data?.message_id || brbResult?.message_id || null;
                 
-                // Log brb msg in DB (single entry)
+                // Log brb msg in DB with platform_message_id to prevent re-import
                 await supabase.from("ai_dm_messages").insert({
                   conversation_id: dbConvo.id, account_id,
                   sender_type: "ai", sender_name: igConn2.platform_username || "creator",
                   content: brbMsg, status: "sent", ai_model: "free_pic_engine",
+                  platform_message_id: brbMsgId,
                 });
 
                 // Set pending state — pic will be delivered on a future cycle (~2 min later)
