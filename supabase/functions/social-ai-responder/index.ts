@@ -474,8 +474,8 @@ const DEFAULT_FREE_PIC_URL = `https://ufsnuobtvkciydftsyff.supabase.co/storage/v
 const detectFreePicRequest = (messages: any[], fanTags: string[] | null, latestFanContent?: string): { isRequesting: boolean; alreadySent: boolean; isEligible: boolean; insistCount: number } => {
   const alreadySent = (fanTags || []).includes("free_pic_sent");
   
-  const picPattern = /(send (me )?(a )?(free )?(pic|photo|picture|image|preview|sample|taste|something|smth|content|nude|nudes|naked))|((free|one) (pic|photo|picture|image|preview|sample|content))|((can i|could i|let me|i want to|i want|want to) (see|get|have) (a |some |one )?(free |)?(pic|photo|picture|preview|sample|content|something))|((show|give) (me )?(a |some )?(free |)?(pic|photo|picture|preview|sample|something|content))|(anything free)|(free stuff)|(prove it.*(pic|photo|show))|(just one.*(pic|photo|free))|(one free)|(freebie)|(sneak peek)|(preview)|(taste of (you|your|urself|yourself))|(i want a? ?(free )?pic)|(the free pic)|(free picture)/;
-  const picPatternLoose = /(free.*pic|pic.*free|want.*pic|send.*pic|see.*pic|taste|want.*see.*you|show.*me|give.*pic|free.*picture|picture.*free)/;
+  const picPattern = /(send (me )?(a |the )?(free )?(pic|photo|picture|image|preview|sample|taste|something|smth|content|nude|nudes|naked))|((free|one|the|a) (pic|photo|picture|image|preview|sample|content))|((can i|could i|let me|i want to|i want|i wanna|want to) (see|get|have) (a |some |one |the )?(free |)?(pic|photo|picture|preview|sample|content|something))|((show|give|send) (me )?(a |some |the )?(free |)?(pic|photo|picture|preview|sample|something|content))|(anything free)|(free stuff)|(prove it.*(pic|photo|show))|(just one.*(pic|photo|free))|(one free)|(freebie)|(sneak peek)|(preview)|(taste of (you|your|urself|yourself))|(i want a? ?(free )?pic)|(the free pic)|(free picture)|(send (me )?the pic)|(give (me )?the pic)|(the pic i want)|(send me pic)|(send pic)|(pic first)|(i want (to )?see)/;
+  const picPatternLoose = /(free.*pic|pic.*free|want.*pic|send.*pic|see.*pic|taste|want.*see.*you|show.*me|give.*pic|free.*picture|picture.*free|the pic|send me.*pic|give me.*pic|pic first|i want to see)/;
 
   // Helper to check if a single text matches pic request
   const matchesPic = (raw: string): boolean => {
@@ -518,16 +518,19 @@ const detectFreePicRequest = (messages: any[], fanTags: string[] | null, latestF
   
   const isRequesting = !!(normalized.match(picPattern) || recentFanText.match(picPatternLoose) || latestIsPicRequest);
   
-  // INSISTENCE RULE: if fan asked for pic 2+ times OR latest msg is a pic request with at least 1 prior ask, send IMMEDIATELY
+  // INSISTENCE RULE: if fan asked for pic 2+ times total (current + history), send IMMEDIATELY
   // Also eligible on first ask if convo has 3+ fan messages (basic rapport)
   const fanMsgCount = allFanMsgs.length;
   // If latest message is a pic request, always count it (even if DB hasn't synced yet)
-  if (latestIsPicRequest && insistCount < 2) {
-    // Check if ANY previous fan message also asked — if so, this is the 2nd+ ask
-    const previousPicAsks = allFanMsgs.slice(0, -1).filter(m => matchesPic(m.content || "")).length;
-    if (previousPicAsks >= 1) insistCount = previousPicAsks + 1;
+  if (latestIsPicRequest) {
+    // Count current msg + any previous pic asks
+    const previousPicAsks = allFanMsgs.filter(m => matchesPic(m.content || "")).length;
+    // If latestFanContent wasn't in allFanMsgs yet, add 1
+    const latestAlreadyCounted = allFanMsgs.some(m => (m.content || "").toLowerCase().trim() === (latestFanContent || "").toLowerCase().trim());
+    insistCount = latestAlreadyCounted ? previousPicAsks : previousPicAsks + 1;
   }
-  const isEligible = isRequesting && !alreadySent && (insistCount >= 2 || fanMsgCount >= 3);
+  // AGGRESSIVE: eligible if they asked even ONCE and there's been any conversation, OR insistCount >= 2
+  const isEligible = isRequesting && !alreadySent && (insistCount >= 2 || (insistCount >= 1 && fanMsgCount >= 2));
   
   return { isRequesting, alreadySent, isEligible, insistCount };
 };
