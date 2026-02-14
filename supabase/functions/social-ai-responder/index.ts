@@ -2185,6 +2185,27 @@ Follow these persona settings strictly. They override any conflicting defaults a
               if (aiReplyTime >= fanMsgTime) continue;
             }
 
+            // RACE CONDITION GUARD: Atomically lock this conversation so concurrent invocations can't process it twice
+            // Use a conditional update: only succeed if last_ai_reply_at hasn't changed since we read it
+            const lockTimestamp = new Date().toISOString();
+            const lockQuery = supabase
+              .from("ai_dm_conversations")
+              .update({ last_ai_reply_at: lockTimestamp })
+              .eq("id", dbConvo.id);
+            
+            // If there was a previous last_ai_reply_at, require it to still match (no concurrent update)
+            if (dbConvo.last_ai_reply_at) {
+              lockQuery.eq("last_ai_reply_at", dbConvo.last_ai_reply_at);
+            } else {
+              lockQuery.is("last_ai_reply_at", null);
+            }
+            
+            const { data: lockResult, error: lockErr } = await lockQuery.select("id");
+            if (lockErr || !lockResult || lockResult.length === 0) {
+              console.log(`[LOCK] @${dbConvo.participant_username}: conversation already being processed by another invocation, skipping`);
+              continue;
+            }
+
             // Build conversation context from DB — select ALL fields including metadata
             const { data: dbMessages } = await supabase
               .from("ai_dm_messages")
