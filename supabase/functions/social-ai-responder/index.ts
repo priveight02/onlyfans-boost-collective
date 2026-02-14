@@ -2615,21 +2615,26 @@ Follow these persona settings strictly. They override any conflicting defaults a
               .order("created_at", { ascending: true })
               .limit(50);
 
-            // === 30-MESSAGE HARD CAP — FINAL SEDUCTIVE REDIRECT + 24H PAUSE ===
+            // === RANDOMIZED HARD CAP (29-35) — FINAL SEDUCTIVE REDIRECT + 24H PAUSE ===
             const totalMsgCount = (dbMessages || []).length;
-            if (totalMsgCount >= 30) {
-              console.log(`[30-MSG CAP] @${dbConvo.participant_username}: ${totalMsgCount} messages — triggering final redirect + 24h pause`);
+            // Randomize the cap per conversation — feels natural, never exceeds 35
+            const convoSeed = dbConvo.id.charCodeAt(0) + dbConvo.id.charCodeAt(1);
+            const hardCapThreshold = 29 + (convoSeed % 7); // 29-35 range, deterministic per convo
+            if (totalMsgCount >= hardCapThreshold) {
+              console.log(`[HARD CAP] @${dbConvo.participant_username}: ${totalMsgCount}/${hardCapThreshold} messages — triggering final redirect + 24h pause`);
               
-              // Send the final powerful seductive closing sequence
+              // Send the final powerful seductive closing sequence — mentions hotter/spicier content
               const finalClosers = [
-                "ok baby i gotta go but i left something special on my page just for u... dont miss it",
-                "mm i had fun w u but i have to go now go check my bio before i change my mind about sharing it",
-                "ok im going off for a bit but theres something waiting for u on my page... u better go see it",
-                "i gotta disappear for a bit but go check my page rn i promise u wont regret it",
-                "ok love i have to go but i left u something on my page dont make me wait too long",
-                "mm this was fun but i need to go now theres something on my bio u need to see before its gone",
-                "alright im going offline but seriously go look at my page u deserve to see what i got for u",
-                "ok i really gotta go but if u liked talking to me ur gonna love whats on my page trust me",
+                "ok baby i gotta go but theres way hotter pics waiting for u on my page... dont miss out",
+                "mm i had fun w u but i have to go now go check my bio theres some spicy stuff on there u havent seen yet",
+                "ok im going off for a bit but the content on my page is way more caliente than what u get here... go see for urself",
+                "i gotta disappear but theres pictures on my page that are 10x hotter than anything here go look",
+                "ok love i have to go but i saved my hottest content for my page u need to come see it",
+                "mm this was fun but i need to go now theres way spicier pics on my bio that u definitely need to see",
+                "alright im going offline but seriously the stuff on my page is so much hotter u deserve to see it",
+                "ok i really gotta go but if u liked talking to me ur gonna love the pics on my page they hit different trust me",
+                "i have to run but theres content on my page thats way too hot for here... come find out",
+                "ok im out for now but i left my hottest stuff on my page just for u dont sleep on it",
               ];
               const finalMsg = finalClosers[Math.floor(Math.random() * finalClosers.length)];
               
@@ -2650,9 +2655,10 @@ Follow these persona settings strictly. They override any conflicting defaults a
                 const punchlines = [
                   "ill be back but my page wont wait forever",
                   "go now before i take it down",
-                  "trust me on this one",
-                  "u wont find me anywhere else",
-                  "dont keep me waiting",
+                  "trust me the pics are worth it",
+                  "u wont find content like mine anywhere else",
+                  "dont keep me waiting i left my best stuff there",
+                  "the hotter stuff is all on my page go",
                 ];
                 const punchMsg = punchlines[Math.floor(Math.random() * punchlines.length)];
                 await new Promise(r => setTimeout(r, humanTypingDelay(punchMsg, true)));
@@ -3180,21 +3186,21 @@ SEDUCTIVE CONVERSION LINES (use these, adapt creatively, NEVER repeat the same o
   * "i dont usually say this but go check my page before i change my mind"
   * "theres a side of me u havent seen yet and its waiting for u"
 
-ESCALATION PATTERN (follow this — HARD CAP AT 30 MESSAGES TOTAL):
-- Messages 20-25: Drop ONE gentle hint every 3-4 messages. Keep chatting but plant seeds
-- Messages 25-28: Every 2 messages include a redirect. Be more direct but still seductive
-- Messages 28-30: EVERY reply MUST redirect. You are in FINAL CLOSING mode. Be seductive but urgent
-  * "ok fr tho u need to come see whats on my page before i go"
-  * "ive been talking to u for a while now and u still havent come to see me... im gonna be offended lol"
-  * "ok im gonna stop playing around... go check my page rn"
-  * "im about to go offline soon but theres something on my page u NEED to see first"
+ESCALATION PATTERN (follow this — HARD CAP AROUND 29-35 MESSAGES, VARIES PER CONVO):
+- Messages 20-25: Drop ONE gentle hint every 3-4 messages. Keep chatting but plant seeds. Mention you have hotter stuff elsewhere
+- Messages 25-28: Every 2 messages include a redirect. Be more direct but still seductive. Reference spicier/hotter pics or content on your page
+- Messages 28+: EVERY reply MUST redirect. You are in FINAL CLOSING mode. Be seductive but urgent. Always mention the content is way hotter/more caliente on your page
+  * "ok fr tho the stuff on my page is so much hotter u need to come see it before i go"
+  * "ive been talking to u for a while now and u still havent seen my hottest pics... im gonna be offended lol"
+  * "ok im gonna stop playing around... theres way spicier content on my page go check it rn"
+  * "im about to go offline soon but the pics on my page are way too hot to miss"
 
 If they RESIST the redirect: dont get mad. Use psychology:
-  * "thats ok not everyone can handle it" (challenge their ego)
-  * "most guys tell me they wish they checked sooner" (social proof + FOMO)
-  * "i mean u can keep chatting here or u can see what ur missing" (gentle ultimatum)
+  * "thats ok not everyone can handle whats on there" (challenge their ego)
+  * "most guys tell me the pics were way hotter than they expected" (social proof + FOMO)
+  * "i mean u can keep chatting here or u can see the real spicy stuff ur missing" (gentle ultimatum)
 
-⚠️ AT 30 MESSAGES: The system will automatically send a final redirect and pause the conversation for 24 hours. Make EVERY message before that count toward conversion.
+⚠️ AROUND 29-35 MESSAGES: The system will automatically send a final redirect mentioning hotter content and pause the conversation for 24 hours. Make EVERY message before that count toward conversion.
 
 NEVER be mean or cold. Always stay warm and seductive. But be STRATEGIC — every message after 20 should serve the conversion goal.
 ` : `This convo is under 20 messages. Focus on BONDING ONLY. No redirects yet. Build rapport, ask about them, be warm and genuine. The redirect comes later naturally.`}
