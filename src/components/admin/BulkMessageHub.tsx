@@ -989,7 +989,7 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
                               <UserAvatar src={user.profile_pic_url} name={user.full_name || user.username} username={user.username} size={10} />
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-1.5">
-                                  <span className="text-xs font-medium text-foreground truncate">{user.full_name || user.username}</span>
+                                  <span className="text-xs font-medium text-white truncate">{user.full_name || user.username}</span>
                                   {user.is_verified && <VerifiedBadge size={14} />}
                                   {user.is_private && <span className="text-amber-400 text-[9px]">🔒</span>}
                                   {user.gender && user.gender !== "unknown" && (
@@ -998,16 +998,16 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
                                     </span>
                                   )}
                                 </div>
-                                <span className="text-[10px] text-muted-foreground">@{user.username}</span>
+                                <span className="text-[10px] text-white/50">@{user.username}</span>
                                 <div className="flex items-center gap-2.5 mt-0.5">
                                   {user.follower_count != null && (
-                                    <span className="text-[9px] text-muted-foreground"><span className="font-semibold text-foreground">{fmtNum(user.follower_count)}</span> followers</span>
+                                    <span className="text-[9px] text-white/40"><span className="font-semibold text-white">{fmtNum(user.follower_count)}</span> followers</span>
                                   )}
                                   {user.following_count != null && (
-                                    <span className="text-[9px] text-muted-foreground"><span className="font-semibold text-foreground">{fmtNum(user.following_count)}</span> following</span>
+                                    <span className="text-[9px] text-white/40"><span className="font-semibold text-white">{fmtNum(user.following_count)}</span> following</span>
                                   )}
                                   {user.media_count != null && (
-                                    <span className="text-[9px] text-muted-foreground"><span className="font-semibold text-foreground">{fmtNum(user.media_count)}</span> posts</span>
+                                    <span className="text-[9px] text-white/40"><span className="font-semibold text-white">{fmtNum(user.media_count)}</span> posts</span>
                                   )}
                                 </div>
                               </div>
