@@ -277,6 +277,9 @@ export type Database = {
           is_active: boolean
           keyword: string
           match_type: string
+          response_media_url: string | null
+          response_message: string | null
+          response_type: string
           updated_at: string
         }
         Insert: {
@@ -288,6 +291,9 @@ export type Database = {
           is_active?: boolean
           keyword: string
           match_type?: string
+          response_media_url?: string | null
+          response_message?: string | null
+          response_type?: string
           updated_at?: string
         }
         Update: {
@@ -299,6 +305,9 @@ export type Database = {
           is_active?: boolean
           keyword?: string
           match_type?: string
+          response_media_url?: string | null
+          response_message?: string | null
+          response_type?: string
           updated_at?: string
         }
         Relationships: []

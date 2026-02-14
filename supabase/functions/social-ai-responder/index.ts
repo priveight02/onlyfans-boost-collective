@@ -2270,26 +2270,25 @@ Follow these persona settings strictly. They override any conflicting defaults a
         
         const kwDelays = (keywordDelayRules || []) as Array<{
           keyword: string; delay_seconds: number; direction: string; match_type: string;
+          response_type?: string; response_message?: string; response_media_url?: string;
         }>;
 
         // Keyword matching function — strict, no false positives
-        const matchesKeywordDelay = (text: string, direction: "before" | "after" | "both"): number => {
-          if (!text || kwDelays.length === 0) return 0;
+        // Returns { delay, rule } for the best matching rule
+        const matchesKeywordDelay = (text: string, direction: "before" | "after" | "both"): { delay: number; rule: typeof kwDelays[0] | null } => {
+          if (!text || kwDelays.length === 0) return { delay: 0, rule: null };
           const lower = text.toLowerCase().trim();
           let maxDelay = 0;
+          let matchedRule: typeof kwDelays[0] | null = null;
           for (const rule of kwDelays) {
-            if (rule.direction !== direction && rule.direction !== "both" && direction !== "both") continue;
-            // Only match if direction matches: rule.direction must be 'both' OR match the requested direction
             if (rule.direction !== "both" && rule.direction !== direction) continue;
             const kw = rule.keyword.toLowerCase().trim();
             let matched = false;
             switch (rule.match_type) {
               case "exact":
-                // Exact word match with word boundaries
                 matched = new RegExp(`\\b${kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`).test(lower);
                 break;
               case "contains":
-                // Word must appear as a whole word (not substring of another word)
                 matched = new RegExp(`\\b${kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`).test(lower);
                 break;
               case "starts_with":
@@ -2301,10 +2300,11 @@ Follow these persona settings strictly. They override any conflicting defaults a
             }
             if (matched && rule.delay_seconds > maxDelay) {
               maxDelay = rule.delay_seconds;
-              console.log(`[KEYWORD DELAY] Matched "${rule.keyword}" (${rule.match_type}, ${rule.direction}) → ${rule.delay_seconds}s delay`);
+              matchedRule = rule;
+              console.log(`[KEYWORD DELAY] Matched "${rule.keyword}" (${rule.match_type}, ${rule.direction}) → ${rule.delay_seconds}s delay, response_type=${rule.response_type || 'none'}`);
             }
           }
-          return maxDelay;
+          return { delay: maxDelay, rule: matchedRule };
         };
 
         let processed = 0;
@@ -2929,12 +2929,34 @@ FINAL REMINDER — MESSAGE LENGTH (MOST IMPORTANT RULE):
             const emojiRxPost = /[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{200D}\u{20E3}\u{FE0F}]/gu;
             reply = reply.replace(emojiRxPost, "").replace(/\s{2,}/g, " ").trim();
             
-            // HARD TRUNCATION: Force max 20 words — if AI rambles, cut it
-            const words = reply.split(/\s+/);
-            if (words.length > 20) {
-              reply = words.slice(0, 15).join(" ");
-              // Clean trailing prepositions/articles
-              reply = reply.replace(/\s+(a|an|the|to|in|on|at|for|and|but|or|so|if|of|is|it|u|ur|my|i|im|we|he|she|they|with|from|that|this)$/i, "");
+            // === ULTIMATE MESSAGE LENGTH DIVERSITY ENGINE ===
+            // Enforces the natural texting distribution: 70% short (3-8w), 20% medium (8-15w), 10% long (15-25w)
+            const wordsArr = reply.split(/\s+/);
+            const roll = Math.random();
+            if (roll < 0.70) {
+              // SHORT: 3-8 words — most common
+              const targetLen = 3 + Math.floor(Math.random() * 6); // 3-8
+              if (wordsArr.length > targetLen) {
+                reply = wordsArr.slice(0, targetLen).join(" ");
+                reply = reply.replace(/\s+(a|an|the|to|in|on|at|for|and|but|or|so|if|of|is|it|u|ur|my|i|im|we|he|she|they|with|from|that|this)$/i, "");
+              }
+            } else if (roll < 0.90) {
+              // MEDIUM: 8-15 words
+              const targetLen = 8 + Math.floor(Math.random() * 8); // 8-15
+              if (wordsArr.length > targetLen) {
+                reply = wordsArr.slice(0, targetLen).join(" ");
+                reply = reply.replace(/\s+(a|an|the|to|in|on|at|for|and|but|or|so|if|of|is|it|u|ur|my|i|im|we|he|she|they|with|from|that|this)$/i, "");
+              }
+            } else {
+              // LONG: 15-25 words (rare)
+              if (wordsArr.length > 25) {
+                reply = wordsArr.slice(0, 20).join(" ");
+                reply = reply.replace(/\s+(a|an|the|to|in|on|at|for|and|but|or|so|if|of|is|it|u|ur|my|i|im|we|he|she|they|with|from|that|this)$/i, "");
+              }
+            }
+            // Ensure minimum 2 words
+            if (reply.split(/\s+/).length < 2 && wordsArr.length >= 2) {
+              reply = wordsArr.slice(0, 3).join(" ");
             }
             
             // Remove trailing punctuation (except ?) to match casual style
@@ -2977,10 +2999,42 @@ FINAL REMINDER — MESSAGE LENGTH (MOST IMPORTANT RULE):
 
             // === KEYWORD DELAY: "before" — delay if fan message matches keyword ===
             const fanMsgText = (latestMsg?.content || "").toLowerCase();
-            const beforeDelaySec = matchesKeywordDelay(fanMsgText, "before");
-            if (beforeDelaySec > 0) {
-              console.log(`[KEYWORD DELAY] Applying ${beforeDelaySec}s BEFORE delay for @${dbConvo.participant_username}`);
-              await new Promise(r => setTimeout(r, beforeDelaySec * 1000));
+            const beforeMatch = matchesKeywordDelay(fanMsgText, "before");
+            if (beforeMatch.delay > 0) {
+              console.log(`[KEYWORD DELAY] Applying ${beforeMatch.delay}s BEFORE delay for @${dbConvo.participant_username}`);
+              await new Promise(r => setTimeout(r, beforeMatch.delay * 1000));
+              
+              // If the "before" rule has a custom response, send that INSTEAD of the AI reply
+              if (beforeMatch.rule && beforeMatch.rule.response_type && beforeMatch.rule.response_type !== "none") {
+                const kwRule = beforeMatch.rule;
+                try {
+                  if (kwRule.response_type === "text" && kwRule.response_message) {
+                    // Send custom text message
+                    await callIG2("send_message", { recipient_id: dbConvo.participant_id, message: kwRule.response_message });
+                    console.log(`[KEYWORD DELAY] Sent custom text response for "${kwRule.keyword}": "${kwRule.response_message}"`);
+                  } else if ((kwRule.response_type === "image" || kwRule.response_type === "video" || kwRule.response_type === "media") && kwRule.response_media_url) {
+                    // Send media attachment
+                    await callIG2("send_message", { recipient_id: dbConvo.participant_id, message: kwRule.response_message || "", attachment_url: kwRule.response_media_url });
+                    console.log(`[KEYWORD DELAY] Sent ${kwRule.response_type} response for "${kwRule.keyword}"`);
+                  }
+                  // Update conversation and message record, then skip the normal AI reply
+                  await supabase.from("ai_dm_messages").update({
+                    content: kwRule.response_message || `[${kwRule.response_type} sent]`,
+                    status: "sent",
+                  }).eq("id", typingMsg?.id);
+                  await supabase.from("ai_dm_conversations").update({
+                    last_ai_reply_at: new Date().toISOString(),
+                    last_message_at: new Date().toISOString(),
+                    last_message_preview: kwRule.response_message || `[${kwRule.response_type}]`,
+                  }).eq("id", dbConvo.id);
+                  processed++;
+                  await new Promise(r => setTimeout(r, interMessageDelay()));
+                  continue; // Skip normal AI reply — keyword delay response was sent
+                } catch (kwErr) {
+                  console.error(`[KEYWORD DELAY] Failed to send custom response for "${kwRule.keyword}":`, kwErr);
+                  // Fall through to normal AI reply
+                }
+              }
             }
 
             // Wait typing delay to feel natural (0.8-3s)
@@ -2996,10 +3050,33 @@ FINAL REMINDER — MESSAGE LENGTH (MOST IMPORTANT RULE):
               const sendResult = await callIG2("send_message", sendParams);
 
               // === KEYWORD DELAY: "after" — delay after AI reply if reply matches keyword ===
-              const afterDelaySec = matchesKeywordDelay(reply, "after");
-              if (afterDelaySec > 0) {
-                console.log(`[KEYWORD DELAY] Applying ${afterDelaySec}s AFTER delay for @${dbConvo.participant_username} (reply matched)`);
-                await new Promise(r => setTimeout(r, afterDelaySec * 1000));
+              const afterMatch = matchesKeywordDelay(reply, "after");
+              if (afterMatch.delay > 0) {
+                console.log(`[KEYWORD DELAY] Applying ${afterMatch.delay}s AFTER delay for @${dbConvo.participant_username} (reply matched)`);
+                await new Promise(r => setTimeout(r, afterMatch.delay * 1000));
+                
+                // If the "after" rule has a custom response, send it as a follow-up
+                if (afterMatch.rule && afterMatch.rule.response_type && afterMatch.rule.response_type !== "none") {
+                  const kwRule = afterMatch.rule;
+                  try {
+                    if (kwRule.response_type === "text" && kwRule.response_message) {
+                      await callIG2("send_message", { recipient_id: dbConvo.participant_id, message: kwRule.response_message });
+                    } else if ((kwRule.response_type === "image" || kwRule.response_type === "video" || kwRule.response_type === "media") && kwRule.response_media_url) {
+                      await callIG2("send_message", { recipient_id: dbConvo.participant_id, message: kwRule.response_message || "", attachment_url: kwRule.response_media_url });
+                    }
+                    console.log(`[KEYWORD DELAY] Sent follow-up ${kwRule.response_type} for "${kwRule.keyword}"`);
+                    // Log the follow-up message to DB
+                    await supabase.from("ai_dm_messages").insert({
+                      account_id: account_id,
+                      conversation_id: dbConvo.id,
+                      sender_type: "ai",
+                      content: kwRule.response_message || `[${kwRule.response_type} sent]`,
+                      status: "sent",
+                    });
+                  } catch (kwErr) {
+                    console.error(`[KEYWORD DELAY] Failed to send after-response for "${kwRule.keyword}":`, kwErr);
+                  }
+                }
               }
 
               const msgUpdateData: any = {
