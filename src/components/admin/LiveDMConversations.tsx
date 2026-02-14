@@ -1108,19 +1108,13 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
             />
           </div>
 
-          {/* Background prefetch progress */}
+          {/* Subtle background sync indicator — non-blocking */}
           {prefetchProgress && (
-            <div className="px-4 py-1.5 border-b border-border">
-              <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-                <Loader2 className="h-3 w-3 animate-spin" />
-                <span>Caching messages {prefetchProgress.done}/{prefetchProgress.total}</span>
-              </div>
-              <div className="mt-1 h-1 bg-muted/30 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-accent/60 rounded-full transition-all duration-300"
-                  style={{ width: `${Math.round((prefetchProgress.done / prefetchProgress.total) * 100)}%` }}
-                />
-              </div>
+            <div className="flex items-center gap-1.5 mt-1.5 px-1">
+              <div className="h-1.5 w-1.5 rounded-full bg-blue-400 animate-pulse" />
+              <span className="text-[9px] text-muted-foreground/60">
+                Syncing {prefetchProgress.done}/{prefetchProgress.total}
+              </span>
             </div>
           )}
         </div>
