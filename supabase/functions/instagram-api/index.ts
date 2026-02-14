@@ -482,14 +482,12 @@ serve(async (req) => {
         
         const fetchFolder = async (folderName: string): Promise<any[]> => {
           for (const base of [`${IG_GRAPH_URL}/me`, `${IG_GRAPH_URL}/${realUserId}`]) {
-            let url = `${base}/conversations?platform=instagram&limit=${allLimit}&fields=${richFields}&access_token=${token}`;
-            if (folderName) url += `&folder=${folderName}`;
+            let url = `${base}/conversations?platform=instagram&limit=${allLimit}&fields=${richFields}&access_token=${token}&folder=${folderName}`;
             
             let convos = await fetchWithPagination(url);
             if (convos.length > 0) return convos;
             
-            let simpleUrl = `${base}/conversations?platform=instagram&limit=${allLimit}&fields=id,updated_time,participants&access_token=${token}`;
-            if (folderName) simpleUrl += `&folder=${folderName}`;
+            let simpleUrl = `${base}/conversations?platform=instagram&limit=${allLimit}&fields=id,updated_time,participants&access_token=${token}&folder=${folderName}`;
             convos = await fetchWithPagination(simpleUrl);
             if (convos.length > 0) return convos;
           }
@@ -497,7 +495,7 @@ serve(async (req) => {
         };
         
         const [primary, general, requests] = await Promise.all([
-          fetchFolder(""),
+          fetchFolder("inbox"),
           fetchFolder("general"),
           fetchFolder("other"),
         ]);

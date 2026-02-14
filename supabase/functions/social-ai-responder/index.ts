@@ -626,13 +626,36 @@ Rules:
         }
 
         const ourIdScan = igConnScan.platform_user_id;
+        const ourUsernameScan = igConnScan.platform_username?.toLowerCase() || "";
+        
+        // Helper: find the fan (non-owner) participant with multiple fallback checks
+        const findFanParticipant = (participants: any[]) => {
+          if (!participants || participants.length === 0) return null;
+          // Try by ID match first
+          const byId = participants.find((p: any) => p.id !== ourIdScan);
+          if (byId && participants.length === 2) return byId;
+          // Try by username match (in case IDs are in different formats)
+          if (ourUsernameScan) {
+            const byUsername = participants.find((p: any) => 
+              (p.username || p.name || "").toLowerCase() !== ourUsernameScan
+            );
+            if (byUsername) return byUsername;
+          }
+          // If only 2 participants and one matches our ID or username, return the other
+          if (participants.length === 2) {
+            const isFirst = participants[0].id === ourIdScan || (participants[0].username || "").toLowerCase() === ourUsernameScan;
+            return isFirst ? participants[1] : participants[0];
+          }
+          // Last resort: return first participant that isn't obviously us
+          return participants.find((p: any) => p.id !== ourIdScan) || participants[0];
+        };
         let imported = 0;
         let totalFound = 0;
 
         // Fetch all folders at once
         let allFolderData: { folder: string; conversations: any[] }[] = [];
         try {
-          const allData = await callIG("get_all_conversations", { limit: 20, messages_limit: 10 });
+          const allData = await callIG("get_all_conversations", { limit: 50, messages_limit: 10 });
           allFolderData = [
             { folder: "primary", conversations: allData?.primary || [] },
             { folder: "general", conversations: allData?.general || [] },
@@ -642,9 +665,8 @@ Rules:
           console.log(`Found conversations: primary=${allData?.primary?.length || 0}, general=${allData?.general?.length || 0}, requests=${allData?.requests?.length || 0}`);
         } catch (allErr: any) {
           console.log("get_all_conversations failed:", allErr.message, "- falling back to single fetch");
-          // Fallback to single fetch
           try {
-            const singleData = await callIG("get_conversations", { limit: 20, messages_limit: 10 });
+            const singleData = await callIG("get_conversations", { limit: 50, messages_limit: 10 });
             allFolderData = [{ folder: "primary", conversations: singleData?.data || [] }];
             totalFound = allFolderData[0].conversations.length;
           } catch (singleErr: any) {
@@ -654,21 +676,30 @@ Rules:
           }
         }
 
+        // Deduplicate conversations across folders (same convo ID shouldn't appear twice)
+        const seenConvoIds = new Set<string>();
+
         // Process each folder
         for (const { folder, conversations: folderConvos } of allFolderData) {
           for (const convo of folderConvos) {
             try {
+              if (seenConvoIds.has(convo.id)) continue;
+              seenConvoIds.add(convo.id);
+              
               const messages = convo.messages?.data || [];
               const participants = convo.participants?.data || [];
-              const fan = participants.find((p: any) => p.id !== ourIdScan);
+              const fan = findFanParticipant(participants);
               if (!fan) continue;
 
-              // Get last message preview - 2026 API uses "text" and "timestamp"
+              // Determine if last message is from fan using both ID and username matching
               const lastMsg = messages[0];
               const lastPreview = (lastMsg?.text || lastMsg?.message)?.substring(0, 100) || null;
-              const isFromFanLast = lastMsg?.from?.id !== ourIdScan;
+              const lastMsgFromId = lastMsg?.from?.id;
+              const lastMsgFromName = (lastMsg?.from?.username || lastMsg?.from?.name || "").toLowerCase();
+              const isFromFanLast = lastMsgFromId ? 
+                (lastMsgFromId !== ourIdScan && lastMsgFromName !== ourUsernameScan) : 
+                false;
 
-              // Upsert conversation
               const { data: dbConvo } = await supabase
                 .from("ai_dm_conversations")
                 .upsert({
@@ -691,7 +722,7 @@ Rules:
               
               if (!dbConvo) continue;
 
-              // Import messages - 2026 API uses "text" and "timestamp"
+              // Import messages
               const sortedMsgs = [...messages].reverse();
               for (const msg of sortedMsgs) {
                 const msgText = msg.text || msg.message;
@@ -703,7 +734,11 @@ Rules:
                   .limit(1);
                 if (existing && existing.length > 0) continue;
 
-                const isFromFan = msg.from?.id !== ourIdScan;
+                const msgFromId = msg.from?.id;
+                const msgFromName = (msg.from?.username || msg.from?.name || "").toLowerCase();
+                const isFromFan = msgFromId ? 
+                  (msgFromId !== ourIdScan && msgFromName !== ourUsernameScan) : 
+                  true;
                 const msgTimestamp = msg.timestamp || msg.created_time;
                 await supabase.from("ai_dm_messages").insert({
                   conversation_id: dbConvo.id,
@@ -720,7 +755,6 @@ Rules:
             } catch (e) {
               console.error("Error importing conversation:", e);
             }
-            await new Promise(r => setTimeout(r, 200));
           }
         }
 
@@ -758,7 +792,7 @@ Rules:
 
         // 1. First scan/import all conversations by calling IG API directly
         try {
-          const scanConvos = await callIG2("get_conversations", { limit: 20, messages_limit: 10 });
+          const scanConvos = await callIG2("get_conversations", { limit: 50, messages_limit: 10, folder: "inbox" });
           const scanConvoList = scanConvos?.data || [];
           const { data: igConnScan2 } = await supabase
             .from("social_connections")
@@ -767,10 +801,25 @@ Rules:
             .eq("platform", "instagram")
             .single();
           const ourIdScan2 = igConnScan2?.platform_user_id;
+          const ourUsernameScan2 = igConnScan2?.platform_username?.toLowerCase() || "";
+          
+          const findFan2 = (participants: any[]) => {
+            if (!participants || participants.length === 0) return null;
+            if (ourUsernameScan2) {
+              const byUsername = participants.find((p: any) => 
+                (p.username || p.name || "").toLowerCase() !== ourUsernameScan2
+              );
+              if (byUsername) return byUsername;
+            }
+            const byId = participants.find((p: any) => p.id !== ourIdScan2);
+            if (byId) return byId;
+            if (participants.length === 2) return participants[1];
+            return participants[0];
+          };
           
           for (const sc of scanConvoList) {
             const scMsgs = sc.messages?.data || [];
-            const scFan = sc.participants?.data?.find((p: any) => p.id !== ourIdScan2);
+            const scFan = findFan2(sc.participants?.data || []);
             if (!scFan) continue;
             
             const { data: scDbConvo } = await supabase
@@ -797,7 +846,9 @@ Rules:
               if (!scMsgText && !scMsg.id) continue;
               const { data: scEx } = await supabase.from("ai_dm_messages").select("id").eq("platform_message_id", scMsg.id).limit(1);
               if (scEx && scEx.length > 0) continue;
-              const scIsFromFan = scMsg.from?.id !== ourIdScan2;
+              const scFromName = (scMsg.from?.username || scMsg.from?.name || "").toLowerCase();
+              const scIsFromFan = scMsg.from?.id ? 
+                (scMsg.from.id !== ourIdScan2 && scFromName !== ourUsernameScan2) : true;
               const scMsgTimestamp = scMsg.timestamp || scMsg.created_time;
               await supabase.from("ai_dm_messages").insert({
                 conversation_id: scDbConvo.id,
@@ -810,7 +861,6 @@ Rules:
                 created_at: scMsgTimestamp ? new Date(scMsgTimestamp).toISOString() : new Date().toISOString(),
               });
             }
-            await new Promise(r => setTimeout(r, 200));
           }
           console.log(`Scan imported ${scanConvoList.length} conversations`);
         } catch (scanErr) {
