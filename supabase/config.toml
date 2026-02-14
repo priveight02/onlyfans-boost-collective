@@ -65,3 +65,6 @@ verify_jwt = false
 
 [functions.discord-api]
 verify_jwt = false
+
+[functions.facebook-api]
+verify_jwt = false
