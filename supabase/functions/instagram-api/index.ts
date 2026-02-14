@@ -624,13 +624,29 @@ serve(async (req) => {
 
       case "send_reaction": {
         const pageInfoR = await getPageId(token, igUserId);
+        // Instagram Messaging API reaction format
         const reactBody = {
           recipient: { id: params.recipient_id },
           sender_action: "react",
           payload: { message_id: params.message_id, reaction: params.reaction || "love" },
         };
+        console.log("Sending reaction:", JSON.stringify(reactBody));
         if (pageInfoR) {
-          result = await igFetch(`/${pageInfoR.pageId}/messages`, pageInfoR.pageToken, "POST", reactBody);
+          try {
+            result = await igFetch(`/${pageInfoR.pageId}/messages`, pageInfoR.pageToken, "POST", reactBody);
+          } catch (e1: any) {
+            console.log("Page react failed, trying alternate format:", e1.message);
+            // Alternative format: use reaction_type in message body 
+            const altBody = {
+              recipient: { id: params.recipient_id },
+              react: { message_id: params.message_id, action: "react", reaction: params.reaction || "love" },
+            };
+            try {
+              result = await igFetch(`/${pageInfoR.pageId}/messages`, pageInfoR.pageToken, "POST", altBody);
+            } catch {
+              result = await igFetch(`/me/messages`, token, "POST", reactBody);
+            }
+          }
         } else {
           try {
             result = await igFetch(`/me/messages`, token, "POST", reactBody);
@@ -638,6 +654,7 @@ serve(async (req) => {
             result = await igFetch(`/${igUserId}/messages`, token, "POST", reactBody);
           }
         }
+        console.log("Reaction result:", JSON.stringify(result));
         break;
       }
 
@@ -661,9 +678,27 @@ serve(async (req) => {
       }
 
       case "delete_message": {
-        // Instagram/Messenger API: DELETE /{message-id}
+        // Instagram/Messenger: DELETE via FB Graph API (Page token required for DM messages)
         if (!params?.message_id) throw new Error("message_id required");
-        result = await igFetch(`/${params.message_id}`, token, "DELETE");
+        const pageInfoDel = await getPageId(token, igUserId);
+        if (pageInfoDel) {
+          // Use FB Graph API with page token to delete/unsend the message
+          const delResp = await fetch(`${FB_GRAPH_URL}/${params.message_id}?access_token=${pageInfoDel.pageToken}`, { method: "DELETE" });
+          const delData = await delResp.json();
+          if (delData.error) {
+            console.log("Page delete failed, trying direct:", delData.error.message);
+            // Fallback to direct token
+            const delResp2 = await fetch(`${FB_GRAPH_URL}/${params.message_id}?access_token=${token}`, { method: "DELETE" });
+            result = await delResp2.json();
+          } else {
+            result = delData;
+          }
+        } else {
+          // Direct delete attempt
+          const delResp = await fetch(`${FB_GRAPH_URL}/${params.message_id}?access_token=${token}`, { method: "DELETE" });
+          result = await delResp.json();
+        }
+        console.log("Delete message result:", JSON.stringify(result));
         break;
       }
 
