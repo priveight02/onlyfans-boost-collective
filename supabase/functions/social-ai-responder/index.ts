@@ -207,7 +207,8 @@ REAL CHAT EXAMPLES (THIS IS YOUR VIBE — study these carefully):
 - They say something sweet → "u know how to talk huh"
 - They say "I'm from India" → "oh thats cool what part"
 - They say "How are you" → "im good just chilling wbu"
-- They ask for a photo → "mm maybe depends how this goes"
+- They ask for a photo FIRST TIME → "mm maybe depends how this goes" (tease once, max)
+- They ask for a photo AGAIN (2nd+ time) → DO NOT deflect. The system will handle this automatically. Just say "ok ok" or similar
 - They say "I own a business" → "oh wait thats actually cool"
 - They say "my friends are coming over" → "oh nice what are u guys doing"
 - They say "Im bored" → "same tbh im always bored for nothing"
@@ -224,11 +225,12 @@ HANDLING CHALLENGES (when they say youre a bot, fake, not real, AI etc):
 
 TEXTING STYLE (THIS IS HOW YOU WRITE — NO EXCEPTIONS):
 - Write like a real girl texting casually - chill, warm, friendly, subtly seductive
-- LENGTH IS DYNAMIC — match the moment:
-  * Quick reactions: 3-8 words ("oh thats cool", "same tbh", "prove it")
-  * Normal replies: 8-15 words — most of your messages
-  * Empathetic/deep moments: 15-25 words when you GENUINELY care or share something real about yourself
-  * NEVER go over 30 words. NEVER write paragraphs
+- LENGTH IS DYNAMIC but DEFAULTS TO SHORT:
+  * 70% of messages: 3-8 words ("oh thats cool", "same", "lol ok", "prove it", "wdym", "mm maybe", "yea")
+  * 20% of messages: 8-15 words — only when answering a real question or sharing something personal
+  * 10% of messages: 15-25 words — ONLY for deep empathy or complex answers
+  * NEVER go over 25 words. EVER. If you wrote more, delete half
+  * When in doubt, GO SHORTER. "lol ok" is better than a paragraph
 - Be WARM and CARING — not robotic or transactional. You genuinely enjoy talking to people
 - Be subtly SEDUCTIVE — not overtly sexual, just confident and charming. Make them feel special
 - When they say something sweet or flirty, MATCH or ESCALATE slightly: "of course because youre with me" type energy
@@ -470,28 +472,37 @@ const DEFAULT_FREE_PIC_URL = `https://ufsnuobtvkciydftsyff.supabase.co/storage/v
 
 // === FREE PIC REQUEST DETECTION ENGINE ===
 // Detects when a fan is asking for a free picture/preview and whether they've already received one
-const detectFreePicRequest = (messages: any[], fanTags: string[] | null): { isRequesting: boolean; alreadySent: boolean; isEligible: boolean; insistCount: number } => {
+const detectFreePicRequest = (messages: any[], fanTags: string[] | null, latestFanContent?: string): { isRequesting: boolean; alreadySent: boolean; isEligible: boolean; insistCount: number } => {
   const alreadySent = (fanTags || []).includes("free_pic_sent");
   
-  const picPattern = /(send (me )?(a )?(free )?(pic|photo|picture|image|preview|sample|taste|something|smth|content|nude|nudes|naked))|((free|one) (pic|photo|picture|image|preview|sample|content))|((can i|could i|let me|i want to|i want|want to) (see|get|have) (a |some |one )?(free |)?(pic|photo|picture|preview|sample|content|something))|((show|give) (me )?(a |some )?(free |)?(pic|photo|picture|preview|sample|something|content))|(anything free)|(free stuff)|(prove it.*(pic|photo|show))|(just one.*(pic|photo|free))|(one free)|(freebie)|(sneak peek)|(preview)|(taste of (you|your|urself|yourself))|(i want a? ?(free )?pic)/;
-  const picPatternLoose = /(free.*pic|pic.*free|want.*pic|send.*pic|see.*pic|taste|want.*see.*you|show.*me|give.*pic)/;
+  const picPattern = /(send (me )?(a )?(free )?(pic|photo|picture|image|preview|sample|taste|something|smth|content|nude|nudes|naked))|((free|one) (pic|photo|picture|image|preview|sample|content))|((can i|could i|let me|i want to|i want|want to) (see|get|have) (a |some |one )?(free |)?(pic|photo|picture|preview|sample|content|something))|((show|give) (me )?(a |some )?(free |)?(pic|photo|picture|preview|sample|something|content))|(anything free)|(free stuff)|(prove it.*(pic|photo|show))|(just one.*(pic|photo|free))|(one free)|(freebie)|(sneak peek)|(preview)|(taste of (you|your|urself|yourself))|(i want a? ?(free )?pic)|(the free pic)|(free picture)/;
+  const picPatternLoose = /(free.*pic|pic.*free|want.*pic|send.*pic|see.*pic|taste|want.*see.*you|show.*me|give.*pic|free.*picture|picture.*free)/;
 
-  // Count how many SEPARATE fan messages contain pic requests (insistence detection)
-  const allFanMsgs = messages.filter(m => m.sender_type === "fan");
-  let insistCount = 0;
-  for (const msg of allFanMsgs) {
-    const txt = (msg.content || "").toLowerCase().replace(/[^a-z0-9\s?!]/g, "");
+  // Helper to check if a single text matches pic request
+  const matchesPic = (raw: string): boolean => {
+    const txt = raw.toLowerCase().replace(/[^a-z0-9\s?!]/g, "");
     const norm = txt
       .replace(/\bwabt\b/g, "want")
       .replace(/\bwanna\b/g, "want to")
       .replace(/\bgimme\b/g, "give me")
       .replace(/\blemme\b/g, "let me")
+      .replace(/\bnooo?\b/g, "")
+      .replace(/\bpls\b/g, "please")
       .replace(/\ba(pic|picture|photo|free|preview|taste|sample)/g, "a $1")
       .replace(/\b(pic|picture|photo|image)(ture|ure)?\b/g, "pic");
-    if (norm.match(picPattern) || txt.match(picPatternLoose)) {
-      insistCount++;
-    }
+    return !!(norm.match(picPattern) || txt.match(picPatternLoose));
+  };
+
+  // Count how many SEPARATE fan messages contain pic requests (insistence detection)
+  const allFanMsgs = messages.filter(m => m.sender_type === "fan");
+  let insistCount = 0;
+  for (const msg of allFanMsgs) {
+    if (matchesPic(msg.content || "")) insistCount++;
   }
+  
+  // ALSO check the latestFanContent directly (might not be in DB yet due to sync timing)
+  const latestIsPicRequest = latestFanContent ? matchesPic(latestFanContent) : false;
+  if (latestIsPicRequest && insistCount === 0) insistCount = 1; // at minimum 1 if current msg asks
 
   // Check the last 5 fan messages for current request
   const recentFan = allFanMsgs.slice(-5);
@@ -501,15 +512,17 @@ const detectFreePicRequest = (messages: any[], fanTags: string[] | null): { isRe
     .replace(/\bwanna\b/g, "want to")
     .replace(/\bgimme\b/g, "give me")
     .replace(/\blemme\b/g, "let me")
+    .replace(/\bnooo?\b/g, "")
+    .replace(/\bpls\b/g, "please")
     .replace(/\ba(pic|picture|photo|free|preview|taste|sample)/g, "a $1")
     .replace(/\b(pic|picture|photo|image)(ture|ure)?\b/g, "pic");
   
-  const isRequesting = !!(normalized.match(picPattern) || recentFanText.match(picPatternLoose));
+  const isRequesting = !!(normalized.match(picPattern) || recentFanText.match(picPatternLoose) || latestIsPicRequest);
   
-  // INSISTENCE RULE: if fan asked for pic 2+ times across the convo, send it directly
-  // No more shy exchanges — they've earned it by insisting
+  // INSISTENCE RULE: if fan asked for pic 2+ times, send it IMMEDIATELY
+  // Also eligible on first ask if there are 2+ total fan messages (basic rapport check)
   const fanMsgCount = allFanMsgs.length;
-  const isEligible = isRequesting && !alreadySent && (insistCount >= 2 || fanMsgCount >= 2);
+  const isEligible = isRequesting && !alreadySent && (insistCount >= 2 || fanMsgCount >= 3);
   
   return { isRequesting, alreadySent, isEligible, insistCount };
 };
@@ -2306,8 +2319,8 @@ Follow these persona settings strictly. They override any conflicting defaults a
               .eq("fan_identifier", dbConvo.participant_id)
               .single();
             
-            const freePicPreCheck = detectFreePicRequest(dbMessages || [], fanProfileForPicPreCheck?.tags || []);
-            console.log(`[FREE PIC PRE-CHECK] @${dbConvo.participant_username}: isRequesting=${freePicPreCheck.isRequesting}, alreadySent=${freePicPreCheck.alreadySent}, isEligible=${freePicPreCheck.isEligible}, insistCount=${freePicPreCheck.insistCount}, fanMsgs=${(dbMessages || []).filter(m => m.sender_type === "fan").length}`);
+            const freePicPreCheck = detectFreePicRequest(dbMessages || [], fanProfileForPicPreCheck?.tags || [], latestMsg?.content || "");
+            console.log(`[FREE PIC PRE-CHECK] @${dbConvo.participant_username}: isRequesting=${freePicPreCheck.isRequesting}, alreadySent=${freePicPreCheck.alreadySent}, isEligible=${freePicPreCheck.isEligible}, insistCount=${freePicPreCheck.insistCount}, fanMsgs=${(dbMessages || []).filter(m => m.sender_type === "fan").length}, latestContent="${(latestMsg?.content || "").substring(0, 50)}"`);
 
             // === POST-REDIRECT DETECTION (auto-responder) ===
             // SKIP post-redirect block if fan is requesting a free pic (free pic overrides redirect)
@@ -2710,11 +2723,16 @@ MULTI-QUESTION RULE (CRITICAL):
 - NEVER ignore a question because another message came after it
 - When replying to multiple questions, the system may use Instagram's reply-to-message feature to thread your response to a specific question
 
-FINAL REMINDER:
-- DEFAULT length: 3-8 words. Thats it. Short and sweet like a real girl texting
-- Only go 10-15 words when answering a REAL question or sharing something personal
+FINAL REMINDER — MESSAGE LENGTH (MOST IMPORTANT RULE):
+- 70% of your messages should be 3-8 words. This is your DEFAULT. "oh thats cool", "same", "wdym", "lol ok", "prove it", "mm maybe"
+- 20% can be 8-15 words when answering a real question or sharing something about yourself
+- Only 10% should be 15-25 words — ONLY for deep empathy, sharing a real story, or answering a complex question
+- NEVER go over 25 words. EVER. If your response is longer, CUT IT DOWN
+- When in doubt, GO SHORTER. A real girl texting sends "lol ok" not a paragraph
+- NEVER bundle multiple thoughts. ONE idea per message
+- If you catch yourself writing a long response, delete half of it
+- SHORT = natural = human. LONG = bot = fake = FAILURE
 - ZERO emojis. NONE. EVER
-- Warm, casual, contextually relevant
 - Output ONLY the message text`;
 
             const aiMessages: any[] = [{ role: "system", content: systemPrompt }];
@@ -2743,8 +2761,8 @@ FINAL REMINDER:
               }
             }
 
-            // Dynamic tokens — shorter by default, longer only for multi-question
-            const dynamicMaxTokens = multipleUnanswered ? 80 : (unansweredQuestions > 1 ? 60 : 40);
+            // Dynamic tokens — MUCH shorter by default, only longer for multi-question
+            const dynamicMaxTokens = multipleUnanswered ? 50 : (unansweredQuestions > 1 ? 40 : 25);
 
             const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
               method: "POST",
