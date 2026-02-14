@@ -358,14 +358,16 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
     setLoading(false);
   }, [loadMessagesToCache]);
 
-  // IG sync for a single conversation — BATCHED + THROTTLED (min 5s between syncs per convo)
+  // IG sync for a single conversation — BATCHED + THROTTLED (min 1.5s between syncs per convo)
   const fetchIGMessages = useCallback(async (convoId: string, convo?: Conversation, force = false) => {
     const c = convo || conversations.find(cv => cv.id === convoId);
     if (!c?.platform_conversation_id) return;
 
-    // Throttle: skip if last sync was < 5s ago (unless forced)
+    // Throttle: 1.5s for active convo, 4s for background convos (unless forced)
     const lastSync = igSyncTimestamps.current.get(convoId) || 0;
-    if (!force && Date.now() - lastSync < 5000) return;
+    const isActive = convoId === selectedConvo;
+    const minInterval = isActive ? 1500 : 4000;
+    if (!force && Date.now() - lastSync < minInterval) return;
     igSyncTimestamps.current.set(convoId, Date.now());
 
     const conn = igConnRef.current;
@@ -524,7 +526,7 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
     } catch (e) {
       console.error("fetchIGMessages error:", e);
     }
-  }, [accountId, conversations, loadMessagesToCache, addLog, persistDeletedIds]);
+  }, [accountId, conversations, loadMessagesToCache, addLog, persistDeletedIds, selectedConvo]);
 
   // ===== BACKGROUND PREFETCH ALL CONVERSATIONS =====
   const prefetchAllMessages = useCallback(async (convos: Conversation[]) => {
@@ -809,14 +811,14 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
     return () => clearInterval(dbPollInterval);
   }, [selectedConvo, loadMessagesToCache]);
 
-  // IG API sync for selected convo — every 1s for near-instant updates
+  // IG API sync for selected convo — every 600ms for near-instant updates
   useEffect(() => {
     if (!selectedConvo) return;
     const resyncInterval = setInterval(async () => {
       if (syncInFlightRef.current) return;
       syncInFlightRef.current = true;
-      try { await fetchIGMessages(selectedConvo); } finally { syncInFlightRef.current = false; }
-    }, 1000);
+      try { await fetchIGMessages(selectedConvo, undefined, false); } finally { syncInFlightRef.current = false; }
+    }, 600);
     return () => clearInterval(resyncInterval);
   }, [selectedConvo, fetchIGMessages]);
 
@@ -1078,12 +1080,12 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
     setPolling(true);
     // Run immediately
     processDMs();
-    // Then continuous 500ms cycle — ultra fast, skip if in-flight
+    // Then continuous 400ms cycle — ultra fast, skip if in-flight
     pollIntervalRef.current = setInterval(async () => {
       if (pollInFlightRef.current) return;
       pollInFlightRef.current = true;
       try { await processDMs(); } finally { pollInFlightRef.current = false; }
-    }, 500);
+    }, 400);
     return () => { if (pollIntervalRef.current) clearInterval(pollIntervalRef.current); };
   }, [autoRespondActive, accountId]);
 
