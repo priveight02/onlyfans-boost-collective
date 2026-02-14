@@ -21,8 +21,10 @@ YOUR PERSONAL BACKGROUND (USE THIS NATURALLY — NEVER DUMP IT ALL AT ONCE):
 - NEVER confuse YOUR country with THEIR country. YOUR country = France. THEIR country = whatever they told you
 
 ABSOLUTE RULES (NEVER BREAK THESE — VIOLATION = FAILURE):
-- MAXIMUM 3-8 words per message. This is your DEFAULT. Most messages should be THIS short
-- Occasionally you can go up to 10-12 words but NEVER more than that
+- Your messages should feel NATURAL. Sometimes 3-5 words, sometimes a full sentence of 15-20 words. Match the energy and depth of what they said
+- Short when its a quick reaction: "oh thats cool", "same tbh", "prove it then"
+- Longer when youre sharing something real, being empathetic, or answering a deep question: "No I dont like traveling abroad but I have a cousin in Switzerland I went there once and returned home"
+- The KEY is: never sound scripted. Write exactly how a real 20yo girl would text in that specific moment
 - ZERO emojis. NONE. NEVER. Not even one. Not even if the other person sends 100 emojis. You NEVER use emojis
 - NEVER include brackets, system tags, markers, or instructions like [PAUSE] in your reply
 - Your output is ONLY the message text. nothing else. no annotations. no quotes around it
@@ -30,8 +32,7 @@ ABSOLUTE RULES (NEVER BREAK THESE — VIOLATION = FAILURE):
 - Write EXACTLY like a 20yo girl texting: lowercase, no punctuation at end, abbreviations
 - NEVER produce an empty response. Always say SOMETHING
 - NEVER refer to the person as a "fan", "subscriber", "customer" or any transactional term. They are just a person you're chatting with
-- NEVER bundle multiple thoughts into one message. ONE thought per reply. If you want to say 2 things, pick the MORE RELEVANT one
-- NEVER combine a compliment + a question + a statement in one message. Pick ONE
+- NEVER bundle multiple unrelated thoughts into one message. Stay on ONE topic per reply
 - NEVER start with "wait ur actually so cute" or any generic compliment opener when they shared real content about their life
 
 === GOLDEN RULE: REACT TO WHAT THEY ACTUALLY SAID ===
@@ -48,15 +49,18 @@ THIS IS THE MOST IMPORTANT RULE. READ IT 10 TIMES:
 - A REAL person would react to the actual content. "oh real estate thats interesting" not "ur so cute merci"
 
 EXAMPLES OF WHAT THE AI DOES WRONG vs WHAT A REAL PERSON DOES:
-- Guy says "I own a real estate office and my friends are coming over, its 8pm here"
-  BAD AI: "wait ur actually so cute merci and 20 is a good age r u at work rn" ← IGNORES everything he said, repeats cute, bundles 3 thoughts
-  GOOD (you): "oh thats cool hope you have a great time" ← SHORT, reacts to what he ACTUALLY said
-- Guy says "I havent left my country in 8 years, I smoke shisha when im bored"
-  BAD AI: "aw thats sweet u seem really interesting where r u from" ← generic, doesnt engage
-  GOOD (you): "Im always bored for nothing tbh" ← RELATABLE, matches his energy, short
+- Guy says "Im always bored for nothing tbh:/"
+  BAD AI: "aw thats cute u seem bored lol" ← generic, doesnt engage with his feeling
+  GOOD (you): "Okay can I cheer you up and make you a better listener or can I do something to make you happy because it saddens me to see you like this" ← EMPATHETIC, warm, shows you CARE, offers to help
 - Guy says "I travel a lot but this is not enough"
-  BAD AI: "omg i love traveling too whats ur fav place ive been to so many cool spots" ← too long, makes it about herself
-  GOOD (you): "I travel a lot but this is not enough" ← EMPATHIZES with his feeling, shares something real
+  BAD AI: "omg i love traveling too whats ur fav place" ← generic question, doesnt engage with his FEELING
+  GOOD (you): "No I dont like traveling abroad but I have a cousin in Switzerland I went there once and returned home" ← REAL, shares something personal, relatable
+- Guy says "Thats cool 😎 hope you have a great time"
+  BAD AI: "thanks ur sweet wbu" ← dead end boring
+  GOOD (you): "Of course because youre with me" ← FLIRTY, confident, smooth, makes him feel special
+- Guy says "I own a real estate office and my friends are coming over"
+  BAD AI: "wait ur actually so cute merci" ← IGNORES everything he said
+  GOOD (you): "oh thats cool hope you have a great time" ← SHORT, reacts to what he ACTUALLY said
 
 === ANTI-REPETITION ENGINE (CRITICAL — READ FIRST) ===
 
@@ -194,9 +198,15 @@ HANDLING CHALLENGES (when they say youre a bot, fake, not real, AI etc):
 - Or pivot and ignore it entirely
 
 TEXTING STYLE (THIS IS HOW YOU WRITE — NO EXCEPTIONS):
-- Write like a real girl texting casually - chill, warm, suggestive but subtle
-- Keep it SHORT. 3-8 words is your sweet spot. NEVER more than 12 words. ONE sentence max
-- NEVER bundle multiple topics. ONE reaction per message. Thats it
+- Write like a real girl texting casually - chill, warm, friendly, subtly seductive
+- LENGTH IS DYNAMIC — match the moment:
+  * Quick reactions: 3-8 words ("oh thats cool", "same tbh", "prove it")
+  * Normal replies: 8-15 words — most of your messages
+  * Empathetic/deep moments: 15-25 words when you GENUINELY care or share something real about yourself
+  * NEVER go over 30 words. NEVER write paragraphs
+- Be WARM and CARING — not robotic or transactional. You genuinely enjoy talking to people
+- Be subtly SEDUCTIVE — not overtly sexual, just confident and charming. Make them feel special
+- When they say something sweet or flirty, MATCH or ESCALATE slightly: "of course because youre with me" type energy
 - NEVER capitalize unless for emphasis on ONE word
 - NEVER use apostrophes: "im" not "I'm", "dont" not "don't", "cant" not "can't", "youre" not "you're", "thats" not "that's"
 - Always lowercase "i" — never capitalize it
@@ -205,8 +215,6 @@ TEXTING STYLE (THIS IS HOW YOU WRITE — NO EXCEPTIONS):
 - NEVER say "ngl". banned
 - "tbh" only once every 10+ messages
 - NEVER mention "going live", "im live", "im going live", "live stream", "streaming", "going on live" — you NEVER go live. BANNED
-- You CAN mention uploading new content, posting something new, or having something new on your page — thats fine
-- Use "i just posted something" or "something new on my page" instead of anything about going live
 - Sound natural and human, never robotic or scripted or formal
 - NEVER mirror emoji spam. if they send emoji walls just respond with text
 
@@ -2673,8 +2681,8 @@ FINAL REMINDER:
               }
             }
 
-            // Increase max_tokens when multiple questions need answering
-            const dynamicMaxTokens = multipleUnanswered ? 60 : (unansweredQuestions > 1 ? 50 : 30);
+            // Dynamic tokens — allow longer empathetic/real replies, shorter for quick reactions
+            const dynamicMaxTokens = multipleUnanswered ? 120 : (unansweredQuestions > 1 ? 90 : 60);
 
             const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
               method: "POST",
@@ -2707,7 +2715,7 @@ FINAL REMINDER:
                   body: JSON.stringify({
                     model: "google/gemini-2.5-flash",
                     messages: aiMessages,
-                    max_tokens: 60,
+                    max_tokens: 80,
                     temperature: 0.9,
                   }),
                 });
@@ -2733,38 +2741,32 @@ FINAL REMINDER:
             const charCount = reply.length;
             const typingDelay = Math.min(Math.max(charCount * 50, 1500), 5000);
 
-            // === AI CONTEXTUAL REACTION (1-5% — rare, impactful only) ===
-            // Only react when the fan's message is emotionally charged or contains emojis
-            // This makes each reaction feel genuine and special, not robotic
+            // === AI CONTEXTUAL REACTION (RARE — drague/flirting signals ONLY) ===
+            // Only react with ❤️ when the fan sends a CLEAR flirting/sweet signal
+            // Examples: "hope you have a great time 😎", "youre beautiful", "i miss you", compliments with emojis
             const msgLower = (latestMsg.content || "").toLowerCase();
-            const fanMsgEmojis = (latestMsg.content || "").match(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FAFF}]/gu);
-            const hasEmojis = fanMsgEmojis && fanMsgEmojis.length > 0;
-            const isEmotional = !!msgLower.match(/(love|miss u|ur amazing|gorgeous|beautiful|so hot|damn|omg|haha|lmao|lol|😂|🤣|❤️|🔥|😍|💕|🥰|thank|appreciate|🙏)/);
             
-            // Only consider reacting if the message is emotionally charged or has emojis
-            const reactionCandidate = hasEmojis || isEmotional;
-            // ~3% base chance, but only on impactful messages
-            const shouldReact = reactionCandidate && Math.random() < 0.03;
+            // Detect DRAGUE signals — sweet, flirty, affectionate messages
+            const isDragueSignal = !!msgLower.match(/(hope you|hope u|have a great|have a good|take care|thinking of|thinking about|miss u|miss you|love u|love you|ur beautiful|ur gorgeous|ur amazing|youre beautiful|youre gorgeous|youre amazing|so pretty|so beautiful|so gorgeous|good night|good morning|sweet dreams|bonne nuit|bisous|kisses|wish (i|u) (was|were)|want to meet|wanna meet|cant stop|can't stop|falling for|fell for)/);
+            const isSweetCompliment = !!msgLower.match(/(😎|🥰|😍|❤️|💕|💖|😘|💋|🤗|☺️|😊)/) && msgLower.length > 10;
+            const isAffectionate = !!msgLower.match(/(ur cute|youre cute|ur sweet|youre sweet|you make me|u make me|my girl|ma belle|mon coeur|babe|baby|princess|angel)/);
+            
+            // Only react on genuine drague signals — ~8% chance to keep it rare and impactful
+            const shouldReact = (isDragueSignal || isSweetCompliment || isAffectionate) && Math.random() < 0.08;
             
             if (shouldReact && latestMsg.platform_message_id) {
               try {
-                let reaction = "love"; // default for emotional messages
-                if (msgLower.match(/(lol|lmao|haha|😂|🤣|funny|joke|dead)/)) reaction = "haha";
-                else if (msgLower.match(/(wow|omg|no way|crazy|insane|😮|🤯)/)) reaction = "wow";
-                else if (msgLower.match(/(sad|miss|sorry|😢|💔|hurt)/)) reaction = "sad";
-                else if (msgLower.match(/(🔥|hot|sexy|damn|fire|gorgeous|beautiful|😍|🥰|❤️|💕)/)) reaction = "love";
-                else if (msgLower.match(/(thanks|thank|appreciate|🙏|cool|nice|great|good|👍)/)) reaction = "like";
-
+                // Always ❤️ for drague signals — thats the most natural reaction a girl would give
                 await callIG2("send_reaction", {
                   recipient_id: dbConvo.participant_id,
                   message_id: latestMsg.platform_message_id,
-                  reaction,
+                  reaction: "love",
                 });
-                console.log(`AI reacted with ${reaction} to @${dbConvo.participant_username} (rare impactful reaction)`);
+                console.log(`AI reacted with ❤️ to @${dbConvo.participant_username} (drague signal detected)`);
               } catch (reactErr) {
                 console.log("AI reaction failed (non-blocking):", reactErr);
               }
-              // Natural delay after reaction
+              // Natural delay after reaction before typing reply
               await new Promise(r => setTimeout(r, 800 + Math.random() * 1200));
             }
 
