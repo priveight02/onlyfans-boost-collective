@@ -459,11 +459,20 @@ const ensureFreePicInStorage = async (supabaseClient: any): Promise<string> => {
 const detectFreePicRequest = (messages: any[], fanTags: string[] | null): { isRequesting: boolean; alreadySent: boolean; isEligible: boolean } => {
   const alreadySent = (fanTags || []).includes("free_pic_sent");
   
-  // Check the last 3 fan messages for free pic request patterns
-  const recentFan = messages.filter(m => m.sender_type === "fan").slice(-3);
-  const recentFanText = recentFan.map(m => (m.content || "").toLowerCase()).join(" ");
+  // Check the last 5 fan messages for free pic request patterns
+  const recentFan = messages.filter(m => m.sender_type === "fan").slice(-5);
+  const recentFanText = recentFan.map(m => (m.content || "").toLowerCase().replace(/[^a-z0-9\s?!]/g, "")).join(" ");
   
-  const isRequesting = !!recentFanText.match(/(send (me )?(a )?(free )?(pic|photo|picture|image|preview|sample|taste|something|smth|content|nude|nudes|naked))|((free|one) (pic|photo|picture|image|preview|sample|content))|((can i|could i|lemme|let me) (see|get|have) (a |some |one )?(free |)?(pic|photo|picture|preview|sample|content|something))|((show|give) (me )?(a |some )?(free |)?(pic|photo|picture|preview|sample|something|content))|(anything free)|(free stuff)|(prove it.*(pic|photo|show))|(just one.*(pic|photo|free))|(one free)|(freebie)|(sneak peek)|(preview)/);
+  // Normalize common typos: wabt→want, wanna→want, gimme→give me, lemme→let me, apic→a pic, afree→a free
+  const normalized = recentFanText
+    .replace(/\bwabt\b/g, "want")
+    .replace(/\bwanna\b/g, "want to")
+    .replace(/\bgimme\b/g, "give me")
+    .replace(/\blemme\b/g, "let me")
+    .replace(/\ba(pic|picture|photo|free|preview|taste|sample)/g, "a $1")
+    .replace(/\b(pic|picture|photo|image)(ture|ure)?\b/g, "pic");
+  
+  const isRequesting = !!(normalized.match(/(send (me )?(a )?(free )?(pic|photo|picture|image|preview|sample|taste|something|smth|content|nude|nudes|naked))|((free|one) (pic|photo|picture|image|preview|sample|content))|((can i|could i|let me|i want to|i want|want to) (see|get|have) (a |some |one )?(free |)?(pic|photo|picture|preview|sample|content|something))|((show|give) (me )?(a |some )?(free |)?(pic|photo|picture|preview|sample|something|content))|(anything free)|(free stuff)|(prove it.*(pic|photo|show))|(just one.*(pic|photo|free))|(one free)|(freebie)|(sneak peek)|(preview)|(taste of (you|your|urself|yourself))|(i want a? ?(free )?pic)/) || recentFanText.match(/(free.*pic|pic.*free|want.*pic|send.*pic|see.*pic|taste|want.*see.*you|show.*me|give.*pic)/));
   
   // Eligible only after at least 2 total messages from the fan (1-2 shy exchanges)
   const fanMsgCount = messages.filter(m => m.sender_type === "fan").length;
@@ -2328,8 +2337,8 @@ Follow these persona settings strictly. They override any conflicting defaults a
                   content: brbMsg, status: "sent", ai_model: "free_pic_engine",
                 });
                 
-                // Wait ~2 minutes to simulate actually taking the picture
-                await new Promise(r => setTimeout(r, 90000 + Math.random() * 60000));
+                // Brief pause to simulate getting the pic (keep short to avoid edge function timeout)
+                await new Promise(r => setTimeout(r, 3000 + Math.random() * 2000));
                 
                 // Step 3: Download free pic from Drive, save to storage as me.png, then send
                 const freePicUrl = await ensureFreePicInStorage(supabase);
