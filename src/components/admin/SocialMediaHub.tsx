@@ -1193,8 +1193,8 @@ const SocialMediaHub = () => {
         {/* ===== DASHBOARD ===== */}
         <TabsContent value="dashboard" className="space-y-4 mt-4">
           <div className="flex gap-2 flex-wrap">
-            <Button size="sm" variant="outline" onClick={fetchProfiles}><RefreshCw className="h-3.5 w-3.5 mr-1" />Sync Profiles</Button>
-            <Button size="sm" variant="outline" onClick={fetchMedia}><Download className="h-3.5 w-3.5 mr-1" />Pull Media</Button>
+            <Button size="sm" variant="outline" onClick={fetchProfiles} className="text-foreground"><RefreshCw className="h-3.5 w-3.5 mr-1" />Sync Profiles</Button>
+            <Button size="sm" variant="outline" onClick={fetchMedia} className="text-foreground"><Download className="h-3.5 w-3.5 mr-1" />Pull Media</Button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {igProfile && (
@@ -1286,7 +1286,7 @@ const SocialMediaHub = () => {
                   <label className="text-xs text-muted-foreground mb-1 block">Trigger Keywords (comma separated)</label>
                   <Input value={aiDmKeywords} onChange={e => setAiDmKeywords(e.target.value)} placeholder="content, exclusive, private, subscribe..." className="text-sm" />
                 </div>
-                <Button size="sm" variant="outline" onClick={saveAutoRespondConfig}>Save Config</Button>
+                <Button size="sm" variant="outline" className="text-foreground" onClick={saveAutoRespondConfig}>Save Config</Button>
               </div>
             </CardContent>
           </Card>
@@ -1447,9 +1447,9 @@ const SocialMediaHub = () => {
               <div className="border-t border-border pt-3">
                 <p className="text-xs text-muted-foreground mb-2">Quick Discovery</p>
                 <div className="flex gap-1.5 flex-wrap">
-                  <Button size="sm" variant="outline" onClick={async () => { const d = await callApi("instagram-api", { action: "get_tagged_media", params: { limit: 25 } }); if (d) toast.success(`${d.data?.length || 0} tagged`); }} disabled={!igConnected || apiLoading} className="text-xs h-7"><AtSign className="h-3 w-3 mr-1" />Tagged</Button>
-                  <Button size="sm" variant="outline" onClick={async () => { const d = await callApi("instagram-api", { action: "get_mentioned_media", params: { limit: 25 } }); if (d) toast.success(`${d.data?.length || 0} mentions`); }} disabled={!igConnected || apiLoading} className="text-xs h-7"><Megaphone className="h-3 w-3 mr-1" />Mentions</Button>
-                  <Button size="sm" variant="outline" onClick={async () => { const d = await callApi("instagram-api", { action: "get_stories" }); if (d) toast.success(`${d.data?.length || 0} stories`); }} disabled={!igConnected || apiLoading} className="text-xs h-7"><Radio className="h-3 w-3 mr-1" />Stories</Button>
+                  <Button size="sm" variant="outline" onClick={async () => { const d = await callApi("instagram-api", { action: "get_tagged_media", params: { limit: 25 } }); if (d) toast.success(`${d.data?.length || 0} tagged`); }} disabled={!igConnected || apiLoading} className="text-xs h-7 text-foreground"><AtSign className="h-3 w-3 mr-1" />Tagged</Button>
+                  <Button size="sm" variant="outline" onClick={async () => { const d = await callApi("instagram-api", { action: "get_mentioned_media", params: { limit: 25 } }); if (d) toast.success(`${d.data?.length || 0} mentions`); }} disabled={!igConnected || apiLoading} className="text-xs h-7 text-foreground"><Megaphone className="h-3 w-3 mr-1" />Mentions</Button>
+                  <Button size="sm" variant="outline" onClick={async () => { const d = await callApi("instagram-api", { action: "get_stories" }); if (d) toast.success(`${d.data?.length || 0} stories`); }} disabled={!igConnected || apiLoading} className="text-xs h-7 text-foreground"><Radio className="h-3 w-3 mr-1" />Stories</Button>
                 </div>
               </div>
             </CardContent>
@@ -1616,11 +1616,11 @@ const SocialMediaHub = () => {
         {/* ===== ANALYTICS ===== */}
         <TabsContent value="analytics" className="space-y-4 mt-4">
           <div className="flex gap-2">
-            <Button size="sm" variant="outline" onClick={async () => { await callApi("instagram-api", { action: "get_account_insights", params: { period: "day" } }); toast.success("Updated"); loadData(); }} disabled={!igConnected || apiLoading}><Instagram className="h-3.5 w-3.5 mr-1" />Sync IG</Button>
-            <Button size="sm" variant="outline" onClick={async () => { await callApi("tiktok-api", { action: "get_user_info" }); toast.success("Updated"); loadData(); }} disabled={!ttConnected || apiLoading}><Music2 className="h-3.5 w-3.5 mr-1" />Sync TT</Button>
-            <Button size="sm" variant="outline" onClick={async () => { await callApi("twitter-api", { action: "get_profile" }); toast.success("Updated"); loadData(); }} disabled={!xConnected || apiLoading}><Twitter className="h-3.5 w-3.5 mr-1" />Sync X</Button>
-            <Button size="sm" variant="outline" onClick={async () => { await callApi("reddit-api", { action: "get_profile" }); toast.success("Updated"); loadData(); }} disabled={!redditConnected || apiLoading}><Globe className="h-3.5 w-3.5 mr-1" />Sync Reddit</Button>
-            <Button size="sm" variant="outline" onClick={async () => { await callApi("telegram-api", { action: "get_me" }); toast.success("Updated"); loadData(); }} disabled={!telegramConnected || apiLoading}><Phone className="h-3.5 w-3.5 mr-1" />Sync TG</Button>
+            <Button size="sm" variant="outline" className="text-foreground" onClick={async () => { await callApi("instagram-api", { action: "get_account_insights", params: { period: "day" } }); toast.success("Updated"); loadData(); }} disabled={!igConnected || apiLoading}><Instagram className="h-3.5 w-3.5 mr-1" />Sync IG</Button>
+            <Button size="sm" variant="outline" className="text-foreground" onClick={async () => { await callApi("tiktok-api", { action: "get_user_info" }); toast.success("Updated"); loadData(); }} disabled={!ttConnected || apiLoading}><Music2 className="h-3.5 w-3.5 mr-1" />Sync TT</Button>
+            <Button size="sm" variant="outline" className="text-foreground" onClick={async () => { await callApi("twitter-api", { action: "get_profile" }); toast.success("Updated"); loadData(); }} disabled={!xConnected || apiLoading}><Twitter className="h-3.5 w-3.5 mr-1" />Sync X</Button>
+            <Button size="sm" variant="outline" className="text-foreground" onClick={async () => { await callApi("reddit-api", { action: "get_profile" }); toast.success("Updated"); loadData(); }} disabled={!redditConnected || apiLoading}><Globe className="h-3.5 w-3.5 mr-1" />Sync Reddit</Button>
+            <Button size="sm" variant="outline" className="text-foreground" onClick={async () => { await callApi("telegram-api", { action: "get_me" }); toast.success("Updated"); loadData(); }} disabled={!telegramConnected || apiLoading}><Phone className="h-3.5 w-3.5 mr-1" />Sync TG</Button>
           </div>
           {analytics.length > 0 ? (
             <Card>
@@ -1775,7 +1775,7 @@ const SocialMediaHub = () => {
                   <Input value={connectForm.refresh_token} onChange={e => setConnectForm(p => ({ ...p, refresh_token: e.target.value }))} placeholder="Refresh Token (optional)" type="password" className="text-sm" />
                 </>
               )}
-              <Button onClick={connectPlatform} size="sm" variant="outline"><Plus className="h-3.5 w-3.5 mr-1" />Connect Manually</Button>
+              <Button onClick={connectPlatform} size="sm" variant="outline" className="text-foreground"><Plus className="h-3.5 w-3.5 mr-1" />Connect Manually</Button>
             </CardContent>
           </Card>
 
