@@ -2906,11 +2906,10 @@ FINAL REMINDER — MESSAGE LENGTH (MOST IMPORTANT RULE):
 
             const aiMessages: any[] = [{ role: "system", content: systemPrompt }];
             
-            // CRITICAL FIX: Only send the LAST 2 messages as conversation context
-            // The FAN MEMORY ENGINE already captures ALL historical facts (name, location, age, job, etc.)
-            // and injects them into the system prompt. We do NOT need old messages cluttering the AI's input.
-            // 2 messages = the AI focuses ONLY on the immediate exchange and never gets confused by old topics
-            const recentContext = conversationContext.slice(-2);
+            // Send the LAST 4 messages as context so the AI can see 2-3 recent fan messages
+            // and potentially answer them all in one cohesive reply
+            // The FAN MEMORY ENGINE handles all historical facts via the system prompt
+            const recentContext = conversationContext.slice(-4);
             for (const ctx of recentContext) {
               aiMessages.push({ role: ctx.role === "creator" ? "assistant" : "user", content: ctx.text });
             }
