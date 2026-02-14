@@ -1087,6 +1087,14 @@ Follow these persona settings strictly. They override any conflicting defaults a
             // Only process if last message is from a fan (needs a reply)
             if (!latestMsg || latestMsg.sender_type !== "fan") continue;
 
+            // CRITICAL: Check if we already handled this message (e.g. user deleted our reply)
+            // If last_ai_reply_at is AFTER the fan's message, we already replied — skip
+            if (dbConvo.last_ai_reply_at && latestMsg.created_at) {
+              const aiReplyTime = new Date(dbConvo.last_ai_reply_at).getTime();
+              const fanMsgTime = new Date(latestMsg.created_at).getTime();
+              if (aiReplyTime >= fanMsgTime) continue;
+            }
+
             // Build conversation context from DB
             const { data: dbMessages } = await supabase
               .from("ai_dm_messages")

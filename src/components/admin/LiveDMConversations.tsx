@@ -683,7 +683,7 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
     toast.success("Message updated locally (IG doesn't support DM editing)");
   };
 
-  // Delete message — remove from local DB + track to prevent re-import
+  // Delete message — remove from local DB + track to prevent re-import + prevent AI re-reply
   const deleteMessage = async (msgId: string) => {
     const msg = messages.find(m => m.id === msgId);
     
@@ -705,6 +705,14 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
     
     // Delete from DB instantly (don't wait)
     supabase.from("ai_dm_messages").delete().eq("id", msgId).then();
+    
+    // CRITICAL: Update last_ai_reply_at to NOW so the AI processor doesn't think
+    // the fan's previous message is "unanswered" and generate a new reply
+    if (selectedConvo) {
+      supabase.from("ai_dm_conversations").update({
+        last_ai_reply_at: new Date().toISOString(),
+      }).eq("id", selectedConvo).then();
+    }
     
     // Try to unsend on IG in background (non-blocking)
     if (msg?.platform_message_id) {
