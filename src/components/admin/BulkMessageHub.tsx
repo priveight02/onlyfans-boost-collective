@@ -182,13 +182,7 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
       if (error) throw error;
       if (data?.success) {
         setGenderStats({ female: data.data.female, male: data.data.male, unknown: data.data.unknown });
-        // Update local followers with gender
-        setFollowers(prev => prev.map(f => {
-          const name = f.name || f.username;
-          // Simple client-side re-classify to update UI instantly
-          return { ...f, gender: f.gender || "unknown" };
-        }));
-        toast.success(`Gender classified: ${data.data.female} ♀ · ${data.data.male} ♂ · ${data.data.unknown} unknown`);
+        toast.success(`AI Gender Classification Complete: ${data.data.female} ♀ · ${data.data.male} ♂ · ${data.data.unknown} unknown${data.data.ai_classified ? ` (${data.data.ai_classified} AI-analyzed)` : ""}`);
         // Reload to get updated gender from DB
         invalidateNamespace(accountId, "persisted_followers");
         loadPersistedFollowers();
