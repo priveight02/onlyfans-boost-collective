@@ -1210,16 +1210,11 @@ serve(async (req) => {
         // 3. Fetch ACTUAL followers via IG Business Discovery / Facebook Page API
         if (sourceFilter === "all" || sourceFilter === "follower") {
           try {
-            // Use Facebook Page API to get followers who follow the IG business account
             const pageInfo = await getPageId(token, igUserId!);
             if (pageInfo) {
-              // Try to get page followers / engaged users
-              // IG Graph API doesn't have a direct followers list endpoint, but we can:
-              // a) Get users who recently engaged (commented/liked) on our posts
               const mediaResp = await igFetch(`/${igUserId}/media?fields=id,comments.limit(50){from{id,username,profile_picture_url}},likes.limit(50)&limit=20`, token);
               
               for (const media of (mediaResp?.data || [])) {
-                // Extract from comments
                 for (const comment of (media?.comments?.data || [])) {
                   const from = comment?.from;
                   if (!from?.id || from.id === igUserId || seen.has(from.id)) continue;
@@ -1229,43 +1224,14 @@ serve(async (req) => {
                     name: from.username || from.id?.substring(0, 8),
                     username: from.username || from.id,
                     profile_pic: from.profile_picture_url || null,
-                    source: "follower",
+                    source: "engaged",
                   });
                 }
               }
               console.log(`Fetched engaged followers from posts, total: ${followers.length}`);
             }
-            
-            // b) Also try to get mentioned/tagged users
-            try {
-              const tagsResp = await igFetch(`/${igUserId}/tags?fields=id,username,timestamp&limit=50`, token);
-              for (const tag of (tagsResp?.data || [])) {
-                if (!tag?.id || tag.id === igUserId || seen.has(tag.id)) continue;
-                // We only have the media ID here, not the tagger, skip if no user info
-              }
-            } catch {}
-
-            // c) Try business_discovery for specific usernames if provided
-            if (params?.discover_usernames?.length) {
-              for (const uname of params.discover_usernames.slice(0, 20)) {
-                try {
-                  const disc = await igFetch(`/${igUserId}?fields=business_discovery.fields(id,username,name,profile_picture_url).username(${uname})`, token);
-                  const bd = disc?.business_discovery;
-                  if (bd?.id && !seen.has(bd.id)) {
-                    seen.add(bd.id);
-                    followers.push({
-                      id: bd.id,
-                      name: bd.name || bd.username || uname,
-                      username: bd.username || uname,
-                      profile_pic: bd.profile_picture_url || null,
-                      source: "follower",
-                    });
-                  }
-                } catch {}
-              }
-            }
           } catch (e: any) {
-            console.log("Followers discovery failed:", e.message);
+            console.log("Engaged followers discovery failed:", e.message);
           }
         }
         
@@ -1281,6 +1247,157 @@ serve(async (req) => {
           followers,
           followers_count: followersCount,
           follows_count: followsCount,
+        };
+        break;
+      }
+
+      // ===== SCRAPE ACTUAL FOLLOWERS (Private API workaround) =====
+      case "scrape_followers": {
+        // Uses Instagram's private mobile API to get the actual followers list
+        // Requires: ig_session_id (sessionid cookie), ig_ds_user_id, ig_csrf_token
+        // These are stored in social_connections.metadata
+        
+        const metadata = conn.metadata as any || {};
+        const sessionId = params?.session_id || metadata?.ig_session_id;
+        const dsUserId = params?.ds_user_id || metadata?.ig_ds_user_id || conn.platform_user_id;
+        const csrfToken = params?.csrf_token || metadata?.ig_csrf_token;
+        const igAppId = "936619743392459"; // Instagram app ID (public)
+        
+        if (!sessionId) {
+          throw new Error("Instagram session cookie required. Go to instagram.com → DevTools → Application → Cookies → copy 'sessionid' value");
+        }
+
+        // Save session credentials for future use
+        if (params?.session_id) {
+          await supabase.from("social_connections").update({
+            metadata: {
+              ...(conn.metadata as any || {}),
+              ig_session_id: params.session_id,
+              ig_ds_user_id: params.ds_user_id || dsUserId,
+              ig_csrf_token: params.csrf_token || csrfToken,
+              ig_session_saved_at: new Date().toISOString(),
+            }
+          }).eq("id", conn.id);
+          console.log("Saved IG session credentials");
+        }
+
+        // Get the actual user PK (numeric ID) - needed for private API
+        let userPk = dsUserId;
+        
+        // If we have a username but not numeric PK, resolve it
+        if (!userPk || userPk.length > 15) {
+          // Try to get PK from the web API
+          try {
+            const webResp = await fetch(`https://i.instagram.com/api/v1/users/web_profile_info/?username=${conn.platform_username || ""}`, {
+              headers: {
+                "User-Agent": "Instagram 275.0.0.27.98 Android (33/13; 420dpi; 1080x2400; samsung; SM-G991B; o1s; exynos2100; en_US; 458229258)",
+                "Cookie": `sessionid=${sessionId};${csrfToken ? ` csrftoken=${csrfToken};` : ""}${dsUserId ? ` ds_user_id=${dsUserId};` : ""}`,
+                "X-IG-App-ID": igAppId,
+              },
+            });
+            const webData = await webResp.json();
+            if (webData?.data?.user?.id) {
+              userPk = webData.data.user.id;
+              console.log(`Resolved user PK: ${userPk}`);
+            }
+          } catch (e: any) {
+            console.log("PK resolution failed:", e.message);
+          }
+        }
+
+        if (!userPk) {
+          throw new Error("Could not resolve Instagram user PK. Please provide ds_user_id from cookies.");
+        }
+
+        const scrapedFollowers: any[] = [];
+        const seenPks = new Set<string>();
+        let maxId: string | null = null;
+        let page = 0;
+        const maxPages = params?.max_pages || 50; // ~200 per page = up to 10k followers
+        const batchSize = params?.batch_size || 200;
+        
+        console.log(`Starting follower scrape for PK ${userPk}, max pages: ${maxPages}`);
+
+        while (page < maxPages) {
+          page++;
+          const endpoint = `https://i.instagram.com/api/v1/friendships/${userPk}/followers/?count=${batchSize}${maxId ? `&max_id=${maxId}` : ""}&search_surface=follow_list_page`;
+          
+          try {
+            const resp = await fetch(endpoint, {
+              headers: {
+                "User-Agent": "Instagram 275.0.0.27.98 Android (33/13; 420dpi; 1080x2400; samsung; SM-G991B; o1s; exynos2100; en_US; 458229258)",
+                "Cookie": `sessionid=${sessionId};${csrfToken ? ` csrftoken=${csrfToken};` : ""} ds_user_id=${userPk};`,
+                "X-IG-App-ID": igAppId,
+                "X-IG-WWW-Claim": "0",
+              },
+            });
+
+            if (!resp.ok) {
+              const errText = await resp.text();
+              console.log(`Scrape page ${page} failed (${resp.status}):`, errText.substring(0, 200));
+              
+              if (resp.status === 401 || resp.status === 403) {
+                throw new Error("Session expired. Please update your Instagram session cookie.");
+              }
+              if (resp.status === 429) {
+                console.log("Rate limited, stopping. Got", scrapedFollowers.length, "followers so far.");
+                break;
+              }
+              break;
+            }
+
+            const data = await resp.json();
+            const users = data?.users || [];
+            
+            console.log(`Page ${page}: got ${users.length} followers, next_max_id: ${data?.next_max_id ? "yes" : "no"}`);
+
+            for (const user of users) {
+              if (seenPks.has(String(user.pk))) continue;
+              seenPks.add(String(user.pk));
+              scrapedFollowers.push({
+                id: String(user.pk),
+                name: user.full_name || user.username,
+                username: user.username,
+                profile_pic: user.profile_pic_url || null,
+                source: "scraped",
+                is_private: user.is_private || false,
+                is_verified: user.is_verified || false,
+              });
+            }
+
+            if (!data?.next_max_id || users.length === 0) {
+              console.log("No more pages, scraping complete");
+              break;
+            }
+            maxId = data.next_max_id;
+
+            // Rate limit: wait 1-3 seconds between requests to avoid blocks
+            const delay = 1000 + Math.random() * 2000;
+            await new Promise(r => setTimeout(r, delay));
+            
+          } catch (e: any) {
+            console.error(`Scrape page ${page} error:`, e.message);
+            if (e.message.includes("Session expired")) throw e;
+            break;
+          }
+        }
+
+        // Get follower/following counts
+        let scrapedFollowersCount = 0, scrapedFollowsCount = 0;
+        try {
+          const profile = await igFetch(`/${igUserId}?fields=followers_count,follows_count`, token);
+          scrapedFollowersCount = profile?.followers_count || 0;
+          scrapedFollowsCount = profile?.follows_count || 0;
+        } catch {}
+
+        console.log(`Scrape complete: ${scrapedFollowers.length} followers scraped in ${page} pages`);
+
+        result = {
+          followers: scrapedFollowers,
+          followers_count: scrapedFollowersCount,
+          follows_count: scrapedFollowsCount,
+          pages_scraped: page,
+          scrape_complete: page < maxPages || !maxId,
         };
         break;
       }
