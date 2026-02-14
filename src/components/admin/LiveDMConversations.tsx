@@ -99,6 +99,8 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
   const [sendingMessage, setSendingMessage] = useState(false);
   const [prefetchProgress, setPrefetchProgress] = useState<{ done: number; total: number } | null>(null);
   const [bulkHubOpen, setBulkHubOpen] = useState(false);
+  const [followAI, setFollowAI] = useState(false);
+  const followAIRef = useRef(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -635,7 +637,6 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
     const ch1 = supabase
       .channel(`dm-convos-${accountId}`)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "ai_dm_conversations", filter: `account_id=eq.${accountId}` }, (payload) => {
-        // New conversation — prepend to list without reloading everything
         const newConvo = payload.new as Conversation;
         setConversations(prev => {
           if (prev.find(c => c.id === newConvo.id)) return prev;
@@ -649,7 +650,6 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
           if (idx === -1) return [updated, ...prev];
           const next = [...prev];
           next[idx] = updated;
-          // Re-sort by last_message_at
           next.sort((a, b) => {
             const ta = a.last_message_at ? new Date(a.last_message_at).getTime() : 0;
             const tb = b.last_message_at ? new Date(b.last_message_at).getTime() : 0;
@@ -665,6 +665,31 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
       .subscribe();
     return () => { supabase.removeChannel(ch1); };
   }, [accountId]);
+
+  // Follow AI Actions — watch for AI typing/sent messages and auto-navigate
+  useEffect(() => {
+    if (!accountId) return;
+    const ch = supabase
+      .channel(`follow-ai-${accountId}`)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "ai_dm_messages", filter: `account_id=eq.${accountId}` }, (payload) => {
+        const msg = payload.new as Message;
+        if (!followAIRef.current) return;
+        // Only follow AI-generated messages (typing or sent)
+        if (msg.sender_type !== "ai") return;
+        const convoId = msg.conversation_id;
+        // Auto-navigate to this conversation
+        setSelectedConvo(prev => {
+          if (prev !== convoId) {
+            // Load messages for the new convo
+            loadMessages(convoId);
+            addLog("follow-ai", `Jumped to ${convoId.substring(0, 8)}...`, "info");
+          }
+          return convoId;
+        });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [accountId, loadMessages, addLog]);
 
   // Real-time message subscription — MERGE instead of full reload
   useEffect(() => {
@@ -1027,6 +1052,20 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
               </Button>
               <Button size="sm" variant="ghost" onClick={() => setBulkHubOpen(true)} className="h-7 w-7 p-0" title="Bulk Message Hub">
                 <SendHorizonal className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  const next = !followAI;
+                  setFollowAI(next);
+                  followAIRef.current = next;
+                  toast.success(next ? "Follow AI Actions ON — auto-navigating to AI activity" : "Follow AI Actions OFF");
+                }}
+                className={`h-7 w-7 p-0 ${followAI ? "text-blue-400 bg-blue-500/15" : ""}`}
+                title="Follow AI Actions — auto-jump to conversations where AI is replying"
+              >
+                <Eye className={`h-3.5 w-3.5 ${followAI ? "animate-pulse" : ""}`} />
               </Button>
             </div>
           </div>
