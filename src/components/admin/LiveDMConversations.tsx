@@ -1690,9 +1690,26 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
                       {!convo.is_read && <div className="h-2.5 w-2.5 rounded-full bg-blue-500" />}
                     </div>
                   </div>
-                  {/* 24h Pause Countdown */}
+                  {/* 24h Pause Countdown + Manual Unpause */}
                   {convo.metadata?.paused_until && new Date(convo.metadata.paused_until).getTime() > Date.now() && (
-                    <ConvoPauseCountdown pausedUntil={convo.metadata.paused_until} />
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <ConvoPauseCountdown pausedUntil={convo.metadata.paused_until} />
+                      <button
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          const newMeta = { ...(convo.metadata || {}), paused_until: null };
+                          // Optimistic update
+                          setConversations(prev => prev.map(c => c.id === convo.id ? { ...c, metadata: newMeta } : c));
+                          await supabase.from("ai_dm_conversations").update({ metadata: newMeta }).eq("id", convo.id);
+                          toast.success(`Unpaused @${convo.participant_username}`);
+                          addLog(`@${convo.participant_username}`, "Manual unpause — 24h timeout cleared", "info");
+                        }}
+                        className="p-1 rounded-md border border-orange-500/30 bg-orange-500/10 hover:bg-orange-500/20 transition-colors"
+                        title="Remove 24h pause — resume AI immediately"
+                      >
+                        <Play className="h-2.5 w-2.5 text-orange-400" />
+                      </button>
+                    </div>
                   )}
                 </div>
               </button>
