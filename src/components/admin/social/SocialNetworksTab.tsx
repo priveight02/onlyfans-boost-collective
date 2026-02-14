@@ -148,42 +148,69 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
         return (
           <div className="space-y-3">
             <p className="text-sm font-medium" style={{ color: "#ccc" }}>{data.length} items returned</p>
-            <div className="grid grid-cols-5 gap-2.5">
+            <div className="grid grid-cols-5 gap-3">
               {data.map((item: any, i: number) => {
-                const imgUrl = item.media_url || item.thumbnail_url || item.image_url;
-                const vidUrl = item.video_url;
-                const displayUrl = imgUrl || vidUrl;
+                // For VIDEO type, thumbnail_url is the preview; for IMAGE/CAROUSEL, media_url is the image
+                const isVideo = item.media_type === "VIDEO";
+                const previewUrl = isVideo ? (item.thumbnail_url || item.media_url) : (item.media_url || item.thumbnail_url || item.image_url);
+                const downloadUrl = item.media_url || item.thumbnail_url || item.video_url || item.image_url;
                 return (
-                  <div key={i} className="group relative rounded-lg overflow-hidden border border-white/10 aspect-square" style={{ background: "hsl(222, 30%, 10%)" }}>
-                    {displayUrl ? (
-                      <img src={displayUrl} alt={item.caption?.slice(0,30) || `Media ${i+1}`} className="w-full h-full object-cover object-center" loading="lazy" />
+                  <div key={i} className="group relative rounded-xl overflow-hidden border border-white/10 aspect-square flex items-center justify-center" style={{ background: "hsl(222, 30%, 10%)" }}>
+                    {previewUrl ? (
+                      <img 
+                        src={previewUrl} 
+                        alt={item.caption?.slice(0,30) || `Media ${i+1}`} 
+                        className="w-full h-full object-cover object-center" 
+                        loading="lazy"
+                        onError={(e) => {
+                          const target = e.currentTarget;
+                          target.style.display = "none";
+                          const parent = target.parentElement;
+                          if (parent) {
+                            const fallback = document.createElement("div");
+                            fallback.className = "w-full h-full flex flex-col items-center justify-center gap-2";
+                            fallback.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg><span style="color:rgba(255,255,255,0.35);font-size:11px">${isVideo ? "Video" : "Image"}</span>`;
+                            parent.appendChild(fallback);
+                          }
+                        }}
+                      />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center"><Image className="h-8 w-8 text-white/20" /></div>
+                      <div className="w-full h-full flex flex-col items-center justify-center gap-1">
+                        {isVideo ? <Video className="h-7 w-7 text-white/25" /> : <Image className="h-7 w-7 text-white/25" />}
+                        <span className="text-[10px] text-white/30">{isVideo ? "Video" : "Media"}</span>
+                      </div>
                     )}
                     {item.media_type && (
-                      <span className="absolute top-1.5 left-1.5 text-[11px] px-2 py-0.5 rounded font-bold uppercase" style={{ background: "rgba(0,0,0,0.75)", color: "#fff" }}>{item.media_type}</span>
+                      <span className="absolute top-2 left-2 text-[11px] px-2 py-0.5 rounded-md font-bold uppercase tracking-wide" style={{ background: "rgba(0,0,0,0.8)", color: "#fff", backdropFilter: "blur(4px)" }}>{item.media_type}</span>
                     )}
-                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-2">
+                    {/* Always-visible caption at bottom */}
+                    {item.caption && (
+                      <div className="absolute bottom-0 left-0 right-0 p-2" style={{ background: "linear-gradient(transparent, rgba(0,0,0,0.85))" }}>
+                        <p className="text-xs text-white line-clamp-2 leading-snug">{item.caption}</p>
+                      </div>
+                    )}
+                    {/* Hover overlay with stats & actions */}
+                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-between p-2.5">
                       <div className="flex justify-end gap-1.5">
-                        {displayUrl && (
-                          <button onClick={() => downloadMedia(displayUrl, `media_${i+1}`)} className="p-1.5 rounded bg-white/20 hover:bg-white/40 transition-colors" title="Download">
+                        {downloadUrl && (
+                          <button onClick={() => downloadMedia(downloadUrl, `media_${i+1}`)} className="p-1.5 rounded-lg transition-colors" style={{ background: "rgba(255,255,255,0.2)", backdropFilter: "blur(4px)" }} title="Download">
                             <ArrowDown className="h-4 w-4 text-white" />
                           </button>
                         )}
                         {item.permalink && (
-                          <a href={item.permalink} target="_blank" rel="noopener noreferrer" className="p-1.5 rounded bg-white/20 hover:bg-white/40 transition-colors" title="View on platform">
+                          <a href={item.permalink} target="_blank" rel="noopener noreferrer" className="p-1.5 rounded-lg transition-colors" style={{ background: "rgba(255,255,255,0.2)", backdropFilter: "blur(4px)" }} title="View on platform">
                             <Link2 className="h-4 w-4 text-white" />
                           </a>
                         )}
                       </div>
-                      <div className="space-y-1">
-                        {item.caption && <p className="text-xs text-white line-clamp-2 leading-snug">{item.caption}</p>}
-                        <div className="flex flex-wrap gap-2 text-xs text-white/90 font-medium">
+                      <div className="space-y-1.5">
+                        <div className="flex flex-wrap gap-2.5 text-sm text-white font-semibold">
                           {item.like_count !== undefined && <span>❤ {item.like_count?.toLocaleString()}</span>}
                           {item.likes !== undefined && <span>❤ {item.likes?.toLocaleString()}</span>}
                           {item.comments_count !== undefined && <span>💬 {item.comments_count?.toLocaleString()}</span>}
                           {item.view_count !== undefined && <span>👁 {item.view_count?.toLocaleString()}</span>}
                         </div>
+                        {item.timestamp && <p className="text-[10px] text-white/60">{new Date(item.timestamp).toLocaleDateString()}</p>}
                       </div>
                     </div>
                   </div>
@@ -267,8 +294,8 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
   const renderActionButton = (label: string, funcName: string, action: string, params: any = {}, icon?: any) => {
     const Icon = icon || Zap;
     return (
-      <Button size="sm" variant="outline" onClick={() => callApi(funcName, action, params)} disabled={loading} className="text-xs h-8 gap-1 border-white/10 hover:bg-white/10" style={{ color: "#e0e0e0" }}>
-        <Icon className="h-3 w-3" />{label}
+      <Button size="sm" variant="outline" onClick={() => callApi(funcName, action, params)} disabled={loading} className="text-xs h-8 gap-1.5 hover:bg-white/10 border-white/15" style={{ color: "#f0f0f0", background: "hsl(222, 30%, 14%)", borderColor: "rgba(255,255,255,0.12)" }}>
+        <Icon className="h-3.5 w-3.5" />{label}
       </Button>
     );
   };
