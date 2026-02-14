@@ -399,7 +399,7 @@ const detectTension = (messages: any[]): { isTense: boolean; tensionLevel: numbe
 
 // === DEFAULT FREE PIC — stored directly in Supabase Storage ===
 const STORAGE_BUCKET = "default-assets";
-const DEFAULT_FREE_PIC_URL = `https://ufsnuobtvkciydftsyff.supabase.co/storage/v1/object/public/${STORAGE_BUCKET}/free-pic.png`;
+const DEFAULT_FREE_PIC_URL = `https://ufsnuobtvkciydftsyff.supabase.co/storage/v1/object/public/${STORAGE_BUCKET}/me.png`;
 
 // === FREE PIC REQUEST DETECTION ENGINE ===
 // Detects when a fan is asking for a free picture/preview and whether they've already received one
