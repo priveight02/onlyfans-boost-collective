@@ -278,8 +278,16 @@ serve(async (req) => {
         break;
 
       // ===== INSIGHTS =====
-      case "get_account_insights":
-        result = await igFetch(`/${igUserId}/insights?metric=impressions,reach,profile_views,follower_count,email_contacts,phone_call_clicks,text_message_clicks,get_directions_clicks,website_clicks&period=${params?.period || "day"}&since=${params?.since || ""}&until=${params?.until || ""}`, token);
+      case "get_account_insights": {
+        const period = params?.period || "day";
+        const since = params?.since ? `&since=${params.since}` : "";
+        const until = params?.until ? `&until=${params.until}` : "";
+        // v24.0 valid metrics differ by period
+        const dayMetrics = "reach,follower_count,profile_views,website_clicks,accounts_engaged,total_interactions,likes,comments,shares,saves,replies";
+        const weekMetrics = "reach,follower_count,profile_views,website_clicks,accounts_engaged,total_interactions,likes,comments,shares,saves,replies";
+        const monthMetrics = "reach,follower_count,profile_views,website_clicks,accounts_engaged,total_interactions,likes,comments,shares,saves,replies";
+        const metrics = period === "day" ? dayMetrics : period === "week" ? weekMetrics : monthMetrics;
+        result = await igFetch(`/${igUserId}/insights?metric=${metrics}&period=${period}${since}${until}`, token);
         if (result.data) {
           for (const metric of result.data) {
             const latestValue = metric.values?.[metric.values.length - 1];
@@ -297,9 +305,10 @@ serve(async (req) => {
           }
         }
         break;
+      }
 
       case "get_account_insights_demographics":
-        result = await igFetch(`/${igUserId}/insights?metric=audience_city,audience_country,audience_gender_age,audience_locale&period=lifetime`, token);
+        result = await igFetch(`/${igUserId}/insights?metric=follower_demographics,reached_audience_demographics,engaged_audience_demographics&period=lifetime&metric_type=total_value&timeframe=last_90_days`, token);
         break;
 
       case "get_account_insights_online_followers":
@@ -307,7 +316,7 @@ serve(async (req) => {
         break;
 
       case "get_media_insights":
-        result = await igFetch(`/${params.media_id}/insights?metric=impressions,reach,engagement,saved,video_views,likes,comments,shares`, token);
+        result = await igFetch(`/${params.media_id}/insights?metric=reach,likes,comments,shares,saves,total_interactions`, token);
         break;
 
       case "get_reel_insights":
