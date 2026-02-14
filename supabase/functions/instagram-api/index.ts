@@ -573,53 +573,90 @@ serve(async (req) => {
 
       // ===== MESSAGING =====
       case "send_message": {
-        // Instagram messaging requires sending via the linked Facebook Page
+        // Try Facebook Page first, fall back to IG user ID direct
         const pageInfo = await getPageId(token, igUserId);
-        if (!pageInfo) throw new Error("No linked Facebook Page found. Messaging requires a Page connected to this Instagram account.");
-        const sendToken = pageInfo.pageToken;
-        const senderId = pageInfo.pageId;
-        
-        result = await igFetch(`/${senderId}/messages`, sendToken, "POST", {
-          recipient: { id: params.recipient_id },
-          message: { text: params.message },
-        });
+        if (pageInfo) {
+          result = await igFetch(`/${pageInfo.pageId}/messages`, pageInfo.pageToken, "POST", {
+            recipient: { id: params.recipient_id },
+            message: { text: params.message },
+          });
+        } else {
+          // Fallback: send via IG user ID directly (works with instagram_manage_messages permission)
+          console.log("No FB Page found, trying direct IG messaging via /me/messages");
+          try {
+            result = await igFetch(`/me/messages`, token, "POST", {
+              recipient: { id: params.recipient_id },
+              message: { text: params.message },
+            });
+          } catch (e1: any) {
+            console.log("Direct /me/messages failed, trying /{igUserId}/messages:", e1.message);
+            result = await igFetch(`/${igUserId}/messages`, token, "POST", {
+              recipient: { id: params.recipient_id },
+              message: { text: params.message },
+            });
+          }
+        }
         break;
       }
 
       case "send_media_message": {
         const pageInfo2 = await getPageId(token, igUserId);
-        if (!pageInfo2) throw new Error("No linked Facebook Page found.");
-        result = await igFetch(`/${pageInfo2.pageId}/messages`, pageInfo2.pageToken, "POST", {
-          recipient: { id: params.recipient_id },
-          message: {
-            attachment: {
-              type: params.media_type || "image",
-              payload: { url: params.media_url },
-            },
-          },
-        });
+        if (pageInfo2) {
+          result = await igFetch(`/${pageInfo2.pageId}/messages`, pageInfo2.pageToken, "POST", {
+            recipient: { id: params.recipient_id },
+            message: { attachment: { type: params.media_type || "image", payload: { url: params.media_url } } },
+          });
+        } else {
+          try {
+            result = await igFetch(`/me/messages`, token, "POST", {
+              recipient: { id: params.recipient_id },
+              message: { attachment: { type: params.media_type || "image", payload: { url: params.media_url } } },
+            });
+          } catch {
+            result = await igFetch(`/${igUserId}/messages`, token, "POST", {
+              recipient: { id: params.recipient_id },
+              message: { attachment: { type: params.media_type || "image", payload: { url: params.media_url } } },
+            });
+          }
+        }
         break;
       }
 
       case "send_reaction": {
         const pageInfoR = await getPageId(token, igUserId);
-        if (!pageInfoR) throw new Error("No linked Facebook Page found.");
-        result = await igFetch(`/${pageInfoR.pageId}/messages`, pageInfoR.pageToken, "POST", {
+        const reactBody = {
           recipient: { id: params.recipient_id },
           sender_action: "react",
           payload: { message_id: params.message_id, reaction: params.reaction || "love" },
-        });
+        };
+        if (pageInfoR) {
+          result = await igFetch(`/${pageInfoR.pageId}/messages`, pageInfoR.pageToken, "POST", reactBody);
+        } else {
+          try {
+            result = await igFetch(`/me/messages`, token, "POST", reactBody);
+          } catch {
+            result = await igFetch(`/${igUserId}/messages`, token, "POST", reactBody);
+          }
+        }
         break;
       }
 
       case "remove_reaction": {
         const pageInfoRR = await getPageId(token, igUserId);
-        if (!pageInfoRR) throw new Error("No linked Facebook Page found.");
-        result = await igFetch(`/${pageInfoRR.pageId}/messages`, pageInfoRR.pageToken, "POST", {
+        const unreactBody = {
           recipient: { id: params.recipient_id },
           sender_action: "unreact",
           payload: { message_id: params.message_id },
-        });
+        };
+        if (pageInfoRR) {
+          result = await igFetch(`/${pageInfoRR.pageId}/messages`, pageInfoRR.pageToken, "POST", unreactBody);
+        } else {
+          try {
+            result = await igFetch(`/me/messages`, token, "POST", unreactBody);
+          } catch {
+            result = await igFetch(`/${igUserId}/messages`, token, "POST", unreactBody);
+          }
+        }
         break;
       }
 
