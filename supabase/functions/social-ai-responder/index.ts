@@ -1254,34 +1254,69 @@ Follow these persona settings strictly. They override any conflicting defaults a
               if (aiReplyTime >= fanMsgTime) continue;
             }
 
-            // Build conversation context from DB
+            // Build conversation context from DB — select ALL fields including metadata
             const { data: dbMessages } = await supabase
               .from("ai_dm_messages")
-              .select("sender_type, content, created_at")
+              .select("*")
               .eq("conversation_id", dbConvo.id)
               .order("created_at", { ascending: true })
-              .limit(20);
+              .limit(50);
 
+            // Build rich context with media descriptions
             const conversationContext = (dbMessages || []).map(m => {
               let contextText = m.content || "";
-              // Include media context so AI knows what was shared
               if (m.metadata) {
                 const meta = m.metadata as any;
                 const atts = meta?.attachments || [];
                 const mediaDescs: string[] = [];
                 for (const att of (Array.isArray(atts) ? atts : [])) {
                   const mt = att?.mime_type || att?.type || "";
-                  if (mt.includes("image") || mt.includes("photo")) mediaDescs.push("[photo]");
-                  else if (mt.includes("video")) mediaDescs.push("[video]");
-                  else if (mt.includes("audio")) mediaDescs.push("[voice]");
+                  if (mt.includes("image") || mt.includes("photo")) mediaDescs.push("[sent a photo]");
+                  else if (mt.includes("video")) mediaDescs.push("[sent a video]");
+                  else if (mt.includes("audio")) mediaDescs.push("[sent a voice message]");
                 }
-                if (meta?.sticker) mediaDescs.push("[sticker]");
-                if (meta?.shares) mediaDescs.push("[shared post]");
-                if (meta?.story) mediaDescs.push("[story reply]");
+                if (meta?.sticker) mediaDescs.push("[sent a sticker]");
+                if (meta?.shares) {
+                  const shareData = meta.shares?.data?.[0] || meta.shares;
+                  const shareLink = shareData?.link || "";
+                  mediaDescs.push(shareLink ? `[shared a post: ${shareLink}]` : "[shared a post]");
+                }
+                if (meta?.story) mediaDescs.push("[replied to your story]");
                 if (mediaDescs.length > 0) contextText = contextText ? `${contextText} ${mediaDescs.join(" ")}` : mediaDescs.join(" ");
               }
               return { role: m.sender_type === "fan" ? "fan" : "creator", text: contextText || "[empty]" };
             });
+
+            // === FAN MEMORY ENGINE: Extract key facts from conversation for persistent awareness ===
+            const fanMessages = (dbMessages || []).filter(m => m.sender_type === "fan");
+            const fanTexts = fanMessages.map(m => m.content || "").filter(t => t && t.length > 2);
+            const fanMemoryNotes: string[] = [];
+            const allFanText = fanTexts.join(" ").toLowerCase();
+            // Detect location/country mentions
+            if (allFanText.match(/(from |im from |i live in |i am from |my country|my city|my town|born in )/)) {
+              const locMatch = fanTexts.find(t => t.toLowerCase().match(/(from |im from |i live in |born in )/));
+              if (locMatch) fanMemoryNotes.push(`Fan mentioned where they're from: "${locMatch}"`);
+            }
+            // Detect shared media count
+            const photoCount = fanMessages.filter(m => (m.content || "").includes("[photo]") || (m.content || "").includes("[sent a photo]") || (m.metadata as any)?.attachments?.some?.((a: any) => (a?.mime_type || "").includes("image"))).length;
+            if (photoCount > 0) fanMemoryNotes.push(`Fan has shared ${photoCount} photo(s) in this conversation`);
+            // Detect personal info (name, age, job)
+            if (allFanText.match(/(my name is |call me |im \d{2}|i am \d{2}|years old|i work |my job |i do )/)) {
+              const infoMatch = fanTexts.find(t => t.toLowerCase().match(/(my name|call me|years old|i work|my job)/));
+              if (infoMatch) fanMemoryNotes.push(`Fan shared personal info: "${infoMatch}"`);
+            }
+            // Detect hobbies/interests
+            if (allFanText.match(/(i like |i love |my hobby|i enjoy |i play |i watch |favorite )/)) {
+              const hobbyMatch = fanTexts.find(t => t.toLowerCase().match(/(i like |i love |my hobby|i enjoy |i play )/));
+              if (hobbyMatch) fanMemoryNotes.push(`Fan mentioned interests: "${hobbyMatch}"`);
+            }
+            // Detect compliments/affection
+            const sweetMsgs = fanTexts.filter(t => t.toLowerCase().match(/(love you|miss you|ur beautiful|ur gorgeous|ur amazing|youre beautiful|youre amazing|so pretty|so hot|ur cute)/));
+            if (sweetMsgs.length > 0) fanMemoryNotes.push(`Fan has been affectionate (${sweetMsgs.length} sweet messages)`);
+            
+            const fanMemoryBlock = fanMemoryNotes.length > 0 
+              ? `\n\n=== FAN MEMORY (things this fan has shared — use naturally in replies when relevant) ===\n${fanMemoryNotes.join("\n")}\nUse this knowledge to make replies feel personal and connected. Reference their location, interests, or shared media when it fits naturally.`
+              : "";
 
             // Insert a "typing" placeholder for real-time UI
             const { data: typingMsg } = await supabase
@@ -1308,14 +1343,23 @@ Follow these persona settings strictly. They override any conflicting defaults a
 
             // Generate AI reply
             // Add final reinforcement to prevent AI from ignoring persona rules
-            const systemPrompt = `${personaInfo2}${emojiDir}
+            const systemPrompt = `${personaInfo2}${emojiDir}${fanMemoryBlock}
 ${autoConfig.redirect_url ? `\nIMPORTANT: when it makes sense, naturally guide toward this link: ${autoConfig.redirect_url}. But NEVER redirect during genuine bonding moments — wait for a natural transition` : ""}
 ${autoConfig.trigger_keywords ? `if they mention any of these: ${autoConfig.trigger_keywords}, redirect them to the link` : ""}
 
+CONVERSATION MEMORY & CONTINUITY (HIGHEST PRIORITY):
+- You have the ENTIRE conversation history above. Read EVERY SINGLE message before replying
+- REMEMBER everything the fan told you: their name, where theyre from, what they do, their interests, what photos they shared
+- If they told you something earlier in the convo, you KNOW it. reference it naturally when it fits
+- If they shared photos of their country/city/life earlier, you remember seeing them
+- Build on what was already discussed. dont repeat questions they already answered
+- Your reply should show you have been paying attention to EVERYTHING they said
+
 CONTEXT AWARENESS (CRITICAL — READ BEFORE REPLYING):
-- Read ALL messages above carefully. Your reply MUST directly relate to what the fan just said
-- If they sent [photo] or [video]: react to it warmly. ask about it. show genuine curiosity
-- If they shared something personal (their country, life, feelings): acknowledge it with interest
+- Your reply MUST directly relate to what the fan JUST said (latest messages)
+- But also take into account EVERYTHING from earlier in the convo
+- If they sent [sent a photo] or [sent a video]: react to it warmly and specifically
+- If they shared something personal (their country, life, feelings): acknowledge it with genuine interest
 - If they were sweet or affectionate: be warm back, not dismissive
 - NEVER use a generic canned line that ignores their message content
 - Match the emotional energy of the conversation
@@ -1599,11 +1643,40 @@ Follow these persona settings strictly. They override any conflicting defaults a
               });
             }
 
+            // === FAN MEMORY ENGINE for relaunch ===
+            const fanMsgsRL = fullHistory.filter(m => m.sender_type === "fan");
+            const fanTextsRL = fanMsgsRL.map(m => m.content || "").filter(t => t && t.length > 2);
+            const fanMemNotesRL: string[] = [];
+            const allFanTextRL = fanTextsRL.join(" ").toLowerCase();
+            if (allFanTextRL.match(/(from |im from |i live in |i am from |my country|my city|born in )/)) {
+              const locM = fanTextsRL.find(t => t.toLowerCase().match(/(from |im from |i live in |born in )/));
+              if (locM) fanMemNotesRL.push(`Fan mentioned where they're from: "${locM}"`);
+            }
+            const photoCntRL = fanMsgsRL.filter(m => (m.content || "").includes("[photo]") || (m.content || "").includes("[sent a photo]") || (m.metadata as any)?.attachments?.some?.((a: any) => (a?.mime_type || "").includes("image"))).length;
+            if (photoCntRL > 0) fanMemNotesRL.push(`Fan shared ${photoCntRL} photo(s)`);
+            if (allFanTextRL.match(/(my name is |call me |im \d{2}|i am \d{2}|years old|i work |my job )/)) {
+              const infoM = fanTextsRL.find(t => t.toLowerCase().match(/(my name|call me|years old|i work|my job)/));
+              if (infoM) fanMemNotesRL.push(`Fan shared personal info: "${infoM}"`);
+            }
+            if (allFanTextRL.match(/(i like |i love |my hobby|i enjoy |i play )/)) {
+              const hobM = fanTextsRL.find(t => t.toLowerCase().match(/(i like |i love |my hobby|i enjoy |i play )/));
+              if (hobM) fanMemNotesRL.push(`Fan mentioned interests: "${hobM}"`);
+            }
+            const fanMemBlockRL = fanMemNotesRL.length > 0
+              ? `\n\n=== FAN MEMORY ===\n${fanMemNotesRL.join("\n")}\nUse this knowledge naturally in replies.`
+              : "";
+
             // Build system prompt with deep context awareness
             const emojiDirRL = "\n\nEMOJI DIRECTIVE: ZERO emojis. NEVER use emojis. Text only. Always.";
-            const systemPromptRL = `${personaRL}${emojiDirRL}
+            const systemPromptRL = `${personaRL}${emojiDirRL}${fanMemBlockRL}
 ${autoConfigRL?.redirect_url ? `\nIMPORTANT: when it makes sense, naturally guide toward this link: ${autoConfigRL.redirect_url}. But NEVER redirect during genuine bonding moments` : ""}
 ${autoConfigRL?.trigger_keywords ? `if they mention any of these: ${autoConfigRL.trigger_keywords}, redirect them to the link` : ""}
+
+CONVERSATION MEMORY & CONTINUITY (HIGHEST PRIORITY):
+- You have the ENTIRE conversation history above. You remember EVERYTHING
+- Reference things the fan told you earlier: their name, location, interests, shared photos
+- Build on established rapport. dont ask things they already told you
+- Your reply should show you know this person from chatting with them
 
 CONVERSATION RESUMPTION CONTEXT:
 You are RESUMING a conversation after a gap. You have the FULL chat history above.
@@ -1844,10 +1917,38 @@ Follow these persona settings strictly.`;
               richCtx.push({ role: msg.sender_type === "fan" ? "fan" : "creator", text: ctxText || "[empty]" });
             }
 
+            // === FAN MEMORY ENGINE for relaunch_all_today ===
+            const fanMsgsRAT = fullHist.filter(m => m.sender_type === "fan");
+            const fanTextsRAT = fanMsgsRAT.map(m => m.content || "").filter(t => t && t.length > 2);
+            const fanMemNotesRAT: string[] = [];
+            const allFanTextRAT = fanTextsRAT.join(" ").toLowerCase();
+            if (allFanTextRAT.match(/(from |im from |i live in |i am from |my country|my city|born in )/)) {
+              const locM = fanTextsRAT.find(t => t.toLowerCase().match(/(from |im from |i live in |born in )/));
+              if (locM) fanMemNotesRAT.push(`Fan mentioned where they're from: "${locM}"`);
+            }
+            const photoCntRAT = fanMsgsRAT.filter(m => (m.content || "").includes("[photo]") || (m.content || "").includes("[sent a photo]")).length;
+            if (photoCntRAT > 0) fanMemNotesRAT.push(`Fan shared ${photoCntRAT} photo(s)`);
+            if (allFanTextRAT.match(/(my name is |call me |years old|i work |my job )/)) {
+              const infoM = fanTextsRAT.find(t => t.toLowerCase().match(/(my name|call me|years old|i work|my job)/));
+              if (infoM) fanMemNotesRAT.push(`Fan shared personal info: "${infoM}"`);
+            }
+            if (allFanTextRAT.match(/(i like |i love |my hobby|i enjoy |i play )/)) {
+              const hobM = fanTextsRAT.find(t => t.toLowerCase().match(/(i like |i love |my hobby|i enjoy )/));
+              if (hobM) fanMemNotesRAT.push(`Fan mentioned interests: "${hobM}"`);
+            }
+            const fanMemBlockRAT = fanMemNotesRAT.length > 0
+              ? `\n\n=== FAN MEMORY ===\n${fanMemNotesRAT.join("\n")}\nUse this knowledge naturally.`
+              : "";
+
             const emojiDirRAT = "\n\nEMOJI DIRECTIVE: ZERO emojis. NEVER use emojis. Text only. Always.";
-            const systemPromptRAT = `${personaRAT}${emojiDirRAT}
+            const systemPromptRAT = `${personaRAT}${emojiDirRAT}${fanMemBlockRAT}
 ${autoConfigRAT?.redirect_url ? `\nIMPORTANT: when it makes sense, naturally guide toward this link: ${autoConfigRAT.redirect_url}. But NEVER redirect during genuine bonding moments` : ""}
 ${autoConfigRAT?.trigger_keywords ? `if they mention any of these: ${autoConfigRAT.trigger_keywords}, redirect them to the link` : ""}
+
+CONVERSATION MEMORY & CONTINUITY (HIGHEST PRIORITY):
+- You have the ENTIRE conversation history. You remember EVERYTHING
+- Reference things the fan told you: their name, location, interests, photos
+- Build on established rapport. dont repeat questions they already answered
 
 CONVERSATION RESUMPTION CONTEXT:
 You are picking up a conversation from today. You have the FULL chat history above.
@@ -2011,9 +2112,37 @@ ${personaDataRS.brand_identity ? `Brand Identity: ${personaDataRS.brand_identity
           richCtxRS.push({ role: msg.sender_type === "fan" ? "fan" : "creator", text: ctxText || "[empty]" });
         }
 
+        // === FAN MEMORY ENGINE for relaunch_single ===
+        const fanMsgsRS = fullHistRS.filter(m => m.sender_type === "fan");
+        const fanTextsRS = fanMsgsRS.map(m => m.content || "").filter(t => t && t.length > 2);
+        const fanMemNotesRS: string[] = [];
+        const allFanTextRS = fanTextsRS.join(" ").toLowerCase();
+        if (allFanTextRS.match(/(from |im from |i live in |i am from |my country|my city|born in )/)) {
+          const locM = fanTextsRS.find(t => t.toLowerCase().match(/(from |im from |i live in |born in )/));
+          if (locM) fanMemNotesRS.push(`Fan mentioned where they're from: "${locM}"`);
+        }
+        const photoCntRS = fanMsgsRS.filter(m => (m.content || "").includes("[photo]") || (m.content || "").includes("[sent a photo]")).length;
+        if (photoCntRS > 0) fanMemNotesRS.push(`Fan shared ${photoCntRS} photo(s)`);
+        if (allFanTextRS.match(/(my name is |call me |years old|i work |my job )/)) {
+          const infoM = fanTextsRS.find(t => t.toLowerCase().match(/(my name|call me|years old|i work|my job)/));
+          if (infoM) fanMemNotesRS.push(`Fan shared personal info: "${infoM}"`);
+        }
+        if (allFanTextRS.match(/(i like |i love |my hobby|i enjoy |i play )/)) {
+          const hobM = fanTextsRS.find(t => t.toLowerCase().match(/(i like |i love |my hobby|i enjoy )/));
+          if (hobM) fanMemNotesRS.push(`Fan mentioned interests: "${hobM}"`);
+        }
+        const fanMemBlockRS = fanMemNotesRS.length > 0
+          ? `\n\n=== FAN MEMORY ===\n${fanMemNotesRS.join("\n")}\nUse this knowledge naturally.`
+          : "";
+
         const emojiDirRS = "\n\nEMOJI DIRECTIVE: ZERO emojis. NEVER use emojis. Text only. Always.";
-        const systemPromptRS = `${personaRS}${emojiDirRS}
+        const systemPromptRS = `${personaRS}${emojiDirRS}${fanMemBlockRS}
 ${autoConfigRS?.redirect_url ? `\nIMPORTANT: when it makes sense, naturally guide toward: ${autoConfigRS.redirect_url}. But NEVER during bonding moments` : ""}
+
+CONVERSATION MEMORY & CONTINUITY (HIGHEST PRIORITY):
+- You have the ENTIRE conversation history. You remember EVERYTHING the fan told you
+- Reference things from earlier: their name, location, interests, photos they shared
+- Build on established rapport. dont repeat questions they already answered
 
 CONTEXT AWARENESS (CRITICAL):
 - Read ALL messages above. Your reply MUST directly relate to what the fan last said
