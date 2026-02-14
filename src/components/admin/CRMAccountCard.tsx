@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Copy, ExternalLink, MoreHorizontal, TrendingUp, Users, FileText, Mail, Link2 } from "lucide-react";
+import { Copy, ExternalLink, MoreHorizontal, TrendingUp, Users, FileText, Mail, Link2, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
@@ -36,6 +36,7 @@ interface CRMAccountCardProps {
   onEdit: (account: Account) => void;
   onDelete: (id: string) => void;
   onConnect?: (account: Account) => void;
+  onUnpause?: (account: Account) => void;
 }
 
 const statusColors: Record<string, string> = {
@@ -52,7 +53,7 @@ const tierColors: Record<string, string> = {
   enterprise: "bg-cyan-500/15 text-cyan-400 border-cyan-500/20",
 };
 
-const CRMAccountCard = ({ account, onSelect, onEdit, onDelete, onConnect }: CRMAccountCardProps) => {
+const CRMAccountCard = ({ account, onSelect, onEdit, onDelete, onConnect, onUnpause }: CRMAccountCardProps) => {
   const copyBio = () => {
     if (account.bio) {
       navigator.clipboard.writeText(account.bio);
@@ -138,6 +139,11 @@ const CRMAccountCard = ({ account, onSelect, onEdit, onDelete, onConnect }: CRMA
             {onConnect && (
               <DropdownMenuItem onClick={() => onConnect(account)} className="hover:bg-white/10 cursor-pointer">
                 <Link2 className="h-3.5 w-3.5 mr-2" /> {(account as any).of_connected ? "Manage OF" : "Connect OF"}
+              </DropdownMenuItem>
+            )}
+            {(account.status === "paused" || account.status === "inactive") && onUnpause && (
+              <DropdownMenuItem onClick={() => onUnpause(account)} className="text-emerald-400 hover:bg-emerald-500/10 cursor-pointer">
+                <Play className="h-3.5 w-3.5 mr-2" /> Reactivate Account
               </DropdownMenuItem>
             )}
             {account.contact_email && (

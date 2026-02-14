@@ -77,6 +77,20 @@ const CRMAccountsTab = () => {
     setSelectedAccount(null);
   };
 
+  const handleUnpause = async (account: any) => {
+    const { error } = await supabase
+      .from("managed_accounts")
+      .update({ status: "active" })
+      .eq("id", account.id);
+    if (error) {
+      toast.error("Failed to reactivate account");
+    } else {
+      toast.success(`${account.display_name || account.username} reactivated`);
+      invalidateNamespace("global", "crm_accounts");
+      fetchAccounts(true);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <CRMAccountSearch
@@ -106,6 +120,7 @@ const CRMAccountsTab = () => {
               onEdit={handleEdit}
               onDelete={handleDelete}
               onConnect={setConnectAccount}
+              onUnpause={handleUnpause}
             />
           ))}
         </div>
