@@ -2832,7 +2832,13 @@ Follow these persona settings strictly. They override any conflicting defaults a
               .limit(50);
 
             // === RANDOMIZED HARD CAP (39-45) — FINAL SEDUCTIVE REDIRECT + 24H PAUSE ===
-            const totalMsgCount = (dbMessages || []).length;
+            // If conversation was manually unpaused, only count messages AFTER the unpause timestamp
+            const convoMeta = (dbConvo.metadata as any) || {};
+            const unpausedAt = convoMeta.unpaused_at ? new Date(convoMeta.unpaused_at).getTime() : 0;
+            const relevantMessages = unpausedAt > 0
+              ? (dbMessages || []).filter((m: any) => new Date(m.created_at).getTime() > unpausedAt)
+              : (dbMessages || []);
+            const totalMsgCount = relevantMessages.length;
             // Randomize the cap per conversation — feels natural, never exceeds 45
             const convoSeed = dbConvo.id.charCodeAt(0) + dbConvo.id.charCodeAt(1);
             const hardCapThreshold = 39 + (convoSeed % 7); // 39-45 range, deterministic per convo
@@ -2969,7 +2975,7 @@ Follow these persona settings strictly. They override any conflicting defaults a
               const pauseUntil = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
               const existingMeta = (dbConvo.metadata as any) || {};
               await supabase.from("ai_dm_conversations").update({
-                metadata: { ...existingMeta, paused_until: pauseUntil, paused_reason: "30_msg_hard_cap" },
+                metadata: { ...existingMeta, paused_until: pauseUntil, paused_reason: "30_msg_hard_cap", unpaused_at: null },
                 last_ai_reply_at: new Date().toISOString(),
                 last_message_preview: `You: ${finalMsg.substring(0, 80)}`,
                 is_read: true,

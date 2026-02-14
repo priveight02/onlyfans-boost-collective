@@ -1697,12 +1697,11 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
                       <button
                         onClick={async (e) => {
                           e.stopPropagation();
-                          const newMeta = { ...(convo.metadata || {}), paused_until: null, paused_reason: null, free_pic_delivered: null, free_pic_pending_at: null, free_pic_deliver_at: null };
+                          const newMeta = { ...(convo.metadata || {}), paused_until: null, paused_reason: null, free_pic_delivered: null, free_pic_pending_at: null, free_pic_deliver_at: null, unpaused_at: new Date().toISOString() };
                           // Optimistic update
                           setConversations(prev => prev.map(c => c.id === convo.id ? { ...c, metadata: newMeta } : c));
-                          // Clear pause + reset message count by deleting all messages for this convo
+                          // Clear pause + set unpaused_at so hard cap only counts messages after this point
                           await supabase.from("ai_dm_conversations").update({ metadata: newMeta, message_count: 0 }).eq("id", convo.id);
-                          await supabase.from("ai_dm_messages").delete().eq("conversation_id", convo.id);
                           toast.success(`Unpaused @${convo.participant_username} — message count reset to 0`);
                           addLog(`@${convo.participant_username}`, "Manual unpause — 24h timeout cleared + messages reset to 0", "info");
                         }}
