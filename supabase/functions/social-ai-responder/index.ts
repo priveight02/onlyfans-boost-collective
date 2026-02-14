@@ -40,6 +40,30 @@ WHAT TO DO INSTEAD:
 - They told you their job → ask about it: "wait do u actually like doing that" or "thats interesting how did u get into that"
 - Build on what they ALREADY shared. Go deeper, not wider
 
+=== MULTI-QUESTION DETECTION ENGINE (CRITICAL — NEVER IGNORE QUESTIONS) ===
+
+BEFORE YOU REPLY, YOU MUST SCAN FOR ALL UNANSWERED QUESTIONS:
+1. Read EVERY fan message since your last reply — not just the latest one
+2. Extract ALL questions they asked (explicit "?" questions AND implied questions like "what are you doing")
+3. If they asked 2+ questions, you MUST address ALL of them in your reply
+4. If you missed a question from earlier messages, address it NOW
+5. When answering multiple questions, keep each answer short but distinct
+6. Use natural connectors: "and yea..." / "oh and..." / "also..."
+7. If one question needs a reply-to (its from an older message), the AI system will handle reply_to targeting
+
+EXAMPLES OF MULTI-QUESTION HANDLING:
+- Fan: "where are you from?" then "what are you doing right now?" → "im in la rn just being lazy wbu"
+- Fan: "do you like anime?" then "whats your age?" → "yea i love anime and im 21"
+- Fan: "thats cool" then "what do you look like?" → address BOTH the acknowledgment AND the question
+- NEVER answer only the first or last question. Answer ALL of them
+
+=== CONVERSATION RE-SCAN ENGINE ===
+Before generating your reply, re-scan the ENTIRE conversation from the beginning to detect:
+- Any questions the fan asked that you NEVER answered (even from 10+ messages ago)
+- Any topic they brought up that you ignored
+- Any media they shared that you never acknowledged
+If you find missed items, weave them into your reply naturally: "oh wait i never answered ur question earlier..."
+
 === CONTEXTUAL AWARENESS ENGINE (HIGHEST PRIORITY) ===
 
 BEFORE YOU REPLY, YOU MUST:
@@ -2224,8 +2248,14 @@ CONTEXT AWARENESS (CRITICAL):
 - NEVER use a generic canned line that ignores their message
 - NEVER be dismissive — if theyre being sweet or opening up, match that energy warmly
 
+MULTI-QUESTION RULE (CRITICAL):
+- If the fan sent MULTIPLE messages since your last reply, READ ALL OF THEM
+- If any contain questions (even implied ones like "what are you doing"), ANSWER EVERY SINGLE ONE
+- Use natural connectors: "and yea" / "oh and" / "also" to address multiple topics
+- NEVER ignore a question because another message came after it
+
 FINAL REMINDER:
-- 3-10 words, max 2 short sentences
+- 3-15 words (longer when answering multiple questions), max 2-3 short sentences
 - ZERO emojis. NONE. EVER
 - Warm, casual, contextually relevant, INVITES a response
 - Output ONLY the message text`;
@@ -2235,13 +2265,37 @@ FINAL REMINDER:
               aiMessages.push({ role: ctx.role === "creator" ? "assistant" : "user", content: ctx.text });
             }
 
+            // Detect if fan sent multiple unanswered messages (needs longer reply)
+            const unansweredFanMsgs = [];
+            let foundOurReply = false;
+            for (let mi = (dbMessages || []).length - 1; mi >= 0; mi--) {
+              const m = (dbMessages || [])[mi];
+              if (m.sender_type !== "fan") { foundOurReply = true; break; }
+              unansweredFanMsgs.unshift(m);
+            }
+            const multipleUnanswered = unansweredFanMsgs.length >= 2;
+            const unansweredQuestions = unansweredFanMsgs.filter(m => (m.content || "").includes("?")).length;
+            
+            // Find the best message to reply-to (oldest unanswered question for IG reply feature)
+            let replyToMessageId: string | null = null;
+            if (unansweredFanMsgs.length >= 2) {
+              // Reply to the oldest unanswered question specifically
+              const oldestQuestion = unansweredFanMsgs.find(m => (m.content || "").includes("?"));
+              if (oldestQuestion?.platform_message_id) {
+                replyToMessageId = oldestQuestion.platform_message_id;
+              }
+            }
+
+            // Increase max_tokens when multiple questions need answering
+            const dynamicMaxTokens = multipleUnanswered ? 150 : (unansweredQuestions > 1 ? 120 : 80);
+
             const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
               method: "POST",
               headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
               body: JSON.stringify({
                 model: "google/gemini-3-flash-preview",
                 messages: aiMessages,
-                max_tokens: 80,
+                max_tokens: dynamicMaxTokens,
                 temperature: 0.8,
               }),
             });
@@ -2329,10 +2383,16 @@ FINAL REMINDER:
 
             // Send the reply via IG API
             try {
-              const sendResult = await callIG2("send_message", {
+              const sendParams: any = {
                 recipient_id: dbConvo.participant_id,
                 message: reply,
-              });
+              };
+              // Use IG reply-to feature when replying to a specific older message
+              if (replyToMessageId) {
+                sendParams.reply_to = replyToMessageId;
+                console.log(`Using reply-to for @${dbConvo.participant_username}: replying to msg ${replyToMessageId}`);
+              }
+              const sendResult = await callIG2("send_message", sendParams);
 
               await supabase.from("ai_dm_messages").update({
                 content: reply,

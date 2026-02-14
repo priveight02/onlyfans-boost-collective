@@ -112,6 +112,7 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
   });
   const [relaunching, setRelaunching] = useState(false);
   const [relaunchingConvoId, setRelaunchingConvoId] = useState<string | null>(null);
+  const [replyToMsg, setReplyToMsg] = useState<Message | null>(null);
   const followAIRef = useRef(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -868,19 +869,25 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
       typing_delay_ms: null,
       life_pause_ms: null,
       created_at: new Date().toISOString(),
-      metadata: null,
+      metadata: replyToMsg ? { reply_to: { message_id: replyToMsg.platform_message_id, content: replyToMsg.content?.substring(0, 100) } } : null,
     };
     setMessages(prev => [...prev, optimisticMsg]);
 
     try {
+      const sendParams: any = { recipient_id: convo.participant_id, message: text };
+      // Add reply-to if replying to a specific message
+      if (replyToMsg?.platform_message_id) {
+        sendParams.reply_to = replyToMsg.platform_message_id;
+      }
+      
       const { data, error } = await supabase.functions.invoke("instagram-api", {
-        body: { action: "send_message", account_id: accountId, params: { recipient_id: convo.participant_id, message: text } },
+        body: { action: "send_message", account_id: accountId, params: sendParams },
       });
       if (error) throw error;
       if (!data?.success) throw new Error(data?.error || "Send failed");
 
       // Replace optimistic message with real one
-      const { data: inserted } = await supabase.from("ai_dm_messages").insert({
+      const insertData: any = {
         conversation_id: selectedConvo,
         account_id: accountId,
         sender_type: "manual",
@@ -888,7 +895,11 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
         content: text,
         status: "sent",
         platform_message_id: data?.data?.message_id || null,
-      }).select("*").single();
+      };
+      if (replyToMsg?.platform_message_id) {
+        insertData.metadata = { reply_to: { message_id: replyToMsg.platform_message_id, content: replyToMsg.content?.substring(0, 100) } };
+      }
+      const { data: inserted } = await supabase.from("ai_dm_messages").insert(insertData).select("*").single();
 
       if (inserted) {
         setMessages(prev => prev.map(m => m.id === tempId ? (inserted as Message) : m));
@@ -905,12 +916,15 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
         is_read: true,
       }).eq("id", selectedConvo).then();
       
+      // Clear reply-to state after sending
+      setReplyToMsg(null);
       addLog(`@${convo.participant_username}`, `Sent: "${text.substring(0, 50)}"`, "success");
     } catch (e: any) {
       // Mark optimistic message as failed
       setMessages(prev => prev.map(m => m.id === tempId ? { ...m, status: "failed" } : m));
       toast.error(e.message || "Failed to send");
       setMessageInput(text);
+      setReplyToMsg(null);
       addLog("system", `Send failed: ${e.message}`, "error");
     } finally {
       setSendingMessage(false);
@@ -1539,6 +1553,13 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
                               </div>
                             ) : (
                               <>
+                                {/* Reply-to context */}
+                                {msg.metadata?.reply_to && (
+                                  <div className={`text-[10px] text-muted-foreground/60 mb-1 flex items-center gap-1 ${isMe ? "justify-end" : "justify-start"}`}>
+                                    <div className="h-2 w-2 border-l border-t border-muted-foreground/40 rounded-tl-sm" />
+                                    <span className="truncate max-w-[150px] italic">Replying to: {msg.metadata.reply_to.content || "message"}</span>
+                                  </div>
+                                )}
                                 {/* Media-only messages render outside the bubble */}
                                 {(() => {
                                   const attachments = msg.metadata?.attachments;
@@ -1854,7 +1875,10 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
                                   </div>
                                 )}
                                 {!isMe && (
-                                  <div className="absolute -right-20 top-1/2 -translate-y-1/2 hidden group-hover:flex items-center gap-0">
+                                  <div className="absolute -right-28 top-1/2 -translate-y-1/2 hidden group-hover:flex items-center gap-0.5">
+                                    <button onClick={() => setReplyToMsg(msg)} className="h-6 w-6 flex items-center justify-center text-sm hover:scale-125 transition-transform rounded-full hover:bg-muted/40 text-muted-foreground hover:text-blue-400" title="Reply to message">
+                                      <div className="h-4 w-4 rounded-full border border-current flex items-center justify-center"><ArrowRight className="h-2.5 w-2.5" /></div>
+                                    </button>
                                     {["❤️", "😂", "😮", "😢", "👍", "🔥"].map(emoji => (
                                       <button key={emoji} onClick={() => reactToMessage(msg.id, emoji)} className="h-6 w-6 flex items-center justify-center text-sm hover:scale-125 transition-transform rounded-full hover:bg-muted/40" title={`React ${emoji}`}>{emoji}</button>
                                     ))}
@@ -1874,6 +1898,17 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
 
             {/* Message Input */}
             <div className="px-4 py-3 border-t border-border">
+              {replyToMsg && (
+                <div className="flex items-center justify-between mb-2 px-3 py-2 bg-blue-500/10 border-l-2 border-blue-500 rounded-r-lg">
+                  <div className="text-xs">
+                    <p className="text-[10px] font-semibold text-blue-400">Replying to {replyToMsg.sender_name || "fan"}</p>
+                    <p className="text-muted-foreground truncate max-w-[200px]">{replyToMsg.content || "[media]"}</p>
+                  </div>
+                  <button onClick={() => setReplyToMsg(null)} className="h-5 w-5 flex items-center justify-center hover:bg-blue-500/20 rounded-full text-blue-400">
+                    <span className="text-xs">✕</span>
+                  </button>
+                </div>
+              )}
               <div className="flex items-center gap-2 bg-muted/30 rounded-full px-4 py-1.5 border border-border/50">
                 <Smile className="h-5 w-5 text-muted-foreground cursor-pointer hover:text-foreground flex-shrink-0" />
                 <Input

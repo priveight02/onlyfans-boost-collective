@@ -631,26 +631,26 @@ serve(async (req) => {
       // ===== MESSAGING =====
       case "send_message": {
         // Try Facebook Page first, fall back to IG user ID direct
+        // Support reply_to for IG reply-to-message feature
         const pageInfo = await getPageId(token, igUserId);
+        const msgBody: any = {
+          recipient: { id: params.recipient_id },
+          message: { text: params.message },
+        };
+        // Add reply_to if provided (Instagram reply-to-message feature)
+        if (params.reply_to) {
+          msgBody.message.reply_to = { mid: params.reply_to };
+        }
         if (pageInfo) {
-          result = await igFetch(`/${pageInfo.pageId}/messages`, pageInfo.pageToken, "POST", {
-            recipient: { id: params.recipient_id },
-            message: { text: params.message },
-          });
+          result = await igFetch(`/${pageInfo.pageId}/messages`, pageInfo.pageToken, "POST", msgBody);
         } else {
           // Fallback: send via IG user ID directly (works with instagram_manage_messages permission)
           console.log("No FB Page found, trying direct IG messaging via /me/messages");
           try {
-            result = await igFetch(`/me/messages`, token, "POST", {
-              recipient: { id: params.recipient_id },
-              message: { text: params.message },
-            });
+            result = await igFetch(`/me/messages`, token, "POST", msgBody);
           } catch (e1: any) {
             console.log("Direct /me/messages failed, trying /{igUserId}/messages:", e1.message);
-            result = await igFetch(`/${igUserId}/messages`, token, "POST", {
-              recipient: { id: params.recipient_id },
-              message: { text: params.message },
-            });
+            result = await igFetch(`/${igUserId}/messages`, token, "POST", msgBody);
           }
         }
         break;
