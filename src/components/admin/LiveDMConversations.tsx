@@ -101,6 +101,7 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
   const [bulkHubOpen, setBulkHubOpen] = useState(false);
   const [followAI, setFollowAI] = useState(false);
   const [relaunching, setRelaunching] = useState(false);
+  const [relaunchingConvoId, setRelaunchingConvoId] = useState<string | null>(null);
   const followAIRef = useRef(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -799,10 +800,10 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
           for (const c of (r.conversations || [])) {
             addLog(`@${c.fan}`, `Resumed (${c.context_messages} msgs scanned): "${c.ai_reply?.substring(0, 50)}..."`, "success");
           }
-          toast.success(`Relaunched ${r.processed}/${r.total_unread} unread conversations`);
+          toast.success(`Relaunched ${r.processed}/${r.total_unread} conversations`);
         } else {
-          addLog("system", `${r?.total_unread || 0} unread — none needed replies`, "info");
-          toast.info("No unread conversations need replies");
+          addLog("system", `${r?.total_unread || 0} conversations checked — all recently replied (5min cooldown)`, "info");
+          toast.info(`${r?.total_unread || 0} conversations checked — all were recently replied to`);
         }
       }
       await loadConversations();
@@ -1216,9 +1217,44 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
                           ? convo.participant_username 
                           : convo.participant_id?.substring(0, 12) || "User"}
                     </span>
-                    <span className={`text-[10px] flex-shrink-0 ml-2 ${!convo.is_read ? "text-blue-400 font-medium" : "text-muted-foreground"}`}>
-                      {formatTime(convo.last_message_at)}
-                    </span>
+                    <div className="flex items-center gap-1 flex-shrink-0 ml-2">
+                      <span className={`text-[10px] ${!convo.is_read ? "text-blue-400 font-medium" : "text-muted-foreground"}`}>
+                        {formatTime(convo.last_message_at)}
+                      </span>
+                      <button
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          if (relaunchingConvoId === convo.id) return;
+                          setRelaunchingConvoId(convo.id);
+                          addLog(`@${convo.participant_username}`, "Relaunching single convo...", "processing");
+                          try {
+                            const { data, error } = await supabase.functions.invoke("social-ai-responder", {
+                              body: { action: "relaunch_single", account_id: accountId, params: { conversation_id: convo.id } },
+                            });
+                            if (error) throw error;
+                            if (data?.data?.reply) {
+                              addLog(`@${convo.participant_username}`, `Sent: "${data.data.reply.substring(0, 50)}..."`, "success");
+                              toast.success(`Relaunched @${convo.participant_username}`);
+                            } else {
+                              toast.info(data?.data?.reply || "Reacted/stopped (post-redirect)");
+                            }
+                            await loadConversations();
+                          } catch (err: any) {
+                            toast.error(err.message || "Relaunch failed");
+                          } finally {
+                            setRelaunchingConvoId(null);
+                          }
+                        }}
+                        className="p-0.5 rounded hover:bg-muted/50 transition-colors"
+                        title="Relaunch this conversation"
+                      >
+                        {relaunchingConvoId === convo.id ? (
+                          <Loader2 className="h-3 w-3 animate-spin text-orange-400" />
+                        ) : (
+                          <RefreshCw className="h-3 w-3 text-muted-foreground/50 hover:text-orange-400 transition-colors" />
+                        )}
+                      </button>
+                    </div>
                   </div>
                   <div className="flex items-center justify-between mt-0.5">
                     <p className={`text-xs truncate max-w-[200px] ${!convo.is_read ? "text-foreground/80 font-medium" : "text-muted-foreground"}`}>
