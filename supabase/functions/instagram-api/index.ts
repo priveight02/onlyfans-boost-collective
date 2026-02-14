@@ -828,9 +828,7 @@ serve(async (req) => {
           recipient: { id: params.recipient_id },
           message: { text: params.message },
         };
-        if (params.reply_to) {
-          msgBody.message.reply_to = { mid: params.reply_to };
-        }
+        // Note: IG Messaging API does not support reply_to in message param
         if (pageInfo) {
           result = await igFetch(`/${pageInfo.pageId}/messages`, pageInfo.pageToken, "POST", msgBody);
         } else {
