@@ -127,6 +127,40 @@ const FreePicCountdown = ({ deliverAt }: { deliverAt: string }) => {
   );
 };
 
+// 24h Pause Countdown Component — shown on conversations that hit the 30-msg cap
+const ConvoPauseCountdown = ({ pausedUntil }: { pausedUntil: string }) => {
+  const [remaining, setRemaining] = useState<number>(() => {
+    const diff = new Date(pausedUntil).getTime() - Date.now();
+    return Math.max(0, Math.ceil(diff / 1000));
+  });
+
+  useEffect(() => {
+    if (remaining <= 0) return;
+    const interval = setInterval(() => {
+      const diff = new Date(pausedUntil).getTime() - Date.now();
+      const secs = Math.max(0, Math.ceil(diff / 1000));
+      setRemaining(secs);
+      if (secs <= 0) clearInterval(interval);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [pausedUntil, remaining]);
+
+  if (remaining <= 0) return null;
+
+  const hours = Math.floor(remaining / 3600);
+  const mins = Math.floor((remaining % 3600) / 60);
+  const secs = remaining % 60;
+
+  return (
+    <div className="mt-1 flex items-center gap-1.5 px-2 py-1 rounded-md border border-orange-500/30 bg-orange-500/10 max-w-fit">
+      <Pause className="h-2.5 w-2.5 text-orange-400 flex-shrink-0" />
+      <span className="text-[9px] font-medium text-orange-400">
+        Paused {hours}h {mins.toString().padStart(2, "0")}m {secs.toString().padStart(2, "0")}s
+      </span>
+    </div>
+  );
+};
+
 const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond }: LiveDMConversationsProps) => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -1585,6 +1619,10 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
                       {!convo.is_read && <div className="h-2.5 w-2.5 rounded-full bg-blue-500" />}
                     </div>
                   </div>
+                  {/* 24h Pause Countdown */}
+                  {convo.metadata?.paused_until && new Date(convo.metadata.paused_until).getTime() > Date.now() && (
+                    <ConvoPauseCountdown pausedUntil={convo.metadata.paused_until} />
+                  )}
                 </div>
               </button>
             ))
