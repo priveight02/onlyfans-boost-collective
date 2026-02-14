@@ -80,6 +80,52 @@ const AI_PHASES = [
   { id: "send", icon: Send, label: "Sending message" },
 ];
 
+// Free Pic Countdown Timer Component
+const FreePicCountdown = ({ deliverAt }: { deliverAt: string }) => {
+  const [remaining, setRemaining] = useState<number>(() => {
+    const diff = new Date(deliverAt).getTime() - Date.now();
+    return Math.max(0, Math.ceil(diff / 1000));
+  });
+
+  useEffect(() => {
+    if (remaining <= 0) return;
+    const interval = setInterval(() => {
+      const diff = new Date(deliverAt).getTime() - Date.now();
+      const secs = Math.max(0, Math.ceil(diff / 1000));
+      setRemaining(secs);
+      if (secs <= 0) clearInterval(interval);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [deliverAt, remaining]);
+
+  const mins = Math.floor(remaining / 60);
+  const secs = remaining % 60;
+  const progress = remaining > 0 ? Math.max(0, 1 - (remaining / 150)) * 100 : 100;
+  const isDone = remaining <= 0;
+
+  return (
+    <div className={`mt-1.5 flex items-center gap-2 px-3 py-1.5 rounded-xl border ${isDone ? "border-emerald-500/30 bg-emerald-500/10" : "border-blue-500/30 bg-blue-500/10"} max-w-[200px]`}>
+      <div className="relative h-5 w-5 flex-shrink-0">
+        <svg className="h-5 w-5 -rotate-90" viewBox="0 0 20 20">
+          <circle cx="10" cy="10" r="8" fill="none" stroke="currentColor" strokeWidth="2" className="text-muted-foreground/20" />
+          <circle cx="10" cy="10" r="8" fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray={`${progress * 0.5} 50`} className={isDone ? "text-emerald-400" : "text-blue-400"} strokeLinecap="round" />
+        </svg>
+        {isDone && <Check className="absolute inset-0 m-auto h-3 w-3 text-emerald-400" />}
+      </div>
+      <div className="flex flex-col">
+        <span className={`text-[10px] font-medium ${isDone ? "text-emerald-400" : "text-blue-400"}`}>
+          {isDone ? "pic sent ✓" : `sending in ${mins}:${secs.toString().padStart(2, "0")}`}
+        </span>
+        {!isDone && (
+          <div className="w-24 h-1 rounded-full bg-muted-foreground/20 mt-0.5 overflow-hidden">
+            <div className="h-full rounded-full bg-blue-400 transition-all duration-1000" style={{ width: `${progress}%` }} />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond }: LiveDMConversationsProps) => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -2003,6 +2049,10 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
                                           <p className="text-[13px] leading-relaxed whitespace-pre-wrap">{msg.content}</p>
                                         )}
                                       </div>
+                                      {/* Free Pic Countdown Timer */}
+                                      {msg.metadata?.free_pic_pending && msg.metadata?.free_pic_deliver_at && (
+                                        <FreePicCountdown deliverAt={msg.metadata.free_pic_deliver_at} />
+                                      )}
                                       {myReaction && <button onClick={() => removeReaction(msg.id)} className="absolute -bottom-2 -right-1 text-sm bg-muted/80 rounded-full px-1 border border-border hover:scale-110 transition-transform">{myReaction}</button>}
                                     </div>
                                   );

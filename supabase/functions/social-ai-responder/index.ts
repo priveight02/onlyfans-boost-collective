@@ -2536,18 +2536,24 @@ Follow these persona settings strictly. They override any conflicting defaults a
                 const brbResult = await callIGFP("send_message", { recipient_id: dbConvo.participant_id, message: brbMsg });
                 const brbMsgId = brbResult?.data?.message_id || brbResult?.message_id || null;
                 
+                // Calculate delivery time: ~2 min (90-150s)
+                const deliveryDelayMs = 90000 + Math.floor(Math.random() * 60000);
+                const pendingNow = new Date().toISOString();
+                const deliverAt = new Date(Date.now() + deliveryDelayMs).toISOString();
+
                 // Log brb msg in DB with platform_message_id to prevent re-import
                 await supabase.from("ai_dm_messages").insert({
                   conversation_id: dbConvo.id, account_id,
                   sender_type: "ai", sender_name: igConn2.platform_username || "creator",
                   content: brbMsg, status: "sent", ai_model: "free_pic_engine",
                   platform_message_id: brbMsgId,
+                  metadata: { free_pic_pending: true, free_pic_deliver_at: deliverAt },
                 });
 
                 // Set pending state — pic will be delivered on a future cycle (~2 min later)
                 await supabase.from("ai_dm_conversations").update({
-                  last_ai_reply_at: new Date().toISOString(),
-                  metadata: { ...convoMeta, free_pic_pending_at: new Date().toISOString() },
+                  last_ai_reply_at: pendingNow,
+                  metadata: { ...convoMeta, free_pic_pending_at: pendingNow, free_pic_deliver_at: deliverAt },
                 }).eq("id", dbConvo.id);
 
                 processed++;
