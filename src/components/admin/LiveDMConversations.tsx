@@ -1294,6 +1294,26 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
                       <span className={`text-[10px] ${!convo.is_read ? "text-blue-400 font-medium" : "text-muted-foreground"}`}>
                         {formatTime(convo.last_message_at)}
                       </span>
+                      {/* Per-conversation AI pause/play toggle */}
+                      <button
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          const newEnabled = !convo.ai_enabled;
+                          // Optimistic update
+                          setConversations(prev => prev.map(c => c.id === convo.id ? { ...c, ai_enabled: newEnabled } : c));
+                          await supabase.from("ai_dm_conversations").update({ ai_enabled: newEnabled }).eq("id", convo.id);
+                          toast.success(newEnabled ? `AI enabled for @${convo.participant_username}` : `AI paused for @${convo.participant_username}`);
+                          addLog(`@${convo.participant_username}`, newEnabled ? "AI resumed" : "AI paused", "info");
+                        }}
+                        className="p-0.5 rounded hover:bg-muted/50 transition-colors"
+                        title={convo.ai_enabled ? "Pause AI for this conversation" : "Resume AI for this conversation"}
+                      >
+                        {convo.ai_enabled ? (
+                          <Bot className="h-3 w-3 text-blue-400 hover:text-red-400 transition-colors" />
+                        ) : (
+                          <Pause className="h-3 w-3 text-red-400 hover:text-blue-400 transition-colors" />
+                        )}
+                      </button>
                       <button
                         onClick={async (e) => {
                           e.stopPropagation();

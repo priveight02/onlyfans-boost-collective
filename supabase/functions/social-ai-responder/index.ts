@@ -551,7 +551,207 @@ const buildFanMemory = (messages: any[]): { memoryBlock: string; questionsAsked:
   return { memoryBlock, questionsAsked: questionsWeAsked, factsKnown: facts };
 };
 
-// === MACHINE LEARNING ENGINE — REAL-TIME LEARNING FROM EVERY CONVERSATION ===
+// === MACHINE LEARNING ENGINE v2 — DEEP REAL-TIME LEARNING FROM EVERY INTERACTION ===
+// Bridges: Memory Engine ↔ ML Engine ↔ Behavioral Engine ↔ Persona Engine
+// All engines share data through fan_emotional_profiles + ai_learned_strategies + persona_profiles
+
+// Cross-engine sync bridge: pulls behavioral + emotional + persona data into unified context
+const buildCrossEngineBridge = async (supabase: any, accountId: string, fanId: string, behaviorType: string): Promise<string> => {
+  try {
+    const lines: string[] = [];
+    
+    // Bridge 1: Emotional Profile ↔ ML Engine
+    const { data: emotionalProfile } = await supabase
+      .from("fan_emotional_profiles")
+      .select("*")
+      .eq("account_id", accountId)
+      .eq("fan_identifier", fanId)
+      .single();
+    
+    if (emotionalProfile) {
+      lines.push("\n=== CROSS-ENGINE SYNC: EMOTIONAL INTELLIGENCE ===");
+      if (emotionalProfile.attachment_level) lines.push(`Attachment level: ${emotionalProfile.attachment_level}/100`);
+      if (emotionalProfile.churn_risk) lines.push(`Churn risk: ${emotionalProfile.churn_risk}% — ${emotionalProfile.churn_risk > 60 ? "HIGH RISK: be extra engaging and warm" : emotionalProfile.churn_risk > 30 ? "moderate: maintain engagement" : "low: continue current approach"}`);
+      if (emotionalProfile.spending_motivation) lines.push(`Spending motivation: ${emotionalProfile.spending_motivation}`);
+      if (emotionalProfile.total_spent) lines.push(`Total spent: $${emotionalProfile.total_spent} — ${emotionalProfile.total_spent > 200 ? "HIGH VALUE fan, prioritize" : "potential"}`);
+      if (emotionalProfile.obsession_risk && emotionalProfile.obsession_risk > 50) lines.push(`⚠️ Obsession risk: ${emotionalProfile.obsession_risk}% — maintain healthy boundaries`);
+      if (emotionalProfile.conversation_style) lines.push(`Conversation style: ${emotionalProfile.conversation_style}`);
+      if (emotionalProfile.response_pattern) lines.push(`Response pattern: ${emotionalProfile.response_pattern}`);
+      if (emotionalProfile.emotional_triggers) {
+        const triggers = emotionalProfile.emotional_triggers as any;
+        if (triggers && typeof triggers === 'object') {
+          const triggerList = Array.isArray(triggers) ? triggers : Object.entries(triggers).map(([k, v]) => `${k}: ${v}`);
+          if (triggerList.length > 0) lines.push(`Known triggers: ${triggerList.slice(0, 5).join(", ")}`);
+        }
+      }
+      if (emotionalProfile.sentiment_history) {
+        const sentHistory = emotionalProfile.sentiment_history as any[];
+        if (Array.isArray(sentHistory) && sentHistory.length > 0) {
+          const recent = sentHistory.slice(-3);
+          lines.push(`Recent sentiment trend: ${recent.map((s: any) => s.sentiment || s).join(" → ")}`);
+        }
+      }
+      if (emotionalProfile.tags && emotionalProfile.tags.length > 0) {
+        lines.push(`Tags: ${emotionalProfile.tags.join(", ")}`);
+      }
+    }
+    
+    // Bridge 2: Persona Consistency ↔ ML Engine
+    const { data: personaChecks } = await supabase
+      .from("persona_consistency_checks")
+      .select("consistency_score, issues, suggestions")
+      .eq("account_id", accountId)
+      .order("created_at", { ascending: false })
+      .limit(1);
+    
+    if (personaChecks && personaChecks.length > 0 && personaChecks[0].consistency_score) {
+      lines.push(`\nPersona consistency score: ${personaChecks[0].consistency_score}% — ${personaChecks[0].consistency_score < 70 ? "WARNING: stay more in character" : "good alignment"}`);
+      const issues = personaChecks[0].issues as any[];
+      if (Array.isArray(issues) && issues.length > 0) {
+        lines.push(`Recent issues: ${issues.slice(0, 2).map((i: any) => typeof i === 'string' ? i : i.issue || i.description || JSON.stringify(i)).join("; ")}`);
+      }
+    }
+    
+    // Bridge 3: Cross-behavior learning — what works for SIMILAR behavior types
+    const similarTypes: Record<string, string[]> = {
+      genuine_connector: ["romantic", "life_sharer", "high_value_connector"],
+      romantic: ["genuine_connector", "high_value_connector"],
+      life_sharer: ["genuine_connector", "visual_engager"],
+      visual_engager: ["life_sharer", "casual_chatter"],
+      skeptic: ["low_effort", "aggressive"],
+      aggressive: ["skeptic"],
+      low_effort: ["casual_chatter", "new_lead"],
+      deep_talker: ["genuine_connector", "curious_explorer"],
+      new_lead: ["casual_chatter", "low_effort"],
+      curious_explorer: ["deep_talker", "genuine_connector"],
+      casual_chatter: ["new_lead", "low_effort"],
+      high_value_connector: ["genuine_connector", "romantic"],
+    };
+    
+    const relatedTypes = similarTypes[behaviorType] || [];
+    if (relatedTypes.length > 0) {
+      const { data: relatedStrategies } = await supabase
+        .from("ai_learned_strategies")
+        .select("behavior_type, strategy_type, avg_engagement_score, redirect_success_rate, best_hooks, winning_patterns")
+        .eq("account_id", accountId)
+        .in("behavior_type", relatedTypes)
+        .gt("avg_engagement_score", 15)
+        .order("avg_engagement_score", { ascending: false })
+        .limit(3);
+      
+      if (relatedStrategies && relatedStrategies.length > 0) {
+        lines.push("\n=== CROSS-BEHAVIOR INSIGHTS (from similar fan types) ===");
+        for (const rs of relatedStrategies) {
+          lines.push(`${rs.behavior_type}→${rs.strategy_type}: avg ${Math.round(rs.avg_engagement_score || 0)} engagement`);
+          const hooks = (rs.best_hooks as any[]) || [];
+          if (hooks.length > 0) lines.push(`  Transferable hooks: ${hooks.slice(0, 2).map((h: any) => `"${typeof h === 'string' ? h : h.text || h}"`).join(", ")}`);
+        }
+      }
+    }
+    
+    return lines.length > 0 ? lines.join("\n") : "";
+  } catch {
+    return "";
+  }
+};
+
+// Deep media context analyzer — learns from what media types generate best engagement
+const analyzeMediaPatterns = (messages: any[]): string => {
+  const fanMsgs = messages.filter(m => m.sender_type === "fan");
+  const ourMsgs = messages.filter(m => m.sender_type !== "fan");
+  
+  const mediaTypes: Record<string, { count: number; engagementAfter: number }> = {};
+  
+  for (let i = 0; i < messages.length; i++) {
+    const msg = messages[i];
+    const meta = msg.metadata as any;
+    if (!meta) continue;
+    
+    const atts = meta?.attachments || [];
+    const types: string[] = [];
+    for (const att of (Array.isArray(atts) ? atts : [])) {
+      const mt = att?.mime_type || att?.type || "";
+      if (mt.includes("image") || mt.includes("photo")) types.push("photo");
+      else if (mt.includes("video")) types.push("video");
+      else if (mt.includes("audio")) types.push("audio");
+    }
+    if (meta?.sticker) types.push("sticker");
+    if (meta?.shares) types.push("shared_post");
+    if (meta?.story) types.push("story_reply");
+    
+    // Check engagement AFTER this media was shared
+    if (types.length > 0 && msg.sender_type === "fan") {
+      const responsesAfter = messages.slice(i + 1, i + 4).filter(m => m.sender_type !== "fan");
+      const fanFollowUps = messages.slice(i + 1, i + 6).filter(m => m.sender_type === "fan");
+      const engagement = fanFollowUps.reduce((sum, m) => sum + (m.content?.length || 0), 0);
+      
+      for (const t of types) {
+        if (!mediaTypes[t]) mediaTypes[t] = { count: 0, engagementAfter: 0 };
+        mediaTypes[t].count++;
+        mediaTypes[t].engagementAfter += engagement;
+      }
+    }
+  }
+  
+  if (Object.keys(mediaTypes).length === 0) return "";
+  
+  const lines: string[] = ["\n=== MEDIA SHARING PATTERNS ==="];
+  for (const [type, data] of Object.entries(mediaTypes)) {
+    const avgEngagement = data.count > 0 ? Math.round(data.engagementAfter / data.count) : 0;
+    lines.push(`${type}: shared ${data.count}x, avg engagement after: ${avgEngagement} chars`);
+  }
+  
+  // Identify which media type generates most engagement
+  const sorted = Object.entries(mediaTypes).sort((a, b) => (b[1].engagementAfter / b[1].count) - (a[1].engagementAfter / a[1].count));
+  if (sorted.length > 0) {
+    lines.push(`Best engagement after: ${sorted[0][0]} — react more enthusiastically to this type`);
+  }
+  
+  return lines.join("\n");
+};
+
+// Enhanced metadata extraction for deeper learning
+const extractConversationMetadata = (messages: any[]): any => {
+  const fanMsgs = messages.filter(m => m.sender_type === "fan");
+  const ourMsgs = messages.filter(m => m.sender_type !== "fan");
+  
+  // Response time patterns
+  const responseTimes: number[] = [];
+  for (let i = 1; i < messages.length; i++) {
+    if (messages[i].sender_type !== messages[i-1].sender_type) {
+      const diff = new Date(messages[i].created_at).getTime() - new Date(messages[i-1].created_at).getTime();
+      if (diff > 0 && diff < 86400000) responseTimes.push(diff);
+    }
+  }
+  const avgResponseTime = responseTimes.length > 0 ? responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length : 0;
+  
+  // Message length evolution (are they writing more or less over time?)
+  const fanLengths = fanMsgs.map(m => (m.content || "").length);
+  const firstHalf = fanLengths.slice(0, Math.ceil(fanLengths.length / 2));
+  const secondHalf = fanLengths.slice(Math.ceil(fanLengths.length / 2));
+  const avgFirst = firstHalf.length > 0 ? firstHalf.reduce((a, b) => a + b, 0) / firstHalf.length : 0;
+  const avgSecond = secondHalf.length > 0 ? secondHalf.reduce((a, b) => a + b, 0) / secondHalf.length : 0;
+  const lengthTrend = avgSecond > avgFirst * 1.3 ? "increasing" : avgSecond < avgFirst * 0.7 ? "decreasing" : "stable";
+  
+  // Topic diversity
+  const allFanText = fanMsgs.map(m => m.content || "").join(" ").toLowerCase();
+  const topicSignals = {
+    personal: !!allFanText.match(/(my |i am |i have |i was |i will )/),
+    questions: fanMsgs.filter(m => (m.content || "").includes("?")).length,
+    compliments: !!allFanText.match(/(beautiful|gorgeous|amazing|cute|pretty|hot|sexy|stunning)/),
+    emotionalOpening: !!allFanText.match(/(feel|sad|happy|lonely|miss|love|hate|scared|worried)/),
+    mediaSharing: fanMsgs.filter(m => m.metadata && (m.metadata as any)?.attachments?.length > 0).length,
+  };
+  
+  return {
+    avgResponseTimeMs: Math.round(avgResponseTime),
+    messageLengthTrend: lengthTrend,
+    topicSignals,
+    totalFanMessages: fanMsgs.length,
+    totalOurMessages: ourMsgs.length,
+    conversationDurationMs: messages.length > 1 ? new Date(messages[messages.length-1].created_at).getTime() - new Date(messages[0].created_at).getTime() : 0,
+  };
+};
 
 // Fetch winning strategies from ai_learned_strategies and format for system prompt injection
 const fetchLearnedStrategies = async (supabase: any, accountId: string, behaviorType: string): Promise<string> => {
@@ -562,25 +762,38 @@ const fetchLearnedStrategies = async (supabase: any, accountId: string, behavior
       .eq("account_id", accountId)
       .in("behavior_type", [behaviorType, "all"])
       .order("avg_engagement_score", { ascending: false })
-      .limit(5);
+      .limit(8);
 
     if (!strategies || strategies.length === 0) return "";
 
-    const lines: string[] = ["\n\n=== ML LEARNED STRATEGIES (from past conversations — USE these) ==="];
+    const lines: string[] = ["\n\n=== ML ENGINE v2 — LEARNED STRATEGIES (USE these — they're PROVEN) ==="];
+    lines.push(`Data from ${strategies.reduce((s: number, st: any) => s + (st.total_samples || 0), 0)} total interactions`);
+    
     for (const s of strategies) {
-      lines.push(`\nBehavior: ${s.behavior_type} | Strategy: ${s.strategy_type} | Success: ${Math.round((s.redirect_success_rate || 0) * 100)}% | Samples: ${s.total_samples || 0}`);
+      const successRate = Math.round((s.redirect_success_rate || 0) * 100);
+      const avgEng = Math.round(s.avg_engagement_score || 0);
+      lines.push(`\n[${s.behavior_type}→${s.strategy_type}] Success: ${successRate}% | Engagement: ${avgEng} | n=${s.total_samples || 0}`);
+      
       const openers = (s.best_openers as any[]) || [];
-      if (openers.length > 0) lines.push(`  Best openers: ${openers.slice(0, 3).map((o: any) => `"${typeof o === 'string' ? o : o.text || o}"`).join(", ")}`);
+      if (openers.length > 0) {
+        const topOpeners = openers.sort((a: any, b: any) => (b.score || 0) - (a.score || 0)).slice(0, 3);
+        lines.push(`  ★ Best openers: ${topOpeners.map((o: any) => `"${typeof o === 'string' ? o : o.text || o}" (${o.score || '?'})`).join(" | ")}`);
+      }
       const hooks = (s.best_hooks as any[]) || [];
-      if (hooks.length > 0) lines.push(`  Best hooks: ${hooks.slice(0, 3).map((h: any) => `"${typeof h === 'string' ? h : h.text || h}"`).join(", ")}`);
+      if (hooks.length > 0) {
+        const topHooks = hooks.sort((a: any, b: any) => (b.score || 0) - (a.score || 0)).slice(0, 3);
+        lines.push(`  ★ Best hooks: ${topHooks.map((h: any) => `"${typeof h === 'string' ? h : h.text || h}" (${h.score || '?'})`).join(" | ")}`);
+      }
       const recovery = (s.best_recovery_lines as any[]) || [];
-      if (recovery.length > 0) lines.push(`  Best recovery lines: ${recovery.slice(0, 3).map((r: any) => `"${typeof r === 'string' ? r : r.text || r}"`).join(", ")}`);
+      if (recovery.length > 0) {
+        lines.push(`  ★ Recovery: ${recovery.slice(0, 2).map((r: any) => `"${typeof r === 'string' ? r : r.text || r}"`).join(" | ")}`);
+      }
       const winning = (s.winning_patterns as any[]) || [];
-      if (winning.length > 0) lines.push(`  Winning patterns: ${winning.slice(0, 3).map((w: any) => `"${typeof w === 'string' ? w : w.pattern || w}"`).join(", ")}`);
+      if (winning.length > 0) lines.push(`  ✓ Winning: ${winning.slice(0, 3).map((w: any) => `"${typeof w === 'string' ? w : w.pattern || w}"`).join(", ")}`);
       const losing = (s.losing_patterns as any[]) || [];
-      if (losing.length > 0) lines.push(`  AVOID these (losing patterns): ${losing.slice(0, 3).map((l: any) => `"${typeof l === 'string' ? l : l.pattern || l}"`).join(", ")}`);
+      if (losing.length > 0) lines.push(`  ✗ AVOID: ${losing.slice(0, 3).map((l: any) => `"${typeof l === 'string' ? l : l.pattern || l}"`).join(", ")}`);
     }
-    lines.push("Integrate these learnings naturally. Prioritize proven hooks and openers. Avoid losing patterns.");
+    lines.push("\nUSE proven patterns. AVOID losing patterns. Adapt naturally to this specific person.");
     return lines.join("\n");
   } catch {
     return "";
@@ -1919,7 +2132,8 @@ Follow these persona settings strictly. They override any conflicting defaults a
             const behavior = classifyFanBehavior(dbMessages || []);
             const tension = detectTension(dbMessages || []);
 
-            // Auto-save fan behavior (non-blocking)
+            // Auto-save fan behavior with deep metadata (non-blocking)
+            const convMeta = extractConversationMetadata(dbMessages || []);
             try {
               await supabase.from("fan_emotional_profiles").upsert({
                 account_id,
@@ -1931,7 +2145,15 @@ Follow these persona settings strictly. They override any conflicting defaults a
                 engagement_velocity: behavior.engagementScore,
                 interaction_count: (dbMessages || []).filter(m => m.sender_type === "fan").length,
                 last_interaction_at: new Date().toISOString(),
-                last_behavior_analysis: { type: behavior.type, score: behavior.engagementScore, tension: tension.tensionLevel, analyzed_at: new Date().toISOString() },
+                avg_message_length: convMeta.totalFanMessages > 0 ? Math.round((dbMessages || []).filter(m => m.sender_type === "fan").reduce((s, m) => s + (m.content?.length || 0), 0) / convMeta.totalFanMessages) : 0,
+                media_shared_count: (dbMessages || []).filter(m => m.sender_type === "fan" && m.metadata && (m.metadata as any)?.attachments?.length > 0).length,
+                conversation_style: convMeta.topicSignals?.compliments ? "warm" : convMeta.topicSignals?.emotionalOpening ? "emotional" : convMeta.messageLengthTrend === "decreasing" ? "disengaging" : "normal",
+                response_pattern: convMeta.avgResponseTimeMs < 60000 ? "fast_responder" : convMeta.avgResponseTimeMs < 300000 ? "moderate" : "slow_responder",
+                last_behavior_analysis: {
+                  type: behavior.type, score: behavior.engagementScore, tension: tension.tensionLevel,
+                  avgResponseTimeMs: convMeta.avgResponseTimeMs, lengthTrend: convMeta.messageLengthTrend,
+                  topicSignals: convMeta.topicSignals, analyzed_at: new Date().toISOString(),
+                },
               }, { onConflict: "account_id,fan_identifier" });
             } catch {}
 
@@ -1953,20 +2175,21 @@ Follow these persona settings strictly. They override any conflicting defaults a
             const behaviorCtxLive = `\n\n=== PERSON BEHAVIOR: ${behavior.type.toUpperCase()} ===\n${behavior.context}`;
             const tensionCtxLive = tension.tensionContext;
 
-            // === ML ENGINE: Evaluate previous AI message outcome ===
+            // === ML ENGINE v2: Evaluate previous AI message outcome ===
             const prevOutcome = evaluatePreviousOutcome(dbMessages || []);
             if (prevOutcome.previousAiMsg && prevOutcome.fanResponse) {
-              // Log the learning
-              logConversationLearning(supabase, account_id, dbConvo.id, dbConvo.participant_id, behavior.type, prevOutcome.previousAiMsg, prevOutcome.outcome, prevOutcome.engagementDelta, prevOutcome.redirectSuccess, prevOutcome.strategyUsed, prevOutcome.fanResponse, { tension: tension.tensionLevel, engagement: behavior.engagementScore });
-              // Update strategy aggregates
+              const convMetadata = extractConversationMetadata(dbMessages || []);
+              logConversationLearning(supabase, account_id, dbConvo.id, dbConvo.participant_id, behavior.type, prevOutcome.previousAiMsg, prevOutcome.outcome, prevOutcome.engagementDelta, prevOutcome.redirectSuccess, prevOutcome.strategyUsed, prevOutcome.fanResponse, { tension: tension.tensionLevel, engagement: behavior.engagementScore, ...convMetadata });
               upsertStrategyStats(supabase, account_id, behavior.type, prevOutcome.strategyUsed, prevOutcome.previousAiMsg, prevOutcome.outcome, prevOutcome.engagementDelta, prevOutcome.redirectSuccess);
             }
 
-            // === ML ENGINE: Fetch learned strategies for system prompt injection ===
+            // === ML ENGINE v2: Fetch learned strategies + cross-engine bridges + media patterns ===
             const learnedStrategiesCtx = await fetchLearnedStrategies(supabase, account_id, behavior.type);
+            const crossEngineBridge = await buildCrossEngineBridge(supabase, account_id, dbConvo.participant_id, behavior.type);
+            const mediaPatterns = analyzeMediaPatterns(dbMessages || []);
 
             // Generate AI reply
-            const systemPrompt = `${personaInfo2}${emojiDir}${fanMemoryBlock}${behaviorCtxLive}${tensionCtxLive}${learnedStrategiesCtx}
+            const systemPrompt = `${personaInfo2}${emojiDir}${fanMemoryBlock}${behaviorCtxLive}${tensionCtxLive}${learnedStrategiesCtx}${crossEngineBridge}${mediaPatterns}
 ${autoConfig.redirect_url ? `\nIMPORTANT: when it makes sense, naturally guide toward this link: ${autoConfig.redirect_url}. But NEVER redirect during genuine bonding moments — wait for a natural transition. NEVER redirect when the vibe is tense or dry — fix the vibe first` : ""}
 ${autoConfig.trigger_keywords ? `if they mention any of these: ${autoConfig.trigger_keywords}, redirect them to the link` : ""}
 
@@ -2314,11 +2537,13 @@ Follow these persona settings strictly. They override any conflicting defaults a
               upsertStrategyStats(supabase, account_id, behaviorRL.type, prevOutcomeRL.strategyUsed, prevOutcomeRL.previousAiMsg, prevOutcomeRL.outcome, prevOutcomeRL.engagementDelta, prevOutcomeRL.redirectSuccess);
             }
 
-            // === ML ENGINE: Inject learned strategies ===
+            // === ML ENGINE v2: Inject learned strategies + cross-engine bridge ===
             const learnedStrategiesRL = await fetchLearnedStrategies(supabase, account_id, behaviorRL.type);
+            const crossEngineBridgeRL = await buildCrossEngineBridge(supabase, account_id, uc.participant_id, behaviorRL.type);
+            const mediaPatternsRL = analyzeMediaPatterns(fullHistory);
 
             const emojiDirRL = "\n\nEMOJI DIRECTIVE: ZERO emojis. NEVER use emojis. Text only. Always.";
-            const systemPromptRL = `${personaRL}${emojiDirRL}${fanMemBlockRL}${learnedStrategiesRL}
+            const systemPromptRL = `${personaRL}${emojiDirRL}${fanMemBlockRL}${learnedStrategiesRL}${crossEngineBridgeRL}${mediaPatternsRL}
 \n=== PERSON BEHAVIOR: ${behaviorRL.type.toUpperCase()} ===\n${behaviorRL.context}
 ${autoConfigRL?.redirect_url ? `\nIMPORTANT: when it makes sense, naturally guide toward this link: ${autoConfigRL.redirect_url}. But NEVER redirect during genuine bonding moments` : ""}
 ${autoConfigRL?.trigger_keywords ? `if they mention any of these: ${autoConfigRL.trigger_keywords}, redirect them to the link` : ""}
@@ -2644,8 +2869,10 @@ Follow these persona settings strictly.`;
               upsertStrategyStats(supabase, account_id, fanBehaviorType, prevOutcomeRAT.strategyUsed, prevOutcomeRAT.previousAiMsg, prevOutcomeRAT.outcome, prevOutcomeRAT.engagementDelta, prevOutcomeRAT.redirectSuccess);
             }
 
-            // === ML ENGINE: Inject learned strategies ===
+            // === ML ENGINE v2: Inject learned strategies + cross-engine bridge ===
             const learnedStrategiesRAT = await fetchLearnedStrategies(supabase, account_id, fanBehaviorType);
+            const crossEngineBridgeRAT = await buildCrossEngineBridge(supabase, account_id, tc.participant_id, fanBehaviorType);
+            const mediaPatternsRAT = analyzeMediaPatterns(fullHist);
 
             const behaviorContext = `\n\n=== FAN BEHAVIOR ANALYSIS (adapt your style) ===
 Fan type: ${fanBehaviorType}
@@ -2661,7 +2888,7 @@ ${fanBehaviorType === "new_lead" ? "New conversation. Focus on rapport building,
 ${fanBehaviorType === "casual_chatter" ? "Casual vibe. Keep it light and fun." : ""}`;
 
             const emojiDirRAT = "\n\nEMOJI DIRECTIVE: ZERO emojis. NEVER use emojis. Text only. Always.";
-            const systemPromptRAT = `${personaRAT}${emojiDirRAT}${fanMemBlockRAT}${behaviorContext}${learnedStrategiesRAT}
+            const systemPromptRAT = `${personaRAT}${emojiDirRAT}${fanMemBlockRAT}${behaviorContext}${learnedStrategiesRAT}${crossEngineBridgeRAT}${mediaPatternsRAT}
 ${autoConfigRAT?.redirect_url ? `\nIMPORTANT: when it makes sense, naturally guide toward this link: ${autoConfigRAT.redirect_url}. But NEVER redirect during genuine bonding moments` : ""}
 ${autoConfigRAT?.trigger_keywords ? `if they mention any of these: ${autoConfigRAT.trigger_keywords}, redirect them to the link` : ""}
 
@@ -2886,9 +3113,11 @@ ${personaDataRS.brand_identity ? `Brand Identity: ${personaDataRS.brand_identity
           upsertStrategyStats(supabase, account_id, behaviorRS.type, prevOutcomeRS.strategyUsed, prevOutcomeRS.previousAiMsg, prevOutcomeRS.outcome, prevOutcomeRS.engagementDelta, prevOutcomeRS.redirectSuccess);
         }
         const learnedStrategiesRS = await fetchLearnedStrategies(supabase, account_id, behaviorRS.type);
+        const crossEngineBridgeRS = await buildCrossEngineBridge(supabase, account_id, convoRS.participant_id, behaviorRS.type);
+        const mediaPatternsRS = analyzeMediaPatterns(fullHistRS);
 
         const emojiDirRS = "\n\nEMOJI DIRECTIVE: ZERO emojis. NEVER use emojis. Text only. Always.";
-        const systemPromptRS = `${personaRS}${emojiDirRS}${fanMemBlockRS}${learnedStrategiesRS}
+        const systemPromptRS = `${personaRS}${emojiDirRS}${fanMemBlockRS}${learnedStrategiesRS}${crossEngineBridgeRS}${mediaPatternsRS}
 ${autoConfigRS?.redirect_url ? `\nIMPORTANT: when it makes sense, naturally guide toward: ${autoConfigRS.redirect_url}. But NEVER during bonding moments` : ""}
 
 ${isFollowUpRS ? `FOLLOW-UP MODE (YOU spoke last — re-engage them):
