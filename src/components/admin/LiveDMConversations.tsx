@@ -200,14 +200,17 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
         }
 
         if (existing && existing.length > 0) {
-          // Update if content was empty or metadata missing
+          // Always overwrite content & metadata from IG API to fix any stale/wrong data
           const ex = existing[0];
-          const needsUpdate = (!ex.content && contentText) || (!ex.metadata && attData);
-          if (needsUpdate) {
-            await supabase.from("ai_dm_messages").update({
-              ...(contentText && !ex.content ? { content: contentText } : {}),
-              ...(attData && !ex.metadata ? { metadata: attData } : {}),
-            }).eq("id", ex.id);
+          const updates: any = {};
+          if (contentText && contentText !== ex.content) updates.content = contentText;
+          if (attData && JSON.stringify(attData) !== JSON.stringify(ex.metadata)) updates.metadata = attData;
+          if (igMsg.created_time || igMsg.timestamp) {
+            const ts = new Date(igMsg.created_time || igMsg.timestamp).toISOString();
+            updates.created_at = ts;
+          }
+          if (Object.keys(updates).length > 0) {
+            await supabase.from("ai_dm_messages").update(updates).eq("id", ex.id);
             changed = true;
           }
         } else {
