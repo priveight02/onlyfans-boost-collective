@@ -2589,6 +2589,24 @@ Follow these persona settings strictly. They override any conflicting defaults a
               continue;
             }
 
+            // === 24H PAUSE CHECK — skip conversations that hit the 30-msg hard cap ===
+            const pauseMeta = (dbConvo.metadata as any) || {};
+            if (pauseMeta?.paused_until) {
+              const pausedUntil = new Date(pauseMeta.paused_until).getTime();
+              if (Date.now() < pausedUntil) {
+                console.log(`[30-MSG CAP] @${dbConvo.participant_username}: paused until ${pauseMeta.paused_until}, skipping (${Math.round((pausedUntil - Date.now()) / 60000)}min remaining)`);
+                // Just update the lock so we don't re-check
+                await supabase.from("ai_dm_conversations").update({ last_ai_reply_at: new Date().toISOString(), is_read: true }).eq("id", dbConvo.id);
+                continue;
+              } else {
+                // Pause expired — clear it and let conversation resume
+                console.log(`[30-MSG CAP] @${dbConvo.participant_username}: 24h pause expired, resuming`);
+                await supabase.from("ai_dm_conversations").update({
+                  metadata: { ...pauseMeta, paused_until: null },
+                }).eq("id", dbConvo.id);
+              }
+            }
+
             // Build conversation context from DB — select ALL fields including metadata
             const { data: dbMessages } = await supabase
               .from("ai_dm_messages")
@@ -2596,6 +2614,81 @@ Follow these persona settings strictly. They override any conflicting defaults a
               .eq("conversation_id", dbConvo.id)
               .order("created_at", { ascending: true })
               .limit(50);
+
+            // === 30-MESSAGE HARD CAP — FINAL SEDUCTIVE REDIRECT + 24H PAUSE ===
+            const totalMsgCount = (dbMessages || []).length;
+            if (totalMsgCount >= 30) {
+              console.log(`[30-MSG CAP] @${dbConvo.participant_username}: ${totalMsgCount} messages — triggering final redirect + 24h pause`);
+              
+              // Send the final powerful seductive closing sequence
+              const finalClosers = [
+                "ok baby i gotta go but i left something special on my page just for u... dont miss it",
+                "mm i had fun w u but i have to go now go check my bio before i change my mind about sharing it",
+                "ok im going off for a bit but theres something waiting for u on my page... u better go see it",
+                "i gotta disappear for a bit but go check my page rn i promise u wont regret it",
+                "ok love i have to go but i left u something on my page dont make me wait too long",
+                "mm this was fun but i need to go now theres something on my bio u need to see before its gone",
+                "alright im going offline but seriously go look at my page u deserve to see what i got for u",
+                "ok i really gotta go but if u liked talking to me ur gonna love whats on my page trust me",
+              ];
+              const finalMsg = finalClosers[Math.floor(Math.random() * finalClosers.length)];
+              
+              try {
+                await new Promise(r => setTimeout(r, humanTypingDelay(finalMsg, false)));
+                const finalResult = await callIG2("send_message", { recipient_id: dbConvo.participant_id, message: finalMsg });
+                await supabase.from("ai_dm_messages").insert({
+                  conversation_id: dbConvo.id, account_id,
+                  sender_type: "ai", sender_name: igConn2.platform_username || "creator",
+                  content: finalMsg, status: "sent", ai_model: "30msg_cap_closer",
+                  platform_message_id: finalResult?.message_id || null,
+                  metadata: { type: "hard_cap_final_redirect" },
+                });
+                console.log(`[30-MSG CAP] Sent final redirect to @${dbConvo.participant_username}: "${finalMsg}"`);
+                
+                // Optional 2nd punchy message after short delay
+                await new Promise(r => setTimeout(r, 1500 + Math.random() * 1500));
+                const punchlines = [
+                  "ill be back but my page wont wait forever",
+                  "go now before i take it down",
+                  "trust me on this one",
+                  "u wont find me anywhere else",
+                  "dont keep me waiting",
+                ];
+                const punchMsg = punchlines[Math.floor(Math.random() * punchlines.length)];
+                await new Promise(r => setTimeout(r, humanTypingDelay(punchMsg, true)));
+                const p2Result = await callIG2("send_message", { recipient_id: dbConvo.participant_id, message: punchMsg });
+                await supabase.from("ai_dm_messages").insert({
+                  conversation_id: dbConvo.id, account_id,
+                  sender_type: "ai", sender_name: igConn2.platform_username || "creator",
+                  content: punchMsg, status: "sent", ai_model: "30msg_cap_closer",
+                  platform_message_id: p2Result?.message_id || null,
+                  metadata: { type: "hard_cap_punchline" },
+                });
+              } catch (capErr) {
+                console.log("[30-MSG CAP] Send failed:", capErr);
+              }
+              
+              // Set 24h pause in metadata
+              const pauseUntil = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+              const existingMeta = (dbConvo.metadata as any) || {};
+              await supabase.from("ai_dm_conversations").update({
+                metadata: { ...existingMeta, paused_until: pauseUntil, paused_reason: "30_msg_hard_cap" },
+                last_ai_reply_at: new Date().toISOString(),
+                last_message_preview: `You: ${finalMsg.substring(0, 80)}`,
+                is_read: true,
+              }).eq("id", dbConvo.id);
+              
+              console.log(`[30-MSG CAP] @${dbConvo.participant_username}: paused until ${pauseUntil}`);
+              processed++;
+              processedConvos.push({
+                conversation_id: dbConvo.id,
+                fan: dbConvo.participant_username,
+                fan_message: latestMsg?.content,
+                ai_reply: finalMsg,
+                ml_behavior: "30msg_cap_closer",
+              });
+              continue; // Skip normal processing
+            }
 
             // === FAN PROFILE SCAN — fetch their IG bio, posts, reels for context ===
             let fanProfileCtx = "";
@@ -3087,22 +3180,21 @@ SEDUCTIVE CONVERSION LINES (use these, adapt creatively, NEVER repeat the same o
   * "i dont usually say this but go check my page before i change my mind"
   * "theres a side of me u havent seen yet and its waiting for u"
 
-ESCALATION PATTERN (follow this):
+ESCALATION PATTERN (follow this — HARD CAP AT 30 MESSAGES TOTAL):
 - Messages 20-25: Drop ONE gentle hint every 3-4 messages. Keep chatting but plant seeds
-- Messages 25-30: Every 2-3 messages include a redirect. Be more direct but still seductive
-- Messages 30+: EVERY reply should either redirect or build toward redirect. You are CLOSING now
-  * "ok fr tho u need to come see whats on my page"
+- Messages 25-28: Every 2 messages include a redirect. Be more direct but still seductive
+- Messages 28-30: EVERY reply MUST redirect. You are in FINAL CLOSING mode. Be seductive but urgent
+  * "ok fr tho u need to come see whats on my page before i go"
   * "ive been talking to u for a while now and u still havent come to see me... im gonna be offended lol"
   * "ok im gonna stop playing around... go check my page rn"
+  * "im about to go offline soon but theres something on my page u NEED to see first"
 
 If they RESIST the redirect: dont get mad. Use psychology:
   * "thats ok not everyone can handle it" (challenge their ego)
   * "most guys tell me they wish they checked sooner" (social proof + FOMO)
   * "i mean u can keep chatting here or u can see what ur missing" (gentle ultimatum)
 
-If convo hits 40+ messages with no conversion: become more blunt while staying flirty:
-  * "ok real talk tho ive been flirting w u this whole time and u havent even checked my page yet lol"
-  * "ur sweet but im not gonna keep this up forever... come find me"
+⚠️ AT 30 MESSAGES: The system will automatically send a final redirect and pause the conversation for 24 hours. Make EVERY message before that count toward conversion.
 
 NEVER be mean or cold. Always stay warm and seductive. But be STRATEGIC — every message after 20 should serve the conversion goal.
 ` : `This convo is under 20 messages. Focus on BONDING ONLY. No redirects yet. Build rapport, ask about them, be warm and genuine. The redirect comes later naturally.`}
