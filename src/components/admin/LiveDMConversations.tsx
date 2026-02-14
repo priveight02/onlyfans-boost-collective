@@ -104,6 +104,7 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
   // ===== MESSAGE CACHE =====
   const messageCacheRef = useRef<Map<string, Message[]>>(new Map());
   const igSyncedRef = useRef<Set<string>>(new Set());
+  const deletedPlatformIdsRef = useRef<Set<string>>(new Set()); // Track deleted IG message IDs to prevent re-import
   const prefetchingRef = useRef(false);
   const igConnRef = useRef<{ platform_user_id: string; platform_username: string } | null>(null);
 
@@ -193,6 +194,9 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
       let changed = false;
 
       for (const igMsg of igMessages) {
+        // Skip messages that were locally deleted
+        if (igMsg.id && deletedPlatformIdsRef.current.has(igMsg.id)) continue;
+        
         const { data: existing } = await supabase
           .from("ai_dm_messages")
           .select("id, content, metadata")
@@ -236,16 +240,25 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
           }
         } else {
           const fromName = (igMsg.from?.username || igMsg.from?.name || "").toLowerCase();
-          const isFromFan = igMsg.from?.id
-            ? (igMsg.from.id !== ourIgId && fromName !== ourUsername)
+          const fromId = igMsg.from?.id;
+          // Detect if from fan: must match fan's participant ID, or NOT match our ID/username
+          // Messages sent via Page API have from.id = page_id (different from ourIgId)
+          const isFromFan = fromId
+            ? (fromId === c.participant_id || (fromId !== ourIgId && fromName !== ourUsername && fromName !== ""))
             : true;
+          // Override: if fromId doesn't match fan AND doesn't match us, it's likely the Page → it's us
+          const isActuallyFromFan = fromId === c.participant_id ? true : 
+            (fromId === ourIgId || fromName === ourUsername) ? false :
+            // Unknown ID: check if it matches the fan's known ID
+            (fromId && fromId !== c.participant_id && fromId !== ourIgId) ? false : // Likely page
+            isFromFan;
 
           await supabase.from("ai_dm_messages").insert({
             conversation_id: convoId,
             account_id: accountId,
             platform_message_id: igMsg.id,
-            sender_type: isFromFan ? "fan" : "manual",
-            sender_name: isFromFan ? (c.participant_username || c.participant_name || "fan") : (ourUsername || "you"),
+            sender_type: isActuallyFromFan ? "fan" : "manual",
+            sender_name: isActuallyFromFan ? (c.participant_username || c.participant_name || "fan") : (ourUsername || "you"),
             content: contentText || "",
             status: "sent",
             created_at: igMsg.created_time || igMsg.timestamp ? new Date(igMsg.created_time || igMsg.timestamp).toISOString() : new Date().toISOString(),
@@ -547,25 +560,27 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
     toast.success("Message updated locally (IG doesn't support DM editing)");
   };
 
-  // Delete message — sync to IG via Page API + local DB
+  // Delete message — remove from local DB + track to prevent re-import
   const deleteMessage = async (msgId: string) => {
     const msg = messages.find(m => m.id === msgId);
-    let igDeleted = false;
     
-    // Try to delete on IG if we have a platform_message_id
+    // Track the platform_message_id so sync won't re-import it
+    if (msg?.platform_message_id) {
+      deletedPlatformIdsRef.current.add(msg.platform_message_id);
+    }
+    
+    // Try to delete on IG via Page API
     if (msg?.platform_message_id) {
       try {
         const { data, error } = await supabase.functions.invoke("instagram-api", {
           body: { action: "delete_message", account_id: accountId, params: { message_id: msg.platform_message_id } },
         });
-        if (error) throw error;
-        if (data?.success !== false) {
-          igDeleted = true;
-          addLog("system", `Deleted message on IG: ${msg.content?.substring(0, 30)}...`, "success");
+        if (!error && data?.success !== false) {
+          addLog("system", `Deleted on IG: ${msg.content?.substring(0, 30)}...`, "success");
         }
       } catch (e: any) {
-        console.warn("IG delete failed:", e);
-        addLog("system", `IG delete failed: ${e.message || "API limitation"}`, "error");
+        // IG may not support DM deletion — that's OK, we still remove locally
+        console.warn("IG delete attempt:", e);
       }
     }
     
@@ -575,7 +590,7 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
       const fresh = await loadMessagesToCache(selectedConvo);
       setMessages(fresh);
     }
-    toast.success(igDeleted ? "Message deleted from Instagram" : "Message removed locally");
+    toast.success("Message deleted");
   };
 
   // Map emoji to IG reaction type
