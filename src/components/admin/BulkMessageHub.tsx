@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo, memo } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cachedFetch, invalidateNamespace } from "@/lib/supabaseCache";
@@ -543,23 +544,47 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
     if (open && followers.length === 0) loadPersistedFollowers();
   }, [open, loadPersistedFollowers]);
 
-  const sortedFollowers = [...followers].sort((a, b) => {
-    if (sortMode === "name") return a.name.localeCompare(b.name);
-    if (sortMode === "source") return a.source.localeCompare(b.source);
-    return 0;
-  });
+  const filteredFollowers = useMemo(() => {
+    const searchLower = searchQuery.toLowerCase();
+    let result = followers;
+    
+    // Filter by tab
+    if (activeTab !== "all") {
+      result = result.filter(f => 
+        activeTab === "conversations" ? (f.source === "conversation" || f.source === "ig_api") :
+        activeTab === "followers" ? (f.source === "follower" || f.source === "engaged") :
+        (f.source === "fetched" || f.source === "discovered")
+      );
+    }
+    
+    // Filter by source
+    if (filterSource !== "all") {
+      result = result.filter(f => f.source === filterSource);
+    }
+    
+    // Filter by search
+    if (searchQuery) {
+      result = result.filter(f =>
+        f.name.toLowerCase().includes(searchLower) ||
+        f.username.toLowerCase().includes(searchLower)
+      );
+    }
+    
+    // Sort
+    if (sortMode === "name") {
+      result = [...result].sort((a, b) => a.name.localeCompare(b.name));
+    } else if (sortMode === "source") {
+      result = [...result].sort((a, b) => a.source.localeCompare(b.source));
+    }
+    
+    return result;
+  }, [followers, searchQuery, filterSource, activeTab, sortMode]);
 
-  const filteredFollowers = sortedFollowers.filter(f => {
-    const matchesSearch = !searchQuery ||
-      f.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      f.username.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesFilter = filterSource === "all" || f.source === filterSource;
-    const matchesTab = activeTab === "all" || 
-      (activeTab === "conversations" && (f.source === "conversation" || f.source === "ig_api")) ||
-      (activeTab === "followers" && (f.source === "follower" || f.source === "engaged")) ||
-      (activeTab === "fetched" && (f.source === "fetched" || f.source === "discovered"));
-    return matchesSearch && matchesFilter && matchesTab;
-  });
+  const filteredFollowersRef = useRef(filteredFollowers);
+  filteredFollowersRef.current = filteredFollowers;
+
+  // O(1) lookup set for follower IDs — prevents .some() on millions of items
+  const followerIdSet = useMemo(() => new Set(followers.map(f => f.id)), [followers]);
 
   const toggleSelect = (id: string) => {
     setSelectedIds(prev => {
@@ -944,33 +969,35 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
             {/* Source Tabs + Discover + Fetch */}
             <div className="px-5 py-2 border-b border-white/10 flex-shrink-0">
               <div className="flex items-center gap-1 flex-wrap">
-                {([
-                  { key: "all" as const, label: "All", icon: Users },
-                  { key: "conversations" as const, label: "DMs", icon: MessageCircle },
-                  { key: "followers" as const, label: "Engaged", icon: Heart },
-                  { key: "fetched" as const, label: "Fetched", icon: Download },
-                ]).map(tab => (
-                  <button
-                    key={tab.key}
-                    onClick={() => setActiveTab(tab.key)}
-                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-colors ${
-                      activeTab === tab.key 
-                        ? "bg-purple-500/20 text-purple-400" 
-                        : "text-white/40 hover:text-white/60 hover:bg-white/5"
-                    }`}
-                  >
-                    <tab.icon className="h-3 w-3" />
-                    {tab.label}
-                    <span className="text-[9px] opacity-60">
-                      ({followers.filter(f => 
-                        tab.key === "all" ? true : 
-                        tab.key === "conversations" ? (f.source === "conversation" || f.source === "ig_api") :
-                        tab.key === "followers" ? (f.source === "follower" || f.source === "engaged") :
-                        (f.source === "fetched" || f.source === "discovered")
-                      ).length})
-                    </span>
-                  </button>
-                ))}
+                {(() => {
+                  // Memoize tab counts to avoid iterating millions of items per render
+                  const counts = { all: followers.length, conversations: 0, followers: 0, fetched: 0 };
+                  for (const f of followers) {
+                    if (f.source === "conversation" || f.source === "ig_api") counts.conversations++;
+                    else if (f.source === "follower" || f.source === "engaged") counts.followers++;
+                    else if (f.source === "fetched" || f.source === "discovered") counts.fetched++;
+                  }
+                  return ([
+                    { key: "all" as const, label: "All", icon: Users, count: counts.all },
+                    { key: "conversations" as const, label: "DMs", icon: MessageCircle, count: counts.conversations },
+                    { key: "followers" as const, label: "Engaged", icon: Heart, count: counts.followers },
+                    { key: "fetched" as const, label: "Fetched", icon: Download, count: counts.fetched },
+                  ]).map(tab => (
+                    <button
+                      key={tab.key}
+                      onClick={() => setActiveTab(tab.key)}
+                      className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-colors ${
+                        activeTab === tab.key
+                          ? "bg-purple-500/20 text-purple-400"
+                          : "text-white/40 hover:text-white/60 hover:bg-white/5"
+                      }`}
+                    >
+                      <tab.icon className="h-3 w-3" />
+                      {tab.label}
+                      <span className="text-[9px] opacity-60">({tab.count.toLocaleString()})</span>
+                    </button>
+                  ));
+                })()}
                 <div className="ml-auto flex items-center gap-1">
                   {/* DISCOVER — Instagram Search Popover */}
                   <Popover open={showDiscover} onOpenChange={setShowDiscover}>
@@ -1066,7 +1093,7 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
                             if (n >= 1000) return `${(n / 1000).toFixed(1)}K`;
                             return String(n);
                           };
-                          const isAdded = followers.some(f => f.id === (user.id || user.pk));
+                          const isAdded = followerIdSet.has(user.id || user.pk);
                           return (
                             <div
                               key={user.id || user.username}
@@ -1327,74 +1354,35 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
               </div>
             </div>
 
-            {/* Follower List — scrollable */}
-            <div className="flex-1 overflow-y-auto min-h-0">
-              {loading ? (
-                <div className="p-10 text-center">
+            {/* Follower List — virtualized */}
+            {loading ? (
+              <div className="flex-1 flex items-center justify-center">
+                <div className="text-center">
                   <Loader2 className="h-10 w-10 mx-auto mb-3 animate-spin text-white/20" />
                   <p className="text-sm text-white/40">Loading contacts...</p>
                 </div>
-              ) : filteredFollowers.length === 0 ? (
-                <div className="p-10 text-center">
+              </div>
+            ) : filteredFollowers.length === 0 ? (
+              <div className="flex-1 flex items-center justify-center">
+                <div className="text-center">
                   <Users className="h-12 w-12 mx-auto mb-3 text-white/10" />
                   <p className="text-sm text-white/40">
                     {followers.length === 0 ? "No contacts — use Discover or Fetch All to get started" : "No matches"}
                   </p>
                 </div>
-              ) : (
-                <div className="divide-y divide-white/[0.04]">
-                  {filteredFollowers.map(f => {
-                    const isSelected = selectedIds.has(f.id);
-                    const sendResult = sendResults?.find(r => r.id === f.id);
-                    return (
-                      <button
-                        key={f.id}
-                        onClick={() => toggleSelect(f.id)}
-                        className={`w-full text-left px-5 py-2.5 flex items-center gap-3 transition-colors hover:bg-white/[0.04] cursor-pointer ${isSelected ? "bg-purple-500/[0.08]" : ""}`}
-                      >
-                        <Checkbox
-                          checked={isSelected}
-                          onCheckedChange={() => toggleSelect(f.id)}
-                          className="flex-shrink-0 border-white/20 data-[state=checked]:bg-purple-500 data-[state=checked]:border-purple-500"
-                        />
-                        <UserAvatar src={f.profile_pic} name={f.name} username={f.username} size={9} />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            <p className="text-sm font-medium text-white truncate">{f.name}</p>
-                            {f.gender && f.gender !== "unknown" && (
-                              <span className={`text-[10px] ${f.gender === "female" ? "text-pink-400" : "text-blue-400"}`}>
-                                {f.gender === "female" ? "♀" : "♂"}
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-[11px] text-white/35 truncate">@{f.username}</p>
-                        </div>
-                        <Badge variant="outline" className={`text-[9px] px-1.5 ${
-                          f.source === "fetched" ? "text-orange-400 border-orange-500/20" : 
-                          f.source === "discovered" ? "text-emerald-400 border-emerald-500/20" :
-                          f.source === "follower" || f.source === "engaged" ? "text-cyan-400 border-cyan-500/20" : 
-                          "text-white/25 border-white/10"
-                        }`}>
-                          {f.source === "conversation" ? "DM" : f.source === "fetched" ? "Fetched" : f.source === "discovered" ? "Found" : f.source === "engaged" ? "Engaged" : f.source === "follower" ? "Follower" : "IG"}
-                        </Badge>
-                        {sendResult && (
-                          <Badge
-                            variant="outline"
-                            className={`text-[10px] ${sendResult.success ? "text-green-400 border-green-500/30" : "text-red-400 border-red-500/30"}`}
-                          >
-                            {sendResult.success ? "✓ Sent" : "✗ Failed"}
-                          </Badge>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
+              </div>
+            ) : (
+              <VirtualizedFollowerList
+                followers={filteredFollowers}
+                selectedIds={selectedIds}
+                sendResults={sendResults}
+                toggleSelect={toggleSelect}
+              />
+            )}
 
             {/* Footer */}
             <div className="px-5 py-2 border-t border-white/10 bg-white/[0.02] text-[11px] text-white/40 flex items-center justify-between flex-shrink-0">
-              <span>{filteredFollowers.length} shown · {selectedIds.size} selected</span>
+              <span>{filteredFollowers.length.toLocaleString()} shown · {selectedIds.size.toLocaleString()} selected</span>
               <div className="flex items-center gap-3">
                 {autoChat && <span className="text-blue-400 flex items-center gap-1"><Bot className="h-3 w-3" />AI Auto-chat</span>}
                 <span className="text-white/25">Delay: {delayBetweenMs / 1000}s</span>
@@ -1406,5 +1394,86 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
     </Dialog>
   );
 };
+
+// === VIRTUALIZED FOLLOWER LIST COMPONENT ===
+const VirtualizedFollowerList = memo(({ followers, selectedIds, sendResults, toggleSelect }: {
+  followers: Follower[];
+  selectedIds: Set<string>;
+  sendResults: any[] | null;
+  toggleSelect: (id: string) => void;
+}) => {
+  const parentRef = useRef<HTMLDivElement>(null);
+  
+  const virtualizer = useVirtualizer({
+    count: followers.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 52,
+    overscan: 20,
+  });
+
+  return (
+    <div ref={parentRef} className="flex-1 overflow-y-auto min-h-0" style={{ contain: "strict" }}>
+      <div style={{ height: `${virtualizer.getTotalSize()}px`, width: "100%", position: "relative" }}>
+        {virtualizer.getVirtualItems().map(virtualRow => {
+          const f = followers[virtualRow.index];
+          const isSelected = selectedIds.has(f.id);
+          const sendResult = sendResults?.find(r => r.id === f.id);
+          return (
+            <div
+              key={f.id}
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: "100%",
+                height: `${virtualRow.size}px`,
+                transform: `translateY(${virtualRow.start}px)`,
+              }}
+            >
+              <button
+                onClick={() => toggleSelect(f.id)}
+                className={`w-full text-left px-5 py-2.5 flex items-center gap-3 transition-colors hover:bg-white/[0.04] cursor-pointer h-full border-b border-white/[0.04] ${isSelected ? "bg-purple-500/[0.08]" : ""}`}
+              >
+                <Checkbox
+                  checked={isSelected}
+                  onCheckedChange={() => toggleSelect(f.id)}
+                  className="flex-shrink-0 border-white/20 data-[state=checked]:bg-purple-500 data-[state=checked]:border-purple-500"
+                />
+                <UserAvatar src={f.profile_pic} name={f.name} username={f.username} size={9} />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-sm font-medium text-white truncate">{f.name}</p>
+                    {f.gender && f.gender !== "unknown" && (
+                      <span className={`text-[10px] ${f.gender === "female" ? "text-pink-400" : "text-blue-400"}`}>
+                        {f.gender === "female" ? "♀" : "♂"}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-white/35 truncate">@{f.username}</p>
+                </div>
+                <Badge variant="outline" className={`text-[9px] px-1.5 ${
+                  f.source === "fetched" ? "text-orange-400 border-orange-500/20" : 
+                  f.source === "discovered" ? "text-emerald-400 border-emerald-500/20" :
+                  f.source === "follower" || f.source === "engaged" ? "text-cyan-400 border-cyan-500/20" : 
+                  "text-white/25 border-white/10"
+                }`}>
+                  {f.source === "conversation" ? "DM" : f.source === "fetched" ? "Fetched" : f.source === "discovered" ? "Found" : f.source === "engaged" ? "Engaged" : f.source === "follower" ? "Follower" : "IG"}
+                </Badge>
+                {sendResult && (
+                  <Badge
+                    variant="outline"
+                    className={`text-[10px] ${sendResult.success ? "text-green-400 border-green-500/30" : "text-red-400 border-red-500/30"}`}
+                  >
+                    {sendResult.success ? "✓ Sent" : "✗ Failed"}
+                  </Badge>
+                )}
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+});
 
 export default BulkMessageHub;
