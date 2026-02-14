@@ -399,7 +399,11 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
       if (!igSyncedRef.current.has(selectedConvo)) {
         fetchIGMessages(selectedConvo);
       }
-      supabase.from("ai_dm_conversations").update({ is_read: true }).eq("id", selectedConvo).then();
+      // Mark as read + track last viewed
+      supabase.from("ai_dm_conversations").update({
+        is_read: true,
+        metadata: { ...(conversations.find(c => c.id === selectedConvo)?.metadata || {}), last_viewed_at: new Date().toISOString() },
+      }).eq("id", selectedConvo).then();
     }
   }, [selectedConvo, loadMessages, fetchIGMessages]);
 
@@ -563,6 +567,12 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
     toast.success("Message deleted");
   };
 
+  // Map emoji to IG reaction type
+  const emojiToReactionType = (emoji: string): string => {
+    const map: Record<string, string> = { "❤️": "love", "😂": "haha", "😮": "wow", "😢": "sad", "👍": "like", "🔥": "love", "😡": "angry" };
+    return map[emoji] || "love";
+  };
+
   // React to message on IG
   const reactToMessage = async (msgId: string, reaction: string) => {
     const msg = messages.find(m => m.id === msgId);
@@ -571,12 +581,13 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
       toast.error("Cannot react — message not synced to IG");
       return;
     }
+    const reactionType = emojiToReactionType(reaction);
     try {
       await supabase.functions.invoke("instagram-api", {
         body: {
           action: "send_reaction",
           account_id: accountId,
-          params: { recipient_id: convo.participant_id, message_id: msg.platform_message_id, reaction },
+          params: { recipient_id: convo.participant_id, message_id: msg.platform_message_id, reaction: reactionType },
         },
       });
       // Store reaction locally
@@ -815,6 +826,7 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
                       {convo.last_message_preview || `${convo.message_count || 0} messages`}
                     </p>
                     <div className="flex items-center gap-1 flex-shrink-0 ml-1">
+                      {convo.metadata?.last_viewed_at && <span className="text-muted-foreground/50" ><Eye className="h-2.5 w-2.5" /></span>}
                       {convo.redirect_sent && <ArrowRight className="h-2.5 w-2.5 text-green-400" />}
                       {!convo.is_read && <div className="h-2.5 w-2.5 rounded-full bg-blue-500" />}
                     </div>
@@ -1056,12 +1068,21 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
 
                                   // Story reply
                                   if (storyData) {
-                                    const storyUrl = storyData.url || storyData.link;
+                                    const storyUrl = storyData.url || storyData.link || storyData.mention?.link || storyData.mention?.url;
+                                    const storyMediaUrl = storyData.media_url || storyData.mention?.media_url;
                                     return (
                                       <div className="relative">
                                         <div className="rounded-2xl overflow-hidden border border-border/30 max-w-[220px]">
-                                          <div className="px-2.5 py-1.5 bg-muted/30 text-[10px] text-muted-foreground flex items-center gap-1"><span>📖</span> Replied to story</div>
-                                          {storyUrl && <img src={storyUrl} alt="story" className="w-full max-h-[160px] object-cover cursor-pointer" onClick={() => window.open(storyUrl, "_blank")} />}
+                                          <div className="px-2.5 py-1.5 bg-gradient-to-r from-purple-500/20 via-pink-500/20 to-orange-500/20 text-[10px] text-muted-foreground flex items-center gap-1.5">
+                                            <span className="text-base">📖</span>
+                                            <span className="font-medium">Replied to your story</span>
+                                          </div>
+                                          {(storyMediaUrl || storyUrl) && (
+                                            <div className="relative cursor-pointer" onClick={() => window.open(storyUrl || storyMediaUrl, "_blank")}>
+                                              <img src={storyMediaUrl || storyUrl} alt="story" className="w-full max-h-[200px] object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                                              <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
+                                            </div>
+                                          )}
                                           {msg.content && !msg.content.startsWith("[") && (
                                             <div className={`px-3.5 py-2 ${isMe ? "bg-primary text-primary-foreground" : "bg-muted/60 text-foreground"}`}>
                                               <p className="text-[13px] leading-relaxed whitespace-pre-wrap">{msg.content}</p>
@@ -1075,15 +1096,34 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
 
                                   // Shared post / reel
                                   if (sharesData) {
-                                    const share = Array.isArray(sharesData) ? sharesData[0] : sharesData;
-                                    const shareLink = share?.link || share?.url;
-                                    const shareName = share?.name || share?.title;
+                                    const shareArr = sharesData?.data || (Array.isArray(sharesData) ? sharesData : [sharesData]);
+                                    const share = shareArr?.[0] || sharesData;
+                                    const shareLink = share?.link || share?.url || share?.permalink;
+                                    const shareName = share?.name || share?.title || share?.description;
+                                    const shareImage = share?.image_url || share?.media_url || share?.thumbnail_url || share?.cover_url;
+                                    const isReel = shareLink?.includes("/reel/") || shareLink?.includes("/reels/") || share?.type === "reel";
+                                    const isPost = shareLink?.includes("/p/") || !isReel;
                                     return (
                                       <div className="relative">
-                                        <a href={shareLink} target="_blank" rel="noopener noreferrer" className="block rounded-2xl overflow-hidden border border-border/30 max-w-[240px] hover:border-border/60 transition-colors">
+                                        <a href={shareLink} target="_blank" rel="noopener noreferrer" className="block rounded-2xl overflow-hidden border border-border/30 max-w-[260px] hover:border-border/60 transition-colors group/share">
+                                          {shareImage && (
+                                            <div className="relative">
+                                              <img src={shareImage} alt="" className="w-full max-h-[200px] object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                                              {isReel && (
+                                                <div className="absolute bottom-2 left-2 bg-black/60 rounded-full px-2 py-0.5 flex items-center gap-1">
+                                                  <span className="text-[10px]">🎬</span>
+                                                  <span className="text-[10px] text-white font-medium">Reel</span>
+                                                </div>
+                                              )}
+                                              <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent opacity-0 group-hover/share:opacity-100 transition-opacity" />
+                                            </div>
+                                          )}
                                           <div className="px-3 py-2 bg-muted/30">
-                                            <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground mb-1"><span>📎</span> Shared post</div>
-                                            {shareName && <p className="text-xs font-medium text-foreground truncate">{shareName}</p>}
+                                            <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground mb-1">
+                                              <span>{isReel ? "🎬" : "📎"}</span>
+                                              <span className="font-medium">Shared {isReel ? "reel" : "post"}</span>
+                                            </div>
+                                            {shareName && <p className="text-xs font-medium text-foreground line-clamp-2">{shareName}</p>}
                                             {shareLink && <p className="text-[10px] text-accent truncate mt-1">{shareLink}</p>}
                                           </div>
                                         </a>
@@ -1210,12 +1250,86 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
 
       {/* RIGHT PANEL - AI Automation Tracker */}
       {autoRespondActive && (
-        <div className="w-[260px] min-w-[260px] border-l border-border flex-col bg-muted/5 hidden xl:flex">
+        <div className="w-[280px] min-w-[280px] border-l border-border flex-col bg-muted/5 hidden xl:flex">
           <div className="px-3 py-3 border-b border-border">
             <div className="flex items-center gap-2">
               <Sparkles className="h-4 w-4 text-blue-400" />
               <span className="text-xs font-semibold text-foreground">AI Automation</span>
               <Badge variant="outline" className="text-green-400 border-green-500/30 text-[9px] ml-auto animate-pulse">Active</Badge>
+            </div>
+          </div>
+
+          {/* Bulk Actions */}
+          <div className="px-3 py-2.5 border-b border-border/50">
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2">Bulk Actions</p>
+            <div className="space-y-1.5">
+              <Button
+                size="sm"
+                variant="outline"
+                className="w-full h-8 text-[10px] justify-start gap-2 border-blue-500/20 text-blue-400 hover:bg-blue-500/10"
+                disabled={processing}
+                onClick={async () => {
+                  const unread = conversations.filter(c => !c.is_read);
+                  if (unread.length === 0) { toast.info("No unopened conversations"); return; }
+                  // Enable AI on all unread convos then process
+                  for (const c of unread) {
+                    if (!c.ai_enabled) {
+                      await supabase.from("ai_dm_conversations").update({ ai_enabled: true }).eq("id", c.id);
+                    }
+                  }
+                  addLog("system", `Targeting ${unread.length} unopened convos`, "processing");
+                  toast.info(`Processing ${unread.length} unopened conversations...`);
+                  await processDMs();
+                  await loadConversations();
+                }}
+              >
+                <Inbox className="h-3 w-3" />
+                Answer All Unopened ({conversations.filter(c => !c.is_read).length})
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="w-full h-8 text-[10px] justify-start gap-2 border-purple-500/20 text-purple-400 hover:bg-purple-500/10"
+                disabled={processing}
+                onClick={async () => {
+                  if (selectedConvo) {
+                    const convo = conversations.find(c => c.id === selectedConvo);
+                    if (!convo) return;
+                    await supabase.from("ai_dm_conversations").update({ ai_enabled: true, is_read: false }).eq("id", selectedConvo);
+                    addLog(`@${convo.participant_username}`, "Relaunching conversation", "processing");
+                    toast.info(`Relaunching convo with @${convo.participant_username}...`);
+                    await processDMs();
+                    await loadConversations();
+                    if (selectedConvo) await loadMessages(selectedConvo);
+                  } else {
+                    toast.error("Select a conversation to relaunch");
+                  }
+                }}
+              >
+                <RefreshCw className="h-3 w-3" />
+                Relaunch Current Convo
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="w-full h-8 text-[10px] justify-start gap-2 border-orange-500/20 text-orange-400 hover:bg-orange-500/10"
+                disabled={processing}
+                onClick={async () => {
+                  const count = conversations.length;
+                  if (count === 0) { toast.info("No conversations"); return; }
+                  // Enable AI + mark unread on all convos to force reprocessing
+                  for (const c of conversations) {
+                    await supabase.from("ai_dm_conversations").update({ ai_enabled: true, is_read: false }).eq("id", c.id);
+                  }
+                  addLog("system", `Relaunching ALL ${count} conversations`, "processing");
+                  toast.info(`Relaunching ${count} conversations...`);
+                  await processDMs();
+                  await loadConversations();
+                }}
+              >
+                <Zap className="h-3 w-3" />
+                Relaunch All ({conversations.length})
+              </Button>
             </div>
           </div>
 
@@ -1298,8 +1412,8 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
                 <p className="text-sm font-bold text-orange-400">{conversations.filter(c => !c.is_read).length}</p>
               </div>
               <div>
-                <p className="text-[9px] text-muted-foreground/50">Redirected</p>
-                <p className="text-sm font-bold text-green-400">{conversations.filter(c => c.redirect_sent).length}</p>
+                <p className="text-[9px] text-muted-foreground/50">Viewed</p>
+                <p className="text-sm font-bold text-green-400">{conversations.filter(c => c.metadata?.last_viewed_at).length}</p>
               </div>
             </div>
           </div>
