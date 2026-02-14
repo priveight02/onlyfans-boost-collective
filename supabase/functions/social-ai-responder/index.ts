@@ -10,25 +10,19 @@ const corsHeaders = {
 // Simulates realistic human typing speed with randomness
 function humanTypingDelay(text: string): number {
   const charCount = text.length;
-  const wordCount = text.split(/\s+/).length;
-  // Average human types 40-70 WPM = ~85-150ms per character with variance
-  // Short msgs (1-5 words): 2-4s (quick tap-send)
-  // Medium msgs (6-15 words): 4-8s
-  // Longer msgs (16+ words): 7-12s
-  const baseMs = charCount * (80 + Math.random() * 70); // 80-150ms per char
-  // Add "thinking" time — humans pause before typing
-  const thinkMs = 1000 + Math.random() * 2000; // 1-3s think time
-  // Add small random jitter for naturalness
-  const jitter = Math.random() * 1500; // 0-1.5s jitter
+  // Fast typing: 50-90ms per char with minimal think time
+  const baseMs = charCount * (50 + Math.random() * 40); // 50-90ms per char
+  const thinkMs = 400 + Math.random() * 800; // 0.4-1.2s think time
+  const jitter = Math.random() * 500; // 0-0.5s jitter
   const total = thinkMs + baseMs + jitter;
-  // Clamp: min 2.5s (even for "lol"), max 12s (nobody types that slow for short msgs)
-  return Math.min(Math.max(total, 2500), 12000);
+  // Clamp: min 1s, max 4s — fast and snappy
+  return Math.min(Math.max(total, 1000), 4000);
 }
 
 // Inter-message delay — prevents sending 2 msgs at exact same time
 function interMessageDelay(): number {
-  // 3-8 seconds between messages to different people
-  return 3000 + Math.random() * 5000;
+  // 1-3 seconds between messages to different people
+  return 1000 + Math.random() * 2000;
 }
 
 // Default young-woman persona — GRANDMASTER LEVEL psychology + seduction + conversion engine
@@ -2375,7 +2369,21 @@ Follow these persona settings strictly. They override any conflicting defaults a
             } else if (freePicPendingAt) {
               const pendingTime = new Date(freePicPendingAt).getTime();
               const elapsed = Date.now() - pendingTime;
-              const delayMs = 90000 + Math.random() * 60000; // 1.5-2.5 min
+              
+              // While we're waiting for the pic delivery, if the fan sends ANYTHING (like "Ok", "sure", etc.)
+              // just react with ❤️ and DO NOT send a text message — we're "taking the pic"
+              if (latestMsg && latestMsg.sender_type === "fan" && latestMsg.platform_message_id) {
+                try {
+                  await callIG2("send_reaction", {
+                    recipient_id: dbConvo.participant_id,
+                    message_id: latestMsg.platform_message_id,
+                    reaction: "love",
+                  });
+                  console.log(`[FREE PIC PENDING] Reacted with ❤️ to @${dbConvo.participant_username}'s "${(latestMsg.content || "").substring(0, 30)}" while waiting for pic`);
+                } catch (reactErr) {
+                  console.log("[FREE PIC PENDING] Reaction failed (non-blocking):", reactErr);
+                }
+              }
               
               if (elapsed < 80000) {
                 // Not enough time has passed — RESTORE lock so next cycle re-enters
@@ -2405,9 +2413,34 @@ Follow these persona settings strictly. They override any conflicting defaults a
                   last_ai_reply_at: new Date().toISOString(),
                 }).eq("id", dbConvo.id);
                 
+                // Send a cute message BEFORE the pic
+                const cuteMsgs = [
+                  "ok here u go dont say i never did anything for u",
+                  "just for u tho dont go showing everyone",
+                  "ok ok here take this before i change my mind",
+                  "mm ok since u waited so nicely",
+                  "here u go hope u like it",
+                  "ok i took this just for u be grateful lol",
+                ];
+                const cuteMsg = cuteMsgs[Math.floor(Math.random() * cuteMsgs.length)];
+                await new Promise(r => setTimeout(r, humanTypingDelay(cuteMsg)));
+                const cuteResult = await callIGFP2("send_message", { recipient_id: dbConvo.participant_id, message: cuteMsg });
+                const cuteMsgId = cuteResult?.data?.message_id || cuteResult?.message_id || null;
+                
+                // Log cute msg in DB
+                await supabase.from("ai_dm_messages").insert({
+                  conversation_id: dbConvo.id, account_id,
+                  sender_type: "ai", sender_name: igConn2.platform_username || "creator",
+                  content: cuteMsg, status: "sent", ai_model: "free_pic_engine",
+                  platform_message_id: cuteMsgId,
+                });
+                
+                // Short delay then send the pic
+                await new Promise(r => setTimeout(r, 1000 + Math.random() * 1500));
+                
                 // Send the pic
                 const freePicUrl = DEFAULT_FREE_PIC_URL;
-                console.log(`[FREE PIC PHASE 2] Sending image: ${freePicUrl}`);
+                console.log(`[FREE PIC PHASE 2] Sending image to @${dbConvo.participant_username}: ${freePicUrl}`);
                 const mediaResult = await callIGFP2("send_media_message", {
                   recipient_id: dbConvo.participant_id,
                   media_type: "image",
