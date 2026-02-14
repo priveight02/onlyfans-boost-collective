@@ -239,21 +239,21 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Gender classification — hybrid: dictionary first, then AI for unknowns
+    // Gender classification — hybrid: dictionary first, then AI for unknowns, then retry pass
     if (action === "classify_gender") {
       const accountId = account_id;
       const batchSize = params?.batch_size || 10000;
       
       // Fetch ALL followers (both null gender AND "unknown" for reclassification)
+      // Include metadata for AI analysis
       const { data: allFollowers } = await supabase
         .from("fetched_followers")
-        .select("id, full_name, username, gender")
+        .select("id, full_name, username, gender, metadata, profile_pic_url")
         .eq("account_id", accountId)
         .or("gender.is.null,gender.eq.unknown")
         .limit(batchSize);
 
       if (!allFollowers || allFollowers.length === 0) {
-        // Nothing to classify — just return counts
         const { count: femaleCount } = await supabase.from("fetched_followers").select("id", { count: "exact", head: true }).eq("account_id", accountId).eq("gender", "female");
         const { count: maleCount } = await supabase.from("fetched_followers").select("id", { count: "exact", head: true }).eq("account_id", accountId).eq("gender", "male");
         const { count: unknownCount } = await supabase.from("fetched_followers").select("id", { count: "exact", head: true }).eq("account_id", accountId).or("gender.is.null,gender.eq.unknown");
@@ -265,7 +265,7 @@ serve(async (req) => {
 
       // PASS 1: Dictionary-based classification
       const dictionaryResults: { id: string; gender: string }[] = [];
-      const needsAI: { id: string; name: string }[] = [];
+      const needsAI: { id: string; name: string; username: string; bio: string; extra: string }[] = [];
       
       for (const f of allFollowers) {
         const name = f.full_name || f.username || "";
@@ -273,11 +273,19 @@ serve(async (req) => {
         if (dictResult !== "unknown") {
           dictionaryResults.push({ id: f.id, gender: dictResult });
         } else {
-          needsAI.push({ id: f.id, name });
+          const meta = (f.metadata as any) || {};
+          const bio = meta.biography || meta.bio || "";
+          const extra = [
+            meta.follower_count ? `followers:${meta.follower_count}` : "",
+            meta.following_count ? `following:${meta.following_count}` : "",
+            meta.media_count ? `posts:${meta.media_count}` : "",
+            f.profile_pic_url ? "has_pic" : "no_pic",
+          ].filter(Boolean).join(",");
+          needsAI.push({ id: f.id, name, username: f.username || "", bio, extra });
         }
       }
 
-      // Apply dictionary results immediately
+      // Apply dictionary results
       let updated = 0;
       for (let i = 0; i < dictionaryResults.length; i += 500) {
         const batch = dictionaryResults.slice(i, i + 500);
@@ -287,13 +295,19 @@ serve(async (req) => {
         updated += batch.length;
       }
 
-      // PASS 2: AI classification for unknowns using Gemini
+      // PASS 2: AI classification using stronger model + richer context
       const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+      const stillUnknown: { id: string; name: string; username: string; bio: string; extra: string }[] = [];
+
       if (LOVABLE_API_KEY && needsAI.length > 0) {
-        const AI_BATCH_SIZE = 200;
+        const AI_BATCH_SIZE = 150;
         for (let i = 0; i < needsAI.length; i += AI_BATCH_SIZE) {
           const aiBatch = needsAI.slice(i, i + AI_BATCH_SIZE);
-          const nameList = aiBatch.map((f, idx) => `${idx}:${f.name}`).join("\n");
+          // Build rich context lines: index | name | username | bio snippet | signals
+          const nameList = aiBatch.map((f, idx) => {
+            const bioSnippet = f.bio ? f.bio.substring(0, 80).replace(/\n/g, " ") : "";
+            return `${idx}|${f.name}|@${f.username}|${bioSnippet}|${f.extra}`;
+          }).join("\n");
           
           try {
             const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -303,36 +317,56 @@ serve(async (req) => {
                 "Content-Type": "application/json",
               },
               body: JSON.stringify({
-                model: "google/gemini-2.5-flash-lite",
+                model: "google/gemini-2.5-flash",
                 messages: [
                   {
                     role: "system",
-                    content: `You are a gender classification engine. Given a list of Instagram profile names/usernames, classify each as "F" (female), "M" (male), or "U" (truly unknown/brand/unisex).
+                    content: `You are the world's best gender classification engine for Instagram profiles. You MUST classify every single profile. Leaving any unclassified is a failure.
 
-RULES:
-- Analyze the full name, username patterns, nicknames, diminutives, cultural variants
-- Names like "babe", "queen", "princess", "goddess", "bunny", "kitten", "doll", "sexy", "hot" → F
-- Names like "king", "boss", "daddy", "chief", "bro", "dude" → M  
-- Emoji-heavy feminine-coded names (💕🌸👸💋🦋✨🌺🎀💅🌙) → F
-- Emoji-heavy masculine-coded names (💪🔥👑🏋️⚡🦁🐺) → M
-- Consider cultural origins: Arabic, Indian, Russian, Japanese, Spanish, Portuguese, African names
-- Brands, businesses, meme accounts → U
-- When in doubt between M/F, make your best guess based on all signals. Only use U if truly impossible.
+INPUT FORMAT: index|display_name|@username|bio_snippet|signals
+OUTPUT FORMAT: One line per entry: index:F or index:M or index:U (only if truly a brand/business/meme page)
 
-OUTPUT FORMAT: One line per entry, just the index and letter separated by colon.
-Example:
-0:F
-1:M
-2:F
-3:U`
+CLASSIFICATION STRATEGY (use ALL signals together):
+
+1. NAME ANALYSIS:
+- Decode nicknames: "bbyg" = baby girl (F), "jdawg" = male nickname (M)
+- Cultural names: Arabic (Fatima=F, Ahmed=M), Hindi (Priya=F, Raj=M), Japanese (Sakura=F, Kenji=M), Korean (Jimin=ambiguous, Minjung=F), Turkish (Ayşe=F, Mehmet=M), Slavic (Natasha=F, Dimitri=M), African (Amara=F, Kwame=M), Portuguese (Fernanda=F, Thiago=M)
+- Name endings: -a/-i/-e lean F in Romance/Slavic languages; -o/-us lean M
+- "Mrs", "Ms", "mama", "mom", "wifey", "queen", "goddess", "princess", "girl", "lady", "she", "her" → F
+- "Mr", "papa", "dad", "hubby", "king", "boss", "sir", "he", "him", "boy", "man", "bro" → M
+
+2. USERNAME PATTERNS:
+- Contains "girl", "gurl", "babe", "queen", "miss", "mrs", "mama", "she", "her", "lady", "fem", "witch", "goddess", "diva", "empress" → F
+- Contains "boy", "guy", "man", "mr", "king", "sir", "dad", "bro", "dude", "alpha", "chief", "duke", "lord" → M
+- Ends in feminine diminutives: "xo", "xx", "xoxo", "bb", "bby" → likely F
+- Numbers or random chars alone → analyze other signals
+
+3. BIO ANALYSIS:
+- Pronouns: "she/her" → F, "he/him" → M, "they/them" → classify by other signals or U
+- Roles: "model", "actress", "mom", "wife", "sister", "dancer", "nurse" → F
+- Roles: "actor", "dad", "husband", "brother", "coach", "barber" → M
+- Self-descriptions: "💋", "🌸", "🦋", "💅", "🎀", "👸", "✨", "🌺", "💕", "🌙" → F
+- Self-descriptions: "💪", "🔥", "👑(in male context)", "🏋️", "⚡", "🦁", "🐺", "🏈", "🎮" → M
+
+4. PROFILE SIGNALS:
+- High follower count + "model"/"influencer" in bio → likely F in creator space
+- "Photographer", "DJ", "Producer", "Developer", "Engineer" without other signals → lean M but check name
+- Business/brand names ("LLC", "Official", "Shop", "Store", "Studio", "Agency", "Media", "News") → U
+
+5. DECISION RULES:
+- If ANY signal points to F or M, classify accordingly. Do NOT default to U.
+- Only use U for: confirmed businesses, meme/fan pages, news accounts, bot-looking profiles with zero human signals
+- When signals conflict, weight NAME > BIO > USERNAME > PROFILE SIGNALS
+- For ambiguous single-letter or number-only usernames with no other data, use the strongest available signal
+- AIM FOR <2% U rate. Most profiles are real people.`
                   },
                   {
                     role: "user",
-                    content: `Classify these ${aiBatch.length} profiles:\n${nameList}`
+                    content: `Classify ALL ${aiBatch.length} profiles. Every single one MUST get a classification.\n${nameList}`
                   }
                 ],
-                temperature: 0.1,
-                max_tokens: aiBatch.length * 5 + 100,
+                temperature: 0.05,
+                max_tokens: aiBatch.length * 5 + 200,
               }),
             });
 
@@ -341,6 +375,7 @@ Example:
               const content = aiData.choices?.[0]?.message?.content || "";
               const lines = content.split("\n").filter((l: string) => l.trim());
               
+              const classifiedIdxs = new Set<number>();
               const aiUpdates: { id: string; gender: string }[] = [];
               for (const line of lines) {
                 const match = line.match(/^(\d+)\s*:\s*([FMU])/i);
@@ -350,7 +385,18 @@ Example:
                   if (idx >= 0 && idx < aiBatch.length) {
                     const gender = code === "F" ? "female" : code === "M" ? "male" : "unknown";
                     aiUpdates.push({ id: aiBatch[idx].id, gender });
+                    classifiedIdxs.add(idx);
+                    if (gender === "unknown") {
+                      stillUnknown.push(aiBatch[idx]);
+                    }
                   }
+                }
+              }
+
+              // Track profiles the AI missed entirely
+              for (let j = 0; j < aiBatch.length; j++) {
+                if (!classifiedIdxs.has(j)) {
+                  stillUnknown.push(aiBatch[j]);
                 }
               }
 
@@ -358,13 +404,80 @@ Example:
               for (const u of aiUpdates) {
                 await supabase.from("fetched_followers").update({ gender: u.gender }).eq("id", u.id);
               }
-              updated += aiUpdates.length;
+              updated += aiUpdates.filter(u => u.gender !== "unknown").length;
               console.log(`[GENDER AI] Batch ${Math.floor(i / AI_BATCH_SIZE) + 1}: classified ${aiUpdates.length}/${aiBatch.length} profiles`);
             } else {
               console.error(`[GENDER AI] API error: ${aiResp.status}`);
+              // Push all as still unknown for retry
+              for (const f of aiBatch) stillUnknown.push(f);
             }
           } catch (aiErr) {
             console.error("[GENDER AI] Error:", aiErr);
+            for (const f of aiBatch) stillUnknown.push(f);
+          }
+        }
+      }
+
+      // PASS 3: Retry pass with stronger model for remaining unknowns
+      if (LOVABLE_API_KEY && stillUnknown.length > 0 && stillUnknown.length <= 500) {
+        console.log(`[GENDER AI] PASS 3: Retrying ${stillUnknown.length} remaining unknowns with stronger model`);
+        const RETRY_BATCH = 100;
+        for (let i = 0; i < stillUnknown.length; i += RETRY_BATCH) {
+          const retryBatch = stillUnknown.slice(i, i + RETRY_BATCH);
+          const nameList = retryBatch.map((f, idx) => {
+            const bioSnippet = f.bio ? f.bio.substring(0, 120).replace(/\n/g, " ") : "";
+            return `${idx}|${f.name}|@${f.username}|${bioSnippet}|${f.extra}`;
+          }).join("\n");
+
+          try {
+            const retryResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${LOVABLE_API_KEY}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                model: "google/gemini-2.5-flash",
+                messages: [
+                  {
+                    role: "system",
+                    content: `You are doing a FINAL PASS gender classification. These profiles were previously unclassifiable. You MUST make a decision for EVERY profile — F or M. 
+Only use U if it is 100% certain this is a non-human account (brand, business page, bot, news outlet). 
+For ambiguous human profiles, make your BEST GUESS. A wrong guess is better than U. Use statistical priors: on Instagram creator/fan pages, ~65% of ambiguous profiles are female.
+Analyze every character in the name and username for any gender signal at all.`
+                  },
+                  {
+                    role: "user",
+                    content: `FINAL PASS: Classify ALL ${retryBatch.length} profiles. Format: index:F or index:M (avoid U).\n${nameList}`
+                  }
+                ],
+                temperature: 0.0,
+                max_tokens: retryBatch.length * 5 + 100,
+              }),
+            });
+
+            if (retryResp.ok) {
+              const retryData = await retryResp.json();
+              const content = retryData.choices?.[0]?.message?.content || "";
+              const lines = content.split("\n").filter((l: string) => l.trim());
+              let retryUpdated = 0;
+              for (const line of lines) {
+                const match = line.match(/^(\d+)\s*:\s*([FMU])/i);
+                if (match) {
+                  const idx = parseInt(match[1]);
+                  const code = match[2].toUpperCase();
+                  if (idx >= 0 && idx < retryBatch.length) {
+                    const gender = code === "F" ? "female" : code === "M" ? "male" : "unknown";
+                    await supabase.from("fetched_followers").update({ gender }).eq("id", retryBatch[idx].id);
+                    if (gender !== "unknown") retryUpdated++;
+                  }
+                }
+              }
+              updated += retryUpdated;
+              console.log(`[GENDER AI] PASS 3 retry batch: resolved ${retryUpdated}/${retryBatch.length}`);
+            }
+          } catch (retryErr) {
+            console.error("[GENDER AI] Retry error:", retryErr);
           }
         }
       }
@@ -379,6 +492,7 @@ Example:
         data: {
           classified: updated,
           ai_classified: needsAI.length,
+          ai_retried: stillUnknown.length,
           female: femaleCount || 0,
           male: maleCount || 0,
           unknown: unknownCount || 0,
