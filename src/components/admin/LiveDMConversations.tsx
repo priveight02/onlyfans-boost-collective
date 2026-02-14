@@ -157,17 +157,82 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
       });
       if (error || !data?.success) return;
       const igMessages = data.data?.messages?.data || [];
-      let updated = false;
+      let changed = false;
+
+      // Get our IG connection info for sender detection
+      const { data: igConn } = await supabase
+        .from("social_connections")
+        .select("platform_user_id, platform_username")
+        .eq("account_id", accountId)
+        .eq("platform", "instagram")
+        .single();
+      const ourUsername = igConn?.platform_username?.toLowerCase() || "";
+      const ourIgId = igConn?.platform_user_id || "";
+
       for (const igMsg of igMessages) {
-        if (igMsg.attachments) {
-          const { data: updatedRows } = await supabase.from("ai_dm_messages")
-            .update({ metadata: { attachments: igMsg.attachments?.data || igMsg.attachments } })
-            .eq("platform_message_id", igMsg.id)
-            .select("id");
-          if (updatedRows && updatedRows.length > 0) updated = true;
+        // Check if this message exists in DB
+        const { data: existing } = await supabase
+          .from("ai_dm_messages")
+          .select("id, content, metadata")
+          .eq("platform_message_id", igMsg.id)
+          .limit(1);
+
+        const msgText = igMsg.message || igMsg.text || "";
+        const rawAtt = igMsg.attachments?.data || igMsg.attachments;
+        const hasAtt = rawAtt && (Array.isArray(rawAtt) ? rawAtt.length > 0 : true);
+        const attData = hasAtt
+          ? { attachments: Array.isArray(rawAtt) ? rawAtt : [rawAtt], sticker: igMsg.sticker || null, shares: igMsg.shares || null }
+          : (igMsg.sticker ? { sticker: igMsg.sticker } : (igMsg.shares ? { shares: igMsg.shares } : null));
+
+        let contentText = msgText;
+        if (!contentText && hasAtt) {
+          const attArr = Array.isArray(rawAtt) ? rawAtt : [rawAtt];
+          const attType = attArr[0]?.mime_type || attArr[0]?.type || "";
+          if (attType.includes("video")) contentText = "[video]";
+          else if (attType.includes("image") || attType.includes("photo")) contentText = "[photo]";
+          else if (attType.includes("audio")) contentText = "[audio]";
+          else if (igMsg.sticker) contentText = "[sticker]";
+          else if (igMsg.shares) contentText = "[shared post]";
+          else contentText = "[attachment]";
+        } else if (!contentText) {
+          if (igMsg.sticker) contentText = "[sticker]";
+          else if (igMsg.shares) contentText = "[shared post]";
+        }
+
+        if (existing && existing.length > 0) {
+          // Update if content was empty or metadata missing
+          const ex = existing[0];
+          const needsUpdate = (!ex.content && contentText) || (!ex.metadata && attData);
+          if (needsUpdate) {
+            await supabase.from("ai_dm_messages").update({
+              ...(contentText && !ex.content ? { content: contentText } : {}),
+              ...(attData && !ex.metadata ? { metadata: attData } : {}),
+            }).eq("id", ex.id);
+            changed = true;
+          }
+        } else {
+          // Import missing message
+          const fromName = (igMsg.from?.username || igMsg.from?.name || "").toLowerCase();
+          const isFromFan = igMsg.from?.id
+            ? (igMsg.from.id !== ourIgId && fromName !== ourUsername)
+            : true;
+
+          await supabase.from("ai_dm_messages").insert({
+            conversation_id: convoId,
+            account_id: accountId,
+            platform_message_id: igMsg.id,
+            sender_type: isFromFan ? "fan" : "manual",
+            sender_name: isFromFan ? (convo.participant_username || convo.participant_name || "fan") : (ourUsername || "you"),
+            content: contentText || "",
+            status: "sent",
+            created_at: igMsg.created_time || igMsg.timestamp ? new Date(igMsg.created_time || igMsg.timestamp).toISOString() : new Date().toISOString(),
+            metadata: attData,
+          });
+          changed = true;
         }
       }
-      if (updated) {
+
+      if (changed) {
         const { data: freshMsgs } = await supabase
           .from("ai_dm_messages")
           .select("*")
@@ -175,7 +240,9 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
           .order("created_at", { ascending: true });
         if (freshMsgs) setMessages(freshMsgs as Message[]);
       }
-    } catch {}
+    } catch (e) {
+      console.error("fetchIGMessages error:", e);
+    }
   };
 
   // Scan ALL conversations from Instagram

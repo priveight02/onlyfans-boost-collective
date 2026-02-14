@@ -390,7 +390,7 @@ serve(async (req) => {
       case "get_conversations": {
         const limit = params?.limit || 20;
         const folder = params?.folder || "";
-        const richFields = `id,participants,messages.limit(${params?.messages_limit || 5}){id,text,from,to,timestamp,attachments},updated_time`;
+        const richFields = `id,participants,messages.limit(${params?.messages_limit || 5}){id,message,from,to,created_time,attachments},updated_time`;
         
         let realUserId = igUserId;
         try {
@@ -449,7 +449,7 @@ serve(async (req) => {
       case "get_all_conversations": {
         const allLimit = params?.limit || 50;
         const msgLimit = params?.messages_limit || 10;
-        const richFields = `id,participants,messages.limit(${msgLimit}){id,text,from,to,timestamp,attachments},updated_time`;
+        const richFields = `id,participants,messages.limit(${msgLimit}){id,message,from,to,created_time,attachments},updated_time`;
         
         let realUserId = igUserId;
         try {
@@ -567,7 +567,7 @@ serve(async (req) => {
       case "get_conversation_messages": {
         if (!params?.conversation_id) throw new Error("conversation_id required");
         const msgLimit = params?.limit || 20;
-        result = await igFetch(`/${params.conversation_id}?fields=messages.limit(${msgLimit}){id,text,from,to,timestamp,attachments}`, token);
+        result = await igFetch(`/${params.conversation_id}?fields=messages.limit(${msgLimit}){id,message,from,to,created_time,attachments}`, token);
         break;
       }
 

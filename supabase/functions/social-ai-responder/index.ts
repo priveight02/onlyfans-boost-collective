@@ -705,7 +705,7 @@ Rules:
 
               // Determine if last message is from fan using both ID and username matching
               const lastMsg = messages[0];
-              const lastPreview = (lastMsg?.text || lastMsg?.message)?.substring(0, 100) || null;
+              const lastPreview = (lastMsg?.message || lastMsg?.text)?.substring(0, 100) || null;
               const lastMsgFromId = lastMsg?.from?.id;
               const lastMsgFromName = (lastMsg?.from?.username || lastMsg?.from?.name || "").toLowerCase();
               const isFromFanLast = lastMsgFromId ? 
@@ -737,8 +737,8 @@ Rules:
               // Import messages
               const sortedMsgs = [...messages].reverse();
               for (const msg of sortedMsgs) {
-                const msgText = msg.text || msg.message || "";
-                if (!msgText && !msg.id) continue;
+                const msgText = msg.message || msg.text || "";
+                if (!msgText && !msg.id && !msg.attachments) continue;
                 const { data: existing } = await supabase
                   .from("ai_dm_messages")
                   .select("id")
@@ -751,7 +751,7 @@ Rules:
                 const isFromFan = msgFromId ? 
                   (msgFromId !== ourIdScan && msgFromName !== ourUsernameScan) : 
                   true;
-                const msgTimestamp = msg.timestamp || msg.created_time;
+                const msgTimestamp = msg.created_time || msg.timestamp;
                 const rawAttachments = msg.attachments?.data || msg.attachments;
                 const hasAttachments = rawAttachments && (Array.isArray(rawAttachments) ? rawAttachments.length > 0 : true);
                 const attachmentData = hasAttachments 
@@ -878,14 +878,14 @@ Rules:
             if (!scDbConvo) continue;
             
             for (const scMsg of [...scMsgs].reverse()) {
-              const scMsgText = scMsg.text || scMsg.message || "";
-              if (!scMsgText && !scMsg.id) continue;
+              const scMsgText = scMsg.message || scMsg.text || "";
+              if (!scMsgText && !scMsg.id && !scMsg.attachments) continue;
               const { data: scEx } = await supabase.from("ai_dm_messages").select("id").eq("platform_message_id", scMsg.id).limit(1);
               if (scEx && scEx.length > 0) continue;
               const scFromName = (scMsg.from?.username || scMsg.from?.name || "").toLowerCase();
               const scIsFromFan = scMsg.from?.id ? 
                 (scMsg.from.id !== ourIdScan2 && scFromName !== ourUsernameScan2) : true;
-              const scMsgTimestamp = scMsg.timestamp || scMsg.created_time;
+              const scMsgTimestamp = scMsg.created_time || scMsg.timestamp;
               const scRawAtt = scMsg.attachments?.data || scMsg.attachments;
               const scHasAtt = scRawAtt && (Array.isArray(scRawAtt) ? scRawAtt.length > 0 : true);
               const scAttData = scHasAtt 
