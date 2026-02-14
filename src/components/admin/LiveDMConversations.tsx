@@ -203,9 +203,8 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
         const rawAtt = igMsg.attachments?.data || igMsg.attachments;
         const hasAtt = rawAtt && (Array.isArray(rawAtt) ? rawAtt.length > 0 : true);
         const attData = hasAtt
-          ? { attachments: Array.isArray(rawAtt) ? rawAtt : [rawAtt], sticker: igMsg.sticker || null, shares: igMsg.shares || null }
-          : (igMsg.sticker ? { sticker: igMsg.sticker } : (igMsg.shares ? { shares: igMsg.shares } : null));
-
+          ? { attachments: Array.isArray(rawAtt) ? rawAtt : [rawAtt], sticker: igMsg.sticker || null, shares: igMsg.shares || null, story: igMsg.story || null }
+          : (igMsg.sticker ? { sticker: igMsg.sticker } : (igMsg.shares ? { shares: igMsg.shares } : (igMsg.story ? { story: igMsg.story } : null)));
         let contentText = msgText;
         if (!contentText && hasAtt) {
           const attArr = Array.isArray(rawAtt) ? rawAtt : [rawAtt];
@@ -215,10 +214,12 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
           else if (attType.includes("audio")) contentText = "[audio]";
           else if (igMsg.sticker) contentText = "[sticker]";
           else if (igMsg.shares) contentText = "[shared post]";
+          else if (igMsg.story) contentText = "[story reply]";
           else contentText = "[attachment]";
         } else if (!contentText) {
           if (igMsg.sticker) contentText = "[sticker]";
           else if (igMsg.shares) contentText = "[shared post]";
+          else if (igMsg.story) contentText = "[story reply]";
         }
 
         if (existing && existing.length > 0) {
@@ -529,20 +530,90 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
     }
   };
 
-  // Edit message (local only)
+  // Edit message (local only — IG API doesn't support editing sent DMs)
   const saveEdit = async (msgId: string) => {
     if (!editText.trim()) return;
     await supabase.from("ai_dm_messages").update({ content: editText }).eq("id", msgId);
     setEditingMsgId(null);
     setEditText("");
-    if (selectedConvo) loadMessages(selectedConvo);
+    if (selectedConvo) {
+      const fresh = await loadMessagesToCache(selectedConvo);
+      setMessages(fresh);
+    }
   };
 
-  // Delete message (local only)
+  // Delete message — sync to IG + local DB
   const deleteMessage = async (msgId: string) => {
+    const msg = messages.find(m => m.id === msgId);
+    // Try to delete on IG if we have a platform_message_id
+    if (msg?.platform_message_id) {
+      try {
+        await supabase.functions.invoke("instagram-api", {
+          body: { action: "delete_message", account_id: accountId, params: { message_id: msg.platform_message_id } },
+        });
+      } catch (e) {
+        console.warn("IG delete failed (may not be supported):", e);
+      }
+    }
     await supabase.from("ai_dm_messages").delete().eq("id", msgId);
-    if (selectedConvo) loadMessages(selectedConvo);
+    if (selectedConvo) {
+      const fresh = await loadMessagesToCache(selectedConvo);
+      setMessages(fresh);
+    }
     toast.success("Message deleted");
+  };
+
+  // React to message on IG
+  const reactToMessage = async (msgId: string, reaction: string) => {
+    const msg = messages.find(m => m.id === msgId);
+    const convo = conversations.find(c => c.id === selectedConvo);
+    if (!msg?.platform_message_id || !convo) {
+      toast.error("Cannot react — message not synced to IG");
+      return;
+    }
+    try {
+      await supabase.functions.invoke("instagram-api", {
+        body: {
+          action: "send_reaction",
+          account_id: accountId,
+          params: { recipient_id: convo.participant_id, message_id: msg.platform_message_id, reaction },
+        },
+      });
+      // Store reaction locally
+      const existingMeta = msg.metadata || {};
+      await supabase.from("ai_dm_messages").update({
+        metadata: { ...existingMeta, my_reaction: reaction },
+      }).eq("id", msgId);
+      if (selectedConvo) {
+        const fresh = await loadMessagesToCache(selectedConvo);
+        setMessages(fresh);
+      }
+      toast.success(`Reacted with ${reaction}`);
+    } catch (e: any) {
+      toast.error(e.message || "Reaction failed");
+    }
+  };
+
+  const removeReaction = async (msgId: string) => {
+    const msg = messages.find(m => m.id === msgId);
+    const convo = conversations.find(c => c.id === selectedConvo);
+    if (!msg?.platform_message_id || !convo) return;
+    try {
+      await supabase.functions.invoke("instagram-api", {
+        body: {
+          action: "remove_reaction",
+          account_id: accountId,
+          params: { recipient_id: convo.participant_id, message_id: msg.platform_message_id },
+        },
+      });
+      const existingMeta = msg.metadata || {};
+      delete existingMeta.my_reaction;
+      await supabase.from("ai_dm_messages").update({ metadata: existingMeta }).eq("id", msgId);
+      if (selectedConvo) {
+        const fresh = await loadMessagesToCache(selectedConvo);
+        setMessages(fresh);
+      }
+    } catch {}
   };
 
   // Filter conversations
@@ -923,85 +994,153 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
                               </div>
                             ) : (
                               <>
-                                <div className={`rounded-2xl px-3.5 py-2 ${
-                                  isMe
-                                    ? msg.sender_type === "ai"
-                                      ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white"
-                                      : "bg-primary text-primary-foreground"
-                                    : "bg-muted/60 text-foreground"
-                                }`}>
-                                  {(() => {
-                                    const attachments = msg.metadata?.attachments;
-                                    const hasMedia = Array.isArray(attachments) && attachments.length > 0;
-                                    const stickerData = msg.metadata?.sticker;
-                                    const sharesData = msg.metadata?.shares;
-                                    
-                                    if (hasMedia) {
-                                      return (
-                                        <div>
-                                          {attachments.map((att: any, i: number) => {
-                                            const url = att.file_url || att.image_data?.url || att.video_data?.url || att.url;
-                                            const mimeType = att.mime_type || att.type || "";
-                                            if (!url) return null;
-                                            if (mimeType.includes("video") || att.video_data) {
-                                              return <video key={i} src={url} controls className="max-w-full rounded-lg max-h-48 mb-1" />;
-                                            }
-                                            if (mimeType.includes("audio")) {
-                                              return <audio key={i} src={url} controls className="max-w-full mb-1" />;
-                                            }
-                                            return <img key={i} src={url} alt="" className="max-w-full rounded-lg max-h-48 mb-1 cursor-pointer" onClick={() => window.open(url, '_blank')} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />;
-                                          })}
+                                {/* Media-only messages render outside the bubble */}
+                                {(() => {
+                                  const attachments = msg.metadata?.attachments;
+                                  const hasMedia = Array.isArray(attachments) && attachments.length > 0;
+                                  const stickerData = msg.metadata?.sticker;
+                                  const sharesData = msg.metadata?.shares;
+                                  const storyData = msg.metadata?.story;
+                                  const myReaction = msg.metadata?.my_reaction;
+
+                                  // Render media attachments
+                                  const renderMedia = () => {
+                                    if (!hasMedia) return null;
+                                    return (
+                                      <div className="space-y-1 mb-0.5">
+                                        {attachments.map((att: any, i: number) => {
+                                          const url = att.file_url || att.image_data?.url || att.video_data?.url 
+                                            || att.url || att.payload?.url || att.preview_url;
+                                          const mimeType = (att.mime_type || att.type || "").toLowerCase();
+                                          const attType = (att.type || "").toLowerCase();
+                                          
+                                          if (!url) return null;
+
+                                          if (mimeType.includes("video") || attType === "video" || att.video_data || attType === "reel") {
+                                            return (
+                                              <div key={i} className="relative rounded-xl overflow-hidden max-w-[260px]">
+                                                <video src={url} controls preload="metadata" playsInline className="w-full rounded-xl max-h-[300px] object-cover" poster={att.preview_url || att.image_data?.url} />
+                                              </div>
+                                            );
+                                          }
+
+                                          if (mimeType.includes("audio") || attType === "audio") {
+                                            return (
+                                              <div key={i} className="flex items-center gap-2 bg-muted/30 rounded-xl px-3 py-2 max-w-[240px]">
+                                                <div className="h-8 w-8 rounded-full bg-accent/20 flex items-center justify-center flex-shrink-0">🎵</div>
+                                                <audio src={url} controls className="w-full h-8" />
+                                              </div>
+                                            );
+                                          }
+
+                                          if (mimeType.includes("gif") || attType === "animated_image" || url.includes(".gif")) {
+                                            return <img key={i} src={url} alt="GIF" className="max-w-[220px] rounded-xl cursor-pointer hover:opacity-90 transition-opacity" onClick={() => window.open(url, "_blank")} />;
+                                          }
+
+                                          return <img key={i} src={url} alt="" className="max-w-[220px] rounded-xl cursor-pointer hover:opacity-90 transition-opacity" onClick={() => window.open(url, "_blank")} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />;
+                                        })}
+                                      </div>
+                                    );
+                                  };
+
+                                  // Sticker
+                                  if (stickerData && !hasMedia) {
+                                    const stickerUrl = stickerData.url || stickerData.image?.url;
+                                    return (
+                                      <div className="relative">
+                                        {stickerUrl ? <img src={stickerUrl} alt="sticker" className="max-w-[120px] max-h-[120px]" /> : <div className="rounded-2xl px-3.5 py-2 bg-muted/60"><span className="text-[13px] italic opacity-70">🏷️ Sticker</span></div>}
+                                        {myReaction && <button onClick={() => removeReaction(msg.id)} className="absolute -bottom-2 -right-1 text-sm bg-muted/80 rounded-full px-1 border border-border hover:scale-110 transition-transform">{myReaction}</button>}
+                                      </div>
+                                    );
+                                  }
+
+                                  // Story reply
+                                  if (storyData) {
+                                    const storyUrl = storyData.url || storyData.link;
+                                    return (
+                                      <div className="relative">
+                                        <div className="rounded-2xl overflow-hidden border border-border/30 max-w-[220px]">
+                                          <div className="px-2.5 py-1.5 bg-muted/30 text-[10px] text-muted-foreground flex items-center gap-1"><span>📖</span> Replied to story</div>
+                                          {storyUrl && <img src={storyUrl} alt="story" className="w-full max-h-[160px] object-cover cursor-pointer" onClick={() => window.open(storyUrl, "_blank")} />}
                                           {msg.content && !msg.content.startsWith("[") && (
-                                            <p className="text-[13px] leading-relaxed mt-1 whitespace-pre-wrap">{msg.content}</p>
+                                            <div className={`px-3.5 py-2 ${isMe ? "bg-primary text-primary-foreground" : "bg-muted/60 text-foreground"}`}>
+                                              <p className="text-[13px] leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                                            </div>
                                           )}
                                         </div>
-                                      );
-                                    }
-                                    if (stickerData) {
-                                      const stickerUrl = stickerData.url || stickerData.image?.url;
-                                      return stickerUrl ? (
-                                        <img src={stickerUrl} alt="sticker" className="max-w-[120px] max-h-[120px]" />
-                                      ) : (
-                                        <span className="text-[13px] italic opacity-70">🏷️ Sticker</span>
-                                      );
-                                    }
-                                    if (sharesData) {
-                                      const shareLink = sharesData.link || sharesData[0]?.link;
-                                      return (
-                                        <div>
-                                          <a href={shareLink} target="_blank" rel="noopener noreferrer" className="text-[13px] underline opacity-80 hover:opacity-100">
-                                            📎 Shared post
-                                          </a>
-                                          {msg.content && !msg.content.startsWith("[") && (
-                                            <p className="text-[13px] leading-relaxed mt-1 whitespace-pre-wrap">{msg.content}</p>
-                                          )}
-                                        </div>
-                                      );
-                                    }
-                                    // Regular text message
-                                    if (msg.content && msg.content.startsWith("[") && msg.content.endsWith("]")) {
-                                      // Tagged content like [photo], [video], [sticker] etc
-                                      const tag = msg.content.slice(1, -1);
-                                      const icons: Record<string, string> = { photo: "📷", video: "🎥", audio: "🎵", sticker: "🏷️", "shared post": "📎", attachment: "📎", media: "📷" };
-                                      return (
-                                        <div className="flex items-center gap-1.5 opacity-70">
-                                          <span>{icons[tag] || "📎"}</span>
-                                          <span className="text-[13px] italic capitalize">{tag}</span>
-                                        </div>
-                                      );
-                                    }
-                                    return <p className="text-[13px] leading-relaxed whitespace-pre-wrap">{msg.content}</p>;
-                                  })()}
-                                </div>
+                                        {myReaction && <button onClick={() => removeReaction(msg.id)} className="absolute -bottom-2 -right-1 text-sm bg-muted/80 rounded-full px-1 border border-border hover:scale-110 transition-transform">{myReaction}</button>}
+                                      </div>
+                                    );
+                                  }
+
+                                  // Shared post / reel
+                                  if (sharesData) {
+                                    const share = Array.isArray(sharesData) ? sharesData[0] : sharesData;
+                                    const shareLink = share?.link || share?.url;
+                                    const shareName = share?.name || share?.title;
+                                    return (
+                                      <div className="relative">
+                                        <a href={shareLink} target="_blank" rel="noopener noreferrer" className="block rounded-2xl overflow-hidden border border-border/30 max-w-[240px] hover:border-border/60 transition-colors">
+                                          <div className="px-3 py-2 bg-muted/30">
+                                            <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground mb-1"><span>📎</span> Shared post</div>
+                                            {shareName && <p className="text-xs font-medium text-foreground truncate">{shareName}</p>}
+                                            {shareLink && <p className="text-[10px] text-accent truncate mt-1">{shareLink}</p>}
+                                          </div>
+                                        </a>
+                                        {msg.content && !msg.content.startsWith("[") && (
+                                          <div className={`rounded-2xl px-3.5 py-2 mt-0.5 ${isMe ? "bg-primary text-primary-foreground" : "bg-muted/60 text-foreground"}`}>
+                                            <p className="text-[13px] leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                                          </div>
+                                        )}
+                                        {myReaction && <button onClick={() => removeReaction(msg.id)} className="absolute -bottom-2 -right-1 text-sm bg-muted/80 rounded-full px-1 border border-border hover:scale-110 transition-transform">{myReaction}</button>}
+                                      </div>
+                                    );
+                                  }
+
+                                  // Media with optional text
+                                  if (hasMedia) {
+                                    return (
+                                      <div className="relative">
+                                        {renderMedia()}
+                                        {msg.content && !msg.content.startsWith("[") && (
+                                          <div className={`rounded-2xl px-3.5 py-2 ${isMe ? msg.sender_type === "ai" ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white" : "bg-primary text-primary-foreground" : "bg-muted/60 text-foreground"}`}>
+                                            <p className="text-[13px] leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                                          </div>
+                                        )}
+                                        {myReaction && <button onClick={() => removeReaction(msg.id)} className="absolute -bottom-2 -right-1 text-sm bg-muted/80 rounded-full px-1 border border-border hover:scale-110 transition-transform">{myReaction}</button>}
+                                      </div>
+                                    );
+                                  }
+
+                                  // Plain text or tagged content
+                                  const isTagged = msg.content && msg.content.startsWith("[") && msg.content.endsWith("]");
+                                  return (
+                                    <div className="relative">
+                                      <div className={`rounded-2xl px-3.5 py-2 ${isMe ? msg.sender_type === "ai" ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white" : "bg-primary text-primary-foreground" : "bg-muted/60 text-foreground"}`}>
+                                        {isTagged ? (() => {
+                                          const tag = msg.content.slice(1, -1);
+                                          const icons: Record<string, string> = { photo: "📷", video: "🎥", reel: "🎬", audio: "🎵", "voice message": "🎤", sticker: "🏷️", gif: "🎞️", "shared post": "📎", "shared reel": "🎬", attachment: "📎", media: "📷" };
+                                          return (
+                                            <div className="flex items-center gap-1.5 opacity-70">
+                                              <span>{icons[tag] || "📎"}</span>
+                                              <span className="text-[13px] italic capitalize">{tag}</span>
+                                            </div>
+                                          );
+                                        })() : (
+                                          <p className="text-[13px] leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                                        )}
+                                      </div>
+                                      {myReaction && <button onClick={() => removeReaction(msg.id)} className="absolute -bottom-2 -right-1 text-sm bg-muted/80 rounded-full px-1 border border-border hover:scale-110 transition-transform">{myReaction}</button>}
+                                    </div>
+                                  );
+                                })()}
 
                                 {/* Message meta */}
                                 <div className={`flex items-center gap-1 mt-0.5 ${isMe ? "justify-end" : "justify-start"}`}>
-                                  {isMe && msg.sender_type === "ai" && (
-                                    <Bot className="h-2.5 w-2.5 text-blue-400" />
-                                  )}
+                                  {isMe && msg.sender_type === "ai" && <Bot className="h-2.5 w-2.5 text-blue-400" />}
                                   {isMe && msg.status === "sent" && <CheckCheck className="h-2.5 w-2.5 text-blue-400" />}
                                   {isMe && msg.status === "failed" && (
-                                    <span className="flex items-center gap-0.5 text-red-400">
+                                    <span className="flex items-center gap-0.5 text-destructive">
                                       <AlertCircle className="h-2.5 w-2.5" />
                                       <span className="text-[9px]">Failed</span>
                                     </span>
@@ -1017,16 +1156,16 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
                                     <Button size="sm" variant="ghost" className="h-6 w-6 p-0 opacity-50 hover:opacity-100" onClick={() => { setEditingMsgId(msg.id); setEditText(msg.content); }}>
                                       <Pencil className="h-3 w-3" />
                                     </Button>
-                                    <Button size="sm" variant="ghost" className="h-6 w-6 p-0 opacity-50 hover:opacity-100 text-red-400" onClick={() => deleteMessage(msg.id)}>
+                                    <Button size="sm" variant="ghost" className="h-6 w-6 p-0 opacity-50 hover:opacity-100 text-destructive" onClick={() => deleteMessage(msg.id)}>
                                       <Trash2 className="h-3 w-3" />
                                     </Button>
                                   </div>
                                 )}
                                 {!isMe && (
-                                  <div className="absolute -right-8 top-1/2 -translate-y-1/2 hidden group-hover:flex">
-                                    <Button size="sm" variant="ghost" className="h-6 w-6 p-0 opacity-50 hover:opacity-100">
-                                      <Heart className="h-3 w-3" />
-                                    </Button>
+                                  <div className="absolute -right-20 top-1/2 -translate-y-1/2 hidden group-hover:flex items-center gap-0">
+                                    {["❤️", "😂", "😮", "😢", "👍", "🔥"].map(emoji => (
+                                      <button key={emoji} onClick={() => reactToMessage(msg.id, emoji)} className="h-6 w-6 flex items-center justify-center text-sm hover:scale-125 transition-transform rounded-full hover:bg-muted/40" title={`React ${emoji}`}>{emoji}</button>
+                                    ))}
                                   </div>
                                 )}
                               </>

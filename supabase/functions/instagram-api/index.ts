@@ -390,7 +390,7 @@ serve(async (req) => {
       case "get_conversations": {
         const limit = params?.limit || 20;
         const folder = params?.folder || "";
-        const richFields = `id,participants,messages.limit(${params?.messages_limit || 5}){id,message,from,to,created_time,attachments},updated_time`;
+        const richFields = `id,participants,messages.limit(${params?.messages_limit || 5}){id,message,from,to,created_time,attachments,shares,story,sticker},updated_time`;
         
         let realUserId = igUserId;
         try {
@@ -449,7 +449,7 @@ serve(async (req) => {
       case "get_all_conversations": {
         const allLimit = params?.limit || 50;
         const msgLimit = params?.messages_limit || 10;
-        const richFields = `id,participants,messages.limit(${msgLimit}){id,message,from,to,created_time,attachments},updated_time`;
+        const richFields = `id,participants,messages.limit(${msgLimit}){id,message,from,to,created_time,attachments,shares,story,sticker},updated_time`;
         
         let realUserId = igUserId;
         try {
@@ -567,7 +567,7 @@ serve(async (req) => {
       case "get_conversation_messages": {
         if (!params?.conversation_id) throw new Error("conversation_id required");
         const msgLimit = params?.limit || 20;
-        result = await igFetch(`/${params.conversation_id}?fields=messages.limit(${msgLimit}){id,message,from,to,created_time,attachments}`, token);
+        result = await igFetch(`/${params.conversation_id}?fields=messages.limit(${msgLimit}){id,message,from,to,created_time,attachments,shares,story,sticker}`, token);
         break;
       }
 
@@ -586,8 +586,10 @@ serve(async (req) => {
         break;
       }
 
-      case "send_media_message":
-        result = await igFetch(`/${igUserId}/messages`, token, "POST", {
+      case "send_media_message": {
+        const pageInfo2 = await getPageId(token, igUserId);
+        if (!pageInfo2) throw new Error("No linked Facebook Page found.");
+        result = await igFetch(`/${pageInfo2.pageId}/messages`, pageInfo2.pageToken, "POST", {
           recipient: { id: params.recipient_id },
           message: {
             attachment: {
@@ -597,6 +599,36 @@ serve(async (req) => {
           },
         });
         break;
+      }
+
+      case "send_reaction": {
+        const pageInfoR = await getPageId(token, igUserId);
+        if (!pageInfoR) throw new Error("No linked Facebook Page found.");
+        result = await igFetch(`/${pageInfoR.pageId}/messages`, pageInfoR.pageToken, "POST", {
+          recipient: { id: params.recipient_id },
+          sender_action: "react",
+          payload: { message_id: params.message_id, reaction: params.reaction || "love" },
+        });
+        break;
+      }
+
+      case "remove_reaction": {
+        const pageInfoRR = await getPageId(token, igUserId);
+        if (!pageInfoRR) throw new Error("No linked Facebook Page found.");
+        result = await igFetch(`/${pageInfoRR.pageId}/messages`, pageInfoRR.pageToken, "POST", {
+          recipient: { id: params.recipient_id },
+          sender_action: "unreact",
+          payload: { message_id: params.message_id },
+        });
+        break;
+      }
+
+      case "delete_message": {
+        // Instagram/Messenger API: DELETE /{message-id}
+        if (!params?.message_id) throw new Error("message_id required");
+        result = await igFetch(`/${params.message_id}`, token, "DELETE");
+        break;
+      }
 
       // ===== HUMAN AGENT TAG =====
       case "send_human_agent_message":
