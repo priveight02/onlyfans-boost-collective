@@ -3382,6 +3382,158 @@ Follow these persona settings strictly. They override any conflicting defaults a
               // Will be handled in the system prompt below
             }
 
+            // === VOICE NOTE DEFLECTION ENGINE ===
+            // If the latest fan message is a voice/audio note, redirect them to texting
+            const latestContent = (latestMsg?.content || "").toLowerCase();
+            const latestMeta = (latestMsg?.metadata as any) || {};
+            const latestAtts = latestMeta?.attachments || [];
+            const isVoiceNote = latestContent.includes("[audio]") || latestContent.includes("[sent a voice message]") || latestContent.includes("[voice]") ||
+              (Array.isArray(latestAtts) && latestAtts.some((a: any) => (a?.mime_type || a?.type || "").includes("audio")));
+            
+            if (isVoiceNote && latestMsg?.sender_type === "fan") {
+              console.log(`[VOICE DEFLECT] @${dbConvo.participant_username}: fan sent voice note, redirecting to text`);
+              
+              // React with ❤️ to the voice note first
+              if (latestMsg.platform_message_id) {
+                try {
+                  await callIG2("send_reaction", { recipient_id: dbConvo.participant_id, message_id: latestMsg.platform_message_id, reaction: "love" });
+                } catch {}
+              }
+              
+              // Voice deflection messages — natural, cute, like the reference screenshot
+              const voiceDeflectMsgs = [
+                ["i dont really understand when its spoken tho 😭", "thats why i only stick to texts"],
+                ["lol i cant listen to audios rn", "just text me its easier"],
+                ["omg i wish i could listen but im in public rn", "send it in text plss"],
+                ["i cant really hear it properly rn 😅", "type it out for me"],
+                ["voice notes dont work well for me tbh", "text is better i can actually read it"],
+                ["lol sorry i literally never listen to voice notes", "just type it to me"],
+                ["i cant play audio rn someone is next to me", "text me what u said"],
+                ["audio messages are so hard for me lol", "just text me i promise ill read it"],
+                ["wait i cant play that rn 😭", "can u type it instead"],
+                ["i dont do voice notes sorry lol", "im a text girly"],
+              ];
+              const chosen = voiceDeflectMsgs[Math.floor(Math.random() * voiceDeflectMsgs.length)];
+              
+              try {
+                // Send first message
+                await new Promise(r => setTimeout(r, humanTypingDelay(chosen[0])));
+                const vd1Result = await callIG2("send_message", { recipient_id: dbConvo.participant_id, message: chosen[0] });
+                await supabase.from("ai_dm_messages").insert({
+                  conversation_id: dbConvo.id, account_id,
+                  sender_type: "ai", sender_name: igConn2.platform_username || "creator",
+                  content: chosen[0], status: "sent", ai_model: "voice_deflect_engine",
+                  platform_message_id: vd1Result?.message_id || null,
+                });
+                
+                // Send second message after short delay
+                await new Promise(r => setTimeout(r, interMessageDelay()));
+                await new Promise(r => setTimeout(r, humanTypingDelay(chosen[1])));
+                const vd2Result = await callIG2("send_message", { recipient_id: dbConvo.participant_id, message: chosen[1] });
+                await supabase.from("ai_dm_messages").insert({
+                  conversation_id: dbConvo.id, account_id,
+                  sender_type: "ai", sender_name: igConn2.platform_username || "creator",
+                  content: chosen[1], status: "sent", ai_model: "voice_deflect_engine",
+                  platform_message_id: vd2Result?.message_id || null,
+                });
+                
+                // Update conversation
+                await supabase.from("ai_dm_conversations").update({
+                  last_ai_reply_at: new Date().toISOString(),
+                  last_message_at: new Date().toISOString(),
+                  last_message_preview: `You: ${chosen[1]}`,
+                  is_read: true,
+                }).eq("id", dbConvo.id);
+                
+                // No typing placeholder to delete — voice deflection runs before it's created
+                
+                processed++;
+                processedConvos.push({
+                  conversation_id: dbConvo.id,
+                  fan: dbConvo.participant_username,
+                  fan_message: latestMsg.content,
+                  ai_reply: `[VOICE DEFLECT] ${chosen[0]} → ${chosen[1]}`,
+                  ml_behavior: "voice_deflect",
+                });
+                console.log(`[VOICE DEFLECT] Sent to @${dbConvo.participant_username}: "${chosen[0]}" + "${chosen[1]}"`);
+                continue;
+              } catch (vdErr) {
+                console.error("[VOICE DEFLECT] Failed:", vdErr);
+                // Fall through to normal AI
+              }
+            }
+
+            // === FAN PHOTO HEART REACTION ENGINE ===
+            // Auto-react with ❤️ to ANY photo/image sent by a fan — always, no randomness
+            const isFanPhoto = latestMsg?.sender_type === "fan" && (
+              latestContent.includes("[photo]") || latestContent.includes("[sent a photo]") || latestContent.includes("[image]") ||
+              (Array.isArray(latestAtts) && latestAtts.some((a: any) => {
+                const mt = (a?.mime_type || a?.type || "").toLowerCase();
+                return mt.includes("image") || mt.includes("photo");
+              }))
+            );
+            
+            if (isFanPhoto && latestMsg?.platform_message_id) {
+              try {
+                await callIG2("send_reaction", { recipient_id: dbConvo.participant_id, message_id: latestMsg.platform_message_id, reaction: "love" });
+                console.log(`[PHOTO ❤️] Reacted with ❤️ to @${dbConvo.participant_username}'s photo`);
+              } catch (photoReactErr) {
+                console.log("[PHOTO ❤️] Reaction failed (non-blocking):", photoReactErr);
+              }
+            }
+
+            // === AI IMAGE/MEDIA ANALYSIS ENGINE ===
+            // When fan sends photos/videos, use Gemini vision to analyze them and inject context
+            let mediaAnalysisCtx = "";
+            if (latestMsg?.sender_type === "fan" && latestMeta?.attachments) {
+              const mediaAtts = Array.isArray(latestAtts) ? latestAtts : [latestAtts];
+              const imageUrls: string[] = [];
+              for (const att of mediaAtts) {
+                const mt = (att?.mime_type || att?.type || "").toLowerCase();
+                const url = att?.image_data?.url || att?.url || att?.payload?.url || att?.preview_url || "";
+                if (url && (mt.includes("image") || mt.includes("photo") || mt.includes("video"))) {
+                  imageUrls.push(url);
+                }
+              }
+              
+              if (imageUrls.length > 0) {
+                try {
+                  console.log(`[MEDIA ANALYSIS] Analyzing ${imageUrls.length} media from @${dbConvo.participant_username}`);
+                  const visionMessages: any[] = [
+                    { role: "system", content: "You analyze images sent in Instagram DM conversations. Describe what you see in 1-2 SHORT sentences, focusing on: who/what is in the image, the setting/location, the mood/vibe. If it's a selfie or person photo, note their appearance briefly. If it's a place, name it if possible. Keep it casual and concise. NO emojis." },
+                  ];
+                  
+                  const contentParts: any[] = [{ type: "text", text: `Describe this image(s) briefly for conversation context:` }];
+                  for (const imgUrl of imageUrls.slice(0, 3)) {
+                    contentParts.push({ type: "image_url", image_url: { url: imgUrl } });
+                  }
+                  visionMessages.push({ role: "user", content: contentParts });
+                  
+                  const visionResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+                    method: "POST",
+                    headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      model: "google/gemini-2.5-flash",
+                      messages: visionMessages,
+                      max_tokens: 150,
+                      temperature: 0.3,
+                    }),
+                  });
+                  
+                  if (visionResp.ok) {
+                    const visionResult = await visionResp.json();
+                    const analysis = (visionResult.choices?.[0]?.message?.content || "").trim();
+                    if (analysis) {
+                      mediaAnalysisCtx = `\n\n=== MEDIA ANALYSIS (what the fan just sent) ===\nThe fan sent ${imageUrls.length > 1 ? `${imageUrls.length} images` : "a photo"}. AI vision analysis: "${analysis}"\nREACT TO THIS SPECIFICALLY in your reply. Comment on what you see. Be genuine and warm. If it's a selfie, compliment them naturally. If it's a place, ask about it. NEVER say "I analyzed your photo" — just react naturally as if you SAW the image.`;
+                      console.log(`[MEDIA ANALYSIS] @${dbConvo.participant_username}: "${analysis.substring(0, 100)}"`);
+                    }
+                  }
+                } catch (visionErr) {
+                  console.log("[MEDIA ANALYSIS] Vision analysis failed (non-blocking):", visionErr);
+                }
+              }
+            }
+
             // Build rich context with media descriptions
             const conversationContext = (dbMessages || []).map(m => {
               let contextText = m.content || "";
@@ -3480,7 +3632,7 @@ Follow these persona settings strictly. They override any conflicting defaults a
 
             // Generate AI reply — inject 5-phase roadmap directive
             const phaseDirective = `\n\n${convoPhase.directive}`;
-            const systemPrompt = `${personaInfo2}${emojiDir}${fanMemoryBlock}${fanProfileCtx}${behaviorCtxLive}${tensionCtxLive}${learnedStrategiesCtx}${crossEngineBridge}${mediaPatterns}${freePicCtx}${phaseDirective}
+            const systemPrompt = `${personaInfo2}${emojiDir}${fanMemoryBlock}${fanProfileCtx}${behaviorCtxLive}${tensionCtxLive}${learnedStrategiesCtx}${crossEngineBridge}${mediaPatterns}${freePicCtx}${mediaAnalysisCtx}${phaseDirective}
 ${autoConfig.redirect_url ? `\nIMPORTANT: when it makes sense, naturally guide toward this link: ${autoConfig.redirect_url}. But NEVER redirect during genuine bonding moments — wait for a natural transition. NEVER redirect when the vibe is tense or dry — fix the vibe first` : ""}
 ${autoConfig.trigger_keywords ? `if they mention any of these: ${autoConfig.trigger_keywords}, redirect them to the link` : ""}
 
