@@ -3572,7 +3572,7 @@ IF YOU DONT UNDERSTAND: say "wait wdym" or "lol what" — NEVER make up an incoh
 
             // Dynamic tokens — generous so AI can COMPLETE thoughts fully
             // Post-processor handles length diversity — never cut mid-thought
-            const dynamicMaxTokens = multipleUnanswered ? 300 : (unansweredQuestions > 0 ? 250 : 200);
+            const dynamicMaxTokens = multipleUnanswered ? 450 : (unansweredQuestions > 0 ? 380 : 300);
 
             // Update pipeline phase to "generate" for real-time UI tracking
             if (typingMsg) {
@@ -3655,12 +3655,19 @@ IF YOU DONT UNDERSTAND: say "wait wdym" or "lol what" — NEVER make up an incoh
             // Helper: find the best cut point that doesn't break mid-thought
             const smartTruncate = (words: string[], maxWords: number): string => {
               if (words.length <= maxWords) return words.join(" ");
-              // Look for natural break points (end of clause/sentence) within range
+              // Look for natural break points — sentence enders or clause breaks
               let bestCut = maxWords;
-              for (let i = Math.min(maxWords, words.length - 1); i >= Math.max(maxWords - 3, 2); i--) {
+              // Search backwards from maxWords for a natural end
+              for (let i = Math.min(maxWords, words.length - 1); i >= Math.max(maxWords - 5, 2); i--) {
                 const word = words[i];
-                // Good break points: words ending naturally (not prepositions/articles)
-                if (!word.match(/^(a|an|the|to|in|on|at|for|and|but|or|so|if|of|is|it|u|ur|my|i|im|we|he|she|they|with|from|that|this)$/i)) {
+                const prevJoined = words.slice(0, i + 1).join(" ");
+                // Ideal: ends with question mark or natural sentence end
+                if (prevJoined.match(/[?]$/) || word.match(/^(too|right|tho|yeah|yea|haha|lol|ok)$/i)) {
+                  bestCut = i + 1;
+                  break;
+                }
+                // Good: NOT a preposition/article/pronoun (avoids dangling words)
+                if (!word.match(/^(a|an|the|to|in|on|at|for|and|but|or|so|if|of|is|it|u|ur|my|i|im|we|he|she|they|with|from|that|this|its|can|do|was|be|not|just|like|have|has|had|would|could|should|will|what|how|who|where|when|why)$/i)) {
                   bestCut = i + 1;
                   break;
                 }
@@ -3684,15 +3691,15 @@ IF YOU DONT UNDERSTAND: say "wait wdym" or "lol what" — NEVER make up an incoh
                   reply = smartTruncate(wordsArr, targetLen);
                 }
               } else {
-                // LONG: up to 30 words (rare, let it breathe)
-                if (wordsArr.length > 30) {
-                  reply = smartTruncate(wordsArr, 28);
+                // LONG: up to 35 words (rare, let it breathe)
+                if (wordsArr.length > 35) {
+                  reply = smartTruncate(wordsArr, 33);
                 }
               }
             } else {
-              // Answering questions — generous cap at 30 words
-              if (wordsArr.length > 30) {
-                reply = smartTruncate(wordsArr, 28);
+              // Answering questions — generous cap at 40 words to prevent cutoff
+              if (wordsArr.length > 40) {
+                reply = smartTruncate(wordsArr, 38);
               }
             }
             // Ensure minimum 2 words
