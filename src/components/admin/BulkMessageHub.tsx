@@ -36,9 +36,21 @@ interface Follower {
   profile_pic: string | null;
   source: string;
   gender?: string;
+  follower_count?: number;
+  following_count?: number;
+  media_count?: number;
+  is_verified?: boolean;
+  is_private?: boolean;
 }
 
 type SortMode = "name" | "recent" | "source";
+
+const fmtNum = (n: number | null | undefined) => {
+  if (n == null) return null;
+  if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
+  if (n >= 1000) return `${(n / 1000).toFixed(1)}K`;
+  return String(n);
+};
 
 // Instagram Verified Badge SVG (exact replica)
 const VerifiedBadge = ({ size = 12 }: { size?: number }) => (
@@ -437,14 +449,20 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
     discoverTimeout.current = setTimeout(() => searchInstagramUsers(val), 400);
   };
 
-  const addDiscoveredUser = (user: any) => {
+  const addDiscoveredUser = async (user: any) => {
+    const igUserId = String(user.id || user.pk);
     const newFollower: Follower = {
-      id: user.id || user.pk,
+      id: igUserId,
       name: user.full_name || user.username,
       username: user.username,
       profile_pic: user.profile_pic_url || null,
       source: "discovered",
       gender: user.gender || undefined,
+      follower_count: user.follower_count,
+      following_count: user.following_count,
+      media_count: user.media_count,
+      is_verified: user.is_verified || false,
+      is_private: user.is_private || false,
     };
     setFollowers(prev => {
       if (prev.some(f => f.id === newFollower.id)) {
@@ -455,17 +473,37 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
     });
     setSelectedIds(prev => new Set([...prev, newFollower.id]));
     setManuallyAddedIds(prev => new Set([...prev, newFollower.id]));
+    // Persist to fetched_followers (same as scraped)
+    try {
+      await supabase.from("fetched_followers").upsert({
+        account_id: accountId,
+        ig_user_id: igUserId,
+        username: user.username,
+        full_name: user.full_name || null,
+        profile_pic_url: user.profile_pic_url || null,
+        is_verified: user.is_verified || false,
+        is_private: user.is_private || false,
+        gender: user.gender || null,
+        source: "discovered",
+        metadata: {
+          follower_count: user.follower_count || null,
+          following_count: user.following_count || null,
+          media_count: user.media_count || null,
+        },
+      }, { onConflict: "account_id,ig_user_id" });
+    } catch {}
     toast.success(`Added @${user.username}`);
   };
 
-  const addAllDiscovered = () => {
+  const addAllDiscovered = async () => {
     let added = 0;
     const batchIds: string[] = [];
+    const toUpsert: any[] = [];
     setFollowers(prev => {
       const seen = new Set(prev.map(f => f.id));
       const merged = [...prev];
       for (const user of discoverResults) {
-        const id = user.id || user.pk;
+        const id = String(user.id || user.pk);
         if (seen.has(id)) continue;
         seen.add(id);
         merged.push({
@@ -475,15 +513,36 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
           profile_pic: user.profile_pic_url || null,
           source: "discovered",
           gender: user.gender || undefined,
+          follower_count: user.follower_count,
+          following_count: user.following_count,
+          media_count: user.media_count,
+          is_verified: user.is_verified || false,
+          is_private: user.is_private || false,
         });
         batchIds.push(id);
+        toUpsert.push({
+          account_id: accountId,
+          ig_user_id: id,
+          username: user.username,
+          full_name: user.full_name || null,
+          profile_pic_url: user.profile_pic_url || null,
+          is_verified: user.is_verified || false,
+          is_private: user.is_private || false,
+          gender: user.gender || null,
+          source: "discovered",
+          metadata: {
+            follower_count: user.follower_count || null,
+            following_count: user.following_count || null,
+            media_count: user.media_count || null,
+          },
+        });
         added++;
       }
       return merged;
     });
     setSelectedIds(prev => {
       const next = new Set(prev);
-      for (const user of discoverResults) next.add(user.id || user.pk);
+      for (const user of discoverResults) next.add(String(user.id || user.pk));
       return next;
     });
     setAddAllBatchIds(prev => {
@@ -491,6 +550,15 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
       for (const id of batchIds) next.add(id);
       return next;
     });
+    // Batch persist to fetched_followers
+    if (toUpsert.length > 0) {
+      try {
+        // Upsert in chunks of 500
+        for (let i = 0; i < toUpsert.length; i += 500) {
+          await supabase.from("fetched_followers").upsert(toUpsert.slice(i, i + 500), { onConflict: "account_id,ig_user_id" });
+        }
+      } catch {}
+    }
     toast.success(`Added ${added} accounts from search`);
   };
 
@@ -1087,12 +1155,6 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
                           <p className="text-[11px] text-white/30 text-center py-4">Type a username or keyword to search</p>
                         )}
                         {discoverResults.map((user: any) => {
-                          const fmtNum = (n: number | null | undefined) => {
-                            if (n == null) return null;
-                            if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
-                            if (n >= 1000) return `${(n / 1000).toFixed(1)}K`;
-                            return String(n);
-                          };
                           const isAdded = followerIdSet.has(user.id || user.pk);
                           return (
                             <div
@@ -1407,7 +1469,7 @@ const VirtualizedFollowerList = memo(({ followers, selectedIds, sendResults, tog
   const virtualizer = useVirtualizer({
     count: followers.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 52,
+    estimateSize: () => 64,
     overscan: 20,
   });
 
@@ -1443,6 +1505,8 @@ const VirtualizedFollowerList = memo(({ followers, selectedIds, sendResults, tog
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5">
                     <p className="text-sm font-medium text-white truncate">{f.name}</p>
+                    {f.is_verified && <VerifiedBadge size={13} />}
+                    {f.is_private && <span className="text-amber-400 text-[9px]">🔒</span>}
                     {f.gender && f.gender !== "unknown" && (
                       <span className={`text-[10px] ${f.gender === "female" ? "text-pink-400" : "text-blue-400"}`}>
                         {f.gender === "female" ? "♀" : "♂"}
@@ -1450,6 +1514,19 @@ const VirtualizedFollowerList = memo(({ followers, selectedIds, sendResults, tog
                     )}
                   </div>
                   <p className="text-[11px] text-white/35 truncate">@{f.username}</p>
+                  {(f.follower_count != null || f.following_count != null || f.media_count != null) && (
+                    <div className="flex items-center gap-2 mt-0.5">
+                      {f.follower_count != null && (
+                        <span className="text-[9px] text-white/40"><span className="font-semibold text-white/70">{fmtNum(f.follower_count)}</span> followers</span>
+                      )}
+                      {f.following_count != null && (
+                        <span className="text-[9px] text-white/40"><span className="font-semibold text-white/70">{fmtNum(f.following_count)}</span> following</span>
+                      )}
+                      {f.media_count != null && (
+                        <span className="text-[9px] text-white/40"><span className="font-semibold text-white/70">{fmtNum(f.media_count)}</span> posts</span>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <Badge variant="outline" className={`text-[9px] px-1.5 ${
                   f.source === "fetched" ? "text-orange-400 border-orange-500/20" : 
