@@ -6,6 +6,31 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+// === HUMAN TYPING DELAY ENGINE ===
+// Simulates realistic human typing speed with randomness
+function humanTypingDelay(text: string): number {
+  const charCount = text.length;
+  const wordCount = text.split(/\s+/).length;
+  // Average human types 40-70 WPM = ~85-150ms per character with variance
+  // Short msgs (1-5 words): 2-4s (quick tap-send)
+  // Medium msgs (6-15 words): 4-8s
+  // Longer msgs (16+ words): 7-12s
+  const baseMs = charCount * (80 + Math.random() * 70); // 80-150ms per char
+  // Add "thinking" time — humans pause before typing
+  const thinkMs = 1000 + Math.random() * 2000; // 1-3s think time
+  // Add small random jitter for naturalness
+  const jitter = Math.random() * 1500; // 0-1.5s jitter
+  const total = thinkMs + baseMs + jitter;
+  // Clamp: min 2.5s (even for "lol"), max 12s (nobody types that slow for short msgs)
+  return Math.min(Math.max(total, 2500), 12000);
+}
+
+// Inter-message delay — prevents sending 2 msgs at exact same time
+function interMessageDelay(): number {
+  // 3-8 seconds between messages to different people
+  return 3000 + Math.random() * 5000;
+}
+
 // Default young-woman persona — GRANDMASTER LEVEL psychology + seduction + conversion engine
 const DEFAULT_PERSONA = `You are a young woman (early 20s) from Cannes, France 🇫🇷 — currently on vacation in LA. You NEVER use emojis. Ever. Zero. None.
 
@@ -1287,10 +1312,8 @@ FINAL REMINDER (READ LAST — THIS OVERRIDES EVERYTHING):
         const wordCount = reply.split(/\s+/).length;
         const charCount = reply.length;
         
-        // Base typing speed: ~60-100ms per character (realistic human speed, not instant)
-        const baseTypingMs = charCount * (60 + Math.random() * 40);
-        // Clamp between 3s min and 8s max — never instant, always feels human
-        const typingDelay = Math.min(Math.max(baseTypingMs, 3000), 8000);
+        // Human-like typing delay based on message length
+        const typingDelay = humanTypingDelay(reply);
         
         // Determine message position from conversation context length
         const msgCount = (conversation_context?.length || 0) + 1;
@@ -2741,9 +2764,8 @@ FINAL REMINDER:
             // ANTI-REPETITION POST-PROCESSING: Block repeated questions/statements
             reply = antiRepetitionCheck(reply, conversationContext);
 
-            // Calculate typing delay — feels human but FAST. 2-5s max, never laggy
-            const charCount = reply.length;
-            const typingDelay = Math.min(Math.max(charCount * 50, 1500), 5000);
+            // Human-like typing delay based on message length
+            const typingDelay = humanTypingDelay(reply);
 
             // === AI CONTEXTUAL REACTION (RARE — drague/flirting signals ONLY) ===
             // Only react with ❤️ when the fan sends a CLEAR flirting/sweet signal
@@ -2828,7 +2850,8 @@ FINAL REMINDER:
           } catch (convoErr) {
             console.error("Error processing conversation:", convoErr);
           }
-          await new Promise(r => setTimeout(r, 200));
+          // Inter-message delay — cant send 2 msgs at the exact same time
+          await new Promise(r => setTimeout(r, interMessageDelay()));
         }
 
         result = { processed, conversations: processedConvos, total_checked: activeConvos?.length || 0 };
@@ -3080,8 +3103,8 @@ FINAL REMINDER:
             replyRL = antiRepetitionCheck(replyRL, richContext);
             if (!replyRL) replyRL = "hey";
 
-            // Typing delay — fast but natural
-            const typingDelayRL = Math.min(Math.max(replyRL.length * 50, 1500), 5000);
+            // Human-like typing delay
+            const typingDelayRL = humanTypingDelay(replyRL);
             await new Promise(r => setTimeout(r, typingDelayRL));
 
             // Send via IG
@@ -3424,7 +3447,7 @@ FINAL REMINDER:
             replyRAT = replyRAT.replace(emojiRxRAT, "").replace(/\s{2,}/g, " ").trim();
             replyRAT = antiRepetitionCheck(replyRAT, richCtx);
 
-            const typingDelayRAT = Math.min(Math.max(replyRAT.length * 50, 1500), 5000);
+            const typingDelayRAT = humanTypingDelay(replyRAT);
             await new Promise(r => setTimeout(r, typingDelayRAT));
 
             try {
@@ -3456,7 +3479,7 @@ FINAL REMINDER:
           } catch (tcErr) {
             console.error("Error relaunching today convo:", tcErr);
           }
-          await new Promise(r => setTimeout(r, 800));
+          await new Promise(r => setTimeout(r, interMessageDelay()));
         }
 
         result = { processed: ratProcessed, total_today: todayConvos?.length || 0, conversations: ratResults };
@@ -3625,6 +3648,10 @@ FINAL REMINDER:
         const emojiRxRS = /[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{200D}\u{20E3}\u{FE0F}]/gu;
         replyRS = replyRS.replace(emojiRxRS, "").replace(/\s{2,}/g, " ").trim();
         replyRS = antiRepetitionCheck(replyRS, richCtxRS);
+
+        // Human-like typing delay before sending
+        const typingDelayRS = humanTypingDelay(replyRS);
+        await new Promise(r => setTimeout(r, typingDelayRS));
 
         try {
           const sendResultRS = await callIGRS("send_message", { recipient_id: convoRS.participant_id, message: replyRS });
