@@ -73,6 +73,18 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
     if (!accountId) return;
     setLoading(true);
     try {
+      // Fetch real follower count from account record
+      const accountInfo = await cachedFetch<{ subscriber_count: number; content_count: number }>(accountId, "account_stats", async () => {
+        const { data: acct } = await supabase
+          .from("managed_accounts")
+          .select("subscriber_count, content_count")
+          .eq("id", accountId)
+          .single();
+        return { subscriber_count: acct?.subscriber_count || 0, content_count: acct?.content_count || 0 };
+      }, undefined, { ttlMs: 10 * 60 * 1000 });
+
+      setFollowersCount(accountInfo.subscriber_count);
+
       // Load persisted followers with cache (long TTL since these are saved permanently)
       const persisted = await cachedFetch<Follower[]>(accountId, "persisted_followers", async () => {
         const { data: persistedData } = await supabase.functions.invoke("instagram-api", {
@@ -100,8 +112,7 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
       }
 
       setFollowers(merged);
-      setFollowersCount(merged.length);
-      toast.success(`Loaded ${merged.length} contacts (${persisted.length} saved)`);
+      toast.success(`Loaded ${merged.length} contacts (${persisted.length} saved · ${accountInfo.subscriber_count.toLocaleString()} total followers)`);
     } catch (e: any) {
       toast.error(e.message || "Failed to load followers");
     } finally {
@@ -388,7 +399,7 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
             <Send className="h-4 w-4 text-purple-400" />
             Bulk Message Hub
             <Badge variant="outline" className="text-[9px] ml-2 text-white/50 border-white/20">
-              {followersCount} followers · {followsCount} following
+              {followersCount.toLocaleString()} followers · {followers.length.toLocaleString()} fetched
             </Badge>
           </DialogTitle>
         </DialogHeader>
