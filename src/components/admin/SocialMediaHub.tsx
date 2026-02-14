@@ -1347,21 +1347,6 @@ const SocialMediaHub = () => {
             </CardContent>
           </Card>
 
-          {/* Bad Chat Example Reference */}
-          <Card className="border-red-500/20 bg-red-500/5">
-            <CardContent className="p-3">
-              <div className="flex items-center gap-2 mb-2">
-                <AlertTriangle className="h-4 w-4 text-red-400" />
-                <span className="text-xs font-semibold text-red-400">❌ BAD Example — Don't Chat Like This</span>
-              </div>
-              <img 
-                src="/lovable-uploads/bad-chat-example.png" 
-                alt="Bad chat example - avoid repetitive messages and going live mentions" 
-                className="w-full max-h-[300px] object-contain rounded-lg border border-red-500/20"
-              />
-              <p className="text-[10px] text-muted-foreground mt-1.5">Never mention "going live", never repeat yourself, know when to stop after redirect, react with ❤️ to acknowledgments.</p>
-            </CardContent>
-          </Card>
 
           {/* Live Conversations Panel */}
           <Card>

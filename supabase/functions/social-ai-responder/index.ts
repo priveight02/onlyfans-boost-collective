@@ -293,15 +293,60 @@ CONVERSATION ANALYSIS:
 - If theyre sharing personal stuff: be warm and interested, build rapport, keep them talking
 - If theyre dry/boring: ask an interesting question, create excitement and curiosity to pull them in`;
 
+// === TENSION / AWKWARDNESS DETECTION ENGINE ===
+// Detects cold, dry, or tense conversation mood and generates de-escalation context
+const detectTension = (messages: any[]): { isTense: boolean; tensionLevel: number; tensionContext: string } => {
+  if (!messages || messages.length < 4) return { isTense: false, tensionLevel: 0, tensionContext: "" };
+  
+  const recent = messages.slice(-8);
+  const recentFan = recent.filter(m => m.sender_type === "fan");
+  const recentOurs = recent.filter(m => m.sender_type !== "fan");
+  
+  if (recentFan.length < 2) return { isTense: false, tensionLevel: 0, tensionContext: "" };
+  
+  // Detect dry/cold responses (1-3 word answers, no questions, no engagement)
+  const recentFanTexts = recentFan.map(m => (m.content || "").trim().toLowerCase());
+  const shortAnswers = recentFanTexts.filter(t => t.split(/\s+/).length <= 3 && !t.includes("?"));
+  const veryShort = recentFanTexts.filter(t => t.length <= 8);
+  const coldWords = recentFanTexts.filter(t => !!t.match(/^(nothing|no|nah|idk|idc|k|ok|sure|whatever|fine|cool|yea|mhm|hmm|nope|not really|lol|hm|oh|bye|stop)$/));
+  const negativeVibes = recentFanTexts.filter(t => !!t.match(/(annoying|weird|creepy|stop|leave me|go away|blocked|reported|wtf|stfu|fake|boring|waste of time)/));
+  
+  let tensionScore = 0;
+  tensionScore += shortAnswers.length * 15;
+  tensionScore += veryShort.length * 10;
+  tensionScore += coldWords.length * 25;
+  tensionScore += negativeVibes.length * 40;
+  
+  // Check if we've been pushing too hard (multiple messages without good engagement)
+  const lastFew = recent.slice(-4);
+  const ourMsgsInLastFew = lastFew.filter(m => m.sender_type !== "fan").length;
+  const theirMsgsInLastFew = lastFew.filter(m => m.sender_type === "fan").length;
+  if (ourMsgsInLastFew > theirMsgsInLastFew + 1) tensionScore += 20; // We're over-messaging
+  
+  const isTense = tensionScore >= 30;
+  const tensionLevel = Math.min(tensionScore, 100);
+  
+  let tensionContext = "";
+  if (isTense) {
+    if (negativeVibes.length > 0) {
+      tensionContext = `\n=== TENSION ALERT: HIGH ===\nThis person is annoyed or hostile. DO NOT push, redirect, or be overly enthusiastic. Be calm, chill, and relatable. Use short casual replies. If they said something harsh, brush it off lightly: "lol fair" or "ok i see u". DONT get defensive or weird. Just be normal and let them lead.\n`;
+    } else if (coldWords.length >= 2) {
+      tensionContext = `\n=== TENSION ALERT: COLD/DRY ===\nThis person is giving very dry/cold answers like "${recentFanTexts.slice(-2).join('", "')}". The vibe is awkward. DO NOT ask more questions or push the convo. Instead:\n- Match their energy with a chill short reply\n- Try a topic reset: "ok random but..." or "wait actually i wanted to ask u something"\n- Light playful recovery: "lol ok im not gonna lie that was dry" or "ur making me work for this convo huh"\n- NEVER be needy or overly enthusiastic when theyre dry\n- Sometimes the best move is to just vibe: "mm" "ok" "fair"\n`;
+    } else if (shortAnswers.length >= 3) {
+      tensionContext = `\n=== TENSION ALERT: LOW EFFORT ===\nThis person is responding with very short answers. Theyre either bored, distracted, or losing interest. Try ONE interesting question or statement to re-engage. If that doesnt work, let it breathe — dont force it. Examples:\n- "ok be honest whats actually on ur mind rn"\n- "u seem distracted whats going on"\n- "lol ok ur being mysterious today"\n`;
+    }
+  }
+  
+  return { isTense, tensionLevel, tensionContext };
+};
+
 // === POST-REDIRECT DETECTION ENGINE ===
 // Detects if we already redirected and the fan acknowledged, meaning we should NOT reply
 const detectPostRedirect = (messages: any[]): { shouldStop: boolean; shouldReact: boolean; reactionType: string } => {
   if (!messages || messages.length < 3) return { shouldStop: false, shouldReact: false, reactionType: "love" };
   
-  // Look at the last 5 messages for a redirect → acknowledgment pattern
   const recent = messages.slice(-6);
   
-  // Find if WE recently sent a redirect message
   let redirectSentIdx = -1;
   for (let i = recent.length - 1; i >= 0; i--) {
     const msg = recent[i];
@@ -316,7 +361,6 @@ const detectPostRedirect = (messages: any[]): { shouldStop: boolean; shouldReact
   
   if (redirectSentIdx === -1) return { shouldStop: false, shouldReact: false, reactionType: "love" };
   
-  // Check if AFTER the redirect, the fan acknowledged
   const msgsAfterRedirect = recent.slice(redirectSentIdx + 1);
   const fanAckMsgs = msgsAfterRedirect.filter(m => m.sender_type === "fan");
   
@@ -325,7 +369,6 @@ const detectPostRedirect = (messages: any[]): { shouldStop: boolean; shouldReact
   const lastFanMsg = fanAckMsgs[fanAckMsgs.length - 1];
   const fanTxt = (lastFanMsg.content || "").toLowerCase().trim();
   
-  // Short acknowledgment after redirect = STOP
   const isAck = !!fanTxt.match(/^(ok|okay|sure|alright|bet|yea|yes|yep|yeah|cool|got it|will do|k|kk|okey|oki|aight|say less|fs|for sure|ight|thanks|ty|thank u|thank you|word)$/i) ||
     (fanTxt.length <= 10 && !!fanTxt.match(/(ok|okay|sure|bet|yea|yes|cool|got it|k$)/));
   
@@ -333,10 +376,8 @@ const detectPostRedirect = (messages: any[]): { shouldStop: boolean; shouldReact
     return { shouldStop: true, shouldReact: true, reactionType: "love" };
   }
   
-  // If they asked a follow-up question after redirect, continue the convo
   if (fanTxt.includes("?")) return { shouldStop: false, shouldReact: false, reactionType: "love" };
   
-  // If they sent something very short and generic after redirect, still stop
   if (fanTxt.length <= 5 && msgsAfterRedirect.filter(m => m.sender_type !== "fan").length > 0) {
     return { shouldStop: true, shouldReact: true, reactionType: "love" };
   }
@@ -450,6 +491,22 @@ const buildFanMemory = (messages: any[]): { memoryBlock: string; questionsAsked:
     for (const h of hobbyMatches.slice(0, 3)) facts.push(`Interest: "${h}"`);
   }
   
+  // Extract relationship status
+  if (allFanText.match(/(my (girl|boy)friend|single|married|divorced|my wife|my husband|my ex)/)) {
+    const relMatch = fanTexts.find(t => t.toLowerCase().match(/(girlfriend|boyfriend|single|married|wife|husband)/));
+    if (relMatch) facts.push(`Relationship: "${relMatch}"`);
+  }
+  
+  // Extract mood/emotional state from recent messages
+  const recentFan = fanTexts.slice(-5).join(" ").toLowerCase();
+  if (recentFan.match(/(sad|depressed|lonely|stressed|tired|exhausted|had a bad day|feeling down)/)) {
+    facts.push("Current mood: seems down/sad — be extra warm and caring");
+  } else if (recentFan.match(/(happy|excited|amazing|great day|good mood|celebrating)/)) {
+    facts.push("Current mood: positive/excited — match their energy");
+  } else if (recentFan.match(/(bored|nothing|idk|whatever|meh|dry)/)) {
+    facts.push("Current mood: bored/disengaged — need to spark interest");
+  }
+  
   // Count shared media
   const photoCount = fanMsgs.filter(m => (m.content || "").match(/\[photo\]|\[sent a photo\]|\[video\]|\[sent a video\]/) || (m.metadata as any)?.attachments?.length > 0).length;
   if (photoCount > 0) facts.push(`Shared ${photoCount} media file(s)`);
@@ -457,6 +514,12 @@ const buildFanMemory = (messages: any[]): { memoryBlock: string; questionsAsked:
   // Detect affection level
   const sweetMsgs = fanTexts.filter(t => t.toLowerCase().match(/(love you|miss you|ur beautiful|ur gorgeous|ur amazing|so pretty|so hot|ur cute|baby|babe|sweetheart|beautiful)/));
   if (sweetMsgs.length > 0) facts.push(`Affection level: high (${sweetMsgs.length} sweet messages)`);
+  
+  // Track conversation flow — what topics generated the most engagement
+  const longFanMsgs = fanTexts.filter(t => t.length > 40);
+  if (longFanMsgs.length > 0) {
+    facts.push(`Most engaged topic(s): "${longFanMsgs.slice(-2).join('", "').substring(0, 100)}"`);
+  }
   
   // Track questions WE already asked (to prevent repeats)
   for (const ourMsg of ourTexts) {
@@ -466,13 +529,22 @@ const buildFanMemory = (messages: any[]): { memoryBlock: string; questionsAsked:
     if (lower.match(/(what do u do|ur job|what u do for)/)) questionsWeAsked.push("job");
     if (lower.match(/(what do u like|ur hobbies|what u into)/)) questionsWeAsked.push("hobbies");
     if (lower.match(/(whats ur name|what should i call)/)) questionsWeAsked.push("name");
+    if (lower.match(/(single|relationship|girlfriend|boyfriend)/)) questionsWeAsked.push("relationship");
   }
+  
+  // Track conversation stage
+  const totalMsgs = messages.length;
+  let stage = "early";
+  if (totalMsgs > 20) stage = "deep";
+  else if (totalMsgs > 10) stage = "mid";
+  facts.push(`Conversation stage: ${stage} (${totalMsgs} messages total)`);
   
   let memoryBlock = "";
   if (facts.length > 0 || questionsWeAsked.length > 0) {
     memoryBlock = `\n\n=== FAN MEMORY (things you KNOW about this person — USE naturally, NEVER re-ask) ===\n`;
     if (facts.length > 0) memoryBlock += `KNOWN FACTS:\n${facts.join("\n")}\n`;
     if (questionsWeAsked.length > 0) memoryBlock += `QUESTIONS ALREADY ASKED (DO NOT repeat these):\n${questionsWeAsked.map(q => `- Already asked about: ${q}`).join("\n")}\n`;
+    memoryBlock += `\n=== PERIODIC RE-SCAN DIRECTIVE ===\nYou have just re-scanned the ENTIRE conversation from start to finish. ALL facts above are current. Use them. Reference them naturally. Build on what you know. If the convo has gone stale, pivot to something they mentioned earlier.\n`;
     memoryBlock += `Use this knowledge to make replies personal. Reference their location, interests, or shared media when it fits naturally. NEVER ask for info you already have.`;
   }
   
@@ -1612,6 +1684,7 @@ Follow these persona settings strictly. They override any conflicting defaults a
             // === USE UPGRADED HELPER FUNCTIONS ===
             const { memoryBlock: fanMemoryBlock } = buildFanMemory(dbMessages || []);
             const behavior = classifyFanBehavior(dbMessages || []);
+            const tension = detectTension(dbMessages || []);
 
             // Auto-save fan behavior (non-blocking)
             try {
@@ -1625,7 +1698,7 @@ Follow these persona settings strictly. They override any conflicting defaults a
                 engagement_velocity: behavior.engagementScore,
                 interaction_count: (dbMessages || []).filter(m => m.sender_type === "fan").length,
                 last_interaction_at: new Date().toISOString(),
-                last_behavior_analysis: { type: behavior.type, score: behavior.engagementScore, analyzed_at: new Date().toISOString() },
+                last_behavior_analysis: { type: behavior.type, score: behavior.engagementScore, tension: tension.tensionLevel, analyzed_at: new Date().toISOString() },
               }, { onConflict: "account_id,fan_identifier" });
             } catch {}
 
@@ -1645,10 +1718,11 @@ Follow these persona settings strictly. They override any conflicting defaults a
 
             const emojiDir = "\n\nEMOJI DIRECTIVE: ZERO emojis. NEVER use emojis regardless of what they send. Text only. Always.";
             const behaviorCtxLive = `\n\n=== PERSON BEHAVIOR: ${behavior.type.toUpperCase()} ===\n${behavior.context}`;
+            const tensionCtxLive = tension.tensionContext;
 
             // Generate AI reply
-            const systemPrompt = `${personaInfo2}${emojiDir}${fanMemoryBlock}${behaviorCtxLive}
-${autoConfig.redirect_url ? `\nIMPORTANT: when it makes sense, naturally guide toward this link: ${autoConfig.redirect_url}. But NEVER redirect during genuine bonding moments — wait for a natural transition` : ""}
+            const systemPrompt = `${personaInfo2}${emojiDir}${fanMemoryBlock}${behaviorCtxLive}${tensionCtxLive}
+${autoConfig.redirect_url ? `\nIMPORTANT: when it makes sense, naturally guide toward this link: ${autoConfig.redirect_url}. But NEVER redirect during genuine bonding moments — wait for a natural transition. NEVER redirect when the vibe is tense or dry — fix the vibe first` : ""}
 ${autoConfig.trigger_keywords ? `if they mention any of these: ${autoConfig.trigger_keywords}, redirect them to the link` : ""}
 
 MONEY & VALUE RULES (CRITICAL — NEVER BREAK):
@@ -1656,15 +1730,24 @@ MONEY & VALUE RULES (CRITICAL — NEVER BREAK):
 - NEVER say "its cheap", "its nothing", "less than a coffee", "just $X" — BANNED
 - Frame value as EXCLUSIVITY and DESIRE only: "u wont find this anywhere else"
 - If they ask about price: deflect "dont worry about that rn" or "trust me its worth it"
-- Be BOLD about the value of your content when the topic naturally comes up — "this is something special" / "u definitely wanna see this"
 
 CONVERSATION MEMORY & CONTINUITY (HIGHEST PRIORITY):
-- You have the ENTIRE conversation history. Read EVERY SINGLE message
+- You have the ENTIRE conversation history. Read EVERY SINGLE message from start to now
 - REMEMBER everything: their name, location, interests, what photos they shared
 - Build on what was discussed. NEVER repeat questions they already answered
 - NEVER ask "where are u from" if they already told you. USE the info instead
 - Keep them talking — be warm, empathetic, genuinely interested
 - End your reply with something that invites a response (a question, tease, or curiosity hook)
+
+TENSION & AWKWARDNESS HANDLING (READ IF CONVO FEELS OFF):
+- If they answer with short cold words like "nothing", "no", "ok", "idk" — DO NOT panic. Stay chill
+- NEVER be overly enthusiastic when theyre being dry. Match their energy level
+- Recovery phrases: "lol ok ur being mysterious today", "mm fair enough", "ok so whats actually on ur mind"
+- If it got awkward: "im just playing with u", "lol im messing around", "ok ok lets start over"
+- NEVER double down on a topic they clearly dont care about
+- If theyre giving one-word answers: try ONE topic pivot. if that fails too, chill: "mm ok" and wait
+- CONSISTENCY IS KEY: maintain the SAME typing style, tone, and personality throughout the ENTIRE convo — from first message to last. never switch up randomly
+- Your vibe should feel continuous, like one person talking naturally over time
 
 CONTEXT AWARENESS (CRITICAL):
 - Your reply MUST directly relate to what they JUST said
