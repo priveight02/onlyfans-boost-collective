@@ -1393,17 +1393,33 @@ const SocialMediaHub = () => {
                   <div className="space-y-2">
                     {searchResults.type === "username" && (
                       <>
-                        {searchResults.data?.instagram && (
-                          <div className="bg-muted/30 rounded-lg p-3">
-                            <div className="flex items-center gap-2 mb-2"><Instagram className="h-4 w-4 text-pink-400" /><span className="text-xs font-medium text-foreground">Instagram</span></div>
-                            <p className="text-sm text-foreground">{searchResults.data.instagram.business_discovery?.name || searchResults.data.instagram.name}</p>
-                            <p className="text-xs text-muted-foreground">{searchResults.data.instagram.business_discovery?.biography || searchResults.data.instagram.biography}</p>
-                            <div className="flex gap-3 mt-2 text-xs text-muted-foreground">
-                              <span>{(searchResults.data.instagram.business_discovery?.followers_count || 0).toLocaleString()} followers</span>
-                              <span>{(searchResults.data.instagram.business_discovery?.media_count || 0).toLocaleString()} posts</span>
+                        {searchResults.data?.instagram && (() => {
+                          const bd = searchResults.data.instagram.business_discovery || searchResults.data.instagram;
+                          const fmtNum = (n: number) => n >= 1000000 ? `${(n/1000000).toFixed(1)}M` : n >= 1000 ? `${(n/1000).toFixed(1)}K` : String(n);
+                          return (
+                            <div className="bg-muted/30 rounded-lg p-3">
+                              <div className="flex items-center gap-2 mb-2"><Instagram className="h-4 w-4 text-pink-400" /><span className="text-xs font-medium text-foreground">Instagram</span></div>
+                              <div className="flex items-center gap-3">
+                                {bd.profile_picture_url && (
+                                  <img src={bd.profile_picture_url} alt="" className="h-12 w-12 rounded-full object-cover flex-shrink-0" referrerPolicy="no-referrer" />
+                                )}
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-1.5">
+                                    <p className="text-sm font-medium text-foreground">{bd.name || bd.username}</p>
+                                    {bd.is_verified && <span className="text-blue-400 text-xs">✓</span>}
+                                  </div>
+                                  <p className="text-[11px] text-muted-foreground">@{bd.username}</p>
+                                  <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{bd.biography}</p>
+                                  <div className="flex gap-3 mt-1.5 text-[11px] text-muted-foreground">
+                                    <span><span className="font-semibold text-foreground">{fmtNum(bd.followers_count || 0)}</span> followers</span>
+                                    <span><span className="font-semibold text-foreground">{fmtNum(bd.follows_count || 0)}</span> following</span>
+                                    <span><span className="font-semibold text-foreground">{fmtNum(bd.media_count || 0)}</span> posts</span>
+                                  </div>
+                                </div>
+                              </div>
                             </div>
-                          </div>
-                        )}
+                          );
+                        })()}
                         {searchResults.data?.tiktok && (
                           <div className="bg-muted/30 rounded-lg p-3">
                             <div className="flex items-center gap-2 mb-2"><Music2 className="h-4 w-4 text-cyan-400" /><span className="text-xs font-medium text-foreground">TikTok</span></div>

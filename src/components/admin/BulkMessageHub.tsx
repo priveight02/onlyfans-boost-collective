@@ -974,40 +974,52 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
                         {discoverResults.length === 0 && discoverQuery.length === 0 && (
                           <p className="text-[11px] text-white/30 text-center py-4">Type a username or keyword to search</p>
                         )}
-                        {discoverResults.map((user: any) => (
-                          <div
-                            key={user.id || user.username}
-                            className="w-full text-left px-3 py-2.5 flex items-center gap-2.5 hover:bg-white/5 transition-colors border-b border-white/[0.04]"
-                          >
-                            <UserAvatar src={user.profile_pic_url} name={user.full_name || user.username} username={user.username} size={9} />
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-1.5">
-                                <span className="text-xs font-medium text-white truncate">{user.full_name || user.username}</span>
-                                {user.is_verified && <VerifiedBadge size={14} />}
-                                {user.is_private && <span className="text-amber-400 text-[9px]">🔒</span>}
+                        {discoverResults.map((user: any) => {
+                          const fmtNum = (n: number | null | undefined) => {
+                            if (n == null) return null;
+                            if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
+                            if (n >= 1000) return `${(n / 1000).toFixed(1)}K`;
+                            return String(n);
+                          };
+                          return (
+                            <div
+                              key={user.id || user.username}
+                              className="w-full text-left px-3 py-2.5 flex items-center gap-2.5 hover:bg-white/5 transition-colors border-b border-white/[0.04]"
+                            >
+                              <UserAvatar src={user.profile_pic_url} name={user.full_name || user.username} username={user.username} size={10} />
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-xs font-medium text-foreground truncate">{user.full_name || user.username}</span>
+                                  {user.is_verified && <VerifiedBadge size={14} />}
+                                  {user.is_private && <span className="text-amber-400 text-[9px]">🔒</span>}
+                                  {user.gender && user.gender !== "unknown" && (
+                                    <span className={`text-[9px] ${user.gender === "female" ? "text-pink-400" : "text-blue-400"}`}>
+                                      {user.gender === "female" ? "♀" : "♂"}
+                                    </span>
+                                  )}
+                                </div>
+                                <span className="text-[10px] text-muted-foreground">@{user.username}</span>
+                                <div className="flex items-center gap-2.5 mt-0.5">
+                                  {user.follower_count != null && (
+                                    <span className="text-[9px] text-muted-foreground"><span className="font-semibold text-foreground">{fmtNum(user.follower_count)}</span> followers</span>
+                                  )}
+                                  {user.following_count != null && (
+                                    <span className="text-[9px] text-muted-foreground"><span className="font-semibold text-foreground">{fmtNum(user.following_count)}</span> following</span>
+                                  )}
+                                  {user.media_count != null && (
+                                    <span className="text-[9px] text-muted-foreground"><span className="font-semibold text-foreground">{fmtNum(user.media_count)}</span> posts</span>
+                                  )}
+                                </div>
                               </div>
-                              <div className="flex items-center gap-2">
-                                <span className="text-[10px] text-white/35">@{user.username}</span>
-                                {user.gender && user.gender !== "unknown" && (
-                                  <span className={`text-[9px] ${user.gender === "female" ? "text-pink-400" : "text-blue-400"}`}>
-                                    {user.gender === "female" ? "♀" : "♂"}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                            <div className="text-right flex-shrink-0 flex items-center gap-2">
-                              {user.follower_count != null && (
-                                <span className="text-[10px] text-white/40">{user.follower_count >= 1000000 ? `${(user.follower_count / 1000000).toFixed(1)}M` : user.follower_count >= 1000 ? `${(user.follower_count / 1000).toFixed(1)}K` : user.follower_count}</span>
-                              )}
                               <button
                                 onClick={() => addDiscoveredUser(user)}
-                                className="p-1 rounded hover:bg-emerald-500/20 transition-colors"
+                                className="p-1.5 rounded hover:bg-emerald-500/20 transition-colors flex-shrink-0"
                               >
                                 <UserPlus className="h-3.5 w-3.5 text-emerald-400" />
                               </button>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </PopoverContent>
                   </Popover>

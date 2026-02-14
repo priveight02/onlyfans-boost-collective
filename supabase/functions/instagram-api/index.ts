@@ -1460,7 +1460,9 @@ serve(async (req) => {
                 is_private: u.is_private,
                 is_verified: u.is_verified,
                 follower_count: u.follower_count,
+                following_count: u.following_count,
                 media_count: u.media_count,
+                biography: u.biography,
                 gender: classifyGender(u.full_name || u.username),
               });
             }
@@ -1490,7 +1492,9 @@ serve(async (req) => {
                   is_private: u.is_private,
                   is_verified: u.is_verified,
                   follower_count: u.follower_count,
+                  following_count: u.following_count,
                   media_count: u.media_count,
+                  biography: u.biography,
                   gender: classifyGender(u.full_name || u.username),
                 });
               }
@@ -1519,7 +1523,9 @@ serve(async (req) => {
                   is_private: u.is_private,
                   is_verified: u.is_verified,
                   follower_count: u.follower_count,
+                  following_count: u.following_count,
                   media_count: u.media_count,
+                  biography: u.biography,
                   gender: classifyGender(u.full_name || u.username),
                 });
               }
