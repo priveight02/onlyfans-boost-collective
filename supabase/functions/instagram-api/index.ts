@@ -561,13 +561,23 @@ serve(async (req) => {
         result = await igFetch(`/${params.hashtag_id}/recent_media?user_id=${igUserId}&fields=id,caption,media_type,like_count,comments_count,permalink,timestamp`, token);
         break;
 
-      // ===== BUSINESS DISCOVERY =====
+      // ===== BUSINESS DISCOVERY (requires Business/Creator account) =====
       case "discover_user":
-        result = await igFetch(`/${igUserId}?fields=business_discovery.fields(id,username,name,biography,profile_picture_url,followers_count,follows_count,media_count,media.limit(${params?.media_limit || 12}){id,caption,media_type,like_count,comments_count,permalink,timestamp})&username=${params.username}`, token);
+        try {
+          result = await igFetch(`/${igUserId}?fields=business_discovery.fields(id,username,name,biography,profile_picture_url,followers_count,follows_count,media_count,media.limit(${params?.media_limit || 12}){id,caption,media_type,like_count,comments_count,permalink,timestamp})&username=${params.username}`, token);
+        } catch (bdErr: any) {
+          console.log("business_discovery not available, using fallback:", bdErr.message);
+          result = { error_fallback: true, message: "business_discovery requires a Business or Creator Instagram account. Your account type may not support this feature.", username: params.username };
+        }
         break;
 
       case "discover_user_media":
-        result = await igFetch(`/${igUserId}?fields=business_discovery.fields(media.limit(${params?.limit || 25}).after(${params?.after || ""}){id,caption,media_type,like_count,comments_count,permalink,timestamp,media_url})&username=${params.username}`, token);
+        try {
+          result = await igFetch(`/${igUserId}?fields=business_discovery.fields(media.limit(${params?.limit || 25}).after(${params?.after || ""}){id,caption,media_type,like_count,comments_count,permalink,timestamp,media_url})&username=${params.username}`, token);
+        } catch (bdErr2: any) {
+          console.log("business_discovery media not available:", bdErr2.message);
+          result = { error_fallback: true, message: "business_discovery requires a Business or Creator Instagram account.", username: params.username };
+        }
         break;
 
       // ===== CONVERSATIONS (DM Inbox) =====
