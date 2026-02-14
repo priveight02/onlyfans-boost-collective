@@ -437,14 +437,14 @@ CLASSIFICATION STRATEGY (use ALL signals together):
                 "Content-Type": "application/json",
               },
               body: JSON.stringify({
-                model: "google/gemini-2.5-flash",
+                model: "google/gemini-2.5-pro",
                 messages: [
                   {
                     role: "system",
-                    content: `You are doing a FINAL PASS gender classification. These profiles were previously unclassifiable. You MUST make a decision for EVERY profile — F or M. 
+                    content: `You are doing a FINAL PASS gender classification with the most powerful model available. These profiles defeated a previous classifier. You MUST make a decision for EVERY profile — F or M. 
 Only use U if it is 100% certain this is a non-human account (brand, business page, bot, news outlet). 
 For ambiguous human profiles, make your BEST GUESS. A wrong guess is better than U. Use statistical priors: on Instagram creator/fan pages, ~65% of ambiguous profiles are female.
-Analyze every character in the name and username for any gender signal at all.`
+Analyze every character in the name and username for any gender signal at all. Look for phonetic cues, cultural roots, letter patterns, and any micro-signal.`
                   },
                   {
                     role: "user",
