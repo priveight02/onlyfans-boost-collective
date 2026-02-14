@@ -544,27 +544,38 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
       const fresh = await loadMessagesToCache(selectedConvo);
       setMessages(fresh);
     }
+    toast.success("Message updated locally (IG doesn't support DM editing)");
   };
 
-  // Delete message — sync to IG + local DB
+  // Delete message — sync to IG via Page API + local DB
   const deleteMessage = async (msgId: string) => {
     const msg = messages.find(m => m.id === msgId);
+    let igDeleted = false;
+    
     // Try to delete on IG if we have a platform_message_id
     if (msg?.platform_message_id) {
       try {
-        await supabase.functions.invoke("instagram-api", {
+        const { data, error } = await supabase.functions.invoke("instagram-api", {
           body: { action: "delete_message", account_id: accountId, params: { message_id: msg.platform_message_id } },
         });
-      } catch (e) {
-        console.warn("IG delete failed (may not be supported):", e);
+        if (error) throw error;
+        if (data?.success !== false) {
+          igDeleted = true;
+          addLog("system", `Deleted message on IG: ${msg.content?.substring(0, 30)}...`, "success");
+        }
+      } catch (e: any) {
+        console.warn("IG delete failed:", e);
+        addLog("system", `IG delete failed: ${e.message || "API limitation"}`, "error");
       }
     }
+    
+    // Always delete locally
     await supabase.from("ai_dm_messages").delete().eq("id", msgId);
     if (selectedConvo) {
       const fresh = await loadMessagesToCache(selectedConvo);
       setMessages(fresh);
     }
-    toast.success("Message deleted");
+    toast.success(igDeleted ? "Message deleted from Instagram" : "Message removed locally");
   };
 
   // Map emoji to IG reaction type
@@ -1271,7 +1282,6 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
                 onClick={async () => {
                   const unread = conversations.filter(c => !c.is_read);
                   if (unread.length === 0) { toast.info("No unopened conversations"); return; }
-                  // Enable AI on all unread convos then process
                   for (const c of unread) {
                     if (!c.ai_enabled) {
                       await supabase.from("ai_dm_conversations").update({ ai_enabled: true }).eq("id", c.id);
@@ -1317,7 +1327,6 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
                 onClick={async () => {
                   const count = conversations.length;
                   if (count === 0) { toast.info("No conversations"); return; }
-                  // Enable AI + mark unread on all convos to force reprocessing
                   for (const c of conversations) {
                     await supabase.from("ai_dm_conversations").update({ ai_enabled: true, is_read: false }).eq("id", c.id);
                   }
@@ -1329,6 +1338,80 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
               >
                 <Zap className="h-3 w-3" />
                 Relaunch All ({conversations.length})
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="w-full h-8 text-[10px] justify-start gap-2 border-green-500/20 text-green-400 hover:bg-green-500/10"
+                onClick={async () => {
+                  const unread = conversations.filter(c => !c.is_read);
+                  if (unread.length === 0) { toast.info("All conversations already read"); return; }
+                  for (const c of unread) {
+                    await supabase.from("ai_dm_conversations").update({ is_read: true }).eq("id", c.id);
+                  }
+                  await loadConversations();
+                  toast.success(`Marked ${unread.length} conversations as read`);
+                }}
+              >
+                <CheckCheck className="h-3 w-3" />
+                Mark All Read ({conversations.filter(c => !c.is_read).length})
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="w-full h-8 text-[10px] justify-start gap-2 border-cyan-500/20 text-cyan-400 hover:bg-cyan-500/10"
+                onClick={async () => {
+                  const disabled = conversations.filter(c => !c.ai_enabled);
+                  if (disabled.length === 0) { toast.info("AI already enabled on all"); return; }
+                  for (const c of disabled) {
+                    await supabase.from("ai_dm_conversations").update({ ai_enabled: true }).eq("id", c.id);
+                  }
+                  await loadConversations();
+                  toast.success(`AI enabled on ${disabled.length} conversations`);
+                  addLog("system", `Enabled AI on ${disabled.length} convos`, "success");
+                }}
+              >
+                <Bot className="h-3 w-3" />
+                Enable AI on All ({conversations.filter(c => !c.ai_enabled).length})
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="w-full h-8 text-[10px] justify-start gap-2 border-red-500/20 text-red-400 hover:bg-red-500/10"
+                onClick={async () => {
+                  const enabled = conversations.filter(c => c.ai_enabled);
+                  if (enabled.length === 0) { toast.info("AI already disabled on all"); return; }
+                  for (const c of enabled) {
+                    await supabase.from("ai_dm_conversations").update({ ai_enabled: false }).eq("id", c.id);
+                  }
+                  await loadConversations();
+                  toast.success(`AI paused on ${enabled.length} conversations`);
+                  addLog("system", `Disabled AI on ${enabled.length} convos`, "info");
+                }}
+              >
+                <WifiOff className="h-3 w-3" />
+                Pause AI on All ({conversations.filter(c => c.ai_enabled).length})
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="w-full h-8 text-[10px] justify-start gap-2 border-amber-500/20 text-amber-400 hover:bg-amber-500/10"
+                disabled={processing}
+                onClick={async () => {
+                  const noRedirect = conversations.filter(c => !c.redirect_sent && c.ai_enabled);
+                  if (noRedirect.length === 0) { toast.info("No conversations need redirect"); return; }
+                  addLog("system", `Force-redirecting ${noRedirect.length} convos`, "processing");
+                  toast.info(`Sending redirect to ${noRedirect.length} conversations...`);
+                  // Mark all as needing reprocessing with redirect flag
+                  for (const c of noRedirect) {
+                    await supabase.from("ai_dm_conversations").update({ is_read: false }).eq("id", c.id);
+                  }
+                  await processDMs();
+                  await loadConversations();
+                }}
+              >
+                <ArrowRight className="h-3 w-3" />
+                Force Redirect All ({conversations.filter(c => !c.redirect_sent).length})
               </Button>
             </div>
           </div>
