@@ -3853,12 +3853,11 @@ IF YOU DONT UNDERSTAND: say "wait wdym" or "lol what" — NEVER make up an incoh
               const alreadyRedirected = !!replyLowerBtb.match(/(bio|link|page|profile|check it|come see|come find|go look|waiting for u)/);
               
               // Decision: send back-to-back follow-up?
-              // - Always after 20+ msgs (conversion phase)
-              // - 40% chance after 15+ msgs
-              // - 15% chance after 8+ msgs for natural multi-msg vibe
-              // - Never if main reply already contains a redirect
+              // PHASE GUARD: Phases 1-3 = STRICTLY ONE reply per fan message. No exceptions.
+              // Only phases 4+ can send multiple messages.
               const btbRoll = Math.random();
-              const shouldSendFollowup = !alreadyRedirected && (
+              const currentPhaseNum = convoPhase.phase;
+              const shouldSendFollowup = currentPhaseNum >= 4 && !alreadyRedirected && (
                 (totalMsgsNow >= 20) || // Always in conversion phase
                 (totalMsgsNow >= 15 && btbRoll < 0.40) || // Often after 15
                 (totalMsgsNow >= 8 && btbRoll < 0.15) // Sometimes for natural multi-msg
