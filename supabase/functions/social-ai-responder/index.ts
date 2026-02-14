@@ -2890,7 +2890,20 @@ FINAL REMINDER — MESSAGE LENGTH (MOST IMPORTANT RULE):
             // CRITICAL: Inject a focus directive so AI answers the LATEST messages, not old ones
             if (unansweredFanMsgs.length > 0) {
               const latestTexts = unansweredFanMsgs.slice(-3).map(m => `"${(m.content || "").substring(0, 80)}"`).join(", ");
-              aiMessages.push({ role: "system", content: `FOCUS: The fan's most recent message(s) you MUST respond to are: ${latestTexts}. Reply ONLY to these. Do NOT answer old questions from earlier in the chat that were already addressed.` });
+              aiMessages.push({ role: "system", content: `COMPREHENSION CHECK — READ CAREFULLY BEFORE REPLYING:
+The fan's most recent message(s) you MUST respond to: ${latestTexts}
+
+STEP 1: What did they LITERALLY say? Parse every word. If they asked "Do you have sisters?" — they are asking about YOUR sisters. If they said "I also want a girl older than me" — they are talking about their dating preference.
+STEP 2: What is the TOPIC? Identify the subject (e.g., family, age, location, hobby, feelings).
+STEP 3: Reply DIRECTLY to that topic. Your response must reference the SAME subject they brought up.
+
+COMMON FAILURE MODES TO AVOID:
+- Fan says "Do you have sisters?" → BAD: "oh wow so ur a little" (incoherent). GOOD: "yea i have one actually shes older than me" or "nope just me lol"
+- Fan says "I also want a girl older than me" → BAD: random compliment. GOOD: "oh so u like older girls huh" or "how much older tho"
+- Fan says "whats your favorite color" → BAD: ignore it. GOOD: "mm probably black or red wbu"
+- If you dont understand what they said, ask: "wait wdym" or "lol what" — NEVER guess and produce garbage
+
+Reply ONLY to these messages. Do NOT answer old questions from earlier in the chat.` });
             }
             
             // Find the best message to reply-to (oldest unanswered question for IG reply feature)
@@ -2902,8 +2915,9 @@ FINAL REMINDER — MESSAGE LENGTH (MOST IMPORTANT RULE):
               }
             }
 
-            // Dynamic tokens — ULTRA SHORT by default, slightly longer for multi-question only
-            const dynamicMaxTokens = multipleUnanswered ? 40 : (unansweredQuestions > 1 ? 30 : 18);
+            // Dynamic tokens — give AI enough room to THINK and form coherent responses
+            // The post-processor handles length trimming, so let the AI generate a full thought first
+            const dynamicMaxTokens = multipleUnanswered ? 60 : (unansweredQuestions > 0 ? 50 : 35);
 
             const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
               method: "POST",
