@@ -115,16 +115,77 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
     { id: "linkedin", name: "LinkedIn", borderColor: "border-sky-600/30", bgColor: "bg-sky-600/10", funcName: "linkedin-api" },
   ];
 
+  const downloadMedia = (url: string, filename?: string) => {
+    const a = document.createElement("a");
+    a.href = url;
+    a.target = "_blank";
+    a.download = filename || "media";
+    a.rel = "noopener noreferrer";
+    a.click();
+  };
+
   // Visual API response renderer
   const renderVisualResponse = (data: any) => {
     if (!data) return null;
     
     // Handle arrays of items (media, posts, etc.)
     if (Array.isArray(data)) {
+      const hasMedia = data.some((item: any) => item.media_url || item.thumbnail_url || item.image_url || item.video_url);
+      
+      if (hasMedia) {
+        return (
+          <div className="space-y-3">
+            <p className="text-[11px] font-medium" style={{ color: "#ccc" }}>{data.length} items returned</p>
+            <div className="grid grid-cols-5 gap-2">
+              {data.map((item: any, i: number) => {
+                const imgUrl = item.media_url || item.thumbnail_url || item.image_url;
+                const vidUrl = item.video_url;
+                const displayUrl = imgUrl || vidUrl;
+                return (
+                  <div key={i} className="group relative rounded-lg overflow-hidden border border-white/10 aspect-square" style={{ background: "hsl(222, 30%, 10%)" }}>
+                    {displayUrl ? (
+                      <img src={displayUrl} alt={item.caption?.slice(0,30) || `Media ${i+1}`} className="w-full h-full object-cover" loading="lazy" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center"><Image className="h-6 w-6 text-white/20" /></div>
+                    )}
+                    {item.media_type && (
+                      <span className="absolute top-1 left-1 text-[8px] px-1.5 py-0.5 rounded font-bold uppercase" style={{ background: "rgba(0,0,0,0.7)", color: "#fff" }}>{item.media_type}</span>
+                    )}
+                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-1.5">
+                      <div className="flex justify-end gap-1">
+                        {displayUrl && (
+                          <button onClick={() => downloadMedia(displayUrl, `media_${i+1}`)} className="p-1 rounded bg-white/20 hover:bg-white/40 transition-colors" title="Download">
+                            <ArrowDown className="h-3 w-3 text-white" />
+                          </button>
+                        )}
+                        {item.permalink && (
+                          <a href={item.permalink} target="_blank" rel="noopener noreferrer" className="p-1 rounded bg-white/20 hover:bg-white/40 transition-colors" title="View">
+                            <Link2 className="h-3 w-3 text-white" />
+                          </a>
+                        )}
+                      </div>
+                      <div className="space-y-0.5">
+                        {item.caption && <p className="text-[8px] text-white line-clamp-2 leading-tight">{item.caption}</p>}
+                        <div className="flex flex-wrap gap-1.5 text-[8px] text-white/80">
+                          {item.like_count !== undefined && <span>❤ {item.like_count?.toLocaleString()}</span>}
+                          {item.likes !== undefined && <span>❤ {item.likes?.toLocaleString()}</span>}
+                          {item.comments_count !== undefined && <span>💬 {item.comments_count?.toLocaleString()}</span>}
+                          {item.view_count !== undefined && <span>👁 {item.view_count?.toLocaleString()}</span>}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      }
+
       return (
         <div className="space-y-2">
-          <p className="text-[10px]" style={{ color: "#999" }}>{data.length} items returned</p>
-          {data.slice(0, 20).map((item: any, i: number) => (
+          <p className="text-[11px] font-medium" style={{ color: "#ccc" }}>{data.length} items returned</p>
+          {data.map((item: any, i: number) => (
             <div key={i} className="rounded-lg p-3 space-y-1.5 border border-white/[0.08]" style={{ background: "hsl(222, 30%, 10%)" }}>
               {item.caption && <p className="text-xs line-clamp-2" style={{ color: "#e8e8e8" }}>{item.caption}</p>}
               {item.text && <p className="text-xs line-clamp-2" style={{ color: "#e8e8e8" }}>{item.text}</p>}
@@ -134,7 +195,7 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
               {item.name && !item.title && <p className="text-xs font-medium" style={{ color: "#f0f0f0" }}>{item.name}</p>}
               {item.description && <p className="text-[11px] line-clamp-1" style={{ color: "#aaa" }}>{item.description}</p>}
               {item.username && <span className="text-[10px] text-primary">@{item.username}</span>}
-              <div className="flex flex-wrap gap-3 text-[10px]" style={{ color: "#999" }}>
+              <div className="flex flex-wrap gap-3 text-[10px]" style={{ color: "#bbb" }}>
                 {item.like_count !== undefined && <span>❤ {item.like_count?.toLocaleString()}</span>}
                 {item.likes !== undefined && <span>❤ {item.likes?.toLocaleString()}</span>}
                 {item.comments_count !== undefined && <span>💬 {item.comments_count?.toLocaleString()}</span>}
@@ -151,8 +212,6 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
                 {item.permalink && <a href={item.permalink} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">View ↗</a>}
                 {item.url && <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Link ↗</a>}
               </div>
-              {item.thumbnail_url && <img src={item.thumbnail_url} alt="" className="h-16 w-16 object-cover rounded mt-1" />}
-              {item.media_url && <img src={item.media_url} alt="" className="h-16 w-16 object-cover rounded mt-1" />}
             </div>
           ))}
         </div>
@@ -224,13 +283,13 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
     <Tabs defaultValue="media" className="w-full">
        <TabsList className="border border-white/10 p-0.5 rounded-lg gap-0.5 flex-wrap h-auto" style={{ background: "hsl(222, 30%, 12%)" }}>
         {[{v:"media",l:"Media",icon:Image},{v:"publish",l:"Publish",icon:Upload},{v:"stories",l:"Stories",icon:Play},{v:"comments",l:"Comments",icon:MessageSquare},{v:"dms",l:"DMs",icon:Send},{v:"insights",l:"Insights",icon:BarChart3},{v:"discovery",l:"Discovery",icon:Search},{v:"hashtags",l:"Hashtags",icon:Hash},{v:"ai",l:"AI Auto",icon:Brain}].map(t=>(
-          <TabsTrigger key={t.v} value={t.v} className="text-[10px] gap-1 px-2 py-1 text-white/60 data-[state=active]:text-white data-[state=active]:bg-white/10"><t.icon className="h-3 w-3"/>{t.l}</TabsTrigger>
+          <TabsTrigger key={t.v} value={t.v} className="text-[10px] gap-1 px-2.5 py-1.5 data-[state=active]:bg-white/15 data-[state=active]:shadow-sm" style={{ color: "rgba(255,255,255,0.7)" }}><t.icon className="h-3 w-3"/>{t.l}</TabsTrigger>
         ))}
       </TabsList>
       <TabsContent value="media" className="space-y-2 mt-3">
         <div className="flex gap-1.5 flex-wrap">
           {renderActionButton("Profile","instagram-api","get_profile",{},Users)}
-          {renderActionButton("My Media","instagram-api","get_media",{limit:25},Image)}
+          {renderActionButton("My Media","instagram-api","get_media",{limit:100},Image)}
           {renderActionButton("Stories","instagram-api","get_stories",{},Play)}
         </div>
         {renderInputAction("Get Media","instagram-api","get_media_by_id",[{key:"ig_media_id",placeholder:"Media ID"}],()=>({media_id:getInput("ig_media_id")}),Eye)}
@@ -295,7 +354,7 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
     <Tabs defaultValue="tweets" className="w-full">
       <TabsList className="border border-white/10 p-0.5 rounded-lg gap-0.5 flex-wrap h-auto" style={{ background: "hsl(222, 30%, 12%)" }}>
         {[{v:"tweets",l:"Tweets",icon:MessageSquare},{v:"engage",l:"Engage",icon:Heart},{v:"social",l:"Social",icon:Users},{v:"moderate",l:"Moderate",icon:Shield},{v:"dms",l:"DMs",icon:Send},{v:"lists",l:"Lists",icon:List},{v:"search",l:"Search",icon:Search},{v:"spaces",l:"Spaces",icon:Radio},{v:"ai",l:"AI Auto",icon:Brain}].map(t=>(
-          <TabsTrigger key={t.v} value={t.v} className="text-[10px] gap-1 px-2 py-1 text-white/60 data-[state=active]:text-white data-[state=active]:bg-white/10"><t.icon className="h-3 w-3"/>{t.l}</TabsTrigger>
+          <TabsTrigger key={t.v} value={t.v} className="text-[10px] gap-1 px-2.5 py-1.5 data-[state=active]:bg-white/15 data-[state=active]:shadow-sm" style={{ color: "rgba(255,255,255,0.7)" }}><t.icon className="h-3 w-3"/>{t.l}</TabsTrigger>
         ))}
       </TabsList>
       <TabsContent value="tweets" className="space-y-2 mt-3">
@@ -392,7 +451,7 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
     <Tabs defaultValue="posts" className="w-full">
       <TabsList className="border border-white/10 p-0.5 rounded-lg gap-0.5 flex-wrap h-auto" style={{ background: "hsl(222, 30%, 12%)" }}>
         {[{v:"posts",l:"Posts",icon:FileText},{v:"comments",l:"Comments",icon:MessageSquare},{v:"subs",l:"Subreddits",icon:Hash},{v:"browse",l:"Browse",icon:TrendingUp},{v:"messages",l:"Messages",icon:Send},{v:"mod",l:"Mod",icon:Shield},{v:"profile",l:"Profile",icon:Users},{v:"search",l:"Search",icon:Search},{v:"ai",l:"AI",icon:Brain}].map(t=>(
-          <TabsTrigger key={t.v} value={t.v} className="text-[10px] gap-1 px-2 py-1 text-white/60 data-[state=active]:text-white data-[state=active]:bg-white/10"><t.icon className="h-3 w-3"/>{t.l}</TabsTrigger>
+          <TabsTrigger key={t.v} value={t.v} className="text-[10px] gap-1 px-2.5 py-1.5 data-[state=active]:bg-white/15 data-[state=active]:shadow-sm" style={{ color: "rgba(255,255,255,0.7)" }}><t.icon className="h-3 w-3"/>{t.l}</TabsTrigger>
         ))}
       </TabsList>
       <TabsContent value="posts" className="space-y-2 mt-3">
@@ -491,7 +550,7 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
     <Tabs defaultValue="messages" className="w-full">
       <TabsList className="border border-white/10 p-0.5 rounded-lg gap-0.5 flex-wrap h-auto" style={{ background: "hsl(222, 30%, 12%)" }}>
         {[{v:"messages",l:"Messages",icon:Send},{v:"media",l:"Media",icon:Image},{v:"special",l:"Special",icon:Dice1},{v:"chat",l:"Chat Mgmt",icon:Settings},{v:"members",l:"Members",icon:Users},{v:"bot",l:"Bot",icon:Bot},{v:"forum",l:"Forum",icon:Layers},{v:"webhook",l:"Webhook",icon:Zap},{v:"ai",l:"AI",icon:Brain}].map(t=>(
-          <TabsTrigger key={t.v} value={t.v} className="text-[10px] gap-1 px-2 py-1 text-white/60 data-[state=active]:text-white data-[state=active]:bg-white/10"><t.icon className="h-3 w-3"/>{t.l}</TabsTrigger>
+          <TabsTrigger key={t.v} value={t.v} className="text-[10px] gap-1 px-2.5 py-1.5 data-[state=active]:bg-white/15 data-[state=active]:shadow-sm" style={{ color: "rgba(255,255,255,0.7)" }}><t.icon className="h-3 w-3"/>{t.l}</TabsTrigger>
         ))}
       </TabsList>
       <TabsContent value="messages" className="space-y-2 mt-3">
@@ -583,7 +642,7 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
     <Tabs defaultValue="videos" className="w-full">
       <TabsList className="border border-white/10 p-0.5 rounded-lg gap-0.5 flex-wrap h-auto" style={{ background: "hsl(222, 30%, 12%)" }}>
         {[{v:"videos",l:"Videos",icon:Video},{v:"publish",l:"Publish",icon:Upload},{v:"comments",l:"Comments",icon:MessageSquare},{v:"dms",l:"DMs",icon:Send},{v:"playlists",l:"Playlists",icon:List},{v:"research",l:"Research",icon:Search},{v:"ai",l:"AI",icon:Brain}].map(t=>(
-          <TabsTrigger key={t.v} value={t.v} className="text-[10px] gap-1 px-2 py-1 text-white/60 data-[state=active]:text-white data-[state=active]:bg-white/10"><t.icon className="h-3 w-3"/>{t.l}</TabsTrigger>
+          <TabsTrigger key={t.v} value={t.v} className="text-[10px] gap-1 px-2.5 py-1.5 data-[state=active]:bg-white/15 data-[state=active]:shadow-sm" style={{ color: "rgba(255,255,255,0.7)" }}><t.icon className="h-3 w-3"/>{t.l}</TabsTrigger>
         ))}
       </TabsList>
       <TabsContent value="videos" className="space-y-2 mt-3">
@@ -640,7 +699,7 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
     <Tabs defaultValue="account" className="w-full">
       <TabsList className="border border-white/10 p-0.5 rounded-lg gap-0.5 flex-wrap h-auto" style={{ background: "hsl(222, 30%, 12%)" }}>
         {[{v:"account",l:"Account",icon:Users},{v:"campaigns",l:"Campaigns",icon:Target},{v:"ads",l:"Ads",icon:Megaphone},{v:"creatives",l:"Creatives",icon:Image},{v:"audiences",l:"Audiences",icon:Users},{v:"analytics",l:"Analytics",icon:BarChart3},{v:"catalogs",l:"Catalogs",icon:Layers},{v:"pixels",l:"Pixels",icon:Activity},{v:"ai",l:"AI",icon:Brain}].map(t=>(
-          <TabsTrigger key={t.v} value={t.v} className="text-[10px] gap-1 px-2 py-1 text-white/60 data-[state=active]:text-white data-[state=active]:bg-white/10"><t.icon className="h-3 w-3"/>{t.l}</TabsTrigger>
+          <TabsTrigger key={t.v} value={t.v} className="text-[10px] gap-1 px-2.5 py-1.5 data-[state=active]:bg-white/15 data-[state=active]:shadow-sm" style={{ color: "rgba(255,255,255,0.7)" }}><t.icon className="h-3 w-3"/>{t.l}</TabsTrigger>
         ))}
       </TabsList>
       <TabsContent value="account" className="space-y-2 mt-3">
@@ -704,7 +763,7 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
     <Tabs defaultValue="posts" className="w-full">
       <TabsList className="border border-white/10 p-0.5 rounded-lg gap-0.5 flex-wrap h-auto" style={{ background: "hsl(222, 30%, 12%)" }}>
         {[{v:"posts",l:"Posts",icon:MessageSquare},{v:"publish",l:"Publish",icon:Send},{v:"replies",l:"Replies",icon:MessageCircle},{v:"insights",l:"Insights",icon:BarChart3},{v:"ai",l:"AI",icon:Brain}].map(t=>(
-          <TabsTrigger key={t.v} value={t.v} className="text-[10px] gap-1 px-2 py-1 text-white/60 data-[state=active]:text-white data-[state=active]:bg-white/10"><t.icon className="h-3 w-3"/>{t.l}</TabsTrigger>
+          <TabsTrigger key={t.v} value={t.v} className="text-[10px] gap-1 px-2.5 py-1.5 data-[state=active]:bg-white/15 data-[state=active]:shadow-sm" style={{ color: "rgba(255,255,255,0.7)" }}><t.icon className="h-3 w-3"/>{t.l}</TabsTrigger>
         ))}
       </TabsList>
       <TabsContent value="posts" className="space-y-2 mt-3">
@@ -748,7 +807,7 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
     <Tabs defaultValue="messages" className="w-full">
       <TabsList className="border border-white/10 p-0.5 rounded-lg gap-0.5 flex-wrap h-auto" style={{ background: "hsl(222, 30%, 12%)" }}>
         {[{v:"messages",l:"Messages",icon:Send},{v:"interactive",l:"Interactive",icon:Zap},{v:"media",l:"Media",icon:Image},{v:"templates",l:"Templates",icon:FileText},{v:"business",l:"Business",icon:Briefcase},{v:"analytics",l:"Analytics",icon:BarChart3},{v:"flows",l:"Flows",icon:Activity},{v:"ai",l:"AI",icon:Brain}].map(t=>(
-          <TabsTrigger key={t.v} value={t.v} className="text-[10px] gap-1 px-2 py-1 text-white/60 data-[state=active]:text-white data-[state=active]:bg-white/10"><t.icon className="h-3 w-3"/>{t.l}</TabsTrigger>
+          <TabsTrigger key={t.v} value={t.v} className="text-[10px] gap-1 px-2.5 py-1.5 data-[state=active]:bg-white/15 data-[state=active]:shadow-sm" style={{ color: "rgba(255,255,255,0.7)" }}><t.icon className="h-3 w-3"/>{t.l}</TabsTrigger>
         ))}
       </TabsList>
       <TabsContent value="messages" className="space-y-2 mt-3">
@@ -807,7 +866,7 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
     <Tabs defaultValue="messages" className="w-full">
       <TabsList className="border border-white/10 p-0.5 rounded-lg gap-0.5 flex-wrap h-auto" style={{ background: "hsl(222, 30%, 12%)" }}>
         {[{v:"messages",l:"Messages",icon:Send},{v:"groups",l:"Groups",icon:Users},{v:"contacts",l:"Contacts",icon:Users},{v:"identity",l:"Identity",icon:Shield},{v:"setup",l:"Setup",icon:Settings},{v:"ai",l:"AI",icon:Brain}].map(t=>(
-          <TabsTrigger key={t.v} value={t.v} className="text-[10px] gap-1 px-2 py-1 text-white/60 data-[state=active]:text-white data-[state=active]:bg-white/10"><t.icon className="h-3 w-3"/>{t.l}</TabsTrigger>
+          <TabsTrigger key={t.v} value={t.v} className="text-[10px] gap-1 px-2.5 py-1.5 data-[state=active]:bg-white/15 data-[state=active]:shadow-sm" style={{ color: "rgba(255,255,255,0.7)" }}><t.icon className="h-3 w-3"/>{t.l}</TabsTrigger>
         ))}
       </TabsList>
       <TabsContent value="messages" className="space-y-2 mt-3">
@@ -858,7 +917,7 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
     <Tabs defaultValue="channel" className="w-full">
       <TabsList className="border border-white/10 p-0.5 rounded-lg gap-0.5 flex-wrap h-auto" style={{ background: "hsl(222, 30%, 12%)" }}>
         {[{v:"channel",l:"Channel",icon:Users},{v:"videos",l:"Videos",icon:Video},{v:"comments",l:"Comments",icon:MessageSquare},{v:"playlists",l:"Playlists",icon:List},{v:"subs",l:"Subs",icon:Bell},{v:"search",l:"Search",icon:Search},{v:"live",l:"Live",icon:Radio},{v:"analytics",l:"Analytics",icon:BarChart3},{v:"ai",l:"AI",icon:Brain}].map(t=>(
-          <TabsTrigger key={t.v} value={t.v} className="text-[10px] gap-1 px-2 py-1 text-white/60 data-[state=active]:text-white data-[state=active]:bg-white/10"><t.icon className="h-3 w-3"/>{t.l}</TabsTrigger>
+          <TabsTrigger key={t.v} value={t.v} className="text-[10px] gap-1 px-2.5 py-1.5 data-[state=active]:bg-white/15 data-[state=active]:shadow-sm" style={{ color: "rgba(255,255,255,0.7)" }}><t.icon className="h-3 w-3"/>{t.l}</TabsTrigger>
         ))}
       </TabsList>
       <TabsContent value="channel" className="space-y-2 mt-3">
@@ -936,7 +995,7 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
     <Tabs defaultValue="pins" className="w-full">
       <TabsList className="border border-white/10 p-0.5 rounded-lg gap-0.5 flex-wrap h-auto" style={{ background: "hsl(222, 30%, 12%)" }}>
         {[{v:"pins",l:"Pins",icon:Image},{v:"boards",l:"Boards",icon:Layers},{v:"search",l:"Search",icon:Search},{v:"analytics",l:"Analytics",icon:BarChart3},{v:"ads",l:"Ads",icon:Megaphone},{v:"catalogs",l:"Catalogs",icon:Briefcase},{v:"ai",l:"AI",icon:Brain}].map(t=>(
-          <TabsTrigger key={t.v} value={t.v} className="text-[10px] gap-1 px-2 py-1 text-white/60 data-[state=active]:text-white data-[state=active]:bg-white/10"><t.icon className="h-3 w-3"/>{t.l}</TabsTrigger>
+          <TabsTrigger key={t.v} value={t.v} className="text-[10px] gap-1 px-2.5 py-1.5 data-[state=active]:bg-white/15 data-[state=active]:shadow-sm" style={{ color: "rgba(255,255,255,0.7)" }}><t.icon className="h-3 w-3"/>{t.l}</TabsTrigger>
         ))}
       </TabsList>
       <TabsContent value="pins" className="space-y-2 mt-3">
@@ -998,7 +1057,7 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
     <Tabs defaultValue="messages" className="w-full">
       <TabsList className="border border-white/10 p-0.5 rounded-lg gap-0.5 flex-wrap h-auto" style={{ background: "hsl(222, 30%, 12%)" }}>
         {[{v:"messages",l:"Messages",icon:Send},{v:"guilds",l:"Servers",icon:Globe},{v:"members",l:"Members",icon:Users},{v:"roles",l:"Roles",icon:Shield},{v:"channels",l:"Channels",icon:Hash},{v:"threads",l:"Threads",icon:Layers},{v:"webhooks",l:"Webhooks",icon:Zap},{v:"events",l:"Events",icon:Calendar},{v:"ai",l:"AI",icon:Brain}].map(t=>(
-          <TabsTrigger key={t.v} value={t.v} className="text-[10px] gap-1 px-2 py-1 text-white/60 data-[state=active]:text-white data-[state=active]:bg-white/10"><t.icon className="h-3 w-3"/>{t.l}</TabsTrigger>
+          <TabsTrigger key={t.v} value={t.v} className="text-[10px] gap-1 px-2.5 py-1.5 data-[state=active]:bg-white/15 data-[state=active]:shadow-sm" style={{ color: "rgba(255,255,255,0.7)" }}><t.icon className="h-3 w-3"/>{t.l}</TabsTrigger>
         ))}
       </TabsList>
       <TabsContent value="messages" className="space-y-2 mt-3">
@@ -1082,7 +1141,7 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
     <Tabs defaultValue="pages" className="w-full">
       <TabsList className="border border-white/10 p-0.5 rounded-lg gap-0.5 flex-wrap h-auto" style={{ background: "hsl(222, 30%, 12%)" }}>
         {[{v:"pages",l:"Pages",icon:Globe},{v:"posts",l:"Posts",icon:FileText},{v:"publish",l:"Publish",icon:Send},{v:"comments",l:"Comments",icon:MessageSquare},{v:"groups",l:"Groups",icon:Users},{v:"inbox",l:"Inbox",icon:MessageCircle},{v:"insights",l:"Insights",icon:BarChart3},{v:"ai",l:"AI",icon:Brain}].map(t=>(
-          <TabsTrigger key={t.v} value={t.v} className="text-[10px] gap-1 px-2 py-1 text-white/60 data-[state=active]:text-white data-[state=active]:bg-white/10"><t.icon className="h-3 w-3"/>{t.l}</TabsTrigger>
+          <TabsTrigger key={t.v} value={t.v} className="text-[10px] gap-1 px-2.5 py-1.5 data-[state=active]:bg-white/15 data-[state=active]:shadow-sm" style={{ color: "rgba(255,255,255,0.7)" }}><t.icon className="h-3 w-3"/>{t.l}</TabsTrigger>
         ))}
       </TabsList>
       <TabsContent value="pages" className="space-y-2 mt-3">
@@ -1145,7 +1204,7 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
     <Tabs defaultValue="profile" className="w-full">
       <TabsList className="border border-white/10 p-0.5 rounded-lg gap-0.5 flex-wrap h-auto" style={{ background: "hsl(222, 30%, 12%)" }}>
         {[{v:"profile",l:"Profile",icon:Users},{v:"posts",l:"Posts",icon:FileText},{v:"publish",l:"Publish",icon:Send},{v:"engage",l:"Engage",icon:Heart},{v:"comments",l:"Comments",icon:MessageSquare},{v:"org",l:"Organization",icon:Briefcase},{v:"messaging",l:"Messages",icon:MessageCircle},{v:"search",l:"Search",icon:Search},{v:"ai",l:"AI",icon:Brain}].map(t=>(
-          <TabsTrigger key={t.v} value={t.v} className="text-[10px] gap-1 px-2 py-1 text-white/60 data-[state=active]:text-white data-[state=active]:bg-white/10"><t.icon className="h-3 w-3"/>{t.l}</TabsTrigger>
+          <TabsTrigger key={t.v} value={t.v} className="text-[10px] gap-1 px-2.5 py-1.5 data-[state=active]:bg-white/15 data-[state=active]:shadow-sm" style={{ color: "rgba(255,255,255,0.7)" }}><t.icon className="h-3 w-3"/>{t.l}</TabsTrigger>
         ))}
       </TabsList>
       <TabsContent value="profile" className="space-y-2 mt-3">
@@ -1273,18 +1332,18 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
       </div>
 
       <Dialog open={!!expandedPlatform} onOpenChange={(open) => { if (!open) setExpandedPlatform(null); }}>
-        <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden border border-white/10" style={{ zoom: 1.15, transformOrigin: "center center", background: "hsl(222, 35%, 7%)", color: "#f0f0f0" }}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden border border-white/10" style={{ zoom: 1.08, transformOrigin: "center center", background: "hsl(222, 35%, 7%)", color: "#f0f0f0" }}>
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-3 text-foreground">
+            <DialogTitle className="flex items-center gap-3" style={{ color: "#ffffff" }}>
               {expandedPlatform && (() => {
                 const p = platforms.find(pl => pl.id === expandedPlatform);
                 if (!p) return null;
                 const logo = platformLogos[p.id];
-                return (<><div className={`h-9 w-9 rounded-lg flex items-center justify-center ${p.bgColor}`}>{logo}</div><span>{p.name} — Full API Control Center</span></>);
+                return (<><div className={`h-9 w-9 rounded-lg flex items-center justify-center ${p.bgColor}`}>{logo}</div><span className="text-lg font-bold">{p.name} — Full API Control Center</span></>);
               })()}
             </DialogTitle>
           </DialogHeader>
-          <ScrollArea className="h-[calc(85vh-100px)] pr-2">
+          <ScrollArea className="h-[calc(85vh-110px)] pr-3">
             {expandedPlatform && renderPlatformContent(expandedPlatform)}
             
             {/* Visual API Response */}
@@ -1294,27 +1353,27 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
                       <div className="h-2 w-2 rounded-full bg-green-400" />
-                      <p className="text-xs font-semibold" style={{ color: "#f0f0f0" }}>Response</p>
-                      <Badge variant="outline" className="text-[9px] h-4 border-white/10" style={{ color: "#aaa" }}>
+                      <p className="text-xs font-semibold" style={{ color: "#ffffff" }}>Response</p>
+                      <Badge variant="outline" className="text-[9px] h-4 border-white/10" style={{ color: "#ccc" }}>
                         {Array.isArray(result) ? `${result.length} items` : Array.isArray(result?.data) ? `${result.data.length} items` : "object"}
                       </Badge>
                     </div>
                     <div className="flex gap-1">
-                      <Button size="sm" variant="ghost" className="h-6 text-[10px] hover:bg-white/10" style={{ color: "#ddd" }} onClick={() => { navigator.clipboard.writeText(JSON.stringify(result, null, 2)); toast.success("Copied"); }}>
+                      <Button size="sm" variant="ghost" className="h-6 text-[10px] hover:bg-white/10" style={{ color: "#fff" }} onClick={() => { navigator.clipboard.writeText(JSON.stringify(result, null, 2)); toast.success("Copied"); }}>
                         <Copy className="h-3 w-3 mr-1" />Copy
                       </Button>
-                      <Button size="sm" variant="ghost" className="h-6 text-[10px] hover:bg-white/10" style={{ color: "#ddd" }} onClick={() => setResult(null)}>
+                      <Button size="sm" variant="ghost" className="h-6 text-[10px] hover:bg-white/10" style={{ color: "#fff" }} onClick={() => setResult(null)}>
                         <Trash2 className="h-3 w-3 mr-1" />Clear
                       </Button>
                     </div>
                   </div>
-                  <ScrollArea className="max-h-[250px]">
+                  <ScrollArea className="max-h-[450px]">
                     {renderVisualResponse(result)}
                   </ScrollArea>
                 </div>
                 
                 <details className="group">
-                  <summary className="text-[10px] text-muted-foreground cursor-pointer hover:text-foreground transition-colors flex items-center gap-1">
+                  <summary className="text-[10px] cursor-pointer hover:text-white transition-colors flex items-center gap-1" style={{ color: "#aaa" }}>
                     <ChevronRight className="h-3 w-3 group-open:rotate-90 transition-transform" />
                     Raw API Response (JSON)
                   </summary>
