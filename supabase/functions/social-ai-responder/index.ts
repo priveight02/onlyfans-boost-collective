@@ -11,28 +11,28 @@ const corsHeaders = {
 // When isFlowing=true (active back-and-forth within 90s), cap delay at 2s
 function humanTypingDelay(text: string, isFlowing = false): number {
   if (isFlowing) {
-    // Flowing conversation — quick replies, max 0.7s
-    const quickBase = text.length * (7 + Math.random() * 5); // 7-12ms per char
-    const quickThink = 100 + Math.random() * 150; // 0.1-0.25s think
+    // Flowing conversation — snappy replies, max 0.5s
+    const quickBase = text.length * (5 + Math.random() * 4); // 5-9ms per char
+    const quickThink = 80 + Math.random() * 120; // 0.08-0.2s think
     const total = quickThink + quickBase;
-    return Math.min(Math.max(total, 200), 700); // 0.2-0.7s
+    return Math.min(Math.max(total, 150), 500); // 0.15-0.5s
   }
   const charCount = text.length;
-  // Fast typing: 15-25ms per char with minimal think time
-  const baseMs = charCount * (15 + Math.random() * 10); // 15-25ms per char
-  const thinkMs = 150 + Math.random() * 350; // 0.15-0.5s think time
-  const jitter = Math.random() * 150; // 0-0.15s jitter
+  // Fast typing: 10-18ms per char with minimal think time
+  const baseMs = charCount * (10 + Math.random() * 8); // 10-18ms per char
+  const thinkMs = 100 + Math.random() * 250; // 0.1-0.35s think time
+  const jitter = Math.random() * 100; // 0-0.1s jitter
   const total = thinkMs + baseMs + jitter;
-  // Clamp: min 0.4s, max 1.3s — 3x faster
-  return Math.min(Math.max(total, 400), 1300);
+  // Clamp: min 0.3s, max 1.0s
+  return Math.min(Math.max(total, 300), 1000);
 }
 
 // Inter-message delay — prevents sending 2 msgs at exact same time
 // When isFlowing=true, minimal delay
 function interMessageDelay(isFlowing = false): number {
-  if (isFlowing) return 100 + Math.random() * 200; // 0.1-0.3s when flowing
-  // 0.3-1s between messages — 3x faster
-  return 300 + Math.random() * 700;
+  if (isFlowing) return 80 + Math.random() * 150; // 0.08-0.23s when flowing
+  // 0.2-0.7s between messages
+  return 200 + Math.random() * 500;
 }
 
 // === STRATEGIC IMAGE GENERATION ENGINE ===
@@ -3564,9 +3564,9 @@ IF YOU DONT UNDERSTAND: say "wait wdym" or "lol what" — NEVER make up an incoh
               }
             }
 
-            // Dynamic tokens — give AI enough room to THINK and form coherent responses
-            // Higher tokens = better comprehension. Post-processor handles length trimming after
-            const dynamicMaxTokens = multipleUnanswered ? 120 : (unansweredQuestions > 0 ? 100 : 80);
+            // Dynamic tokens — generous so AI can COMPLETE thoughts fully
+            // Post-processor handles length diversity — never cut mid-thought
+            const dynamicMaxTokens = multipleUnanswered ? 300 : (unansweredQuestions > 0 ? 250 : 200);
 
             // Update pipeline phase to "generate" for real-time UI tracking
             if (typingMsg) {
@@ -3607,7 +3607,7 @@ IF YOU DONT UNDERSTAND: say "wait wdym" or "lol what" — NEVER make up an incoh
                   body: JSON.stringify({
                     model: "google/gemini-2.5-flash",
                     messages: aiMessages,
-                    max_tokens: 80,
+                    max_tokens: 200,
                     temperature: 0.9,
                   }),
                 });
@@ -3628,39 +3628,51 @@ IF YOU DONT UNDERSTAND: say "wait wdym" or "lol what" — NEVER make up an incoh
             
             // === SMART MESSAGE LENGTH ENGINE ===
             // Preserves full replies when answering questions or multiple unanswered msgs
-            // Only truncates for casual/reactive messages
+            // NEVER cuts mid-sentence — finds natural break points
             const wordsArr = reply.split(/\s+/);
             const isAnsweringQuestion = unansweredQuestions > 0 || multipleUnanswered;
+            
+            // Helper: find the best cut point that doesn't break mid-thought
+            const smartTruncate = (words: string[], maxWords: number): string => {
+              if (words.length <= maxWords) return words.join(" ");
+              // Look for natural break points (end of clause/sentence) within range
+              let bestCut = maxWords;
+              for (let i = Math.min(maxWords, words.length - 1); i >= Math.max(maxWords - 3, 2); i--) {
+                const word = words[i];
+                // Good break points: words ending naturally (not prepositions/articles)
+                if (!word.match(/^(a|an|the|to|in|on|at|for|and|but|or|so|if|of|is|it|u|ur|my|i|im|we|he|she|they|with|from|that|this)$/i)) {
+                  bestCut = i + 1;
+                  break;
+                }
+              }
+              return words.slice(0, bestCut).join(" ");
+            };
             
             if (!isAnsweringQuestion) {
               // Only apply random truncation for non-question casual replies
               const roll = Math.random();
-              if (roll < 0.65) {
+              if (roll < 0.60) {
                 // SHORT: 3-8 words — most common for casual replies
                 const targetLen = 3 + Math.floor(Math.random() * 6);
                 if (wordsArr.length > targetLen) {
-                  reply = wordsArr.slice(0, targetLen).join(" ");
-                  reply = reply.replace(/\s+(a|an|the|to|in|on|at|for|and|but|or|so|if|of|is|it|u|ur|my|i|im|we|he|she|they|with|from|that|this)$/i, "");
+                  reply = smartTruncate(wordsArr, targetLen);
                 }
-              } else if (roll < 0.88) {
-                // MEDIUM: 8-15 words
-                const targetLen = 8 + Math.floor(Math.random() * 8);
+              } else if (roll < 0.85) {
+                // MEDIUM: 8-18 words
+                const targetLen = 8 + Math.floor(Math.random() * 11);
                 if (wordsArr.length > targetLen) {
-                  reply = wordsArr.slice(0, targetLen).join(" ");
-                  reply = reply.replace(/\s+(a|an|the|to|in|on|at|for|and|but|or|so|if|of|is|it|u|ur|my|i|im|we|he|she|they|with|from|that|this)$/i, "");
+                  reply = smartTruncate(wordsArr, targetLen);
                 }
               } else {
-                // LONG: up to 25 words (rare)
-                if (wordsArr.length > 25) {
-                  reply = wordsArr.slice(0, 20).join(" ");
-                  reply = reply.replace(/\s+(a|an|the|to|in|on|at|for|and|but|or|so|if|of|is|it|u|ur|my|i|im|we|he|she|they|with|from|that|this)$/i, "");
+                // LONG: up to 30 words (rare, let it breathe)
+                if (wordsArr.length > 30) {
+                  reply = smartTruncate(wordsArr, 28);
                 }
               }
             } else {
-              // Answering questions — only hard-cap at 25 words to prevent rambling
-              if (wordsArr.length > 25) {
-                reply = wordsArr.slice(0, 22).join(" ");
-                reply = reply.replace(/\s+(a|an|the|to|in|on|at|for|and|but|or|so|if|of|is|it|u|ur|my|i|im|we|he|she|they|with|from|that|this)$/i, "");
+              // Answering questions — generous cap at 30 words
+              if (wordsArr.length > 30) {
+                reply = smartTruncate(wordsArr, 28);
               }
             }
             // Ensure minimum 2 words
