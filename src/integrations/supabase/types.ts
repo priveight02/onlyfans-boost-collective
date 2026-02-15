@@ -1180,6 +1180,36 @@ export type Database = {
           },
         ]
       }
+      login_activity: {
+        Row: {
+          device: string | null
+          id: string
+          ip_address: string | null
+          login_at: string
+          login_type: string | null
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          device?: string | null
+          id?: string
+          ip_address?: string | null
+          login_at?: string
+          login_type?: string | null
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          device?: string | null
+          id?: string
+          ip_address?: string | null
+          login_at?: string
+          login_type?: string | null
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       managed_accounts: {
         Row: {
           active_persona_id: string | null
@@ -1344,6 +1374,33 @@ export type Database = {
           },
         ]
       }
+      notification_preferences: {
+        Row: {
+          category: string
+          created_at: string
+          email_enabled: boolean | null
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          email_enabled?: boolean | null
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          email_enabled?: boolean | null
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       persona_consistency_checks: {
         Row: {
           account_id: string
@@ -1485,12 +1542,17 @@ export type Database = {
       }
       profiles: {
         Row: {
+          address: string | null
+          auth_provider: string | null
           avatar_url: string | null
           bio: string | null
+          company: string | null
           created_at: string
           display_name: string | null
           email: string | null
+          has_password: boolean | null
           id: string
+          phone: string | null
           remember_me: boolean | null
           remember_until: string | null
           updated_at: string
@@ -1498,12 +1560,17 @@ export type Database = {
           username: string | null
         }
         Insert: {
+          address?: string | null
+          auth_provider?: string | null
           avatar_url?: string | null
           bio?: string | null
+          company?: string | null
           created_at?: string
           display_name?: string | null
           email?: string | null
+          has_password?: boolean | null
           id?: string
+          phone?: string | null
           remember_me?: boolean | null
           remember_until?: string | null
           updated_at?: string
@@ -1511,12 +1578,17 @@ export type Database = {
           username?: string | null
         }
         Update: {
+          address?: string | null
+          auth_provider?: string | null
           avatar_url?: string | null
           bio?: string | null
+          company?: string | null
           created_at?: string
           display_name?: string | null
           email?: string | null
+          has_password?: boolean | null
           id?: string
+          phone?: string | null
           remember_me?: boolean | null
           remember_until?: string | null
           updated_at?: string
