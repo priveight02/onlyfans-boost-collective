@@ -29,7 +29,7 @@ const AppContent = () => {
       <Navigation />
       <Routes>
         <Route path="/" element={<Index />} />
-        <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
+        <Route path="/onboarding" element={<Onboarding />} />
         <Route path="/services" element={<Services />} />
         <Route path="/faq" element={<FAQ />} />
         <Route path="/auth" element={<Auth />} />
