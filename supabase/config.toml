@@ -94,3 +94,6 @@ verify_jwt = false
 
 [functions.check-wallet]
 verify_jwt = false
+
+[functions.admin-api]
+verify_jwt = false
