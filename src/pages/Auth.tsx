@@ -12,9 +12,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { trackAdminLogin } from "@/hooks/useVisitorTracking";
 import {
   Eye, EyeOff, LogIn, Lock, Mail, User, ArrowLeft,
-  Sparkles, KeyRound, Send, UserPlus, Chrome
+  Sparkles, KeyRound, Send, UserPlus, Chrome,
+  CheckCircle2, AlertCircle, XCircle, X
 } from "lucide-react";
 import BackButton from "@/components/BackButton";
+
+type CardNotification = {
+  type: "success" | "error" | "info";
+  message: string;
+} | null;
 
 type AuthMode = "login" | "register" | "forgot" | "magic";
 
@@ -41,8 +47,12 @@ const Auth = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [notification, setNotification] = useState<CardNotification>(null);
   const { signIn, signUp, signInWithMagicLink, resetPassword, user } = useAuth();
   const navigate = useNavigate();
+
+  // Clear notification on mode change
+  useEffect(() => { setNotification(null); }, [mode]);
 
   useEffect(() => {
     if (user) navigate("/");
@@ -50,20 +60,21 @@ const Auth = () => {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setNotification(null);
     const result = loginSchema.safeParse({ email, password });
     if (!result.success) {
-      result.error.errors.forEach((err) => toast.error(err.message));
+      setNotification({ type: "error", message: result.error.errors[0].message });
       return;
     }
     try {
       setIsSubmitting(true);
       await signIn(email, password, rememberMe);
       trackAdminLogin(email, true);
-      toast.success("Welcome back!");
+      setNotification({ type: "success", message: "Welcome back! Redirecting..." });
       navigate("/");
     } catch (error: any) {
       trackAdminLogin(email, false);
-      toast.error(error.message || "Invalid credentials");
+      setNotification({ type: "error", message: error.message || "Invalid credentials" });
     } finally {
       setIsSubmitting(false);
     }
@@ -71,42 +82,48 @@ const Auth = () => {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+    setNotification(null);
     const result = registerSchema.safeParse({ email, password, username, displayName });
     if (!result.success) {
-      result.error.errors.forEach((err) => toast.error(err.message));
+      setNotification({ type: "error", message: result.error.errors[0].message });
       return;
     }
     try {
       setIsSubmitting(true);
       await signUp(email, password, username, displayName);
-      toast.success("Account created! Please check your email to verify your account.");
+      setNotification({ type: "success", message: "Account created! Check your email to verify." });
       setMode("login");
     } catch (error: any) {
-      toast.error(error.message || "Registration failed");
+      setNotification({ type: "error", message: error.message || "Registration failed" });
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  const checkAccountExists = async (emailToCheck: string): Promise<boolean> => {
+    const { data, error } = await supabase.rpc('check_email_exists', { email_input: emailToCheck.trim().toLowerCase() });
+    if (error) {
+      console.error("Email check error:", error);
+      return true; // fail open so auth flow isn't blocked
+    }
+    return !!data;
+  };
+
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email) { toast.error("Please enter your email"); return; }
+    setNotification(null);
+    if (!email) { setNotification({ type: "error", message: "Please enter your email" }); return; }
     try {
       setIsSubmitting(true);
-      // Check if account exists before sending reset email
-      const { data: existingProfile } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('email', email.trim().toLowerCase())
-        .maybeSingle();
-      if (!existingProfile) {
-        toast.error("No account found with this email address.");
+      const exists = await checkAccountExists(email);
+      if (!exists) {
+        setNotification({ type: "error", message: "No account found with this email address." });
         return;
       }
       await resetPassword(email);
-      toast.success("Password reset link sent! Check your email.");
+      setNotification({ type: "success", message: "Password reset link sent! Check your email." });
     } catch (error: any) {
-      toast.error(error.message || "Failed to send reset link");
+      setNotification({ type: "error", message: error.message || "Failed to send reset link" });
     } finally {
       setIsSubmitting(false);
     }
@@ -114,23 +131,19 @@ const Auth = () => {
 
   const handleMagicLink = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email) { toast.error("Please enter your email"); return; }
+    setNotification(null);
+    if (!email) { setNotification({ type: "error", message: "Please enter your email" }); return; }
     try {
       setIsSubmitting(true);
-      // Check if account exists before sending magic link
-      const { data: existingProfile } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('email', email.trim().toLowerCase())
-        .maybeSingle();
-      if (!existingProfile) {
-        toast.error("No account found with this email address.");
+      const exists = await checkAccountExists(email);
+      if (!exists) {
+        setNotification({ type: "error", message: "No account found with this email address." });
         return;
       }
       await signInWithMagicLink(email);
-      toast.success("Magic link sent! Check your email (link expires in 24h).");
+      setNotification({ type: "success", message: "Magic link sent! Check your email (expires in 24h)." });
     } catch (error: any) {
-      toast.error(error.message || "Failed to send magic link");
+      setNotification({ type: "error", message: error.message || "Failed to send magic link" });
     } finally {
       setIsSubmitting(false);
     }
@@ -143,7 +156,7 @@ const Auth = () => {
       });
       if (error) throw error;
     } catch (error: any) {
-      toast.error(error.message || "Google login failed");
+      setNotification({ type: "error", message: error.message || "Google login failed" });
     }
   };
 
@@ -198,6 +211,37 @@ const Auth = () => {
                 </h1>
                 <p className="text-white/50 text-sm">{current.subtitle}</p>
               </motion.div>
+            </AnimatePresence>
+
+            {/* Inline Notification */}
+            <AnimatePresence>
+              {notification && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0, marginBottom: 0 }}
+                  animate={{ opacity: 1, height: "auto", marginBottom: 16 }}
+                  exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+                  transition={{ duration: 0.25 }}
+                  className={`relative flex items-start gap-3 px-4 py-3 rounded-xl border text-sm ${
+                    notification.type === "success"
+                      ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
+                      : notification.type === "error"
+                      ? "bg-red-500/10 border-red-500/20 text-red-400"
+                      : "bg-blue-500/10 border-blue-500/20 text-blue-400"
+                  }`}
+                >
+                  {notification.type === "success" ? (
+                    <CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0" />
+                  ) : notification.type === "error" ? (
+                    <XCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                  ) : (
+                    <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                  )}
+                  <span className="flex-1 leading-snug">{notification.message}</span>
+                  <button onClick={() => setNotification(null)} className="shrink-0 mt-0.5 opacity-60 hover:opacity-100 transition-opacity">
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </motion.div>
+              )}
             </AnimatePresence>
 
             {/* Google OAuth */}
