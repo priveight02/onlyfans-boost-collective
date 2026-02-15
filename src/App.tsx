@@ -14,6 +14,8 @@ import Auth from "./pages/Auth";
 import Onboarding from "./pages/Onboarding";
 import Admin from "./pages/Admin";
 import BioLink from "./pages/BioLink";
+import ResetPassword from "./pages/ResetPassword";
+import UserProfile from "./pages/UserProfile";
 
 const queryClient = new QueryClient();
 
@@ -28,6 +30,8 @@ const AppContent = () => {
         <Route path="/services" element={<Services />} />
         <Route path="/faq" element={<FAQ />} />
         <Route path="/auth" element={<Auth />} />
+        <Route path="/auth/reset-password" element={<ResetPassword />} />
+        <Route path="/profile" element={<UserProfile />} />
         <Route path="/admin" element={<Admin />} />
         <Route path="/link/:slug" element={<BioLink />} />
       </Routes>

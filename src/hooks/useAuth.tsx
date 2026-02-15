@@ -2,23 +2,52 @@ import { createContext, useContext, useState, useEffect, ReactNode } from 'react
 import { supabase } from '@/integrations/supabase/client';
 import type { User } from '@supabase/supabase-js';
 
+interface Profile {
+  id: string;
+  user_id: string;
+  username: string | null;
+  display_name: string | null;
+  avatar_url: string | null;
+  bio: string | null;
+  email: string | null;
+}
+
 interface AuthContextType {
   user: User | null;
+  profile: Profile | null;
   loading: boolean;
   isAdmin: boolean;
-  signIn: (email: string, password: string) => Promise<any>;
+  signIn: (email: string, password: string, rememberMe?: boolean) => Promise<any>;
+  signUp: (email: string, password: string, username?: string, displayName?: string) => Promise<any>;
+  signInWithMagicLink: (email: string) => Promise<any>;
+  resetPassword: (email: string) => Promise<any>;
+  updatePassword: (newPassword: string) => Promise<any>;
   logout: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Cache admin status in memory to avoid re-checking
 const adminCache = new Map<string, boolean>();
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+
+  const fetchProfile = async (userId: string) => {
+    const { data } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('user_id', userId)
+      .single();
+    if (data) setProfile(data as Profile);
+  };
+
+  const refreshProfile = async () => {
+    if (user) await fetchProfile(user.id);
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -28,21 +57,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       if (!currentUser) {
         setUser(null);
+        setProfile(null);
         setIsAdmin(false);
         setLoading(false);
         return;
       }
 
       setUser(currentUser);
+      fetchProfile(currentUser.id);
 
-      // Use cache if available
       if (adminCache.has(currentUser.id)) {
         setIsAdmin(adminCache.get(currentUser.id)!);
         setLoading(false);
         return;
       }
 
-      // Quick parallel check
       const { data } = await supabase.rpc('is_admin', { _user_id: currentUser.id });
       const admin = !!data;
       adminCache.set(currentUser.id, admin);
@@ -52,15 +81,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     };
 
-    // Set up listener first
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       resolveUser(session?.user ?? null);
     });
 
-    // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       resolveUser(session?.user ?? null);
     });
+
+    // Check remember me on load
+    const remembered = localStorage.getItem('ozc_remember_me');
+    if (remembered) {
+      const parsed = JSON.parse(remembered);
+      if (new Date(parsed.until) < new Date()) {
+        localStorage.removeItem('ozc_remember_me');
+      }
+    }
 
     return () => {
       mounted = false;
@@ -68,22 +104,78 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
   }, []);
 
-  const signIn = async (email: string, password: string) => {
+  const signIn = async (email: string, password: string, rememberMe = false) => {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
+    
+    if (rememberMe) {
+      const until = new Date();
+      until.setDate(until.getDate() + 30);
+      localStorage.setItem('ozc_remember_me', JSON.stringify({ until: until.toISOString() }));
+      // Update profile
+      if (data.user) {
+        await supabase.from('profiles').update({ 
+          remember_me: true, 
+          remember_until: until.toISOString() 
+        }).eq('user_id', data.user.id);
+      }
+    } else {
+      localStorage.removeItem('ozc_remember_me');
+    }
+    
     return data;
+  };
+
+  const signUp = async (email: string, password: string, username?: string, displayName?: string) => {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: window.location.origin,
+        data: {
+          full_name: displayName || email.split('@')[0],
+          username: username,
+        }
+      }
+    });
+    if (error) throw error;
+    return data;
+  };
+
+  const signInWithMagicLink = async (email: string) => {
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        emailRedirectTo: window.location.origin,
+      }
+    });
+    if (error) throw error;
+  };
+
+  const resetPassword = async (email: string) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/auth/reset-password`,
+    });
+    if (error) throw error;
+  };
+
+  const updatePassword = async (newPassword: string) => {
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) throw error;
   };
 
   const logout = async () => {
     adminCache.clear();
     setIsAdmin(false);
     setUser(null);
+    setProfile(null);
+    localStorage.removeItem('ozc_remember_me');
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, isAdmin, signIn, logout }}>
+    <AuthContext.Provider value={{ user, profile, loading, isAdmin, signIn, signUp, signInWithMagicLink, resetPassword, updatePassword, logout, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   );
