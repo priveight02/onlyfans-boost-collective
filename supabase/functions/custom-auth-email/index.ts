@@ -8,7 +8,7 @@ const corsHeaders = {
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY")!;
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const LOGO_URL = "https://ufsnuobtvkciydftsyff.supabase.co/storage/v1/object/public/email-assets/ozc-logo.jpg";
+const LOGO_URL = "https://ozcagency.com/lovable-uploads/ozc-agency-logo.jpg";
 const SITE_URL = "https://ozcagency.com";
 const BRAND_NAME = "Ozc Agency";
 
@@ -127,17 +127,17 @@ function getEmailContent(actionType: string, confirmUrl: string): { subject: str
                   <td style="padding: 24px 48px 0 48px; text-align: center;">
                     <table cellpadding="0" cellspacing="0" role="presentation" style="margin: 0 auto;">
                       <tr>
-                        <td style="padding: 0 5px;"><a href="https://instagram.com/ozcagency" style="display: inline-block; width: 38px; height: 38px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; text-align: center; text-decoration: none;"><img src="https://cdn.simpleicons.org/instagram/E4405F" alt="IG" width="16" height="16" style="display: block; margin: 11px auto 0;" /></a></td>
-                        <td style="padding: 0 5px;"><a href="https://x.com/ozcagency" style="display: inline-block; width: 38px; height: 38px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; text-align: center; text-decoration: none;"><img src="https://cdn.simpleicons.org/x/FFFFFF" alt="X" width="14" height="14" style="display: block; margin: 12px auto 0;" /></a></td>
-                        <td style="padding: 0 5px;"><a href="https://tiktok.com/@ozcagency" style="display: inline-block; width: 38px; height: 38px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; text-align: center; text-decoration: none;"><img src="https://cdn.simpleicons.org/tiktok/FFFFFF" alt="TT" width="15" height="15" style="display: block; margin: 11px auto 0;" /></a></td>
-                        <td style="padding: 0 5px;"><a href="mailto:liam@ozcagency.com" style="display: inline-block; width: 38px; height: 38px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; text-align: center; text-decoration: none;"><img src="https://cdn.simpleicons.org/gmail/94A3B8" alt="Mail" width="16" height="16" style="display: block; margin: 11px auto 0;" /></a></td>
+                        <td style="padding: 0 5px;"><a href="https://instagram.com/ozcagency" style="display: inline-block; width: 38px; height: 38px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; text-align: center; text-decoration: none; line-height: 38px; font-size: 16px;">📸</a></td>
+                        <td style="padding: 0 5px;"><a href="https://x.com/ozcagency" style="display: inline-block; width: 38px; height: 38px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; text-align: center; text-decoration: none; line-height: 38px; font-size: 16px;">𝕏</a></td>
+                        <td style="padding: 0 5px;"><a href="https://tiktok.com/@ozcagency" style="display: inline-block; width: 38px; height: 38px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; text-align: center; text-decoration: none; line-height: 38px; font-size: 16px;">🎵</a></td>
+                        <td style="padding: 0 5px;"><a href="mailto:contact@ozcagency.com" style="display: inline-block; width: 38px; height: 38px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; text-align: center; text-decoration: none; line-height: 38px; font-size: 16px;">✉️</a></td>
                       </tr>
                     </table>
                   </td>
                 </tr>
                 <tr>
                   <td style="padding: 12px 48px 0 48px; text-align: center;">
-                    <p style="margin: 0;"><a href="mailto:liam@ozcagency.com" style="font-size: 12px; color: #475569; text-decoration: none;">liam@ozcagency.com</a></p>
+                    <p style="margin: 0;"><a href="mailto:contact@ozcagency.com" style="font-size: 12px; color: #475569; text-decoration: none;">contact@ozcagency.com</a></p>
                   </td>
                 </tr>
                 <tr>
@@ -244,7 +244,7 @@ Deno.serve(async (req) => {
         Authorization: `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: `${BRAND_NAME} <no-reply@ozcagency.com>`,
+        from: `${BRAND_NAME} <contact@ozcagency.com>`,
         to: [email],
         subject,
         html,
