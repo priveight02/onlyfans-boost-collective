@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   CreditCard, FileText, Settings2, AlertTriangle, ExternalLink, RefreshCw,
-  Check, X, Gift, ShieldCheck, Sparkles, Clock, Mail, Tag, ChevronDown, ChevronUp
+  Check, X, Gift, ShieldCheck, Sparkles, ArrowRight, Clock, Mail, Tag, ChevronDown, ChevronUp
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -270,7 +270,7 @@ const BillingPaymentsTab = () => {
               }}
               className="bg-purple-500 hover:bg-purple-400 text-white text-sm h-9 px-5 font-medium"
             >
-              <Sparkles className="h-4 w-4 mr-2" /> View Plans
+              <ArrowRight className="h-4 w-4 mr-2" /> View Plans
             </Button>
           </div>
         )}
