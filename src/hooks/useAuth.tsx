@@ -88,12 +88,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const provider = session.user.app_metadata?.provider || 'email';
         const ua = navigator.userAgent;
         const device = /Mobile|Android|iPhone/i.test(ua) ? 'mobile' : 'desktop';
-        supabase.from('login_activity').insert({
-          user_id: session.user.id,
-          login_type: provider,
-          device,
-          user_agent: ua.substring(0, 200),
-        } as any).then(() => {});
+        // Fetch real IP via ipify then log
+        fetch('https://api.ipify.org?format=json')
+          .then(r => r.json())
+          .then(ipData => {
+            supabase.from('login_activity').insert({
+              user_id: session.user.id,
+              login_type: provider,
+              device,
+              user_agent: ua.substring(0, 200),
+              ip_address: ipData.ip || null,
+            } as any).then(() => {});
+          })
+          .catch(() => {
+            supabase.from('login_activity').insert({
+              user_id: session.user.id,
+              login_type: provider,
+              device,
+              user_agent: ua.substring(0, 200),
+            } as any).then(() => {});
+          });
       }
     });
 
