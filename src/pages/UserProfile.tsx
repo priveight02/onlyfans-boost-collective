@@ -1,24 +1,30 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
 import {
   User, Mail, AtSign, Save, KeyRound, LogOut, Shield, Bell,
   Activity, ChevronRight, Phone, Building2, MapPin, Trash2,
-  Link2, Unlink, AlertTriangle, Eye, EyeOff, Lock, CheckCircle2, XCircle, Info
+  Link2, Unlink, AlertTriangle, Eye, EyeOff, Lock, CheckCircle2, XCircle, Info,
+  Monitor, Smartphone, Tablet, Wifi, WifiOff, Plus, X, Clock,
+  Globe, Languages, Download, ShieldCheck, BellRing, Settings2
 } from "lucide-react";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter,
   DialogHeader, DialogTitle
 } from "@/components/ui/dialog";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue
+} from "@/components/ui/select";
 
-type TabId = "account" | "security" | "activity" | "notifications";
+type TabId = "account" | "security" | "activity" | "devices" | "notifications";
 
 type CardNotification = { type: "success" | "error" | "info"; message: string } | null;
 
@@ -27,6 +33,69 @@ const NOTIFICATION_CATEGORIES = [
   { id: "service_updates", label: "Service Status and Changes", desc: "Get alerts about the status, downtime, and other important information." },
   { id: "marketing", label: "Product Updates and Offers", desc: "Be the first to discover about new features, updates, and exclusive offers." },
 ];
+
+const TIMEZONES = [
+  "UTC", "America/New_York", "America/Chicago", "America/Denver", "America/Los_Angeles",
+  "Europe/London", "Europe/Paris", "Europe/Berlin", "Europe/Amsterdam",
+  "Asia/Tokyo", "Asia/Shanghai", "Asia/Dubai", "Australia/Sydney",
+  "America/Sao_Paulo", "Africa/Johannesburg", "Asia/Singapore"
+];
+
+const LANGUAGES = [
+  { code: "en", label: "English" },
+  { code: "fr", label: "Français" },
+  { code: "es", label: "Español" },
+  { code: "de", label: "Deutsch" },
+  { code: "pt", label: "Português" },
+  { code: "nl", label: "Nederlands" },
+];
+
+const SESSION_TIMEOUT_OPTIONS = [
+  { value: 30, label: "30 minutes" },
+  { value: 60, label: "1 hour" },
+  { value: 480, label: "8 hours" },
+  { value: 1440, label: "24 hours (default)" },
+  { value: 10080, label: "7 days" },
+  { value: 43200, label: "30 days" },
+];
+
+// Dark glassmorphism card
+const Card = ({ children, className = "", danger = false }: { children: React.ReactNode; className?: string; danger?: boolean }) => (
+  <div className={`rounded-2xl border p-6 backdrop-blur-xl ${danger ? "bg-red-500/5 border-red-500/15" : "bg-[hsl(222,30%,10%)]/80 border-white/[0.06]"} ${className}`}>
+    {children}
+  </div>
+);
+
+const SectionTitle = ({ icon: Icon, title, subtitle, danger = false }: { icon: any; title: string; subtitle?: string; danger?: boolean }) => (
+  <div className="mb-5">
+    <div className="flex items-center gap-2.5 mb-1">
+      <Icon className={`h-[18px] w-[18px] ${danger ? "text-red-400" : "text-white/60"}`} />
+      <h2 className={`text-[15px] font-semibold tracking-tight ${danger ? "text-red-300" : "text-white/90"}`}>{title}</h2>
+    </div>
+    {subtitle && <p className="text-white/35 text-[12px] ml-[30px] leading-relaxed">{subtitle}</p>}
+  </div>
+);
+
+const parseUA = (ua: string) => {
+  let browser = "Unknown";
+  let os = "Unknown";
+  if (ua.includes("Chrome") && !ua.includes("Edg")) browser = "Chrome";
+  else if (ua.includes("Firefox")) browser = "Firefox";
+  else if (ua.includes("Safari") && !ua.includes("Chrome")) browser = "Safari";
+  else if (ua.includes("Edg")) browser = "Edge";
+  if (ua.includes("Windows")) os = "Windows";
+  else if (ua.includes("Mac")) os = "macOS";
+  else if (ua.includes("Linux")) os = "Linux";
+  else if (ua.includes("Android")) os = "Android";
+  else if (ua.includes("iPhone") || ua.includes("iPad")) os = "iOS";
+  return { browser, os };
+};
+
+const DeviceIcon = ({ type }: { type: string }) => {
+  if (type === "mobile") return <Smartphone className="h-5 w-5" />;
+  if (type === "tablet") return <Tablet className="h-5 w-5" />;
+  return <Monitor className="h-5 w-5" />;
+};
 
 const UserProfile = () => {
   const { user, profile, logout, refreshProfile, updatePassword } = useAuth();
@@ -77,11 +146,28 @@ const UserProfile = () => {
   const [loginActivity, setLoginActivity] = useState<any[]>([]);
   const [loadingActivity, setLoadingActivity] = useState(false);
 
+  // Devices
+  const [devices, setDevices] = useState<any[]>([]);
+  const [loadingDevices, setLoadingDevices] = useState(false);
+  const [showAddDeviceDialog, setShowAddDeviceDialog] = useState(false);
+  const [addDeviceName, setAddDeviceName] = useState("");
+  const [addDeviceType, setAddDeviceType] = useState("desktop");
+
   // Notifications
   const [notifPrefs, setNotifPrefs] = useState<Record<string, boolean>>({});
   const [savingNotifs, setSavingNotifs] = useState(false);
 
-  // Detect if user signed in with Google
+  // Settings (5 new)
+  const [userSettings, setUserSettings] = useState({
+    session_timeout_minutes: 1440,
+    two_factor_enabled: false,
+    login_alerts_enabled: true,
+    timezone: "UTC",
+    language: "en",
+  });
+  const [savingSettings, setSavingSettings] = useState(false);
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
+
   const googleIdentity = user?.identities?.find(i => i.provider === "google");
   const hasPassword = user?.identities?.some(i => i.provider === "email") ?? false;
   const memberSince = user?.created_at ? new Date(user.created_at).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }) : "";
@@ -95,7 +181,7 @@ const UserProfile = () => {
     }
   }, [user, profile, navigate]);
 
-  // Load extra profile fields including email change tracking
+  // Load extra profile fields
   useEffect(() => {
     if (!user) return;
     supabase.from("profiles").select("phone, address, company, email_change_count, original_email").eq("user_id", user.id).single()
@@ -107,6 +193,27 @@ const UserProfile = () => {
           setEmailChangeCount((data as any).email_change_count || 0);
           setOriginalEmail((data as any).original_email || "");
         }
+      });
+  }, [user]);
+
+  // Load user settings
+  useEffect(() => {
+    if (!user) return;
+    supabase.from("user_settings").select("*").eq("user_id", user.id).single()
+      .then(({ data, error }) => {
+        if (data) {
+          setUserSettings({
+            session_timeout_minutes: (data as any).session_timeout_minutes ?? 1440,
+            two_factor_enabled: (data as any).two_factor_enabled ?? false,
+            login_alerts_enabled: (data as any).login_alerts_enabled ?? true,
+            timezone: (data as any).timezone ?? "UTC",
+            language: (data as any).language ?? "en",
+          });
+        } else if (error?.code === "PGRST116") {
+          // No row yet – create default
+          supabase.from("user_settings").insert({ user_id: user.id } as any).then(() => {});
+        }
+        setSettingsLoaded(true);
       });
   }, [user]);
 
@@ -127,8 +234,89 @@ const UserProfile = () => {
     if (!user || activeTab !== "activity") return;
     setLoadingActivity(true);
     supabase.from("login_activity").select("*").eq("user_id", user.id)
-      .order("login_at", { ascending: false }).limit(20)
+      .order("login_at", { ascending: false }).limit(50)
       .then(({ data }) => { setLoginActivity(data || []); setLoadingActivity(false); });
+  }, [user, activeTab]);
+
+  // Load devices & register current session
+  const loadDevices = useCallback(async () => {
+    if (!user) return;
+    setLoadingDevices(true);
+    const { data } = await supabase.from("device_sessions").select("*").eq("user_id", user.id)
+      .order("last_active_at", { ascending: false });
+    setDevices(data || []);
+    setLoadingDevices(false);
+  }, [user]);
+
+  const registerCurrentDevice = useCallback(async () => {
+    if (!user) return;
+    const ua = navigator.userAgent;
+    const { browser, os } = parseUA(ua);
+    const device_type = /Mobile|Android|iPhone/i.test(ua) ? "mobile" : /iPad|Tablet/i.test(ua) ? "tablet" : "desktop";
+    const deviceName = `${browser} on ${os}`;
+
+    // Check if this device already exists (match by user_agent substring)
+    const { data: existing } = await supabase.from("device_sessions")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("device_name", deviceName)
+      .eq("is_current", true)
+      .limit(1);
+
+    if (existing && existing.length > 0) {
+      // Just update last_active_at
+      await supabase.from("device_sessions").update({
+        last_active_at: new Date().toISOString(),
+        status: "online",
+      } as any).eq("id", existing[0].id);
+    } else {
+      // Reset all other is_current flags
+      await supabase.from("device_sessions").update({ is_current: false } as any)
+        .eq("user_id", user.id).eq("is_current", true);
+
+      await supabase.from("device_sessions").insert({
+        user_id: user.id,
+        device_name: deviceName,
+        device_type,
+        browser,
+        os,
+        is_current: true,
+        status: "online",
+      } as any);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (activeTab === "devices") {
+      registerCurrentDevice().then(loadDevices);
+    }
+  }, [activeTab, registerCurrentDevice, loadDevices]);
+
+  // Real-time device status updates
+  useEffect(() => {
+    if (!user || activeTab !== "devices") return;
+    const channel = supabase
+      .channel("device-sessions-realtime")
+      .on("postgres_changes", {
+        event: "*",
+        schema: "public",
+        table: "device_sessions",
+        filter: `user_id=eq.${user.id}`,
+      }, () => { loadDevices(); })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [user, activeTab, loadDevices]);
+
+  // Heartbeat for current device
+  useEffect(() => {
+    if (!user || activeTab !== "devices") return;
+    const interval = setInterval(async () => {
+      await supabase.from("device_sessions").update({
+        last_active_at: new Date().toISOString(),
+        status: "online",
+      } as any).eq("user_id", user.id).eq("is_current", true);
+    }, 30000); // every 30s
+    return () => clearInterval(interval);
   }, [user, activeTab]);
 
   const handleSave = async (e: React.FormEvent) => {
@@ -149,135 +337,70 @@ const UserProfile = () => {
     } finally { setIsSaving(false); }
   };
 
-  // Password change with current password verification
   const handleChangePassword = async () => {
     setPwNotification(null);
     if (!user?.email) return;
-
-    if (hasPassword && !currentPassword) {
-      setPwNotification({ type: "error", message: "Please enter your current password." });
-      return;
-    }
-    if (newPassword.length < 8) {
-      setPwNotification({ type: "error", message: "New password must be at least 8 characters." });
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      setPwNotification({ type: "error", message: "Passwords do not match." });
-      return;
-    }
-
+    if (hasPassword && !currentPassword) { setPwNotification({ type: "error", message: "Please enter your current password." }); return; }
+    if (newPassword.length < 8) { setPwNotification({ type: "error", message: "New password must be at least 8 characters." }); return; }
+    if (newPassword !== confirmPassword) { setPwNotification({ type: "error", message: "Passwords do not match." }); return; }
     try {
       setIsChangingPw(true);
-
-      // Verify current password by re-authenticating
       if (hasPassword) {
-        const { error: authError } = await supabase.auth.signInWithPassword({
-          email: user.email,
-          password: currentPassword,
-        });
-        if (authError) {
-          setPwNotification({ type: "error", message: "Current password is incorrect." });
-          return;
-        }
+        const { error: authError } = await supabase.auth.signInWithPassword({ email: user.email, password: currentPassword });
+        if (authError) { setPwNotification({ type: "error", message: "Current password is incorrect." }); return; }
       }
-
-      // Update to new password
       await updatePassword(newPassword);
       setPwNotification({ type: "success", message: "Password updated successfully!" });
-      setTimeout(() => {
-        setShowPasswordDialog(false);
-        setNewPassword(""); setConfirmPassword(""); setCurrentPassword("");
-        setPwNotification(null);
-      }, 1500);
+      setTimeout(() => { setShowPasswordDialog(false); setNewPassword(""); setConfirmPassword(""); setCurrentPassword(""); setPwNotification(null); }, 1500);
     } catch (error: any) {
       setPwNotification({ type: "error", message: error.message || "Failed to change password." });
     } finally { setIsChangingPw(false); }
   };
 
-  // Email change flow
   const handleEmailChange = async () => {
     setEmailNotification(null);
     if (!user?.email) return;
-
     if (emailStep === "verify-current") {
-      // Verify identity with current password
-      if (!emailVerifyPassword) {
-        setEmailNotification({ type: "error", message: "Please enter your current password to verify your identity." });
-        return;
-      }
+      if (!emailVerifyPassword) { setEmailNotification({ type: "error", message: "Please enter your current password to verify your identity." }); return; }
       try {
         setIsChangingEmail(true);
-        const { error } = await supabase.auth.signInWithPassword({
-          email: user.email,
-          password: emailVerifyPassword,
-        });
-        if (error) {
-          setEmailNotification({ type: "error", message: "Password is incorrect." });
-          return;
-        }
+        const { error } = await supabase.auth.signInWithPassword({ email: user.email, password: emailVerifyPassword });
+        if (error) { setEmailNotification({ type: "error", message: "Password is incorrect." }); return; }
         setEmailStep("enter-new");
         setEmailNotification({ type: "success", message: "Identity verified! Now enter your new email address." });
-      } catch (err: any) {
-        setEmailNotification({ type: "error", message: err.message || "Verification failed." });
-      } finally { setIsChangingEmail(false); }
+      } catch (err: any) { setEmailNotification({ type: "error", message: err.message || "Verification failed." }); }
+      finally { setIsChangingEmail(false); }
       return;
     }
-
     if (emailStep === "enter-new") {
-      if (!newEmail || !newEmail.includes("@")) {
-        setEmailNotification({ type: "error", message: "Please enter a valid email address." });
-        return;
-      }
-      if (newEmail.toLowerCase() === user.email?.toLowerCase()) {
-        setEmailNotification({ type: "error", message: "New email must be different from your current email." });
-        return;
-      }
+      if (!newEmail || !newEmail.includes("@")) { setEmailNotification({ type: "error", message: "Please enter a valid email address." }); return; }
+      if (newEmail.toLowerCase() === user.email?.toLowerCase()) { setEmailNotification({ type: "error", message: "New email must be different from your current email." }); return; }
       try {
         setIsChangingEmail(true);
-        // Use Supabase updateUser to trigger email change confirmation
         const { error } = await supabase.auth.updateUser({ email: newEmail });
         if (error) throw error;
-
-        // Update profile email_change_count
-        await supabase.from("profiles").update({
-          email_change_count: emailChangeCount + 1,
-          email: newEmail,
-        } as any).eq("user_id", user.id);
-
+        await supabase.from("profiles").update({ email_change_count: emailChangeCount + 1, email: newEmail } as any).eq("user_id", user.id);
         setEmailStep("done");
         setEmailNotification({ type: "success", message: "A confirmation link has been sent to both your current and new email. Please confirm both to complete the change." });
-      } catch (err: any) {
-        setEmailNotification({ type: "error", message: err.message || "Failed to initiate email change." });
-      } finally { setIsChangingEmail(false); }
-      return;
+      } catch (err: any) { setEmailNotification({ type: "error", message: err.message || "Failed to initiate email change." }); }
+      finally { setIsChangingEmail(false); }
     }
   };
 
-  // Google link
   const handleLinkGoogle = async () => {
     try {
-      const { error } = await lovable.auth.signInWithOAuth("google", {
-        redirect_uri: window.location.origin + "/profile",
-      });
+      const { error } = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin + "/profile" });
       if (error) throw error;
-    } catch (err: any) {
-      toast.error(err.message || "Failed to link Google account");
-    }
+    } catch (err: any) { toast.error(err.message || "Failed to link Google account"); }
   };
 
   const handleUnlinkGoogle = async () => {
     if (!googleIdentity) return;
-
     if (unlinkStep === "confirm") {
-      if (!hasPassword) {
-        setUnlinkStep("set-password");
-        return;
-      }
+      if (!hasPassword) { setUnlinkStep("set-password"); return; }
       await performUnlink();
       return;
     }
-
     if (unlinkStep === "set-password") {
       if (unlinkPassword.length < 8) { toast.error("Password must be at least 8 characters"); return; }
       if (unlinkPassword !== unlinkConfirmPw) { toast.error("Passwords do not match"); return; }
@@ -285,9 +408,8 @@ const UserProfile = () => {
         setIsUnlinking(true);
         await updatePassword(unlinkPassword);
         await performUnlink();
-      } catch (error: any) {
-        toast.error(error.message || "Failed to set password");
-      } finally { setIsUnlinking(false); }
+      } catch (error: any) { toast.error(error.message || "Failed to set password"); }
+      finally { setIsUnlinking(false); }
     }
   };
 
@@ -298,12 +420,9 @@ const UserProfile = () => {
       const { error } = await supabase.auth.unlinkIdentity(googleIdentity);
       if (error) throw error;
       toast.success("Google account unlinked successfully!");
-      setShowUnlinkDialog(false);
-      setUnlinkStep("confirm");
-      setUnlinkPassword(""); setUnlinkConfirmPw("");
-    } catch (error: any) {
-      toast.error(error.message || "Failed to unlink Google");
-    } finally { setIsUnlinking(false); }
+      setShowUnlinkDialog(false); setUnlinkStep("confirm"); setUnlinkPassword(""); setUnlinkConfirmPw("");
+    } catch (error: any) { toast.error(error.message || "Failed to unlink Google"); }
+    finally { setIsUnlinking(false); }
   };
 
   const handleSaveNotifications = async () => {
@@ -312,25 +431,94 @@ const UserProfile = () => {
     try {
       for (const cat of NOTIFICATION_CATEGORIES) {
         await supabase.from("notification_preferences").upsert({
-          user_id: user.id,
-          category: cat.id,
-          email_enabled: notifPrefs[cat.id] ?? false,
+          user_id: user.id, category: cat.id, email_enabled: notifPrefs[cat.id] ?? false,
         } as any, { onConflict: "user_id,category" });
       }
       toast.success("Notification preferences saved!");
-    } catch (error: any) {
-      toast.error("Failed to save preferences");
-    } finally { setSavingNotifs(false); }
+    } catch { toast.error("Failed to save preferences"); }
+    finally { setSavingNotifs(false); }
+  };
+
+  const handleSaveSettings = async () => {
+    if (!user) return;
+    setSavingSettings(true);
+    try {
+      await supabase.from("user_settings").upsert({
+        user_id: user.id, ...userSettings,
+      } as any, { onConflict: "user_id" });
+      toast.success("Settings saved!");
+    } catch { toast.error("Failed to save settings"); }
+    finally { setSavingSettings(false); }
+  };
+
+  const handleKickDevice = async (deviceId: string) => {
+    try {
+      await supabase.from("device_sessions").update({ status: "kicked" } as any).eq("id", deviceId);
+      await supabase.from("device_sessions").delete().eq("id", deviceId);
+      toast.success("Device removed and logged out");
+      loadDevices();
+    } catch { toast.error("Failed to kick device"); }
+  };
+
+  const handleAddDevice = async () => {
+    if (!user || !addDeviceName.trim()) { toast.error("Please enter a device name"); return; }
+    try {
+      const expiresAt = new Date();
+      expiresAt.setHours(expiresAt.getHours() + 24);
+      await supabase.from("device_sessions").insert({
+        user_id: user.id,
+        device_name: addDeviceName.trim(),
+        device_type: addDeviceType,
+        is_manually_added: true,
+        status: "pending",
+        expires_at: expiresAt.toISOString(),
+        browser: "Remote",
+        os: "Remote Access",
+      } as any);
+      toast.success(`Device "${addDeviceName}" added. Auto-login valid for 24 hours.`);
+      setShowAddDeviceDialog(false);
+      setAddDeviceName("");
+      loadDevices();
+    } catch { toast.error("Failed to add device"); }
   };
 
   const handleDeleteAccount = async () => {
     if (deleteConfirmText !== "DELETE") { toast.error("Type DELETE to confirm"); return; }
     toast.error("Please contact liam@ozcagency.com to request account deletion.");
-    setShowDeleteDialog(false);
-    setDeleteConfirmText("");
+    setShowDeleteDialog(false); setDeleteConfirmText("");
   };
 
-  const handleLogout = async () => { await logout(); navigate("/"); toast.success("Logged out"); };
+  const handleExportData = async () => {
+    if (!user) return;
+    try {
+      const [profileRes, activityRes, settingsRes] = await Promise.all([
+        supabase.from("profiles").select("*").eq("user_id", user.id).single(),
+        supabase.from("login_activity").select("*").eq("user_id", user.id).order("login_at", { ascending: false }).limit(100),
+        supabase.from("user_settings").select("*").eq("user_id", user.id).single(),
+      ]);
+      const exportData = {
+        exported_at: new Date().toISOString(),
+        profile: profileRes.data,
+        login_activity: activityRes.data,
+        settings: settingsRes.data,
+      };
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = `account-data-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click(); URL.revokeObjectURL(url);
+      toast.success("Data exported successfully!");
+    } catch { toast.error("Failed to export data"); }
+  };
+
+  const handleLogout = async () => {
+    // Mark current device offline
+    if (user) {
+      await supabase.from("device_sessions").update({ status: "offline", is_current: false } as any)
+        .eq("user_id", user.id).eq("is_current", true);
+    }
+    await logout(); navigate("/"); toast.success("Logged out");
+  };
 
   if (!user) return null;
 
@@ -338,179 +526,149 @@ const UserProfile = () => {
     { id: "account", label: "Account Information", icon: User },
     { id: "security", label: "Security", icon: Shield },
     { id: "activity", label: "Account Activity", icon: Activity },
+    { id: "devices", label: "Devices", icon: Monitor },
     { id: "notifications", label: "Notification Settings", icon: Bell },
   ];
 
   const userInitial = profile?.display_name?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase() || "U";
   const canChangeEmail = emailChangeCount < 1;
 
+  const getDeviceStatus = (device: any) => {
+    if (device.is_current) return "online";
+    if (device.status === "kicked") return "kicked";
+    if (device.status === "pending") return "pending";
+    const lastActive = new Date(device.last_active_at).getTime();
+    const now = Date.now();
+    if (now - lastActive < 60000) return "online";
+    return "offline";
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-primary to-blue-900 relative overflow-hidden">
+    <div className="min-h-screen bg-[hsl(222,35%,5%)] relative overflow-hidden">
+      {/* Subtle ambient glow */}
       <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/3 right-1/4 w-80 h-80 bg-blue-500/15 rounded-full blur-3xl" />
+        <div className="absolute top-1/4 left-1/6 w-[500px] h-[500px] bg-blue-500/[0.03] rounded-full blur-[120px]" />
+        <div className="absolute bottom-1/4 right-1/6 w-[400px] h-[400px] bg-purple-500/[0.02] rounded-full blur-[120px]" />
       </div>
 
       <div className="relative max-w-6xl mx-auto px-4 pt-24 pb-16">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
           {/* Header */}
           <div className="flex items-center gap-4 mb-8">
-            <div className="w-16 h-16 rounded-2xl bg-white/20 border-2 border-white/30 flex items-center justify-center text-white text-2xl font-bold backdrop-blur-sm">
+            <div className="w-14 h-14 rounded-2xl bg-white/[0.06] border border-white/[0.08] flex items-center justify-center text-white/80 text-xl font-bold backdrop-blur-sm">
               {userInitial}
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-white">{profile?.display_name || "Your Profile"}</h1>
-              <p className="text-white/50 text-sm">@{profile?.username || "..."} · {user.email}</p>
+              <h1 className="text-xl font-semibold text-white/90 tracking-tight">{profile?.display_name || "Your Profile"}</h1>
+              <p className="text-white/35 text-[13px]">@{profile?.username || "..."} · {user.email}</p>
             </div>
           </div>
 
           <div className="flex flex-col lg:flex-row gap-6">
             {/* Sidebar */}
-            <div className="lg:w-64 flex-shrink-0">
-              <nav className="bg-white/5 backdrop-blur-md rounded-2xl border border-white/10 p-2 space-y-1">
+            <div className="lg:w-60 flex-shrink-0">
+              <nav className="bg-[hsl(222,30%,10%)]/80 backdrop-blur-xl rounded-2xl border border-white/[0.06] p-2 space-y-0.5">
                 {tabs.map((tab) => (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${
+                  <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+                    className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13px] font-medium transition-all duration-200 ${
                       activeTab === tab.id
-                        ? "bg-white/15 text-white"
-                        : "text-white/50 hover:text-white hover:bg-white/5"
-                    }`}
-                  >
+                        ? "bg-white/[0.08] text-white/90"
+                        : "text-white/40 hover:text-white/60 hover:bg-white/[0.03]"
+                    }`}>
                     <tab.icon className="h-4 w-4 flex-shrink-0" />
                     {tab.label}
                   </button>
                 ))}
-                <div className="h-px bg-white/10 my-2" />
+                <div className="h-px bg-white/[0.06] my-2" />
                 <button onClick={handleLogout}
-                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all">
+                  className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13px] font-medium text-red-400/80 hover:text-red-300 hover:bg-red-500/[0.06] transition-all">
                   <LogOut className="h-4 w-4" /> Sign Out
                 </button>
               </nav>
             </div>
 
             {/* Content */}
-            <div className="flex-1 min-w-0 space-y-6">
-              {/* ACCOUNT INFO TAB */}
-              {activeTab === "account" && (
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-                  {/* Personal Information */}
-                  <div className="bg-white/5 backdrop-blur-md rounded-2xl border border-white/10 p-6">
-                    <div className="flex items-center gap-2 mb-1">
-                      <User className="h-5 w-5 text-white/70" />
-                      <h2 className="text-lg font-semibold text-white">Personal Information</h2>
-                    </div>
-                    <p className="text-white/40 text-xs mb-5">This information will be used for your account profile.</p>
+            <div className="flex-1 min-w-0 space-y-5">
 
+              {/* ===================== ACCOUNT INFO TAB ===================== */}
+              {activeTab === "account" && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-5">
+                  <Card>
+                    <SectionTitle icon={User} title="Personal Information" subtitle="This information will be used for your account profile." />
                     <form onSubmit={handleSave} className="space-y-4">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div className="space-y-1.5">
-                          <label className="text-xs font-medium text-white/60">Display Name</label>
-                          <div className="relative">
-                            <User className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 h-4 w-4" />
-                            <Input value={displayName} onChange={(e) => setDisplayName(e.target.value)}
-                              className="pl-10 bg-white/10 border-white/15 text-white placeholder:text-white/30 rounded-xl h-11 focus:bg-white/15 focus:border-white/30"
-                              placeholder="Your Name" />
-                          </div>
-                        </div>
-                        <div className="space-y-1.5">
-                          <label className="text-xs font-medium text-white/60">Username</label>
-                          <div className="relative">
-                            <AtSign className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 h-4 w-4" />
-                            <Input value={username} onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
-                              className="pl-10 bg-white/10 border-white/15 text-white placeholder:text-white/30 rounded-xl h-11 focus:bg-white/15 focus:border-white/30"
-                              placeholder="username" />
-                          </div>
-                        </div>
+                        <FieldInput icon={User} label="Display Name" value={displayName} onChange={setDisplayName} placeholder="Your Name" />
+                        <FieldInput icon={AtSign} label="Username" value={username}
+                          onChange={(v) => setUsername(v.toLowerCase().replace(/[^a-z0-9_]/g, ""))} placeholder="username" />
                       </div>
-
-                      <SettingsRow icon={Phone} label="Phone Number" value={phone} onChange={setPhone} placeholder="+1 234 567 8900" />
-                      <SettingsRow icon={MapPin} label="Address" value={address} onChange={setAddress} placeholder="Your address" />
-                      <SettingsRow icon={Building2} label="Company" value={company} onChange={setCompany} placeholder="Company name (optional)" />
-
+                      <FieldInput icon={Phone} label="Phone Number" value={phone} onChange={setPhone} placeholder="+1 234 567 8900" />
+                      <FieldInput icon={MapPin} label="Address" value={address} onChange={setAddress} placeholder="Your address" />
+                      <FieldInput icon={Building2} label="Company" value={company} onChange={setCompany} placeholder="Company name (optional)" />
                       <div className="space-y-1.5">
-                        <label className="text-xs font-medium text-white/60">Bio</label>
+                        <label className="text-[12px] font-medium text-white/40">Bio</label>
                         <Input value={bio} onChange={(e) => setBio(e.target.value)}
-                          className="bg-white/10 border-white/15 text-white placeholder:text-white/30 rounded-xl h-11 focus:bg-white/15 focus:border-white/30"
+                          className="bg-white/[0.04] border-white/[0.08] text-white/80 placeholder:text-white/20 rounded-xl h-10 text-[13px] focus:bg-white/[0.06] focus:border-white/[0.15]"
                           placeholder="Tell us about yourself" />
                       </div>
-
                       <Button type="submit" disabled={isSaving}
-                        className="bg-white text-primary hover:bg-white/90 hover:scale-105 transition-all duration-300 rounded-full font-semibold px-8">
-                        <Save className="mr-2 h-4 w-4" />
-                        {isSaving ? "Saving..." : "Save Changes"}
+                        className="bg-white/[0.08] hover:bg-white/[0.12] text-white/80 border border-white/[0.08] rounded-xl font-medium text-[13px] px-6 h-9">
+                        <Save className="mr-2 h-3.5 w-3.5" /> {isSaving ? "Saving..." : "Save Changes"}
                       </Button>
                     </form>
-                  </div>
+                  </Card>
 
-                  {/* Account Settings */}
-                  <div className="bg-white/5 backdrop-blur-md rounded-2xl border border-white/10 p-6">
-                    <div className="flex items-center gap-2 mb-4">
-                      <Mail className="h-5 w-5 text-white/70" />
-                      <h2 className="text-lg font-semibold text-white">Account Settings</h2>
-                    </div>
-                    <div className="divide-y divide-white/5">
-                      {/* Email row with change button */}
+                  <Card>
+                    <SectionTitle icon={Mail} title="Account Settings" />
+                    <div className="divide-y divide-white/[0.04]">
                       <div className="flex items-center justify-between py-3">
                         <div>
-                          <span className="text-white/50 text-sm">Email</span>
-                          <p className="text-white/80 text-sm">{user.email}</p>
+                          <span className="text-white/40 text-[12px]">Email</span>
+                          <p className="text-white/70 text-[13px]">{user.email}</p>
                           {originalEmail && originalEmail !== user.email && (
-                            <p className="text-white/30 text-xs mt-0.5">Original: {originalEmail}</p>
+                            <p className="text-white/25 text-[11px] mt-0.5">Original: {originalEmail}</p>
                           )}
                         </div>
                         {canChangeEmail ? (
                           <Button onClick={() => { setShowEmailDialog(true); setEmailStep("verify-current"); setEmailNotification(null); setEmailVerifyPassword(""); setNewEmail(""); }}
-                            variant="ghost" className="text-white/60 hover:text-white hover:bg-white/10 rounded-xl gap-2 text-sm">
-                            Change <ChevronRight className="h-4 w-4" />
+                            variant="ghost" className="text-white/40 hover:text-white/60 hover:bg-white/[0.04] rounded-xl gap-2 text-[12px] h-8">
+                            Change <ChevronRight className="h-3.5 w-3.5" />
                           </Button>
                         ) : (
-                          <span className="text-white/30 text-xs px-3 py-1.5 bg-white/5 rounded-full">Change limit reached (1/1)</span>
+                          <span className="text-white/25 text-[11px] px-3 py-1.5 bg-white/[0.03] rounded-full border border-white/[0.06]">Limit reached (1/1)</span>
                         )}
                       </div>
-                      <InfoRow label="Member since" value={memberSince} />
+                      <div className="flex items-center justify-between py-3">
+                        <span className="text-white/40 text-[12px]">Member since</span>
+                        <span className="text-white/60 text-[13px]">{memberSince}</span>
+                      </div>
                     </div>
-                  </div>
+                  </Card>
                 </motion.div>
               )}
 
-              {/* SECURITY TAB */}
+              {/* ===================== SECURITY TAB ===================== */}
               {activeTab === "security" && (
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-                  {/* Password */}
-                  <div className="bg-white/5 backdrop-blur-md rounded-2xl border border-white/10 p-6">
-                    <div className="flex items-center gap-2 mb-4">
-                      <KeyRound className="h-5 w-5 text-white/70" />
-                      <h2 className="text-lg font-semibold text-white">Password</h2>
-                    </div>
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-5">
+                  <Card>
+                    <SectionTitle icon={KeyRound} title="Password" />
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-white/70 text-sm">
-                          {hasPassword ? "Change your account password" : "Set a password for your account"}
-                        </p>
-                        <p className="text-white/40 text-xs mt-0.5">Use a strong password with at least 8 characters.</p>
+                        <p className="text-white/60 text-[13px]">{hasPassword ? "Change your account password" : "Set a password for your account"}</p>
+                        <p className="text-white/30 text-[11px] mt-0.5">Use a strong password with at least 8 characters.</p>
                       </div>
                       <Button onClick={() => { setShowPasswordDialog(true); setPwNotification(null); setCurrentPassword(""); setNewPassword(""); setConfirmPassword(""); }}
-                        variant="ghost" className="text-white/60 hover:text-white hover:bg-white/10 rounded-xl gap-2">
-                        <Lock className="h-4 w-4" />
-                        {hasPassword ? "Change" : "Set Password"}
-                        <ChevronRight className="h-4 w-4" />
+                        variant="ghost" className="text-white/40 hover:text-white/60 hover:bg-white/[0.04] rounded-xl gap-2 text-[12px] h-8">
+                        <Lock className="h-3.5 w-3.5" /> {hasPassword ? "Change" : "Set Password"} <ChevronRight className="h-3.5 w-3.5" />
                       </Button>
                     </div>
-                  </div>
+                  </Card>
 
-                  {/* Social Logins */}
-                  <div className="bg-white/5 backdrop-blur-md rounded-2xl border border-white/10 p-6">
-                    <div className="flex items-center gap-2 mb-4">
-                      <Link2 className="h-5 w-5 text-white/70" />
-                      <h2 className="text-lg font-semibold text-white">Social Logins</h2>
-                    </div>
-
-                    <div className="flex items-center justify-between py-3">
+                  <Card>
+                    <SectionTitle icon={Link2} title="Social Logins" />
+                    <div className="flex items-center justify-between py-2">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center">
-                          <svg className="w-5 h-5" viewBox="0 0 24 24">
+                        <div className="w-9 h-9 rounded-full bg-white/[0.04] flex items-center justify-center">
+                          <svg className="w-4 h-4" viewBox="0 0 24 24">
                             <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/>
                             <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
                             <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
@@ -518,137 +676,332 @@ const UserProfile = () => {
                           </svg>
                         </div>
                         <div>
-                          <p className="text-white text-sm font-medium">Google</p>
-                          <p className="text-white/40 text-xs">
-                            {googleIdentity ? `Connected as ${user.email}` : "Not connected"}
-                          </p>
+                          <p className="text-white/80 text-[13px] font-medium">Google</p>
+                          <p className="text-white/30 text-[11px]">{googleIdentity ? `Connected as ${user.email}` : "Not connected"}</p>
                         </div>
                       </div>
                       {googleIdentity ? (
                         <Button onClick={() => { setShowUnlinkDialog(true); setUnlinkStep("confirm"); }}
-                          variant="ghost" className="text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-xl gap-2 text-sm">
-                          <Unlink className="h-4 w-4" /> Unlink
+                          variant="ghost" className="text-red-400/70 hover:text-red-300 hover:bg-red-500/[0.06] rounded-xl gap-2 text-[12px] h-8">
+                          <Unlink className="h-3.5 w-3.5" /> Unlink
                         </Button>
                       ) : (
                         <Button onClick={handleLinkGoogle}
-                          variant="ghost" className="text-white/60 hover:text-white hover:bg-white/10 rounded-xl gap-2 text-sm">
-                          <Link2 className="h-4 w-4" /> Connect
+                          variant="ghost" className="text-white/40 hover:text-white/60 hover:bg-white/[0.04] rounded-xl gap-2 text-[12px] h-8">
+                          <Link2 className="h-3.5 w-3.5" /> Connect
                         </Button>
                       )}
                     </div>
-                    <p className="text-white/30 text-xs mt-2">Link your Google account for quick sign-in.</p>
-                  </div>
+                  </Card>
 
-                  {/* Danger Zone */}
-                  <div className="bg-red-500/5 backdrop-blur-md rounded-2xl border border-red-500/20 p-6">
-                    <div className="flex items-center gap-2 mb-4">
-                      <AlertTriangle className="h-5 w-5 text-red-400" />
-                      <h2 className="text-lg font-semibold text-red-300">Danger Zone</h2>
+                  {/* 5 NEW SETTINGS */}
+                  <Card>
+                    <SectionTitle icon={Settings2} title="Advanced Security Settings" subtitle="Configure session behavior, alerts, and preferences." />
+                    <div className="space-y-5">
+                      {/* 1. Session Timeout */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <Clock className="h-4 w-4 text-white/40" />
+                          <div>
+                            <p className="text-white/70 text-[13px] font-medium">Session Timeout</p>
+                            <p className="text-white/30 text-[11px]">Auto-logout after inactivity period</p>
+                          </div>
+                        </div>
+                        <Select value={String(userSettings.session_timeout_minutes)}
+                          onValueChange={(v) => setUserSettings({ ...userSettings, session_timeout_minutes: Number(v) })}>
+                          <SelectTrigger className="w-44 bg-white/[0.04] border-white/[0.08] text-white/60 text-[12px] h-8 rounded-xl">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="bg-[hsl(222,30%,12%)] border-white/[0.08]">
+                            {SESSION_TIMEOUT_OPTIONS.map(o => (
+                              <SelectItem key={o.value} value={String(o.value)} className="text-white/70 text-[12px] focus:bg-white/[0.06] focus:text-white">
+                                {o.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {/* 2. Two-Factor Authentication */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <ShieldCheck className="h-4 w-4 text-white/40" />
+                          <div>
+                            <p className="text-white/70 text-[13px] font-medium">Two-Factor Authentication</p>
+                            <p className="text-white/30 text-[11px]">Add an extra layer of security via email verification</p>
+                          </div>
+                        </div>
+                        <Switch checked={userSettings.two_factor_enabled}
+                          onCheckedChange={(v) => setUserSettings({ ...userSettings, two_factor_enabled: v })}
+                          className="data-[state=checked]:bg-emerald-500/60" />
+                      </div>
+
+                      {/* 3. Login Alerts */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <BellRing className="h-4 w-4 text-white/40" />
+                          <div>
+                            <p className="text-white/70 text-[13px] font-medium">Login Alerts</p>
+                            <p className="text-white/30 text-[11px]">Get notified via email when a new device logs in</p>
+                          </div>
+                        </div>
+                        <Switch checked={userSettings.login_alerts_enabled}
+                          onCheckedChange={(v) => setUserSettings({ ...userSettings, login_alerts_enabled: v })}
+                          className="data-[state=checked]:bg-emerald-500/60" />
+                      </div>
+
+                      {/* 4. Timezone */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <Globe className="h-4 w-4 text-white/40" />
+                          <div>
+                            <p className="text-white/70 text-[13px] font-medium">Timezone</p>
+                            <p className="text-white/30 text-[11px]">Used for activity logs and session timestamps</p>
+                          </div>
+                        </div>
+                        <Select value={userSettings.timezone}
+                          onValueChange={(v) => setUserSettings({ ...userSettings, timezone: v })}>
+                          <SelectTrigger className="w-52 bg-white/[0.04] border-white/[0.08] text-white/60 text-[12px] h-8 rounded-xl">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="bg-[hsl(222,30%,12%)] border-white/[0.08] max-h-48">
+                            {TIMEZONES.map(tz => (
+                              <SelectItem key={tz} value={tz} className="text-white/70 text-[12px] focus:bg-white/[0.06] focus:text-white">
+                                {tz.replace(/_/g, " ")}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {/* 5. Language */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <Languages className="h-4 w-4 text-white/40" />
+                          <div>
+                            <p className="text-white/70 text-[13px] font-medium">Language</p>
+                            <p className="text-white/30 text-[11px]">Interface display language</p>
+                          </div>
+                        </div>
+                        <Select value={userSettings.language}
+                          onValueChange={(v) => setUserSettings({ ...userSettings, language: v })}>
+                          <SelectTrigger className="w-40 bg-white/[0.04] border-white/[0.08] text-white/60 text-[12px] h-8 rounded-xl">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="bg-[hsl(222,30%,12%)] border-white/[0.08]">
+                            {LANGUAGES.map(l => (
+                              <SelectItem key={l.code} value={l.code} className="text-white/70 text-[12px] focus:bg-white/[0.06] focus:text-white">
+                                {l.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="flex items-center gap-3 pt-2">
+                        <Button onClick={handleSaveSettings} disabled={savingSettings}
+                          className="bg-white/[0.08] hover:bg-white/[0.12] text-white/80 border border-white/[0.08] rounded-xl font-medium text-[13px] px-6 h-9">
+                          <Save className="mr-2 h-3.5 w-3.5" /> {savingSettings ? "Saving..." : "Save Settings"}
+                        </Button>
+                        <Button onClick={handleExportData} variant="ghost"
+                          className="text-white/40 hover:text-white/60 hover:bg-white/[0.04] rounded-xl text-[12px] h-9 gap-2">
+                          <Download className="h-3.5 w-3.5" /> Export My Data
+                        </Button>
+                      </div>
                     </div>
+                  </Card>
+
+                  <Card danger>
+                    <SectionTitle icon={AlertTriangle} title="Danger Zone" danger />
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-white/70 text-sm font-medium">Delete account</p>
-                        <p className="text-white/40 text-xs">All of your account information will be deleted without the possibility of restoration.</p>
+                        <p className="text-white/60 text-[13px] font-medium">Delete account</p>
+                        <p className="text-white/30 text-[11px]">All data will be permanently deleted.</p>
                       </div>
                       <Button onClick={() => setShowDeleteDialog(true)}
-                        className="bg-red-500 hover:bg-red-600 text-white rounded-xl text-sm">
-                        <Trash2 className="h-4 w-4 mr-2" /> Delete Account
+                        className="bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/20 rounded-xl text-[12px] h-8">
+                        <Trash2 className="h-3.5 w-3.5 mr-1.5" /> Delete Account
                       </Button>
                     </div>
-                  </div>
+                  </Card>
                 </motion.div>
               )}
 
-              {/* ACTIVITY TAB */}
+              {/* ===================== ACTIVITY TAB ===================== */}
               {activeTab === "activity" && (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                  <div className="bg-white/5 backdrop-blur-md rounded-2xl border border-white/10 p-6">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Activity className="h-5 w-5 text-white/70" />
-                      <h2 className="text-lg font-semibold text-white">Account Activity</h2>
-                    </div>
-                    <p className="text-white/40 text-xs mb-5">You can log out anytime from any device that has been connected to your account.</p>
-
+                  <Card>
+                    <SectionTitle icon={Activity} title="Account Activity"
+                      subtitle="Complete log of all sign-in events on your account. Monitor for unauthorized access." />
                     {loadingActivity ? (
-                      <div className="text-center py-8 text-white/40">Loading activity...</div>
+                      <div className="text-center py-8 text-white/30 text-[13px]">Loading activity...</div>
                     ) : loginActivity.length === 0 ? (
-                      <div className="text-center py-8">
-                        <Activity className="h-10 w-10 text-white/20 mx-auto mb-3" />
-                        <p className="text-white/40 text-sm">No login activity recorded yet.</p>
-                        <p className="text-white/30 text-xs mt-1">Activity will appear here after your next login.</p>
+                      <div className="text-center py-10">
+                        <Activity className="h-8 w-8 text-white/10 mx-auto mb-3" />
+                        <p className="text-white/30 text-[13px]">No login activity recorded yet.</p>
                       </div>
                     ) : (
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
+                      <div className="overflow-x-auto -mx-6 px-6">
+                        <table className="w-full text-[12px]">
                           <thead>
-                            <tr className="border-b border-white/10">
-                              <th className="text-left text-white/50 font-medium py-2 px-3">Login Date</th>
-                              <th className="text-left text-white/50 font-medium py-2 px-3">Device</th>
-                              <th className="text-left text-white/50 font-medium py-2 px-3">IP Address</th>
-                              <th className="text-left text-white/50 font-medium py-2 px-3">Login Type</th>
+                            <tr className="border-b border-white/[0.06]">
+                              <th className="text-left text-white/35 font-medium py-2.5 px-3">Date & Time</th>
+                              <th className="text-left text-white/35 font-medium py-2.5 px-3">Device</th>
+                              <th className="text-left text-white/35 font-medium py-2.5 px-3">Browser / OS</th>
+                              <th className="text-left text-white/35 font-medium py-2.5 px-3">IP Address</th>
+                              <th className="text-left text-white/35 font-medium py-2.5 px-3">Method</th>
                             </tr>
                           </thead>
                           <tbody>
-                            {loginActivity.map((a) => (
-                              <tr key={a.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                                <td className="py-3 px-3 text-white/70">{new Date(a.login_at).toLocaleString()}</td>
-                                <td className="py-3 px-3 text-white/60">{a.device || "Unknown"}</td>
-                                <td className="py-3 px-3 text-white/50 font-mono text-xs">{a.ip_address || "N/A"}</td>
-                                <td className="py-3 px-3">
-                                  <span className={`text-xs px-2 py-0.5 rounded-full ${
-                                    a.login_type === "google" ? "bg-blue-500/20 text-blue-300" : "bg-white/10 text-white/60"
-                                  }`}>{a.login_type || "email"}</span>
-                                </td>
-                              </tr>
-                            ))}
+                            {loginActivity.map((a) => {
+                              const { browser, os } = parseUA(a.user_agent || "");
+                              return (
+                                <tr key={a.id} className="border-b border-white/[0.03] hover:bg-white/[0.02] transition-colors">
+                                  <td className="py-2.5 px-3 text-white/60 whitespace-nowrap">
+                                    {new Date(a.login_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}{" "}
+                                    <span className="text-white/30">{new Date(a.login_at).toLocaleTimeString()}</span>
+                                  </td>
+                                  <td className="py-2.5 px-3">
+                                    <div className="flex items-center gap-2 text-white/50">
+                                      {a.device === "mobile" ? <Smartphone className="h-3.5 w-3.5" /> : <Monitor className="h-3.5 w-3.5" />}
+                                      {a.device || "desktop"}
+                                    </div>
+                                  </td>
+                                  <td className="py-2.5 px-3 text-white/40">{browser} / {os}</td>
+                                  <td className="py-2.5 px-3 text-white/30 font-mono text-[11px]">{a.ip_address || "N/A"}</td>
+                                  <td className="py-2.5 px-3">
+                                    <span className={`text-[11px] px-2 py-0.5 rounded-full ${
+                                      a.login_type === "google" ? "bg-blue-500/10 text-blue-300/70 border border-blue-500/15"
+                                      : "bg-white/[0.04] text-white/40 border border-white/[0.06]"
+                                    }`}>{a.login_type || "email"}</span>
+                                  </td>
+                                </tr>
+                              );
+                            })}
                           </tbody>
                         </table>
                       </div>
                     )}
-                  </div>
+                  </Card>
                 </motion.div>
               )}
 
-              {/* NOTIFICATIONS TAB */}
+              {/* ===================== DEVICES TAB ===================== */}
+              {activeTab === "devices" && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-5">
+                  <Card>
+                    <div className="flex items-center justify-between mb-5">
+                      <SectionTitle icon={Monitor} title="Connected Devices"
+                        subtitle="Manage all devices that have access to your account. Status updates in real-time." />
+                      <Button onClick={() => setShowAddDeviceDialog(true)}
+                        className="bg-white/[0.08] hover:bg-white/[0.12] text-white/70 border border-white/[0.08] rounded-xl text-[12px] h-8 gap-1.5">
+                        <Plus className="h-3.5 w-3.5" /> Add Device
+                      </Button>
+                    </div>
+
+                    {loadingDevices ? (
+                      <div className="text-center py-8 text-white/30 text-[13px]">Loading devices...</div>
+                    ) : devices.length === 0 ? (
+                      <div className="text-center py-10">
+                        <Monitor className="h-8 w-8 text-white/10 mx-auto mb-3" />
+                        <p className="text-white/30 text-[13px]">No device sessions recorded.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {devices.map((device) => {
+                          const status = getDeviceStatus(device);
+                          const isOnline = status === "online";
+                          const isPending = status === "pending";
+                          return (
+                            <div key={device.id}
+                              className={`flex items-center justify-between p-4 rounded-xl border transition-all ${
+                                device.is_current
+                                  ? "bg-emerald-500/[0.04] border-emerald-500/[0.12]"
+                                  : "bg-white/[0.02] border-white/[0.04] hover:border-white/[0.08]"
+                              }`}>
+                              <div className="flex items-center gap-4">
+                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                                  isOnline ? "bg-emerald-500/10 text-emerald-400" :
+                                  isPending ? "bg-amber-500/10 text-amber-400" :
+                                  "bg-white/[0.04] text-white/30"
+                                }`}>
+                                  <DeviceIcon type={device.device_type} />
+                                </div>
+                                <div>
+                                  <div className="flex items-center gap-2">
+                                    <p className="text-white/80 text-[13px] font-medium">{device.device_name}</p>
+                                    {device.is_current && (
+                                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">This device</span>
+                                    )}
+                                    {device.is_manually_added && (
+                                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400/70 border border-amber-500/15">Remote</span>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-3 mt-0.5">
+                                    <span className="flex items-center gap-1 text-[11px]">
+                                      {isOnline ? <Wifi className="h-3 w-3 text-emerald-400" /> : isPending ? <Clock className="h-3 w-3 text-amber-400" /> : <WifiOff className="h-3 w-3 text-white/20" />}
+                                      <span className={isOnline ? "text-emerald-400/80" : isPending ? "text-amber-400/70" : "text-white/25"}>
+                                        {isOnline ? "Online" : isPending ? "Pending" : "Offline"}
+                                      </span>
+                                    </span>
+                                    <span className="text-white/20 text-[11px]">
+                                      {device.browser && device.os ? `${device.browser} · ${device.os}` : ""}
+                                    </span>
+                                    <span className="text-white/15 text-[11px]">
+                                      Last active: {new Date(device.last_active_at).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                                    </span>
+                                    {device.expires_at && (
+                                      <span className="text-amber-400/50 text-[10px]">
+                                        Expires: {new Date(device.expires_at).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                              {!device.is_current && (
+                                <Button onClick={() => handleKickDevice(device.id)}
+                                  variant="ghost" className="text-red-400/60 hover:text-red-300 hover:bg-red-500/[0.06] rounded-xl text-[11px] h-7 gap-1 px-2.5">
+                                  <X className="h-3 w-3" /> Remove
+                                </Button>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </Card>
+                </motion.div>
+              )}
+
+              {/* ===================== NOTIFICATIONS TAB ===================== */}
               {activeTab === "notifications" && (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                  <div className="bg-white/5 backdrop-blur-md rounded-2xl border border-white/10 p-6">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Bell className="h-5 w-5 text-white/70" />
-                      <h2 className="text-lg font-semibold text-white">Notification Settings</h2>
-                    </div>
-                    <p className="text-white/40 text-xs mb-5">
-                      By turning on communication permissions, you agree to let us use your email, as outlined in our{" "}
-                      <a href="/privacy" className="text-accent underline">Privacy Policy</a>. You can withdraw consent anytime.
-                    </p>
-
+                  <Card>
+                    <SectionTitle icon={Bell} title="Notification Settings"
+                      subtitle="By turning on communication permissions, you agree to let us use your email, as outlined in our Privacy Policy." />
                     <div className="space-y-0">
-                      <div className="flex items-center justify-end pb-3 border-b border-white/10">
-                        <span className="text-white/50 text-xs font-medium w-16 text-center">Email</span>
+                      <div className="flex items-center justify-end pb-3 border-b border-white/[0.06]">
+                        <span className="text-white/35 text-[11px] font-medium w-16 text-center">Email</span>
                       </div>
                       {NOTIFICATION_CATEGORIES.map((cat) => (
-                        <div key={cat.id} className="flex items-center justify-between py-4 border-b border-white/5">
+                        <div key={cat.id} className="flex items-center justify-between py-4 border-b border-white/[0.03]">
                           <div>
-                            <p className="text-white/80 text-sm font-medium">{cat.label}</p>
-                            <p className="text-white/40 text-xs mt-0.5">{cat.desc}</p>
+                            <p className="text-white/70 text-[13px] font-medium">{cat.label}</p>
+                            <p className="text-white/30 text-[11px] mt-0.5">{cat.desc}</p>
                           </div>
                           <div className="w-16 flex justify-center">
-                            <Checkbox
-                              checked={notifPrefs[cat.id] ?? false}
+                            <Checkbox checked={notifPrefs[cat.id] ?? false}
                               onCheckedChange={(checked) => setNotifPrefs({ ...notifPrefs, [cat.id]: !!checked })}
-                              className="border-white/30 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
-                            />
+                              className="border-white/20 data-[state=checked]:bg-emerald-500/60 data-[state=checked]:border-emerald-500/60" />
                           </div>
                         </div>
                       ))}
                     </div>
-
                     <Button onClick={handleSaveNotifications} disabled={savingNotifs}
-                      className="mt-6 bg-white text-primary hover:bg-white/90 hover:scale-105 transition-all duration-300 rounded-full font-semibold px-8">
-                      <Save className="mr-2 h-4 w-4" />
-                      {savingNotifs ? "Saving..." : "Save Preferences"}
+                      className="mt-5 bg-white/[0.08] hover:bg-white/[0.12] text-white/80 border border-white/[0.08] rounded-xl font-medium text-[13px] px-6 h-9">
+                      <Save className="mr-2 h-3.5 w-3.5" /> {savingNotifs ? "Saving..." : "Save Preferences"}
                     </Button>
-                  </div>
+                  </Card>
                 </motion.div>
               )}
             </div>
@@ -656,62 +1009,62 @@ const UserProfile = () => {
         </motion.div>
       </div>
 
-      {/* Change Password Dialog */}
+      {/* ==================== DIALOGS ==================== */}
+
+      {/* Change Password */}
       <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
-        <DialogContent className="bg-[hsl(222,35%,7%)] border-white/10 text-white max-w-md">
+        <DialogContent className="bg-[hsl(222,35%,7%)] border-white/[0.08] text-white max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-white">{hasPassword ? "Change Password" : "Set Password"}</DialogTitle>
-            <DialogDescription className="text-white/50">
+            <DialogTitle className="text-white/90 text-[15px]">{hasPassword ? "Change Password" : "Set Password"}</DialogTitle>
+            <DialogDescription className="text-white/35 text-[12px]">
               {hasPassword ? "Enter your current and new password below." : "Set a password to use email login."}
             </DialogDescription>
           </DialogHeader>
-
           <AnimatePresence>
             {pwNotification && (
               <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
-                className={`flex items-center gap-2 p-3 rounded-xl text-sm ${
-                  pwNotification.type === "error" ? "bg-red-500/10 border border-red-500/20 text-red-300" :
-                  "bg-green-500/10 border border-green-500/20 text-green-300"
+                className={`flex items-center gap-2 p-3 rounded-xl text-[12px] ${
+                  pwNotification.type === "error" ? "bg-red-500/10 border border-red-500/15 text-red-300/80" :
+                  "bg-green-500/10 border border-green-500/15 text-green-300/80"
                 }`}>
-                {pwNotification.type === "error" ? <XCircle className="h-4 w-4 flex-shrink-0" /> : <CheckCircle2 className="h-4 w-4 flex-shrink-0" />}
+                {pwNotification.type === "error" ? <XCircle className="h-3.5 w-3.5 flex-shrink-0" /> : <CheckCircle2 className="h-3.5 w-3.5 flex-shrink-0" />}
                 {pwNotification.message}
               </motion.div>
             )}
           </AnimatePresence>
-
-          <div className="space-y-4 py-2">
+          <div className="space-y-3 py-2">
             {hasPassword && (
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-white/60">Current Password</label>
+                <label className="text-[11px] font-medium text-white/35">Current Password</label>
                 <div className="relative">
                   <Input type={showCurrentPw ? "text" : "password"} value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)}
-                    className="bg-white/10 border-white/15 text-white rounded-xl h-11 pr-10" placeholder="Enter current password" />
-                  <button type="button" onClick={() => setShowCurrentPw(!showCurrentPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white">
-                    {showCurrentPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    className="bg-white/[0.04] border-white/[0.08] text-white/80 rounded-xl h-10 pr-10 text-[13px]" placeholder="Enter current password" />
+                  <button type="button" onClick={() => setShowCurrentPw(!showCurrentPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/50">
+                    {showCurrentPw ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                   </button>
                 </div>
               </div>
             )}
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-white/60">New Password</label>
+              <label className="text-[11px] font-medium text-white/35">New Password</label>
               <div className="relative">
                 <Input type={showNewPw ? "text" : "password"} value={newPassword} onChange={(e) => setNewPassword(e.target.value)}
-                  className="bg-white/10 border-white/15 text-white rounded-xl h-11 pr-10" placeholder="Min 8 characters" />
-                <button type="button" onClick={() => setShowNewPw(!showNewPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white">
-                  {showNewPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  className="bg-white/[0.04] border-white/[0.08] text-white/80 rounded-xl h-10 pr-10 text-[13px]" placeholder="Min 8 characters" />
+                <button type="button" onClick={() => setShowNewPw(!showNewPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/50">
+                  {showNewPw ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                 </button>
               </div>
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-white/60">Confirm Password</label>
+              <label className="text-[11px] font-medium text-white/35">Confirm Password</label>
               <Input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
-                className="bg-white/10 border-white/15 text-white rounded-xl h-11" placeholder="Re-enter password" />
+                className="bg-white/[0.04] border-white/[0.08] text-white/80 rounded-xl h-10 text-[13px]" placeholder="Re-enter password" />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setShowPasswordDialog(false)} className="text-white/60 hover:text-white">Cancel</Button>
+            <Button variant="ghost" onClick={() => setShowPasswordDialog(false)} className="text-white/40 hover:text-white/60 text-[12px]">Cancel</Button>
             <Button onClick={handleChangePassword} disabled={isChangingPw}
-              className="bg-white text-primary hover:bg-white/90 rounded-full">
+              className="bg-white/[0.08] hover:bg-white/[0.12] text-white/80 border border-white/[0.08] rounded-xl text-[12px]">
               {isChangingPw ? "Updating..." : "Update Password"}
             </Button>
           </DialogFooter>
@@ -720,75 +1073,68 @@ const UserProfile = () => {
 
       {/* Email Change Dialog */}
       <Dialog open={showEmailDialog} onOpenChange={setShowEmailDialog}>
-        <DialogContent className="bg-[hsl(222,35%,7%)] border-white/10 text-white max-w-md">
+        <DialogContent className="bg-[hsl(222,35%,7%)] border-white/[0.08] text-white max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-white">Change Email Address</DialogTitle>
-            <DialogDescription className="text-white/50">
+            <DialogTitle className="text-white/90 text-[15px]">Change Email Address</DialogTitle>
+            <DialogDescription className="text-white/35 text-[12px]">
               {emailStep === "verify-current" && "First, verify your identity by entering your current password."}
               {emailStep === "enter-new" && "Now enter the new email address you'd like to use."}
               {emailStep === "done" && "Confirmation emails have been sent."}
             </DialogDescription>
           </DialogHeader>
-
           <AnimatePresence>
             {emailNotification && (
               <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
-                className={`flex items-center gap-2 p-3 rounded-xl text-sm ${
-                  emailNotification.type === "error" ? "bg-red-500/10 border border-red-500/20 text-red-300" :
-                  emailNotification.type === "info" ? "bg-blue-500/10 border border-blue-500/20 text-blue-300" :
-                  "bg-green-500/10 border border-green-500/20 text-green-300"
+                className={`flex items-center gap-2 p-3 rounded-xl text-[12px] ${
+                  emailNotification.type === "error" ? "bg-red-500/10 border border-red-500/15 text-red-300/80" :
+                  emailNotification.type === "info" ? "bg-blue-500/10 border border-blue-500/15 text-blue-300/80" :
+                  "bg-green-500/10 border border-green-500/15 text-green-300/80"
                 }`}>
-                {emailNotification.type === "error" ? <XCircle className="h-4 w-4 flex-shrink-0" /> :
-                 emailNotification.type === "info" ? <Info className="h-4 w-4 flex-shrink-0" /> :
-                 <CheckCircle2 className="h-4 w-4 flex-shrink-0" />}
+                {emailNotification.type === "error" ? <XCircle className="h-3.5 w-3.5 flex-shrink-0" /> :
+                 emailNotification.type === "info" ? <Info className="h-3.5 w-3.5 flex-shrink-0" /> :
+                 <CheckCircle2 className="h-3.5 w-3.5 flex-shrink-0" />}
                 {emailNotification.message}
               </motion.div>
             )}
           </AnimatePresence>
-
-          <div className="space-y-4 py-2">
-            {/* Limit notice */}
-            <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-3 text-xs text-yellow-200/80 flex items-start gap-2">
-              <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+          <div className="space-y-3 py-2">
+            <div className="bg-amber-500/[0.06] border border-amber-500/15 rounded-xl p-3 text-[11px] text-amber-200/60 flex items-start gap-2">
+              <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0 mt-0.5 text-amber-400/60" />
               <div>
-                <p className="font-medium text-yellow-200">Important</p>
-                <p>You can only change your email address once. Your original email ({originalEmail || user.email}) will remain on file for account recovery through support.</p>
+                <p className="font-medium text-amber-200/80 text-[11px]">Important</p>
+                <p>You can only change your email once. Your original email ({originalEmail || user.email}) will remain for account recovery.</p>
               </div>
             </div>
-
             {emailStep === "verify-current" && (
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-white/60">Current Password</label>
+                <label className="text-[11px] font-medium text-white/35">Current Password</label>
                 <Input type="password" value={emailVerifyPassword} onChange={(e) => setEmailVerifyPassword(e.target.value)}
-                  className="bg-white/10 border-white/15 text-white rounded-xl h-11" placeholder="Enter your password" />
+                  className="bg-white/[0.04] border-white/[0.08] text-white/80 rounded-xl h-10 text-[13px]" placeholder="Enter your password" />
               </div>
             )}
-
             {emailStep === "enter-new" && (
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-white/60">New Email Address</label>
+                <label className="text-[11px] font-medium text-white/35">New Email Address</label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 h-4 w-4" />
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-white/25 h-3.5 w-3.5" />
                   <Input type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)}
-                    className="pl-10 bg-white/10 border-white/15 text-white rounded-xl h-11" placeholder="new@email.com" />
+                    className="pl-10 bg-white/[0.04] border-white/[0.08] text-white/80 rounded-xl h-10 text-[13px]" placeholder="new@email.com" />
                 </div>
               </div>
             )}
-
             {emailStep === "done" && (
-              <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-4 text-sm text-green-200/80">
-                <p>A confirmation link has been sent to both your current email (<strong>{user.email}</strong>) and your new email (<strong>{newEmail}</strong>). Please confirm both to complete the change.</p>
+              <div className="bg-green-500/[0.06] border border-green-500/15 rounded-xl p-4 text-[12px] text-green-200/60">
+                <p>Confirmation links sent to <strong className="text-green-200/80">{user.email}</strong> and <strong className="text-green-200/80">{newEmail}</strong>. Confirm both to complete.</p>
               </div>
             )}
           </div>
-
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setShowEmailDialog(false)} className="text-white/60 hover:text-white">
+            <Button variant="ghost" onClick={() => setShowEmailDialog(false)} className="text-white/40 hover:text-white/60 text-[12px]">
               {emailStep === "done" ? "Close" : "Cancel"}
             </Button>
             {emailStep !== "done" && (
               <Button onClick={handleEmailChange} disabled={isChangingEmail}
-                className="bg-white text-primary hover:bg-white/90 rounded-full">
+                className="bg-white/[0.08] hover:bg-white/[0.12] text-white/80 border border-white/[0.08] rounded-xl text-[12px]">
                 {isChangingEmail ? "Processing..." : emailStep === "verify-current" ? "Verify Identity" : "Change Email"}
               </Button>
             )}
@@ -796,74 +1142,115 @@ const UserProfile = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Unlink Google Dialog */}
+      {/* Unlink Google */}
       <Dialog open={showUnlinkDialog} onOpenChange={setShowUnlinkDialog}>
-        <DialogContent className="bg-[hsl(222,35%,7%)] border-white/10 text-white max-w-md">
+        <DialogContent className="bg-[hsl(222,35%,7%)] border-white/[0.08] text-white max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-white">Unlink Google Account</DialogTitle>
-            <DialogDescription className="text-white/50">
-              {unlinkStep === "confirm" && "After unlinking, you will need to use your email and password to sign in."}
-              {unlinkStep === "set-password" && "You need to set a password before unlinking Google, so you can still sign in."}
+            <DialogTitle className="text-white/90 text-[15px]">Unlink Google Account</DialogTitle>
+            <DialogDescription className="text-white/35 text-[12px]">
+              {unlinkStep === "confirm" && "After unlinking, you'll need email and password to sign in."}
+              {unlinkStep === "set-password" && "Set a password first so you can still sign in."}
             </DialogDescription>
           </DialogHeader>
-
           {unlinkStep === "confirm" && (
             <div className="py-2">
-              <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-4 text-sm text-yellow-200/80">
-                <p className="font-medium text-yellow-200 mb-1">Important</p>
-                <p>You will need your email and password to sign in after unlinking Google from <strong>{user?.email}</strong>.</p>
+              <div className="bg-amber-500/[0.06] border border-amber-500/15 rounded-xl p-3 text-[12px] text-amber-200/60">
+                <p className="font-medium text-amber-200/80 mb-1 text-[12px]">Important</p>
+                <p>You will need email and password to sign in after unlinking Google from <strong className="text-amber-200/80">{user?.email}</strong>.</p>
               </div>
             </div>
           )}
-
           {unlinkStep === "set-password" && (
-            <div className="space-y-4 py-2">
+            <div className="space-y-3 py-2">
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-white/60">New Password</label>
+                <label className="text-[11px] font-medium text-white/35">New Password</label>
                 <Input type="password" value={unlinkPassword} onChange={(e) => setUnlinkPassword(e.target.value)}
-                  className="bg-white/10 border-white/15 text-white rounded-xl h-11" placeholder="Min 8 characters" />
+                  className="bg-white/[0.04] border-white/[0.08] text-white/80 rounded-xl h-10 text-[13px]" placeholder="Min 8 characters" />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-white/60">Confirm Password</label>
+                <label className="text-[11px] font-medium text-white/35">Confirm Password</label>
                 <Input type="password" value={unlinkConfirmPw} onChange={(e) => setUnlinkConfirmPw(e.target.value)}
-                  className="bg-white/10 border-white/15 text-white rounded-xl h-11" placeholder="Re-enter password" />
+                  className="bg-white/[0.04] border-white/[0.08] text-white/80 rounded-xl h-10 text-[13px]" placeholder="Re-enter password" />
               </div>
             </div>
           )}
-
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setShowUnlinkDialog(false)} className="text-white/60 hover:text-white">Cancel</Button>
+            <Button variant="ghost" onClick={() => setShowUnlinkDialog(false)} className="text-white/40 hover:text-white/60 text-[12px]">Cancel</Button>
             <Button onClick={handleUnlinkGoogle} disabled={isUnlinking}
-              className="bg-red-500 hover:bg-red-600 text-white rounded-full">
+              className="bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/20 rounded-xl text-[12px]">
               {isUnlinking ? "Processing..." : unlinkStep === "confirm" ? "Unlink Google" : "Set Password & Unlink"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Delete Account Dialog */}
+      {/* Delete Account */}
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <DialogContent className="bg-[hsl(222,35%,7%)] border-white/10 text-white max-w-md">
+        <DialogContent className="bg-[hsl(222,35%,7%)] border-white/[0.08] text-white max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-red-300">Delete Account</DialogTitle>
-            <DialogDescription className="text-white/50">
-              This action is permanent and cannot be undone. All your data will be deleted.
+            <DialogTitle className="text-red-300/90 text-[15px]">Delete Account</DialogTitle>
+            <DialogDescription className="text-white/35 text-[12px]">
+              This action is permanent and cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <div className="py-2">
-            <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 text-sm text-red-200/80 mb-4">
-              All your account information, profile data, and preferences will be permanently removed.
+            <div className="bg-red-500/[0.06] border border-red-500/15 rounded-xl p-3 text-[12px] text-red-200/60 mb-3">
+              All account information, profile data, and preferences will be permanently removed.
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-white/60">Type DELETE to confirm</label>
+              <label className="text-[11px] font-medium text-white/35">Type DELETE to confirm</label>
               <Input value={deleteConfirmText} onChange={(e) => setDeleteConfirmText(e.target.value)}
-                className="bg-white/10 border-white/15 text-white rounded-xl h-11" placeholder="DELETE" />
+                className="bg-white/[0.04] border-white/[0.08] text-white/80 rounded-xl h-10 text-[13px]" placeholder="DELETE" />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setShowDeleteDialog(false)} className="text-white/60 hover:text-white">Cancel</Button>
-            <Button onClick={handleDeleteAccount} className="bg-red-500 hover:bg-red-600 text-white rounded-full">
-              <Trash2 className="h-4 w-4 mr-2" /> Delete Account
+            <Button variant="ghost" onClick={() => setShowDeleteDialog(false)} className="text-white/40 hover:text-white/60 text-[12px]">Cancel</Button>
+            <Button onClick={handleDeleteAccount}
+              className="bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/20 rounded-xl text-[12px]">
+              <Trash2 className="h-3.5 w-3.5 mr-1.5" /> Delete Account
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Device Dialog */}
+      <Dialog open={showAddDeviceDialog} onOpenChange={setShowAddDeviceDialog}>
+        <DialogContent className="bg-[hsl(222,35%,7%)] border-white/[0.08] text-white max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-white/90 text-[15px]">Add Remote Device</DialogTitle>
+            <DialogDescription className="text-white/35 text-[12px]">
+              Add a device that will be auto-logged in for 24 hours, similar to a magic link.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-medium text-white/35">Device Name</label>
+              <Input value={addDeviceName} onChange={(e) => setAddDeviceName(e.target.value)}
+                className="bg-white/[0.04] border-white/[0.08] text-white/80 rounded-xl h-10 text-[13px]" placeholder='e.g. "Living Room TV"' />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-medium text-white/35">Device Type</label>
+              <Select value={addDeviceType} onValueChange={setAddDeviceType}>
+                <SelectTrigger className="bg-white/[0.04] border-white/[0.08] text-white/60 text-[12px] h-10 rounded-xl">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-[hsl(222,30%,12%)] border-white/[0.08]">
+                  <SelectItem value="desktop" className="text-white/70 text-[12px] focus:bg-white/[0.06] focus:text-white">Desktop / Laptop</SelectItem>
+                  <SelectItem value="mobile" className="text-white/70 text-[12px] focus:bg-white/[0.06] focus:text-white">Mobile Phone</SelectItem>
+                  <SelectItem value="tablet" className="text-white/70 text-[12px] focus:bg-white/[0.06] focus:text-white">Tablet</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="bg-blue-500/[0.06] border border-blue-500/15 rounded-xl p-3 text-[11px] text-blue-200/60 flex items-start gap-2">
+              <Info className="h-3.5 w-3.5 flex-shrink-0 mt-0.5 text-blue-400/60" />
+              <p>The device will appear as "Pending" until it connects. Auto-login expires after 24 hours.</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setShowAddDeviceDialog(false)} className="text-white/40 hover:text-white/60 text-[12px]">Cancel</Button>
+            <Button onClick={handleAddDevice}
+              className="bg-white/[0.08] hover:bg-white/[0.12] text-white/80 border border-white/[0.08] rounded-xl text-[12px]">
+              <Plus className="h-3.5 w-3.5 mr-1.5" /> Add Device
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -872,27 +1259,17 @@ const UserProfile = () => {
   );
 };
 
-// Reusable row components
-const SettingsRow = ({ icon: Icon, label, value, onChange, placeholder }: {
-  icon: typeof Phone; label: string; value: string; onChange: (v: string) => void; placeholder: string;
+// Reusable field component
+const FieldInput = ({ icon: Icon, label, value, onChange, placeholder, type = "text" }: {
+  icon: any; label: string; value: string; onChange: (v: string) => void; placeholder: string; type?: string;
 }) => (
   <div className="space-y-1.5">
-    <label className="text-xs font-medium text-white/60">{label}</label>
+    <label className="text-[12px] font-medium text-white/40">{label}</label>
     <div className="relative">
-      <Icon className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 h-4 w-4" />
-      <Input value={value} onChange={(e) => onChange(e.target.value)}
-        className="pl-10 bg-white/10 border-white/15 text-white placeholder:text-white/30 rounded-xl h-11 focus:bg-white/15 focus:border-white/30"
+      <Icon className="absolute left-3 top-1/2 -translate-y-1/2 text-white/25 h-3.5 w-3.5" />
+      <Input type={type} value={value} onChange={(e) => onChange(e.target.value)}
+        className="pl-10 bg-white/[0.04] border-white/[0.08] text-white/80 placeholder:text-white/20 rounded-xl h-10 text-[13px] focus:bg-white/[0.06] focus:border-white/[0.15]"
         placeholder={placeholder} />
-    </div>
-  </div>
-);
-
-const InfoRow = ({ label, value }: { label: string; value: string }) => (
-  <div className="flex items-center justify-between py-3">
-    <span className="text-white/50 text-sm">{label}</span>
-    <div className="flex items-center gap-2">
-      <span className="text-white/80 text-sm">{value}</span>
-      <ChevronRight className="h-4 w-4 text-white/20" />
     </div>
   </div>
 );

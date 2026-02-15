@@ -984,6 +984,57 @@ export type Database = {
         }
         Relationships: []
       }
+      device_sessions: {
+        Row: {
+          browser: string | null
+          created_at: string
+          device_name: string
+          device_type: string
+          expires_at: string | null
+          id: string
+          ip_address: string | null
+          is_current: boolean
+          is_manually_added: boolean
+          last_active_at: string
+          os: string | null
+          session_token_hash: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          browser?: string | null
+          created_at?: string
+          device_name?: string
+          device_type?: string
+          expires_at?: string | null
+          id?: string
+          ip_address?: string | null
+          is_current?: boolean
+          is_manually_added?: boolean
+          last_active_at?: string
+          os?: string | null
+          session_token_hash?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          browser?: string | null
+          created_at?: string
+          device_name?: string
+          device_type?: string
+          expires_at?: string | null
+          id?: string
+          ip_address?: string | null
+          is_current?: boolean
+          is_manually_added?: boolean
+          last_active_at?: string
+          os?: string | null
+          session_token_hash?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       fan_emotional_profiles: {
         Row: {
           account_id: string
@@ -2164,6 +2215,42 @@ export type Database = {
           created_at?: string
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_settings: {
+        Row: {
+          created_at: string
+          id: string
+          language: string
+          login_alerts_enabled: boolean
+          session_timeout_minutes: number
+          timezone: string
+          two_factor_enabled: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          language?: string
+          login_alerts_enabled?: boolean
+          session_timeout_minutes?: number
+          timezone?: string
+          two_factor_enabled?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          language?: string
+          login_alerts_enabled?: boolean
+          session_timeout_minutes?: number
+          timezone?: string
+          two_factor_enabled?: boolean
+          updated_at?: string
           user_id?: string
         }
         Relationships: []
