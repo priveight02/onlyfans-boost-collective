@@ -35,8 +35,9 @@ import { UserRankBadge } from "@/components/social/UserRankBadge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatDistanceToNow } from "date-fns";
 import NotificationBell from "@/components/social/NotificationBell";
+import PlanCreditsTab from "@/components/profile/PlanCreditsTab";
 
-type TabId = "account" | "security" | "activity" | "devices" | "notifications" | "ai-automation" | "preferences" | "social-feed" | "social-explore" | "social-notifications" | "rank";
+type TabId = "account" | "security" | "activity" | "devices" | "notifications" | "ai-automation" | "preferences" | "social-feed" | "social-explore" | "social-notifications" | "rank" | "plan-credits";
 
 type CardNotification = { type: "success" | "error" | "info"; message: string } | null;
 
@@ -730,6 +731,7 @@ const UserProfile = () => {
   if (!user) return null;
 
   const settingsTabs: { id: TabId; label: string; icon: typeof User }[] = [
+    { id: "plan-credits", label: "Plan & Credits", icon: Coins },
     { id: "account", label: "Account Info", icon: User },
     { id: "security", label: "Security", icon: Shield },
     { id: "activity", label: "Activity", icon: Activity },
@@ -844,6 +846,9 @@ const UserProfile = () => {
 
             {/* Content */}
             <div className="flex-1 min-w-0 space-y-5">
+
+              {/* ===================== PLAN & CREDITS TAB ===================== */}
+              {activeTab === "plan-credits" && <PlanCreditsTab />}
 
               {/* ===================== ACCOUNT INFO TAB ===================== */}
               {activeTab === "account" && (

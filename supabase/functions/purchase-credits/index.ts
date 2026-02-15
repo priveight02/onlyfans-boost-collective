@@ -11,6 +11,21 @@ const logStep = (step: string, details?: any) => {
   console.log(`[PURCHASE-CREDITS] ${step}${details ? ` - ${JSON.stringify(details)}` : ''}`);
 };
 
+// Base price per credit in cents
+const BASE_PRICE_PER_CREDIT_CENTS = 9.99;
+
+// Volume discount tiers (max 20%)
+const getVolumeDiscount = (credits: number): number => {
+  if (credits >= 10000) return 0.20;
+  if (credits >= 5000) return 0.17;
+  if (credits >= 3000) return 0.14;
+  if (credits >= 2000) return 0.11;
+  if (credits >= 1000) return 0.08;
+  if (credits >= 500) return 0.05;
+  if (credits >= 200) return 0.02;
+  return 0;
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -32,18 +47,8 @@ serve(async (req) => {
     if (!user?.email) throw new Error("User not authenticated");
     logStep("User authenticated", { userId: user.id, email: user.email });
 
-    const { packageId } = await req.json();
-    if (!packageId) throw new Error("Package ID required");
-
-    // Fetch the credit package
-    const { data: pkg, error: pkgError } = await supabaseAdmin
-      .from("credit_packages")
-      .select("*")
-      .eq("id", packageId)
-      .eq("is_active", true)
-      .single();
-    if (pkgError || !pkg) throw new Error("Invalid package");
-    logStep("Package found", { name: pkg.name, credits: pkg.credits, price: pkg.price_cents });
+    const body = await req.json();
+    const { packageId, customCredits } = body;
 
     const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", { apiVersion: "2025-08-27.basil" });
 
@@ -54,13 +59,10 @@ serve(async (req) => {
 
     if (customers.data.length > 0) {
       customerId = customers.data[0].id;
-      // Check if this customer has previous successful payments (returning customer)
       const charges = await stripe.charges.list({ customer: customerId, limit: 1 });
       isReturningCustomer = charges.data.length > 0;
-      logStep("Customer found", { customerId, isReturningCustomer });
     }
 
-    // Also check wallet purchase_count as backup
     const { data: wallet } = await supabaseAdmin
       .from("wallets")
       .select("purchase_count")
@@ -68,9 +70,79 @@ serve(async (req) => {
       .single();
     if (wallet && wallet.purchase_count > 0) isReturningCustomer = true;
 
+    const origin = req.headers.get("origin") || "https://ozcagency.com";
+
+    // --- CUSTOM CREDITS MODE ---
+    if (customCredits && typeof customCredits === "number" && customCredits >= 50) {
+      logStep("Custom credits mode", { customCredits });
+
+      const discount = getVolumeDiscount(customCredits);
+      const pricePerCredit = BASE_PRICE_PER_CREDIT_CENTS * (1 - discount);
+      const totalCents = Math.round(customCredits * pricePerCredit);
+
+      logStep("Price calculated", { discount: `${Math.round(discount * 100)}%`, totalCents, pricePerCredit });
+
+      // Create a dynamic Stripe price for this custom amount
+      const product = await stripe.products.create({
+        name: `${customCredits.toLocaleString()} Credits${discount > 0 ? ` (${Math.round(discount * 100)}% volume discount)` : ''}`,
+        metadata: { type: 'custom_credits', credits: String(customCredits) },
+      });
+
+      const price = await stripe.prices.create({
+        product: product.id,
+        unit_amount: totalCents,
+        currency: 'usd',
+      });
+
+      let discounts: any[] = [];
+      if (isReturningCustomer) {
+        logStep("Returning customer - applying 30% discount on custom");
+        const coupon = await stripe.coupons.create({
+          percent_off: 30,
+          duration: "once",
+          name: "Returning Customer 30% Off",
+        });
+        discounts = [{ coupon: coupon.id }];
+      }
+
+      const session = await stripe.checkout.sessions.create({
+        customer: customerId,
+        customer_email: customerId ? undefined : user.email,
+        line_items: [{ price: price.id, quantity: 1 }],
+        mode: "payment",
+        discounts,
+        success_url: `${origin}/pricing?success=true&credits=${customCredits}`,
+        cancel_url: `${origin}/pricing?canceled=true`,
+        metadata: {
+          user_id: user.id,
+          package_id: "custom",
+          credits: String(customCredits),
+          bonus_credits: "0",
+          is_returning: String(isReturningCustomer),
+        },
+      });
+
+      logStep("Custom checkout session created", { sessionId: session.id });
+      return new Response(JSON.stringify({ url: session.url }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      });
+    }
+
+    // --- PACKAGE MODE ---
+    if (!packageId) throw new Error("Package ID or customCredits required");
+
+    const { data: pkg, error: pkgError } = await supabaseAdmin
+      .from("credit_packages")
+      .select("*")
+      .eq("id", packageId)
+      .eq("is_active", true)
+      .single();
+    if (pkgError || !pkg) throw new Error("Invalid package");
+    logStep("Package found", { name: pkg.name, credits: pkg.credits, price: pkg.price_cents });
+
     let discounts: any[] = [];
     if (isReturningCustomer) {
-      // Create a 30% off coupon for returning customers
       logStep("Returning customer - applying 30% discount");
       const coupon = await stripe.coupons.create({
         percent_off: 30,
@@ -79,8 +151,6 @@ serve(async (req) => {
       });
       discounts = [{ coupon: coupon.id }];
     }
-
-    const origin = req.headers.get("origin") || "https://ozcagency.com";
 
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
