@@ -164,14 +164,48 @@ serve(async (req) => {
 
   try {
     const payload = await req.json();
-    console.log("Send email hook received:", JSON.stringify(payload.email_data?.email_action_type));
+    console.log("Full payload keys:", JSON.stringify(Object.keys(payload)));
+    console.log("Full payload:", JSON.stringify(payload).substring(0, 1000));
 
-    const { user, email_data } = payload;
-    const email = user.email;
-    const actionType = email_data.email_action_type;
+    // Handle multiple possible payload structures:
+    // Structure 1 (Supabase Auth Hook): { user: { email }, email_data: { ... } }
+    // Structure 2 (Lovable Cloud Hook): payload might nest differently
+    const user = payload.user;
+    const emailData = payload.email_data;
+    
+    // Try to extract email from various payload shapes
+    const email = user?.email || payload.email || payload.recipient;
+    const actionType = emailData?.email_action_type || payload.email_action_type || payload.action_type || payload.type;
 
-    const confirmUrl = buildConfirmationUrl(email_data);
+    if (!email) {
+      console.error("No email found in payload. Full payload:", JSON.stringify(payload));
+      return new Response(
+        JSON.stringify({ error: "No recipient email found in payload" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (!emailData && !actionType) {
+      console.error("No email_data or action type found. Full payload:", JSON.stringify(payload));
+      return new Response(
+        JSON.stringify({ error: "No email action data found in payload" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Build confirmation URL - handle both payload structures
+    const effectiveEmailData: EmailData = emailData || {
+      token: payload.token || "",
+      token_hash: payload.token_hash || "",
+      redirect_to: payload.redirect_to || SITE_URL,
+      email_action_type: actionType,
+      site_url: payload.site_url || SITE_URL,
+    };
+
+    const confirmUrl = buildConfirmationUrl(effectiveEmailData);
     const { subject, html } = getEmailContent(actionType, confirmUrl);
+
+    console.log(`Sending ${actionType} email to ${email}`);
 
     // Send via Resend
     const resendRes = await fetch("https://api.resend.com/emails", {
@@ -192,11 +226,8 @@ serve(async (req) => {
     console.log("Resend response:", JSON.stringify(resendData));
 
     if (!resendRes.ok) {
-      // If Resend fails (e.g. domain not verified), fall back
-      // Return success so Supabase Auth doesn't also send its default email
-      console.error("Resend error:", JSON.stringify(resendData));
+      console.error("Resend error, trying fallback domain:", JSON.stringify(resendData));
       
-      // Try with default Resend domain
       const fallbackRes = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: {
