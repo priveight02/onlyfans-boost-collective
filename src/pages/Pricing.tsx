@@ -279,13 +279,13 @@ const Pricing = () => {
 
                 <div className="mb-4">
                   <label className="text-xs text-white/40 mb-1.5 block">How many credits?</label>
-                  <Input
+                  <input
                     type="number"
                     min={10}
                     max={100000}
                     value={customCredits}
                     onChange={(e) => setCustomCredits(Math.max(10, parseInt(e.target.value) || 10))}
-                    className="bg-white/5 border-white/10 text-white text-center text-lg font-semibold h-11"
+                    className="w-full h-11 rounded-xl bg-white/[0.06] border border-white/[0.12] text-white text-center text-lg font-semibold focus:outline-none focus:ring-1 focus:ring-purple-500/50 focus:border-purple-500/40 transition-all placeholder:text-white/20 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
                   <span className="text-[10px] text-white/25 mt-1 block">Min 10 · Bulk discounts up to 40%</span>
                 </div>

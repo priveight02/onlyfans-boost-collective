@@ -71,7 +71,7 @@ serve(async (req) => {
       .single();
     if (wallet && wallet.purchase_count > 0) isReturningCustomer = true;
 
-    const origin = req.headers.get("origin") || "https://ozcagency.com";
+    const origin = "https://ozcagency.com";
 
     // --- CUSTOM CREDITS MODE ---
     if (customCredits && typeof customCredits === "number" && customCredits >= 10) {
