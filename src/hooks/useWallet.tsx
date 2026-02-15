@@ -59,6 +59,14 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     if (!user) return;
 
+    const handleUpdate = (payload: any) => {
+      const w = payload.new as any;
+      setBalance(w.balance || 0);
+      setPurchaseCount(w.purchase_count || 0);
+      setTotalPurchased(w.total_purchased || 0);
+      setTotalSpent(w.total_spent || 0);
+    };
+
     const channel = supabase
       .channel(`wallet-${user.id}`)
       .on(
@@ -69,20 +77,33 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
           table: 'wallets',
           filter: `user_id=eq.${user.id}`,
         },
-        (payload) => {
-          const w = payload.new as any;
-          setBalance(w.balance || 0);
-          setPurchaseCount(w.purchase_count || 0);
-          setTotalPurchased(w.total_purchased || 0);
-          setTotalSpent(w.total_spent || 0);
-        }
+        handleUpdate
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'wallets',
+          filter: `user_id=eq.${user.id}`,
+        },
+        handleUpdate
       )
       .subscribe();
 
+    // Refresh wallet when user returns to this tab (e.g. after Stripe checkout)
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        refreshWallet();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
     return () => {
       supabase.removeChannel(channel);
+      document.removeEventListener('visibilitychange', handleVisibility);
     };
-  }, [user]);
+  }, [user, refreshWallet]);
 
   return (
     <WalletContext.Provider value={{ balance, purchaseCount, totalPurchased, totalSpent, loading, refreshWallet }}>
