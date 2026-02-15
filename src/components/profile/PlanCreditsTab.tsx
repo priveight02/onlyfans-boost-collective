@@ -28,7 +28,7 @@ const PLANS = [
   {
     id: "starter",
     name: "Starter",
-    price: 0,
+    price: 999, // $9.99
     credits_per_month: 50,
     features: ["50 credits/month", "Basic AI tools", "1 managed account", "Community support"],
     current: true, // will be overridden by actual data
@@ -168,8 +168,8 @@ const PlanCreditsTab = () => {
               <p className="text-white/40 text-sm">{currentPlan.credits_per_month} credits/month included</p>
             </div>
           </div>
-          <Button variant="outline" size="sm"
-            className="text-white/70 border-white/15 hover:bg-white/10 hover:text-white text-sm h-9 px-4">
+          <Button size="sm"
+            className="bg-[hsl(222,25%,18%)] hover:bg-[hsl(222,25%,22%)] text-white border border-white/10 text-sm h-9 px-4">
             Manage Plan
           </Button>
         </div>
@@ -234,20 +234,20 @@ const PlanCreditsTab = () => {
                 </div>
 
                 {isCurrent ? (
-                  <Button variant="outline" className="w-full mb-5 text-sm h-10 border-white/15 text-white/50" disabled>
+                  <Button className="w-full mb-5 text-sm h-10 bg-[hsl(222,25%,18%)] text-white/50 border border-white/10 cursor-default hover:bg-[hsl(222,25%,18%)]" disabled>
                     Your Plan
                   </Button>
                 ) : plan.price !== null ? (
                   <Button className={`w-full mb-5 text-sm h-10 font-semibold ${
                     plan.highlighted
                       ? "bg-purple-500 hover:bg-purple-400 text-white"
-                      : "bg-white/10 hover:bg-white/20 text-white border border-white/10"
+                      : "bg-[hsl(222,25%,18%)] hover:bg-[hsl(222,25%,22%)] text-white border border-white/10"
                   }`}>
                     <ArrowUpRight className="h-4 w-4 mr-1.5" />
                     Upgrade
                   </Button>
                 ) : (
-                  <Button variant="outline" className="w-full mb-5 text-sm h-10 border-white/15 text-white/60 hover:bg-white/10 hover:text-white">
+                  <Button className="w-full mb-5 text-sm h-10 bg-[hsl(222,25%,18%)] hover:bg-[hsl(222,25%,22%)] text-white border border-white/10 font-semibold">
                     Contact Sales
                   </Button>
                 )}
@@ -278,8 +278,9 @@ const PlanCreditsTab = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
           {packages.map((pkg, index) => {
             const isPopular = pkg.is_popular;
-            const isReturning = purchaseCount > 0;
-            const displayPrice = isReturning ? Math.round(pkg.price_cents * 0.7) : pkg.price_cents;
+            const returningDiscount = purchaseCount === 1 ? 0.30 : purchaseCount === 2 ? 0.20 : purchaseCount === 3 ? 0.10 : 0;
+            const isReturning = returningDiscount > 0;
+            const displayPrice = isReturning ? Math.round(pkg.price_cents * (1 - returningDiscount)) : pkg.price_cents;
             const totalCredits = pkg.credits + pkg.bonus_credits;
             const perCredit = ((displayPrice / totalCredits)).toFixed(1);
 
@@ -304,10 +305,15 @@ const PlanCreditsTab = () => {
                   <p className="text-amber-300 text-xs mb-1">+{pkg.bonus_credits} bonus</p>
                 )}
                 <div className="flex items-baseline gap-1.5 mb-1">
-                  {isReturning && (
+                {isReturning && (
                     <span className="text-white/30 text-xs line-through">{formatPrice(pkg.price_cents)}</span>
                   )}
                   <span className="text-white font-bold text-lg">{formatPrice(displayPrice)}</span>
+                  {isReturning && (
+                    <Badge className="bg-emerald-500/15 text-emerald-300 border-emerald-500/20 text-[9px] px-1.5 py-0 ml-1">
+                      -{Math.round(returningDiscount * 100)}%
+                    </Badge>
+                  )}
                 </div>
                 <p className="text-white/30 text-xs mb-4">{perCredit}¢/credit</p>
                 <Button
