@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Coins, Layers, Zap, Star, Check, ArrowRight, Sparkles, Plus, Minus, CreditCard, TrendingUp, ArrowUpRight, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -133,8 +133,49 @@ const PlanCreditsTab = () => {
   const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">("monthly");
   const plansRef = useRef<HTMLDivElement>(null);
 
-  // TODO: Replace with real plan detection from backend
-  const currentPlan = PLANS[0]; // Free tier
+  // Subscription state from Stripe
+  const [activePlanId, setActivePlanId] = useState<string | null>(null);
+  const [subscriptionLoading, setSubscriptionLoading] = useState(true);
+
+  // Fetch active subscription on mount and when tab regains focus
+  const fetchSubscription = useCallback(async () => {
+    if (!user) return;
+    try {
+      const { data, error } = await supabase.functions.invoke("billing-info", {
+        body: { action: "info" },
+      });
+      if (error || !data) return;
+      if (data.subscription) {
+        const productId = data.subscription.product_id;
+        // Match product_id to our plan IDs
+        for (const [planId, info] of Object.entries(PLAN_STRIPE_MAP)) {
+          if (info.monthly.product_id === productId || info.yearly.product_id === productId) {
+            setActivePlanId(planId);
+            break;
+          }
+        }
+      } else {
+        setActivePlanId(null);
+      }
+    } catch {} finally {
+      setSubscriptionLoading(false);
+    }
+  }, [user]);
+
+  useEffect(() => { fetchSubscription(); }, [fetchSubscription]);
+
+  // Re-check subscription when user returns to tab (e.g. after Stripe checkout)
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        fetchSubscription();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [fetchSubscription]);
+
+  const currentPlan = PLANS.find(p => p.id === activePlanId) || PLANS[0];
   const isFreeTier = currentPlan.id === "free";
 
   const scrollToPlans = () => {
@@ -321,7 +362,7 @@ const PlanCreditsTab = () => {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
           {PLANS.filter(p => p.id !== "free").map((plan, i) => {
-            const isCurrent = false; // No paid plan is current for free-tier users
+            const isCurrent = plan.id === activePlanId;
             const displayPrice = getPlanDisplayPrice(plan);
             const showYearlySavings = billingCycle === "yearly" && plan.yearlyDiscount > 0 && plan.monthlyPrice !== null;
             return (
@@ -382,7 +423,7 @@ const PlanCreditsTab = () => {
                         : "bg-[hsl(222,25%,18%)] hover:bg-[hsl(222,25%,22%)] text-white border border-white/10"
                     }`}
                   >
-                    {upgradingPlan === plan.id ? "Loading..." : <><ArrowUpRight className="h-4 w-4 mr-1.5" />Upgrade</>}
+                    {upgradingPlan === plan.id ? "Loading..." : <><ArrowUpRight className="h-4 w-4 mr-1.5" />{activePlanId ? "Switch Plan" : "Upgrade"}</>}
                   </Button>
                 ) : (
                   <Button
