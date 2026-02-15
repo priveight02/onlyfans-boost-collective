@@ -26,7 +26,7 @@ const Footer = () => {
               </div>
             </div>
             <p className="text-white/50 text-sm leading-relaxed max-w-xs">
-              Premium management for ambitious creators. We handle strategy, growth, and engagement so you can focus on creating.
+              Premium management for ambitious original and adult content creators. We handle strategy, growth, and engagement so you can focus on creating.
             </p>
             <div className="flex items-center gap-2">
               <a href="https://instagram.com/ozcagency" target="_blank" rel="noopener noreferrer"
