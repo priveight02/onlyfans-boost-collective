@@ -137,6 +137,48 @@ serve(async (req) => {
         })
         .eq("user_id", user.id);
 
+      // ===== GRANT XP based on credits purchased =====
+      let xpToGrant = 0;
+      if (totalCredits >= 1000) xpToGrant = 750;
+      else if (totalCredits >= 500) xpToGrant = 300;
+      else if (totalCredits >= 200) xpToGrant = 150;
+      else if (totalCredits >= 100) xpToGrant = 50;
+      else if (totalCredits >= 10) xpToGrant = 25;
+
+      if (xpToGrant > 0) {
+        // Ensure social_profiles row exists
+        await supabaseAdmin
+          .from("social_profiles")
+          .upsert({ user_id: user.id, xp: 0 }, { onConflict: "user_id", ignoreDuplicates: true });
+
+        const { data: profile } = await supabaseAdmin
+          .from("social_profiles")
+          .select("xp, rank_tier")
+          .eq("user_id", user.id)
+          .single();
+
+        const newXp = (profile?.xp || 0) + xpToGrant;
+
+        // Determine new rank tier
+        const tiers = [
+          { name: "Legend", minXp: 50000 },
+          { name: "Diamond", minXp: 20000 },
+          { name: "Platinum", minXp: 10000 },
+          { name: "Gold", minXp: 5000 },
+          { name: "Silver", minXp: 2000 },
+          { name: "Bronze", minXp: 500 },
+          { name: "Metal", minXp: 0 },
+        ];
+        const newTier = tiers.find(t => newXp >= t.minXp)?.name || "Metal";
+
+        await supabaseAdmin
+          .from("social_profiles")
+          .update({ xp: newXp, rank_tier: newTier })
+          .eq("user_id", user.id);
+
+        logStep("XP granted", { xpToGrant, newXp, newTier, totalCredits });
+      }
+
       totalCredited += totalCredits;
       logStep("Credits added", { totalCredits, sessionId });
     }
