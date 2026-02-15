@@ -205,8 +205,8 @@ const PlanCreditsTab = () => {
       <div>
         <h2 className="text-white font-semibold text-lg mb-5">Available Plans</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
-          {PLANS.map((plan, i) => {
-            const isCurrent = i === 0;
+          {PLANS.filter(p => p.id !== "free").map((plan, i) => {
+            const isCurrent = false; // No paid plan is current for free-tier users
             return (
               <div key={plan.id}
                 className={`rounded-2xl border p-6 transition-all duration-200 ${
