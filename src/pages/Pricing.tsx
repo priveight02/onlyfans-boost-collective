@@ -39,12 +39,13 @@ const Pricing = () => {
   const { user } = useAuth();
   const { balance, purchaseCount, refreshWallet } = useWallet();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [packages, setPackages] = useState<CreditPackage[]>([]);
   const [loading, setLoading] = useState(true);
   const [purchasingId, setPurchasingId] = useState<string | null>(null);
   const [customCredits, setCustomCredits] = useState<number>(500);
   const [purchasingCustom, setPurchasingCustom] = useState(false);
+  const [verifying, setVerifying] = useState(false);
 
   const isReturning = purchaseCount > 0;
 
@@ -61,34 +62,39 @@ const Pricing = () => {
     fetchPackages();
   }, []);
 
+  // Verification effect — runs once, clears params to prevent re-runs
   useEffect(() => {
-    if (searchParams.get("success") === "true") {
-      const credits = searchParams.get("credits");
-      const verifyAndCredit = async () => {
-        const toastId = toast.loading("Verifying your purchase...");
-        try {
-          const { data, error } = await supabase.functions.invoke("verify-credit-purchase");
-          if (error) throw error;
-          if (data?.credited && data.credits_added > 0) {
-            toast.success(`🎉 ${data.credits_added.toLocaleString()} credits added to your wallet!`, { id: toastId });
-          } else if (data?.credited === false && data?.credits_added === 0) {
-            // Already processed on a previous visit
-            toast.success(`Credits already in your wallet!`, { id: toastId });
-          } else {
-            toast.info("Purchase is being processed. Credits will appear shortly.", { id: toastId });
-          }
-          await refreshWallet();
-        } catch (err: any) {
-          console.error("Verification failed:", err);
-          toast.error("Verification failed. Your credits will be added automatically — please refresh in a moment.", { id: toastId });
-        }
-      };
-      verifyAndCredit();
-    }
-    if (searchParams.get("canceled") === "true") {
+    const isSuccess = searchParams.get("success") === "true";
+    const isCanceled = searchParams.get("canceled") === "true";
+
+    if (!isSuccess && !isCanceled) return;
+
+    if (isCanceled) {
       toast.info("Purchase canceled");
+      setSearchParams({}, { replace: true });
+      return;
     }
-  }, [searchParams, refreshWallet]);
+
+    if (isSuccess && !verifying) {
+      setVerifying(true);
+      // Immediately clear URL params so this never fires again
+      setSearchParams({}, { replace: true });
+
+      const toastId = toast.loading("Verifying your purchase...");
+      supabase.functions.invoke("verify-credit-purchase").then(({ data, error }) => {
+        if (error) {
+          toast.error("Verification failed. Credits will appear shortly — please refresh.", { id: toastId });
+          console.error("Verification error:", error);
+        } else if (data?.credited && data.credits_added > 0) {
+          toast.success(`🎉 ${data.credits_added.toLocaleString()} credits added!`, { id: toastId });
+        } else {
+          toast.success("Credits already in your wallet!", { id: toastId });
+        }
+        refreshWallet();
+        setVerifying(false);
+      });
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handlePurchase = async (pkg: CreditPackage) => {
     if (!user) { toast.error("Please log in first"); navigate("/auth"); return; }
