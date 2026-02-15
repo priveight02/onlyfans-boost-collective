@@ -45,8 +45,8 @@ const Hero = () => {
             transition={{ duration: 0.8, delay: 0.2 }}
             className="text-4xl md:text-7xl font-bold text-white mb-6 font-heading tracking-tight drop-shadow-lg [text-wrap:balance] leading-[1.1]"
           >
-            Adult Content Creators<br />
-            <span className="text-[hsl(200,100%,70%)] drop-shadow-md">Management Agency</span>
+            We Scale Adult Creators<br />
+            <span className="text-[hsl(200,100%,70%)] drop-shadow-md">Into Global Brands</span>
           </motion.h1>
           
           <motion.p 
