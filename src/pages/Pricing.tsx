@@ -250,14 +250,16 @@ const Pricing = () => {
 
                     <div className="space-y-2.5 mb-6 flex-1">
                       <div className="flex items-center gap-3 text-sm text-white/60">
-                        <div className="w-5 h-5 rounded-full bg-white/[0.08] border border-white/[0.12] flex items-center justify-center flex-shrink-0">
-                          <Check className="h-3 w-3 text-white/70" strokeWidth={2.5} />
+                        <div className="w-5 h-5 rounded-full bg-amber-500/15 border border-amber-500/30 flex items-center justify-center flex-shrink-0">
+                          <Check className="h-3 w-3 text-amber-400" strokeWidth={2.5} />
                         </div>
-                        <span>{pkg.credits.toLocaleString()} credits</span>
+                        <span className="text-white/80 font-medium">{pkg.credits.toLocaleString()} credits</span>
                       </div>
                       {pkg.bonus_credits > 0 && (
-                        <div className="flex items-center gap-2 text-sm text-amber-300/80">
-                          <Sparkles className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+                        <div className="flex items-center gap-3 text-sm text-amber-300/80">
+                          <div className="w-5 h-5 rounded-full bg-amber-500/15 border border-amber-500/30 flex items-center justify-center flex-shrink-0">
+                            <Gift className="h-3 w-3 text-amber-400" strokeWidth={2.5} />
+                          </div>
                           <span>+{pkg.bonus_credits} bonus</span>
                         </div>
                       )}
@@ -358,14 +360,16 @@ const Pricing = () => {
 
                 <div className="space-y-2.5 mb-6 flex-1">
                   <div className="flex items-center gap-3 text-sm text-white/60">
-                    <div className="w-5 h-5 rounded-full bg-white/[0.08] border border-white/[0.12] flex items-center justify-center flex-shrink-0">
-                      <Check className="h-3 w-3 text-white/70" strokeWidth={2.5} />
+                    <div className="w-5 h-5 rounded-full bg-amber-500/15 border border-amber-500/30 flex items-center justify-center flex-shrink-0">
+                      <Check className="h-3 w-3 text-amber-400" strokeWidth={2.5} />
                     </div>
-                    <span>{customCredits.toLocaleString()} credits</span>
+                    <span className="text-white/80 font-medium">{customCredits.toLocaleString()} credits</span>
                   </div>
                   {customDiscount > 0 && (
-                    <div className="flex items-center gap-2 text-sm text-amber-300/80">
-                      <Sparkles className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+                    <div className="flex items-center gap-3 text-sm text-amber-300/80">
+                      <div className="w-5 h-5 rounded-full bg-amber-500/15 border border-amber-500/30 flex items-center justify-center flex-shrink-0">
+                        <Gift className="h-3 w-3 text-amber-400" strokeWidth={2.5} />
+                      </div>
                       <span>{Math.round(customDiscount * 100)}% volume discount</span>
                     </div>
                   )}
