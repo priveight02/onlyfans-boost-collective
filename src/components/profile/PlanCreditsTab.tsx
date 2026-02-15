@@ -37,15 +37,15 @@ const PLANS = [
   {
     id: "starter",
     name: "Starter",
-    monthlyPrice: 10, // $10
-    credits_per_month: 50,
-    features: ["50 credits/month", "Basic AI tools", "1 managed account", "Community support"],
+    monthlyPrice: 9,
+    credits_per_month: 105,
+    features: ["105 credits/month", "Basic AI tools", "1 managed account", "Community support"],
     yearlyDiscount: 0.15,
   },
   {
     id: "pro",
     name: "Pro",
-    monthlyPrice: 30, // $30
+    monthlyPrice: 29,
     credits_per_month: 500,
     features: ["500 credits/month", "All AI tools", "5 managed accounts", "Priority support", "Credit rollovers", "On-demand top-ups"],
     highlighted: true,
@@ -54,7 +54,7 @@ const PLANS = [
   {
     id: "business",
     name: "Business",
-    monthlyPrice: 80, // $80
+    monthlyPrice: 79,
     credits_per_month: 2000,
     features: ["2000 credits/month", "All Pro features", "Unlimited accounts", "Dedicated support", "Team workspace", "Advanced analytics", "API access"],
     yearlyDiscount: 0.33,
@@ -234,9 +234,9 @@ const PlanCreditsTab = () => {
             </div>
             <Button size="sm"
               onClick={handleTopUpClick}
-              className="bg-purple-500 hover:bg-purple-400 text-white text-sm h-8 px-3.5 font-medium rounded-lg shadow-sm shadow-purple-500/10 border-0">
-              <Plus className="h-3 w-3 mr-1" />
-              Top Up Credits
+              className="bg-purple-500 hover:bg-purple-400 text-white text-xs h-8 px-3 font-medium rounded-lg border-0">
+              <Plus className="h-3 w-3 mr-0.5" />
+              Top Up
             </Button>
           </div>
         </div>
@@ -277,7 +277,7 @@ const PlanCreditsTab = () => {
             const showYearlySavings = billingCycle === "yearly" && plan.yearlyDiscount > 0 && plan.monthlyPrice !== null;
             return (
               <div key={plan.id}
-                className={`rounded-2xl border p-6 transition-all duration-200 ${
+                className={`relative rounded-2xl border p-6 transition-all duration-200 ${
                   plan.highlighted
                     ? "border-purple-500/30 bg-purple-500/5"
                     : "border-white/[0.06] bg-[hsl(222,28%,11%)]"
@@ -289,7 +289,7 @@ const PlanCreditsTab = () => {
                   </Badge>
                 )}
                 {plan.highlighted && !isCurrent && (
-                  <Badge className="bg-purple-500/15 text-purple-300 border-purple-500/20 mb-3 text-xs">
+                  <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-purple-500 text-white border-0 text-[10px] px-3 py-0.5 shadow-lg shadow-purple-500/20">
                     Most Popular
                   </Badge>
                 )}
@@ -363,40 +363,34 @@ const PlanCreditsTab = () => {
             const isReturning = returningDiscount > 0;
             const displayPrice = isReturning ? Math.round(pkg.price_cents * (1 - returningDiscount)) : pkg.price_cents;
             const totalCredits = pkg.credits + pkg.bonus_credits;
-            const perCredit = ((displayPrice / totalCredits)).toFixed(1);
 
             return (
               <div key={pkg.id}
-                className={`relative rounded-2xl border p-5 flex flex-col justify-between transition-all duration-200 hover:scale-[1.02] min-h-[200px] ${
+                className={`relative rounded-2xl border p-5 flex flex-col justify-between transition-all duration-200 hover:scale-[1.02] ${
                   isPopular
                     ? "border-emerald-500/30 bg-[hsl(222,30%,12%)]"
                     : "border-white/[0.06] bg-[hsl(222,30%,12%)]"
                 }`}
               >
                 {isPopular && (
-                  <Badge className="absolute -top-2.5 right-3 bg-emerald-500 text-white text-[10px] px-2.5 py-0.5 border-0 shadow-lg shadow-emerald-500/20">
+                  <Badge className="absolute -top-2.5 left-1/2 -translate-x-1/2 bg-emerald-500 text-white text-[10px] px-2.5 py-0.5 border-0 shadow-lg shadow-emerald-500/20">
                     POPULAR
                   </Badge>
                 )}
-                <div>
-                  <div className="flex items-center gap-2.5 mb-1">
+                <div className="mb-4">
+                  <div className="flex items-center gap-2 mb-1">
                     <Coins className="h-4 w-4 text-amber-400" />
                     <span className="text-white font-bold text-lg">{pkg.credits.toLocaleString()}</span>
                   </div>
                   {pkg.bonus_credits > 0 && (
-                    <p className="text-amber-300 text-xs mb-2">+{pkg.bonus_credits} bonus</p>
+                    <p className="text-amber-300/80 text-[11px]">+{pkg.bonus_credits} bonus</p>
                   )}
-                  {!pkg.bonus_credits && <div className="mb-2" />}
-                  <div className="flex items-baseline flex-wrap gap-x-1.5 gap-y-0.5 mb-0.5">
+                  <div className="mt-3">
+                    <span className="text-white font-bold text-xl">{formatPrice(displayPrice)}</span>
                     {isReturning && (
-                      <span className="text-white/30 text-xs line-through">{formatPrice(pkg.price_cents)}</span>
-                    )}
-                    <span className="text-white font-bold text-lg">{formatPrice(displayPrice)}</span>
-                    {isReturning && (
-                      <span className="text-emerald-400 text-[10px] font-semibold">-{Math.round(returningDiscount * 100)}%</span>
+                      <span className="text-emerald-400 text-[10px] font-semibold ml-1.5">-{Math.round(returningDiscount * 100)}%</span>
                     )}
                   </div>
-                  <p className="text-white/30 text-xs mb-4">{perCredit}¢/credit</p>
                 </div>
                 <Button
                   onClick={() => {
@@ -474,14 +468,14 @@ const PlanCreditsTab = () => {
               <Zap className="h-5 w-5 text-purple-400 mt-0.5 flex-shrink-0" />
               <div>
                 <p className="text-white text-sm font-medium">Pro Plan — Recommended</p>
-                <p className="text-white/40 text-xs">500 credits/month + unlimited top-ups starting at $30/mo</p>
+                <p className="text-white/40 text-xs">500 credits/month + unlimited top-ups starting at $29/mo</p>
               </div>
             </div>
             <div className="flex items-start gap-3 p-3 rounded-xl border border-white/[0.06] bg-white/[0.02]">
               <Star className="h-5 w-5 text-amber-400 mt-0.5 flex-shrink-0" />
               <div>
                 <p className="text-white text-sm font-medium">Starter Plan</p>
-                <p className="text-white/40 text-xs">50 credits/month + top-ups starting at $10/mo</p>
+                <p className="text-white/40 text-xs">105 credits/month + top-ups starting at $9/mo</p>
               </div>
             </div>
           </div>
