@@ -293,14 +293,9 @@ const PlanCreditsTab = () => {
       <div>
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-white font-semibold text-lg">Quick Credit Top-Ups</h2>
-          <Button size="sm" variant="ghost"
-            onClick={handleTopUpClick}
-            className="text-purple-400 hover:text-purple-300 text-sm h-8">
-            <Plus className="h-3.5 w-3.5 mr-1" /> Custom Amount
-          </Button>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
-          {packages.map((pkg, index) => {
+          {packages.map((pkg) => {
             const isPopular = pkg.is_popular;
             const returningDiscount = purchaseCount === 1 ? 0.30 : purchaseCount === 2 ? 0.20 : purchaseCount === 3 ? 0.10 : 0;
             const isReturning = returningDiscount > 0;
@@ -310,36 +305,37 @@ const PlanCreditsTab = () => {
 
             return (
               <div key={pkg.id}
-                className={`relative rounded-xl border p-5 transition-all duration-200 hover:scale-[1.02] ${
+                className={`relative rounded-2xl border p-5 flex flex-col justify-between transition-all duration-200 hover:scale-[1.02] min-h-[200px] ${
                   isPopular
-                    ? "border-emerald-500/30 bg-emerald-500/5"
-                    : "border-white/[0.06] bg-[hsl(222,28%,11%)]"
+                    ? "border-emerald-500/30 bg-[hsl(222,30%,12%)]"
+                    : "border-white/[0.06] bg-[hsl(222,30%,12%)]"
                 }`}
               >
                 {isPopular && (
-                  <Badge className="absolute -top-2 right-3 bg-emerald-500 text-white text-[10px] px-2.5 py-0.5 border-0">
+                  <Badge className="absolute -top-2.5 right-3 bg-emerald-500 text-white text-[10px] px-2.5 py-0.5 border-0 shadow-lg shadow-emerald-500/20">
                     POPULAR
                   </Badge>
                 )}
-                <div className="flex items-center gap-2.5 mb-2">
-                  <Coins className="h-4 w-4 text-amber-400" />
-                  <span className="text-white font-bold text-base">{totalCredits.toLocaleString()}</span>
-                </div>
-                {pkg.bonus_credits > 0 && (
-                  <p className="text-amber-300 text-xs mb-1">+{pkg.bonus_credits} bonus</p>
-                )}
-                <div className="flex items-baseline gap-1.5 mb-1">
-                {isReturning && (
-                    <span className="text-white/30 text-xs line-through">{formatPrice(pkg.price_cents)}</span>
+                <div>
+                  <div className="flex items-center gap-2.5 mb-1">
+                    <Coins className="h-4 w-4 text-amber-400" />
+                    <span className="text-white font-bold text-lg">{pkg.credits.toLocaleString()}</span>
+                  </div>
+                  {pkg.bonus_credits > 0 && (
+                    <p className="text-amber-300 text-xs mb-2">+{pkg.bonus_credits} bonus</p>
                   )}
-                  <span className="text-white font-bold text-lg">{formatPrice(displayPrice)}</span>
-                  {isReturning && (
-                    <Badge className="bg-emerald-500/15 text-emerald-300 border-emerald-500/20 text-[9px] px-1.5 py-0 ml-1">
-                      -{Math.round(returningDiscount * 100)}%
-                    </Badge>
-                  )}
+                  {!pkg.bonus_credits && <div className="mb-2" />}
+                  <div className="flex items-baseline flex-wrap gap-x-1.5 gap-y-0.5 mb-0.5">
+                    {isReturning && (
+                      <span className="text-white/30 text-xs line-through">{formatPrice(pkg.price_cents)}</span>
+                    )}
+                    <span className="text-white font-bold text-lg">{formatPrice(displayPrice)}</span>
+                    {isReturning && (
+                      <span className="text-emerald-400 text-[10px] font-semibold">-{Math.round(returningDiscount * 100)}%</span>
+                    )}
+                  </div>
+                  <p className="text-white/30 text-xs mb-4">{perCredit}¢/credit</p>
                 </div>
-                <p className="text-white/30 text-xs mb-4">{perCredit}¢/credit</p>
                 <Button
                   onClick={() => {
                     if (isFreeTier) { setShowFreeTierPopup(true); return; }
@@ -347,10 +343,10 @@ const PlanCreditsTab = () => {
                   }}
                   disabled={purchasingId === pkg.id}
                   size="sm"
-                  className={`w-full text-sm h-9 font-medium ${
+                  className={`w-full text-sm h-9 font-medium rounded-xl ${
                     isPopular
                       ? "bg-emerald-500 hover:bg-emerald-400 text-white"
-                      : "bg-white/10 hover:bg-white/20 text-white"
+                      : "bg-[hsl(222,25%,18%)] hover:bg-[hsl(222,25%,22%)] text-white border border-white/10"
                   }`}
                 >
                   {purchasingId === pkg.id ? "..." : "Buy"}
@@ -358,6 +354,18 @@ const PlanCreditsTab = () => {
               </div>
             );
           })}
+
+          {/* Custom Amount Card */}
+          <div
+            onClick={handleTopUpClick}
+            className="relative rounded-2xl border border-dashed border-purple-500/30 bg-[hsl(222,30%,12%)] p-5 flex flex-col items-center justify-center min-h-[200px] cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:border-purple-500/50 hover:bg-purple-500/5 group"
+          >
+            <div className="w-12 h-12 rounded-xl bg-purple-500/15 flex items-center justify-center mb-3 group-hover:bg-purple-500/25 transition-colors">
+              <Plus className="h-6 w-6 text-purple-400" />
+            </div>
+            <span className="text-white font-semibold text-sm mb-1">Custom Amount</span>
+            <span className="text-white/40 text-xs text-center">Choose your own credit amount</span>
+          </div>
         </div>
       </div>
 
