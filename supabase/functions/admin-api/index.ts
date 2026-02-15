@@ -11,59 +11,72 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 function json(data: unknown, status = 200) {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
+  return new Response(JSON.stringify(data), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 }
+function err(message: string, status = 400) { return json({ error: message }, status); }
 
-function err(message: string, status = 400) {
-  return json({ error: message }, status);
-}
-
-// Authenticate admin - requires valid JWT from admin user
 async function authenticateAdmin(req: Request) {
   const authHeader = req.headers.get("Authorization");
-  if (!authHeader?.startsWith("Bearer ")) {
-    return { error: "Missing or invalid Authorization header", user: null };
-  }
+  if (!authHeader?.startsWith("Bearer ")) return { error: "Missing or invalid Authorization header", user: null };
   const token = authHeader.replace("Bearer ", "");
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-  
-  // Verify JWT and get user
   const { data: { user }, error } = await supabase.auth.getUser(token);
-  if (error || !user) {
-    return { error: "Invalid or expired token", user: null };
-  }
-  
-  // Check admin role
-  const { data: roleData } = await supabase
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", user.id)
-    .eq("role", "admin")
-    .maybeSingle();
-  
-  if (!roleData) {
-    return { error: "Unauthorized: Admin access required", user: null };
-  }
-  
+  if (error || !user) return { error: "Invalid or expired token", user: null };
+  const { data: roleData } = await supabase.from("user_roles").select("role").eq("user_id", user.id).eq("role", "admin").maybeSingle();
+  if (!roleData) return { error: "Unauthorized: Admin access required", user: null };
   return { error: null, user, supabase };
 }
 
-// Parse route: /admin-api/v1/{resource}/{id?}/{sub?}
 function parseRoute(url: URL) {
   const path = url.pathname.replace(/^\/admin-api\/?/, "").replace(/^v1\/?/, "");
   const segments = path.split("/").filter(Boolean);
-  return {
-    resource: segments[0] || "",
-    id: segments[1] || null,
-    sub: segments[2] || null,
-    params: Object.fromEntries(url.searchParams),
+  return { resource: segments[0] || "", id: segments[1] || null, sub: segments[2] || null, params: Object.fromEntries(url.searchParams) };
+}
+
+// Helper for simple CRUD on a table
+function makeCrud(table: string, orderBy = "created_at", orderAsc = false) {
+  return async (method: string, id: string | null, _sub: string | null, params: Record<string, string>, body: any, supabase: any) => {
+    if (method === "GET" && !id) {
+      let q = supabase.from(table).select("*").order(orderBy, { ascending: orderAsc });
+      // Apply generic filters from params
+      for (const [key, val] of Object.entries(params)) {
+        if (key === "limit") { q = q.limit(parseInt(val)); continue; }
+        if (key === "offset") { q = q.range(parseInt(val), parseInt(val) + parseInt(params.limit || "50") - 1); continue; }
+        if (key === "search") continue; // handled per-handler
+        q = q.eq(key, val);
+      }
+      const { data, error } = await q;
+      if (error) return err(error.message, 500);
+      return json({ data, count: data?.length || 0 });
+    }
+    if (method === "GET" && id) {
+      const { data, error } = await supabase.from(table).select("*").eq("id", id).single();
+      if (error) return err(error.message, 404);
+      return json({ data });
+    }
+    if (method === "POST" && !id) {
+      const items = Array.isArray(body) ? body : [body];
+      const { data, error } = items.length === 1
+        ? await supabase.from(table).insert(items[0]).select().single()
+        : await supabase.from(table).insert(items).select();
+      if (error) return err(error.message, 500);
+      return json({ data }, 201);
+    }
+    if (method === "PATCH" && id) {
+      const { data, error } = await supabase.from(table).update(body).eq("id", id).select().single();
+      if (error) return err(error.message, 500);
+      return json({ data });
+    }
+    if (method === "DELETE" && id) {
+      const { error } = await supabase.from(table).delete().eq("id", id);
+      if (error) return err(error.message, 500);
+      return json({ message: `Deleted from ${table}` });
+    }
+    return err(`Invalid ${table} endpoint`, 404);
   };
 }
 
-// ─── HANDLERS ───────────────────────────────────────────
+// ─── CUSTOM HANDLERS ────────────────────────────────────
 
 async function handleAccounts(method: string, id: string | null, sub: string | null, params: Record<string, string>, body: any, supabase: any) {
   if (method === "GET" && !id) {
@@ -82,33 +95,15 @@ async function handleAccounts(method: string, id: string | null, sub: string | n
     if (error) return err(error.message, 404);
     return json({ data });
   }
-  if (method === "GET" && id && sub === "activities") {
-    const { data, error } = await supabase.from("account_activities").select("*").eq("account_id", id).order("created_at", { ascending: false }).limit(parseInt(params.limit || "50"));
-    if (error) return err(error.message, 500);
-    return json({ data });
-  }
-  if (method === "GET" && id && sub === "conversations") {
-    const { data, error } = await supabase.from("ai_dm_conversations").select("*").eq("account_id", id).order("last_message_at", { ascending: false }).limit(parseInt(params.limit || "50"));
-    if (error) return err(error.message, 500);
-    return json({ data });
-  }
-  if (method === "GET" && id && sub === "scripts") {
-    const { data, error } = await supabase.from("scripts").select("*, script_steps(*)").eq("account_id", id).order("created_at", { ascending: false });
-    if (error) return err(error.message, 500);
-    return json({ data });
-  }
-  if (method === "GET" && id && sub === "personas") {
-    const { data, error } = await supabase.from("persona_profiles").select("*").eq("account_id", id);
-    if (error) return err(error.message, 500);
-    return json({ data });
-  }
-  if (method === "GET" && id && sub === "fans") {
-    const { data, error } = await supabase.from("fan_emotional_profiles").select("*").eq("account_id", id).order("updated_at", { ascending: false }).limit(parseInt(params.limit || "100"));
-    if (error) return err(error.message, 500);
-    return json({ data });
-  }
-  if (method === "GET" && id && sub === "financials") {
-    const { data, error } = await supabase.from("financial_records").select("*").eq("account_id", id).order("created_at", { ascending: false }).limit(parseInt(params.limit || "100"));
+  const subHandlers: Record<string, string> = {
+    activities: "account_activities", conversations: "ai_dm_conversations", scripts: "scripts",
+    personas: "persona_profiles", fans: "fan_emotional_profiles", financials: "financial_records",
+    "auto-respond": "auto_respond_state", threads: "message_threads", keywords: "ai_keyword_delays",
+  };
+  if (method === "GET" && id && sub && subHandlers[sub]) {
+    let q = supabase.from(subHandlers[sub]).select("*").eq("account_id", id).order("created_at", { ascending: false });
+    if (params.limit) q = q.limit(parseInt(params.limit));
+    const { data, error } = await q;
     if (error) return err(error.message, 500);
     return json({ data });
   }
@@ -175,74 +170,14 @@ async function handleScripts(method: string, id: string | null, sub: string | nu
   return err("Invalid scripts endpoint", 404);
 }
 
-async function handleTeam(method: string, id: string | null, _sub: string | null, params: Record<string, string>, body: any, supabase: any) {
-  if (method === "GET" && !id) {
-    const { data, error } = await supabase.from("team_members").select("*").order("created_at", { ascending: false });
-    if (error) return err(error.message, 500);
-    return json({ data });
-  }
-  if (method === "GET" && id) {
-    const { data, error } = await supabase.from("team_members").select("*").eq("id", id).single();
-    if (error) return err(error.message, 404);
-    return json({ data });
-  }
-  if (method === "POST") {
-    const { data, error } = await supabase.from("team_members").insert(body).select().single();
-    if (error) return err(error.message, 500);
-    return json({ data }, 201);
-  }
-  if (method === "PATCH" && id) {
-    const { data, error } = await supabase.from("team_members").update(body).eq("id", id).select().single();
-    if (error) return err(error.message, 500);
-    return json({ data });
-  }
-  if (method === "DELETE" && id) {
-    const { error } = await supabase.from("team_members").delete().eq("id", id);
-    if (error) return err(error.message, 500);
-    return json({ message: "Team member removed" });
-  }
-  return err("Invalid team endpoint", 404);
-}
-
-async function handleContracts(method: string, id: string | null, _sub: string | null, params: Record<string, string>, body: any, supabase: any) {
-  if (method === "GET" && !id) {
-    let q = supabase.from("contracts").select("*").order("created_at", { ascending: false });
-    if (params.account_id) q = q.eq("account_id", params.account_id);
-    if (params.status) q = q.eq("status", params.status);
-    if (params.limit) q = q.limit(parseInt(params.limit));
-    const { data, error } = await q;
-    if (error) return err(error.message, 500);
-    return json({ data });
-  }
-  if (method === "GET" && id) {
-    const { data, error } = await supabase.from("contracts").select("*").eq("id", id).single();
-    if (error) return err(error.message, 404);
-    return json({ data });
-  }
-  if (method === "POST") {
-    const { data, error } = await supabase.from("contracts").insert(body).select().single();
-    if (error) return err(error.message, 500);
-    return json({ data }, 201);
-  }
-  if (method === "PATCH" && id) {
-    const { data, error } = await supabase.from("contracts").update(body).eq("id", id).select().single();
-    if (error) return err(error.message, 500);
-    return json({ data });
-  }
-  if (method === "DELETE" && id) {
-    const { error } = await supabase.from("contracts").delete().eq("id", id);
-    if (error) return err(error.message, 500);
-    return json({ message: "Contract deleted" });
-  }
-  return err("Invalid contracts endpoint", 404);
-}
-
 async function handleConversations(method: string, id: string | null, sub: string | null, params: Record<string, string>, body: any, supabase: any) {
   if (method === "GET" && !id) {
     let q = supabase.from("ai_dm_conversations").select("*").order("last_message_at", { ascending: false });
     if (params.account_id) q = q.eq("account_id", params.account_id);
     if (params.platform) q = q.eq("platform", params.platform);
     if (params.status) q = q.eq("status", params.status);
+    if (params.folder) q = q.eq("folder", params.folder);
+    if (params.ai_enabled) q = q.eq("ai_enabled", params.ai_enabled === "true");
     if (params.limit) q = q.limit(parseInt(params.limit));
     const { data, error } = await q;
     if (error) return err(error.message, 500);
@@ -263,156 +198,122 @@ async function handleConversations(method: string, id: string | null, sub: strin
     if (error) return err(error.message, 500);
     return json({ data }, 201);
   }
+  if (method === "POST" && !id) {
+    const { data, error } = await supabase.from("ai_dm_conversations").insert(body).select().single();
+    if (error) return err(error.message, 500);
+    return json({ data }, 201);
+  }
   if (method === "PATCH" && id) {
     const { data, error } = await supabase.from("ai_dm_conversations").update(body).eq("id", id).select().single();
     if (error) return err(error.message, 500);
     return json({ data });
   }
+  if (method === "DELETE" && id) {
+    await supabase.from("ai_dm_messages").delete().eq("conversation_id", id);
+    const { error } = await supabase.from("ai_dm_conversations").delete().eq("id", id);
+    if (error) return err(error.message, 500);
+    return json({ message: "Conversation deleted" });
+  }
   return err("Invalid conversations endpoint", 404);
 }
 
-async function handlePersonas(method: string, id: string | null, _sub: string | null, params: Record<string, string>, body: any, supabase: any) {
+async function handleFollowers(method: string, id: string | null, _sub: string | null, params: Record<string, string>, body: any, supabase: any) {
   if (method === "GET" && !id) {
-    let q = supabase.from("persona_profiles").select("*").order("created_at", { ascending: false });
+    let q = supabase.from("fetched_followers").select("*").order("fetched_at", { ascending: false });
     if (params.account_id) q = q.eq("account_id", params.account_id);
+    if (params.source) q = q.eq("source", params.source);
+    if (params.gender) q = q.eq("gender", params.gender);
+    if (params.search) q = q.or(`username.ilike.%${params.search}%,full_name.ilike.%${params.search}%`);
+    if (params.limit) q = q.limit(parseInt(params.limit));
+    if (params.offset) q = q.range(parseInt(params.offset), parseInt(params.offset) + parseInt(params.limit || "100") - 1);
     const { data, error } = await q;
     if (error) return err(error.message, 500);
-    return json({ data });
+    return json({ data, count: data?.length || 0 });
   }
   if (method === "GET" && id) {
-    const { data, error } = await supabase.from("persona_profiles").select("*").eq("id", id).single();
+    const { data, error } = await supabase.from("fetched_followers").select("*").eq("id", id).single();
     if (error) return err(error.message, 404);
     return json({ data });
   }
   if (method === "POST") {
-    const { data, error } = await supabase.from("persona_profiles").insert(body).select().single();
+    const items = Array.isArray(body) ? body : [body];
+    const { data, error } = await supabase.from("fetched_followers").upsert(items, { onConflict: "account_id,ig_user_id" }).select();
     if (error) return err(error.message, 500);
-    return json({ data }, 201);
+    return json({ data, count: data?.length || 0 }, 201);
   }
-  if (method === "PATCH" && id) {
-    const { data, error } = await supabase.from("persona_profiles").update(body).eq("id", id).select().single();
+  if (method === "DELETE" && id) {
+    const { error } = await supabase.from("fetched_followers").delete().eq("id", id);
+    if (error) return err(error.message, 500);
+    return json({ message: "Follower record deleted" });
+  }
+  return err("Invalid followers endpoint", 404);
+}
+
+async function handlePosts(method: string, id: string | null, sub: string | null, params: Record<string, string>, body: any, supabase: any) {
+  if (method === "GET" && !id) {
+    let q = supabase.from("user_posts").select("*").order("created_at", { ascending: false });
+    if (params.user_id) q = q.eq("user_id", params.user_id);
+    if (params.limit) q = q.limit(parseInt(params.limit));
+    const { data, error } = await q;
     if (error) return err(error.message, 500);
     return json({ data });
   }
-  if (method === "DELETE" && id) {
-    const { error } = await supabase.from("persona_profiles").delete().eq("id", id);
+  if (method === "GET" && id && sub === "comments") {
+    const { data, error } = await supabase.from("post_comments").select("*").eq("post_id", id).order("created_at");
     if (error) return err(error.message, 500);
-    return json({ message: "Persona deleted" });
+    return json({ data });
   }
-  return err("Invalid personas endpoint", 404);
+  if (method === "GET" && id && sub === "likes") {
+    const { data, error } = await supabase.from("post_likes").select("*").eq("post_id", id);
+    if (error) return err(error.message, 500);
+    return json({ data });
+  }
+  if (method === "GET" && id && sub === "saves") {
+    const { data, error } = await supabase.from("post_saves").select("*").eq("post_id", id);
+    if (error) return err(error.message, 500);
+    return json({ data });
+  }
+  if (method === "GET" && id) {
+    const { data, error } = await supabase.from("user_posts").select("*").eq("id", id).single();
+    if (error) return err(error.message, 404);
+    return json({ data });
+  }
+  if (method === "POST") {
+    const { data, error } = await supabase.from("user_posts").insert(body).select().single();
+    if (error) return err(error.message, 500);
+    return json({ data }, 201);
+  }
+  if (method === "DELETE" && id) {
+    await supabase.from("post_comments").delete().eq("post_id", id);
+    await supabase.from("post_likes").delete().eq("post_id", id);
+    await supabase.from("post_saves").delete().eq("post_id", id);
+    const { error } = await supabase.from("user_posts").delete().eq("id", id);
+    if (error) return err(error.message, 500);
+    return json({ message: "Post deleted" });
+  }
+  return err("Invalid posts endpoint", 404);
 }
 
-async function handleFans(method: string, id: string | null, _sub: string | null, params: Record<string, string>, body: any, supabase: any) {
+async function handleProfiles(method: string, id: string | null, _sub: string | null, params: Record<string, string>, body: any, supabase: any) {
   if (method === "GET" && !id) {
-    let q = supabase.from("fan_emotional_profiles").select("*").order("updated_at", { ascending: false });
-    if (params.account_id) q = q.eq("account_id", params.account_id);
-    if (params.behavior_type) q = q.eq("behavior_type", params.behavior_type);
+    let q = supabase.from("profiles").select("*").order("created_at", { ascending: false });
+    if (params.search) q = q.or(`username.ilike.%${params.search}%,display_name.ilike.%${params.search}%,email.ilike.%${params.search}%`);
     if (params.limit) q = q.limit(parseInt(params.limit));
     const { data, error } = await q;
     if (error) return err(error.message, 500);
     return json({ data });
   }
   if (method === "GET" && id) {
-    const { data, error } = await supabase.from("fan_emotional_profiles").select("*").eq("id", id).single();
+    const { data, error } = await supabase.from("profiles").select("*").eq("user_id", id).single();
     if (error) return err(error.message, 404);
     return json({ data });
   }
   if (method === "PATCH" && id) {
-    const { data, error } = await supabase.from("fan_emotional_profiles").update(body).eq("id", id).select().single();
+    const { data, error } = await supabase.from("profiles").update(body).eq("user_id", id).select().single();
     if (error) return err(error.message, 500);
     return json({ data });
   }
-  return err("Invalid fans endpoint", 404);
-}
-
-async function handleFinancials(method: string, id: string | null, _sub: string | null, params: Record<string, string>, body: any, supabase: any) {
-  if (method === "GET" && !id) {
-    let q = supabase.from("financial_records").select("*").order("created_at", { ascending: false });
-    if (params.account_id) q = q.eq("account_id", params.account_id);
-    if (params.record_type) q = q.eq("record_type", params.record_type);
-    if (params.limit) q = q.limit(parseInt(params.limit));
-    const { data, error } = await q;
-    if (error) return err(error.message, 500);
-    return json({ data });
-  }
-  if (method === "POST") {
-    const { data, error } = await supabase.from("financial_records").insert(body).select().single();
-    if (error) return err(error.message, 500);
-    return json({ data }, 201);
-  }
-  if (method === "DELETE" && id) {
-    const { error } = await supabase.from("financial_records").delete().eq("id", id);
-    if (error) return err(error.message, 500);
-    return json({ message: "Record deleted" });
-  }
-  return err("Invalid financials endpoint", 404);
-}
-
-async function handleContent(method: string, id: string | null, _sub: string | null, params: Record<string, string>, body: any, supabase: any) {
-  if (method === "GET" && !id) {
-    let q = supabase.from("content_calendar").select("*").order("scheduled_at", { ascending: false });
-    if (params.account_id) q = q.eq("account_id", params.account_id);
-    if (params.status) q = q.eq("status", params.status);
-    if (params.platform) q = q.eq("platform", params.platform);
-    if (params.limit) q = q.limit(parseInt(params.limit));
-    const { data, error } = await q;
-    if (error) return err(error.message, 500);
-    return json({ data });
-  }
-  if (method === "GET" && id) {
-    const { data, error } = await supabase.from("content_calendar").select("*").eq("id", id).single();
-    if (error) return err(error.message, 404);
-    return json({ data });
-  }
-  if (method === "POST") {
-    const { data, error } = await supabase.from("content_calendar").insert(body).select().single();
-    if (error) return err(error.message, 500);
-    return json({ data }, 201);
-  }
-  if (method === "PATCH" && id) {
-    const { data, error } = await supabase.from("content_calendar").update(body).eq("id", id).select().single();
-    if (error) return err(error.message, 500);
-    return json({ data });
-  }
-  if (method === "DELETE" && id) {
-    const { error } = await supabase.from("content_calendar").delete().eq("id", id);
-    if (error) return err(error.message, 500);
-    return json({ message: "Content deleted" });
-  }
-  return err("Invalid content endpoint", 404);
-}
-
-async function handleWorkflows(method: string, id: string | null, _sub: string | null, params: Record<string, string>, body: any, supabase: any) {
-  if (method === "GET" && !id) {
-    let q = supabase.from("automation_workflows").select("*").order("created_at", { ascending: false });
-    if (params.account_id) q = q.eq("account_id", params.account_id);
-    if (params.status) q = q.eq("status", params.status);
-    if (params.limit) q = q.limit(parseInt(params.limit));
-    const { data, error } = await q;
-    if (error) return err(error.message, 500);
-    return json({ data });
-  }
-  if (method === "GET" && id) {
-    const { data, error } = await supabase.from("automation_workflows").select("*").eq("id", id).single();
-    if (error) return err(error.message, 404);
-    return json({ data });
-  }
-  if (method === "POST") {
-    const { data, error } = await supabase.from("automation_workflows").insert(body).select().single();
-    if (error) return err(error.message, 500);
-    return json({ data }, 201);
-  }
-  if (method === "PATCH" && id) {
-    const { data, error } = await supabase.from("automation_workflows").update(body).eq("id", id).select().single();
-    if (error) return err(error.message, 500);
-    return json({ data });
-  }
-  if (method === "DELETE" && id) {
-    const { error } = await supabase.from("automation_workflows").delete().eq("id", id);
-    if (error) return err(error.message, 500);
-    return json({ message: "Workflow deleted" });
-  }
-  return err("Invalid workflows endpoint", 404);
+  return err("Invalid profiles endpoint", 404);
 }
 
 async function handleBioLinks(method: string, id: string | null, sub: string | null, params: Record<string, string>, body: any, supabase: any) {
@@ -451,44 +352,45 @@ async function handleBioLinks(method: string, id: string | null, sub: string | n
   return err("Invalid bio-links endpoint", 404);
 }
 
-async function handleKeywords(method: string, id: string | null, _sub: string | null, params: Record<string, string>, body: any, supabase: any) {
+async function handleChatRooms(method: string, id: string | null, sub: string | null, params: Record<string, string>, body: any, supabase: any) {
   if (method === "GET" && !id) {
-    let q = supabase.from("ai_keyword_delays").select("*").order("created_at", { ascending: false });
-    if (params.account_id) q = q.eq("account_id", params.account_id);
-    const { data, error } = await q;
+    const { data, error } = await supabase.from("chat_rooms").select("*").order("updated_at", { ascending: false });
     if (error) return err(error.message, 500);
     return json({ data });
   }
-  if (method === "POST") {
-    const { data, error } = await supabase.from("ai_keyword_delays").insert(body).select().single();
+  if (method === "GET" && id && sub === "messages") {
+    const { data, error } = await supabase.from("chat_messages").select("*").eq("room_id", id).order("created_at").limit(parseInt(params.limit || "200"));
+    if (error) return err(error.message, 500);
+    return json({ data });
+  }
+  if (method === "GET" && id && sub === "members") {
+    const { data, error } = await supabase.from("chat_room_members").select("*").eq("room_id", id);
+    if (error) return err(error.message, 500);
+    return json({ data });
+  }
+  if (method === "GET" && id) {
+    const { data, error } = await supabase.from("chat_rooms").select("*").eq("id", id).single();
+    if (error) return err(error.message, 404);
+    return json({ data });
+  }
+  if (method === "POST" && !id) {
+    const { data, error } = await supabase.from("chat_rooms").insert(body).select().single();
     if (error) return err(error.message, 500);
     return json({ data }, 201);
   }
-  if (method === "PATCH" && id) {
-    const { data, error } = await supabase.from("ai_keyword_delays").update(body).eq("id", id).select().single();
+  if (method === "POST" && id && sub === "messages") {
+    const { data, error } = await supabase.from("chat_messages").insert({ ...body, room_id: id }).select().single();
     if (error) return err(error.message, 500);
-    return json({ data });
+    return json({ data }, 201);
   }
   if (method === "DELETE" && id) {
-    const { error } = await supabase.from("ai_keyword_delays").delete().eq("id", id);
+    await supabase.from("chat_messages").delete().eq("room_id", id);
+    await supabase.from("chat_room_members").delete().eq("room_id", id);
+    const { error } = await supabase.from("chat_rooms").delete().eq("id", id);
     if (error) return err(error.message, 500);
-    return json({ message: "Keyword rule deleted" });
+    return json({ message: "Chat room deleted" });
   }
-  return err("Invalid keywords endpoint", 404);
-}
-
-async function handleAnalytics(method: string, id: string | null, _sub: string | null, params: Record<string, string>, body: any, supabase: any) {
-  if (method === "GET") {
-    let q = supabase.from("social_analytics").select("*").order("created_at", { ascending: false });
-    if (params.account_id) q = q.eq("account_id", params.account_id);
-    if (params.platform) q = q.eq("platform", params.platform);
-    if (params.metric_type) q = q.eq("metric_type", params.metric_type);
-    if (params.limit) q = q.limit(parseInt(params.limit));
-    const { data, error } = await q;
-    if (error) return err(error.message, 500);
-    return json({ data });
-  }
-  return err("Invalid analytics endpoint", 404);
+  return err("Invalid chat-rooms endpoint", 404);
 }
 
 async function handleWallets(method: string, id: string | null, _sub: string | null, params: Record<string, string>, body: any, supabase: any) {
@@ -510,144 +412,121 @@ async function handleWallets(method: string, id: string | null, _sub: string | n
   return err("Invalid wallets endpoint", 404);
 }
 
-async function handleProfiles(method: string, id: string | null, _sub: string | null, params: Record<string, string>, body: any, supabase: any) {
+async function handleRanks(method: string, id: string | null, _sub: string | null, params: Record<string, string>, body: any, supabase: any) {
   if (method === "GET" && !id) {
-    let q = supabase.from("profiles").select("*").order("created_at", { ascending: false });
-    if (params.search) q = q.or(`username.ilike.%${params.search}%,display_name.ilike.%${params.search}%,email.ilike.%${params.search}%`);
+    let q = supabase.from("user_ranks").select("*").order("xp", { ascending: false });
+    if (params.rank_tier) q = q.eq("rank_tier", params.rank_tier);
     if (params.limit) q = q.limit(parseInt(params.limit));
     const { data, error } = await q;
     if (error) return err(error.message, 500);
     return json({ data });
   }
   if (method === "GET" && id) {
-    const { data, error } = await supabase.from("profiles").select("*").eq("user_id", id).single();
+    const { data, error } = await supabase.from("user_ranks").select("*").eq("user_id", id).single();
     if (error) return err(error.message, 404);
     return json({ data });
   }
   if (method === "PATCH" && id) {
-    const { data, error } = await supabase.from("profiles").update(body).eq("user_id", id).select().single();
+    const { data, error } = await supabase.from("user_ranks").update(body).eq("user_id", id).select().single();
     if (error) return err(error.message, 500);
     return json({ data });
   }
-  return err("Invalid profiles endpoint", 404);
+  return err("Invalid ranks endpoint", 404);
 }
 
-async function handleChatRooms(method: string, id: string | null, sub: string | null, params: Record<string, string>, body: any, supabase: any) {
-  if (method === "GET" && !id) {
-    const { data, error } = await supabase.from("chat_rooms").select("*").order("updated_at", { ascending: false });
-    if (error) return err(error.message, 500);
-    return json({ data });
-  }
-  if (method === "GET" && id && sub === "messages") {
-    const { data, error } = await supabase.from("chat_messages").select("*").eq("room_id", id).order("created_at").limit(parseInt(params.limit || "200"));
-    if (error) return err(error.message, 500);
-    return json({ data });
-  }
-  if (method === "GET" && id) {
-    const { data, error } = await supabase.from("chat_rooms").select("*").eq("id", id).single();
-    if (error) return err(error.message, 404);
-    return json({ data });
-  }
-  if (method === "POST" && !id) {
-    const { data, error } = await supabase.from("chat_rooms").insert(body).select().single();
-    if (error) return err(error.message, 500);
-    return json({ data }, 201);
-  }
-  if (method === "POST" && id && sub === "messages") {
-    const { data, error } = await supabase.from("chat_messages").insert({ ...body, room_id: id }).select().single();
-    if (error) return err(error.message, 500);
-    return json({ data }, 201);
-  }
-  return err("Invalid chat-rooms endpoint", 404);
-}
-
-async function handleLearnings(method: string, id: string | null, _sub: string | null, params: Record<string, string>, body: any, supabase: any) {
-  if (method === "GET") {
-    let q = supabase.from("ai_learned_strategies").select("*").order("updated_at", { ascending: false });
-    if (params.account_id) q = q.eq("account_id", params.account_id);
-    if (params.behavior_type) q = q.eq("behavior_type", params.behavior_type);
-    const { data, error } = await q;
-    if (error) return err(error.message, 500);
-    return json({ data });
-  }
-  return err("Invalid learnings endpoint", 404);
-}
-
-async function handleStats(_method: string, _id: string | null, _sub: string | null, _params: Record<string, string>, _body: any, supabase: any) {
-  const [accounts, scripts, conversations, team, workflows, content, fans] = await Promise.all([
-    supabase.from("managed_accounts").select("id", { count: "exact", head: true }),
-    supabase.from("scripts").select("id", { count: "exact", head: true }),
-    supabase.from("ai_dm_conversations").select("id", { count: "exact", head: true }),
-    supabase.from("team_members").select("id", { count: "exact", head: true }),
-    supabase.from("automation_workflows").select("id", { count: "exact", head: true }),
-    supabase.from("content_calendar").select("id", { count: "exact", head: true }),
-    supabase.from("fan_emotional_profiles").select("id", { count: "exact", head: true }),
-  ]);
-  return json({
-    data: {
-      total_accounts: accounts.count || 0,
-      total_scripts: scripts.count || 0,
-      total_conversations: conversations.count || 0,
-      total_team_members: team.count || 0,
-      total_workflows: workflows.count || 0,
-      total_content: content.count || 0,
-      total_fans: fans.count || 0,
-    },
-  });
+async function handleStats(_m: string, _id: string | null, _s: string | null, _p: Record<string, string>, _b: any, supabase: any) {
+  const tables = [
+    "managed_accounts", "scripts", "ai_dm_conversations", "team_members", "automation_workflows",
+    "content_calendar", "fan_emotional_profiles", "fetched_followers", "user_posts", "message_threads",
+    "bio_links", "copilot_voices", "contracts", "persona_profiles", "ai_keyword_delays",
+    "copilot_conversations", "copilot_generated_content", "financial_records",
+  ];
+  const results = await Promise.all(tables.map(t => supabase.from(t).select("id", { count: "exact", head: true })));
+  const data: Record<string, number> = {};
+  tables.forEach((t, i) => { data[`total_${t}`] = results[i].count || 0; });
+  return json({ data });
 }
 
 // ─── ROUTER ─────────────────────────────────────────────
 
 const ROUTES: Record<string, Function> = {
+  // Core CRM
   accounts: handleAccounts,
   scripts: handleScripts,
-  team: handleTeam,
-  contracts: handleContracts,
+  team: makeCrud("team_members"),
+  contracts: makeCrud("contracts"),
+  // AI & DM
   conversations: handleConversations,
-  personas: handlePersonas,
-  fans: handleFans,
-  financials: handleFinancials,
-  content: handleContent,
-  workflows: handleWorkflows,
+  "dm-messages": makeCrud("ai_dm_messages"),
+  "auto-respond": makeCrud("auto_respond_state"),
+  keywords: makeCrud("ai_keyword_delays"),
+  learnings: makeCrud("ai_learned_strategies", "updated_at"),
+  "conversation-learnings": makeCrud("ai_conversation_learnings"),
+  // Social & Discovery
+  followers: handleFollowers,
+  posts: handlePosts,
+  "post-comments": makeCrud("post_comments"),
+  "post-likes": makeCrud("post_likes"),
+  "post-saves": makeCrud("post_saves"),
+  follows: makeCrud("follow_requests"),
+  ranks: handleRanks,
+  // Persona & Psychology
+  personas: makeCrud("persona_profiles"),
+  fans: makeCrud("fan_emotional_profiles", "updated_at"),
+  "consistency-checks": makeCrud("persona_consistency_checks"),
+  // Content & Media
+  content: makeCrud("content_calendar", "scheduled_at"),
   "bio-links": handleBioLinks,
-  keywords: handleKeywords,
-  analytics: handleAnalytics,
+  // Finance & Ops
+  financials: makeCrud("financial_records"),
   wallets: handleWallets,
-  profiles: handleProfiles,
+  "credit-packages": makeCrud("credit_packages", "sort_order", true),
+  // Copilot & AI
+  copilot: makeCrud("copilot_conversations", "updated_at"),
+  "generated-content": makeCrud("copilot_generated_content"),
+  voices: makeCrud("copilot_voices"),
+  // Workflows & Automation
+  workflows: makeCrud("automation_workflows"),
+  // Communication
   "chat-rooms": handleChatRooms,
-  learnings: handleLearnings,
+  threads: makeCrud("message_threads", "last_message_at"),
+  // Analytics & Reporting
+  analytics: makeCrud("social_analytics"),
+  "site-visits": makeCrud("site_visits"),
+  "profile-lookups": makeCrud("profile_lookup_history"),
+  // Users & Security
+  profiles: handleProfiles,
+  "device-sessions": makeCrud("device_sessions", "last_active_at"),
+  "login-activity": makeCrud("login_activity", "login_at"),
+  "admin-logins": makeCrud("admin_login_attempts"),
+  notifications: makeCrud("notification_preferences"),
+  activities: makeCrud("account_activities"),
+  // System
   stats: handleStats,
 };
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
     const url = new URL(req.url);
     const { resource, id, sub, params } = parseRoute(url);
 
-    // Health check
     if (resource === "" || resource === "health") {
       return json({
         status: "operational",
-        version: "1.0.0",
-        endpoints: Object.keys(ROUTES),
+        version: "2.0.0",
+        resources: Object.keys(ROUTES),
+        total_resources: Object.keys(ROUTES).length,
         timestamp: new Date().toISOString(),
       });
     }
 
-    // Auth check
     const auth = await authenticateAdmin(req);
-    if (auth.error) {
-      return err(auth.error, 401);
-    }
+    if (auth.error) return err(auth.error, 401);
 
     const handler = ROUTES[resource];
-    if (!handler) {
-      return err(`Unknown resource: ${resource}. Available: ${Object.keys(ROUTES).join(", ")}`, 404);
-    }
+    if (!handler) return err(`Unknown resource: ${resource}. Available: ${Object.keys(ROUTES).join(", ")}`, 404);
 
     let body = null;
     if (["POST", "PUT", "PATCH"].includes(req.method)) {
