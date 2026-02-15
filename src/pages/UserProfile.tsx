@@ -15,7 +15,8 @@ import {
   Link2, Unlink, AlertTriangle, Eye, EyeOff, Lock, CheckCircle2, XCircle, Info,
   Monitor, Smartphone, Tablet, Wifi, WifiOff, Plus, X, Clock,
   Globe, Languages, Download, ShieldCheck, BellRing, Settings2,
-  Bookmark, Power
+  Bookmark, Power, Sparkles, Brain, Zap, Bot, FileText, RefreshCw,
+  Palette, LayoutGrid, SlidersHorizontal, Eraser, ToggleLeft
 } from "lucide-react";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter,
@@ -25,7 +26,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from "@/components/ui/select";
 
-type TabId = "account" | "security" | "activity" | "devices" | "notifications";
+type TabId = "account" | "security" | "activity" | "devices" | "notifications" | "ai-automation" | "preferences";
 
 type CardNotification = { type: "success" | "error" | "info"; message: string } | null;
 
@@ -60,7 +61,6 @@ const SESSION_TIMEOUT_OPTIONS = [
   { value: 43200, label: "30 days" },
 ];
 
-// Dark glassmorphism card - upgraded with purple accent
 const Card = ({ children, className = "", danger = false }: { children: React.ReactNode; className?: string; danger?: boolean }) => (
   <div className={`rounded-2xl border p-6 backdrop-blur-xl ${danger ? "bg-red-500/5 border-red-500/15" : "bg-[hsl(222,28%,11%)] border-purple-500/10"} ${className}`}>
     {children}
@@ -97,6 +97,30 @@ const DeviceIcon = ({ type }: { type: string }) => {
   if (type === "tablet") return <Tablet className="h-5 w-5" />;
   return <Monitor className="h-5 w-5" />;
 };
+
+// Setting row component for AI & Automation toggles
+const SettingRow = ({ icon: Icon, title, description, checked, onToggle, color = "purple", loading = false }: {
+  icon: any; title: string; description: string; checked: boolean; onToggle: (v: boolean) => void; color?: string; loading?: boolean;
+}) => (
+  <div className="flex items-center justify-between py-4 border-b border-white/[0.04] last:border-0">
+    <div className="flex items-center gap-3 flex-1 min-w-0">
+      <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${
+        checked ? `bg-${color}-500/15 text-${color}-400` : "bg-white/[0.04] text-white/30"
+      }`}>
+        <Icon className="h-4 w-4" />
+      </div>
+      <div className="min-w-0">
+        <p className="text-white/90 text-[13px] font-medium">{title}</p>
+        <p className="text-white/45 text-[11px] leading-relaxed">{description}</p>
+      </div>
+    </div>
+    <div className="flex items-center gap-2 flex-shrink-0 ml-4">
+      {loading && <RefreshCw className="h-3 w-3 text-white/30 animate-spin" />}
+      <Switch checked={checked} onCheckedChange={onToggle}
+        className="data-[state=checked]:bg-emerald-500/60" />
+    </div>
+  </div>
+);
 
 const UserProfile = () => {
   const { user, profile, logout, refreshProfile, updatePassword } = useAuth();
@@ -158,16 +182,32 @@ const UserProfile = () => {
   const [notifPrefs, setNotifPrefs] = useState<Record<string, boolean>>({});
   const [savingNotifs, setSavingNotifs] = useState(false);
 
-  // Settings (5 new)
+  // Settings
   const [userSettings, setUserSettings] = useState({
     session_timeout_minutes: 1440,
     two_factor_enabled: false,
     login_alerts_enabled: true,
     timezone: "UTC",
     language: "en",
+    activity_logging_enabled: false,
+    ai_bio_generator_enabled: false,
+    ai_login_anomaly_enabled: false,
+    ai_security_digest_enabled: false,
+    smart_session_cleanup: false,
+    auto_theme_detection: false,
+    compact_ui_mode: false,
+    ai_email_summary_enabled: false,
   });
   const [savingSettings, setSavingSettings] = useState(false);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
+
+  // AI features state
+  const [generatingBio, setGeneratingBio] = useState(false);
+  const [generatedBio, setGeneratedBio] = useState("");
+  const [analyzingLogins, setAnalyzingLogins] = useState(false);
+  const [loginAnalysis, setLoginAnalysis] = useState("");
+  const [generatingDigest, setGeneratingDigest] = useState(false);
+  const [securityDigest, setSecurityDigest] = useState("");
 
   const googleIdentity = user?.identities?.find(i => i.provider === "google");
   const hasPassword = user?.identities?.some(i => i.provider === "email") ?? false;
@@ -182,7 +222,6 @@ const UserProfile = () => {
     }
   }, [user, profile, navigate]);
 
-  // Load extra profile fields
   useEffect(() => {
     if (!user) return;
     supabase.from("profiles").select("phone, address, company, email_change_count, original_email").eq("user_id", user.id).single()
@@ -197,7 +236,6 @@ const UserProfile = () => {
       });
   }, [user]);
 
-  // Load user settings
   useEffect(() => {
     if (!user) return;
     supabase.from("user_settings").select("*").eq("user_id", user.id).single()
@@ -209,16 +247,22 @@ const UserProfile = () => {
             login_alerts_enabled: (data as any).login_alerts_enabled ?? true,
             timezone: (data as any).timezone ?? "UTC",
             language: (data as any).language ?? "en",
+            activity_logging_enabled: (data as any).activity_logging_enabled ?? false,
+            ai_bio_generator_enabled: (data as any).ai_bio_generator_enabled ?? false,
+            ai_login_anomaly_enabled: (data as any).ai_login_anomaly_enabled ?? false,
+            ai_security_digest_enabled: (data as any).ai_security_digest_enabled ?? false,
+            smart_session_cleanup: (data as any).smart_session_cleanup ?? false,
+            auto_theme_detection: (data as any).auto_theme_detection ?? false,
+            compact_ui_mode: (data as any).compact_ui_mode ?? false,
+            ai_email_summary_enabled: (data as any).ai_email_summary_enabled ?? false,
           });
         } else if (error?.code === "PGRST116") {
-          // No row yet – create default
           supabase.from("user_settings").insert({ user_id: user.id } as any).then(() => {});
         }
         setSettingsLoaded(true);
       });
   }, [user]);
 
-  // Load notification prefs
   useEffect(() => {
     if (!user) return;
     supabase.from("notification_preferences").select("*").eq("user_id", user.id)
@@ -230,7 +274,6 @@ const UserProfile = () => {
       });
   }, [user]);
 
-  // Load activity
   useEffect(() => {
     if (!user || activeTab !== "activity") return;
     setLoadingActivity(true);
@@ -239,7 +282,6 @@ const UserProfile = () => {
       .then(({ data }) => { setLoginActivity(data || []); setLoadingActivity(false); });
   }, [user, activeTab]);
 
-  // Load devices & register current session
   const loadDevices = useCallback(async () => {
     if (!user) return;
     setLoadingDevices(true);
@@ -255,68 +297,33 @@ const UserProfile = () => {
     const { browser, os } = parseUA(ua);
     const device_type = /Mobile|Android|iPhone/i.test(ua) ? "mobile" : /iPad|Tablet/i.test(ua) ? "tablet" : "desktop";
     const deviceName = `${browser} on ${os}`;
-
-    // Check if this device already exists (match by user_agent substring)
     const { data: existing } = await supabase.from("device_sessions")
-      .select("id")
-      .eq("user_id", user.id)
-      .eq("device_name", deviceName)
-      .eq("is_current", true)
-      .limit(1);
-
+      .select("id").eq("user_id", user.id).eq("device_name", deviceName).eq("is_current", true).limit(1);
     if (existing && existing.length > 0) {
-      // Just update last_active_at
-      await supabase.from("device_sessions").update({
-        last_active_at: new Date().toISOString(),
-        status: "online",
-      } as any).eq("id", existing[0].id);
+      await supabase.from("device_sessions").update({ last_active_at: new Date().toISOString(), status: "online" } as any).eq("id", existing[0].id);
     } else {
-      // Reset all other is_current flags
-      await supabase.from("device_sessions").update({ is_current: false } as any)
-        .eq("user_id", user.id).eq("is_current", true);
-
-      await supabase.from("device_sessions").insert({
-        user_id: user.id,
-        device_name: deviceName,
-        device_type,
-        browser,
-        os,
-        is_current: true,
-        status: "online",
-      } as any);
+      await supabase.from("device_sessions").update({ is_current: false } as any).eq("user_id", user.id).eq("is_current", true);
+      await supabase.from("device_sessions").insert({ user_id: user.id, device_name: deviceName, device_type, browser, os, is_current: true, status: "online" } as any);
     }
   }, [user]);
 
   useEffect(() => {
-    if (activeTab === "devices") {
-      registerCurrentDevice().then(loadDevices);
-    }
+    if (activeTab === "devices") { registerCurrentDevice().then(loadDevices); }
   }, [activeTab, registerCurrentDevice, loadDevices]);
 
-  // Real-time device status updates
   useEffect(() => {
     if (!user || activeTab !== "devices") return;
-    const channel = supabase
-      .channel("device-sessions-realtime")
-      .on("postgres_changes", {
-        event: "*",
-        schema: "public",
-        table: "device_sessions",
-        filter: `user_id=eq.${user.id}`,
-      }, () => { loadDevices(); })
+    const channel = supabase.channel("device-sessions-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "device_sessions", filter: `user_id=eq.${user.id}` }, () => { loadDevices(); })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [user, activeTab, loadDevices]);
 
-  // Heartbeat for current device
   useEffect(() => {
     if (!user || activeTab !== "devices") return;
     const interval = setInterval(async () => {
-      await supabase.from("device_sessions").update({
-        last_active_at: new Date().toISOString(),
-        status: "online",
-      } as any).eq("user_id", user.id).eq("is_current", true);
-    }, 30000); // every 30s
+      await supabase.from("device_sessions").update({ last_active_at: new Date().toISOString(), status: "online" } as any).eq("user_id", user.id).eq("is_current", true);
+    }, 30000);
     return () => clearInterval(interval);
   }, [user, activeTab]);
 
@@ -467,19 +474,12 @@ const UserProfile = () => {
       const expiresAt = new Date();
       expiresAt.setHours(expiresAt.getHours() + 24);
       await supabase.from("device_sessions").insert({
-        user_id: user.id,
-        device_name: addDeviceName.trim(),
-        device_type: addDeviceType,
-        is_manually_added: true,
-        status: "pending",
-        expires_at: expiresAt.toISOString(),
-        browser: "Remote",
-        os: "Remote Access",
+        user_id: user.id, device_name: addDeviceName.trim(), device_type: addDeviceType,
+        is_manually_added: true, status: "pending", expires_at: expiresAt.toISOString(),
+        browser: "Remote", os: "Remote Access",
       } as any);
       toast.success(`Device "${addDeviceName}" added. Auto-login valid for 24 hours.`);
-      setShowAddDeviceDialog(false);
-      setAddDeviceName("");
-      loadDevices();
+      setShowAddDeviceDialog(false); setAddDeviceName(""); loadDevices();
     } catch { toast.error("Failed to add device"); }
   };
 
@@ -497,23 +497,125 @@ const UserProfile = () => {
         supabase.from("login_activity").select("*").eq("user_id", user.id).order("login_at", { ascending: false }).limit(100),
         supabase.from("user_settings").select("*").eq("user_id", user.id).single(),
       ]);
-      const exportData = {
-        exported_at: new Date().toISOString(),
-        profile: profileRes.data,
-        login_activity: activityRes.data,
-        settings: settingsRes.data,
-      };
+      const exportData = { exported_at: new Date().toISOString(), profile: profileRes.data, login_activity: activityRes.data, settings: settingsRes.data };
       const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
       const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url; a.download = `account-data-${new Date().toISOString().slice(0, 10)}.json`;
+      const a = document.createElement("a"); a.href = url; a.download = `account-data-${new Date().toISOString().slice(0, 10)}.json`;
       a.click(); URL.revokeObjectURL(url);
       toast.success("Data exported successfully!");
     } catch { toast.error("Failed to export data"); }
   };
 
+  const handleClearActivity = async () => {
+    if (!user) return;
+    try {
+      await supabase.from("login_activity").delete().eq("user_id", user.id);
+      setLoginActivity([]);
+      toast.success("Activity log cleared");
+    } catch { toast.error("Failed to clear activity"); }
+  };
+
+  const handleToggleActivityLogging = async (enabled: boolean) => {
+    if (!user) return;
+    const updated = { ...userSettings, activity_logging_enabled: enabled };
+    setUserSettings(updated);
+    try {
+      await supabase.from("user_settings").upsert({ user_id: user.id, ...updated } as any, { onConflict: "user_id" });
+      toast.success(enabled ? "Activity logging enabled" : "Activity logging disabled");
+    } catch { toast.error("Failed to update setting"); }
+  };
+
+  // AI Bio Generator
+  const handleGenerateBio = async () => {
+    if (!user || !userSettings.ai_bio_generator_enabled) return;
+    setGeneratingBio(true);
+    setGeneratedBio("");
+    try {
+      const { data, error } = await supabase.functions.invoke("agency-copilot", {
+        body: {
+          messages: [
+            { role: "system", content: "You are a professional bio writer. Write a short, punchy professional bio (2-3 sentences max) for a user profile. Be creative but professional." },
+            { role: "user", content: `Write a professional bio for: Name: ${displayName || "User"}, Username: @${username || "user"}, Company: ${company || "N/A"}, Current bio: ${bio || "None"}. Make it sound natural and engaging.` }
+          ]
+        }
+      });
+      if (error) throw error;
+      const content = data?.choices?.[0]?.message?.content || data?.message || "";
+      setGeneratedBio(content);
+    } catch (err: any) {
+      toast.error("Failed to generate bio. Try again.");
+    } finally { setGeneratingBio(false); }
+  };
+
+  // AI Login Anomaly Analysis
+  const handleAnalyzeLogins = async () => {
+    if (!user || !userSettings.ai_login_anomaly_enabled) return;
+    setAnalyzingLogins(true);
+    setLoginAnalysis("");
+    try {
+      const { data: activity } = await supabase.from("login_activity").select("*").eq("user_id", user.id).order("login_at", { ascending: false }).limit(20);
+      const { data, error } = await supabase.functions.invoke("agency-copilot", {
+        body: {
+          messages: [
+            { role: "system", content: "You are a security analyst. Analyze login patterns for anomalies. Be concise (3-5 bullet points). Flag unusual IPs, devices, times, or patterns. If everything looks normal, say so." },
+            { role: "user", content: `Analyze these login records for security anomalies:\n${JSON.stringify(activity || [], null, 2)}` }
+          ]
+        }
+      });
+      if (error) throw error;
+      setLoginAnalysis(data?.choices?.[0]?.message?.content || data?.message || "No analysis available.");
+    } catch { toast.error("Failed to analyze logins."); }
+    finally { setAnalyzingLogins(false); }
+  };
+
+  // AI Security Digest
+  const handleSecurityDigest = async () => {
+    if (!user || !userSettings.ai_security_digest_enabled) return;
+    setGeneratingDigest(true);
+    setSecurityDigest("");
+    try {
+      const [activityRes, devicesRes, settingsRes] = await Promise.all([
+        supabase.from("login_activity").select("*").eq("user_id", user.id).order("login_at", { ascending: false }).limit(20),
+        supabase.from("device_sessions").select("*").eq("user_id", user.id),
+        supabase.from("user_settings").select("*").eq("user_id", user.id).single(),
+      ]);
+      const { data, error } = await supabase.functions.invoke("agency-copilot", {
+        body: {
+          messages: [
+            { role: "system", content: "You are a security advisor. Generate a concise security digest report for the user. Include: account health score (out of 100), active recommendations, risk assessment. Keep it under 200 words. Use bullet points." },
+            { role: "user", content: `Generate security digest:\nRecent logins: ${JSON.stringify(activityRes.data?.slice(0, 10))}\nDevices: ${JSON.stringify(devicesRes.data)}\nSettings: ${JSON.stringify(settingsRes.data)}\n2FA: ${(settingsRes.data as any)?.two_factor_enabled ? "enabled" : "disabled"}\nLogin alerts: ${(settingsRes.data as any)?.login_alerts_enabled ? "enabled" : "disabled"}` }
+          ]
+        }
+      });
+      if (error) throw error;
+      setSecurityDigest(data?.choices?.[0]?.message?.content || data?.message || "Unable to generate digest.");
+    } catch { toast.error("Failed to generate security digest."); }
+    finally { setGeneratingDigest(false); }
+  };
+
+  // Smart Session Cleanup
+  const handleSessionCleanup = async () => {
+    if (!user) return;
+    try {
+      // Remove all non-current, offline devices older than 7 days
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - 7);
+      const { data: staleDevices } = await supabase.from("device_sessions")
+        .select("id").eq("user_id", user.id).eq("is_current", false)
+        .lt("last_active_at", cutoff.toISOString());
+      if (staleDevices && staleDevices.length > 0) {
+        for (const d of staleDevices) {
+          await supabase.from("device_sessions").delete().eq("id", d.id);
+        }
+        toast.success(`Cleaned up ${staleDevices.length} stale device session(s)`);
+        loadDevices();
+      } else {
+        toast.info("No stale sessions to clean up");
+      }
+    } catch { toast.error("Cleanup failed"); }
+  };
+
   const handleLogout = async () => {
-    // Mark current device offline
     if (user) {
       await supabase.from("device_sessions").update({ status: "offline", is_current: false } as any)
         .eq("user_id", user.id).eq("is_current", true);
@@ -524,11 +626,13 @@ const UserProfile = () => {
   if (!user) return null;
 
   const tabs: { id: TabId; label: string; icon: typeof User }[] = [
-    { id: "account", label: "Account Information", icon: User },
+    { id: "account", label: "Account Info", icon: User },
     { id: "security", label: "Security", icon: Shield },
-    { id: "activity", label: "Account Activity", icon: Activity },
+    { id: "activity", label: "Activity", icon: Activity },
     { id: "devices", label: "Devices", icon: Monitor },
-    { id: "notifications", label: "Notification Settings", icon: Bell },
+    { id: "ai-automation", label: "AI & Automation", icon: Sparkles },
+    { id: "preferences", label: "Preferences", icon: SlidersHorizontal },
+    { id: "notifications", label: "Notifications", icon: Bell },
   ];
 
   const userInitial = profile?.display_name?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase() || "U";
@@ -539,14 +643,12 @@ const UserProfile = () => {
     if (device.status === "kicked") return "kicked";
     if (device.status === "pending") return "pending";
     const lastActive = new Date(device.last_active_at).getTime();
-    const now = Date.now();
-    if (now - lastActive < 60000) return "online";
+    if (Date.now() - lastActive < 60000) return "online";
     return "offline";
   };
 
   return (
     <div className="min-h-screen bg-[hsl(222,35%,5%)] relative overflow-hidden">
-      {/* Subtle ambient glow */}
       <div className="fixed inset-0 pointer-events-none">
         <div className="absolute top-1/4 left-1/6 w-[500px] h-[500px] bg-purple-500/[0.04] rounded-full blur-[120px]" />
         <div className="absolute bottom-1/4 right-1/6 w-[400px] h-[400px] bg-blue-500/[0.03] rounded-full blur-[120px]" />
@@ -567,7 +669,7 @@ const UserProfile = () => {
 
           <div className="flex flex-col lg:flex-row gap-6">
             {/* Sidebar */}
-            <div className="lg:w-60 flex-shrink-0">
+            <div className="lg:w-56 flex-shrink-0">
               <nav className="bg-[hsl(222,28%,11%)] backdrop-blur-xl rounded-2xl border border-purple-500/10 p-2 space-y-0.5">
                 {tabs.map((tab) => (
                   <button key={tab.id} onClick={() => setActiveTab(tab.id)}
@@ -695,120 +797,29 @@ const UserProfile = () => {
                     </div>
                   </Card>
 
-                  {/* 5 NEW SETTINGS */}
                   <Card>
-                    <SectionTitle icon={Settings2} title="Advanced Security Settings" subtitle="Configure session behavior, alerts, and preferences." />
-                    <div className="space-y-5">
-                      {/* 1. Session Timeout */}
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <Clock className="h-4 w-4 text-purple-400/60" />
-                          <div>
-                            <p className="text-white/90 text-[13px] font-medium">Session Timeout</p>
-                            <p className="text-white/45 text-[11px]">Auto-logout after inactivity period</p>
-                          </div>
-                        </div>
-                        <Select value={String(userSettings.session_timeout_minutes)}
-                          onValueChange={(v) => setUserSettings({ ...userSettings, session_timeout_minutes: Number(v) })}>
-                          <SelectTrigger className="w-44 bg-white/[0.04] border-white/[0.08] text-white/60 text-[12px] h-8 rounded-xl">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent className="bg-[hsl(222,30%,12%)] border-white/[0.08]">
-                            {SESSION_TIMEOUT_OPTIONS.map(o => (
-                              <SelectItem key={o.value} value={String(o.value)} className="text-white/70 text-[12px] focus:bg-white/[0.06] focus:text-white">
-                                {o.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      {/* 2. Two-Factor Authentication */}
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <ShieldCheck className="h-4 w-4 text-purple-400/60" />
-                          <div>
-                            <p className="text-white/90 text-[13px] font-medium">Two-Factor Authentication</p>
-                            <p className="text-white/45 text-[11px]">Add an extra layer of security via email verification</p>
-                          </div>
-                        </div>
-                        <Switch checked={userSettings.two_factor_enabled}
-                          onCheckedChange={(v) => setUserSettings({ ...userSettings, two_factor_enabled: v })}
-                          className="data-[state=checked]:bg-emerald-500/60" />
-                      </div>
-
-                      {/* 3. Login Alerts */}
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <BellRing className="h-4 w-4 text-purple-400/60" />
-                          <div>
-                            <p className="text-white/90 text-[13px] font-medium">Login Alerts</p>
-                            <p className="text-white/45 text-[11px]">Get notified via email when a new device logs in</p>
-                          </div>
-                        </div>
-                        <Switch checked={userSettings.login_alerts_enabled}
-                          onCheckedChange={(v) => setUserSettings({ ...userSettings, login_alerts_enabled: v })}
-                          className="data-[state=checked]:bg-emerald-500/60" />
-                      </div>
-
-                      {/* 4. Timezone */}
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <Globe className="h-4 w-4 text-purple-400/60" />
-                          <div>
-                            <p className="text-white/90 text-[13px] font-medium">Timezone</p>
-                            <p className="text-white/45 text-[11px]">Used for activity logs and session timestamps</p>
-                          </div>
-                        </div>
-                        <Select value={userSettings.timezone}
-                          onValueChange={(v) => setUserSettings({ ...userSettings, timezone: v })}>
-                          <SelectTrigger className="w-52 bg-white/[0.04] border-white/[0.08] text-white/60 text-[12px] h-8 rounded-xl">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent className="bg-[hsl(222,30%,12%)] border-white/[0.08] max-h-48">
-                            {TIMEZONES.map(tz => (
-                              <SelectItem key={tz} value={tz} className="text-white/70 text-[12px] focus:bg-white/[0.06] focus:text-white">
-                                {tz.replace(/_/g, " ")}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      {/* 5. Language */}
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <Languages className="h-4 w-4 text-purple-400/60" />
-                          <div>
-                            <p className="text-white/90 text-[13px] font-medium">Language</p>
-                            <p className="text-white/45 text-[11px]">Interface display language</p>
-                          </div>
-                        </div>
-                        <Select value={userSettings.language}
-                          onValueChange={(v) => setUserSettings({ ...userSettings, language: v })}>
-                          <SelectTrigger className="w-40 bg-white/[0.04] border-white/[0.08] text-white/60 text-[12px] h-8 rounded-xl">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent className="bg-[hsl(222,30%,12%)] border-white/[0.08]">
-                            {LANGUAGES.map(l => (
-                              <SelectItem key={l.code} value={l.code} className="text-white/70 text-[12px] focus:bg-white/[0.06] focus:text-white">
-                                {l.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div className="flex items-center gap-3 pt-2">
-                        <Button onClick={handleSaveSettings} disabled={savingSettings}
-                          className="bg-white/[0.08] hover:bg-white/[0.12] text-white/80 border border-white/[0.08] rounded-xl font-medium text-[13px] px-6 h-9">
-                          <Save className="mr-2 h-3.5 w-3.5" /> {savingSettings ? "Saving..." : "Save Settings"}
-                        </Button>
-                        <Button onClick={handleExportData} variant="ghost"
-                          className="text-white/40 hover:text-white/60 hover:bg-white/[0.04] rounded-xl text-[12px] h-9 gap-2">
-                          <Download className="h-3.5 w-3.5" /> Export My Data
-                        </Button>
-                      </div>
+                    <SectionTitle icon={Settings2} title="Security Settings" subtitle="Configure 2FA and login alerts." />
+                    <div className="space-y-1">
+                      <SettingRow icon={ShieldCheck} title="Two-Factor Authentication" description="Add extra security via email verification on login" checked={userSettings.two_factor_enabled} onToggle={(v) => setUserSettings({ ...userSettings, two_factor_enabled: v })} />
+                      <SettingRow icon={BellRing} title="Login Alerts" description="Get notified via email when a new device logs in" checked={userSettings.login_alerts_enabled} onToggle={(v) => setUserSettings({ ...userSettings, login_alerts_enabled: v })} />
+                      <SettingRow icon={Clock} title="Session Timeout" description={`Auto-logout after ${SESSION_TIMEOUT_OPTIONS.find(o => o.value === userSettings.session_timeout_minutes)?.label || "24 hours"}`} checked={userSettings.session_timeout_minutes !== 1440} onToggle={() => {}} />
+                    </div>
+                    <div className="flex items-center gap-2 mt-4">
+                      <Select value={String(userSettings.session_timeout_minutes)}
+                        onValueChange={(v) => setUserSettings({ ...userSettings, session_timeout_minutes: Number(v) })}>
+                        <SelectTrigger className="w-48 bg-white/[0.04] border-white/[0.08] text-white/60 text-[12px] h-8 rounded-xl">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="bg-[hsl(222,30%,12%)] border-white/[0.08]">
+                          {SESSION_TIMEOUT_OPTIONS.map(o => (
+                            <SelectItem key={o.value} value={String(o.value)} className="text-white/70 text-[12px] focus:bg-white/[0.06] focus:text-white">{o.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button onClick={handleSaveSettings} disabled={savingSettings}
+                        className="bg-white/[0.08] hover:bg-white/[0.12] text-white/80 border border-white/[0.08] rounded-xl font-medium text-[12px] px-4 h-8">
+                        <Save className="mr-1.5 h-3 w-3" /> {savingSettings ? "Saving..." : "Save"}
+                      </Button>
                     </div>
                   </Card>
 
@@ -830,28 +841,54 @@ const UserProfile = () => {
 
               {/* ===================== ACTIVITY TAB ===================== */}
               {activeTab === "activity" && (
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-5">
                   <Card>
-                    <SectionTitle icon={Activity} title="Account Activity"
-                      subtitle="Sign-in events on your account, deduplicated. Monitor for unauthorized access." />
+                    <div className="flex items-center justify-between mb-5">
+                      <SectionTitle icon={Activity} title="Activity Logging" subtitle="Control whether your login activity is tracked." />
+                      <div className="flex items-center gap-3">
+                        <span className={`text-[11px] font-medium ${userSettings.activity_logging_enabled ? "text-emerald-400" : "text-white/30"}`}>
+                          {userSettings.activity_logging_enabled ? "Enabled" : "Disabled"}
+                        </span>
+                        <Switch checked={userSettings.activity_logging_enabled}
+                          onCheckedChange={handleToggleActivityLogging}
+                          className="data-[state=checked]:bg-emerald-500/60" />
+                      </div>
+                    </div>
+                    {!userSettings.activity_logging_enabled && (
+                      <div className="bg-amber-500/[0.06] border border-amber-500/15 rounded-xl p-3 text-[11px] text-amber-200/60 flex items-start gap-2">
+                        <ToggleLeft className="h-3.5 w-3.5 flex-shrink-0 mt-0.5 text-amber-400/60" />
+                        <p>Activity logging is currently <strong className="text-amber-200/80">disabled</strong>. Enable it above to start tracking sign-in events for security monitoring.</p>
+                      </div>
+                    )}
+                  </Card>
+
+                  <Card>
+                    <div className="flex items-center justify-between mb-5">
+                      <SectionTitle icon={Activity} title="Login History"
+                        subtitle="Sign-in events deduplicated within 2-minute windows." />
+                      {loginActivity.length > 0 && (
+                        <Button onClick={handleClearActivity} variant="ghost"
+                          className="text-red-400/60 hover:text-red-300 hover:bg-red-500/[0.06] rounded-xl text-[12px] h-8 gap-1.5">
+                          <Eraser className="h-3.5 w-3.5" /> Clear All
+                        </Button>
+                      )}
+                    </div>
                     {loadingActivity ? (
                       <div className="text-center py-8 text-white/40 text-[13px]">Loading activity...</div>
                     ) : loginActivity.length === 0 ? (
                       <div className="text-center py-10">
                         <Activity className="h-8 w-8 text-white/15 mx-auto mb-3" />
                         <p className="text-white/40 text-[13px]">No login activity recorded yet.</p>
+                        {!userSettings.activity_logging_enabled && <p className="text-white/25 text-[11px] mt-1">Enable activity logging to start tracking.</p>}
                       </div>
                     ) : (() => {
-                      // Deduplicate: group entries within 2-minute windows with same device/method
                       const deduped: any[] = [];
                       const sorted = [...loginActivity].sort((a, b) => new Date(b.login_at).getTime() - new Date(a.login_at).getTime());
                       sorted.forEach((entry) => {
                         const last = deduped[deduped.length - 1];
                         if (last) {
                           const timeDiff = Math.abs(new Date(last.login_at).getTime() - new Date(entry.login_at).getTime());
-                          if (timeDiff < 120000 && last.device === entry.device && last.login_type === entry.login_type) {
-                            return; // skip duplicate within 2 min window
-                          }
+                          if (timeDiff < 120000 && last.device === entry.device && last.login_type === entry.login_type) return;
                         }
                         deduped.push(entry);
                       });
@@ -912,11 +949,19 @@ const UserProfile = () => {
                   <Card>
                     <div className="flex items-center justify-between mb-5">
                       <SectionTitle icon={Monitor} title="Connected Devices"
-                        subtitle="Manage all devices that have access to your account. Status updates in real-time." />
-                      <Button onClick={() => setShowAddDeviceDialog(true)}
-                        className="bg-white/[0.08] hover:bg-white/[0.12] text-white/70 border border-white/[0.08] rounded-xl text-[12px] h-8 gap-1.5">
-                        <Plus className="h-3.5 w-3.5" /> Add Device
-                      </Button>
+                        subtitle="Manage all devices that have access to your account." />
+                      <div className="flex gap-2">
+                        {userSettings.smart_session_cleanup && (
+                          <Button onClick={handleSessionCleanup} variant="ghost"
+                            className="text-white/40 hover:text-white/60 hover:bg-white/[0.04] rounded-xl text-[12px] h-8 gap-1.5">
+                            <RefreshCw className="h-3.5 w-3.5" /> Cleanup
+                          </Button>
+                        )}
+                        <Button onClick={() => setShowAddDeviceDialog(true)}
+                          className="bg-white/[0.08] hover:bg-white/[0.12] text-white/70 border border-white/[0.08] rounded-xl text-[12px] h-8 gap-1.5">
+                          <Plus className="h-3.5 w-3.5" /> Add Device
+                        </Button>
+                      </div>
                     </div>
 
                     {loadingDevices ? (
@@ -950,12 +995,8 @@ const UserProfile = () => {
                                 <div>
                                   <div className="flex items-center gap-2">
                                     <p className="text-white text-[13px] font-medium">{device.device_name}</p>
-                                    {device.is_current && (
-                                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">This device</span>
-                                    )}
-                                    {device.is_manually_added && (
-                                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400/70 border border-amber-500/15">Remote</span>
-                                    )}
+                                    {device.is_current && <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">This device</span>}
+                                    {device.is_manually_added && <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400/70 border border-amber-500/15">Remote</span>}
                                   </div>
                                   <div className="flex items-center gap-3 mt-0.5">
                                     <span className="flex items-center gap-1 text-[11px]">
@@ -964,29 +1005,20 @@ const UserProfile = () => {
                                         {isOnline ? "Online" : isPending ? "Pending" : "Offline"}
                                       </span>
                                     </span>
-                                    <span className="text-white/40 text-[11px]">
-                                      {device.browser && device.os ? `${device.browser} · ${device.os}` : ""}
-                                    </span>
+                                    <span className="text-white/40 text-[11px]">{device.browser && device.os ? `${device.browser} · ${device.os}` : ""}</span>
                                     <span className="text-white/30 text-[11px]">
-                                      Last active: {new Date(device.last_active_at).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                                      Last: {new Date(device.last_active_at).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                                     </span>
-                                    {device.expires_at && (
-                                      <span className="text-amber-400/50 text-[10px]">
-                                        Expires: {new Date(device.expires_at).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
-                                      </span>
-                                    )}
                                   </div>
                                 </div>
                               </div>
                               {!device.is_current && (
                                 <div className="flex items-center gap-1">
-                                  <button onClick={() => handleKickDevice(device.id)}
-                                    title="Remove & log out"
+                                  <button onClick={() => handleKickDevice(device.id)} title="Remove device"
                                     className="w-8 h-8 rounded-lg flex items-center justify-center text-red-400/60 hover:text-red-300 hover:bg-red-500/10 transition-all">
                                     <Trash2 className="h-4 w-4" />
                                   </button>
-                                  <button onClick={() => handleKickDevice(device.id)}
-                                    title="Force logout"
+                                  <button onClick={() => handleKickDevice(device.id)} title="Force logout"
                                     className="w-8 h-8 rounded-lg flex items-center justify-center text-amber-400/60 hover:text-amber-300 hover:bg-amber-500/10 transition-all">
                                     <Power className="h-4 w-4" />
                                   </button>
@@ -998,6 +1030,167 @@ const UserProfile = () => {
                       </div>
                     )}
                   </Card>
+                </motion.div>
+              )}
+
+              {/* ===================== AI & AUTOMATION TAB ===================== */}
+              {activeTab === "ai-automation" && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-5">
+                  <Card>
+                    <SectionTitle icon={Sparkles} title="AI & Automation Features"
+                      subtitle="Enable AI-powered features to enhance your account experience. All features are disabled by default." />
+                    <div className="space-y-0">
+                      <SettingRow icon={FileText} title="AI Bio Generator"
+                        description="Generate a professional bio using AI based on your profile data"
+                        checked={userSettings.ai_bio_generator_enabled}
+                        onToggle={(v) => { setUserSettings({ ...userSettings, ai_bio_generator_enabled: v }); }} />
+                      <SettingRow icon={Brain} title="AI Login Anomaly Detection"
+                        description="Analyze your login patterns for suspicious activity using AI"
+                        checked={userSettings.ai_login_anomaly_enabled}
+                        onToggle={(v) => { setUserSettings({ ...userSettings, ai_login_anomaly_enabled: v }); }} />
+                      <SettingRow icon={Shield} title="AI Security Digest"
+                        description="Generate an AI-powered security health report for your account"
+                        checked={userSettings.ai_security_digest_enabled}
+                        onToggle={(v) => { setUserSettings({ ...userSettings, ai_security_digest_enabled: v }); }} />
+                      <SettingRow icon={Zap} title="Smart Session Cleanup"
+                        description="Auto-detect and remove stale device sessions older than 7 days"
+                        checked={userSettings.smart_session_cleanup}
+                        onToggle={(v) => { setUserSettings({ ...userSettings, smart_session_cleanup: v }); }} />
+                      <SettingRow icon={Mail} title="AI Email Summary"
+                        description="Get AI-generated weekly email summaries of your account activity"
+                        checked={userSettings.ai_email_summary_enabled}
+                        onToggle={(v) => { setUserSettings({ ...userSettings, ai_email_summary_enabled: v }); }} />
+                    </div>
+                    <Button onClick={handleSaveSettings} disabled={savingSettings}
+                      className="mt-4 bg-white/[0.08] hover:bg-white/[0.12] text-white/80 border border-white/[0.08] rounded-xl font-medium text-[13px] px-6 h-9">
+                      <Save className="mr-2 h-3.5 w-3.5" /> {savingSettings ? "Saving..." : "Save AI Settings"}
+                    </Button>
+                  </Card>
+
+                  {/* AI Bio Generator Panel */}
+                  {userSettings.ai_bio_generator_enabled && (
+                    <Card>
+                      <SectionTitle icon={FileText} title="Generate Bio" subtitle="AI will create a professional bio from your profile info." />
+                      <Button onClick={handleGenerateBio} disabled={generatingBio}
+                        className="bg-gradient-to-r from-purple-500/20 to-blue-500/20 hover:from-purple-500/30 hover:to-blue-500/30 text-white/80 border border-purple-500/15 rounded-xl text-[12px] h-9 gap-2">
+                        {generatingBio ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                        {generatingBio ? "Generating..." : "Generate Bio"}
+                      </Button>
+                      {generatedBio && (
+                        <div className="mt-4 p-4 rounded-xl bg-purple-500/[0.05] border border-purple-500/10">
+                          <p className="text-white/80 text-[13px] leading-relaxed whitespace-pre-wrap">{generatedBio}</p>
+                          <Button onClick={() => { setBio(generatedBio); toast.success("Bio applied! Don't forget to save your profile."); }}
+                            variant="ghost" className="mt-3 text-purple-300/70 hover:text-purple-200 text-[12px] h-7 gap-1.5">
+                            <CheckCircle2 className="h-3.5 w-3.5" /> Use This Bio
+                          </Button>
+                        </div>
+                      )}
+                    </Card>
+                  )}
+
+                  {/* AI Login Anomaly Panel */}
+                  {userSettings.ai_login_anomaly_enabled && (
+                    <Card>
+                      <SectionTitle icon={Brain} title="Login Anomaly Analysis" subtitle="AI scans your recent logins for suspicious patterns." />
+                      <Button onClick={handleAnalyzeLogins} disabled={analyzingLogins}
+                        className="bg-gradient-to-r from-purple-500/20 to-blue-500/20 hover:from-purple-500/30 hover:to-blue-500/30 text-white/80 border border-purple-500/15 rounded-xl text-[12px] h-9 gap-2">
+                        {analyzingLogins ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Brain className="h-3.5 w-3.5" />}
+                        {analyzingLogins ? "Analyzing..." : "Run Analysis"}
+                      </Button>
+                      {loginAnalysis && (
+                        <div className="mt-4 p-4 rounded-xl bg-blue-500/[0.05] border border-blue-500/10">
+                          <p className="text-white/80 text-[13px] leading-relaxed whitespace-pre-wrap">{loginAnalysis}</p>
+                        </div>
+                      )}
+                    </Card>
+                  )}
+
+                  {/* AI Security Digest Panel */}
+                  {userSettings.ai_security_digest_enabled && (
+                    <Card>
+                      <SectionTitle icon={Shield} title="Security Digest" subtitle="AI-generated overview of your account's security posture." />
+                      <Button onClick={handleSecurityDigest} disabled={generatingDigest}
+                        className="bg-gradient-to-r from-purple-500/20 to-blue-500/20 hover:from-purple-500/30 hover:to-blue-500/30 text-white/80 border border-purple-500/15 rounded-xl text-[12px] h-9 gap-2">
+                        {generatingDigest ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Shield className="h-3.5 w-3.5" />}
+                        {generatingDigest ? "Generating..." : "Generate Digest"}
+                      </Button>
+                      {securityDigest && (
+                        <div className="mt-4 p-4 rounded-xl bg-emerald-500/[0.05] border border-emerald-500/10">
+                          <p className="text-white/80 text-[13px] leading-relaxed whitespace-pre-wrap">{securityDigest}</p>
+                        </div>
+                      )}
+                    </Card>
+                  )}
+                </motion.div>
+              )}
+
+              {/* ===================== PREFERENCES TAB ===================== */}
+              {activeTab === "preferences" && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-5">
+                  <Card>
+                    <SectionTitle icon={Globe} title="Regional Settings" subtitle="Configure your timezone and language preferences." />
+                    <div className="space-y-5">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <Globe className="h-4 w-4 text-purple-400/60" />
+                          <div>
+                            <p className="text-white/90 text-[13px] font-medium">Timezone</p>
+                            <p className="text-white/45 text-[11px]">Used for activity logs and timestamps</p>
+                          </div>
+                        </div>
+                        <Select value={userSettings.timezone} onValueChange={(v) => setUserSettings({ ...userSettings, timezone: v })}>
+                          <SelectTrigger className="w-52 bg-white/[0.04] border-white/[0.08] text-white/60 text-[12px] h-8 rounded-xl"><SelectValue /></SelectTrigger>
+                          <SelectContent className="bg-[hsl(222,30%,12%)] border-white/[0.08] max-h-48">
+                            {TIMEZONES.map(tz => (<SelectItem key={tz} value={tz} className="text-white/70 text-[12px] focus:bg-white/[0.06] focus:text-white">{tz.replace(/_/g, " ")}</SelectItem>))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <Languages className="h-4 w-4 text-purple-400/60" />
+                          <div>
+                            <p className="text-white/90 text-[13px] font-medium">Language</p>
+                            <p className="text-white/45 text-[11px]">Interface display language</p>
+                          </div>
+                        </div>
+                        <Select value={userSettings.language} onValueChange={(v) => setUserSettings({ ...userSettings, language: v })}>
+                          <SelectTrigger className="w-40 bg-white/[0.04] border-white/[0.08] text-white/60 text-[12px] h-8 rounded-xl"><SelectValue /></SelectTrigger>
+                          <SelectContent className="bg-[hsl(222,30%,12%)] border-white/[0.08]">
+                            {LANGUAGES.map(l => (<SelectItem key={l.code} value={l.code} className="text-white/70 text-[12px] focus:bg-white/[0.06] focus:text-white">{l.label}</SelectItem>))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </Card>
+
+                  <Card>
+                    <SectionTitle icon={Palette} title="Display Preferences" subtitle="Customize the look and feel of your interface." />
+                    <div className="space-y-0">
+                      <SettingRow icon={Palette} title="Auto Theme Detection"
+                        description="Automatically match your OS theme (light/dark)"
+                        checked={userSettings.auto_theme_detection}
+                        onToggle={(v) => setUserSettings({ ...userSettings, auto_theme_detection: v })} />
+                      <SettingRow icon={LayoutGrid} title="Compact UI Mode"
+                        description="Reduce spacing and padding for a denser layout"
+                        checked={userSettings.compact_ui_mode}
+                        onToggle={(v) => setUserSettings({ ...userSettings, compact_ui_mode: v })} />
+                    </div>
+                  </Card>
+
+                  <Card>
+                    <SectionTitle icon={Download} title="Data Management" subtitle="Export or manage your personal data." />
+                    <div className="flex items-center gap-3">
+                      <Button onClick={handleExportData}
+                        className="bg-white/[0.08] hover:bg-white/[0.12] text-white/80 border border-white/[0.08] rounded-xl font-medium text-[13px] px-5 h-9 gap-2">
+                        <Download className="h-3.5 w-3.5" /> Export My Data
+                      </Button>
+                    </div>
+                  </Card>
+
+                  <Button onClick={handleSaveSettings} disabled={savingSettings}
+                    className="bg-white/[0.08] hover:bg-white/[0.12] text-white/80 border border-white/[0.08] rounded-xl font-medium text-[13px] px-6 h-9">
+                    <Save className="mr-2 h-3.5 w-3.5" /> {savingSettings ? "Saving..." : "Save Preferences"}
+                  </Button>
                 </motion.div>
               )}
 
@@ -1217,9 +1410,7 @@ const UserProfile = () => {
         <DialogContent className="bg-[hsl(222,35%,7%)] border-white/[0.08] text-white max-w-md">
           <DialogHeader>
             <DialogTitle className="text-red-300/90 text-[15px]">Delete Account</DialogTitle>
-            <DialogDescription className="text-white/35 text-[12px]">
-              This action is permanent and cannot be undone.
-            </DialogDescription>
+            <DialogDescription className="text-white/35 text-[12px]">This action is permanent and cannot be undone.</DialogDescription>
           </DialogHeader>
           <div className="py-2">
             <div className="bg-red-500/[0.06] border border-red-500/15 rounded-xl p-3 text-[12px] text-red-200/60 mb-3">
@@ -1259,9 +1450,7 @@ const UserProfile = () => {
             <div className="space-y-1.5">
               <label className="text-[11px] font-medium text-white/35">Device Type</label>
               <Select value={addDeviceType} onValueChange={setAddDeviceType}>
-                <SelectTrigger className="bg-white/[0.04] border-white/[0.08] text-white/60 text-[12px] h-10 rounded-xl">
-                  <SelectValue />
-                </SelectTrigger>
+                <SelectTrigger className="bg-white/[0.04] border-white/[0.08] text-white/60 text-[12px] h-10 rounded-xl"><SelectValue /></SelectTrigger>
                 <SelectContent className="bg-[hsl(222,30%,12%)] border-white/[0.08]">
                   <SelectItem value="desktop" className="text-white/70 text-[12px] focus:bg-white/[0.06] focus:text-white">Desktop / Laptop</SelectItem>
                   <SelectItem value="mobile" className="text-white/70 text-[12px] focus:bg-white/[0.06] focus:text-white">Mobile Phone</SelectItem>
@@ -1287,16 +1476,15 @@ const UserProfile = () => {
   );
 };
 
-// Reusable field component
 const FieldInput = ({ icon: Icon, label, value, onChange, placeholder, type = "text" }: {
   icon: any; label: string; value: string; onChange: (v: string) => void; placeholder: string; type?: string;
 }) => (
   <div className="space-y-1.5">
     <label className="text-[12px] font-medium text-white/60">{label}</label>
     <div className="relative">
-      <Icon className="absolute left-3 top-1/2 -translate-y-1/2 text-purple-400/40 h-3.5 w-3.5" />
+      <Icon className="absolute left-3 top-1/2 -translate-y-1/2 text-white/25 h-3.5 w-3.5" />
       <Input type={type} value={value} onChange={(e) => onChange(e.target.value)}
-        className="pl-10 bg-white/[0.05] border-purple-500/10 text-white placeholder:text-white/25 rounded-xl h-10 text-[13px] focus:bg-white/[0.07] focus:border-purple-500/25"
+        className="pl-10 bg-white/[0.04] border-white/[0.08] text-white/80 placeholder:text-white/20 rounded-xl h-10 text-[13px] focus:bg-white/[0.06] focus:border-white/[0.15]"
         placeholder={placeholder} />
     </div>
   </div>
