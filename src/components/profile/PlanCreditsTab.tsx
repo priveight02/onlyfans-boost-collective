@@ -28,39 +28,44 @@ const PLANS = [
   {
     id: "free",
     name: "Free",
-    price: 0,
+    monthlyPrice: 0,
     credits_per_month: 0,
     features: ["Pay-as-you-go credits", "Basic AI tools", "1 managed account", "Community support"],
     current: true,
+    yearlyDiscount: 0,
   },
   {
     id: "starter",
     name: "Starter",
-    price: 999, // $9.99
+    monthlyPrice: 10, // $10
     credits_per_month: 50,
     features: ["50 credits/month", "Basic AI tools", "1 managed account", "Community support"],
+    yearlyDiscount: 0.15,
   },
   {
     id: "pro",
     name: "Pro",
-    price: 2999, // $29.99
+    monthlyPrice: 30, // $30
     credits_per_month: 500,
     features: ["500 credits/month", "All AI tools", "5 managed accounts", "Priority support", "Credit rollovers", "On-demand top-ups"],
     highlighted: true,
+    yearlyDiscount: 0.30,
   },
   {
     id: "business",
     name: "Business",
-    price: 7999, // $79.99
+    monthlyPrice: 80, // $80
     credits_per_month: 2000,
     features: ["2000 credits/month", "All Pro features", "Unlimited accounts", "Dedicated support", "Team workspace", "Advanced analytics", "API access"],
+    yearlyDiscount: 0.33,
   },
   {
     id: "enterprise",
     name: "Enterprise",
-    price: null, // Custom
+    monthlyPrice: null, // Custom
     credits_per_month: null,
     features: ["Custom credit allocation", "All Business features", "Dedicated account manager", "SLA guarantees", "Custom integrations", "Audit logs"],
+    yearlyDiscount: 0,
   },
 ];
 
@@ -102,6 +107,7 @@ const PlanCreditsTab = () => {
   const [customCredits, setCustomCredits] = useState<string>("1000");
   const [purchasingId, setPurchasingId] = useState<string | null>(null);
   const [purchasingCustom, setPurchasingCustom] = useState(false);
+  const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">("monthly");
   const plansRef = useRef<HTMLDivElement>(null);
 
   // TODO: Replace with real plan detection from backend
@@ -176,6 +182,16 @@ const PlanCreditsTab = () => {
   // Max credits in existing packages for reference
   const maxPackageCredits = packages.length > 0 ? Math.max(...packages.map(p => p.credits + p.bonus_credits)) : 4750;
 
+  const getPlanDisplayPrice = (plan: typeof PLANS[0]) => {
+    if (plan.monthlyPrice === null) return null;
+    if (plan.monthlyPrice === 0) return 0;
+    if (billingCycle === "yearly") {
+      const yearlyMonthly = Math.round(plan.monthlyPrice * (1 - plan.yearlyDiscount));
+      return yearlyMonthly;
+    }
+    return plan.monthlyPrice;
+  };
+
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
       {/* Current Plan Card + Credits Remaining */}
@@ -204,7 +220,13 @@ const PlanCreditsTab = () => {
             <h3 className="text-white font-semibold text-base">Credits Remaining</h3>
             <span className="text-white text-2xl font-bold">{walletLoading ? "..." : balance.toLocaleString()}</span>
           </div>
-          <Progress value={Math.min((balance / (currentPlan.credits_per_month || 500)) * 100, 100)} className="h-2.5 mb-4" />
+          {/* Themed progress bar */}
+          <div className="relative h-2.5 w-full rounded-full bg-white/[0.06] overflow-hidden mb-4">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-purple-500 to-purple-400 transition-all duration-500"
+              style={{ width: `${Math.min((balance / (currentPlan.credits_per_month || 500)) * 100, 100)}%` }}
+            />
+          </div>
           <div className="flex items-center justify-between text-sm text-white/40">
             <div className="flex items-center gap-4">
               <span className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-emerald-400" /> Never expires</span>
@@ -212,7 +234,8 @@ const PlanCreditsTab = () => {
             </div>
             <Button size="sm"
               onClick={handleTopUpClick}
-              className="bg-purple-500 hover:bg-purple-400 text-white text-sm h-9 px-4 font-medium">
+              className="bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-500 hover:to-purple-400 text-white text-sm h-9 px-5 font-semibold rounded-xl shadow-lg shadow-purple-500/20 border-0">
+              <Plus className="h-3.5 w-3.5 mr-1" />
               Top Up Credits
             </Button>
           </div>
@@ -220,69 +243,114 @@ const PlanCreditsTab = () => {
       </div>
 
       <div ref={plansRef}>
-        <h2 className="text-white font-semibold text-lg mb-5">Available Plans</h2>
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-white font-semibold text-lg">Available Plans</h2>
+          {/* Monthly / Yearly Toggle */}
+          <div className="flex items-center gap-1 p-1 rounded-xl bg-white/[0.04] border border-white/[0.06]">
+            <button
+              onClick={() => setBillingCycle("monthly")}
+              className={`px-4 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                billingCycle === "monthly"
+                  ? "bg-purple-500/20 text-purple-300 border border-purple-500/30"
+                  : "text-white/40 hover:text-white/60 border border-transparent"
+              }`}
+            >
+              Monthly
+            </button>
+            <button
+              onClick={() => setBillingCycle("yearly")}
+              className={`px-4 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 ${
+                billingCycle === "yearly"
+                  ? "bg-purple-500/20 text-purple-300 border border-purple-500/30"
+                  : "text-white/40 hover:text-white/60 border border-transparent"
+              }`}
+            >
+              Yearly
+              <Badge className="bg-emerald-500/15 text-emerald-300 border-emerald-500/20 text-[9px] px-1.5 py-0">Save</Badge>
+            </button>
+          </div>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
           {PLANS.filter(p => p.id !== "free").map((plan, i) => {
             const isCurrent = false; // No paid plan is current for free-tier users
+            const displayPrice = getPlanDisplayPrice(plan);
+            const showYearlySavings = billingCycle === "yearly" && plan.yearlyDiscount > 0 && plan.monthlyPrice !== null;
             return (
               <div key={plan.id}
-                className={`rounded-2xl border p-6 transition-all duration-200 ${
+                className={`rounded-2xl border p-6 transition-all duration-200 flex flex-col ${
                   plan.highlighted
                     ? "border-purple-500/30 bg-purple-500/5"
                     : "border-white/[0.06] bg-[hsl(222,28%,11%)]"
                 } ${isCurrent ? "ring-1 ring-emerald-500/30" : ""}`}
               >
-                {isCurrent && (
-                  <Badge className="bg-emerald-500/15 text-emerald-300 border-emerald-500/20 mb-3 text-xs">
-                    Current Plan
-                  </Badge>
-                )}
-                {plan.highlighted && !isCurrent && (
-                  <Badge className="bg-purple-500/15 text-purple-300 border-purple-500/20 mb-3 text-xs">
-                    Most Popular
-                  </Badge>
-                )}
-                <h3 className="text-white font-bold text-lg mb-1">{plan.name}</h3>
-                <p className="text-white/40 text-sm mb-4">
-                  {plan.credits_per_month ? `${plan.credits_per_month.toLocaleString()} credits/month` : "Custom allocation"}
-                </p>
-                <div className="mb-5">
-                  {plan.price !== null ? (
-                    <div className="flex items-baseline gap-1.5">
-                      <span className="text-3xl font-bold text-white">{formatPrice(plan.price)}</span>
-                      <span className="text-white/40 text-sm">per month</span>
-                    </div>
-                  ) : (
-                    <span className="text-2xl font-bold text-white">Custom</span>
+                <div>
+                  {isCurrent && (
+                    <Badge className="bg-emerald-500/15 text-emerald-300 border-emerald-500/20 mb-3 text-xs">
+                      Current Plan
+                    </Badge>
                   )}
+                  {plan.highlighted && !isCurrent && (
+                    <Badge className="bg-purple-500/15 text-purple-300 border-purple-500/20 mb-3 text-xs">
+                      Most Popular
+                    </Badge>
+                  )}
+                  {!plan.highlighted && !isCurrent && <div className="mb-3 h-5" />}
+                  <h3 className="text-white font-bold text-lg mb-1">{plan.name}</h3>
+                  <p className="text-white/40 text-sm mb-4">
+                    {plan.credits_per_month ? `${plan.credits_per_month.toLocaleString()} credits/month` : "Custom allocation"}
+                  </p>
+                  {/* Price block — fixed height for alignment */}
+                  <div className="mb-5 h-14 flex flex-col justify-center">
+                    {displayPrice !== null ? (
+                      <>
+                        <div className="flex items-baseline gap-1.5">
+                          <span className="text-3xl font-bold text-white">${displayPrice}</span>
+                          <span className="text-white/40 text-sm">/ {billingCycle === "yearly" ? "mo" : "month"}</span>
+                        </div>
+                        {showYearlySavings && (
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className="text-white/30 text-xs line-through">${plan.monthlyPrice}/mo</span>
+                            <span className="text-emerald-400 text-xs font-semibold">-{Math.round(plan.yearlyDiscount * 100)}%</span>
+                          </div>
+                        )}
+                        {billingCycle === "yearly" && displayPrice !== null && displayPrice > 0 && (
+                          <p className="text-white/30 text-[10px] mt-0.5">Billed ${displayPrice * 12}/year</p>
+                        )}
+                      </>
+                    ) : (
+                      <span className="text-2xl font-bold text-white">Custom</span>
+                    )}
+                  </div>
                 </div>
 
-                {isCurrent ? (
-                  <Button className="w-full mb-5 text-sm h-10 bg-[hsl(222,25%,18%)] text-white/50 border border-white/10 cursor-default hover:bg-[hsl(222,25%,18%)]" disabled>
-                    Your Plan
-                  </Button>
-                ) : plan.price !== null ? (
-                  <Button className={`w-full mb-5 text-sm h-10 font-semibold ${
-                    plan.highlighted
-                      ? "bg-purple-500 hover:bg-purple-400 text-white"
-                      : "bg-[hsl(222,25%,18%)] hover:bg-[hsl(222,25%,22%)] text-white border border-white/10"
-                  }`}>
-                    <ArrowUpRight className="h-4 w-4 mr-1.5" />
-                    Upgrade
-                  </Button>
-                ) : (
-                  <Button className="w-full mb-5 text-sm h-10 bg-[hsl(222,25%,18%)] hover:bg-[hsl(222,25%,22%)] text-white border border-white/10 font-semibold">
-                    Contact Sales
-                  </Button>
-                )}
+                <div className="mt-auto">
+                  {isCurrent ? (
+                    <Button className="w-full mb-5 text-sm h-10 bg-[hsl(222,25%,18%)] text-white/50 border border-white/10 cursor-default hover:bg-[hsl(222,25%,18%)]" disabled>
+                      Your Plan
+                    </Button>
+                  ) : displayPrice !== null ? (
+                    <Button className={`w-full mb-5 text-sm h-10 font-semibold ${
+                      plan.highlighted
+                        ? "bg-purple-500 hover:bg-purple-400 text-white"
+                        : "bg-[hsl(222,25%,18%)] hover:bg-[hsl(222,25%,22%)] text-white border border-white/10"
+                    }`}>
+                      <ArrowUpRight className="h-4 w-4 mr-1.5" />
+                      Upgrade
+                    </Button>
+                  ) : (
+                    <Button className="w-full mb-5 text-sm h-10 bg-[hsl(222,25%,18%)] hover:bg-[hsl(222,25%,22%)] text-white border border-white/10 font-semibold">
+                      Contact Sales
+                    </Button>
+                  )}
 
-                <div className="space-y-2.5">
-                  {plan.features.map((f, fi) => (
-                    <div key={fi} className="flex items-center gap-2.5 text-sm text-white/60">
-                      <Check className="h-3.5 w-3.5 text-emerald-400 flex-shrink-0" />
-                      <span>{f}</span>
-                    </div>
-                  ))}
+                  <div className="space-y-2.5">
+                    {plan.features.map((f, fi) => (
+                      <div key={fi} className="flex items-center gap-2.5 text-sm text-white/60">
+                        <Check className="h-3.5 w-3.5 text-emerald-400 flex-shrink-0" />
+                        <span>{f}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             );
@@ -412,14 +480,14 @@ const PlanCreditsTab = () => {
               <Zap className="h-5 w-5 text-purple-400 mt-0.5 flex-shrink-0" />
               <div>
                 <p className="text-white text-sm font-medium">Pro Plan — Recommended</p>
-                <p className="text-white/40 text-xs">500 credits/month + unlimited top-ups starting at $29.99/mo</p>
+                <p className="text-white/40 text-xs">500 credits/month + unlimited top-ups starting at $30/mo</p>
               </div>
             </div>
             <div className="flex items-start gap-3 p-3 rounded-xl border border-white/[0.06] bg-white/[0.02]">
               <Star className="h-5 w-5 text-amber-400 mt-0.5 flex-shrink-0" />
               <div>
                 <p className="text-white text-sm font-medium">Starter Plan</p>
-                <p className="text-white/40 text-xs">50 credits/month + top-ups starting at $9.99/mo</p>
+                <p className="text-white/40 text-xs">50 credits/month + top-ups starting at $10/mo</p>
               </div>
             </div>
           </div>
