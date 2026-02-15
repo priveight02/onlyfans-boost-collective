@@ -62,13 +62,14 @@ const BASE_PRICE_PER_CREDIT_CENTS = 9.99;
 
 // Volume discount tiers — the more you buy, the bigger the discount (max 20%)
 const getVolumeDiscount = (credits: number): number => {
-  if (credits >= 10000) return 0.20;
-  if (credits >= 5000) return 0.17;
-  if (credits >= 3000) return 0.14;
-  if (credits >= 2000) return 0.11;
-  if (credits >= 1000) return 0.08;
-  if (credits >= 500) return 0.05;
-  if (credits >= 200) return 0.02;
+  if (credits >= 10000) return 0.40;
+  if (credits >= 5000) return 0.35;
+  if (credits >= 3000) return 0.30;
+  if (credits >= 2000) return 0.25;
+  if (credits >= 1000) return 0.20;
+  if (credits >= 500) return 0.15;
+  if (credits >= 200) return 0.10;
+  if (credits >= 100) return 0.05;
   return 0;
 };
 
@@ -127,7 +128,7 @@ const PlanCreditsTab = () => {
 
   const handleCustomPurchase = async (credits: number) => {
     if (!user) { toast.error("Please log in first"); return; }
-    if (credits < 50) { toast.error("Minimum 50 credits"); return; }
+    if (credits < 10) { toast.error("Minimum 10 credits"); return; }
     setPurchasingCustom(true);
     try {
       const { data, error } = await supabase.functions.invoke("purchase-credits", {
@@ -153,109 +154,108 @@ const PlanCreditsTab = () => {
   const maxPackageCredits = packages.length > 0 ? Math.max(...packages.map(p => p.credits + p.bonus_credits)) : 4750;
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-5">
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
       {/* Current Plan Card + Credits Remaining */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         {/* Current Plan */}
-        <div className="rounded-2xl border border-purple-500/10 bg-[hsl(222,28%,11%)] p-5">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 rounded-xl bg-purple-500/15 flex items-center justify-center">
-              <Crown className="h-5 w-5 text-purple-400" />
+        <div className="rounded-2xl border border-purple-500/10 bg-[hsl(222,28%,11%)] p-6">
+          <div className="flex items-center gap-4 mb-4">
+            <div className="w-12 h-12 rounded-xl bg-purple-500/15 flex items-center justify-center">
+              <Crown className="h-6 w-6 text-purple-400" />
             </div>
             <div>
-              <h3 className="text-white font-semibold text-[14px]">You're on {currentPlan.name}</h3>
-              <p className="text-white/40 text-[11px]">{currentPlan.credits_per_month} credits/month included</p>
+              <h3 className="text-white font-semibold text-base">You're on {currentPlan.name}</h3>
+              <p className="text-white/40 text-sm">{currentPlan.credits_per_month} credits/month included</p>
             </div>
           </div>
           <Button variant="outline" size="sm"
-            className="text-white/60 border-white/10 hover:bg-white/5 text-[12px] h-8">
+            className="text-white/70 border-white/15 hover:bg-white/10 hover:text-white text-sm h-9 px-4">
             Manage Plan
           </Button>
         </div>
 
         {/* Credits Remaining */}
-        <div className="rounded-2xl border border-purple-500/10 bg-[hsl(222,28%,11%)] p-5">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-white font-semibold text-[14px]">Credits Remaining</h3>
-            <span className="text-white/80 text-[15px] font-bold">{walletLoading ? "..." : balance.toLocaleString()}</span>
+        <div className="rounded-2xl border border-purple-500/10 bg-[hsl(222,28%,11%)] p-6">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-white font-semibold text-base">Credits Remaining</h3>
+            <span className="text-white text-2xl font-bold">{walletLoading ? "..." : balance.toLocaleString()}</span>
           </div>
-          <Progress value={Math.min((balance / (currentPlan.credits_per_month || 500)) * 100, 100)} className="h-2 mb-3" />
-          <div className="flex items-center justify-between text-[11px] text-white/40">
-            <div className="flex items-center gap-3">
-              <span className="flex items-center gap-1"><Check className="h-3 w-3 text-emerald-400" /> Never expires</span>
-              <span className="flex items-center gap-1"><Coins className="h-3 w-3 text-amber-400" /> {totalPurchased.toLocaleString()} total purchased</span>
+          <Progress value={Math.min((balance / (currentPlan.credits_per_month || 500)) * 100, 100)} className="h-2.5 mb-4" />
+          <div className="flex items-center justify-between text-sm text-white/40">
+            <div className="flex items-center gap-4">
+              <span className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-emerald-400" /> Never expires</span>
+              <span className="flex items-center gap-1.5"><Coins className="h-3.5 w-3.5 text-amber-400" /> {totalPurchased.toLocaleString()} purchased</span>
             </div>
-            <Button size="sm" variant="outline"
+            <Button size="sm"
               onClick={() => setShowTopUpDialog(true)}
-              className="text-white/70 border-white/10 hover:bg-white/5 text-[11px] h-7 px-3">
-              Top up credits
+              className="bg-purple-500 hover:bg-purple-400 text-white text-sm h-9 px-4 font-medium">
+              Top Up Credits
             </Button>
           </div>
         </div>
       </div>
 
-      {/* Plans Grid */}
       <div>
-        <h2 className="text-white font-semibold text-[15px] mb-4">Available Plans</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+        <h2 className="text-white font-semibold text-lg mb-5">Available Plans</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
           {PLANS.map((plan, i) => {
-            const isCurrent = i === 0; // Starter is current for now
+            const isCurrent = i === 0;
             return (
               <div key={plan.id}
-                className={`rounded-2xl border p-5 transition-all duration-200 ${
+                className={`rounded-2xl border p-6 transition-all duration-200 ${
                   plan.highlighted
                     ? "border-purple-500/30 bg-purple-500/5"
                     : "border-white/[0.06] bg-[hsl(222,28%,11%)]"
                 } ${isCurrent ? "ring-1 ring-emerald-500/30" : ""}`}
               >
                 {isCurrent && (
-                  <Badge className="bg-emerald-500/15 text-emerald-300 border-emerald-500/20 mb-3 text-[10px]">
+                  <Badge className="bg-emerald-500/15 text-emerald-300 border-emerald-500/20 mb-3 text-xs">
                     Current Plan
                   </Badge>
                 )}
                 {plan.highlighted && !isCurrent && (
-                  <Badge className="bg-purple-500/15 text-purple-300 border-purple-500/20 mb-3 text-[10px]">
+                  <Badge className="bg-purple-500/15 text-purple-300 border-purple-500/20 mb-3 text-xs">
                     Most Popular
                   </Badge>
                 )}
-                <h3 className="text-white font-bold text-[16px] mb-1">{plan.name}</h3>
-                <p className="text-white/40 text-[11px] mb-3">
+                <h3 className="text-white font-bold text-lg mb-1">{plan.name}</h3>
+                <p className="text-white/40 text-sm mb-4">
                   {plan.credits_per_month ? `${plan.credits_per_month.toLocaleString()} credits/month` : "Custom allocation"}
                 </p>
-                <div className="mb-4">
+                <div className="mb-5">
                   {plan.price !== null ? (
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-2xl font-bold text-white">{formatPrice(plan.price)}</span>
-                      <span className="text-white/40 text-[11px]">per month</span>
+                    <div className="flex items-baseline gap-1.5">
+                      <span className="text-3xl font-bold text-white">{formatPrice(plan.price)}</span>
+                      <span className="text-white/40 text-sm">per month</span>
                     </div>
                   ) : (
-                    <span className="text-lg font-bold text-white">Custom</span>
+                    <span className="text-2xl font-bold text-white">Custom</span>
                   )}
                 </div>
 
                 {isCurrent ? (
-                  <Button variant="outline" className="w-full mb-4 text-[12px] h-9 border-white/10 text-white/60" disabled>
+                  <Button variant="outline" className="w-full mb-5 text-sm h-10 border-white/15 text-white/50" disabled>
                     Your Plan
                   </Button>
                 ) : plan.price !== null ? (
-                  <Button className={`w-full mb-4 text-[12px] h-9 font-semibold ${
+                  <Button className={`w-full mb-5 text-sm h-10 font-semibold ${
                     plan.highlighted
                       ? "bg-purple-500 hover:bg-purple-400 text-white"
-                      : "bg-white/10 hover:bg-white/15 text-white border border-white/10"
+                      : "bg-white/10 hover:bg-white/20 text-white border border-white/10"
                   }`}>
-                    <ArrowUpRight className="h-3.5 w-3.5 mr-1.5" />
+                    <ArrowUpRight className="h-4 w-4 mr-1.5" />
                     Upgrade
                   </Button>
                 ) : (
-                  <Button variant="outline" className="w-full mb-4 text-[12px] h-9 border-white/10 text-white/60">
+                  <Button variant="outline" className="w-full mb-5 text-sm h-10 border-white/15 text-white/60 hover:bg-white/10 hover:text-white">
                     Contact Sales
                   </Button>
                 )}
 
-                <div className="space-y-2">
+                <div className="space-y-2.5">
                   {plan.features.map((f, fi) => (
-                    <div key={fi} className="flex items-center gap-2 text-[11px] text-white/60">
-                      <Check className="h-3 w-3 text-emerald-400 flex-shrink-0" />
+                    <div key={fi} className="flex items-center gap-2.5 text-sm text-white/60">
+                      <Check className="h-3.5 w-3.5 text-emerald-400 flex-shrink-0" />
                       <span>{f}</span>
                     </div>
                   ))}
@@ -266,17 +266,16 @@ const PlanCreditsTab = () => {
         </div>
       </div>
 
-      {/* Quick Top-Up Packages */}
       <div>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-white font-semibold text-[15px]">Quick Credit Top-Ups</h2>
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-white font-semibold text-lg">Quick Credit Top-Ups</h2>
           <Button size="sm" variant="ghost"
             onClick={() => setShowTopUpDialog(true)}
-            className="text-purple-400 hover:text-purple-300 text-[11px] h-7">
-            <Plus className="h-3 w-3 mr-1" /> Custom Amount
+            className="text-purple-400 hover:text-purple-300 text-sm h-8">
+            <Plus className="h-3.5 w-3.5 mr-1" /> Custom Amount
           </Button>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
           {packages.map((pkg, index) => {
             const isPopular = pkg.is_popular;
             const isReturning = purchaseCount > 0;
@@ -286,39 +285,39 @@ const PlanCreditsTab = () => {
 
             return (
               <div key={pkg.id}
-                className={`relative rounded-xl border p-4 transition-all duration-200 hover:scale-[1.02] ${
+                className={`relative rounded-xl border p-5 transition-all duration-200 hover:scale-[1.02] ${
                   isPopular
                     ? "border-emerald-500/30 bg-emerald-500/5"
                     : "border-white/[0.06] bg-[hsl(222,28%,11%)]"
                 }`}
               >
                 {isPopular && (
-                  <Badge className="absolute -top-2 right-3 bg-emerald-500 text-white text-[9px] px-2 py-0.5 border-0">
+                  <Badge className="absolute -top-2 right-3 bg-emerald-500 text-white text-[10px] px-2.5 py-0.5 border-0">
                     POPULAR
                   </Badge>
                 )}
-                <div className="flex items-center gap-2 mb-2">
+                <div className="flex items-center gap-2.5 mb-2">
                   <Coins className="h-4 w-4 text-amber-400" />
-                  <span className="text-white font-bold text-[14px]">{totalCredits.toLocaleString()}</span>
+                  <span className="text-white font-bold text-base">{totalCredits.toLocaleString()}</span>
                 </div>
                 {pkg.bonus_credits > 0 && (
-                  <p className="text-amber-300 text-[10px] mb-1">+{pkg.bonus_credits} bonus</p>
+                  <p className="text-amber-300 text-xs mb-1">+{pkg.bonus_credits} bonus</p>
                 )}
-                <div className="flex items-baseline gap-1 mb-1">
+                <div className="flex items-baseline gap-1.5 mb-1">
                   {isReturning && (
-                    <span className="text-white/30 text-[11px] line-through">{formatPrice(pkg.price_cents)}</span>
+                    <span className="text-white/30 text-xs line-through">{formatPrice(pkg.price_cents)}</span>
                   )}
-                  <span className="text-white font-bold text-[16px]">{formatPrice(displayPrice)}</span>
+                  <span className="text-white font-bold text-lg">{formatPrice(displayPrice)}</span>
                 </div>
-                <p className="text-white/30 text-[10px] mb-3">{perCredit}¢/credit</p>
+                <p className="text-white/30 text-xs mb-4">{perCredit}¢/credit</p>
                 <Button
                   onClick={() => handlePackagePurchase(pkg)}
                   disabled={purchasingId === pkg.id}
                   size="sm"
-                  className={`w-full text-[11px] h-8 font-medium ${
+                  className={`w-full text-sm h-9 font-medium ${
                     isPopular
-                      ? "bg-emerald-500/80 hover:bg-emerald-400 text-white"
-                      : "bg-white/10 hover:bg-white/15 text-white"
+                      ? "bg-emerald-500 hover:bg-emerald-400 text-white"
+                      : "bg-white/10 hover:bg-white/20 text-white"
                   }`}
                 >
                   {purchasingId === pkg.id ? "..." : "Buy"}
@@ -331,26 +330,26 @@ const PlanCreditsTab = () => {
 
       {/* Spending Stats */}
       <div className="rounded-2xl border border-white/[0.06] bg-[hsl(222,28%,11%)] p-5">
-        <h3 className="text-white font-semibold text-[14px] mb-4 flex items-center gap-2">
+        <h3 className="text-white font-semibold text-base mb-4 flex items-center gap-2">
           <TrendingUp className="h-4 w-4 text-purple-400" />
           Credit Activity
         </h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
           <div>
-            <p className="text-white/40 text-[11px]">Current Balance</p>
-            <p className="text-white font-bold text-[18px]">{balance.toLocaleString()}</p>
+            <p className="text-white/40 text-sm">Current Balance</p>
+            <p className="text-white font-bold text-2xl">{balance.toLocaleString()}</p>
           </div>
           <div>
-            <p className="text-white/40 text-[11px]">Total Purchased</p>
-            <p className="text-white font-bold text-[18px]">{totalPurchased.toLocaleString()}</p>
+            <p className="text-white/40 text-sm">Total Purchased</p>
+            <p className="text-white font-bold text-2xl">{totalPurchased.toLocaleString()}</p>
           </div>
           <div>
-            <p className="text-white/40 text-[11px]">Total Spent</p>
-            <p className="text-white font-bold text-[18px]">{totalSpent.toLocaleString()}</p>
+            <p className="text-white/40 text-sm">Total Spent</p>
+            <p className="text-white font-bold text-2xl">{totalSpent.toLocaleString()}</p>
           </div>
           <div>
-            <p className="text-white/40 text-[11px]">Purchases</p>
-            <p className="text-white font-bold text-[18px]">{purchaseCount}</p>
+            <p className="text-white/40 text-sm">Purchases</p>
+            <p className="text-white font-bold text-2xl">{purchaseCount}</p>
           </div>
         </div>
       </div>
@@ -424,10 +423,10 @@ const PlanCreditsTab = () => {
           ) : (
             <div className="space-y-4">
               <div className="space-y-1.5">
-                <label className="text-[11px] text-white/40">Enter number of credits</label>
+                <label className="text-xs text-white/40">Enter number of credits</label>
                 <Input
                   type="number"
-                  min="50"
+                  min="10"
                   value={customCredits}
                   onChange={(e) => setCustomCredits(e.target.value)}
                   className="bg-white/[0.04] border-white/[0.08] text-white text-[14px] h-11 rounded-xl"
@@ -435,7 +434,7 @@ const PlanCreditsTab = () => {
                 />
               </div>
 
-              {customCreditsNum >= 50 && (
+              {customCreditsNum >= 10 && (
                 <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 space-y-2">
                   <div className="flex justify-between text-[12px]">
                     <span className="text-white/50">Credits</span>
@@ -464,15 +463,16 @@ const PlanCreditsTab = () => {
               )}
 
               <div className="text-[10px] text-white/30 space-y-1">
-                <p>💡 Buy more to unlock bigger discounts (up to 20% off):</p>
+                <p>💡 Buy more to unlock bigger discounts (up to 40% off):</p>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 ml-3">
-                  <span>200+ credits → 2% off</span>
-                  <span>500+ credits → 5% off</span>
-                  <span>1,000+ credits → 8% off</span>
-                  <span>2,000+ credits → 11% off</span>
-                  <span>3,000+ credits → 14% off</span>
-                  <span>5,000+ credits → 17% off</span>
-                  <span>10,000+ credits → 20% off</span>
+                  <span>100+ credits → 5% off</span>
+                  <span>200+ credits → 10% off</span>
+                  <span>500+ credits → 15% off</span>
+                  <span>1,000+ credits → 20% off</span>
+                  <span>2,000+ credits → 25% off</span>
+                  <span>3,000+ credits → 30% off</span>
+                  <span>5,000+ credits → 35% off</span>
+                  <span>10,000+ credits → 40% off</span>
                 </div>
               </div>
             </div>
@@ -485,7 +485,7 @@ const PlanCreditsTab = () => {
             </Button>
             <Button
               onClick={() => handleCustomPurchase(effectiveCredits)}
-              disabled={purchasingCustom || effectiveCredits < 50}
+              disabled={purchasingCustom || effectiveCredits < 10}
               className="bg-purple-500 hover:bg-purple-400 text-white text-[12px] font-semibold flex-1"
             >
               {purchasingCustom ? (
