@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
-import { Menu, X, LogIn, LogOut, Shield, Home, Briefcase, HelpCircle, UserPlus, User, Compass, Rss } from "lucide-react";
-import NotificationBell from "./social/NotificationBell";
+import { Menu, X, LogIn, LogOut, Shield, Home, Briefcase, HelpCircle, UserPlus, User } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "./ui/button";
 import { useAuth } from "@/hooks/useAuth";
@@ -37,8 +36,6 @@ const Navigation = () => {
 
   const menuItems: MenuItem[] = [
     { name: "Home", href: "/", icon: Home },
-    { name: "Feed", href: "/social", icon: Rss },
-    { name: "Explore", href: "/social/explore", icon: Compass },
     { name: "Onboarding", href: "/onboarding", icon: UserPlus },
     { name: "Services", href: "/services", icon: Briefcase },
     { name: "FAQ", href: "/faq", icon: HelpCircle },
@@ -86,8 +83,6 @@ const Navigation = () => {
               <div className="flex items-center gap-1 ml-2">
                 {user ? (
                   <>
-                    {/* Notification bell */}
-                    <NotificationBell />
                     {/* User avatar / profile button */}
                     <Link to="/profile">
                       <button

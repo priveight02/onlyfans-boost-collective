@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
@@ -16,7 +16,8 @@ import {
   Monitor, Smartphone, Tablet, Wifi, WifiOff, Plus, X, Clock,
   Globe, Languages, Download, ShieldCheck, BellRing, Settings2,
   Bookmark, Power, Sparkles, Brain, Zap, Bot, FileText, RefreshCw,
-  Palette, LayoutGrid, SlidersHorizontal, Eraser, ToggleLeft
+  Palette, LayoutGrid, SlidersHorizontal, Eraser, ToggleLeft,
+  Rss, Compass, UserPlus
 } from "lucide-react";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter,
@@ -25,8 +26,17 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from "@/components/ui/select";
+import { useFeed, useNotifications } from "@/hooks/useSocial";
+import PostCard from "@/components/social/PostCard";
+import CreatePostDialog from "@/components/social/CreatePostDialog";
+import RankProgressCard from "@/components/social/RankProgressCard";
+import FollowButton from "@/components/social/FollowButton";
+import { UserRankBadge } from "@/components/social/UserRankBadge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { formatDistanceToNow } from "date-fns";
+import NotificationBell from "@/components/social/NotificationBell";
 
-type TabId = "account" | "security" | "activity" | "devices" | "notifications" | "ai-automation" | "preferences";
+type TabId = "account" | "security" | "activity" | "devices" | "notifications" | "ai-automation" | "preferences" | "social-feed" | "social-explore" | "social-notifications";
 
 type CardNotification = { type: "success" | "error" | "info"; message: string } | null;
 
@@ -125,7 +135,7 @@ const SettingRow = ({ icon: Icon, title, description, checked, onToggle, color =
 const UserProfile = () => {
   const { user, profile, logout, refreshProfile, updatePassword } = useAuth();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<TabId>("account");
+  const [activeTab, setActiveTab] = useState<TabId>("social-feed");
 
   // Account info state
   const [username, setUsername] = useState("");
@@ -200,10 +210,6 @@ const UserProfile = () => {
   });
   const [savingSettings, setSavingSettings] = useState(false);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
-  const settingsDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const notifDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const settingsInitializedRef = useRef(false);
-  const notifInitializedRef = useRef(false);
 
   // AI features state
   const [generatingBio, setGeneratingBio] = useState(false);
@@ -213,9 +219,20 @@ const UserProfile = () => {
   const [generatingDigest, setGeneratingDigest] = useState(false);
   const [securityDigest, setSecurityDigest] = useState("");
 
+  // Social explore state
+  const [exploreSearch, setExploreSearch] = useState("");
+  const [exploreSearchResults, setExploreSearchResults] = useState<any[]>([]);
+  const [exploreSuggested, setExploreSuggested] = useState<any[]>([]);
+  const [exploreSearching, setExploreSearching] = useState(false);
+
   const googleIdentity = user?.identities?.find(i => i.provider === "google");
   const hasPassword = user?.identities?.some(i => i.provider === "email") ?? false;
   const memberSince = user?.created_at ? new Date(user.created_at).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }) : "";
+
+  // Social hooks
+  const { posts: feedPosts, loading: feedLoading, refetch: refetchFeed } = useFeed('home');
+  const { posts: explorePosts, loading: exploreLoading, refetch: refetchExplore } = useFeed('explore');
+  const { notifications: socialNotifications, unreadCount: socialUnreadCount, markAllRead } = useNotifications();
 
   useEffect(() => {
     if (!user) { navigate("/auth"); return; }
@@ -243,7 +260,7 @@ const UserProfile = () => {
   useEffect(() => {
     if (!user) return;
     supabase.from("user_settings").select("*").eq("user_id", user.id).maybeSingle()
-      .then(({ data, error }) => {
+      .then(({ data }) => {
         if (data) {
           setUserSettings({
             session_timeout_minutes: (data as any).session_timeout_minutes ?? 1440,
@@ -260,13 +277,10 @@ const UserProfile = () => {
             compact_ui_mode: (data as any).compact_ui_mode ?? false,
             ai_email_summary_enabled: (data as any).ai_email_summary_enabled ?? false,
           });
-        } else if (!data) {
-          // No settings row yet – create one
+        } else {
           supabase.from("user_settings").insert({ user_id: user.id } as any).then(() => {});
         }
         setSettingsLoaded(true);
-        // Mark initialized after a tick so the debounce effect doesn't fire on load
-        setTimeout(() => { settingsInitializedRef.current = true; }, 100);
       });
   }, [user]);
 
@@ -278,48 +292,31 @@ const UserProfile = () => {
         NOTIFICATION_CATEGORIES.forEach(c => { prefs[c.id] = false; });
         (data || []).forEach((row: any) => { prefs[row.category] = row.email_enabled; });
         setNotifPrefs(prefs);
-        setTimeout(() => { notifInitializedRef.current = true; }, 100);
       });
   }, [user]);
 
-  // Debounced auto-save for user_settings (fires 800ms after last change)
+  // Load explore suggested users
   useEffect(() => {
-    if (!settingsInitializedRef.current || !user) return;
-    if (settingsDebounceRef.current) clearTimeout(settingsDebounceRef.current);
-    settingsDebounceRef.current = setTimeout(async () => {
-      setSavingSettings(true);
-      try {
-        const { error } = await supabase.from("user_settings").upsert({
-          user_id: user.id, ...userSettings,
-        } as any, { onConflict: "user_id" });
-        if (error) throw error;
-        toast.success("Settings saved");
-      } catch (err: any) {
-        console.error("Settings save error:", err);
-        toast.error("Failed to save settings");
-      } finally { setSavingSettings(false); }
-    }, 800);
-    return () => { if (settingsDebounceRef.current) clearTimeout(settingsDebounceRef.current); };
-  }, [userSettings, user]);
+    if (activeTab !== "social-explore") return;
+    supabase.from("profiles").select("user_id, username, display_name, avatar_url, follower_count")
+      .order("follower_count", { ascending: false }).limit(10)
+      .then(({ data }) => { if (data) setExploreSuggested(data as any); });
+  }, [activeTab]);
 
-  // Debounced auto-save for notification preferences
+  // Search users for explore
   useEffect(() => {
-    if (!notifInitializedRef.current || !user) return;
-    if (notifDebounceRef.current) clearTimeout(notifDebounceRef.current);
-    notifDebounceRef.current = setTimeout(async () => {
-      setSavingNotifs(true);
-      try {
-        for (const cat of NOTIFICATION_CATEGORIES) {
-          await supabase.from("notification_preferences").upsert({
-            user_id: user.id, category: cat.id, email_enabled: notifPrefs[cat.id] ?? false,
-          } as any, { onConflict: "user_id,category" });
-        }
-        toast.success("Notification preferences saved");
-      } catch { toast.error("Failed to save preferences"); }
-      finally { setSavingNotifs(false); }
-    }, 800);
-    return () => { if (notifDebounceRef.current) clearTimeout(notifDebounceRef.current); };
-  }, [notifPrefs, user]);
+    if (!exploreSearch.trim()) { setExploreSearchResults([]); return; }
+    setExploreSearching(true);
+    const timer = setTimeout(async () => {
+      const { data } = await supabase.from("profiles")
+        .select("user_id, username, display_name, avatar_url, follower_count")
+        .or(`username.ilike.%${exploreSearch}%,display_name.ilike.%${exploreSearch}%`)
+        .limit(10);
+      setExploreSearchResults((data || []) as any);
+      setExploreSearching(false);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [exploreSearch]);
 
   useEffect(() => {
     if (!user || activeTab !== "activity") return;
@@ -480,7 +477,34 @@ const UserProfile = () => {
     finally { setIsUnlinking(false); }
   };
 
-  // Notifications and settings are now auto-saved via debounced effects above
+  const handleSaveNotifications = async () => {
+    if (!user) return;
+    setSavingNotifs(true);
+    try {
+      for (const cat of NOTIFICATION_CATEGORIES) {
+        await supabase.from("notification_preferences").upsert({
+          user_id: user.id, category: cat.id, email_enabled: notifPrefs[cat.id] ?? false,
+        } as any, { onConflict: "user_id,category" });
+      }
+      toast.success("Notification preferences saved!");
+    } catch { toast.error("Failed to save preferences"); }
+    finally { setSavingNotifs(false); }
+  };
+
+  const handleSaveSettings = async () => {
+    if (!user) return;
+    setSavingSettings(true);
+    try {
+      const { error } = await supabase.from("user_settings").upsert({
+        user_id: user.id, ...userSettings,
+      } as any, { onConflict: "user_id" });
+      if (error) throw error;
+      toast.success("Settings saved!");
+    } catch (err: any) {
+      console.error("Settings save error:", err);
+      toast.error("Failed to save settings");
+    } finally { setSavingSettings(false); }
+  };
 
   const handleKickDevice = async (deviceId: string) => {
     try {
@@ -538,9 +562,14 @@ const UserProfile = () => {
     } catch { toast.error("Failed to clear activity"); }
   };
 
-  const handleToggleActivityLogging = (enabled: boolean) => {
-    // Debounced auto-save will handle persisting this
-    setUserSettings(prev => ({ ...prev, activity_logging_enabled: enabled }));
+  const handleToggleActivityLogging = async (enabled: boolean) => {
+    if (!user) return;
+    const updated = { ...userSettings, activity_logging_enabled: enabled };
+    setUserSettings(updated);
+    try {
+      await supabase.from("user_settings").upsert({ user_id: user.id, ...updated } as any, { onConflict: "user_id" });
+      toast.success(enabled ? "Activity logging enabled" : "Activity logging disabled");
+    } catch { toast.error("Failed to update setting"); }
   };
 
   // AI Bio Generator
@@ -643,7 +672,7 @@ const UserProfile = () => {
 
   if (!user) return null;
 
-  const tabs: { id: TabId; label: string; icon: typeof User }[] = [
+  const settingsTabs: { id: TabId; label: string; icon: typeof User }[] = [
     { id: "account", label: "Account Info", icon: User },
     { id: "security", label: "Security", icon: Shield },
     { id: "activity", label: "Activity", icon: Activity },
@@ -651,6 +680,12 @@ const UserProfile = () => {
     { id: "ai-automation", label: "AI & Automation", icon: Sparkles },
     { id: "preferences", label: "Preferences", icon: SlidersHorizontal },
     { id: "notifications", label: "Notifications", icon: Bell },
+  ];
+
+  const socialTabs: { id: TabId; label: string; icon: typeof User; badge?: number }[] = [
+    { id: "social-feed", label: "Feed", icon: Rss },
+    { id: "social-explore", label: "Explore", icon: Compass },
+    { id: "social-notifications", label: "Social Alerts", icon: Bell, badge: socialUnreadCount },
   ];
 
   const userInitial = profile?.display_name?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase() || "U";
@@ -689,7 +724,24 @@ const UserProfile = () => {
             {/* Sidebar */}
             <div className="lg:w-56 flex-shrink-0">
               <nav className="bg-[hsl(222,28%,11%)] backdrop-blur-xl rounded-2xl border border-purple-500/10 p-2 space-y-0.5">
-                {tabs.map((tab) => (
+                <p className="px-3.5 py-1.5 text-[10px] font-semibold text-white/30 uppercase tracking-wider">Social</p>
+                {socialTabs.map((tab) => (
+                  <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+                    className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13px] font-medium transition-all duration-200 ${
+                      activeTab === tab.id
+                        ? "bg-purple-500/10 text-white border border-purple-500/15"
+                        : "text-white/50 hover:text-white/80 hover:bg-white/[0.04]"
+                    }`}>
+                    <tab.icon className="h-4 w-4 flex-shrink-0" />
+                    {tab.label}
+                    {tab.badge && tab.badge > 0 ? (
+                      <span className="ml-auto bg-red-500/80 text-white text-[10px] rounded-full w-5 h-5 flex items-center justify-center font-bold">{tab.badge}</span>
+                    ) : null}
+                  </button>
+                ))}
+                <div className="h-px bg-white/[0.06] my-2" />
+                <p className="px-3.5 py-1.5 text-[10px] font-semibold text-white/30 uppercase tracking-wider">Settings</p>
+                {settingsTabs.map((tab) => (
                   <button key={tab.id} onClick={() => setActiveTab(tab.id)}
                     className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13px] font-medium transition-all duration-200 ${
                       activeTab === tab.id
@@ -834,11 +886,10 @@ const UserProfile = () => {
                           ))}
                         </SelectContent>
                       </Select>
-                      {savingSettings && (
-                        <span className="text-white/40 text-[11px] flex items-center gap-1.5">
-                          <RefreshCw className="h-3 w-3 animate-spin" /> Saving...
-                        </span>
-                      )}
+                      <Button onClick={handleSaveSettings} disabled={savingSettings}
+                        className="bg-white/[0.08] hover:bg-white/[0.12] text-white/80 border border-white/[0.08] rounded-xl font-medium text-[12px] px-4 h-8">
+                        <Save className="mr-1.5 h-3 w-3" /> {savingSettings ? "Saving..." : "Save"}
+                      </Button>
                     </div>
                   </Card>
 
@@ -1080,11 +1131,10 @@ const UserProfile = () => {
                         checked={userSettings.ai_email_summary_enabled}
                         onToggle={(v) => { setUserSettings({ ...userSettings, ai_email_summary_enabled: v }); }} />
                     </div>
-                    {savingSettings && (
-                      <p className="mt-3 text-white/40 text-[11px] flex items-center gap-1.5">
-                        <RefreshCw className="h-3 w-3 animate-spin" /> Auto-saving...
-                      </p>
-                    )}
+                    <Button onClick={handleSaveSettings} disabled={savingSettings}
+                      className="mt-4 bg-white/[0.08] hover:bg-white/[0.12] text-white/80 border border-white/[0.08] rounded-xl font-medium text-[13px] px-6 h-9">
+                      <Save className="mr-2 h-3.5 w-3.5" /> {savingSettings ? "Saving..." : "Save AI Settings"}
+                    </Button>
                   </Card>
 
                   {/* AI Bio Generator Panel */}
@@ -1207,11 +1257,10 @@ const UserProfile = () => {
                     </div>
                   </Card>
 
-                  {savingSettings && (
-                    <p className="text-white/40 text-[11px] flex items-center gap-1.5">
-                      <RefreshCw className="h-3 w-3 animate-spin" /> Auto-saving...
-                    </p>
-                  )}
+                  <Button onClick={handleSaveSettings} disabled={savingSettings}
+                    className="bg-white/[0.08] hover:bg-white/[0.12] text-white/80 border border-white/[0.08] rounded-xl font-medium text-[13px] px-6 h-9">
+                    <Save className="mr-2 h-3.5 w-3.5" /> {savingSettings ? "Saving..." : "Save Preferences"}
+                  </Button>
                 </motion.div>
               )}
 
@@ -1239,12 +1288,174 @@ const UserProfile = () => {
                         </div>
                       ))}
                     </div>
-                    {savingNotifs && (
-                      <p className="mt-3 text-white/40 text-[11px] flex items-center gap-1.5">
-                        <RefreshCw className="h-3 w-3 animate-spin" /> Auto-saving...
-                      </p>
-                    )}
+                    <Button onClick={handleSaveNotifications} disabled={savingNotifs}
+                      className="mt-5 bg-white/[0.08] hover:bg-white/[0.12] text-white/80 border border-white/[0.08] rounded-xl font-medium text-[13px] px-6 h-9">
+                      <Save className="mr-2 h-3.5 w-3.5" /> {savingNotifs ? "Saving..." : "Save Preferences"}
+                    </Button>
                   </Card>
+                </motion.div>
+              )}
+
+              {/* ===================== SOCIAL FEED TAB ===================== */}
+              {activeTab === "social-feed" && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+                  {user && (
+                    <CreatePostDialog
+                      onCreated={refetchFeed}
+                      trigger={
+                        <button className="w-full bg-white/[0.04] border border-white/[0.08] rounded-2xl p-4 flex items-center gap-3 text-left hover:bg-white/[0.06] transition-colors">
+                          <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center">
+                            <Rss className="h-5 w-5 text-purple-400" />
+                          </div>
+                          <span className="text-white/40 text-sm">What's on your mind?</span>
+                        </button>
+                      }
+                    />
+                  )}
+                  {feedLoading ? (
+                    <div className="flex justify-center py-20"><RefreshCw className="h-8 w-8 animate-spin text-purple-400" /></div>
+                  ) : feedPosts.length === 0 ? (
+                    <div className="text-center py-16 space-y-3">
+                      <Compass className="h-14 w-14 text-white/15 mx-auto" />
+                      <h3 className="text-lg font-semibold text-white/80">Your feed is empty</h3>
+                      <p className="text-white/40 text-sm">Follow people to see their posts here, or explore trending content.</p>
+                      <Button onClick={() => setActiveTab("social-explore")} variant="outline" className="border-white/10 text-white/60">
+                        Explore
+                      </Button>
+                    </div>
+                  ) : (
+                    feedPosts.map(post => <PostCard key={post.id} post={post} onRefetch={refetchFeed} />)
+                  )}
+                </motion.div>
+              )}
+
+              {/* ===================== SOCIAL EXPLORE TAB ===================== */}
+              {activeTab === "social-explore" && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+                  <div className="relative">
+                    <Compass className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30" />
+                    <Input
+                      value={exploreSearch}
+                      onChange={e => setExploreSearch(e.target.value)}
+                      placeholder="Search users..."
+                      className="pl-10 bg-white/[0.04] border-white/[0.08] text-white/80 placeholder:text-white/20 rounded-xl"
+                    />
+                  </div>
+
+                  {exploreSearch && (
+                    <Card>
+                      {exploreSearching ? (
+                        <div className="flex justify-center py-4"><RefreshCw className="h-5 w-5 animate-spin text-purple-400" /></div>
+                      ) : exploreSearchResults.length === 0 ? (
+                        <p className="text-white/40 text-sm text-center py-4">No users found</p>
+                      ) : (
+                        <div className="space-y-3">
+                          {exploreSearchResults.map((u: any) => (
+                            <div key={u.user_id} className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <Avatar className="h-10 w-10">
+                                  <AvatarImage src={u.avatar_url || ''} />
+                                  <AvatarFallback className="bg-purple-500/20 text-purple-300 text-sm">{u.display_name?.[0] || '?'}</AvatarFallback>
+                                </Avatar>
+                                <div>
+                                  <div className="flex items-center gap-1">
+                                    <span className="font-semibold text-white/90 text-sm">{u.display_name}</span>
+                                    <UserRankBadge userId={u.user_id} size="sm" />
+                                  </div>
+                                  <span className="text-white/40 text-xs">@{u.username}</span>
+                                </div>
+                              </div>
+                              <FollowButton targetUserId={u.user_id} />
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </Card>
+                  )}
+
+                  {!exploreSearch && exploreSuggested.length > 0 && (
+                    <Card>
+                      <SectionTitle icon={User} title="Suggested for you" />
+                      <div className="space-y-3">
+                        {exploreSuggested.map((u: any) => (
+                          <div key={u.user_id} className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <Avatar className="h-9 w-9">
+                                <AvatarImage src={u.avatar_url || ''} />
+                                <AvatarFallback className="bg-purple-500/20 text-purple-300 text-xs">{u.display_name?.[0] || '?'}</AvatarFallback>
+                              </Avatar>
+                              <div>
+                                <div className="flex items-center gap-1">
+                                  <span className="text-white/90 text-xs font-semibold">{u.display_name}</span>
+                                  <UserRankBadge userId={u.user_id} size="sm" />
+                                </div>
+                                <span className="text-white/40 text-[10px]">@{u.username}</span>
+                              </div>
+                            </div>
+                            <FollowButton targetUserId={u.user_id} className="h-7 text-xs px-2" />
+                          </div>
+                        ))}
+                      </div>
+                    </Card>
+                  )}
+
+                  {exploreLoading ? (
+                    <div className="flex justify-center py-12"><RefreshCw className="h-8 w-8 animate-spin text-purple-400" /></div>
+                  ) : explorePosts.length === 0 ? (
+                    <div className="text-center py-12">
+                      <Compass className="h-12 w-12 text-white/15 mx-auto mb-3" />
+                      <p className="text-white/40 text-sm">No posts to explore yet</p>
+                    </div>
+                  ) : (
+                    explorePosts.map(post => <PostCard key={post.id} post={post} onRefetch={refetchExplore} />)
+                  )}
+                </motion.div>
+              )}
+
+              {/* ===================== SOCIAL NOTIFICATIONS TAB ===================== */}
+              {activeTab === "social-notifications" && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <SectionTitle icon={Bell} title="Social Notifications" />
+                    {socialUnreadCount > 0 && (
+                      <Button variant="ghost" size="sm" onClick={markAllRead} className="text-white/40 hover:text-white/60 text-[12px] h-8 gap-1.5">
+                        <CheckCircle2 className="h-3.5 w-3.5" /> Mark all read
+                      </Button>
+                    )}
+                  </div>
+
+                  {socialNotifications.length === 0 ? (
+                    <div className="text-center py-16">
+                      <Bell className="h-12 w-12 text-white/15 mx-auto mb-3" />
+                      <p className="text-white/40 text-sm">No notifications yet</p>
+                    </div>
+                  ) : (
+                    socialNotifications.map((notif: any) => {
+                      const iconMap: Record<string, typeof Bell> = { like: Bell, comment: Bell, follow: UserPlus };
+                      const textMap: Record<string, string> = { like: 'liked your post', comment: 'commented on your post', follow: 'started following you' };
+                      const actor = notif.actor_profile;
+                      return (
+                        <div
+                          key={notif.id}
+                          className={`flex items-center gap-3 p-4 rounded-2xl border transition-colors ${
+                            notif.is_read ? 'bg-white/[0.02] border-white/[0.05]' : 'bg-purple-500/[0.05] border-purple-500/15'
+                          }`}
+                        >
+                          <Avatar className="h-10 w-10">
+                            <AvatarImage src={actor?.avatar_url || ''} />
+                            <AvatarFallback className="bg-purple-500/20 text-purple-300 text-sm">{actor?.display_name?.[0] || '?'}</AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1">
+                            <p className="text-sm text-white/80">
+                              <span className="font-semibold">{actor?.display_name || 'Someone'}</span>
+                              {' '}{textMap[notif.type] || 'interacted with you'}
+                            </p>
+                            <span className="text-xs text-white/35">{formatDistanceToNow(new Date(notif.created_at), { addSuffix: true })}</span>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
                 </motion.div>
               )}
             </div>

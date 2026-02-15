@@ -19,10 +19,7 @@ import ResetPassword from "./pages/ResetPassword";
 import UserProfile from "./pages/UserProfile";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsAndConditions from "./pages/TermsAndConditions";
-import SocialFeed from "./pages/SocialFeed";
 import SocialProfile from "./pages/SocialProfile";
-import SocialExplore from "./pages/SocialExplore";
-import SocialNotifications from "./pages/SocialNotifications";
 
 const queryClient = new QueryClient();
 
@@ -43,10 +40,7 @@ const AppContent = () => {
         <Route path="/link/:slug" element={<BioLink />} />
         <Route path="/privacy" element={<PrivacyPolicy />} />
         <Route path="/terms" element={<TermsAndConditions />} />
-        <Route path="/social" element={<ProtectedRoute><SocialFeed /></ProtectedRoute>} />
-        <Route path="/social/explore" element={<SocialExplore />} />
         <Route path="/social/u/:username" element={<SocialProfile />} />
-        <Route path="/social/notifications" element={<ProtectedRoute><SocialNotifications /></ProtectedRoute>} />
       </Routes>
     </>
   );
