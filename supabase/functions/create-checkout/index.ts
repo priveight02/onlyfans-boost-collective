@@ -11,6 +11,24 @@ const logStep = (step: string, details?: any) => {
   console.log(`[CREATE-CHECKOUT] ${step}${details ? ` - ${JSON.stringify(details)}` : ''}`);
 };
 
+// Detect test vs live mode from Stripe key
+const isTestMode = () => (Deno.env.get("STRIPE_SECRET_KEY") || "").startsWith("sk_test_");
+
+// Live → Test subscription price mapping
+const LIVE_TO_TEST_SUB_PRICE: Record<string, string> = {
+  // Starter
+  "price_1T1CVAP8Id8IBpd0heXxbsUk": "price_1T1EyGP8Id8IBpd0tNAn9MrU", // monthly
+  "price_1T1CcdP8Id8IBpd0AppiCEdo": "price_1T1EyRP8Id8IBpd0T0nuzf8K", // yearly
+  // Pro
+  "price_1T1CVfP8Id8IBpd0B8EfZeGR": "price_1T1EybP8Id8IBpd0G6zKzoSS", // monthly
+  "price_1T1CcuP8Id8IBpd0X5c5Nqbs": "price_1T1EymP8Id8IBpd0nJZGVBlM", // yearly
+  // Business
+  "price_1T1CVpP8Id8IBpd07EYina3g": "price_1T1Ez2P8Id8IBpd0SjMOkzvg", // monthly
+  "price_1T1Cd3P8Id8IBpd0Ds2Y7HoM": "price_1T1EzDP8Id8IBpd0VOZZoLYG", // yearly
+};
+
+const resolveSubPrice = (priceId: string) => isTestMode() ? (LIVE_TO_TEST_SUB_PRICE[priceId] || priceId) : priceId;
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -29,7 +47,8 @@ serve(async (req) => {
 
     const { priceId, planId, billingCycle } = await req.json();
     if (!priceId) throw new Error("Price ID required");
-    logStep("Checkout request", { priceId, planId, billingCycle });
+    const resolvedPriceId = resolveSubPrice(priceId);
+    logStep("Checkout request", { priceId, resolvedPriceId, planId, billingCycle, testMode: isTestMode() });
 
     const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", { apiVersion: "2025-08-27.basil" });
 
@@ -57,7 +76,7 @@ serve(async (req) => {
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       customer_email: customerId ? undefined : user.email,
-      line_items: [{ price: priceId, quantity: 1 }],
+      line_items: [{ price: resolvedPriceId, quantity: 1 }],
       mode: "subscription",
       success_url: `${origin}/profile?subscription=success&plan=${planId}`,
       cancel_url: `${origin}/profile?subscription=canceled`,
