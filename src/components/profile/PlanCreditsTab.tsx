@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Coins, Crown, Zap, Star, Check, ArrowRight, Sparkles, Plus, Minus, CreditCard, TrendingUp, ArrowUpRight } from "lucide-react";
+import { Coins, Crown, Zap, Star, Check, ArrowRight, Sparkles, Plus, Minus, CreditCard, TrendingUp, ArrowUpRight, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -96,13 +96,29 @@ const PlanCreditsTab = () => {
   const [packages, setPackages] = useState<CreditPackage[]>([]);
   const [loadingPackages, setLoadingPackages] = useState(true);
   const [showTopUpDialog, setShowTopUpDialog] = useState(false);
+  const [showFreeTierPopup, setShowFreeTierPopup] = useState(false);
   const [topUpMode, setTopUpMode] = useState<"predefined" | "custom">("predefined");
   const [selectedTopUp, setSelectedTopUp] = useState<number>(500);
   const [customCredits, setCustomCredits] = useState<string>("1000");
   const [purchasingId, setPurchasingId] = useState<string | null>(null);
   const [purchasingCustom, setPurchasingCustom] = useState(false);
+  const plansRef = useRef<HTMLDivElement>(null);
 
-  const currentPlan = PLANS[0]; // Default to Starter for now
+  // TODO: Replace with real plan detection from backend
+  const currentPlan = PLANS[0]; // Free tier
+  const isFreeTier = currentPlan.id === "free";
+
+  const scrollToPlans = () => {
+    plansRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const handleTopUpClick = () => {
+    if (isFreeTier) {
+      setShowFreeTierPopup(true);
+      return;
+    }
+    setShowTopUpDialog(true);
+  };
 
   useEffect(() => {
     const fetchPackages = async () => {
@@ -176,6 +192,7 @@ const PlanCreditsTab = () => {
             </div>
           </div>
           <Button size="sm"
+            onClick={scrollToPlans}
             className="bg-[hsl(222,25%,18%)] hover:bg-[hsl(222,25%,22%)] text-white border border-white/10 text-sm h-9 px-4">
             Manage Plan
           </Button>
@@ -194,7 +211,7 @@ const PlanCreditsTab = () => {
               <span className="flex items-center gap-1.5"><Coins className="h-3.5 w-3.5 text-amber-400" /> {totalPurchased.toLocaleString()} purchased</span>
             </div>
             <Button size="sm"
-              onClick={() => setShowTopUpDialog(true)}
+              onClick={handleTopUpClick}
               className="bg-purple-500 hover:bg-purple-400 text-white text-sm h-9 px-4 font-medium">
               Top Up Credits
             </Button>
@@ -202,7 +219,7 @@ const PlanCreditsTab = () => {
         </div>
       </div>
 
-      <div>
+      <div ref={plansRef}>
         <h2 className="text-white font-semibold text-lg mb-5">Available Plans</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
           {PLANS.filter(p => p.id !== "free").map((plan, i) => {
@@ -277,7 +294,7 @@ const PlanCreditsTab = () => {
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-white font-semibold text-lg">Quick Credit Top-Ups</h2>
           <Button size="sm" variant="ghost"
-            onClick={() => setShowTopUpDialog(true)}
+            onClick={handleTopUpClick}
             className="text-purple-400 hover:text-purple-300 text-sm h-8">
             <Plus className="h-3.5 w-3.5 mr-1" /> Custom Amount
           </Button>
@@ -324,7 +341,10 @@ const PlanCreditsTab = () => {
                 </div>
                 <p className="text-white/30 text-xs mb-4">{perCredit}¢/credit</p>
                 <Button
-                  onClick={() => handlePackagePurchase(pkg)}
+                  onClick={() => {
+                    if (isFreeTier) { setShowFreeTierPopup(true); return; }
+                    handlePackagePurchase(pkg);
+                  }}
                   disabled={purchasingId === pkg.id}
                   size="sm"
                   className={`w-full text-sm h-9 font-medium ${
@@ -366,6 +386,50 @@ const PlanCreditsTab = () => {
           </div>
         </div>
       </div>
+
+      {/* Free Tier Top-Up Popup */}
+      <Dialog open={showFreeTierPopup} onOpenChange={setShowFreeTierPopup}>
+        <DialogContent className="bg-[hsl(222,35%,7%)] border-white/[0.08] text-white max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-white text-[17px] flex items-center gap-2">
+              <Crown className="h-5 w-5 text-amber-400" />
+              Upgrade Required
+            </DialogTitle>
+            <DialogDescription className="text-white/50 text-[13px]">
+              Credit top-ups are available exclusively for paid plan members. Choose a plan that fits your needs to unlock on-demand credit purchases.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 my-2">
+            <div className="flex items-start gap-3 p-3 rounded-xl border border-purple-500/20 bg-purple-500/5">
+              <Zap className="h-5 w-5 text-purple-400 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="text-white text-sm font-medium">Pro Plan — Recommended</p>
+                <p className="text-white/40 text-xs">500 credits/month + unlimited top-ups starting at $29.99/mo</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3 p-3 rounded-xl border border-white/[0.06] bg-white/[0.02]">
+              <Star className="h-5 w-5 text-amber-400 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="text-white text-sm font-medium">Starter Plan</p>
+                <p className="text-white/40 text-xs">50 credits/month + top-ups starting at $9.99/mo</p>
+              </div>
+            </div>
+          </div>
+          <DialogFooter className="flex gap-2 sm:gap-2">
+            <Button variant="ghost" onClick={() => setShowFreeTierPopup(false)}
+              className="text-white/40 hover:text-white/60 text-[12px] flex-1">
+              Maybe Later
+            </Button>
+            <Button
+              onClick={() => { setShowFreeTierPopup(false); scrollToPlans(); }}
+              className="bg-purple-500 hover:bg-purple-400 text-white text-[12px] font-semibold flex-1"
+            >
+              <ArrowUpRight className="h-3.5 w-3.5 mr-1" />
+              View Plans
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Top Up Dialog */}
       <Dialog open={showTopUpDialog} onOpenChange={setShowTopUpDialog}>
