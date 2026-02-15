@@ -44,6 +44,8 @@ const Pricing = () => {
   const [customCredits, setCustomCredits] = useState<number>(500);
   const [purchasingCustom, setPurchasingCustom] = useState(false);
   const [verifying, setVerifying] = useState(false);
+  const [retentionActive, setRetentionActive] = useState(false);
+  const [retentionUsed, setRetentionUsed] = useState(false);
 
   // Declining discount: 1st repurchase=30%, 2nd=20%, 3rd=10%, then 0%
   const getReturningDiscount = (count: number): number => {
@@ -52,7 +54,8 @@ const Pricing = () => {
     if (count === 3) return 0.10;
     return 0;
   };
-  const returningDiscount = getReturningDiscount(purchaseCount);
+  // If retention is active, loyalty discount is erased (non-stackable)
+  const returningDiscount = retentionActive ? 0 : getReturningDiscount(purchaseCount);
   const isReturning = returningDiscount > 0;
 
   useEffect(() => {
@@ -67,6 +70,23 @@ const Pricing = () => {
     };
     fetchPackages();
   }, []);
+
+  // Check if retention discount is active
+  useEffect(() => {
+    if (!user) return;
+    const checkRetention = async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke("billing-info", {
+          body: { action: "info" },
+        });
+        if (!error && data) {
+          setRetentionActive(data.eligible_for_retention && !data.retention_credits_used);
+          setRetentionUsed(data.retention_credits_used || false);
+        }
+      } catch {}
+    };
+    checkRetention();
+  }, [user]);
 
   // Verification effect — runs once, clears params to prevent re-runs
   useEffect(() => {
@@ -102,15 +122,19 @@ const Pricing = () => {
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handlePurchase = async (pkg: CreditPackage) => {
+  const handlePurchase = async (pkg: CreditPackage, useRetention = false) => {
     if (!user) { toast.error("Please log in first"); navigate("/auth"); return; }
-    setPurchasingId(pkg.id);
+    setPurchasingId(pkg.id + (useRetention ? "_ret" : ""));
     try {
       const { data, error } = await supabase.functions.invoke("purchase-credits", {
-        body: { packageId: pkg.id },
+        body: { packageId: pkg.id, useRetentionDiscount: useRetention },
       });
       if (error) throw error;
       if (data?.url) window.open(data.url, "_blank");
+      if (useRetention) {
+        setRetentionActive(false);
+        setRetentionUsed(true);
+      }
     } catch (err: any) {
       toast.error(err.message || "Failed to start checkout");
     } finally {
@@ -173,6 +197,12 @@ const Pricing = () => {
                 <span className="text-xs text-emerald-300 font-medium">{Math.round(returningDiscount * 100)}% returning customer discount applied</span>
               </div>
             )}
+            {retentionActive && (
+              <div className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-pink-500/10 border border-pink-500/20">
+                <Gift className="h-3.5 w-3.5 text-pink-400" />
+                <span className="text-xs text-pink-300 font-medium">🎁 Exclusive 50% OFF available — one-time use</span>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -190,6 +220,7 @@ const Pricing = () => {
             {packages.map((pkg, index) => {
               const accent = cardAccents[index] || cardAccents[0];
               const displayPrice = isReturning ? getDiscountedPrice(pkg.price_cents) : pkg.price_cents;
+              const retentionPrice = Math.round(pkg.price_cents * 0.5);
               const perCredit = (displayPrice / (pkg.credits + pkg.bonus_credits)).toFixed(2);
               const isPopular = pkg.is_popular;
 
@@ -244,7 +275,7 @@ const Pricing = () => {
 
                     <Button
                       onClick={() => handlePurchase(pkg)}
-                      disabled={purchasingId === pkg.id}
+                      disabled={!!purchasingId}
                       className={`w-full py-5 rounded-xl font-medium transition-all ${
                         isPopular
                           ? 'bg-yellow-500 hover:bg-yellow-400 text-black'
@@ -259,6 +290,22 @@ const Pricing = () => {
                         </span>
                       )}
                     </Button>
+
+                    {retentionActive && (
+                      <Button
+                        onClick={() => handlePurchase(pkg, true)}
+                        disabled={!!purchasingId}
+                        className="w-full py-5 rounded-xl font-semibold transition-all bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-400 hover:to-purple-400 text-white border-0 mt-2"
+                      >
+                        {purchasingId === pkg.id + "_ret" ? (
+                          <span className="animate-pulse">Processing...</span>
+                        ) : (
+                          <span className="flex items-center justify-center gap-2">
+                            <Gift className="h-4 w-4" /> Buy at {formatPrice(retentionPrice)} (50% OFF) <ArrowRight className="h-4 w-4" />
+                          </span>
+                        )}
+                      </Button>
+                    )}
                   </div>
                 </div>
               );

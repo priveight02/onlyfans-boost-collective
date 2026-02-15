@@ -156,11 +156,21 @@ serve(async (req) => {
     // Check retention eligibility
     const eligibility = await checkRetentionEligibility(stripe, customerId);
 
+    // Check if retention credits discount already used (from wallets table)
+    let retentionCreditsUsed = false;
+    const { data: walletData } = await supabase
+      .from("wallets")
+      .select("retention_credits_used")
+      .eq("user_id", userData.user.id)
+      .single();
+    if (walletData) retentionCreditsUsed = walletData.retention_credits_used || false;
+
     return new Response(JSON.stringify({
       subscription,
       payments: paymentsWithDiscount,
       eligible_for_retention: eligibility.eligible,
       eligibility_reasons: eligibility.reasons,
+      retention_credits_used: retentionCreditsUsed,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
   } catch (error) {
