@@ -24,6 +24,12 @@ interface CreditPackage {
 }
 
 // Plans definition — these match your Stripe products
+const PLAN_STRIPE_MAP: Record<string, { price_id: string; product_id: string }> = {
+  starter: { price_id: "price_1T1CVAP8Id8IBpd0heXxbsUk", product_id: "prod_TzAqP0zH90vzyR" },
+  pro: { price_id: "price_1T1CVfP8Id8IBpd0B8EfZeGR", product_id: "prod_TzArZUF2DIlzHq" },
+  business: { price_id: "price_1T1CVpP8Id8IBpd07EYina3g", product_id: "prod_TzAram9it2Kedf" },
+};
+
 const PLANS = [
   {
     id: "free",
@@ -62,7 +68,7 @@ const PLANS = [
   {
     id: "enterprise",
     name: "Enterprise",
-    monthlyPrice: null, // Custom
+    monthlyPrice: null,
     credits_per_month: null,
     features: ["Custom credit allocation", "All Business features", "Dedicated account manager", "SLA guarantees", "Custom integrations", "Audit logs"],
     yearlyDiscount: 0,
@@ -118,12 +124,36 @@ const PlanCreditsTab = () => {
     plansRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
+  const [upgradingPlan, setUpgradingPlan] = useState<string | null>(null);
+
   const handleTopUpClick = () => {
     if (isFreeTier) {
       setShowFreeTierPopup(true);
       return;
     }
     setShowTopUpDialog(true);
+  };
+
+  const handleUpgrade = async (planId: string) => {
+    if (!user) { toast.error("Please log in first"); return; }
+    const stripeInfo = PLAN_STRIPE_MAP[planId];
+    if (!stripeInfo) {
+      // Enterprise — open contact
+      window.location.href = "mailto:contact@ozcagency.com?subject=Enterprise Plan Inquiry";
+      return;
+    }
+    setUpgradingPlan(planId);
+    try {
+      const { data, error } = await supabase.functions.invoke("create-checkout", {
+        body: { priceId: stripeInfo.price_id, planId, billingCycle },
+      });
+      if (error) throw error;
+      if (data?.url) window.open(data.url, "_blank");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to start checkout");
+    } finally {
+      setUpgradingPlan(null);
+    }
   };
 
   useEffect(() => {
@@ -324,16 +354,22 @@ const PlanCreditsTab = () => {
                     Your Plan
                   </Button>
                 ) : displayPrice !== null ? (
-                  <Button className={`w-full mb-5 text-sm h-10 font-semibold ${
-                    plan.highlighted
-                      ? "bg-purple-500 hover:bg-purple-400 text-white"
-                      : "bg-[hsl(222,25%,18%)] hover:bg-[hsl(222,25%,22%)] text-white border border-white/10"
-                  }`}>
-                    <ArrowUpRight className="h-4 w-4 mr-1.5" />
-                    Upgrade
+                  <Button
+                    onClick={() => handleUpgrade(plan.id)}
+                    disabled={upgradingPlan === plan.id}
+                    className={`w-full mb-5 text-sm h-10 font-semibold ${
+                      plan.highlighted
+                        ? "bg-purple-500 hover:bg-purple-400 text-white"
+                        : "bg-[hsl(222,25%,18%)] hover:bg-[hsl(222,25%,22%)] text-white border border-white/10"
+                    }`}
+                  >
+                    {upgradingPlan === plan.id ? "Loading..." : <><ArrowUpRight className="h-4 w-4 mr-1.5" />Upgrade</>}
                   </Button>
                 ) : (
-                  <Button className="w-full mb-5 text-sm h-10 bg-[hsl(222,25%,18%)] hover:bg-[hsl(222,25%,22%)] text-white border border-white/10 font-semibold">
+                  <Button
+                    onClick={() => handleUpgrade(plan.id)}
+                    className="w-full mb-5 text-sm h-10 bg-[hsl(222,25%,18%)] hover:bg-[hsl(222,25%,22%)] text-white border border-white/10 font-semibold"
+                  >
                     Contact Sales
                   </Button>
                 )}
@@ -375,14 +411,14 @@ const PlanCreditsTab = () => {
 
             return (
               <div key={pkg.id}
-                className={`relative flex flex-col rounded-2xl border p-4 transition-all duration-200 hover:translate-y-[-2px] overflow-hidden ${
+                className={`relative flex flex-col rounded-2xl border p-4 transition-all duration-200 hover:translate-y-[-2px] ${
                   isPopular
-                    ? "border-emerald-500/30 bg-[hsl(222,30%,12%)] ring-1 ring-emerald-500/20"
+                    ? "border-emerald-500/30 bg-[hsl(222,30%,12%)] ring-1 ring-emerald-500/20 mt-3"
                     : "border-white/[0.06] bg-[hsl(222,30%,12%)]"
                 }`}
               >
                 {isPopular && (
-                  <Badge className="absolute -top-2.5 left-1/2 -translate-x-1/2 bg-emerald-500 text-white text-[10px] px-2.5 py-0.5 border-0 shadow-lg shadow-emerald-500/20">
+                  <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-emerald-500 text-white text-[10px] px-2.5 py-0.5 border-0 shadow-lg shadow-emerald-500/20 z-10">
                     POPULAR
                   </Badge>
                 )}
