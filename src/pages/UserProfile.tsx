@@ -1458,10 +1458,11 @@ const UserProfile = () => {
                         <div className="space-y-2">
                           {[
                             { action: "Daily Login", xp: "+10 XP", icon: Zap },
-                            { action: "Create a Post", xp: "+25 XP", icon: FileText },
-                            { action: "Get a Like", xp: "+2 XP", icon: Star },
-                            { action: "Get a Comment", xp: "+5 XP", icon: Bell },
-                            { action: "Gain a Follower", xp: "+10 XP", icon: UserPlus },
+                            { action: "Buy 100 Credits", xp: "+50 XP", icon: Coins },
+                            { action: "Buy 500 Credits", xp: "+300 XP", icon: Coins },
+                            { action: "Buy 1,000+ Credits", xp: "+750 XP", icon: Coins },
+                            { action: "Use CRM Features", xp: "+15 XP", icon: Star },
+                            { action: "Manage an Account", xp: "+20 XP", icon: UserPlus },
                           ].map((item) => (
                             <div key={item.action} className="flex items-center justify-between py-2.5 border-b border-white/[0.04] last:border-0">
                               <div className="flex items-center gap-3">
