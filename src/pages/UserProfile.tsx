@@ -828,7 +828,7 @@ const UserProfile = () => {
                 <div className="h-px bg-white/[0.06] my-2" />
                 <p className="px-3.5 py-1.5 text-[10px] font-semibold text-white/30 uppercase tracking-wider">Settings</p>
                 {settingsTabs.map((tab) => (
-                  <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+                  <button key={tab.id} data-tab={tab.id} onClick={() => setActiveTab(tab.id)}
                     className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13px] font-medium transition-all duration-200 ${
                       activeTab === tab.id
                         ? "bg-purple-500/10 text-white border border-purple-500/15"
