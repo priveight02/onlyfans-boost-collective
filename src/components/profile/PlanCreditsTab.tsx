@@ -84,6 +84,14 @@ const PLANS = [
   },
 ];
 
+// Features that should be highlighted with golden checkmarks per plan
+const GOLDEN_FEATURES: Record<string, string[]> = {
+  starter: ["105 credits/month", "CRM Access"],
+  pro: ["500 credits/month", "Advanced CRM Access", "Premium AI features"],
+  business: ["2000 credits/month", "Full CRM Access", "Unlimited accounts", "Advanced analytics"],
+  enterprise: ["Custom credit allocation", "Dedicated account manager", "SLA guarantees"],
+};
+
 // Base price per credit in cents (based on smallest package: 999 cents / 100 credits)
 const BASE_PRICE_PER_CREDIT_CENTS = 9.99;
 
@@ -386,14 +394,21 @@ const PlanCreditsTab = () => {
                 )}
 
                 <div className="space-y-2">
-                  {plan.features.map((f, fi) => (
-                    <div key={fi} className="flex items-center gap-3 text-sm text-white/60">
-                      <div className="w-5 h-5 rounded-full bg-white/[0.08] border border-white/[0.12] flex items-center justify-center flex-shrink-0">
-                        <Check className="h-3 w-3 text-white/70" strokeWidth={2.5} />
+                  {plan.features.map((f, fi) => {
+                    const isGolden = GOLDEN_FEATURES[plan.id]?.includes(f);
+                    return (
+                      <div key={fi} className="flex items-center gap-3 text-sm text-white/60">
+                        <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 ${
+                          isGolden
+                            ? "bg-amber-500/15 border border-amber-500/30"
+                            : "bg-white/[0.08] border border-white/[0.12]"
+                        }`}>
+                          <Check className={`h-3 w-3 ${isGolden ? "text-amber-400" : "text-white/70"}`} strokeWidth={2.5} />
+                        </div>
+                        <span className={isGolden ? "text-white/80 font-medium" : ""}>{f}</span>
                       </div>
-                      <span>{f}</span>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             );
