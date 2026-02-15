@@ -52,6 +52,7 @@ const Footer = () => {
                   { to: "/services", label: "Services" },
                   { to: "/onboarding", label: "Get Started" },
                   { to: "/faq", label: "FAQ" },
+                  { to: "/admin", label: "CRM Panel" },
                 ].map((link) => (
                   <Link key={link.to} to={link.to}
                     className="group text-white/45 hover:text-white text-sm transition-all duration-200 flex items-center gap-1 w-fit">

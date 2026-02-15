@@ -141,7 +141,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signUp = async (email: string, password: string, username?: string, displayName?: string) => {
     const redirectUrl = window.location.hostname === 'localhost'
       ? window.location.origin
-      : 'https://onlyfans-boost-collective.lovable.app';
+      : 'https://ozcagency.com';
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -160,7 +160,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signInWithMagicLink = async (email: string) => {
     const redirectUrl = window.location.hostname === 'localhost'
       ? window.location.origin
-      : 'https://onlyfans-boost-collective.lovable.app';
+      : 'https://ozcagency.com';
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
@@ -173,7 +173,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const resetPassword = async (email: string) => {
     const redirectUrl = window.location.hostname === 'localhost' 
       ? `${window.location.origin}/auth/reset-password`
-      : `https://onlyfans-boost-collective.lovable.app/auth/reset-password`;
+      : `https://ozcagency.com/auth/reset-password`;
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: redirectUrl,
     });
