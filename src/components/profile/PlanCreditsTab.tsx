@@ -86,10 +86,7 @@ const PLANS = [
 
 // Features that should be highlighted with golden checkmarks per plan
 const GOLDEN_FEATURES: Record<string, string[]> = {
-  starter: ["105 credits/month", "CRM Access"],
   pro: ["500 credits/month", "Advanced CRM Access", "Premium AI features"],
-  business: ["2000 credits/month", "Full CRM Access", "Unlimited accounts", "Advanced analytics"],
-  enterprise: ["Custom credit allocation", "Dedicated account manager", "SLA guarantees"],
 };
 
 // Base price per credit in cents (based on smallest package: 999 cents / 100 credits)
