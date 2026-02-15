@@ -14,7 +14,7 @@ const logStep = (step: string, details?: any) => {
 // Base price per credit in cents
 const BASE_PRICE_PER_CREDIT_CENTS = 9.99;
 
-// Volume discount tiers (max 20%)
+// Volume discount tiers (max 40%)
 const getVolumeDiscount = (credits: number): number => {
   if (credits >= 10000) return 0.40;
   if (credits >= 5000) return 0.35;
@@ -25,6 +25,39 @@ const getVolumeDiscount = (credits: number): number => {
   if (credits >= 200) return 0.10;
   if (credits >= 100) return 0.05;
   return 0;
+};
+
+// Pre-created Stripe price IDs per package per discount level
+// Keys: package stripe_price_id (normal) -> discount% -> discounted price_id
+const DISCOUNT_PRICE_MAP: Record<string, Record<number, string>> = {
+  // Starter
+  "price_1T1AusP8Id8IBpd0HrNyaRWe": {
+    0: "price_1T1AusP8Id8IBpd0HrNyaRWe",
+    10: "price_1T1CycP8Id8IBpd0bQpuDaiR",
+    20: "price_1T1CyRP8Id8IBpd0yzku7LvD",
+    30: "price_1T1CyDP8Id8IBpd0TjT9sq9G",
+  },
+  // Pro
+  "price_1T1AvOP8Id8IBpd0jM8b94Al": {
+    0: "price_1T1AvOP8Id8IBpd0jM8b94Al",
+    10: "price_1T1CzMP8Id8IBpd0SWdDvq6V",
+    20: "price_1T1CyyP8Id8IBpd0yihRkIU3",
+    30: "price_1T1CynP8Id8IBpd0MGCVyRhE",
+  },
+  // Studio
+  "price_1T1AvlP8Id8IBpd03ocd2mOy": {
+    0: "price_1T1AvlP8Id8IBpd03ocd2mOy",
+    10: "price_1T1D06P8Id8IBpd0mhpxLZeK",
+    20: "price_1T1CzuP8Id8IBpd0e9rFMVKy",
+    30: "price_1T1CzkP8Id8IBpd0ZyAlES0z",
+  },
+  // Power User
+  "price_1T1AwMP8Id8IBpd0PfrPX50i": {
+    0: "price_1T1AwMP8Id8IBpd0PfrPX50i",
+    10: "price_1T1D1RP8Id8IBpd0D0yBkzcL",
+    20: "price_1T1D0mP8Id8IBpd06fwa5Aqn",
+    30: "price_1T1D0KP8Id8IBpd0nm2nxxAe",
+  },
 };
 
 serve(async (req) => {
@@ -56,12 +89,8 @@ serve(async (req) => {
     // Check if customer exists
     const customers = await stripe.customers.list({ email: user.email, limit: 1 });
     let customerId: string | undefined;
-    let isReturningCustomer = false;
-
     if (customers.data.length > 0) {
       customerId = customers.data[0].id;
-      const charges = await stripe.charges.list({ customer: customerId, limit: 1 });
-      isReturningCustomer = charges.data.length > 0;
     }
 
     const { data: wallet } = await supabaseAdmin
@@ -70,7 +99,6 @@ serve(async (req) => {
       .eq("user_id", user.id)
       .single();
     const currentPurchaseCount = wallet?.purchase_count || 0;
-    if (currentPurchaseCount > 0) isReturningCustomer = true;
 
     // Declining discount: 1st repurchase=30%, 2nd=20%, 3rd=10%, then 0%
     const getReturningDiscount = (count: number): number => {
@@ -87,15 +115,19 @@ serve(async (req) => {
     if (customCredits && typeof customCredits === "number" && customCredits >= 10) {
       logStep("Custom credits mode", { customCredits });
 
-      const discount = getVolumeDiscount(customCredits);
-      const pricePerCredit = BASE_PRICE_PER_CREDIT_CENTS * (1 - discount);
-      const totalCents = Math.round(customCredits * pricePerCredit);
+      const volumeDiscount = getVolumeDiscount(customCredits);
+      const pricePerCredit = BASE_PRICE_PER_CREDIT_CENTS * (1 - volumeDiscount);
+      let totalCents = Math.round(customCredits * pricePerCredit);
 
-      logStep("Price calculated", { discount: `${Math.round(discount * 100)}%`, totalCents, pricePerCredit });
+      // Apply returning discount on top
+      if (returningDiscountPercent > 0) {
+        totalCents = Math.round(totalCents * (1 - returningDiscountPercent / 100));
+      }
 
-      // Create a dynamic Stripe price for this custom amount
+      logStep("Price calculated", { volumeDiscount: `${Math.round(volumeDiscount * 100)}%`, returningDiscount: `${returningDiscountPercent}%`, totalCents });
+
       const product = await stripe.products.create({
-        name: `${customCredits.toLocaleString()} Credits${discount > 0 ? ` (${Math.round(discount * 100)}% volume discount)` : ''}`,
+        name: `${customCredits.toLocaleString()} Credits${volumeDiscount > 0 ? ` (${Math.round(volumeDiscount * 100)}% vol.)` : ''}${returningDiscountPercent > 0 ? ` + ${returningDiscountPercent}% loyalty` : ''}`,
         metadata: { type: 'custom_credits', credits: String(customCredits) },
       });
 
@@ -105,23 +137,11 @@ serve(async (req) => {
         currency: 'usd',
       });
 
-      let discounts: any[] = [];
-      if (returningDiscountPercent > 0) {
-        logStep(`Returning customer - applying ${returningDiscountPercent}% discount on custom`, { purchaseCount: currentPurchaseCount });
-        const coupon = await stripe.coupons.create({
-          percent_off: returningDiscountPercent,
-          duration: "once",
-          name: `Returning Customer ${returningDiscountPercent}% Off`,
-        });
-        discounts = [{ coupon: coupon.id }];
-      }
-
       const session = await stripe.checkout.sessions.create({
         customer: customerId,
         customer_email: customerId ? undefined : user.email,
         line_items: [{ price: price.id, quantity: 1 }],
         mode: "payment",
-        discounts,
         success_url: `${origin}/pricing?success=true&credits=${customCredits}`,
         cancel_url: `${origin}/pricing?canceled=true`,
         metadata: {
@@ -129,7 +149,7 @@ serve(async (req) => {
           package_id: "custom",
           credits: String(customCredits),
           bonus_credits: "0",
-          is_returning: String(isReturningCustomer),
+          is_returning: String(returningDiscountPercent > 0),
         },
       });
 
@@ -152,23 +172,22 @@ serve(async (req) => {
     if (pkgError || !pkg) throw new Error("Invalid package");
     logStep("Package found", { name: pkg.name, credits: pkg.credits, price: pkg.price_cents });
 
-    let discounts: any[] = [];
-    if (returningDiscountPercent > 0) {
-      logStep(`Returning customer - applying ${returningDiscountPercent}% discount`, { purchaseCount: currentPurchaseCount });
-      const coupon = await stripe.coupons.create({
-        percent_off: returningDiscountPercent,
-        duration: "once",
-        name: `Returning Customer ${returningDiscountPercent}% Off`,
-      });
-      discounts = [{ coupon: coupon.id }];
+    // Select the correct pre-created price based on returning discount
+    const discountMap = DISCOUNT_PRICE_MAP[pkg.stripe_price_id];
+    let checkoutPriceId = pkg.stripe_price_id;
+
+    if (discountMap && returningDiscountPercent > 0 && discountMap[returningDiscountPercent]) {
+      checkoutPriceId = discountMap[returningDiscountPercent];
+      logStep(`Using pre-created discounted price`, { discount: `${returningDiscountPercent}%`, priceId: checkoutPriceId });
+    } else {
+      logStep(`Using normal price`, { priceId: checkoutPriceId });
     }
 
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       customer_email: customerId ? undefined : user.email,
-      line_items: [{ price: pkg.stripe_price_id, quantity: 1 }],
+      line_items: [{ price: checkoutPriceId, quantity: 1 }],
       mode: "payment",
-      discounts,
       success_url: `${origin}/pricing?success=true&credits=${pkg.credits + pkg.bonus_credits}`,
       cancel_url: `${origin}/pricing?canceled=true`,
       metadata: {
@@ -176,11 +195,11 @@ serve(async (req) => {
         package_id: pkg.id,
         credits: String(pkg.credits),
         bonus_credits: String(pkg.bonus_credits),
-        is_returning: String(isReturningCustomer),
+        is_returning: String(returningDiscountPercent > 0),
       },
     });
 
-    logStep("Checkout session created", { sessionId: session.id, discount: isReturningCustomer });
+    logStep("Checkout session created", { sessionId: session.id, discount: returningDiscountPercent });
 
     return new Response(JSON.stringify({ url: session.url }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
