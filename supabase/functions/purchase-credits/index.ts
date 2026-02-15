@@ -16,13 +16,14 @@ const BASE_PRICE_PER_CREDIT_CENTS = 9.99;
 
 // Volume discount tiers (max 20%)
 const getVolumeDiscount = (credits: number): number => {
-  if (credits >= 10000) return 0.20;
-  if (credits >= 5000) return 0.17;
-  if (credits >= 3000) return 0.14;
-  if (credits >= 2000) return 0.11;
-  if (credits >= 1000) return 0.08;
-  if (credits >= 500) return 0.05;
-  if (credits >= 200) return 0.02;
+  if (credits >= 10000) return 0.40;
+  if (credits >= 5000) return 0.35;
+  if (credits >= 3000) return 0.30;
+  if (credits >= 2000) return 0.25;
+  if (credits >= 1000) return 0.20;
+  if (credits >= 500) return 0.15;
+  if (credits >= 200) return 0.10;
+  if (credits >= 100) return 0.05;
   return 0;
 };
 
