@@ -139,11 +139,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signUp = async (email: string, password: string, username?: string, displayName?: string) => {
+    const redirectUrl = window.location.hostname === 'localhost'
+      ? window.location.origin
+      : 'https://onlyfans-boost-collective.lovable.app';
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        emailRedirectTo: window.location.origin,
+        emailRedirectTo: redirectUrl,
         data: {
           full_name: displayName || email.split('@')[0],
           username: username,
@@ -155,18 +158,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signInWithMagicLink = async (email: string) => {
+    const redirectUrl = window.location.hostname === 'localhost'
+      ? window.location.origin
+      : 'https://onlyfans-boost-collective.lovable.app';
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
-        emailRedirectTo: window.location.origin,
+        emailRedirectTo: redirectUrl,
       }
     });
     if (error) throw error;
   };
 
   const resetPassword = async (email: string) => {
+    const redirectUrl = window.location.hostname === 'localhost' 
+      ? `${window.location.origin}/auth/reset-password`
+      : `https://onlyfans-boost-collective.lovable.app/auth/reset-password`;
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/auth/reset-password`,
+      redirectTo: redirectUrl,
     });
     if (error) throw error;
   };
