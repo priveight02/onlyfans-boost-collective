@@ -4,9 +4,10 @@ import { useAuth } from "@/hooks/useAuth";
 import { useWallet } from "@/hooks/useWallet";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Coins, Sparkles, Zap, Crown, Star, Check, ArrowRight, BadgePercent } from "lucide-react";
+import { Coins, Sparkles, Zap, Crown, Star, Check, ArrowRight, BadgePercent, Settings2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import Footer from "@/components/Footer";
 
 interface CreditPackage {
@@ -20,6 +21,20 @@ interface CreditPackage {
   sort_order: number;
 }
 
+// Base price per credit in cents (matches edge function)
+const BASE_PRICE_PER_CREDIT_CENTS = 9.99;
+
+const getVolumeDiscount = (credits: number): number => {
+  if (credits >= 10000) return 0.20;
+  if (credits >= 5000) return 0.17;
+  if (credits >= 3000) return 0.14;
+  if (credits >= 2000) return 0.11;
+  if (credits >= 1000) return 0.08;
+  if (credits >= 500) return 0.05;
+  if (credits >= 200) return 0.02;
+  return 0;
+};
+
 const Pricing = () => {
   const { user } = useAuth();
   const { balance, purchaseCount, refreshWallet } = useWallet();
@@ -28,6 +43,8 @@ const Pricing = () => {
   const [packages, setPackages] = useState<CreditPackage[]>([]);
   const [loading, setLoading] = useState(true);
   const [purchasingId, setPurchasingId] = useState<string | null>(null);
+  const [customCredits, setCustomCredits] = useState<number>(500);
+  const [purchasingCustom, setPurchasingCustom] = useState(false);
 
   const isReturning = purchaseCount > 0;
 
@@ -44,12 +61,10 @@ const Pricing = () => {
     fetchPackages();
   }, []);
 
-  // Handle success redirect
   useEffect(() => {
     if (searchParams.get("success") === "true") {
       const credits = searchParams.get("credits");
       toast.success(`🎉 ${credits} credits added to your wallet!`);
-      // Verify and credit
       supabase.functions.invoke("verify-credit-purchase").then(() => {
         refreshWallet();
       });
@@ -60,21 +75,14 @@ const Pricing = () => {
   }, [searchParams, refreshWallet]);
 
   const handlePurchase = async (pkg: CreditPackage) => {
-    if (!user) {
-      toast.error("Please log in first");
-      navigate("/auth");
-      return;
-    }
-
+    if (!user) { toast.error("Please log in first"); navigate("/auth"); return; }
     setPurchasingId(pkg.id);
     try {
       const { data, error } = await supabase.functions.invoke("purchase-credits", {
         body: { packageId: pkg.id },
       });
       if (error) throw error;
-      if (data?.url) {
-        window.open(data.url, "_blank");
-      }
+      if (data?.url) window.open(data.url, "_blank");
     } catch (err: any) {
       toast.error(err.message || "Failed to start checkout");
     } finally {
@@ -82,17 +90,35 @@ const Pricing = () => {
     }
   };
 
-  const formatPrice = (cents: number) => {
-    const price = cents / 100;
-    return `$${price.toFixed(2)}`;
+  const handleCustomPurchase = async () => {
+    if (!user) { toast.error("Please log in first"); navigate("/auth"); return; }
+    if (customCredits < 50) { toast.error("Minimum 50 credits"); return; }
+    setPurchasingCustom(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("purchase-credits", {
+        body: { customCredits },
+      });
+      if (error) throw error;
+      if (data?.url) window.open(data.url, "_blank");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to start checkout");
+    } finally {
+      setPurchasingCustom(false);
+    }
   };
 
-  const getDiscountedPrice = (cents: number) => {
-    return Math.round(cents * 0.7);
-  };
+  const formatPrice = (cents: number) => `$${Math.round(cents / 100)}`;
+
+  const getDiscountedPrice = (cents: number) => Math.round(cents * 0.7);
+
+  // Custom plan price calculation
+  const customDiscount = getVolumeDiscount(customCredits);
+  const customPricePerCredit = BASE_PRICE_PER_CREDIT_CENTS * (1 - customDiscount);
+  const customTotalCents = Math.round(customCredits * customPricePerCredit);
+  const customDisplayCents = isReturning ? Math.round(customTotalCents * 0.7) : customTotalCents;
 
   const getIcon = (index: number) => {
-    const icons = [Coins, Zap, Star, Crown, Sparkles];
+    const icons = [Coins, Zap, Star, Crown];
     return icons[index] || Coins;
   };
 
@@ -102,7 +128,6 @@ const Pricing = () => {
       "from-emerald-500/20 to-emerald-600/5",
       "from-violet-500/20 to-violet-600/5",
       "from-amber-500/20 to-amber-600/5",
-      "from-rose-500/20 to-rose-600/5",
     ];
     return gradients[index] || gradients[0];
   };
@@ -113,7 +138,6 @@ const Pricing = () => {
       "border-emerald-500/30 hover:border-emerald-400/50",
       "border-violet-500/30 hover:border-violet-400/50",
       "border-amber-500/30 hover:border-amber-400/50",
-      "border-rose-500/30 hover:border-rose-400/50",
     ];
     return colors[index] || colors[0];
   };
@@ -161,7 +185,7 @@ const Pricing = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
             {packages.map((pkg, index) => {
               const Icon = getIcon(index);
-              const isPopular = pkg.is_popular || index === 1;
+              const isPopular = pkg.is_popular;
               const displayPrice = isReturning ? getDiscountedPrice(pkg.price_cents) : pkg.price_cents;
               const perCredit = (displayPrice / (pkg.credits + pkg.bonus_credits)).toFixed(2);
 
@@ -227,7 +251,7 @@ const Pricing = () => {
                         <span className="animate-pulse">Processing...</span>
                       ) : (
                         <span className="flex items-center justify-center gap-2">
-                          Get Credits <ArrowRight className="h-4 w-4" />
+                          Buy now <ArrowRight className="h-4 w-4" />
                         </span>
                       )}
                     </Button>
@@ -235,6 +259,78 @@ const Pricing = () => {
                 </div>
               );
             })}
+
+            {/* Custom Credits Card */}
+            <div className="relative flex flex-col rounded-2xl border border-rose-500/30 hover:border-rose-400/50 backdrop-blur-xl transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl bg-gradient-to-b from-rose-500/20 to-rose-600/5 ring-2 ring-rose-500/30">
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                <Badge className="bg-rose-500 text-white border-0 px-3 py-1 text-xs font-semibold">
+                  CUSTOM
+                </Badge>
+              </div>
+
+              <div className="p-6 flex-1 flex flex-col">
+                <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center mb-4">
+                  <Settings2 className="h-6 w-6 text-white/80" />
+                </div>
+
+                <h3 className="text-lg font-bold text-white mb-1">Custom Needs</h3>
+
+                <div className="flex items-baseline gap-2 mb-1">
+                  {isReturning && customTotalCents !== customDisplayCents && (
+                    <span className="text-sm text-white/40 line-through">${Math.round(customTotalCents / 100)}</span>
+                  )}
+                  <span className="text-3xl font-bold text-white">${Math.round(customDisplayCents / 100)}</span>
+                </div>
+                <span className="text-xs text-white/40 mb-4">
+                  {(customDisplayCents / customCredits).toFixed(2)}¢ per credit
+                  {customDiscount > 0 && ` · ${Math.round(customDiscount * 100)}% bulk discount`}
+                </span>
+
+                <div className="mb-4">
+                  <label className="text-xs text-white/50 mb-1 block">How many credits?</label>
+                  <Input
+                    type="number"
+                    min={50}
+                    max={100000}
+                    value={customCredits}
+                    onChange={(e) => setCustomCredits(Math.max(50, parseInt(e.target.value) || 50))}
+                    className="bg-white/5 border-white/10 text-white text-center text-lg font-bold"
+                  />
+                  <span className="text-[10px] text-white/30 mt-1 block">Min 50 credits</span>
+                </div>
+
+                <div className="space-y-2 mb-6 flex-1">
+                  <div className="flex items-center gap-2 text-sm text-white/70">
+                    <Check className="h-4 w-4 text-emerald-400 shrink-0" />
+                    <span>{customCredits.toLocaleString()} credits</span>
+                  </div>
+                  {customDiscount > 0 && (
+                    <div className="flex items-center gap-2 text-sm text-amber-300">
+                      <Sparkles className="h-4 w-4 text-amber-400 shrink-0" />
+                      <span>{Math.round(customDiscount * 100)}% volume discount</span>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2 text-sm text-white/70">
+                    <Check className="h-4 w-4 text-emerald-400 shrink-0" />
+                    <span>Instant delivery</span>
+                  </div>
+                </div>
+
+                <Button
+                  onClick={handleCustomPurchase}
+                  disabled={purchasingCustom}
+                  className="w-full py-5 rounded-xl font-semibold bg-rose-500 hover:bg-rose-400 text-white transition-all duration-300"
+                >
+                  {purchasingCustom ? (
+                    <span className="animate-pulse">Processing...</span>
+                  ) : (
+                    <span className="flex items-center justify-center gap-2">
+                      Buy now <ArrowRight className="h-4 w-4" />
+                    </span>
+                  )}
+                </Button>
+              </div>
+            </div>
           </div>
         )}
 
