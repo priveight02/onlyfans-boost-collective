@@ -17,7 +17,7 @@ import {
   Globe, Languages, Download, ShieldCheck, BellRing, Settings2,
   Bookmark, Power, Sparkles, Brain, Zap, Bot, FileText, RefreshCw,
   Palette, LayoutGrid, SlidersHorizontal, Eraser, ToggleLeft,
-  Rss, Compass, UserPlus, Camera, ImageIcon, Trophy, Flame, Coins, Star, Award
+  Rss, Compass, UserPlus, Camera, ImageIcon, Trophy, Flame, Coins, Star, Award, CreditCard
 } from "lucide-react";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter,
@@ -36,8 +36,9 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatDistanceToNow } from "date-fns";
 import NotificationBell from "@/components/social/NotificationBell";
 import PlanCreditsTab from "@/components/profile/PlanCreditsTab";
+import BillingPaymentsTab from "@/components/profile/BillingPaymentsTab";
 
-type TabId = "account" | "security" | "activity" | "devices" | "notifications" | "ai-automation" | "preferences" | "social-feed" | "social-explore" | "social-notifications" | "rank" | "plan-credits";
+type TabId = "account" | "security" | "activity" | "devices" | "notifications" | "ai-automation" | "preferences" | "social-feed" | "social-explore" | "social-notifications" | "rank" | "plan-credits" | "billing";
 
 type CardNotification = { type: "success" | "error" | "info"; message: string } | null;
 
@@ -732,6 +733,7 @@ const UserProfile = () => {
 
   const settingsTabs: { id: TabId; label: string; icon: typeof User }[] = [
     { id: "plan-credits", label: "Plan & Credits", icon: Coins },
+    { id: "billing", label: "Billing & Payments", icon: CreditCard },
     { id: "account", label: "Account Info", icon: User },
     { id: "security", label: "Security", icon: Shield },
     { id: "activity", label: "Activity", icon: Activity },
@@ -849,6 +851,9 @@ const UserProfile = () => {
 
               {/* ===================== PLAN & CREDITS TAB ===================== */}
               {activeTab === "plan-credits" && <PlanCreditsTab />}
+
+              {/* ===================== BILLING & PAYMENTS TAB ===================== */}
+              {activeTab === "billing" && <BillingPaymentsTab />}
 
               {/* ===================== ACCOUNT INFO TAB ===================== */}
               {activeTab === "account" && (
