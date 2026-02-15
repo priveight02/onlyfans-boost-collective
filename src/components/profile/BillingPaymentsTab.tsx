@@ -266,7 +266,13 @@ const BillingPaymentsTab = () => {
             <Button
               onClick={() => {
                 const el = document.querySelector('[data-tab="plan-credits"]');
-                if (el) (el as HTMLButtonElement).click();
+                if (el) {
+                  (el as HTMLButtonElement).click();
+                  setTimeout(() => {
+                    const plansSection = document.querySelector('[data-section="available-plans"]');
+                    if (plansSection) plansSection.scrollIntoView({ behavior: "smooth", block: "start" });
+                  }, 150);
+                }
               }}
               className="bg-purple-500 hover:bg-purple-400 text-white text-sm h-9 px-5 font-medium"
             >

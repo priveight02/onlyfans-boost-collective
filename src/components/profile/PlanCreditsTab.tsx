@@ -283,7 +283,7 @@ const PlanCreditsTab = () => {
         </div>
       </div>
 
-      <div ref={plansRef}>
+      <div ref={plansRef} data-section="available-plans">
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-white font-semibold text-lg">Available Plans</h2>
           {/* Monthly / Yearly Toggle */}
@@ -311,7 +311,7 @@ const PlanCreditsTab = () => {
             </button>
           </div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
           {PLANS.filter(p => p.id !== "free").map((plan, i) => {
             const isCurrent = false; // No paid plan is current for free-tier users
             const displayPrice = getPlanDisplayPrice(plan);
