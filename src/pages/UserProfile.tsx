@@ -732,9 +732,9 @@ const UserProfile = () => {
   if (!user) return null;
 
   const settingsTabs: { id: TabId; label: string; icon: typeof User }[] = [
+    { id: "account", label: "Account Info", icon: User },
     { id: "plan-credits", label: "Plan & Credits", icon: Coins },
     { id: "billing", label: "Billing & Payments", icon: CreditCard },
-    { id: "account", label: "Account Info", icon: User },
     { id: "security", label: "Security", icon: Shield },
     { id: "activity", label: "Activity", icon: Activity },
     { id: "devices", label: "Devices", icon: Monitor },
