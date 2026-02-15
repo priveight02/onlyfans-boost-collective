@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Coins, Crown, Zap, Star, Check, ArrowRight, Sparkles, Plus, Minus, CreditCard, TrendingUp, ArrowUpRight, Lock } from "lucide-react";
+import { Coins, Crown, Zap, Star, Check, ArrowRight, Sparkles, Plus, Minus, CreditCard, TrendingUp, ArrowUpRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -101,16 +101,8 @@ const PlanCreditsTab = () => {
   const [customCredits, setCustomCredits] = useState<string>("1000");
   const [purchasingId, setPurchasingId] = useState<string | null>(null);
   const [purchasingCustom, setPurchasingCustom] = useState(false);
-  const plansRef = useRef<HTMLDivElement>(null);
 
-  // TODO: Replace with actual subscription check when plans are purchasable
-  const isOnPaidPlan = false; // Free tier by default — will be true when user subscribes
-  const currentPlan = PLANS[0]; // Default to Free for now
-
-  const scrollToPlans = () => {
-    plansRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    toast.info("Choose a plan below to unlock credit top-ups and premium features!");
-  };
+  const currentPlan = PLANS[0]; // Default to Starter for now
 
   useEffect(() => {
     const fetchPackages = async () => {
@@ -184,7 +176,6 @@ const PlanCreditsTab = () => {
             </div>
           </div>
           <Button size="sm"
-            onClick={scrollToPlans}
             className="bg-[hsl(222,25%,18%)] hover:bg-[hsl(222,25%,22%)] text-white border border-white/10 text-sm h-9 px-4">
             Manage Plan
           </Button>
@@ -202,24 +193,16 @@ const PlanCreditsTab = () => {
               <span className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-emerald-400" /> Never expires</span>
               <span className="flex items-center gap-1.5"><Coins className="h-3.5 w-3.5 text-amber-400" /> {totalPurchased.toLocaleString()} purchased</span>
             </div>
-            {isOnPaidPlan ? (
-              <Button size="sm"
-                onClick={() => setShowTopUpDialog(true)}
-                className="bg-purple-500 hover:bg-purple-400 text-white text-sm h-9 px-4 font-medium">
-                Top Up Credits
-              </Button>
-            ) : (
-              <Button size="sm" disabled
-                className="bg-white/5 text-white/30 text-sm h-9 px-4 font-medium cursor-not-allowed border border-white/5">
-                <Lock className="h-3 w-3 mr-1" />
-                Top Up (Pro plan required)
-              </Button>
-            )}
+            <Button size="sm"
+              onClick={() => setShowTopUpDialog(true)}
+              className="bg-purple-500 hover:bg-purple-400 text-white text-sm h-9 px-4 font-medium">
+              Top Up Credits
+            </Button>
           </div>
         </div>
       </div>
 
-      <div ref={plansRef}>
+      <div>
         <h2 className="text-white font-semibold text-lg mb-5">Available Plans</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
           {PLANS.filter(p => p.id !== "free").map((plan, i) => {
@@ -290,86 +273,71 @@ const PlanCreditsTab = () => {
         </div>
       </div>
 
-      <div className="relative">
-        {!isOnPaidPlan && (
-          <div className="absolute inset-0 z-10 rounded-2xl bg-[hsl(222,35%,7%)]/80 backdrop-blur-sm flex flex-col items-center justify-center gap-3">
-            <Lock className="h-8 w-8 text-white/20" />
-            <p className="text-white/50 text-sm font-medium text-center max-w-xs">
-              Credit top-ups are available on paid plans.
-            </p>
-            <Button size="sm" onClick={scrollToPlans}
-              className="bg-purple-500 hover:bg-purple-400 text-white text-sm h-9 px-5 font-medium">
-              <ArrowUpRight className="h-3.5 w-3.5 mr-1.5" />
-              Upgrade to Pro
-            </Button>
-          </div>
-        )}
-        <div className={`${!isOnPaidPlan ? "opacity-30 pointer-events-none" : ""}`}>
-          <div className="flex items-center justify-between mb-5">
-            <h2 className="text-white font-semibold text-lg">Quick Credit Top-Ups</h2>
-            <Button size="sm" variant="ghost"
-              onClick={() => setShowTopUpDialog(true)}
-              className="text-purple-400 hover:text-purple-300 text-sm h-8">
-              <Plus className="h-3.5 w-3.5 mr-1" /> Custom Amount
-            </Button>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
-            {packages.map((pkg, index) => {
-              const isPopular = pkg.is_popular;
-              const returningDiscount = purchaseCount === 1 ? 0.30 : purchaseCount === 2 ? 0.20 : purchaseCount === 3 ? 0.10 : 0;
-              const isReturning = returningDiscount > 0;
-              const displayPrice = isReturning ? Math.round(pkg.price_cents * (1 - returningDiscount)) : pkg.price_cents;
-              const totalCredits = pkg.credits + pkg.bonus_credits;
-              const perCredit = ((displayPrice / totalCredits)).toFixed(1);
+      <div>
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-white font-semibold text-lg">Quick Credit Top-Ups</h2>
+          <Button size="sm" variant="ghost"
+            onClick={() => setShowTopUpDialog(true)}
+            className="text-purple-400 hover:text-purple-300 text-sm h-8">
+            <Plus className="h-3.5 w-3.5 mr-1" /> Custom Amount
+          </Button>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+          {packages.map((pkg, index) => {
+            const isPopular = pkg.is_popular;
+            const returningDiscount = purchaseCount === 1 ? 0.30 : purchaseCount === 2 ? 0.20 : purchaseCount === 3 ? 0.10 : 0;
+            const isReturning = returningDiscount > 0;
+            const displayPrice = isReturning ? Math.round(pkg.price_cents * (1 - returningDiscount)) : pkg.price_cents;
+            const totalCredits = pkg.credits + pkg.bonus_credits;
+            const perCredit = ((displayPrice / totalCredits)).toFixed(1);
 
-              return (
-                <div key={pkg.id}
-                  className={`relative rounded-xl border p-5 transition-all duration-200 hover:scale-[1.02] ${
-                    isPopular
-                      ? "border-emerald-500/30 bg-emerald-500/5"
-                      : "border-white/[0.06] bg-[hsl(222,28%,11%)]"
-                  }`}
-                >
-                  {isPopular && (
-                    <Badge className="absolute -top-2 right-3 bg-emerald-500 text-white text-[10px] px-2.5 py-0.5 border-0">
-                      POPULAR
+            return (
+              <div key={pkg.id}
+                className={`relative rounded-xl border p-5 transition-all duration-200 hover:scale-[1.02] ${
+                  isPopular
+                    ? "border-emerald-500/30 bg-emerald-500/5"
+                    : "border-white/[0.06] bg-[hsl(222,28%,11%)]"
+                }`}
+              >
+                {isPopular && (
+                  <Badge className="absolute -top-2 right-3 bg-emerald-500 text-white text-[10px] px-2.5 py-0.5 border-0">
+                    POPULAR
+                  </Badge>
+                )}
+                <div className="flex items-center gap-2.5 mb-2">
+                  <Coins className="h-4 w-4 text-amber-400" />
+                  <span className="text-white font-bold text-base">{totalCredits.toLocaleString()}</span>
+                </div>
+                {pkg.bonus_credits > 0 && (
+                  <p className="text-amber-300 text-xs mb-1">+{pkg.bonus_credits} bonus</p>
+                )}
+                <div className="flex items-baseline gap-1.5 mb-1">
+                {isReturning && (
+                    <span className="text-white/30 text-xs line-through">{formatPrice(pkg.price_cents)}</span>
+                  )}
+                  <span className="text-white font-bold text-lg">{formatPrice(displayPrice)}</span>
+                  {isReturning && (
+                    <Badge className="bg-emerald-500/15 text-emerald-300 border-emerald-500/20 text-[9px] px-1.5 py-0 ml-1">
+                      -{Math.round(returningDiscount * 100)}%
                     </Badge>
                   )}
-                  <div className="flex items-center gap-2.5 mb-2">
-                    <Coins className="h-4 w-4 text-amber-400" />
-                    <span className="text-white font-bold text-base">{totalCredits.toLocaleString()}</span>
-                  </div>
-                  {pkg.bonus_credits > 0 && (
-                    <p className="text-amber-300 text-xs mb-1">+{pkg.bonus_credits} bonus</p>
-                  )}
-                  <div className="flex items-baseline gap-1.5 mb-1">
-                  {isReturning && (
-                      <span className="text-white/30 text-xs line-through">{formatPrice(pkg.price_cents)}</span>
-                    )}
-                    <span className="text-white font-bold text-lg">{formatPrice(displayPrice)}</span>
-                    {isReturning && (
-                      <Badge className="bg-emerald-500/15 text-emerald-300 border-emerald-500/20 text-[9px] px-1.5 py-0 ml-1">
-                        -{Math.round(returningDiscount * 100)}%
-                      </Badge>
-                    )}
-                  </div>
-                  <p className="text-white/30 text-xs mb-4">{perCredit}¢/credit</p>
-                  <Button
-                    onClick={() => handlePackagePurchase(pkg)}
-                    disabled={purchasingId === pkg.id}
-                    size="sm"
-                    className={`w-full text-sm h-9 font-medium ${
-                      isPopular
-                        ? "bg-emerald-500 hover:bg-emerald-400 text-white"
-                        : "bg-white/10 hover:bg-white/20 text-white"
-                    }`}
-                  >
-                    {purchasingId === pkg.id ? "..." : "Buy"}
-                  </Button>
                 </div>
-              );
-            })}
-          </div>
+                <p className="text-white/30 text-xs mb-4">{perCredit}¢/credit</p>
+                <Button
+                  onClick={() => handlePackagePurchase(pkg)}
+                  disabled={purchasingId === pkg.id}
+                  size="sm"
+                  className={`w-full text-sm h-9 font-medium ${
+                    isPopular
+                      ? "bg-emerald-500 hover:bg-emerald-400 text-white"
+                      : "bg-white/10 hover:bg-white/20 text-white"
+                  }`}
+                >
+                  {purchasingId === pkg.id ? "..." : "Buy"}
+                </Button>
+              </div>
+            );
+          })}
         </div>
       </div>
 
