@@ -162,7 +162,7 @@ const Pricing = () => {
         </p>
 
         {user && (
-          <div className="mt-6 flex items-center justify-center gap-3 flex-wrap">
+          <div className="mt-6 flex flex-col items-center gap-3">
             <div className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full bg-white/5 border border-white/10">
               <span className="text-xl font-semibold text-white">{balance.toLocaleString()}</span>
               <span className="text-white/40 text-sm">credits available</span>
@@ -235,6 +235,10 @@ const Pricing = () => {
                       <div className="flex items-center gap-2 text-sm text-white/60">
                         <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
                         <span>Never expires</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-white/60">
+                        <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                        <span>{index === 0 ? "CRM Access" : index === 1 ? "Advanced CRM Access" : index === 2 ? "Full CRM Access" : "Full CRM Access"}</span>
                       </div>
                     </div>
 
