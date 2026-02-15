@@ -1,5 +1,25 @@
 project_id = "ufsnuobtvkciydftsyff"
 
+[auth.email.template.confirmation]
+subject = "Ozc Agency — Verify your email address"
+content_path = "./supabase/templates/confirmation.html"
+
+[auth.email.template.recovery]
+subject = "Ozc Agency — Reset your password"
+content_path = "./supabase/templates/recovery.html"
+
+[auth.email.template.magic_link]
+subject = "Ozc Agency — Your magic login link"
+content_path = "./supabase/templates/magic-link.html"
+
+[auth.email.template.invite]
+subject = "Ozc Agency — You've been invited"
+content_path = "./supabase/templates/invite.html"
+
+[auth.email.template.email_change]
+subject = "Ozc Agency — Confirm email change"
+content_path = "./supabase/templates/email-change.html"
+
 [functions.onlyfans-api]
 verify_jwt = false
 
