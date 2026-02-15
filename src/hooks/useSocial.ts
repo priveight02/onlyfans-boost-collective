@@ -109,7 +109,7 @@ export function useUserRank(userId?: string) {
         .from('user_ranks')
         .select('*')
         .eq('user_id', userId)
-        .single();
+        .maybeSingle();
       if (data) setRank(data as any);
       setLoading(false);
     };
@@ -154,7 +154,7 @@ export function useSocialProfile(username?: string) {
         .from('profiles')
         .select('user_id, username, display_name, avatar_url, banner_url, bio, is_private, follower_count, following_count, post_count')
         .eq('username', username)
-        .single();
+        .maybeSingle();
       if (data) setProfile(data as any);
       setLoading(false);
     };
