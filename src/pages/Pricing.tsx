@@ -64,10 +64,26 @@ const Pricing = () => {
   useEffect(() => {
     if (searchParams.get("success") === "true") {
       const credits = searchParams.get("credits");
-      toast.success(`🎉 ${credits} credits added to your wallet!`);
-      supabase.functions.invoke("verify-credit-purchase").then(() => {
-        refreshWallet();
-      });
+      const verifyAndCredit = async () => {
+        const toastId = toast.loading("Verifying your purchase...");
+        try {
+          const { data, error } = await supabase.functions.invoke("verify-credit-purchase");
+          if (error) throw error;
+          if (data?.credited && data.credits_added > 0) {
+            toast.success(`🎉 ${data.credits_added.toLocaleString()} credits added to your wallet!`, { id: toastId });
+          } else if (data?.credited === false && data?.credits_added === 0) {
+            // Already processed on a previous visit
+            toast.success(`Credits already in your wallet!`, { id: toastId });
+          } else {
+            toast.info("Purchase is being processed. Credits will appear shortly.", { id: toastId });
+          }
+          await refreshWallet();
+        } catch (err: any) {
+          console.error("Verification failed:", err);
+          toast.error("Verification failed. Your credits will be added automatically — please refresh in a moment.", { id: toastId });
+        }
+      };
+      verifyAndCredit();
     }
     if (searchParams.get("canceled") === "true") {
       toast.info("Purchase canceled");
