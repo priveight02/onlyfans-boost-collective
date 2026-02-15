@@ -16,6 +16,8 @@ import Admin from "./pages/Admin";
 import BioLink from "./pages/BioLink";
 import ResetPassword from "./pages/ResetPassword";
 import UserProfile from "./pages/UserProfile";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsAndConditions from "./pages/TermsAndConditions";
 
 const queryClient = new QueryClient();
 
@@ -34,6 +36,8 @@ const AppContent = () => {
         <Route path="/profile" element={<UserProfile />} />
         <Route path="/admin" element={<Admin />} />
         <Route path="/link/:slug" element={<BioLink />} />
+        <Route path="/privacy" element={<PrivacyPolicy />} />
+        <Route path="/terms" element={<TermsAndConditions />} />
       </Routes>
     </>
   );
