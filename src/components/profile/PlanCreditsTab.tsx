@@ -355,6 +355,14 @@ const PlanCreditsTab = () => {
       <div>
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-white font-semibold text-lg">Quick Credit Top-Ups</h2>
+          {(() => {
+            const rd = purchaseCount === 1 ? 30 : purchaseCount === 2 ? 20 : purchaseCount === 3 ? 10 : 0;
+            return rd > 0 ? (
+              <Badge className="bg-emerald-500/10 text-emerald-300 border-emerald-500/20 text-[10px]">
+                {rd}% loyalty discount active
+              </Badge>
+            ) : null;
+          })()}
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
           {packages.map((pkg) => {
@@ -363,13 +371,13 @@ const PlanCreditsTab = () => {
             const isReturning = returningDiscount > 0;
             const displayPrice = isReturning ? Math.round(pkg.price_cents * (1 - returningDiscount)) : pkg.price_cents;
             const totalCredits = pkg.credits + pkg.bonus_credits;
-            const perCredit = ((displayPrice / totalCredits)).toFixed(1);
+            const perCredit = (displayPrice / totalCredits).toFixed(1);
 
             return (
               <div key={pkg.id}
-                className={`relative rounded-2xl border p-5 flex flex-col justify-between transition-all duration-200 hover:scale-[1.02] min-h-[180px] ${
+                className={`relative flex flex-col rounded-2xl border p-5 transition-all duration-200 hover:translate-y-[-2px] ${
                   isPopular
-                    ? "border-emerald-500/30 bg-[hsl(222,30%,12%)]"
+                    ? "border-emerald-500/30 bg-[hsl(222,30%,12%)] ring-1 ring-emerald-500/20"
                     : "border-white/[0.06] bg-[hsl(222,30%,12%)]"
                 }`}
               >
@@ -378,25 +386,30 @@ const PlanCreditsTab = () => {
                     POPULAR
                   </Badge>
                 )}
-                <div className="mb-4">
-                  <div className="flex items-center gap-2 mb-1">
+
+                <div className="flex-1">
+                  <h3 className="text-white/90 font-semibold text-sm mb-2">{pkg.name}</h3>
+
+                  <div className="flex items-center gap-2 mb-0.5">
                     <Coins className="h-4 w-4 text-amber-400" />
                     <span className="text-white font-bold text-lg">{pkg.credits.toLocaleString()}</span>
+                    {pkg.bonus_credits > 0 && (
+                      <span className="text-amber-300/80 text-xs">+{pkg.bonus_credits} bonus</span>
+                    )}
                   </div>
-                  {pkg.bonus_credits > 0 && (
-                    <p className="text-amber-300/80 text-[11px]">+{pkg.bonus_credits} bonus</p>
-                  )}
-                  <div className="mt-3 flex items-baseline gap-1.5">
+
+                  <div className="flex items-baseline gap-1.5 mt-2.5">
                     {isReturning && (
                       <span className="text-white/30 text-xs line-through">{formatPrice(pkg.price_cents)}</span>
                     )}
-                    <span className="text-white font-bold text-xl">{formatPrice(displayPrice)}</span>
+                    <span className="text-white font-bold text-2xl">{formatPrice(displayPrice)}</span>
                     {isReturning && (
                       <span className="text-emerald-400 text-[10px] font-semibold">-{Math.round(returningDiscount * 100)}%</span>
                     )}
                   </div>
-                  <p className="text-white/30 text-[11px] mt-1">{perCredit}¢/credit</p>
+                  <p className="text-white/30 text-[11px] mt-0.5 mb-4">{perCredit}¢/credit</p>
                 </div>
+
                 <Button
                   onClick={() => {
                     if (isFreeTier) { setShowFreeTierPopup(true); return; }
@@ -419,13 +432,13 @@ const PlanCreditsTab = () => {
           {/* Custom Amount Card */}
           <div
             onClick={handleTopUpClick}
-            className="relative rounded-2xl border border-dashed border-purple-500/30 bg-[hsl(222,30%,12%)] p-5 flex flex-col items-center justify-center min-h-[200px] cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:border-purple-500/50 hover:bg-purple-500/5 group"
+            className="relative rounded-2xl border border-dashed border-purple-500/30 bg-[hsl(222,30%,12%)] p-5 flex flex-col items-center justify-center cursor-pointer transition-all duration-200 hover:translate-y-[-2px] hover:border-purple-500/50 hover:bg-purple-500/5 group"
           >
-            <div className="w-12 h-12 rounded-xl bg-purple-500/15 flex items-center justify-center mb-3 group-hover:bg-purple-500/25 transition-colors">
-              <Plus className="h-6 w-6 text-purple-400" />
+            <div className="w-10 h-10 rounded-xl bg-purple-500/15 flex items-center justify-center mb-2.5 group-hover:bg-purple-500/25 transition-colors">
+              <Plus className="h-5 w-5 text-purple-400" />
             </div>
-            <span className="text-white font-semibold text-sm mb-1">Custom Amount</span>
-            <span className="text-white/40 text-xs text-center">Choose your own credit amount</span>
+            <span className="text-white font-semibold text-sm mb-0.5">Custom Amount</span>
+            <span className="text-white/40 text-[11px] text-center">Choose your own</span>
           </div>
         </div>
       </div>

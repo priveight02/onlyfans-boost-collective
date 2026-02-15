@@ -47,7 +47,15 @@ const Pricing = () => {
   const [purchasingCustom, setPurchasingCustom] = useState(false);
   const [verifying, setVerifying] = useState(false);
 
-  const isReturning = purchaseCount > 0;
+  // Declining discount: 1st repurchase=30%, 2nd=20%, 3rd=10%, then 0%
+  const getReturningDiscount = (count: number): number => {
+    if (count === 1) return 0.30;
+    if (count === 2) return 0.20;
+    if (count === 3) return 0.10;
+    return 0;
+  };
+  const returningDiscount = getReturningDiscount(purchaseCount);
+  const isReturning = returningDiscount > 0;
 
   useEffect(() => {
     const fetchPackages = async () => {
@@ -130,12 +138,12 @@ const Pricing = () => {
   };
 
   const formatPrice = (cents: number) => `$${Math.round(cents / 100)}`;
-  const getDiscountedPrice = (cents: number) => Math.round(cents * 0.7);
+  const getDiscountedPrice = (cents: number) => Math.round(cents * (1 - returningDiscount));
 
   const customDiscount = getVolumeDiscount(customCredits);
   const customPricePerCredit = BASE_PRICE_PER_CREDIT_CENTS * (1 - customDiscount);
   const customTotalCents = Math.round(customCredits * customPricePerCredit);
-  const customDisplayCents = isReturning ? Math.round(customTotalCents * 0.7) : customTotalCents;
+  const customDisplayCents = isReturning ? Math.round(customTotalCents * (1 - returningDiscount)) : customTotalCents;
 
   const cardAccents = [
     { border: "border-purple-500/25", glow: "shadow-purple-500/5", badge: "bg-purple-500", label: "" },
@@ -165,7 +173,7 @@ const Pricing = () => {
         {isReturning && (
           <div className="mt-3 inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
             <BadgePercent className="h-3.5 w-3.5 text-emerald-400" />
-            <span className="text-xs text-emerald-300 font-medium">30% returning customer discount applied</span>
+            <span className="text-xs text-emerald-300 font-medium">{Math.round(returningDiscount * 100)}% returning customer discount applied</span>
           </div>
         )}
       </div>
@@ -341,7 +349,7 @@ const Pricing = () => {
             <div className="flex flex-col items-center gap-2">
               <Gift className="h-5 w-5 text-white/30" />
               <h4 className="text-sm font-medium text-white/70">Loyalty Rewards</h4>
-              <p className="text-xs text-white/30">30% off your next purchase</p>
+              <p className="text-xs text-white/30">Up to 30% off repeat purchases</p>
             </div>
           </div>
         </div>
