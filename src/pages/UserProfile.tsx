@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
@@ -200,6 +200,10 @@ const UserProfile = () => {
   });
   const [savingSettings, setSavingSettings] = useState(false);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
+  const settingsDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const notifDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const settingsInitializedRef = useRef(false);
+  const notifInitializedRef = useRef(false);
 
   // AI features state
   const [generatingBio, setGeneratingBio] = useState(false);
@@ -238,7 +242,7 @@ const UserProfile = () => {
 
   useEffect(() => {
     if (!user) return;
-    supabase.from("user_settings").select("*").eq("user_id", user.id).single()
+    supabase.from("user_settings").select("*").eq("user_id", user.id).maybeSingle()
       .then(({ data, error }) => {
         if (data) {
           setUserSettings({
@@ -256,10 +260,13 @@ const UserProfile = () => {
             compact_ui_mode: (data as any).compact_ui_mode ?? false,
             ai_email_summary_enabled: (data as any).ai_email_summary_enabled ?? false,
           });
-        } else if (error?.code === "PGRST116") {
+        } else if (!data) {
+          // No settings row yet – create one
           supabase.from("user_settings").insert({ user_id: user.id } as any).then(() => {});
         }
         setSettingsLoaded(true);
+        // Mark initialized after a tick so the debounce effect doesn't fire on load
+        setTimeout(() => { settingsInitializedRef.current = true; }, 100);
       });
   }, [user]);
 
@@ -271,8 +278,48 @@ const UserProfile = () => {
         NOTIFICATION_CATEGORIES.forEach(c => { prefs[c.id] = false; });
         (data || []).forEach((row: any) => { prefs[row.category] = row.email_enabled; });
         setNotifPrefs(prefs);
+        setTimeout(() => { notifInitializedRef.current = true; }, 100);
       });
   }, [user]);
+
+  // Debounced auto-save for user_settings (fires 800ms after last change)
+  useEffect(() => {
+    if (!settingsInitializedRef.current || !user) return;
+    if (settingsDebounceRef.current) clearTimeout(settingsDebounceRef.current);
+    settingsDebounceRef.current = setTimeout(async () => {
+      setSavingSettings(true);
+      try {
+        const { error } = await supabase.from("user_settings").upsert({
+          user_id: user.id, ...userSettings,
+        } as any, { onConflict: "user_id" });
+        if (error) throw error;
+        toast.success("Settings saved");
+      } catch (err: any) {
+        console.error("Settings save error:", err);
+        toast.error("Failed to save settings");
+      } finally { setSavingSettings(false); }
+    }, 800);
+    return () => { if (settingsDebounceRef.current) clearTimeout(settingsDebounceRef.current); };
+  }, [userSettings, user]);
+
+  // Debounced auto-save for notification preferences
+  useEffect(() => {
+    if (!notifInitializedRef.current || !user) return;
+    if (notifDebounceRef.current) clearTimeout(notifDebounceRef.current);
+    notifDebounceRef.current = setTimeout(async () => {
+      setSavingNotifs(true);
+      try {
+        for (const cat of NOTIFICATION_CATEGORIES) {
+          await supabase.from("notification_preferences").upsert({
+            user_id: user.id, category: cat.id, email_enabled: notifPrefs[cat.id] ?? false,
+          } as any, { onConflict: "user_id,category" });
+        }
+        toast.success("Notification preferences saved");
+      } catch { toast.error("Failed to save preferences"); }
+      finally { setSavingNotifs(false); }
+    }, 800);
+    return () => { if (notifDebounceRef.current) clearTimeout(notifDebounceRef.current); };
+  }, [notifPrefs, user]);
 
   useEffect(() => {
     if (!user || activeTab !== "activity") return;
@@ -433,31 +480,7 @@ const UserProfile = () => {
     finally { setIsUnlinking(false); }
   };
 
-  const handleSaveNotifications = async () => {
-    if (!user) return;
-    setSavingNotifs(true);
-    try {
-      for (const cat of NOTIFICATION_CATEGORIES) {
-        await supabase.from("notification_preferences").upsert({
-          user_id: user.id, category: cat.id, email_enabled: notifPrefs[cat.id] ?? false,
-        } as any, { onConflict: "user_id,category" });
-      }
-      toast.success("Notification preferences saved!");
-    } catch { toast.error("Failed to save preferences"); }
-    finally { setSavingNotifs(false); }
-  };
-
-  const handleSaveSettings = async () => {
-    if (!user) return;
-    setSavingSettings(true);
-    try {
-      await supabase.from("user_settings").upsert({
-        user_id: user.id, ...userSettings,
-      } as any, { onConflict: "user_id" });
-      toast.success("Settings saved!");
-    } catch { toast.error("Failed to save settings"); }
-    finally { setSavingSettings(false); }
-  };
+  // Notifications and settings are now auto-saved via debounced effects above
 
   const handleKickDevice = async (deviceId: string) => {
     try {
@@ -515,14 +538,9 @@ const UserProfile = () => {
     } catch { toast.error("Failed to clear activity"); }
   };
 
-  const handleToggleActivityLogging = async (enabled: boolean) => {
-    if (!user) return;
-    const updated = { ...userSettings, activity_logging_enabled: enabled };
-    setUserSettings(updated);
-    try {
-      await supabase.from("user_settings").upsert({ user_id: user.id, ...updated } as any, { onConflict: "user_id" });
-      toast.success(enabled ? "Activity logging enabled" : "Activity logging disabled");
-    } catch { toast.error("Failed to update setting"); }
+  const handleToggleActivityLogging = (enabled: boolean) => {
+    // Debounced auto-save will handle persisting this
+    setUserSettings(prev => ({ ...prev, activity_logging_enabled: enabled }));
   };
 
   // AI Bio Generator
@@ -816,10 +834,11 @@ const UserProfile = () => {
                           ))}
                         </SelectContent>
                       </Select>
-                      <Button onClick={handleSaveSettings} disabled={savingSettings}
-                        className="bg-white/[0.08] hover:bg-white/[0.12] text-white/80 border border-white/[0.08] rounded-xl font-medium text-[12px] px-4 h-8">
-                        <Save className="mr-1.5 h-3 w-3" /> {savingSettings ? "Saving..." : "Save"}
-                      </Button>
+                      {savingSettings && (
+                        <span className="text-white/40 text-[11px] flex items-center gap-1.5">
+                          <RefreshCw className="h-3 w-3 animate-spin" /> Saving...
+                        </span>
+                      )}
                     </div>
                   </Card>
 
@@ -1061,10 +1080,11 @@ const UserProfile = () => {
                         checked={userSettings.ai_email_summary_enabled}
                         onToggle={(v) => { setUserSettings({ ...userSettings, ai_email_summary_enabled: v }); }} />
                     </div>
-                    <Button onClick={handleSaveSettings} disabled={savingSettings}
-                      className="mt-4 bg-white/[0.08] hover:bg-white/[0.12] text-white/80 border border-white/[0.08] rounded-xl font-medium text-[13px] px-6 h-9">
-                      <Save className="mr-2 h-3.5 w-3.5" /> {savingSettings ? "Saving..." : "Save AI Settings"}
-                    </Button>
+                    {savingSettings && (
+                      <p className="mt-3 text-white/40 text-[11px] flex items-center gap-1.5">
+                        <RefreshCw className="h-3 w-3 animate-spin" /> Auto-saving...
+                      </p>
+                    )}
                   </Card>
 
                   {/* AI Bio Generator Panel */}
@@ -1187,10 +1207,11 @@ const UserProfile = () => {
                     </div>
                   </Card>
 
-                  <Button onClick={handleSaveSettings} disabled={savingSettings}
-                    className="bg-white/[0.08] hover:bg-white/[0.12] text-white/80 border border-white/[0.08] rounded-xl font-medium text-[13px] px-6 h-9">
-                    <Save className="mr-2 h-3.5 w-3.5" /> {savingSettings ? "Saving..." : "Save Preferences"}
-                  </Button>
+                  {savingSettings && (
+                    <p className="text-white/40 text-[11px] flex items-center gap-1.5">
+                      <RefreshCw className="h-3 w-3 animate-spin" /> Auto-saving...
+                    </p>
+                  )}
                 </motion.div>
               )}
 
@@ -1218,10 +1239,11 @@ const UserProfile = () => {
                         </div>
                       ))}
                     </div>
-                    <Button onClick={handleSaveNotifications} disabled={savingNotifs}
-                      className="mt-5 bg-white/[0.08] hover:bg-white/[0.12] text-white/80 border border-white/[0.08] rounded-xl font-medium text-[13px] px-6 h-9">
-                      <Save className="mr-2 h-3.5 w-3.5" /> {savingNotifs ? "Saving..." : "Save Preferences"}
-                    </Button>
+                    {savingNotifs && (
+                      <p className="mt-3 text-white/40 text-[11px] flex items-center gap-1.5">
+                        <RefreshCw className="h-3 w-3 animate-spin" /> Auto-saving...
+                      </p>
+                    )}
                   </Card>
                 </motion.div>
               )}
