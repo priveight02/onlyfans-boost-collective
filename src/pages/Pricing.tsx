@@ -8,11 +8,6 @@ import { Check, ArrowRight, Sparkles, BadgePercent, ShieldCheck, Zap, Gift } fro
 import { Button } from "@/components/ui/button";
 import Footer from "@/components/Footer";
 
-import creditsStarter from "@/assets/credits-starter.png";
-import creditsPro from "@/assets/credits-pro.png";
-import creditsStudio from "@/assets/credits-studio.png";
-import creditsPower from "@/assets/credits-power.png";
-
 interface CreditPackage {
   id: string;
   name: string;
@@ -36,13 +31,6 @@ const getVolumeDiscount = (credits: number): number => {
   if (credits >= 200) return 0.10;
   if (credits >= 100) return 0.05;
   return 0;
-};
-
-const PACKAGE_IMAGES: Record<number, string> = {
-  0: creditsStarter,
-  1: creditsPro,
-  2: creditsStudio,
-  3: creditsPower,
 };
 
 const Pricing = () => {
@@ -80,7 +68,7 @@ const Pricing = () => {
     fetchPackages();
   }, []);
 
-  // Verification effect
+  // Verification effect — runs once, clears params to prevent re-runs
   useEffect(() => {
     const isSuccess = searchParams.get("success") === "true";
     const isCanceled = searchParams.get("canceled") === "true";
@@ -95,12 +83,14 @@ const Pricing = () => {
 
     if (isSuccess && !verifying) {
       setVerifying(true);
+      // Immediately clear URL params so this never fires again
       setSearchParams({}, { replace: true });
 
       const toastId = toast.loading("Verifying your purchase...");
       supabase.functions.invoke("verify-credit-purchase").then(({ data, error }) => {
         if (error) {
           toast.error("Verification failed. Credits will appear shortly — please refresh.", { id: toastId });
+          console.error("Verification error:", error);
         } else if (data?.credited && data.credits_added > 0) {
           toast.success(`🎉 ${data.credits_added.toLocaleString()} credits added!`, { id: toastId });
         } else {
@@ -202,7 +192,6 @@ const Pricing = () => {
               const displayPrice = isReturning ? getDiscountedPrice(pkg.price_cents) : pkg.price_cents;
               const perCredit = (displayPrice / (pkg.credits + pkg.bonus_credits)).toFixed(2);
               const isPopular = pkg.is_popular;
-              const coinImage = PACKAGE_IMAGES[index];
 
               return (
                 <div
@@ -218,13 +207,6 @@ const Pricing = () => {
                   )}
 
                   <div className="p-6 flex-1 flex flex-col">
-                    {/* Coin Image */}
-                    {coinImage && (
-                      <div className="flex justify-center mb-3">
-                        <img src={coinImage} alt={`${pkg.name} credits`} className="h-16 w-16 object-contain" />
-                      </div>
-                    )}
-
                     <h3 className="text-base font-semibold text-white/90 mb-3">{pkg.name}</h3>
 
                     <div className="flex items-baseline gap-2 mb-0.5">
