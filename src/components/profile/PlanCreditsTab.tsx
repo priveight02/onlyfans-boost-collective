@@ -363,10 +363,11 @@ const PlanCreditsTab = () => {
             const isReturning = returningDiscount > 0;
             const displayPrice = isReturning ? Math.round(pkg.price_cents * (1 - returningDiscount)) : pkg.price_cents;
             const totalCredits = pkg.credits + pkg.bonus_credits;
+            const perCredit = ((displayPrice / totalCredits)).toFixed(1);
 
             return (
               <div key={pkg.id}
-                className={`relative rounded-2xl border p-5 flex flex-col justify-between transition-all duration-200 hover:scale-[1.02] ${
+                className={`relative rounded-2xl border p-5 flex flex-col justify-between transition-all duration-200 hover:scale-[1.02] min-h-[180px] ${
                   isPopular
                     ? "border-emerald-500/30 bg-[hsl(222,30%,12%)]"
                     : "border-white/[0.06] bg-[hsl(222,30%,12%)]"
@@ -385,12 +386,16 @@ const PlanCreditsTab = () => {
                   {pkg.bonus_credits > 0 && (
                     <p className="text-amber-300/80 text-[11px]">+{pkg.bonus_credits} bonus</p>
                   )}
-                  <div className="mt-3">
+                  <div className="mt-3 flex items-baseline gap-1.5">
+                    {isReturning && (
+                      <span className="text-white/30 text-xs line-through">{formatPrice(pkg.price_cents)}</span>
+                    )}
                     <span className="text-white font-bold text-xl">{formatPrice(displayPrice)}</span>
                     {isReturning && (
-                      <span className="text-emerald-400 text-[10px] font-semibold ml-1.5">-{Math.round(returningDiscount * 100)}%</span>
+                      <span className="text-emerald-400 text-[10px] font-semibold">-{Math.round(returningDiscount * 100)}%</span>
                     )}
                   </div>
+                  <p className="text-white/30 text-[11px] mt-1">{perCredit}¢/credit</p>
                 </div>
                 <Button
                   onClick={() => {
