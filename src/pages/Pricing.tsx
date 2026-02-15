@@ -249,8 +249,10 @@ const Pricing = () => {
                     <span className="text-xs text-white/30 mb-5">{perCredit}¢ per credit</span>
 
                     <div className="space-y-2.5 mb-6 flex-1">
-                      <div className="flex items-center gap-2 text-sm text-white/60">
-                        <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                      <div className="flex items-center gap-3 text-sm text-white/60">
+                        <div className="w-5 h-5 rounded-full bg-white/[0.08] border border-white/[0.12] flex items-center justify-center flex-shrink-0">
+                          <Check className="h-3 w-3 text-white/70" strokeWidth={2.5} />
+                        </div>
                         <span>{pkg.credits.toLocaleString()} credits</span>
                       </div>
                       {pkg.bonus_credits > 0 && (
@@ -259,16 +261,22 @@ const Pricing = () => {
                           <span>+{pkg.bonus_credits} bonus</span>
                         </div>
                       )}
-                      <div className="flex items-center gap-2 text-sm text-white/60">
-                        <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                      <div className="flex items-center gap-3 text-sm text-white/60">
+                        <div className="w-5 h-5 rounded-full bg-white/[0.08] border border-white/[0.12] flex items-center justify-center flex-shrink-0">
+                          <Check className="h-3 w-3 text-white/70" strokeWidth={2.5} />
+                        </div>
                         <span>Instant delivery</span>
                       </div>
-                      <div className="flex items-center gap-2 text-sm text-white/60">
-                        <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                      <div className="flex items-center gap-3 text-sm text-white/60">
+                        <div className="w-5 h-5 rounded-full bg-white/[0.08] border border-white/[0.12] flex items-center justify-center flex-shrink-0">
+                          <Check className="h-3 w-3 text-white/70" strokeWidth={2.5} />
+                        </div>
                         <span>Never expires</span>
                       </div>
-                      <div className="flex items-center gap-2 text-sm text-white/60">
-                        <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                      <div className="flex items-center gap-3 text-sm text-white/60">
+                        <div className="w-5 h-5 rounded-full bg-white/[0.08] border border-white/[0.12] flex items-center justify-center flex-shrink-0">
+                          <Check className="h-3 w-3 text-white/70" strokeWidth={2.5} />
+                        </div>
                         <span>{index === 0 ? "CRM Access" : index === 1 ? "Advanced CRM Access" : index === 2 ? "Full CRM Access" : "Full CRM Access"}</span>
                       </div>
                     </div>
@@ -349,8 +357,10 @@ const Pricing = () => {
                 </div>
 
                 <div className="space-y-2.5 mb-6 flex-1">
-                  <div className="flex items-center gap-2 text-sm text-white/60">
-                    <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                  <div className="flex items-center gap-3 text-sm text-white/60">
+                    <div className="w-5 h-5 rounded-full bg-white/[0.08] border border-white/[0.12] flex items-center justify-center flex-shrink-0">
+                      <Check className="h-3 w-3 text-white/70" strokeWidth={2.5} />
+                    </div>
                     <span>{customCredits.toLocaleString()} credits</span>
                   </div>
                   {customDiscount > 0 && (
@@ -359,8 +369,10 @@ const Pricing = () => {
                       <span>{Math.round(customDiscount * 100)}% volume discount</span>
                     </div>
                   )}
-                  <div className="flex items-center gap-2 text-sm text-white/60">
-                    <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                  <div className="flex items-center gap-3 text-sm text-white/60">
+                    <div className="w-5 h-5 rounded-full bg-white/[0.08] border border-white/[0.12] flex items-center justify-center flex-shrink-0">
+                      <Check className="h-3 w-3 text-white/70" strokeWidth={2.5} />
+                    </div>
                     <span>Instant delivery</span>
                   </div>
                 </div>
