@@ -136,25 +136,11 @@ const Auth = () => {
   const current = titles[mode];
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-primary via-accent to-primary-accent">
-      {/* Background Effects */}
-      <div className="absolute inset-0">
-        <div className="absolute inset-0 bg-black/10 mix-blend-multiply" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
-      </div>
+    <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-[hsl(222,35%,8%)] via-[hsl(220,35%,10%)] to-[hsl(225,35%,6%)]">
+      {/* Subtle background glow */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -inset-[10px] opacity-70">
-          <motion.div
-            animate={{ scale: [1, 1.1, 1], opacity: [0.4, 0.6, 0.4], rotate: [0, 180, 360] }}
-            transition={{ duration: 75, repeat: Infinity, ease: [0.4, 0, 0.2, 1] }}
-            className="absolute top-1/4 left-1/4 w-96 h-96 bg-accent/50 rounded-full mix-blend-multiply filter blur-xl"
-          />
-          <motion.div
-            animate={{ scale: [1.2, 1, 1.2], opacity: [0.5, 0.7, 0.5], rotate: [360, 180, 0] }}
-            transition={{ duration: 70, repeat: Infinity, ease: [0.4, 0, 0.2, 1] }}
-            className="absolute top-1/3 right-1/4 w-96 h-96 bg-primary/50 rounded-full mix-blend-multiply filter blur-xl"
-          />
-        </div>
+        <div className="absolute top-1/4 left-1/3 w-[500px] h-[500px] bg-purple-500/5 rounded-full blur-3xl" />
+        <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-blue-500/5 rounded-full blur-3xl" />
       </div>
 
       {/* Content */}
@@ -170,8 +156,7 @@ const Auth = () => {
           className="w-full max-w-md"
         >
           <div
-            className="bg-white/10 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 p-8"
-            style={{ boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.1)' }}
+            className="bg-[hsl(222,30%,12%)] backdrop-blur-xl rounded-2xl shadow-2xl border border-white/10 p-8"
           >
             {/* Header */}
             <AnimatePresence mode="wait">
@@ -183,14 +168,14 @@ const Auth = () => {
                 className="text-center mb-6"
               >
                 <div className="flex justify-center mb-4">
-                  <div className="bg-white/15 backdrop-blur-sm rounded-2xl p-4 border border-white/20">
-                    <current.icon className="w-8 h-8 text-white" />
+                  <div className="bg-purple-500/10 rounded-xl p-3 border border-purple-500/20">
+                    <current.icon className="w-7 h-7 text-purple-400" />
                   </div>
                 </div>
-                <h1 className="text-3xl font-bold font-heading mb-1 text-white drop-shadow-lg">
+                <h1 className="text-2xl font-bold font-heading mb-1 text-white">
                   {current.title}
                 </h1>
-                <p className="text-white/70 text-sm">{current.subtitle}</p>
+                <p className="text-white/50 text-sm">{current.subtitle}</p>
               </motion.div>
             </AnimatePresence>
 
@@ -200,15 +185,15 @@ const Auth = () => {
                 <Button
                   type="button"
                   onClick={handleGoogleLogin}
-                  className="w-full bg-white/20 hover:bg-white/30 text-white font-medium rounded-xl h-12 border border-white/30 backdrop-blur-sm gap-3"
+                  className="w-full bg-white/5 hover:bg-white/10 text-white font-medium rounded-lg h-11 border border-white/10 gap-3 transition-colors"
                 >
                   <Chrome className="h-5 w-5" />
                   Continue with Google
                 </Button>
                 <div className="flex items-center gap-3 my-4">
-                  <div className="flex-1 h-px bg-white/20" />
-                  <span className="text-white/50 text-xs uppercase tracking-wider">or</span>
-                  <div className="flex-1 h-px bg-white/20" />
+                  <div className="flex-1 h-px bg-white/10" />
+                  <span className="text-white/40 text-xs uppercase tracking-wider">or</span>
+                  <div className="flex-1 h-px bg-white/10" />
                 </div>
               </div>
             )}
@@ -216,29 +201,29 @@ const Auth = () => {
             {/* Login Form */}
             {mode === "login" && (
               <form onSubmit={handleLogin} className="space-y-4">
-                <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-white/90">Email</label>
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-medium text-white/60 uppercase tracking-wider">Email</label>
                   <div className="relative">
-                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-white/60 h-5 w-5" />
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 h-4 w-4" />
                     <Input
                       type="email" value={email} onChange={(e) => setEmail(e.target.value)} required
-                      className="pl-12 bg-white/20 border-white/30 text-white placeholder:text-white/50 focus:bg-white/25 focus:border-white/50 rounded-xl h-12"
+                      className="pl-10 bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-purple-500/50 rounded-lg h-10 text-sm"
                       placeholder="your@email.com"
                     />
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-white/90">Password</label>
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-medium text-white/60 uppercase tracking-wider">Password</label>
                   <div className="relative">
-                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-white/60 h-5 w-5" />
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 h-4 w-4" />
                     <Input
                       type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} required
-                      className="pl-12 pr-14 bg-white/20 border-white/30 text-white placeholder:text-white/50 focus:bg-white/25 focus:border-white/50 rounded-xl h-12"
+                      className="pl-10 pr-10 bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-purple-500/50 rounded-lg h-10 text-sm"
                       placeholder="••••••••"
                     />
                     <button type="button" onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 text-white/60 hover:text-white/80 transition-colors">
-                      {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/60 transition-colors">
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
                 </div>
@@ -248,18 +233,18 @@ const Auth = () => {
                       id="remember"
                       checked={rememberMe}
                       onCheckedChange={(c) => setRememberMe(!!c)}
-                      className="border-white/40 data-[state=checked]:bg-white/30 data-[state=checked]:border-white/50"
+                      className="border-white/20 data-[state=checked]:bg-purple-600 data-[state=checked]:border-purple-500"
                     />
-                    <label htmlFor="remember" className="text-sm text-white/70 cursor-pointer">
+                    <label htmlFor="remember" className="text-sm text-white/50 cursor-pointer">
                       Remember me (30 days)
                     </label>
                   </div>
-                  <button type="button" onClick={() => setMode("forgot")} className="text-sm text-white/70 hover:text-white underline-offset-4 hover:underline">
+                  <button type="button" onClick={() => setMode("forgot")} className="text-sm text-purple-400/70 hover:text-purple-400 underline-offset-4 hover:underline transition-colors">
                     Forgot?
                   </button>
                 </div>
                 <Button type="submit" disabled={isSubmitting}
-                  className="w-full bg-white/25 hover:bg-white/35 text-white font-semibold rounded-xl h-12 border border-white/30 shadow-lg backdrop-blur-sm">
+                  className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg h-10 text-sm shadow-lg">
                   <LogIn className="mr-2 h-4 w-4" />
                   {isSubmitting ? "Signing in..." : "Sign In"}
                 </Button>
@@ -270,57 +255,57 @@ const Auth = () => {
             {mode === "register" && (
               <form onSubmit={handleRegister} className="space-y-4">
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-2">
-                    <label className="block text-sm font-semibold text-white/90">Username</label>
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-medium text-white/60 uppercase tracking-wider">Username</label>
                     <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/60 text-sm font-medium">@</span>
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 text-sm font-medium">@</span>
                       <Input
                         value={username} onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))} required
-                        className="pl-8 bg-white/20 border-white/30 text-white placeholder:text-white/50 focus:bg-white/25 focus:border-white/50 rounded-xl h-12"
+                        className="pl-8 bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-purple-500/50 rounded-lg h-10 text-sm"
                         placeholder="username"
                       />
                     </div>
                   </div>
-                  <div className="space-y-2">
-                    <label className="block text-sm font-semibold text-white/90">Display Name</label>
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-medium text-white/60 uppercase tracking-wider">Display Name</label>
                     <div className="relative">
-                      <User className="absolute left-3 top-1/2 -translate-y-1/2 text-white/60 h-4 w-4" />
+                      <User className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 h-4 w-4" />
                       <Input
                         value={displayName} onChange={(e) => setDisplayName(e.target.value)} required
-                        className="pl-9 bg-white/20 border-white/30 text-white placeholder:text-white/50 focus:bg-white/25 focus:border-white/50 rounded-xl h-12"
+                        className="pl-9 bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-purple-500/50 rounded-lg h-10 text-sm"
                         placeholder="John"
                       />
                     </div>
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-white/90">Email</label>
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-medium text-white/60 uppercase tracking-wider">Email</label>
                   <div className="relative">
-                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-white/60 h-5 w-5" />
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 h-4 w-4" />
                     <Input
                       type="email" value={email} onChange={(e) => setEmail(e.target.value)} required
-                      className="pl-12 bg-white/20 border-white/30 text-white placeholder:text-white/50 focus:bg-white/25 focus:border-white/50 rounded-xl h-12"
+                      className="pl-10 bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-purple-500/50 rounded-lg h-10 text-sm"
                       placeholder="your@email.com"
                     />
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-white/90">Password</label>
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-medium text-white/60 uppercase tracking-wider">Password</label>
                   <div className="relative">
-                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-white/60 h-5 w-5" />
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 h-4 w-4" />
                     <Input
                       type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} required
-                      className="pl-12 pr-14 bg-white/20 border-white/30 text-white placeholder:text-white/50 focus:bg-white/25 focus:border-white/50 rounded-xl h-12"
+                      className="pl-10 pr-10 bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-purple-500/50 rounded-lg h-10 text-sm"
                       placeholder="Min 8 characters"
                     />
                     <button type="button" onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 text-white/60 hover:text-white/80 transition-colors">
-                      {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/60 transition-colors">
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
                 </div>
                 <Button type="submit" disabled={isSubmitting}
-                  className="w-full bg-white/25 hover:bg-white/35 text-white font-semibold rounded-xl h-12 border border-white/30 shadow-lg backdrop-blur-sm">
+                  className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg h-10 text-sm shadow-lg">
                   <UserPlus className="mr-2 h-4 w-4" />
                   {isSubmitting ? "Creating Account..." : "Create Account"}
                 </Button>
@@ -330,19 +315,19 @@ const Auth = () => {
             {/* Forgot Password */}
             {mode === "forgot" && (
               <form onSubmit={handleForgotPassword} className="space-y-4">
-                <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-white/90">Email</label>
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-medium text-white/60 uppercase tracking-wider">Email</label>
                   <div className="relative">
-                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-white/60 h-5 w-5" />
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 h-4 w-4" />
                     <Input
                       type="email" value={email} onChange={(e) => setEmail(e.target.value)} required
-                      className="pl-12 bg-white/20 border-white/30 text-white placeholder:text-white/50 focus:bg-white/25 focus:border-white/50 rounded-xl h-12"
+                      className="pl-10 bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-purple-500/50 rounded-lg h-10 text-sm"
                       placeholder="your@email.com"
                     />
                   </div>
                 </div>
                 <Button type="submit" disabled={isSubmitting}
-                  className="w-full bg-white/25 hover:bg-white/35 text-white font-semibold rounded-xl h-12 border border-white/30 shadow-lg backdrop-blur-sm">
+                  className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg h-10 text-sm shadow-lg">
                   <Send className="mr-2 h-4 w-4" />
                   {isSubmitting ? "Sending..." : "Send Reset Link"}
                 </Button>
@@ -363,9 +348,9 @@ const Auth = () => {
                     />
                   </div>
                 </div>
-                <p className="text-white/50 text-xs">We'll send a one-time login link that expires after 24 hours.</p>
+                <p className="text-white/40 text-xs">We'll send a one-time login link that expires after 24 hours.</p>
                 <Button type="submit" disabled={isSubmitting}
-                  className="w-full bg-white/25 hover:bg-white/35 text-white font-semibold rounded-xl h-12 border border-white/30 shadow-lg backdrop-blur-sm">
+                  className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg h-10 text-sm shadow-lg">
                   <Sparkles className="mr-2 h-4 w-4" />
                   {isSubmitting ? "Sending..." : "Send Magic Link"}
                 </Button>
@@ -375,23 +360,23 @@ const Auth = () => {
             {/* Mode Switchers */}
             <div className="mt-6 space-y-2 text-center">
               {mode !== "login" && (
-                <button onClick={() => setMode("login")} className="flex items-center justify-center gap-2 w-full text-sm text-white/70 hover:text-white transition-colors">
+                <button onClick={() => setMode("login")} className="flex items-center justify-center gap-2 w-full text-sm text-white/50 hover:text-white transition-colors">
                   <ArrowLeft className="h-4 w-4" /> Back to Sign In
                 </button>
               )}
               {mode === "login" && (
                 <>
-                  <button onClick={() => setMode("register")} className="block w-full text-sm text-white/70 hover:text-white transition-colors">
-                    Don't have an account? <span className="font-semibold underline-offset-4 hover:underline">Sign Up</span>
+                  <button onClick={() => setMode("register")} className="block w-full text-sm text-white/50 hover:text-white transition-colors">
+                    Don't have an account? <span className="font-semibold text-purple-400 underline-offset-4 hover:underline">Sign Up</span>
                   </button>
-                  <button onClick={() => setMode("magic")} className="block w-full text-sm text-white/50 hover:text-white/80 transition-colors">
+                  <button onClick={() => setMode("magic")} className="block w-full text-sm text-white/40 hover:text-white/60 transition-colors">
                     <Sparkles className="inline h-3 w-3 mr-1" /> Login with magic link
                   </button>
                 </>
               )}
               {mode === "register" && (
-                <button onClick={() => setMode("login")} className="block w-full text-sm text-white/70 hover:text-white transition-colors">
-                  Already have an account? <span className="font-semibold underline-offset-4 hover:underline">Sign In</span>
+                <button onClick={() => setMode("login")} className="block w-full text-sm text-white/50 hover:text-white transition-colors">
+                  Already have an account? <span className="font-semibold text-purple-400 underline-offset-4 hover:underline">Sign In</span>
                 </button>
               )}
             </div>
