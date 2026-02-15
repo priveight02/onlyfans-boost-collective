@@ -14,7 +14,8 @@ import {
   Activity, ChevronRight, Phone, Building2, MapPin, Trash2,
   Link2, Unlink, AlertTriangle, Eye, EyeOff, Lock, CheckCircle2, XCircle, Info,
   Monitor, Smartphone, Tablet, Wifi, WifiOff, Plus, X, Clock,
-  Globe, Languages, Download, ShieldCheck, BellRing, Settings2
+  Globe, Languages, Download, ShieldCheck, BellRing, Settings2,
+  Bookmark, Power
 } from "lucide-react";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter,
@@ -59,9 +60,9 @@ const SESSION_TIMEOUT_OPTIONS = [
   { value: 43200, label: "30 days" },
 ];
 
-// Dark glassmorphism card
+// Dark glassmorphism card - upgraded with purple accent
 const Card = ({ children, className = "", danger = false }: { children: React.ReactNode; className?: string; danger?: boolean }) => (
-  <div className={`rounded-2xl border p-6 backdrop-blur-xl ${danger ? "bg-red-500/5 border-red-500/15" : "bg-[hsl(222,30%,10%)]/80 border-white/[0.06]"} ${className}`}>
+  <div className={`rounded-2xl border p-6 backdrop-blur-xl ${danger ? "bg-red-500/5 border-red-500/15" : "bg-[hsl(222,28%,11%)] border-purple-500/10"} ${className}`}>
     {children}
   </div>
 );
@@ -69,10 +70,10 @@ const Card = ({ children, className = "", danger = false }: { children: React.Re
 const SectionTitle = ({ icon: Icon, title, subtitle, danger = false }: { icon: any; title: string; subtitle?: string; danger?: boolean }) => (
   <div className="mb-5">
     <div className="flex items-center gap-2.5 mb-1">
-      <Icon className={`h-[18px] w-[18px] ${danger ? "text-red-400" : "text-white/60"}`} />
-      <h2 className={`text-[15px] font-semibold tracking-tight ${danger ? "text-red-300" : "text-white/90"}`}>{title}</h2>
+      <Icon className={`h-[18px] w-[18px] ${danger ? "text-red-400" : "text-purple-400"}`} />
+      <h2 className={`text-[15px] font-semibold tracking-tight ${danger ? "text-red-300" : "text-white"}`}>{title}</h2>
     </div>
-    {subtitle && <p className="text-white/35 text-[12px] ml-[30px] leading-relaxed">{subtitle}</p>}
+    {subtitle && <p className="text-white/50 text-[12px] ml-[30px] leading-relaxed">{subtitle}</p>}
   </div>
 );
 
@@ -547,33 +548,33 @@ const UserProfile = () => {
     <div className="min-h-screen bg-[hsl(222,35%,5%)] relative overflow-hidden">
       {/* Subtle ambient glow */}
       <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute top-1/4 left-1/6 w-[500px] h-[500px] bg-blue-500/[0.03] rounded-full blur-[120px]" />
-        <div className="absolute bottom-1/4 right-1/6 w-[400px] h-[400px] bg-purple-500/[0.02] rounded-full blur-[120px]" />
+        <div className="absolute top-1/4 left-1/6 w-[500px] h-[500px] bg-purple-500/[0.04] rounded-full blur-[120px]" />
+        <div className="absolute bottom-1/4 right-1/6 w-[400px] h-[400px] bg-blue-500/[0.03] rounded-full blur-[120px]" />
       </div>
 
       <div className="relative max-w-6xl mx-auto px-4 pt-24 pb-16">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
           {/* Header */}
           <div className="flex items-center gap-4 mb-8">
-            <div className="w-14 h-14 rounded-2xl bg-white/[0.06] border border-white/[0.08] flex items-center justify-center text-white/80 text-xl font-bold backdrop-blur-sm">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-500/20 to-blue-500/10 border border-purple-500/20 flex items-center justify-center text-white text-xl font-bold backdrop-blur-sm">
               {userInitial}
             </div>
             <div>
-              <h1 className="text-xl font-semibold text-white/90 tracking-tight">{profile?.display_name || "Your Profile"}</h1>
-              <p className="text-white/35 text-[13px]">@{profile?.username || "..."} · {user.email}</p>
+              <h1 className="text-xl font-semibold text-white tracking-tight">{profile?.display_name || "Your Profile"}</h1>
+              <p className="text-white/50 text-[13px]">@{profile?.username || "..."} · {user.email}</p>
             </div>
           </div>
 
           <div className="flex flex-col lg:flex-row gap-6">
             {/* Sidebar */}
             <div className="lg:w-60 flex-shrink-0">
-              <nav className="bg-[hsl(222,30%,10%)]/80 backdrop-blur-xl rounded-2xl border border-white/[0.06] p-2 space-y-0.5">
+              <nav className="bg-[hsl(222,28%,11%)] backdrop-blur-xl rounded-2xl border border-purple-500/10 p-2 space-y-0.5">
                 {tabs.map((tab) => (
                   <button key={tab.id} onClick={() => setActiveTab(tab.id)}
                     className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13px] font-medium transition-all duration-200 ${
                       activeTab === tab.id
-                        ? "bg-white/[0.08] text-white/90"
-                        : "text-white/40 hover:text-white/60 hover:bg-white/[0.03]"
+                        ? "bg-purple-500/10 text-white border border-purple-500/15"
+                        : "text-white/50 hover:text-white/80 hover:bg-white/[0.04]"
                     }`}>
                     <tab.icon className="h-4 w-4 flex-shrink-0" />
                     {tab.label}
@@ -622,10 +623,10 @@ const UserProfile = () => {
                     <div className="divide-y divide-white/[0.04]">
                       <div className="flex items-center justify-between py-3">
                         <div>
-                          <span className="text-white/40 text-[12px]">Email</span>
-                          <p className="text-white/70 text-[13px]">{user.email}</p>
+                          <span className="text-white/60 text-[12px]">Email</span>
+                          <p className="text-white/90 text-[13px]">{user.email}</p>
                           {originalEmail && originalEmail !== user.email && (
-                            <p className="text-white/25 text-[11px] mt-0.5">Original: {originalEmail}</p>
+                            <p className="text-white/35 text-[11px] mt-0.5">Original: {originalEmail}</p>
                           )}
                         </div>
                         {canChangeEmail ? (
@@ -638,8 +639,8 @@ const UserProfile = () => {
                         )}
                       </div>
                       <div className="flex items-center justify-between py-3">
-                        <span className="text-white/40 text-[12px]">Member since</span>
-                        <span className="text-white/60 text-[13px]">{memberSince}</span>
+                        <span className="text-white/50 text-[12px]">Member since</span>
+                        <span className="text-white/80 text-[13px]">{memberSince}</span>
                       </div>
                     </div>
                   </Card>
@@ -653,8 +654,8 @@ const UserProfile = () => {
                     <SectionTitle icon={KeyRound} title="Password" />
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-white/60 text-[13px]">{hasPassword ? "Change your account password" : "Set a password for your account"}</p>
-                        <p className="text-white/30 text-[11px] mt-0.5">Use a strong password with at least 8 characters.</p>
+                        <p className="text-white/80 text-[13px]">{hasPassword ? "Change your account password" : "Set a password for your account"}</p>
+                        <p className="text-white/40 text-[11px] mt-0.5">Use a strong password with at least 8 characters.</p>
                       </div>
                       <Button onClick={() => { setShowPasswordDialog(true); setPwNotification(null); setCurrentPassword(""); setNewPassword(""); setConfirmPassword(""); }}
                         variant="ghost" className="text-white/40 hover:text-white/60 hover:bg-white/[0.04] rounded-xl gap-2 text-[12px] h-8">
@@ -676,8 +677,8 @@ const UserProfile = () => {
                           </svg>
                         </div>
                         <div>
-                          <p className="text-white/80 text-[13px] font-medium">Google</p>
-                          <p className="text-white/30 text-[11px]">{googleIdentity ? `Connected as ${user.email}` : "Not connected"}</p>
+                          <p className="text-white text-[13px] font-medium">Google</p>
+                          <p className="text-white/45 text-[11px]">{googleIdentity ? `Connected as ${user.email}` : "Not connected"}</p>
                         </div>
                       </div>
                       {googleIdentity ? (
@@ -701,10 +702,10 @@ const UserProfile = () => {
                       {/* 1. Session Timeout */}
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <Clock className="h-4 w-4 text-white/40" />
+                          <Clock className="h-4 w-4 text-purple-400/60" />
                           <div>
-                            <p className="text-white/70 text-[13px] font-medium">Session Timeout</p>
-                            <p className="text-white/30 text-[11px]">Auto-logout after inactivity period</p>
+                            <p className="text-white/90 text-[13px] font-medium">Session Timeout</p>
+                            <p className="text-white/45 text-[11px]">Auto-logout after inactivity period</p>
                           </div>
                         </div>
                         <Select value={String(userSettings.session_timeout_minutes)}
@@ -725,10 +726,10 @@ const UserProfile = () => {
                       {/* 2. Two-Factor Authentication */}
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <ShieldCheck className="h-4 w-4 text-white/40" />
+                          <ShieldCheck className="h-4 w-4 text-purple-400/60" />
                           <div>
-                            <p className="text-white/70 text-[13px] font-medium">Two-Factor Authentication</p>
-                            <p className="text-white/30 text-[11px]">Add an extra layer of security via email verification</p>
+                            <p className="text-white/90 text-[13px] font-medium">Two-Factor Authentication</p>
+                            <p className="text-white/45 text-[11px]">Add an extra layer of security via email verification</p>
                           </div>
                         </div>
                         <Switch checked={userSettings.two_factor_enabled}
@@ -739,10 +740,10 @@ const UserProfile = () => {
                       {/* 3. Login Alerts */}
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <BellRing className="h-4 w-4 text-white/40" />
+                          <BellRing className="h-4 w-4 text-purple-400/60" />
                           <div>
-                            <p className="text-white/70 text-[13px] font-medium">Login Alerts</p>
-                            <p className="text-white/30 text-[11px]">Get notified via email when a new device logs in</p>
+                            <p className="text-white/90 text-[13px] font-medium">Login Alerts</p>
+                            <p className="text-white/45 text-[11px]">Get notified via email when a new device logs in</p>
                           </div>
                         </div>
                         <Switch checked={userSettings.login_alerts_enabled}
@@ -753,10 +754,10 @@ const UserProfile = () => {
                       {/* 4. Timezone */}
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <Globe className="h-4 w-4 text-white/40" />
+                          <Globe className="h-4 w-4 text-purple-400/60" />
                           <div>
-                            <p className="text-white/70 text-[13px] font-medium">Timezone</p>
-                            <p className="text-white/30 text-[11px]">Used for activity logs and session timestamps</p>
+                            <p className="text-white/90 text-[13px] font-medium">Timezone</p>
+                            <p className="text-white/45 text-[11px]">Used for activity logs and session timestamps</p>
                           </div>
                         </div>
                         <Select value={userSettings.timezone}
@@ -777,10 +778,10 @@ const UserProfile = () => {
                       {/* 5. Language */}
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <Languages className="h-4 w-4 text-white/40" />
+                          <Languages className="h-4 w-4 text-purple-400/60" />
                           <div>
-                            <p className="text-white/70 text-[13px] font-medium">Language</p>
-                            <p className="text-white/30 text-[11px]">Interface display language</p>
+                            <p className="text-white/90 text-[13px] font-medium">Language</p>
+                            <p className="text-white/45 text-[11px]">Interface display language</p>
                           </div>
                         </div>
                         <Select value={userSettings.language}
@@ -832,56 +833,75 @@ const UserProfile = () => {
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
                   <Card>
                     <SectionTitle icon={Activity} title="Account Activity"
-                      subtitle="Complete log of all sign-in events on your account. Monitor for unauthorized access." />
+                      subtitle="Sign-in events on your account, deduplicated. Monitor for unauthorized access." />
                     {loadingActivity ? (
-                      <div className="text-center py-8 text-white/30 text-[13px]">Loading activity...</div>
+                      <div className="text-center py-8 text-white/40 text-[13px]">Loading activity...</div>
                     ) : loginActivity.length === 0 ? (
                       <div className="text-center py-10">
-                        <Activity className="h-8 w-8 text-white/10 mx-auto mb-3" />
-                        <p className="text-white/30 text-[13px]">No login activity recorded yet.</p>
+                        <Activity className="h-8 w-8 text-white/15 mx-auto mb-3" />
+                        <p className="text-white/40 text-[13px]">No login activity recorded yet.</p>
                       </div>
-                    ) : (
-                      <div className="overflow-x-auto -mx-6 px-6">
-                        <table className="w-full text-[12px]">
-                          <thead>
-                            <tr className="border-b border-white/[0.06]">
-                              <th className="text-left text-white/35 font-medium py-2.5 px-3">Date & Time</th>
-                              <th className="text-left text-white/35 font-medium py-2.5 px-3">Device</th>
-                              <th className="text-left text-white/35 font-medium py-2.5 px-3">Browser / OS</th>
-                              <th className="text-left text-white/35 font-medium py-2.5 px-3">IP Address</th>
-                              <th className="text-left text-white/35 font-medium py-2.5 px-3">Method</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {loginActivity.map((a) => {
-                              const { browser, os } = parseUA(a.user_agent || "");
-                              return (
-                                <tr key={a.id} className="border-b border-white/[0.03] hover:bg-white/[0.02] transition-colors">
-                                  <td className="py-2.5 px-3 text-white/60 whitespace-nowrap">
-                                    {new Date(a.login_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}{" "}
-                                    <span className="text-white/30">{new Date(a.login_at).toLocaleTimeString()}</span>
-                                  </td>
-                                  <td className="py-2.5 px-3">
-                                    <div className="flex items-center gap-2 text-white/50">
-                                      {a.device === "mobile" ? <Smartphone className="h-3.5 w-3.5" /> : <Monitor className="h-3.5 w-3.5" />}
-                                      {a.device || "desktop"}
-                                    </div>
-                                  </td>
-                                  <td className="py-2.5 px-3 text-white/40">{browser} / {os}</td>
-                                  <td className="py-2.5 px-3 text-white/30 font-mono text-[11px]">{a.ip_address || "N/A"}</td>
-                                  <td className="py-2.5 px-3">
-                                    <span className={`text-[11px] px-2 py-0.5 rounded-full ${
-                                      a.login_type === "google" ? "bg-blue-500/10 text-blue-300/70 border border-blue-500/15"
-                                      : "bg-white/[0.04] text-white/40 border border-white/[0.06]"
-                                    }`}>{a.login_type || "email"}</span>
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
+                    ) : (() => {
+                      // Deduplicate: group entries within 2-minute windows with same device/method
+                      const deduped: any[] = [];
+                      const sorted = [...loginActivity].sort((a, b) => new Date(b.login_at).getTime() - new Date(a.login_at).getTime());
+                      sorted.forEach((entry) => {
+                        const last = deduped[deduped.length - 1];
+                        if (last) {
+                          const timeDiff = Math.abs(new Date(last.login_at).getTime() - new Date(entry.login_at).getTime());
+                          if (timeDiff < 120000 && last.device === entry.device && last.login_type === entry.login_type) {
+                            return; // skip duplicate within 2 min window
+                          }
+                        }
+                        deduped.push(entry);
+                      });
+                      return (
+                        <div className="overflow-x-auto -mx-6 px-6">
+                          <table className="w-full text-[13px]">
+                            <thead>
+                              <tr className="border-b border-purple-500/10">
+                                <th className="text-left text-white/50 font-semibold py-3 px-3">Date & Time</th>
+                                <th className="text-left text-white/50 font-semibold py-3 px-3">Device</th>
+                                <th className="text-left text-white/50 font-semibold py-3 px-3">Browser / OS</th>
+                                <th className="text-left text-white/50 font-semibold py-3 px-3">IP Address</th>
+                                <th className="text-left text-white/50 font-semibold py-3 px-3">Method</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {deduped.map((a) => {
+                                const { browser, os } = parseUA(a.user_agent || "");
+                                const methodColor = a.login_type === "google"
+                                  ? "bg-blue-500/15 text-blue-300 border-blue-500/20"
+                                  : a.login_type === "magiclink" || a.login_type === "magic_link"
+                                  ? "bg-purple-500/15 text-purple-300 border-purple-500/20"
+                                  : "bg-emerald-500/10 text-emerald-300 border-emerald-500/15";
+                                return (
+                                  <tr key={a.id} className="border-b border-white/[0.04] hover:bg-purple-500/[0.03] transition-colors">
+                                    <td className="py-3 px-3 text-white/80 whitespace-nowrap">
+                                      {new Date(a.login_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}{" "}
+                                      <span className="text-white/40">{new Date(a.login_at).toLocaleTimeString()}</span>
+                                    </td>
+                                    <td className="py-3 px-3">
+                                      <div className="flex items-center gap-2 text-white/70">
+                                        {a.device === "mobile" ? <Smartphone className="h-3.5 w-3.5 text-purple-400/60" /> : <Monitor className="h-3.5 w-3.5 text-purple-400/60" />}
+                                        <span className="capitalize">{a.device || "desktop"}</span>
+                                      </div>
+                                    </td>
+                                    <td className="py-3 px-3 text-white/60">{browser} / {os}</td>
+                                    <td className="py-3 px-3 text-white/50 font-mono text-[11px]">{a.ip_address || "—"}</td>
+                                    <td className="py-3 px-3">
+                                      <span className={`text-[11px] px-2.5 py-1 rounded-full border font-medium ${methodColor}`}>
+                                        {a.login_type || "email"}
+                                      </span>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      );
+                    })()}
                   </Card>
                 </motion.div>
               )}
@@ -929,7 +949,7 @@ const UserProfile = () => {
                                 </div>
                                 <div>
                                   <div className="flex items-center gap-2">
-                                    <p className="text-white/80 text-[13px] font-medium">{device.device_name}</p>
+                                    <p className="text-white text-[13px] font-medium">{device.device_name}</p>
                                     {device.is_current && (
                                       <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">This device</span>
                                     )}
@@ -944,10 +964,10 @@ const UserProfile = () => {
                                         {isOnline ? "Online" : isPending ? "Pending" : "Offline"}
                                       </span>
                                     </span>
-                                    <span className="text-white/20 text-[11px]">
+                                    <span className="text-white/40 text-[11px]">
                                       {device.browser && device.os ? `${device.browser} · ${device.os}` : ""}
                                     </span>
-                                    <span className="text-white/15 text-[11px]">
+                                    <span className="text-white/30 text-[11px]">
                                       Last active: {new Date(device.last_active_at).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                                     </span>
                                     {device.expires_at && (
@@ -959,10 +979,18 @@ const UserProfile = () => {
                                 </div>
                               </div>
                               {!device.is_current && (
-                                <Button onClick={() => handleKickDevice(device.id)}
-                                  variant="ghost" className="text-red-400/60 hover:text-red-300 hover:bg-red-500/[0.06] rounded-xl text-[11px] h-7 gap-1 px-2.5">
-                                  <X className="h-3 w-3" /> Remove
-                                </Button>
+                                <div className="flex items-center gap-1">
+                                  <button onClick={() => handleKickDevice(device.id)}
+                                    title="Remove & log out"
+                                    className="w-8 h-8 rounded-lg flex items-center justify-center text-red-400/60 hover:text-red-300 hover:bg-red-500/10 transition-all">
+                                    <Trash2 className="h-4 w-4" />
+                                  </button>
+                                  <button onClick={() => handleKickDevice(device.id)}
+                                    title="Force logout"
+                                    className="w-8 h-8 rounded-lg flex items-center justify-center text-amber-400/60 hover:text-amber-300 hover:bg-amber-500/10 transition-all">
+                                    <Power className="h-4 w-4" />
+                                  </button>
+                                </div>
                               )}
                             </div>
                           );
@@ -1264,11 +1292,11 @@ const FieldInput = ({ icon: Icon, label, value, onChange, placeholder, type = "t
   icon: any; label: string; value: string; onChange: (v: string) => void; placeholder: string; type?: string;
 }) => (
   <div className="space-y-1.5">
-    <label className="text-[12px] font-medium text-white/40">{label}</label>
+    <label className="text-[12px] font-medium text-white/60">{label}</label>
     <div className="relative">
-      <Icon className="absolute left-3 top-1/2 -translate-y-1/2 text-white/25 h-3.5 w-3.5" />
+      <Icon className="absolute left-3 top-1/2 -translate-y-1/2 text-purple-400/40 h-3.5 w-3.5" />
       <Input type={type} value={value} onChange={(e) => onChange(e.target.value)}
-        className="pl-10 bg-white/[0.04] border-white/[0.08] text-white/80 placeholder:text-white/20 rounded-xl h-10 text-[13px] focus:bg-white/[0.06] focus:border-white/[0.15]"
+        className="pl-10 bg-white/[0.05] border-purple-500/10 text-white placeholder:text-white/25 rounded-xl h-10 text-[13px] focus:bg-white/[0.07] focus:border-purple-500/25"
         placeholder={placeholder} />
     </div>
   </div>
