@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
+import Footer from "@/components/Footer";
 import { Users, TrendingUp, HeartHandshake, MessageSquare, DollarSign, Megaphone, Target, Shield, Zap, Crown } from "lucide-react";
 
 const services = [
@@ -162,6 +163,8 @@ const Services = () => {
           </Link>
         </div>
       </section>
+
+      <Footer />
     </div>
   );
 };

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { HelpCircle, Search, MessageCircle, Clock, Shield } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
+import Footer from "@/components/Footer";
 import {
   Accordion,
   AccordionContent,
@@ -250,6 +251,8 @@ const FAQ = () => {
           </div>
         </div>
       </section>
+
+      <Footer />
     </div>
   );
 };
