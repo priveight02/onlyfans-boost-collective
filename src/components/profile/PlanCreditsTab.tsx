@@ -375,7 +375,7 @@ const PlanCreditsTab = () => {
 
             return (
               <div key={pkg.id}
-                className={`relative flex flex-col rounded-2xl border p-5 transition-all duration-200 hover:translate-y-[-2px] ${
+                className={`relative flex flex-col rounded-2xl border p-4 transition-all duration-200 hover:translate-y-[-2px] overflow-hidden ${
                   isPopular
                     ? "border-emerald-500/30 bg-[hsl(222,30%,12%)] ring-1 ring-emerald-500/20"
                     : "border-white/[0.06] bg-[hsl(222,30%,12%)]"
@@ -387,27 +387,29 @@ const PlanCreditsTab = () => {
                   </Badge>
                 )}
 
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                   <h3 className="text-white/90 font-semibold text-sm mb-2">{pkg.name}</h3>
 
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <Coins className="h-4 w-4 text-amber-400" />
+                  <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
+                    <Coins className="h-4 w-4 text-amber-400 shrink-0" />
                     <span className="text-white font-bold text-lg">{pkg.credits.toLocaleString()}</span>
                     {pkg.bonus_credits > 0 && (
-                      <span className="text-amber-300/80 text-xs">+{pkg.bonus_credits} bonus</span>
+                      <span className="text-amber-300/80 text-[11px]">+{pkg.bonus_credits} bonus</span>
                     )}
                   </div>
 
-                  <div className="flex items-baseline gap-1.5 mt-2.5">
+                  <div className="flex items-baseline gap-1 mt-2 flex-wrap">
                     {isReturning && (
-                      <span className="text-white/30 text-xs line-through">{formatPrice(pkg.price_cents)}</span>
+                      <span className="text-white/30 text-[11px] line-through">{formatPrice(pkg.price_cents)}</span>
                     )}
-                    <span className="text-white font-bold text-2xl">{formatPrice(displayPrice)}</span>
+                    <span className="text-white font-bold text-xl">{formatPrice(displayPrice)}</span>
                     {isReturning && (
-                      <span className="text-emerald-400 text-[10px] font-semibold">-{Math.round(returningDiscount * 100)}%</span>
+                      <Badge className="bg-emerald-500/15 text-emerald-300 border-emerald-500/20 text-[9px] px-1.5 py-0 ml-0.5">
+                        -{Math.round(returningDiscount * 100)}%
+                      </Badge>
                     )}
                   </div>
-                  <p className="text-white/30 text-[11px] mt-0.5 mb-4">{perCredit}¢/credit</p>
+                  <p className="text-white/30 text-[11px] mt-0.5 mb-3">{perCredit}¢/credit</p>
                 </div>
 
                 <Button

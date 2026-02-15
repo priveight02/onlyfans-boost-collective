@@ -164,16 +164,17 @@ const Pricing = () => {
         </p>
 
         {user && (
-          <div className="mt-6 inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full bg-white/5 border border-white/10">
-            <span className="text-xl font-semibold text-white">{balance.toLocaleString()}</span>
-            <span className="text-white/40 text-sm">credits available</span>
-          </div>
-        )}
-
-        {isReturning && (
-          <div className="mt-3 inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
-            <BadgePercent className="h-3.5 w-3.5 text-emerald-400" />
-            <span className="text-xs text-emerald-300 font-medium">{Math.round(returningDiscount * 100)}% returning customer discount applied</span>
+          <div className="mt-6 flex items-center justify-center gap-3 flex-wrap">
+            <div className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full bg-white/5 border border-white/10">
+              <span className="text-xl font-semibold text-white">{balance.toLocaleString()}</span>
+              <span className="text-white/40 text-sm">credits available</span>
+            </div>
+            {isReturning && (
+              <div className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+                <BadgePercent className="h-3.5 w-3.5 text-emerald-400" />
+                <span className="text-xs text-emerald-300 font-medium">{Math.round(returningDiscount * 100)}% returning customer discount applied</span>
+              </div>
+            )}
           </div>
         )}
       </div>
