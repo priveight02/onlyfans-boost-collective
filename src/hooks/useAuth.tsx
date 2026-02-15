@@ -8,8 +8,18 @@ interface Profile {
   username: string | null;
   display_name: string | null;
   avatar_url: string | null;
+  banner_url: string | null;
   bio: string | null;
   email: string | null;
+  phone: string | null;
+  address: string | null;
+  company: string | null;
+  original_email: string | null;
+  email_change_count: number;
+  follower_count: number;
+  following_count: number;
+  post_count: number;
+  is_private: boolean;
 }
 
 interface AuthContextType {
