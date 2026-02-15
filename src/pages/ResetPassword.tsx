@@ -33,50 +33,49 @@ const ResetPassword = () => {
   };
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-primary via-accent to-primary-accent">
-      <div className="absolute inset-0">
-        <div className="absolute inset-0 bg-black/10 mix-blend-multiply" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
+    <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-[hsl(222,35%,8%)] via-[hsl(220,35%,10%)] to-[hsl(225,35%,6%)]">
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-1/4 left-1/3 w-[500px] h-[500px] bg-purple-500/5 rounded-full blur-3xl" />
+        <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-blue-500/5 rounded-full blur-3xl" />
       </div>
       <div className="relative min-h-screen flex items-center justify-center py-20 px-4">
         <div className="absolute top-20 left-4 z-10"><BackButton /></div>
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-md">
-          <div className="bg-white/10 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 p-8"
-            style={{ boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
+          <div className="bg-[hsl(222,30%,12%)] backdrop-blur-xl rounded-2xl shadow-2xl border border-white/10 p-8">
             <div className="text-center mb-6">
               <div className="flex justify-center mb-4">
-                <div className="bg-white/15 backdrop-blur-sm rounded-2xl p-4 border border-white/20">
-                  <KeyRound className="w-8 h-8 text-white" />
+                <div className="bg-purple-500/10 rounded-xl p-3 border border-purple-500/20">
+                  <KeyRound className="w-7 h-7 text-purple-400" />
                 </div>
               </div>
-              <h1 className="text-3xl font-bold font-heading mb-1 text-white">Set New Password</h1>
-              <p className="text-white/70 text-sm">Choose a strong password for your account</p>
+              <h1 className="text-2xl font-bold font-heading mb-1 text-white">Set New Password</h1>
+              <p className="text-white/50 text-sm">Choose a strong password for your account</p>
             </div>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <label className="block text-sm font-semibold text-white/90">New Password</label>
+              <div className="space-y-1.5">
+                <label className="block text-xs font-medium text-white/60 uppercase tracking-wider">New Password</label>
                 <div className="relative">
-                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-white/60 h-5 w-5" />
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 h-4 w-4" />
                   <Input type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} required
-                    className="pl-12 pr-14 bg-white/20 border-white/30 text-white placeholder:text-white/50 focus:bg-white/25 focus:border-white/50 rounded-xl h-12"
+                    className="pl-10 pr-10 bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-purple-500/50 rounded-lg h-10 text-sm"
                     placeholder="Min 8 characters" />
                   <button type="button" onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-white/60 hover:text-white/80">
-                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/60">
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
               </div>
-              <div className="space-y-2">
-                <label className="block text-sm font-semibold text-white/90">Confirm Password</label>
+              <div className="space-y-1.5">
+                <label className="block text-xs font-medium text-white/60 uppercase tracking-wider">Confirm Password</label>
                 <div className="relative">
-                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-white/60 h-5 w-5" />
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 h-4 w-4" />
                   <Input type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} required
-                    className="pl-12 bg-white/20 border-white/30 text-white placeholder:text-white/50 focus:bg-white/25 focus:border-white/50 rounded-xl h-12"
+                    className="pl-10 bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-purple-500/50 rounded-lg h-10 text-sm"
                     placeholder="Confirm password" />
                 </div>
               </div>
               <Button type="submit" disabled={isSubmitting}
-                className="w-full bg-white/25 hover:bg-white/35 text-white font-semibold rounded-xl h-12 border border-white/30 shadow-lg backdrop-blur-sm">
+                className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg h-10 text-sm shadow-lg">
                 {isSubmitting ? "Updating..." : "Update Password"}
               </Button>
             </form>
