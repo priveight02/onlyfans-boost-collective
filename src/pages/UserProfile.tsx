@@ -153,7 +153,7 @@ const ThemedSaveButton = ({ onClick, disabled, label = "Save Changes" }: { onCli
 const UserProfile = () => {
   const { user, profile, logout, refreshProfile, updatePassword } = useAuth();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<TabId>("social-feed");
+  const [activeTab, setActiveTab] = useState<TabId>("plan-credits");
 
   // Account info state
   const [username, setUsername] = useState("");
