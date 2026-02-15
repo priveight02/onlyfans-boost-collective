@@ -81,8 +81,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     };
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       resolveUser(session?.user ?? null);
+      // Log login activity on sign in
+      if (event === 'SIGNED_IN' && session?.user) {
+        const provider = session.user.app_metadata?.provider || 'email';
+        const ua = navigator.userAgent;
+        const device = /Mobile|Android|iPhone/i.test(ua) ? 'mobile' : 'desktop';
+        supabase.from('login_activity').insert({
+          user_id: session.user.id,
+          login_type: provider,
+          device,
+          user_agent: ua.substring(0, 200),
+        } as any).then(() => {});
+      }
     });
 
     supabase.auth.getSession().then(({ data: { session } }) => {
