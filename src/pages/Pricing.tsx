@@ -4,7 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useWallet } from "@/hooks/useWallet";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Coins, Sparkles, Zap, Crown, Star, Check, ArrowRight, BadgePercent, Settings2 } from "lucide-react";
+import { Check, ArrowRight, Sparkles, BadgePercent, ShieldCheck, Zap, Gift } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -21,7 +21,6 @@ interface CreditPackage {
   sort_order: number;
 }
 
-// Base price per credit in cents (matches edge function)
 const BASE_PRICE_PER_CREDIT_CENTS = 9.99;
 
 const getVolumeDiscount = (credits: number): number => {
@@ -93,7 +92,7 @@ const Pricing = () => {
 
   const handleCustomPurchase = async () => {
     if (!user) { toast.error("Please log in first"); navigate("/auth"); return; }
-    if (customCredits < 50) { toast.error("Minimum 50 credits"); return; }
+    if (customCredits < 10) { toast.error("Minimum 10 credits"); return; }
     setPurchasingCustom(true);
     try {
       const { data, error } = await supabase.functions.invoke("purchase-credits", {
@@ -109,132 +108,103 @@ const Pricing = () => {
   };
 
   const formatPrice = (cents: number) => `$${Math.round(cents / 100)}`;
-
   const getDiscountedPrice = (cents: number) => Math.round(cents * 0.7);
 
-  // Custom plan price calculation
   const customDiscount = getVolumeDiscount(customCredits);
   const customPricePerCredit = BASE_PRICE_PER_CREDIT_CENTS * (1 - customDiscount);
   const customTotalCents = Math.round(customCredits * customPricePerCredit);
   const customDisplayCents = isReturning ? Math.round(customTotalCents * 0.7) : customTotalCents;
 
-  const getIcon = (index: number) => {
-    const icons = [Coins, Zap, Star, Crown];
-    return icons[index] || Coins;
-  };
-
-  const getGradient = (index: number) => {
-    const gradients = [
-      "from-blue-500/20 to-blue-600/5",
-      "from-emerald-500/20 to-emerald-600/5",
-      "from-violet-500/20 to-violet-600/5",
-      "from-amber-500/20 to-amber-600/5",
-    ];
-    return gradients[index] || gradients[0];
-  };
-
-  const getBorderColor = (index: number) => {
-    const colors = [
-      "border-blue-500/30 hover:border-blue-400/50",
-      "border-emerald-500/30 hover:border-emerald-400/50",
-      "border-violet-500/30 hover:border-violet-400/50",
-      "border-amber-500/30 hover:border-amber-400/50",
-    ];
-    return colors[index] || colors[0];
-  };
+  const cardAccents = [
+    { border: "border-purple-500/25", glow: "shadow-purple-500/5", badge: "bg-purple-500", label: "" },
+    { border: "border-yellow-500/40", glow: "shadow-yellow-500/10", badge: "bg-yellow-500", label: "Most Popular" },
+    { border: "border-white/10", glow: "shadow-white/5", badge: "", label: "" },
+    { border: "border-purple-500/30", glow: "shadow-purple-500/5", badge: "bg-purple-500", label: "Best Value" },
+  ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#0a0e1a] via-[#0d1225] to-[#0a0e1a] text-white pt-24">
+    <div className="min-h-screen bg-[hsl(222,35%,8%)] text-white pt-24">
       {/* Hero */}
-      <div className="text-center px-4 mb-16">
-        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 mb-6">
-          <Coins className="h-4 w-4 text-amber-400" />
-          <span className="text-sm text-white/70">Virtual Currency System</span>
-        </div>
-        <h1 className="text-4xl md:text-6xl font-bold mb-4 bg-gradient-to-r from-white via-white to-white/60 bg-clip-text text-transparent">
+      <div className="text-center px-4 mb-14">
+        <h1 className="text-4xl md:text-5xl font-bold mb-3 text-white tracking-tight">
           Buy Credits
         </h1>
-        <p className="text-lg text-white/50 max-w-2xl mx-auto">
-          Power your account with credits. Use them to unlock plans, perks, boosts, and premium features.
+        <p className="text-base text-white/40 max-w-lg mx-auto">
+          Choose a plan that fits your needs. Credits are delivered instantly and never expire.
         </p>
 
         {user && (
-          <div className="mt-8 inline-flex items-center gap-3 px-6 py-3 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-xl">
-            <Coins className="h-5 w-5 text-amber-400" />
-            <span className="text-2xl font-bold text-white">{balance.toLocaleString()}</span>
-            <span className="text-white/50">credits</span>
+          <div className="mt-6 inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full bg-white/5 border border-white/10">
+            <span className="text-xl font-semibold text-white">{balance.toLocaleString()}</span>
+            <span className="text-white/40 text-sm">credits available</span>
           </div>
         )}
 
         {isReturning && (
-          <div className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/10 border border-emerald-500/30">
-            <BadgePercent className="h-4 w-4 text-emerald-400" />
-            <span className="text-sm text-emerald-300 font-medium">Returning customer — 30% OFF all packages!</span>
+          <div className="mt-3 inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+            <BadgePercent className="h-3.5 w-3.5 text-emerald-400" />
+            <span className="text-xs text-emerald-300 font-medium">30% returning customer discount applied</span>
           </div>
         )}
       </div>
 
-      {/* Packages Grid */}
+      {/* Packages */}
       <div className="max-w-7xl mx-auto px-4 pb-20">
         {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5">
             {[...Array(5)].map((_, i) => (
               <div key={i} className="h-80 rounded-2xl bg-white/5 animate-pulse" />
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5">
             {packages.map((pkg, index) => {
-              const Icon = getIcon(index);
-              const isPopular = pkg.is_popular;
+              const accent = cardAccents[index] || cardAccents[0];
               const displayPrice = isReturning ? getDiscountedPrice(pkg.price_cents) : pkg.price_cents;
               const perCredit = (displayPrice / (pkg.credits + pkg.bonus_credits)).toFixed(2);
+              const isPopular = pkg.is_popular;
 
               return (
                 <div
                   key={pkg.id}
-                  className={`relative flex flex-col rounded-2xl border backdrop-blur-xl transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl ${getBorderColor(index)} bg-gradient-to-b ${getGradient(index)} ${isPopular ? 'ring-2 ring-emerald-500/50' : ''}`}
+                  className={`relative flex flex-col rounded-2xl border ${accent.border} bg-[hsl(222,30%,11%)] transition-all duration-200 hover:translate-y-[-2px] hover:shadow-xl ${accent.glow} ${isPopular ? 'ring-1 ring-yellow-500/40' : ''}`}
                 >
-                  {isPopular && (
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                      <Badge className="bg-emerald-500 text-white border-0 px-3 py-1 text-xs font-semibold">
-                        MOST POPULAR
-                      </Badge>
+                  {accent.label && (
+                    <div className="absolute -top-3 right-4">
+                      <span className={`${accent.badge} text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full`}>
+                        {accent.label}
+                      </span>
                     </div>
                   )}
 
                   <div className="p-6 flex-1 flex flex-col">
-                    <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center mb-4">
-                      <Icon className="h-6 w-6 text-white/80" />
-                    </div>
+                    <h3 className="text-base font-semibold text-white/90 mb-3">{pkg.name}</h3>
 
-                    <h3 className="text-lg font-bold text-white mb-1">{pkg.name}</h3>
-
-                    <div className="flex items-baseline gap-2 mb-1">
+                    <div className="flex items-baseline gap-2 mb-0.5">
                       {isReturning && (
-                        <span className="text-sm text-white/40 line-through">{formatPrice(pkg.price_cents)}</span>
+                        <span className="text-sm text-white/30 line-through">{formatPrice(pkg.price_cents)}</span>
                       )}
-                      <span className="text-3xl font-bold text-white">{formatPrice(displayPrice)}</span>
+                      <span className="text-4xl font-bold text-white">{formatPrice(displayPrice)}</span>
                     </div>
-                    <span className="text-xs text-white/40 mb-4">{perCredit}¢ per credit</span>
+                    <span className="text-xs text-white/30 mb-5">{perCredit}¢ per credit</span>
 
-                    <div className="space-y-2 mb-6 flex-1">
-                      <div className="flex items-center gap-2 text-sm text-white/70">
-                        <Check className="h-4 w-4 text-emerald-400 shrink-0" />
+                    <div className="space-y-2.5 mb-6 flex-1">
+                      <div className="flex items-center gap-2 text-sm text-white/60">
+                        <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
                         <span>{pkg.credits.toLocaleString()} credits</span>
                       </div>
                       {pkg.bonus_credits > 0 && (
-                        <div className="flex items-center gap-2 text-sm text-amber-300">
-                          <Sparkles className="h-4 w-4 text-amber-400 shrink-0" />
-                          <span>+{pkg.bonus_credits} bonus credits</span>
+                        <div className="flex items-center gap-2 text-sm text-amber-300/80">
+                          <Sparkles className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+                          <span>+{pkg.bonus_credits} bonus</span>
                         </div>
                       )}
-                      <div className="flex items-center gap-2 text-sm text-white/70">
-                        <Check className="h-4 w-4 text-emerald-400 shrink-0" />
+                      <div className="flex items-center gap-2 text-sm text-white/60">
+                        <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
                         <span>Instant delivery</span>
                       </div>
-                      <div className="flex items-center gap-2 text-sm text-white/70">
-                        <Check className="h-4 w-4 text-emerald-400 shrink-0" />
+                      <div className="flex items-center gap-2 text-sm text-white/60">
+                        <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
                         <span>Never expires</span>
                       </div>
                     </div>
@@ -242,10 +212,10 @@ const Pricing = () => {
                     <Button
                       onClick={() => handlePurchase(pkg)}
                       disabled={purchasingId === pkg.id}
-                      className={`w-full py-5 rounded-xl font-semibold transition-all duration-300 ${
+                      className={`w-full py-5 rounded-xl font-medium transition-all ${
                         isPopular
-                          ? 'bg-emerald-500 hover:bg-emerald-400 text-white'
-                          : 'bg-white/10 hover:bg-white/20 text-white border border-white/10'
+                          ? 'bg-yellow-500 hover:bg-yellow-400 text-black'
+                          : 'bg-white/[0.07] hover:bg-white/[0.12] text-white border border-white/10'
                       }`}
                     >
                       {purchasingId === pkg.id ? (
@@ -262,57 +232,55 @@ const Pricing = () => {
             })}
 
             {/* Custom Credits Card */}
-            <div className="relative flex flex-col rounded-2xl border border-rose-500/30 hover:border-rose-400/50 backdrop-blur-xl transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl bg-gradient-to-b from-rose-500/20 to-rose-600/5 ring-2 ring-rose-500/30">
-              <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                <Badge className="bg-rose-500 text-white border-0 px-3 py-1 text-xs font-semibold">
-                  CUSTOM
-                </Badge>
+            <div className="relative flex flex-col rounded-2xl border border-purple-500/30 bg-[hsl(222,30%,11%)] transition-all duration-200 hover:translate-y-[-2px] hover:shadow-xl shadow-purple-500/5">
+              <div className="absolute -top-3 right-4">
+                <span className="bg-purple-500 text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full">
+                  Custom
+                </span>
               </div>
 
               <div className="p-6 flex-1 flex flex-col">
-                <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center mb-4">
-                  <Settings2 className="h-6 w-6 text-white/80" />
-                </div>
+                <h3 className="text-base font-semibold text-white/90 mb-3">Custom Needs</h3>
 
-                <h3 className="text-lg font-bold text-white mb-1">Custom Needs</h3>
-
-                <div className="flex items-baseline gap-2 mb-1">
+                <div className="flex items-baseline gap-2 mb-0.5">
                   {isReturning && customTotalCents !== customDisplayCents && (
-                    <span className="text-sm text-white/40 line-through">${Math.round(customTotalCents / 100)}</span>
+                    <span className="text-sm text-white/30 line-through">${Math.round(customTotalCents / 100)}</span>
                   )}
-                  <span className="text-3xl font-bold text-white">${Math.round(customDisplayCents / 100)}</span>
+                  <span className="text-4xl font-bold text-white">
+                    ${(customDisplayCents / 100).toFixed(customDisplayCents < 1000 ? 2 : 0)}
+                  </span>
                 </div>
-                <span className="text-xs text-white/40 mb-4">
-                  {(customDisplayCents / customCredits).toFixed(2)}¢ per credit
-                  {customDiscount > 0 && ` · ${Math.round(customDiscount * 100)}% bulk discount`}
+                <span className="text-xs text-white/30 mb-4">
+                  {(customDisplayCents / customCredits).toFixed(2)}¢/credit
+                  {customDiscount > 0 && ` · ${Math.round(customDiscount * 100)}% off`}
                 </span>
 
                 <div className="mb-4">
-                  <label className="text-xs text-white/50 mb-1 block">How many credits?</label>
+                  <label className="text-xs text-white/40 mb-1.5 block">How many credits?</label>
                   <Input
                     type="number"
-                    min={50}
+                    min={10}
                     max={100000}
                     value={customCredits}
-                    onChange={(e) => setCustomCredits(Math.max(50, parseInt(e.target.value) || 50))}
-                    className="bg-white/5 border-white/10 text-white text-center text-lg font-bold"
+                    onChange={(e) => setCustomCredits(Math.max(10, parseInt(e.target.value) || 10))}
+                    className="bg-white/5 border-white/10 text-white text-center text-lg font-semibold h-11"
                   />
-                  <span className="text-[10px] text-white/30 mt-1 block">Min 50 credits</span>
+                  <span className="text-[10px] text-white/25 mt-1 block">Min 10 · Bulk discounts up to 40%</span>
                 </div>
 
-                <div className="space-y-2 mb-6 flex-1">
-                  <div className="flex items-center gap-2 text-sm text-white/70">
-                    <Check className="h-4 w-4 text-emerald-400 shrink-0" />
+                <div className="space-y-2.5 mb-6 flex-1">
+                  <div className="flex items-center gap-2 text-sm text-white/60">
+                    <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
                     <span>{customCredits.toLocaleString()} credits</span>
                   </div>
                   {customDiscount > 0 && (
-                    <div className="flex items-center gap-2 text-sm text-amber-300">
-                      <Sparkles className="h-4 w-4 text-amber-400 shrink-0" />
+                    <div className="flex items-center gap-2 text-sm text-amber-300/80">
+                      <Sparkles className="h-3.5 w-3.5 text-amber-400 shrink-0" />
                       <span>{Math.round(customDiscount * 100)}% volume discount</span>
                     </div>
                   )}
-                  <div className="flex items-center gap-2 text-sm text-white/70">
-                    <Check className="h-4 w-4 text-emerald-400 shrink-0" />
+                  <div className="flex items-center gap-2 text-sm text-white/60">
+                    <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
                     <span>Instant delivery</span>
                   </div>
                 </div>
@@ -320,7 +288,7 @@ const Pricing = () => {
                 <Button
                   onClick={handleCustomPurchase}
                   disabled={purchasingCustom}
-                  className="w-full py-5 rounded-xl font-semibold bg-rose-500 hover:bg-rose-400 text-white transition-all duration-300"
+                  className="w-full py-5 rounded-xl font-medium bg-purple-500 hover:bg-purple-400 text-white transition-all"
                 >
                   {purchasingCustom ? (
                     <span className="animate-pulse">Processing...</span>
@@ -335,29 +303,23 @@ const Pricing = () => {
           </div>
         )}
 
-        {/* Trust section */}
-        <div className="mt-20 text-center">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-3xl mx-auto">
+        {/* Trust */}
+        <div className="mt-16 border-t border-white/5 pt-12">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-2xl mx-auto text-center">
             <div className="flex flex-col items-center gap-2">
-              <div className="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center">
-                <Check className="h-5 w-5 text-emerald-400" />
-              </div>
-              <h4 className="font-semibold text-white/90">Secure Payments</h4>
-              <p className="text-sm text-white/40">Powered by Stripe</p>
+              <ShieldCheck className="h-5 w-5 text-white/30" />
+              <h4 className="text-sm font-medium text-white/70">Secure Payments</h4>
+              <p className="text-xs text-white/30">256-bit SSL encryption</p>
             </div>
             <div className="flex flex-col items-center gap-2">
-              <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center">
-                <Zap className="h-5 w-5 text-blue-400" />
-              </div>
-              <h4 className="font-semibold text-white/90">Instant Delivery</h4>
-              <p className="text-sm text-white/40">Credits added immediately</p>
+              <Zap className="h-5 w-5 text-white/30" />
+              <h4 className="text-sm font-medium text-white/70">Instant Delivery</h4>
+              <p className="text-xs text-white/30">Credits added immediately</p>
             </div>
             <div className="flex flex-col items-center gap-2">
-              <div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center">
-                <BadgePercent className="h-5 w-5 text-amber-400" />
-              </div>
-              <h4 className="font-semibold text-white/90">Loyalty Rewards</h4>
-              <p className="text-sm text-white/40">30% off on your next purchase</p>
+              <Gift className="h-5 w-5 text-white/30" />
+              <h4 className="text-sm font-medium text-white/70">Loyalty Rewards</h4>
+              <p className="text-xs text-white/30">30% off your next purchase</p>
             </div>
           </div>
         </div>

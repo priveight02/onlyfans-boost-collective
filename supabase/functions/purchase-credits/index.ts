@@ -74,7 +74,7 @@ serve(async (req) => {
     const origin = req.headers.get("origin") || "https://ozcagency.com";
 
     // --- CUSTOM CREDITS MODE ---
-    if (customCredits && typeof customCredits === "number" && customCredits >= 50) {
+    if (customCredits && typeof customCredits === "number" && customCredits >= 10) {
       logStep("Custom credits mode", { customCredits });
 
       const discount = getVolumeDiscount(customCredits);
