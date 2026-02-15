@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/hooks/useAuth";
 import { lovable } from "@/integrations/lovable/index";
+import { supabase } from "@/integrations/supabase/client";
 import { trackAdminLogin } from "@/hooks/useVisitorTracking";
 import {
   Eye, EyeOff, LogIn, Lock, Mail, User, ArrowLeft,
@@ -92,6 +93,16 @@ const Auth = () => {
     if (!email) { toast.error("Please enter your email"); return; }
     try {
       setIsSubmitting(true);
+      // Check if account exists before sending reset email
+      const { data: existingProfile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('email', email.trim().toLowerCase())
+        .maybeSingle();
+      if (!existingProfile) {
+        toast.error("No account found with this email address.");
+        return;
+      }
       await resetPassword(email);
       toast.success("Password reset link sent! Check your email.");
     } catch (error: any) {
@@ -106,6 +117,16 @@ const Auth = () => {
     if (!email) { toast.error("Please enter your email"); return; }
     try {
       setIsSubmitting(true);
+      // Check if account exists before sending magic link
+      const { data: existingProfile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('email', email.trim().toLowerCase())
+        .maybeSingle();
+      if (!existingProfile) {
+        toast.error("No account found with this email address.");
+        return;
+      }
       await signInWithMagicLink(email);
       toast.success("Magic link sent! Check your email (link expires in 24h).");
     } catch (error: any) {
