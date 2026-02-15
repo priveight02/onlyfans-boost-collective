@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Coins, Crown, Zap, Star, Check, ArrowRight, Sparkles, Plus, Minus, CreditCard, TrendingUp, ArrowUpRight, ShieldAlert } from "lucide-react";
+import { Coins, Layers, Zap, Star, Check, ArrowRight, Sparkles, Plus, Minus, CreditCard, TrendingUp, ArrowUpRight, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -241,7 +241,7 @@ const PlanCreditsTab = () => {
         <div className="rounded-2xl border border-purple-500/10 bg-[hsl(222,28%,11%)] p-6">
           <div className="flex items-center gap-4 mb-4">
             <div className="w-12 h-12 rounded-xl bg-purple-500/15 flex items-center justify-center">
-              <Crown className="h-6 w-6 text-purple-400" />
+              <Layers className="h-6 w-6 text-purple-400" />
             </div>
             <div>
               <h3 className="text-white font-semibold text-base">You're on {currentPlan.name}</h3>
@@ -523,7 +523,7 @@ const PlanCreditsTab = () => {
         <DialogContent className="bg-[hsl(222,35%,7%)] border-white/[0.08] text-white max-w-md">
           <DialogHeader>
             <DialogTitle className="text-white text-[17px] flex items-center gap-2">
-              <Crown className="h-5 w-5 text-amber-400" />
+              <Zap className="h-5 w-5 text-amber-400" />
               Upgrade Required
             </DialogTitle>
             <DialogDescription className="text-white/50 text-[13px]">

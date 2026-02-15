@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  CreditCard, Receipt, Crown, AlertTriangle, ExternalLink, RefreshCw,
+  CreditCard, FileText, Settings2, AlertTriangle, ExternalLink, RefreshCw,
   Check, X, Gift, ShieldCheck, Sparkles, Clock, Mail, Tag, ChevronDown, ChevronUp
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -174,7 +174,7 @@ const BillingPaymentsTab = () => {
       <div className="rounded-2xl border border-purple-500/10 bg-[hsl(222,28%,11%)] p-6">
         <div className="flex items-center gap-3 mb-5">
           <div className="w-10 h-10 rounded-xl bg-purple-500/15 flex items-center justify-center">
-            <Crown className="h-5 w-5 text-purple-400" />
+            <Settings2 className="h-5 w-5 text-purple-400" />
           </div>
           <div>
             <h2 className="text-white font-semibold text-base">Subscription Management</h2>
@@ -281,7 +281,7 @@ const BillingPaymentsTab = () => {
         <div className="flex items-center justify-between mb-5">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-purple-500/15 flex items-center justify-center">
-              <Receipt className="h-5 w-5 text-purple-400" />
+              <FileText className="h-5 w-5 text-purple-400" />
             </div>
             <div>
               <h2 className="text-white font-semibold text-base">Payment History</h2>
@@ -292,7 +292,7 @@ const BillingPaymentsTab = () => {
 
         {payments.length === 0 ? (
           <div className="rounded-xl bg-white/[0.02] border border-white/[0.06] p-8 text-center">
-            <Receipt className="h-7 w-7 text-white/20 mx-auto mb-3" />
+            <FileText className="h-7 w-7 text-white/20 mx-auto mb-3" />
             <p className="text-white/50 text-sm">No payments recorded yet</p>
           </div>
         ) : (
