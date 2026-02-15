@@ -2221,33 +2221,57 @@ export type Database = {
       }
       user_settings: {
         Row: {
+          activity_logging_enabled: boolean
+          ai_bio_generator_enabled: boolean
+          ai_email_summary_enabled: boolean
+          ai_login_anomaly_enabled: boolean
+          ai_security_digest_enabled: boolean
+          auto_theme_detection: boolean
+          compact_ui_mode: boolean
           created_at: string
           id: string
           language: string
           login_alerts_enabled: boolean
           session_timeout_minutes: number
+          smart_session_cleanup: boolean
           timezone: string
           two_factor_enabled: boolean
           updated_at: string
           user_id: string
         }
         Insert: {
+          activity_logging_enabled?: boolean
+          ai_bio_generator_enabled?: boolean
+          ai_email_summary_enabled?: boolean
+          ai_login_anomaly_enabled?: boolean
+          ai_security_digest_enabled?: boolean
+          auto_theme_detection?: boolean
+          compact_ui_mode?: boolean
           created_at?: string
           id?: string
           language?: string
           login_alerts_enabled?: boolean
           session_timeout_minutes?: number
+          smart_session_cleanup?: boolean
           timezone?: string
           two_factor_enabled?: boolean
           updated_at?: string
           user_id: string
         }
         Update: {
+          activity_logging_enabled?: boolean
+          ai_bio_generator_enabled?: boolean
+          ai_email_summary_enabled?: boolean
+          ai_login_anomaly_enabled?: boolean
+          ai_security_digest_enabled?: boolean
+          auto_theme_detection?: boolean
+          compact_ui_mode?: boolean
           created_at?: string
           id?: string
           language?: string
           login_alerts_enabled?: boolean
           session_timeout_minutes?: number
+          smart_session_cleanup?: boolean
           timezone?: string
           two_factor_enabled?: boolean
           updated_at?: string
