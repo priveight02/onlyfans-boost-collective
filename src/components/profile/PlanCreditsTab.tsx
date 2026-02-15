@@ -24,10 +24,19 @@ interface CreditPackage {
 }
 
 // Plans definition — these match your Stripe products
-const PLAN_STRIPE_MAP: Record<string, { price_id: string; product_id: string }> = {
-  starter: { price_id: "price_1T1CVAP8Id8IBpd0heXxbsUk", product_id: "prod_TzAqP0zH90vzyR" },
-  pro: { price_id: "price_1T1CVfP8Id8IBpd0B8EfZeGR", product_id: "prod_TzArZUF2DIlzHq" },
-  business: { price_id: "price_1T1CVpP8Id8IBpd07EYina3g", product_id: "prod_TzAram9it2Kedf" },
+const PLAN_STRIPE_MAP: Record<string, { monthly: { price_id: string; product_id: string }; yearly: { price_id: string; product_id: string } }> = {
+  starter: {
+    monthly: { price_id: "price_1T1CVAP8Id8IBpd0heXxbsUk", product_id: "prod_TzAqP0zH90vzyR" },
+    yearly:  { price_id: "price_1T1CcdP8Id8IBpd0AppiCEdo", product_id: "prod_TzAypr06as419B" },
+  },
+  pro: {
+    monthly: { price_id: "price_1T1CVfP8Id8IBpd0B8EfZeGR", product_id: "prod_TzArZUF2DIlzHq" },
+    yearly:  { price_id: "price_1T1CcuP8Id8IBpd0X5c5Nqbs", product_id: "prod_TzAywFFZ0SdhfZ" },
+  },
+  business: {
+    monthly: { price_id: "price_1T1CVpP8Id8IBpd07EYina3g", product_id: "prod_TzAram9it2Kedf" },
+    yearly:  { price_id: "price_1T1Cd3P8Id8IBpd0Ds2Y7HoM", product_id: "prod_TzAzgoteaSHuDB" },
+  },
 };
 
 const PLANS = [
@@ -144,8 +153,10 @@ const PlanCreditsTab = () => {
     }
     setUpgradingPlan(planId);
     try {
+      const cycle = billingCycle === "yearly" ? "yearly" : "monthly";
+      const priceId = stripeInfo[cycle].price_id;
       const { data, error } = await supabase.functions.invoke("create-checkout", {
-        body: { priceId: stripeInfo.price_id, planId, billingCycle },
+        body: { priceId, planId, billingCycle: cycle },
       });
       if (error) throw error;
       if (data?.url) window.open(data.url, "_blank");
