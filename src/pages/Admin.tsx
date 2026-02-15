@@ -27,11 +27,12 @@ import FloatingCopilot from "@/components/admin/FloatingCopilot";
 import SocialMediaHub from "@/components/admin/SocialMediaHub";
 import { supabase } from "@/integrations/supabase/client";
 import AdminCredits from "@/components/admin/AdminCredits";
+import AdminAPI from "@/components/admin/AdminAPI";
 import {
   Shield, LayoutDashboard, Lock, Settings, LogOut, Contact, Search,
   BarChart3, Users, DollarSign, FileText, MessageSquare, CheckSquare,
   MessageCircle, Award, TrendingUp, Activity, Zap, Download, ShieldCheck,
-  Brain, Calendar, Heart, Bot, Globe, Coins,
+  Brain, Calendar, Heart, Bot, Globe, Coins, Code2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -162,6 +163,9 @@ const Admin = () => {
             <TabsTrigger value="credits" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
               <Coins className="h-3.5 w-3.5" /> Credits
             </TabsTrigger>
+            <TabsTrigger value="api" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
+              <Code2 className="h-3.5 w-3.5" /> API
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="dashboard"><EnhancedDashboard /></TabsContent>
@@ -206,6 +210,7 @@ const Admin = () => {
             </Card>
           </TabsContent>
           <TabsContent value="credits"><AdminCredits /></TabsContent>
+          <TabsContent value="api"><AdminAPI /></TabsContent>
         </Tabs>
       </div>
 
