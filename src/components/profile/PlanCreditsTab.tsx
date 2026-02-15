@@ -26,12 +26,19 @@ interface CreditPackage {
 // Plans definition — these match your Stripe products
 const PLANS = [
   {
+    id: "free",
+    name: "Free",
+    price: 0,
+    credits_per_month: 0,
+    features: ["Pay-as-you-go credits", "Basic AI tools", "1 managed account", "Community support"],
+    current: true,
+  },
+  {
     id: "starter",
     name: "Starter",
     price: 999, // $9.99
     credits_per_month: 50,
     features: ["50 credits/month", "Basic AI tools", "1 managed account", "Community support"],
-    current: true, // will be overridden by actual data
   },
   {
     id: "pro",
@@ -165,7 +172,7 @@ const PlanCreditsTab = () => {
             </div>
             <div>
               <h3 className="text-white font-semibold text-base">You're on {currentPlan.name}</h3>
-              <p className="text-white/40 text-sm">{currentPlan.credits_per_month} credits/month included</p>
+              <p className="text-white/40 text-sm">{currentPlan.credits_per_month ? `${currentPlan.credits_per_month} credits/month included` : "Top up credits anytime"}</p>
             </div>
           </div>
           <Button size="sm"
