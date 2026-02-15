@@ -44,14 +44,6 @@ const Admin = () => {
   const [activeTab, setActiveTab] = useState("dashboard");
 
   useEffect(() => {
-    if (loading) return;
-    if (!user || !isAdmin) {
-      toast.error("You don't have permission to access the admin panel");
-      navigate("/");
-    }
-  }, [user, loading, isAdmin, navigate]);
-
-  useEffect(() => {
     if (!user || !isAdmin) return;
     supabase.from("managed_accounts").select("*").order("created_at", { ascending: false })
       .then(({ data }) => setAccounts(data || []));
@@ -68,10 +60,6 @@ const Admin = () => {
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent" />
       </div>
     );
-  }
-
-  if (!user || !isAdmin) {
-    return null;
   }
 
   return (
