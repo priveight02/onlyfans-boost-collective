@@ -1,10 +1,10 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -17,7 +17,7 @@ import {
   Globe, Languages, Download, ShieldCheck, BellRing, Settings2,
   Bookmark, Power, Sparkles, Brain, Zap, Bot, FileText, RefreshCw,
   Palette, LayoutGrid, SlidersHorizontal, Eraser, ToggleLeft,
-  Rss, Compass, UserPlus
+  Rss, Compass, UserPlus, Camera, ImageIcon, Trophy, Flame, Coins, Star, Award
 } from "lucide-react";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter,
@@ -26,17 +26,17 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from "@/components/ui/select";
-import { useFeed, useNotifications } from "@/hooks/useSocial";
+import { Progress } from "@/components/ui/progress";
+import { useFeed, useNotifications, useUserRank, getRankInfo, getNextRank, getRankProgress, RANK_TIERS } from "@/hooks/useSocial";
 import PostCard from "@/components/social/PostCard";
 import CreatePostDialog from "@/components/social/CreatePostDialog";
-import RankProgressCard from "@/components/social/RankProgressCard";
 import FollowButton from "@/components/social/FollowButton";
 import { UserRankBadge } from "@/components/social/UserRankBadge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatDistanceToNow } from "date-fns";
 import NotificationBell from "@/components/social/NotificationBell";
 
-type TabId = "account" | "security" | "activity" | "devices" | "notifications" | "ai-automation" | "preferences" | "social-feed" | "social-explore" | "social-notifications";
+type TabId = "account" | "security" | "activity" | "devices" | "notifications" | "ai-automation" | "preferences" | "social-feed" | "social-explore" | "social-notifications" | "rank";
 
 type CardNotification = { type: "success" | "error" | "info"; message: string } | null;
 
@@ -69,6 +69,16 @@ const SESSION_TIMEOUT_OPTIONS = [
   { value: 1440, label: "24 hours (default)" },
   { value: 10080, label: "7 days" },
   { value: 43200, label: "30 days" },
+];
+
+const RANK_REWARDS = [
+  { tier: 'metal', bonus: 0, perks: ['Access to social feed', 'Create posts', 'Follow users'] },
+  { tier: 'bronze', bonus: 50, perks: ['Bronze badge on profile', '+50 bonus points', 'Custom bio unlocked'] },
+  { tier: 'silver', bonus: 100, perks: ['Silver badge on profile', '+100 bonus points', 'GIF profile pictures'] },
+  { tier: 'gold', bonus: 200, perks: ['Gold badge on profile', '+200 bonus points', 'Priority support'] },
+  { tier: 'platinum', bonus: 500, perks: ['Platinum badge on profile', '+500 bonus points', 'Profile banner upload'] },
+  { tier: 'diamond', bonus: 1000, perks: ['Diamond badge on profile', '+1000 bonus points', 'Verified checkmark'] },
+  { tier: 'legend', bonus: 2500, perks: ['Legend badge on profile', '+2500 bonus points', 'Exclusive features access', 'Custom profile theme'] },
 ];
 
 const Card = ({ children, className = "", danger = false }: { children: React.ReactNode; className?: string; danger?: boolean }) => (
@@ -108,14 +118,13 @@ const DeviceIcon = ({ type }: { type: string }) => {
   return <Monitor className="h-5 w-5" />;
 };
 
-// Setting row component for AI & Automation toggles
 const SettingRow = ({ icon: Icon, title, description, checked, onToggle, color = "purple", loading = false }: {
   icon: any; title: string; description: string; checked: boolean; onToggle: (v: boolean) => void; color?: string; loading?: boolean;
 }) => (
   <div className="flex items-center justify-between py-4 border-b border-white/[0.04] last:border-0">
     <div className="flex items-center gap-3 flex-1 min-w-0">
       <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${
-        checked ? `bg-${color}-500/15 text-${color}-400` : "bg-white/[0.04] text-white/30"
+        checked ? `bg-purple-500/15 text-purple-400` : "bg-white/[0.04] text-white/30"
       }`}>
         <Icon className="h-4 w-4" />
       </div>
@@ -132,6 +141,13 @@ const SettingRow = ({ icon: Icon, title, description, checked, onToggle, color =
   </div>
 );
 
+const ThemedSaveButton = ({ onClick, disabled, label = "Save Changes" }: { onClick: (e?: any) => void; disabled: boolean; label?: string }) => (
+  <Button onClick={onClick} disabled={disabled}
+    className="bg-purple-500/20 hover:bg-purple-500/30 text-purple-200 border border-purple-500/20 rounded-xl font-medium text-[13px] px-6 h-9 transition-all duration-200">
+    <Save className="mr-2 h-3.5 w-3.5" /> {disabled ? "Saving..." : label}
+  </Button>
+);
+
 const UserProfile = () => {
   const { user, profile, logout, refreshProfile, updatePassword } = useAuth();
   const navigate = useNavigate();
@@ -145,6 +161,14 @@ const UserProfile = () => {
   const [address, setAddress] = useState("");
   const [company, setCompany] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+
+  // Avatar / Banner
+  const [avatarUrl, setAvatarUrl] = useState("");
+  const [bannerUrl, setBannerUrl] = useState("");
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [uploadingBanner, setUploadingBanner] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const bannerInputRef = useRef<HTMLInputElement>(null);
 
   // Security state
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
@@ -233,29 +257,24 @@ const UserProfile = () => {
   const { posts: feedPosts, loading: feedLoading, refetch: refetchFeed } = useFeed('home');
   const { posts: explorePosts, loading: exploreLoading, refetch: refetchExplore } = useFeed('explore');
   const { notifications: socialNotifications, unreadCount: socialUnreadCount, markAllRead } = useNotifications();
+  const { rank, loading: rankLoading, claimDailyLogin } = useUserRank(user?.id);
 
+  // Load profile data
   useEffect(() => {
     if (!user) { navigate("/auth"); return; }
     if (profile) {
       setUsername(profile.username || "");
       setDisplayName(profile.display_name || "");
       setBio(profile.bio || "");
+      setAvatarUrl(profile.avatar_url || "");
+      setBannerUrl(profile.banner_url || "");
+      setPhone(profile.phone || "");
+      setAddress(profile.address || "");
+      setCompany(profile.company || "");
+      setEmailChangeCount(profile.email_change_count || 0);
+      setOriginalEmail(profile.original_email || "");
     }
   }, [user, profile, navigate]);
-
-  useEffect(() => {
-    if (!user) return;
-    supabase.from("profiles").select("phone, address, company, email_change_count, original_email").eq("user_id", user.id).single()
-      .then(({ data }) => {
-        if (data) {
-          setPhone((data as any).phone || "");
-          setAddress((data as any).address || "");
-          setCompany((data as any).company || "");
-          setEmailChangeCount((data as any).email_change_count || 0);
-          setOriginalEmail((data as any).original_email || "");
-        }
-      });
-  }, [user]);
 
   useEffect(() => {
     if (!user) return;
@@ -371,20 +390,59 @@ const UserProfile = () => {
     return () => clearInterval(interval);
   }, [user, activeTab]);
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // ─── Upload helpers ────────────────────────────────────
+  const handleUploadImage = async (file: File, type: 'avatar' | 'banner') => {
+    if (!user) return;
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (file.size > maxSize) { toast.error("File too large. Max 10MB."); return; }
+    const allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowed.includes(file.type)) { toast.error("Only JPG, PNG, GIF and WebP are supported."); return; }
+
+    const setter = type === 'avatar' ? setUploadingAvatar : setUploadingBanner;
+    setter(true);
+    try {
+      const ext = file.name.split('.').pop();
+      const path = `${user.id}/${type}-${Date.now()}.${ext}`;
+      const { error: uploadError } = await supabase.storage.from('social-media').upload(path, file, { upsert: true });
+      if (uploadError) throw uploadError;
+      const { data: urlData } = supabase.storage.from('social-media').getPublicUrl(path);
+      const publicUrl = urlData.publicUrl;
+
+      const updateField = type === 'avatar' ? { avatar_url: publicUrl } : { banner_url: publicUrl };
+      const { error } = await supabase.from("profiles").update(updateField).eq("user_id", user.id);
+      if (error) throw error;
+
+      if (type === 'avatar') setAvatarUrl(publicUrl);
+      else setBannerUrl(publicUrl);
+      await refreshProfile();
+      toast.success(`${type === 'avatar' ? 'Profile picture' : 'Banner'} updated!`);
+    } catch (err: any) {
+      toast.error(err.message || `Failed to upload ${type}`);
+    } finally { setter(false); }
+  };
+
+  // ─── Save handlers ────────────────────────────────────
+  const handleSave = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!user) return;
     if (username.length < 3) { toast.error("Username must be at least 3 characters"); return; }
     try {
       setIsSaving(true);
       const { error } = await supabase.from("profiles")
-        .update({ username, display_name: displayName, bio, phone, address, company } as any)
+        .update({
+          username: username.toLowerCase().replace(/[^a-z0-9_]/g, ""),
+          display_name: displayName,
+          bio,
+          phone,
+          address,
+          company,
+        } as any)
         .eq("user_id", user.id);
       if (error) throw error;
       await refreshProfile();
-      toast.success("Profile updated!");
+      toast.success("Profile saved successfully!");
     } catch (error: any) {
-      if (error.message?.includes("unique")) toast.error("Username already taken");
+      if (error.message?.includes("unique") || error.code === "23505") toast.error("Username already taken");
       else toast.error(error.message || "Failed to update");
     } finally { setIsSaving(false); }
   };
@@ -644,7 +702,6 @@ const UserProfile = () => {
   const handleSessionCleanup = async () => {
     if (!user) return;
     try {
-      // Remove all non-current, offline devices older than 7 days
       const cutoff = new Date();
       cutoff.setDate(cutoff.getDate() - 7);
       const { data: staleDevices } = await supabase.from("device_sessions")
@@ -686,6 +743,7 @@ const UserProfile = () => {
     { id: "social-feed", label: "Feed", icon: Rss },
     { id: "social-explore", label: "Explore", icon: Compass },
     { id: "social-notifications", label: "Social Alerts", icon: Bell, badge: socialUnreadCount },
+    { id: "rank", label: "Rank", icon: Trophy },
   ];
 
   const userInitial = profile?.display_name?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase() || "U";
@@ -700,8 +758,23 @@ const UserProfile = () => {
     return "offline";
   };
 
+  // Hidden file inputs
+  const hiddenInputs = (
+    <>
+      <input ref={avatarInputRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp" className="hidden"
+        onChange={e => { if (e.target.files?.[0]) handleUploadImage(e.target.files[0], 'avatar'); e.target.value = ''; }} />
+      <input ref={bannerInputRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp" className="hidden"
+        onChange={e => { if (e.target.files?.[0]) handleUploadImage(e.target.files[0], 'banner'); e.target.value = ''; }} />
+    </>
+  );
+
+  const currentRankInfo = rank ? getRankInfo(rank.rank_tier) : null;
+  const nextRankInfo = rank ? getNextRank(rank.rank_tier) : null;
+  const rankProgress = rank ? getRankProgress(rank.xp, rank.rank_tier) : 0;
+
   return (
     <div className="min-h-screen bg-[hsl(222,35%,5%)] relative overflow-hidden">
+      {hiddenInputs}
       <div className="fixed inset-0 pointer-events-none">
         <div className="absolute top-1/4 left-1/6 w-[500px] h-[500px] bg-purple-500/[0.04] rounded-full blur-[120px]" />
         <div className="absolute bottom-1/4 right-1/6 w-[400px] h-[400px] bg-blue-500/[0.03] rounded-full blur-[120px]" />
@@ -709,13 +782,22 @@ const UserProfile = () => {
 
       <div className="relative max-w-6xl mx-auto px-4 pt-24 pb-16">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-          {/* Header */}
+          {/* Header with avatar + rank badge */}
           <div className="flex items-center gap-4 mb-8">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-500/20 to-blue-500/10 border border-purple-500/20 flex items-center justify-center text-white text-xl font-bold backdrop-blur-sm">
-              {userInitial}
+            <div className="relative group cursor-pointer" onClick={() => avatarInputRef.current?.click()}>
+              <Avatar className="h-14 w-14 border-2 border-purple-500/20">
+                <AvatarImage src={avatarUrl || ''} />
+                <AvatarFallback className="bg-purple-500/20 text-purple-300 text-xl font-bold">{userInitial}</AvatarFallback>
+              </Avatar>
+              <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                {uploadingAvatar ? <RefreshCw className="h-4 w-4 text-white animate-spin" /> : <Camera className="h-4 w-4 text-white" />}
+              </div>
             </div>
             <div>
-              <h1 className="text-xl font-semibold text-white tracking-tight">{profile?.display_name || "Your Profile"}</h1>
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl font-semibold text-white tracking-tight">{profile?.display_name || "Your Profile"}</h1>
+                {rank && <UserRankBadge userId={user.id} size="md" showLabel />}
+              </div>
               <p className="text-white/50 text-[13px]">@{profile?.username || "..."} · {user.email}</p>
             </div>
           </div>
@@ -766,6 +848,36 @@ const UserProfile = () => {
               {/* ===================== ACCOUNT INFO TAB ===================== */}
               {activeTab === "account" && (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-5">
+                  {/* Banner upload */}
+                  <Card className="p-0 overflow-hidden">
+                    <div className="relative h-40 bg-gradient-to-r from-purple-500/20 to-blue-500/10 group cursor-pointer"
+                      onClick={() => bannerInputRef.current?.click()}>
+                      {bannerUrl && <img src={bannerUrl} alt="" className="w-full h-full object-cover" />}
+                      <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                        {uploadingBanner ? <RefreshCw className="h-5 w-5 text-white animate-spin" /> : <>
+                          <ImageIcon className="h-5 w-5 text-white" />
+                          <span className="text-white text-sm font-medium">Change Banner</span>
+                        </>}
+                      </div>
+                    </div>
+                    <div className="p-6 pt-0">
+                      <div className="relative -mt-12 flex items-end gap-4 mb-4">
+                        <div className="relative group cursor-pointer" onClick={(e) => { e.stopPropagation(); avatarInputRef.current?.click(); }}>
+                          <Avatar className="h-24 w-24 border-4 border-[hsl(222,28%,11%)]">
+                            <AvatarImage src={avatarUrl || ''} />
+                            <AvatarFallback className="bg-purple-500/20 text-purple-300 text-3xl font-bold">{userInitial}</AvatarFallback>
+                          </Avatar>
+                          <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            {uploadingAvatar ? <RefreshCw className="h-5 w-5 text-white animate-spin" /> : <Camera className="h-5 w-5 text-white" />}
+                          </div>
+                        </div>
+                        <div className="pb-1">
+                          <p className="text-white/40 text-[11px]">Click avatar or banner to upload (JPG, PNG, GIF, WebP · max 10MB)</p>
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
+
                   <Card>
                     <SectionTitle icon={User} title="Personal Information" subtitle="This information will be used for your account profile." />
                     <form onSubmit={handleSave} className="space-y-4">
@@ -778,15 +890,12 @@ const UserProfile = () => {
                       <FieldInput icon={MapPin} label="Address" value={address} onChange={setAddress} placeholder="Your address" />
                       <FieldInput icon={Building2} label="Company" value={company} onChange={setCompany} placeholder="Company name (optional)" />
                       <div className="space-y-1.5">
-                        <label className="text-[12px] font-medium text-white/40">Bio</label>
-                        <Input value={bio} onChange={(e) => setBio(e.target.value)}
-                          className="bg-white/[0.04] border-white/[0.08] text-white/80 placeholder:text-white/20 rounded-xl h-10 text-[13px] focus:bg-white/[0.06] focus:border-white/[0.15]"
+                        <label className="text-[12px] font-medium text-white/60">Bio</label>
+                        <Textarea value={bio} onChange={(e) => setBio(e.target.value)}
+                          className="bg-white/[0.04] border-white/[0.08] text-white/80 placeholder:text-white/20 rounded-xl text-[13px] focus:bg-white/[0.06] focus:border-white/[0.15] min-h-[80px]"
                           placeholder="Tell us about yourself" />
                       </div>
-                      <Button type="submit" disabled={isSaving}
-                        className="bg-white/[0.08] hover:bg-white/[0.12] text-white/80 border border-white/[0.08] rounded-xl font-medium text-[13px] px-6 h-9">
-                        <Save className="mr-2 h-3.5 w-3.5" /> {isSaving ? "Saving..." : "Save Changes"}
-                      </Button>
+                      <ThemedSaveButton onClick={handleSave} disabled={isSaving} />
                     </form>
                   </Card>
 
@@ -886,10 +995,7 @@ const UserProfile = () => {
                           ))}
                         </SelectContent>
                       </Select>
-                      <Button onClick={handleSaveSettings} disabled={savingSettings}
-                        className="bg-white/[0.08] hover:bg-white/[0.12] text-white/80 border border-white/[0.08] rounded-xl font-medium text-[12px] px-4 h-8">
-                        <Save className="mr-1.5 h-3 w-3" /> {savingSettings ? "Saving..." : "Save"}
-                      </Button>
+                      <ThemedSaveButton onClick={handleSaveSettings} disabled={savingSettings} label="Save" />
                     </div>
                   </Card>
 
@@ -963,40 +1069,30 @@ const UserProfile = () => {
                         deduped.push(entry);
                       });
                       return (
-                        <div className="overflow-x-auto -mx-6 px-6">
-                          <table className="w-full text-[13px]">
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-[12px]">
                             <thead>
-                              <tr className="border-b border-purple-500/10">
-                                <th className="text-left text-white/50 font-semibold py-3 px-3">Date & Time</th>
-                                <th className="text-left text-white/50 font-semibold py-3 px-3">Device</th>
-                                <th className="text-left text-white/50 font-semibold py-3 px-3">Browser / OS</th>
-                                <th className="text-left text-white/50 font-semibold py-3 px-3">IP Address</th>
-                                <th className="text-left text-white/50 font-semibold py-3 px-3">Method</th>
+                              <tr className="text-white/30 border-b border-white/[0.04]">
+                                <th className="text-left py-2.5 font-medium px-2">Date</th>
+                                <th className="text-left py-2.5 font-medium px-2">IP</th>
+                                <th className="text-left py-2.5 font-medium px-2">Device</th>
+                                <th className="text-left py-2.5 font-medium px-2">Method</th>
                               </tr>
                             </thead>
                             <tbody>
-                              {deduped.map((a) => {
-                                const { browser, os } = parseUA(a.user_agent || "");
-                                const methodColor = a.login_type === "google"
-                                  ? "bg-blue-500/15 text-blue-300 border-blue-500/20"
-                                  : a.login_type === "magiclink" || a.login_type === "magic_link"
-                                  ? "bg-purple-500/15 text-purple-300 border-purple-500/20"
-                                  : "bg-emerald-500/10 text-emerald-300 border-emerald-500/15";
+                              {deduped.slice(0, 20).map((a: any) => {
+                                const methodColor = a.login_type === "google" ? "bg-blue-500/10 text-blue-300 border-blue-500/15" : "bg-purple-500/10 text-purple-300 border-purple-500/15";
                                 return (
-                                  <tr key={a.id} className="border-b border-white/[0.04] hover:bg-purple-500/[0.03] transition-colors">
-                                    <td className="py-3 px-3 text-white/80 whitespace-nowrap">
-                                      {new Date(a.login_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}{" "}
-                                      <span className="text-white/40">{new Date(a.login_at).toLocaleTimeString()}</span>
+                                  <tr key={a.id} className="border-b border-white/[0.03] hover:bg-white/[0.02]">
+                                    <td className="py-3 px-2 text-white/60">{new Date(a.login_at).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</td>
+                                    <td className="py-3 px-2 text-white/40 font-mono">{a.ip_address || "—"}</td>
+                                    <td className="py-3 px-2">
+                                      <span className="flex items-center gap-1.5 text-white/50">
+                                        {a.device === "mobile" ? <Smartphone className="h-3 w-3" /> : <Monitor className="h-3 w-3" />}
+                                        {a.device || "unknown"}
+                                      </span>
                                     </td>
-                                    <td className="py-3 px-3">
-                                      <div className="flex items-center gap-2 text-white/70">
-                                        {a.device === "mobile" ? <Smartphone className="h-3.5 w-3.5 text-purple-400/60" /> : <Monitor className="h-3.5 w-3.5 text-purple-400/60" />}
-                                        <span className="capitalize">{a.device || "desktop"}</span>
-                                      </div>
-                                    </td>
-                                    <td className="py-3 px-3 text-white/60">{browser} / {os}</td>
-                                    <td className="py-3 px-3 text-white/50 font-mono text-[11px]">{a.ip_address || "—"}</td>
-                                    <td className="py-3 px-3">
+                                    <td className="py-3 px-2">
                                       <span className={`text-[11px] px-2.5 py-1 rounded-full border font-medium ${methodColor}`}>
                                         {a.login_type || "email"}
                                       </span>
@@ -1028,7 +1124,7 @@ const UserProfile = () => {
                           </Button>
                         )}
                         <Button onClick={() => setShowAddDeviceDialog(true)}
-                          className="bg-white/[0.08] hover:bg-white/[0.12] text-white/70 border border-white/[0.08] rounded-xl text-[12px] h-8 gap-1.5">
+                          className="bg-purple-500/20 hover:bg-purple-500/30 text-purple-200 border border-purple-500/20 rounded-xl text-[12px] h-8 gap-1.5">
                           <Plus className="h-3.5 w-3.5" /> Add Device
                         </Button>
                       </div>
@@ -1108,41 +1204,24 @@ const UserProfile = () => {
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-5">
                   <Card>
                     <SectionTitle icon={Sparkles} title="AI & Automation Features"
-                      subtitle="Enable AI-powered features to enhance your account experience. All features are disabled by default." />
+                      subtitle="Enable AI-powered features to enhance your account experience." />
                     <div className="space-y-0">
-                      <SettingRow icon={FileText} title="AI Bio Generator"
-                        description="Generate a professional bio using AI based on your profile data"
-                        checked={userSettings.ai_bio_generator_enabled}
-                        onToggle={(v) => { setUserSettings({ ...userSettings, ai_bio_generator_enabled: v }); }} />
-                      <SettingRow icon={Brain} title="AI Login Anomaly Detection"
-                        description="Analyze your login patterns for suspicious activity using AI"
-                        checked={userSettings.ai_login_anomaly_enabled}
-                        onToggle={(v) => { setUserSettings({ ...userSettings, ai_login_anomaly_enabled: v }); }} />
-                      <SettingRow icon={Shield} title="AI Security Digest"
-                        description="Generate an AI-powered security health report for your account"
-                        checked={userSettings.ai_security_digest_enabled}
-                        onToggle={(v) => { setUserSettings({ ...userSettings, ai_security_digest_enabled: v }); }} />
-                      <SettingRow icon={Zap} title="Smart Session Cleanup"
-                        description="Auto-detect and remove stale device sessions older than 7 days"
-                        checked={userSettings.smart_session_cleanup}
-                        onToggle={(v) => { setUserSettings({ ...userSettings, smart_session_cleanup: v }); }} />
-                      <SettingRow icon={Mail} title="AI Email Summary"
-                        description="Get AI-generated weekly email summaries of your account activity"
-                        checked={userSettings.ai_email_summary_enabled}
-                        onToggle={(v) => { setUserSettings({ ...userSettings, ai_email_summary_enabled: v }); }} />
+                      <SettingRow icon={FileText} title="AI Bio Generator" description="Generate a professional bio using AI based on your profile data" checked={userSettings.ai_bio_generator_enabled} onToggle={(v) => setUserSettings({ ...userSettings, ai_bio_generator_enabled: v })} />
+                      <SettingRow icon={Brain} title="AI Login Anomaly Detection" description="Analyze your login patterns for suspicious activity using AI" checked={userSettings.ai_login_anomaly_enabled} onToggle={(v) => setUserSettings({ ...userSettings, ai_login_anomaly_enabled: v })} />
+                      <SettingRow icon={Shield} title="AI Security Digest" description="Generate an AI-powered security health report for your account" checked={userSettings.ai_security_digest_enabled} onToggle={(v) => setUserSettings({ ...userSettings, ai_security_digest_enabled: v })} />
+                      <SettingRow icon={Zap} title="Smart Session Cleanup" description="Auto-detect and remove stale device sessions older than 7 days" checked={userSettings.smart_session_cleanup} onToggle={(v) => setUserSettings({ ...userSettings, smart_session_cleanup: v })} />
+                      <SettingRow icon={Mail} title="AI Email Summary" description="Get AI-generated weekly email summaries of your account activity" checked={userSettings.ai_email_summary_enabled} onToggle={(v) => setUserSettings({ ...userSettings, ai_email_summary_enabled: v })} />
                     </div>
-                    <Button onClick={handleSaveSettings} disabled={savingSettings}
-                      className="mt-4 bg-white/[0.08] hover:bg-white/[0.12] text-white/80 border border-white/[0.08] rounded-xl font-medium text-[13px] px-6 h-9">
-                      <Save className="mr-2 h-3.5 w-3.5" /> {savingSettings ? "Saving..." : "Save AI Settings"}
-                    </Button>
+                    <div className="mt-4">
+                      <ThemedSaveButton onClick={handleSaveSettings} disabled={savingSettings} label="Save AI Settings" />
+                    </div>
                   </Card>
 
-                  {/* AI Bio Generator Panel */}
                   {userSettings.ai_bio_generator_enabled && (
                     <Card>
                       <SectionTitle icon={FileText} title="Generate Bio" subtitle="AI will create a professional bio from your profile info." />
                       <Button onClick={handleGenerateBio} disabled={generatingBio}
-                        className="bg-gradient-to-r from-purple-500/20 to-blue-500/20 hover:from-purple-500/30 hover:to-blue-500/30 text-white/80 border border-purple-500/15 rounded-xl text-[12px] h-9 gap-2">
+                        className="bg-purple-500/20 hover:bg-purple-500/30 text-purple-200 border border-purple-500/15 rounded-xl text-[12px] h-9 gap-2">
                         {generatingBio ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
                         {generatingBio ? "Generating..." : "Generate Bio"}
                       </Button>
@@ -1158,12 +1237,11 @@ const UserProfile = () => {
                     </Card>
                   )}
 
-                  {/* AI Login Anomaly Panel */}
                   {userSettings.ai_login_anomaly_enabled && (
                     <Card>
                       <SectionTitle icon={Brain} title="Login Anomaly Analysis" subtitle="AI scans your recent logins for suspicious patterns." />
                       <Button onClick={handleAnalyzeLogins} disabled={analyzingLogins}
-                        className="bg-gradient-to-r from-purple-500/20 to-blue-500/20 hover:from-purple-500/30 hover:to-blue-500/30 text-white/80 border border-purple-500/15 rounded-xl text-[12px] h-9 gap-2">
+                        className="bg-purple-500/20 hover:bg-purple-500/30 text-purple-200 border border-purple-500/15 rounded-xl text-[12px] h-9 gap-2">
                         {analyzingLogins ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Brain className="h-3.5 w-3.5" />}
                         {analyzingLogins ? "Analyzing..." : "Run Analysis"}
                       </Button>
@@ -1175,12 +1253,11 @@ const UserProfile = () => {
                     </Card>
                   )}
 
-                  {/* AI Security Digest Panel */}
                   {userSettings.ai_security_digest_enabled && (
                     <Card>
                       <SectionTitle icon={Shield} title="Security Digest" subtitle="AI-generated overview of your account's security posture." />
                       <Button onClick={handleSecurityDigest} disabled={generatingDigest}
-                        className="bg-gradient-to-r from-purple-500/20 to-blue-500/20 hover:from-purple-500/30 hover:to-blue-500/30 text-white/80 border border-purple-500/15 rounded-xl text-[12px] h-9 gap-2">
+                        className="bg-purple-500/20 hover:bg-purple-500/30 text-purple-200 border border-purple-500/15 rounded-xl text-[12px] h-9 gap-2">
                         {generatingDigest ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Shield className="h-3.5 w-3.5" />}
                         {generatingDigest ? "Generating..." : "Generate Digest"}
                       </Button>
@@ -1236,63 +1313,231 @@ const UserProfile = () => {
                   <Card>
                     <SectionTitle icon={Palette} title="Display Preferences" subtitle="Customize the look and feel of your interface." />
                     <div className="space-y-0">
-                      <SettingRow icon={Palette} title="Auto Theme Detection"
-                        description="Automatically match your OS theme (light/dark)"
-                        checked={userSettings.auto_theme_detection}
-                        onToggle={(v) => setUserSettings({ ...userSettings, auto_theme_detection: v })} />
-                      <SettingRow icon={LayoutGrid} title="Compact UI Mode"
-                        description="Reduce spacing and padding for a denser layout"
-                        checked={userSettings.compact_ui_mode}
-                        onToggle={(v) => setUserSettings({ ...userSettings, compact_ui_mode: v })} />
+                      <SettingRow icon={Palette} title="Auto Theme Detection" description="Automatically match your OS theme (light/dark)" checked={userSettings.auto_theme_detection} onToggle={(v) => setUserSettings({ ...userSettings, auto_theme_detection: v })} />
+                      <SettingRow icon={LayoutGrid} title="Compact UI Mode" description="Reduce spacing and padding for a denser layout" checked={userSettings.compact_ui_mode} onToggle={(v) => setUserSettings({ ...userSettings, compact_ui_mode: v })} />
                     </div>
                   </Card>
 
                   <Card>
                     <SectionTitle icon={Download} title="Data Management" subtitle="Export or manage your personal data." />
-                    <div className="flex items-center gap-3">
-                      <Button onClick={handleExportData}
-                        className="bg-white/[0.08] hover:bg-white/[0.12] text-white/80 border border-white/[0.08] rounded-xl font-medium text-[13px] px-5 h-9 gap-2">
-                        <Download className="h-3.5 w-3.5" /> Export My Data
-                      </Button>
-                    </div>
+                    <Button onClick={handleExportData}
+                      className="bg-purple-500/20 hover:bg-purple-500/30 text-purple-200 border border-purple-500/20 rounded-xl font-medium text-[13px] px-5 h-9 gap-2">
+                      <Download className="h-3.5 w-3.5" /> Export My Data
+                    </Button>
                   </Card>
 
-                  <Button onClick={handleSaveSettings} disabled={savingSettings}
-                    className="bg-white/[0.08] hover:bg-white/[0.12] text-white/80 border border-white/[0.08] rounded-xl font-medium text-[13px] px-6 h-9">
-                    <Save className="mr-2 h-3.5 w-3.5" /> {savingSettings ? "Saving..." : "Save Preferences"}
-                  </Button>
+                  <ThemedSaveButton onClick={handleSaveSettings} disabled={savingSettings} label="Save Preferences" />
                 </motion.div>
               )}
 
               {/* ===================== NOTIFICATIONS TAB ===================== */}
               {activeTab === "notifications" && (
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-5">
                   <Card>
-                    <SectionTitle icon={Bell} title="Notification Settings"
-                      subtitle="By turning on communication permissions, you agree to let us use your email, as outlined in our Privacy Policy." />
+                    <SectionTitle icon={Bell} title="Email Notifications" subtitle="Choose which email notifications you'd like to receive." />
                     <div className="space-y-0">
-                      <div className="flex items-center justify-end pb-3 border-b border-white/[0.06]">
-                        <span className="text-white/35 text-[11px] font-medium w-16 text-center">Email</span>
-                      </div>
                       {NOTIFICATION_CATEGORIES.map((cat) => (
-                        <div key={cat.id} className="flex items-center justify-between py-4 border-b border-white/[0.03]">
-                          <div>
-                            <p className="text-white/70 text-[13px] font-medium">{cat.label}</p>
-                            <p className="text-white/30 text-[11px] mt-0.5">{cat.desc}</p>
+                        <div key={cat.id} className="flex items-center justify-between py-4 border-b border-white/[0.04] last:border-0">
+                          <div className="min-w-0 mr-4">
+                            <p className="text-white/90 text-[13px] font-medium">{cat.label}</p>
+                            <p className="text-white/45 text-[11px] leading-relaxed">{cat.desc}</p>
                           </div>
-                          <div className="w-16 flex justify-center">
-                            <Checkbox checked={notifPrefs[cat.id] ?? false}
-                              onCheckedChange={(checked) => setNotifPrefs({ ...notifPrefs, [cat.id]: !!checked })}
-                              className="border-white/20 data-[state=checked]:bg-emerald-500/60 data-[state=checked]:border-emerald-500/60" />
-                          </div>
+                          <Switch checked={notifPrefs[cat.id] ?? false}
+                            onCheckedChange={(v) => setNotifPrefs({ ...notifPrefs, [cat.id]: v })}
+                            className="data-[state=checked]:bg-emerald-500/60" />
                         </div>
                       ))}
                     </div>
-                    <Button onClick={handleSaveNotifications} disabled={savingNotifs}
-                      className="mt-5 bg-white/[0.08] hover:bg-white/[0.12] text-white/80 border border-white/[0.08] rounded-xl font-medium text-[13px] px-6 h-9">
-                      <Save className="mr-2 h-3.5 w-3.5" /> {savingNotifs ? "Saving..." : "Save Preferences"}
-                    </Button>
+                    <div className="mt-4">
+                      <ThemedSaveButton onClick={handleSaveNotifications} disabled={savingNotifs} label="Save Notifications" />
+                    </div>
                   </Card>
+                </motion.div>
+              )}
+
+              {/* ===================== RANK TAB ===================== */}
+              {activeTab === "rank" && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-5">
+                  {rankLoading || !rank ? (
+                    <div className="flex justify-center py-20"><RefreshCw className="h-8 w-8 animate-spin text-purple-400" /></div>
+                  ) : (
+                    <>
+                      {/* Current rank hero */}
+                      <Card className="relative overflow-hidden">
+                        <div className="absolute inset-0 bg-gradient-to-br from-purple-500/[0.08] to-transparent pointer-events-none" />
+                        <div className="relative flex items-center justify-between">
+                          <div className="flex items-center gap-5">
+                            <div className="text-5xl">{currentRankInfo?.icon}</div>
+                            <div>
+                              <p className="text-white/40 text-[11px] uppercase tracking-wider font-semibold">Current Rank</p>
+                              <h2 className="text-2xl font-bold text-white" style={{ color: currentRankInfo?.color }}>{currentRankInfo?.label}</h2>
+                              <p className="text-white/50 text-sm mt-1">{rank.xp} XP total · {rank.points_balance} Points</p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="flex items-center gap-2 text-amber-400">
+                              <Flame className="h-5 w-5" />
+                              <span className="text-xl font-bold">{rank.daily_login_streak}</span>
+                            </div>
+                            <p className="text-white/40 text-[11px]">Day Streak</p>
+                          </div>
+                        </div>
+
+                        {/* Progress to next rank */}
+                        {nextRankInfo ? (
+                          <div className="mt-6 space-y-3">
+                            <div className="flex justify-between items-center text-sm">
+                              <span className="text-white/60 flex items-center gap-1.5">
+                                <span>{currentRankInfo?.icon}</span> {currentRankInfo?.label}
+                              </span>
+                              <span className="text-white/60 flex items-center gap-1.5">
+                                {nextRankInfo.label} <span>{nextRankInfo.icon}</span>
+                              </span>
+                            </div>
+                            <div className="relative">
+                              <Progress value={rankProgress} className="h-4 bg-white/[0.06] rounded-full" />
+                              <div className="absolute inset-0 flex items-center justify-center">
+                                <span className="text-[10px] font-bold text-white/80">{rankProgress}%</span>
+                              </div>
+                            </div>
+                            <p className="text-center text-white/40 text-[12px]">
+                              <span className="font-semibold text-white/60">{nextRankInfo.minXp - rank.xp} XP</span> needed to reach {nextRankInfo.label}
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="mt-6 text-center py-3">
+                            <span className="text-lg font-bold text-amber-400">🏆 Maximum Rank Achieved!</span>
+                          </div>
+                        )}
+
+                        {/* Daily claim */}
+                        {(() => {
+                          const today = new Date().toISOString().split('T')[0];
+                          const canClaim = rank.last_daily_login !== today;
+                          return canClaim ? (
+                            <Button onClick={claimDailyLogin} className="mt-5 w-full bg-purple-500/20 hover:bg-purple-500/30 text-purple-200 border border-purple-500/20 rounded-xl h-10 gap-2 font-medium">
+                              <Zap className="h-4 w-4" /> Claim Daily Login (+10 XP)
+                            </Button>
+                          ) : (
+                            <div className="mt-5 text-center py-2.5 bg-emerald-500/[0.06] border border-emerald-500/15 rounded-xl">
+                              <p className="text-emerald-400/80 text-[12px] font-medium flex items-center justify-center gap-1.5">
+                                <CheckCircle2 className="h-3.5 w-3.5" /> Daily login claimed!
+                              </p>
+                            </div>
+                          );
+                        })()}
+                      </Card>
+
+                      {/* Stats grid */}
+                      <div className="grid grid-cols-3 gap-3">
+                        <Card className="text-center py-5">
+                          <Zap className="h-6 w-6 text-purple-400 mx-auto mb-2" />
+                          <div className="text-xl font-bold text-white">{rank.xp}</div>
+                          <div className="text-white/40 text-[11px]">Total XP</div>
+                        </Card>
+                        <Card className="text-center py-5">
+                          <Coins className="h-6 w-6 text-amber-400 mx-auto mb-2" />
+                          <div className="text-xl font-bold text-white">{rank.points_balance}</div>
+                          <div className="text-white/40 text-[11px]">Points Balance</div>
+                        </Card>
+                        <Card className="text-center py-5">
+                          <Flame className="h-6 w-6 text-orange-400 mx-auto mb-2" />
+                          <div className="text-xl font-bold text-white">{rank.daily_login_streak}</div>
+                          <div className="text-white/40 text-[11px]">Login Streak</div>
+                        </Card>
+                      </div>
+
+                      {/* XP earning guide */}
+                      <Card>
+                        <SectionTitle icon={Star} title="How to Earn XP" subtitle="Complete actions to level up your rank." />
+                        <div className="space-y-2">
+                          {[
+                            { action: "Daily Login", xp: "+10 XP", icon: Zap },
+                            { action: "Create a Post", xp: "+25 XP", icon: FileText },
+                            { action: "Get a Like", xp: "+2 XP", icon: Star },
+                            { action: "Get a Comment", xp: "+5 XP", icon: Bell },
+                            { action: "Gain a Follower", xp: "+10 XP", icon: UserPlus },
+                          ].map((item) => (
+                            <div key={item.action} className="flex items-center justify-between py-2.5 border-b border-white/[0.04] last:border-0">
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center">
+                                  <item.icon className="h-4 w-4 text-purple-400" />
+                                </div>
+                                <span className="text-white/80 text-[13px]">{item.action}</span>
+                              </div>
+                              <span className="text-purple-300 text-[12px] font-semibold">{item.xp}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </Card>
+
+                      {/* All ranks breakdown */}
+                      <Card>
+                        <SectionTitle icon={Award} title="All Ranks" subtitle="Your journey through all available ranks and their rewards." />
+                        <div className="space-y-3">
+                          {RANK_TIERS.map((tier, idx) => {
+                            const reward = RANK_REWARDS.find(r => r.tier === tier.name);
+                            const isActive = tier.name === rank.rank_tier;
+                            const isReached = rank.xp >= tier.minXp;
+                            const nextTier = RANK_TIERS[idx + 1];
+
+                            return (
+                              <div key={tier.name}
+                                className={`p-4 rounded-xl border transition-all ${
+                                  isActive ? "bg-purple-500/[0.08] border-purple-500/20 ring-1 ring-purple-500/20" :
+                                  isReached ? "bg-white/[0.02] border-white/[0.06]" :
+                                  "bg-white/[0.01] border-white/[0.03] opacity-60"
+                                }`}>
+                                <div className="flex items-center justify-between mb-2">
+                                  <div className="flex items-center gap-3">
+                                    <span className="text-2xl">{tier.icon}</span>
+                                    <div>
+                                      <div className="flex items-center gap-2">
+                                        <h4 className="font-bold text-[14px]" style={{ color: isReached ? tier.color : 'rgba(255,255,255,0.3)' }}>
+                                          {tier.label}
+                                        </h4>
+                                        {isActive && (
+                                          <span className="text-[9px] px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/15 uppercase tracking-wider font-bold">
+                                            Current
+                                          </span>
+                                        )}
+                                        {isReached && !isActive && (
+                                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+                                        )}
+                                      </div>
+                                      <p className="text-white/40 text-[11px]">
+                                        {tier.minXp} XP required{nextTier ? ` · ${nextTier.minXp - tier.minXp} XP range` : ' · Max rank'}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  {reward && reward.bonus > 0 && (
+                                    <div className="text-right">
+                                      <div className="flex items-center gap-1 text-amber-400">
+                                        <Coins className="h-3.5 w-3.5" />
+                                        <span className="font-bold text-[13px]">+{reward.bonus}</span>
+                                      </div>
+                                      <p className="text-white/30 text-[10px]">bonus points</p>
+                                    </div>
+                                  )}
+                                </div>
+                                {reward && (
+                                  <div className="flex flex-wrap gap-1.5 mt-2">
+                                    {reward.perks.map((perk, i) => (
+                                      <span key={i} className={`text-[10px] px-2 py-0.5 rounded-full border ${
+                                        isReached ? "bg-white/[0.04] border-white/[0.08] text-white/60" : "bg-white/[0.02] border-white/[0.04] text-white/25"
+                                      }`}>
+                                        {perk}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </Card>
+                    </>
+                  )}
                 </motion.div>
               )}
 
@@ -1303,7 +1548,7 @@ const UserProfile = () => {
                     <CreatePostDialog
                       onCreated={refetchFeed}
                       trigger={
-                        <button className="w-full bg-white/[0.04] border border-white/[0.08] rounded-2xl p-4 flex items-center gap-3 text-left hover:bg-white/[0.06] transition-colors">
+                        <button className="w-full bg-[hsl(222,28%,11%)] border border-purple-500/10 rounded-2xl p-4 flex items-center gap-3 text-left hover:bg-white/[0.06] transition-colors">
                           <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center">
                             <Rss className="h-5 w-5 text-purple-400" />
                           </div>
@@ -1319,7 +1564,8 @@ const UserProfile = () => {
                       <Compass className="h-14 w-14 text-white/15 mx-auto" />
                       <h3 className="text-lg font-semibold text-white/80">Your feed is empty</h3>
                       <p className="text-white/40 text-sm">Follow people to see their posts here, or explore trending content.</p>
-                      <Button onClick={() => setActiveTab("social-explore")} variant="outline" className="border-white/10 text-white/60">
+                      <Button onClick={() => setActiveTab("social-explore")}
+                        className="bg-purple-500/20 hover:bg-purple-500/30 text-purple-200 border border-purple-500/20 rounded-xl">
                         Explore
                       </Button>
                     </div>
@@ -1431,7 +1677,6 @@ const UserProfile = () => {
                     </div>
                   ) : (
                     socialNotifications.map((notif: any) => {
-                      const iconMap: Record<string, typeof Bell> = { like: Bell, comment: Bell, follow: UserPlus };
                       const textMap: Record<string, string> = { like: 'liked your post', comment: 'commented on your post', follow: 'started following you' };
                       const actor = notif.actor_profile;
                       return (
@@ -1518,7 +1763,7 @@ const UserProfile = () => {
           <DialogFooter>
             <Button variant="ghost" onClick={() => setShowPasswordDialog(false)} className="text-white/40 hover:text-white/60 text-[12px]">Cancel</Button>
             <Button onClick={handleChangePassword} disabled={isChangingPw}
-              className="bg-white/[0.08] hover:bg-white/[0.12] text-white/80 border border-white/[0.08] rounded-xl text-[12px]">
+              className="bg-purple-500/20 hover:bg-purple-500/30 text-purple-200 border border-purple-500/20 rounded-xl text-[12px]">
               {isChangingPw ? "Updating..." : "Update Password"}
             </Button>
           </DialogFooter>
@@ -1588,7 +1833,7 @@ const UserProfile = () => {
             </Button>
             {emailStep !== "done" && (
               <Button onClick={handleEmailChange} disabled={isChangingEmail}
-                className="bg-white/[0.08] hover:bg-white/[0.12] text-white/80 border border-white/[0.08] rounded-xl text-[12px]">
+                className="bg-purple-500/20 hover:bg-purple-500/30 text-purple-200 border border-purple-500/20 rounded-xl text-[12px]">
                 {isChangingEmail ? "Processing..." : emailStep === "verify-current" ? "Verify Identity" : "Change Email"}
               </Button>
             )}
@@ -1699,7 +1944,7 @@ const UserProfile = () => {
           <DialogFooter>
             <Button variant="ghost" onClick={() => setShowAddDeviceDialog(false)} className="text-white/40 hover:text-white/60 text-[12px]">Cancel</Button>
             <Button onClick={handleAddDevice}
-              className="bg-white/[0.08] hover:bg-white/[0.12] text-white/80 border border-white/[0.08] rounded-xl text-[12px]">
+              className="bg-purple-500/20 hover:bg-purple-500/30 text-purple-200 border border-purple-500/20 rounded-xl text-[12px]">
               <Plus className="h-3.5 w-3.5 mr-1.5" /> Add Device
             </Button>
           </DialogFooter>
