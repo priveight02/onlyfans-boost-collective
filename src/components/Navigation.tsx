@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
-import { Menu, X, LogIn, LogOut, Shield, Home, Briefcase, HelpCircle, UserPlus, User } from "lucide-react";
+import { Menu, X, LogIn, LogOut, Shield, Home, Briefcase, HelpCircle, UserPlus, User, CreditCard } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "./ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import CreditsDisplay from "./CreditsDisplay";
 
 type MenuItem = {
   name: string;
@@ -38,6 +39,7 @@ const Navigation = () => {
     { name: "Home", href: "/", icon: Home },
     { name: "Onboarding", href: "/onboarding", icon: UserPlus },
     { name: "Services", href: "/services", icon: Briefcase },
+    { name: "Pricing", href: "/pricing", icon: CreditCard },
     { name: "FAQ", href: "/faq", icon: HelpCircle },
   ];
 
@@ -81,9 +83,9 @@ const Navigation = () => {
 
               {/* Auth buttons */}
               <div className="flex items-center gap-1 ml-2">
+                <CreditsDisplay />
                 {user ? (
                   <>
-                    {/* User avatar / profile button */}
                     <Link to="/profile">
                       <button
                         className="w-9 h-9 rounded-full bg-white/20 border border-white/30 flex items-center justify-center text-white text-sm font-bold hover:bg-white/30 transition-colors"
@@ -92,30 +94,14 @@ const Navigation = () => {
                         {userInitial}
                       </button>
                     </Link>
-
-                    {/* Admin logout (separate) */}
-                    {isAdmin && (
-                      <Button
-                        variant="ghost"
-                        onClick={handleLogout}
-                        className="transition-colors duration-200 hover:bg-white/10 text-white/60 hover:text-white rounded-lg ml-1"
-                        title="Admin Logout"
-                      >
-                        <LogOut className="h-5 w-5" />
-                      </Button>
-                    )}
-
-                    {/* Regular user logout */}
-                    {!isAdmin && (
-                      <Button
-                        variant="ghost"
-                        onClick={handleLogout}
-                        className="transition-colors duration-200 hover:bg-white/10 text-white/60 hover:text-white rounded-lg"
-                        title="Log out"
-                      >
-                        <LogOut className="h-5 w-5" />
-                      </Button>
-                    )}
+                    <Button
+                      variant="ghost"
+                      onClick={handleLogout}
+                      className="transition-colors duration-200 hover:bg-white/10 text-white/60 hover:text-white rounded-lg"
+                      title="Log out"
+                    >
+                      <LogOut className="h-5 w-5" />
+                    </Button>
                   </>
                 ) : (
                   <Link to="/auth">
