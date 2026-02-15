@@ -387,8 +387,10 @@ const PlanCreditsTab = () => {
 
                 <div className="space-y-2">
                   {plan.features.map((f, fi) => (
-                    <div key={fi} className="flex items-center gap-2.5 text-sm text-white/60">
-                      <Check className="h-3.5 w-3.5 text-white/40 flex-shrink-0" />
+                    <div key={fi} className="flex items-center gap-3 text-sm text-white/60">
+                      <div className="w-5 h-5 rounded-full bg-white/[0.08] border border-white/[0.12] flex items-center justify-center flex-shrink-0">
+                        <Check className="h-3 w-3 text-white/70" strokeWidth={2.5} />
+                      </div>
                       <span>{f}</span>
                     </div>
                   ))}
