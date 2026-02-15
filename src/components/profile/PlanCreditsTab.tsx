@@ -62,7 +62,7 @@ const PLANS = [
     name: "Pro",
     monthlyPrice: 29,
     credits_per_month: 500,
-    features: ["500 credits/month", "Everything in Starter", "Advanced CRM Access", "Premium AI features", "5 managed accounts", "Priority support", "Credit rollovers", "On-demand top-ups"],
+    features: ["500 credits/month", "Everything in Starter", "Advanced CRM Access", "Premium AI features", "5 managed accounts", "Priority support", "On-demand top-ups"],
     highlighted: true,
     yearlyDiscount: 0.30,
   },
@@ -318,14 +318,14 @@ const PlanCreditsTab = () => {
             const showYearlySavings = billingCycle === "yearly" && plan.yearlyDiscount > 0 && plan.monthlyPrice !== null;
             return (
               <div key={plan.id}
-                className={`relative rounded-2xl border p-6 transition-all duration-200 ${
+                className={`relative rounded-2xl border p-5 transition-all duration-200 ${
                   plan.highlighted
                     ? "border-purple-500/30 bg-purple-500/5"
                     : "border-white/[0.06] bg-[hsl(222,28%,11%)]"
                 } ${isCurrent ? "ring-1 ring-emerald-500/30" : ""}`}
               >
                 {isCurrent && (
-                  <Badge className="bg-emerald-500/15 text-emerald-300 border-emerald-500/20 mb-3 text-xs">
+                  <Badge className="bg-emerald-500/15 text-emerald-300 border-emerald-500/20 mb-2 text-xs">
                     Current Plan
                   </Badge>
                 )}
@@ -334,11 +334,11 @@ const PlanCreditsTab = () => {
                     Most Popular
                   </Badge>
                 )}
-                <h3 className="text-white font-bold text-lg mb-1">{plan.name}</h3>
-                <p className="text-white/40 text-sm mb-4">
+                <h3 className="text-white font-bold text-lg mb-0.5">{plan.name}</h3>
+                <p className="text-white/40 text-sm mb-3">
                   {plan.credits_per_month ? `${plan.credits_per_month.toLocaleString()} credits/month` : "Custom allocation"}
                 </p>
-                <div className="mb-5">
+                <div className="mb-4">
                   {displayPrice !== null ? (
                     <>
                       <div className="flex items-baseline gap-1.5">
@@ -361,14 +361,14 @@ const PlanCreditsTab = () => {
                 </div>
 
                 {isCurrent ? (
-                  <Button className="w-full mb-5 text-sm h-10 bg-[hsl(222,25%,18%)] text-white/50 border border-white/10 cursor-default hover:bg-[hsl(222,25%,18%)]" disabled>
+                  <Button className="w-full mb-4 text-sm h-10 bg-[hsl(222,25%,18%)] text-white/50 border border-white/10 cursor-default hover:bg-[hsl(222,25%,18%)]" disabled>
                     Your Plan
                   </Button>
                 ) : displayPrice !== null ? (
                   <Button
                     onClick={() => handleUpgrade(plan.id)}
                     disabled={upgradingPlan === plan.id}
-                    className={`w-full mb-5 text-sm h-10 font-semibold ${
+                    className={`w-full mb-4 text-sm h-10 font-semibold ${
                       plan.highlighted
                         ? "bg-purple-500 hover:bg-purple-400 text-white"
                         : "bg-[hsl(222,25%,18%)] hover:bg-[hsl(222,25%,22%)] text-white border border-white/10"
@@ -379,13 +379,13 @@ const PlanCreditsTab = () => {
                 ) : (
                   <Button
                     onClick={() => handleUpgrade(plan.id)}
-                    className="w-full mb-5 text-sm h-10 bg-[hsl(222,25%,18%)] hover:bg-[hsl(222,25%,22%)] text-white border border-white/10 font-semibold"
+                    className="w-full mb-4 text-sm h-10 bg-[hsl(222,25%,18%)] hover:bg-[hsl(222,25%,22%)] text-white border border-white/10 font-semibold"
                   >
                     Contact Sales
                   </Button>
                 )}
 
-                <div className="space-y-2.5">
+                <div className="space-y-2">
                   {plan.features.map((f, fi) => (
                     <div key={fi} className="flex items-center gap-2.5 text-sm text-white/60">
                       <Check className="h-3.5 w-3.5 text-emerald-400 flex-shrink-0" />
