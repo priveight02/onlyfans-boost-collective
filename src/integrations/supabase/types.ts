@@ -1550,8 +1550,10 @@ export type Database = {
           created_at: string
           display_name: string | null
           email: string | null
+          email_change_count: number
           has_password: boolean | null
           id: string
+          original_email: string | null
           phone: string | null
           remember_me: boolean | null
           remember_until: string | null
@@ -1568,8 +1570,10 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           email?: string | null
+          email_change_count?: number
           has_password?: boolean | null
           id?: string
+          original_email?: string | null
           phone?: string | null
           remember_me?: boolean | null
           remember_until?: string | null
@@ -1586,8 +1590,10 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           email?: string | null
+          email_change_count?: number
           has_password?: boolean | null
           id?: string
+          original_email?: string | null
           phone?: string | null
           remember_me?: boolean | null
           remember_until?: string | null

@@ -1,16 +1,17 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { lovable } from "@/integrations/lovable/index";
 import {
   User, Mail, AtSign, Save, KeyRound, LogOut, Shield, Bell,
   Activity, ChevronRight, Phone, Building2, MapPin, Trash2,
-  Link2, Unlink, AlertTriangle, Eye, EyeOff, Lock
+  Link2, Unlink, AlertTriangle, Eye, EyeOff, Lock, CheckCircle2, XCircle, Info
 } from "lucide-react";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter,
@@ -18,6 +19,8 @@ import {
 } from "@/components/ui/dialog";
 
 type TabId = "account" | "security" | "activity" | "notifications";
+
+type CardNotification = { type: "success" | "error" | "info"; message: string } | null;
 
 const NOTIFICATION_CATEGORIES = [
   { id: "account_security", label: "Account and Security", desc: "Get notified about changes, issues, or important updates related to your account." },
@@ -44,8 +47,20 @@ const UserProfile = () => {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showCurrentPw, setShowCurrentPw] = useState(false);
   const [showNewPw, setShowNewPw] = useState(false);
   const [isChangingPw, setIsChangingPw] = useState(false);
+  const [pwNotification, setPwNotification] = useState<CardNotification>(null);
+
+  // Email change state
+  const [showEmailDialog, setShowEmailDialog] = useState(false);
+  const [emailStep, setEmailStep] = useState<"verify-current" | "enter-new" | "verify-new" | "done">("verify-current");
+  const [emailVerifyPassword, setEmailVerifyPassword] = useState("");
+  const [newEmail, setNewEmail] = useState("");
+  const [isChangingEmail, setIsChangingEmail] = useState(false);
+  const [emailNotification, setEmailNotification] = useState<CardNotification>(null);
+  const [emailChangeCount, setEmailChangeCount] = useState(0);
+  const [originalEmail, setOriginalEmail] = useState("");
 
   // Google unlink state
   const [showUnlinkDialog, setShowUnlinkDialog] = useState(false);
@@ -53,7 +68,6 @@ const UserProfile = () => {
   const [unlinkPassword, setUnlinkPassword] = useState("");
   const [unlinkConfirmPw, setUnlinkConfirmPw] = useState("");
   const [isUnlinking, setIsUnlinking] = useState(false);
-  const [verificationSent, setVerificationSent] = useState(false);
 
   // Delete account
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -81,15 +95,17 @@ const UserProfile = () => {
     }
   }, [user, profile, navigate]);
 
-  // Load extra profile fields
+  // Load extra profile fields including email change tracking
   useEffect(() => {
     if (!user) return;
-    supabase.from("profiles").select("phone, address, company").eq("user_id", user.id).single()
+    supabase.from("profiles").select("phone, address, company, email_change_count, original_email").eq("user_id", user.id).single()
       .then(({ data }) => {
         if (data) {
           setPhone((data as any).phone || "");
           setAddress((data as any).address || "");
           setCompany((data as any).company || "");
+          setEmailChangeCount((data as any).email_change_count || 0);
+          setOriginalEmail((data as any).original_email || "");
         }
       });
   }, [user]);
@@ -133,44 +149,132 @@ const UserProfile = () => {
     } finally { setIsSaving(false); }
   };
 
+  // Password change with current password verification
   const handleChangePassword = async () => {
-    if (newPassword.length < 8) { toast.error("Password must be at least 8 characters"); return; }
-    if (newPassword !== confirmPassword) { toast.error("Passwords do not match"); return; }
+    setPwNotification(null);
+    if (!user?.email) return;
+
+    if (hasPassword && !currentPassword) {
+      setPwNotification({ type: "error", message: "Please enter your current password." });
+      return;
+    }
+    if (newPassword.length < 8) {
+      setPwNotification({ type: "error", message: "New password must be at least 8 characters." });
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPwNotification({ type: "error", message: "Passwords do not match." });
+      return;
+    }
+
     try {
       setIsChangingPw(true);
+
+      // Verify current password by re-authenticating
+      if (hasPassword) {
+        const { error: authError } = await supabase.auth.signInWithPassword({
+          email: user.email,
+          password: currentPassword,
+        });
+        if (authError) {
+          setPwNotification({ type: "error", message: "Current password is incorrect." });
+          return;
+        }
+      }
+
+      // Update to new password
       await updatePassword(newPassword);
-      toast.success("Password updated successfully!");
-      setShowPasswordDialog(false);
-      setNewPassword(""); setConfirmPassword(""); setCurrentPassword("");
+      setPwNotification({ type: "success", message: "Password updated successfully!" });
+      setTimeout(() => {
+        setShowPasswordDialog(false);
+        setNewPassword(""); setConfirmPassword(""); setCurrentPassword("");
+        setPwNotification(null);
+      }, 1500);
     } catch (error: any) {
-      toast.error(error.message || "Failed to change password");
+      setPwNotification({ type: "error", message: error.message || "Failed to change password." });
     } finally { setIsChangingPw(false); }
+  };
+
+  // Email change flow
+  const handleEmailChange = async () => {
+    setEmailNotification(null);
+    if (!user?.email) return;
+
+    if (emailStep === "verify-current") {
+      // Verify identity with current password
+      if (!emailVerifyPassword) {
+        setEmailNotification({ type: "error", message: "Please enter your current password to verify your identity." });
+        return;
+      }
+      try {
+        setIsChangingEmail(true);
+        const { error } = await supabase.auth.signInWithPassword({
+          email: user.email,
+          password: emailVerifyPassword,
+        });
+        if (error) {
+          setEmailNotification({ type: "error", message: "Password is incorrect." });
+          return;
+        }
+        setEmailStep("enter-new");
+        setEmailNotification({ type: "success", message: "Identity verified! Now enter your new email address." });
+      } catch (err: any) {
+        setEmailNotification({ type: "error", message: err.message || "Verification failed." });
+      } finally { setIsChangingEmail(false); }
+      return;
+    }
+
+    if (emailStep === "enter-new") {
+      if (!newEmail || !newEmail.includes("@")) {
+        setEmailNotification({ type: "error", message: "Please enter a valid email address." });
+        return;
+      }
+      if (newEmail.toLowerCase() === user.email?.toLowerCase()) {
+        setEmailNotification({ type: "error", message: "New email must be different from your current email." });
+        return;
+      }
+      try {
+        setIsChangingEmail(true);
+        // Use Supabase updateUser to trigger email change confirmation
+        const { error } = await supabase.auth.updateUser({ email: newEmail });
+        if (error) throw error;
+
+        // Update profile email_change_count
+        await supabase.from("profiles").update({
+          email_change_count: emailChangeCount + 1,
+          email: newEmail,
+        } as any).eq("user_id", user.id);
+
+        setEmailStep("done");
+        setEmailNotification({ type: "success", message: "A confirmation link has been sent to both your current and new email. Please confirm both to complete the change." });
+      } catch (err: any) {
+        setEmailNotification({ type: "error", message: err.message || "Failed to initiate email change." });
+      } finally { setIsChangingEmail(false); }
+      return;
+    }
+  };
+
+  // Google link
+  const handleLinkGoogle = async () => {
+    try {
+      const { error } = await lovable.auth.signInWithOAuth("google", {
+        redirect_uri: window.location.origin + "/profile",
+      });
+      if (error) throw error;
+    } catch (err: any) {
+      toast.error(err.message || "Failed to link Google account");
+    }
   };
 
   const handleUnlinkGoogle = async () => {
     if (!googleIdentity) return;
 
     if (unlinkStep === "confirm") {
-      // Send verification email via magic link
-      try {
-        setIsUnlinking(true);
-        const { error } = await supabase.auth.signInWithOtp({
-          email: user?.email || "",
-          options: { shouldCreateUser: false }
-        });
-        if (error) throw error;
-        setVerificationSent(true);
-        toast.success("Verification email sent! Check your inbox to confirm.");
-        // Move to password step since they need one before unlinking
-        if (!hasPassword) {
-          setUnlinkStep("set-password");
-        } else {
-          // Has password, proceed to unlink
-          await performUnlink();
-        }
-      } catch (error: any) {
-        toast.error(error.message || "Failed to send verification");
-      } finally { setIsUnlinking(false); }
+      if (!hasPassword) {
+        setUnlinkStep("set-password");
+        return;
+      }
+      await performUnlink();
       return;
     }
 
@@ -179,9 +283,7 @@ const UserProfile = () => {
       if (unlinkPassword !== unlinkConfirmPw) { toast.error("Passwords do not match"); return; }
       try {
         setIsUnlinking(true);
-        // Set password first
         await updatePassword(unlinkPassword);
-        // Then unlink
         await performUnlink();
       } catch (error: any) {
         toast.error(error.message || "Failed to set password");
@@ -192,6 +294,7 @@ const UserProfile = () => {
   const performUnlink = async () => {
     try {
       if (!googleIdentity) return;
+      setIsUnlinking(true);
       const { error } = await supabase.auth.unlinkIdentity(googleIdentity);
       if (error) throw error;
       toast.success("Google account unlinked successfully!");
@@ -200,7 +303,7 @@ const UserProfile = () => {
       setUnlinkPassword(""); setUnlinkConfirmPw("");
     } catch (error: any) {
       toast.error(error.message || "Failed to unlink Google");
-    }
+    } finally { setIsUnlinking(false); }
   };
 
   const handleSaveNotifications = async () => {
@@ -239,6 +342,7 @@ const UserProfile = () => {
   ];
 
   const userInitial = profile?.display_name?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase() || "U";
+  const canChangeEmail = emailChangeCount < 1;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-primary to-blue-900 relative overflow-hidden">
@@ -347,7 +451,24 @@ const UserProfile = () => {
                       <h2 className="text-lg font-semibold text-white">Account Settings</h2>
                     </div>
                     <div className="divide-y divide-white/5">
-                      <InfoRow label="Email" value={user.email || ""} />
+                      {/* Email row with change button */}
+                      <div className="flex items-center justify-between py-3">
+                        <div>
+                          <span className="text-white/50 text-sm">Email</span>
+                          <p className="text-white/80 text-sm">{user.email}</p>
+                          {originalEmail && originalEmail !== user.email && (
+                            <p className="text-white/30 text-xs mt-0.5">Original: {originalEmail}</p>
+                          )}
+                        </div>
+                        {canChangeEmail ? (
+                          <Button onClick={() => { setShowEmailDialog(true); setEmailStep("verify-current"); setEmailNotification(null); setEmailVerifyPassword(""); setNewEmail(""); }}
+                            variant="ghost" className="text-white/60 hover:text-white hover:bg-white/10 rounded-xl gap-2 text-sm">
+                            Change <ChevronRight className="h-4 w-4" />
+                          </Button>
+                        ) : (
+                          <span className="text-white/30 text-xs px-3 py-1.5 bg-white/5 rounded-full">Change limit reached (1/1)</span>
+                        )}
+                      </div>
                       <InfoRow label="Member since" value={memberSince} />
                     </div>
                   </div>
@@ -368,10 +489,10 @@ const UserProfile = () => {
                         <p className="text-white/70 text-sm">
                           {hasPassword ? "Change your account password" : "Set a password for your account"}
                         </p>
-                        <p className="text-white/40 text-xs mt-0.5">Last changed: Unknown</p>
+                        <p className="text-white/40 text-xs mt-0.5">Use a strong password with at least 8 characters.</p>
                       </div>
-                      <Button onClick={() => setShowPasswordDialog(true)} variant="ghost"
-                        className="text-white/60 hover:text-white hover:bg-white/10 rounded-xl gap-2">
+                      <Button onClick={() => { setShowPasswordDialog(true); setPwNotification(null); setCurrentPassword(""); setNewPassword(""); setConfirmPassword(""); }}
+                        variant="ghost" className="text-white/60 hover:text-white hover:bg-white/10 rounded-xl gap-2">
                         <Lock className="h-4 w-4" />
                         {hasPassword ? "Change" : "Set Password"}
                         <ChevronRight className="h-4 w-4" />
@@ -409,10 +530,13 @@ const UserProfile = () => {
                           <Unlink className="h-4 w-4" /> Unlink
                         </Button>
                       ) : (
-                        <span className="text-white/30 text-xs px-3 py-1.5 bg-white/5 rounded-full">Disabled</span>
+                        <Button onClick={handleLinkGoogle}
+                          variant="ghost" className="text-white/60 hover:text-white hover:bg-white/10 rounded-xl gap-2 text-sm">
+                          <Link2 className="h-4 w-4" /> Connect
+                        </Button>
                       )}
                     </div>
-                    <p className="text-white/30 text-xs mt-2">You can have only one active social login at a time.</p>
+                    <p className="text-white/30 text-xs mt-2">Link your Google account for quick sign-in.</p>
                   </div>
 
                   {/* Danger Zone */}
@@ -538,10 +662,36 @@ const UserProfile = () => {
           <DialogHeader>
             <DialogTitle className="text-white">{hasPassword ? "Change Password" : "Set Password"}</DialogTitle>
             <DialogDescription className="text-white/50">
-              {hasPassword ? "Enter your new password below." : "Set a password to use email login."}
+              {hasPassword ? "Enter your current and new password below." : "Set a password to use email login."}
             </DialogDescription>
           </DialogHeader>
+
+          <AnimatePresence>
+            {pwNotification && (
+              <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
+                className={`flex items-center gap-2 p-3 rounded-xl text-sm ${
+                  pwNotification.type === "error" ? "bg-red-500/10 border border-red-500/20 text-red-300" :
+                  "bg-green-500/10 border border-green-500/20 text-green-300"
+                }`}>
+                {pwNotification.type === "error" ? <XCircle className="h-4 w-4 flex-shrink-0" /> : <CheckCircle2 className="h-4 w-4 flex-shrink-0" />}
+                {pwNotification.message}
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           <div className="space-y-4 py-2">
+            {hasPassword && (
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-white/60">Current Password</label>
+                <div className="relative">
+                  <Input type={showCurrentPw ? "text" : "password"} value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)}
+                    className="bg-white/10 border-white/15 text-white rounded-xl h-11 pr-10" placeholder="Enter current password" />
+                  <button type="button" onClick={() => setShowCurrentPw(!showCurrentPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white">
+                    {showCurrentPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+            )}
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-white/60">New Password</label>
               <div className="relative">
@@ -568,14 +718,92 @@ const UserProfile = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Email Change Dialog */}
+      <Dialog open={showEmailDialog} onOpenChange={setShowEmailDialog}>
+        <DialogContent className="bg-[hsl(222,35%,7%)] border-white/10 text-white max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-white">Change Email Address</DialogTitle>
+            <DialogDescription className="text-white/50">
+              {emailStep === "verify-current" && "First, verify your identity by entering your current password."}
+              {emailStep === "enter-new" && "Now enter the new email address you'd like to use."}
+              {emailStep === "done" && "Confirmation emails have been sent."}
+            </DialogDescription>
+          </DialogHeader>
+
+          <AnimatePresence>
+            {emailNotification && (
+              <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
+                className={`flex items-center gap-2 p-3 rounded-xl text-sm ${
+                  emailNotification.type === "error" ? "bg-red-500/10 border border-red-500/20 text-red-300" :
+                  emailNotification.type === "info" ? "bg-blue-500/10 border border-blue-500/20 text-blue-300" :
+                  "bg-green-500/10 border border-green-500/20 text-green-300"
+                }`}>
+                {emailNotification.type === "error" ? <XCircle className="h-4 w-4 flex-shrink-0" /> :
+                 emailNotification.type === "info" ? <Info className="h-4 w-4 flex-shrink-0" /> :
+                 <CheckCircle2 className="h-4 w-4 flex-shrink-0" />}
+                {emailNotification.message}
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <div className="space-y-4 py-2">
+            {/* Limit notice */}
+            <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-3 text-xs text-yellow-200/80 flex items-start gap-2">
+              <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="font-medium text-yellow-200">Important</p>
+                <p>You can only change your email address once. Your original email ({originalEmail || user.email}) will remain on file for account recovery through support.</p>
+              </div>
+            </div>
+
+            {emailStep === "verify-current" && (
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-white/60">Current Password</label>
+                <Input type="password" value={emailVerifyPassword} onChange={(e) => setEmailVerifyPassword(e.target.value)}
+                  className="bg-white/10 border-white/15 text-white rounded-xl h-11" placeholder="Enter your password" />
+              </div>
+            )}
+
+            {emailStep === "enter-new" && (
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-white/60">New Email Address</label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 h-4 w-4" />
+                  <Input type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)}
+                    className="pl-10 bg-white/10 border-white/15 text-white rounded-xl h-11" placeholder="new@email.com" />
+                </div>
+              </div>
+            )}
+
+            {emailStep === "done" && (
+              <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-4 text-sm text-green-200/80">
+                <p>A confirmation link has been sent to both your current email (<strong>{user.email}</strong>) and your new email (<strong>{newEmail}</strong>). Please confirm both to complete the change.</p>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setShowEmailDialog(false)} className="text-white/60 hover:text-white">
+              {emailStep === "done" ? "Close" : "Cancel"}
+            </Button>
+            {emailStep !== "done" && (
+              <Button onClick={handleEmailChange} disabled={isChangingEmail}
+                className="bg-white text-primary hover:bg-white/90 rounded-full">
+                {isChangingEmail ? "Processing..." : emailStep === "verify-current" ? "Verify Identity" : "Change Email"}
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Unlink Google Dialog */}
       <Dialog open={showUnlinkDialog} onOpenChange={setShowUnlinkDialog}>
         <DialogContent className="bg-[hsl(222,35%,7%)] border-white/10 text-white max-w-md">
           <DialogHeader>
             <DialogTitle className="text-white">Unlink Google Account</DialogTitle>
             <DialogDescription className="text-white/50">
-              {unlinkStep === "confirm" && "We will send a verification email to confirm this action. You will then need to set a password for your account."}
-              {unlinkStep === "set-password" && "Verification sent! Now set a password before unlinking Google."}
+              {unlinkStep === "confirm" && "After unlinking, you will need to use your email and password to sign in."}
+              {unlinkStep === "set-password" && "You need to set a password before unlinking Google, so you can still sign in."}
             </DialogDescription>
           </DialogHeader>
 
@@ -583,7 +811,7 @@ const UserProfile = () => {
             <div className="py-2">
               <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-4 text-sm text-yellow-200/80">
                 <p className="font-medium text-yellow-200 mb-1">Important</p>
-                <p>After unlinking, you will need to use your email and password to sign in. A verification email will be sent to <strong>{user?.email}</strong>.</p>
+                <p>You will need your email and password to sign in after unlinking Google from <strong>{user?.email}</strong>.</p>
               </div>
             </div>
           )}
@@ -607,7 +835,7 @@ const UserProfile = () => {
             <Button variant="ghost" onClick={() => setShowUnlinkDialog(false)} className="text-white/60 hover:text-white">Cancel</Button>
             <Button onClick={handleUnlinkGoogle} disabled={isUnlinking}
               className="bg-red-500 hover:bg-red-600 text-white rounded-full">
-              {isUnlinking ? "Processing..." : unlinkStep === "confirm" ? "Send Verification & Continue" : "Set Password & Unlink"}
+              {isUnlinking ? "Processing..." : unlinkStep === "confirm" ? "Unlink Google" : "Set Password & Unlink"}
             </Button>
           </DialogFooter>
         </DialogContent>
