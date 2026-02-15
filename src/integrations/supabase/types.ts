@@ -984,6 +984,48 @@ export type Database = {
         }
         Relationships: []
       }
+      credit_packages: {
+        Row: {
+          bonus_credits: number
+          created_at: string
+          credits: number
+          id: string
+          is_active: boolean
+          is_popular: boolean
+          name: string
+          price_cents: number
+          sort_order: number
+          stripe_price_id: string
+          stripe_product_id: string
+        }
+        Insert: {
+          bonus_credits?: number
+          created_at?: string
+          credits: number
+          id?: string
+          is_active?: boolean
+          is_popular?: boolean
+          name: string
+          price_cents: number
+          sort_order?: number
+          stripe_price_id: string
+          stripe_product_id: string
+        }
+        Update: {
+          bonus_credits?: number
+          created_at?: string
+          credits?: number
+          id?: string
+          is_active?: boolean
+          is_popular?: boolean
+          name?: string
+          price_cents?: number
+          sort_order?: number
+          stripe_price_id?: string
+          stripe_product_id?: string
+        }
+        Relationships: []
+      }
       device_sessions: {
         Row: {
           browser: string | null
@@ -2259,6 +2301,45 @@ export type Database = {
           },
         ]
       }
+      store_items: {
+        Row: {
+          created_at: string
+          credit_cost: number
+          description: string | null
+          duration_days: number | null
+          id: string
+          is_active: boolean
+          metadata: Json | null
+          name: string
+          sort_order: number
+          type: string
+        }
+        Insert: {
+          created_at?: string
+          credit_cost: number
+          description?: string | null
+          duration_days?: number | null
+          id?: string
+          is_active?: boolean
+          metadata?: Json | null
+          name: string
+          sort_order?: number
+          type: string
+        }
+        Update: {
+          created_at?: string
+          credit_cost?: number
+          description?: string | null
+          duration_days?: number | null
+          id?: string
+          is_active?: boolean
+          metadata?: Json | null
+          name?: string
+          sort_order?: number
+          type?: string
+        }
+        Relationships: []
+      }
       tasks: {
         Row: {
           account_id: string | null
@@ -2463,6 +2544,47 @@ export type Database = {
         }
         Relationships: []
       }
+      user_purchases: {
+        Row: {
+          created_at: string
+          credits_spent: number
+          expires_at: string | null
+          id: string
+          is_active: boolean
+          item_id: string | null
+          item_name: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          credits_spent: number
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          item_id?: string | null
+          item_name: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          credits_spent?: number
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          item_id?: string | null
+          item_name?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_purchases_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "store_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_ranks: {
         Row: {
           created_at: string
@@ -2611,6 +2733,69 @@ export type Database = {
           smart_session_cleanup?: boolean
           timezone?: string
           two_factor_enabled?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      wallet_transactions: {
+        Row: {
+          amount: number
+          created_at: string
+          description: string | null
+          id: string
+          metadata: Json | null
+          reference_id: string | null
+          type: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          metadata?: Json | null
+          reference_id?: string | null
+          type: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          metadata?: Json | null
+          reference_id?: string | null
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      wallets: {
+        Row: {
+          balance: number
+          created_at: string
+          purchase_count: number
+          total_purchased: number
+          total_spent: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          balance?: number
+          created_at?: string
+          purchase_count?: number
+          total_purchased?: number
+          total_spent?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          balance?: number
+          created_at?: string
+          purchase_count?: number
+          total_purchased?: number
+          total_spent?: number
           updated_at?: string
           user_id?: string
         }
