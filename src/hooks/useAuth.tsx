@@ -161,23 +161,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const redirectUrl = window.location.hostname === 'localhost'
       ? window.location.origin
       : 'https://ozcagency.com';
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        emailRedirectTo: redirectUrl,
-      }
+    const { data, error } = await supabase.functions.invoke('custom-auth-email', {
+      body: { email, type: 'magiclink', redirectTo: redirectUrl },
     });
     if (error) throw error;
+    if (data?.error) throw new Error(data.error);
   };
 
   const resetPassword = async (email: string) => {
     const redirectUrl = window.location.hostname === 'localhost' 
       ? `${window.location.origin}/auth/reset-password`
       : `https://ozcagency.com/auth/reset-password`;
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: redirectUrl,
+    const { data, error } = await supabase.functions.invoke('custom-auth-email', {
+      body: { email, type: 'recovery', redirectTo: redirectUrl },
     });
     if (error) throw error;
+    if (data?.error) throw new Error(data.error);
   };
 
   const updatePassword = async (newPassword: string) => {
