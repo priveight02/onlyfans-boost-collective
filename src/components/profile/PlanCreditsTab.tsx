@@ -234,8 +234,8 @@ const PlanCreditsTab = () => {
             </div>
             <Button size="sm"
               onClick={handleTopUpClick}
-              className="bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-500 hover:to-purple-400 text-white text-sm h-9 px-5 font-semibold rounded-xl shadow-lg shadow-purple-500/20 border-0">
-              <Plus className="h-3.5 w-3.5 mr-1" />
+              className="bg-purple-500 hover:bg-purple-400 text-white text-sm h-8 px-3.5 font-medium rounded-lg shadow-sm shadow-purple-500/10 border-0">
+              <Plus className="h-3 w-3 mr-1" />
               Top Up Credits
             </Button>
           </div>
@@ -277,80 +277,74 @@ const PlanCreditsTab = () => {
             const showYearlySavings = billingCycle === "yearly" && plan.yearlyDiscount > 0 && plan.monthlyPrice !== null;
             return (
               <div key={plan.id}
-                className={`rounded-2xl border p-6 transition-all duration-200 flex flex-col ${
+                className={`rounded-2xl border p-6 transition-all duration-200 ${
                   plan.highlighted
                     ? "border-purple-500/30 bg-purple-500/5"
                     : "border-white/[0.06] bg-[hsl(222,28%,11%)]"
                 } ${isCurrent ? "ring-1 ring-emerald-500/30" : ""}`}
               >
-                <div>
-                  {isCurrent && (
-                    <Badge className="bg-emerald-500/15 text-emerald-300 border-emerald-500/20 mb-3 text-xs">
-                      Current Plan
-                    </Badge>
-                  )}
-                  {plan.highlighted && !isCurrent && (
-                    <Badge className="bg-purple-500/15 text-purple-300 border-purple-500/20 mb-3 text-xs">
-                      Most Popular
-                    </Badge>
-                  )}
-                  {!plan.highlighted && !isCurrent && <div className="mb-3 h-5" />}
-                  <h3 className="text-white font-bold text-lg mb-1">{plan.name}</h3>
-                  <p className="text-white/40 text-sm mb-4">
-                    {plan.credits_per_month ? `${plan.credits_per_month.toLocaleString()} credits/month` : "Custom allocation"}
-                  </p>
-                  {/* Price block — fixed height for alignment */}
-                  <div className="mb-5 h-14 flex flex-col justify-center">
-                    {displayPrice !== null ? (
-                      <>
-                        <div className="flex items-baseline gap-1.5">
-                          <span className="text-3xl font-bold text-white">${displayPrice}</span>
-                          <span className="text-white/40 text-sm">/ {billingCycle === "yearly" ? "mo" : "month"}</span>
+                {isCurrent && (
+                  <Badge className="bg-emerald-500/15 text-emerald-300 border-emerald-500/20 mb-3 text-xs">
+                    Current Plan
+                  </Badge>
+                )}
+                {plan.highlighted && !isCurrent && (
+                  <Badge className="bg-purple-500/15 text-purple-300 border-purple-500/20 mb-3 text-xs">
+                    Most Popular
+                  </Badge>
+                )}
+                <h3 className="text-white font-bold text-lg mb-1">{plan.name}</h3>
+                <p className="text-white/40 text-sm mb-4">
+                  {plan.credits_per_month ? `${plan.credits_per_month.toLocaleString()} credits/month` : "Custom allocation"}
+                </p>
+                <div className="mb-5">
+                  {displayPrice !== null ? (
+                    <>
+                      <div className="flex items-baseline gap-1.5">
+                        <span className="text-3xl font-bold text-white">${displayPrice}</span>
+                        <span className="text-white/40 text-sm">/ {billingCycle === "yearly" ? "mo" : "month"}</span>
+                      </div>
+                      {showYearlySavings && (
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="text-white/30 text-xs line-through">${plan.monthlyPrice}/mo</span>
+                          <span className="text-emerald-400 text-xs font-semibold">-{Math.round(plan.yearlyDiscount * 100)}%</span>
                         </div>
-                        {showYearlySavings && (
-                          <div className="flex items-center gap-2 mt-0.5">
-                            <span className="text-white/30 text-xs line-through">${plan.monthlyPrice}/mo</span>
-                            <span className="text-emerald-400 text-xs font-semibold">-{Math.round(plan.yearlyDiscount * 100)}%</span>
-                          </div>
-                        )}
-                        {billingCycle === "yearly" && displayPrice !== null && displayPrice > 0 && (
-                          <p className="text-white/30 text-[10px] mt-0.5">Billed ${displayPrice * 12}/year</p>
-                        )}
-                      </>
-                    ) : (
-                      <span className="text-2xl font-bold text-white">Custom</span>
-                    )}
-                  </div>
+                      )}
+                      {billingCycle === "yearly" && displayPrice !== null && displayPrice > 0 && (
+                        <p className="text-white/30 text-[10px] mt-0.5">Billed ${displayPrice * 12}/year</p>
+                      )}
+                    </>
+                  ) : (
+                    <span className="text-2xl font-bold text-white">Custom</span>
+                  )}
                 </div>
 
-                <div className="mt-auto">
-                  {isCurrent ? (
-                    <Button className="w-full mb-5 text-sm h-10 bg-[hsl(222,25%,18%)] text-white/50 border border-white/10 cursor-default hover:bg-[hsl(222,25%,18%)]" disabled>
-                      Your Plan
-                    </Button>
-                  ) : displayPrice !== null ? (
-                    <Button className={`w-full mb-5 text-sm h-10 font-semibold ${
-                      plan.highlighted
-                        ? "bg-purple-500 hover:bg-purple-400 text-white"
-                        : "bg-[hsl(222,25%,18%)] hover:bg-[hsl(222,25%,22%)] text-white border border-white/10"
-                    }`}>
-                      <ArrowUpRight className="h-4 w-4 mr-1.5" />
-                      Upgrade
-                    </Button>
-                  ) : (
-                    <Button className="w-full mb-5 text-sm h-10 bg-[hsl(222,25%,18%)] hover:bg-[hsl(222,25%,22%)] text-white border border-white/10 font-semibold">
-                      Contact Sales
-                    </Button>
-                  )}
+                {isCurrent ? (
+                  <Button className="w-full mb-5 text-sm h-10 bg-[hsl(222,25%,18%)] text-white/50 border border-white/10 cursor-default hover:bg-[hsl(222,25%,18%)]" disabled>
+                    Your Plan
+                  </Button>
+                ) : displayPrice !== null ? (
+                  <Button className={`w-full mb-5 text-sm h-10 font-semibold ${
+                    plan.highlighted
+                      ? "bg-purple-500 hover:bg-purple-400 text-white"
+                      : "bg-[hsl(222,25%,18%)] hover:bg-[hsl(222,25%,22%)] text-white border border-white/10"
+                  }`}>
+                    <ArrowUpRight className="h-4 w-4 mr-1.5" />
+                    Upgrade
+                  </Button>
+                ) : (
+                  <Button className="w-full mb-5 text-sm h-10 bg-[hsl(222,25%,18%)] hover:bg-[hsl(222,25%,22%)] text-white border border-white/10 font-semibold">
+                    Contact Sales
+                  </Button>
+                )}
 
-                  <div className="space-y-2.5">
-                    {plan.features.map((f, fi) => (
-                      <div key={fi} className="flex items-center gap-2.5 text-sm text-white/60">
-                        <Check className="h-3.5 w-3.5 text-emerald-400 flex-shrink-0" />
-                        <span>{f}</span>
-                      </div>
-                    ))}
-                  </div>
+                <div className="space-y-2.5">
+                  {plan.features.map((f, fi) => (
+                    <div key={fi} className="flex items-center gap-2.5 text-sm text-white/60">
+                      <Check className="h-3.5 w-3.5 text-emerald-400 flex-shrink-0" />
+                      <span>{f}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
             );
