@@ -35,7 +35,16 @@ serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
     const action = body.action || "info";
-    const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
+    const stripe = new Stripe(stripeKey, { apiVersion: "2025-04-30.basil" });
+
+    // Safe date helper – returns ISO string or null
+    const safeDate = (ts: unknown): string | null => {
+      if (typeof ts === "number" && ts > 0) {
+        return new Date(ts * 1000).toISOString();
+      }
+      if (typeof ts === "string") return ts;
+      return null;
+    };
     const customers = await stripe.customers.list({ email: userData.user.email, limit: 1 });
 
     if (customers.data.length === 0) {
@@ -93,8 +102,8 @@ serve(async (req) => {
         status: sub.status,
         product_id: priceItem.price.product,
         price_id: priceItem.price.id,
-        current_period_start: new Date(sub.current_period_start * 1000).toISOString(),
-        current_period_end: new Date(sub.current_period_end * 1000).toISOString(),
+        current_period_start: safeDate(sub.current_period_start),
+        current_period_end: safeDate(sub.current_period_end),
         cancel_at_period_end: sub.cancel_at_period_end,
         discount: sub.discount ? {
           coupon_name: sub.discount.coupon.name,
@@ -114,7 +123,7 @@ serve(async (req) => {
       amount: ch.amount,
       currency: ch.currency,
       status: ch.status,
-      created: new Date(ch.created * 1000).toISOString(),
+      created: safeDate(ch.created),
       description: ch.description,
       receipt_email: ch.receipt_email,
       receipt_url: ch.receipt_url,
