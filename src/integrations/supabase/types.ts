@@ -2776,6 +2776,7 @@ export type Database = {
           balance: number
           created_at: string
           purchase_count: number
+          retention_credits_used: boolean
           total_purchased: number
           total_spent: number
           updated_at: string
@@ -2785,6 +2786,7 @@ export type Database = {
           balance?: number
           created_at?: string
           purchase_count?: number
+          retention_credits_used?: boolean
           total_purchased?: number
           total_spent?: number
           updated_at?: string
@@ -2794,6 +2796,7 @@ export type Database = {
           balance?: number
           created_at?: string
           purchase_count?: number
+          retention_credits_used?: boolean
           total_purchased?: number
           total_spent?: number
           updated_at?: string

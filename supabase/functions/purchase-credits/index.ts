@@ -60,6 +60,14 @@ const DISCOUNT_PRICE_MAP: Record<string, Record<number, string>> = {
   },
 };
 
+// Retention 50% off price IDs (one-time use, non-stackable)
+const RETENTION_PRICE_MAP: Record<string, string> = {
+  "price_1T1AusP8Id8IBpd0HrNyaRWe": "price_1T1EaQP8Id8IBpd02WQr8zhR", // Starter 50% off
+  "price_1T1AvOP8Id8IBpd0jM8b94Al": "price_1T1EabP8Id8IBpd03miZJi8B", // Pro 50% off
+  "price_1T1AvlP8Id8IBpd03ocd2mOy": "price_1T1EalP8Id8IBpd0DYdqUlCO", // Studio 50% off
+  "price_1T1AwMP8Id8IBpd0PfrPX50i": "price_1T1EaxP8Id8IBpd0nU22G2sB", // Power User 50% off
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -82,7 +90,7 @@ serve(async (req) => {
     logStep("User authenticated", { userId: user.id, email: user.email });
 
     const body = await req.json();
-    const { packageId, customCredits } = body;
+    const { packageId, customCredits, useRetentionDiscount } = body;
 
     const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", { apiVersion: "2025-08-27.basil" });
 
@@ -95,10 +103,11 @@ serve(async (req) => {
 
     const { data: wallet } = await supabaseAdmin
       .from("wallets")
-      .select("purchase_count")
+      .select("purchase_count, retention_credits_used")
       .eq("user_id", user.id)
       .single();
     const currentPurchaseCount = wallet?.purchase_count || 0;
+    const retentionAlreadyUsed = wallet?.retention_credits_used || false;
 
     // Declining discount: 1st repurchase=30%, 2nd=20%, 3rd=10%, then 0%
     const getReturningDiscount = (count: number): number => {
@@ -172,11 +181,19 @@ serve(async (req) => {
     if (pkgError || !pkg) throw new Error("Invalid package");
     logStep("Package found", { name: pkg.name, credits: pkg.credits, price: pkg.price_cents });
 
-    // Select the correct pre-created price based on returning discount
-    const discountMap = DISCOUNT_PRICE_MAP[pkg.stripe_price_id];
-    let checkoutPriceId = pkg.stripe_price_id;
+    // Check if retention 50% discount requested (non-stackable, one-time only)
+    if (useRetentionDiscount && !retentionAlreadyUsed && RETENTION_PRICE_MAP[pkg.stripe_price_id]) {
+      checkoutPriceId = RETENTION_PRICE_MAP[pkg.stripe_price_id];
+      logStep("Using retention 50% price", { priceId: checkoutPriceId });
 
-    if (discountMap && returningDiscountPercent > 0 && discountMap[returningDiscountPercent]) {
+      // Mark retention as used immediately
+      await supabaseAdmin
+        .from("wallets")
+        .update({ retention_credits_used: true })
+        .eq("user_id", user.id);
+    } else if (useRetentionDiscount && retentionAlreadyUsed) {
+      throw new Error("Retention discount already used. This is a one-time offer.");
+    } else if (discountMap && returningDiscountPercent > 0 && discountMap[returningDiscountPercent]) {
       checkoutPriceId = discountMap[returningDiscountPercent];
       logStep(`Using pre-created discounted price`, { discount: `${returningDiscountPercent}%`, priceId: checkoutPriceId });
     } else {

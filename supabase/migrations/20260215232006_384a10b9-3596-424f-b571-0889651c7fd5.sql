@@ -1,0 +1,1 @@
+ALTER TABLE public.wallets ADD COLUMN retention_credits_used boolean NOT NULL DEFAULT false;
