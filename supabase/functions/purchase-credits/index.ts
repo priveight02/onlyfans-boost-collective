@@ -69,7 +69,17 @@ serve(async (req) => {
       .select("purchase_count")
       .eq("user_id", user.id)
       .single();
-    if (wallet && wallet.purchase_count > 0) isReturningCustomer = true;
+    const currentPurchaseCount = wallet?.purchase_count || 0;
+    if (currentPurchaseCount > 0) isReturningCustomer = true;
+
+    // Declining discount: 1st repurchase=30%, 2nd=20%, 3rd=10%, then 0%
+    const getReturningDiscount = (count: number): number => {
+      if (count === 1) return 30;
+      if (count === 2) return 20;
+      if (count === 3) return 10;
+      return 0;
+    };
+    const returningDiscountPercent = getReturningDiscount(currentPurchaseCount);
 
     const origin = "https://ozcagency.com";
 
@@ -96,12 +106,12 @@ serve(async (req) => {
       });
 
       let discounts: any[] = [];
-      if (isReturningCustomer) {
-        logStep("Returning customer - applying 30% discount on custom");
+      if (returningDiscountPercent > 0) {
+        logStep(`Returning customer - applying ${returningDiscountPercent}% discount on custom`, { purchaseCount: currentPurchaseCount });
         const coupon = await stripe.coupons.create({
-          percent_off: 30,
+          percent_off: returningDiscountPercent,
           duration: "once",
-          name: "Returning Customer 30% Off",
+          name: `Returning Customer ${returningDiscountPercent}% Off`,
         });
         discounts = [{ coupon: coupon.id }];
       }
@@ -143,12 +153,12 @@ serve(async (req) => {
     logStep("Package found", { name: pkg.name, credits: pkg.credits, price: pkg.price_cents });
 
     let discounts: any[] = [];
-    if (isReturningCustomer) {
-      logStep("Returning customer - applying 30% discount");
+    if (returningDiscountPercent > 0) {
+      logStep(`Returning customer - applying ${returningDiscountPercent}% discount`, { purchaseCount: currentPurchaseCount });
       const coupon = await stripe.coupons.create({
-        percent_off: 30,
+        percent_off: returningDiscountPercent,
         duration: "once",
-        name: "Returning Customer 30% Off",
+        name: `Returning Customer ${returningDiscountPercent}% Off`,
       });
       discounts = [{ coupon: coupon.id }];
     }
