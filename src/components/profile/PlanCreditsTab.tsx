@@ -54,7 +54,7 @@ const PLANS = [
     name: "Starter",
     monthlyPrice: 9,
     credits_per_month: 105,
-    features: ["105 credits/month", "Basic AI tools", "1 managed account", "Community support"],
+    features: ["105 credits/month", "CRM Access", "Basic AI tools", "1 managed account", "Community support"],
     yearlyDiscount: 0.15,
   },
   {
@@ -62,7 +62,7 @@ const PLANS = [
     name: "Pro",
     monthlyPrice: 29,
     credits_per_month: 500,
-    features: ["500 credits/month", "All AI tools", "5 managed accounts", "Priority support", "Credit rollovers", "On-demand top-ups"],
+    features: ["500 credits/month", "Everything in Starter", "Advanced CRM Access", "Premium AI features", "5 managed accounts", "Priority support", "Credit rollovers", "On-demand top-ups"],
     highlighted: true,
     yearlyDiscount: 0.30,
   },
@@ -71,7 +71,7 @@ const PLANS = [
     name: "Business",
     monthlyPrice: 79,
     credits_per_month: 2000,
-    features: ["2000 credits/month", "All Pro features", "Unlimited accounts", "Dedicated support", "Team workspace", "Advanced analytics", "API access"],
+    features: ["2000 credits/month", "Everything in Pro", "Full CRM Access", "Unlimited accounts", "Dedicated support", "Team workspace", "Advanced analytics", "API access"],
     yearlyDiscount: 0.33,
   },
   {
