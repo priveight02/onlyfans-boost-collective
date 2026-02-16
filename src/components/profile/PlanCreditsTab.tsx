@@ -63,16 +63,16 @@ const PLANS = [
     id: "starter",
     name: "Starter",
     monthlyPrice: 9,
-    credits_per_month: 215,
-    features: ["215 credits/month", "CRM Access", "Basic AI tools", "1 managed account", "Community support"],
+    credits_per_month: 175,
+    features: ["175 credits/month", "CRM Access", "Basic AI tools", "1 managed account", "Community support"],
     yearlyDiscount: 0.15,
   },
   {
     id: "pro",
     name: "Pro",
     monthlyPrice: 29,
-    credits_per_month: 1075,
-    features: ["1,075 credits/month", "Everything in Starter", "Advanced CRM Access", "Premium AI features", "5 managed accounts", "Priority support", "On-demand top-ups"],
+    credits_per_month: 875,
+    features: ["875 credits/month", "Everything in Starter", "Advanced CRM Access", "Premium AI features", "5 managed accounts", "Priority support", "On-demand top-ups"],
     highlighted: true,
     yearlyDiscount: 0.30,
   },
@@ -80,8 +80,8 @@ const PLANS = [
     id: "business",
     name: "Business",
     monthlyPrice: 79,
-    credits_per_month: 4300,
-    features: ["4,300 credits/month", "Everything in Pro", "Full CRM Access", "Unlimited accounts", "Dedicated support", "Team workspace", "Advanced analytics", "API access"],
+    credits_per_month: 3500,
+    features: ["3,500 credits/month", "Everything in Pro", "Full CRM Access", "Unlimited accounts", "Dedicated support", "Team workspace", "Advanced analytics", "API access"],
     yearlyDiscount: 0.33,
   },
   {
@@ -99,9 +99,9 @@ const PLAN_TIER_ORDER: Record<string, number> = { free: 0, starter: 1, pro: 2, b
 
 // Features that should be highlighted with golden checkmarks per plan
 const GOLDEN_FEATURES: Record<string, string[]> = {
-  starter: ["215 credits/month"],
-  pro: ["1,075 credits/month", "Advanced CRM Access", "Premium AI features"],
-  business: ["4,300 credits/month"],
+  starter: ["175 credits/month"],
+  pro: ["875 credits/month", "Advanced CRM Access", "Premium AI features"],
+  business: ["3,500 credits/month"],
   enterprise: ["Custom credit allocation"],
 };
 
