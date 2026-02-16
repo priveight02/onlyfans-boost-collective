@@ -1,5 +1,4 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 
 const corsHeaders = {
@@ -7,54 +6,53 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const PADDLE_API = "https://sandbox-api.paddle.com";
+
 const logStep = (step: string, details?: any) => {
   console.log(`[CREATE-CHECKOUT] ${step}${details ? ` - ${JSON.stringify(details)}` : ''}`);
 };
 
-// Detect test vs live mode from Stripe key
-const isTestMode = () => (Deno.env.get("STRIPE_SECRET_KEY") || "").startsWith("sk_test_");
-
-// Live → Test subscription price mapping
-const LIVE_TO_TEST_SUB_PRICE: Record<string, string> = {
-  // Starter
-  "price_1T1CVAP8Id8IBpd0heXxbsUk": "price_1T1EyGP8Id8IBpd0tNAn9MrU", // monthly
-  "price_1T1CcdP8Id8IBpd0AppiCEdo": "price_1T1EyRP8Id8IBpd0T0nuzf8K", // yearly
-  // Pro
-  "price_1T1CVfP8Id8IBpd0B8EfZeGR": "price_1T1EybP8Id8IBpd0G6zKzoSS", // monthly
-  "price_1T1CcuP8Id8IBpd0X5c5Nqbs": "price_1T1EymP8Id8IBpd0nJZGVBlM", // yearly
-  // Business
-  "price_1T1CVpP8Id8IBpd07EYina3g": "price_1T1Ez2P8Id8IBpd0SjMOkzvg", // monthly
-  "price_1T1Cd3P8Id8IBpd0Ds2Y7HoM": "price_1T1EzDP8Id8IBpd0VOZZoLYG", // yearly
+// Paddle product/price mapping (sandbox)
+const PADDLE_PLAN_MAP: Record<string, { monthly: { price_id: string; product_id: string }; yearly: { price_id: string; product_id: string } }> = {
+  starter: {
+    monthly: { price_id: "pri_01khk8854veaqz3jy2nns7c3ng", product_id: "pro_01khk8849zz71cnn6phwezgz6h" },
+    yearly:  { price_id: "pri_01khk885axy7sp9jjp7t6pdk1r", product_id: "pro_01khk8849zz71cnn6phwezgz6h" },
+  },
+  pro: {
+    monthly: { price_id: "pri_01khk885fx88k3c7nyydybh13k", product_id: "pro_01khk884je9ssmmgq17m850nt6" },
+    yearly:  { price_id: "pri_01khk885y604t14yncgxjrvrxq", product_id: "pro_01khk884je9ssmmgq17m850nt6" },
+  },
+  business: {
+    monthly: { price_id: "pri_01khk88654jq2078qds26my167", product_id: "pro_01khk884s1s79fcga36rfqxexq" },
+    yearly:  { price_id: "pri_01khk886apadcebr4p5gtkswab", product_id: "pro_01khk884s1s79fcga36rfqxexq" },
+  },
 };
 
-const resolveSubPrice = (priceId: string) => isTestMode() ? (LIVE_TO_TEST_SUB_PRICE[priceId] || priceId) : priceId;
-
-// Plan tier ordering for upgrade/downgrade detection
-const PLAN_TIER_ORDER: Record<string, number> = { free: 0, starter: 1, pro: 2, business: 3, enterprise: 4 };
-
-// Product ID → plan ID mapping (both live and test)
 const PRODUCT_TO_PLAN: Record<string, string> = {
-  // Live products
-  "prod_TzAqP0zH90vzyR": "starter",
-  "prod_TzAypr06as419B": "starter",
-  "prod_TzArZUF2DIlzHq": "pro",
-  "prod_TzAywFFZ0SdhfZ": "pro",
-  "prod_TzAram9it2Kedf": "business",
-  "prod_TzAzgoteaSHuDB": "business",
-  // Test products
-  "prod_TzDPwhTrnCOnYm": "starter",
-  "prod_TzDPUEvS935A88": "starter",
-  "prod_TzDPNCljqBJ2Cq": "pro",
-  "prod_TzDPxffqvU9iSq": "pro",
-  "prod_TzDPr3jeAGF9mm": "business",
-  "prod_TzDQJVbiYpTH9Y": "business",
+  "pro_01khk8849zz71cnn6phwezgz6h": "starter",
+  "pro_01khk884je9ssmmgq17m850nt6": "pro",
+  "pro_01khk884s1s79fcga36rfqxexq": "business",
 };
 
-// Credits per plan for granting after subscription
 const PLAN_CREDITS: Record<string, number> = {
   starter: 215,
   pro: 1075,
   business: 4300,
+};
+
+const PLAN_TIER_ORDER: Record<string, number> = { free: 0, starter: 1, pro: 2, business: 3, enterprise: 4 };
+
+const paddleFetch = async (path: string, method: string, body?: any) => {
+  const apiKey = Deno.env.get("PADDLE_API_KEY");
+  if (!apiKey) throw new Error("PADDLE_API_KEY not set");
+  const res = await fetch(`${PADDLE_API}${path}`, {
+    method,
+    headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(`Paddle API error [${res.status}]: ${JSON.stringify(data)}`);
+  return data;
 };
 
 serve(async (req) => {
@@ -73,148 +71,105 @@ serve(async (req) => {
     if (!user?.email) throw new Error("User not authenticated");
     logStep("User authenticated", { userId: user.id, email: user.email });
 
-    const { priceId, planId, billingCycle, currentPlanId } = await req.json();
-    if (!priceId) throw new Error("Price ID required");
-    const resolvedPriceId = resolveSubPrice(priceId);
-    logStep("Checkout request", { priceId, resolvedPriceId, planId, billingCycle, currentPlanId, testMode: isTestMode() });
+    const { planId, billingCycle } = await req.json();
+    if (!planId) throw new Error("planId required");
 
-    const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", { apiVersion: "2025-04-30.basil" });
-
-    const customers = await stripe.customers.list({ email: user.email, limit: 1 });
-    let customerId: string | undefined;
-    let existingSub: Stripe.Subscription | null = null;
-
-    if (customers.data.length > 0) {
-      customerId = customers.data[0].id;
-
-      // Check for existing active subscription
-      const subs = await stripe.subscriptions.list({ customer: customerId, status: "active", limit: 10 });
-      if (subs.data.length > 0) {
-        existingSub = subs.data[0];
-      }
-    }
-
-    // ─── SERVER-SIDE plan detection from existing subscription ───
-    // Don't trust the frontend's currentPlanId — detect from Stripe directly
-    let detectedCurrentPlanId = "free";
-    if (existingSub) {
-      const existingProductId = typeof existingSub.items.data[0].price.product === "string"
-        ? existingSub.items.data[0].price.product
-        : (existingSub.items.data[0].price.product as any)?.id || "";
-      detectedCurrentPlanId = PRODUCT_TO_PLAN[existingProductId] || "free";
-      logStep("Detected current plan from Stripe", { existingProductId, detectedCurrentPlanId });
-    }
-
-    const currentTier = PLAN_TIER_ORDER[detectedCurrentPlanId] ?? 0;
-    const targetTier = PLAN_TIER_ORDER[planId] ?? 0;
-    const isUpgrade = targetTier > currentTier && currentTier > 0;
-    const isDowngrade = targetTier < currentTier && currentTier > 0;
-
-    logStep("Plan change direction", { detectedCurrentPlanId, planId, currentTier, targetTier, isUpgrade, isDowngrade, hasExistingSub: !!existingSub });
-
-    // ─── UPGRADE: update subscription in-place with proration ───
-    if (existingSub && isUpgrade) {
-      const subItemId = existingSub.items.data[0].id;
-      logStep("Upgrading subscription with proration", { subId: existingSub.id, subItemId, newPrice: resolvedPriceId });
-
-      const updatedSub = await stripe.subscriptions.update(existingSub.id, {
-        items: [{ id: subItemId, price: resolvedPriceId }],
-        proration_behavior: "always_invoice", // charge the difference immediately
-        metadata: {
-          user_id: user.id,
-          plan_id: planId,
-          billing_cycle: billingCycle || "monthly",
-          credits: String(PLAN_CREDITS[planId] || 0),
-          type: "upgrade",
-          previous_plan: detectedCurrentPlanId,
-        },
+    const planInfo = PADDLE_PLAN_MAP[planId];
+    if (!planInfo) {
+      // Enterprise
+      return new Response(JSON.stringify({ error: "Contact sales for Enterprise plan" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400,
       });
+    }
 
-      logStep("Subscription upgraded successfully", { subId: updatedSub.id, status: updatedSub.status });
+    const cycle = billingCycle === "yearly" ? "yearly" : "monthly";
+    const priceId = planInfo[cycle].price_id;
+    logStep("Checkout request", { planId, cycle, priceId });
 
-      // Grant credits for the new plan
-      const adminClient = createClient(
-        Deno.env.get("SUPABASE_URL") ?? "",
-        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-      );
-      const credits = PLAN_CREDITS[planId] || 0;
-      if (credits > 0) {
-        const { data: wallet } = await adminClient.from("wallets").select("balance").eq("user_id", user.id).single();
-        if (wallet) {
-          await adminClient.from("wallets").update({ balance: wallet.balance + credits }).eq("user_id", user.id);
-          logStep("Credits granted for upgrade", { credits, newBalance: wallet.balance + credits });
+    // Check for existing Paddle customer
+    let customerId: string | null = null;
+    try {
+      const customers = await paddleFetch(`/customers?search=${encodeURIComponent(user.email)}`, "GET");
+      if (customers.data?.length > 0) {
+        customerId = customers.data[0].id;
+        logStep("Found existing Paddle customer", { customerId });
+
+        // Check for active subscription
+        const subs = await paddleFetch(`/subscriptions?customer_id=${customerId}&status=active`, "GET");
+        if (subs.data?.length > 0) {
+          const existingSub = subs.data[0];
+          const existingProductId = existingSub.items?.[0]?.price?.product_id || "";
+          const detectedCurrentPlanId = PRODUCT_TO_PLAN[existingProductId] || "free";
+          const currentTier = PLAN_TIER_ORDER[detectedCurrentPlanId] ?? 0;
+          const targetTier = PLAN_TIER_ORDER[planId] ?? 0;
+
+          logStep("Existing subscription found", { subId: existingSub.id, detectedCurrentPlanId, planId });
+
+          // Same plan
+          if (detectedCurrentPlanId === planId) {
+            return new Response(JSON.stringify({ error: "You're already on this plan." }), {
+              headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400,
+            });
+          }
+
+          // Upgrade: update subscription with proration
+          if (targetTier > currentTier) {
+            logStep("Upgrading subscription", { from: detectedCurrentPlanId, to: planId });
+            await paddleFetch(`/subscriptions/${existingSub.id}`, "PATCH", {
+              items: [{ price_id: priceId, quantity: 1 }],
+              proration_billing_mode: "prorated_immediately",
+            });
+
+            // Grant credits
+            const adminClient = createClient(Deno.env.get("SUPABASE_URL") ?? "", Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "");
+            const credits = PLAN_CREDITS[planId] || 0;
+            if (credits > 0) {
+              const { data: wallet } = await adminClient.from("wallets").select("balance").eq("user_id", user.id).single();
+              if (wallet) {
+                await adminClient.from("wallets").update({ balance: wallet.balance + credits }).eq("user_id", user.id);
+                logStep("Credits granted for upgrade", { credits });
+              }
+            }
+
+            return new Response(JSON.stringify({ upgraded: true, message: `Upgraded to ${planId}. You only pay the prorated difference.` }), {
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
+
+          // Downgrade: schedule change at period end
+          if (targetTier < currentTier) {
+            logStep("Downgrading subscription", { from: detectedCurrentPlanId, to: planId });
+            await paddleFetch(`/subscriptions/${existingSub.id}`, "PATCH", {
+              items: [{ price_id: priceId, quantity: 1 }],
+              proration_billing_mode: "do_not_bill",
+              on_payment_failure: "apply_change",
+            });
+
+            return new Response(JSON.stringify({ downgraded: true, message: `Downgraded to ${planId}. Takes effect at the end of your current billing period.` }), {
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
         }
       }
-
-      return new Response(JSON.stringify({ upgraded: true, message: `Upgraded to ${planId}. You only pay the prorated difference.` }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    } catch (e) {
+      logStep("Customer lookup note", { error: e instanceof Error ? e.message : String(e) });
     }
 
-    // ─── DOWNGRADE: update subscription at period end ───
-    if (existingSub && isDowngrade) {
-      const subItemId = existingSub.items.data[0].id;
-      logStep("Downgrading subscription (takes effect at period end)", { subId: existingSub.id, newPrice: resolvedPriceId });
-
-      // Schedule the price change at the end of the current billing period
-      await stripe.subscriptions.update(existingSub.id, {
-        items: [{ id: subItemId, price: resolvedPriceId }],
-        proration_behavior: "none", // no refund, change takes effect at renewal
-        metadata: {
-          user_id: user.id,
-          plan_id: planId,
-          billing_cycle: billingCycle || "monthly",
-          credits: String(PLAN_CREDITS[planId] || 0),
-          type: "downgrade",
-          previous_plan: detectedCurrentPlanId,
-        },
-      });
-
-      logStep("Subscription downgraded (effective at renewal)");
-
-      return new Response(JSON.stringify({ downgraded: true, message: `Downgraded to ${planId}. Takes effect at the end of your current billing period.` }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // ─── SAME PLAN: prevent re-buying the same plan ───
-    if (existingSub && detectedCurrentPlanId === planId) {
-      logStep("User already on this plan", { planId });
-      return new Response(JSON.stringify({ error: "You're already on this plan." }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 400,
-      });
-    }
-
-    // ─── NEW SUBSCRIPTION (from free tier): create checkout session ───
-    // Cancel any leftover subs just in case
-    if (existingSub) {
-      logStep("Canceling existing subscription before new checkout", { subId: existingSub.id });
-      await stripe.subscriptions.cancel(existingSub.id, { prorate: true });
-    }
-
-    const origin = "https://ozcagency.com";
+    // No existing subscription — return price info for Paddle.js overlay checkout
     const credits = PLAN_CREDITS[planId] || 0;
 
-    const session = await stripe.checkout.sessions.create({
-      customer: customerId,
-      customer_email: customerId ? undefined : user.email,
-      line_items: [{ price: resolvedPriceId, quantity: 1 }],
-      mode: "subscription",
-      success_url: `${origin}/profile?subscription=success&plan=${planId}`,
-      cancel_url: `${origin}/profile?subscription=canceled`,
+    return new Response(JSON.stringify({
+      checkout: true,
+      priceId,
+      customerId,
+      customerEmail: user.email,
       metadata: {
         user_id: user.id,
         plan_id: planId,
-        billing_cycle: billingCycle || "monthly",
+        billing_cycle: cycle,
         credits: String(credits),
-        bonus_credits: "0",
-        type: "subscription",
       },
-    });
-
-    logStep("Checkout session created", { sessionId: session.id });
-    return new Response(JSON.stringify({ url: session.url }), {
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
