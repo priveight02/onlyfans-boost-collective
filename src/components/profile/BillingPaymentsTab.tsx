@@ -211,7 +211,7 @@ const BillingPaymentsTab = () => {
                     ? `${adminPlanOverride.charAt(0).toUpperCase() + adminPlanOverride.slice(1)} (Admin Assigned)`
                     : subscription?.product_name || PLAN_NAME_MAP[subscription?.product_id as string] || "Custom Plan"}
                 </p>
-                {subscription.discount && (
+                {subscription?.discount && (
                   <Badge className="mt-1.5 bg-emerald-500/15 text-emerald-300 border-emerald-500/20 text-[10px]">
                     <Tag className="h-2.5 w-2.5 mr-1" />
                     {subscription.discount.coupon_name}
