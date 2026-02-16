@@ -227,7 +227,7 @@ const Pricing = () => {
               return (
                 <div
                   key={pkg.id}
-                  className={`relative flex flex-col rounded-2xl border ${accent.border} bg-[hsl(222,30%,11%)] transition-all duration-200 hover:translate-y-[-2px] hover:shadow-xl ${accent.glow} ${isPopular ? 'ring-1 ring-yellow-500/40' : ''}`}
+                  className={`relative flex flex-col rounded-2xl border ${accent.border} bg-[hsl(222,30%,11%)] transition-all duration-200 hover:translate-y-[-2px] hover:shadow-xl ${accent.glow} ${isPopular ? 'ring-1 ring-yellow-500/40' : ''} [backface-visibility:hidden] [transform:translateZ(0)]`}
                 >
                   {accent.label && (
                     <div className="absolute -top-3 right-4">
@@ -322,7 +322,7 @@ const Pricing = () => {
             })}
 
             {/* Custom Credits Card */}
-            <div className="relative flex flex-col rounded-2xl border border-purple-500/30 bg-[hsl(222,30%,11%)] transition-all duration-200 hover:translate-y-[-2px] hover:shadow-xl hover:shadow-purple-500/5">
+            <div className="relative flex flex-col rounded-2xl border border-purple-500/30 bg-[hsl(222,30%,11%)] transition-all duration-200 hover:translate-y-[-2px] hover:shadow-xl hover:shadow-purple-500/5 [backface-visibility:hidden] [transform:translateZ(0)]">
               <div className="absolute -top-3 right-4">
                 <span className="bg-purple-500 text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full">
                   Custom
