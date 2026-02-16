@@ -850,7 +850,7 @@ const UserProfile = () => {
             <div className="flex-1 min-w-0 space-y-5">
 
               {/* ===================== PLAN & CREDITS TAB ===================== */}
-              {activeTab === "plan-credits" && <PlanCreditsTab />}
+              {activeTab === "plan-credits" && <PlanCreditsTab onSwitchTab={(tab) => setActiveTab(tab as TabId)} />}
 
               {/* ===================== BILLING & PAYMENTS TAB ===================== */}
               {activeTab === "billing" && <BillingPaymentsTab />}

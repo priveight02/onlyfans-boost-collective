@@ -205,17 +205,15 @@ const BillingPaymentsTab = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {/* Plan */}
               <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-4">
-                <p className="text-white/40 text-[11px] font-medium uppercase tracking-wider mb-1">
-                  Current Plan
-                  {adminPlanOverride && (
-                    <span className="ml-1.5 text-[9px] text-amber-400/70 font-normal normal-case tracking-normal">· set by admin</span>
-                  )}
-                </p>
+                <p className="text-white/40 text-[11px] font-medium uppercase tracking-wider mb-1">Current Plan</p>
                 <p className="text-white font-semibold text-sm">
                   {adminPlanOverride
                     ? `${adminPlanOverride.charAt(0).toUpperCase() + adminPlanOverride.slice(1)}`
                     : subscription?.product_name || PLAN_NAME_MAP[subscription?.product_id as string] || "Custom Plan"}
                 </p>
+                {adminPlanOverride && (
+                  <p className="text-amber-400/60 text-[10px] italic mt-1">Assigned by administrator</p>
+                )}
                 {!adminPlanOverride && subscription?.discount && (
                   <Badge className="mt-1.5 bg-emerald-500/15 text-emerald-300 border-emerald-500/20 text-[10px]">
                     <Tag className="h-2.5 w-2.5 mr-1" />
@@ -223,24 +221,24 @@ const BillingPaymentsTab = () => {
                     {subscription.discount.percent_off && ` (${subscription.discount.percent_off}% off)`}
                   </Badge>
                 )}
-                {adminPlanOverride && (
-                  <Badge className="mt-1.5 bg-amber-500/15 text-amber-300 border-amber-500/20 text-[10px]">
-                    <ShieldCheck className="h-2.5 w-2.5 mr-1" />
-                    Admin Assigned
-                  </Badge>
-                )}
               </div>
 
               {/* Billing Amount */}
               <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-4">
                 <p className="text-white/40 text-[11px] font-medium uppercase tracking-wider mb-1">Billing Amount</p>
-                <p className="text-white font-semibold text-sm">
-                  {adminPlanOverride
-                    ? <span className="text-white/40">—</span>
-                    : subscription
-                      ? <>{formatCurrency(subscription.amount, subscription.currency)}<span className="text-white/40 font-normal text-xs"> / {subscription.interval}</span></>
-                      : <span className="text-white/40">—</span>}
-                </p>
+                {adminPlanOverride ? (
+                  <>
+                    <p className="text-white/30 font-semibold text-sm">No billing</p>
+                    <p className="text-white/20 text-[10px] mt-0.5">Plan managed by admin</p>
+                  </>
+                ) : subscription ? (
+                  <p className="text-white font-semibold text-sm">
+                    {formatCurrency(subscription.amount, subscription.currency)}
+                    <span className="text-white/40 font-normal text-xs"> / {subscription.interval}</span>
+                  </p>
+                ) : (
+                  <p className="text-white/30 font-semibold text-sm">—</p>
+                )}
               </div>
 
               {/* Next Billing */}
@@ -248,15 +246,22 @@ const BillingPaymentsTab = () => {
                 <p className="text-white/40 text-[11px] font-medium uppercase tracking-wider mb-1">
                   {!adminPlanOverride && subscription?.cancel_at_period_end ? "Expires On" : "Next Billing"}
                 </p>
-                <p className="text-white font-semibold text-sm">
-                  {adminPlanOverride
-                    ? <span className="text-white/40">—</span>
-                    : subscription ? formatDate(subscription.current_period_end) : <span className="text-white/40">—</span>}
-                </p>
-                {!adminPlanOverride && subscription?.cancel_at_period_end && (
-                  <Badge className="mt-1.5 bg-amber-500/15 text-amber-300 border-amber-500/20 text-[10px]">
-                    Cancels at period end
-                  </Badge>
+                {adminPlanOverride ? (
+                  <>
+                    <p className="text-white/30 font-semibold text-sm">No upcoming charge</p>
+                    <p className="text-white/20 text-[10px] mt-0.5">Plan managed by admin</p>
+                  </>
+                ) : subscription ? (
+                  <>
+                    <p className="text-white font-semibold text-sm">{formatDate(subscription.current_period_end)}</p>
+                    {subscription.cancel_at_period_end && (
+                      <Badge className="mt-1.5 bg-amber-500/15 text-amber-300 border-amber-500/20 text-[10px]">
+                        Cancels at period end
+                      </Badge>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-white/30 font-semibold text-sm">—</p>
                 )}
               </div>
             </div>
@@ -284,10 +289,7 @@ const BillingPaymentsTab = () => {
                 </>
               )}
               {adminPlanOverride && !subscription && (
-                <Badge className="bg-purple-500/15 text-purple-300 border-purple-500/20 text-xs px-3 py-1">
-                  <ShieldCheck className="h-3 w-3 mr-1.5" />
-                  Plan assigned by administrator
-                </Badge>
+                <p className="text-white/30 text-xs italic">No subscription to manage — plan assigned by administrator</p>
               )}
               <Button
                 onClick={fetchBillingInfo}
