@@ -217,7 +217,7 @@ const Pricing = () => {
               )}
               <div className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full bg-white/5 border border-white/10">
                 <span className="text-xl font-semibold text-white">{balance.toLocaleString()}</span>
-                <span className="text-white/40 text-sm">credits available</span>
+                <span className="text-white/40 text-sm">Your Credits</span>
               </div>
             </div>
             {isReturning && (
