@@ -32,16 +32,16 @@ const getVolumeDiscount = (credits: number): number => {
 // Discount price maps (loyalty discounts: 10%, 20%, 30%)
 const DISCOUNT_PRICE_MAP: Record<string, Record<number, string>> = {
   "price_1T1SVSAMkMnyWeZ5lpbo5nnM": { 0: "price_1T1SVSAMkMnyWeZ5lpbo5nnM", 10: "price_1T1SXIAMkMnyWeZ5bpR97WZH", 20: "price_1T1SXfAMkMnyWeZ5wxGX7D72", 30: "price_1T1SXrAMkMnyWeZ5ClWJ75fp" },
-  "price_1T1SVlAMkMnyWeZ5PiBiexTs": { 0: "price_1T1SVlAMkMnyWeZ5PiBiexTs", 10: "price_1T1SYQAMkMnyWeZ5lDASBhy3", 20: "price_1T1SZ2AMkMnyWeZ5qvL9fRwB", 30: "price_1T1SZQAMkMnyWeZ5kkNOaLVz" },
-  "price_1T1SWCAMkMnyWeZ5DIVbUk38": { 0: "price_1T1SWCAMkMnyWeZ5DIVbUk38", 10: "price_1T1SZzAMkMnyWeZ5T3tdVHgg", 20: "price_1T1SbGAMkMnyWeZ5Tjqw0SUa", 30: "price_1T1SbXAMkMnyWeZ5Jp4D8U8r" },
+  "price_1T1U98AMkMnyWeZ5zFmeK1MJ": { 0: "price_1T1U98AMkMnyWeZ5zFmeK1MJ", 10: "price_1T1U9vAMkMnyWeZ5pQECbVPN", 20: "price_1T1UABAMkMnyWeZ5xaUcfKd4", 30: "price_1T1UARAMkMnyWeZ5WU32suVP" },
+  "price_1T1U9YAMkMnyWeZ5fTbiYGd0": { 0: "price_1T1U9YAMkMnyWeZ5fTbiYGd0", 10: "price_1T1UAoAMkMnyWeZ5hzctbstD", 20: "price_1T1UBDAMkMnyWeZ5wXmawIHO", 30: "price_1T1UBjAMkMnyWeZ5K5LG4Qsf" },
   "price_1T1TfYAMkMnyWeZ5ayGfBsrr": { 0: "price_1T1TfYAMkMnyWeZ5ayGfBsrr", 10: "price_1T1TgGAMkMnyWeZ55pLRV5vm", 20: "price_1T1TgHAMkMnyWeZ5YkTfXQOL", 30: "price_1T1TgIAMkMnyWeZ5bQUZziCS" },
 };
 
 // Retention price map (50% one-time discount)
 const RETENTION_PRICE_MAP: Record<string, string> = {
   "price_1T1SVSAMkMnyWeZ5lpbo5nnM": "price_1T1SYFAMkMnyWeZ53rDu8CSN",
-  "price_1T1SVlAMkMnyWeZ5PiBiexTs": "price_1T1SZbAMkMnyWeZ5wLc3xOjh",
-  "price_1T1SWCAMkMnyWeZ5DIVbUk38": "price_1T1SdOAMkMnyWeZ50Gz5FNLT",
+  "price_1T1U98AMkMnyWeZ5zFmeK1MJ": "price_1T1UAcAMkMnyWeZ51hWqoDpS",
+  "price_1T1U9YAMkMnyWeZ5fTbiYGd0": "price_1T1UBuAMkMnyWeZ5HzHvdxUF",
   "price_1T1TfYAMkMnyWeZ5ayGfBsrr": "price_1T1TgIAMkMnyWeZ5s9unpBeG",
 };
 
