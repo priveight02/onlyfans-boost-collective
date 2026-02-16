@@ -1,4 +1,4 @@
-import { Zap, TrendingUp, Target, Globe, MessageSquare, BarChart3, CheckCircle2, ArrowRight } from "lucide-react";
+import { Workflow, TrendingUp, Crosshair, Network, Send, LineChart, CheckCircle2, ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -20,7 +20,7 @@ const services = [
   {
     title: "Automated Outreach",
     description: "Reach the right people at the right time. AI handles DMs, follow-ups, and conversations 24/7 so you never miss an opportunity.",
-    icon: MessageSquare,
+    icon: Send,
     bullets: ["Smart DM sequences", "Auto follow-ups", "Lead qualification"],
     gradient: "from-orange-500/20 to-pink-500/20",
     accentColor: "text-orange-400",
@@ -38,7 +38,7 @@ const services = [
   {
     title: "Smart Automation",
     description: "Stop doing repetitive work. Build powerful no-code workflows that handle scheduling, responses, and tasks while you sleep.",
-    icon: Zap,
+    icon: Workflow,
     bullets: ["No-code workflows", "Smart triggers", "Always-on systems"],
     gradient: "from-blue-500/15 to-cyan-500/15",
     accentColor: "text-blue-400",
@@ -47,7 +47,7 @@ const services = [
   {
     title: "Digital Presence",
     description: "Manage every platform from one dashboard. AI schedules content, analyzes trends, and maximizes your visibility everywhere.",
-    icon: Globe,
+    icon: Network,
     bullets: ["Multi-platform sync", "Trend detection", "AI scheduling"],
     gradient: "from-pink-500/15 to-rose-500/15",
     accentColor: "text-pink-400",
@@ -56,7 +56,7 @@ const services = [
   {
     title: "Audience Targeting",
     description: "Find your ideal audience with AI-powered discovery. Identify high-value prospects across platforms and engage them automatically.",
-    icon: Target,
+    icon: Crosshair,
     bullets: ["Audience discovery", "Competitor analysis", "Engagement signals"],
     gradient: "from-violet-500/15 to-purple-500/15",
     accentColor: "text-violet-400",
@@ -65,7 +65,7 @@ const services = [
   {
     title: "Revenue Intelligence",
     description: "See exactly what's working. Real-time analytics, revenue forecasting, and performance insights to scale what matters.",
-    icon: BarChart3,
+    icon: LineChart,
     bullets: ["Live dashboards", "Revenue forecasting", "Growth tracking"],
     gradient: "from-cyan-500/15 to-blue-500/15",
     accentColor: "text-cyan-400",
@@ -123,8 +123,8 @@ const Services = () => {
               Grow Your Business
             </motion.span>
           </h2>
-          <p className="text-lg text-white/35 max-w-2xl mx-auto">
-            Whether you're a creator, agency, or brand — our AI works around the clock to expand your reach, convert leads, and drive revenue.
+          <p className="text-lg text-white/50 max-w-2xl mx-auto">
+            Whether you're a creator, agency, or brand, our AI works around the clock to expand your reach, convert leads, and drive revenue.
           </p>
         </motion.div>
         
@@ -150,7 +150,7 @@ const Services = () => {
                   {service.title}
                 </h3>
                 
-                <p className="text-white/40 mb-4 text-sm leading-relaxed">
+                <p className="text-white/55 mb-4 text-sm leading-relaxed">
                   {service.description}
                 </p>
                 
