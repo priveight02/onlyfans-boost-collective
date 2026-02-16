@@ -130,9 +130,7 @@ const Pricing = () => {
         body: { packageId: pkg.id, useRetentionDiscount: useRetention },
       });
       if (error) throw error;
-      if (data?.url) {
-        window.open(data.url, "_blank");
-      }
+      if (data?.url) window.open(data.url, "_blank");
       if (useRetention) {
         setRetentionActive(false);
         setRetentionUsed(true);
@@ -153,9 +151,7 @@ const Pricing = () => {
         body: { customCredits },
       });
       if (error) throw error;
-      if (data?.url) {
-        window.open(data.url, "_blank");
-      }
+      if (data?.url) window.open(data.url, "_blank");
     } catch (err: any) {
       toast.error(err.message || "Failed to start checkout");
     } finally {
@@ -283,7 +279,7 @@ const Pricing = () => {
                         <div className="w-5 h-5 rounded-full bg-white/[0.08] border border-white/[0.12] flex items-center justify-center flex-shrink-0">
                           <Check className="h-3 w-3 text-white/70" strokeWidth={2.5} />
                         </div>
-                        <span>{index === 0 ? "CRM Access" : index === 1 ? "Advanced CRM Access" : "Full CRM Access"}</span>
+                        <span>{index === 0 ? "CRM Access" : index === 1 ? "Advanced CRM Access" : index === 2 ? "Full CRM Access" : "Full CRM Access"}</span>
                       </div>
                     </div>
 

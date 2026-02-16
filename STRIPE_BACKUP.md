@@ -16,12 +16,12 @@
 ### Subscription Plans (Test)
 | Plan | Cycle | Product ID | Price ID |
 |------|-------|------------|----------|
-| Starter | Monthly | prod_TzQxzU5hz8sdwa | price_1T1S56AVBBvDGKKB8EV7ZvO1 |
-| Starter | Yearly | prod_TzQxbSs93pQQtb | price_1T1S5fAVBBvDGKKBfv4Yzmvi |
-| Pro | Monthly | prod_TzQxBoodMhERqW | price_1T1S5yAVBBvDGKKBhM9khxrJ |
-| Pro | Yearly | prod_TzQyWX1DZuWpdA | price_1T1S6JAVBBvDGKKBMqAezmPe |
-| Business | Monthly | prod_TzQyMmAEWuE1Ls | price_1T1S6YAVBBvDGKKBhYhs5Odi |
-| Business | Yearly | prod_TzQyfPCDZvRxLn | price_1T1S6qAVBBvDGKKBiWitaZzY |
+| Starter | Monthly | prod_TzDPwhTrnCOnYm | price_1T1EyGP8Id8IBpd0tNAn9MrU |
+| Starter | Yearly | prod_TzDPUEvS935A88 | price_1T1EyRP8Id8IBpd0T0nuzf8K |
+| Pro | Monthly | prod_TzDPNCljqBJ2Cq | price_1T1EybP8Id8IBpd0G6zKzoSS |
+| Pro | Yearly | prod_TzDPxffqvU9iSq | price_1T1EymP8Id8IBpd0nJZGVBlM |
+| Business | Monthly | prod_TzDPr3jeAGF9mm | price_1T1Ez2P8Id8IBpd0SjMOkzvg |
+| Business | Yearly | prod_TzDQJVbiYpTH9Y | price_1T1EzDP8Id8IBpd0VOZZoLYG |
 
 ### Credit Packages (Live Base Prices)
 | Package | Price ID |
@@ -34,10 +34,10 @@
 ### Credit Packages (Test Base Prices)
 | Package | Price ID |
 |---------|----------|
-| Starter | price_1T1S7FAVBBvDGKKBKHdQXRAW |
-| Pro | price_1T1S7aAVBBvDGKKBJziRWeGQ |
-| Studio | price_1T1S8MAVBBvDGKKBmVsmBN4P |
-| Power User | price_1T1S8iAVBBvDGKKBKTMtxH4T |
+| Starter | price_1T1EzQP8Id8IBpd0EUEHb3xO |
+| Pro | price_1T1EzcP8Id8IBpd0XF0N6eyw |
+| Studio | price_1T1EznP8Id8IBpd0QjxuzkPs |
+| Power User | price_1T1F04P8Id8IBpd0xJCSez0v |
 
 ## Discount Price Maps (Live)
 ```json
@@ -52,10 +52,10 @@
 ## Discount Price Maps (Test)
 ```json
 {
-  "price_1T1S7FAVBBvDGKKBKHdQXRAW": { "0": "price_1T1S7FAVBBvDGKKBKHdQXRAW", "10": "price_1T1S8vAVBBvDGKKBRphrFbas", "20": "price_1T1S9BAVBBvDGKKBmIUnTNb6", "30": "price_1T1S9cAVBBvDGKKBW4XR7OSR" },
-  "price_1T1S7aAVBBvDGKKBJziRWeGQ": { "0": "price_1T1S7aAVBBvDGKKBJziRWeGQ", "10": "price_1T1SASAVBBvDGKKBXom7jbyE", "20": "price_1T1SAkAVBBvDGKKBemFSv7qf", "30": "price_1T1SAvAVBBvDGKKBlciZJ82B" },
-  "price_1T1S8MAVBBvDGKKBmVsmBN4P": { "0": "price_1T1S8MAVBBvDGKKBmVsmBN4P", "10": "price_1T1SBCAVBBvDGKKBUuPoFXyX", "20": "price_1T1SBPAVBBvDGKKBJGgBkUCt", "30": "price_1T1SBfAVBBvDGKKB5XXIXt76" },
-  "price_1T1S8iAVBBvDGKKBKTMtxH4T": { "0": "price_1T1S8iAVBBvDGKKBKTMtxH4T", "10": "price_1T1SCLAVBBvDGKKBePfVZhRz", "20": "price_1T1SCeAVBBvDGKKBRzEnYVBo", "30": "price_1T1SCqAVBBvDGKKBqYirpM06" }
+  "price_1T1EzQP8Id8IBpd0EUEHb3xO": { "0": "price_1T1EzQP8Id8IBpd0EUEHb3xO", "10": "price_1T1F0QP8Id8IBpd08PJqAwPH", "20": "price_1T1F0bP8Id8IBpd0qasgeLHj", "30": "price_1T1F0pP8Id8IBpd0XumPrEBI" },
+  "price_1T1EzcP8Id8IBpd0XF0N6eyw": { "0": "price_1T1EzcP8Id8IBpd0XF0N6eyw", "10": "price_1T1F16P8Id8IBpd0pVGOVb7H", "20": "price_1T1F1GP8Id8IBpd00lRLLggQ", "30": "price_1T1F1RP8Id8IBpd0XPCBGi2w" },
+  "price_1T1EznP8Id8IBpd0QjxuzkPs": { "0": "price_1T1EznP8Id8IBpd0QjxuzkPs", "10": "price_1T1F1eP8Id8IBpd0uGSmHQVK", "20": "price_1T1F1oP8Id8IBpd0InkGXdtd", "30": "price_1T1F22P8Id8IBpd0E6ULh8K2" },
+  "price_1T1F04P8Id8IBpd0xJCSez0v": { "0": "price_1T1F04P8Id8IBpd0xJCSez0v", "10": "price_1T1F2GP8Id8IBpd0wU7YdTb5", "20": "price_1T1F2SP8Id8IBpd0WdyE3Jkk", "30": "price_1T1F2dP8Id8IBpd0elbmX4cN" }
 }
 ```
 
@@ -72,10 +72,10 @@
 ## Retention Price Maps (Test)
 ```json
 {
-  "price_1T1S7FAVBBvDGKKBKHdQXRAW": "price_1T1SD6AVBBvDGKKB0UBK1Vi0",
-  "price_1T1S7aAVBBvDGKKBJziRWeGQ": "price_1T1SDJAVBBvDGKKBbK5zOz1Y",
-  "price_1T1S8MAVBBvDGKKBmVsmBN4P": "price_1T1SDTAVBBvDGKKBh1NFDcx8",
-  "price_1T1S8iAVBBvDGKKBKTMtxH4T": "price_1T1SEpAVBBvDGKKB545n9TEY"
+  "price_1T1EzQP8Id8IBpd0EUEHb3xO": "price_1T1F2pP8Id8IBpd0AIe5XdPA",
+  "price_1T1EzcP8Id8IBpd0XF0N6eyw": "price_1T1F2zP8Id8IBpd0VYvKRGj4",
+  "price_1T1EznP8Id8IBpd0QjxuzkPs": "price_1T1F38P8Id8IBpd0IgzzP26i",
+  "price_1T1F04P8Id8IBpd0xJCSez0v": "price_1T1F3PP8Id8IBpd02EG7DEco"
 }
 ```
 
@@ -113,7 +113,7 @@
 3. `src/components/profile/BillingPaymentsTab.tsx` — Subscription management + payment history
 
 ## Eligible Retention Product IDs
-Pro + Business (live + test): prod_TzArZUF2DIlzHq, prod_TzAywFFZ0SdhfZ, prod_TzAram9it2Kedf, prod_TzAzgoteaSHuDB, prod_TzQxBoodMhERqW, prod_TzQyWX1DZuWpdA, prod_TzQyMmAEWuE1Ls, prod_TzQyfPCDZvRxLn
+Pro + Business (live + test): prod_TzArZUF2DIlzHq, prod_TzAywFFZ0SdhfZ, prod_TzAram9it2Kedf, prod_TzAzgoteaSHuDB, prod_TzDPNCljqBJ2Cq, prod_TzDPxffqvU9iSq, prod_TzDPr3jeAGF9mm, prod_TzDQJVbiYpTH9Y
 
 ## Checkout Success URLs
 - Credits: `https://ozcagency.com/pricing?success=true&credits={N}`

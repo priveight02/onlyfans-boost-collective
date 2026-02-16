@@ -26,47 +26,43 @@ serve(async (req) => {
   );
 
   try {
+    const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", { apiVersion: "2025-08-27.basil" });
+
+    // Authenticate user
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("No authorization header");
+
     const token = authHeader.replace("Bearer ", "");
     const { data } = await supabaseClient.auth.getUser(token);
     const user = data.user;
     if (!user?.id) throw new Error("User not authenticated");
     logStep("User authenticated", { userId: user.id });
 
-    const stripeKey = Deno.env.get("STRIPE_SECRET_KEY") || "";
-    const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
+    // ONLY match sessions by user_id in metadata — no email matching
+    const sessions = await stripe.checkout.sessions.list({ limit: 25 });
+    const userSessions = sessions.data.filter(
+      s => s.payment_status === "paid" && s.metadata?.user_id === user.id
+    );
 
-    // Find Stripe customer
-    const customers = await stripe.customers.list({ email: user.email!, limit: 1 });
-    if (customers.data.length === 0) {
-      return new Response(JSON.stringify({ credited: false, credits_added: 0, message: "No Stripe customer found" }), {
+    logStep("Found paid sessions for user", { count: userSessions.length });
+
+    if (userSessions.length === 0) {
+      return new Response(JSON.stringify({ credited: false, credits_added: 0, message: "No purchases found" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    const customerId = customers.data[0].id;
-
-    // List completed checkout sessions
-    const sessions = await stripe.checkout.sessions.list({
-      customer: customerId,
-      limit: 25,
-      status: "complete",
-    });
-    logStep("Found sessions", { count: sessions.data.length });
 
     let totalCredited = 0;
 
-    for (const session of sessions.data) {
+    for (const session of userSessions) {
       const sessionId = session.id;
-      const metadata = session.metadata || {};
-      const credits = parseInt(metadata.credits || "0");
-      const bonusCredits = parseInt(metadata.bonus_credits || "0");
+      const credits = parseInt(session.metadata?.credits || "0");
+      const bonusCredits = parseInt(session.metadata?.bonus_credits || "0");
       const totalCredits = credits + bonusCredits;
 
       if (totalCredits <= 0) continue;
-      if (metadata.user_id !== user.id) continue;
 
-      // Idempotency check
+      // ===== IDEMPOTENCY: Check if already processed =====
       const { data: existing } = await supabaseAdmin
         .from("wallet_transactions")
         .select("id")
@@ -79,7 +75,24 @@ serve(async (req) => {
         continue;
       }
 
-      // Insert transaction record
+      // ===== VERIFY WITH STRIPE: session + payment intent =====
+      const verified = await stripe.checkout.sessions.retrieve(sessionId);
+      if (verified.payment_status !== "paid") {
+        logStep("Session not paid — skip", { sessionId });
+        continue;
+      }
+
+      if (verified.payment_intent) {
+        const pi = await stripe.paymentIntents.retrieve(verified.payment_intent as string);
+        if (pi.status !== "succeeded") {
+          logStep("PaymentIntent not succeeded — skip", { sessionId, status: pi.status });
+          continue;
+        }
+      }
+
+      // ===== CREDIT: Insert transaction FIRST (acts as lock), then update wallet =====
+      // Insert the transaction record first — if a duplicate call races here,
+      // the unique constraint on reference_id will prevent double-insert.
       const { error: txError } = await supabaseAdmin
         .from("wallet_transactions")
         .insert({
@@ -89,20 +102,22 @@ serve(async (req) => {
           reference_id: sessionId,
           description: `Purchased ${credits} credits${bonusCredits > 0 ? ` + ${bonusCredits} bonus` : ''}`,
           metadata: {
-            package_id: metadata.package_id,
+            package_id: session.metadata?.package_id,
             stripe_session_id: sessionId,
             credits,
             bonus_credits: bonusCredits,
+            payment_intent: verified.payment_intent,
             verified_at: new Date().toISOString(),
           },
         });
 
       if (txError) {
-        logStep("Transaction insert failed (likely duplicate)", { sessionId, error: txError.message });
+        // If insert fails (e.g. unique constraint), it's a duplicate — skip
+        logStep("Transaction insert failed (likely duplicate) — skip", { sessionId, error: txError.message });
         continue;
       }
 
-      // Update wallet
+      // Transaction inserted successfully — now safe to update wallet
       await supabaseAdmin
         .from("wallets")
         .upsert({ user_id: user.id, balance: 0 }, { onConflict: "user_id", ignoreDuplicates: true });
@@ -122,7 +137,7 @@ serve(async (req) => {
         })
         .eq("user_id", user.id);
 
-      // Grant XP
+      // ===== GRANT XP based on credits purchased =====
       let xpToGrant = 0;
       if (totalCredits >= 1000) xpToGrant = 750;
       else if (totalCredits >= 500) xpToGrant = 300;
@@ -131,6 +146,7 @@ serve(async (req) => {
       else if (totalCredits >= 10) xpToGrant = 25;
 
       if (xpToGrant > 0) {
+        // Ensure social_profiles row exists
         await supabaseAdmin
           .from("social_profiles")
           .upsert({ user_id: user.id, xp: 0 }, { onConflict: "user_id", ignoreDuplicates: true });
@@ -142,6 +158,8 @@ serve(async (req) => {
           .single();
 
         const newXp = (profile?.xp || 0) + xpToGrant;
+
+        // Determine new rank tier
         const tiers = [
           { name: "Legend", minXp: 50000 },
           { name: "Diamond", minXp: 20000 },
@@ -158,7 +176,7 @@ serve(async (req) => {
           .update({ xp: newXp, rank_tier: newTier })
           .eq("user_id", user.id);
 
-        logStep("XP granted", { xpToGrant, newXp, newTier });
+        logStep("XP granted", { xpToGrant, newXp, newTier, totalCredits });
       }
 
       totalCredited += totalCredits;
