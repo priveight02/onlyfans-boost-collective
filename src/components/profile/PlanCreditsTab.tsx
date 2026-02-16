@@ -11,7 +11,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useWallet } from "@/hooks/useWallet";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-
+import CheckoutModal from "@/components/CheckoutModal";
 
 interface CreditPackage {
   id: string;
@@ -142,7 +142,7 @@ const PlanCreditsTab = () => {
   // Subscription state from Stripe
   const [activePlanId, setActivePlanId] = useState<string | null>(null);
   const [subscriptionLoading, setSubscriptionLoading] = useState(true);
-  
+  const [checkoutSecret, setCheckoutSecret] = useState<string | null>(null);
 
   // Fetch active subscription on mount and when tab regains focus
   const fetchSubscription = useCallback(async () => {
@@ -266,7 +266,8 @@ const PlanCreditsTab = () => {
       }
 
       // New subscription — redirect to Stripe checkout
-      if (data?.url) window.location.href = data.url;
+      if (data?.clientSecret) setCheckoutSecret(data.clientSecret);
+      else if (data?.url) window.location.href = data.url;
     } catch (err: any) {
       toast.error(err.message || "Failed to start checkout");
     } finally {
@@ -295,7 +296,7 @@ const PlanCreditsTab = () => {
         body: { packageId: pkg.id },
       });
       if (error) throw error;
-      if (data?.url) window.location.href = data.url;
+      if (data?.clientSecret) setCheckoutSecret(data.clientSecret);
     } catch (err: any) {
       toast.error(err.message || "Failed to start checkout");
     } finally {
@@ -312,7 +313,7 @@ const PlanCreditsTab = () => {
         body: { customCredits: credits },
       });
       if (error) throw error;
-      if (data?.url) window.location.href = data.url;
+      if (data?.clientSecret) setCheckoutSecret(data.clientSecret);
     } catch (err: any) {
       toast.error(err.message || "Failed to start checkout");
     } finally {
@@ -831,7 +832,7 @@ const PlanCreditsTab = () => {
         </DialogContent>
       </Dialog>
     </motion.div>
-    
+    <CheckoutModal clientSecret={checkoutSecret} onClose={() => setCheckoutSecret(null)} />
     </>
   );
 };
