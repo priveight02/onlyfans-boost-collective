@@ -36,10 +36,7 @@ const EnhancedDashboard = () => {
           const { data } = await supabase.from("account_activities").select("*").order("created_at", { ascending: false }).limit(10);
           return data || [];
         }, undefined, { ttlMs: 2 * 60 * 1000 }),
-        cachedFetch(cacheId, "site_visits", async () => {
-          const { data } = await supabase.from("site_visits").select("*").order("created_at", { ascending: false }).limit(100);
-          return data || [];
-        }, undefined, { ttlMs: 2 * 60 * 1000 }),
+        Promise.resolve([]),
       ]);
       setAccounts(accts);
       setTasks(tasksData);

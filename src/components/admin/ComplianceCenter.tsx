@@ -24,7 +24,7 @@ const ComplianceCenter = () => {
     const load = async () => {
       const [la, v, act, acct, c] = await Promise.all([
         supabase.from("admin_login_attempts").select("*").order("created_at", { ascending: false }).limit(100),
-        supabase.from("site_visits").select("*").order("created_at", { ascending: false }).limit(200),
+        Promise.resolve({ data: [] }),
         supabase.from("account_activities").select("*").order("created_at", { ascending: false }).limit(100),
         supabase.from("managed_accounts").select("id, username, display_name, of_connected, status"),
         supabase.from("contracts").select("id, title, status, contract_type"),

@@ -9,7 +9,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
-import { Shield, Eye, AlertTriangle, Users } from "lucide-react";
+import { Shield, AlertTriangle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 interface LoginAttempt {
@@ -21,39 +21,17 @@ interface LoginAttempt {
   created_at: string;
 }
 
-interface SiteVisit {
-  id: string;
-  page_path: string;
-  visitor_ip: string | null;
-  user_agent: string | null;
-  created_at: string;
-}
-
 const AdminSecurity = () => {
   const [loginAttempts, setLoginAttempts] = useState<LoginAttempt[]>([]);
-  const [visits, setVisits] = useState<SiteVisit[]>([]);
-  const [totalVisits, setTotalVisits] = useState(0);
-  const [uniqueIPs, setUniqueIPs] = useState(0);
   const [failedLogins, setFailedLogins] = useState(0);
 
   useEffect(() => {
     const fetchData = async () => {
-      const [attemptsRes, visitsRes, countRes] = await Promise.all([
-        supabase.from("admin_login_attempts").select("*").order("created_at", { ascending: false }).limit(50),
-        supabase.from("site_visits").select("*").order("created_at", { ascending: false }).limit(50),
-        supabase.from("site_visits").select("id", { count: "exact", head: true }),
-      ]);
-
+      const attemptsRes = await supabase.from("admin_login_attempts").select("*").order("created_at", { ascending: false }).limit(50);
       if (attemptsRes.data) {
         setLoginAttempts(attemptsRes.data);
         setFailedLogins(attemptsRes.data.filter((a) => !a.success).length);
       }
-      if (visitsRes.data) {
-        setVisits(visitsRes.data);
-        const ips = new Set(visitsRes.data.map((v) => v.visitor_ip).filter(Boolean));
-        setUniqueIPs(ips.size);
-      }
-      if (countRes.count !== null) setTotalVisits(countRes.count);
     };
     fetchData();
   }, []);
@@ -63,10 +41,8 @@ const AdminSecurity = () => {
   return (
     <div className="space-y-6">
       {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2">
         {[
-          { title: "Total Visits", value: totalVisits.toLocaleString(), icon: Eye },
-          { title: "Unique IPs", value: uniqueIPs.toString(), icon: Users },
           { title: "Login Attempts", value: loginAttempts.length.toString(), icon: Shield },
           { title: "Failed Logins", value: failedLogins.toString(), icon: AlertTriangle, destructive: true },
         ].map((stat) => (
@@ -128,40 +104,7 @@ const AdminSecurity = () => {
         </CardContent>
       </Card>
 
-      {/* Recent Visits */}
-      <Card className="bg-white/5 backdrop-blur-sm border-white/10">
-        <CardHeader>
-          <CardTitle className="text-white">Recent Site Visits</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow className="border-white/10 hover:bg-transparent">
-                <TableHead className="text-white/50">Timestamp</TableHead>
-                <TableHead className="text-white/50">Page</TableHead>
-                <TableHead className="text-white/50">IP Address</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {visits.length === 0 ? (
-                <TableRow className="border-white/10 hover:bg-white/5">
-                  <TableCell colSpan={3} className="text-center text-white/30">
-                    No visits recorded yet
-                  </TableCell>
-                </TableRow>
-              ) : (
-                visits.map((visit) => (
-                  <TableRow key={visit.id} className="border-white/10 hover:bg-white/5">
-                    <TableCell className="text-xs text-white/60">{formatDate(visit.created_at)}</TableCell>
-                    <TableCell className="text-white/70">{visit.page_path}</TableCell>
-                    <TableCell className="font-mono text-xs text-white/50">{visit.visitor_ip || "—"}</TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      {/* Site visit tracking paused */}
     </div>
   );
 };
