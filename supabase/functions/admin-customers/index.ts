@@ -434,18 +434,19 @@ Provide your analysis in this exact JSON structure:
             const refunded = charges.data.filter(c => c.refunded).reduce((sum, c) => sum + (c.amount_refunded || 0), 0);
 
             let currentPlan = "Free", planInterval = "", subscriptionEnd = "", subscriptionStart = "";
-            // Check for admin plan override
+            // Check for admin plan override FIRST — admin override always wins
             const adminNotes = profile?.admin_notes || "";
             const planOverrideMatch = adminNotes.match(/\[PLAN_OVERRIDE\]\s*(\w+)/);
-            if (planOverrideMatch) {
-              currentPlan = planOverrideMatch[1].charAt(0).toUpperCase() + planOverrideMatch[1].slice(1);
-            }
             if (activeSub) {
               const productId = typeof activeSub.items.data[0].price.product === "string" ? activeSub.items.data[0].price.product : (activeSub.items.data[0].price.product as any)?.id || "";
               currentPlan = PRODUCT_TO_PLAN[productId] || "Unknown";
               planInterval = activeSub.items.data[0].price.recurring?.interval || "";
               subscriptionEnd = new Date(activeSub.current_period_end * 1000).toISOString();
               subscriptionStart = new Date(activeSub.start_date * 1000).toISOString();
+            }
+            // Admin override takes priority over Stripe subscription
+            if (planOverrideMatch) {
+              currentPlan = planOverrideMatch[1].charAt(0).toUpperCase() + planOverrideMatch[1].slice(1);
             }
 
             stripeData = {
@@ -739,43 +740,55 @@ Provide your analysis in this exact JSON structure:
         await supabaseAdmin.from("profiles").update({ admin_notes: updated }).eq("user_id", userId);
       }
 
-      if (adminAction === "send_welcome") {
-        const welcomeTitle = actionData?.title || "Welcome to the Platform! 🎉";
-        const welcomeMsg = actionData?.message || "We're thrilled to have you on board.";
-        // Save in-app notification
-        await supabaseAdmin.from("admin_user_notifications").insert({
-          user_id: userId, title: welcomeTitle, message: welcomeMsg,
-          notification_type: "success", sent_by: user.id,
-        });
-        // Also send real email via Resend
+      if (adminAction === "send_email") {
+        const emailSubject = actionData?.subject || "Message from OZC Agency";
+        const emailBody = actionData?.body || "";
+        const emailCategory = actionData?.category || "general";
         const { data: prof } = await supabaseAdmin.from("profiles").select("email, display_name").eq("user_id", userId).single();
+        
+        // Also save as in-app notification
+        await supabaseAdmin.from("admin_user_notifications").insert({
+          user_id: userId, title: emailSubject, message: emailBody,
+          notification_type: emailCategory === "urgent" ? "warning" : "info", sent_by: user.id,
+        });
+
         const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
-        if (prof?.email && RESEND_API_KEY) {
-          try {
-            await fetch("https://api.resend.com/emails", {
-              method: "POST",
-              headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
-              body: JSON.stringify({
-                from: "OZC Agency <contact@ozcagency.com>",
-                to: [prof.email],
-                subject: welcomeTitle,
-                html: `<div style="background:#0a0a0f;color:#fff;padding:40px;font-family:Arial,sans-serif;border-radius:16px;max-width:600px;margin:auto;">
-                  <div style="text-align:center;margin-bottom:32px;">
-                    <h1 style="font-size:28px;margin:0;color:#fff;">🎉 ${welcomeTitle}</h1>
-                  </div>
-                  <p style="color:#ffffffaa;font-size:15px;line-height:1.6;">Hi ${prof.display_name || "there"},</p>
-                  <p style="color:#ffffffaa;font-size:15px;line-height:1.8;">${welcomeMsg}</p>
-                  <div style="text-align:center;margin:32px 0;">
-                    <a href="https://onlyfans-boost-collective.lovable.app" style="background:linear-gradient(135deg,#8b5cf6,#ec4899);color:#fff;padding:14px 36px;border-radius:12px;text-decoration:none;font-weight:bold;font-size:16px;display:inline-block;">Visit Platform</a>
-                  </div>
-                  <hr style="border:1px solid #ffffff15;margin:24px 0;" />
-                  <p style="color:#ffffff40;font-size:11px;text-align:center;">OZC Agency Platform</p>
-                </div>`,
-              }),
-            });
-            logStep("Welcome email sent via Resend", { email: prof.email });
-          } catch (e) { logStep("Resend welcome error", { error: String(e) }); }
+        if (!prof?.email) throw new Error("User has no email address");
+        if (!RESEND_API_KEY) throw new Error("RESEND_API_KEY not configured");
+
+        const categoryEmoji = { general: "📩", support: "🎧", billing: "💳", promotion: "🎁", urgent: "🚨", update: "📢" }[emailCategory] || "📩";
+        const categoryLabel = { general: "General", support: "Support", billing: "Billing", promotion: "Promotion", urgent: "Urgent", update: "Platform Update" }[emailCategory] || "General";
+
+        const resendResp = await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            from: "OZC Agency <contact@ozcagency.com>",
+            to: [prof.email],
+            subject: emailSubject,
+            html: `<div style="background:#0a0a0f;color:#fff;padding:40px;font-family:Arial,sans-serif;border-radius:16px;max-width:600px;margin:auto;">
+              <div style="text-align:center;margin-bottom:8px;">
+                <span style="font-size:12px;color:#ffffff60;text-transform:uppercase;letter-spacing:2px;">${categoryLabel}</span>
+              </div>
+              <div style="text-align:center;margin-bottom:32px;">
+                <h1 style="font-size:24px;margin:0;color:#fff;">${categoryEmoji} ${emailSubject}</h1>
+              </div>
+              <p style="color:#ffffffaa;font-size:15px;line-height:1.6;">Hi ${prof.display_name || "there"},</p>
+              <p style="color:#ffffffaa;font-size:15px;line-height:1.8;white-space:pre-line;">${emailBody}</p>
+              <div style="text-align:center;margin:32px 0;">
+                <a href="https://onlyfans-boost-collective.lovable.app" style="background:linear-gradient(135deg,#8b5cf6,#ec4899);color:#fff;padding:14px 36px;border-radius:12px;text-decoration:none;font-weight:bold;font-size:16px;display:inline-block;">Visit Platform</a>
+              </div>
+              <hr style="border:1px solid #ffffff15;margin:24px 0;" />
+              <p style="color:#ffffff40;font-size:11px;text-align:center;">OZC Agency Platform</p>
+            </div>`,
+          }),
+        });
+        if (!resendResp.ok) {
+          const errText = await resendResp.text();
+          logStep("Resend error", { status: resendResp.status, body: errText });
+          throw new Error(`Email delivery failed: ${resendResp.status}`);
         }
+        logStep("Email sent via Resend", { email: prof.email, subject: emailSubject, category: emailCategory });
       }
 
       if (adminAction === "impersonate_view") {

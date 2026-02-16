@@ -19,7 +19,7 @@ import {
   Minus, StickyNote, History, Shield, UserX, UserCheck, Sparkles,
   Activity, PieChart, TrendingDown, Flame, Snowflake, Star,
   KeyRound, FileDown, Tag, PenLine, ShieldAlert, LogOut,
-  Tags, Gauge, PartyPopper, Eye as EyeIcon, MailCheck, UserCog,
+  Tags, Gauge, Eye as EyeIcon, MailCheck, UserCog,
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -147,15 +147,16 @@ const AdminCustomers = () => {
   const [showForceLogoutDialog, setShowForceLogoutDialog] = useState(false);
   const [showTagUserDialog, setShowTagUserDialog] = useState(false);
   const [showCreditLimitDialog, setShowCreditLimitDialog] = useState(false);
-  const [showWelcomeDialog, setShowWelcomeDialog] = useState(false);
+  const [showSendEmailDialog, setShowSendEmailDialog] = useState(false);
   const [showImpersonateDialog, setShowImpersonateDialog] = useState(false);
   const [showBulkGrantDialog, setShowBulkGrantDialog] = useState(false);
   const [showAccountAuditDialog, setShowAccountAuditDialog] = useState(false);
   const [userTags, setUserTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState("");
   const [dailyCreditLimit, setDailyCreditLimit] = useState("500");
-  const [welcomeTitle, setWelcomeTitle] = useState("Welcome to the Platform! 🎉");
-  const [welcomeMessage, setWelcomeMessage] = useState("We're thrilled to have you on board. Explore the platform and let us know if you need anything!");
+  const [emailSubject, setEmailSubject] = useState("");
+  const [emailBody, setEmailBody] = useState("");
+  const [emailCategory, setEmailCategory] = useState("general");
   const [bulkGrantAmount, setBulkGrantAmount] = useState("100");
   const [bulkGrantReason, setBulkGrantReason] = useState("Promotional bonus");
   const CACHE_ACCOUNT = "admin";
@@ -393,8 +394,8 @@ const AdminCustomers = () => {
                 <Gauge className="h-3.5 w-3.5" /> Credit Limit
               </Button>
               <Button size="sm" variant="outline" className="text-yellow-400 border-yellow-500/30 bg-yellow-500/5 hover:bg-yellow-500/10 gap-1.5 text-xs h-8"
-                onClick={() => { setWelcomeTitle("Welcome to the Platform! 🎉"); setWelcomeMessage("We're thrilled to have you on board. Explore the platform and let us know if you need anything!"); setShowWelcomeDialog(true); }}>
-                <PartyPopper className="h-3.5 w-3.5" /> Welcome Email
+                onClick={() => { setEmailSubject(""); setEmailBody(""); setEmailCategory("general"); setShowSendEmailDialog(true); }}>
+                <Mail className="h-3.5 w-3.5" /> Send Email
               </Button>
               <Button size="sm" variant="outline" className="text-fuchsia-400 border-fuchsia-500/30 bg-fuchsia-500/5 hover:bg-fuchsia-500/10 gap-1.5 text-xs h-8"
                 onClick={() => setShowImpersonateDialog(true)}>
@@ -1254,38 +1255,70 @@ const AdminCustomers = () => {
           </DialogContent>
         </Dialog>
 
-        {/* Welcome Email Dialog */}
-        <Dialog open={showWelcomeDialog} onOpenChange={setShowWelcomeDialog}>
+        {/* Send Email Dialog */}
+        <Dialog open={showSendEmailDialog} onOpenChange={setShowSendEmailDialog}>
           <DialogContent className="bg-[hsl(220,30%,12%)] border-white/10 text-white max-w-lg">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 text-white">
                 <div className="p-2 rounded-xl bg-yellow-500/10 border border-yellow-500/20">
-                  <PartyPopper className="h-5 w-5 text-yellow-400" />
+                  <Mail className="h-5 w-5 text-yellow-400" />
                 </div>
-                Send Welcome Message
+                Send Email to User
               </DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
+              <div className="p-3 rounded-xl bg-white/[0.04] border border-white/[0.08]">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center text-accent text-sm font-bold overflow-hidden">
+                    {detail?.profile?.avatar_url ? <img src={detail.profile.avatar_url} className="w-full h-full object-cover" /> : (detail?.profile?.display_name || "?")[0]?.toUpperCase()}
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-white">{detail?.profile?.display_name}</p>
+                    <p className="text-xs text-white/40">{detail?.profile?.email}</p>
+                  </div>
+                </div>
+              </div>
               <div>
-                <label className="text-xs text-white/50 mb-1.5 block font-medium">Title</label>
-                <Input value={welcomeTitle} onChange={e => setWelcomeTitle(e.target.value)}
+                <label className="text-xs text-white/50 mb-1.5 block font-medium">Category</label>
+                <Select value={emailCategory} onValueChange={setEmailCategory}>
+                  <SelectTrigger className="bg-white/5 border-white/10 text-white h-10">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-[hsl(220,30%,15%)] border-white/10 text-white">
+                    <SelectItem value="general">📩 General</SelectItem>
+                    <SelectItem value="support">🎧 Support</SelectItem>
+                    <SelectItem value="billing">💳 Billing</SelectItem>
+                    <SelectItem value="promotion">🎁 Promotion</SelectItem>
+                    <SelectItem value="urgent">🚨 Urgent</SelectItem>
+                    <SelectItem value="update">📢 Platform Update</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-xs text-white/50 mb-1.5 block font-medium">Subject</label>
+                <Input value={emailSubject} onChange={e => setEmailSubject(e.target.value)}
+                  placeholder="e.g. Important Update About Your Account"
                   className="bg-white/5 border-white/10 text-white placeholder:text-white/25 h-10" />
               </div>
               <div>
-                <label className="text-xs text-white/50 mb-1.5 block font-medium">Message</label>
-                <Textarea value={welcomeMessage} onChange={e => setWelcomeMessage(e.target.value)}
-                  className="bg-white/5 border-white/10 text-white placeholder:text-white/25 min-h-[100px] resize-none" />
+                <label className="text-xs text-white/50 mb-1.5 block font-medium">Message Body</label>
+                <Textarea value={emailBody} onChange={e => setEmailBody(e.target.value)}
+                  placeholder="Write your email content here..."
+                  className="bg-white/5 border-white/10 text-white placeholder:text-white/25 min-h-[120px] resize-none" />
               </div>
               <div className="p-3 rounded-xl bg-yellow-500/5 border border-yellow-500/15">
-                <p className="text-xs text-yellow-300/70">💡 This sends a real email via Resend AND an in-app notification visible on the user's notification bell.</p>
+                <p className="text-xs text-yellow-300/70">📬 This sends a real email via Resend to <span className="font-semibold text-yellow-300">{detail?.profile?.email}</span> AND saves an in-app notification.</p>
               </div>
             </div>
             <DialogFooter className="gap-2">
-              <Button variant="ghost" onClick={() => setShowWelcomeDialog(false)} className="text-white/50">Cancel</Button>
-              <Button onClick={() => { performAction("send_welcome", { title: welcomeTitle, message: welcomeMessage }); setShowWelcomeDialog(false); }} disabled={!welcomeTitle || !welcomeMessage || actionLoading}
+              <Button variant="ghost" onClick={() => setShowSendEmailDialog(false)} className="text-white/50">Cancel</Button>
+              <Button onClick={() => {
+                performAction("send_email", { subject: emailSubject, body: emailBody, category: emailCategory });
+                setShowSendEmailDialog(false);
+              }} disabled={!emailSubject.trim() || !emailBody.trim() || actionLoading}
                 className="bg-yellow-600 text-white hover:bg-yellow-700 gap-1.5">
-                <PartyPopper className="h-3.5 w-3.5" />
-                {actionLoading ? "Sending..." : "Send Welcome"}
+                <Mail className="h-3.5 w-3.5" />
+                {actionLoading ? "Sending..." : "Send Email"}
               </Button>
             </DialogFooter>
           </DialogContent>
