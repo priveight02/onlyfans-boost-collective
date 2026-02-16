@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Menu, X, LogIn, LogOut, Shield, Home, Briefcase, HelpCircle, User, CreditCard } from "lucide-react";
+import { Menu, X, LogIn, LogOut, Shield, Home, Briefcase, HelpCircle, User, CreditCard, LayoutDashboard } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "./ui/button";
 import { useAuth } from "@/hooks/useAuth";
@@ -42,9 +42,11 @@ const Navigation = () => {
     { name: "FAQ", href: "/faq", icon: HelpCircle },
   ];
 
-  const finalMenuItems: MenuItem[] = isAdmin
-    ? [...menuItems, { name: "Admin", href: "/admin", icon: Shield }]
-    : menuItems;
+  const finalMenuItems: MenuItem[] = [
+    ...menuItems,
+    ...(user ? [{ name: "CRM", href: "/crm", icon: LayoutDashboard }] : []),
+    ...(isAdmin ? [{ name: "Admin", href: "/admin", icon: Shield }] : []),
+  ];
 
   const userInitial = profile?.display_name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || "U";
 

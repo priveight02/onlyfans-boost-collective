@@ -14,8 +14,8 @@ import About from "./pages/About";
 import Services from "./pages/Services";
 import FAQ from "./pages/FAQ";
 import Auth from "./pages/Auth";
-// Onboarding removed from navigation
 import Admin from "./pages/Admin";
+import CRM from "./pages/CRM";
 import BioLink from "./pages/BioLink";
 import ResetPassword from "./pages/ResetPassword";
 import UserProfile from "./pages/UserProfile";
@@ -40,6 +40,7 @@ const AppContent = () => {
         <Route path="/auth" element={<Auth />} />
         <Route path="/auth/reset-password" element={<ResetPassword />} />
         <Route path="/profile" element={<ProtectedRoute><UserProfile /></ProtectedRoute>} />
+        <Route path="/crm" element={<ProtectedRoute><CRM /></ProtectedRoute>} />
         <Route path="/admin" element={<ProtectedRoute requireAdmin><Admin /></ProtectedRoute>} />
         <Route path="/link/:slug" element={<BioLink />} />
         <Route path="/privacy" element={<PrivacyPolicy />} />
