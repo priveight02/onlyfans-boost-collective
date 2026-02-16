@@ -53,6 +53,7 @@ serve(async (req) => {
     }
 
     let totalCredited = 0;
+    let receiptUrl: string | null = null;
 
     for (const session of userSessions) {
       const sessionId = session.id;
@@ -87,6 +88,13 @@ serve(async (req) => {
         if (pi.status !== "succeeded") {
           logStep("PaymentIntent not succeeded — skip", { sessionId, status: pi.status });
           continue;
+        }
+        // Extract receipt URL from latest charge
+        if (pi.latest_charge) {
+          try {
+            const charge = await stripe.charges.retrieve(pi.latest_charge as string);
+            if (charge.receipt_url) receiptUrl = charge.receipt_url;
+          } catch {}
         }
       }
 
@@ -194,6 +202,7 @@ serve(async (req) => {
       credits_added: totalCredited,
       balance: updatedWallet?.balance || 0,
       purchase_count: updatedWallet?.purchase_count || 0,
+      receipt_url: receiptUrl,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
