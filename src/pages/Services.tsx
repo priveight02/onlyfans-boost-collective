@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import Footer from "@/components/Footer";
 import { useAuth } from "@/hooks/useAuth";
-import { Users, HeartHandshake, Shield, Zap, Bot, BarChart3, BrainCircuit, Workflow, Mail, Globe, CheckCircle2, Instagram, MessageCircle, Sparkles, Eye, Send } from "lucide-react";
+import { Users, HeartHandshake, Shield, Zap, Bot, BarChart3, BrainCircuit, Workflow, Mail, Globe, CheckCircle2, Instagram, MessageCircle, Rocket, Eye, Send } from "lucide-react";
 
 const featureSections = [
   {
@@ -192,7 +192,7 @@ const Services = () => {
       <div className="relative pt-28 md:pt-36 pb-16">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-300 text-sm font-medium mb-6">
-            <Sparkles className="h-3.5 w-3.5" />
+            <Rocket className="h-3.5 w-3.5" />
             AI-Powered Business Growth Platform
           </div>
           <h1 className="text-4xl sm:text-5xl md:text-7xl font-bold text-white mb-5 leading-tight">
