@@ -7,7 +7,7 @@ import {
   EmbeddedCheckout,
 } from "@stripe/react-stripe-js";
 
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
+const stripePromise = loadStripe("pk_live_51T1RhzAMkMnyWeZ53N82vzj5W7YrNus0CLub4bD6FnZKVJ2xbF6GleYx80p4hvuJH3UFdFGPpq8dzXTq5iBpRFFO00V0PWhzsL");
 
 interface CheckoutModalProps {
   clientSecret: string | null;
