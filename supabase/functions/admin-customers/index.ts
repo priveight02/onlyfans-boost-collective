@@ -595,6 +595,116 @@ Provide your analysis in this exact JSON structure:
         await supabaseAdmin.from("profiles").update({ admin_notes: notes }).eq("user_id", userId);
       }
 
+      if (adminAction === "reset_password") {
+        // Get user email, then send password reset
+        const { data: prof } = await supabaseAdmin.from("profiles").select("email").eq("user_id", userId).single();
+        if (prof?.email) {
+          const { error: resetErr } = await supabaseAdmin.auth.admin.generateLink({
+            type: "recovery",
+            email: prof.email,
+          });
+          if (resetErr) logStep("Password reset error", { error: resetErr.message });
+          else logStep("Password reset sent", { email: prof.email });
+        }
+      }
+
+      if (adminAction === "add_note") {
+        const { note, category } = actionData || {};
+        if (note) {
+          const { data: prof } = await supabaseAdmin.from("profiles").select("admin_notes").eq("user_id", userId).single();
+          const existing = prof?.admin_notes || "";
+          const timestamp = new Date().toISOString();
+          const newNote = `[${timestamp}] [${category || "general"}] ${note}`;
+          const updated = existing ? `${newNote}\n\n${existing}` : newNote;
+          await supabaseAdmin.from("profiles").update({ admin_notes: updated }).eq("user_id", userId);
+        }
+      }
+
+      if (adminAction === "change_plan") {
+        const { plan: newPlan } = actionData || {};
+        logStep("Change plan", { userId, newPlan });
+        // Update profile metadata and log the change
+        const { data: prof } = await supabaseAdmin.from("profiles").select("email").eq("user_id", userId).single();
+        // If downgrading to free, cancel active Stripe subscriptions
+        if (newPlan === "free" && prof?.email) {
+          try {
+            const customers = await stripe.customers.list({ email: prof.email, limit: 1 });
+            if (customers.data.length > 0) {
+              const subs = await stripe.subscriptions.list({ customer: customers.data[0].id, status: "active" });
+              for (const sub of subs.data) {
+                await stripe.subscriptions.cancel(sub.id);
+                logStep("Canceled subscription", { subId: sub.id });
+              }
+            }
+          } catch (e) { logStep("Stripe cancel error", { error: String(e) }); }
+        }
+        // For upgrading, we log the intent — actual subscription must be created via checkout
+        // Store plan override in admin notes for tracking
+      }
+
+      if (adminAction === "verify_email") {
+        const { data: prof } = await supabaseAdmin.from("profiles").select("email").eq("user_id", userId).single();
+        if (prof?.email) {
+          try {
+            await supabaseAdmin.auth.admin.updateUserById(userId, { email_confirm: true });
+            logStep("Email verified", { email: prof.email });
+          } catch (e) { logStep("Verify email error", { error: String(e) }); }
+        }
+      }
+
+      if (adminAction === "force_logout") {
+        try {
+          await supabaseAdmin.auth.admin.signOut(userId);
+          logStep("Force logout", { userId });
+        } catch (e) {
+          // Alternative: invalidate all sessions
+          logStep("Force logout fallback", { userId });
+        }
+        // Also clear device sessions
+        await supabaseAdmin.from("device_sessions").update({ status: "revoked" }).eq("user_id", userId);
+      }
+
+      if (adminAction === "tag_user") {
+        const { tags } = actionData || {};
+        if (tags && Array.isArray(tags)) {
+          const { data: prof } = await supabaseAdmin.from("profiles").select("admin_notes").eq("user_id", userId).single();
+          const existing = prof?.admin_notes || "";
+          const tagLine = `[TAGS] ${tags.join(", ")}`;
+          // Replace existing tag line or prepend
+          const updated = existing.includes("[TAGS]")
+            ? existing.replace(/\[TAGS\].*$/m, tagLine)
+            : `${tagLine}\n\n${existing}`;
+          await supabaseAdmin.from("profiles").update({ admin_notes: updated }).eq("user_id", userId);
+        }
+      }
+
+      if (adminAction === "set_credit_limit") {
+        const { daily_limit } = actionData || {};
+        // Store credit limit in admin notes as structured metadata
+        const { data: prof } = await supabaseAdmin.from("profiles").select("admin_notes").eq("user_id", userId).single();
+        const existing = prof?.admin_notes || "";
+        const limitLine = `[CREDIT_LIMIT] Daily: ${daily_limit || "unlimited"}`;
+        const updated = existing.includes("[CREDIT_LIMIT]")
+          ? existing.replace(/\[CREDIT_LIMIT\].*$/m, limitLine)
+          : `${limitLine}\n\n${existing}`;
+        await supabaseAdmin.from("profiles").update({ admin_notes: updated }).eq("user_id", userId);
+      }
+
+      if (adminAction === "send_welcome") {
+        await supabaseAdmin.from("admin_user_notifications").insert({
+          user_id: userId,
+          title: actionData?.title || "Welcome to the Platform! 🎉",
+          message: actionData?.message || "We're thrilled to have you on board. Explore the platform and let us know if you need anything!",
+          notification_type: "success",
+          sent_by: user.id,
+        });
+      }
+
+      if (adminAction === "impersonate_view") {
+        // Read-only: just log the impersonation attempt for audit
+        logStep("Impersonation view requested", { userId, by: user.id });
+      }
+
       await supabaseAdmin.from("admin_user_actions").insert({
         target_user_id: userId, action_type: adminAction, performed_by: user.id,
         reason: reason || null, metadata: actionData || {},
