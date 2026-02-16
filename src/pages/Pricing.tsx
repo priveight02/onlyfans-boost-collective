@@ -188,10 +188,10 @@ const Pricing = () => {
   const customDisplayCents = isReturning ? Math.round(customTotalCents * (1 - returningDiscount)) : customTotalCents;
 
   const cardAccents = [
-    { border: "border-purple-500/25", badge: "bg-purple-500", label: "" },
-    { border: "border-yellow-500/40", badge: "bg-yellow-500", label: "Most Popular" },
-    { border: "border-white/10", badge: "", label: "" },
-    { border: "border-purple-500/30", badge: "bg-purple-500", label: "Best Value" },
+    { border: "border-purple-500/25", hoverBorder: "hover:border-purple-400/50", flash: "rgba(168,85,247,0.04)", badge: "bg-purple-500", label: "" },
+    { border: "border-yellow-500/40", hoverBorder: "hover:border-yellow-400/60", flash: "rgba(234,179,8,0.04)", badge: "bg-yellow-500", label: "Most Popular" },
+    { border: "border-white/10", hoverBorder: "hover:border-white/25", flash: "rgba(255,255,255,0.03)", badge: "", label: "" },
+    { border: "border-purple-500/30", hoverBorder: "hover:border-purple-400/50", flash: "rgba(168,85,247,0.04)", badge: "bg-purple-500", label: "Best Value" },
   ];
 
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
@@ -264,14 +264,14 @@ const Pricing = () => {
                 <div
                   key={pkg.id}
                   onMouseMove={handleMouseMove}
-                  className={`group relative flex flex-col rounded-2xl border ${accent.border} bg-[hsl(222,30%,11%)] transition-colors duration-300 hover:border-white/25 ${isPopular ? 'ring-1 ring-yellow-500/40' : ''} overflow-hidden`}
+                  className={`group relative flex flex-col rounded-2xl border ${accent.border} ${accent.hoverBorder} bg-[hsl(222,30%,11%)] transition-colors duration-300 ${isPopular ? 'ring-1 ring-yellow-500/40' : ''} overflow-hidden`}
                   style={{ "--mouse-x": "50%", "--mouse-y": "50%" } as React.CSSProperties}
                 >
                   {/* Flashlight overlay */}
-                  <div className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-2xl" style={{ background: "radial-gradient(300px circle at var(--mouse-x) var(--mouse-y), rgba(255,255,255,0.06), transparent 60%)" }} />
+                  <div className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-2xl" style={{ background: `radial-gradient(200px circle at var(--mouse-x) var(--mouse-y), ${accent.flash}, transparent 60%)` }} />
                   {accent.label && (
-                    <div className="absolute -top-3 right-4 z-10">
-                      <span className={`${accent.badge} text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full`}>
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
+                      <span className={`${accent.badge} text-white text-[11px] font-bold uppercase tracking-wider px-4 py-1.5 rounded-full whitespace-nowrap`}>
                         {accent.label}
                       </span>
                     </div>
@@ -364,12 +364,12 @@ const Pricing = () => {
             {/* Custom Credits Card */}
             <div
               onMouseMove={handleMouseMove}
-              className="group relative flex flex-col rounded-2xl border border-purple-500/30 bg-[hsl(222,30%,11%)] transition-colors duration-300 hover:border-white/25 overflow-hidden"
+              className="group relative flex flex-col rounded-2xl border border-purple-500/30 hover:border-purple-400/50 bg-[hsl(222,30%,11%)] transition-colors duration-300 overflow-hidden"
               style={{ "--mouse-x": "50%", "--mouse-y": "50%" } as React.CSSProperties}
             >
-              <div className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-2xl" style={{ background: "radial-gradient(300px circle at var(--mouse-x) var(--mouse-y), rgba(255,255,255,0.06), transparent 60%)" }} />
-              <div className="absolute -top-3 right-4 z-10">
-                <span className="bg-purple-500 text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full">
+              <div className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-2xl" style={{ background: "radial-gradient(200px circle at var(--mouse-x) var(--mouse-y), rgba(168,85,247,0.04), transparent 60%)" }} />
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
+                <span className="bg-purple-500 text-white text-[11px] font-bold uppercase tracking-wider px-4 py-1.5 rounded-full whitespace-nowrap">
                   Custom
                 </span>
               </div>
