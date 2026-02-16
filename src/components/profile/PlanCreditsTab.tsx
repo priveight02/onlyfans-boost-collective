@@ -98,16 +98,18 @@ const GOLDEN_FEATURES: Record<string, string[]> = {
 // Base price per credit in cents (based on smallest package: 999 cents / 100 credits)
 const BASE_PRICE_PER_CREDIT_CENTS = 9.99;
 
-// Volume discount tiers — the more you buy, the bigger the discount (max 20%)
+// Volume discount tiers — the more you buy, the bigger the discount (max 40%)
 const getVolumeDiscount = (credits: number): number => {
-  if (credits >= 10000) return 0.40;
-  if (credits >= 5000) return 0.35;
-  if (credits >= 3000) return 0.30;
-  if (credits >= 2000) return 0.25;
-  if (credits >= 1000) return 0.20;
-  if (credits >= 500) return 0.15;
-  if (credits >= 200) return 0.10;
-  if (credits >= 100) return 0.05;
+  if (credits >= 75000) return 0.40;
+  if (credits >= 50000) return 0.35;
+  if (credits >= 30000) return 0.30;
+  if (credits >= 20000) return 0.25;
+  if (credits >= 12000) return 0.20;
+  if (credits >= 8000) return 0.15;
+  if (credits >= 5000) return 0.12;
+  if (credits >= 3000) return 0.10;
+  if (credits >= 1000) return 0.08;
+  if (credits >= 500) return 0.05;
   return 0;
 };
 
@@ -301,7 +303,7 @@ const PlanCreditsTab = () => {
 
   const handleCustomPurchase = async (credits: number) => {
     if (!user) { toast.error("Please log in first"); return; }
-    if (credits < 10) { toast.error("Minimum 10 credits"); return; }
+    if (credits < 500) { toast.error("Minimum 500 credits"); return; }
     setPurchasingCustom(true);
     try {
       const { data, error } = await supabase.functions.invoke("purchase-credits", {
