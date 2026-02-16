@@ -865,8 +865,25 @@ behavioral_profile, spending_pattern, engagement_level (high|medium|low|dormant)
         await supabaseAdmin.from("profiles").update({ admin_notes: updated }).eq("user_id", userId);
         logStep("Plan override saved to admin_notes", { plan: newPlan });
 
+        // Grant plan credits based on new plan tier
+        const PLAN_CREDITS: Record<string, number> = { starter: 215, pro: 1075, business: 4300 };
+        const creditsToGrant = PLAN_CREDITS[newPlan.toLowerCase()] || 0;
+        if (creditsToGrant > 0) {
+          await supabaseAdmin.from("wallets").upsert(
+            { user_id: userId, balance: 0, total_purchased: 0, purchase_count: 0 },
+            { onConflict: "user_id", ignoreDuplicates: true }
+          );
+          const { data: w } = await supabaseAdmin.from("wallets").select("balance").eq("user_id", userId).single();
+          await supabaseAdmin.from("wallets").update({ balance: (w?.balance || 0) + creditsToGrant }).eq("user_id", userId);
+          await supabaseAdmin.from("wallet_transactions").insert({
+            user_id: userId, amount: creditsToGrant, type: "admin_grant",
+            description: `Plan changed to ${newPlan} — ${creditsToGrant} monthly credits granted`,
+          });
+          logStep("Plan credits granted", { plan: newPlan, credits: creditsToGrant });
+        }
+
         // Optionally sync with Stripe (best-effort, does NOT affect override)
-        if (prof?.email) {
+        if (prof?.email && newPlan.toLowerCase() === "free") {
           try {
             const custs = await stripe.customers.list({ email: prof.email, limit: 1 });
             if (custs.data.length > 0) {

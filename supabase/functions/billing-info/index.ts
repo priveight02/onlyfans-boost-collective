@@ -101,6 +101,20 @@ serve(async (req) => {
       });
     }
 
+    // Check admin plan override from profiles
+    let adminPlanOverride: string | null = null;
+    try {
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("admin_notes")
+        .eq("user_id", userData.user.id)
+        .single();
+      if (profileData?.admin_notes) {
+        const match = profileData.admin_notes.match(/\[PLAN_OVERRIDE\]\s*(\w+)/);
+        if (match) adminPlanOverride = match[1].toLowerCase();
+      }
+    } catch {}
+
     // Get subscription — include active AND canceled-but-not-yet-expired
     const activeSubs = await stripe.subscriptions.list({ customer: customerId, status: "active", limit: 1 });
     const canceledSubs = await stripe.subscriptions.list({ customer: customerId, status: "canceled", limit: 5 });
@@ -219,6 +233,7 @@ serve(async (req) => {
       eligible_for_retention: eligibility.eligible,
       eligibility_reasons: eligibility.reasons,
       retention_credits_used: retentionCreditsUsed,
+      admin_plan_override: adminPlanOverride,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
   } catch (error) {
