@@ -7,33 +7,22 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// Pro and Business product IDs (monthly + yearly) — live + test
+// Pro and Business product IDs (monthly + yearly)
 const ELIGIBLE_PRODUCT_IDS = [
-  "prod_TzArZUF2DIlzHq", // pro monthly (live)
-  "prod_TzAywFFZ0SdhfZ", // pro yearly (live)
-  "prod_TzAram9it2Kedf", // business monthly (live)
-  "prod_TzAzgoteaSHuDB", // business yearly (live)
-  "prod_TzDPNCljqBJ2Cq", // pro monthly (test)
-  "prod_TzDPxffqvU9iSq", // pro yearly (test)
-  "prod_TzDPr3jeAGF9mm", // business monthly (test)
-  "prod_TzDQJVbiYpTH9Y", // business yearly (test)
+  "prod_TzRg6tvanQWkyW",  // pro monthly
+  "prod_TzRhV74aOMLdYQ",  // pro yearly
+  "prod_TzRiKIs7vwe9gD",  // business monthly
+  "prod_TzRkvTVWaGWgCp",  // business yearly
 ];
 
-// Product ID → human-readable plan name (live + test)
+// Product ID → human-readable plan name
 const PRODUCT_NAME_MAP: Record<string, string> = {
-  "prod_TzAqP0zH90vzyR": "Starter (Monthly)",
-  "prod_TzAypr06as419B": "Starter (Yearly)",
-  "prod_TzArZUF2DIlzHq": "Pro (Monthly)",
-  "prod_TzAywFFZ0SdhfZ": "Pro (Yearly)",
-  "prod_TzAram9it2Kedf": "Business (Monthly)",
-  "prod_TzAzgoteaSHuDB": "Business (Yearly)",
-  // Test products
-  "prod_TzDPwhTrnCOnYm": "Starter (Monthly)",
-  "prod_TzDPUEvS935A88": "Starter (Yearly)",
-  "prod_TzDPNCljqBJ2Cq": "Pro (Monthly)",
-  "prod_TzDPxffqvU9iSq": "Pro (Yearly)",
-  "prod_TzDPr3jeAGF9mm": "Business (Monthly)",
-  "prod_TzDQJVbiYpTH9Y": "Business (Yearly)",
+  "prod_TzRgEeRDcQGUHO": "Starter (Monthly)",
+  "prod_TzRgDinqZCjhkj": "Starter (Yearly)",
+  "prod_TzRg6tvanQWkyW": "Pro (Monthly)",
+  "prod_TzRhV74aOMLdYQ": "Pro (Yearly)",
+  "prod_TzRiKIs7vwe9gD": "Business (Monthly)",
+  "prod_TzRkvTVWaGWgCp": "Business (Yearly)",
 };
 
 serve(async (req) => {

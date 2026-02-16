@@ -26,27 +26,17 @@ interface CreditPackage {
 // Plans definition — these match your Stripe products
 const PLAN_STRIPE_MAP: Record<string, { monthly: { price_id: string; product_id: string }; yearly: { price_id: string; product_id: string } }> = {
   starter: {
-    monthly: { price_id: "price_1T1CVAP8Id8IBpd0heXxbsUk", product_id: "prod_TzAqP0zH90vzyR" },
-    yearly:  { price_id: "price_1T1CcdP8Id8IBpd0AppiCEdo", product_id: "prod_TzAypr06as419B" },
+    monthly: { price_id: "price_1T1SmfAMkMnyWeZ5Ofd2e4Mx", product_id: "prod_TzRgEeRDcQGUHO" },
+    yearly:  { price_id: "price_1T1SmsAMkMnyWeZ58e5NFPqF", product_id: "prod_TzRgDinqZCjhkj" },
   },
   pro: {
-    monthly: { price_id: "price_1T1CVfP8Id8IBpd0B8EfZeGR", product_id: "prod_TzArZUF2DIlzHq" },
-    yearly:  { price_id: "price_1T1CcuP8Id8IBpd0X5c5Nqbs", product_id: "prod_TzAywFFZ0SdhfZ" },
+    monthly: { price_id: "price_1T1SnRAMkMnyWeZ5mw1VazbP", product_id: "prod_TzRg6tvanQWkyW" },
+    yearly:  { price_id: "price_1T1SnfAMkMnyWeZ5fkuxFRdz", product_id: "prod_TzRhV74aOMLdYQ" },
   },
   business: {
-    monthly: { price_id: "price_1T1CVpP8Id8IBpd07EYina3g", product_id: "prod_TzAram9it2Kedf" },
-    yearly:  { price_id: "price_1T1Cd3P8Id8IBpd0Ds2Y7HoM", product_id: "prod_TzAzgoteaSHuDB" },
+    monthly: { price_id: "price_1T1SoyAMkMnyWeZ5gP95G3Id", product_id: "prod_TzRiKIs7vwe9gD" },
+    yearly:  { price_id: "price_1T1SqcAMkMnyWeZ5D3bv0Uwb", product_id: "prod_TzRkvTVWaGWgCp" },
   },
-};
-
-// Test mode price → live price reverse mapping (so we can match test subscriptions to plans)
-const TEST_TO_LIVE_SUB_PRICE: Record<string, string> = {
-  "price_1T1EyGP8Id8IBpd0tNAn9MrU": "price_1T1CVAP8Id8IBpd0heXxbsUk", // starter monthly
-  "price_1T1EyRP8Id8IBpd0T0nuzf8K": "price_1T1CcdP8Id8IBpd0AppiCEdo", // starter yearly
-  "price_1T1EybP8Id8IBpd0G6zKzoSS": "price_1T1CVfP8Id8IBpd0B8EfZeGR", // pro monthly
-  "price_1T1EymP8Id8IBpd0nJZGVBlM": "price_1T1CcuP8Id8IBpd0X5c5Nqbs", // pro yearly
-  "price_1T1Ez2P8Id8IBpd0SjMOkzvg": "price_1T1CVpP8Id8IBpd07EYina3g", // business monthly
-  "price_1T1EzDP8Id8IBpd0VOZZoLYG": "price_1T1Cd3P8Id8IBpd0Ds2Y7HoM", // business yearly
 };
 
 const PLANS = [
@@ -161,12 +151,10 @@ const PlanCreditsTab = () => {
       if (data.subscription) {
         const priceId = data.subscription.price_id;
         const productId = data.subscription.product_id;
-        // Normalize test price to live price for matching
-        const normalizedPriceId = TEST_TO_LIVE_SUB_PRICE[priceId] || priceId;
-        // Match price_id to our plan IDs
+        // Match price_id or product_id to our plan IDs
         let found = false;
         for (const [planId, info] of Object.entries(PLAN_STRIPE_MAP)) {
-          if (info.monthly.price_id === normalizedPriceId || info.yearly.price_id === normalizedPriceId ||
+          if (info.monthly.price_id === priceId || info.yearly.price_id === priceId ||
               info.monthly.product_id === productId || info.yearly.product_id === productId) {
             setActivePlanId(planId);
             found = true;

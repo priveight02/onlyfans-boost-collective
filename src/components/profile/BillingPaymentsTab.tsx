@@ -44,12 +44,12 @@ interface Payment {
 }
 
 const PLAN_NAME_MAP: Record<string, string> = {
-  "prod_TzAqP0zH90vzyR": "Starter (Monthly)",
-  "prod_TzAypr06as419B": "Starter (Yearly)",
-  "prod_TzArZUF2DIlzHq": "Pro (Monthly)",
-  "prod_TzAywFFZ0SdhfZ": "Pro (Yearly)",
-  "prod_TzAram9it2Kedf": "Business (Monthly)",
-  "prod_TzAzgoteaSHuDB": "Business (Yearly)",
+  "prod_TzRgEeRDcQGUHO": "Starter (Monthly)",
+  "prod_TzRgDinqZCjhkj": "Starter (Yearly)",
+  "prod_TzRg6tvanQWkyW": "Pro (Monthly)",
+  "prod_TzRhV74aOMLdYQ": "Pro (Yearly)",
+  "prod_TzRiKIs7vwe9gD": "Business (Monthly)",
+  "prod_TzRkvTVWaGWgCp": "Business (Yearly)",
 };
 
 const formatCurrency = (amount: number, currency: string) => {
