@@ -79,6 +79,75 @@ export type Database = {
         }
         Relationships: []
       }
+      admin_user_actions: {
+        Row: {
+          action_type: string
+          created_at: string
+          id: string
+          metadata: Json | null
+          performed_by: string
+          reason: string | null
+          target_user_id: string
+        }
+        Insert: {
+          action_type: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          performed_by: string
+          reason?: string | null
+          target_user_id: string
+        }
+        Update: {
+          action_type?: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          performed_by?: string
+          reason?: string | null
+          target_user_id?: string
+        }
+        Relationships: []
+      }
+      admin_user_notifications: {
+        Row: {
+          created_at: string
+          id: string
+          is_read: boolean
+          message: string
+          metadata: Json | null
+          notification_type: string
+          read_at: string | null
+          sent_by: string | null
+          title: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message: string
+          metadata?: Json | null
+          notification_type?: string
+          read_at?: string | null
+          sent_by?: string | null
+          title: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message?: string
+          metadata?: Json | null
+          notification_type?: string
+          read_at?: string | null
+          sent_by?: string | null
+          title?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       ai_conversation_learnings: {
         Row: {
           account_id: string
@@ -1765,7 +1834,9 @@ export type Database = {
       }
       profiles: {
         Row: {
+          account_status: string
           address: string | null
+          admin_notes: string | null
           auth_provider: string | null
           avatar_url: string | null
           banner_url: string | null
@@ -1785,12 +1856,16 @@ export type Database = {
           post_count: number
           remember_me: boolean | null
           remember_until: string | null
+          status_reason: string | null
+          status_updated_at: string | null
           updated_at: string
           user_id: string
           username: string | null
         }
         Insert: {
+          account_status?: string
           address?: string | null
+          admin_notes?: string | null
           auth_provider?: string | null
           avatar_url?: string | null
           banner_url?: string | null
@@ -1810,12 +1885,16 @@ export type Database = {
           post_count?: number
           remember_me?: boolean | null
           remember_until?: string | null
+          status_reason?: string | null
+          status_updated_at?: string | null
           updated_at?: string
           user_id: string
           username?: string | null
         }
         Update: {
+          account_status?: string
           address?: string | null
+          admin_notes?: string | null
           auth_provider?: string | null
           avatar_url?: string | null
           banner_url?: string | null
@@ -1835,6 +1914,8 @@ export type Database = {
           post_count?: number
           remember_me?: boolean | null
           remember_until?: string | null
+          status_reason?: string | null
+          status_updated_at?: string | null
           updated_at?: string
           user_id?: string
           username?: string | null

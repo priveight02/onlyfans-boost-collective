@@ -8,6 +8,7 @@ import { WalletProvider } from "@/hooks/useWallet";
 import Navigation from "./components/Navigation";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { useVisitorTracking } from "@/hooks/useVisitorTracking";
+import AdminNotificationPopup from "@/components/AdminNotificationPopup";
 import Index from "./pages/Index";
 import About from "./pages/About";
 import Services from "./pages/Services";
@@ -30,6 +31,7 @@ const AppContent = () => {
   return (
     <>
       <Navigation />
+      <AdminNotificationPopup />
       <Routes>
         <Route path="/" element={<Index />} />
         <Route path="/onboarding" element={<Onboarding />} />
