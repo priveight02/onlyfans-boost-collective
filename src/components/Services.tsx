@@ -1,6 +1,7 @@
 import { Users, TrendingUp, HeartHandshake, MessageSquare, DollarSign, Megaphone, Bot, BarChart3 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
 
 const container = {
   hidden: { opacity: 0 },
@@ -17,6 +18,8 @@ const item = {
 
 const Services = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const ctaPath = user ? '/pricing' : '/auth';
 
   return (
     <section id="services" className="py-12 bg-gradient-to-br from-[hsl(220,90%,42%)] via-[hsl(210,95%,40%)] to-[hsl(200,90%,44%)] relative overflow-hidden min-h-screen flex items-center">
@@ -114,7 +117,7 @@ const Services = () => {
                 </p>
                 
                 <button 
-                  onClick={() => navigate('/services')}
+                  onClick={() => navigate(ctaPath)}
                   className="w-full bg-white/25 text-white font-semibold text-sm py-2 px-4 rounded-lg text-center border border-white/20 hover:bg-white/35 transition-all duration-300 cursor-pointer hover:scale-105"
                 >
                   {service.highlight}

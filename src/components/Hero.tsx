@@ -1,12 +1,14 @@
 import { ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
 
 const Hero = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const handleGetStarted = () => {
-    navigate('/auth');
+    navigate(user ? '/pricing' : '/auth');
   };
 
   return (
@@ -54,7 +56,7 @@ const Hero = () => {
             transition={{ duration: 0.8, delay: 0.4 }}
             className="text-xl md:text-2xl text-white mb-8 max-w-3xl mx-auto leading-relaxed font-medium drop-shadow-lg bg-black/20 backdrop-blur-sm rounded-2xl px-8 py-4 border border-white/20"
           >
-            Automate workflows, engage customers with AI, and unlock data-driven insights — all from one intelligent platform built for modern businesses.
+            Automate workflows, engage customers with AI, and unlock data-driven insights, all from one intelligent platform built for modern businesses.
           </motion.p>
           
           <motion.div

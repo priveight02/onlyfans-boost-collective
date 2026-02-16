@@ -55,7 +55,7 @@ const Auth = () => {
   useEffect(() => { setNotification(null); }, [mode]);
 
   useEffect(() => {
-    if (user) navigate("/");
+    if (user) navigate("/pricing");
   }, [user, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -71,7 +71,7 @@ const Auth = () => {
       await signIn(email, password, rememberMe);
       trackAdminLogin(email, true);
       setNotification({ type: "success", message: "Welcome back! Redirecting..." });
-      navigate("/");
+      navigate("/pricing");
     } catch (error: any) {
       trackAdminLogin(email, false);
       setNotification({ type: "error", message: error.message || "Invalid credentials" });
