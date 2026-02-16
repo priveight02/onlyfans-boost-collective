@@ -4,7 +4,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
-import { CreditModalProvider } from "@/hooks/useCreditAction";
 import { WalletProvider } from "@/hooks/useWallet";
 import Navigation from "./components/Navigation";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -60,9 +59,7 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
           <WalletProvider>
-            <CreditModalProvider>
-              <AppContent />
-            </CreditModalProvider>
+            <AppContent />
           </WalletProvider>
         </AuthProvider>
       </BrowserRouter>

@@ -15,7 +15,6 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import CreditCostBadge from "./CreditCostBadge";
-import { useCreditAction } from "@/hooks/useCreditAction";
 
 const TONES = ["sweet", "dominant", "playful", "mysterious", "bratty", "innocent", "seductive", "nurturing", "edgy", "sophisticated"];
 const VOCAB_STYLES = ["casual", "flirty", "intellectual", "street", "elegant", "cutesy", "confident", "poetic"];
@@ -23,7 +22,6 @@ const EMOTIONAL_RANGES = ["low", "medium", "high", "volatile"];
 const MOODS = ["energized", "neutral", "tired", "stressed", "creative", "frustrated", "happy", "withdrawn"];
 
 const PersonaDNAEngine = () => {
-  const { performAction } = useCreditAction();
   const [accounts, setAccounts] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<any[]>([]);
   const [selectedAccount, setSelectedAccount] = useState<string>("");
@@ -102,28 +100,22 @@ const PersonaDNAEngine = () => {
     let parsedRules = {};
     try { if (commRules.trim()) parsedRules = JSON.parse(commRules); } catch { toast.error("Invalid JSON in communication rules"); setSaving(false); return; }
 
-    const actionType = currentProfile ? 'update_persona' : 'create_persona';
-    await performAction(actionType, async () => {
-      const payload = {
-        account_id: selectedAccount, tone, vocabulary_style: vocabStyle, emotional_range: emotionalRange,
-        brand_identity: brandIdentity || null, boundaries: boundaries || null,
-        personality_traits: traits, communication_rules: parsedRules,
-        motivation_level: motivation, stress_level: stress, burnout_risk: burnoutRisk, mood,
-        last_mood_update: new Date().toISOString(),
-      };
+    const payload = {
+      account_id: selectedAccount, tone, vocabulary_style: vocabStyle, emotional_range: emotionalRange,
+      brand_identity: brandIdentity || null, boundaries: boundaries || null,
+      personality_traits: traits, communication_rules: parsedRules,
+      motivation_level: motivation, stress_level: stress, burnout_risk: burnoutRisk, mood,
+      last_mood_update: new Date().toISOString(),
+    };
 
-      if (currentProfile) {
-        const { error } = await supabase.from("persona_profiles").update(payload).eq("id", currentProfile.id);
-        if (error) throw error;
-        toast.success("Persona updated");
-      } else {
-        const { error } = await supabase.from("persona_profiles").insert(payload);
-        if (error) throw error;
-        toast.success("Persona created");
-      }
-      setEditing(false);
-    });
-    setSaving(false);
+    if (currentProfile) {
+      const { error } = await supabase.from("persona_profiles").update(payload).eq("id", currentProfile.id);
+      if (error) toast.error(error.message); else toast.success("Persona updated");
+    } else {
+      const { error } = await supabase.from("persona_profiles").insert(payload);
+      if (error) toast.error(error.message); else toast.success("Persona created");
+    }
+    setSaving(false); setEditing(false);
   };
 
   const runConsistencyCheck = async () => {

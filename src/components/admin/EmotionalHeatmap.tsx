@@ -16,12 +16,10 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import CreditCostBadge from "./CreditCostBadge";
-import { useCreditAction } from "@/hooks/useCreditAction";
 
 const SPENDING_MOTIVATIONS = ["emotional", "impulsive", "collector", "relationship", "status", "lonely", "fetish", "supporter"];
 
 const EmotionalHeatmap = () => {
-  const { performAction } = useCreditAction();
   const [profiles, setProfiles] = useState<any[]>([]);
   const [accounts, setAccounts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -89,27 +87,22 @@ const EmotionalHeatmap = () => {
 
   const saveProfile = async () => {
     if (!formAccount || !formFanId.trim()) { toast.error("Account and fan ID required"); return; }
-    const actionType = editingId ? 'update_emotional_profile' : 'create_emotional_profile';
-    await performAction(actionType, async () => {
-      const payload = {
-        account_id: formAccount, fan_identifier: formFanId, fan_name: formFanName || null,
-        attachment_level: formAttachment, spending_motivation: formMotivation,
-        obsession_risk: formObsession, conflict_risk: formConflict, churn_risk: formChurn,
-        total_spent: formSpent, interaction_count: formInteractions, notes: formNotes || null,
-        emotional_triggers: formTriggers ? formTriggers.split(",").map(t => t.trim()) : [],
-        last_interaction_at: new Date().toISOString(),
-      };
-      if (editingId) {
-        const { error } = await supabase.from("fan_emotional_profiles").update(payload).eq("id", editingId);
-        if (error) throw error;
-        toast.success("Profile updated");
-      } else {
-        const { error } = await supabase.from("fan_emotional_profiles").insert(payload);
-        if (error) throw error;
-        toast.success("Fan profile created");
-      }
-      resetForm(); setShowAdd(false);
-    });
+    const payload = {
+      account_id: formAccount, fan_identifier: formFanId, fan_name: formFanName || null,
+      attachment_level: formAttachment, spending_motivation: formMotivation,
+      obsession_risk: formObsession, conflict_risk: formConflict, churn_risk: formChurn,
+      total_spent: formSpent, interaction_count: formInteractions, notes: formNotes || null,
+      emotional_triggers: formTriggers ? formTriggers.split(",").map(t => t.trim()) : [],
+      last_interaction_at: new Date().toISOString(),
+    };
+    if (editingId) {
+      const { error } = await supabase.from("fan_emotional_profiles").update(payload).eq("id", editingId);
+      if (error) toast.error(error.message); else toast.success("Profile updated");
+    } else {
+      const { error } = await supabase.from("fan_emotional_profiles").insert(payload);
+      if (error) toast.error(error.message); else toast.success("Fan profile created");
+    }
+    resetForm(); setShowAdd(false);
   };
 
   const deleteProfile = async (id: string) => {
