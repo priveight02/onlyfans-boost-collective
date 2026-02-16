@@ -1,4 +1,4 @@
-import { useState, useCallback, createContext, useContext, ReactNode } from 'react';
+import { useState, useCallback, createContext, useContext, type ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useWallet } from '@/hooks/useWallet';
 import { toast } from 'sonner';
