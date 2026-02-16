@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import Stripe from "https://esm.sh/stripe@18.5.0";
-import { createClient } from "npm:@supabase/supabase-js@2.57.2";
+import Stripe from "npm:stripe@14.21.0";
+import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -16,12 +16,12 @@ const PLAN_TIER_ORDER: Record<string, number> = { free: 0, starter: 1, pro: 2, b
 
 // Product ID → plan ID mapping
 const PRODUCT_TO_PLAN: Record<string, string> = {
-  "prod_TzRgEeRDcQGUHO": "starter",  // starter monthly
-  "prod_TzRgDinqZCjhkj": "starter",  // starter yearly
-  "prod_TzRg6tvanQWkyW": "pro",       // pro monthly
-  "prod_TzRhV74aOMLdYQ": "pro",       // pro yearly
-  "prod_TzRiKIs7vwe9gD": "business",  // business monthly
-  "prod_TzRkvTVWaGWgCp": "business",  // business yearly
+  "prod_TzRgEeRDcQGUHO": "starter",
+  "prod_TzRgDinqZCjhkj": "starter",
+  "prod_TzRg6tvanQWkyW": "pro",
+  "prod_TzRhV74aOMLdYQ": "pro",
+  "prod_TzRiKIs7vwe9gD": "business",
+  "prod_TzRkvTVWaGWgCp": "business",
 };
 
 // Credits per plan for granting after subscription
@@ -30,6 +30,14 @@ const PLAN_CREDITS: Record<string, number> = {
   pro: 1075,
   business: 4300,
 };
+
+// Stripe coupon IDs for auto-applied discounts
+const LOYALTY_COUPON_MAP: Record<number, string> = {
+  10: "j5jMOrlU",
+  20: "r71MZDc7",
+  30: "DsXHlXrd",
+};
+const RETENTION_COUPON_ID = "5P34jI5L";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -51,11 +59,11 @@ serve(async (req) => {
     if (!priceId) throw new Error("Price ID required");
     logStep("Checkout request", { priceId, planId, billingCycle, currentPlanId });
 
-    const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", { apiVersion: "2025-08-27.basil" });
+    const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", { apiVersion: "2023-10-16" });
 
     const customers = await stripe.customers.list({ email: user.email, limit: 1 });
     let customerId: string | undefined;
-    let existingSub: Stripe.Subscription | null = null;
+    let existingSub: any = null;
 
     if (customers.data.length > 0) {
       customerId = customers.data[0].id;
@@ -65,12 +73,41 @@ serve(async (req) => {
       }
     }
 
+    // Check wallet for loyalty discount info
+    const adminClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+    );
+    const { data: wallet } = await adminClient
+      .from("wallets")
+      .select("purchase_count, retention_credits_used")
+      .eq("user_id", user.id)
+      .single();
+    const purchaseCount = wallet?.purchase_count || 0;
+    const retentionAlreadyUsed = wallet?.retention_credits_used || false;
+
+    // Declining loyalty discount: 1st repurchase=30%, 2nd=20%, 3rd=10%, then 0%
+    const getReturningDiscount = (count: number): number => {
+      if (count === 1) return 30;
+      if (count === 2) return 20;
+      if (count === 3) return 10;
+      return 0;
+    };
+    const returningDiscountPercent = getReturningDiscount(purchaseCount);
+
+    // Determine coupon to auto-apply
+    let couponId: string | undefined;
+    if (returningDiscountPercent > 0 && LOYALTY_COUPON_MAP[returningDiscountPercent]) {
+      couponId = LOYALTY_COUPON_MAP[returningDiscountPercent];
+      logStep("Will apply loyalty coupon to checkout", { discount: `${returningDiscountPercent}%`, couponId });
+    }
+
     // Server-side plan detection from existing subscription
     let detectedCurrentPlanId = "free";
     if (existingSub) {
       const existingProductId = typeof existingSub.items.data[0].price.product === "string"
         ? existingSub.items.data[0].price.product
-        : (existingSub.items.data[0].price.product as any)?.id || "";
+        : existingSub.items.data[0].price.product?.id || "";
       detectedCurrentPlanId = PRODUCT_TO_PLAN[existingProductId] || "free";
       logStep("Detected current plan from Stripe", { existingProductId, detectedCurrentPlanId });
     }
@@ -102,16 +139,12 @@ serve(async (req) => {
 
       logStep("Subscription upgraded successfully", { subId: updatedSub.id, status: updatedSub.status });
 
-      const adminClient = createClient(
-        Deno.env.get("SUPABASE_URL") ?? "",
-        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-      );
       const credits = PLAN_CREDITS[planId] || 0;
       if (credits > 0) {
-        const { data: wallet } = await adminClient.from("wallets").select("balance").eq("user_id", user.id).single();
-        if (wallet) {
-          await adminClient.from("wallets").update({ balance: wallet.balance + credits }).eq("user_id", user.id);
-          logStep("Credits granted for upgrade", { credits, newBalance: wallet.balance + credits });
+        const { data: walletData } = await adminClient.from("wallets").select("balance").eq("user_id", user.id).single();
+        if (walletData) {
+          await adminClient.from("wallets").update({ balance: walletData.balance + credits }).eq("user_id", user.id);
+          logStep("Credits granted for upgrade", { credits, newBalance: walletData.balance + credits });
         }
       }
 
@@ -160,7 +193,7 @@ serve(async (req) => {
     const origin = "https://ozcagency.com";
     const credits = PLAN_CREDITS[planId] || 0;
 
-    const session = await stripe.checkout.sessions.create({
+    const sessionParams: any = {
       customer: customerId,
       customer_email: customerId ? undefined : user.email,
       line_items: [{ price: priceId, quantity: 1 }],
@@ -175,7 +208,15 @@ serve(async (req) => {
         bonus_credits: "0",
         type: "subscription",
       },
-    });
+    };
+
+    // Auto-apply coupon so user sees discount on Stripe checkout page
+    if (couponId) {
+      sessionParams.discounts = [{ coupon: couponId }];
+      logStep("Coupon auto-applied to subscription checkout", { couponId });
+    }
+
+    const session = await stripe.checkout.sessions.create(sessionParams);
 
     logStep("Checkout session created", { sessionId: session.id });
     return new Response(JSON.stringify({ url: session.url }), {
