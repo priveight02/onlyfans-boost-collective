@@ -6,6 +6,23 @@ import { Users, HeartHandshake, Shield, Zap, Bot, BarChart3, BrainCircuit, Workf
 
 const featureSections = [
   {
+    title: "AI Instagram Auto-Responder",
+    subtitle: "Never miss a DM. Convert followers into customers on autopilot.",
+    icon: Instagram,
+    highlight: "24/7 intelligent engagement",
+    gradient: "from-orange-500/20 to-pink-500/20",
+    accentColor: "text-orange-400",
+    borderColor: "hover:border-orange-500/40",
+    description: "Our AI-powered Instagram responder engages your audience around the clock with human-like conversations. It analyzes fan profiles, adapts its tone naturally, and follows a proven multi-phase engagement flow that builds rapport before guiding followers toward your products, services, or offers.",
+    bullets: [
+      "Human-like conversation engine with natural typing delays",
+      "Automated fan profile scanning for personalized interactions",
+      "Multi-phase engagement flow from casual to conversion",
+      "Smart media handling with image analysis and reactions",
+      "Real-time pipeline visibility with live status tracking"
+    ]
+  },
+  {
     title: "AI-Powered CRM",
     subtitle: "Close deals faster with intelligent relationship management",
     icon: BrainCircuit,
@@ -54,23 +71,6 @@ const featureSections = [
       "Hashtag research and viral content prediction engine",
       "AI auto-scheduler with optimal posting times",
       "Content calendar with cross-platform strategy planner"
-    ]
-  },
-  {
-    title: "AI Instagram Auto-Responder",
-    subtitle: "Never miss a DM. Convert followers into customers on autopilot.",
-    icon: Instagram,
-    highlight: "24/7 intelligent engagement",
-    gradient: "from-orange-500/20 to-pink-500/20",
-    accentColor: "text-orange-400",
-    borderColor: "hover:border-orange-500/40",
-    description: "Our AI-powered Instagram responder engages your audience around the clock with human-like conversations. It analyzes fan profiles, adapts its tone naturally, and follows a proven multi-phase engagement flow that builds rapport before guiding followers toward your products, services, or offers.",
-    bullets: [
-      "Human-like conversation engine with natural typing delays",
-      "Automated fan profile scanning for personalized interactions",
-      "Multi-phase engagement flow from casual to conversion",
-      "Smart media handling with image analysis and reactions",
-      "Real-time pipeline visibility with live status tracking"
     ]
   },
   {
