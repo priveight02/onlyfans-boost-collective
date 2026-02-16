@@ -29,7 +29,7 @@ import { Textarea } from "@/components/ui/textarea";
 interface CustomerSummary {
   user_id: string; email: string; display_name: string; username: string;
   avatar_url: string | null; created_at: string; account_status: string;
-  credit_balance: number; total_purchased_credits: number; granted_credits: number; grant_count: number;
+  credit_balance: number; total_purchased_credits: number; granted_credits: number; grant_count: number; deducted_credits: number; deduct_count: number;
   purchase_count: number; total_spent_cents: number; tx_purchase_count: number; tx_total_credits: number;
   last_purchase: string | null; first_purchase: string | null;
   ltv: number; avg_order_value: number; days_since_join: number; monthly_velocity: number;
@@ -1692,8 +1692,12 @@ const AdminCustomers = () => {
                   <div className="text-right">
                     <p className="text-[10px] text-white/30">Granted</p>
                     <p className="text-xs font-semibold text-purple-400">{(c.granted_credits || 0).toLocaleString()}</p>
-                  </div>
-                  <div className="text-right">
+                   </div>
+                   <div className="text-right">
+                     <p className="text-[10px] text-white/30">Deducted</p>
+                     <p className="text-xs font-semibold text-red-400">{(c.deducted_credits || 0).toLocaleString()}</p>
+                   </div>
+                   <div className="text-right">
                     <p className="text-[10px] text-white/30">LTV</p>
                     <p className="text-sm font-bold text-emerald-400">${c.ltv.toFixed(0)}</p>
                   </div>

@@ -166,9 +166,9 @@ serve(async (req) => {
       const walletMap: Record<string, any> = {};
       wallets.forEach(w => { walletMap[w.user_id] = w; });
 
-      const txMap: Record<string, { total_credits: number; purchase_count: number; granted_credits: number; grant_count: number; last_purchase: string | null; first_purchase: string | null; credit_purchases: number[] }> = {};
+      const txMap: Record<string, { total_credits: number; purchase_count: number; granted_credits: number; grant_count: number; deducted_credits: number; deduct_count: number; last_purchase: string | null; first_purchase: string | null; credit_purchases: number[] }> = {};
       transactions.forEach(tx => {
-        if (!txMap[tx.user_id]) txMap[tx.user_id] = { total_credits: 0, purchase_count: 0, granted_credits: 0, grant_count: 0, last_purchase: null, first_purchase: null, credit_purchases: [] };
+        if (!txMap[tx.user_id]) txMap[tx.user_id] = { total_credits: 0, purchase_count: 0, granted_credits: 0, grant_count: 0, deducted_credits: 0, deduct_count: 0, last_purchase: null, first_purchase: null, credit_purchases: [] };
         if (tx.type === "purchase") {
           txMap[tx.user_id].total_credits += tx.amount;
           txMap[tx.user_id].purchase_count += 1;
@@ -178,6 +178,9 @@ serve(async (req) => {
         } else if (tx.type === "admin_grant") {
           txMap[tx.user_id].granted_credits += tx.amount;
           txMap[tx.user_id].grant_count += 1;
+        } else if (tx.type === "deduction" || tx.type === "admin_revoke" || tx.type === "usage") {
+          txMap[tx.user_id].deducted_credits += Math.abs(tx.amount);
+          txMap[tx.user_id].deduct_count += 1;
         }
       });
 
@@ -249,6 +252,7 @@ serve(async (req) => {
           avatar_url: p.avatar_url, created_at: p.created_at, account_status: p.account_status || "active",
           credit_balance: wallet.balance || 0, total_purchased_credits: wallet.total_purchased || txInfo.total_credits || 0,
           granted_credits: txInfo.granted_credits || 0, grant_count: txInfo.grant_count || 0,
+          deducted_credits: txInfo.deducted_credits || 0, deduct_count: txInfo.deduct_count || 0,
           purchase_count: purchaseCount, total_spent_cents: Math.round(totalSpentDollars * 100),
           tx_purchase_count: txInfo.purchase_count || 0, tx_total_credits: txInfo.total_credits || 0,
           last_purchase: lastPurchaseOrCharge || null, first_purchase: txInfo.first_purchase || null,
