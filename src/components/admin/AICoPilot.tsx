@@ -21,6 +21,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
+import CreditCostBadge from "./CreditCostBadge";
 
 // ---- Types ----
 interface Attachment {
@@ -1347,6 +1348,7 @@ const AICoPilot = () => {
             <div className="p-4 flex items-center gap-3">
               <Bot className="h-6 w-6 text-accent" />
               <p className="text-base font-semibold text-white flex-1">Grandmaster AI Co-Pilot</p>
+              <CreditCostBadge cost="8–30" variant="header" label="per action" />
               {mode === "freeWill" && <Badge variant="outline" className="border-red-500/30 text-red-400 text-[10px]"><Wand2 className="h-3 w-3 mr-1" /> Uncensored</Badge>}
               {isStreaming && <Badge variant="outline" className="border-accent/20 text-accent text-[10px] animate-pulse"><Sparkles className="h-3 w-3 mr-1" /> Thinking...</Badge>}
             </div>

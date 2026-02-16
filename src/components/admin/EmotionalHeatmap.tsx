@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import CreditCostBadge from "./CreditCostBadge";
 
 const SPENDING_MOTIVATIONS = ["emotional", "impulsive", "collector", "relationship", "status", "lonely", "fetish", "supporter"];
 
@@ -175,9 +176,12 @@ Keep it concise and actionable.`
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-bold text-white flex items-center gap-2">
-            <Heart className="h-5 w-5 text-pink-400" /> Emotional Heatmap
-          </h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-lg font-bold text-white flex items-center gap-2">
+              <Heart className="h-5 w-5 text-pink-400" /> Emotional Heatmap
+            </h1>
+            <CreditCostBadge cost={8} variant="header" label="per analysis" />
+          </div>
           <p className="text-xs text-white/40">Fan psychology profiling, risk alerts & emotional intelligence</p>
         </div>
         <div className="flex gap-2">

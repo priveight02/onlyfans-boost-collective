@@ -248,7 +248,10 @@ const ContractsManager = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-bold text-white">Contracts & Agreements</h3>
+          <div className="flex items-center gap-3">
+            <h3 className="text-lg font-bold text-white">Contracts & Agreements</h3>
+            <CreditCostBadge cost="3–8" variant="header" label="per action" />
+          </div>
           <p className="text-xs text-white/40">{contracts.length} contracts total</p>
         </div>
         <Dialog open={showCreate} onOpenChange={setShowCreate}>

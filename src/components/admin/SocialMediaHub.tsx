@@ -7,6 +7,7 @@ import IGAutomationSuite from "./social/IGAutomationSuite";
 import SocialNetworksTab from "./social/SocialNetworksTab";
 import BioLinksManager from "./social/BioLinksManager";
 import { toast } from "sonner";
+import CreditCostBadge from "./CreditCostBadge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -1143,7 +1144,10 @@ const SocialMediaHub = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-bold text-foreground">Social Media</h2>
+          <div className="flex items-center gap-3">
+            <h2 className="text-lg font-bold text-foreground">Social Media</h2>
+            <CreditCostBadge cost="0–10" variant="header" label="per action" />
+          </div>
           <p className="text-xs text-muted-foreground">AI Auto-DM · Multi-Platform · Full API</p>
         </div>
         <div className="flex items-center gap-2">

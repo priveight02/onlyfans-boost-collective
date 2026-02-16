@@ -9,6 +9,7 @@ import CRMAddAccountDialog from "./CRMAddAccountDialog";
 import OFConnectDialog from "./OFConnectDialog";
 import { Loader2, Inbox } from "lucide-react";
 import { useCreditAction } from "@/hooks/useCreditAction";
+import CreditCostBadge from "./CreditCostBadge";
 
 const CRMAccountsTab = () => {
   const [accounts, setAccounts] = useState<any[]>([]);
@@ -97,6 +98,12 @@ const CRMAccountsTab = () => {
 
   return (
     <div className="space-y-4">
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-3">
+          <h2 className="text-lg font-bold text-white">Accounts</h2>
+          <CreditCostBadge cost="1–5" variant="header" label="per action" />
+        </div>
+      </div>
       <CRMAccountSearch
         onSearch={setSearch}
         onFilterStatus={setStatusFilter}

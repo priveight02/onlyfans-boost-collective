@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import CreditCostBadge from "./CreditCostBadge";
 
 const TONES = ["sweet", "dominant", "playful", "mysterious", "bratty", "innocent", "seductive", "nurturing", "edgy", "sophisticated"];
 const VOCAB_STYLES = ["casual", "flirty", "intellectual", "street", "elegant", "cutesy", "confident", "poetic"];
@@ -181,9 +182,12 @@ Respond ONLY with valid JSON: {"consistency_score": number, "issues": ["string"]
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-bold text-white flex items-center gap-2">
-            <Brain className="h-5 w-5 text-accent" /> Persona DNA Engine
-          </h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-lg font-bold text-white flex items-center gap-2">
+              <Brain className="h-5 w-5 text-accent" /> Persona DNA Engine
+            </h1>
+            <CreditCostBadge cost="8–15" variant="header" label="per persona" />
+          </div>
           <p className="text-xs text-white/40">AI-powered personality profiles & emotional state tracking</p>
         </div>
         <div className="flex gap-2">

@@ -164,7 +164,10 @@ const TaskWorkflow = () => {
       {/* Header with Stats */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h3 className="text-lg font-bold text-white">Tasks & Workflows</h3>
+          <div className="flex items-center gap-3">
+            <h3 className="text-lg font-bold text-white">Tasks & Workflows</h3>
+            <CreditCostBadge cost="1–2" variant="header" label="per task" />
+          </div>
           <div className="flex items-center gap-3 mt-1">
             <span className="text-xs text-white/40">{tasks.length} total</span>
             <span className="text-xs text-white/40">•</span>

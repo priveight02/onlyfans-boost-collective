@@ -7,6 +7,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { DollarSign, TrendingUp, ArrowUpRight, Plus, Download, CreditCard, Wallet, PiggyBank } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import CreditCostBadge from "./CreditCostBadge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -67,6 +68,15 @@ const FinancialModule = () => {
 
   return (
     <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <h2 className="text-lg font-bold text-white flex items-center gap-2">
+            <DollarSign className="h-5 w-5 text-emerald-400" /> Financials
+          </h2>
+          <CreditCostBadge cost="2–5" variant="header" label="per record" />
+        </div>
+      </div>
       {/* Financial KPIs */}
       <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
         {[

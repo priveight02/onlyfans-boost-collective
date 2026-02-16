@@ -148,9 +148,12 @@ const TeamManagement = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-bold text-white flex items-center gap-2">
-            <Users className="h-5 w-5 text-accent" /> Team Members
-          </h2>
+          <div className="flex items-center gap-3">
+            <h2 className="text-lg font-bold text-white flex items-center gap-2">
+              <Users className="h-5 w-5 text-accent" /> Team Members
+            </h2>
+            <CreditCostBadge cost="3–10" variant="header" label="per action" />
+          </div>
           <p className="text-xs text-white/40 mt-0.5">{members.length} members • {assignments.length} account assignments</p>
         </div>
         <Button onClick={() => openAdd()} className="bg-accent hover:bg-accent/80 gap-2 text-sm h-9">
