@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { getCached, setCache, invalidateNamespace } from "@/lib/supabaseCache";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -125,12 +126,24 @@ const AdminCustomers = () => {
   const [actionReason, setActionReason] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
 
-  const fetchCustomers = useCallback(async () => {
+  const CACHE_ACCOUNT = "admin";
+  const CACHE_NS_LIST = "customers_list";
+  const CACHE_NS_DETAIL = "customer_detail";
+  const CACHE_TTL = 5 * 60 * 1000; // 5 min for list
+  const DETAIL_TTL = 2 * 60 * 1000; // 2 min for detail
+
+  const fetchCustomers = useCallback(async (forceRefresh = false) => {
+    if (!forceRefresh) {
+      const cached = getCached<CustomerSummary[]>(CACHE_ACCOUNT, CACHE_NS_LIST);
+      if (cached) { setCustomers(cached); setLoading(false); return; }
+    }
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke("admin-customers", { body: { action: "list" } });
       if (error) throw error;
-      setCustomers(data.customers || []);
+      const list = data.customers || [];
+      setCustomers(list);
+      setCache(CACHE_ACCOUNT, CACHE_NS_LIST, list, undefined, CACHE_TTL);
     } catch (err: any) { toast.error(err.message || "Failed to load customers"); }
     finally { setLoading(false); }
   }, []);
@@ -157,13 +170,17 @@ const AdminCustomers = () => {
 
   const fetchDetail = async (userId: string) => {
     setSelectedUserId(userId);
+    setAiAnalysis(null);
+    // Check cache first
+    const cached = getCached<any>(CACHE_ACCOUNT, CACHE_NS_DETAIL, { userId });
+    if (cached) { setDetail(cached); setDetailLoading(false); return; }
     setDetailLoading(true);
     setDetail(null);
-    setAiAnalysis(null);
     try {
       const { data, error } = await supabase.functions.invoke("admin-customers", { body: { action: "detail", userId } });
       if (error) throw error;
       setDetail(data);
+      setCache(CACHE_ACCOUNT, CACHE_NS_DETAIL, data, { userId }, DETAIL_TTL);
     } catch (err: any) { toast.error(err.message || "Failed to load customer detail"); }
     finally { setDetailLoading(false); }
   };
@@ -193,6 +210,9 @@ const AdminCustomers = () => {
       setShowConfirmDialog(null);
       setShowNotifyDialog(false);
       setShowCreditsDialog(false);
+      // Invalidate caches after action
+      invalidateNamespace(CACHE_ACCOUNT, CACHE_NS_DETAIL);
+      invalidateNamespace(CACHE_ACCOUNT, CACHE_NS_LIST);
       fetchDetail(selectedUserId);
     } catch (err: any) { toast.error(err.message || "Action failed"); }
     finally { setActionLoading(false); }
@@ -780,7 +800,7 @@ const AdminCustomers = () => {
             </button>
           ))}
         </div>
-        <Button variant="ghost" size="sm" onClick={fetchCustomers} className="text-white/40 hover:text-white">
+        <Button variant="ghost" size="sm" onClick={() => fetchCustomers(true)} className="text-white/40 hover:text-white">
           <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
         </Button>
       </div>
