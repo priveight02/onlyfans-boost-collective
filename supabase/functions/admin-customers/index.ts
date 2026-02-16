@@ -54,6 +54,10 @@ serve(async (req) => {
     if (action === "list" || !action) {
       logStep("Fetching all users — batch mode");
 
+      // Safety net: auto-create profiles for any auth.users missing a profile
+      const { data: authUsers } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
+      const allAuthUsers = authUsers?.users || [];
+
       // Batch fetch all data in parallel
       const [profilesRes, walletsRes, txRes, postsRes, loginRes, packagesRes] = await Promise.all([
         supabaseAdmin.from("profiles").select("*").order("created_at", { ascending: false }),
@@ -64,8 +68,30 @@ serve(async (req) => {
         supabaseAdmin.from("credit_packages").select("credits, bonus_credits, price_cents").eq("is_active", true),
       ]);
 
-      const profiles = profilesRes.data || [];
+      let profiles = profilesRes.data || [];
       const wallets = walletsRes.data || [];
+
+      // Detect users with no profile and auto-create
+      const existingUserIds = new Set(profiles.map(p => p.user_id));
+      const missingUsers = allAuthUsers.filter(u => !existingUserIds.has(u.id));
+      if (missingUsers.length > 0) {
+        logStep("Auto-creating missing profiles", { count: missingUsers.length });
+        const newProfiles = missingUsers.map(u => ({
+          user_id: u.id,
+          email: u.email || "",
+          original_email: u.email || "",
+          username: (u.email?.split("@")[0]?.replace(/\./g, "_") || "user") + "_" + u.id.substring(0, 4),
+          display_name: u.user_metadata?.full_name || u.email?.split("@")[0] || "User",
+        }));
+        const { data: inserted } = await supabaseAdmin.from("profiles").insert(newProfiles).select("*");
+        if (inserted) profiles = [...profiles, ...inserted];
+        // Also ensure wallets exist
+        const walletInserts = missingUsers.map(u => ({ user_id: u.id }));
+        await supabaseAdmin.from("wallets").upsert(walletInserts, { onConflict: "user_id", ignoreDuplicates: true });
+        // Re-fetch wallets to include new ones
+        const { data: freshWallets } = await supabaseAdmin.from("wallets").select("*");
+        if (freshWallets) wallets.splice(0, wallets.length, ...freshWallets);
+      }
       const transactions = txRes.data || [];
       const posts = postsRes.data || [];
       const loginActs = loginRes.data || [];
@@ -519,13 +545,21 @@ Provide your analysis in this exact JSON structure:
       if (adminAction === "grant_credits") {
         const { amount: creditAmount } = actionData || {};
         if (creditAmount && creditAmount > 0) {
-          // Upsert wallet — create if missing
-          const { data: w } = await supabaseAdmin.from("wallets").select("balance").eq("user_id", userId).maybeSingle();
-          if (w) {
-            await supabaseAdmin.from("wallets").update({ balance: w.balance + creditAmount }).eq("user_id", userId);
-          } else {
-            await supabaseAdmin.from("wallets").insert({ user_id: userId, balance: creditAmount, total_purchased: 0, purchase_count: 0 });
-          }
+          // Ensure wallet exists first
+          await supabaseAdmin.from("wallets").upsert(
+            { user_id: userId, balance: 0, total_purchased: 0, purchase_count: 0 },
+            { onConflict: "user_id", ignoreDuplicates: true }
+          );
+          // Read current balance
+          const { data: w } = await supabaseAdmin.from("wallets").select("balance").eq("user_id", userId).single();
+          const currentBalance = w?.balance || 0;
+          // Update balance atomically
+          const { error: updateErr } = await supabaseAdmin.from("wallets")
+            .update({ balance: currentBalance + creditAmount })
+            .eq("user_id", userId);
+          if (updateErr) logStep("Wallet update error", { error: updateErr.message });
+          else logStep("Wallet updated", { userId, oldBalance: currentBalance, newBalance: currentBalance + creditAmount });
+          // Record transaction
           await supabaseAdmin.from("wallet_transactions").insert({
             user_id: userId, amount: creditAmount, type: "admin_grant",
             description: reason || `Admin granted ${creditAmount} credits`,
@@ -536,11 +570,19 @@ Provide your analysis in this exact JSON structure:
       if (adminAction === "revoke_credits") {
         const { amount: creditAmount } = actionData || {};
         if (creditAmount && creditAmount > 0) {
-          const { data: w } = await supabaseAdmin.from("wallets").select("balance").eq("user_id", userId).maybeSingle();
-          if (w) {
-            const newBalance = Math.max(0, w.balance - creditAmount);
-            await supabaseAdmin.from("wallets").update({ balance: newBalance }).eq("user_id", userId);
-          }
+          // Ensure wallet exists
+          await supabaseAdmin.from("wallets").upsert(
+            { user_id: userId, balance: 0, total_purchased: 0, purchase_count: 0 },
+            { onConflict: "user_id", ignoreDuplicates: true }
+          );
+          const { data: w } = await supabaseAdmin.from("wallets").select("balance").eq("user_id", userId).single();
+          const currentBalance = w?.balance || 0;
+          const newBalance = Math.max(0, currentBalance - creditAmount);
+          const { error: updateErr } = await supabaseAdmin.from("wallets")
+            .update({ balance: newBalance })
+            .eq("user_id", userId);
+          if (updateErr) logStep("Wallet revoke error", { error: updateErr.message });
+          else logStep("Wallet revoked", { userId, oldBalance: currentBalance, newBalance });
           await supabaseAdmin.from("wallet_transactions").insert({
             user_id: userId, amount: -creditAmount, type: "admin_revoke",
             description: reason || `Admin revoked ${creditAmount} credits`,
