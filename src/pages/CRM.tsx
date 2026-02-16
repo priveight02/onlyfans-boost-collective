@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useWallet } from "@/hooks/useWallet";
+import { useCreditModal } from "@/hooks/useCreditAction";
+import InsufficientCreditsModal from "@/components/InsufficientCreditsModal";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import CRMAccountsTab from "@/components/admin/CRMAccountsTab";
 import ProfileLookup from "@/components/admin/ProfileLookup";
@@ -40,6 +42,7 @@ import { Input } from "@/components/ui/input";
 const CRM = () => {
   const { user, loading } = useAuth();
   const { balance, loading: walletLoading } = useWallet();
+  const { modalState, hideModal } = useCreditModal();
   const navigate = useNavigate();
   const [accounts, setAccounts] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -223,6 +226,13 @@ const CRM = () => {
       </div>
 
       <FloatingCopilot activeTab={activeTab} />
+
+      <InsufficientCreditsModal
+        open={modalState.open}
+        onOpenChange={(open) => { if (!open) hideModal(); }}
+        requiredCredits={modalState.requiredCredits}
+        actionName={modalState.actionName}
+      />
     </div>
   );
 };

@@ -8,6 +8,7 @@ import { DollarSign, TrendingUp, ArrowUpRight, Plus, Download, CreditCard, Walle
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import CreditCostBadge from "./CreditCostBadge";
+import { useCreditAction } from "@/hooks/useCreditAction";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +20,7 @@ const FinancialModule = () => {
   const [records, setRecords] = useState<any[]>([]);
   const [showAdd, setShowAdd] = useState(false);
   const [newRecord, setNewRecord] = useState({ account_id: "", record_type: "subscription", amount: "", description: "" });
+  const { performAction } = useCreditAction();
 
   useEffect(() => {
     const load = async () => {
@@ -52,18 +54,20 @@ const FinancialModule = () => {
 
   const handleAddRecord = async () => {
     if (!newRecord.account_id || !newRecord.amount) return toast.error("Fill required fields");
-    const { error } = await supabase.from("financial_records").insert({
-      account_id: newRecord.account_id,
-      record_type: newRecord.record_type,
-      amount: parseFloat(newRecord.amount),
-      description: newRecord.description,
+    await performAction('create_financial_record', async () => {
+      const { error } = await supabase.from("financial_records").insert({
+        account_id: newRecord.account_id,
+        record_type: newRecord.record_type,
+        amount: parseFloat(newRecord.amount),
+        description: newRecord.description,
+      });
+      if (error) throw error;
+      toast.success("Record added");
+      setShowAdd(false);
+      setNewRecord({ account_id: "", record_type: "subscription", amount: "", description: "" });
+      const { data } = await supabase.from("financial_records").select("*").order("created_at", { ascending: false });
+      setRecords(data || []);
     });
-    if (error) return toast.error("Failed to add record");
-    toast.success("Record added");
-    setShowAdd(false);
-    setNewRecord({ account_id: "", record_type: "subscription", amount: "", description: "" });
-    const { data } = await supabase.from("financial_records").select("*").order("created_at", { ascending: false });
-    setRecords(data || []);
   };
 
   return (
