@@ -41,6 +41,13 @@ const PRODUCT_TO_PLAN: Record<string, string> = {
   "prod_TzAywFFZ0SdhfZ": "pro",
   "prod_TzAram9it2Kedf": "business",
   "prod_TzAzgoteaSHuDB": "business",
+  // Test products
+  "prod_TzDPwhTrnCOnYm": "starter",
+  "prod_TzDPUEvS935A88": "starter",
+  "prod_TzDPNCljqBJ2Cq": "pro",
+  "prod_TzDPxffqvU9iSq": "pro",
+  "prod_TzDPr3jeAGF9mm": "business",
+  "prod_TzDQJVbiYpTH9Y": "business",
 };
 
 // Credits per plan for granting after subscription
