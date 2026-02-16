@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import Footer from "@/components/Footer";
+import { useAuth } from "@/hooks/useAuth";
 import { Users, TrendingUp, HeartHandshake, MessageSquare, DollarSign, Megaphone, Target, Shield, Zap, Crown, Bot, BarChart3, BrainCircuit, Workflow, Mail, Globe } from "lucide-react";
 
 const services = [
@@ -73,6 +74,8 @@ const gradients = [
 ];
 
 const Services = () => {
+  const { user } = useAuth();
+  const ctaPath = user ? '/pricing' : '/auth';
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-primary to-blue-900 relative overflow-hidden">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_30%,rgba(168,85,247,0.4),transparent_50%)]" />
@@ -91,7 +94,7 @@ const Services = () => {
           <p className="text-xl text-white/80 max-w-2xl mx-auto mb-4 animate-fade-in">
             Everything your business needs to automate, engage, and grow — powered by AI.
           </p>
-          <Link to="/auth" className="mt-3 inline-block">
+          <Link to={ctaPath} className="mt-3 inline-block">
             <button className="group inline-flex items-center px-8 py-3 text-lg font-medium rounded-full bg-white text-primary hover:bg-primary-light transition-all duration-500 transform hover:scale-105 shadow-lg">
               Start Free Trial
             </button>
@@ -153,7 +156,7 @@ const Services = () => {
             Join thousands of businesses already scaling with our AI-powered platform.
           </p>
 
-          <Link to="/auth">
+          <Link to={ctaPath}>
             <Button size="lg" className="bg-white text-primary hover:bg-white/90 hover:scale-105 transition-all duration-300 shadow-2xl hover:shadow-white/20 text-xl px-16 py-6 rounded-2xl font-bold">
               Get Started Free
             </Button>

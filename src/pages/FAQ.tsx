@@ -3,6 +3,7 @@ import { HelpCircle, Search, MessageCircle, Clock, Shield } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import Footer from "@/components/Footer";
+import { useAuth } from "@/hooks/useAuth";
 import {
   Accordion,
   AccordionContent,
@@ -13,6 +14,8 @@ import {
 const FAQ = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const ctaPath = user ? '/pricing' : '/auth';
 
   const faqs = [
     {
@@ -238,7 +241,7 @@ const FAQ = () => {
           <div className="flex justify-center">
             <Button
               size="lg"
-              onClick={() => navigate('/auth')}
+              onClick={() => navigate(ctaPath)}
               className="bg-white text-primary hover:bg-white/90 hover:scale-105 transition-all duration-300 px-14 py-5 text-lg font-bold rounded-xl shadow-lg hover:shadow-xl"
             >
               Start Free Trial

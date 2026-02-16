@@ -1,8 +1,11 @@
 import { Link } from "react-router-dom";
 import { Mail, ExternalLink, ArrowUpRight, Heart, Globe } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 const Footer = () => {
   const year = new Date().getFullYear();
+  const { user } = useAuth();
+  const ctaPath = user ? '/pricing' : '/auth';
 
   return (
     <footer className="relative overflow-hidden">
@@ -84,7 +87,7 @@ const Footer = () => {
                 <a href="mailto:contact@ozcagency.com" className="text-white/45 hover:text-white text-sm transition-colors">contact@ozcagency.com</a>
                 <span className="text-white/30 text-xs">Replies within 2 hours</span>
               </div>
-              <Link to="/auth"
+              <Link to={ctaPath}
                 className="mt-3 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white/[0.06] border border-white/[0.08] hover:bg-white/[0.12] hover:border-white/[0.15] text-white/70 hover:text-white text-xs font-medium transition-all duration-300 group">
                 Get Started <ArrowUpRight className="h-3 w-3 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
               </Link>
