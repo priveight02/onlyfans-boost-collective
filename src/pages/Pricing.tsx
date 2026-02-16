@@ -399,7 +399,7 @@ const Pricing = () => {
         )}
 
         {/* Trust */}
-        <div className="mt-8 pb-2">
+        <div className="mt-10 pb-0">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-2xl mx-auto text-center">
             <div className="flex flex-col items-center gap-2">
               <ShieldCheck className="h-5 w-5 text-white/30" />
