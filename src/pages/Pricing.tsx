@@ -7,6 +7,18 @@ import { toast } from "sonner";
 import { Check, ArrowRight, Sparkles, BadgePercent, ShieldCheck, Zap, Gift } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Footer from "@/components/Footer";
+import creditsStarter from "@/assets/credits-starter.png";
+import creditsPro from "@/assets/credits-pro.png";
+import creditsStudio from "@/assets/credits-studio.png";
+import creditsPower from "@/assets/credits-power.png";
+import creditsCustom from "@/assets/credits-custom.png";
+
+const PACKAGE_IMAGES: Record<string, string> = {
+  "Starter": creditsStarter,
+  "Pro": creditsPro,
+  "Studio": creditsStudio,
+  "Power User": creditsPower,
+};
 
 interface CreditPackage {
   id: string;
@@ -238,6 +250,11 @@ const Pricing = () => {
                   )}
 
                     <div className="p-6 flex-1 flex flex-col">
+                    {PACKAGE_IMAGES[pkg.name] && (
+                      <div className="flex justify-center mb-4">
+                        <img src={PACKAGE_IMAGES[pkg.name]} alt={pkg.name} className="h-20 w-20 object-contain" />
+                      </div>
+                    )}
                     <h3 className="text-base font-semibold text-white/90 mb-3">{pkg.name}</h3>
 
                     <div className="flex items-baseline gap-2 mb-0.5">
@@ -330,6 +347,9 @@ const Pricing = () => {
               </div>
 
               <div className="p-6 flex-1 flex flex-col">
+                <div className="flex justify-center mb-4">
+                  <img src={creditsCustom} alt="Custom Credits" className="h-20 w-20 object-contain" />
+                </div>
                 <h3 className="text-base font-semibold text-white/90 mb-3">Custom Needs</h3>
 
                 <div className="flex items-baseline gap-2 mb-0.5">
