@@ -264,13 +264,13 @@ const Pricing = () => {
                 <div
                   key={pkg.id}
                   onMouseMove={handleMouseMove}
-                  className={`group relative flex flex-col rounded-2xl border ${accent.border} ${accent.hoverBorder} bg-[hsl(222,30%,11%)] transition-colors duration-300 ${isPopular ? 'ring-1 ring-yellow-500/40' : ''}`}
+                  className={`group relative flex flex-col rounded-2xl border ${accent.border} ${accent.hoverBorder} bg-[hsl(222,30%,11%)] transition-colors duration-300 ${isPopular ? 'ring-1 ring-yellow-500/40' : ''} [backface-visibility:hidden] [transform:translateZ(0)]`}
                   style={{ "--mouse-x": "50%", "--mouse-y": "50%" } as React.CSSProperties}
                 >
                   {/* Flashlight overlay */}
                   <div className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-2xl overflow-hidden" style={{ background: `radial-gradient(200px circle at var(--mouse-x) var(--mouse-y), ${accent.flash}, transparent 60%)` }} />
                   {accent.label && (
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
+                    <div className="absolute -top-3 right-4 z-10">
                       <span className={`${accent.badge} text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full whitespace-nowrap`}>
                         {accent.label}
                       </span>
@@ -364,11 +364,11 @@ const Pricing = () => {
             {/* Custom Credits Card */}
             <div
               onMouseMove={handleMouseMove}
-              className="group relative flex flex-col rounded-2xl border border-purple-500/30 hover:border-purple-400/50 bg-[hsl(222,30%,11%)] transition-colors duration-300"
+              className="group relative flex flex-col rounded-2xl border border-purple-500/30 hover:border-purple-400/50 bg-[hsl(222,30%,11%)] transition-colors duration-300 [backface-visibility:hidden] [transform:translateZ(0)]"
               style={{ "--mouse-x": "50%", "--mouse-y": "50%" } as React.CSSProperties}
             >
               <div className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-2xl overflow-hidden" style={{ background: "radial-gradient(200px circle at var(--mouse-x) var(--mouse-y), rgba(168,85,247,0.04), transparent 60%)" }} />
-              <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
+              <div className="absolute -top-3 right-4 z-10">
                 <span className="bg-purple-500 text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full whitespace-nowrap">
                   Custom
                 </span>
