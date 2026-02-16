@@ -42,7 +42,7 @@ const CheckoutModal = ({ clientSecret, onClose }: CheckoutModalProps) => {
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.94, y: 24 }}
           transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-          className="relative w-full max-w-[1200px] h-[90vh] rounded-3xl overflow-hidden flex flex-col"
+          className="relative w-full max-w-[1200px] h-[94vh] rounded-3xl overflow-hidden flex flex-col"
           style={{
             background: "linear-gradient(180deg, hsl(222, 35%, 10%) 0%, hsl(222, 35%, 7%) 100%)",
             boxShadow: "0 0 0 1px rgba(255,255,255,0.06), 0 32px 80px -12px rgba(0,0,0,0.7), 0 0 120px -40px rgba(147,51,234,0.15)",
@@ -52,20 +52,18 @@ const CheckoutModal = ({ clientSecret, onClose }: CheckoutModalProps) => {
           <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-purple-500/40 to-transparent" />
 
           {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.06] flex-shrink-0">
+          <div className="flex items-center justify-between px-6 py-3.5 border-b border-white/[0.06] flex-shrink-0">
             <div className="flex items-center gap-3">
               <div className="flex items-center justify-center w-7 h-7 rounded-full bg-emerald-500/10 border border-emerald-500/20">
                 <Lock className="h-3 w-3 text-emerald-400" />
               </div>
-              <div className="flex flex-col">
-                <span className="text-sm font-medium text-white/70">Secure Checkout</span>
-                <span className="text-[10px] text-white/30 tracking-wide">256-BIT SSL ENCRYPTED</span>
-              </div>
+              <span className="text-sm font-medium text-white/70">Secure Checkout</span>
             </div>
+            <span className="text-[10px] text-white/25 tracking-widest uppercase hidden md:block">Your payment information is secured and encrypted</span>
             <div className="flex items-center gap-3">
               <div className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.06]">
                 <ShieldCheck className="h-3 w-3 text-white/30" />
-                <span className="text-[10px] text-white/30 font-medium tracking-wide">POWERED BY STRIPE</span>
+                <span className="text-[10px] text-white/30 font-medium tracking-wide">STRIPE</span>
               </div>
               <button
                 onClick={onClose}
@@ -153,10 +151,6 @@ const CheckoutModal = ({ clientSecret, onClose }: CheckoutModalProps) => {
             </EmbeddedCheckoutProvider>
           </div>
 
-          {/* Bottom bar */}
-          <div className="flex items-center justify-center px-6 py-3 border-t border-white/[0.04] flex-shrink-0 bg-white/[0.02]">
-            <span className="text-[10px] text-white/20 tracking-wide">YOUR PAYMENT INFORMATION IS SECURED AND ENCRYPTED</span>
-          </div>
         </motion.div>
       </motion.div>
     </AnimatePresence>
