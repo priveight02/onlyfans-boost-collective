@@ -15,6 +15,8 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { useCreditAction } from "@/hooks/useCreditAction";
+import CreditCostBadge from "./CreditCostBadge";
 
 const PLATFORMS = ["onlyfans", "twitter", "instagram", "tiktok", "reddit", "fansly"];
 const CONTENT_TYPES = ["post", "story", "reel", "tweet", "promo", "teaser", "behind_scenes", "collab"];
@@ -29,6 +31,7 @@ const ContentCommandCenter = () => {
   const [accountFilter, setAccountFilter] = useState("all");
   const [platformFilter, setPlatformFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+  const { performAction } = useCreditAction();
 
   // Form
   const [formTitle, setFormTitle] = useState("");
@@ -89,14 +92,17 @@ const ContentCommandCenter = () => {
       caption: formCaption || null, hashtags: formHashtags ? formHashtags.split(",").map(h => h.trim()) : [],
       cta: formCta || null, scheduled_at: formSchedule || null,
     };
-    if (editingId) {
-      const { error } = await supabase.from("content_calendar").update(payload).eq("id", editingId);
-      if (error) toast.error(error.message); else toast.success("Updated");
-    } else {
-      const { error } = await supabase.from("content_calendar").insert(payload);
-      if (error) toast.error(error.message); else toast.success("Content added");
-    }
-    resetForm(); setShowAdd(false);
+    const actionType = editingId ? 'schedule_content' : 'create_content';
+    await performAction(actionType, async () => {
+      if (editingId) {
+        const { error } = await supabase.from("content_calendar").update(payload).eq("id", editingId);
+        if (error) { toast.error(error.message); throw error; } else toast.success("Updated");
+      } else {
+        const { error } = await supabase.from("content_calendar").insert(payload);
+        if (error) { toast.error(error.message); throw error; } else toast.success("Content added");
+      }
+      resetForm(); setShowAdd(false);
+    });
   };
 
   const deleteItem = async (id: string) => {

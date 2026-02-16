@@ -11,6 +11,8 @@ import { CheckSquare, Plus, Clock, AlertTriangle, ListTodo, Trash2, Edit, Flame,
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Progress } from "@/components/ui/progress";
+import { useCreditAction } from "@/hooks/useCreditAction";
+import CreditCostBadge from "./CreditCostBadge";
 
 const priorityConfig: Record<string, { label: string; icon: any; color: string; badgeClass: string }> = {
   urgent: { label: "🔥 Urgent", icon: Flame, color: "text-red-400", badgeClass: "bg-red-500/20 text-red-400 border-red-500/30 animate-pulse" },
@@ -41,6 +43,7 @@ const TaskWorkflow = () => {
   const [form, setForm] = useState({
     title: "", description: "", priority: "medium", assigned_to: "", account_id: "", due_date: "", tags: "",
   });
+  const { performAction } = useCreditAction();
 
   useEffect(() => {
     loadAll();
@@ -97,16 +100,19 @@ const TaskWorkflow = () => {
       tags: tagsArr,
     };
 
-    if (editTask) {
-      const { error } = await supabase.from("tasks").update(payload).eq("id", editTask.id);
-      if (error) return toast.error("Failed to update");
-      toast.success("Task updated");
-    } else {
-      const { error } = await supabase.from("tasks").insert(payload);
-      if (error) return toast.error("Failed to create");
-      toast.success("Task created");
-    }
-    closeDialog();
+    const actionType = editTask ? 'update_task' : 'create_task';
+    await performAction(actionType, async () => {
+      if (editTask) {
+        const { error } = await supabase.from("tasks").update(payload).eq("id", editTask.id);
+        if (error) { toast.error("Failed to update"); throw error; }
+        toast.success("Task updated");
+      } else {
+        const { error } = await supabase.from("tasks").insert(payload);
+        if (error) { toast.error("Failed to create"); throw error; }
+        toast.success("Task created");
+      }
+      closeDialog();
+    });
   };
 
   const closeDialog = () => {
@@ -179,7 +185,7 @@ const TaskWorkflow = () => {
         </div>
         <Dialog open={showAdd} onOpenChange={(o) => { if (!o) closeDialog(); else setShowAdd(true); }}>
           <DialogTrigger asChild>
-            <Button size="sm" className="gap-1"><Plus className="h-3 w-3" /> New Task</Button>
+            <Button size="sm" className="gap-1"><Plus className="h-3 w-3" /> New Task <CreditCostBadge cost={2} /></Button>
           </DialogTrigger>
           <DialogContent className="bg-[hsl(220,50%,12%)] border-white/10 text-white max-w-lg">
             <DialogHeader><DialogTitle>{editTask ? "Edit Task" : "Create Task"}</DialogTitle></DialogHeader>

@@ -8,8 +8,11 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useCreditAction } from "@/hooks/useCreditAction";
+import CreditCostBadge from "./CreditCostBadge";
 
 const ReportingExport = () => {
+  const { performAction } = useCreditAction();
   const [accounts, setAccounts] = useState<any[]>([]);
   const [tasks, setTasks] = useState<any[]>([]);
   const [members, setMembers] = useState<any[]>([]);
@@ -50,6 +53,7 @@ const ReportingExport = () => {
   };
 
   const generateReport = (reportType: string) => {
+    performAction('generate_report', async () => {
     setGenerating(reportType);
     const date = new Date().toISOString().split("T")[0];
 
@@ -145,6 +149,7 @@ const ReportingExport = () => {
       toast.error("Failed to generate report");
     }
     setGenerating("");
+    });
   };
 
   const reports = [
@@ -199,6 +204,7 @@ const ReportingExport = () => {
               >
                 <Download className="h-3 w-3" />
                 {generating === report.id ? "Generating..." : `Export ${format.toUpperCase()}`}
+                <CreditCostBadge cost={8} />
               </Button>
             </CardContent>
           </Card>
