@@ -19,7 +19,7 @@ interface CreditPackage {
   sort_order: number;
 }
 
-const BASE_PRICE_PER_CREDIT_CENTS = 9.99;
+const BASE_PRICE_PER_CREDIT_CENTS = 1.816;
 
 const getVolumeDiscount = (credits: number): number => {
   if (credits >= 10000) return 0.40;
