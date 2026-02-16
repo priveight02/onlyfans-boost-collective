@@ -7,15 +7,19 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// Pro and Business product IDs (monthly + yearly)
+// Pro and Business product IDs (monthly + yearly) — live + test
 const ELIGIBLE_PRODUCT_IDS = [
-  "prod_TzArZUF2DIlzHq", // pro monthly
-  "prod_TzAywFFZ0SdhfZ", // pro yearly
-  "prod_TzAram9it2Kedf", // business monthly
-  "prod_TzAzgoteaSHuDB", // business yearly
+  "prod_TzArZUF2DIlzHq", // pro monthly (live)
+  "prod_TzAywFFZ0SdhfZ", // pro yearly (live)
+  "prod_TzAram9it2Kedf", // business monthly (live)
+  "prod_TzAzgoteaSHuDB", // business yearly (live)
+  "prod_TzDPNCljqBJ2Cq", // pro monthly (test)
+  "prod_TzDPxffqvU9iSq", // pro yearly (test)
+  "prod_TzDPr3jeAGF9mm", // business monthly (test)
+  "prod_TzDQJVbiYpTH9Y", // business yearly (test)
 ];
 
-// Product ID → human-readable plan name
+// Product ID → human-readable plan name (live + test)
 const PRODUCT_NAME_MAP: Record<string, string> = {
   "prod_TzAqP0zH90vzyR": "Starter (Monthly)",
   "prod_TzAypr06as419B": "Starter (Yearly)",
@@ -23,6 +27,13 @@ const PRODUCT_NAME_MAP: Record<string, string> = {
   "prod_TzAywFFZ0SdhfZ": "Pro (Yearly)",
   "prod_TzAram9it2Kedf": "Business (Monthly)",
   "prod_TzAzgoteaSHuDB": "Business (Yearly)",
+  // Test products
+  "prod_TzDPwhTrnCOnYm": "Starter (Monthly)",
+  "prod_TzDPUEvS935A88": "Starter (Yearly)",
+  "prod_TzDPNCljqBJ2Cq": "Pro (Monthly)",
+  "prod_TzDPxffqvU9iSq": "Pro (Yearly)",
+  "prod_TzDPr3jeAGF9mm": "Business (Monthly)",
+  "prod_TzDQJVbiYpTH9Y": "Business (Yearly)",
 };
 
 serve(async (req) => {
