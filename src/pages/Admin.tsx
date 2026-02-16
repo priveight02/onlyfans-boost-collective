@@ -161,16 +161,29 @@ const Admin = () => {
             <TabsTrigger value="settings" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
               <Settings className="h-3.5 w-3.5" /> Settings
             </TabsTrigger>
-            <TabsTrigger value="credits" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
-              <Coins className="h-3.5 w-3.5" /> Credits
-            </TabsTrigger>
             <TabsTrigger value="api" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
               <Code2 className="h-3.5 w-3.5" /> API
             </TabsTrigger>
-            <TabsTrigger value="customers" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
-              <UserCheck className="h-3.5 w-3.5" /> Customers
-            </TabsTrigger>
           </TabsList>
+
+          {/* User Management Section - Separate from CRM */}
+          {(activeTab === "customers" || activeTab === "credits") && null}
+          {activeTab !== "customers" && activeTab !== "credits" && null}
+
+          {/* User Management Quick Nav */}
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 p-1 rounded-xl bg-white/[0.03] border border-white/[0.06]">
+              <span className="text-[10px] text-white/30 uppercase tracking-wider font-semibold px-2">User Mgmt:</span>
+              <button onClick={() => setActiveTab("customers")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 ${activeTab === "customers" ? "bg-accent/20 text-accent border border-accent/30" : "text-white/40 hover:text-white/60 border border-transparent"}`}>
+                <UserCheck className="h-3.5 w-3.5" /> Customers
+              </button>
+              <button onClick={() => setActiveTab("credits")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 ${activeTab === "credits" ? "bg-amber-500/20 text-amber-400 border border-amber-500/30" : "text-white/40 hover:text-white/60 border border-transparent"}`}>
+                <Coins className="h-3.5 w-3.5" /> Credits
+              </button>
+            </div>
+          </div>
 
           <TabsContent value="dashboard"><EnhancedDashboard /></TabsContent>
           <TabsContent value="crm"><CRMAccountsTab /></TabsContent>
@@ -213,9 +226,11 @@ const Admin = () => {
               </CardContent>
             </Card>
           </TabsContent>
-          <TabsContent value="credits"><AdminCredits /></TabsContent>
           <TabsContent value="api"><AdminAPI /></TabsContent>
-          <TabsContent value="customers"><AdminCustomers /></TabsContent>
+
+          {/* User Management Section (outside main tabs) */}
+          {activeTab === "credits" && <AdminCredits />}
+          {activeTab === "customers" && <AdminCustomers />}
         </Tabs>
       </div>
 

@@ -50,23 +50,89 @@ serve(async (req) => {
     const { action, userId } = body;
     const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", { apiVersion: "2025-04-30.basil" });
 
-    // ─── LIST ALL CUSTOMERS ───
+    // ─── LIST ALL CUSTOMERS (batch-optimized) ───
     if (action === "list" || !action) {
-      logStep("Fetching all users");
-      const { data: profiles } = await supabaseAdmin.from("profiles").select("*").order("created_at", { ascending: false });
-      const { data: wallets } = await supabaseAdmin.from("wallets").select("*");
-      const { data: transactions } = await supabaseAdmin.from("wallet_transactions").select("user_id, amount, type, created_at").order("created_at", { ascending: false });
-      const { data: posts } = await supabaseAdmin.from("user_posts").select("user_id, id").limit(5000);
-      const { data: loginActs } = await supabaseAdmin.from("login_activity").select("user_id, login_at").order("login_at", { ascending: false }).limit(5000);
+      logStep("Fetching all users — batch mode");
 
+      // Batch fetch all data in parallel
+      const [profilesRes, walletsRes, txRes, postsRes, loginRes, packagesRes] = await Promise.all([
+        supabaseAdmin.from("profiles").select("*").order("created_at", { ascending: false }),
+        supabaseAdmin.from("wallets").select("*"),
+        supabaseAdmin.from("wallet_transactions").select("user_id, amount, type, created_at, description").order("created_at", { ascending: false }),
+        supabaseAdmin.from("user_posts").select("user_id, id").limit(5000),
+        supabaseAdmin.from("login_activity").select("user_id, login_at").order("login_at", { ascending: false }).limit(5000),
+        supabaseAdmin.from("credit_packages").select("credits, bonus_credits, price_cents").eq("is_active", true),
+      ]);
+
+      const profiles = profilesRes.data || [];
+      const wallets = walletsRes.data || [];
+      const transactions = txRes.data || [];
+      const posts = postsRes.data || [];
+      const loginActs = loginRes.data || [];
+      const packages = packagesRes.data || [];
+
+      // Build price-per-credit ratio from packages (avg cents per credit)
+      let avgCentsPerCredit = 0.5; // fallback
+      if (packages.length > 0) {
+        const totalCredits = packages.reduce((s, p) => s + p.credits + (p.bonus_credits || 0), 0);
+        const totalCents = packages.reduce((s, p) => s + p.price_cents, 0);
+        avgCentsPerCredit = totalCents / totalCredits;
+      }
+
+      // Batch Stripe: fetch all charges in one go (up to 100)
+      let stripeChargesByEmail: Record<string, { totalCents: number; count: number; lastCharge: string | null }> = {};
+      let stripeSubsByEmail: Record<string, { plan: string; status: string }> = {};
+      try {
+        // Fetch recent charges from Stripe in bulk
+        const allCharges = await stripe.charges.list({ limit: 100 });
+        for (const c of allCharges.data) {
+          if (!c.paid || c.refunded) continue;
+          const email = c.billing_details?.email || c.receipt_email || "";
+          if (!email) continue;
+          const key = email.toLowerCase();
+          if (!stripeChargesByEmail[key]) stripeChargesByEmail[key] = { totalCents: 0, count: 0, lastCharge: null };
+          stripeChargesByEmail[key].totalCents += c.amount;
+          stripeChargesByEmail[key].count += 1;
+          const chargeDate = new Date(c.created * 1000).toISOString();
+          if (!stripeChargesByEmail[key].lastCharge || chargeDate > stripeChargesByEmail[key].lastCharge!) {
+            stripeChargesByEmail[key].lastCharge = chargeDate;
+          }
+        }
+
+        // Fetch active subscriptions in bulk
+        const allSubs = await stripe.subscriptions.list({ status: "active", limit: 100 });
+        for (const s of allSubs.data) {
+          const email = (s.customer as any)?.email || "";
+          // Need to get customer email - fetch from customer object if string
+          let customerEmail = "";
+          if (typeof s.customer === "string") {
+            try {
+              const cust = await stripe.customers.retrieve(s.customer);
+              if (cust && !cust.deleted) customerEmail = (cust as any).email || "";
+            } catch {}
+          } else {
+            customerEmail = (s.customer as any)?.email || "";
+          }
+          if (!customerEmail) continue;
+          const productId = typeof s.items.data[0]?.price?.product === "string" ? s.items.data[0].price.product : "";
+          stripeSubsByEmail[customerEmail.toLowerCase()] = {
+            plan: PRODUCT_TO_PLAN[productId] || "Unknown",
+            status: s.status,
+          };
+        }
+      } catch (e) {
+        logStep("Stripe batch fetch warning", { error: String(e) });
+      }
+
+      // Build lookup maps
       const walletMap: Record<string, any> = {};
-      (wallets || []).forEach(w => { walletMap[w.user_id] = w; });
+      wallets.forEach(w => { walletMap[w.user_id] = w; });
 
-      const txMap: Record<string, { total_spent: number; purchase_count: number; last_purchase: string | null; first_purchase: string | null; credit_purchases: number[] }> = {};
-      (transactions || []).forEach(tx => {
+      const txMap: Record<string, { total_credits: number; purchase_count: number; last_purchase: string | null; first_purchase: string | null; credit_purchases: number[] }> = {};
+      transactions.forEach(tx => {
         if (tx.type !== "purchase") return;
-        if (!txMap[tx.user_id]) txMap[tx.user_id] = { total_spent: 0, purchase_count: 0, last_purchase: null, first_purchase: null, credit_purchases: [] };
-        txMap[tx.user_id].total_spent += tx.amount;
+        if (!txMap[tx.user_id]) txMap[tx.user_id] = { total_credits: 0, purchase_count: 0, last_purchase: null, first_purchase: null, credit_purchases: [] };
+        txMap[tx.user_id].total_credits += tx.amount;
         txMap[tx.user_id].purchase_count += 1;
         txMap[tx.user_id].credit_purchases.push(tx.amount);
         if (!txMap[tx.user_id].last_purchase || tx.created_at > txMap[tx.user_id].last_purchase!) txMap[tx.user_id].last_purchase = tx.created_at;
@@ -74,19 +140,34 @@ serve(async (req) => {
       });
 
       const postMap: Record<string, number> = {};
-      (posts || []).forEach(p => { postMap[p.user_id] = (postMap[p.user_id] || 0) + 1; });
+      posts.forEach(p => { postMap[p.user_id] = (postMap[p.user_id] || 0) + 1; });
 
       const lastLoginMap: Record<string, string> = {};
-      (loginActs || []).forEach(la => { if (!lastLoginMap[la.user_id]) lastLoginMap[la.user_id] = la.login_at; });
+      loginActs.forEach(la => { if (!lastLoginMap[la.user_id]) lastLoginMap[la.user_id] = la.login_at; });
 
-      const customers = (profiles || []).map(p => {
+      const customers = profiles.map(p => {
         const wallet = walletMap[p.user_id] || {};
         const txInfo = txMap[p.user_id] || {};
+        const email = (p.email || "").toLowerCase();
+        const stripeCharges = stripeChargesByEmail[email];
+        const stripeSub = stripeSubsByEmail[email];
         const daysSinceJoin = Math.max(1, Math.floor((Date.now() - new Date(p.created_at).getTime()) / 86400000));
-        const totalSpentDollars = (wallet.total_spent_cents || 0) / 100;
+
+        // LTV: prefer Stripe actual charges, fallback to estimated from credit purchases
+        let totalSpentDollars = 0;
+        if (stripeCharges) {
+          totalSpentDollars = stripeCharges.totalCents / 100;
+        } else if (txInfo.total_credits > 0) {
+          totalSpentDollars = (txInfo.total_credits * avgCentsPerCredit) / 100;
+        }
+
         const lastLogin = lastLoginMap[p.user_id];
         const daysSinceLastLogin = lastLogin ? Math.floor((Date.now() - new Date(lastLogin).getTime()) / 86400000) : 999;
-        const daysSinceLastPurchase = txInfo.last_purchase ? Math.floor((Date.now() - new Date(txInfo.last_purchase).getTime()) / 86400000) : 999;
+        const lastPurchaseOrCharge = stripeCharges?.lastCharge || txInfo.last_purchase;
+        const daysSinceLastPurchase = lastPurchaseOrCharge ? Math.floor((Date.now() - new Date(lastPurchaseOrCharge).getTime()) / 86400000) : 999;
+
+        // Current plan from Stripe
+        const currentPlan = stripeSub?.plan || "Free";
 
         // Engagement score (0-100)
         const loginRecency = daysSinceLastLogin < 1 ? 30 : daysSinceLastLogin < 3 ? 25 : daysSinceLastLogin < 7 ? 20 : daysSinceLastLogin < 14 ? 10 : daysSinceLastLogin < 30 ? 5 : 0;
@@ -96,10 +177,11 @@ serve(async (req) => {
         const engagementScore = Math.min(100, Math.round(loginRecency + postActivity + purchaseRecency + spendDepth));
 
         // Spender score (0-100)
+        const purchaseCount = stripeCharges?.count || txInfo.purchase_count || 0;
         const spenderScore = Math.min(100, Math.round(
           (Math.min(totalSpentDollars, 500) / 500) * 40 +
-          (Math.min(txInfo.purchase_count || 0, 10) / 10) * 30 +
-          (txInfo.last_purchase ? (Date.now() - new Date(txInfo.last_purchase).getTime() < 604800000 ? 30 : Date.now() - new Date(txInfo.last_purchase).getTime() < 2592000000 ? 15 : 0) : 0)
+          (Math.min(purchaseCount, 10) / 10) * 30 +
+          (lastPurchaseOrCharge ? (Date.now() - new Date(lastPurchaseOrCharge).getTime() < 604800000 ? 30 : Date.now() - new Date(lastPurchaseOrCharge).getTime() < 2592000000 ? 15 : 0) : 0)
         ));
 
         // Churn risk
@@ -107,9 +189,6 @@ serve(async (req) => {
         if (daysSinceLastLogin > 60 || daysSinceLastPurchase > 90) churnRisk = "Critical";
         else if (daysSinceLastLogin > 30 || daysSinceLastPurchase > 60) churnRisk = "High";
         else if (daysSinceLastLogin > 14 || daysSinceLastPurchase > 30) churnRisk = "Medium";
-
-        // Avg order value
-        const avgPurchaseCredits = txInfo.purchase_count > 0 ? (txInfo.total_spent || 0) / txInfo.purchase_count : 0;
 
         // Purchase trend
         const purchases = txInfo.credit_purchases || [];
@@ -123,19 +202,24 @@ serve(async (req) => {
           else if (recentAvg < olderAvg * 0.7) purchaseTrend = "decreasing";
         }
 
+        const monthlyVelocity = totalSpentDollars / (daysSinceJoin / 30);
+        const purchaseFrequency = purchaseCount / Math.max(1, daysSinceJoin / 30);
+
         return {
           user_id: p.user_id, email: p.email, display_name: p.display_name, username: p.username,
           avatar_url: p.avatar_url, created_at: p.created_at, account_status: p.account_status || "active",
           credit_balance: wallet.balance || 0, total_purchased_credits: wallet.total_purchased || 0,
-          purchase_count: wallet.purchase_count || 0, total_spent_cents: wallet.total_spent_cents || 0,
-          tx_purchase_count: txInfo.purchase_count || 0, tx_total_credits: txInfo.total_spent || 0,
-          last_purchase: txInfo.last_purchase, first_purchase: txInfo.first_purchase,
-          ltv: totalSpentDollars, avg_order_value: txInfo.purchase_count > 0 ? totalSpentDollars / txInfo.purchase_count : 0,
-          days_since_join: daysSinceJoin, monthly_velocity: totalSpentDollars / (daysSinceJoin / 30),
+          purchase_count: purchaseCount, total_spent_cents: Math.round(totalSpentDollars * 100),
+          tx_purchase_count: txInfo.purchase_count || 0, tx_total_credits: txInfo.total_credits || 0,
+          last_purchase: lastPurchaseOrCharge || null, first_purchase: txInfo.first_purchase || null,
+          ltv: totalSpentDollars, avg_order_value: purchaseCount > 0 ? totalSpentDollars / purchaseCount : 0,
+          days_since_join: daysSinceJoin, monthly_velocity: monthlyVelocity,
           spender_score: spenderScore, engagement_score: engagementScore, churn_risk: churnRisk,
           last_login: lastLogin || null, days_since_last_login: daysSinceLastLogin,
-          post_count: postMap[p.user_id] || 0, avg_purchase_credits: avgPurchaseCredits,
+          post_count: postMap[p.user_id] || 0, avg_purchase_credits: txInfo.purchase_count > 0 ? (txInfo.total_credits || 0) / txInfo.purchase_count : 0,
           purchase_trend: purchaseTrend, follower_count: p.follower_count || 0,
+          current_plan: currentPlan, purchase_frequency: purchaseFrequency,
+          projected_annual: monthlyVelocity * 12,
         };
       });
 
@@ -146,25 +230,24 @@ serve(async (req) => {
     if (action === "ai_analysis" && userId) {
       logStep("AI behavioral analysis", { userId });
 
-      // Gather all data for this user
       const { data: profile } = await supabaseAdmin.from("profiles").select("*").eq("user_id", userId).single();
       const { data: wallet } = await supabaseAdmin.from("wallets").select("*").eq("user_id", userId).single();
       const { data: transactions } = await supabaseAdmin.from("wallet_transactions").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(100);
       const { data: logins } = await supabaseAdmin.from("login_activity").select("*").eq("user_id", userId).order("login_at", { ascending: false }).limit(30);
       const { data: posts } = await supabaseAdmin.from("user_posts").select("id, content, like_count, comment_count, created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(20);
 
-      // Stripe data
       let stripeInfo = "No Stripe data.";
       if (profile?.email) {
         try {
           const customers = await stripe.customers.list({ email: profile.email, limit: 1 });
           if (customers.data.length > 0) {
             const cid = customers.data[0].id;
-            const subs = await stripe.subscriptions.list({ customer: cid, limit: 5 });
-            const charges = await stripe.charges.list({ customer: cid, limit: 30 });
+            const [subs, charges] = await Promise.all([
+              stripe.subscriptions.list({ customer: cid, limit: 5 }),
+              stripe.charges.list({ customer: cid, limit: 30 }),
+            ]);
             const activeSub = subs.data.find(s => s.status === "active");
             const totalCharged = charges.data.filter(c => c.paid && !c.refunded).reduce((sum, c) => sum + c.amount, 0);
-
             let plan = "Free";
             if (activeSub) {
               const productId = typeof activeSub.items.data[0].price.product === "string" ? activeSub.items.data[0].price.product : "";
@@ -186,7 +269,7 @@ CUSTOMER DATA:
 - Joined: ${profile?.created_at}, Account Status: ${profile?.account_status || "active"}
 - Followers: ${profile?.follower_count || 0}, Posts: ${profile?.post_count || 0}
 - Credit Balance: ${wallet?.balance || 0}, Total Purchased: ${wallet?.total_purchased || 0}
-- Total Spent: $${((wallet?.total_spent_cents || 0) / 100).toFixed(2)}, Purchase Count: ${wallet?.purchase_count || 0}
+- Purchase Count: ${wallet?.purchase_count || 0}
 - ${stripeInfo}
 
 RECENT TRANSACTIONS: ${txSummary || "None"}
@@ -305,12 +388,17 @@ Provide your analysis in this exact JSON structure:
           if (customers.data.length > 0) {
             const customerId = customers.data[0].id;
             const stripeCustomer = customers.data[0];
-            const subs = await stripe.subscriptions.list({ customer: customerId, limit: 10 });
+            const [subsRes, chargesRes, invoicesRes] = await Promise.all([
+              stripe.subscriptions.list({ customer: customerId, limit: 10 }),
+              stripe.charges.list({ customer: customerId, limit: 50 }),
+              stripe.invoices.list({ customer: customerId, limit: 20 }),
+            ]);
+            const subs = subsRes;
+            const charges = chargesRes;
+            const invoices = invoicesRes;
             const activeSub = subs.data.find(s => s.status === "active");
-            const charges = await stripe.charges.list({ customer: customerId, limit: 50 });
             const totalCharged = charges.data.filter(c => c.paid && !c.refunded).reduce((sum, c) => sum + c.amount, 0);
             const refunded = charges.data.filter(c => c.refunded).reduce((sum, c) => sum + (c.amount_refunded || 0), 0);
-            const invoices = await stripe.invoices.list({ customer: customerId, limit: 20 });
 
             let currentPlan = "Free", planInterval = "", subscriptionEnd = "", subscriptionStart = "";
             if (activeSub) {
@@ -384,6 +472,7 @@ Provide your analysis in this exact JSON structure:
           purchase_frequency: Math.round(purchaseFrequency * 100) / 100,
           days_since_join: daysSinceJoin, days_since_last_charge: daysSinceLastCharge,
           spender_tier: spenderTier, churn_risk: churnRisk,
+          current_plan: stripeData?.current_plan || "Free",
         },
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
@@ -408,7 +497,6 @@ Provide your analysis in this exact JSON structure:
       }
 
       if (adminAction === "delete") {
-        // Soft delete - mark as deleted
         await supabaseAdmin.from("profiles").update({
           account_status: "deleted", status_reason: reason || "Deleted by admin",
           status_updated_at: new Date().toISOString(),
@@ -426,7 +514,6 @@ Provide your analysis in this exact JSON structure:
       if (adminAction === "grant_credits") {
         const { amount: creditAmount } = actionData || {};
         if (creditAmount && creditAmount > 0) {
-          // Update wallet
           const { data: w } = await supabaseAdmin.from("wallets").select("balance").eq("user_id", userId).single();
           await supabaseAdmin.from("wallets").update({ balance: (w?.balance || 0) + creditAmount }).eq("user_id", userId);
           await supabaseAdmin.from("wallet_transactions").insert({
@@ -454,7 +541,6 @@ Provide your analysis in this exact JSON structure:
         await supabaseAdmin.from("profiles").update({ admin_notes: notes }).eq("user_id", userId);
       }
 
-      // Log the action
       await supabaseAdmin.from("admin_user_actions").insert({
         target_user_id: userId, action_type: adminAction, performed_by: user.id,
         reason: reason || null, metadata: actionData || {},
