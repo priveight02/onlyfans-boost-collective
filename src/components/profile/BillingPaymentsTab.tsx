@@ -428,7 +428,7 @@ const BillingPaymentsTab = () => {
                     </div>
                   </div>
                   <DialogTitle className="text-center text-white text-lg">
-                    Wait — We Have Something Special! 🎁
+                    Wait — We Have Something Special!
                   </DialogTitle>
                   <DialogDescription className="text-center text-white/50 text-sm mt-2">
                     We'd hate to see you go. As a valued member, we'd like to offer you an exclusive deal.
@@ -438,7 +438,6 @@ const BillingPaymentsTab = () => {
                 <div className="my-6 rounded-xl bg-gradient-to-br from-purple-500/10 to-pink-500/10 border border-purple-500/20 p-5">
                   <div className="text-center mb-4">
                     <div className="inline-flex items-center gap-2 bg-purple-500/20 rounded-full px-4 py-1.5 mb-3">
-                      <Sparkles className="h-4 w-4 text-purple-300" />
                       <span className="text-purple-200 font-bold text-sm">EXCLUSIVE OFFER</span>
                     </div>
                     <h3 className="text-3xl font-black text-white mb-1">
