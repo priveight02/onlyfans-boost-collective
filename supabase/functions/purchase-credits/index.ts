@@ -104,6 +104,7 @@ serve(async (req) => {
       logStep("Custom credits mode", { customCredits });
 
       const volumeDiscount = getVolumeDiscount(customCredits);
+      const volumeDiscountPercent = Math.round(volumeDiscount * 100);
       const pricePerCredit = BASE_PRICE_PER_CREDIT_CENTS * (1 - volumeDiscount);
       let totalCents = Math.round(customCredits * pricePerCredit);
 
@@ -112,24 +113,53 @@ serve(async (req) => {
         totalCents = Math.round(totalCents * (1 - returningDiscountPercent / 100));
       }
 
-      logStep("Price calculated", { volumeDiscount: `${Math.round(volumeDiscount * 100)}%`, returningDiscount: `${returningDiscountPercent}%`, totalCents });
+      logStep("Price calculated", { volumeDiscount: `${volumeDiscountPercent}%`, returningDiscount: `${returningDiscountPercent}%`, totalCents });
 
-      const product = await stripe.products.create({
-        name: `${customCredits.toLocaleString()} Credits${volumeDiscount > 0 ? ` (${Math.round(volumeDiscount * 100)}% vol.)` : ''}${returningDiscountPercent > 0 ? ` + ${returningDiscountPercent}% loyalty` : ''}`,
-        images: [CUSTOM_CREDITS_IMAGE],
-        metadata: { type: 'custom_credits', credits: String(customCredits) },
-      });
+      // Check for cached product/price in database
+      let checkoutPriceId: string;
+      const { data: cached } = await supabaseAdmin
+        .from("custom_credit_products")
+        .select("stripe_price_id, unit_amount_cents")
+        .eq("credits", customCredits)
+        .eq("volume_discount_percent", volumeDiscountPercent)
+        .single();
 
-      const price = await stripe.prices.create({
-        product: product.id,
-        unit_amount: totalCents,
-        currency: 'usd',
-      });
+      if (cached && cached.unit_amount_cents === totalCents) {
+        // Reuse existing Stripe product/price
+        checkoutPriceId = cached.stripe_price_id;
+        logStep("Using cached custom product", { priceId: checkoutPriceId });
+      } else {
+        // Create new Stripe product + price and cache it
+        const product = await stripe.products.create({
+          name: `${customCredits.toLocaleString()} Credits${volumeDiscount > 0 ? ` (${volumeDiscountPercent}% vol.)` : ''}`,
+          images: [CUSTOM_CREDITS_IMAGE],
+          metadata: { type: 'custom_credits', credits: String(customCredits) },
+        });
+
+        const price = await stripe.prices.create({
+          product: product.id,
+          unit_amount: totalCents,
+          currency: 'usd',
+        });
+
+        checkoutPriceId = price.id;
+
+        // Cache in database (upsert on unique constraint)
+        await supabaseAdmin.from("custom_credit_products").upsert({
+          credits: customCredits,
+          volume_discount_percent: volumeDiscountPercent,
+          stripe_product_id: product.id,
+          stripe_price_id: price.id,
+          unit_amount_cents: totalCents,
+        }, { onConflict: "credits,volume_discount_percent" });
+
+        logStep("Created & cached new custom product", { productId: product.id, priceId: price.id });
+      }
 
       const session = await stripe.checkout.sessions.create({
         customer: customerId,
         customer_email: customerId ? undefined : user.email,
-        line_items: [{ price: price.id, quantity: 1 }],
+        line_items: [{ price: checkoutPriceId, quantity: 1 }],
         mode: "payment",
         success_url: `${origin}/pricing?success=true&credits=${customCredits}`,
         cancel_url: `${origin}/pricing?canceled=true`,
