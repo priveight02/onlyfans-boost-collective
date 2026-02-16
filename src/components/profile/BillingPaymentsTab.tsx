@@ -105,11 +105,19 @@ const BillingPaymentsTab = () => {
   const handleManageSubscription = () => {
     if (!subscription) return;
     if (eligibleForRetention) {
-      // Show retention offer before allowing cancel
       setRetentionStep("offer");
       setShowRetentionDialog(true);
     } else {
-      // Not eligible for retention, go straight to portal for cancellation
+      handleOpenPortalDirect();
+    }
+  };
+
+  const handleCancelSubscription = () => {
+    if (!subscription) return;
+    if (eligibleForRetention) {
+      setRetentionStep("offer");
+      setShowRetentionDialog(true);
+    } else {
       handleProceedToCancel();
     }
   };
@@ -234,7 +242,7 @@ const BillingPaymentsTab = () => {
             {/* Actions */}
             <div className="flex items-center gap-3 pt-2">
               <Button
-                onClick={handleOpenPortalDirect}
+                onClick={handleManageSubscription}
                 disabled={redirectingToPortal}
                 className="bg-[hsl(222,25%,18%)] hover:bg-[hsl(222,25%,22%)] text-white border border-white/10 text-sm h-9 px-4"
               >
@@ -242,7 +250,7 @@ const BillingPaymentsTab = () => {
                 Manage Subscription
               </Button>
               <Button
-                onClick={handleManageSubscription}
+                onClick={handleCancelSubscription}
                 variant="ghost"
                 className="text-red-400/60 hover:text-red-300 hover:bg-red-500/[0.06] text-sm h-9 px-4"
               >
