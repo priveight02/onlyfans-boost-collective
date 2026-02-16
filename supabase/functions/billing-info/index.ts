@@ -57,11 +57,26 @@ serve(async (req) => {
     };
     const customers = await stripe.customers.list({ email: userData.user.email, limit: 1 });
 
+    // Check admin plan override from profiles BEFORE early return
+    let adminPlanOverride: string | null = null;
+    try {
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("admin_notes")
+        .eq("user_id", userData.user.id)
+        .single();
+      if (profileData?.admin_notes) {
+        const match = profileData.admin_notes.match(/\[PLAN_OVERRIDE\]\s*(\w+)/);
+        if (match) adminPlanOverride = match[1].toLowerCase();
+      }
+    } catch {}
+
     if (customers.data.length === 0) {
       return new Response(JSON.stringify({
         subscription: null,
         payments: [],
         eligible_for_retention: false,
+        admin_plan_override: adminPlanOverride,
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
@@ -101,19 +116,7 @@ serve(async (req) => {
       });
     }
 
-    // Check admin plan override from profiles
-    let adminPlanOverride: string | null = null;
-    try {
-      const { data: profileData } = await supabase
-        .from("profiles")
-        .select("admin_notes")
-        .eq("user_id", userData.user.id)
-        .single();
-      if (profileData?.admin_notes) {
-        const match = profileData.admin_notes.match(/\[PLAN_OVERRIDE\]\s*(\w+)/);
-        if (match) adminPlanOverride = match[1].toLowerCase();
-      }
-    } catch {}
+    // adminPlanOverride already fetched above
 
     // Get subscription — include active AND canceled-but-not-yet-expired
     const activeSubs = await stripe.subscriptions.list({ customer: customerId, status: "active", limit: 1 });
