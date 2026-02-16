@@ -1680,17 +1680,25 @@ const AdminCustomers = () => {
                   </div>
                   <p className="text-xs text-white/30 truncate">@{c.username} · {c.email}</p>
                 </div>
-                <div className="hidden md:flex items-center gap-4 flex-shrink-0">
+                <div className="hidden md:flex items-center gap-5 flex-shrink-0">
                   <div className="text-right">
-                    <p className="text-xs text-white/30">Balance</p>
+                    <p className="text-[10px] text-white/30">Balance</p>
                     <p className="text-sm font-bold text-amber-400">{c.credit_balance.toLocaleString()}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-xs text-white/30">LTV</p>
+                    <p className="text-[10px] text-white/30">Purchased</p>
+                    <p className="text-xs font-semibold text-emerald-400">{c.total_purchased_credits.toLocaleString()}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[10px] text-white/30">Granted</p>
+                    <p className="text-xs font-semibold text-purple-400">{(c.granted_credits || 0).toLocaleString()}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[10px] text-white/30">LTV</p>
                     <p className="text-sm font-bold text-emerald-400">${c.ltv.toFixed(0)}</p>
                   </div>
                   <div className="w-16">
-                    <p className="text-xs text-white/30">Spender</p>
+                    <p className="text-[10px] text-white/30">Spender</p>
                     <div className="flex items-center gap-1">
                       <div className="flex-1 h-1.5 rounded-full bg-white/5"><div className={`h-full rounded-full ${c.spender_score >= 70 ? "bg-emerald-500" : c.spender_score >= 40 ? "bg-amber-500" : "bg-white/20"}`} style={{ width: `${c.spender_score}%` }} /></div>
                       <span className="text-[10px] text-white/40">{c.spender_score}</span>

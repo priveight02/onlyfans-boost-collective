@@ -152,6 +152,19 @@ const PlanCreditsTab = () => {
         body: { action: "info" },
       });
       if (error || !data) return;
+
+      // Admin plan override takes priority over everything
+      if (data.admin_plan_override) {
+        const overridePlan = data.admin_plan_override.toLowerCase();
+        if (["starter", "pro", "business"].includes(overridePlan)) {
+          setActivePlanId(overridePlan);
+          return;
+        } else if (overridePlan === "free") {
+          setActivePlanId(null);
+          return;
+        }
+      }
+
       if (data.subscription) {
         const priceId = data.subscription.price_id;
         const productId = data.subscription.product_id;
@@ -166,7 +179,6 @@ const PlanCreditsTab = () => {
           }
         }
         if (!found) {
-          // Fallback: still mark as having a subscription so we don't show Free
           console.warn("Unknown subscription product/price", { priceId, productId });
         }
       } else {
