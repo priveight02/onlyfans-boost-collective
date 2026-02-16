@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/hooks/useAuth";
 import { useWallet } from "@/hooks/useWallet";
+import { usePaddle, PADDLE_PLAN_MAP, PADDLE_PRODUCT_TO_PLAN } from "@/hooks/usePaddle";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -23,31 +24,7 @@ interface CreditPackage {
   sort_order: number;
 }
 
-// Plans definition — these match your Stripe products
-const PLAN_STRIPE_MAP: Record<string, { monthly: { price_id: string; product_id: string }; yearly: { price_id: string; product_id: string } }> = {
-  starter: {
-    monthly: { price_id: "price_1T1CVAP8Id8IBpd0heXxbsUk", product_id: "prod_TzAqP0zH90vzyR" },
-    yearly:  { price_id: "price_1T1CcdP8Id8IBpd0AppiCEdo", product_id: "prod_TzAypr06as419B" },
-  },
-  pro: {
-    monthly: { price_id: "price_1T1CVfP8Id8IBpd0B8EfZeGR", product_id: "prod_TzArZUF2DIlzHq" },
-    yearly:  { price_id: "price_1T1CcuP8Id8IBpd0X5c5Nqbs", product_id: "prod_TzAywFFZ0SdhfZ" },
-  },
-  business: {
-    monthly: { price_id: "price_1T1CVpP8Id8IBpd07EYina3g", product_id: "prod_TzAram9it2Kedf" },
-    yearly:  { price_id: "price_1T1Cd3P8Id8IBpd0Ds2Y7HoM", product_id: "prod_TzAzgoteaSHuDB" },
-  },
-};
-
-// Test mode price → live price reverse mapping (so we can match test subscriptions to plans)
-const TEST_TO_LIVE_SUB_PRICE: Record<string, string> = {
-  "price_1T1EyGP8Id8IBpd0tNAn9MrU": "price_1T1CVAP8Id8IBpd0heXxbsUk", // starter monthly
-  "price_1T1EyRP8Id8IBpd0T0nuzf8K": "price_1T1CcdP8Id8IBpd0AppiCEdo", // starter yearly
-  "price_1T1EybP8Id8IBpd0G6zKzoSS": "price_1T1CVfP8Id8IBpd0B8EfZeGR", // pro monthly
-  "price_1T1EymP8Id8IBpd0nJZGVBlM": "price_1T1CcuP8Id8IBpd0X5c5Nqbs", // pro yearly
-  "price_1T1Ez2P8Id8IBpd0SjMOkzvg": "price_1T1CVpP8Id8IBpd07EYina3g", // business monthly
-  "price_1T1EzDP8Id8IBpd0VOZZoLYG": "price_1T1Cd3P8Id8IBpd0Ds2Y7HoM", // business yearly
-};
+// Plans definition — these match your Paddle products (imported from usePaddle)
 
 const PLANS = [
   {
@@ -134,6 +111,7 @@ const PREDEFINED_TOPUPS = [100, 200, 300, 500, 800, 1000, 1500, 2000, 3000, 5000
 const PlanCreditsTab = () => {
   const { user } = useAuth();
   const { balance, purchaseCount, totalPurchased, totalSpent, loading: walletLoading, refreshWallet } = useWallet();
+  const { openCheckout } = usePaddle();
   const [packages, setPackages] = useState<CreditPackage[]>([]);
   const [loadingPackages, setLoadingPackages] = useState(true);
   const [showTopUpDialog, setShowTopUpDialog] = useState(false);
@@ -159,23 +137,24 @@ const PlanCreditsTab = () => {
       });
       if (error || !data) return;
       if (data.subscription) {
-        const priceId = data.subscription.price_id;
         const productId = data.subscription.product_id;
-        // Normalize test price to live price for matching
-        const normalizedPriceId = TEST_TO_LIVE_SUB_PRICE[priceId] || priceId;
-        // Match price_id to our plan IDs
-        let found = false;
-        for (const [planId, info] of Object.entries(PLAN_STRIPE_MAP)) {
-          if (info.monthly.price_id === normalizedPriceId || info.yearly.price_id === normalizedPriceId ||
-              info.monthly.product_id === productId || info.yearly.product_id === productId) {
-            setActivePlanId(planId);
-            found = true;
-            break;
+        // Match product_id to our plan IDs using Paddle mapping
+        const matchedPlan = PADDLE_PRODUCT_TO_PLAN[productId];
+        if (matchedPlan) {
+          setActivePlanId(matchedPlan);
+        } else {
+          // Fallback: try matching via PADDLE_PLAN_MAP
+          let found = false;
+          for (const [planId, info] of Object.entries(PADDLE_PLAN_MAP)) {
+            if (info.monthly.product_id === productId || info.yearly.product_id === productId) {
+              setActivePlanId(planId);
+              found = true;
+              break;
+            }
           }
-        }
-        if (!found) {
-          // Fallback: still mark as having a subscription so we don't show Free
-          console.warn("Unknown subscription product/price", { priceId, productId });
+          if (!found) {
+            console.warn("Unknown subscription product", { productId });
+          }
         }
       } else {
         setActivePlanId(null);
@@ -243,8 +222,8 @@ const PlanCreditsTab = () => {
 
   const handleUpgrade = async (planId: string) => {
     if (!user) { toast.error("Please log in first"); return; }
-    const stripeInfo = PLAN_STRIPE_MAP[planId];
-    if (!stripeInfo) {
+    const paddleInfo = PADDLE_PLAN_MAP[planId];
+    if (!paddleInfo) {
       // Enterprise — open contact
       window.location.href = "mailto:contact@ozcagency.com?subject=Enterprise Plan Inquiry";
       return;
@@ -252,9 +231,8 @@ const PlanCreditsTab = () => {
     setUpgradingPlan(planId);
     try {
       const cycle = billingCycle === "yearly" ? "yearly" : "monthly";
-      const priceId = stripeInfo[cycle].price_id;
       const { data, error } = await supabase.functions.invoke("create-checkout", {
-        body: { priceId, planId, billingCycle: cycle, currentPlanId: activePlanId || "free" },
+        body: { planId, billingCycle: cycle },
       });
       if (error) throw error;
 
@@ -273,8 +251,20 @@ const PlanCreditsTab = () => {
         return;
       }
 
-      // New subscription — redirect to Stripe checkout
-      if (data?.url) window.open(data.url, "_blank");
+      // New subscription — open Paddle overlay checkout
+      if (data?.checkout) {
+        openCheckout({
+          priceId: data.priceId,
+          customerId: data.customerId,
+          customerEmail: data.customerEmail,
+          customData: data.metadata,
+          onSuccess: () => {
+            fetchSubscription();
+            refreshWallet();
+            toast.success("Subscription activated! Credits have been added.");
+          },
+        });
+      }
     } catch (err: any) {
       toast.error(err.message || "Failed to start checkout");
     } finally {
@@ -303,7 +293,16 @@ const PlanCreditsTab = () => {
         body: { packageId: pkg.id },
       });
       if (error) throw error;
-      if (data?.url) window.open(data.url, "_blank");
+      if (data?.checkout) {
+        openCheckout({
+          priceId: data.priceId,
+          customerId: data.customerId,
+          customerEmail: data.customerEmail,
+          discountId: data.discountId,
+          customData: data.metadata,
+          onSuccess: () => { refreshWallet(); },
+        });
+      }
     } catch (err: any) {
       toast.error(err.message || "Failed to start checkout");
     } finally {
@@ -320,7 +319,16 @@ const PlanCreditsTab = () => {
         body: { customCredits: credits },
       });
       if (error) throw error;
-      if (data?.url) window.open(data.url, "_blank");
+      if (data?.checkout) {
+        openCheckout({
+          priceId: data.priceId,
+          customerId: data.customerId,
+          customerEmail: data.customerEmail,
+          discountId: data.discountId,
+          customData: data.metadata,
+          onSuccess: () => { refreshWallet(); },
+        });
+      }
     } catch (err: any) {
       toast.error(err.message || "Failed to start checkout");
     } finally {

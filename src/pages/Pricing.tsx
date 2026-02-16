@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useWallet } from "@/hooks/useWallet";
+import { usePaddle } from "@/hooks/usePaddle";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Check, ArrowRight, Sparkles, BadgePercent, ShieldCheck, Zap, Gift } from "lucide-react";
@@ -36,6 +37,7 @@ const getVolumeDiscount = (credits: number): number => {
 const Pricing = () => {
   const { user } = useAuth();
   const { balance, purchaseCount, refreshWallet } = useWallet();
+  const { openCheckout } = usePaddle();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [packages, setPackages] = useState<CreditPackage[]>([]);
@@ -130,7 +132,16 @@ const Pricing = () => {
         body: { packageId: pkg.id, useRetentionDiscount: useRetention },
       });
       if (error) throw error;
-      if (data?.url) window.open(data.url, "_blank");
+      if (data?.checkout) {
+        openCheckout({
+          priceId: data.priceId,
+          customerId: data.customerId,
+          customerEmail: data.customerEmail,
+          discountId: data.discountId,
+          customData: data.metadata,
+          onSuccess: () => { refreshWallet(); },
+        });
+      }
       if (useRetention) {
         setRetentionActive(false);
         setRetentionUsed(true);
@@ -151,7 +162,16 @@ const Pricing = () => {
         body: { customCredits },
       });
       if (error) throw error;
-      if (data?.url) window.open(data.url, "_blank");
+      if (data?.checkout) {
+        openCheckout({
+          priceId: data.priceId,
+          customerId: data.customerId,
+          customerEmail: data.customerEmail,
+          discountId: data.discountId,
+          customData: data.metadata,
+          onSuccess: () => { refreshWallet(); },
+        });
+      }
     } catch (err: any) {
       toast.error(err.message || "Failed to start checkout");
     } finally {
