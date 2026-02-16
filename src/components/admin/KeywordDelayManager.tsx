@@ -19,6 +19,7 @@ import {
   MessageSquare, Image, Video, FileText,
 } from "lucide-react";
 import CreditCostBadge from "./CreditCostBadge";
+import { useCreditAction } from "@/hooks/useCreditAction";
 
 interface KeywordDelay {
   id: string;
@@ -65,6 +66,7 @@ const KeywordDelayManager = ({ accountId }: KeywordDelayManagerProps) => {
   const [expanded, setExpanded] = useState(false);
   const [adding, setAdding] = useState(false);
   const [saving, setSaving] = useState(false);
+  const { performAction } = useCreditAction();
 
   // New rule form
   const [newKeyword, setNewKeyword] = useState("");

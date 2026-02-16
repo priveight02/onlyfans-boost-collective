@@ -13,10 +13,12 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import CreditCostBadge from "./CreditCostBadge";
+import { useCreditAction } from "@/hooks/useCreditAction";
 import { useAuth } from "@/hooks/useAuth";
 
 const IntranetChat = () => {
   const { user } = useAuth();
+  const { performAction } = useCreditAction();
   const [rooms, setRooms] = useState<any[]>([]);
   const [members, setMembers] = useState<any[]>([]);
   const [teamMembers, setTeamMembers] = useState<any[]>([]);
@@ -85,27 +87,29 @@ const IntranetChat = () => {
 
   const handleCreateRoom = async () => {
     if (!roomForm.name) return toast.error("Room name required");
-    const { data, error } = await supabase.from("chat_rooms").insert({
-      name: roomForm.name,
-      room_type: roomForm.room_type,
-      created_by: user?.id,
-    }).select().single();
-    if (error) return toast.error("Failed to create room");
+    await performAction('create_chat_room', async () => {
+      const { data, error } = await supabase.from("chat_rooms").insert({
+        name: roomForm.name,
+        room_type: roomForm.room_type,
+        created_by: user?.id,
+      }).select().single();
+      if (error) throw error;
 
-    // Add selected members
-    if (selectedMembers.length > 0) {
-      const memberInserts = selectedMembers.map((tmId) => ({ room_id: data.id, team_member_id: tmId, user_id: null }));
-      await supabase.from("chat_room_members").insert(memberInserts);
-    }
-    // Add self
-    await supabase.from("chat_room_members").insert({ room_id: data.id, user_id: user?.id, team_member_id: null });
+      // Add selected members
+      if (selectedMembers.length > 0) {
+        const memberInserts = selectedMembers.map((tmId) => ({ room_id: data.id, team_member_id: tmId, user_id: null }));
+        await supabase.from("chat_room_members").insert(memberInserts);
+      }
+      // Add self
+      await supabase.from("chat_room_members").insert({ room_id: data.id, user_id: user?.id, team_member_id: null });
 
-    toast.success("Room created!");
-    setShowCreateRoom(false);
-    setRoomForm({ name: "", room_type: "group" });
-    setSelectedMembers([]);
-    loadRooms();
-    setSelectedRoom(data);
+      toast.success("Room created!");
+      setShowCreateRoom(false);
+      setRoomForm({ name: "", room_type: "group" });
+      setSelectedMembers([]);
+      loadRooms();
+      setSelectedRoom(data);
+    });
   };
 
   const handleSendMessage = async () => {
