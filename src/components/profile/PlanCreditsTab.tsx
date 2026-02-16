@@ -1,26 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Coins, Layers, Zap, Star, Check, ArrowRight, Sparkles, Plus, Minus, CreditCard, TrendingUp, ArrowUpRight, ShieldAlert } from "lucide-react";
-import planStarterCoins from "@/assets/plan-starter-coins.png";
-import planProCoins from "@/assets/plan-pro-coins.png";
-import planBusinessCoins from "@/assets/plan-business-coins.png";
-import creditsStarter from "@/assets/credits-starter.png";
-import creditsPro from "@/assets/credits-pro.png";
-import creditsStudio from "@/assets/credits-studio.png";
-import creditsPower from "@/assets/credits-power.png";
-
-const PLAN_IMAGES: Record<string, string> = {
-  starter: planStarterCoins,
-  pro: planProCoins,
-  business: planBusinessCoins,
-};
-
-const PACKAGE_IMAGES: Record<string, string> = {
-  "Starter": creditsStarter,
-  "Pro": creditsPro,
-  "Studio": creditsStudio,
-  "Power User": creditsPower,
-};
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -457,11 +437,6 @@ const PlanCreditsTab = () => {
                     Most Popular
                   </Badge>
                 )}
-                {PLAN_IMAGES[plan.id] && (
-                  <div className="flex justify-center mb-3">
-                    <img src={PLAN_IMAGES[plan.id]} alt={plan.name} className="h-16 w-16 object-contain" />
-                  </div>
-                )}
                 <h3 className="text-white font-bold text-lg mb-0.5">{plan.name}</h3>
                 <p className="text-white/40 text-sm mb-3">
                   {plan.credits_per_month ? `${plan.credits_per_month.toLocaleString()} credits/month` : "Custom allocation"}
@@ -577,11 +552,6 @@ const PlanCreditsTab = () => {
                 )}
 
                 <div className="flex-1 min-w-0">
-                  {PACKAGE_IMAGES[pkg.name] && (
-                    <div className="flex justify-center mb-2">
-                      <img src={PACKAGE_IMAGES[pkg.name]} alt={pkg.name} className="h-12 w-12 object-contain" />
-                    </div>
-                  )}
                   <h3 className="text-white/90 font-semibold text-sm mb-2">{pkg.name}</h3>
 
                   <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
