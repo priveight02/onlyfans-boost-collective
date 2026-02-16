@@ -9,20 +9,20 @@ const corsHeaders = {
 
 // Pro and Business product IDs (monthly + yearly)
 const ELIGIBLE_PRODUCT_IDS = [
-  "prod_TzRg6tvanQWkyW",  // pro monthly
-  "prod_TzRhV74aOMLdYQ",  // pro yearly
-  "prod_TzRiKIs7vwe9gD",  // business monthly
-  "prod_TzRkvTVWaGWgCp",  // business yearly
+  "prod_TzUHWAwfmPq4tb",  // pro monthly
+  "prod_TzUHaVlxICCGRQ",  // pro yearly
+  "prod_TzUHPwUI3oNubJ",  // business monthly
+  "prod_TzUHnPtQRoRlVA",  // business yearly
 ];
 
 // Product ID → human-readable plan name
 const PRODUCT_NAME_MAP: Record<string, string> = {
-  "prod_TzRgEeRDcQGUHO": "Starter (Monthly)",
-  "prod_TzRgDinqZCjhkj": "Starter (Yearly)",
-  "prod_TzRg6tvanQWkyW": "Pro (Monthly)",
-  "prod_TzRhV74aOMLdYQ": "Pro (Yearly)",
-  "prod_TzRiKIs7vwe9gD": "Business (Monthly)",
-  "prod_TzRkvTVWaGWgCp": "Business (Yearly)",
+  "prod_TzUHCCIizN6I7f": "Starter (Monthly)",
+  "prod_TzUH8Mt50ljrdU": "Starter (Yearly)",
+  "prod_TzUHWAwfmPq4tb": "Pro (Monthly)",
+  "prod_TzUHaVlxICCGRQ": "Pro (Yearly)",
+  "prod_TzUHPwUI3oNubJ": "Business (Monthly)",
+  "prod_TzUHnPtQRoRlVA": "Business (Yearly)",
 };
 
 serve(async (req) => {

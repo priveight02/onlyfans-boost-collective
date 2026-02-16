@@ -16,12 +16,12 @@ const PLAN_TIER_ORDER: Record<string, number> = { free: 0, starter: 1, pro: 2, b
 
 // Product ID → plan ID mapping
 const PRODUCT_TO_PLAN: Record<string, string> = {
-  "prod_TzRgEeRDcQGUHO": "starter",
-  "prod_TzRgDinqZCjhkj": "starter",
-  "prod_TzRg6tvanQWkyW": "pro",
-  "prod_TzRhV74aOMLdYQ": "pro",
-  "prod_TzRiKIs7vwe9gD": "business",
-  "prod_TzRkvTVWaGWgCp": "business",
+  "prod_TzUHCCIizN6I7f": "starter",
+  "prod_TzUH8Mt50ljrdU": "starter",
+  "prod_TzUHWAwfmPq4tb": "pro",
+  "prod_TzUHaVlxICCGRQ": "pro",
+  "prod_TzUHPwUI3oNubJ": "business",
+  "prod_TzUHnPtQRoRlVA": "business",
 };
 
 // Credits per plan for granting after subscription

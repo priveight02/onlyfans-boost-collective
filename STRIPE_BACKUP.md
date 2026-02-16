@@ -1,83 +1,32 @@
 # Stripe Integration Backup
 > Saved on 2026-02-16 — Full reference of all Stripe IDs, price maps, and integration logic.
+> **REBUILT FROM SCRATCH** — All previous products archived, fresh products created.
 
-## Stripe Products & Prices
+## Credit Packages (One-Time)
+| Package | Credits | Bonus | Price | Product ID | Price ID |
+|---------|---------|-------|-------|------------|----------|
+| Starter Credits | 350 | 0 | $9.00 | prod_TzUHXZe5486FpE | price_1T1VJCAMkMnyWeZ5PGyt5wQo |
+| Pro Credits | 1,650 | 350 | $29.00 | prod_TzUHrWS3VQOpyU | price_1T1VJDAMkMnyWeZ5B4QPUiK8 |
+| Studio Credits | 3,300 | 550 | $49.00 | prod_TzUHVIprcCKyNa | price_1T1VJEAMkMnyWeZ59YuPnyk6 |
+| Power User Credits | 8,250 | 1,100 | $149.00 | prod_TzUH24OEZcqvQ4 | price_1T1VJEAMkMnyWeZ5CueVYThp |
 
-### Subscription Plans (Live)
-| Plan | Cycle | Product ID | Price ID |
-|------|-------|------------|----------|
-| Starter | Monthly | prod_TzAqP0zH90vzyR | price_1T1CVAP8Id8IBpd0heXxbsUk |
-| Starter | Yearly | prod_TzAypr06as419B | price_1T1CcdP8Id8IBpd0AppiCEdo |
-| Pro | Monthly | prod_TzArZUF2DIlzHq | price_1T1CVfP8Id8IBpd0B8EfZeGR |
-| Pro | Yearly | prod_TzAywFFZ0SdhfZ | price_1T1CcuP8Id8IBpd0X5c5Nqbs |
-| Business | Monthly | prod_TzAram9it2Kedf | price_1T1CVpP8Id8IBpd07EYina3g |
-| Business | Yearly | prod_TzAzgoteaSHuDB | price_1T1Cd3P8Id8IBpd0Ds2Y7HoM |
+## Subscription Plans
+| Plan | Cycle | Price | Product ID | Price ID |
+|------|-------|-------|------------|----------|
+| Starter | Monthly | $9/mo | prod_TzUHCCIizN6I7f | price_1T1VJFAMkMnyWeZ5rs0aieC5 |
+| Starter | Yearly | $91.80/yr ($7.65/mo) | prod_TzUH8Mt50ljrdU | price_1T1VJFAMkMnyWeZ5KDmUMmOr |
+| Pro | Monthly | $29/mo | prod_TzUHWAwfmPq4tb | price_1T1VJGAMkMnyWeZ5smZK9UMZ |
+| Pro | Yearly | $243.60/yr ($20.30/mo) | prod_TzUHaVlxICCGRQ | price_1T1VJHAMkMnyWeZ5AETKAFKj |
+| Business | Monthly | $79/mo | prod_TzUHPwUI3oNubJ | price_1T1VJHAMkMnyWeZ5XYQZkunf |
+| Business | Yearly | $635.16/yr ($52.93/mo) | prod_TzUHnPtQRoRlVA | price_1T1VJIAMkMnyWeZ5Vk21hN66 |
 
-### Subscription Plans (Test)
-| Plan | Cycle | Product ID | Price ID |
-|------|-------|------------|----------|
-| Starter | Monthly | prod_TzDPwhTrnCOnYm | price_1T1EyGP8Id8IBpd0tNAn9MrU |
-| Starter | Yearly | prod_TzDPUEvS935A88 | price_1T1EyRP8Id8IBpd0T0nuzf8K |
-| Pro | Monthly | prod_TzDPNCljqBJ2Cq | price_1T1EybP8Id8IBpd0G6zKzoSS |
-| Pro | Yearly | prod_TzDPxffqvU9iSq | price_1T1EymP8Id8IBpd0nJZGVBlM |
-| Business | Monthly | prod_TzDPr3jeAGF9mm | price_1T1Ez2P8Id8IBpd0SjMOkzvg |
-| Business | Yearly | prod_TzDQJVbiYpTH9Y | price_1T1EzDP8Id8IBpd0VOZZoLYG |
-
-### Credit Packages (Live Base Prices)
-| Package | Price ID |
-|---------|----------|
-| Starter (350 credits) | price_1T1AusP8Id8IBpd0HrNyaRWe |
-| Pro (1650 credits) | price_1T1AvOP8Id8IBpd0jM8b94Al |
-| Studio (3300 credits) | price_1T1AvlP8Id8IBpd03ocd2mOy |
-| Power User (8250 credits) | price_1T1AwMP8Id8IBpd0PfrPX50i |
-
-### Credit Packages (Test Base Prices)
-| Package | Price ID |
-|---------|----------|
-| Starter | price_1T1EzQP8Id8IBpd0EUEHb3xO |
-| Pro | price_1T1EzcP8Id8IBpd0XF0N6eyw |
-| Studio | price_1T1EznP8Id8IBpd0QjxuzkPs |
-| Power User | price_1T1F04P8Id8IBpd0xJCSez0v |
-
-## Discount Price Maps (Live)
-```json
-{
-  "price_1T1AusP8Id8IBpd0HrNyaRWe": { "0": "price_1T1AusP8Id8IBpd0HrNyaRWe", "10": "price_1T1CycP8Id8IBpd0bQpuDaiR", "20": "price_1T1CyRP8Id8IBpd0yzku7LvD", "30": "price_1T1CyDP8Id8IBpd0TjT9sq9G" },
-  "price_1T1AvOP8Id8IBpd0jM8b94Al": { "0": "price_1T1AvOP8Id8IBpd0jM8b94Al", "10": "price_1T1CzMP8Id8IBpd0SWdDvq6V", "20": "price_1T1CyyP8Id8IBpd0yihRkIU3", "30": "price_1T1CynP8Id8IBpd0MGCVyRhE" },
-  "price_1T1AvlP8Id8IBpd03ocd2mOy": { "0": "price_1T1AvlP8Id8IBpd03ocd2mOy", "10": "price_1T1D06P8Id8IBpd0mhpxLZeK", "20": "price_1T1CzuP8Id8IBpd0e9rFMVKy", "30": "price_1T1CzkP8Id8IBpd0ZyAlES0z" },
-  "price_1T1AwMP8Id8IBpd0PfrPX50i": { "0": "price_1T1AwMP8Id8IBpd0PfrPX50i", "10": "price_1T1D1RP8Id8IBpd0D0yBkzcL", "20": "price_1T1D0mP8Id8IBpd06fwa5Aqn", "30": "price_1T1D0KP8Id8IBpd0nm2nxxAe" }
-}
-```
-
-## Discount Price Maps (Test)
-```json
-{
-  "price_1T1EzQP8Id8IBpd0EUEHb3xO": { "0": "price_1T1EzQP8Id8IBpd0EUEHb3xO", "10": "price_1T1F0QP8Id8IBpd08PJqAwPH", "20": "price_1T1F0bP8Id8IBpd0qasgeLHj", "30": "price_1T1F0pP8Id8IBpd0XumPrEBI" },
-  "price_1T1EzcP8Id8IBpd0XF0N6eyw": { "0": "price_1T1EzcP8Id8IBpd0XF0N6eyw", "10": "price_1T1F16P8Id8IBpd0pVGOVb7H", "20": "price_1T1F1GP8Id8IBpd00lRLLggQ", "30": "price_1T1F1RP8Id8IBpd0XPCBGi2w" },
-  "price_1T1EznP8Id8IBpd0QjxuzkPs": { "0": "price_1T1EznP8Id8IBpd0QjxuzkPs", "10": "price_1T1F1eP8Id8IBpd0uGSmHQVK", "20": "price_1T1F1oP8Id8IBpd0InkGXdtd", "30": "price_1T1F22P8Id8IBpd0E6ULh8K2" },
-  "price_1T1F04P8Id8IBpd0xJCSez0v": { "0": "price_1T1F04P8Id8IBpd0xJCSez0v", "10": "price_1T1F2GP8Id8IBpd0wU7YdTb5", "20": "price_1T1F2SP8Id8IBpd0WdyE3Jkk", "30": "price_1T1F2dP8Id8IBpd0elbmX4cN" }
-}
-```
-
-## Retention Price Maps (Live)
-```json
-{
-  "price_1T1AusP8Id8IBpd0HrNyaRWe": "price_1T1EaQP8Id8IBpd02WQr8zhR",
-  "price_1T1AvOP8Id8IBpd0jM8b94Al": "price_1T1EabP8Id8IBpd03miZJi8B",
-  "price_1T1AvlP8Id8IBpd03ocd2mOy": "price_1T1EalP8Id8IBpd0DYdqUlCO",
-  "price_1T1AwMP8Id8IBpd0PfrPX50i": "price_1T1EaxP8Id8IBpd0nU22G2sB"
-}
-```
-
-## Retention Price Maps (Test)
-```json
-{
-  "price_1T1EzQP8Id8IBpd0EUEHb3xO": "price_1T1F2pP8Id8IBpd0AIe5XdPA",
-  "price_1T1EzcP8Id8IBpd0XF0N6eyw": "price_1T1F2zP8Id8IBpd0VYvKRGj4",
-  "price_1T1EznP8Id8IBpd0QjxuzkPs": "price_1T1F38P8Id8IBpd0IgzzP26i",
-  "price_1T1F04P8Id8IBpd0xJCSez0v": "price_1T1F3PP8Id8IBpd02EG7DEco"
-}
-```
+## Stripe Coupons (Auto-Applied at Checkout)
+| Coupon | ID | Discount | Duration |
+|--------|----|----------|----------|
+| Loyalty 10% Off | j5jMOrlU | 10% | once |
+| Loyalty 20% Off | r71MZDc7 | 20% | once |
+| Loyalty 30% Off | DsXHlXrd | 30% | once |
+| Retention 50% Off | 5P34jI5L | 50% | once |
 
 ## Plan Credits
 | Plan | Credits/Month |
@@ -86,18 +35,29 @@
 | Pro | 1,075 |
 | Business | 4,300 |
 
+## Product Images (Hosted in product-images bucket)
+| Product | Image File |
+|---------|-----------|
+| Starter Credits | credits-starter.png |
+| Pro Credits | img-pro-base.png |
+| Studio Credits | img-studio-base.png |
+| Power User Credits | img-power-base.png |
+| Starter Plan | plan-starter-coins.png |
+| Pro Plan | plan-pro-coins-fixed.png |
+| Business Plan | plan-business-coins.png |
+| Custom Credits | credits-custom.png |
+
+## Discount Strategy
+- **Loyalty discounts** (10%/20%/30%): Applied via Stripe coupons at checkout on base price
+- **Retention discount** (50%): One-time offer for eligible Pro/Business users
+- **Volume discounts**: Applied in purchase-credits edge function for custom credits (5-40%)
+- **Coupons are NOT stacked** — retention overrides loyalty
+
 ## Pricing Logic
-- **Base price per credit**: $0.0999 (9.99 cents)
-- **Frontend display rate**: 1.816 cents/credit (after 5.5x multiplier)
-- **Volume discounts**: 5% (100+), 10% (200+), 15% (500+), 20% (1000+), 25% (2000+), 30% (3000+), 35% (5000+), 40% (10000+)
+- **Volume discounts** (custom credits): 5% (10k+), 15% (15k+), 20% (20k+), 25% (30k+), 30% (50k+), 35% (75k+), 40% (100k+)
 - **Loyalty discounts**: 30% (1st repurchase), 20% (2nd), 10% (3rd), 0% after
 - **Retention discount**: 50% one-time offer for eligible Pro/Business users
-- **Custom credits**: Min 10, volume + loyalty discounts stack
-
-## Subscription Logic
-- **Upgrades**: Prorated (charge difference immediately), credits granted instantly
-- **Downgrades**: Scheduled for end of billing period, no refund
-- **Same plan**: Blocked with error message
+- **Custom credits**: Min 500, volume + loyalty discounts stack
 
 ## Edge Functions
 1. `purchase-credits` — Creates Stripe checkout for credit packages or custom credits
@@ -107,13 +67,8 @@
 5. `verify-credit-purchase` — Verifies Stripe sessions and credits wallet (idempotent)
 6. `check-wallet` — Returns wallet balance (ensures wallet exists)
 
-## Frontend Components
-1. `src/pages/Pricing.tsx` — Credit packages page with retention offers
-2. `src/components/profile/PlanCreditsTab.tsx` — Subscription plans + top-up dialog
-3. `src/components/profile/BillingPaymentsTab.tsx` — Subscription management + payment history
-
 ## Eligible Retention Product IDs
-Pro + Business (live + test): prod_TzArZUF2DIlzHq, prod_TzAywFFZ0SdhfZ, prod_TzAram9it2Kedf, prod_TzAzgoteaSHuDB, prod_TzDPNCljqBJ2Cq, prod_TzDPxffqvU9iSq, prod_TzDPr3jeAGF9mm, prod_TzDQJVbiYpTH9Y
+Pro + Business: prod_TzUHWAwfmPq4tb, prod_TzUHaVlxICCGRQ, prod_TzUHPwUI3oNubJ, prod_TzUHnPtQRoRlVA
 
 ## Checkout Success URLs
 - Credits: `https://ozcagency.com/pricing?success=true&credits={N}`
