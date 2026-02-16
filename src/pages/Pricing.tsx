@@ -135,21 +135,11 @@ const Pricing = () => {
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleCheckoutClose = () => {
+  const handleCheckoutClose = (purchased: boolean) => {
     setCheckoutSecret(null);
-    // Trigger verification after embedded checkout is closed
-    const toastId = toast.loading("Verifying your purchase...");
-    supabase.functions.invoke("verify-credit-purchase").then(({ data, error }) => {
-      if (error) {
-        toast.error("Verification failed. Credits will appear shortly.", { id: toastId });
-        console.error("Verification error:", error);
-      } else if (data?.credited && data.credits_added > 0) {
-        toast.success(`🎉 ${data.credits_added.toLocaleString()} credits added!`, { id: toastId });
-      } else {
-        toast.dismiss(toastId);
-      }
+    if (purchased) {
       refreshWallet();
-    });
+    }
   };
 
   const handlePurchase = async (pkg: CreditPackage, useRetention = false) => {
