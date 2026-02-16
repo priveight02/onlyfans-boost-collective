@@ -35,7 +35,7 @@ const API_GROUPS: EndpointGroup[] = [
   {
     name: "Accounts",
     icon: "👤",
-    description: "Manage creator/model accounts in the CRM",
+    description: "Manage creator/model accounts in the Platform",
     endpoints: [
       { method: "GET", path: "/v1/accounts", description: "List all managed accounts with optional filters", params: [
         { name: "status", type: "string", description: "Filter by status (active, paused, inactive)" },

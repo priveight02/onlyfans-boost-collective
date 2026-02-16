@@ -86,7 +86,7 @@ const AudienceIntelligence = ({ accounts }: AudienceIntelligenceProps) => {
     return (
       <div className="text-center py-16 text-white/20">
         <Users className="h-10 w-10 mx-auto mb-3 opacity-50" />
-        <p className="text-sm">Add accounts to your CRM to see audience intelligence</p>
+        <p className="text-sm">Add accounts to your Platform to see audience intelligence</p>
       </div>
     );
   }

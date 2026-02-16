@@ -22,20 +22,20 @@ const FAQ = () => {
       category: "Getting Started",
       questions: [
         {
-          question: "What is Ozc Agency's CRM platform?",
-          answer: "Ozc Agency provides an AI-powered CRM and growth platform. We combine intelligent customer management, workflow automation, multi-channel outreach, and advanced analytics into one unified system designed to help businesses, content creators, freelancers, and anyone looking to build a stronger digital presence scale faster and smarter."
+          question: "What is Ozc Agency's Platform?",
+          answer: "Ozc Agency provides an AI-powered growth platform. We combine intelligent customer management, workflow automation, multi-channel outreach, and advanced analytics into one unified system designed to help businesses, content creators, freelancers, and anyone looking to build a stronger digital presence scale faster and smarter."
         },
         {
           question: "How do I get started?",
-          answer: "Simply create a free account to access the platform. You'll get a guided onboarding experience that walks you through setting up your CRM pipeline, connecting your channels, and configuring your first automations. No credit card required to start."
+          answer: "Simply create a free account to access the platform. You'll get a guided onboarding experience that walks you through setting up your pipeline, connecting your channels, and configuring your first automations. No credit card required to start."
         },
         {
           question: "Do I need technical skills to use the platform?",
-          answer: "Not at all. Our platform is built with a no-code approach. You can set up automations, build workflows, and generate AI content without writing a single line of code. If you can use a spreadsheet, you can use our CRM."
+          answer: "Not at all. Our platform is built with a no-code approach. You can set up automations, build workflows, and generate AI content without writing a single line of code. If you can use a spreadsheet, you can use our platform."
         },
         {
-          question: "What makes Ozc Agency different from other CRMs?",
-          answer: "We're AI-first. While other CRMs bolt on AI as an afterthought, our entire platform is built around intelligent automation. From AI lead scoring and predictive deal insights to automated content generation and smart engagement sequences, AI powers everything we do."
+          question: "What makes Ozc Agency different from other platforms?",
+          answer: "We're AI-first. While other platforms bolt on AI as an afterthought, our entire platform is built around intelligent automation. From AI lead scoring and predictive deal insights to automated content generation and smart engagement sequences, AI powers everything we do."
         }
       ]
     },
@@ -61,11 +61,11 @@ const FAQ = () => {
       ]
     },
     {
-      category: "CRM & Pipeline",
+      category: "Platform & Pipeline",
       questions: [
         {
-          question: "How does the CRM pipeline work?",
-          answer: "Our CRM provides a visual pipeline where you can track every deal from first contact to close. AI automatically scores leads, suggests next actions, and predicts close probability. You can customize stages, add custom fields, and set up automated follow-ups."
+          question: "How does the Platform pipeline work?",
+          answer: "Our Platform provides a visual pipeline where you can track every deal from first contact to close. AI automatically scores leads, suggests next actions, and predicts close probability. You can customize stages, add custom fields, and set up automated follow-ups."
         },
         {
           question: "Can I manage my team in the platform?",
@@ -99,7 +99,7 @@ const FAQ = () => {
       questions: [
         {
           question: "What plans do you offer?",
-          answer: "We offer flexible plans starting with a free tier that includes core CRM features. Our paid plans unlock advanced AI capabilities, unlimited automations, priority support, and enterprise features. Visit our pricing page for full details."
+          answer: "We offer flexible plans starting with a free tier that includes core platform features. Our paid plans unlock advanced AI capabilities, unlimited automations, priority support, and enterprise features. Visit our pricing page for full details."
         },
         {
           question: "Is my data secure?",
