@@ -17,18 +17,15 @@ const BASE_PRICE_PER_CREDIT_CENTS = 1.816;
 // Public URL for custom credits checkout image
 const CUSTOM_CREDITS_IMAGE = "https://ufsnuobtvkciydftsyff.supabase.co/storage/v1/object/public/product-images/credits-custom.png";
 
-// Volume discount tiers (max 40%)
+// Volume discount tiers (starts at 10k, max 40%)
 const getVolumeDiscount = (credits: number): number => {
-  if (credits >= 75000) return 0.40;
-  if (credits >= 50000) return 0.35;
-  if (credits >= 30000) return 0.30;
-  if (credits >= 20000) return 0.25;
-  if (credits >= 12000) return 0.20;
-  if (credits >= 8000) return 0.15;
-  if (credits >= 5000) return 0.12;
-  if (credits >= 3000) return 0.10;
-  if (credits >= 1000) return 0.08;
-  if (credits >= 500) return 0.05;
+  if (credits >= 100000) return 0.40;
+  if (credits >= 75000) return 0.35;
+  if (credits >= 50000) return 0.30;
+  if (credits >= 30000) return 0.25;
+  if (credits >= 20000) return 0.20;
+  if (credits >= 15000) return 0.15;
+  if (credits >= 10000) return 0.05;
   return 0;
 };
 
@@ -37,7 +34,7 @@ const DISCOUNT_PRICE_MAP: Record<string, Record<number, string>> = {
   "price_1T1SVSAMkMnyWeZ5lpbo5nnM": { 0: "price_1T1SVSAMkMnyWeZ5lpbo5nnM", 10: "price_1T1SXIAMkMnyWeZ5bpR97WZH", 20: "price_1T1SXfAMkMnyWeZ5wxGX7D72", 30: "price_1T1SXrAMkMnyWeZ5ClWJ75fp" },
   "price_1T1SVlAMkMnyWeZ5PiBiexTs": { 0: "price_1T1SVlAMkMnyWeZ5PiBiexTs", 10: "price_1T1SYQAMkMnyWeZ5lDASBhy3", 20: "price_1T1SZ2AMkMnyWeZ5qvL9fRwB", 30: "price_1T1SZQAMkMnyWeZ5kkNOaLVz" },
   "price_1T1SWCAMkMnyWeZ5DIVbUk38": { 0: "price_1T1SWCAMkMnyWeZ5DIVbUk38", 10: "price_1T1SZzAMkMnyWeZ5T3tdVHgg", 20: "price_1T1SbGAMkMnyWeZ5Tjqw0SUa", 30: "price_1T1SbXAMkMnyWeZ5Jp4D8U8r" },
-  "price_1T1SWxAMkMnyWeZ5yrq2uX3g": { 0: "price_1T1SWxAMkMnyWeZ5yrq2uX3g", 10: "price_1T1SeWAMkMnyWeZ5sf9eG8uA", 20: "price_1T1SgqAMkMnyWeZ5DmN02WxJ", 30: "price_1T1ShlAMkMnyWeZ5MC6tzeic" },
+  "price_1T1TfYAMkMnyWeZ5ayGfBsrr": { 0: "price_1T1TfYAMkMnyWeZ5ayGfBsrr", 10: "price_1T1TgGAMkMnyWeZ55pLRV5vm", 20: "price_1T1TgHAMkMnyWeZ5YkTfXQOL", 30: "price_1T1TgIAMkMnyWeZ5bQUZziCS" },
 };
 
 // Retention price map (50% one-time discount)
@@ -45,7 +42,7 @@ const RETENTION_PRICE_MAP: Record<string, string> = {
   "price_1T1SVSAMkMnyWeZ5lpbo5nnM": "price_1T1SYFAMkMnyWeZ53rDu8CSN",
   "price_1T1SVlAMkMnyWeZ5PiBiexTs": "price_1T1SZbAMkMnyWeZ5wLc3xOjh",
   "price_1T1SWCAMkMnyWeZ5DIVbUk38": "price_1T1SdOAMkMnyWeZ50Gz5FNLT",
-  "price_1T1SWxAMkMnyWeZ5yrq2uX3g": "price_1T1Si3AMkMnyWeZ5pOyBXxlG",
+  "price_1T1TfYAMkMnyWeZ5ayGfBsrr": "price_1T1TgIAMkMnyWeZ5s9unpBeG",
 };
 
 
