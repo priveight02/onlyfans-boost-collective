@@ -1,4 +1,4 @@
-import { Users, HeartHandshake, Bot, BarChart3, Globe, Workflow, CheckCircle2, Instagram, ArrowRight } from "lucide-react";
+import { Zap, TrendingUp, Target, Globe, MessageSquare, BarChart3, CheckCircle2, ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -18,56 +18,55 @@ const item = {
 
 const services = [
   {
-    title: "AI Instagram Auto-Responder",
-    description: "24/7 human-like DM conversations that convert followers into customers on autopilot.",
-    icon: Instagram,
-    bullets: ["Smart DM engine", "Profile scanning", "Auto-conversion"],
+    title: "Automated Outreach",
+    description: "Reach the right people at the right time. AI handles DMs, follow-ups, and conversations 24/7 so you never miss an opportunity.",
+    icon: MessageSquare,
+    bullets: ["Smart DM sequences", "Auto follow-ups", "Lead qualification"],
     gradient: "from-orange-500/20 to-pink-500/20",
     accentColor: "text-orange-400",
     borderHover: "hover:border-orange-500/30",
-    featured: true
   },
   {
-    title: "AI CRM & Pipeline",
-    description: "Smart customer management with AI-driven lead scoring, pipeline automation, and predictive insights.",
-    icon: Users,
-    bullets: ["Lead scoring", "Deal predictions", "Smart follow-ups"],
+    title: "Growth Pipeline",
+    description: "Turn strangers into loyal customers with an AI-driven pipeline that scores leads, predicts conversions, and closes deals for you.",
+    icon: TrendingUp,
+    bullets: ["AI lead scoring", "Conversion prediction", "Auto deal flow"],
     gradient: "from-purple-500/15 to-indigo-500/15",
     accentColor: "text-purple-400",
     borderHover: "hover:border-purple-500/30"
   },
   {
-    title: "Workflow Automation",
-    description: "Automate repetitive tasks, trigger smart sequences, and let AI handle your busywork.",
-    icon: Workflow,
-    bullets: ["No-code builder", "Smart triggers", "24/7 automations"],
+    title: "Smart Automation",
+    description: "Stop doing repetitive work. Build powerful no-code workflows that handle scheduling, responses, and tasks while you sleep.",
+    icon: Zap,
+    bullets: ["No-code workflows", "Smart triggers", "Always-on systems"],
     gradient: "from-blue-500/15 to-cyan-500/15",
     accentColor: "text-blue-400",
     borderHover: "hover:border-blue-500/30"
   },
   {
-    title: "Social Media Intelligence",
-    description: "14-platform management with competitor analysis, viral prediction, and AI auto-scheduling.",
+    title: "Digital Presence",
+    description: "Manage every platform from one dashboard. AI schedules content, analyzes trends, and maximizes your visibility everywhere.",
     icon: Globe,
-    bullets: ["14+ platforms", "Viral predictor", "Auto-scheduler"],
+    bullets: ["Multi-platform sync", "Trend detection", "AI scheduling"],
     gradient: "from-pink-500/15 to-rose-500/15",
     accentColor: "text-pink-400",
     borderHover: "hover:border-pink-500/30"
   },
   {
-    title: "AI Content Engine",
-    description: "Generate scripts, captions, emails, and marketing copy powered by advanced AI models.",
-    icon: Bot,
-    bullets: ["Brand voice AI", "Script builder", "Multi-language"],
+    title: "Audience Targeting",
+    description: "Find your ideal audience with AI-powered discovery. Identify high-value prospects across platforms and engage them automatically.",
+    icon: Target,
+    bullets: ["Audience discovery", "Competitor analysis", "Engagement signals"],
     gradient: "from-violet-500/15 to-purple-500/15",
     accentColor: "text-violet-400",
     borderHover: "hover:border-violet-500/30"
   },
   {
-    title: "Revenue Analytics",
-    description: "Real-time dashboards, forecasting, and performance tracking to optimize every revenue stream.",
+    title: "Revenue Intelligence",
+    description: "See exactly what's working. Real-time analytics, revenue forecasting, and performance insights to scale what matters.",
     icon: BarChart3,
-    bullets: ["Revenue forecasting", "Team heatmaps", "Export reports"],
+    bullets: ["Live dashboards", "Revenue forecasting", "Growth tracking"],
     gradient: "from-cyan-500/15 to-blue-500/15",
     accentColor: "text-cyan-400",
     borderHover: "hover:border-cyan-500/30"
@@ -111,7 +110,7 @@ const Services = () => {
           className="text-center mb-14"
         >
           <h2 className="text-3xl md:text-5xl font-bold font-heading mb-4 text-white">
-            Everything You Need to{" "}
+            How We{" "}
             <motion.span
               className="inline-block bg-clip-text text-transparent"
               style={{
@@ -121,11 +120,11 @@ const Services = () => {
               animate={{ backgroundPosition: ['0% center', '200% center'] }}
               transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
             >
-              Scale
+              Grow Your Business
             </motion.span>
           </h2>
           <p className="text-lg text-white/35 max-w-2xl mx-auto">
-            AI-powered tools, smart automation, and deep analytics, unified in one platform.
+            Whether you're a creator, agency, or brand — our AI works around the clock to expand your reach, convert leads, and drive revenue.
           </p>
         </motion.div>
         
@@ -142,12 +141,7 @@ const Services = () => {
               variants={item}
               className="group"
             >
-              <div className={`relative bg-[hsl(222,30%,11%)]/90 backdrop-blur-xl rounded-2xl p-6 border border-white/[0.06] ${service.borderHover} transition-all duration-500 hover:bg-[hsl(222,28%,13%)]/90 h-full hover:-translate-y-1 ${service.featured ? 'ring-1 ring-orange-500/20' : ''}`}>
-                {service.featured && (
-                  <div className="absolute -top-2.5 left-4 px-3 py-0.5 rounded-full bg-gradient-to-r from-orange-500 to-pink-500 text-white text-[10px] font-bold uppercase tracking-wider">
-                    Featured
-                  </div>
-                )}
+              <div className={`relative bg-[hsl(222,30%,11%)]/90 backdrop-blur-xl rounded-2xl p-6 border border-white/[0.06] ${service.borderHover} transition-all duration-500 hover:bg-[hsl(222,28%,13%)]/90 h-full hover:-translate-y-1`}>
                 <div className={`w-11 h-11 bg-gradient-to-br ${service.gradient} rounded-xl flex items-center justify-center mb-4 border border-white/[0.08]`}>
                   <service.icon className="h-5 w-5 text-white" />
                 </div>
