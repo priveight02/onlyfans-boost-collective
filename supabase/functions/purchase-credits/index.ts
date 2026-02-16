@@ -29,21 +29,13 @@ const getVolumeDiscount = (credits: number): number => {
   return 0;
 };
 
-// Discount price maps (loyalty discounts: 10%, 20%, 30%)
-const DISCOUNT_PRICE_MAP: Record<string, Record<number, string>> = {
-  "price_1T1SVSAMkMnyWeZ5lpbo5nnM": { 0: "price_1T1SVSAMkMnyWeZ5lpbo5nnM", 10: "price_1T1SXIAMkMnyWeZ5bpR97WZH", 20: "price_1T1SXfAMkMnyWeZ5wxGX7D72", 30: "price_1T1SXrAMkMnyWeZ5ClWJ75fp" },
-  "price_1T1U98AMkMnyWeZ5zFmeK1MJ": { 0: "price_1T1U98AMkMnyWeZ5zFmeK1MJ", 10: "price_1T1U9vAMkMnyWeZ5pQECbVPN", 20: "price_1T1UABAMkMnyWeZ5xaUcfKd4", 30: "price_1T1UARAMkMnyWeZ5WU32suVP" },
-  "price_1T1U9YAMkMnyWeZ5fTbiYGd0": { 0: "price_1T1U9YAMkMnyWeZ5fTbiYGd0", 10: "price_1T1UAoAMkMnyWeZ5hzctbstD", 20: "price_1T1UBDAMkMnyWeZ5wXmawIHO", 30: "price_1T1UBjAMkMnyWeZ5K5LG4Qsf" },
-  "price_1T1TfYAMkMnyWeZ5ayGfBsrr": { 0: "price_1T1TfYAMkMnyWeZ5ayGfBsrr", 10: "price_1T1TgGAMkMnyWeZ55pLRV5vm", 20: "price_1T1TgHAMkMnyWeZ5YkTfXQOL", 30: "price_1T1TgIAMkMnyWeZ5bQUZziCS" },
+// Stripe coupon IDs for discounts (applied at checkout on base price)
+const LOYALTY_COUPON_MAP: Record<number, string> = {
+  10: "j5jMOrlU",   // Loyalty 10% Off
+  20: "r71MZDc7",   // Loyalty 20% Off
+  30: "DsXHlXrd",   // Loyalty 30% Off
 };
-
-// Retention price map (50% one-time discount)
-const RETENTION_PRICE_MAP: Record<string, string> = {
-  "price_1T1SVSAMkMnyWeZ5lpbo5nnM": "price_1T1SYFAMkMnyWeZ53rDu8CSN",
-  "price_1T1U98AMkMnyWeZ5zFmeK1MJ": "price_1T1UAcAMkMnyWeZ51hWqoDpS",
-  "price_1T1U9YAMkMnyWeZ5fTbiYGd0": "price_1T1UBuAMkMnyWeZ5HzHvdxUF",
-  "price_1T1TfYAMkMnyWeZ5ayGfBsrr": "price_1T1TgIAMkMnyWeZ5s9unpBeG",
-};
+const RETENTION_COUPON_ID = "5P34jI5L"; // Retention 50% Off
 
 
 serve(async (req) => {
@@ -190,14 +182,15 @@ serve(async (req) => {
     if (pkgError || !pkg) throw new Error("Invalid package");
     logStep("Package found", { name: pkg.name, credits: pkg.credits, price: pkg.price_cents });
 
-    // Use the price ID directly from the database
-    let checkoutPriceId = pkg.stripe_price_id;
-    const discountMap = DISCOUNT_PRICE_MAP[checkoutPriceId];
+    // Always use the base price from the database
+    const checkoutPriceId = pkg.stripe_price_id;
 
-    // Check if retention 50% discount requested (non-stackable, one-time only)
-    if (useRetentionDiscount && !retentionAlreadyUsed && RETENTION_PRICE_MAP[checkoutPriceId]) {
-      checkoutPriceId = RETENTION_PRICE_MAP[checkoutPriceId];
-      logStep("Using retention 50% price", { priceId: checkoutPriceId });
+    // Determine which coupon to auto-apply (if any)
+    let couponId: string | undefined;
+
+    if (useRetentionDiscount && !retentionAlreadyUsed) {
+      couponId = RETENTION_COUPON_ID;
+      logStep("Applying retention 50% coupon", { couponId });
 
       // Mark retention as used immediately
       await supabaseAdmin
@@ -206,14 +199,14 @@ serve(async (req) => {
         .eq("user_id", user.id);
     } else if (useRetentionDiscount && retentionAlreadyUsed) {
       throw new Error("Retention discount already used. This is a one-time offer.");
-    } else if (discountMap && returningDiscountPercent > 0 && discountMap[returningDiscountPercent]) {
-      checkoutPriceId = discountMap[returningDiscountPercent];
-      logStep(`Using pre-created discounted price`, { discount: `${returningDiscountPercent}%`, priceId: checkoutPriceId });
+    } else if (returningDiscountPercent > 0 && LOYALTY_COUPON_MAP[returningDiscountPercent]) {
+      couponId = LOYALTY_COUPON_MAP[returningDiscountPercent];
+      logStep("Applying loyalty coupon", { discount: `${returningDiscountPercent}%`, couponId });
     } else {
-      logStep(`Using normal price`, { priceId: checkoutPriceId });
+      logStep("No discount coupon applied", { priceId: checkoutPriceId });
     }
 
-    const session = await stripe.checkout.sessions.create({
+    const sessionParams: any = {
       customer: customerId,
       customer_email: customerId ? undefined : user.email,
       line_items: [{ price: checkoutPriceId, quantity: 1 }],
@@ -227,7 +220,14 @@ serve(async (req) => {
         bonus_credits: String(pkg.bonus_credits),
         is_returning: String(returningDiscountPercent > 0),
       },
-    });
+    };
+
+    // Auto-apply coupon so user sees discount on Stripe checkout page
+    if (couponId) {
+      sessionParams.discounts = [{ coupon: couponId }];
+    }
+
+    const session = await stripe.checkout.sessions.create(sessionParams);
 
     logStep("Checkout session created", { sessionId: session.id, discount: returningDiscountPercent });
 
