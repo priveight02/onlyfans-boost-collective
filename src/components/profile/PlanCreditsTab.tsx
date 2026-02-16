@@ -254,9 +254,26 @@ const PlanCreditsTab = () => {
       const cycle = billingCycle === "yearly" ? "yearly" : "monthly";
       const priceId = stripeInfo[cycle].price_id;
       const { data, error } = await supabase.functions.invoke("create-checkout", {
-        body: { priceId, planId, billingCycle: cycle },
+        body: { priceId, planId, billingCycle: cycle, currentPlanId: activePlanId || "free" },
       });
       if (error) throw error;
+
+      // Upgrade handled in-place (no checkout needed)
+      if (data?.upgraded) {
+        toast.success(`🎉 Upgraded to ${planId.charAt(0).toUpperCase() + planId.slice(1)}! You only paid the prorated difference.`);
+        setActivePlanId(planId);
+        refreshWallet();
+        return;
+      }
+
+      // Downgrade handled in-place
+      if (data?.downgraded) {
+        toast.info(`Plan will change to ${planId.charAt(0).toUpperCase() + planId.slice(1)} at the end of your current billing period. Your credits remain.`);
+        fetchSubscription();
+        return;
+      }
+
+      // New subscription — redirect to Stripe checkout
       if (data?.url) window.open(data.url, "_blank");
     } catch (err: any) {
       toast.error(err.message || "Failed to start checkout");

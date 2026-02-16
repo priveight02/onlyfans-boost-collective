@@ -104,8 +104,14 @@ const BillingPaymentsTab = () => {
 
   const handleManageSubscription = () => {
     if (!subscription) return;
-    setRetentionStep("offer");
-    setShowRetentionDialog(true);
+    if (eligibleForRetention) {
+      // Show retention offer before allowing cancel
+      setRetentionStep("offer");
+      setShowRetentionDialog(true);
+    } else {
+      // Not eligible for retention, go straight to portal for cancellation
+      handleProceedToCancel();
+    }
   };
 
   const handleAcceptRetention = async () => {
@@ -227,24 +233,22 @@ const BillingPaymentsTab = () => {
 
             {/* Actions */}
             <div className="flex items-center gap-3 pt-2">
-              {eligibleForRetention ? (
-                <Button
-                  onClick={handleManageSubscription}
-                  className="bg-[hsl(222,25%,18%)] hover:bg-[hsl(222,25%,22%)] text-white border border-white/10 text-sm h-9 px-4"
-                >
-                  <CreditCard className="h-4 w-4 mr-2" />
-                  Manage / Cancel Subscription
-                </Button>
-              ) : (
-                <Button
-                  onClick={handleOpenPortalDirect}
-                  disabled={redirectingToPortal}
-                  className="bg-[hsl(222,25%,18%)] hover:bg-[hsl(222,25%,22%)] text-white border border-white/10 text-sm h-9 px-4"
-                >
-                  {redirectingToPortal ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <ExternalLink className="h-4 w-4 mr-2" />}
-                  Manage Subscription
-                </Button>
-              )}
+              <Button
+                onClick={handleOpenPortalDirect}
+                disabled={redirectingToPortal}
+                className="bg-[hsl(222,25%,18%)] hover:bg-[hsl(222,25%,22%)] text-white border border-white/10 text-sm h-9 px-4"
+              >
+                {redirectingToPortal ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <ExternalLink className="h-4 w-4 mr-2" />}
+                Manage Subscription
+              </Button>
+              <Button
+                onClick={handleManageSubscription}
+                variant="ghost"
+                className="text-red-400/60 hover:text-red-300 hover:bg-red-500/[0.06] text-sm h-9 px-4"
+              >
+                <AlertTriangle className="h-4 w-4 mr-2" />
+                Cancel Subscription
+              </Button>
               <Button
                 onClick={fetchBillingInfo}
                 variant="ghost"

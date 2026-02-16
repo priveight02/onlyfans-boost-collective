@@ -29,6 +29,9 @@ const LIVE_TO_TEST_SUB_PRICE: Record<string, string> = {
 
 const resolveSubPrice = (priceId: string) => isTestMode() ? (LIVE_TO_TEST_SUB_PRICE[priceId] || priceId) : priceId;
 
+// Plan tier ordering for upgrade/downgrade detection
+const PLAN_TIER_ORDER: Record<string, number> = { free: 0, starter: 1, pro: 2, business: 3, enterprise: 4 };
+
 // Credits per plan for granting after subscription
 const PLAN_CREDITS: Record<string, number> = {
   starter: 105,
@@ -52,24 +55,104 @@ serve(async (req) => {
     if (!user?.email) throw new Error("User not authenticated");
     logStep("User authenticated", { userId: user.id, email: user.email });
 
-    const { priceId, planId, billingCycle } = await req.json();
+    const { priceId, planId, billingCycle, currentPlanId } = await req.json();
     if (!priceId) throw new Error("Price ID required");
     const resolvedPriceId = resolveSubPrice(priceId);
-    logStep("Checkout request", { priceId, resolvedPriceId, planId, billingCycle, testMode: isTestMode() });
+    logStep("Checkout request", { priceId, resolvedPriceId, planId, billingCycle, currentPlanId, testMode: isTestMode() });
 
     const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", { apiVersion: "2025-04-30.basil" });
 
     const customers = await stripe.customers.list({ email: user.email, limit: 1 });
     let customerId: string | undefined;
+    let existingSub: Stripe.Subscription | null = null;
+
     if (customers.data.length > 0) {
       customerId = customers.data[0].id;
 
-      // Cancel any existing active subscriptions so user can switch plans
+      // Check for existing active subscription
       const subs = await stripe.subscriptions.list({ customer: customerId, status: "active", limit: 10 });
-      for (const sub of subs.data) {
-        logStep("Canceling existing subscription", { subId: sub.id });
-        await stripe.subscriptions.cancel(sub.id, { prorate: true });
+      if (subs.data.length > 0) {
+        existingSub = subs.data[0];
       }
+    }
+
+    const currentTier = PLAN_TIER_ORDER[currentPlanId || "free"] ?? 0;
+    const targetTier = PLAN_TIER_ORDER[planId] ?? 0;
+    const isUpgrade = targetTier > currentTier && currentTier > 0;
+    const isDowngrade = targetTier < currentTier && currentTier > 0;
+
+    logStep("Plan change direction", { currentPlanId, planId, currentTier, targetTier, isUpgrade, isDowngrade, hasExistingSub: !!existingSub });
+
+    // ─── UPGRADE: update subscription in-place with proration ───
+    if (existingSub && isUpgrade) {
+      const subItemId = existingSub.items.data[0].id;
+      logStep("Upgrading subscription with proration", { subId: existingSub.id, subItemId, newPrice: resolvedPriceId });
+
+      const updatedSub = await stripe.subscriptions.update(existingSub.id, {
+        items: [{ id: subItemId, price: resolvedPriceId }],
+        proration_behavior: "always_invoice", // charge the difference immediately
+        metadata: {
+          user_id: user.id,
+          plan_id: planId,
+          billing_cycle: billingCycle || "monthly",
+          credits: String(PLAN_CREDITS[planId] || 0),
+          type: "upgrade",
+          previous_plan: currentPlanId || "unknown",
+        },
+      });
+
+      logStep("Subscription upgraded successfully", { subId: updatedSub.id, status: updatedSub.status });
+
+      // Grant credits for the new plan
+      const adminClient = createClient(
+        Deno.env.get("SUPABASE_URL") ?? "",
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+      );
+      const credits = PLAN_CREDITS[planId] || 0;
+      if (credits > 0) {
+        const { data: wallet } = await adminClient.from("wallets").select("balance").eq("user_id", user.id).single();
+        if (wallet) {
+          await adminClient.from("wallets").update({ balance: wallet.balance + credits }).eq("user_id", user.id);
+          logStep("Credits granted for upgrade", { credits, newBalance: wallet.balance + credits });
+        }
+      }
+
+      return new Response(JSON.stringify({ upgraded: true, message: `Upgraded to ${planId}. You only pay the prorated difference.` }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ─── DOWNGRADE: update subscription at period end ───
+    if (existingSub && isDowngrade) {
+      const subItemId = existingSub.items.data[0].id;
+      logStep("Downgrading subscription (takes effect at period end)", { subId: existingSub.id, newPrice: resolvedPriceId });
+
+      // Schedule the price change at the end of the current billing period
+      await stripe.subscriptions.update(existingSub.id, {
+        items: [{ id: subItemId, price: resolvedPriceId }],
+        proration_behavior: "none", // no refund, change takes effect at renewal
+        metadata: {
+          user_id: user.id,
+          plan_id: planId,
+          billing_cycle: billingCycle || "monthly",
+          credits: String(PLAN_CREDITS[planId] || 0),
+          type: "downgrade",
+          previous_plan: currentPlanId || "unknown",
+        },
+      });
+
+      logStep("Subscription downgraded (effective at renewal)");
+
+      return new Response(JSON.stringify({ downgraded: true, message: `Downgraded to ${planId}. Takes effect at the end of your current billing period.` }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ─── NEW SUBSCRIPTION (from free tier): create checkout session ───
+    // Cancel any leftover subs just in case
+    if (existingSub) {
+      logStep("Canceling existing subscription before new checkout", { subId: existingSub.id });
+      await stripe.subscriptions.cancel(existingSub.id, { prorate: true });
     }
 
     const origin = "https://ozcagency.com";
