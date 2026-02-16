@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import Footer from "@/components/Footer";
 import { useAuth } from "@/hooks/useAuth";
-import { Users, TrendingUp, HeartHandshake, MessageSquare, DollarSign, Megaphone, Target, Shield, Zap, Crown, Bot, BarChart3, BrainCircuit, Workflow, Mail, Globe, Sparkles, LineChart, Bell, FileText, Palette, Search, Layers, Lock, CheckCircle2 } from "lucide-react";
+import { Users, HeartHandshake, Shield, Zap, Bot, BarChart3, BrainCircuit, Workflow, Mail, Globe, CheckCircle2, Instagram, MessageCircle, Sparkles, Eye, Send } from "lucide-react";
 
 const featureSections = [
   {
@@ -10,6 +10,9 @@ const featureSections = [
     subtitle: "Close deals faster with intelligent relationship management",
     icon: BrainCircuit,
     highlight: "3x faster deal closing",
+    gradient: "from-purple-500/20 to-indigo-500/20",
+    accentColor: "text-purple-400",
+    borderColor: "hover:border-purple-500/40",
     description: "Our CRM goes beyond contact management. Powered by advanced AI, it scores every lead in real time, predicts deal outcomes, and recommends your next best action. From first touch to closed deal, every interaction is tracked, analyzed, and optimized automatically.",
     bullets: [
       "AI lead scoring with 0 to 100 intent analysis",
@@ -24,6 +27,9 @@ const featureSections = [
     subtitle: "Eliminate repetitive tasks and scale your operations",
     icon: Workflow,
     highlight: "Save 20+ hours per week",
+    gradient: "from-blue-500/20 to-cyan-500/20",
+    accentColor: "text-blue-400",
+    borderColor: "hover:border-blue-500/40",
     description: "Build powerful no-code automations that trigger smart sequences based on customer actions, time delays, or custom conditions. From onboarding flows to follow-up campaigns, automate the busywork so your team can focus on strategy and growth.",
     bullets: [
       "Visual drag and drop workflow builder",
@@ -34,15 +40,52 @@ const featureSections = [
     ]
   },
   {
+    title: "Social Media Command Center",
+    subtitle: "Manage 14+ platforms from one powerful dashboard",
+    icon: Globe,
+    highlight: "360° social strategy",
+    gradient: "from-pink-500/20 to-rose-500/20",
+    accentColor: "text-pink-400",
+    borderColor: "hover:border-pink-500/40",
+    description: "Take full control of your social presence across Instagram, TikTok, X, LinkedIn, YouTube, Reddit, Telegram, and more. Our AI analyzes competitors, researches trending hashtags, predicts viral potential, and auto-schedules content for maximum reach and engagement.",
+    bullets: [
+      "14-platform management (IG, TikTok, X, LinkedIn, YouTube, Reddit, and more)",
+      "Competitor analysis with engagement rate benchmarking",
+      "Hashtag research and viral content prediction engine",
+      "AI auto-scheduler with optimal posting times",
+      "Content calendar with cross-platform strategy planner"
+    ]
+  },
+  {
+    title: "AI Instagram Auto-Responder",
+    subtitle: "Never miss a DM. Convert followers into customers on autopilot.",
+    icon: Instagram,
+    highlight: "24/7 intelligent engagement",
+    gradient: "from-orange-500/20 to-pink-500/20",
+    accentColor: "text-orange-400",
+    borderColor: "hover:border-orange-500/40",
+    description: "Our AI-powered Instagram responder engages your audience around the clock with human-like conversations. It analyzes fan profiles, adapts its tone naturally, and follows a proven multi-phase engagement flow that builds rapport before guiding followers toward your products, services, or offers.",
+    bullets: [
+      "Human-like conversation engine with natural typing delays",
+      "Automated fan profile scanning for personalized interactions",
+      "Multi-phase engagement flow from casual to conversion",
+      "Smart media handling with image analysis and reactions",
+      "Real-time pipeline visibility with live status tracking"
+    ]
+  },
+  {
     title: "Multi-Channel Outreach",
     subtitle: "Engage your audience wherever they are",
     icon: Mail,
     highlight: "5x engagement rate",
-    description: "Reach leads and customers across email, social media, SMS, and messaging platforms from a single unified inbox. No more switching between apps. Every conversation is centralized, searchable, and connected to the customer profile for full context.",
+    gradient: "from-emerald-500/20 to-teal-500/20",
+    accentColor: "text-emerald-400",
+    borderColor: "hover:border-emerald-500/40",
+    description: "Reach leads and customers across email, social media, SMS, and messaging platforms from a single unified inbox. Every conversation is centralized, searchable, and connected to the customer profile for full context. Bulk outreach with personalization at scale.",
     bullets: [
       "Unified inbox for all channels (email, DM, SMS, chat)",
       "AI-suggested replies based on conversation context",
-      "Bulk messaging with personalization tokens",
+      "Bulk messaging hub with up to 100K contacts",
       "Automated follow-up sequences per channel",
       "Read receipts, open tracking, and engagement metrics"
     ]
@@ -52,6 +95,9 @@ const featureSections = [
     subtitle: "Create professional content at scale in seconds",
     icon: Bot,
     highlight: "10x content output",
+    gradient: "from-violet-500/20 to-purple-500/20",
+    accentColor: "text-violet-400",
+    borderColor: "hover:border-violet-500/40",
     description: "Generate marketing copy, email campaigns, social media posts, scripts, proposals, and business documents powered by cutting-edge AI models. Maintain brand voice consistency across all content with customizable persona profiles and tone settings.",
     bullets: [
       "AI copywriting for emails, ads, and social posts",
@@ -66,6 +112,9 @@ const featureSections = [
     subtitle: "Make data-driven decisions with real-time intelligence",
     icon: BarChart3,
     highlight: "Data-driven growth",
+    gradient: "from-cyan-500/20 to-blue-500/20",
+    accentColor: "text-cyan-400",
+    borderColor: "hover:border-cyan-500/40",
     description: "Real-time dashboards give you complete visibility into revenue streams, team performance, and customer behavior. Forecast future revenue with AI-powered predictions, identify trends before your competitors, and allocate resources where they matter most.",
     bullets: [
       "Real-time revenue dashboards and KPI tracking",
@@ -80,6 +129,9 @@ const featureSections = [
     subtitle: "Build lasting relationships that drive repeat business",
     icon: HeartHandshake,
     highlight: "85% retention increase",
+    gradient: "from-rose-500/20 to-pink-500/20",
+    accentColor: "text-rose-400",
+    borderColor: "hover:border-rose-500/40",
     description: "Turn one-time buyers into lifelong customers with AI-driven engagement strategies. Automatically segment your audience, deliver personalized messaging at the perfect moment, and monitor satisfaction scores to catch churn risks before they escalate.",
     bullets: [
       "Behavioral segmentation and audience profiling",
@@ -90,24 +142,13 @@ const featureSections = [
     ]
   },
   {
-    title: "Social Media Intelligence",
-    subtitle: "Dominate every platform with AI-powered strategy",
-    icon: Globe,
-    highlight: "360° social strategy",
-    description: "Manage all your social accounts from one command center. Our AI analyzes competitors, researches trending hashtags, predicts viral potential, and auto-schedules content for maximum reach. From Instagram to LinkedIn, every post is optimized for engagement.",
-    bullets: [
-      "Multi-platform management (IG, TikTok, X, LinkedIn, YouTube)",
-      "Competitor analysis with engagement benchmarking",
-      "Hashtag research and viral content prediction",
-      "AI auto-scheduler with optimal posting times",
-      "Comment monitoring with smart reply suggestions"
-    ]
-  },
-  {
     title: "Team Performance and Collaboration",
     subtitle: "Full visibility into your team's output and impact",
     icon: Users,
     highlight: "Full team visibility",
+    gradient: "from-amber-500/20 to-orange-500/20",
+    accentColor: "text-amber-400",
+    borderColor: "hover:border-amber-500/40",
     description: "Track individual and team KPIs, manage tasks with priority workflows, and collaborate in real-time with built-in chat, file sharing, and contract management. Every team member knows exactly what to do, when to do it, and how they are performing.",
     bullets: [
       "Individual KPI dashboards and performance scores",
@@ -122,6 +163,9 @@ const featureSections = [
     subtitle: "Enterprise-grade security your clients can trust",
     icon: Shield,
     highlight: "Enterprise-grade protection",
+    gradient: "from-slate-500/20 to-zinc-500/20",
+    accentColor: "text-slate-300",
+    borderColor: "hover:border-slate-500/40",
     description: "Protect your business and your customers' data with bank-level encryption, role-based access controls, comprehensive audit trails, and full GDPR/CCPA compliance. Every action is logged, every access is controlled, and every record is encrypted.",
     bullets: [
       "End-to-end encryption for all stored data",
@@ -138,73 +182,77 @@ const Services = () => {
   const ctaPath = user ? '/pricing' : '/auth';
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-primary to-blue-900 relative overflow-hidden">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_30%,rgba(168,85,247,0.4),transparent_50%)]" />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_70%,rgba(59,130,246,0.3),transparent_50%)]" />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(236,72,153,0.2),transparent_60%)]" />
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl" />
-      <div className="absolute bottom-1/3 right-1/4 w-80 h-80 bg-blue-500/20 rounded-full blur-3xl" />
+    <div className="min-h-screen bg-[hsl(222,35%,8%)] relative overflow-hidden">
+      {/* Ambient background glows */}
+      <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-purple-600/10 rounded-full blur-[120px]" />
+      <div className="absolute top-1/3 right-0 w-[500px] h-[500px] bg-blue-600/8 rounded-full blur-[100px]" />
+      <div className="absolute bottom-1/4 left-0 w-[400px] h-[400px] bg-pink-600/6 rounded-full blur-[100px]" />
 
       {/* Hero */}
-      <div className="relative pt-24 md:pt-28 pb-8">
+      <div className="relative pt-28 md:pt-36 pb-16">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
-          <h1 className="text-5xl md:text-7xl font-bold text-white mb-4 animate-fade-in">
-            Everything You Need to Grow
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-300 text-sm font-medium mb-6">
+            <Sparkles className="h-3.5 w-3.5" />
+            AI-Powered Business Growth Platform
+          </div>
+          <h1 className="text-4xl sm:text-5xl md:text-7xl font-bold text-white mb-5 leading-tight">
+            Everything You Need<br className="hidden sm:block" /> to <span className="bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">Scale Your Business</span>
           </h1>
-          <p className="text-xl text-white/80 max-w-2xl mx-auto mb-6 animate-fade-in">
-            One platform to manage customers, automate workflows, generate content, and scale your business with the power of AI.
+          <p className="text-lg md:text-xl text-white/60 max-w-2xl mx-auto mb-8">
+            One platform to manage customers, automate workflows, dominate social media, and grow your revenue with the power of AI.
           </p>
-          <Link to={ctaPath}>
-            <Button size="lg" className="bg-white text-primary hover:bg-white/90 hover:scale-105 transition-all duration-300 shadow-lg text-lg px-10 py-5 rounded-full font-bold">
-              Start Free Trial
-            </Button>
-          </Link>
-        </div>
-      </div>
-
-      <div className="relative py-2">
-        <div className="max-w-3xl mx-auto px-8">
-          <div className="h-px bg-gradient-to-r from-transparent via-white/30 to-transparent" />
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <Link to={ctaPath}>
+              <Button size="lg" className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white hover:scale-105 transition-all duration-300 shadow-lg shadow-purple-500/20 text-lg px-10 py-6 rounded-xl font-semibold">
+                Get Started
+              </Button>
+            </Link>
+            <Link to="/faq">
+              <Button variant="outline" size="lg" className="border-white/15 text-white/70 hover:text-white hover:bg-white/5 text-lg px-10 py-6 rounded-xl font-semibold bg-transparent">
+                Learn More
+              </Button>
+            </Link>
+          </div>
         </div>
       </div>
 
       {/* Feature Sections */}
-      <section className="pb-8 relative">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 space-y-10 mt-8">
+      <section className="pb-12 relative">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 space-y-5">
           {featureSections.map((section, index) => {
             const isReversed = index % 2 !== 0;
             return (
               <div
                 key={section.title}
-                className="bg-white/[0.07] backdrop-blur-sm border border-white/15 rounded-2xl p-6 md:p-8 hover:border-white/30 transition-all duration-300"
+                className={`group bg-[hsl(222,30%,12%)]/80 backdrop-blur-xl border border-white/[0.08] rounded-2xl p-6 md:p-8 ${section.borderColor} transition-all duration-500 hover:bg-[hsl(222,30%,14%)]/80`}
               >
                 <div className={`flex flex-col ${isReversed ? 'md:flex-row-reverse' : 'md:flex-row'} gap-6 md:gap-10 items-start`}>
-                  {/* Left: Icon + Title + Description */}
+                  {/* Left: Info */}
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="w-11 h-11 bg-white/20 rounded-xl flex items-center justify-center shrink-0">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className={`w-11 h-11 bg-gradient-to-br ${section.gradient} rounded-xl flex items-center justify-center shrink-0 border border-white/10`}>
                         <section.icon className="h-5 w-5 text-white" />
                       </div>
                       <div>
                         <h3 className="text-xl font-bold text-white leading-tight">{section.title}</h3>
-                        <p className="text-white/60 text-sm">{section.subtitle}</p>
+                        <p className="text-white/40 text-sm">{section.subtitle}</p>
                       </div>
                     </div>
-                    <div className="flex items-center text-purple-300 font-semibold text-sm mb-3">
-                      <Zap className="h-3.5 w-3.5 mr-1.5" />
+                    <div className={`flex items-center ${section.accentColor} font-semibold text-xs uppercase tracking-wider mb-3`}>
+                      <Zap className="h-3 w-3 mr-1.5" />
                       {section.highlight}
                     </div>
-                    <p className="text-white/75 text-sm leading-relaxed">
+                    <p className="text-white/55 text-sm leading-relaxed">
                       {section.description}
                     </p>
                   </div>
 
                   {/* Right: Bullet points */}
                   <div className="flex-1 min-w-0">
-                    <ul className="space-y-2.5">
+                    <ul className="space-y-3">
                       {section.bullets.map((bullet) => (
-                        <li key={bullet} className="flex items-start gap-2.5 text-white/80 text-sm">
-                          <CheckCircle2 className="h-4 w-4 text-purple-400 mt-0.5 shrink-0" />
+                        <li key={bullet} className="flex items-start gap-2.5 text-white/70 text-sm group-hover:text-white/80 transition-colors duration-300">
+                          <CheckCircle2 className={`h-4 w-4 ${section.accentColor} mt-0.5 shrink-0 opacity-70`} />
                           <span>{bullet}</span>
                         </li>
                       ))}
@@ -218,17 +266,18 @@ const Services = () => {
       </section>
 
       {/* CTA */}
-      <section className="py-16 relative">
+      <section className="py-20 relative">
+        <div className="absolute inset-0 bg-gradient-to-t from-purple-600/5 to-transparent" />
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
-          <h2 className="text-4xl md:text-5xl font-bold text-white mb-6 animate-fade-in">
-            Ready to Transform Your Business?
+          <h2 className="text-3xl md:text-5xl font-bold text-white mb-5">
+            Ready to Start Growing?
           </h2>
-          <p className="text-xl text-white/80 mb-10 animate-fade-in">
-            Join thousands of businesses already scaling with our AI-powered platform.
+          <p className="text-lg text-white/50 mb-10 max-w-xl mx-auto">
+            Join thousands of businesses already scaling with our AI-powered platform. No credit card required.
           </p>
           <Link to={ctaPath}>
-            <Button size="lg" className="bg-white text-primary hover:bg-white/90 hover:scale-105 transition-all duration-300 shadow-2xl hover:shadow-white/20 text-xl px-16 py-6 rounded-2xl font-bold">
-              Get Started Free
+            <Button size="lg" className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white hover:scale-105 transition-all duration-300 shadow-xl shadow-purple-500/20 text-xl px-16 py-6 rounded-xl font-bold">
+              Start Growing Today
             </Button>
           </Link>
         </div>
