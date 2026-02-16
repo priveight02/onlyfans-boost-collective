@@ -212,7 +212,7 @@ const BillingPaymentsTab = () => {
                     : subscription?.product_name || PLAN_NAME_MAP[subscription?.product_id as string] || "Custom Plan"}
                 </p>
                 {adminPlanOverride && (
-                  <p className="text-amber-400/60 text-[10px] italic mt-1">Assigned by administrator</p>
+                  <p className="text-amber-400/60 text-xs mt-1">Assigned by administrator</p>
                 )}
                 {!adminPlanOverride && subscription?.discount && (
                   <Badge className="mt-1.5 bg-emerald-500/15 text-emerald-300 border-emerald-500/20 text-[10px]">
@@ -289,7 +289,7 @@ const BillingPaymentsTab = () => {
                 </>
               )}
               {adminPlanOverride && !subscription && (
-                <p className="text-white/30 text-xs italic">No subscription to manage — plan assigned by administrator</p>
+                <p className="text-white/30 text-xs">No subscription to manage — plan assigned by administrator</p>
               )}
               <Button
                 onClick={fetchBillingInfo}
