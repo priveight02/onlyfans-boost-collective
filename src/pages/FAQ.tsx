@@ -19,100 +19,96 @@ const FAQ = () => {
       category: "Getting Started",
       questions: [
         {
-          question: "What does Ozc Agency actually do for models?",
-          answer: "We become your full business team. Our chatting specialists engage your fans around the clock to keep them spending and coming back, while our marketing crew drives fresh subscribers to your page every single day. On top of that, we handle leak removal, solve any problems that come up, and fine-tune your content strategy, so all you have to do is create and enjoy the results."
+          question: "What is Ozc Agency's CRM platform?",
+          answer: "Ozc Agency provides an AI-powered CRM and business growth platform. We combine intelligent customer management, workflow automation, multi-channel outreach, and advanced analytics into one unified system — designed to help businesses of all sizes scale faster and smarter."
         },
         {
-          question: "How do I apply to join Ozc Agency?",
-          answer: "It's really easy. Just fill out our quick onboarding form and tell us a bit about yourself. We review every single application within 24 hours, then we'll set up a friendly call to get to know you, answer all your questions, and figure out the best game plan together. No pressure, just a conversation."
+          question: "How do I get started?",
+          answer: "Simply create a free account to access the platform. You'll get a guided onboarding experience that walks you through setting up your CRM pipeline, connecting your channels, and configuring your first automations. No credit card required to start."
         },
         {
-          question: "Do I need to already have an OF page to join?",
-          answer: "Not at all! Whether you're completely new or already have an established page, we've got you covered. If you're just getting started, we'll walk you through everything step by step, from setting up your page to building your brand. No experience needed, just the willingness to grow."
+          question: "Do I need technical skills to use the platform?",
+          answer: "Not at all. Our platform is built with a no-code approach — you can set up automations, build workflows, and generate AI content without writing a single line of code. If you can use a spreadsheet, you can use our CRM."
         },
         {
-          question: "What makes Ozc Agency different from other agencies?",
-          answer: "Most agencies just \"manage\", we actually build your business. You get an entire team working for you 24/7: chatters keeping your fans engaged and spending, marketers bringing in new subs daily, and a support team that handles leaks, issues, and everything in between. We treat your page like our own because your success is literally our success."
-        },
-        {
-          question: "Is content creation on OF legal?",
-          answer: "Absolutely. OnlyFans is a fully legal, regulated platform used by millions of creators worldwide to monetize their content on their own terms. Everything is consensual, you decide what you post, who sees it, and where your boundaries are. It's simply a business where you're in complete control of your brand, your content, and your income. Our agency ensures everything stays professional, protected, and aligned with platform guidelines at all times."
+          question: "What makes Ozc Agency different from other CRMs?",
+          answer: "We're AI-first. While other CRMs bolt on AI as an afterthought, our entire platform is built around intelligent automation. From AI lead scoring and predictive deal insights to automated content generation and smart engagement sequences — AI powers everything we do."
         }
       ]
     },
     {
-      category: "Chatting & Fan Engagement",
+      category: "AI & Automation",
       questions: [
         {
-          question: "How does your chatting team work?",
-          answer: "Think of them as your fan relationship experts. They work in shifts around the clock so your DMs are never sitting unanswered. Every conversation is designed to make your fans feel special, build real connections, and naturally encourage tips, PPV purchases, and custom requests, all while staying true to your voice and personality."
+          question: "What AI features are included?",
+          answer: "Our platform includes AI lead scoring, predictive analytics, automated content generation (emails, social posts, scripts), smart workflow triggers, sentiment analysis, competitor intelligence, and an AI co-pilot that provides strategic recommendations based on your data."
         },
         {
-          question: "Will the chatting feel authentic to my fans?",
-          answer: "That's one of our top priorities. Before we start, we spend time learning how you talk, your vibe, your humor, everything that makes you, you. Your fans will feel like they're talking directly to you, just with way faster response times. The result? Happier fans who stick around longer and spend more."
+          question: "How does workflow automation work?",
+          answer: "You can create no-code automations using our visual builder. Set triggers (e.g., new lead, deal stage change, time-based), add conditions, and define actions (send email, update record, notify team, etc.). Automations run 24/7 so your business never sleeps."
         },
         {
-          question: "What is fan lifetime value and why should I care?",
-          answer: "It's the total amount a fan spends over their entire time on your page, way beyond just the monthly sub. Most models leave a ton of money on the table because they don't nurture their fans properly. Our chatting strategies turn one-time visitors into loyal, high-spending supporters who keep coming back month after month."
+          question: "Can the AI generate content for my business?",
+          answer: "Yes! Our AI content engine can generate marketing emails, social media posts, ad copy, sales scripts, follow-up messages, and more. It learns your brand voice and adapts to your industry, so every piece of content sounds authentically you."
         },
         {
-          question: "Do I have control over what my chatting team says?",
-          answer: "Always. You set the rules, and we follow them, no exceptions. You'll have full access to see every conversation, and we check in regularly to make sure everything feels right. Your boundaries and comfort always come first. If something doesn't sit well with you, we adjust immediately."
+          question: "Is my data used to train AI models?",
+          answer: "Never. Your data is yours and stays yours. We use enterprise-grade AI providers with strict data privacy agreements. Your business data is never used to train third-party models and is encrypted both in transit and at rest."
         }
       ]
     },
     {
-      category: "Marketing & Traffic",
+      category: "CRM & Pipeline",
       questions: [
         {
-          question: "How do you drive traffic to my page?",
-          answer: "We use a mix of proven strategies across Instagram, Twitter/X, TikTok, Reddit, and other platforms to get eyes on your content. Our team constantly tests new approaches, doubles down on what's working, and adapts to trends so you always have a fresh stream of potential subscribers finding you."
+          question: "How does the CRM pipeline work?",
+          answer: "Our CRM provides a visual pipeline where you can track every deal from first contact to close. AI automatically scores leads, suggests next actions, and predicts close probability. You can customize stages, add custom fields, and set up automated follow-ups."
         },
         {
-          question: "Do you handle my social media accounts?",
-          answer: "Yes! We take care of your posting schedule, content repurposing, captions, engagement, and growth tactics across all your socials. Everything stays on-brand and is designed to funnel people straight to your page. You stay in control of what goes out, we just make sure it's consistent, strategic, and getting results."
+          question: "Can I manage my team in the platform?",
+          answer: "Absolutely. You can add team members with role-based permissions, track individual and team performance with KPI dashboards, assign tasks, manage contracts, and collaborate in real-time with built-in chat and notification systems."
         },
         {
-          question: "How quickly will I start seeing new subscribers?",
-          answer: "Most models notice a bump in traffic within the first week or two. Real, consistent growth usually kicks in within the first month as our strategies build momentum. From there, it just keeps compounding, the longer we work together, the stronger the results get."
+          question: "Does it integrate with my existing tools?",
+          answer: "Yes, we support integrations with popular platforms including email providers, social media channels, messaging apps, and more. Our API allows custom integrations with virtually any tool in your tech stack."
         }
       ]
     },
     {
-      category: "Content Protection & Problem Solving",
+      category: "Analytics & Reporting",
       questions: [
         {
-          question: "What do you do about leaked content?",
-          answer: "We take leaks seriously and act fast. Our team actively scans the internet for any unauthorized content and handles DMCA takedowns and removal requests immediately. You should never have to deal with that stress, we've got your back and we treat every situation with urgency and discretion."
+          question: "What kind of analytics are available?",
+          answer: "You get real-time dashboards covering revenue analytics, team performance heatmaps, engagement metrics, pipeline health, conversion rates, and customer lifetime value tracking. All data can be exported as CSV or JSON for further analysis."
         },
         {
-          question: "What kind of problems can your team help me with?",
-          answer: "Honestly, pretty much anything. Account issues, chargebacks, difficult subscribers, platform questions, payment hiccups, you name it. We've seen it all and know how to handle it quickly. Our job is to remove the stress from your plate so you can focus on what you do best."
+          question: "Can I create custom reports?",
+          answer: "Yes! Our reporting engine lets you build custom reports with filters, date ranges, and visualization options. Schedule automated report delivery to your inbox, or share live dashboards with your team and stakeholders."
         },
         {
-          question: "Is my personal information kept confidential?",
-          answer: "1000%. Your privacy is sacred to us. Everything, your real name, earnings, strategies, personal details, stays strictly between you and our team. We operate with complete discretion and will never share your information with anyone. Period."
+          question: "How accurate are the AI predictions?",
+          answer: "Our predictive models improve over time as they learn from your business data. Most customers see meaningful accuracy within the first 30 days. The AI considers deal size, engagement patterns, historical close rates, and dozens of other signals to generate forecasts."
         }
       ]
     },
     {
-      category: "Earnings & Growth",
+      category: "Pricing & Security",
       questions: [
         {
-          question: "How do you help increase my earnings?",
-          answer: "We work every angle. Our chatters keep your fans engaged and spending, our marketers bring in fresh subscribers every day, and we constantly optimize your pricing, PPV strategy, and content schedule based on what the data tells us. Most models notice a real difference in their income within the very first month of working with us."
+          question: "What plans do you offer?",
+          answer: "We offer flexible plans starting with a free tier that includes core CRM features. Our paid plans unlock advanced AI capabilities, unlimited automations, priority support, and enterprise features. Visit our pricing page for full details."
         },
         {
-          question: "What kind of results can I realistically expect?",
-          answer: "Every model is different, but here's what we typically see: most of our girls experience 3-10x growth within the first 3 months. Some have gone from making a few hundred dollars to consistent five-figure months. We'll set honest, realistic goals together and then do everything in our power to crush them."
+          question: "Is my data secure?",
+          answer: "Security is our top priority. We use enterprise-grade encryption, role-based access controls, audit trails, and are fully GDPR compliant. Your data is hosted on secure cloud infrastructure with 99.9% uptime guarantee."
         },
         {
-          question: "How does the revenue split work?",
-          answer: "We keep it simple and fair. Our model is performance-based, we take a percentage of the revenue we help generate, so we only make money when you make money. The exact split depends on what services you need, and we'll go over everything openly during your onboarding call. No hidden fees, no surprises."
+          question: "Can I cancel anytime?",
+          answer: "Yes, no long-term contracts required. You can upgrade, downgrade, or cancel your plan at any time. If you cancel, your data remains accessible for 30 days so you can export everything you need."
         },
         {
-          question: "Are there any upfront costs or long-term contracts?",
-          answer: "Nope. We don't do long contracts or upfront fees. We believe the best way to earn your trust is by delivering results, not trapping you in paperwork. If at any point you feel it's not the right fit, you're free to go, but we're confident you'll want to stay once you see what we can do."
+          question: "Do you offer enterprise solutions?",
+          answer: "Yes! For larger teams and custom requirements, we offer enterprise plans with dedicated support, custom integrations, SSO, advanced security features, and SLA guarantees. Contact our team to discuss your needs."
         }
       ]
     }
@@ -129,7 +125,6 @@ const FAQ = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-primary to-blue-900">
-      {/* Decorative backgrounds */}
       <div className="fixed inset-0 pointer-events-none">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl" />
         <div className="absolute bottom-1/3 right-1/4 w-80 h-80 bg-blue-500/15 rounded-full blur-3xl" />
@@ -146,7 +141,7 @@ const FAQ = () => {
             Frequently Asked Questions
           </h1>
           <p className="text-xl text-white/90 max-w-2xl mx-auto mb-2 animate-fade-in">
-            Find answers to common questions about our services and how we can help you achieve success in content creation.
+            Find answers about our AI-powered CRM platform, automation features, and how we help businesses grow.
           </p>
         </div>
       </div>
@@ -215,17 +210,17 @@ const FAQ = () => {
             <div className="p-6 rounded-xl bg-white/10 backdrop-blur-md border border-white/20 animate-fade-in">
               <Clock className="h-12 w-12 text-white mx-auto mb-4" />
               <h3 className="text-2xl font-bold text-white mb-2">24/7</h3>
-              <p className="text-white/70">Support Available</p>
+              <p className="text-white/70">Platform Uptime</p>
             </div>
             <div className="p-6 rounded-xl bg-white/10 backdrop-blur-md border border-white/20 animate-fade-in" style={{ animationDelay: '100ms' }}>
               <MessageCircle className="h-12 w-12 text-white mx-auto mb-4" />
-              <h3 className="text-2xl font-bold text-white mb-2">&lt;24hrs</h3>
-              <p className="text-white/70">Response Time</p>
+              <h3 className="text-2xl font-bold text-white mb-2">&lt;2hrs</h3>
+              <p className="text-white/70">Support Response</p>
             </div>
             <div className="p-6 rounded-xl bg-white/10 backdrop-blur-md border border-white/20 animate-fade-in" style={{ animationDelay: '200ms' }}>
               <Shield className="h-12 w-12 text-white mx-auto mb-4" />
               <h3 className="text-2xl font-bold text-white mb-2">100%</h3>
-              <p className="text-white/70">Confidential</p>
+              <p className="text-white/70">GDPR Compliant</p>
             </div>
           </div>
         </div>
@@ -235,18 +230,18 @@ const FAQ = () => {
       <section className="pt-4 pb-16 relative overflow-hidden z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
           <h2 className="text-3xl md:text-4xl font-bold text-white mb-3 font-heading animate-fade-in">
-            Ready to Start Earning More?
+            Ready to Scale Your Business?
           </h2>
           <p className="text-lg text-white/90 mb-6 max-w-2xl mx-auto animate-fade-in">
-            Join the models already growing with Ozc Agency. Apply now and let's build your success together.
+            Join thousands of businesses already growing with Ozc Agency's AI-powered platform.
           </p>
           <div className="flex justify-center">
             <Button
               size="lg"
-              onClick={() => navigate('/onboarding')}
+              onClick={() => navigate('/auth')}
               className="bg-white text-primary hover:bg-white/90 hover:scale-105 transition-all duration-300 px-14 py-5 text-lg font-bold rounded-xl shadow-lg hover:shadow-xl"
             >
-              Apply Now, It's Free
+              Start Free Trial
             </Button>
           </div>
         </div>

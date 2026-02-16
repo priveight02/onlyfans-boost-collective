@@ -6,7 +6,7 @@ const Hero = () => {
   const navigate = useNavigate();
 
   const handleGetStarted = () => {
-    navigate('/onboarding');
+    navigate('/auth');
   };
 
   return (
@@ -15,7 +15,6 @@ const Hero = () => {
         <div className="absolute inset-0 bg-[hsl(220,100%,20%)]/10 mix-blend-multiply" />
         <div className="absolute inset-0 bg-gradient-to-t from-[hsl(220,95%,20%)]/15 to-transparent" />
         
-        {/* Static background patterns */}
         <div
           className="absolute inset-0 opacity-20"
           style={{
@@ -45,8 +44,8 @@ const Hero = () => {
             transition={{ duration: 0.8, delay: 0.2 }}
             className="text-4xl md:text-7xl font-bold text-white mb-6 font-heading tracking-tight drop-shadow-lg [text-wrap:balance] leading-[1.1]"
           >
-            We Scale Adult Creators<br />
-            <span className="text-[hsl(200,100%,70%)] drop-shadow-md">Into Global Brands</span>
+            The AI-Powered CRM<br />
+            <span className="text-[hsl(200,100%,70%)] drop-shadow-md">That Grows Your Business</span>
           </motion.h1>
           
           <motion.p 
@@ -55,7 +54,7 @@ const Hero = () => {
             transition={{ duration: 0.8, delay: 0.4 }}
             className="text-xl md:text-2xl text-white mb-8 max-w-3xl mx-auto leading-relaxed font-medium drop-shadow-lg bg-black/20 backdrop-blur-sm rounded-2xl px-8 py-4 border border-white/20"
           >
-            Ready to achieve your financial success and unlock the freedom you've dreamed of? We'll help you build the life you deserve, your success starts now.
+            Automate workflows, engage customers with AI, and unlock data-driven insights — all from one intelligent platform built for modern businesses.
           </motion.p>
           
           <motion.div
@@ -67,14 +66,13 @@ const Hero = () => {
               onClick={handleGetStarted}
               className="group inline-flex items-center px-8 py-3 text-lg font-medium rounded-full bg-white text-primary hover:bg-primary-light transition-all duration-500 transform hover:scale-105 shadow-lg"
             >
-              Get Started
+              Start Free Trial
               <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform duration-500" />
             </button>
           </motion.div>
         </motion.div>
       </div>
 
-      {/* Static background elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -inset-[10px] opacity-70">
         </div>

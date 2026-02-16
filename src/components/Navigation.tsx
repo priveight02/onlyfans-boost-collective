@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Menu, X, LogIn, LogOut, Shield, Home, Briefcase, HelpCircle, UserPlus, User, CreditCard } from "lucide-react";
+import { Menu, X, LogIn, LogOut, Shield, Home, Briefcase, HelpCircle, User, CreditCard } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "./ui/button";
 import { useAuth } from "@/hooks/useAuth";
@@ -37,7 +37,6 @@ const Navigation = () => {
 
   const menuItems: MenuItem[] = [
     { name: "Home", href: "/", icon: Home },
-    { name: "Onboarding", href: "/onboarding", icon: UserPlus },
     { name: "Services", href: "/services", icon: Briefcase },
     { name: "Pricing", href: "/pricing", icon: CreditCard },
     { name: "FAQ", href: "/faq", icon: HelpCircle },
