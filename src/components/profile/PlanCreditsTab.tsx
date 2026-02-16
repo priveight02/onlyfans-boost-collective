@@ -124,7 +124,7 @@ const formatPrice = (cents: number) => `$${(cents / 100).toFixed(2)}`;
 
 const PREDEFINED_TOPUPS = [100, 200, 300, 500, 800, 1000, 1500, 2000, 3000, 5000];
 
-const PlanCreditsTab = () => {
+const PlanCreditsTab = ({ onSwitchTab }: { onSwitchTab?: (tab: string) => void }) => {
   const { user } = useAuth();
   const { balance, purchaseCount, totalPurchased, totalSpent, loading: walletLoading, refreshWallet } = useWallet();
   const [packages, setPackages] = useState<CreditPackage[]>([]);
@@ -380,7 +380,7 @@ const PlanCreditsTab = () => {
             </div>
           </div>
           <Button size="sm"
-            onClick={scrollToPlans}
+            onClick={() => onSwitchTab?.("billing")}
             className="bg-[hsl(222,25%,18%)] hover:bg-[hsl(222,25%,22%)] text-white border border-white/10 text-sm h-9 px-4">
             Manage Plan
           </Button>
