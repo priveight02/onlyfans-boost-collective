@@ -37,7 +37,7 @@ const Footer = () => {
                 <Globe className="h-3.5 w-3.5 text-white/60 group-hover:text-white transition-colors" />
                 <span className="text-white/60 group-hover:text-white text-xs font-medium transition-colors">ozcagency.com</span>
               </a>
-              <a href="mailto:contact@ozcagency.com"
+              <a href="mailto:liam@ozcagency.com"
                 className="group flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.05] border border-white/[0.08] hover:bg-white/[0.1] hover:border-white/[0.15] transition-all duration-300">
                 <Mail className="h-3.5 w-3.5 text-white/60 group-hover:text-white transition-colors" />
                 <span className="text-white/60 group-hover:text-white text-xs font-medium transition-colors">Contact</span>
@@ -84,7 +84,7 @@ const Footer = () => {
             <div>
               <h4 className="text-white/70 text-[11px] font-semibold uppercase tracking-[0.15em] mb-3">Contact</h4>
               <div className="flex flex-col gap-1.5">
-                <a href="mailto:contact@ozcagency.com" className="text-white/45 hover:text-white text-sm transition-colors">contact@ozcagency.com</a>
+                <a href="mailto:liam@ozcagency.com" className="text-white/45 hover:text-white text-sm transition-colors">liam@ozcagency.com</a>
                 <span className="text-white/30 text-xs">Replies within 2 hours</span>
               </div>
               <Link to={ctaPath}

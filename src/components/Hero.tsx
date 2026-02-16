@@ -35,11 +35,12 @@ const Hero = () => {
 
     // Mesh gradient nodes
     const nodes = [
-      { x: 0.15, y: 0.2, r: 380, color: [139, 92, 246], speed: 0.0003, phase: 0 },      // purple
-      { x: 0.8, y: 0.7, r: 350, color: [59, 130, 246], speed: 0.00025, phase: 2 },       // blue
-      { x: 0.5, y: 0.5, r: 420, color: [99, 102, 241], speed: 0.0002, phase: 4 },        // indigo
-      { x: 0.25, y: 0.85, r: 300, color: [168, 85, 247], speed: 0.00035, phase: 1 },     // violet
-      { x: 0.85, y: 0.15, r: 280, color: [79, 70, 229], speed: 0.0003, phase: 3 },       // deep indigo
+      { x: 0.12, y: 0.15, r: 450, color: [124, 58, 237], speed: 0.0002, phase: 0 },      // rich purple
+      { x: 0.85, y: 0.75, r: 400, color: [37, 99, 235], speed: 0.00018, phase: 2 },       // royal blue
+      { x: 0.5, y: 0.4, r: 500, color: [79, 70, 229], speed: 0.00015, phase: 4 },         // indigo
+      { x: 0.2, y: 0.8, r: 350, color: [139, 92, 246], speed: 0.00025, phase: 1 },        // violet
+      { x: 0.9, y: 0.1, r: 320, color: [59, 130, 246], speed: 0.0002, phase: 3 },         // blue
+      { x: 0.6, y: 0.9, r: 280, color: [168, 85, 247], speed: 0.00022, phase: 5 },        // bright violet
     ];
 
     const draw = () => {
@@ -151,9 +152,9 @@ const Hero = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.4 }}
-            className="text-lg md:text-xl text-white/45 mb-12 max-w-2xl mx-auto leading-relaxed"
+            className="text-lg md:text-xl text-white/60 mb-12 max-w-2xl mx-auto leading-relaxed"
           >
-            Automate workflows, engage customers with AI, and unlock data-driven insights, all from one intelligent platform built for modern businesses.
+            Automate your workflows, engage customers with AI, and unlock data-driven insights. One intelligent platform built for modern businesses.
           </motion.p>
           
           <motion.div
