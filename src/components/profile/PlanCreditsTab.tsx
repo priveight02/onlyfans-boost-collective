@@ -63,16 +63,16 @@ const PLANS = [
     id: "starter",
     name: "Starter",
     monthlyPrice: 9,
-    credits_per_month: 550,
-    features: ["550 credits/month", "CRM Access", "Basic AI tools", "1 managed account", "Community support"],
+    credits_per_month: 105,
+    features: ["105 credits/month", "CRM Access", "Basic AI tools", "1 managed account", "Community support"],
     yearlyDiscount: 0.15,
   },
   {
     id: "pro",
     name: "Pro",
     monthlyPrice: 29,
-    credits_per_month: 2750,
-    features: ["2,750 credits/month", "Everything in Starter", "Advanced CRM Access", "Premium AI features", "5 managed accounts", "Priority support", "On-demand top-ups"],
+    credits_per_month: 500,
+    features: ["500 credits/month", "Everything in Starter", "Advanced CRM Access", "Premium AI features", "5 managed accounts", "Priority support", "On-demand top-ups"],
     highlighted: true,
     yearlyDiscount: 0.30,
   },
@@ -80,8 +80,8 @@ const PLANS = [
     id: "business",
     name: "Business",
     monthlyPrice: 79,
-    credits_per_month: 11000,
-    features: ["11,000 credits/month", "Everything in Pro", "Full CRM Access", "Unlimited accounts", "Dedicated support", "Team workspace", "Advanced analytics", "API access"],
+    credits_per_month: 2000,
+    features: ["2000 credits/month", "Everything in Pro", "Full CRM Access", "Unlimited accounts", "Dedicated support", "Team workspace", "Advanced analytics", "API access"],
     yearlyDiscount: 0.33,
   },
   {
@@ -99,9 +99,9 @@ const PLAN_TIER_ORDER: Record<string, number> = { free: 0, starter: 1, pro: 2, b
 
 // Features that should be highlighted with golden checkmarks per plan
 const GOLDEN_FEATURES: Record<string, string[]> = {
-  starter: ["550 credits/month"],
-  pro: ["2,750 credits/month", "Advanced CRM Access", "Premium AI features"],
-  business: ["11,000 credits/month"],
+  starter: ["105 credits/month"],
+  pro: ["500 credits/month", "Advanced CRM Access", "Premium AI features"],
+  business: ["2000 credits/month"],
   enterprise: ["Custom credit allocation"],
 };
 
