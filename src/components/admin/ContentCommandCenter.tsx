@@ -199,9 +199,12 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-bold text-white flex items-center gap-2">
-            <Calendar className="h-5 w-5 text-accent" /> Content Command Center
-          </h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-lg font-bold text-white flex items-center gap-2">
+              <Calendar className="h-5 w-5 text-accent" /> Content Command Center
+            </h1>
+            <CreditCostBadge cost="3–5" variant="header" label="per content" />
+          </div>
           <p className="text-xs text-white/40">Plan, create, and optimize content across all platforms</p>
         </div>
         <div className="flex gap-2">

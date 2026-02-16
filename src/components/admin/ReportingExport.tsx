@@ -165,9 +165,12 @@ const ReportingExport = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-bold text-white flex items-center gap-2">
-            <FileText className="h-5 w-5 text-accent" /> Reports & Exports
-          </h3>
+          <div className="flex items-center gap-3">
+            <h3 className="text-lg font-bold text-white flex items-center gap-2">
+              <FileText className="h-5 w-5 text-accent" /> Reports & Exports
+            </h3>
+            <CreditCostBadge cost="5–8" variant="header" label="per report" />
+          </div>
           <p className="text-xs text-white/40 mt-0.5">Generate and download data reports</p>
         </div>
         <Select value={format} onValueChange={setFormat}>

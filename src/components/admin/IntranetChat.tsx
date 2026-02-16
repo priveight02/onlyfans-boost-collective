@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import CreditCostBadge from "./CreditCostBadge";
 import { useAuth } from "@/hooks/useAuth";
 
 const IntranetChat = () => {
@@ -211,7 +212,10 @@ const IntranetChat = () => {
       {/* Sidebar - Rooms */}
       <div className="w-72 shrink-0 flex flex-col">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-bold text-white">Channels</h3>
+          <div className="flex items-center gap-2">
+            <h3 className="text-sm font-bold text-white">Channels</h3>
+            <CreditCostBadge cost={0} variant="header" label="free" />
+          </div>
           <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-white/40 hover:text-white" onClick={() => setShowCreateRoom(true)}>
             <Plus className="h-4 w-4" />
           </Button>

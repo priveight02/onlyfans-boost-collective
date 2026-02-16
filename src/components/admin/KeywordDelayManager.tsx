@@ -18,6 +18,7 @@ import {
   Loader2, Power, PowerOff, ChevronDown, ChevronUp,
   MessageSquare, Image, Video, FileText,
 } from "lucide-react";
+import CreditCostBadge from "./CreditCostBadge";
 
 interface KeywordDelay {
   id: string;
@@ -156,6 +157,7 @@ const KeywordDelayManager = ({ accountId }: KeywordDelayManagerProps) => {
         <div className="flex items-center gap-2">
           <Clock className="h-3.5 w-3.5 text-amber-400" />
           <span className="text-[10px] font-semibold text-foreground uppercase tracking-wider">Keyword Delays</span>
+          <CreditCostBadge cost="3–5" variant="header" />
           {activeCount > 0 && (
             <Badge className="bg-amber-500/15 text-amber-400 border-amber-500/30 text-[9px] px-1.5 py-0">
               {activeCount}

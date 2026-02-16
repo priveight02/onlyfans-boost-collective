@@ -10,14 +10,18 @@ import ScriptIntelligence from "./ScriptIntelligence";
 import AutomationEngine from "../AutomationEngine";
 import ConversionOptimizer from "./ConversionOptimizer";
 import FanPsychologyPlaybook from "./FanPsychologyPlaybook";
+import CreditCostBadge from "../CreditCostBadge";
 
 const StorylineHub = () => {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-lg font-bold text-white flex items-center gap-2">
-          <Layers className="h-5 w-5 text-accent" /> Storyline & Automation System
-        </h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-lg font-bold text-white flex items-center gap-2">
+            <Layers className="h-5 w-5 text-accent" /> Storyline & Automation System
+          </h1>
+          <CreditCostBadge cost="5–25" variant="header" label="per script" />
+        </div>
         <p className="text-xs text-white/40">Design, automate, and optimize multi-step engagement flows</p>
       </div>
 

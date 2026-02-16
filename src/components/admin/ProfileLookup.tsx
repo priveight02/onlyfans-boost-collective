@@ -21,6 +21,7 @@ import {
   AreaChart, Area, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
   Legend,
 } from "recharts";
+import CreditCostBadge from "./CreditCostBadge";
 
 const CHART_COLORS = [
   "hsl(152, 70%, 50%)", "hsl(220, 70%, 60%)", "hsl(280, 60%, 55%)",
@@ -461,6 +462,15 @@ const ProfileLookup = () => {
 
   return (
     <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <h2 className="text-lg font-bold text-white flex items-center gap-2">
+            <Search className="h-5 w-5 text-accent" /> Profile Lookup
+          </h2>
+          <CreditCostBadge cost={5} variant="header" label="per lookup" />
+        </div>
+      </div>
       {/* Search */}
       <div className="flex gap-3">
         <div className="relative flex-1">
