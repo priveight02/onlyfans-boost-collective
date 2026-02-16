@@ -29,7 +29,7 @@ const Footer = () => {
               </div>
             </div>
             <p className="text-white/50 text-sm leading-relaxed max-w-xs">
-              The intelligent CRM platform that helps businesses automate workflows, engage customers with AI, and scale growth with data-driven insights.
+              The intelligent CRM platform that helps businesses, creators, and entrepreneurs automate workflows, engage audiences with AI, and scale their digital presence.
             </p>
             <div className="flex items-center gap-2">
               <a href="https://ozcagency.com" target="_blank" rel="noopener noreferrer"
@@ -98,7 +98,7 @@ const Footer = () => {
         {/* Bottom */}
         <div className="mt-6 pt-4 border-t border-white/[0.06] flex flex-col sm:flex-row items-center justify-between gap-2">
           <p className="text-white/30 text-xs flex items-center gap-1">
-            © {year} Ozc Agency. Built with <Heart className="h-3 w-3 text-pink-500/60 fill-pink-500/60" /> for growing businesses.
+            © {year} Ozc Agency. Built with <Heart className="h-3 w-3 text-pink-500/60 fill-pink-500/60" /> for creators, businesses, and dreamers.
           </p>
           <div className="flex items-center gap-3 text-[11px] text-white/30">
             <span>GDPR</span>

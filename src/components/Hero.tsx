@@ -154,7 +154,7 @@ const Hero = () => {
             transition={{ duration: 0.8, delay: 0.4 }}
             className="text-lg md:text-xl text-white/60 mb-12 max-w-2xl mx-auto leading-relaxed"
           >
-            Automate your workflows, engage customers with AI, and unlock data-driven insights. One intelligent platform built for modern businesses.
+            Automate your workflows, engage customers with AI, and unlock data-driven insights. Built for businesses, content creators, freelancers, and anyone ready to grow their digital presence.
           </motion.p>
           
           <motion.div
