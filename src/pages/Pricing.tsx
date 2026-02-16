@@ -7,11 +7,6 @@ import { toast } from "sonner";
 import { Check, ArrowRight, Sparkles, BadgePercent, ShieldCheck, Zap, Gift } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Footer from "@/components/Footer";
-import creditsStarter from "@/assets/credits-starter.png";
-import creditsPro from "@/assets/credits-pro.png";
-import creditsStudio from "@/assets/credits-studio.png";
-import creditsPower from "@/assets/credits-power.png";
-import creditsCustom from "@/assets/credits-custom.png";
 
 interface CreditPackage {
   id: string;
@@ -179,13 +174,6 @@ const Pricing = () => {
     { border: "border-purple-500/30", glow: "hover:shadow-purple-500/5", badge: "bg-purple-500", label: "Best Value" },
   ];
 
-  const PACKAGE_IMAGES: Record<string, string> = {
-    "Starter": creditsStarter,
-    "Pro": creditsPro,
-    "Studio": creditsStudio,
-    "Power User": creditsPower,
-  };
-
   return (
     <div className="min-h-screen bg-[hsl(222,35%,8%)] text-white pt-24">
       {/* Hero */}
@@ -251,10 +239,6 @@ const Pricing = () => {
 
                     <div className="p-6 flex-1 flex flex-col">
                     <h3 className="text-base font-semibold text-white/90 mb-3">{pkg.name}</h3>
-
-                    {PACKAGE_IMAGES[pkg.name] && (
-                      <img src={PACKAGE_IMAGES[pkg.name]} alt={`${pkg.credits} credits`} className="w-20 h-20 mx-auto mb-3 object-contain" />
-                    )}
 
                     <div className="flex items-baseline gap-2 mb-0.5">
                       {isReturning && (
@@ -347,8 +331,6 @@ const Pricing = () => {
 
               <div className="p-6 flex-1 flex flex-col">
                 <h3 className="text-base font-semibold text-white/90 mb-3">Custom Needs</h3>
-
-                <img src={creditsCustom} alt="Custom credits" className="w-20 h-20 mx-auto mb-3 object-contain" />
 
                 <div className="flex items-baseline gap-2 mb-0.5">
                   {isReturning && customTotalCents !== customDisplayCents && (
