@@ -280,9 +280,8 @@ const PlanCreditsTab = ({ onSwitchTab }: { onSwitchTab?: (tab: string) => void }
         return;
       }
 
-      // New subscription — redirect to Stripe checkout
+      // New subscription — open embedded checkout
       if (data?.clientSecret) setCheckoutSecret(data.clientSecret);
-      else if (data?.url) window.location.href = data.url;
     } catch (err: any) {
       toast.error(err.message || "Failed to start checkout");
     } finally {

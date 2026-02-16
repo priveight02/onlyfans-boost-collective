@@ -210,8 +210,8 @@ serve(async (req) => {
       customer_email: customerId ? undefined : user.email,
       line_items: [{ price: priceId, quantity: 1 }],
       mode: "subscription",
-      success_url: `${origin}/profile?subscription=success&plan=${planId}`,
-      cancel_url: `${origin}/profile?subscription=canceled`,
+      ui_mode: "embedded",
+      return_url: `${origin}/profile?subscription=success&plan=${planId}`,
       metadata: {
         user_id: user.id,
         plan_id: planId,
@@ -230,8 +230,8 @@ serve(async (req) => {
 
     const session = await stripe.checkout.sessions.create(sessionParams);
 
-    logStep("Checkout session created", { sessionId: session.id });
-    return new Response(JSON.stringify({ url: session.url }), {
+    logStep("Embedded checkout session created", { sessionId: session.id });
+    return new Response(JSON.stringify({ clientSecret: session.client_secret }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
