@@ -32,6 +32,17 @@ const resolveSubPrice = (priceId: string) => isTestMode() ? (LIVE_TO_TEST_SUB_PR
 // Plan tier ordering for upgrade/downgrade detection
 const PLAN_TIER_ORDER: Record<string, number> = { free: 0, starter: 1, pro: 2, business: 3, enterprise: 4 };
 
+// Product ID → plan ID mapping (both live and test)
+const PRODUCT_TO_PLAN: Record<string, string> = {
+  // Live products
+  "prod_TzAqP0zH90vzyR": "starter",
+  "prod_TzAypr06as419B": "starter",
+  "prod_TzArZUF2DIlzHq": "pro",
+  "prod_TzAywFFZ0SdhfZ": "pro",
+  "prod_TzAram9it2Kedf": "business",
+  "prod_TzAzgoteaSHuDB": "business",
+};
+
 // Credits per plan for granting after subscription
 const PLAN_CREDITS: Record<string, number> = {
   starter: 105,
@@ -76,12 +87,23 @@ serve(async (req) => {
       }
     }
 
-    const currentTier = PLAN_TIER_ORDER[currentPlanId || "free"] ?? 0;
+    // ─── SERVER-SIDE plan detection from existing subscription ───
+    // Don't trust the frontend's currentPlanId — detect from Stripe directly
+    let detectedCurrentPlanId = "free";
+    if (existingSub) {
+      const existingProductId = typeof existingSub.items.data[0].price.product === "string"
+        ? existingSub.items.data[0].price.product
+        : (existingSub.items.data[0].price.product as any)?.id || "";
+      detectedCurrentPlanId = PRODUCT_TO_PLAN[existingProductId] || "free";
+      logStep("Detected current plan from Stripe", { existingProductId, detectedCurrentPlanId });
+    }
+
+    const currentTier = PLAN_TIER_ORDER[detectedCurrentPlanId] ?? 0;
     const targetTier = PLAN_TIER_ORDER[planId] ?? 0;
     const isUpgrade = targetTier > currentTier && currentTier > 0;
     const isDowngrade = targetTier < currentTier && currentTier > 0;
 
-    logStep("Plan change direction", { currentPlanId, planId, currentTier, targetTier, isUpgrade, isDowngrade, hasExistingSub: !!existingSub });
+    logStep("Plan change direction", { detectedCurrentPlanId, planId, currentTier, targetTier, isUpgrade, isDowngrade, hasExistingSub: !!existingSub });
 
     // ─── UPGRADE: update subscription in-place with proration ───
     if (existingSub && isUpgrade) {
@@ -97,7 +119,7 @@ serve(async (req) => {
           billing_cycle: billingCycle || "monthly",
           credits: String(PLAN_CREDITS[planId] || 0),
           type: "upgrade",
-          previous_plan: currentPlanId || "unknown",
+          previous_plan: detectedCurrentPlanId,
         },
       });
 
@@ -137,7 +159,7 @@ serve(async (req) => {
           billing_cycle: billingCycle || "monthly",
           credits: String(PLAN_CREDITS[planId] || 0),
           type: "downgrade",
-          previous_plan: currentPlanId || "unknown",
+          previous_plan: detectedCurrentPlanId,
         },
       });
 
@@ -145,6 +167,15 @@ serve(async (req) => {
 
       return new Response(JSON.stringify({ downgraded: true, message: `Downgraded to ${planId}. Takes effect at the end of your current billing period.` }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ─── SAME PLAN: prevent re-buying the same plan ───
+    if (existingSub && detectedCurrentPlanId === planId) {
+      logStep("User already on this plan", { planId });
+      return new Response(JSON.stringify({ error: "You're already on this plan." }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400,
       });
     }
 
