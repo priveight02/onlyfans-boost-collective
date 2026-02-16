@@ -39,6 +39,13 @@ const LOYALTY_COUPON_MAP: Record<number, string> = {
 };
 const RETENTION_COUPON_ID = "5P34jI5L";
 
+// Yearly discount coupons (auto-applied at checkout)
+const YEARLY_COUPON_MAP: Record<string, string> = {
+  starter: "tY7Dc8CS",  // 15% off
+  pro: "Tw4fW0YB",      // 30% off
+  business: "OC7IWjQT",  // 33% off
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -97,7 +104,12 @@ serve(async (req) => {
 
     // Determine coupon to auto-apply
     let couponId: string | undefined;
-    if (returningDiscountPercent > 0 && LOYALTY_COUPON_MAP[returningDiscountPercent]) {
+
+    // Yearly plans get their own discount coupon
+    if (billingCycle === "yearly" && YEARLY_COUPON_MAP[planId]) {
+      couponId = YEARLY_COUPON_MAP[planId];
+      logStep("Will apply yearly discount coupon", { planId, couponId });
+    } else if (returningDiscountPercent > 0 && LOYALTY_COUPON_MAP[returningDiscountPercent]) {
       couponId = LOYALTY_COUPON_MAP[returningDiscountPercent];
       logStep("Will apply loyalty coupon to checkout", { discount: `${returningDiscountPercent}%`, couponId });
     }
