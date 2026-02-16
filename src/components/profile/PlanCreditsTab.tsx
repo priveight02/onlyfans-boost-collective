@@ -94,6 +94,9 @@ const PLANS = [
   },
 ];
 
+// Plan tier ordering for upgrade/downgrade detection
+const PLAN_TIER_ORDER: Record<string, number> = { free: 0, starter: 1, pro: 2, business: 3, enterprise: 4 };
+
 // Features that should be highlighted with golden checkmarks per plan
 const GOLDEN_FEATURES: Record<string, string[]> = {
   starter: ["105 credits/month"],
@@ -185,15 +188,41 @@ const PlanCreditsTab = () => {
   useEffect(() => { fetchSubscription(); }, [fetchSubscription]);
 
   // Re-check subscription when user returns to tab (e.g. after Stripe checkout)
+  // Also verify credits for subscription purchases
   useEffect(() => {
-    const handleVisibility = () => {
+    const handleVisibility = async () => {
       if (document.visibilityState === 'visible') {
         fetchSubscription();
+        refreshWallet();
+        // Verify any pending subscription credit grants
+        try {
+          await supabase.functions.invoke("verify-credit-purchase");
+          refreshWallet();
+        } catch {}
       }
     };
     document.addEventListener('visibilitychange', handleVisibility);
     return () => document.removeEventListener('visibilitychange', handleVisibility);
-  }, [fetchSubscription]);
+  }, [fetchSubscription, refreshWallet]);
+
+  // Also verify on URL params (when redirected back from Stripe)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("subscription") === "success") {
+      // Clean URL
+      window.history.replaceState({}, "", window.location.pathname);
+      // Verify credits and refresh
+      const verify = async () => {
+        try {
+          await supabase.functions.invoke("verify-credit-purchase");
+          refreshWallet();
+          fetchSubscription();
+          toast.success("Subscription activated! Credits have been added.");
+        } catch {}
+      };
+      verify();
+    }
+  }, []);
 
   const currentPlan = PLANS.find(p => p.id === activePlanId) || PLANS[0];
   const isFreeTier = currentPlan.id === "free";
@@ -443,7 +472,12 @@ const PlanCreditsTab = () => {
                         : "bg-[hsl(222,25%,18%)] hover:bg-[hsl(222,25%,22%)] text-white border border-white/10"
                     }`}
                   >
-                    {upgradingPlan === plan.id ? "Loading..." : <><ArrowUpRight className="h-4 w-4 mr-1.5" />{activePlanId ? "Switch Plan" : "Upgrade"}</>}
+                    {upgradingPlan === plan.id ? "Loading..." : (() => {
+                      const currentTier = PLAN_TIER_ORDER[activePlanId || "free"] ?? 0;
+                      const targetTier = PLAN_TIER_ORDER[plan.id] ?? 0;
+                      const label = !activePlanId || activePlanId === "free" ? "Upgrade" : targetTier > currentTier ? "Upgrade Plan" : "Downgrade Plan";
+                      return <><ArrowUpRight className="h-4 w-4 mr-1.5" />{label}</>;
+                    })()}
                   </Button>
                 ) : (
                   <Button

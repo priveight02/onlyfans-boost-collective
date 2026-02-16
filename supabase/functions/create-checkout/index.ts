@@ -29,6 +29,13 @@ const LIVE_TO_TEST_SUB_PRICE: Record<string, string> = {
 
 const resolveSubPrice = (priceId: string) => isTestMode() ? (LIVE_TO_TEST_SUB_PRICE[priceId] || priceId) : priceId;
 
+// Credits per plan for granting after subscription
+const PLAN_CREDITS: Record<string, number> = {
+  starter: 105,
+  pro: 500,
+  business: 2000,
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -50,28 +57,23 @@ serve(async (req) => {
     const resolvedPriceId = resolveSubPrice(priceId);
     logStep("Checkout request", { priceId, resolvedPriceId, planId, billingCycle, testMode: isTestMode() });
 
-    const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", { apiVersion: "2025-08-27.basil" });
+    const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", { apiVersion: "2025-04-30.basil" });
 
     const customers = await stripe.customers.list({ email: user.email, limit: 1 });
     let customerId: string | undefined;
     if (customers.data.length > 0) {
       customerId = customers.data[0].id;
 
-      // Check for existing active subscription
-      const subs = await stripe.subscriptions.list({ customer: customerId, status: "active", limit: 1 });
-      if (subs.data.length > 0) {
-        logStep("User already has active subscription, redirecting to portal");
-        const portalSession = await stripe.billingPortal.sessions.create({
-          customer: customerId,
-          return_url: "https://ozcagency.com/profile",
-        });
-        return new Response(JSON.stringify({ url: portalSession.url }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+      // Cancel any existing active subscriptions so user can switch plans
+      const subs = await stripe.subscriptions.list({ customer: customerId, status: "active", limit: 10 });
+      for (const sub of subs.data) {
+        logStep("Canceling existing subscription", { subId: sub.id });
+        await stripe.subscriptions.cancel(sub.id, { prorate: true });
       }
     }
 
     const origin = "https://ozcagency.com";
+    const credits = PLAN_CREDITS[planId] || 0;
 
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
@@ -80,7 +82,14 @@ serve(async (req) => {
       mode: "subscription",
       success_url: `${origin}/profile?subscription=success&plan=${planId}`,
       cancel_url: `${origin}/profile?subscription=canceled`,
-      metadata: { user_id: user.id, plan_id: planId, billing_cycle: billingCycle || "monthly" },
+      metadata: {
+        user_id: user.id,
+        plan_id: planId,
+        billing_cycle: billingCycle || "monthly",
+        credits: String(credits),
+        bonus_credits: "0",
+        type: "subscription",
+      },
     });
 
     logStep("Checkout session created", { sessionId: session.id });
