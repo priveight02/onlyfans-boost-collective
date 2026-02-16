@@ -9,6 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { MessageSquare, Plus, Users, Clock, TrendingUp, Filter, Search, User, Inbox } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useCreditAction } from "@/hooks/useCreditAction";
+import CreditCostBadge from "./CreditCostBadge";
 
 const priorityColors: Record<string, string> = {
   urgent: "bg-red-500/20 text-red-400",
@@ -31,6 +33,7 @@ const MessagingHub = () => {
   const [statusFilter, setStatusFilter] = useState("all");
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({ account_id: "", subscriber_name: "", priority: "normal" });
+  const { performAction } = useCreditAction();
 
   useEffect(() => {
     loadAll();
@@ -64,15 +67,17 @@ const MessagingHub = () => {
 
   const handleAdd = async () => {
     if (!form.account_id || !form.subscriber_name) return toast.error("Fill required fields");
-    const { error } = await supabase.from("message_threads").insert({
-      account_id: form.account_id,
-      subscriber_name: form.subscriber_name,
-      priority: form.priority,
+    await performAction('send_message', async () => {
+      const { error } = await supabase.from("message_threads").insert({
+        account_id: form.account_id,
+        subscriber_name: form.subscriber_name,
+        priority: form.priority,
+      });
+      if (error) { toast.error("Failed to create thread"); throw error; }
+      toast.success("Thread created");
+      setShowAdd(false);
+      setForm({ account_id: "", subscriber_name: "", priority: "normal" });
     });
-    if (error) return toast.error("Failed to create thread");
-    toast.success("Thread created");
-    setShowAdd(false);
-    setForm({ account_id: "", subscriber_name: "", priority: "normal" });
   };
 
   const handleAssign = async (threadId: string, chatterId: string) => {
@@ -130,7 +135,7 @@ const MessagingHub = () => {
         </Select>
         <Dialog open={showAdd} onOpenChange={setShowAdd}>
           <DialogTrigger asChild>
-            <Button size="sm" className="gap-1"><Plus className="h-3 w-3" /> New Thread</Button>
+            <Button size="sm" className="gap-1"><Plus className="h-3 w-3" /> New Thread <CreditCostBadge cost={1} /></Button>
           </DialogTrigger>
           <DialogContent className="bg-[hsl(220,50%,12%)] border-white/10 text-white">
             <DialogHeader><DialogTitle>Create Thread</DialogTitle></DialogHeader>
@@ -157,7 +162,7 @@ const MessagingHub = () => {
                   </SelectContent>
                 </Select>
               </div>
-              <Button onClick={handleAdd} className="w-full">Create</Button>
+              <Button onClick={handleAdd} className="w-full">Create <CreditCostBadge cost={1} /></Button>
             </div>
           </DialogContent>
         </Dialog>

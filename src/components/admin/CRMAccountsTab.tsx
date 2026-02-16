@@ -8,6 +8,7 @@ import CRMAccountDetail from "./CRMAccountDetail";
 import CRMAddAccountDialog from "./CRMAddAccountDialog";
 import OFConnectDialog from "./OFConnectDialog";
 import { Loader2, Inbox } from "lucide-react";
+import { useCreditAction } from "@/hooks/useCreditAction";
 
 const CRMAccountsTab = () => {
   const [accounts, setAccounts] = useState<any[]>([]);
@@ -19,6 +20,7 @@ const CRMAccountsTab = () => {
   const [editAccount, setEditAccount] = useState<any | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [connectAccount, setConnectAccount] = useState<any | null>(null);
+  const { performAction } = useCreditAction();
 
   const fetchAccounts = async (forceRefresh = false) => {
     setLoading(true);
@@ -60,15 +62,17 @@ const CRMAccountsTab = () => {
 
   const handleDelete = async (id: string) => {
     if (!confirm("Delete this account?")) return;
-    const { error } = await supabase.from("managed_accounts").delete().eq("id", id);
-    if (error) {
-      toast.error("Failed to delete");
-    } else {
+    await performAction('delete_account', async () => {
+      const { error } = await supabase.from("managed_accounts").delete().eq("id", id);
+      if (error) {
+        toast.error("Failed to delete");
+        throw error;
+      }
       toast.success("Account deleted");
       invalidateNamespace("global", "crm_accounts");
       invalidateNamespace("global", "managed_accounts");
       fetchAccounts(true);
-    }
+    });
   };
 
   const handleEdit = (account: any) => {

@@ -10,6 +10,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FileText, Plus, Download, Pen, Check, Clock, X, Eye, Trash2, ArrowUpRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useCreditAction } from "@/hooks/useCreditAction";
+import CreditCostBadge from "./CreditCostBadge";
 
 const CONTRACT_TEMPLATES: Record<string, { title: string; content: string }> = {
   nda: {
@@ -134,6 +136,7 @@ const ContractsManager = () => {
   const [signatureName, setSignatureName] = useState("");
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
+  const { performAction } = useCreditAction();
 
   const [form, setForm] = useState({
     contract_type: "nda",
@@ -165,33 +168,37 @@ const ContractsManager = () => {
 
   const handleCreate = async () => {
     if (!form.title) return toast.error("Title is required");
-    const { error } = await supabase.from("contracts").insert({
-      title: form.title,
-      contract_type: form.contract_type,
-      content: form.content,
-      account_id: form.account_id || null,
-      team_member_id: form.team_member_id || null,
+    await performAction('create_contract', async () => {
+      const { error } = await supabase.from("contracts").insert({
+        title: form.title,
+        contract_type: form.contract_type,
+        content: form.content,
+        account_id: form.account_id || null,
+        team_member_id: form.team_member_id || null,
+      });
+      if (error) { toast.error("Failed to create contract"); throw error; }
+      toast.success("Contract created");
+      setShowCreate(false);
+      setForm({ contract_type: "nda", title: "", content: "", account_id: "", team_member_id: "" });
+      loadAll();
     });
-    if (error) return toast.error("Failed to create contract");
-    toast.success("Contract created");
-    setShowCreate(false);
-    setForm({ contract_type: "nda", title: "", content: "", account_id: "", team_member_id: "" });
-    loadAll();
   };
 
   const handleSign = async (contract: any) => {
     const canvas = canvasRef.current;
     const signatureImage = canvas ? canvas.toDataURL() : null;
-    const { error } = await supabase.from("contracts").update({
-      status: "signed",
-      signed_at: new Date().toISOString(),
-      signature_data: { signer_name: signatureName, signature_image: signatureImage, signed_at: new Date().toISOString() },
-    }).eq("id", contract.id);
-    if (error) return toast.error("Failed to sign");
-    toast.success("Contract signed!");
-    setSignMode(false);
-    setViewContract(null);
-    loadAll();
+    await performAction('sign_contract', async () => {
+      const { error } = await supabase.from("contracts").update({
+        status: "signed",
+        signed_at: new Date().toISOString(),
+        signature_data: { signer_name: signatureName, signature_image: signatureImage, signed_at: new Date().toISOString() },
+      }).eq("id", contract.id);
+      if (error) { toast.error("Failed to sign"); throw error; }
+      toast.success("Contract signed!");
+      setSignMode(false);
+      setViewContract(null);
+      loadAll();
+    });
   };
 
   const handleDelete = async (id: string) => {

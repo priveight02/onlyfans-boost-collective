@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Search, Plus, Filter } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import CreditCostBadge from "./CreditCostBadge";
 import {
   Select,
   SelectContent,
@@ -65,6 +66,7 @@ const CRMAccountSearch = ({ onSearch, onFilterStatus, onFilterTier, onAddAccount
         <Button onClick={onAddAccount} className="bg-accent hover:bg-accent/80 text-white gap-1.5 h-10">
           <Plus className="h-4 w-4" />
           <span className="hidden sm:inline">Add Account</span>
+          <CreditCostBadge cost={5} />
         </Button>
       </div>
     </div>

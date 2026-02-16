@@ -12,6 +12,8 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useCreditAction } from "@/hooks/useCreditAction";
+import CreditCostBadge from "./CreditCostBadge";
 
 interface CRMAddAccountDialogProps {
   open: boolean;
@@ -22,6 +24,7 @@ interface CRMAddAccountDialogProps {
 
 const CRMAddAccountDialog = ({ open, onClose, onSuccess, editAccount }: CRMAddAccountDialogProps) => {
   const [loading, setLoading] = useState(false);
+  const { performAction } = useCreditAction();
   const [form, setForm] = useState({
     username: editAccount?.username || "",
     display_name: editAccount?.display_name || "",
@@ -62,21 +65,24 @@ const CRMAddAccountDialog = ({ open, onClose, onSuccess, editAccount }: CRMAddAc
       tags: form.tags ? form.tags.split(",").map((t: string) => t.trim()).filter(Boolean) : [],
     };
 
-    let error;
-    if (editAccount) {
-      ({ error } = await supabase.from("managed_accounts").update(payload).eq("id", editAccount.id));
-    } else {
-      ({ error } = await supabase.from("managed_accounts").insert(payload));
-    }
+    const actionType = editAccount ? 'update_account' : 'create_account';
+    await performAction(actionType, async () => {
+      let error;
+      if (editAccount) {
+        ({ error } = await supabase.from("managed_accounts").update(payload).eq("id", editAccount.id));
+      } else {
+        ({ error } = await supabase.from("managed_accounts").insert(payload));
+      }
 
-    setLoading(false);
-    if (error) {
-      toast.error(error.message);
-    } else {
+      if (error) {
+        toast.error(error.message);
+        throw error;
+      }
       toast.success(editAccount ? "Account updated" : "Account added");
       onSuccess();
       onClose();
-    }
+    });
+    setLoading(false);
   };
 
   const update = (field: string, value: string) => setForm((prev) => ({ ...prev, [field]: value }));
@@ -182,8 +188,8 @@ const CRMAddAccountDialog = ({ open, onClose, onSuccess, editAccount }: CRMAddAc
             <Button type="button" variant="ghost" onClick={onClose} className="flex-1 text-white/50 hover:text-white hover:bg-white/10">
               Cancel
             </Button>
-            <Button type="submit" disabled={loading} className="flex-1 bg-accent hover:bg-accent/80">
-              {loading ? "Saving..." : editAccount ? "Update" : "Add Account"}
+            <Button type="submit" disabled={loading} className="flex-1 bg-accent hover:bg-accent/80 gap-2">
+              {loading ? "Saving..." : editAccount ? "Update" : "Add Account"} <CreditCostBadge cost={editAccount ? 2 : 5} />
             </Button>
           </div>
         </form>

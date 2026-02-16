@@ -22,6 +22,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useCreditAction } from "@/hooks/useCreditAction";
+import CreditCostBadge from "./CreditCostBadge";
 
 const roleConfig: Record<string, { label: string; color: string; icon: React.ElementType }> = {
   admin: { label: "Admin", color: "bg-red-500/15 text-red-400 border-red-500/20", icon: Shield },
@@ -45,6 +47,7 @@ const TeamManagement = () => {
   const [editMember, setEditMember] = useState<any | null>(null);
   const [showAssign, setShowAssign] = useState<any | null>(null);
   const [saving, setSaving] = useState(false);
+  const { performAction } = useCreditAction();
 
   const [form, setForm] = useState({ name: "", email: "", role: "chatter", notes: "" });
 
@@ -79,24 +82,29 @@ const TeamManagement = () => {
     if (!form.name.trim() || !form.email.trim()) { toast.error("Name and email required"); return; }
     setSaving(true);
     const payload = { name: form.name.trim(), email: form.email.trim(), role: form.role, notes: form.notes || null };
-    let error;
-    if (editMember) {
-      ({ error } = await supabase.from("team_members").update(payload).eq("id", editMember.id));
-    } else {
-      ({ error } = await supabase.from("team_members").insert(payload));
-    }
-    setSaving(false);
-    if (error) { toast.error(error.message); } else {
+    const actionType = editMember ? 'update_team_member' : 'add_team_member';
+    await performAction(actionType, async () => {
+      let error;
+      if (editMember) {
+        ({ error } = await supabase.from("team_members").update(payload).eq("id", editMember.id));
+      } else {
+        ({ error } = await supabase.from("team_members").insert(payload));
+      }
+      if (error) { toast.error(error.message); throw error; }
       toast.success(editMember ? "Member updated" : "Member added");
       setShowAdd(false);
       fetchAll();
-    }
+    });
+    setSaving(false);
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm("Remove this team member?")) return;
-    const { error } = await supabase.from("team_members").delete().eq("id", id);
-    if (error) toast.error("Failed"); else { toast.success("Removed"); fetchAll(); }
+    await performAction('remove_team_member', async () => {
+      const { error } = await supabase.from("team_members").delete().eq("id", id);
+      if (error) { toast.error("Failed"); throw error; }
+      toast.success("Removed"); fetchAll();
+    });
   };
 
   const toggleStatus = async (member: any) => {
@@ -146,7 +154,7 @@ const TeamManagement = () => {
           <p className="text-xs text-white/40 mt-0.5">{members.length} members • {assignments.length} account assignments</p>
         </div>
         <Button onClick={() => openAdd()} className="bg-accent hover:bg-accent/80 gap-2 text-sm h-9">
-          <UserPlus className="h-4 w-4" /> Add Member
+          <UserPlus className="h-4 w-4" /> Add Member <CreditCostBadge cost={10} />
         </Button>
       </div>
 
