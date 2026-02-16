@@ -24,8 +24,8 @@ import {
 interface CustomerSummary {
   user_id: string; email: string; display_name: string; username: string;
   avatar_url: string | null; created_at: string; account_status: string;
-  credit_balance: number; total_purchased_credits: number; purchase_count: number;
-  total_spent_cents: number; tx_purchase_count: number; tx_total_credits: number;
+  credit_balance: number; total_purchased_credits: number; granted_credits: number; grant_count: number;
+  purchase_count: number; total_spent_cents: number; tx_purchase_count: number; tx_total_credits: number;
   last_purchase: string | null; first_purchase: string | null;
   ltv: number; avg_order_value: number; days_since_join: number; monthly_velocity: number;
   spender_score: number; engagement_score: number; churn_risk: string;
@@ -454,12 +454,14 @@ const AdminCustomers = () => {
             )}
 
             {/* KPI Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
               {[
                 { label: "Lifetime Value", value: `$${detail.insights.ltv.toFixed(2)}`, icon: DollarSign, accent: "text-emerald-400" },
                 { label: "Projected Annual", value: `$${detail.insights.projected_annual_ltv.toFixed(0)}`, icon: TrendingUp, accent: "text-purple-400" },
                 { label: "Monthly Velocity", value: `$${detail.insights.monthly_velocity.toFixed(2)}/mo`, icon: Zap, accent: "text-amber-400" },
                 { label: "Credit Balance", value: (detail.wallet?.balance || 0).toLocaleString(), icon: Coins, accent: "text-sky-400" },
+                { label: "Purchased Credits", value: (detail.wallet?.total_purchased || 0).toLocaleString(), icon: CreditCard, accent: "text-emerald-400" },
+                { label: "Granted Credits", value: ((detail.transactions || []).filter((t: any) => t.type === "admin_grant").reduce((s: number, t: any) => s + t.amount, 0)).toLocaleString(), icon: Gift, accent: "text-purple-400" },
                 { label: "Current Plan", value: detail.stripe?.current_plan || "Free", icon: Crown, accent: "text-pink-400" },
                 { label: "Purchase Freq.", value: `${detail.insights.purchase_frequency.toFixed(1)}/mo`, icon: BarChart3, accent: "text-orange-400" },
               ].map(kpi => (
@@ -888,12 +890,16 @@ const AdminCustomers = () => {
                 </div>
 
                 {/* Credits Balance - prominent */}
-                <div className="text-right w-20">
+                <div className="text-right w-24">
                   <div className="flex items-center justify-end gap-1">
                     <Coins className="h-3 w-3 text-amber-400" />
                     <p className="text-sm font-bold text-amber-400">{c.credit_balance.toLocaleString()}</p>
                   </div>
-                  <p className="text-[8px] text-white/20">{c.total_purchased_credits > 0 ? `${c.total_purchased_credits.toLocaleString()} bought` : "0 bought"}</p>
+                  <div className="flex items-center justify-end gap-2 text-[8px]">
+                    {c.total_purchased_credits > 0 && <span className="text-emerald-400/60">{c.total_purchased_credits.toLocaleString()} bought</span>}
+                    {c.granted_credits > 0 && <span className="text-purple-400/60">{c.granted_credits.toLocaleString()} granted</span>}
+                    {!c.total_purchased_credits && !c.granted_credits && <span className="text-white/20">0 bought</span>}
+                  </div>
                 </div>
 
                 {/* Monthly Velocity */}

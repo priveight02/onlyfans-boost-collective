@@ -128,15 +128,19 @@ serve(async (req) => {
       const walletMap: Record<string, any> = {};
       wallets.forEach(w => { walletMap[w.user_id] = w; });
 
-      const txMap: Record<string, { total_credits: number; purchase_count: number; last_purchase: string | null; first_purchase: string | null; credit_purchases: number[] }> = {};
+      const txMap: Record<string, { total_credits: number; purchase_count: number; granted_credits: number; grant_count: number; last_purchase: string | null; first_purchase: string | null; credit_purchases: number[] }> = {};
       transactions.forEach(tx => {
-        if (tx.type !== "purchase") return;
-        if (!txMap[tx.user_id]) txMap[tx.user_id] = { total_credits: 0, purchase_count: 0, last_purchase: null, first_purchase: null, credit_purchases: [] };
-        txMap[tx.user_id].total_credits += tx.amount;
-        txMap[tx.user_id].purchase_count += 1;
-        txMap[tx.user_id].credit_purchases.push(tx.amount);
-        if (!txMap[tx.user_id].last_purchase || tx.created_at > txMap[tx.user_id].last_purchase!) txMap[tx.user_id].last_purchase = tx.created_at;
-        if (!txMap[tx.user_id].first_purchase || tx.created_at < txMap[tx.user_id].first_purchase!) txMap[tx.user_id].first_purchase = tx.created_at;
+        if (!txMap[tx.user_id]) txMap[tx.user_id] = { total_credits: 0, purchase_count: 0, granted_credits: 0, grant_count: 0, last_purchase: null, first_purchase: null, credit_purchases: [] };
+        if (tx.type === "purchase") {
+          txMap[tx.user_id].total_credits += tx.amount;
+          txMap[tx.user_id].purchase_count += 1;
+          txMap[tx.user_id].credit_purchases.push(tx.amount);
+          if (!txMap[tx.user_id].last_purchase || tx.created_at > txMap[tx.user_id].last_purchase!) txMap[tx.user_id].last_purchase = tx.created_at;
+          if (!txMap[tx.user_id].first_purchase || tx.created_at < txMap[tx.user_id].first_purchase!) txMap[tx.user_id].first_purchase = tx.created_at;
+        } else if (tx.type === "admin_grant") {
+          txMap[tx.user_id].granted_credits += tx.amount;
+          txMap[tx.user_id].grant_count += 1;
+        }
       });
 
       const postMap: Record<string, number> = {};
@@ -208,7 +212,8 @@ serve(async (req) => {
         return {
           user_id: p.user_id, email: p.email, display_name: p.display_name, username: p.username,
           avatar_url: p.avatar_url, created_at: p.created_at, account_status: p.account_status || "active",
-          credit_balance: wallet.balance || 0, total_purchased_credits: wallet.total_purchased || 0,
+          credit_balance: wallet.balance || 0, total_purchased_credits: wallet.total_purchased || txInfo.total_credits || 0,
+          granted_credits: txInfo.granted_credits || 0, grant_count: txInfo.grant_count || 0,
           purchase_count: purchaseCount, total_spent_cents: Math.round(totalSpentDollars * 100),
           tx_purchase_count: txInfo.purchase_count || 0, tx_total_credits: txInfo.total_credits || 0,
           last_purchase: lastPurchaseOrCharge || null, first_purchase: txInfo.first_purchase || null,
@@ -514,8 +519,13 @@ Provide your analysis in this exact JSON structure:
       if (adminAction === "grant_credits") {
         const { amount: creditAmount } = actionData || {};
         if (creditAmount && creditAmount > 0) {
-          const { data: w } = await supabaseAdmin.from("wallets").select("balance").eq("user_id", userId).single();
-          await supabaseAdmin.from("wallets").update({ balance: (w?.balance || 0) + creditAmount }).eq("user_id", userId);
+          // Upsert wallet — create if missing
+          const { data: w } = await supabaseAdmin.from("wallets").select("balance").eq("user_id", userId).maybeSingle();
+          if (w) {
+            await supabaseAdmin.from("wallets").update({ balance: w.balance + creditAmount }).eq("user_id", userId);
+          } else {
+            await supabaseAdmin.from("wallets").insert({ user_id: userId, balance: creditAmount, total_purchased: 0, purchase_count: 0 });
+          }
           await supabaseAdmin.from("wallet_transactions").insert({
             user_id: userId, amount: creditAmount, type: "admin_grant",
             description: reason || `Admin granted ${creditAmount} credits`,
@@ -526,9 +536,11 @@ Provide your analysis in this exact JSON structure:
       if (adminAction === "revoke_credits") {
         const { amount: creditAmount } = actionData || {};
         if (creditAmount && creditAmount > 0) {
-          const { data: w } = await supabaseAdmin.from("wallets").select("balance").eq("user_id", userId).single();
-          const newBalance = Math.max(0, (w?.balance || 0) - creditAmount);
-          await supabaseAdmin.from("wallets").update({ balance: newBalance }).eq("user_id", userId);
+          const { data: w } = await supabaseAdmin.from("wallets").select("balance").eq("user_id", userId).maybeSingle();
+          if (w) {
+            const newBalance = Math.max(0, w.balance - creditAmount);
+            await supabaseAdmin.from("wallets").update({ balance: newBalance }).eq("user_id", userId);
+          }
           await supabaseAdmin.from("wallet_transactions").insert({
             user_id: userId, amount: -creditAmount, type: "admin_revoke",
             description: reason || `Admin revoked ${creditAmount} credits`,
