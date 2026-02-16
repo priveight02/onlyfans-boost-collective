@@ -52,9 +52,9 @@ const PRODUCT_TO_PLAN: Record<string, string> = {
 
 // Credits per plan for granting after subscription
 const PLAN_CREDITS: Record<string, number> = {
-  starter: 215,
-  pro: 1075,
-  business: 4300,
+  starter: 175,
+  pro: 875,
+  business: 3500,
 };
 
 serve(async (req) => {
