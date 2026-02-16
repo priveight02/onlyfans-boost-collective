@@ -20,6 +20,30 @@ const PRODUCT_TO_PLAN: Record<string, string> = {
   "prod_TzDPr3jeAGF9mm": "Business", "prod_TzDQJVbiYpTH9Y": "Business",
 };
 
+const PLAN_STRIPE_PRICES: Record<string, string> = {
+  "starter": "price_1RTnZVP7ynHhQQPGiVdCxFj4",
+  "pro": "price_1RTnaLP7ynHhQQPGJ2xfNg7L",
+  "business": "price_1RTnblP7ynHhQQPGTrdIzrFG",
+};
+
+const VERIFIED_BADGE_SVG = `<div style="position:absolute;top:16px;right:16px;"><svg width="28" height="28" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="11" fill="#3B82F6"/><path d="M8 12l3 3 5-5" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>`;
+
+const EMAIL_TEMPLATE = (categoryLabel: string, subject: string, name: string, bodyContent: string, ctaUrl: string, ctaLabel: string) => `
+<div style="background:#0a0a0f;color:#fff;padding:40px;font-family:Arial,sans-serif;border-radius:16px;max-width:600px;margin:auto;position:relative;">
+  ${VERIFIED_BADGE_SVG}
+  <div style="margin-bottom:24px;">
+    <span style="font-size:11px;color:#ffffff50;text-transform:uppercase;letter-spacing:2px;font-weight:600;">${categoryLabel}</span>
+  </div>
+  <h1 style="font-size:24px;margin:0 0 24px;color:#fff;">${subject}</h1>
+  <p style="color:#ffffffaa;font-size:15px;line-height:1.6;">Hi ${name},</p>
+  <p style="color:#ffffffaa;font-size:15px;line-height:1.8;white-space:pre-line;">${bodyContent}</p>
+  <div style="text-align:center;margin:32px 0;">
+    <a href="${ctaUrl}" style="background:linear-gradient(135deg,#8b5cf6,#ec4899);color:#fff;padding:14px 36px;border-radius:12px;text-decoration:none;font-weight:bold;font-size:16px;display:inline-block;">${ctaLabel}</a>
+  </div>
+  <hr style="border:1px solid #ffffff15;margin:24px 0;" />
+  <p style="color:#ffffff40;font-size:11px;text-align:center;">OZC Agency Platform</p>
+</div>`;
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -54,11 +78,9 @@ serve(async (req) => {
     if (action === "list" || !action) {
       logStep("Fetching all users — batch mode");
 
-      // Safety net: auto-create profiles for any auth.users missing a profile
       const { data: authUsers } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
       const allAuthUsers = authUsers?.users || [];
 
-      // Batch fetch all data in parallel
       const [profilesRes, walletsRes, txRes, postsRes, loginRes, packagesRes] = await Promise.all([
         supabaseAdmin.from("profiles").select("*").order("created_at", { ascending: false }),
         supabaseAdmin.from("wallets").select("*"),
@@ -71,7 +93,6 @@ serve(async (req) => {
       let profiles = profilesRes.data || [];
       const wallets = walletsRes.data || [];
 
-      // Detect users with no profile and auto-create
       const existingUserIds = new Set(profiles.map(p => p.user_id));
       const missingUsers = allAuthUsers.filter(u => !existingUserIds.has(u.id));
       if (missingUsers.length > 0) {
@@ -85,10 +106,8 @@ serve(async (req) => {
         }));
         const { data: inserted } = await supabaseAdmin.from("profiles").insert(newProfiles).select("*");
         if (inserted) profiles = [...profiles, ...inserted];
-        // Also ensure wallets exist
         const walletInserts = missingUsers.map(u => ({ user_id: u.id }));
         await supabaseAdmin.from("wallets").upsert(walletInserts, { onConflict: "user_id", ignoreDuplicates: true });
-        // Re-fetch wallets to include new ones
         const { data: freshWallets } = await supabaseAdmin.from("wallets").select("*");
         if (freshWallets) wallets.splice(0, wallets.length, ...freshWallets);
       }
@@ -97,19 +116,16 @@ serve(async (req) => {
       const loginActs = loginRes.data || [];
       const packages = packagesRes.data || [];
 
-      // Build price-per-credit ratio from packages (avg cents per credit)
-      let avgCentsPerCredit = 0.5; // fallback
+      let avgCentsPerCredit = 0.5;
       if (packages.length > 0) {
         const totalCredits = packages.reduce((s, p) => s + p.credits + (p.bonus_credits || 0), 0);
         const totalCents = packages.reduce((s, p) => s + p.price_cents, 0);
         avgCentsPerCredit = totalCents / totalCredits;
       }
 
-      // Batch Stripe: fetch all charges in one go (up to 100)
       let stripeChargesByEmail: Record<string, { totalCents: number; count: number; lastCharge: string | null }> = {};
       let stripeSubsByEmail: Record<string, { plan: string; status: string }> = {};
       try {
-        // Fetch recent charges from Stripe in bulk
         const allCharges = await stripe.charges.list({ limit: 100 });
         for (const c of allCharges.data) {
           if (!c.paid || c.refunded) continue;
@@ -125,11 +141,8 @@ serve(async (req) => {
           }
         }
 
-        // Fetch active subscriptions in bulk
         const allSubs = await stripe.subscriptions.list({ status: "active", limit: 100 });
         for (const s of allSubs.data) {
-          const email = (s.customer as any)?.email || "";
-          // Need to get customer email - fetch from customer object if string
           let customerEmail = "";
           if (typeof s.customer === "string") {
             try {
@@ -150,7 +163,6 @@ serve(async (req) => {
         logStep("Stripe batch fetch warning", { error: String(e) });
       }
 
-      // Build lookup maps
       const walletMap: Record<string, any> = {};
       wallets.forEach(w => { walletMap[w.user_id] = w; });
 
@@ -183,7 +195,6 @@ serve(async (req) => {
         const stripeSub = stripeSubsByEmail[email];
         const daysSinceJoin = Math.max(1, Math.floor((Date.now() - new Date(p.created_at).getTime()) / 86400000));
 
-        // LTV: prefer Stripe actual charges, fallback to estimated from credit purchases
         let totalSpentDollars = 0;
         if (stripeCharges) {
           totalSpentDollars = stripeCharges.totalCents / 100;
@@ -201,14 +212,12 @@ serve(async (req) => {
         const planOverrideMatch = adminNotes.match(/\[PLAN_OVERRIDE\]\s*(\w+)/);
         const currentPlan = planOverrideMatch ? planOverrideMatch[1].charAt(0).toUpperCase() + planOverrideMatch[1].slice(1) : (stripeSub?.plan || "Free");
 
-        // Engagement score (0-100)
         const loginRecency = daysSinceLastLogin < 1 ? 30 : daysSinceLastLogin < 3 ? 25 : daysSinceLastLogin < 7 ? 20 : daysSinceLastLogin < 14 ? 10 : daysSinceLastLogin < 30 ? 5 : 0;
         const postActivity = Math.min(20, (postMap[p.user_id] || 0) * 4);
         const purchaseRecency = daysSinceLastPurchase < 7 ? 30 : daysSinceLastPurchase < 14 ? 20 : daysSinceLastPurchase < 30 ? 15 : daysSinceLastPurchase < 60 ? 5 : 0;
         const spendDepth = Math.min(20, totalSpentDollars / 25);
         const engagementScore = Math.min(100, Math.round(loginRecency + postActivity + purchaseRecency + spendDepth));
 
-        // Spender score (0-100)
         const purchaseCount = stripeCharges?.count || txInfo.purchase_count || 0;
         const spenderScore = Math.min(100, Math.round(
           (Math.min(totalSpentDollars, 500) / 500) * 40 +
@@ -216,13 +225,11 @@ serve(async (req) => {
           (lastPurchaseOrCharge ? (Date.now() - new Date(lastPurchaseOrCharge).getTime() < 604800000 ? 30 : Date.now() - new Date(lastPurchaseOrCharge).getTime() < 2592000000 ? 15 : 0) : 0)
         ));
 
-        // Churn risk
         let churnRisk = "Low";
         if (daysSinceLastLogin > 60 || daysSinceLastPurchase > 90) churnRisk = "Critical";
         else if (daysSinceLastLogin > 30 || daysSinceLastPurchase > 60) churnRisk = "High";
         else if (daysSinceLastLogin > 14 || daysSinceLastPurchase > 30) churnRisk = "Medium";
 
-        // Purchase trend
         const purchases = txInfo.credit_purchases || [];
         let purchaseTrend = "stable";
         if (purchases.length >= 3) {
@@ -286,7 +293,7 @@ serve(async (req) => {
               const productId = typeof activeSub.items.data[0].price.product === "string" ? activeSub.items.data[0].price.product : "";
               plan = PRODUCT_TO_PLAN[productId] || "Unknown";
             }
-            stripeInfo = `Plan: ${plan}. Total charged: $${(totalCharged / 100).toFixed(2)}. ${charges.data.length} charges. ${subs.data.filter(s => s.status === "canceled").length} canceled subs. Cancel at period end: ${activeSub?.cancel_at_period_end || false}.`;
+            stripeInfo = `Plan: ${plan}. Total charged: $${(totalCharged / 100).toFixed(2)}. ${charges.data.length} charges. ${subs.data.filter(s => s.status === "canceled").length} canceled subs.`;
           }
         } catch (e) { stripeInfo = "Stripe lookup failed."; }
       }
@@ -295,38 +302,21 @@ serve(async (req) => {
       const loginSummary = (logins || []).slice(0, 10).map(l => new Date(l.login_at).toLocaleDateString()).join(", ");
       const postSummary = (posts || []).slice(0, 5).map(p => `${p.like_count} likes, ${p.comment_count} comments`).join("; ");
 
-      const prompt = `You are a world-class customer intelligence analyst for a premium digital platform. Analyze this customer deeply and provide actionable insights.
+      const prompt = `You are a world-class customer intelligence analyst. Analyze this customer deeply.
 
 CUSTOMER DATA:
 - Name: ${profile?.display_name || "Unknown"}, Email: ${profile?.email}
 - Joined: ${profile?.created_at}, Account Status: ${profile?.account_status || "active"}
 - Followers: ${profile?.follower_count || 0}, Posts: ${profile?.post_count || 0}
 - Credit Balance: ${wallet?.balance || 0}, Total Purchased: ${wallet?.total_purchased || 0}
-- Purchase Count: ${wallet?.purchase_count || 0}
 - ${stripeInfo}
 
 RECENT TRANSACTIONS: ${txSummary || "None"}
 RECENT LOGINS: ${loginSummary || "None"}
 POST ENGAGEMENT: ${postSummary || "None"}
 
-Provide your analysis in this exact JSON structure:
-{
-  "behavioral_profile": "2-3 sentence personality and behavior summary",
-  "spending_pattern": "Detailed spending behavior analysis",
-  "engagement_level": "high|medium|low|dormant",
-  "churn_probability": 0-100,
-  "upsell_potential": 0-100,
-  "predicted_next_action": "What this user is most likely to do next",
-  "revenue_forecast_30d": "Dollar amount predicted in next 30 days",
-  "revenue_forecast_90d": "Dollar amount predicted in next 90 days",
-  "customer_segment": "One of: Champion, Loyal, Potential Loyalist, New Customer, Promising, Need Attention, About to Sleep, At Risk, Hibernating, Lost",
-  "recommended_actions": ["action1", "action2", "action3"],
-  "risk_factors": ["risk1", "risk2"],
-  "opportunities": ["opportunity1", "opportunity2"],
-  "lifetime_value_projection": "Projected total LTV over 12 months",
-  "optimal_engagement_time": "Best time/day to engage this user",
-  "personality_tags": ["tag1", "tag2", "tag3"]
-}`;
+Provide your analysis as JSON with these fields:
+behavioral_profile, spending_pattern, engagement_level (high|medium|low|dormant), churn_probability (0-100), upsell_potential (0-100), predicted_next_action, revenue_forecast_30d, revenue_forecast_90d, customer_segment (Champion|Loyal|Potential Loyalist|New Customer|Promising|Need Attention|About to Sleep|At Risk|Hibernating|Lost), recommended_actions (array), risk_factors (array), opportunities (array), lifetime_value_projection, optimal_engagement_time, personality_tags (array)`;
 
       const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
       if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
@@ -345,24 +335,18 @@ Provide your analysis in this exact JSON structure:
               parameters: {
                 type: "object",
                 properties: {
-                  behavioral_profile: { type: "string" },
-                  spending_pattern: { type: "string" },
-                  engagement_level: { type: "string" },
-                  churn_probability: { type: "number" },
-                  upsell_potential: { type: "number" },
-                  predicted_next_action: { type: "string" },
-                  revenue_forecast_30d: { type: "string" },
-                  revenue_forecast_90d: { type: "string" },
+                  behavioral_profile: { type: "string" }, spending_pattern: { type: "string" },
+                  engagement_level: { type: "string" }, churn_probability: { type: "number" },
+                  upsell_potential: { type: "number" }, predicted_next_action: { type: "string" },
+                  revenue_forecast_30d: { type: "string" }, revenue_forecast_90d: { type: "string" },
                   customer_segment: { type: "string" },
                   recommended_actions: { type: "array", items: { type: "string" } },
                   risk_factors: { type: "array", items: { type: "string" } },
                   opportunities: { type: "array", items: { type: "string" } },
-                  lifetime_value_projection: { type: "string" },
-                  optimal_engagement_time: { type: "string" },
+                  lifetime_value_projection: { type: "string" }, optimal_engagement_time: { type: "string" },
                   personality_tags: { type: "array", items: { type: "string" } },
                 },
                 required: ["behavioral_profile", "spending_pattern", "engagement_level", "churn_probability", "upsell_potential", "predicted_next_action", "revenue_forecast_30d", "revenue_forecast_90d", "customer_segment", "recommended_actions", "risk_factors", "opportunities", "lifetime_value_projection", "optimal_engagement_time", "personality_tags"],
-                additionalProperties: false,
               },
             },
           }],
@@ -370,21 +354,14 @@ Provide your analysis in this exact JSON structure:
         }),
       });
 
-      if (!aiResp.ok) {
-        const errText = await aiResp.text();
-        logStep("AI error", { status: aiResp.status, body: errText });
-        throw new Error(`AI analysis failed: ${aiResp.status}`);
-      }
+      if (!aiResp.ok) throw new Error(`AI analysis failed: ${aiResp.status}`);
 
       const aiData = await aiResp.json();
       let analysis: any = {};
       try {
         const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
-        if (toolCall?.function?.arguments) {
-          analysis = JSON.parse(toolCall.function.arguments);
-        }
+        if (toolCall?.function?.arguments) analysis = JSON.parse(toolCall.function.arguments);
       } catch (e) {
-        logStep("Parse error", { error: String(e) });
         analysis = { behavioral_profile: "Analysis unavailable", spending_pattern: "N/A", engagement_level: "unknown", churn_probability: 50, upsell_potential: 50, predicted_next_action: "Unknown", revenue_forecast_30d: "$0", revenue_forecast_90d: "$0", customer_segment: "Unknown", recommended_actions: [], risk_factors: [], opportunities: [], lifetime_value_projection: "$0", optimal_engagement_time: "N/A", personality_tags: [] };
       }
 
@@ -395,14 +372,18 @@ Provide your analysis in this exact JSON structure:
     if (action === "detail" && userId) {
       logStep("Fetching customer detail", { userId });
 
-      const [profileRes, walletRes, txRes, loginRes, deviceRes, actionsRes, notifsRes] = await Promise.all([
+      const [profileRes, walletRes, txRes, loginRes, deviceRes, actionsRes, notifsRes, followersRes, followingRes, postsRes, ranksRes] = await Promise.all([
         supabaseAdmin.from("profiles").select("*").eq("user_id", userId).single(),
         supabaseAdmin.from("wallets").select("*").eq("user_id", userId).single(),
         supabaseAdmin.from("wallet_transactions").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(50),
-        supabaseAdmin.from("login_activity").select("*").eq("user_id", userId).order("login_at", { ascending: false }).limit(10),
+        supabaseAdmin.from("login_activity").select("*").eq("user_id", userId).order("login_at", { ascending: false }).limit(20),
         supabaseAdmin.from("device_sessions").select("*").eq("user_id", userId).order("last_active_at", { ascending: false }).limit(10),
-        supabaseAdmin.from("admin_user_actions").select("*").eq("target_user_id", userId).order("created_at", { ascending: false }).limit(20),
+        supabaseAdmin.from("admin_user_actions").select("*").eq("target_user_id", userId).order("created_at", { ascending: false }).limit(30),
         supabaseAdmin.from("admin_user_notifications").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(20),
+        supabaseAdmin.from("follow_requests").select("id").eq("target_id", userId).eq("status", "accepted"),
+        supabaseAdmin.from("follow_requests").select("id").eq("requester_id", userId).eq("status", "accepted"),
+        supabaseAdmin.from("user_posts").select("id, content, like_count, comment_count, save_count, created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(10),
+        supabaseAdmin.from("user_ranks").select("*").eq("user_id", userId).single(),
       ]);
 
       const profile = profileRes.data;
@@ -412,6 +393,26 @@ Provide your analysis in this exact JSON structure:
       const deviceSessions = deviceRes.data;
       const adminActions = actionsRes.data || [];
       const notifications = notifsRes.data || [];
+      const recentPosts = postsRes.data || [];
+      const userRank = ranksRes.data;
+
+      // Get auth user metadata
+      let authMeta: any = {};
+      try {
+        const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(userId);
+        if (authUser?.user) {
+          authMeta = {
+            email_confirmed: !!authUser.user.email_confirmed_at,
+            email_confirmed_at: authUser.user.email_confirmed_at,
+            last_sign_in_at: authUser.user.last_sign_in_at,
+            created_at: authUser.user.created_at,
+            phone: authUser.user.phone,
+            providers: authUser.user.app_metadata?.providers || [],
+            user_metadata: authUser.user.user_metadata || {},
+            force_logout_at: authUser.user.app_metadata?.force_logout_at || null,
+          };
+        }
+      } catch (e) { logStep("Auth meta fetch warning", { error: String(e) }); }
 
       // Stripe data
       let stripeData: any = null;
@@ -421,10 +422,11 @@ Provide your analysis in this exact JSON structure:
           if (customers.data.length > 0) {
             const customerId = customers.data[0].id;
             const stripeCustomer = customers.data[0];
-            const [subsRes, chargesRes, invoicesRes] = await Promise.all([
-              stripe.subscriptions.list({ customer: customerId, limit: 10 }),
-              stripe.charges.list({ customer: customerId, limit: 50 }),
-              stripe.invoices.list({ customer: customerId, limit: 20 }),
+            const [subsRes, chargesRes, invoicesRes, refundsRes] = await Promise.all([
+              stripe.subscriptions.list({ customer: customerId, limit: 20, status: "all" }),
+              stripe.charges.list({ customer: customerId, limit: 100 }),
+              stripe.invoices.list({ customer: customerId, limit: 30 }),
+              stripe.refunds.list({ limit: 20 }),
             ]);
             const subs = subsRes;
             const charges = chargesRes;
@@ -434,7 +436,6 @@ Provide your analysis in this exact JSON structure:
             const refunded = charges.data.filter(c => c.refunded).reduce((sum, c) => sum + (c.amount_refunded || 0), 0);
 
             let currentPlan = "Free", planInterval = "", subscriptionEnd = "", subscriptionStart = "";
-            // Check for admin plan override FIRST — admin override always wins
             const adminNotes = profile?.admin_notes || "";
             const planOverrideMatch = adminNotes.match(/\[PLAN_OVERRIDE\]\s*(\w+)/);
             if (activeSub) {
@@ -444,28 +445,44 @@ Provide your analysis in this exact JSON structure:
               subscriptionEnd = new Date(activeSub.current_period_end * 1000).toISOString();
               subscriptionStart = new Date(activeSub.start_date * 1000).toISOString();
             }
-            // Admin override takes priority over Stripe subscription
+            // Admin override ALWAYS takes priority
             if (planOverrideMatch) {
               currentPlan = planOverrideMatch[1].charAt(0).toUpperCase() + planOverrideMatch[1].slice(1);
             }
 
+            const customerChargeIds = new Set(charges.data.map(c => c.id));
+            const customerRefunds = refundsRes.data.filter(r => typeof r.charge === "string" && customerChargeIds.has(r.charge));
+
             stripeData = {
               customer_id: customerId,
               customer_created: stripeCustomer.created ? new Date(stripeCustomer.created * 1000).toISOString() : null,
+              customer_name: stripeCustomer.name,
+              customer_metadata: stripeCustomer.metadata,
               current_plan: currentPlan, plan_interval: planInterval,
               subscription_status: activeSub?.status || "none",
               subscription_start: subscriptionStart || null, subscription_end: subscriptionEnd || null,
               cancel_at_period_end: activeSub?.cancel_at_period_end || false,
               total_charged_cents: totalCharged, total_refunded_cents: refunded, net_revenue_cents: totalCharged - refunded,
               charge_count: charges.data.filter(c => c.paid).length, refund_count: charges.data.filter(c => c.refunded).length,
-              charges: charges.data.slice(0, 20).map(c => ({
+              charges: charges.data.slice(0, 50).map(c => ({
                 id: c.id, amount: c.amount, currency: c.currency, status: c.status, paid: c.paid, refunded: c.refunded,
-                description: c.description, created: new Date(c.created * 1000).toISOString(),
-                payment_method_type: c.payment_method_details?.type || "unknown", receipt_url: c.receipt_url,
+                amount_refunded: c.amount_refunded, description: c.description, created: new Date(c.created * 1000).toISOString(),
+                payment_method_type: c.payment_method_details?.type || "unknown",
+                card_brand: c.payment_method_details?.card?.brand || null,
+                card_last4: c.payment_method_details?.card?.last4 || null,
+                receipt_url: c.receipt_url,
               })),
-              invoices: invoices.data.slice(0, 10).map(inv => ({
+              invoices: invoices.data.slice(0, 20).map(inv => ({
                 id: inv.id, number: inv.number, amount_due: inv.amount_due, amount_paid: inv.amount_paid,
-                status: inv.status, created: new Date(inv.created * 1000).toISOString(), hosted_invoice_url: inv.hosted_invoice_url,
+                status: inv.status, created: new Date(inv.created * 1000).toISOString(),
+                hosted_invoice_url: inv.hosted_invoice_url, invoice_pdf: inv.invoice_pdf,
+                period_start: inv.period_start ? new Date(inv.period_start * 1000).toISOString() : null,
+                period_end: inv.period_end ? new Date(inv.period_end * 1000).toISOString() : null,
+                description: inv.description,
+              })),
+              refunds: customerRefunds.map(r => ({
+                id: r.id, amount: r.amount, status: r.status, reason: r.reason,
+                created: new Date(r.created * 1000).toISOString(),
               })),
               all_subscriptions: subs.data.map(s => {
                 const productId = typeof s.items.data[0].price.product === "string" ? s.items.data[0].price.product : (s.items.data[0].price.product as any)?.id || "";
@@ -475,13 +492,45 @@ Provide your analysis in this exact JSON structure:
                   start_date: new Date(s.start_date * 1000).toISOString(),
                   current_period_end: new Date(s.current_period_end * 1000).toISOString(),
                   cancel_at_period_end: s.cancel_at_period_end,
+                  canceled_at: s.canceled_at ? new Date(s.canceled_at * 1000).toISOString() : null,
+                  ended_at: s.ended_at ? new Date(s.ended_at * 1000).toISOString() : null,
                 };
               }),
+              canceled_subscriptions_count: subs.data.filter(s => s.status === "canceled").length,
+              total_subscription_count: subs.data.length,
             };
+          } else {
+            // No Stripe customer - check admin override
+            const adminNotes = profile?.admin_notes || "";
+            const planOverrideMatch = adminNotes.match(/\[PLAN_OVERRIDE\]\s*(\w+)/);
+            if (planOverrideMatch) {
+              stripeData = {
+                current_plan: planOverrideMatch[1].charAt(0).toUpperCase() + planOverrideMatch[1].slice(1),
+                subscription_status: "admin_override",
+                total_charged_cents: 0, total_refunded_cents: 0, net_revenue_cents: 0,
+                charge_count: 0, refund_count: 0, charges: [], invoices: [], refunds: [],
+                all_subscriptions: [], canceled_subscriptions_count: 0, total_subscription_count: 0,
+              };
+            }
           }
         } catch (err) {
           logStep("Stripe lookup error", { error: err instanceof Error ? err.message : String(err) });
           stripeData = { error: "Failed to fetch Stripe data" };
+        }
+      }
+
+      // Also check admin_notes for plan override when no Stripe data
+      if (!stripeData) {
+        const adminNotes = profile?.admin_notes || "";
+        const planOverrideMatch = adminNotes.match(/\[PLAN_OVERRIDE\]\s*(\w+)/);
+        if (planOverrideMatch) {
+          stripeData = {
+            current_plan: planOverrideMatch[1].charAt(0).toUpperCase() + planOverrideMatch[1].slice(1),
+            subscription_status: "admin_override",
+            total_charged_cents: 0, total_refunded_cents: 0, net_revenue_cents: 0,
+            charge_count: 0, refund_count: 0, charges: [], invoices: [], refunds: [],
+            all_subscriptions: [], canceled_subscriptions_count: 0, total_subscription_count: 0,
+          };
         }
       }
 
@@ -492,7 +541,7 @@ Provide your analysis in this exact JSON structure:
       const purchaseFrequency = (stripeData?.charge_count || 0) / Math.max(1, daysSinceJoin / 30);
 
       let spenderTier = "Low";
-      if (netRevenue >= 500 || projectedAnnualLTV >= 1000) spenderTier = "Whale 🐳";
+      if (netRevenue >= 500 || projectedAnnualLTV >= 1000) spenderTier = "Whale";
       else if (netRevenue >= 200 || projectedAnnualLTV >= 500) spenderTier = "High";
       else if (netRevenue >= 50 || projectedAnnualLTV >= 100) spenderTier = "Medium";
 
@@ -503,9 +552,18 @@ Provide your analysis in this exact JSON structure:
       else if (daysSinceLastCharge > 60) churnRisk = "High";
       else if (daysSinceLastCharge > 30) churnRisk = "Medium";
 
+      // Parse admin tags
+      const adminNotes = profile?.admin_notes || "";
+      const tagMatch = adminNotes.match(/\[TAGS\]\s*(.+)/);
+      const adminTags = tagMatch ? tagMatch[1].split(",").map((t: string) => t.trim()) : [];
+      const creditLimitMatch = adminNotes.match(/\[CREDIT_LIMIT\]\s*Daily:\s*(\w+)/);
+      const dailyCreditLimit = creditLimitMatch ? creditLimitMatch[1] : "unlimited";
+
       return new Response(JSON.stringify({
         profile, wallet, transactions, login_activity: loginActivity, device_sessions: deviceSessions,
-        admin_actions: adminActions, notifications, stripe: stripeData,
+        admin_actions: adminActions, notifications, stripe: stripeData, auth_meta: authMeta,
+        recent_posts: recentPosts, user_rank: userRank, admin_tags: adminTags,
+        daily_credit_limit: dailyCreditLimit,
         insights: {
           ltv: netRevenue, monthly_velocity: Math.round(monthlyVelocity * 100) / 100,
           projected_annual_ltv: Math.round(projectedAnnualLTV * 100) / 100,
@@ -513,6 +571,167 @@ Provide your analysis in this exact JSON structure:
           days_since_join: daysSinceJoin, days_since_last_charge: daysSinceLastCharge,
           spender_tier: spenderTier, churn_risk: churnRisk,
           current_plan: stripeData?.current_plan || "Free",
+          follower_count_real: followersRes.data?.length || 0,
+          following_count_real: followingRes.data?.length || 0,
+        },
+      }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    // ─── STRIPE INTELLIGENCE ───
+    if (action === "stripe_intel" && userId) {
+      logStep("Stripe intelligence deep dive", { userId });
+      const { data: prof } = await supabaseAdmin.from("profiles").select("email").eq("user_id", userId).single();
+      if (!prof?.email) return new Response(JSON.stringify({ error: "No email" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+
+      const customers = await stripe.customers.list({ email: prof.email, limit: 1 });
+      if (customers.data.length === 0) return new Response(JSON.stringify({ error: "No Stripe customer found" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+
+      const cid = customers.data[0].id;
+      const [subs, charges, invoices, paymentMethods] = await Promise.all([
+        stripe.subscriptions.list({ customer: cid, status: "all", limit: 50 }),
+        stripe.charges.list({ customer: cid, limit: 100 }),
+        stripe.invoices.list({ customer: cid, limit: 50 }),
+        stripe.paymentMethods.list({ customer: cid, type: "card", limit: 10 }),
+      ]);
+
+      const result = {
+        customer: {
+          id: cid, name: customers.data[0].name, email: customers.data[0].email,
+          created: new Date(customers.data[0].created * 1000).toISOString(),
+          balance: customers.data[0].balance, currency: customers.data[0].currency,
+          metadata: customers.data[0].metadata,
+        },
+        subscriptions: subs.data.map(s => {
+          const productId = typeof s.items.data[0].price.product === "string" ? s.items.data[0].price.product : "";
+          return {
+            id: s.id, status: s.status, plan: PRODUCT_TO_PLAN[productId] || "Unknown",
+            amount: s.items.data[0].price.unit_amount, interval: s.items.data[0].price.recurring?.interval,
+            start: new Date(s.start_date * 1000).toISOString(),
+            current_period_end: new Date(s.current_period_end * 1000).toISOString(),
+            cancel_at_period_end: s.cancel_at_period_end,
+            canceled_at: s.canceled_at ? new Date(s.canceled_at * 1000).toISOString() : null,
+            ended_at: s.ended_at ? new Date(s.ended_at * 1000).toISOString() : null,
+            trial_end: s.trial_end ? new Date(s.trial_end * 1000).toISOString() : null,
+          };
+        }),
+        charges: charges.data.map(c => ({
+          id: c.id, amount: c.amount, currency: c.currency, status: c.status, paid: c.paid,
+          refunded: c.refunded, amount_refunded: c.amount_refunded,
+          description: c.description, created: new Date(c.created * 1000).toISOString(),
+          card_brand: c.payment_method_details?.card?.brand, card_last4: c.payment_method_details?.card?.last4,
+          receipt_url: c.receipt_url, failure_message: c.failure_message,
+        })),
+        invoices: invoices.data.map(inv => ({
+          id: inv.id, number: inv.number, amount_due: inv.amount_due, amount_paid: inv.amount_paid,
+          status: inv.status, created: new Date(inv.created * 1000).toISOString(),
+          hosted_invoice_url: inv.hosted_invoice_url, invoice_pdf: inv.invoice_pdf,
+        })),
+        payment_methods: paymentMethods.data.map(pm => ({
+          id: pm.id, brand: pm.card?.brand, last4: pm.card?.last4,
+          exp_month: pm.card?.exp_month, exp_year: pm.card?.exp_year,
+          country: pm.card?.country,
+        })),
+        summary: {
+          total_paid: charges.data.filter(c => c.paid && !c.refunded).reduce((s, c) => s + c.amount, 0),
+          total_refunded: charges.data.reduce((s, c) => s + (c.amount_refunded || 0), 0),
+          total_charges: charges.data.length,
+          successful_charges: charges.data.filter(c => c.paid).length,
+          failed_charges: charges.data.filter(c => c.status === "failed").length,
+          total_invoices: invoices.data.length,
+          paid_invoices: invoices.data.filter(i => i.status === "paid").length,
+          open_invoices: invoices.data.filter(i => i.status === "open").length,
+          active_subs: subs.data.filter(s => s.status === "active").length,
+          canceled_subs: subs.data.filter(s => s.status === "canceled").length,
+          total_subs: subs.data.length,
+        },
+      };
+
+      return new Response(JSON.stringify(result), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    // ─── FULL AUDIT ───
+    if (action === "full_audit" && userId) {
+      logStep("Full audit", { userId });
+      const [profileRes, walletRes, txRes, loginRes, deviceRes, actionsRes, notifsRes, postsRes, ranksRes] = await Promise.all([
+        supabaseAdmin.from("profiles").select("*").eq("user_id", userId).single(),
+        supabaseAdmin.from("wallets").select("*").eq("user_id", userId).single(),
+        supabaseAdmin.from("wallet_transactions").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(200),
+        supabaseAdmin.from("login_activity").select("*").eq("user_id", userId).order("login_at", { ascending: false }).limit(100),
+        supabaseAdmin.from("device_sessions").select("*").eq("user_id", userId).order("last_active_at", { ascending: false }),
+        supabaseAdmin.from("admin_user_actions").select("*").eq("target_user_id", userId).order("created_at", { ascending: false }).limit(100),
+        supabaseAdmin.from("admin_user_notifications").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(50),
+        supabaseAdmin.from("user_posts").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(50),
+        supabaseAdmin.from("user_ranks").select("*").eq("user_id", userId).single(),
+      ]);
+
+      let authMeta: any = {};
+      try {
+        const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(userId);
+        if (authUser?.user) {
+          authMeta = {
+            email_confirmed: !!authUser.user.email_confirmed_at,
+            email_confirmed_at: authUser.user.email_confirmed_at,
+            last_sign_in_at: authUser.user.last_sign_in_at,
+            created_at: authUser.user.created_at,
+            phone: authUser.user.phone,
+            providers: authUser.user.app_metadata?.providers || [],
+            user_metadata: authUser.user.user_metadata || {},
+            force_logout_at: authUser.user.app_metadata?.force_logout_at || null,
+            email_change_count: profileRes.data?.email_change_count || 0,
+          };
+        }
+      } catch (e) {}
+
+      const adminNotes = profileRes.data?.admin_notes || "";
+      const tagMatch = adminNotes.match(/\[TAGS\]\s*(.+)/);
+      const creditLimitMatch = adminNotes.match(/\[CREDIT_LIMIT\]\s*Daily:\s*(\w+)/);
+      const planOverrideMatch = adminNotes.match(/\[PLAN_OVERRIDE\]\s*(\w+)/);
+
+      // Transaction analytics
+      const txData = txRes.data || [];
+      const purchaseTx = txData.filter(t => t.type === "purchase");
+      const grantTx = txData.filter(t => t.type === "admin_grant");
+      const deductTx = txData.filter(t => t.type === "deduction" || t.type === "usage");
+      const totalPurchased = purchaseTx.reduce((s, t) => s + t.amount, 0);
+      const totalGranted = grantTx.reduce((s, t) => s + t.amount, 0);
+      const totalDeducted = Math.abs(deductTx.reduce((s, t) => s + t.amount, 0));
+
+      // Login analytics
+      const logins = loginRes.data || [];
+      const uniqueIPs = new Set(logins.map(l => l.ip_address).filter(Boolean));
+      const uniqueDevices = new Set(logins.map(l => l.device).filter(Boolean));
+
+      return new Response(JSON.stringify({
+        profile: profileRes.data,
+        wallet: walletRes.data,
+        transactions: txData,
+        login_activity: logins,
+        device_sessions: deviceRes.data || [],
+        admin_actions: actionsRes.data || [],
+        notifications: notifsRes.data || [],
+        posts: postsRes.data || [],
+        user_rank: ranksRes.data,
+        auth_meta: authMeta,
+        parsed_notes: {
+          tags: tagMatch ? tagMatch[1].split(",").map((t: string) => t.trim()) : [],
+          credit_limit: creditLimitMatch ? creditLimitMatch[1] : "unlimited",
+          plan_override: planOverrideMatch ? planOverrideMatch[1] : null,
+          raw_notes: adminNotes.replace(/\[PLAN_OVERRIDE\].*\n?/g, "").replace(/\[TAGS\].*\n?/g, "").replace(/\[CREDIT_LIMIT\].*\n?/g, "").trim(),
+        },
+        analytics: {
+          total_transactions: txData.length,
+          total_purchased_credits: totalPurchased,
+          total_granted_credits: totalGranted,
+          total_deducted_credits: totalDeducted,
+          purchase_count: purchaseTx.length,
+          grant_count: grantTx.length,
+          deduction_count: deductTx.length,
+          total_logins: logins.length,
+          unique_ips: uniqueIPs.size,
+          unique_devices: uniqueDevices.size,
+          total_posts: (postsRes.data || []).length,
+          total_likes_received: (postsRes.data || []).reduce((s, p) => s + (p.like_count || 0), 0),
+          total_comments_received: (postsRes.data || []).reduce((s, p) => s + (p.comment_count || 0), 0),
         },
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
@@ -521,6 +740,13 @@ Provide your analysis in this exact JSON structure:
     if (action === "admin_action" && userId) {
       const { adminAction, reason, data: actionData } = body;
       logStep("Admin action", { adminAction, userId });
+
+      // Log every action
+      await supabaseAdmin.from("admin_user_actions").insert({
+        target_user_id: userId, performed_by: user.id,
+        action_type: adminAction, reason: reason || `Admin action: ${adminAction}`,
+        metadata: actionData || {},
+      });
 
       if (adminAction === "pause" || adminAction === "suspend") {
         await supabaseAdmin.from("profiles").update({
@@ -554,21 +780,13 @@ Provide your analysis in this exact JSON structure:
       if (adminAction === "grant_credits") {
         const { amount: creditAmount } = actionData || {};
         if (creditAmount && creditAmount > 0) {
-          // Ensure wallet exists first
           await supabaseAdmin.from("wallets").upsert(
             { user_id: userId, balance: 0, total_purchased: 0, purchase_count: 0 },
             { onConflict: "user_id", ignoreDuplicates: true }
           );
-          // Read current balance
           const { data: w } = await supabaseAdmin.from("wallets").select("balance").eq("user_id", userId).single();
           const currentBalance = w?.balance || 0;
-          // Update balance atomically
-          const { error: updateErr } = await supabaseAdmin.from("wallets")
-            .update({ balance: currentBalance + creditAmount })
-            .eq("user_id", userId);
-          if (updateErr) logStep("Wallet update error", { error: updateErr.message });
-          else logStep("Wallet updated", { userId, oldBalance: currentBalance, newBalance: currentBalance + creditAmount });
-          // Record transaction
+          await supabaseAdmin.from("wallets").update({ balance: currentBalance + creditAmount }).eq("user_id", userId);
           await supabaseAdmin.from("wallet_transactions").insert({
             user_id: userId, amount: creditAmount, type: "admin_grant",
             description: reason || `Admin granted ${creditAmount} credits`,
@@ -579,19 +797,13 @@ Provide your analysis in this exact JSON structure:
       if (adminAction === "revoke_credits") {
         const { amount: creditAmount } = actionData || {};
         if (creditAmount && creditAmount > 0) {
-          // Ensure wallet exists
           await supabaseAdmin.from("wallets").upsert(
             { user_id: userId, balance: 0, total_purchased: 0, purchase_count: 0 },
             { onConflict: "user_id", ignoreDuplicates: true }
           );
           const { data: w } = await supabaseAdmin.from("wallets").select("balance").eq("user_id", userId).single();
-          const currentBalance = w?.balance || 0;
-          const newBalance = Math.max(0, currentBalance - creditAmount);
-          const { error: updateErr } = await supabaseAdmin.from("wallets")
-            .update({ balance: newBalance })
-            .eq("user_id", userId);
-          if (updateErr) logStep("Wallet revoke error", { error: updateErr.message });
-          else logStep("Wallet revoked", { userId, oldBalance: currentBalance, newBalance });
+          const newBalance = Math.max(0, (w?.balance || 0) - creditAmount);
+          await supabaseAdmin.from("wallets").update({ balance: newBalance }).eq("user_id", userId);
           await supabaseAdmin.from("wallet_transactions").insert({
             user_id: userId, amount: -creditAmount, type: "admin_revoke",
             description: reason || `Admin revoked ${creditAmount} credits`,
@@ -607,45 +819,21 @@ Provide your analysis in this exact JSON structure:
       if (adminAction === "reset_password") {
         const { data: prof } = await supabaseAdmin.from("profiles").select("email, display_name").eq("user_id", userId).single();
         if (prof?.email) {
-          // Generate recovery link
-          const { data: linkData, error: resetErr } = await supabaseAdmin.auth.admin.generateLink({
-            type: "recovery",
-            email: prof.email,
-          });
-          if (resetErr) {
-            logStep("Password reset error", { error: resetErr.message });
-          } else {
-            // Send real email via Resend
+          const { data: linkData, error: resetErr } = await supabaseAdmin.auth.admin.generateLink({ type: "recovery", email: prof.email });
+          if (!resetErr) {
             const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
             if (RESEND_API_KEY && linkData?.properties?.action_link) {
-              try {
-                const resetLink = linkData.properties.action_link;
-                await fetch("https://api.resend.com/emails", {
-                  method: "POST",
-                  headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    from: "OZC Agency <contact@ozcagency.com>",
-                    to: [prof.email],
-                    subject: "Password Reset Request",
-                    html: `<div style="background:#0a0a0f;color:#fff;padding:40px;font-family:Arial,sans-serif;border-radius:16px;max-width:600px;margin:auto;">
-                      <div style="text-align:center;margin-bottom:32px;">
-                        <h1 style="font-size:24px;margin:0;color:#fff;">Password Reset</h1>
-                      </div>
-                      <p style="color:#ffffffaa;font-size:15px;line-height:1.6;">Hi ${prof.display_name || "there"},</p>
-                      <p style="color:#ffffffaa;font-size:15px;line-height:1.6;">An administrator has initiated a password reset for your account. Click the button below to set a new password:</p>
-                      <div style="text-align:center;margin:32px 0;">
-                        <a href="${resetLink}" style="background:linear-gradient(135deg,#8b5cf6,#ec4899);color:#fff;padding:14px 36px;border-radius:12px;text-decoration:none;font-weight:bold;font-size:16px;display:inline-block;">Reset Password</a>
-                      </div>
-                      <p style="color:#ffffff60;font-size:13px;">If you didn't expect this, you can safely ignore this email.</p>
-                      <hr style="border:1px solid #ffffff15;margin:24px 0;" />
-                      <p style="color:#ffffff40;font-size:11px;text-align:center;">OZC Agency Platform</p>
-                    </div>`,
-                  }),
-                });
-                logStep("Password reset email sent via Resend", { email: prof.email });
-              } catch (e) { logStep("Resend email error", { error: String(e) }); }
-            } else {
-              logStep("Password reset link generated (no Resend)", { email: prof.email });
+              const resetLink = linkData.properties.action_link;
+              await fetch("https://api.resend.com/emails", {
+                method: "POST",
+                headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  from: "OZC Agency <contact@ozcagency.com>", to: [prof.email], subject: "Password Reset Request",
+                  html: EMAIL_TEMPLATE("Security", "Password Reset", prof.display_name || "there",
+                    "An administrator has initiated a password reset for your account. Click below to set a new password.",
+                    resetLink, "Reset Password"),
+                }),
+              });
             }
           }
         }
@@ -668,49 +856,46 @@ Provide your analysis in this exact JSON structure:
         logStep("Change plan", { userId, newPlan });
         const { data: prof } = await supabaseAdmin.from("profiles").select("email, admin_notes").eq("user_id", userId).single();
         
-        // Store plan override persistently in admin_notes
+        // Store plan override in admin_notes — this is the SOURCE OF TRUTH
         const existing = prof?.admin_notes || "";
         const planLine = `[PLAN_OVERRIDE] ${newPlan}`;
         const updated = existing.includes("[PLAN_OVERRIDE]")
           ? existing.replace(/\[PLAN_OVERRIDE\].*$/m, planLine)
           : `${planLine}\n\n${existing}`;
         await supabaseAdmin.from("profiles").update({ admin_notes: updated }).eq("user_id", userId);
-        logStep("Plan override stored", { userId, newPlan });
+        logStep("Plan override saved to admin_notes", { plan: newPlan });
 
-        // If downgrading to free, cancel active Stripe subscriptions
-        if (newPlan === "free" && prof?.email) {
+        // Optionally sync with Stripe (best-effort, does NOT affect override)
+        if (prof?.email) {
           try {
-            const customers = await stripe.customers.list({ email: prof.email, limit: 1 });
-            if (customers.data.length > 0) {
-              const subs = await stripe.subscriptions.list({ customer: customers.data[0].id, status: "active" });
-              for (const sub of subs.data) {
+            const custs = await stripe.customers.list({ email: prof.email, limit: 1 });
+            if (custs.data.length > 0) {
+              const custId = custs.data[0].id;
+              const activeSubs = await stripe.subscriptions.list({ customer: custId, status: "active" });
+              for (const sub of activeSubs.data) {
                 await stripe.subscriptions.cancel(sub.id);
-                logStep("Canceled subscription", { subId: sub.id });
+                logStep("Canceled existing subscription", { subId: sub.id });
               }
             }
-          } catch (e) { logStep("Stripe cancel error", { error: String(e) }); }
+          } catch (e) { logStep("Stripe sync warning (non-fatal)", { error: String(e) }); }
         }
       }
 
       if (adminAction === "verify_email") {
-        const { data: prof } = await supabaseAdmin.from("profiles").select("email").eq("user_id", userId).single();
-        if (prof?.email) {
-          try {
-            await supabaseAdmin.auth.admin.updateUserById(userId, { email_confirm: true });
-            logStep("Email verified", { email: prof.email });
-          } catch (e) { logStep("Verify email error", { error: String(e) }); }
-        }
+        await supabaseAdmin.auth.admin.updateUserById(userId, { email_confirm: true });
       }
 
       if (adminAction === "force_logout") {
+        // Sign out all sessions for the user
         try {
-          await supabaseAdmin.auth.admin.signOut(userId);
-          logStep("Force logout", { userId });
+          await supabaseAdmin.auth.admin.signOut(userId, "global");
+          logStep("Force signed out all sessions", { userId });
         } catch (e) {
-          // Alternative: invalidate all sessions
-          logStep("Force logout fallback", { userId });
+          logStep("signOut failed, updating metadata", { error: String(e) });
+          await supabaseAdmin.auth.admin.updateUserById(userId, { 
+            app_metadata: { force_logout_at: new Date().toISOString() }
+          });
         }
-        // Also clear device sessions
         await supabaseAdmin.from("device_sessions").update({ status: "revoked" }).eq("user_id", userId);
       }
 
@@ -720,7 +905,6 @@ Provide your analysis in this exact JSON structure:
           const { data: prof } = await supabaseAdmin.from("profiles").select("admin_notes").eq("user_id", userId).single();
           const existing = prof?.admin_notes || "";
           const tagLine = `[TAGS] ${tags.join(", ")}`;
-          // Replace existing tag line or prepend
           const updated = existing.includes("[TAGS]")
             ? existing.replace(/\[TAGS\].*$/m, tagLine)
             : `${tagLine}\n\n${existing}`;
@@ -730,7 +914,6 @@ Provide your analysis in this exact JSON structure:
 
       if (adminAction === "set_credit_limit") {
         const { daily_limit } = actionData || {};
-        // Store credit limit in admin notes as structured metadata
         const { data: prof } = await supabaseAdmin.from("profiles").select("admin_notes").eq("user_id", userId).single();
         const existing = prof?.admin_notes || "";
         const limitLine = `[CREDIT_LIMIT] Daily: ${daily_limit || "unlimited"}`;
@@ -746,7 +929,6 @@ Provide your analysis in this exact JSON structure:
         const emailCategory = actionData?.category || "general";
         const { data: prof } = await supabaseAdmin.from("profiles").select("email, display_name").eq("user_id", userId).single();
         
-        // Also save as in-app notification
         await supabaseAdmin.from("admin_user_notifications").insert({
           user_id: userId, title: emailSubject, message: emailBody,
           notification_type: emailCategory === "urgent" ? "warning" : "info", sent_by: user.id,
@@ -756,58 +938,127 @@ Provide your analysis in this exact JSON structure:
         if (!prof?.email) throw new Error("User has no email address");
         if (!RESEND_API_KEY) throw new Error("RESEND_API_KEY not configured");
 
-        const categoryEmoji = { general: "📩", support: "🎧", billing: "💳", promotion: "🎁", urgent: "🚨", update: "📢" }[emailCategory] || "📩";
-        const categoryLabel = { general: "General", support: "Support", billing: "Billing", promotion: "Promotion", urgent: "Urgent", update: "Platform Update" }[emailCategory] || "General";
+        const categoryLabel: Record<string, string> = { general: "General", support: "Support", billing: "Billing", promotion: "Promotion", urgent: "Urgent", update: "Platform Update" };
 
-        const resendResp = await fetch("https://api.resend.com/emails", {
+        await fetch("https://api.resend.com/emails", {
           method: "POST",
           headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
           body: JSON.stringify({
-            from: "OZC Agency <contact@ozcagency.com>",
-            to: [prof.email],
-            subject: emailSubject,
-            html: `<div style="background:#0a0a0f;color:#fff;padding:40px;font-family:Arial,sans-serif;border-radius:16px;max-width:600px;margin:auto;">
-              <div style="text-align:center;margin-bottom:8px;">
-                <span style="font-size:12px;color:#ffffff60;text-transform:uppercase;letter-spacing:2px;">${categoryLabel}</span>
-              </div>
-              <div style="text-align:center;margin-bottom:32px;">
-                <h1 style="font-size:24px;margin:0;color:#fff;">${categoryEmoji} ${emailSubject}</h1>
-              </div>
-              <p style="color:#ffffffaa;font-size:15px;line-height:1.6;">Hi ${prof.display_name || "there"},</p>
-              <p style="color:#ffffffaa;font-size:15px;line-height:1.8;white-space:pre-line;">${emailBody}</p>
-              <div style="text-align:center;margin:32px 0;">
-                <a href="https://onlyfans-boost-collective.lovable.app" style="background:linear-gradient(135deg,#8b5cf6,#ec4899);color:#fff;padding:14px 36px;border-radius:12px;text-decoration:none;font-weight:bold;font-size:16px;display:inline-block;">Visit Platform</a>
-              </div>
-              <hr style="border:1px solid #ffffff15;margin:24px 0;" />
-              <p style="color:#ffffff40;font-size:11px;text-align:center;">OZC Agency Platform</p>
-            </div>`,
+            from: "OZC Agency <contact@ozcagency.com>", to: [prof.email], subject: emailSubject,
+            html: EMAIL_TEMPLATE(categoryLabel[emailCategory] || "General", emailSubject, prof.display_name || "there", emailBody, "https://onlyfans-boost-collective.lovable.app", "Visit Platform"),
           }),
         });
-        if (!resendResp.ok) {
-          const errText = await resendResp.text();
-          logStep("Resend error", { status: resendResp.status, body: errText });
-          throw new Error(`Email delivery failed: ${resendResp.status}`);
-        }
-        logStep("Email sent via Resend", { email: prof.email, subject: emailSubject, category: emailCategory });
+        logStep("Email sent via Resend", { email: prof.email, subject: emailSubject });
       }
 
       if (adminAction === "impersonate_view") {
-        // Read-only: just log the impersonation attempt for audit
         logStep("Impersonation view requested", { userId, by: user.id });
       }
 
-      await supabaseAdmin.from("admin_user_actions").insert({
-        target_user_id: userId, action_type: adminAction, performed_by: user.id,
-        reason: reason || null, metadata: actionData || {},
-      });
+      if (adminAction === "reset_credits") {
+        await supabaseAdmin.from("wallets").update({ balance: 0 }).eq("user_id", userId);
+        await supabaseAdmin.from("wallet_transactions").insert({
+          user_id: userId, amount: 0, type: "admin_reset",
+          description: reason || "Admin reset credits to zero",
+        });
+      }
+
+      if (adminAction === "change_email") {
+        const { new_email } = actionData || {};
+        if (new_email) {
+          await supabaseAdmin.auth.admin.updateUserById(userId, { email: new_email, email_confirm: true });
+          await supabaseAdmin.from("profiles").update({ email: new_email }).eq("user_id", userId);
+        }
+      }
+
+      if (adminAction === "change_username") {
+        const { new_username } = actionData || {};
+        if (new_username) {
+          const { data: existing } = await supabaseAdmin.from("profiles").select("id").eq("username", new_username).neq("user_id", userId).single();
+          if (existing) throw new Error("Username already taken");
+          await supabaseAdmin.from("profiles").update({ username: new_username }).eq("user_id", userId);
+        }
+      }
+
+      if (adminAction === "set_display_name") {
+        const { display_name } = actionData || {};
+        if (display_name) {
+          await supabaseAdmin.from("profiles").update({ display_name }).eq("user_id", userId);
+        }
+      }
+
+      if (adminAction === "toggle_private") {
+        const { data: prof } = await supabaseAdmin.from("profiles").select("is_private").eq("user_id", userId).single();
+        await supabaseAdmin.from("profiles").update({ is_private: !prof?.is_private }).eq("user_id", userId);
+      }
+
+      if (adminAction === "clear_posts") {
+        await supabaseAdmin.from("user_posts").delete().eq("user_id", userId);
+        await supabaseAdmin.from("profiles").update({ post_count: 0 }).eq("user_id", userId);
+      }
+
+      if (adminAction === "reset_followers") {
+        await supabaseAdmin.from("follow_requests").delete().or(`requester_id.eq.${userId},target_id.eq.${userId}`);
+        await supabaseAdmin.from("profiles").update({ follower_count: 0, following_count: 0 }).eq("user_id", userId);
+      }
+
+      if (adminAction === "send_credits_expiry_warning") {
+        const { data: prof } = await supabaseAdmin.from("profiles").select("email, display_name").eq("user_id", userId).single();
+        const { data: w } = await supabaseAdmin.from("wallets").select("balance").eq("user_id", userId).single();
+        if (prof?.email) {
+          const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+          if (RESEND_API_KEY) {
+            await fetch("https://api.resend.com/emails", {
+              method: "POST",
+              headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
+              body: JSON.stringify({
+                from: "OZC Agency <contact@ozcagency.com>", to: [prof.email],
+                subject: "Your Credits Are About to Expire",
+                html: EMAIL_TEMPLATE("Billing", "Credit Expiry Warning", prof.display_name || "there",
+                  `You have <strong style="color:#f59e0b;">${w?.balance || 0} credits</strong> remaining. Use them before they expire!`,
+                  "https://onlyfans-boost-collective.lovable.app", "Use Credits Now"),
+              }),
+            });
+          }
+          await supabaseAdmin.from("admin_user_notifications").insert({
+            user_id: userId, title: "Credits Expiring Soon", message: `You have ${w?.balance || 0} credits remaining. Use them before they expire!`,
+            notification_type: "warning", sent_by: user.id,
+          });
+        }
+      }
+
+      if (adminAction === "merge_duplicate") {
+        logStep("Duplicate merge flagged", { userId });
+      }
+
+      if (adminAction === "set_avatar") {
+        const { avatar_url } = actionData || {};
+        if (avatar_url) {
+          await supabaseAdmin.from("profiles").update({ avatar_url }).eq("user_id", userId);
+        }
+      }
+
+      if (adminAction === "set_banner") {
+        const { banner_url } = actionData || {};
+        if (banner_url) {
+          await supabaseAdmin.from("profiles").update({ banner_url }).eq("user_id", userId);
+        }
+      }
+
+      if (adminAction === "export_user_data") {
+        // Export handled client-side, this just logs it
+        logStep("User data export requested", { userId, by: user.id });
+      }
 
       return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    throw new Error("Invalid action");
+    return new Response(JSON.stringify({ error: "Unknown action" }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 });
+
   } catch (error) {
-    logStep("ERROR", { message: error instanceof Error ? error.message : String(error) });
-    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }), {
+    const message = error instanceof Error ? error.message : String(error);
+    logStep("ERROR", { message });
+    return new Response(JSON.stringify({ error: message }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500,
     });
   }
