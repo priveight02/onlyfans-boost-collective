@@ -141,6 +141,7 @@ const PlanCreditsTab = () => {
 
   // Subscription state from Stripe
   const [activePlanId, setActivePlanId] = useState<string | null>(null);
+  const [isAdminAssigned, setIsAdminAssigned] = useState(false);
   const [subscriptionLoading, setSubscriptionLoading] = useState(true);
   const [checkoutSecret, setCheckoutSecret] = useState<string | null>(null);
 
@@ -158,9 +159,11 @@ const PlanCreditsTab = () => {
         const overridePlan = data.admin_plan_override.toLowerCase();
         if (["starter", "pro", "business"].includes(overridePlan)) {
           setActivePlanId(overridePlan);
+          setIsAdminAssigned(true);
           return;
         } else if (overridePlan === "free") {
           setActivePlanId(null);
+          setIsAdminAssigned(true);
           return;
         }
       }
@@ -365,7 +368,14 @@ const PlanCreditsTab = () => {
               <Layers className="h-6 w-6 text-purple-400" />
             </div>
             <div>
-              <h3 className="text-white font-semibold text-base">You're on {currentPlan.name}</h3>
+              <div className="flex items-center gap-2">
+                <h3 className="text-white font-semibold text-base">You're on {currentPlan.name}</h3>
+                {isAdminAssigned && (
+                  <Badge className="bg-red-500/15 text-red-300 border-red-500/20 text-[10px] italic">
+                    Set by admin
+                  </Badge>
+                )}
+              </div>
               <p className="text-white/40 text-sm">{currentPlan.credits_per_month ? `${currentPlan.credits_per_month} credits/month included` : "Top up credits anytime"}</p>
             </div>
           </div>
@@ -445,10 +455,20 @@ const PlanCreditsTab = () => {
                     : "border-white/[0.06] bg-[hsl(222,28%,11%)]"
                 } ${isCurrent ? "ring-1 ring-emerald-500/30" : ""}`}
               >
-                {isCurrent && (
+                {isCurrent && !isAdminAssigned && (
                   <Badge className="bg-emerald-500/15 text-emerald-300 border-emerald-500/20 mb-2 text-xs">
                     Current Plan
                   </Badge>
+                )}
+                {isCurrent && isAdminAssigned && (
+                  <div className="flex items-center gap-2 mb-2">
+                    <Badge className="bg-emerald-500/15 text-emerald-300 border-emerald-500/20 text-xs">
+                      Current Plan
+                    </Badge>
+                    <Badge className="bg-red-500/15 text-red-300 border-red-500/20 text-xs italic">
+                      Set by admin
+                    </Badge>
+                  </div>
                 )}
                 {plan.highlighted && !isCurrent && (
                   <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-purple-500 text-white border-0 text-[10px] px-3 py-0.5 shadow-lg shadow-purple-500/20">
