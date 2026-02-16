@@ -18,7 +18,8 @@ import {
   Brain, Pause, Play, Trash2, Bell, MessageSquare, Ban, Gift,
   Minus, StickyNote, History, Shield, UserX, UserCheck, Sparkles,
   Activity, PieChart, TrendingDown, Flame, Snowflake, Star,
-  KeyRound, FileDown, Tag, PenLine,
+  KeyRound, FileDown, Tag, PenLine, ShieldAlert, LogOut,
+  Tags, Gauge, PartyPopper, Eye as EyeIcon, MailCheck, UserCog,
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -141,6 +142,22 @@ const AdminCustomers = () => {
   const [exportFormat, setExportFormat] = useState("json");
   const [exportSections, setExportSections] = useState<string[]>(["profile", "transactions", "activity"]);
 
+  // 8 more quick action states
+  const [showVerifyEmailDialog, setShowVerifyEmailDialog] = useState(false);
+  const [showForceLogoutDialog, setShowForceLogoutDialog] = useState(false);
+  const [showTagUserDialog, setShowTagUserDialog] = useState(false);
+  const [showCreditLimitDialog, setShowCreditLimitDialog] = useState(false);
+  const [showWelcomeDialog, setShowWelcomeDialog] = useState(false);
+  const [showImpersonateDialog, setShowImpersonateDialog] = useState(false);
+  const [showBulkGrantDialog, setShowBulkGrantDialog] = useState(false);
+  const [showAccountAuditDialog, setShowAccountAuditDialog] = useState(false);
+  const [userTags, setUserTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState("");
+  const [dailyCreditLimit, setDailyCreditLimit] = useState("500");
+  const [welcomeTitle, setWelcomeTitle] = useState("Welcome to the Platform! 🎉");
+  const [welcomeMessage, setWelcomeMessage] = useState("We're thrilled to have you on board. Explore the platform and let us know if you need anything!");
+  const [bulkGrantAmount, setBulkGrantAmount] = useState("100");
+  const [bulkGrantReason, setBulkGrantReason] = useState("Promotional bonus");
   const CACHE_ACCOUNT = "admin";
   const CACHE_NS_LIST = "customers_list";
   const CACHE_NS_DETAIL = "customer_detail";
@@ -358,6 +375,38 @@ const AdminCustomers = () => {
               <Button size="sm" variant="outline" className="text-indigo-400 border-indigo-500/30 bg-indigo-500/5 hover:bg-indigo-500/10 gap-1.5 text-xs h-8"
                 onClick={() => { setExportSections(["profile", "transactions", "activity"]); setExportFormat("json"); setShowExportDialog(true); }}>
                 <FileDown className="h-3.5 w-3.5" /> Export Data
+              </Button>
+              <Button size="sm" variant="outline" className="text-emerald-400 border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/10 gap-1.5 text-xs h-8"
+                onClick={() => setShowVerifyEmailDialog(true)}>
+                <MailCheck className="h-3.5 w-3.5" /> Verify Email
+              </Button>
+              <Button size="sm" variant="outline" className="text-rose-400 border-rose-500/30 bg-rose-500/5 hover:bg-rose-500/10 gap-1.5 text-xs h-8"
+                onClick={() => setShowForceLogoutDialog(true)}>
+                <LogOut className="h-3.5 w-3.5" /> Force Logout
+              </Button>
+              <Button size="sm" variant="outline" className="text-violet-400 border-violet-500/30 bg-violet-500/5 hover:bg-violet-500/10 gap-1.5 text-xs h-8"
+                onClick={() => { setUserTags([]); setTagInput(""); setShowTagUserDialog(true); }}>
+                <Tags className="h-3.5 w-3.5" /> Tag User
+              </Button>
+              <Button size="sm" variant="outline" className="text-lime-400 border-lime-500/30 bg-lime-500/5 hover:bg-lime-500/10 gap-1.5 text-xs h-8"
+                onClick={() => { setDailyCreditLimit("500"); setShowCreditLimitDialog(true); }}>
+                <Gauge className="h-3.5 w-3.5" /> Credit Limit
+              </Button>
+              <Button size="sm" variant="outline" className="text-yellow-400 border-yellow-500/30 bg-yellow-500/5 hover:bg-yellow-500/10 gap-1.5 text-xs h-8"
+                onClick={() => { setWelcomeTitle("Welcome to the Platform! 🎉"); setWelcomeMessage("We're thrilled to have you on board. Explore the platform and let us know if you need anything!"); setShowWelcomeDialog(true); }}>
+                <PartyPopper className="h-3.5 w-3.5" /> Welcome Email
+              </Button>
+              <Button size="sm" variant="outline" className="text-fuchsia-400 border-fuchsia-500/30 bg-fuchsia-500/5 hover:bg-fuchsia-500/10 gap-1.5 text-xs h-8"
+                onClick={() => setShowImpersonateDialog(true)}>
+                <EyeIcon className="h-3.5 w-3.5" /> View As User
+              </Button>
+              <Button size="sm" variant="outline" className="text-blue-400 border-blue-500/30 bg-blue-500/5 hover:bg-blue-500/10 gap-1.5 text-xs h-8"
+                onClick={() => { setBulkGrantAmount("100"); setBulkGrantReason("Promotional bonus"); setShowBulkGrantDialog(true); }}>
+                <Gift className="h-3.5 w-3.5" /> Bonus Credits
+              </Button>
+              <Button size="sm" variant="outline" className="text-white/60 border-white/20 bg-white/[0.03] hover:bg-white/[0.06] gap-1.5 text-xs h-8"
+                onClick={() => setShowAccountAuditDialog(true)}>
+                <ShieldAlert className="h-3.5 w-3.5" /> Full Audit
               </Button>
               <div className="ml-auto">
                 <Button size="sm" onClick={fetchAiAnalysis} disabled={aiLoading}
@@ -1028,6 +1077,337 @@ const AdminCustomers = () => {
                 <FileDown className="h-3.5 w-3.5" />
                 Export {exportSections.length} Sections
               </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Verify Email Dialog */}
+        <Dialog open={showVerifyEmailDialog} onOpenChange={setShowVerifyEmailDialog}>
+          <DialogContent className="bg-[hsl(220,30%,12%)] border-white/10 text-white max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-white">
+                <div className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                  <MailCheck className="h-5 w-5 text-emerald-400" />
+                </div>
+                Verify User Email
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="p-4 rounded-xl bg-white/[0.04] border border-white/[0.08]">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center text-accent font-bold overflow-hidden">
+                    {detail?.profile?.avatar_url ? <img src={detail.profile.avatar_url} className="w-full h-full object-cover" /> : (detail?.profile?.display_name || "?")[0]?.toUpperCase()}
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-white">{detail?.profile?.display_name}</p>
+                    <p className="text-xs text-white/40">{detail?.profile?.email}</p>
+                  </div>
+                </div>
+              </div>
+              <p className="text-sm text-white/60">This will manually confirm the user's email address, bypassing the verification flow. Use when a user cannot access their verification email.</p>
+            </div>
+            <DialogFooter className="gap-2">
+              <Button variant="ghost" onClick={() => setShowVerifyEmailDialog(false)} className="text-white/50">Cancel</Button>
+              <Button onClick={() => { performAction("verify_email"); setShowVerifyEmailDialog(false); }} disabled={actionLoading}
+                className="bg-emerald-600 text-white hover:bg-emerald-700 gap-1.5">
+                <MailCheck className="h-3.5 w-3.5" />
+                {actionLoading ? "Verifying..." : "Confirm Email"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Force Logout Dialog */}
+        <Dialog open={showForceLogoutDialog} onOpenChange={setShowForceLogoutDialog}>
+          <DialogContent className="bg-[hsl(220,30%,12%)] border-white/10 text-white max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-white">
+                <div className="p-2 rounded-xl bg-rose-500/10 border border-rose-500/20">
+                  <LogOut className="h-5 w-5 text-rose-400" />
+                </div>
+                Force Logout All Sessions
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="p-4 rounded-xl bg-rose-500/5 border border-rose-500/15">
+                <p className="text-sm text-rose-300 font-medium">⚠ This will terminate all active sessions</p>
+                <p className="text-xs text-white/40 mt-1">The user will be logged out from all devices immediately and must re-authenticate.</p>
+              </div>
+              <div>
+                <label className="text-xs text-white/50 mb-1.5 block font-medium">Reason</label>
+                <Input value={actionReason} onChange={e => setActionReason(e.target.value)} placeholder="e.g. Security incident, compromised account..."
+                  className="bg-white/5 border-white/10 text-white placeholder:text-white/25 h-10" />
+              </div>
+            </div>
+            <DialogFooter className="gap-2">
+              <Button variant="ghost" onClick={() => setShowForceLogoutDialog(false)} className="text-white/50">Cancel</Button>
+              <Button onClick={() => { performAction("force_logout"); setShowForceLogoutDialog(false); }} disabled={actionLoading}
+                className="bg-rose-600 text-white hover:bg-rose-700 gap-1.5">
+                <LogOut className="h-3.5 w-3.5" />
+                {actionLoading ? "Logging out..." : "Force Logout"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Tag User Dialog */}
+        <Dialog open={showTagUserDialog} onOpenChange={setShowTagUserDialog}>
+          <DialogContent className="bg-[hsl(220,30%,12%)] border-white/10 text-white max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-white">
+                <div className="p-2 rounded-xl bg-violet-500/10 border border-violet-500/20">
+                  <Tags className="h-5 w-5 text-violet-400" />
+                </div>
+                Tag User
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs text-white/50 mb-1.5 block font-medium">Quick Tags</label>
+                <div className="flex flex-wrap gap-2">
+                  {["VIP", "High Priority", "Whale", "At Risk", "New Lead", "Influencer", "Support Issue", "Beta Tester"].map(tag => (
+                    <button key={tag} onClick={() => setUserTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag])}
+                      className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition-all ${userTags.includes(tag) ? "border-violet-500/50 bg-violet-500/15 text-violet-300" : "border-white/10 bg-white/[0.03] text-white/40 hover:border-white/20"}`}>
+                      {tag}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-white/50 mb-1.5 block font-medium">Custom Tag</label>
+                <div className="flex gap-2">
+                  <Input value={tagInput} onChange={e => setTagInput(e.target.value)} placeholder="Add custom tag..."
+                    className="bg-white/5 border-white/10 text-white placeholder:text-white/25 h-10"
+                    onKeyDown={e => { if (e.key === "Enter" && tagInput.trim()) { setUserTags(prev => [...prev, tagInput.trim()]); setTagInput(""); } }} />
+                  <Button size="sm" onClick={() => { if (tagInput.trim()) { setUserTags(prev => [...prev, tagInput.trim()]); setTagInput(""); } }}
+                    className="bg-violet-600 text-white hover:bg-violet-700 h-10 px-4">Add</Button>
+                </div>
+              </div>
+              {userTags.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {userTags.map((tag, i) => (
+                    <span key={i} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-violet-500/15 text-violet-300 text-xs border border-violet-500/20">
+                      {tag}
+                      <button onClick={() => setUserTags(prev => prev.filter((_, idx) => idx !== i))} className="text-violet-400 hover:text-white ml-0.5">×</button>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+            <DialogFooter className="gap-2">
+              <Button variant="ghost" onClick={() => setShowTagUserDialog(false)} className="text-white/50">Cancel</Button>
+              <Button onClick={() => { performAction("tag_user", { tags: userTags }); setShowTagUserDialog(false); }} disabled={userTags.length === 0 || actionLoading}
+                className="bg-violet-600 text-white hover:bg-violet-700 gap-1.5">
+                <Tags className="h-3.5 w-3.5" />
+                {actionLoading ? "Saving..." : `Apply ${userTags.length} Tags`}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Credit Limit Dialog */}
+        <Dialog open={showCreditLimitDialog} onOpenChange={setShowCreditLimitDialog}>
+          <DialogContent className="bg-[hsl(220,30%,12%)] border-white/10 text-white max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-white">
+                <div className="p-2 rounded-xl bg-lime-500/10 border border-lime-500/20">
+                  <Gauge className="h-5 w-5 text-lime-400" />
+                </div>
+                Set Daily Credit Limit
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <p className="text-sm text-white/60">Limit how many credits this user can spend per day. Set to 0 for unlimited.</p>
+              <div>
+                <label className="text-xs text-white/50 mb-1.5 block font-medium">Daily Limit</label>
+                <div className="grid grid-cols-4 gap-2 mb-3">
+                  {["100", "250", "500", "0"].map(v => (
+                    <button key={v} onClick={() => setDailyCreditLimit(v)}
+                      className={`p-2.5 rounded-xl border text-sm font-medium transition-all ${dailyCreditLimit === v ? "border-lime-500/50 bg-lime-500/10 text-white" : "border-white/10 bg-white/[0.02] text-white/50 hover:border-white/20"}`}>
+                      {v === "0" ? "Unlimited" : v}
+                    </button>
+                  ))}
+                </div>
+                <Input type="number" value={dailyCreditLimit} onChange={e => setDailyCreditLimit(e.target.value)} placeholder="Custom limit..."
+                  className="bg-white/5 border-white/10 text-white placeholder:text-white/25 h-10" />
+              </div>
+            </div>
+            <DialogFooter className="gap-2">
+              <Button variant="ghost" onClick={() => setShowCreditLimitDialog(false)} className="text-white/50">Cancel</Button>
+              <Button onClick={() => { performAction("set_credit_limit", { daily_limit: parseInt(dailyCreditLimit) || 0 }); setShowCreditLimitDialog(false); }} disabled={actionLoading}
+                className="bg-lime-600 text-white hover:bg-lime-700 gap-1.5">
+                <Gauge className="h-3.5 w-3.5" />
+                {actionLoading ? "Saving..." : "Set Limit"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Welcome Email Dialog */}
+        <Dialog open={showWelcomeDialog} onOpenChange={setShowWelcomeDialog}>
+          <DialogContent className="bg-[hsl(220,30%,12%)] border-white/10 text-white max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-white">
+                <div className="p-2 rounded-xl bg-yellow-500/10 border border-yellow-500/20">
+                  <PartyPopper className="h-5 w-5 text-yellow-400" />
+                </div>
+                Send Welcome Message
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs text-white/50 mb-1.5 block font-medium">Title</label>
+                <Input value={welcomeTitle} onChange={e => setWelcomeTitle(e.target.value)}
+                  className="bg-white/5 border-white/10 text-white placeholder:text-white/25 h-10" />
+              </div>
+              <div>
+                <label className="text-xs text-white/50 mb-1.5 block font-medium">Message</label>
+                <Textarea value={welcomeMessage} onChange={e => setWelcomeMessage(e.target.value)}
+                  className="bg-white/5 border-white/10 text-white placeholder:text-white/25 min-h-[100px] resize-none" />
+              </div>
+              <div className="p-3 rounded-xl bg-yellow-500/5 border border-yellow-500/15">
+                <p className="text-xs text-yellow-300/70">💡 This sends an in-app notification visible on the user's notification bell.</p>
+              </div>
+            </div>
+            <DialogFooter className="gap-2">
+              <Button variant="ghost" onClick={() => setShowWelcomeDialog(false)} className="text-white/50">Cancel</Button>
+              <Button onClick={() => { performAction("send_welcome", { title: welcomeTitle, message: welcomeMessage }); setShowWelcomeDialog(false); }} disabled={!welcomeTitle || !welcomeMessage || actionLoading}
+                className="bg-yellow-600 text-white hover:bg-yellow-700 gap-1.5">
+                <PartyPopper className="h-3.5 w-3.5" />
+                {actionLoading ? "Sending..." : "Send Welcome"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* View As User Dialog */}
+        <Dialog open={showImpersonateDialog} onOpenChange={setShowImpersonateDialog}>
+          <DialogContent className="bg-[hsl(220,30%,12%)] border-white/10 text-white max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-white">
+                <div className="p-2 rounded-xl bg-fuchsia-500/10 border border-fuchsia-500/20">
+                  <EyeIcon className="h-5 w-5 text-fuchsia-400" />
+                </div>
+                View As User
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="p-4 rounded-xl bg-white/[0.04] border border-white/[0.08]">
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div><span className="text-white/40 text-xs">Name</span><p className="text-white font-medium">{detail?.profile?.display_name || "N/A"}</p></div>
+                  <div><span className="text-white/40 text-xs">Username</span><p className="text-white font-medium">@{detail?.profile?.username || "N/A"}</p></div>
+                  <div><span className="text-white/40 text-xs">Balance</span><p className="text-amber-400 font-bold">{(detail?.wallet?.balance || 0).toLocaleString()} credits</p></div>
+                  <div><span className="text-white/40 text-xs">Plan</span><p className="text-white font-medium">{detail?.stripe?.current_plan || "Free"}</p></div>
+                  <div><span className="text-white/40 text-xs">Status</span><p className="text-white font-medium capitalize">{detail?.profile?.account_status || "active"}</p></div>
+                  <div><span className="text-white/40 text-xs">Posts</span><p className="text-white font-medium">{detail?.profile?.post_count || 0}</p></div>
+                </div>
+              </div>
+              <p className="text-xs text-white/40">This is a read-only snapshot of the user's account. The view action is logged for audit purposes.</p>
+            </div>
+            <DialogFooter className="gap-2">
+              <Button variant="ghost" onClick={() => setShowImpersonateDialog(false)} className="text-white/50">Close</Button>
+              <Button onClick={() => { performAction("impersonate_view"); setShowImpersonateDialog(false); toast.success("Audit log recorded"); }} disabled={actionLoading}
+                className="bg-fuchsia-600 text-white hover:bg-fuchsia-700 gap-1.5">
+                <EyeIcon className="h-3.5 w-3.5" />
+                Log Audit View
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Bonus Credits Dialog */}
+        <Dialog open={showBulkGrantDialog} onOpenChange={setShowBulkGrantDialog}>
+          <DialogContent className="bg-[hsl(220,30%,12%)] border-white/10 text-white max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-white">
+                <div className="p-2 rounded-xl bg-blue-500/10 border border-blue-500/20">
+                  <Gift className="h-5 w-5 text-blue-400" />
+                </div>
+                Send Bonus Credits
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs text-white/50 mb-1.5 block font-medium">Amount</label>
+                <div className="grid grid-cols-4 gap-2 mb-3">
+                  {["50", "100", "250", "500"].map(v => (
+                    <button key={v} onClick={() => setBulkGrantAmount(v)}
+                      className={`p-2.5 rounded-xl border text-sm font-medium transition-all ${bulkGrantAmount === v ? "border-blue-500/50 bg-blue-500/10 text-white" : "border-white/10 bg-white/[0.02] text-white/50 hover:border-white/20"}`}>
+                      {v} cr
+                    </button>
+                  ))}
+                </div>
+                <Input type="number" value={bulkGrantAmount} onChange={e => setBulkGrantAmount(e.target.value)} placeholder="Custom amount..."
+                  className="bg-white/5 border-white/10 text-white placeholder:text-white/25 h-10" />
+              </div>
+              <div>
+                <label className="text-xs text-white/50 mb-1.5 block font-medium">Reason</label>
+                <Select value={bulkGrantReason} onValueChange={setBulkGrantReason}>
+                  <SelectTrigger className="bg-white/5 border-white/10 text-white h-10"><SelectValue /></SelectTrigger>
+                  <SelectContent className="bg-[hsl(220,30%,15%)] border-white/10 text-white">
+                    <SelectItem value="Promotional bonus">🎁 Promotional Bonus</SelectItem>
+                    <SelectItem value="Loyalty reward">⭐ Loyalty Reward</SelectItem>
+                    <SelectItem value="Bug compensation">🐛 Bug Compensation</SelectItem>
+                    <SelectItem value="Referral reward">🤝 Referral Reward</SelectItem>
+                    <SelectItem value="Contest winner">🏆 Contest Winner</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter className="gap-2">
+              <Button variant="ghost" onClick={() => setShowBulkGrantDialog(false)} className="text-white/50">Cancel</Button>
+              <Button onClick={() => {
+                performAction("grant_credits", { amount: parseInt(bulkGrantAmount) });
+                setActionReason(bulkGrantReason);
+                setShowBulkGrantDialog(false);
+              }} disabled={!bulkGrantAmount || parseInt(bulkGrantAmount) <= 0 || actionLoading}
+                className="bg-blue-600 text-white hover:bg-blue-700 gap-1.5">
+                <Gift className="h-3.5 w-3.5" />
+                {actionLoading ? "Granting..." : `Grant ${bulkGrantAmount} Credits`}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Full Audit Dialog */}
+        <Dialog open={showAccountAuditDialog} onOpenChange={setShowAccountAuditDialog}>
+          <DialogContent className="bg-[hsl(220,30%,12%)] border-white/10 text-white max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-white">
+                <div className="p-2 rounded-xl bg-white/10 border border-white/20">
+                  <ShieldAlert className="h-5 w-5 text-white/70" />
+                </div>
+                Full Account Audit
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+              {[
+                { label: "User ID", value: selectedUserId || "N/A" },
+                { label: "Email", value: detail?.profile?.email || "N/A" },
+                { label: "Display Name", value: detail?.profile?.display_name || "N/A" },
+                { label: "Username", value: `@${detail?.profile?.username || "N/A"}` },
+                { label: "Account Status", value: detail?.profile?.account_status || "active" },
+                { label: "Joined", value: detail?.profile?.created_at ? new Date(detail.profile.created_at).toLocaleString() : "N/A" },
+                { label: "Auth Provider", value: detail?.profile?.auth_provider || "email" },
+                { label: "Email Verified", value: detail?.profile?.email ? "Yes" : "Unknown" },
+                { label: "Credit Balance", value: `${(detail?.wallet?.balance || 0).toLocaleString()} credits` },
+                { label: "Total Purchased", value: `${(detail?.wallet?.total_purchased || 0).toLocaleString()} credits` },
+                { label: "Stripe Customer", value: detail?.stripe?.customer_id || "None" },
+                { label: "Current Plan", value: detail?.stripe?.current_plan || "Free" },
+                { label: "Active Devices", value: `${(detail?.device_sessions || []).filter((d: any) => d.status === "active").length} devices` },
+                { label: "Total Logins", value: `${(detail?.login_activity || []).length} recorded` },
+                { label: "Admin Actions", value: `${(detail?.admin_actions || []).length} actions taken` },
+                { label: "Posts Created", value: `${detail?.profile?.post_count || 0}` },
+                { label: "Followers", value: `${detail?.profile?.follower_count || 0}` },
+              ].map(row => (
+                <div key={row.label} className="flex items-center justify-between py-2 px-3 rounded-lg bg-white/[0.02] border border-white/[0.05]">
+                  <span className="text-xs text-white/40">{row.label}</span>
+                  <span className="text-xs text-white font-medium">{row.value}</span>
+                </div>
+              ))}
+            </div>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setShowAccountAuditDialog(false)} className="text-white/50">Close</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
