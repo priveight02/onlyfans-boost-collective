@@ -33,11 +33,8 @@ serve(async (req) => {
         user_agent: userAgent,
       });
     } else {
-      await supabase.from("site_visits").insert({
-        page_path: page_path || "/",
-        visitor_ip: ip,
-        user_agent: userAgent,
-      });
+      // PAUSED: Site visit tracking disabled to reduce database usage
+      // Silently succeed without inserting
     }
 
     return new Response(JSON.stringify({ ok: true }), {
