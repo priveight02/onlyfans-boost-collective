@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Coins, Layers, Zap, Star, Check, ArrowRight, Sparkles, Plus, Minus, CreditCard, TrendingUp, ArrowUpRight, ShieldAlert } from "lucide-react";
+import planStarterCoins from "@/assets/plan-starter-coins.png";
+import planProCoins from "@/assets/plan-pro-coins.png";
+import planBusinessCoins from "@/assets/plan-business-coins.png";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -441,6 +444,9 @@ const PlanCreditsTab = () => {
                 <p className="text-white/40 text-sm mb-3">
                   {plan.credits_per_month ? `${plan.credits_per_month.toLocaleString()} credits/month` : "Custom allocation"}
                 </p>
+                {plan.id === "starter" && <img src={planStarterCoins} alt="215 credits" className="w-24 h-24 mx-auto mb-3 object-contain" />}
+                {plan.id === "pro" && <img src={planProCoins} alt="1075 credits" className="w-24 h-24 mx-auto mb-3 object-contain" />}
+                {plan.id === "business" && <img src={planBusinessCoins} alt="4300 credits" className="w-24 h-24 mx-auto mb-3 object-contain" />}
                 <div className="mb-4">
                   {displayPrice !== null ? (
                     <>
