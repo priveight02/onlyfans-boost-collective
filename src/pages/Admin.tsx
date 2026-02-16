@@ -76,7 +76,7 @@ const Admin = () => {
             </div>
             <div>
               <h1 className="text-2xl font-bold font-heading text-white">Agency Command Center</h1>
-              <p className="text-sm text-white/50">Ozc Agency — Full CRM & Operations</p>
+              <p className="text-sm text-white/50">Ozc Agency — Full Platform & Operations</p>
             </div>
           </div>
           <Button
@@ -96,7 +96,7 @@ const Admin = () => {
               <LayoutDashboard className="h-3.5 w-3.5" /> Dashboard
             </TabsTrigger>
             <TabsTrigger value="crm" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
-              <Contact className="h-3.5 w-3.5" /> CRM
+              <Contact className="h-3.5 w-3.5" /> Platform
             </TabsTrigger>
             <TabsTrigger value="rankings" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
               <Award className="h-3.5 w-3.5" /> Rankings

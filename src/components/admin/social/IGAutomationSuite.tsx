@@ -29,10 +29,10 @@ interface Props {
 }
 
 const SECTIONS = [
-  // AI CRM Core
-  { id: "leads", icon: Target, label: "AI Lead Scoring & Sales Agent", desc: "Score leads 0-100, AI sales agent with 7-day human window", color: "text-red-400", category: "AI CRM" },
-  { id: "smart-comments", icon: MessageSquare, label: "Smart Comment Automation", desc: "Detect buying signals, auto-reply & DM hot leads", color: "text-emerald-400", category: "AI CRM" },
-  { id: "health", icon: Activity, label: "Account Health & DM Memory", desc: "Shadowban risk, DM memory system & auto funnel builder", color: "text-cyan-400", category: "AI CRM" },
+  // AI Platform Core
+  { id: "leads", icon: Target, label: "AI Lead Scoring & Sales Agent", desc: "Score leads 0-100, AI sales agent with 7-day human window", color: "text-red-400", category: "AI Platform" },
+  { id: "smart-comments", icon: MessageSquare, label: "Smart Comment Automation", desc: "Detect buying signals, auto-reply & DM hot leads", color: "text-emerald-400", category: "AI Platform" },
+  { id: "health", icon: Activity, label: "Account Health & DM Memory", desc: "Shadowban risk, DM memory system & auto funnel builder", color: "text-cyan-400", category: "AI Platform" },
   // Growth & Automation
   { id: "viral", icon: TrendingUp, label: "AI Viral Predictor & Autopilot", desc: "Predict virality, AI content autopilot & post analysis", color: "text-green-400", category: "Growth" },
   { id: "scheduler", icon: Calendar, label: "Smart Scheduler", desc: "AI-powered post scheduling & auto-publishing", color: "text-blue-400", category: "Growth" },

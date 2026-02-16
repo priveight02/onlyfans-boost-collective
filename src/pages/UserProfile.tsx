@@ -1466,7 +1466,7 @@ const UserProfile = () => {
                             { action: "Buy 100 Credits", xp: "+50 XP", icon: Coins },
                             { action: "Buy 500 Credits", xp: "+300 XP", icon: Coins },
                             { action: "Buy 1,000+ Credits", xp: "+750 XP", icon: Coins },
-                            { action: "Use CRM Features", xp: "+15 XP", icon: Star },
+                            { action: "Use Platform Features", xp: "+15 XP", icon: Star },
                             { action: "Manage an Account", xp: "+20 XP", icon: UserPlus },
                           ].map((item) => (
                             <div key={item.action} className="flex items-center justify-between py-2.5 border-b border-white/[0.04] last:border-0">

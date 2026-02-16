@@ -23,14 +23,14 @@ const featureSections = [
     ]
   },
   {
-    title: "AI-Powered CRM",
+    title: "AI-Powered Platform",
     subtitle: "Close deals faster with intelligent relationship management",
     icon: BrainCircuit,
     highlight: "3x faster deal closing",
     gradient: "from-purple-500/20 to-indigo-500/20",
     accentColor: "text-purple-400",
     borderColor: "hover:border-purple-500/40",
-    description: "Our CRM goes beyond contact management. Powered by advanced AI, it scores every lead in real time, predicts deal outcomes, and recommends your next best action. From first touch to closed deal, every interaction is tracked, analyzed, and optimized automatically.",
+    description: "Our Platform goes beyond contact management. Powered by advanced AI, it scores every lead in real time, predicts deal outcomes, and recommends your next best action. From first touch to closed deal, every interaction is tracked, analyzed, and optimized automatically.",
     bullets: [
       "AI lead scoring with 0 to 100 intent analysis",
       "Smart pipeline automation with deal stage predictions",
