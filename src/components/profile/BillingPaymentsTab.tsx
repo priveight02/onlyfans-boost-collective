@@ -224,20 +224,21 @@ const BillingPaymentsTab = () => {
               <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-4">
                 <p className="text-white/40 text-[11px] font-medium uppercase tracking-wider mb-1">Billing Amount</p>
                 <p className="text-white font-semibold text-sm">
-                  {formatCurrency(subscription.amount, subscription.currency)}
-                  <span className="text-white/40 font-normal text-xs"> / {subscription.interval}</span>
+                  {subscription
+                    ? <>{formatCurrency(subscription.amount, subscription.currency)}<span className="text-white/40 font-normal text-xs"> / {subscription.interval}</span></>
+                    : <span className="text-white/40">Admin assigned</span>}
                 </p>
               </div>
 
               {/* Next Billing */}
               <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-4">
                 <p className="text-white/40 text-[11px] font-medium uppercase tracking-wider mb-1">
-                  {subscription.cancel_at_period_end ? "Expires On" : "Next Billing"}
+                  {subscription?.cancel_at_period_end ? "Expires On" : "Next Billing"}
                 </p>
                 <p className="text-white font-semibold text-sm">
-                  {formatDate(subscription.current_period_end)}
+                  {subscription ? formatDate(subscription.current_period_end) : <span className="text-white/40">—</span>}
                 </p>
-                {subscription.cancel_at_period_end && (
+                {subscription?.cancel_at_period_end && (
                   <Badge className="mt-1.5 bg-amber-500/15 text-amber-300 border-amber-500/20 text-[10px]">
                     Cancels at period end
                   </Badge>
