@@ -4,7 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useWallet } from "@/hooks/useWallet";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Check, ArrowRight, Sparkles, BadgePercent, ShieldCheck, Zap, Gift } from "lucide-react";
+import { Check, ArrowRight, Sparkles, BadgePercent, ShieldCheck, Zap, Gift, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Footer from "@/components/Footer";
 import CheckoutModal from "@/components/CheckoutModal";
@@ -47,7 +47,7 @@ const Pricing = () => {
   const [retentionActive, setRetentionActive] = useState(false);
   const [retentionUsed, setRetentionUsed] = useState(false);
   const [checkoutSecret, setCheckoutSecret] = useState<string | null>(null);
-  
+  const [circulationCredits, setCirculationCredits] = useState<number | null>(null);
 
   // Declining discount: 1st repurchase=30%, 2nd=20%, 3rd=10%, then 0%
   const getReturningDiscount = (count: number): number => {
@@ -71,6 +71,17 @@ const Pricing = () => {
       setLoading(false);
     };
     fetchPackages();
+
+    // Fetch credits in circulation
+    const fetchCirculation = async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke("credits-circulation");
+        if (!error && data?.total_credits != null) {
+          setCirculationCredits(data.total_credits);
+        }
+      } catch {}
+    };
+    fetchCirculation();
   }, []);
 
   // Check if retention discount is active
@@ -189,9 +200,18 @@ const Pricing = () => {
 
         {user && (
           <div className="mt-6 flex flex-col items-center gap-3">
-            <div className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full bg-white/5 border border-white/10">
-              <span className="text-xl font-semibold text-white">{balance.toLocaleString()}</span>
-              <span className="text-white/40 text-sm">credits available</span>
+            <div className="flex items-center gap-3 flex-wrap justify-center">
+              {circulationCredits !== null && (
+                <div className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-white/5 border border-white/10">
+                  <Globe className="h-3.5 w-3.5 text-purple-400" />
+                  <span className="text-sm font-medium text-white/60">{circulationCredits.toLocaleString()}</span>
+                  <span className="text-white/30 text-xs">in circulation</span>
+                </div>
+              )}
+              <div className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full bg-white/5 border border-white/10">
+                <span className="text-xl font-semibold text-white">{balance.toLocaleString()}</span>
+                <span className="text-white/40 text-sm">credits available</span>
+              </div>
             </div>
             {isReturning && (
               <div className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
