@@ -1,5 +1,4 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 
 const corsHeaders = {
@@ -7,42 +6,42 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// Pro and Business product IDs (monthly + yearly) — live + test
+const PADDLE_API = "https://sandbox-api.paddle.com";
+
+const PRODUCT_TO_PLAN: Record<string, string> = {
+  "pro_01khk8849zz71cnn6phwezgz6h": "starter",
+  "pro_01khk884je9ssmmgq17m850nt6": "pro",
+  "pro_01khk884s1s79fcga36rfqxexq": "business",
+};
+
+const PRODUCT_NAME_MAP: Record<string, string> = {
+  "pro_01khk8849zz71cnn6phwezgz6h": "Starter",
+  "pro_01khk884je9ssmmgq17m850nt6": "Pro",
+  "pro_01khk884s1s79fcga36rfqxexq": "Business",
+};
+
 const ELIGIBLE_PRODUCT_IDS = [
-  "prod_TzArZUF2DIlzHq", // pro monthly (live)
-  "prod_TzAywFFZ0SdhfZ", // pro yearly (live)
-  "prod_TzAram9it2Kedf", // business monthly (live)
-  "prod_TzAzgoteaSHuDB", // business yearly (live)
-  "prod_TzDPNCljqBJ2Cq", // pro monthly (test)
-  "prod_TzDPxffqvU9iSq", // pro yearly (test)
-  "prod_TzDPr3jeAGF9mm", // business monthly (test)
-  "prod_TzDQJVbiYpTH9Y", // business yearly (test)
+  "pro_01khk884je9ssmmgq17m850nt6", // pro
+  "pro_01khk884s1s79fcga36rfqxexq", // business
 ];
 
-// Product ID → human-readable plan name (live + test)
-const PRODUCT_NAME_MAP: Record<string, string> = {
-  "prod_TzAqP0zH90vzyR": "Starter (Monthly)",
-  "prod_TzAypr06as419B": "Starter (Yearly)",
-  "prod_TzArZUF2DIlzHq": "Pro (Monthly)",
-  "prod_TzAywFFZ0SdhfZ": "Pro (Yearly)",
-  "prod_TzAram9it2Kedf": "Business (Monthly)",
-  "prod_TzAzgoteaSHuDB": "Business (Yearly)",
-  // Test products
-  "prod_TzDPwhTrnCOnYm": "Starter (Monthly)",
-  "prod_TzDPUEvS935A88": "Starter (Yearly)",
-  "prod_TzDPNCljqBJ2Cq": "Pro (Monthly)",
-  "prod_TzDPxffqvU9iSq": "Pro (Yearly)",
-  "prod_TzDPr3jeAGF9mm": "Business (Monthly)",
-  "prod_TzDQJVbiYpTH9Y": "Business (Yearly)",
+const paddleFetch = async (path: string, method: string, body?: any) => {
+  const apiKey = Deno.env.get("PADDLE_API_KEY");
+  if (!apiKey) throw new Error("PADDLE_API_KEY not set");
+  const res = await fetch(`${PADDLE_API}${path}`, {
+    method,
+    headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(`Paddle API error [${res.status}]: ${JSON.stringify(data)}`);
+  return data;
 };
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
-    if (!stripeKey) throw new Error("STRIPE_SECRET_KEY not set");
-
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
@@ -56,166 +55,110 @@ serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
     const action = body.action || "info";
-    const stripe = new Stripe(stripeKey, { apiVersion: "2025-04-30.basil" });
 
-    // Safe date helper – returns ISO string or null
-    const safeDate = (ts: unknown): string | null => {
-      if (typeof ts === "number" && ts > 0) {
-        return new Date(ts * 1000).toISOString();
-      }
-      if (typeof ts === "string") return ts;
-      return null;
-    };
-    const customers = await stripe.customers.list({ email: userData.user.email, limit: 1 });
-
-    if (customers.data.length === 0) {
+    // Find Paddle customer
+    let customerId: string | null = null;
+    const customers = await paddleFetch(`/customers?search=${encodeURIComponent(userData.user.email)}`, "GET");
+    if (customers.data?.length === 0) {
       return new Response(JSON.stringify({
         subscription: null,
         payments: [],
         eligible_for_retention: false,
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
+    customerId = customers.data[0].id;
 
-    const customerId = customers.data[0].id;
-
-    // Action: apply retention coupon
+    // Action: apply retention discount
     if (action === "apply_retention_coupon") {
-      // Check eligibility first
-      const eligible = await checkRetentionEligibility(stripe, customerId);
-      if (!eligible.eligible) {
-        return new Response(JSON.stringify({ error: "Not eligible for retention discount", reason: eligible.reason }), {
+      const subs = await paddleFetch(`/subscriptions?customer_id=${customerId}&status=active`, "GET");
+      if (subs.data?.length === 0) {
+        return new Response(JSON.stringify({ error: "No active subscription" }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400,
         });
       }
 
-      // Find or create the 50% retention coupon
-      let coupon: Stripe.Coupon;
-      try {
-        coupon = await stripe.coupons.retrieve("RETENTION_50");
-      } catch {
-        coupon = await stripe.coupons.create({
-          id: "RETENTION_50",
-          name: "Retention Offer – 50% Off",
-          percent_off: 50,
-          duration: "forever",
+      // Apply 50% discount to subscription
+      for (const sub of subs.data) {
+        await paddleFetch(`/subscriptions/${sub.id}`, "PATCH", {
+          discount: { id: "dsc_01khk888kz0h5mk2v2cq8gw60m", effective_from: "next_billing_period" },
         });
       }
 
-      // Remove existing discounts and apply new one
-      const subscriptions = await stripe.subscriptions.list({ customer: customerId, status: "active", limit: 10 });
-      for (const sub of subscriptions.data) {
-        await stripe.subscriptions.update(sub.id, { coupon: coupon.id });
-      }
-
-      return new Response(JSON.stringify({ success: true, message: "50% discount applied to all active subscriptions" }), {
+      return new Response(JSON.stringify({ success: true, message: "50% discount applied" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Get subscription — include active AND canceled-but-not-yet-expired
-    const activeSubs = await stripe.subscriptions.list({ customer: customerId, status: "active", limit: 1 });
-    const canceledSubs = await stripe.subscriptions.list({ customer: customerId, status: "canceled", limit: 5 });
+    // Get active subscription
+    const activeSubs = await paddleFetch(`/subscriptions?customer_id=${customerId}&status=active`, "GET");
+    const canceledSubs = await paddleFetch(`/subscriptions?customer_id=${customerId}&status=canceled`, "GET");
 
-    // Pick active first, then most recent canceled that hasn't expired yet
-    let sub: typeof activeSubs.data[0] | null = activeSubs.data[0] || null;
-    if (!sub) {
-      const now = Math.floor(Date.now() / 1000);
+    let sub = activeSubs.data?.[0] || null;
+    if (!sub && canceledSubs.data?.length > 0) {
+      const now = new Date();
       for (const cs of canceledSubs.data) {
-        const endTs = typeof cs.current_period_end === "number" ? cs.current_period_end : 0;
-        if (endTs > now) { sub = cs; break; }
+        if (cs.current_billing_period?.ends_at && new Date(cs.current_billing_period.ends_at) > now) {
+          sub = cs;
+          break;
+        }
       }
     }
 
     let subscription = null;
     if (sub) {
-      const priceItem = sub.items.data[0];
-      const productId = typeof priceItem.price.product === "string" ? priceItem.price.product : (priceItem.price.product as any)?.id || "";
-
-      // Fetch the actual product name from Stripe for accurate display
-      let productName = PRODUCT_NAME_MAP[productId] || null;
-      if (!productName) {
-        try {
-          const product = await stripe.products.retrieve(productId);
-          productName = product.name || "Unknown Plan";
-        } catch { productName = "Unknown Plan"; }
-      }
-
-      // Robustly convert period timestamps
-      const periodStart = typeof sub.current_period_start === "number" && sub.current_period_start > 0
-        ? new Date(sub.current_period_start * 1000).toISOString() : safeDate(sub.current_period_start);
-      const periodEnd = typeof sub.current_period_end === "number" && sub.current_period_end > 0
-        ? new Date(sub.current_period_end * 1000).toISOString() : safeDate(sub.current_period_end);
+      const productId = sub.items?.[0]?.price?.product_id || "";
+      const priceId = sub.items?.[0]?.price?.id || "";
+      const planName = PRODUCT_NAME_MAP[productId] || "Unknown Plan";
+      const billingCycle = sub.items?.[0]?.price?.billing_cycle;
+      const interval = billingCycle?.interval || "month";
 
       subscription = {
         id: sub.id,
         status: sub.status,
         product_id: productId,
-        product_name: productName,
-        price_id: priceItem.price.id,
-        current_period_start: periodStart,
-        current_period_end: periodEnd,
-        cancel_at_period_end: sub.cancel_at_period_end,
+        product_name: `${planName} (${interval === "year" ? "Yearly" : "Monthly"})`,
+        price_id: priceId,
+        current_period_start: sub.current_billing_period?.starts_at || null,
+        current_period_end: sub.current_billing_period?.ends_at || null,
+        cancel_at_period_end: sub.scheduled_change?.action === "cancel",
         discount: sub.discount ? {
-          coupon_name: sub.discount.coupon.name,
-          percent_off: sub.discount.coupon.percent_off,
-          amount_off: sub.discount.coupon.amount_off,
+          coupon_name: "Discount",
+          percent_off: null,
+          amount_off: null,
         } : null,
-        amount: priceItem.price.unit_amount,
-        currency: priceItem.price.currency,
-        interval: priceItem.price.recurring?.interval,
+        amount: parseInt(sub.items?.[0]?.price?.unit_price?.amount || "0"),
+        currency: sub.items?.[0]?.price?.unit_price?.currency_code?.toLowerCase() || "usd",
+        interval,
       };
     }
 
-    // Get payment history (charges)
-    const charges = await stripe.charges.list({ customer: customerId, limit: 50 });
-    const payments = charges.data.map(ch => ({
-      id: ch.id,
-      amount: ch.amount,
-      currency: ch.currency,
-      status: ch.status,
-      created: safeDate(ch.created),
-      description: ch.description,
-      receipt_email: ch.receipt_email,
-      receipt_url: ch.receipt_url,
-      refunded: ch.refunded,
-      amount_refunded: ch.amount_refunded,
-      payment_method_details: ch.payment_method_details ? {
-        type: ch.payment_method_details.type,
-        card: ch.payment_method_details.card ? {
-          brand: ch.payment_method_details.card.brand,
-          last4: ch.payment_method_details.card.last4,
-        } : null,
-      } : null,
-      // Check if discount was applied
-      invoice_id: ch.invoice,
-    }));
-
-    // For each payment with an invoice, get the discount info
-    const paymentsWithDiscount = await Promise.all(payments.map(async (p) => {
-      if (p.invoice_id) {
-        try {
-          const inv = await stripe.invoices.retrieve(p.invoice_id as string);
-          return {
-            ...p,
-            discount: inv.discount ? {
-              coupon_name: inv.discount.coupon.name,
-              percent_off: inv.discount.coupon.percent_off,
-              amount_off: inv.discount.coupon.amount_off,
-            } : null,
-            subtotal: inv.subtotal,
-            total: inv.total,
-          };
-        } catch {
-          return { ...p, discount: null };
-        }
-      }
-      return { ...p, discount: null };
+    // Get transaction history (payments)
+    const txns = await paddleFetch(`/transactions?customer_id=${customerId}&status=completed&per_page=50`, "GET");
+    const payments = (txns.data || []).map((t: any) => ({
+      id: t.id,
+      amount: parseInt(t.details?.totals?.total || "0"),
+      currency: t.currency_code?.toLowerCase() || "usd",
+      status: t.status === "completed" ? "succeeded" : t.status,
+      created: t.created_at,
+      description: t.items?.[0]?.price?.description || null,
+      receipt_email: null,
+      receipt_url: t.checkout?.url || null,
+      refunded: false,
+      amount_refunded: 0,
+      payment_method_details: null,
+      discount: null,
     }));
 
     // Check retention eligibility
-    const eligibility = await checkRetentionEligibility(stripe, customerId);
+    const hasEligibleSub = (activeSubs.data || []).some((s: any) =>
+      s.items?.some((item: any) => ELIGIBLE_PRODUCT_IDS.includes(item.price?.product_id))
+    );
+    const totalSpent = payments.reduce((sum: number, p: any) => sum + p.amount, 0);
+    const reasons: string[] = [];
+    if (hasEligibleSub) reasons.push("active_pro_or_business");
+    if (totalSpent > 5000) reasons.push("spent_over_50");
+    if (payments.length > 3) reasons.push("more_than_3_purchases");
 
-    // Check if retention credits discount already used (from wallets table)
     let retentionCreditsUsed = false;
     const { data: walletData } = await supabase
       .from("wallets")
@@ -226,47 +169,16 @@ serve(async (req) => {
 
     return new Response(JSON.stringify({
       subscription,
-      payments: paymentsWithDiscount,
-      eligible_for_retention: eligibility.eligible,
-      eligibility_reasons: eligibility.reasons,
+      payments,
+      eligible_for_retention: reasons.length >= 2,
+      eligibility_reasons: reasons,
       retention_credits_used: retentionCreditsUsed,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
   } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : String(error) }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
     });
   }
 });
-
-async function checkRetentionEligibility(stripe: Stripe, customerId: string): Promise<{ eligible: boolean; reasons: string[]; reason?: string }> {
-  const reasons: string[] = [];
-
-  // Condition 1: Active Pro or Business subscription
-  const subs = await stripe.subscriptions.list({ customer: customerId, status: "active", limit: 10 });
-  const hasEligibleSub = subs.data.some(s =>
-    s.items.data.some(item => ELIGIBLE_PRODUCT_IDS.includes(item.price.product as string))
-  );
-  if (hasEligibleSub) reasons.push("active_pro_or_business");
-
-  // Condition 2: Spent more than $50 on top-ups (check total charges)
-  const charges = await stripe.charges.list({ customer: customerId, limit: 100 });
-  const totalSpent = charges.data
-    .filter(c => c.status === "succeeded" && !c.refunded)
-    .reduce((sum, c) => sum + c.amount, 0);
-  if (totalSpent > 5000) reasons.push("spent_over_50");
-
-  // Condition 3: More than 3 purchases
-  const successfulCharges = charges.data.filter(c => c.status === "succeeded").length;
-  if (successfulCharges > 3) reasons.push("more_than_3_purchases");
-
-  // Check if already has retention coupon
-  const alreadyHasRetention = subs.data.some(s => s.discount?.coupon?.id === "RETENTION_50");
-  if (alreadyHasRetention) {
-    return { eligible: false, reasons, reason: "Retention discount already active" };
-  }
-
-  // Require at least 2 conditions met to be eligible (not just having a sub)
-  return { eligible: reasons.length >= 2, reasons };
-}

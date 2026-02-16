@@ -1,5 +1,4 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 
 const corsHeaders = {
@@ -7,13 +6,25 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const PADDLE_API = "https://sandbox-api.paddle.com";
+
+const paddleFetch = async (path: string, method: string, body?: any) => {
+  const apiKey = Deno.env.get("PADDLE_API_KEY");
+  if (!apiKey) throw new Error("PADDLE_API_KEY not set");
+  const res = await fetch(`${PADDLE_API}${path}`, {
+    method,
+    headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(`Paddle API error [${res.status}]: ${JSON.stringify(data)}`);
+  return data;
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
-    if (!stripeKey) throw new Error("STRIPE_SECRET_KEY not set");
-
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
@@ -25,21 +36,36 @@ serve(async (req) => {
     const { data: userData, error: userError } = await supabase.auth.getUser(token);
     if (userError || !userData.user?.email) throw new Error("Not authenticated");
 
-    const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
-    const customers = await stripe.customers.list({ email: userData.user.email, limit: 1 });
-    if (customers.data.length === 0) throw new Error("No Stripe customer found");
+    // Find Paddle customer
+    const customers = await paddleFetch(`/customers?search=${encodeURIComponent(userData.user.email)}`, "GET");
+    if (customers.data?.length === 0) throw new Error("No Paddle customer found");
 
-    const origin = req.headers.get("origin") || "https://ozcagency.com";
-    const portalSession = await stripe.billingPortal.sessions.create({
-      customer: customers.data[0].id,
-      return_url: `${origin}/profile`,
-    });
+    const customerId = customers.data[0].id;
 
-    return new Response(JSON.stringify({ url: portalSession.url }), {
+    // Get active subscription and create a portal session URL
+    const subs = await paddleFetch(`/subscriptions?customer_id=${customerId}&status=active`, "GET");
+
+    if (subs.data?.length > 0) {
+      // Paddle supports "update payment method" via transaction
+      const sub = subs.data[0];
+      const updateTxn = await paddleFetch(`/subscriptions/${sub.id}/update-payment-method-transaction`, "GET");
+      
+      return new Response(JSON.stringify({
+        url: null,
+        subscription_id: sub.id,
+        update_payment_txn_id: updateTxn.data?.id || null,
+        message: "Use Paddle.js to open the update payment method checkout with this transaction ID, or cancel via the API."
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    return new Response(JSON.stringify({ error: "No active subscription found" }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 404,
     });
   } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : String(error) }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
     });
