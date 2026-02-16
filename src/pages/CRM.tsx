@@ -30,7 +30,7 @@ import {
   LayoutDashboard, Contact, Search, BarChart3, Users, DollarSign,
   FileText, MessageSquare, CheckSquare, MessageCircle, Award,
   TrendingUp, Activity, Zap, Download, Brain, Calendar, Heart,
-  Bot, Globe, Code2, LogOut, Coins,
+  Bot, Globe, Code2, LogOut, Coins, Lock, Settings,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -39,7 +39,7 @@ import { Input } from "@/components/ui/input";
 
 const CRM = () => {
   const { user, loading, logout } = useAuth();
-  const { balance } = useWallet();
+  const { balance, loading: walletLoading } = useWallet();
   const navigate = useNavigate();
   const [accounts, setAccounts] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -55,10 +55,59 @@ const CRM = () => {
     navigate("/");
   };
 
-  if (loading) {
+  // Gate: require at least 1 credit to navigate tabs
+  const handleTabChange = (newTab: string) => {
+    if (balance < 1 && !walletLoading) {
+      toast.error("Insufficient credits", {
+        description: "You need at least 1 credit to use the CRM. Purchase credits to continue.",
+        action: {
+          label: "Buy Credits",
+          onClick: () => navigate("/pricing"),
+        },
+      });
+      return;
+    }
+    setActiveTab(newTab);
+  };
+
+  if (loading || walletLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-[hsl(210,100%,12%)] via-[hsl(220,100%,10%)] to-[hsl(230,100%,8%)] flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent" />
+      </div>
+    );
+  }
+
+  // Full page block if 0 credits
+  if (balance < 1) {
+    return (
+      <div className="dark min-h-screen bg-gradient-to-br from-[hsl(210,100%,12%)] via-[hsl(220,100%,10%)] to-[hsl(230,100%,8%)] flex items-center justify-center">
+        <div className="text-center space-y-6 max-w-md mx-auto px-6">
+          <div className="p-4 rounded-full bg-amber-500/10 border border-amber-500/20 w-fit mx-auto">
+            <Lock className="h-10 w-10 text-amber-400" />
+          </div>
+          <h1 className="text-2xl font-bold text-white">CRM Access Locked</h1>
+          <p className="text-white/60">
+            You need at least <span className="text-amber-400 font-bold">1 credit</span> to access the CRM platform. 
+            Purchase credits to unlock all features.
+          </p>
+          <div className="flex gap-3 justify-center">
+            <Button
+              onClick={() => navigate("/pricing")}
+              className="bg-accent hover:bg-accent/80 text-white gap-2"
+            >
+              <Coins className="h-4 w-4" />
+              Buy Credits
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => navigate("/")}
+              className="text-white/60 hover:text-white hover:bg-white/10"
+            >
+              Go Home
+            </Button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -77,27 +126,18 @@ const CRM = () => {
               <p className="text-sm text-white/50">Manage your accounts, content & operations</p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => navigate("/pricing")}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/20 transition-all"
-            >
-              <Coins className="h-4 w-4 text-amber-400" />
-              <span className="text-sm font-bold text-amber-300">{balance.toLocaleString()}</span>
-            </button>
-            <Button
-              variant="ghost"
-              onClick={handleLogout}
-              className="text-white/60 hover:text-white hover:bg-white/10 gap-2"
-            >
-              <LogOut className="h-4 w-4" />
-              <span className="hidden sm:inline">Log out</span>
-            </Button>
-          </div>
+          <Button
+            variant="ghost"
+            onClick={handleLogout}
+            className="text-white/60 hover:text-white hover:bg-white/10 gap-2"
+          >
+            <LogOut className="h-4 w-4" />
+            <span className="hidden sm:inline">Log out</span>
+          </Button>
         </div>
 
         {/* Tabs */}
-        <Tabs defaultValue="dashboard" className="space-y-6" onValueChange={setActiveTab}>
+        <Tabs value={activeTab} className="space-y-6" onValueChange={handleTabChange}>
           <TabsList className="bg-white/5 backdrop-blur-sm border border-white/10 p-1 rounded-xl flex-wrap h-auto gap-1">
             <TabsTrigger value="dashboard" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
               <LayoutDashboard className="h-3.5 w-3.5" /> Dashboard
@@ -160,7 +200,7 @@ const CRM = () => {
               <MessageCircle className="h-3.5 w-3.5" /> Intranet
             </TabsTrigger>
             <TabsTrigger value="settings" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
-              <Code2 className="h-3.5 w-3.5" /> Settings
+              <Settings className="h-3.5 w-3.5" /> Settings
             </TabsTrigger>
             <TabsTrigger value="api" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
               <Code2 className="h-3.5 w-3.5" /> API

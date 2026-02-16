@@ -3,113 +3,162 @@ import { supabase } from '@/integrations/supabase/client';
 import { useWallet } from '@/hooks/useWallet';
 import { toast } from 'sonner';
 
-// Credit costs for CRM write actions
+// ─── Credit costs for CRM actions ───────────────────────────────────
+// Based on plan tiers: Starter 215cr, Pro 1,075cr, Business 4,300cr
+// Costs are set so a Pro user can perform ~100-200 actions/month comfortably
+//
+// Special rules:
+// - connect_social_account: requires 10 credits minimum but costs 0
+// - ai_auto_responder_hourly: charged per hour while active
+// - All navigation requires ≥1 credit (enforced in CRM page)
+// ─────────────────────────────────────────────────────────────────────
+
 export const CRM_ACTION_COSTS: Record<string, number> = {
-  // Account management
-  'create_account': 5,
-  'update_account': 2,
-  'delete_account': 1,
-  
-  // Messaging
-  'send_message': 1,
-  'send_bulk_message': 10,
-  
-  // Tasks
-  'create_task': 2,
-  'update_task': 1,
-  'complete_task': 0,
-  
-  // Contracts
-  'create_contract': 5,
-  'update_contract': 2,
-  'sign_contract': 3,
-  
-  // Content
-  'create_content': 3,
-  'schedule_content': 2,
-  'publish_content': 5,
-  
-  // Team
-  'add_team_member': 5,
-  'update_team_member': 2,
-  'remove_team_member': 1,
-  
-  // Financial
-  'create_financial_record': 3,
-  'update_financial_record': 2,
-  
-  // Persona DNA
-  'create_persona': 10,
-  'update_persona': 5,
-  
-  // Storyline / Scripts
-  'create_script': 5,
-  'update_script': 3,
-  'generate_script': 15,
-  
-  // AI Co-Pilot
-  'copilot_query': 5,
-  'copilot_generate_image': 10,
-  'copilot_generate_video': 20,
-  'copilot_voice': 8,
-  
-  // Social Media
-  'create_social_post': 3,
-  'schedule_social_post': 2,
-  'auto_reply_setup': 5,
-  
-  // Profile Lookup
-  'profile_lookup': 3,
-  
-  // Audience Intelligence
-  'audience_analysis': 5,
-  
-  // Emotional Heatmap
-  'emotional_analysis': 5,
-  
-  // Rankings
-  'update_ranking': 2,
-  
-  // Reports
-  'generate_report': 5,
-  'export_report': 3,
-  
-  // Bio Links
-  'create_bio_link': 3,
-  'update_bio_link': 2,
-  
-  // Intranet Chat
-  'send_intranet_message': 0,
-  
-  // Settings
-  'update_settings': 0,
+  // ── Account Management ──
+  create_account: 5,
+  update_account: 2,
+  delete_account: 1,
 
-  // Keyword Delays
-  'create_keyword_rule': 3,
-  'update_keyword_rule': 2,
+  // ── Messaging ──
+  send_message: 1,
+  send_bulk_message: 15,
 
-  // Generic fallback
-  'default_write': 2,
+  // ── Tasks ──
+  create_task: 2,
+  update_task: 1,
+  complete_task: 0,
+
+  // ── Contracts ──
+  create_contract: 8,
+  update_contract: 3,
+  sign_contract: 5,
+
+  // ── Content Calendar ──
+  create_content: 5,
+  schedule_content: 3,
+  publish_content: 5,
+
+  // ── Team ──
+  add_team_member: 10,
+  update_team_member: 3,
+  remove_team_member: 1,
+
+  // ── Financial Records ──
+  create_financial_record: 5,
+  update_financial_record: 2,
+
+  // ── Persona DNA ──
+  create_persona: 15,
+  update_persona: 8,
+
+  // ── Storyline / Scripts ──
+  create_script: 10,
+  update_script: 5,
+  generate_script: 25, // AI-heavy
+
+  // ── AI Co-Pilot ──
+  copilot_query: 8,          // each chat message
+  copilot_generate_image: 15,
+  copilot_generate_video: 30,
+  copilot_voice: 12,
+
+  // ── Social Media ──
+  connect_social_account: 0, // free but requires min 10 balance (enforced separately)
+  create_social_post: 5,
+  schedule_social_post: 3,
+  auto_reply_setup: 5,
+
+  // ── AI Auto Responder ──
+  ai_auto_responder_hourly: 5, // per hour when active
+  ai_auto_responder_activate: 10, // one-time activation cost
+
+  // ── Profile Lookup ──
+  profile_lookup: 5,
+
+  // ── Audience Intelligence ──
+  audience_analysis: 8,
+
+  // ── Emotional Heatmap ──
+  emotional_analysis: 8,
+
+  // ── Rankings ──
+  update_ranking: 3,
+
+  // ── Reports & Export ──
+  generate_report: 8,
+  export_report: 5,
+
+  // ── Bio Links ──
+  create_bio_link: 5,
+  update_bio_link: 3,
+
+  // ── Keyword Delays ──
+  create_keyword_rule: 5,
+  update_keyword_rule: 3,
+
+  // ── Intranet Chat ──
+  send_intranet_message: 0, // free internal comms
+
+  // ── Settings ──
+  update_settings: 0,
+
+  // ── Fallback ──
+  default_write: 3,
+};
+
+// Minimum balance requirements (action allowed but no deduction)
+export const MIN_BALANCE_REQUIREMENTS: Record<string, number> = {
+  connect_social_account: 10,
 };
 
 interface UseCreditActionReturn {
   performAction: (actionType: string, callback: () => Promise<any>) => Promise<any>;
   checking: boolean;
+  checkMinBalance: (actionType: string) => boolean;
 }
 
 export const useCreditAction = (): UseCreditActionReturn => {
   const { balance, refreshWallet } = useWallet();
   const [checking, setChecking] = useState(false);
 
+  // Check if user meets minimum balance requirement (no deduction)
+  const checkMinBalance = (actionType: string): boolean => {
+    const minRequired = MIN_BALANCE_REQUIREMENTS[actionType];
+    if (minRequired && balance < minRequired) {
+      toast.error(`Minimum balance required`, {
+        description: `You need at least ${minRequired} credits to perform this action. You have ${balance}.`,
+        action: {
+          label: 'Buy Credits',
+          onClick: () => window.location.href = '/pricing',
+        },
+      });
+      return false;
+    }
+    return true;
+  };
+
   const performAction = async (actionType: string, callback: () => Promise<any>) => {
     const cost = CRM_ACTION_COSTS[actionType] ?? CRM_ACTION_COSTS['default_write'];
 
-    // Free actions pass through
+    // Check minimum balance requirements first
+    const minRequired = MIN_BALANCE_REQUIREMENTS[actionType];
+    if (minRequired && balance < minRequired) {
+      toast.error(`Minimum balance required`, {
+        description: `You need at least ${minRequired} credits for this. You have ${balance}.`,
+        action: {
+          label: 'Buy Credits',
+          onClick: () => window.location.href = '/pricing',
+        },
+      });
+      return null;
+    }
+
+    // Free actions (including connect_social_account) pass through after min balance check
     if (cost === 0) {
       return await callback();
     }
 
-    // Check client-side balance first (fast fail)
+    // Check client-side balance (fast fail)
     if (balance < cost) {
       toast.error(`Insufficient credits`, {
         description: `This action costs ${cost} credits. You have ${balance}.`,
@@ -163,5 +212,5 @@ export const useCreditAction = (): UseCreditActionReturn => {
     }
   };
 
-  return { performAction, checking };
+  return { performAction, checking, checkMinBalance };
 };
