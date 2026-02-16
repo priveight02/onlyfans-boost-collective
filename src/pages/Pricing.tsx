@@ -37,7 +37,7 @@ const getVolumeDiscount = (credits: number): number => {
 const Pricing = () => {
   const { user } = useAuth();
   const { balance, purchaseCount, refreshWallet } = useWallet();
-  const { openCheckout } = usePaddle();
+  const { openCheckout, ready: paddleReady } = usePaddle();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [packages, setPackages] = useState<CreditPackage[]>([]);
@@ -126,6 +126,7 @@ const Pricing = () => {
 
   const handlePurchase = async (pkg: CreditPackage, useRetention = false) => {
     if (!user) { toast.error("Please log in first"); navigate("/auth"); return; }
+    if (!paddleReady) { toast.error("Payment system loading, please try again in a moment"); return; }
     setPurchasingId(pkg.id + (useRetention ? "_ret" : ""));
     try {
       const { data, error } = await supabase.functions.invoke("purchase-credits", {
@@ -155,6 +156,7 @@ const Pricing = () => {
 
   const handleCustomPurchase = async () => {
     if (!user) { toast.error("Please log in first"); navigate("/auth"); return; }
+    if (!paddleReady) { toast.error("Payment system loading, please try again in a moment"); return; }
     if (customCredits < 10) { toast.error("Minimum 10 credits"); return; }
     setPurchasingCustom(true);
     try {
