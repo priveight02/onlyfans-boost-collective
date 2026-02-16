@@ -1095,6 +1095,36 @@ export type Database = {
         }
         Relationships: []
       }
+      custom_credit_products: {
+        Row: {
+          created_at: string
+          credits: number
+          id: string
+          stripe_price_id: string
+          stripe_product_id: string
+          unit_amount_cents: number
+          volume_discount_percent: number
+        }
+        Insert: {
+          created_at?: string
+          credits: number
+          id?: string
+          stripe_price_id: string
+          stripe_product_id: string
+          unit_amount_cents: number
+          volume_discount_percent?: number
+        }
+        Update: {
+          created_at?: string
+          credits?: number
+          id?: string
+          stripe_price_id?: string
+          stripe_product_id?: string
+          unit_amount_cents?: number
+          volume_discount_percent?: number
+        }
+        Relationships: []
+      }
       device_sessions: {
         Row: {
           browser: string | null
