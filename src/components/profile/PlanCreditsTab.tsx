@@ -26,16 +26,16 @@ interface CreditPackage {
 // Plans definition — these match your Stripe products
 const PLAN_STRIPE_MAP: Record<string, { monthly: { price_id: string; product_id: string }; yearly: { price_id: string; product_id: string } }> = {
   starter: {
-    monthly: { price_id: "price_1T1VJFAMkMnyWeZ5rs0aieC5", product_id: "prod_TzUHCCIizN6I7f" },
-    yearly:  { price_id: "price_1T1VJFAMkMnyWeZ5KDmUMmOr", product_id: "prod_TzUH8Mt50ljrdU" },
+    monthly: { price_id: "price_1T1VtcAMkMnyWeZ53qnVqlx2", product_id: "prod_TzUtPv1PXmYddy" },
+    yearly:  { price_id: "price_1T1Vu0AMkMnyWeZ57TMdUk5H", product_id: "prod_TzUtpBDWyb3qR6" },
   },
   pro: {
-    monthly: { price_id: "price_1T1VJGAMkMnyWeZ5smZK9UMZ", product_id: "prod_TzUHWAwfmPq4tb" },
-    yearly:  { price_id: "price_1T1VJHAMkMnyWeZ5AETKAFKj", product_id: "prod_TzUHaVlxICCGRQ" },
+    monthly: { price_id: "price_1T1VuFAMkMnyWeZ5oAMJzq3T", product_id: "prod_TzUuDHxcoyItCj" },
+    yearly:  { price_id: "price_1T1VucAMkMnyWeZ50DDf2j2h", product_id: "prod_TzUuv2bXrA1EVF" },
   },
   business: {
-    monthly: { price_id: "price_1T1VJHAMkMnyWeZ5XYQZkunf", product_id: "prod_TzUHPwUI3oNubJ" },
-    yearly:  { price_id: "price_1T1VJIAMkMnyWeZ5Vk21hN66", product_id: "prod_TzUHnPtQRoRlVA" },
+    monthly: { price_id: "price_1T1VupAMkMnyWeZ5hyccueXN", product_id: "prod_TzUu26T8Hiv2lS" },
+    yearly:  { price_id: "price_1T1VvOAMkMnyWeZ5zzNrQuDg", product_id: "prod_TzUv67N4QUbXHN" },
   },
 };
 
