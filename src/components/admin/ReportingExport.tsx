@@ -10,9 +10,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useCreditAction } from "@/hooks/useCreditAction";
 import CreditCostBadge from "./CreditCostBadge";
+import InsufficientCreditsModal from "@/components/InsufficientCreditsModal";
 
 const ReportingExport = () => {
-  const { performAction } = useCreditAction();
+  const { performAction, insufficientModal, closeInsufficientModal } = useCreditAction();
   const [accounts, setAccounts] = useState<any[]>([]);
   const [tasks, setTasks] = useState<any[]>([]);
   const [members, setMembers] = useState<any[]>([]);
@@ -237,6 +238,7 @@ const ReportingExport = () => {
           </div>
         </CardContent>
       </Card>
+      <InsufficientCreditsModal open={insufficientModal.open} onClose={closeInsufficientModal} requiredCredits={insufficientModal.requiredCredits} actionName={insufficientModal.actionName} />
     </div>
   );
 };

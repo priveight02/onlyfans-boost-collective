@@ -36,10 +36,13 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import InsufficientCreditsModal from "@/components/InsufficientCreditsModal";
+import { useCreditAction } from "@/hooks/useCreditAction";
 
 const CRM = () => {
   const { user, loading } = useAuth();
   const { balance, loading: walletLoading } = useWallet();
+  const { insufficientModal, closeInsufficientModal } = useCreditAction();
   const navigate = useNavigate();
   const [accounts, setAccounts] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -223,6 +226,12 @@ const CRM = () => {
       </div>
 
       <FloatingCopilot activeTab={activeTab} />
+      <InsufficientCreditsModal
+        open={insufficientModal.open}
+        onClose={closeInsufficientModal}
+        requiredCredits={insufficientModal.requiredCredits}
+        actionName={insufficientModal.actionName}
+      />
     </div>
   );
 };

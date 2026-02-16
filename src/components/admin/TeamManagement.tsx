@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useCreditAction } from "@/hooks/useCreditAction";
 import CreditCostBadge from "./CreditCostBadge";
+import InsufficientCreditsModal from "@/components/InsufficientCreditsModal";
 
 const roleConfig: Record<string, { label: string; color: string; icon: React.ElementType }> = {
   admin: { label: "Admin", color: "bg-red-500/15 text-red-400 border-red-500/20", icon: Shield },
@@ -47,7 +48,7 @@ const TeamManagement = () => {
   const [editMember, setEditMember] = useState<any | null>(null);
   const [showAssign, setShowAssign] = useState<any | null>(null);
   const [saving, setSaving] = useState(false);
-  const { performAction } = useCreditAction();
+  const { performAction, insufficientModal, closeInsufficientModal } = useCreditAction();
 
   const [form, setForm] = useState({ name: "", email: "", role: "chatter", notes: "" });
 
@@ -109,8 +110,10 @@ const TeamManagement = () => {
 
   const toggleStatus = async (member: any) => {
     const newStatus = member.status === "active" ? "inactive" : "active";
-    await supabase.from("team_members").update({ status: newStatus }).eq("id", member.id);
-    fetchAll();
+    await performAction('update_status', async () => {
+      await supabase.from("team_members").update({ status: newStatus }).eq("id", member.id);
+      fetchAll();
+    });
   };
 
   const assignAccount = async (memberId: string, accountId: string, roleOnAccount: string) => {
@@ -312,6 +315,7 @@ const TeamManagement = () => {
           onClose={() => setShowAssign(null)}
         />
       )}
+      <InsufficientCreditsModal open={insufficientModal.open} onClose={closeInsufficientModal} requiredCredits={insufficientModal.requiredCredits} actionName={insufficientModal.actionName} />
     </div>
   );
 };

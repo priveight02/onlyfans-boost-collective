@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { Progress } from "@/components/ui/progress";
 import { useCreditAction } from "@/hooks/useCreditAction";
 import CreditCostBadge from "./CreditCostBadge";
+import InsufficientCreditsModal from "@/components/InsufficientCreditsModal";
 
 const priorityConfig: Record<string, { label: string; icon: any; color: string; badgeClass: string }> = {
   urgent: { label: "🔥 Urgent", icon: Flame, color: "text-red-400", badgeClass: "bg-red-500/20 text-red-400 border-red-500/30 animate-pulse" },
@@ -43,7 +44,7 @@ const TaskWorkflow = () => {
   const [form, setForm] = useState({
     title: "", description: "", priority: "medium", assigned_to: "", account_id: "", due_date: "", tags: "",
   });
-  const { performAction } = useCreditAction();
+  const { performAction, insufficientModal, closeInsufficientModal } = useCreditAction();
 
   useEffect(() => {
     loadAll();
@@ -122,13 +123,17 @@ const TaskWorkflow = () => {
   };
 
   const handleStatusChange = async (id: string, status: string) => {
-    await supabase.from("tasks").update({ status }).eq("id", id);
+    await performAction('update_status', async () => {
+      await supabase.from("tasks").update({ status }).eq("id", id);
+    });
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm("Delete task?")) return;
-    await supabase.from("tasks").delete().eq("id", id);
-    toast.success("Deleted");
+    await performAction('delete_item', async () => {
+      await supabase.from("tasks").delete().eq("id", id);
+      toast.success("Deleted");
+    });
   };
 
   const openEdit = (task: any) => {
@@ -395,6 +400,7 @@ const TaskWorkflow = () => {
           );
         })}
       </div>
+      <InsufficientCreditsModal open={insufficientModal.open} onClose={closeInsufficientModal} requiredCredits={insufficientModal.requiredCredits} actionName={insufficientModal.actionName} />
     </div>
   );
 };

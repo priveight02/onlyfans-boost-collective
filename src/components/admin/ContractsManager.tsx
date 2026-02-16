@@ -12,6 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useCreditAction } from "@/hooks/useCreditAction";
 import CreditCostBadge from "./CreditCostBadge";
+import InsufficientCreditsModal from "@/components/InsufficientCreditsModal";
 
 const CONTRACT_TEMPLATES: Record<string, { title: string; content: string }> = {
   nda: {
@@ -136,7 +137,7 @@ const ContractsManager = () => {
   const [signatureName, setSignatureName] = useState("");
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
-  const { performAction } = useCreditAction();
+  const { performAction, insufficientModal, closeInsufficientModal } = useCreditAction();
 
   const [form, setForm] = useState({
     contract_type: "nda",
@@ -203,15 +204,19 @@ const ContractsManager = () => {
 
   const handleDelete = async (id: string) => {
     if (!confirm("Delete this contract?")) return;
-    await supabase.from("contracts").delete().eq("id", id);
-    toast.success("Deleted");
-    loadAll();
+    await performAction('delete_item', async () => {
+      await supabase.from("contracts").delete().eq("id", id);
+      toast.success("Deleted");
+      loadAll();
+    });
   };
 
   const handleStatusChange = async (id: string, status: string) => {
-    await supabase.from("contracts").update({ status }).eq("id", id);
-    toast.success("Status updated");
-    loadAll();
+    await performAction('update_status', async () => {
+      await supabase.from("contracts").update({ status }).eq("id", id);
+      toast.success("Status updated");
+      loadAll();
+    });
   };
 
   // Canvas drawing
@@ -429,6 +434,7 @@ const ContractsManager = () => {
           </DialogContent>
         </Dialog>
       )}
+      <InsufficientCreditsModal open={insufficientModal.open} onClose={closeInsufficientModal} requiredCredits={insufficientModal.requiredCredits} actionName={insufficientModal.actionName} />
     </div>
   );
 };

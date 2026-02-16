@@ -1,137 +1,49 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useWallet } from '@/hooks/useWallet';
 import { toast } from 'sonner';
+import { CRM_ACTION_COSTS, MIN_BALANCE_REQUIREMENTS } from '@/data/creditCosts';
 
-// ─── Credit costs for CRM actions ───────────────────────────────────
-// Based on plan tiers: Starter 215cr, Pro 1,075cr, Business 4,300cr
-// Costs are set so a Pro user can perform ~100-200 actions/month comfortably
-//
-// Special rules:
-// - connect_social_account: requires 10 credits minimum but costs 0
-// - ai_auto_responder_hourly: charged per hour while active
-// - All navigation requires ≥1 credit (enforced in CRM page)
-// ─────────────────────────────────────────────────────────────────────
+// Re-export for backwards compatibility
+export { CRM_ACTION_COSTS, MIN_BALANCE_REQUIREMENTS } from '@/data/creditCosts';
 
-export const CRM_ACTION_COSTS: Record<string, number> = {
-  // ── Account Management ──
-  create_account: 5,
-  update_account: 2,
-  delete_account: 1,
-
-  // ── Messaging ──
-  send_message: 1,
-  send_bulk_message: 15,
-
-  // ── Tasks ──
-  create_task: 2,
-  update_task: 1,
-  complete_task: 0,
-
-  // ── Contracts ──
-  create_contract: 8,
-  update_contract: 3,
-  sign_contract: 5,
-
-  // ── Content Calendar ──
-  create_content: 5,
-  schedule_content: 3,
-  publish_content: 5,
-
-  // ── Team ──
-  add_team_member: 10,
-  update_team_member: 3,
-  remove_team_member: 1,
-
-  // ── Financial Records ──
-  create_financial_record: 5,
-  update_financial_record: 2,
-
-  // ── Persona DNA ──
-  create_persona: 15,
-  update_persona: 8,
-
-  // ── Storyline / Scripts ──
-  create_script: 10,
-  update_script: 5,
-  generate_script: 25, // AI-heavy
-
-  // ── AI Co-Pilot ──
-  copilot_query: 8,          // each chat message
-  copilot_generate_image: 15,
-  copilot_generate_video: 30,
-  copilot_voice: 12,
-
-  // ── Social Media ──
-  connect_social_account: 0, // free but requires min 10 balance (enforced separately)
-  create_social_post: 5,
-  schedule_social_post: 3,
-  auto_reply_setup: 5,
-
-  // ── AI Auto Responder ──
-  ai_auto_responder_hourly: 5, // per hour when active
-  ai_auto_responder_activate: 10, // one-time activation cost
-
-  // ── Profile Lookup ──
-  profile_lookup: 5,
-
-  // ── Audience Intelligence ──
-  audience_analysis: 8,
-
-  // ── Emotional Heatmap ──
-  emotional_analysis: 8,
-
-  // ── Rankings ──
-  update_ranking: 3,
-
-  // ── Reports & Export ──
-  generate_report: 8,
-  export_report: 5,
-
-  // ── Bio Links ──
-  create_bio_link: 5,
-  update_bio_link: 3,
-
-  // ── Keyword Delays ──
-  create_keyword_rule: 5,
-  update_keyword_rule: 3,
-
-  // ── Intranet Chat ──
-  send_intranet_message: 0, // free internal comms
-
-  // ── Settings ──
-  update_settings: 0,
-
-  // ── Fallback ──
-  default_write: 3,
-};
-
-// Minimum balance requirements (action allowed but no deduction)
-export const MIN_BALANCE_REQUIREMENTS: Record<string, number> = {
-  connect_social_account: 10,
-};
+interface InsufficientCreditsState {
+  open: boolean;
+  requiredCredits: number;
+  actionName: string;
+}
 
 interface UseCreditActionReturn {
   performAction: (actionType: string, callback: () => Promise<any>) => Promise<any>;
   checking: boolean;
   checkMinBalance: (actionType: string) => boolean;
+  insufficientModal: InsufficientCreditsState;
+  closeInsufficientModal: () => void;
 }
 
 export const useCreditAction = (): UseCreditActionReturn => {
   const { balance, refreshWallet } = useWallet();
   const [checking, setChecking] = useState(false);
+  const [insufficientModal, setInsufficientModal] = useState<InsufficientCreditsState>({
+    open: false,
+    requiredCredits: 0,
+    actionName: '',
+  });
+
+  const closeInsufficientModal = useCallback(() => {
+    setInsufficientModal({ open: false, requiredCredits: 0, actionName: '' });
+  }, []);
+
+  const showInsufficientModal = (cost: number, actionType: string) => {
+    const label = actionType.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+    setInsufficientModal({ open: true, requiredCredits: cost, actionName: label });
+  };
 
   // Check if user meets minimum balance requirement (no deduction)
   const checkMinBalance = (actionType: string): boolean => {
     const minRequired = MIN_BALANCE_REQUIREMENTS[actionType];
     if (minRequired && balance < minRequired) {
-      toast.error(`Minimum balance required`, {
-        description: `You need at least ${minRequired} credits to perform this action. You have ${balance}.`,
-        action: {
-          label: 'Buy Credits',
-          onClick: () => window.location.href = '/pricing',
-        },
-      });
+      showInsufficientModal(minRequired, actionType);
       return false;
     }
     return true;
@@ -143,13 +55,7 @@ export const useCreditAction = (): UseCreditActionReturn => {
     // Check minimum balance requirements first
     const minRequired = MIN_BALANCE_REQUIREMENTS[actionType];
     if (minRequired && balance < minRequired) {
-      toast.error(`Minimum balance required`, {
-        description: `You need at least ${minRequired} credits for this. You have ${balance}.`,
-        action: {
-          label: 'Buy Credits',
-          onClick: () => window.location.href = '/pricing',
-        },
-      });
+      showInsufficientModal(minRequired, actionType);
       return null;
     }
 
@@ -158,15 +64,9 @@ export const useCreditAction = (): UseCreditActionReturn => {
       return await callback();
     }
 
-    // Check client-side balance (fast fail)
+    // Check client-side balance (fast fail) — show modal
     if (balance < cost) {
-      toast.error(`Insufficient credits`, {
-        description: `This action costs ${cost} credits. You have ${balance}.`,
-        action: {
-          label: 'Buy Credits',
-          onClick: () => window.location.href = '/pricing',
-        },
-      });
+      showInsufficientModal(cost, actionType);
       return null;
     }
 
@@ -184,13 +84,7 @@ export const useCreditAction = (): UseCreditActionReturn => {
       if (error || !data?.success) {
         const msg = data?.error || error?.message || 'Failed to deduct credits';
         if (msg.includes('Insufficient')) {
-          toast.error('Insufficient credits', {
-            description: `You need ${cost} credits for this action.`,
-            action: {
-              label: 'Buy Credits',
-              onClick: () => window.location.href = '/pricing',
-            },
-          });
+          showInsufficientModal(cost, actionType);
         } else {
           toast.error('Credit deduction failed', { description: msg });
         }
@@ -212,5 +106,5 @@ export const useCreditAction = (): UseCreditActionReturn => {
     }
   };
 
-  return { performAction, checking, checkMinBalance };
+  return { performAction, checking, checkMinBalance, insufficientModal, closeInsufficientModal };
 };

@@ -8,9 +8,11 @@ import { DollarSign, TrendingUp, ArrowUpRight, Plus, Download, CreditCard, Walle
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import CreditCostBadge from "./CreditCostBadge";
+import InsufficientCreditsModal from "@/components/InsufficientCreditsModal";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { useCreditAction } from "@/hooks/useCreditAction";
 
 const COLORS = ["hsl(200,100%,50%)", "hsl(260,100%,65%)", "hsl(340,80%,55%)", "hsl(160,70%,45%)", "hsl(30,90%,55%)"];
 
@@ -19,6 +21,7 @@ const FinancialModule = () => {
   const [records, setRecords] = useState<any[]>([]);
   const [showAdd, setShowAdd] = useState(false);
   const [newRecord, setNewRecord] = useState({ account_id: "", record_type: "subscription", amount: "", description: "" });
+  const { performAction, insufficientModal, closeInsufficientModal } = useCreditAction();
 
   useEffect(() => {
     const load = async () => {
@@ -52,18 +55,20 @@ const FinancialModule = () => {
 
   const handleAddRecord = async () => {
     if (!newRecord.account_id || !newRecord.amount) return toast.error("Fill required fields");
-    const { error } = await supabase.from("financial_records").insert({
-      account_id: newRecord.account_id,
-      record_type: newRecord.record_type,
-      amount: parseFloat(newRecord.amount),
-      description: newRecord.description,
+    await performAction('create_financial_record', async () => {
+      const { error } = await supabase.from("financial_records").insert({
+        account_id: newRecord.account_id,
+        record_type: newRecord.record_type,
+        amount: parseFloat(newRecord.amount),
+        description: newRecord.description,
+      });
+      if (error) { toast.error("Failed to add record"); throw error; }
+      toast.success("Record added");
+      setShowAdd(false);
+      setNewRecord({ account_id: "", record_type: "subscription", amount: "", description: "" });
+      const { data } = await supabase.from("financial_records").select("*").order("created_at", { ascending: false });
+      setRecords(data || []);
     });
-    if (error) return toast.error("Failed to add record");
-    toast.success("Record added");
-    setShowAdd(false);
-    setNewRecord({ account_id: "", record_type: "subscription", amount: "", description: "" });
-    const { data } = await supabase.from("financial_records").select("*").order("created_at", { ascending: false });
-    setRecords(data || []);
   };
 
   return (
@@ -202,6 +207,7 @@ const FinancialModule = () => {
           )}
         </CardContent>
       </Card>
+      <InsufficientCreditsModal open={insufficientModal.open} onClose={closeInsufficientModal} requiredCredits={insufficientModal.requiredCredits} actionName={insufficientModal.actionName} />
     </div>
   );
 };
