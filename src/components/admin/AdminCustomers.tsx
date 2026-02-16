@@ -31,7 +31,8 @@ interface CustomerSummary {
   spender_score: number; engagement_score: number; churn_risk: string;
   last_login: string | null; days_since_last_login: number;
   post_count: number; avg_purchase_credits: number; purchase_trend: string;
-  follower_count: number;
+  follower_count: number; current_plan?: string; purchase_frequency?: number;
+  projected_annual?: number;
 }
 
 interface AIAnalysis {
@@ -148,6 +149,29 @@ const AdminCustomers = () => {
     finally { setLoading(false); }
   }, []);
 
+  // Realtime wallet balance updates
+  useEffect(() => {
+    const channel = supabase
+      .channel('admin-wallet-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'wallets' }, (payload: any) => {
+        if (payload.new) {
+          setCustomers(prev => prev.map(c =>
+            c.user_id === payload.new.user_id
+              ? { ...c, credit_balance: payload.new.balance, total_purchased_credits: payload.new.total_purchased || c.total_purchased_credits }
+              : c
+          ));
+        }
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'wallet_transactions' }, (payload: any) => {
+        // Update detail if viewing that user
+        if (payload.new && selectedUserId === payload.new.user_id) {
+          fetchDetail(payload.new.user_id);
+        }
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [selectedUserId]);
+
   useEffect(() => { fetchCustomers(); }, [fetchCustomers]);
 
   useEffect(() => {
@@ -225,6 +249,9 @@ const AdminCustomers = () => {
   const whales = customers.filter(c => c.spender_score >= 70).length;
   const atRisk = customers.filter(c => c.churn_risk === "Critical" || c.churn_risk === "High").length;
   const avgEngagement = totalUsers > 0 ? Math.round(customers.reduce((s, c) => s + c.engagement_score, 0) / totalUsers) : 0;
+  const totalCreditsInSystem = customers.reduce((s, c) => s + c.credit_balance, 0);
+  const totalPurchasedCredits = customers.reduce((s, c) => s + c.total_purchased_credits, 0);
+  const totalMonthlyVelocity = customers.reduce((s, c) => s + c.monthly_velocity, 0);
 
   // ─── DETAIL VIEW ───
   if (selectedUserId) {
@@ -745,7 +772,7 @@ const AdminCustomers = () => {
   return (
     <div className="space-y-5">
       {/* Stats Row */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-3 md:grid-cols-3 lg:grid-cols-9 gap-3">
         {[
           { label: "Total Users", value: totalUsers, icon: Users, accent: "text-sky-400" },
           { label: "Total LTV", value: `$${totalLTV.toFixed(0)}`, icon: DollarSign, accent: "text-emerald-400" },
@@ -753,13 +780,16 @@ const AdminCustomers = () => {
           { label: "Whales 🐳", value: whales, icon: Crown, accent: "text-purple-400" },
           { label: "At Risk", value: atRisk, icon: AlertTriangle, accent: "text-red-400" },
           { label: "Avg Engagement", value: `${avgEngagement}%`, icon: Activity, accent: "text-pink-400" },
+          { label: "Credits in Wallets", value: totalCreditsInSystem.toLocaleString(), icon: Coins, accent: "text-amber-300" },
+          { label: "Credits Purchased", value: totalPurchasedCredits.toLocaleString(), icon: CreditCard, accent: "text-sky-300" },
+          { label: "Monthly Rev", value: `$${totalMonthlyVelocity.toFixed(0)}`, icon: Zap, accent: "text-orange-400" },
         ].map(s => (
           <Card key={s.label} className="bg-white/5 border-white/10">
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-white/5"><s.icon className={`h-4 w-4 ${s.accent}`} /></div>
+            <CardContent className="p-3 flex items-center gap-2.5">
+              <div className="p-1.5 rounded-lg bg-white/5"><s.icon className={`h-3.5 w-3.5 ${s.accent}`} /></div>
               <div>
-                <p className="text-xl font-bold text-white">{s.value}</p>
-                <p className="text-[10px] text-white/40">{s.label}</p>
+                <p className="text-lg font-bold text-white leading-tight">{s.value}</p>
+                <p className="text-[9px] text-white/40">{s.label}</p>
               </div>
             </CardContent>
           </Card>
@@ -826,39 +856,54 @@ const AdminCustomers = () => {
                   <p className="text-[10px] text-white/30 truncate">{c.email}</p>
                 </div>
 
+                {/* Plan */}
+                <div className="text-center w-16 hidden xl:block">
+                  <Badge className={`text-[9px] px-1.5 py-0 ${c.current_plan === "Business" ? "bg-purple-500/15 text-purple-300 border-purple-500/30" : c.current_plan === "Pro" ? "bg-sky-500/15 text-sky-300 border-sky-500/30" : c.current_plan === "Starter" ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/30" : "bg-white/5 text-white/30 border-white/10"} border`}>
+                    {c.current_plan || "Free"}
+                  </Badge>
+                </div>
+
                 {/* Spender Score */}
-                <div className="text-center w-14">
-                  <div className={`px-2 py-1 rounded-lg border text-xs font-bold ${getSpenderColor(c.spender_score)}`}>{c.spender_score}</div>
-                  <p className="text-[9px] text-white/20 mt-0.5">spend</p>
+                <div className="text-center w-12">
+                  <div className={`px-1.5 py-0.5 rounded-lg border text-xs font-bold ${getSpenderColor(c.spender_score)}`}>{c.spender_score}</div>
+                  <p className="text-[8px] text-white/20 mt-0.5">spend</p>
                 </div>
 
                 {/* Engagement Score */}
-                <div className="text-center w-14">
-                  <div className={`px-2 py-1 rounded-lg border text-xs font-bold ${getEngagementColor(c.engagement_score)}`}>{c.engagement_score}</div>
-                  <p className="text-[9px] text-white/20 mt-0.5">engage</p>
+                <div className="text-center w-12">
+                  <div className={`px-1.5 py-0.5 rounded-lg border text-xs font-bold ${getEngagementColor(c.engagement_score)}`}>{c.engagement_score}</div>
+                  <p className="text-[8px] text-white/20 mt-0.5">engage</p>
                 </div>
 
                 {/* Churn Risk */}
                 <Badge className={`${getChurnColor(c.churn_risk)} text-[10px] px-2`}>{c.churn_risk}</Badge>
 
                 {/* Trend */}
-                <div className="w-8 flex justify-center">{getTrendIcon(c.purchase_trend)}</div>
+                <div className="w-6 flex justify-center">{getTrendIcon(c.purchase_trend)}</div>
 
                 {/* LTV */}
-                <div className="text-right w-16">
+                <div className="text-right w-14">
                   <p className="text-sm font-semibold text-white">${c.ltv.toFixed(0)}</p>
-                  <p className="text-[9px] text-white/20">LTV</p>
+                  <p className="text-[8px] text-white/20">LTV</p>
                 </div>
 
-                {/* Credits */}
-                <div className="text-right w-16">
-                  <p className="text-sm font-semibold text-amber-400">{c.credit_balance.toLocaleString()}</p>
-                  <p className="text-[9px] text-white/20">credits</p>
+                {/* Credits Balance - prominent */}
+                <div className="text-right w-20">
+                  <div className="flex items-center justify-end gap-1">
+                    <Coins className="h-3 w-3 text-amber-400" />
+                    <p className="text-sm font-bold text-amber-400">{c.credit_balance.toLocaleString()}</p>
+                  </div>
+                  <p className="text-[8px] text-white/20">{c.total_purchased_credits > 0 ? `${c.total_purchased_credits.toLocaleString()} bought` : "0 bought"}</p>
+                </div>
+
+                {/* Monthly Velocity */}
+                <div className="text-right w-16 hidden lg:block">
+                  <p className="text-xs font-medium text-white/70">${c.monthly_velocity.toFixed(0)}<span className="text-white/30">/mo</span></p>
                 </div>
 
                 {/* Last active */}
-                <div className="text-right w-16 hidden lg:block">
-                  <p className="text-xs text-white/40">{c.last_login ? timeAgo(c.last_login) : "Never"}</p>
+                <div className="text-right w-14 hidden lg:block">
+                  <p className="text-[10px] text-white/40">{c.last_login ? timeAgo(c.last_login) : "Never"}</p>
                 </div>
 
                 <Eye className="h-4 w-4 text-white/20 group-hover:text-accent transition-colors" />
