@@ -1,62 +1,62 @@
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import Footer from "@/components/Footer";
-import { Users, TrendingUp, HeartHandshake, MessageSquare, DollarSign, Megaphone, Target, Shield, Zap, Crown } from "lucide-react";
+import { Users, TrendingUp, HeartHandshake, MessageSquare, DollarSign, Megaphone, Target, Shield, Zap, Crown, Bot, BarChart3, BrainCircuit, Workflow, Mail, Globe } from "lucide-react";
 
 const services = [
   {
-    title: "Social Media Management",
-    description: "Complete management of your Instagram, TikTok, Twitter, and other social platforms to drive massive traffic to your OnlyFans.",
-    icon: Megaphone,
-    highlight: "300% increase in social media traffic"
+    title: "AI-Powered CRM",
+    description: "Intelligent customer relationship management with AI lead scoring, smart pipeline automation, and predictive deal insights that help you close faster.",
+    icon: BrainCircuit,
+    highlight: "3x faster deal closing"
   },
   {
-    title: "Traffic Generation",
-    description: "Strategic campaigns across multiple platforms to bring high-quality, converting subscribers directly to your OnlyFans profile.",
-    icon: Target,
-    highlight: "5x subscriber conversion rate"
+    title: "Workflow Automation",
+    description: "Build powerful no-code automations that eliminate repetitive tasks, trigger smart sequences, and keep your team focused on what matters.",
+    icon: Workflow,
+    highlight: "Save 20+ hours per week"
   },
   {
-    title: "Buyer Acquisition",
-    description: "Targeted marketing to attract premium subscribers who spend more and stay longer, maximizing your revenue per fan.",
-    icon: DollarSign,
-    highlight: "400% increase in premium subscribers"
+    title: "Multi-Channel Outreach",
+    description: "Engage leads and customers across email, social media, SMS, and messaging platforms — all managed from a single unified inbox.",
+    icon: Mail,
+    highlight: "5x engagement rate"
   },
   {
-    title: "OnlyFans Message Management",
-    description: "Professional management of your OnlyFans DMs, fan engagement, and upselling to maximize earnings from every subscriber.",
-    icon: MessageSquare,
-    highlight: "200% increase in message revenue"
+    title: "AI Content Generation",
+    description: "Generate marketing copy, email campaigns, scripts, social posts, and business documents powered by cutting-edge AI models.",
+    icon: Bot,
+    highlight: "10x content output"
   },
   {
-    title: "Content Strategy & Optimization",
-    description: "Data-driven content strategies that keep subscribers engaged and willing to pay premium prices for your exclusive content.",
-    icon: TrendingUp,
-    highlight: "90% subscriber retention rate"
+    title: "Revenue Analytics & Forecasting",
+    description: "Real-time dashboards with revenue forecasting, team performance heatmaps, and actionable business intelligence to drive growth.",
+    icon: BarChart3,
+    highlight: "Data-driven decisions"
   },
   {
-    title: "Fan Relationship Management",
-    description: "Build lasting relationships with your top spenders through personalized engagement strategies and exclusive offerings.",
+    title: "Customer Engagement Hub",
+    description: "Build lasting relationships with AI-driven engagement strategies, personalized messaging, and smart follow-up sequences.",
     icon: HeartHandshake,
-    highlight: "85% fan loyalty increase"
+    highlight: "85% retention increase"
   },
   {
-    title: "Revenue Optimization",
-    description: "Strategic pricing, premium offerings, and multiple revenue streams to maximize your monthly earnings potential.",
-    icon: Crown,
-    highlight: "Up to 500% revenue growth"
-  },
-  {
-    title: "Brand Protection & Growth",
-    description: "Protect your personal brand while scaling your business with professional management and strategic positioning.",
-    icon: Shield,
-    highlight: "Complete brand management"
-  },
-  {
-    title: "24/7 Support & Analytics",
-    description: "Round-the-clock support with real-time analytics and performance tracking to optimize every aspect of your business.",
+    title: "Team Performance & Collaboration",
+    description: "Track team KPIs, manage tasks, share insights, and collaborate in real-time with built-in chat, contracts, and workflow tools.",
     icon: Users,
-    highlight: "Always available expert support"
+    highlight: "Full team visibility"
+  },
+  {
+    title: "Security & Compliance",
+    description: "Enterprise-grade security with role-based access, audit trails, GDPR compliance, and encrypted data protection for your business.",
+    icon: Shield,
+    highlight: "Enterprise-grade security"
+  },
+  {
+    title: "Social Media Intelligence",
+    description: "AI-powered social media management with competitor analysis, hashtag research, viral prediction, and automated scheduling across platforms.",
+    icon: Globe,
+    highlight: "360° social strategy"
   }
 ];
 
@@ -75,7 +75,6 @@ const gradients = [
 const Services = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-primary to-blue-900 relative overflow-hidden">
-      {/* Global background effects with more color variety */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_30%,rgba(168,85,247,0.4),transparent_50%)]" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_70%,rgba(59,130,246,0.3),transparent_50%)]" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(236,72,153,0.2),transparent_60%)]" />
@@ -87,20 +86,19 @@ const Services = () => {
       <div className="relative pt-24 md:pt-28 pb-8">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
           <h1 className="text-5xl md:text-7xl font-bold text-white mb-3 animate-fade-in">
-            Your Growth, Our Mission
+            Powerful Tools, Real Results
           </h1>
           <p className="text-xl text-white/80 max-w-2xl mx-auto mb-4 animate-fade-in">
-            We handle everything so you can focus on creating. Let's grow together!
+            Everything your business needs to automate, engage, and grow — powered by AI.
           </p>
-          <Link to="/onboarding" className="mt-3 inline-block">
+          <Link to="/auth" className="mt-3 inline-block">
             <button className="group inline-flex items-center px-8 py-3 text-lg font-medium rounded-full bg-white text-primary hover:bg-primary-light transition-all duration-500 transform hover:scale-105 shadow-lg">
-              Start Evolving Today
+              Start Free Trial
             </button>
           </Link>
         </div>
       </div>
 
-      {/* Smooth separator */}
       <div className="relative py-2">
         <div className="max-w-3xl mx-auto px-8">
           <div className="h-px bg-gradient-to-r from-transparent via-white/30 to-transparent" />
@@ -112,10 +110,10 @@ const Services = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="text-center mb-8 mt-6">
             <h2 className="text-3xl md:text-4xl font-bold text-white mb-4 animate-fade-in">
-              Our Exclusive Services
+              Our Platform Features
             </h2>
             <p className="text-white/80 text-base max-w-2xl mx-auto animate-fade-in">
-              Comprehensive solutions designed to elevate your content creation and maximize your earnings potential.
+              A comprehensive suite of AI-powered tools designed to streamline operations and maximize your business growth.
             </p>
           </div>
 
@@ -147,18 +145,17 @@ const Services = () => {
 
       {/* CTA Section */}
       <section className="py-16 relative">
-
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
           <h2 className="text-4xl md:text-5xl font-bold text-white mb-6 animate-fade-in">
-            Ready to Level Up? ;)
+            Ready to Transform Your Business?
           </h2>
           <p className="text-xl text-white/80 mb-10 animate-fade-in">
-            Join our crew of top creators and start earning what you truly deserve.
+            Join thousands of businesses already scaling with our AI-powered platform.
           </p>
 
-          <Link to="/onboarding">
+          <Link to="/auth">
             <Button size="lg" className="bg-white text-primary hover:bg-white/90 hover:scale-105 transition-all duration-300 shadow-2xl hover:shadow-white/20 text-xl px-16 py-6 rounded-2xl font-bold">
-              Start Your Journey
+              Get Started Free
             </Button>
           </Link>
         </div>

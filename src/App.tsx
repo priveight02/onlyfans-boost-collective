@@ -14,7 +14,7 @@ import About from "./pages/About";
 import Services from "./pages/Services";
 import FAQ from "./pages/FAQ";
 import Auth from "./pages/Auth";
-import Onboarding from "./pages/Onboarding";
+// Onboarding removed from navigation
 import Admin from "./pages/Admin";
 import BioLink from "./pages/BioLink";
 import ResetPassword from "./pages/ResetPassword";
@@ -34,7 +34,6 @@ const AppContent = () => {
       <AdminNotificationPopup />
       <Routes>
         <Route path="/" element={<Index />} />
-        <Route path="/onboarding" element={<Onboarding />} />
         <Route path="/services" element={<Services />} />
         <Route path="/pricing" element={<Pricing />} />
         <Route path="/faq" element={<FAQ />} />

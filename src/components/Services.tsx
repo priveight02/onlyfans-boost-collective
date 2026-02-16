@@ -1,59 +1,12 @@
-import { Camera, Users, TrendingUp, HeartHandshake, MessageSquare, DollarSign, Megaphone, MessageCircle } from "lucide-react";
+import { Users, TrendingUp, HeartHandshake, MessageSquare, DollarSign, Megaphone, Bot, BarChart3 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-
-const services = [
-  {
-    title: "Elite Content Production",
-    description: "Studio-quality photo and video content that drives massive subscriber growth. Our professional team creates viral-worthy content that converts.",
-    icon: Camera,
-    highlight: "Models earn $50K+ monthly average",
-    color: "from-blue-400/20 to-cyan-400/20"
-  },
-  {
-    title: "Personal Brand Empire",
-    description: "Build an irresistible personal brand that attracts premium subscribers willing to pay top dollar. Become the model everyone talks about.",
-    icon: Users,
-    highlight: "300% follower growth in 90 days",
-    color: "from-blue-500/20 to-blue-400/20"
-  },
-  {
-    title: "Viral Marketing Campaigns",
-    description: "Explosive multi-platform marketing that makes you the #1 trending creator. We handle all promotion while you focus on content creation.",
-    icon: Megaphone,
-    highlight: "10x subscriber acquisition rate",
-    color: "from-cyan-400/20 to-blue-500/20"
-  },
-  {
-    title: "Revenue Maximization",
-    description: "Unlock multiple 6-figure income streams through strategic pricing, premium content tiers, and exclusive offerings that maximize your earnings.",
-    icon: DollarSign,
-    highlight: "Average $100K+ monthly revenue",
-    color: "from-blue-600/20 to-blue-400/20"
-  },
-  {
-    title: "Elite Analytics Dashboard",
-    description: "Real-time data insights that optimize every aspect of your OnlyFans strategy. Track performance and scale what works best.",
-    icon: TrendingUp,
-    highlight: "Data-driven 500% ROI growth",
-    color: "from-blue-400/20 to-cyan-500/20"
-  },
-  {
-    title: "VIP Fan Management",
-    description: "Professional fan engagement strategies that create obsessed, loyal subscribers who stay subscribed and spend more every month.",
-    icon: MessageSquare,
-    highlight: "98% subscriber retention rate",
-    color: "from-cyan-500/20 to-blue-600/20"
-  }
-];
 
 const container = {
   hidden: { opacity: 0 },
   show: {
     opacity: 1,
-    transition: {
-      staggerChildren: 0.2
-    }
+    transition: { staggerChildren: 0.2 }
   }
 };
 
@@ -65,18 +18,12 @@ const item = {
 const Services = () => {
   const navigate = useNavigate();
 
-  const handleServiceClick = () => {
-    navigate('/onboarding');
-  };
-
   return (
     <section id="services" className="py-12 bg-gradient-to-br from-[hsl(220,90%,42%)] via-[hsl(210,95%,40%)] to-[hsl(200,90%,44%)] relative overflow-hidden min-h-screen flex items-center">
-      {/* Enhanced Background Effects */}
       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/5 to-transparent" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_50%,rgba(255,255,255,0.15),transparent_50%)]" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_30%,rgba(255,255,255,0.1),transparent_40%)]" />
       
-      {/* Animated background elements */}
       <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-white/8 rounded-full blur-3xl animate-pulse" />
       <div className="absolute bottom-1/3 right-1/4 w-80 h-80 bg-white/6 rounded-full blur-3xl animate-pulse delay-1000" />
       <div className="absolute top-1/2 left-2/3 w-64 h-64 bg-white/10 rounded-full blur-2xl animate-pulse delay-500" />
@@ -90,10 +37,10 @@ const Services = () => {
           className="text-center mb-8"
         >
           <h2 className="text-3xl md:text-5xl font-bold font-heading mb-4 text-white">
-            Build Your Empire With Us
+            Everything You Need to Scale
           </h2>
           <p className="text-lg text-white/90 max-w-2xl mx-auto">
-            Growing together. Scaling together. Succeeding together.
+            AI-powered tools, smart automation, and deep analytics — unified in one platform.
           </p>
         </motion.div>
         
@@ -106,48 +53,48 @@ const Services = () => {
         >
           {[
             {
-              title: "Traffic Generation",
-              description: "Driving visibility and fans to your profile",
-              icon: TrendingUp,
-              highlight: "Start Growing Today",
+              title: "AI CRM & Pipeline",
+              description: "Smart customer management with AI-driven lead scoring, pipeline automation, and predictive insights.",
+              icon: Users,
+              highlight: "Close 3x More Deals",
               gradient: "from-blue-400/30 to-cyan-400/30"
             },
             {
-              title: "Brand Building",
-              description: "Build your personal brand empire",
-              icon: Users,
-              highlight: "Build Together",
+              title: "Workflow Automation",
+              description: "Automate repetitive tasks, trigger smart sequences, and let AI handle your busywork.",
+              icon: Bot,
+              highlight: "Save 20+ Hours/Week",
               gradient: "from-purple-400/30 to-blue-400/30"
             },
             {
-              title: "Marketing Strategy",
-              description: "Multi-platform viral campaigns",
+              title: "Multi-Channel Outreach",
+              description: "Engage prospects across email, social, and messaging — all managed from one inbox.",
               icon: Megaphone,
-              highlight: "Scale Together",
+              highlight: "5x Engagement Rate",
               gradient: "from-cyan-400/30 to-blue-500/30"
             },
             {
-              title: "Revenue Growth",
-              description: "Optimize earnings & income streams",
+              title: "Revenue Analytics",
+              description: "Real-time dashboards, forecasting, and performance tracking to optimize every revenue stream.",
               icon: DollarSign,
-              highlight: "Earn Together",
+              highlight: "Data-Driven Growth",
               gradient: "from-green-400/30 to-blue-400/30"
             },
             {
-              title: "Chatting Strategies",
-              description: "24/7 fan engagement handled for you",
-              icon: MessageCircle,
-              highlight: "Grow Together",
+              title: "AI Content & Copywriting",
+              description: "Generate scripts, captions, emails, and marketing copy powered by advanced AI models.",
+              icon: MessageSquare,
+              highlight: "10x Content Output",
               gradient: "from-orange-400/30 to-cyan-500/30"
             },
             {
-              title: "Fan Management",
-              description: "Engagement strategies that work",
-              icon: MessageSquare,
-              highlight: "Connect Together",
+              title: "Advanced Reporting",
+              description: "Custom reports, team performance heatmaps, and exportable business intelligence.",
+              icon: BarChart3,
+              highlight: "Full Visibility",
               gradient: "from-pink-400/30 to-blue-600/30"
             }
-          ].map((service, index) => (
+          ].map((service) => (
             <motion.div
               key={service.title}
               variants={item}
@@ -167,7 +114,7 @@ const Services = () => {
                 </p>
                 
                 <button 
-                  onClick={handleServiceClick}
+                  onClick={() => navigate('/services')}
                   className="w-full bg-white/25 text-white font-semibold text-sm py-2 px-4 rounded-lg text-center border border-white/20 hover:bg-white/35 transition-all duration-300 cursor-pointer hover:scale-105"
                 >
                   {service.highlight}
@@ -186,19 +133,19 @@ const Services = () => {
         >
           <div className="bg-gradient-to-br from-white/15 to-white/5 backdrop-blur-sm rounded-3xl p-6 border border-white/30 max-w-4xl mx-auto shadow-xl">
             <HeartHandshake className="h-10 w-10 text-white mx-auto mb-3" />
-            <h3 className="text-xl font-bold text-white mb-3">Partner With Us</h3>
+            <h3 className="text-xl font-bold text-white mb-3">Built for Growing Businesses</h3>
             <p className="text-white/90 mb-4 text-sm">
-              We're building something amazing. Join our growing community of successful creators.
+              Whether you're a startup or scaling enterprise, our AI-powered platform adapts to your needs.
             </p>
             <div className="flex flex-wrap gap-3 justify-center">
               <div className="bg-white/20 text-white font-medium py-2 px-4 rounded-lg border border-white/30 text-sm hover:bg-white/30 transition-colors duration-300">
-                Growing Agency
+                AI-First Platform
               </div>
               <div className="bg-white/20 text-white font-medium py-2 px-4 rounded-lg border border-white/30 text-sm hover:bg-white/30 transition-colors duration-300">
-                Fresh Approach
+                No-Code Automation
               </div>
               <div className="bg-white/20 text-white font-medium py-2 px-4 rounded-lg border border-white/30 text-sm hover:bg-white/30 transition-colors duration-300">
-                Personal Touch
+                Enterprise Ready
               </div>
             </div>
           </div>
