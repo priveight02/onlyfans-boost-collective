@@ -1,12 +1,11 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 
 declare global {
   interface Window {
     Paddle: any;
   }
 }
-
-const PADDLE_CLIENT_TOKEN = import.meta.env.VITE_PADDLE_CLIENT_TOKEN || '';
 
 // Paddle product/price mapping (sandbox)
 export const PADDLE_PLAN_MAP: Record<string, { monthly: { price_id: string; product_id: string }; yearly: { price_id: string; product_id: string } }> = {
@@ -32,19 +31,37 @@ export const PADDLE_PRODUCT_TO_PLAN: Record<string, string> = {
 
 export const usePaddle = () => {
   const initialized = useRef(false);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    if (initialized.current || !window.Paddle) return;
-    
-    try {
-      window.Paddle.Environment.set("sandbox");
-      window.Paddle.Initialize({
-        token: PADDLE_CLIENT_TOKEN,
-      });
-      initialized.current = true;
-    } catch (e) {
-      console.warn("Paddle init error:", e);
-    }
+    if (initialized.current) return;
+
+    const initPaddle = async () => {
+      if (!window.Paddle) {
+        console.warn("Paddle.js not loaded");
+        return;
+      }
+
+      try {
+        // Fetch client token from backend
+        const { data, error } = await supabase.functions.invoke("paddle-config");
+        const token = data?.token;
+        if (error || !token || token === '-') {
+          console.error("Failed to fetch Paddle client token");
+          return;
+        }
+
+        window.Paddle.Environment.set("sandbox");
+        window.Paddle.Initialize({ token });
+        initialized.current = true;
+        setReady(true);
+        console.log("Paddle initialized successfully");
+      } catch (e) {
+        console.warn("Paddle init error:", e);
+      }
+    };
+
+    initPaddle();
   }, []);
 
   const openCheckout = useCallback((options: {
@@ -85,5 +102,5 @@ export const usePaddle = () => {
     window.Paddle.Checkout.open(checkoutSettings);
   }, []);
 
-  return { openCheckout };
+  return { openCheckout, ready };
 };
