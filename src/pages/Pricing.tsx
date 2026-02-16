@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { Check, ArrowRight, Sparkles, BadgePercent, ShieldCheck, Zap, Gift } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Footer from "@/components/Footer";
-import CheckoutModal from "@/components/CheckoutModal";
+
 
 interface CreditPackage {
   id: string;
@@ -46,7 +46,7 @@ const Pricing = () => {
   const [verifying, setVerifying] = useState(false);
   const [retentionActive, setRetentionActive] = useState(false);
   const [retentionUsed, setRetentionUsed] = useState(false);
-  const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
+  
 
   // Declining discount: 1st repurchase=30%, 2nd=20%, 3rd=10%, then 0%
   const getReturningDiscount = (count: number): number => {
@@ -131,7 +131,7 @@ const Pricing = () => {
         body: { packageId: pkg.id, useRetentionDiscount: useRetention },
       });
       if (error) throw error;
-      if (data?.url) setCheckoutUrl(data.url);
+      if (data?.url) window.location.href = data.url;
       if (useRetention) {
         setRetentionActive(false);
         setRetentionUsed(true);
@@ -152,7 +152,7 @@ const Pricing = () => {
         body: { customCredits },
       });
       if (error) throw error;
-      if (data?.url) setCheckoutUrl(data.url);
+      if (data?.url) window.location.href = data.url;
     } catch (err: any) {
       toast.error(err.message || "Failed to start checkout");
     } finally {
@@ -423,7 +423,7 @@ const Pricing = () => {
       </div>
 
       <Footer />
-      <CheckoutModal url={checkoutUrl} onClose={() => setCheckoutUrl(null)} />
+      
     </div>
   );
 };
