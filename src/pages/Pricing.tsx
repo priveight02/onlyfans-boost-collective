@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useWallet } from "@/hooks/useWallet";
@@ -188,11 +188,18 @@ const Pricing = () => {
   const customDisplayCents = isReturning ? Math.round(customTotalCents * (1 - returningDiscount)) : customTotalCents;
 
   const cardAccents = [
-    { border: "border-purple-500/25", glow: "hover:shadow-purple-500/5", badge: "bg-purple-500", label: "" },
-    { border: "border-yellow-500/40", glow: "hover:shadow-yellow-500/10", badge: "bg-yellow-500", label: "Most Popular" },
-    { border: "border-white/10", glow: "hover:shadow-white/5", badge: "", label: "" },
-    { border: "border-purple-500/30", glow: "hover:shadow-purple-500/5", badge: "bg-purple-500", label: "Best Value" },
+    { border: "border-purple-500/25", badge: "bg-purple-500", label: "" },
+    { border: "border-yellow-500/40", badge: "bg-yellow-500", label: "Most Popular" },
+    { border: "border-white/10", badge: "", label: "" },
+    { border: "border-purple-500/30", badge: "bg-purple-500", label: "Best Value" },
   ];
+
+  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const card = e.currentTarget;
+    const rect = card.getBoundingClientRect();
+    card.style.setProperty("--mouse-x", `${e.clientX - rect.left}px`);
+    card.style.setProperty("--mouse-y", `${e.clientY - rect.top}px`);
+  }, []);
 
   return (
     <div className="min-h-screen bg-[hsl(222,35%,8%)] text-white pt-24">
@@ -256,10 +263,14 @@ const Pricing = () => {
               return (
                 <div
                   key={pkg.id}
-                  className={`relative flex flex-col rounded-2xl border ${accent.border} bg-[hsl(222,30%,11%)] transition-all duration-200 hover:translate-y-[-2px] hover:shadow-xl ${accent.glow} ${isPopular ? 'ring-1 ring-yellow-500/40' : ''} [backface-visibility:hidden] [transform:translateZ(0)]`}
+                  onMouseMove={handleMouseMove}
+                  className={`group relative flex flex-col rounded-2xl border ${accent.border} bg-[hsl(222,30%,11%)] transition-colors duration-300 hover:border-white/25 ${isPopular ? 'ring-1 ring-yellow-500/40' : ''} overflow-hidden`}
+                  style={{ "--mouse-x": "50%", "--mouse-y": "50%" } as React.CSSProperties}
                 >
+                  {/* Flashlight overlay */}
+                  <div className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-2xl" style={{ background: "radial-gradient(300px circle at var(--mouse-x) var(--mouse-y), rgba(255,255,255,0.06), transparent 60%)" }} />
                   {accent.label && (
-                    <div className="absolute -top-3 right-4">
+                    <div className="absolute -top-3 right-4 z-10">
                       <span className={`${accent.badge} text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full`}>
                         {accent.label}
                       </span>
@@ -315,7 +326,7 @@ const Pricing = () => {
                     <Button
                       onClick={() => handlePurchase(pkg)}
                       disabled={!!purchasingId}
-                      className={`w-full py-5 rounded-xl font-medium transition-all ${
+                      className={`group/btn w-full py-5 rounded-xl font-medium transition-colors ${
                         isPopular
                           ? 'bg-yellow-500 hover:bg-yellow-400 text-black'
                           : 'bg-white/[0.07] hover:bg-white/[0.12] text-white border border-white/10'
@@ -325,7 +336,7 @@ const Pricing = () => {
                         <span className="animate-pulse">Processing...</span>
                       ) : (
                         <span className="flex items-center justify-center gap-2">
-                          Buy now <ArrowRight className="h-4 w-4" />
+                          Buy now <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover/btn:translate-x-1" />
                         </span>
                       )}
                     </Button>
@@ -351,8 +362,13 @@ const Pricing = () => {
             })}
 
             {/* Custom Credits Card */}
-            <div className="relative flex flex-col rounded-2xl border border-purple-500/30 bg-[hsl(222,30%,11%)] transition-all duration-200 hover:translate-y-[-2px] hover:shadow-xl hover:shadow-purple-500/5 [backface-visibility:hidden] [transform:translateZ(0)]">
-              <div className="absolute -top-3 right-4">
+            <div
+              onMouseMove={handleMouseMove}
+              className="group relative flex flex-col rounded-2xl border border-purple-500/30 bg-[hsl(222,30%,11%)] transition-colors duration-300 hover:border-white/25 overflow-hidden"
+              style={{ "--mouse-x": "50%", "--mouse-y": "50%" } as React.CSSProperties}
+            >
+              <div className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-2xl" style={{ background: "radial-gradient(300px circle at var(--mouse-x) var(--mouse-y), rgba(255,255,255,0.06), transparent 60%)" }} />
+              <div className="absolute -top-3 right-4 z-10">
                 <span className="bg-purple-500 text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full">
                   Custom
                 </span>
@@ -413,13 +429,13 @@ const Pricing = () => {
                 <Button
                   onClick={handleCustomPurchase}
                   disabled={purchasingCustom}
-                  className="w-full py-5 rounded-xl font-medium bg-purple-500 hover:bg-purple-400 text-white transition-all"
+                  className="group/btn w-full py-5 rounded-xl font-medium bg-purple-500 hover:bg-purple-400 text-white transition-colors"
                 >
                   {purchasingCustom ? (
                     <span className="animate-pulse">Processing...</span>
                   ) : (
                     <span className="flex items-center justify-center gap-2">
-                      Buy now <ArrowRight className="h-4 w-4" />
+                      Buy now <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover/btn:translate-x-1" />
                     </span>
                   )}
                 </Button>
