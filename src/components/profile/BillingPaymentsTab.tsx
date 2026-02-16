@@ -80,6 +80,8 @@ const BillingPaymentsTab = () => {
   const [redirectingToPortal, setRedirectingToPortal] = useState(false);
   const [showAllPayments, setShowAllPayments] = useState(false);
 
+  const [adminPlanOverride, setAdminPlanOverride] = useState<string | null>(null);
+
   const fetchBillingInfo = async () => {
     if (!user) return;
     setLoading(true);
@@ -92,6 +94,7 @@ const BillingPaymentsTab = () => {
       setPayments(data.payments || []);
       setEligibleForRetention(data.eligible_for_retention);
       setEligibilityReasons(data.eligibility_reasons || []);
+      setAdminPlanOverride(data.admin_plan_override || null);
     } catch (err: any) {
       console.error("Failed to fetch billing info:", err);
     } finally {
@@ -197,14 +200,16 @@ const BillingPaymentsTab = () => {
           </div>
         </div>
 
-        {subscription ? (
+        {(subscription || adminPlanOverride) ? (
           <div className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {/* Plan */}
               <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-4">
                 <p className="text-white/40 text-[11px] font-medium uppercase tracking-wider mb-1">Current Plan</p>
                 <p className="text-white font-semibold text-sm">
-                  {subscription.product_name || PLAN_NAME_MAP[subscription.product_id as string] || "Custom Plan"}
+                  {adminPlanOverride
+                    ? `${adminPlanOverride.charAt(0).toUpperCase() + adminPlanOverride.slice(1)} (Admin Assigned)`
+                    : subscription?.product_name || PLAN_NAME_MAP[subscription?.product_id as string] || "Custom Plan"}
                 </p>
                 {subscription.discount && (
                   <Badge className="mt-1.5 bg-emerald-500/15 text-emerald-300 border-emerald-500/20 text-[10px]">
@@ -242,22 +247,32 @@ const BillingPaymentsTab = () => {
 
             {/* Actions */}
             <div className="flex items-center gap-3 pt-2">
-              <Button
-                onClick={handleManageSubscription}
-                disabled={redirectingToPortal}
-                className="bg-[hsl(222,25%,18%)] hover:bg-[hsl(222,25%,22%)] text-white border border-white/10 text-sm h-9 px-4"
-              >
-                {redirectingToPortal ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <ExternalLink className="h-4 w-4 mr-2" />}
-                Manage Subscription
-              </Button>
-              <Button
-                onClick={handleCancelSubscription}
-                variant="ghost"
-                className="text-red-400/60 hover:text-red-300 hover:bg-red-500/[0.06] text-sm h-9 px-4"
-              >
-                <AlertTriangle className="h-4 w-4 mr-2" />
-                Cancel Subscription
-              </Button>
+              {subscription && (
+                <>
+                  <Button
+                    onClick={handleManageSubscription}
+                    disabled={redirectingToPortal}
+                    className="bg-[hsl(222,25%,18%)] hover:bg-[hsl(222,25%,22%)] text-white border border-white/10 text-sm h-9 px-4"
+                  >
+                    {redirectingToPortal ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <ExternalLink className="h-4 w-4 mr-2" />}
+                    Manage Subscription
+                  </Button>
+                  <Button
+                    onClick={handleCancelSubscription}
+                    variant="ghost"
+                    className="text-red-400/60 hover:text-red-300 hover:bg-red-500/[0.06] text-sm h-9 px-4"
+                  >
+                    <AlertTriangle className="h-4 w-4 mr-2" />
+                    Cancel Subscription
+                  </Button>
+                </>
+              )}
+              {adminPlanOverride && !subscription && (
+                <Badge className="bg-purple-500/15 text-purple-300 border-purple-500/20 text-xs px-3 py-1">
+                  <ShieldCheck className="h-3 w-3 mr-1.5" />
+                  Plan assigned by administrator
+                </Badge>
+              )}
               <Button
                 onClick={fetchBillingInfo}
                 variant="ghost"
