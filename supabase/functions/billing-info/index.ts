@@ -15,6 +15,16 @@ const ELIGIBLE_PRODUCT_IDS = [
   "prod_TzAzgoteaSHuDB", // business yearly
 ];
 
+// Product ID → human-readable plan name
+const PRODUCT_NAME_MAP: Record<string, string> = {
+  "prod_TzAqP0zH90vzyR": "Starter (Monthly)",
+  "prod_TzAypr06as419B": "Starter (Yearly)",
+  "prod_TzArZUF2DIlzHq": "Pro (Monthly)",
+  "prod_TzAywFFZ0SdhfZ": "Pro (Yearly)",
+  "prod_TzAram9it2Kedf": "Business (Monthly)",
+  "prod_TzAzgoteaSHuDB": "Business (Yearly)",
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -91,19 +101,48 @@ serve(async (req) => {
       });
     }
 
-    // Get active subscription
-    const subscriptions = await stripe.subscriptions.list({ customer: customerId, status: "active", limit: 1 });
+    // Get subscription — include active AND canceled-but-not-yet-expired
+    const activeSubs = await stripe.subscriptions.list({ customer: customerId, status: "active", limit: 1 });
+    const canceledSubs = await stripe.subscriptions.list({ customer: customerId, status: "canceled", limit: 5 });
+
+    // Pick active first, then most recent canceled that hasn't expired yet
+    let sub: typeof activeSubs.data[0] | null = activeSubs.data[0] || null;
+    if (!sub) {
+      const now = Math.floor(Date.now() / 1000);
+      for (const cs of canceledSubs.data) {
+        const endTs = typeof cs.current_period_end === "number" ? cs.current_period_end : 0;
+        if (endTs > now) { sub = cs; break; }
+      }
+    }
+
     let subscription = null;
-    if (subscriptions.data.length > 0) {
-      const sub = subscriptions.data[0];
+    if (sub) {
       const priceItem = sub.items.data[0];
+      const productId = typeof priceItem.price.product === "string" ? priceItem.price.product : (priceItem.price.product as any)?.id || "";
+
+      // Fetch the actual product name from Stripe for accurate display
+      let productName = PRODUCT_NAME_MAP[productId] || null;
+      if (!productName) {
+        try {
+          const product = await stripe.products.retrieve(productId);
+          productName = product.name || "Unknown Plan";
+        } catch { productName = "Unknown Plan"; }
+      }
+
+      // Robustly convert period timestamps
+      const periodStart = typeof sub.current_period_start === "number" && sub.current_period_start > 0
+        ? new Date(sub.current_period_start * 1000).toISOString() : safeDate(sub.current_period_start);
+      const periodEnd = typeof sub.current_period_end === "number" && sub.current_period_end > 0
+        ? new Date(sub.current_period_end * 1000).toISOString() : safeDate(sub.current_period_end);
+
       subscription = {
         id: sub.id,
         status: sub.status,
-        product_id: priceItem.price.product,
+        product_id: productId,
+        product_name: productName,
         price_id: priceItem.price.id,
-        current_period_start: safeDate(sub.current_period_start),
-        current_period_end: safeDate(sub.current_period_end),
+        current_period_start: periodStart,
+        current_period_end: periodEnd,
         cancel_at_period_end: sub.cancel_at_period_end,
         discount: sub.discount ? {
           coupon_name: sub.discount.coupon.name,
