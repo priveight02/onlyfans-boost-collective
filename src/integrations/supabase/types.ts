@@ -2098,30 +2098,6 @@ export type Database = {
           },
         ]
       }
-      site_visits: {
-        Row: {
-          created_at: string
-          id: string
-          page_path: string
-          user_agent: string | null
-          visitor_ip: string | null
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          page_path: string
-          user_agent?: string | null
-          visitor_ip?: string | null
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          page_path?: string
-          user_agent?: string | null
-          visitor_ip?: string | null
-        }
-        Relationships: []
-      }
       social_analytics: {
         Row: {
           account_id: string | null
