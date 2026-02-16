@@ -42,10 +42,10 @@ const DISCOUNT_PRICE_MAP: Record<string, Record<string, string>> = {
 
 // Discount price maps (test)
 const DISCOUNT_PRICE_MAP_TEST: Record<string, Record<string, string>> = {
-  "price_1T1EzQP8Id8IBpd0EUEHb3xO": { "0": "price_1T1EzQP8Id8IBpd0EUEHb3xO", "10": "price_1T1F0QP8Id8IBpd08PJqAwPH", "20": "price_1T1F0bP8Id8IBpd0qasgeLHj", "30": "price_1T1F0pP8Id8IBpd0XumPrEBI" },
-  "price_1T1EzcP8Id8IBpd0XF0N6eyw": { "0": "price_1T1EzcP8Id8IBpd0XF0N6eyw", "10": "price_1T1F16P8Id8IBpd0pVGOVb7H", "20": "price_1T1F1GP8Id8IBpd00lRLLggQ", "30": "price_1T1F1RP8Id8IBpd0XPCBGi2w" },
-  "price_1T1EznP8Id8IBpd0QjxuzkPs": { "0": "price_1T1EznP8Id8IBpd0QjxuzkPs", "10": "price_1T1F1eP8Id8IBpd0uGSmHQVK", "20": "price_1T1F1oP8Id8IBpd0InkGXdtd", "30": "price_1T1F22P8Id8IBpd0E6ULh8K2" },
-  "price_1T1F04P8Id8IBpd0xJCSez0v": { "0": "price_1T1F04P8Id8IBpd0xJCSez0v", "10": "price_1T1F2GP8Id8IBpd0wU7YdTb5", "20": "price_1T1F2SP8Id8IBpd0WdyE3Jkk", "30": "price_1T1F2dP8Id8IBpd0elbmX4cN" },
+  "price_1T1S7FAVBBvDGKKBKHdQXRAW": { "0": "price_1T1S7FAVBBvDGKKBKHdQXRAW", "10": "price_1T1S8vAVBBvDGKKBRphrFbas", "20": "price_1T1S9BAVBBvDGKKBmIUnTNb6", "30": "price_1T1S9cAVBBvDGKKBW4XR7OSR" },
+  "price_1T1S7aAVBBvDGKKBJziRWeGQ": { "0": "price_1T1S7aAVBBvDGKKBJziRWeGQ", "10": "price_1T1SASAVBBvDGKKBXom7jbyE", "20": "price_1T1SAkAVBBvDGKKBemFSv7qf", "30": "price_1T1SAvAVBBvDGKKBlciZJ82B" },
+  "price_1T1S8MAVBBvDGKKBmVsmBN4P": { "0": "price_1T1S8MAVBBvDGKKBmVsmBN4P", "10": "price_1T1SBCAVBBvDGKKBUuPoFXyX", "20": "price_1T1SBPAVBBvDGKKBJGgBkUCt", "30": "price_1T1SBfAVBBvDGKKB5XXIXt76" },
+  "price_1T1S8iAVBBvDGKKBKTMtxH4T": { "0": "price_1T1S8iAVBBvDGKKBKTMtxH4T", "10": "price_1T1SCLAVBBvDGKKBePfVZhRz", "20": "price_1T1SCeAVBBvDGKKBRzEnYVBo", "30": "price_1T1SCqAVBBvDGKKBqYirpM06" },
 };
 
 // Retention price maps
@@ -57,18 +57,18 @@ const RETENTION_PRICE_MAP: Record<string, string> = {
 };
 
 const RETENTION_PRICE_MAP_TEST: Record<string, string> = {
-  "price_1T1EzQP8Id8IBpd0EUEHb3xO": "price_1T1F2pP8Id8IBpd0AIe5XdPA",
-  "price_1T1EzcP8Id8IBpd0XF0N6eyw": "price_1T1F2zP8Id8IBpd0VYvKRGj4",
-  "price_1T1EznP8Id8IBpd0QjxuzkPs": "price_1T1F38P8Id8IBpd0IgzzP26i",
-  "price_1T1F04P8Id8IBpd0xJCSez0v": "price_1T1F3PP8Id8IBpd02EG7DEco",
+  "price_1T1S7FAVBBvDGKKBKHdQXRAW": "price_1T1SD6AVBBvDGKKB0UBK1Vi0",
+  "price_1T1S7aAVBBvDGKKBJziRWeGQ": "price_1T1SDJAVBBvDGKKBbK5zOz1Y",
+  "price_1T1S8MAVBBvDGKKBmVsmBN4P": "price_1T1SDTAVBBvDGKKBh1NFDcx8",
+  "price_1T1S8iAVBBvDGKKBKTMtxH4T": "price_1T1SEpAVBBvDGKKB545n9TEY",
 };
 
 // Live → Test base price mapping
 const LIVE_TO_TEST_CREDIT_PRICE: Record<string, string> = {
-  "price_1T1AusP8Id8IBpd0HrNyaRWe": "price_1T1EzQP8Id8IBpd0EUEHb3xO",
-  "price_1T1AvOP8Id8IBpd0jM8b94Al": "price_1T1EzcP8Id8IBpd0XF0N6eyw",
-  "price_1T1AvlP8Id8IBpd03ocd2mOy": "price_1T1EznP8Id8IBpd0QjxuzkPs",
-  "price_1T1AwMP8Id8IBpd0PfrPX50i": "price_1T1F04P8Id8IBpd0xJCSez0v",
+  "price_1T1AusP8Id8IBpd0HrNyaRWe": "price_1T1S7FAVBBvDGKKBKHdQXRAW",
+  "price_1T1AvOP8Id8IBpd0jM8b94Al": "price_1T1S7aAVBBvDGKKBJziRWeGQ",
+  "price_1T1AvlP8Id8IBpd03ocd2mOy": "price_1T1S8MAVBBvDGKKBmVsmBN4P",
+  "price_1T1AwMP8Id8IBpd0PfrPX50i": "price_1T1S8iAVBBvDGKKBKTMtxH4T",
 };
 
 serve(async (req) => {

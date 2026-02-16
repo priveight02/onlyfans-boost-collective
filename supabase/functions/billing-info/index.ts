@@ -17,18 +17,18 @@ const PRODUCT_TO_PLAN: Record<string, string> = {
   "prod_TzArZUF2DIlzHq": "pro", "prod_TzAywFFZ0SdhfZ": "pro",
   "prod_TzAram9it2Kedf": "business", "prod_TzAzgoteaSHuDB": "business",
   // Test
-  "prod_TzDPwhTrnCOnYm": "starter", "prod_TzDPUEvS935A88": "starter",
-  "prod_TzDPNCljqBJ2Cq": "pro", "prod_TzDPxffqvU9iSq": "pro",
-  "prod_TzDPr3jeAGF9mm": "business", "prod_TzDQJVbiYpTH9Y": "business",
+  "prod_TzQxzU5hz8sdwa": "starter", "prod_TzQxbSs93pQQtb": "starter",
+  "prod_TzQxBoodMhERqW": "pro", "prod_TzQyWX1DZuWpdA": "pro",
+  "prod_TzQyMmAEWuE1Ls": "business", "prod_TzQyfPCDZvRxLn": "business",
 };
 
 const PRODUCT_NAME_MAP: Record<string, string> = {
   "prod_TzAqP0zH90vzyR": "Starter", "prod_TzAypr06as419B": "Starter",
   "prod_TzArZUF2DIlzHq": "Pro", "prod_TzAywFFZ0SdhfZ": "Pro",
   "prod_TzAram9it2Kedf": "Business", "prod_TzAzgoteaSHuDB": "Business",
-  "prod_TzDPwhTrnCOnYm": "Starter", "prod_TzDPUEvS935A88": "Starter",
-  "prod_TzDPNCljqBJ2Cq": "Pro", "prod_TzDPxffqvU9iSq": "Pro",
-  "prod_TzDPr3jeAGF9mm": "Business", "prod_TzDQJVbiYpTH9Y": "Business",
+  "prod_TzQxzU5hz8sdwa": "Starter", "prod_TzQxbSs93pQQtb": "Starter",
+  "prod_TzQxBoodMhERqW": "Pro", "prod_TzQyWX1DZuWpdA": "Pro",
+  "prod_TzQyMmAEWuE1Ls": "Business", "prod_TzQyfPCDZvRxLn": "Business",
 };
 
 // Pro + Business product IDs eligible for retention
@@ -37,8 +37,8 @@ const ELIGIBLE_PRODUCT_IDS = [
   "prod_TzArZUF2DIlzHq", "prod_TzAywFFZ0SdhfZ",
   "prod_TzAram9it2Kedf", "prod_TzAzgoteaSHuDB",
   // Test
-  "prod_TzDPNCljqBJ2Cq", "prod_TzDPxffqvU9iSq",
-  "prod_TzDPr3jeAGF9mm", "prod_TzDQJVbiYpTH9Y",
+  "prod_TzQxBoodMhERqW", "prod_TzQyWX1DZuWpdA",
+  "prod_TzQyMmAEWuE1Ls", "prod_TzQyfPCDZvRxLn",
 ];
 
 serve(async (req) => {
