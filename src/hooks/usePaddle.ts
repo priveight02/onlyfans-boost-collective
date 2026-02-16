@@ -52,10 +52,15 @@ export const usePaddle = () => {
         }
 
         window.Paddle.Environment.set("sandbox");
-        window.Paddle.Initialize({ token });
+        window.Paddle.Initialize({
+          token,
+          eventCallback: (event: any) => {
+            console.log("[Paddle Event]", event.name, event);
+          },
+        });
         initialized.current = true;
         setReady(true);
-        console.log("Paddle initialized successfully");
+        console.log("Paddle initialized successfully with token:", token.substring(0, 10) + "...");
       } catch (e) {
         console.warn("Paddle init error:", e);
       }
@@ -77,7 +82,7 @@ export const usePaddle = () => {
       return;
     }
 
-    const checkoutSettings: any = {
+    const checkoutConfig: any = {
       settings: {
         displayMode: "overlay",
         theme: "dark",
@@ -88,18 +93,19 @@ export const usePaddle = () => {
     };
 
     if (options.customerEmail) {
-      checkoutSettings.customer = { email: options.customerEmail };
+      checkoutConfig.customer = { email: options.customerEmail };
     }
 
     if (options.discountId) {
-      checkoutSettings.discount = { id: options.discountId };
+      checkoutConfig.discountId = options.discountId;
     }
 
     if (options.customData) {
-      checkoutSettings.customData = options.customData;
+      checkoutConfig.customData = options.customData;
     }
 
-    window.Paddle.Checkout.open(checkoutSettings);
+    console.log("[Paddle] Opening checkout with config:", JSON.stringify(checkoutConfig, null, 2));
+    window.Paddle.Checkout.open(checkoutConfig);
   }, []);
 
   return { openCheckout, ready };
