@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useCreditAction } from "@/hooks/useCreditAction";
 import CreditCostBadge from "./CreditCostBadge";
+import InsufficientCreditsModal from "@/components/InsufficientCreditsModal";
 
 const priorityColors: Record<string, string> = {
   urgent: "bg-red-500/20 text-red-400",
@@ -33,7 +34,7 @@ const MessagingHub = () => {
   const [statusFilter, setStatusFilter] = useState("all");
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({ account_id: "", subscriber_name: "", priority: "normal" });
-  const { performAction } = useCreditAction();
+  const { performAction, insufficientModal, closeInsufficientModal } = useCreditAction();
 
   useEffect(() => {
     loadAll();
@@ -81,15 +82,19 @@ const MessagingHub = () => {
   };
 
   const handleAssign = async (threadId: string, chatterId: string) => {
-    await supabase.from("message_threads").update({ assigned_chatter: chatterId, status: "assigned" }).eq("id", threadId);
-    toast.success("Chatter assigned");
-    loadAll();
+    await performAction('assign_member', async () => {
+      await supabase.from("message_threads").update({ assigned_chatter: chatterId, status: "assigned" }).eq("id", threadId);
+      toast.success("Chatter assigned");
+      loadAll();
+    });
   };
 
   const handleClose = async (threadId: string) => {
-    await supabase.from("message_threads").update({ status: "closed" }).eq("id", threadId);
-    toast.success("Thread closed");
-    loadAll();
+    await performAction('close_thread', async () => {
+      await supabase.from("message_threads").update({ status: "closed" }).eq("id", threadId);
+      toast.success("Thread closed");
+      loadAll();
+    });
   };
 
   const openThreads = threads.filter((t) => t.status === "open").length;
@@ -268,6 +273,7 @@ const MessagingHub = () => {
           </CardContent>
         </Card>
       )}
+      <InsufficientCreditsModal open={insufficientModal.open} onClose={closeInsufficientModal} requiredCredits={insufficientModal.requiredCredits} actionName={insufficientModal.actionName} />
     </div>
   );
 };

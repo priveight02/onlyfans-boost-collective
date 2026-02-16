@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { useCreditAction } from "@/hooks/useCreditAction";
 import CreditCostBadge from "./CreditCostBadge";
+import InsufficientCreditsModal from "@/components/InsufficientCreditsModal";
 
 const PLATFORMS = ["onlyfans", "twitter", "instagram", "tiktok", "reddit", "fansly"];
 const CONTENT_TYPES = ["post", "story", "reel", "tweet", "promo", "teaser", "behind_scenes", "collab"];
@@ -31,7 +32,7 @@ const ContentCommandCenter = () => {
   const [accountFilter, setAccountFilter] = useState("all");
   const [platformFilter, setPlatformFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
-  const { performAction } = useCreditAction();
+  const { performAction, insufficientModal, closeInsufficientModal } = useCreditAction();
 
   // Form
   const [formTitle, setFormTitle] = useState("");
@@ -106,12 +107,16 @@ const ContentCommandCenter = () => {
   };
 
   const deleteItem = async (id: string) => {
-    const { error } = await supabase.from("content_calendar").delete().eq("id", id);
-    if (error) toast.error(error.message); else toast.success("Deleted");
+    await performAction('delete_item', async () => {
+      const { error } = await supabase.from("content_calendar").delete().eq("id", id);
+      if (error) toast.error(error.message); else toast.success("Deleted");
+    });
   };
 
   const updateStatus = async (id: string, status: string) => {
-    await supabase.from("content_calendar").update({ status, ...(status === "published" ? { published_at: new Date().toISOString() } : {}) }).eq("id", id);
+    await performAction('update_status', async () => {
+      await supabase.from("content_calendar").update({ status, ...(status === "published" ? { published_at: new Date().toISOString() } : {}) }).eq("id", id);
+    });
   };
 
   const editItem = (item: any) => {
@@ -123,6 +128,7 @@ const ContentCommandCenter = () => {
   };
 
   const generateIdeas = async () => {
+    await performAction('ai_generate_ideas', async () => {
     setGenerating(true);
     try {
       const { data, error } = await supabase.functions.invoke("agency-copilot", {
@@ -163,6 +169,7 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
       }
     } catch (e: any) { toast.error(e.message || "Generation failed"); }
     setGenerating(false);
+    });
   };
 
   const platformIcon = (p: string) => {
@@ -376,6 +383,7 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
           </div>
         </DialogContent>
       </Dialog>
+      <InsufficientCreditsModal open={insufficientModal.open} onClose={closeInsufficientModal} requiredCredits={insufficientModal.requiredCredits} actionName={insufficientModal.actionName} />
     </div>
   );
 };
