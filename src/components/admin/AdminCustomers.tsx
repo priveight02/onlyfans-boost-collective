@@ -986,9 +986,20 @@ const AdminCustomers = () => {
             </div>
             <DialogFooter className="gap-2">
               <Button variant="ghost" onClick={() => setShowChangePlanDialog(false)} className="text-white/50">Cancel</Button>
-              <Button onClick={() => {
-                performAction("change_plan", { plan: selectedPlan, reason: planReason });
+              <Button onClick={async () => {
                 setShowChangePlanDialog(false);
+                setActionLoading(true);
+                try {
+                  const { error } = await supabase.functions.invoke("admin-customers", {
+                    body: { action: "admin_action", userId: selectedUserId, adminAction: "change_plan", reason: planReason || `Plan changed to ${selectedPlan}`, data: { plan: selectedPlan, reason: planReason } },
+                  });
+                  if (error) throw error;
+                  toast.success(`Plan changed to ${selectedPlan}`);
+                  invalidateNamespace(CACHE_ACCOUNT, CACHE_NS_DETAIL);
+                  invalidateNamespace(CACHE_ACCOUNT, CACHE_NS_LIST);
+                  if (selectedUserId) fetchDetail(selectedUserId);
+                } catch (err: any) { toast.error(err.message || "Action failed"); }
+                finally { setActionLoading(false); }
               }} disabled={actionLoading}
                 className="bg-pink-600 text-white hover:bg-pink-700 gap-1.5">
                 <Tag className="h-3.5 w-3.5" />
@@ -1266,7 +1277,7 @@ const AdminCustomers = () => {
                   className="bg-white/5 border-white/10 text-white placeholder:text-white/25 min-h-[100px] resize-none" />
               </div>
               <div className="p-3 rounded-xl bg-yellow-500/5 border border-yellow-500/15">
-                <p className="text-xs text-yellow-300/70">💡 This sends an in-app notification visible on the user's notification bell.</p>
+                <p className="text-xs text-yellow-300/70">💡 This sends a real email via Resend AND an in-app notification visible on the user's notification bell.</p>
               </div>
             </div>
             <DialogFooter className="gap-2">
@@ -1356,10 +1367,20 @@ const AdminCustomers = () => {
             </div>
             <DialogFooter className="gap-2">
               <Button variant="ghost" onClick={() => setShowBulkGrantDialog(false)} className="text-white/50">Cancel</Button>
-              <Button onClick={() => {
-                performAction("grant_credits", { amount: parseInt(bulkGrantAmount) });
-                setActionReason(bulkGrantReason);
+              <Button onClick={async () => {
                 setShowBulkGrantDialog(false);
+                setActionLoading(true);
+                try {
+                  const { error } = await supabase.functions.invoke("admin-customers", {
+                    body: { action: "admin_action", userId: selectedUserId, adminAction: "grant_credits", reason: bulkGrantReason, data: { amount: parseInt(bulkGrantAmount) } },
+                  });
+                  if (error) throw error;
+                  toast.success(`Granted ${bulkGrantAmount} credits`);
+                  invalidateNamespace(CACHE_ACCOUNT, CACHE_NS_DETAIL);
+                  invalidateNamespace(CACHE_ACCOUNT, CACHE_NS_LIST);
+                  if (selectedUserId) fetchDetail(selectedUserId);
+                } catch (err: any) { toast.error(err.message || "Action failed"); }
+                finally { setActionLoading(false); }
               }} disabled={!bulkGrantAmount || parseInt(bulkGrantAmount) <= 0 || actionLoading}
                 className="bg-blue-600 text-white hover:bg-blue-700 gap-1.5">
                 <Gift className="h-3.5 w-3.5" />

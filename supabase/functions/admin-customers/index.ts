@@ -196,8 +196,10 @@ serve(async (req) => {
         const lastPurchaseOrCharge = stripeCharges?.lastCharge || txInfo.last_purchase;
         const daysSinceLastPurchase = lastPurchaseOrCharge ? Math.floor((Date.now() - new Date(lastPurchaseOrCharge).getTime()) / 86400000) : 999;
 
-        // Current plan from Stripe
-        const currentPlan = stripeSub?.plan || "Free";
+        // Current plan: check admin override first, then Stripe
+        const adminNotes = p.admin_notes || "";
+        const planOverrideMatch = adminNotes.match(/\[PLAN_OVERRIDE\]\s*(\w+)/);
+        const currentPlan = planOverrideMatch ? planOverrideMatch[1].charAt(0).toUpperCase() + planOverrideMatch[1].slice(1) : (stripeSub?.plan || "Free");
 
         // Engagement score (0-100)
         const loginRecency = daysSinceLastLogin < 1 ? 30 : daysSinceLastLogin < 3 ? 25 : daysSinceLastLogin < 7 ? 20 : daysSinceLastLogin < 14 ? 10 : daysSinceLastLogin < 30 ? 5 : 0;
@@ -432,6 +434,12 @@ Provide your analysis in this exact JSON structure:
             const refunded = charges.data.filter(c => c.refunded).reduce((sum, c) => sum + (c.amount_refunded || 0), 0);
 
             let currentPlan = "Free", planInterval = "", subscriptionEnd = "", subscriptionStart = "";
+            // Check for admin plan override
+            const adminNotes = profile?.admin_notes || "";
+            const planOverrideMatch = adminNotes.match(/\[PLAN_OVERRIDE\]\s*(\w+)/);
+            if (planOverrideMatch) {
+              currentPlan = planOverrideMatch[1].charAt(0).toUpperCase() + planOverrideMatch[1].slice(1);
+            }
             if (activeSub) {
               const productId = typeof activeSub.items.data[0].price.product === "string" ? activeSub.items.data[0].price.product : (activeSub.items.data[0].price.product as any)?.id || "";
               currentPlan = PRODUCT_TO_PLAN[productId] || "Unknown";
@@ -596,15 +604,49 @@ Provide your analysis in this exact JSON structure:
       }
 
       if (adminAction === "reset_password") {
-        // Get user email, then send password reset
-        const { data: prof } = await supabaseAdmin.from("profiles").select("email").eq("user_id", userId).single();
+        const { data: prof } = await supabaseAdmin.from("profiles").select("email, display_name").eq("user_id", userId).single();
         if (prof?.email) {
-          const { error: resetErr } = await supabaseAdmin.auth.admin.generateLink({
+          // Generate recovery link
+          const { data: linkData, error: resetErr } = await supabaseAdmin.auth.admin.generateLink({
             type: "recovery",
             email: prof.email,
           });
-          if (resetErr) logStep("Password reset error", { error: resetErr.message });
-          else logStep("Password reset sent", { email: prof.email });
+          if (resetErr) {
+            logStep("Password reset error", { error: resetErr.message });
+          } else {
+            // Send real email via Resend
+            const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+            if (RESEND_API_KEY && linkData?.properties?.action_link) {
+              try {
+                const resetLink = linkData.properties.action_link;
+                await fetch("https://api.resend.com/emails", {
+                  method: "POST",
+                  headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    from: "OZC Agency <contact@ozcagency.com>",
+                    to: [prof.email],
+                    subject: "Password Reset Request",
+                    html: `<div style="background:#0a0a0f;color:#fff;padding:40px;font-family:Arial,sans-serif;border-radius:16px;max-width:600px;margin:auto;">
+                      <div style="text-align:center;margin-bottom:32px;">
+                        <h1 style="font-size:24px;margin:0;color:#fff;">Password Reset</h1>
+                      </div>
+                      <p style="color:#ffffffaa;font-size:15px;line-height:1.6;">Hi ${prof.display_name || "there"},</p>
+                      <p style="color:#ffffffaa;font-size:15px;line-height:1.6;">An administrator has initiated a password reset for your account. Click the button below to set a new password:</p>
+                      <div style="text-align:center;margin:32px 0;">
+                        <a href="${resetLink}" style="background:linear-gradient(135deg,#8b5cf6,#ec4899);color:#fff;padding:14px 36px;border-radius:12px;text-decoration:none;font-weight:bold;font-size:16px;display:inline-block;">Reset Password</a>
+                      </div>
+                      <p style="color:#ffffff60;font-size:13px;">If you didn't expect this, you can safely ignore this email.</p>
+                      <hr style="border:1px solid #ffffff15;margin:24px 0;" />
+                      <p style="color:#ffffff40;font-size:11px;text-align:center;">OZC Agency Platform</p>
+                    </div>`,
+                  }),
+                });
+                logStep("Password reset email sent via Resend", { email: prof.email });
+              } catch (e) { logStep("Resend email error", { error: String(e) }); }
+            } else {
+              logStep("Password reset link generated (no Resend)", { email: prof.email });
+            }
+          }
         }
       }
 
@@ -623,8 +665,17 @@ Provide your analysis in this exact JSON structure:
       if (adminAction === "change_plan") {
         const { plan: newPlan } = actionData || {};
         logStep("Change plan", { userId, newPlan });
-        // Update profile metadata and log the change
-        const { data: prof } = await supabaseAdmin.from("profiles").select("email").eq("user_id", userId).single();
+        const { data: prof } = await supabaseAdmin.from("profiles").select("email, admin_notes").eq("user_id", userId).single();
+        
+        // Store plan override persistently in admin_notes
+        const existing = prof?.admin_notes || "";
+        const planLine = `[PLAN_OVERRIDE] ${newPlan}`;
+        const updated = existing.includes("[PLAN_OVERRIDE]")
+          ? existing.replace(/\[PLAN_OVERRIDE\].*$/m, planLine)
+          : `${planLine}\n\n${existing}`;
+        await supabaseAdmin.from("profiles").update({ admin_notes: updated }).eq("user_id", userId);
+        logStep("Plan override stored", { userId, newPlan });
+
         // If downgrading to free, cancel active Stripe subscriptions
         if (newPlan === "free" && prof?.email) {
           try {
@@ -638,8 +689,6 @@ Provide your analysis in this exact JSON structure:
             }
           } catch (e) { logStep("Stripe cancel error", { error: String(e) }); }
         }
-        // For upgrading, we log the intent — actual subscription must be created via checkout
-        // Store plan override in admin notes for tracking
       }
 
       if (adminAction === "verify_email") {
@@ -691,13 +740,42 @@ Provide your analysis in this exact JSON structure:
       }
 
       if (adminAction === "send_welcome") {
+        const welcomeTitle = actionData?.title || "Welcome to the Platform! 🎉";
+        const welcomeMsg = actionData?.message || "We're thrilled to have you on board.";
+        // Save in-app notification
         await supabaseAdmin.from("admin_user_notifications").insert({
-          user_id: userId,
-          title: actionData?.title || "Welcome to the Platform! 🎉",
-          message: actionData?.message || "We're thrilled to have you on board. Explore the platform and let us know if you need anything!",
-          notification_type: "success",
-          sent_by: user.id,
+          user_id: userId, title: welcomeTitle, message: welcomeMsg,
+          notification_type: "success", sent_by: user.id,
         });
+        // Also send real email via Resend
+        const { data: prof } = await supabaseAdmin.from("profiles").select("email, display_name").eq("user_id", userId).single();
+        const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+        if (prof?.email && RESEND_API_KEY) {
+          try {
+            await fetch("https://api.resend.com/emails", {
+              method: "POST",
+              headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
+              body: JSON.stringify({
+                from: "OZC Agency <contact@ozcagency.com>",
+                to: [prof.email],
+                subject: welcomeTitle,
+                html: `<div style="background:#0a0a0f;color:#fff;padding:40px;font-family:Arial,sans-serif;border-radius:16px;max-width:600px;margin:auto;">
+                  <div style="text-align:center;margin-bottom:32px;">
+                    <h1 style="font-size:28px;margin:0;color:#fff;">🎉 ${welcomeTitle}</h1>
+                  </div>
+                  <p style="color:#ffffffaa;font-size:15px;line-height:1.6;">Hi ${prof.display_name || "there"},</p>
+                  <p style="color:#ffffffaa;font-size:15px;line-height:1.8;">${welcomeMsg}</p>
+                  <div style="text-align:center;margin:32px 0;">
+                    <a href="https://onlyfans-boost-collective.lovable.app" style="background:linear-gradient(135deg,#8b5cf6,#ec4899);color:#fff;padding:14px 36px;border-radius:12px;text-decoration:none;font-weight:bold;font-size:16px;display:inline-block;">Visit Platform</a>
+                  </div>
+                  <hr style="border:1px solid #ffffff15;margin:24px 0;" />
+                  <p style="color:#ffffff40;font-size:11px;text-align:center;">OZC Agency Platform</p>
+                </div>`,
+              }),
+            });
+            logStep("Welcome email sent via Resend", { email: prof.email });
+          } catch (e) { logStep("Resend welcome error", { error: String(e) }); }
+        }
       }
 
       if (adminAction === "impersonate_view") {
