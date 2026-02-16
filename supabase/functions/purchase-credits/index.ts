@@ -11,8 +11,11 @@ const logStep = (step: string, details?: any) => {
   console.log(`[PURCHASE-CREDITS] ${step}${details ? ` - ${JSON.stringify(details)}` : ''}`);
 };
 
-// Base price per credit in cents
-const BASE_PRICE_PER_CREDIT_CENTS = 9.99;
+// Base price per credit in cents (display rate — matches frontend)
+const BASE_PRICE_PER_CREDIT_CENTS = 1.816;
+
+// Public URL for custom credits checkout image
+const CUSTOM_CREDITS_IMAGE = "https://ufsnuobtvkciydftsyff.supabase.co/storage/v1/object/public/product-images/credits-custom.png";
 
 // Volume discount tiers (max 40%)
 const getVolumeDiscount = (credits: number): number => {
@@ -113,6 +116,7 @@ serve(async (req) => {
 
       const product = await stripe.products.create({
         name: `${customCredits.toLocaleString()} Credits${volumeDiscount > 0 ? ` (${Math.round(volumeDiscount * 100)}% vol.)` : ''}${returningDiscountPercent > 0 ? ` + ${returningDiscountPercent}% loyalty` : ''}`,
+        images: [CUSTOM_CREDITS_IMAGE],
         metadata: { type: 'custom_credits', credits: String(customCredits) },
       });
 

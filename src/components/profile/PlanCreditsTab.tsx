@@ -91,8 +91,8 @@ const PLAN_TIER_ORDER: Record<string, number> = { free: 0, starter: 1, pro: 2, b
 const GOLDEN_FEATURES: Record<string, string[]> = {
   starter: ["215 credits/month"],
   pro: ["1,075 credits/month", "Advanced CRM Access", "Premium AI features"],
-  business: ["4,300 credits/month"],
-  enterprise: ["Custom credit allocation"],
+  business: ["4,300 credits/month", "Everything in Pro", "Full CRM Access"],
+  enterprise: ["Custom credit allocation", "All Business features", "Dedicated account manager"],
 };
 
 // Base price per credit in cents (based on smallest package: 999 cents / 100 credits)
