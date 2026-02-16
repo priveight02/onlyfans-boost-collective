@@ -18,7 +18,9 @@ import {
   Brain, Pause, Play, Trash2, Bell, MessageSquare, Ban, Gift,
   Minus, StickyNote, History, Shield, UserX, UserCheck, Sparkles,
   Activity, PieChart, TrendingDown, Flame, Snowflake, Star,
+  KeyRound, FileDown, Tag, PenLine,
 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 
 // ─── Types ───
 interface CustomerSummary {
@@ -126,6 +128,18 @@ const AdminCustomers = () => {
   const [creditAction, setCreditAction] = useState<"grant" | "revoke">("grant");
   const [actionReason, setActionReason] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
+
+  // New quick action states
+  const [showResetPasswordDialog, setShowResetPasswordDialog] = useState(false);
+  const [showQuickNoteDialog, setShowQuickNoteDialog] = useState(false);
+  const [showChangePlanDialog, setShowChangePlanDialog] = useState(false);
+  const [showExportDialog, setShowExportDialog] = useState(false);
+  const [quickNote, setQuickNote] = useState("");
+  const [quickNoteCategory, setQuickNoteCategory] = useState("general");
+  const [selectedPlan, setSelectedPlan] = useState("free");
+  const [planReason, setPlanReason] = useState("");
+  const [exportFormat, setExportFormat] = useState("json");
+  const [exportSections, setExportSections] = useState<string[]>(["profile", "transactions", "activity"]);
 
   const CACHE_ACCOUNT = "admin";
   const CACHE_NS_LIST = "customers_list";
@@ -329,6 +343,22 @@ const AdminCustomers = () => {
                   <Trash2 className="h-3.5 w-3.5" /> Delete
                 </Button>
               )}
+              <Button size="sm" variant="outline" className="text-cyan-400 border-cyan-500/30 bg-cyan-500/5 hover:bg-cyan-500/10 gap-1.5 text-xs h-8"
+                onClick={() => setShowResetPasswordDialog(true)}>
+                <KeyRound className="h-3.5 w-3.5" /> Reset Password
+              </Button>
+              <Button size="sm" variant="outline" className="text-teal-400 border-teal-500/30 bg-teal-500/5 hover:bg-teal-500/10 gap-1.5 text-xs h-8"
+                onClick={() => { setQuickNote(""); setQuickNoteCategory("general"); setShowQuickNoteDialog(true); }}>
+                <PenLine className="h-3.5 w-3.5" /> Quick Note
+              </Button>
+              <Button size="sm" variant="outline" className="text-pink-400 border-pink-500/30 bg-pink-500/5 hover:bg-pink-500/10 gap-1.5 text-xs h-8"
+                onClick={() => { setSelectedPlan(detail?.stripe?.current_plan?.toLowerCase() || "free"); setPlanReason(""); setShowChangePlanDialog(true); }}>
+                <Tag className="h-3.5 w-3.5" /> Change Plan
+              </Button>
+              <Button size="sm" variant="outline" className="text-indigo-400 border-indigo-500/30 bg-indigo-500/5 hover:bg-indigo-500/10 gap-1.5 text-xs h-8"
+                onClick={() => { setExportSections(["profile", "transactions", "activity"]); setExportFormat("json"); setShowExportDialog(true); }}>
+                <FileDown className="h-3.5 w-3.5" /> Export Data
+              </Button>
               <div className="ml-auto">
                 <Button size="sm" onClick={fetchAiAnalysis} disabled={aiLoading}
                   className="bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:from-purple-700 hover:to-pink-700 gap-1.5 text-xs h-8">
@@ -762,6 +792,241 @@ const AdminCustomers = () => {
               <Button onClick={() => performAction(showConfirmDialog!.action)} disabled={actionLoading}
                 className="bg-red-600 text-white hover:bg-red-700">
                 {actionLoading ? "Processing..." : "Confirm"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Reset Password Dialog */}
+        <Dialog open={showResetPasswordDialog} onOpenChange={setShowResetPasswordDialog}>
+          <DialogContent className="bg-[hsl(220,30%,12%)] border-white/10 text-white max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-white">
+                <div className="p-2 rounded-xl bg-cyan-500/10 border border-cyan-500/20">
+                  <KeyRound className="h-5 w-5 text-cyan-400" />
+                </div>
+                Force Password Reset
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="p-4 rounded-xl bg-white/[0.04] border border-white/[0.08]">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center text-accent font-bold overflow-hidden">
+                    {detail?.profile?.avatar_url ? <img src={detail.profile.avatar_url} className="w-full h-full object-cover" /> : (detail?.profile?.display_name || "?")[0]?.toUpperCase()}
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-white">{detail?.profile?.display_name || "Unknown"}</p>
+                    <p className="text-xs text-white/40">{detail?.profile?.email}</p>
+                  </div>
+                </div>
+              </div>
+              <p className="text-sm text-white/60 leading-relaxed">
+                This will send a password reset email to the user. They will be required to set a new password before logging in again.
+              </p>
+              <div>
+                <label className="text-xs text-white/50 mb-1.5 block font-medium">Reason for reset</label>
+                <Input value={actionReason} onChange={e => setActionReason(e.target.value)} placeholder="e.g. Security concern, user request..."
+                  className="bg-white/5 border-white/10 text-white placeholder:text-white/25 h-10" />
+              </div>
+            </div>
+            <DialogFooter className="gap-2">
+              <Button variant="ghost" onClick={() => setShowResetPasswordDialog(false)} className="text-white/50">Cancel</Button>
+              <Button onClick={() => { performAction("reset_password"); setShowResetPasswordDialog(false); }} disabled={actionLoading}
+                className="bg-cyan-600 text-white hover:bg-cyan-700 gap-1.5">
+                <KeyRound className="h-3.5 w-3.5" />
+                {actionLoading ? "Sending..." : "Send Reset Email"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Quick Note Dialog */}
+        <Dialog open={showQuickNoteDialog} onOpenChange={setShowQuickNoteDialog}>
+          <DialogContent className="bg-[hsl(220,30%,12%)] border-white/10 text-white max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-white">
+                <div className="p-2 rounded-xl bg-teal-500/10 border border-teal-500/20">
+                  <PenLine className="h-5 w-5 text-teal-400" />
+                </div>
+                Add Quick Note
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs text-white/50 mb-1.5 block font-medium">Category</label>
+                <Select value={quickNoteCategory} onValueChange={setQuickNoteCategory}>
+                  <SelectTrigger className="bg-white/5 border-white/10 text-white h-10">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-[hsl(220,30%,15%)] border-white/10 text-white">
+                    <SelectItem value="general">📝 General</SelectItem>
+                    <SelectItem value="support">🎧 Support Interaction</SelectItem>
+                    <SelectItem value="billing">💳 Billing Issue</SelectItem>
+                    <SelectItem value="behavior">🔍 Behavior Flag</SelectItem>
+                    <SelectItem value="vip">⭐ VIP Treatment</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-xs text-white/50 mb-1.5 block font-medium">Note</label>
+                <Textarea value={quickNote} onChange={e => setQuickNote(e.target.value)}
+                  placeholder="Write your note about this customer..."
+                  className="bg-white/5 border-white/10 text-white placeholder:text-white/25 min-h-[120px] resize-none" />
+              </div>
+              <div className="flex items-center gap-2 text-[10px] text-white/30">
+                <Shield className="h-3 w-3" />
+                <span>Note will be timestamped and attached to the customer's admin log</span>
+              </div>
+            </div>
+            <DialogFooter className="gap-2">
+              <Button variant="ghost" onClick={() => setShowQuickNoteDialog(false)} className="text-white/50">Cancel</Button>
+              <Button onClick={() => {
+                performAction("add_note", { note: quickNote, category: quickNoteCategory });
+                setShowQuickNoteDialog(false);
+              }} disabled={!quickNote.trim() || actionLoading}
+                className="bg-teal-600 text-white hover:bg-teal-700 gap-1.5">
+                <PenLine className="h-3.5 w-3.5" />
+                {actionLoading ? "Saving..." : "Save Note"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Change Plan Dialog */}
+        <Dialog open={showChangePlanDialog} onOpenChange={setShowChangePlanDialog}>
+          <DialogContent className="bg-[hsl(220,30%,12%)] border-white/10 text-white max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-white">
+                <div className="p-2 rounded-xl bg-pink-500/10 border border-pink-500/20">
+                  <Tag className="h-5 w-5 text-pink-400" />
+                </div>
+                Change User Plan
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="p-4 rounded-xl bg-white/[0.04] border border-white/[0.08]">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-white/40">Current Plan</p>
+                    <p className="text-sm font-bold text-white mt-0.5">{detail?.stripe?.current_plan || "Free"}</p>
+                  </div>
+                  <Crown className="h-5 w-5 text-amber-400" />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-white/50 mb-1.5 block font-medium">New Plan</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { value: "free", label: "Free", color: "border-white/10 hover:border-white/30", activeColor: "border-white/40 bg-white/10" },
+                    { value: "starter", label: "Starter", color: "border-emerald-500/20 hover:border-emerald-500/40", activeColor: "border-emerald-500/50 bg-emerald-500/10" },
+                    { value: "pro", label: "Pro", color: "border-sky-500/20 hover:border-sky-500/40", activeColor: "border-sky-500/50 bg-sky-500/10" },
+                    { value: "business", label: "Business", color: "border-purple-500/20 hover:border-purple-500/40", activeColor: "border-purple-500/50 bg-purple-500/10" },
+                  ].map(plan => (
+                    <button key={plan.value} onClick={() => setSelectedPlan(plan.value)}
+                      className={`p-3 rounded-xl border text-sm font-medium transition-all ${selectedPlan === plan.value ? plan.activeColor + " text-white" : plan.color + " text-white/60 bg-white/[0.02]"}`}>
+                      {plan.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-white/50 mb-1.5 block font-medium">Reason for change</label>
+                <Input value={planReason} onChange={e => setPlanReason(e.target.value)} placeholder="e.g. Promotional upgrade, customer request..."
+                  className="bg-white/5 border-white/10 text-white placeholder:text-white/25 h-10" />
+              </div>
+            </div>
+            <DialogFooter className="gap-2">
+              <Button variant="ghost" onClick={() => setShowChangePlanDialog(false)} className="text-white/50">Cancel</Button>
+              <Button onClick={() => {
+                performAction("change_plan", { plan: selectedPlan, reason: planReason });
+                setShowChangePlanDialog(false);
+              }} disabled={actionLoading}
+                className="bg-pink-600 text-white hover:bg-pink-700 gap-1.5">
+                <Tag className="h-3.5 w-3.5" />
+                {actionLoading ? "Updating..." : "Update Plan"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Export User Data Dialog */}
+        <Dialog open={showExportDialog} onOpenChange={setShowExportDialog}>
+          <DialogContent className="bg-[hsl(220,30%,12%)] border-white/10 text-white max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-white">
+                <div className="p-2 rounded-xl bg-indigo-500/10 border border-indigo-500/20">
+                  <FileDown className="h-5 w-5 text-indigo-400" />
+                </div>
+                Export User Data
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs text-white/50 mb-1.5 block font-medium">Export Format</label>
+                <div className="flex gap-2">
+                  {[
+                    { value: "json", label: "JSON" },
+                    { value: "csv", label: "CSV" },
+                  ].map(fmt => (
+                    <button key={fmt.value} onClick={() => setExportFormat(fmt.value)}
+                      className={`flex-1 p-2.5 rounded-xl border text-sm font-medium transition-all ${exportFormat === fmt.value ? "border-indigo-500/50 bg-indigo-500/10 text-white" : "border-white/10 bg-white/[0.02] text-white/50 hover:border-white/20"}`}>
+                      {fmt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-white/50 mb-1.5 block font-medium">Sections to Include</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { value: "profile", label: "👤 Profile" },
+                    { value: "transactions", label: "💰 Transactions" },
+                    { value: "activity", label: "📊 Activity" },
+                    { value: "devices", label: "📱 Devices" },
+                    { value: "stripe", label: "💳 Stripe" },
+                    { value: "admin_log", label: "🔒 Admin Log" },
+                  ].map(sec => (
+                    <button key={sec.value}
+                      onClick={() => setExportSections(prev => prev.includes(sec.value) ? prev.filter(s => s !== sec.value) : [...prev, sec.value])}
+                      className={`p-2.5 rounded-xl border text-xs font-medium transition-all text-left ${exportSections.includes(sec.value) ? "border-indigo-500/40 bg-indigo-500/10 text-white" : "border-white/10 bg-white/[0.02] text-white/40 hover:border-white/20"}`}>
+                      {sec.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <DialogFooter className="gap-2">
+              <Button variant="ghost" onClick={() => setShowExportDialog(false)} className="text-white/50">Cancel</Button>
+              <Button onClick={() => {
+                // Build export data from detail
+                const exportData: any = {};
+                if (exportSections.includes("profile")) exportData.profile = detail?.profile;
+                if (exportSections.includes("transactions")) exportData.transactions = detail?.transactions;
+                if (exportSections.includes("activity")) exportData.login_activity = detail?.login_activity;
+                if (exportSections.includes("devices")) exportData.devices = detail?.device_sessions;
+                if (exportSections.includes("stripe")) exportData.stripe = detail?.stripe;
+                if (exportSections.includes("admin_log")) exportData.admin_actions = detail?.admin_actions;
+
+                let blob: Blob;
+                let filename: string;
+                if (exportFormat === "csv") {
+                  const rows = Object.entries(exportData).map(([key, val]) => `${key},${JSON.stringify(val)}`);
+                  blob = new Blob(["section,data\n" + rows.join("\n")], { type: "text/csv" });
+                  filename = `user-${detail?.profile?.username || selectedUserId}-export.csv`;
+                } else {
+                  blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
+                  filename = `user-${detail?.profile?.username || selectedUserId}-export.json`;
+                }
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url; a.download = filename; a.click();
+                URL.revokeObjectURL(url);
+                toast.success(`Exported as ${exportFormat.toUpperCase()}`);
+                setShowExportDialog(false);
+              }} disabled={exportSections.length === 0}
+                className="bg-indigo-600 text-white hover:bg-indigo-700 gap-1.5">
+                <FileDown className="h-3.5 w-3.5" />
+                Export {exportSections.length} Sections
               </Button>
             </DialogFooter>
           </DialogContent>
