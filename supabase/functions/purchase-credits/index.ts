@@ -19,14 +19,16 @@ const CUSTOM_CREDITS_IMAGE = "https://ufsnuobtvkciydftsyff.supabase.co/storage/v
 
 // Volume discount tiers (max 40%)
 const getVolumeDiscount = (credits: number): number => {
-  if (credits >= 10000) return 0.40;
-  if (credits >= 5000) return 0.35;
-  if (credits >= 3000) return 0.30;
-  if (credits >= 2000) return 0.25;
-  if (credits >= 1000) return 0.20;
-  if (credits >= 500) return 0.15;
-  if (credits >= 200) return 0.10;
-  if (credits >= 100) return 0.05;
+  if (credits >= 75000) return 0.40;
+  if (credits >= 50000) return 0.35;
+  if (credits >= 30000) return 0.30;
+  if (credits >= 20000) return 0.25;
+  if (credits >= 12000) return 0.20;
+  if (credits >= 8000) return 0.15;
+  if (credits >= 5000) return 0.12;
+  if (credits >= 3000) return 0.10;
+  if (credits >= 1000) return 0.08;
+  if (credits >= 500) return 0.05;
   return 0;
 };
 
@@ -100,7 +102,7 @@ serve(async (req) => {
     const origin = "https://ozcagency.com";
 
     // --- CUSTOM CREDITS MODE ---
-    if (customCredits && typeof customCredits === "number" && customCredits >= 10) {
+    if (customCredits && typeof customCredits === "number" && customCredits >= 500) {
       logStep("Custom credits mode", { customCredits });
 
       const volumeDiscount = getVolumeDiscount(customCredits);
