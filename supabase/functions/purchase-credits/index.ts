@@ -152,8 +152,8 @@ serve(async (req) => {
         customer_email: customerId ? undefined : user.email,
         line_items: [{ price: checkoutPriceId, quantity: 1 }],
         mode: "payment",
-        success_url: `${origin}/pricing?success=true&credits=${customCredits}`,
-        cancel_url: `${origin}/pricing?canceled=true`,
+        ui_mode: "embedded",
+        return_url: `${origin}/pricing?success=true&credits=${customCredits}`,
         metadata: {
           user_id: user.id,
           package_id: "custom",
@@ -164,7 +164,7 @@ serve(async (req) => {
       });
 
       logStep("Custom checkout session created", { sessionId: session.id });
-      return new Response(JSON.stringify({ url: session.url }), {
+      return new Response(JSON.stringify({ clientSecret: session.client_secret }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
       });
@@ -211,8 +211,8 @@ serve(async (req) => {
       customer_email: customerId ? undefined : user.email,
       line_items: [{ price: checkoutPriceId, quantity: 1 }],
       mode: "payment",
-      success_url: `${origin}/pricing?success=true&credits=${pkg.credits + pkg.bonus_credits}`,
-      cancel_url: `${origin}/pricing?canceled=true`,
+      ui_mode: "embedded",
+      return_url: `${origin}/pricing?success=true&credits=${pkg.credits + pkg.bonus_credits}`,
       metadata: {
         user_id: user.id,
         package_id: pkg.id,
@@ -231,7 +231,7 @@ serve(async (req) => {
 
     logStep("Checkout session created", { sessionId: session.id, discount: returningDiscountPercent });
 
-    return new Response(JSON.stringify({ url: session.url }), {
+    return new Response(JSON.stringify({ clientSecret: session.client_secret }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });
