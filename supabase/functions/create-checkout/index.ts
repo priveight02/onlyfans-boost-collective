@@ -37,12 +37,12 @@ const STRIPE_PLAN_MAP: Record<string, { monthly: string; yearly: string; product
 
 // TEST environment equivalents
 const LIVE_TO_TEST_PRICE: Record<string, string> = {
-  "price_1T1CVAP8Id8IBpd0heXxbsUk": "price_1T1EyGP8Id8IBpd0tNAn9MrU",
-  "price_1T1CcdP8Id8IBpd0AppiCEdo": "price_1T1EyRP8Id8IBpd0T0nuzf8K",
-  "price_1T1CVfP8Id8IBpd0B8EfZeGR": "price_1T1EybP8Id8IBpd0G6zKzoSS",
-  "price_1T1CcuP8Id8IBpd0X5c5Nqbs": "price_1T1EymP8Id8IBpd0nJZGVBlM",
-  "price_1T1CVpP8Id8IBpd07EYina3g": "price_1T1Ez2P8Id8IBpd0SjMOkzvg",
-  "price_1T1Cd3P8Id8IBpd0Ds2Y7HoM": "price_1T1EzDP8Id8IBpd0VOZZoLYG",
+  "price_1T1CVAP8Id8IBpd0heXxbsUk": "price_1T1S56AVBBvDGKKB8EV7ZvO1",
+  "price_1T1CcdP8Id8IBpd0AppiCEdo": "price_1T1S5fAVBBvDGKKBfv4Yzmvi",
+  "price_1T1CVfP8Id8IBpd0B8EfZeGR": "price_1T1S5yAVBBvDGKKBhM9khxrJ",
+  "price_1T1CcuP8Id8IBpd0X5c5Nqbs": "price_1T1S6JAVBBvDGKKBMqAezmPe",
+  "price_1T1CVpP8Id8IBpd07EYina3g": "price_1T1S6YAVBBvDGKKBhYhs5Odi",
+  "price_1T1Cd3P8Id8IBpd0Ds2Y7HoM": "price_1T1S6qAVBBvDGKKBiWitaZzY",
 };
 
 const PRODUCT_TO_PLAN: Record<string, string> = {
@@ -51,9 +51,9 @@ const PRODUCT_TO_PLAN: Record<string, string> = {
   "prod_TzArZUF2DIlzHq": "pro", "prod_TzAywFFZ0SdhfZ": "pro",
   "prod_TzAram9it2Kedf": "business", "prod_TzAzgoteaSHuDB": "business",
   // Test
-  "prod_TzDPwhTrnCOnYm": "starter", "prod_TzDPUEvS935A88": "starter",
-  "prod_TzDPNCljqBJ2Cq": "pro", "prod_TzDPxffqvU9iSq": "pro",
-  "prod_TzDPr3jeAGF9mm": "business", "prod_TzDQJVbiYpTH9Y": "business",
+  "prod_TzQxzU5hz8sdwa": "starter", "prod_TzQxbSs93pQQtb": "starter",
+  "prod_TzQxBoodMhERqW": "pro", "prod_TzQyWX1DZuWpdA": "pro",
+  "prod_TzQyMmAEWuE1Ls": "business", "prod_TzQyfPCDZvRxLn": "business",
 };
 
 const PLAN_CREDITS: Record<string, number> = { starter: 215, pro: 1075, business: 4300 };
