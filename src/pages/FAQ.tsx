@@ -23,7 +23,7 @@ const FAQ = () => {
       questions: [
         {
           question: "What is Ozc Agency's CRM platform?",
-          answer: "Ozc Agency provides an AI-powered CRM and business growth platform. We combine intelligent customer management, workflow automation, multi-channel outreach, and advanced analytics into one unified system, designed to help businesses of all sizes scale faster and smarter."
+          answer: "Ozc Agency provides an AI-powered CRM and growth platform. We combine intelligent customer management, workflow automation, multi-channel outreach, and advanced analytics into one unified system designed to help businesses, content creators, freelancers, and anyone looking to build a stronger digital presence scale faster and smarter."
         },
         {
           question: "How do I get started?",
@@ -146,7 +146,7 @@ const FAQ = () => {
             Frequently Asked <span className="bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">Questions</span>
           </h1>
           <p className="text-lg text-white/40 max-w-2xl mx-auto mb-2 animate-fade-in">
-            Find answers about our AI-powered CRM platform, automation features, and how we help businesses grow.
+            Find answers about our AI-powered platform, automation features, and how we help businesses, content creators, and entrepreneurs grow their digital presence.
           </p>
         </div>
       </div>
@@ -237,7 +237,7 @@ const FAQ = () => {
             Ready to Start Growing?
           </h2>
           <p className="text-lg text-white/40 mb-8 max-w-xl mx-auto animate-fade-in">
-            Join thousands of businesses already scaling with Ozc Agency's AI-powered platform.
+            Join thousands of businesses, creators, and entrepreneurs already scaling with Ozc Agency's AI-powered platform.
           </p>
           <Button
             size="lg"
