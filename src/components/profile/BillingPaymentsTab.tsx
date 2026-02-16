@@ -15,6 +15,7 @@ interface Subscription {
   id: string;
   status: string;
   product_id: string;
+  product_name: string | null;
   price_id: string;
   current_period_start: string;
   current_period_end: string;
@@ -203,7 +204,7 @@ const BillingPaymentsTab = () => {
               <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-4">
                 <p className="text-white/40 text-[11px] font-medium uppercase tracking-wider mb-1">Current Plan</p>
                 <p className="text-white font-semibold text-sm">
-                  {PLAN_NAME_MAP[subscription.product_id as string] || "Custom Plan"}
+                  {subscription.product_name || PLAN_NAME_MAP[subscription.product_id as string] || "Custom Plan"}
                 </p>
                 {subscription.discount && (
                   <Badge className="mt-1.5 bg-emerald-500/15 text-emerald-300 border-emerald-500/20 text-[10px]">
