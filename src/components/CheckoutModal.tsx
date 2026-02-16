@@ -376,8 +376,17 @@ const CheckoutModal = ({ clientSecret, onClose }: CheckoutModalProps) => {
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3 }}
-                className="flex items-center gap-3"
+                className="flex flex-col sm:flex-row items-center gap-3"
               >
+                <Button
+                  onClick={() => setView("checkout")}
+                  className="px-6 py-5 rounded-xl bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 hover:text-purple-200 border border-purple-500/25 hover:border-purple-500/40 transition-all"
+                >
+                  <span className="flex items-center gap-2">
+                    <ArrowRight className="h-4 w-4 rotate-180" />
+                    It was a mistake? Go back to checkout
+                  </span>
+                </Button>
                 <Button
                   onClick={handleDismissCanceled}
                   className="px-6 py-5 rounded-xl bg-white/[0.06] hover:bg-white/[0.1] text-white/60 hover:text-white border border-white/[0.08] transition-all"
