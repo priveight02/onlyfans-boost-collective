@@ -217,5 +217,6 @@ async function checkRetentionEligibility(stripe: Stripe, customerId: string): Pr
     return { eligible: false, reasons, reason: "Retention discount already active" };
   }
 
-  return { eligible: reasons.length > 0, reasons };
+  // Require at least 2 conditions met to be eligible (not just having a sub)
+  return { eligible: reasons.length >= 2, reasons };
 }
