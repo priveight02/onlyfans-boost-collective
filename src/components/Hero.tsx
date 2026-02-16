@@ -131,7 +131,7 @@ const Hero = () => {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.9, delay: 0.2 }}
-            className="text-5xl md:text-8xl font-bold text-white mb-6 font-heading tracking-tight leading-[1.05]"
+            className="text-5xl md:text-7xl font-bold text-white mb-6 font-heading tracking-tight leading-[1.05]"
           >
             The AI-Powered Platform
             <br />
