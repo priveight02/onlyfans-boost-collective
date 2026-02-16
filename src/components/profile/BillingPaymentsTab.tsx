@@ -44,9 +44,14 @@ interface Payment {
 }
 
 const PLAN_NAME_MAP: Record<string, string> = {
-  "pro_01khk8849zz71cnn6phwezgz6h": "Starter",
-  "pro_01khk884je9ssmmgq17m850nt6": "Pro",
-  "pro_01khk884s1s79fcga36rfqxexq": "Business",
+  // Live
+  "prod_TzAqP0zH90vzyR": "Starter", "prod_TzAypr06as419B": "Starter",
+  "prod_TzArZUF2DIlzHq": "Pro", "prod_TzAywFFZ0SdhfZ": "Pro",
+  "prod_TzAram9it2Kedf": "Business", "prod_TzAzgoteaSHuDB": "Business",
+  // Test
+  "prod_TzDPwhTrnCOnYm": "Starter", "prod_TzDPUEvS935A88": "Starter",
+  "prod_TzDPNCljqBJ2Cq": "Pro", "prod_TzDPxffqvU9iSq": "Pro",
+  "prod_TzDPr3jeAGF9mm": "Business", "prod_TzDQJVbiYpTH9Y": "Business",
 };
 
 const formatCurrency = (amount: number, currency: string) => {

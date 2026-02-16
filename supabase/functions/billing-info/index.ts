@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 
 const corsHeaders = {
@@ -6,37 +7,39 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const PADDLE_API = "https://sandbox-api.paddle.com";
+const logStep = (step: string, details?: any) => {
+  console.log(`[BILLING-INFO] ${step}${details ? ` - ${JSON.stringify(details)}` : ''}`);
+};
 
 const PRODUCT_TO_PLAN: Record<string, string> = {
-  "pro_01khk8849zz71cnn6phwezgz6h": "starter",
-  "pro_01khk884je9ssmmgq17m850nt6": "pro",
-  "pro_01khk884s1s79fcga36rfqxexq": "business",
+  // Live
+  "prod_TzAqP0zH90vzyR": "starter", "prod_TzAypr06as419B": "starter",
+  "prod_TzArZUF2DIlzHq": "pro", "prod_TzAywFFZ0SdhfZ": "pro",
+  "prod_TzAram9it2Kedf": "business", "prod_TzAzgoteaSHuDB": "business",
+  // Test
+  "prod_TzDPwhTrnCOnYm": "starter", "prod_TzDPUEvS935A88": "starter",
+  "prod_TzDPNCljqBJ2Cq": "pro", "prod_TzDPxffqvU9iSq": "pro",
+  "prod_TzDPr3jeAGF9mm": "business", "prod_TzDQJVbiYpTH9Y": "business",
 };
 
 const PRODUCT_NAME_MAP: Record<string, string> = {
-  "pro_01khk8849zz71cnn6phwezgz6h": "Starter",
-  "pro_01khk884je9ssmmgq17m850nt6": "Pro",
-  "pro_01khk884s1s79fcga36rfqxexq": "Business",
+  "prod_TzAqP0zH90vzyR": "Starter", "prod_TzAypr06as419B": "Starter",
+  "prod_TzArZUF2DIlzHq": "Pro", "prod_TzAywFFZ0SdhfZ": "Pro",
+  "prod_TzAram9it2Kedf": "Business", "prod_TzAzgoteaSHuDB": "Business",
+  "prod_TzDPwhTrnCOnYm": "Starter", "prod_TzDPUEvS935A88": "Starter",
+  "prod_TzDPNCljqBJ2Cq": "Pro", "prod_TzDPxffqvU9iSq": "Pro",
+  "prod_TzDPr3jeAGF9mm": "Business", "prod_TzDQJVbiYpTH9Y": "Business",
 };
 
+// Pro + Business product IDs eligible for retention
 const ELIGIBLE_PRODUCT_IDS = [
-  "pro_01khk884je9ssmmgq17m850nt6", // pro
-  "pro_01khk884s1s79fcga36rfqxexq", // business
+  // Live
+  "prod_TzArZUF2DIlzHq", "prod_TzAywFFZ0SdhfZ",
+  "prod_TzAram9it2Kedf", "prod_TzAzgoteaSHuDB",
+  // Test
+  "prod_TzDPNCljqBJ2Cq", "prod_TzDPxffqvU9iSq",
+  "prod_TzDPr3jeAGF9mm", "prod_TzDQJVbiYpTH9Y",
 ];
-
-const paddleFetch = async (path: string, method: string, body?: any) => {
-  const apiKey = Deno.env.get("PADDLE_API_KEY");
-  if (!apiKey) throw new Error("PADDLE_API_KEY not set");
-  const res = await fetch(`${PADDLE_API}${path}`, {
-    method,
-    headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(`Paddle API error [${res.status}]: ${JSON.stringify(data)}`);
-  return data;
-};
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -53,51 +56,53 @@ serve(async (req) => {
     const { data: userData, error: userError } = await supabase.auth.getUser(token);
     if (userError || !userData.user?.email) throw new Error("Not authenticated");
 
+    const stripeKey = Deno.env.get("STRIPE_SECRET_KEY") || "";
+    const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
+
     const body = await req.json().catch(() => ({}));
     const action = body.action || "info";
 
-    // Find Paddle customer
-    let customerId: string | null = null;
-    const customers = await paddleFetch(`/customers?search=${encodeURIComponent(userData.user.email)}`, "GET");
-    if (customers.data?.length === 0) {
+    // Find Stripe customer
+    const customers = await stripe.customers.list({ email: userData.user.email, limit: 1 });
+    if (customers.data.length === 0) {
       return new Response(JSON.stringify({
         subscription: null,
         payments: [],
         eligible_for_retention: false,
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
-    customerId = customers.data[0].id;
+    const customerId = customers.data[0].id;
+    logStep("Found customer", { customerId });
 
-    // Action: apply retention discount
+    // Action: apply retention coupon
     if (action === "apply_retention_coupon") {
-      const subs = await paddleFetch(`/subscriptions?customer_id=${customerId}&status=active`, "GET");
-      if (subs.data?.length === 0) {
+      const subs = await stripe.subscriptions.list({ customer: customerId, status: "active", limit: 1 });
+      if (subs.data.length === 0) {
         return new Response(JSON.stringify({ error: "No active subscription" }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400,
         });
       }
 
-      // Apply 50% discount to subscription
-      for (const sub of subs.data) {
-        await paddleFetch(`/subscriptions/${sub.id}`, "PATCH", {
-          discount: { id: "dsc_01khk888kz0h5mk2v2cq8gw60m", effective_from: "next_billing_period" },
-        });
-      }
+      // Apply 50% coupon
+      await stripe.subscriptions.update(subs.data[0].id, {
+        coupon: "retention_50",
+      });
 
       return new Response(JSON.stringify({ success: true, message: "50% discount applied" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Get active subscription
-    const activeSubs = await paddleFetch(`/subscriptions?customer_id=${customerId}&status=active`, "GET");
-    const canceledSubs = await paddleFetch(`/subscriptions?customer_id=${customerId}&status=canceled`, "GET");
+    // Get subscription info
+    const activeSubs = await stripe.subscriptions.list({ customer: customerId, status: "active", limit: 1 });
+    let sub = activeSubs.data[0] || null;
 
-    let sub = activeSubs.data?.[0] || null;
-    if (!sub && canceledSubs.data?.length > 0) {
-      const now = new Date();
+    // Check for canceled subs still within billing period
+    if (!sub) {
+      const canceledSubs = await stripe.subscriptions.list({ customer: customerId, status: "canceled", limit: 5 });
+      const now = Math.floor(Date.now() / 1000);
       for (const cs of canceledSubs.data) {
-        if (cs.current_billing_period?.ends_at && new Date(cs.current_billing_period.ends_at) > now) {
+        if (cs.current_period_end > now) {
           sub = cs;
           break;
         }
@@ -106,11 +111,20 @@ serve(async (req) => {
 
     let subscription = null;
     if (sub) {
-      const productId = sub.items?.[0]?.price?.product_id || "";
-      const priceId = sub.items?.[0]?.price?.id || "";
+      const productId = sub.items.data[0]?.price?.product as string || "";
+      const priceId = sub.items.data[0]?.price?.id || "";
+      const interval = sub.items.data[0]?.price?.recurring?.interval || "month";
       const planName = PRODUCT_NAME_MAP[productId] || "Unknown Plan";
-      const billingCycle = sub.items?.[0]?.price?.billing_cycle;
-      const interval = billingCycle?.interval || "month";
+
+      // Get coupon info
+      let discount = null;
+      if (sub.discount?.coupon) {
+        discount = {
+          coupon_name: sub.discount.coupon.name || "Discount",
+          percent_off: sub.discount.coupon.percent_off,
+          amount_off: sub.discount.coupon.amount_off,
+        };
+      }
 
       subscription = {
         id: sub.id,
@@ -118,42 +132,44 @@ serve(async (req) => {
         product_id: productId,
         product_name: `${planName} (${interval === "year" ? "Yearly" : "Monthly"})`,
         price_id: priceId,
-        current_period_start: sub.current_billing_period?.starts_at || null,
-        current_period_end: sub.current_billing_period?.ends_at || null,
-        cancel_at_period_end: sub.scheduled_change?.action === "cancel",
-        discount: sub.discount ? {
-          coupon_name: "Discount",
-          percent_off: null,
-          amount_off: null,
-        } : null,
-        amount: parseInt(sub.items?.[0]?.price?.unit_price?.amount || "0"),
-        currency: sub.items?.[0]?.price?.unit_price?.currency_code?.toLowerCase() || "usd",
+        current_period_start: new Date(sub.current_period_start * 1000).toISOString(),
+        current_period_end: new Date(sub.current_period_end * 1000).toISOString(),
+        cancel_at_period_end: sub.cancel_at_period_end,
+        discount,
+        amount: sub.items.data[0]?.price?.unit_amount || 0,
+        currency: sub.currency || "usd",
         interval,
       };
     }
 
-    // Get transaction history (payments)
-    const txns = await paddleFetch(`/transactions?customer_id=${customerId}&status=completed&per_page=50`, "GET");
-    const payments = (txns.data || []).map((t: any) => ({
-      id: t.id,
-      amount: parseInt(t.details?.totals?.total || "0"),
-      currency: t.currency_code?.toLowerCase() || "usd",
-      status: t.status === "completed" ? "succeeded" : t.status,
-      created: t.created_at,
-      description: t.items?.[0]?.price?.description || null,
-      receipt_email: null,
-      receipt_url: t.checkout?.url || null,
-      refunded: false,
-      amount_refunded: 0,
-      payment_method_details: null,
+    // Get payment history
+    const charges = await stripe.charges.list({ customer: customerId, limit: 50 });
+    const payments = charges.data.map((c) => ({
+      id: c.id,
+      amount: c.amount,
+      currency: c.currency,
+      status: c.status,
+      created: new Date(c.created * 1000).toISOString(),
+      description: c.description,
+      receipt_email: c.receipt_email,
+      receipt_url: c.receipt_url,
+      refunded: c.refunded,
+      amount_refunded: c.amount_refunded,
+      payment_method_details: c.payment_method_details ? {
+        type: c.payment_method_details.type,
+        card: c.payment_method_details.card ? {
+          brand: c.payment_method_details.card.brand,
+          last4: c.payment_method_details.card.last4,
+        } : null,
+      } : null,
       discount: null,
     }));
 
     // Check retention eligibility
-    const hasEligibleSub = (activeSubs.data || []).some((s: any) =>
-      s.items?.some((item: any) => ELIGIBLE_PRODUCT_IDS.includes(item.price?.product_id))
+    const hasEligibleSub = (activeSubs.data || []).some((s) =>
+      s.items.data.some((item) => ELIGIBLE_PRODUCT_IDS.includes(item.price?.product as string))
     );
-    const totalSpent = payments.reduce((sum: number, p: any) => sum + p.amount, 0);
+    const totalSpent = payments.reduce((sum, p) => sum + p.amount, 0);
     const reasons: string[] = [];
     if (hasEligibleSub) reasons.push("active_pro_or_business");
     if (totalSpent > 5000) reasons.push("spent_over_50");
@@ -176,6 +192,7 @@ serve(async (req) => {
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
   } catch (error) {
+    logStep("ERROR", { message: error instanceof Error ? error.message : String(error) });
     return new Response(JSON.stringify({ error: error instanceof Error ? error.message : String(error) }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
