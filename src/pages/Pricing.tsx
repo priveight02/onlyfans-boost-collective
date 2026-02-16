@@ -168,10 +168,10 @@ const Pricing = () => {
   const customDisplayCents = isReturning ? Math.round(customTotalCents * (1 - returningDiscount)) : customTotalCents;
 
   const cardAccents = [
-    { border: "border-purple-500/25", glow: "shadow-purple-500/5", badge: "bg-purple-500", label: "" },
-    { border: "border-yellow-500/40", glow: "shadow-yellow-500/10", badge: "bg-yellow-500", label: "Most Popular" },
-    { border: "border-white/10", glow: "shadow-white/5", badge: "", label: "" },
-    { border: "border-purple-500/30", glow: "shadow-purple-500/5", badge: "bg-purple-500", label: "Best Value" },
+    { border: "border-purple-500/25", glow: "hover:shadow-purple-500/5", badge: "bg-purple-500", label: "" },
+    { border: "border-yellow-500/40", glow: "hover:shadow-yellow-500/10", badge: "bg-yellow-500", label: "Most Popular" },
+    { border: "border-white/10", glow: "hover:shadow-white/5", badge: "", label: "" },
+    { border: "border-purple-500/30", glow: "hover:shadow-purple-500/5", badge: "bg-purple-500", label: "Best Value" },
   ];
 
   return (
@@ -322,7 +322,7 @@ const Pricing = () => {
             })}
 
             {/* Custom Credits Card */}
-            <div className="relative flex flex-col rounded-2xl border border-purple-500/30 bg-[hsl(222,30%,11%)] transition-all duration-200 hover:translate-y-[-2px] hover:shadow-xl shadow-purple-500/5">
+            <div className="relative flex flex-col rounded-2xl border border-purple-500/30 bg-[hsl(222,30%,11%)] transition-all duration-200 hover:translate-y-[-2px] hover:shadow-xl hover:shadow-purple-500/5">
               <div className="absolute -top-3 right-4">
                 <span className="bg-purple-500 text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full">
                   Custom
