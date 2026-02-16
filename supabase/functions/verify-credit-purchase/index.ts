@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 
 const corsHeaders = {
@@ -6,23 +7,8 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const PADDLE_API = "https://sandbox-api.paddle.com";
-
 const logStep = (step: string, details?: any) => {
   console.log(`[VERIFY-CREDIT-PURCHASE] ${step}${details ? ` - ${JSON.stringify(details)}` : ''}`);
-};
-
-const paddleFetch = async (path: string, method: string, body?: any) => {
-  const apiKey = Deno.env.get("PADDLE_API_KEY");
-  if (!apiKey) throw new Error("PADDLE_API_KEY not set");
-  const res = await fetch(`${PADDLE_API}${path}`, {
-    method,
-    headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(`Paddle API error [${res.status}]: ${JSON.stringify(data)}`);
-  return data;
 };
 
 serve(async (req) => {
@@ -48,46 +34,48 @@ serve(async (req) => {
     if (!user?.id) throw new Error("User not authenticated");
     logStep("User authenticated", { userId: user.id });
 
-    // Find Paddle customer
-    let customerId: string | null = null;
-    try {
-      const customers = await paddleFetch(`/customers?search=${encodeURIComponent(user.email!)}`, "GET");
-      if (customers.data?.length > 0) customerId = customers.data[0].id;
-    } catch {}
+    const stripeKey = Deno.env.get("STRIPE_SECRET_KEY") || "";
+    const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
 
-    if (!customerId) {
-      return new Response(JSON.stringify({ credited: false, credits_added: 0, message: "No Paddle customer found" }), {
+    // Find Stripe customer
+    const customers = await stripe.customers.list({ email: user.email!, limit: 1 });
+    if (customers.data.length === 0) {
+      return new Response(JSON.stringify({ credited: false, credits_added: 0, message: "No Stripe customer found" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    const customerId = customers.data[0].id;
 
-    // List completed transactions for this customer
-    const transactions = await paddleFetch(`/transactions?customer_id=${customerId}&status=completed&per_page=25`, "GET");
-    const txns = transactions.data || [];
-    logStep("Found transactions", { count: txns.length });
+    // List completed checkout sessions
+    const sessions = await stripe.checkout.sessions.list({
+      customer: customerId,
+      limit: 25,
+      status: "complete",
+    });
+    logStep("Found sessions", { count: sessions.data.length });
 
     let totalCredited = 0;
 
-    for (const txn of txns) {
-      const txnId = txn.id;
-      const customData = txn.custom_data || {};
-      const credits = parseInt(customData.credits || "0");
-      const bonusCredits = parseInt(customData.bonus_credits || "0");
+    for (const session of sessions.data) {
+      const sessionId = session.id;
+      const metadata = session.metadata || {};
+      const credits = parseInt(metadata.credits || "0");
+      const bonusCredits = parseInt(metadata.bonus_credits || "0");
       const totalCredits = credits + bonusCredits;
 
       if (totalCredits <= 0) continue;
-      if (customData.user_id !== user.id) continue;
+      if (metadata.user_id !== user.id) continue;
 
       // Idempotency check
       const { data: existing } = await supabaseAdmin
         .from("wallet_transactions")
         .select("id")
-        .eq("reference_id", txnId)
+        .eq("reference_id", sessionId)
         .eq("type", "purchase")
         .limit(1);
 
       if (existing && existing.length > 0) {
-        logStep("Already processed — skip", { txnId });
+        logStep("Already processed — skip", { sessionId });
         continue;
       }
 
@@ -98,11 +86,11 @@ serve(async (req) => {
           user_id: user.id,
           amount: totalCredits,
           type: "purchase",
-          reference_id: txnId,
+          reference_id: sessionId,
           description: `Purchased ${credits} credits${bonusCredits > 0 ? ` + ${bonusCredits} bonus` : ''}`,
           metadata: {
-            package_id: customData.package_id,
-            paddle_transaction_id: txnId,
+            package_id: metadata.package_id,
+            stripe_session_id: sessionId,
             credits,
             bonus_credits: bonusCredits,
             verified_at: new Date().toISOString(),
@@ -110,7 +98,7 @@ serve(async (req) => {
         });
 
       if (txError) {
-        logStep("Transaction insert failed (likely duplicate)", { txnId, error: txError.message });
+        logStep("Transaction insert failed (likely duplicate)", { sessionId, error: txError.message });
         continue;
       }
 
@@ -174,7 +162,7 @@ serve(async (req) => {
       }
 
       totalCredited += totalCredits;
-      logStep("Credits added", { totalCredits, txnId });
+      logStep("Credits added", { totalCredits, sessionId });
     }
 
     const { data: updatedWallet } = await supabaseAdmin

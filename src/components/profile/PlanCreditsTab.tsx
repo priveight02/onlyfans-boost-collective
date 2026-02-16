@@ -9,9 +9,18 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/hooks/useAuth";
 import { useWallet } from "@/hooks/useWallet";
-import { usePaddle, PADDLE_PLAN_MAP, PADDLE_PRODUCT_TO_PLAN } from "@/hooks/usePaddle";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+
+// Stripe product → plan mapping (live + test)
+const STRIPE_PRODUCT_TO_PLAN: Record<string, string> = {
+  "prod_TzAqP0zH90vzyR": "starter", "prod_TzAypr06as419B": "starter",
+  "prod_TzArZUF2DIlzHq": "pro", "prod_TzAywFFZ0SdhfZ": "pro",
+  "prod_TzAram9it2Kedf": "business", "prod_TzAzgoteaSHuDB": "business",
+  "prod_TzDPwhTrnCOnYm": "starter", "prod_TzDPUEvS935A88": "starter",
+  "prod_TzDPNCljqBJ2Cq": "pro", "prod_TzDPxffqvU9iSq": "pro",
+  "prod_TzDPr3jeAGF9mm": "business", "prod_TzDQJVbiYpTH9Y": "business",
+};
 
 interface CreditPackage {
   id: string;
@@ -24,7 +33,7 @@ interface CreditPackage {
   sort_order: number;
 }
 
-// Plans definition — these match your Paddle products (imported from usePaddle)
+// Plans definition — these match your Stripe products
 
 const PLANS = [
   {
@@ -111,7 +120,7 @@ const PREDEFINED_TOPUPS = [100, 200, 300, 500, 800, 1000, 1500, 2000, 3000, 5000
 const PlanCreditsTab = () => {
   const { user } = useAuth();
   const { balance, purchaseCount, totalPurchased, totalSpent, loading: walletLoading, refreshWallet } = useWallet();
-  const { openCheckout } = usePaddle();
+  // Stripe redirect-based checkout (no client-side SDK needed)
   const [packages, setPackages] = useState<CreditPackage[]>([]);
   const [loadingPackages, setLoadingPackages] = useState(true);
   const [showTopUpDialog, setShowTopUpDialog] = useState(false);
@@ -138,23 +147,11 @@ const PlanCreditsTab = () => {
       if (error || !data) return;
       if (data.subscription) {
         const productId = data.subscription.product_id;
-        // Match product_id to our plan IDs using Paddle mapping
-        const matchedPlan = PADDLE_PRODUCT_TO_PLAN[productId];
+        const matchedPlan = STRIPE_PRODUCT_TO_PLAN[productId];
         if (matchedPlan) {
           setActivePlanId(matchedPlan);
         } else {
-          // Fallback: try matching via PADDLE_PLAN_MAP
-          let found = false;
-          for (const [planId, info] of Object.entries(PADDLE_PLAN_MAP)) {
-            if (info.monthly.product_id === productId || info.yearly.product_id === productId) {
-              setActivePlanId(planId);
-              found = true;
-              break;
-            }
-          }
-          if (!found) {
-            console.warn("Unknown subscription product", { productId });
-          }
+          console.warn("Unknown subscription product", { productId });
         }
       } else {
         setActivePlanId(null);
@@ -222,9 +219,7 @@ const PlanCreditsTab = () => {
 
   const handleUpgrade = async (planId: string) => {
     if (!user) { toast.error("Please log in first"); return; }
-    const paddleInfo = PADDLE_PLAN_MAP[planId];
-    if (!paddleInfo) {
-      // Enterprise — open contact
+    if (planId === "enterprise") {
       window.location.href = "mailto:contact@ozcagency.com?subject=Enterprise Plan Inquiry";
       return;
     }
@@ -251,19 +246,9 @@ const PlanCreditsTab = () => {
         return;
       }
 
-      // New subscription — open Paddle overlay checkout
-      if (data?.checkout) {
-        openCheckout({
-          priceId: data.priceId,
-          customerId: data.customerId,
-          customerEmail: data.customerEmail,
-          customData: data.metadata,
-          onSuccess: () => {
-            fetchSubscription();
-            refreshWallet();
-            toast.success("Subscription activated! Credits have been added.");
-          },
-        });
+      // New subscription — redirect to Stripe checkout
+      if (data?.url) {
+        window.open(data.url, "_blank");
       }
     } catch (err: any) {
       toast.error(err.message || "Failed to start checkout");
@@ -293,15 +278,8 @@ const PlanCreditsTab = () => {
         body: { packageId: pkg.id },
       });
       if (error) throw error;
-      if (data?.checkout) {
-        openCheckout({
-          priceId: data.priceId,
-          customerId: data.customerId,
-          customerEmail: data.customerEmail,
-          discountId: data.discountId,
-          customData: data.metadata,
-          onSuccess: () => { refreshWallet(); },
-        });
+      if (data?.url) {
+        window.open(data.url, "_blank");
       }
     } catch (err: any) {
       toast.error(err.message || "Failed to start checkout");
@@ -319,15 +297,8 @@ const PlanCreditsTab = () => {
         body: { customCredits: credits },
       });
       if (error) throw error;
-      if (data?.checkout) {
-        openCheckout({
-          priceId: data.priceId,
-          customerId: data.customerId,
-          customerEmail: data.customerEmail,
-          discountId: data.discountId,
-          customData: data.metadata,
-          onSuccess: () => { refreshWallet(); },
-        });
+      if (data?.url) {
+        window.open(data.url, "_blank");
       }
     } catch (err: any) {
       toast.error(err.message || "Failed to start checkout");

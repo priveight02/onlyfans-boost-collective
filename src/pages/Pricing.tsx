@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useWallet } from "@/hooks/useWallet";
-import { usePaddle } from "@/hooks/usePaddle";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Check, ArrowRight, Sparkles, BadgePercent, ShieldCheck, Zap, Gift } from "lucide-react";
@@ -37,7 +36,6 @@ const getVolumeDiscount = (credits: number): number => {
 const Pricing = () => {
   const { user } = useAuth();
   const { balance, purchaseCount, refreshWallet } = useWallet();
-  const { openCheckout, ready: paddleReady } = usePaddle();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [packages, setPackages] = useState<CreditPackage[]>([]);
@@ -126,22 +124,14 @@ const Pricing = () => {
 
   const handlePurchase = async (pkg: CreditPackage, useRetention = false) => {
     if (!user) { toast.error("Please log in first"); navigate("/auth"); return; }
-    if (!paddleReady) { toast.error("Payment system loading, please try again in a moment"); return; }
     setPurchasingId(pkg.id + (useRetention ? "_ret" : ""));
     try {
       const { data, error } = await supabase.functions.invoke("purchase-credits", {
         body: { packageId: pkg.id, useRetentionDiscount: useRetention },
       });
       if (error) throw error;
-      if (data?.checkout) {
-        openCheckout({
-          priceId: data.priceId,
-          customerId: data.customerId,
-          customerEmail: data.customerEmail,
-          discountId: data.discountId,
-          customData: data.metadata,
-          onSuccess: () => { refreshWallet(); },
-        });
+      if (data?.url) {
+        window.open(data.url, "_blank");
       }
       if (useRetention) {
         setRetentionActive(false);
@@ -156,7 +146,6 @@ const Pricing = () => {
 
   const handleCustomPurchase = async () => {
     if (!user) { toast.error("Please log in first"); navigate("/auth"); return; }
-    if (!paddleReady) { toast.error("Payment system loading, please try again in a moment"); return; }
     if (customCredits < 10) { toast.error("Minimum 10 credits"); return; }
     setPurchasingCustom(true);
     try {
@@ -164,15 +153,8 @@ const Pricing = () => {
         body: { customCredits },
       });
       if (error) throw error;
-      if (data?.checkout) {
-        openCheckout({
-          priceId: data.priceId,
-          customerId: data.customerId,
-          customerEmail: data.customerEmail,
-          discountId: data.discountId,
-          customData: data.metadata,
-          onSuccess: () => { refreshWallet(); },
-        });
+      if (data?.url) {
+        window.open(data.url, "_blank");
       }
     } catch (err: any) {
       toast.error(err.message || "Failed to start checkout");
@@ -301,7 +283,7 @@ const Pricing = () => {
                         <div className="w-5 h-5 rounded-full bg-white/[0.08] border border-white/[0.12] flex items-center justify-center flex-shrink-0">
                           <Check className="h-3 w-3 text-white/70" strokeWidth={2.5} />
                         </div>
-                        <span>{index === 0 ? "CRM Access" : index === 1 ? "Advanced CRM Access" : index === 2 ? "Full CRM Access" : "Full CRM Access"}</span>
+                        <span>{index === 0 ? "CRM Access" : index === 1 ? "Advanced CRM Access" : "Full CRM Access"}</span>
                       </div>
                     </div>
 
