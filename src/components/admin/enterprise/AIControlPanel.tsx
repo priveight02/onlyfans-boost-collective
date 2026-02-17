@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { cachedFetch, invalidateNamespace } from "@/lib/supabaseCache";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +15,9 @@ import { toast } from "sonner";
 import { Brain, Plus, Shield, Zap, AlertTriangle, Power, History, FileText, Clock, BarChart3 } from "lucide-react";
 import { format } from "date-fns";
 
+const CACHE_ID = "admin";
+const CACHE_TTL = 5 * 60 * 1000; // 5 min
+
 const AIControlPanel = () => {
   const [models, setModels] = useState<any[]>([]);
   const [prompts, setPrompts] = useState<any[]>([]);
@@ -23,124 +27,179 @@ const AIControlPanel = () => {
   const [rateLimits, setRateLimits] = useState<any[]>([]);
   const [globalKillSwitch, setGlobalKillSwitch] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState("models");
+  const loadedTabs = useRef<Set<string>>(new Set(["models"]));
 
-  // Dialog states
   const [showModelDialog, setShowModelDialog] = useState(false);
   const [showPromptDialog, setShowPromptDialog] = useState(false);
   const [showSafetyDialog, setShowSafetyDialog] = useState(false);
 
-  // Form states
   const [modelForm, setModelForm] = useState({ name: "", provider: "openai", model_id: "", description: "", max_tokens: 4096, rate_limit_rpm: 60, pricing_input: 0, pricing_output: 0 });
   const [promptForm, setPromptForm] = useState({ name: "", description: "", category: "general", template: "", variables: "[]" });
   const [safetyForm, setSafetyForm] = useState({ name: "", description: "", rule_type: "content_filter", pattern: "", action: "block", severity: "medium" });
 
-  useEffect(() => {
-    fetchAll();
-    const channel = supabase.channel("ai-control-realtime")
-      .on("postgres_changes", { event: "*", schema: "public", table: "ai_requests" }, () => fetchAiRequests())
-      .on("postgres_changes", { event: "*", schema: "public", table: "system_settings" }, () => fetchKillSwitch())
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
+  // Debounce realtime updates
+  const realtimeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const debouncedRefresh = useCallback((fn: () => void) => {
+    if (realtimeTimer.current) clearTimeout(realtimeTimer.current);
+    realtimeTimer.current = setTimeout(fn, 2000);
   }, []);
 
-  const fetchAll = async () => {
-    setLoading(true);
-    await Promise.all([fetchModels(), fetchPrompts(), fetchSafetyRules(), fetchAiRequests(), fetchTokenBuckets(), fetchRateLimits(), fetchKillSwitch()]);
-    setLoading(false);
-  };
+  // Single batched fetch for core data (models + kill switch only on mount)
+  const fetchCoreData = useCallback(async () => {
+    const [modelsData, killData] = await Promise.all([
+      cachedFetch<any[]>(CACHE_ID, "ai_models", async () => {
+        const { data } = await supabase.from("ai_models").select("*").order("created_at", { ascending: false }); return data || [];
+      }, undefined, { ttlMs: CACHE_TTL }),
+      cachedFetch<any>(CACHE_ID, "kill_switch", async () => {
+        const { data } = await supabase.from("system_settings").select("*").eq("key", "ai_global_kill_switch").single(); return data;
+      }, undefined, { ttlMs: CACHE_TTL }
+      ),
+    ]);
+    setModels(modelsData);
+    if (killData) setGlobalKillSwitch(killData.value === "true" || killData.value === true);
+  }, []);
 
-  const fetchModels = async () => {
-    const { data } = await supabase.from("ai_models").select("*").order("created_at", { ascending: false });
-    if (data) setModels(data);
-  };
+  // Lazy-load tab data only when tab becomes active
+  const fetchTabData = useCallback(async (tab: string) => {
+    if (loadedTabs.current.has(tab)) return;
+    loadedTabs.current.add(tab);
+    switch (tab) {
+      case "prompts":
+        const prompts = await cachedFetch<any[]>(CACHE_ID, "prompt_templates", async () => {
+          const { data } = await supabase.from("prompt_templates").select("*").order("created_at", { ascending: false }); return data || [];
+        }, undefined, { ttlMs: CACHE_TTL }
+        );
+        setPrompts(prompts);
+        break;
+      case "safety":
+        const rules = await cachedFetch<any[]>(CACHE_ID, "safety_rules", async () => {
+          const { data } = await supabase.from("safety_rules").select("*").order("created_at", { ascending: false }); return data || [];
+        }, undefined, { ttlMs: CACHE_TTL }
+        );
+        setSafetyRules(rules);
+        break;
+      case "requests":
+        const reqs = await cachedFetch<any[]>(CACHE_ID, "ai_requests", async () => {
+          const { data } = await supabase.from("ai_requests").select("*").order("created_at", { ascending: false }).limit(50); return data || [];
+        }, undefined, { ttlMs: 60_000 }
+        );
+        setAiRequests(reqs);
+        break;
+      case "throttling":
+        const limits = await cachedFetch<any[]>(CACHE_ID, "rate_limits", async () => {
+          const { data } = await supabase.from("rate_limits").select("*").order("created_at", { ascending: false }).limit(50); return data || [];
+        }, undefined, { ttlMs: CACHE_TTL }
+        );
+        setRateLimits(limits);
+        break;
+      case "usage":
+        const buckets = await cachedFetch<any[]>(CACHE_ID, "token_buckets", async () => {
+          const { data } = await supabase.from("token_buckets").select("*").order("created_at", { ascending: false }).limit(50); return data || [];
+        }, undefined, { ttlMs: CACHE_TTL }
+        );
+        setTokenBuckets(buckets);
+        break;
+    }
+  }, []);
 
-  const fetchPrompts = async () => {
-    const { data } = await supabase.from("prompt_templates").select("*").order("created_at", { ascending: false });
-    if (data) setPrompts(data);
-  };
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      await fetchCoreData();
+      setLoading(false);
+    })();
+    const channel = supabase.channel("ai-control-realtime")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "ai_requests" }, (payload) => {
+        // Optimistic append instead of re-fetch
+        setAiRequests(prev => [payload.new as any, ...prev].slice(0, 50));
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "system_settings" }, () => {
+        debouncedRefresh(() => {
+          invalidateNamespace(CACHE_ID, "kill_switch");
+          fetchCoreData();
+        });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); if (realtimeTimer.current) clearTimeout(realtimeTimer.current); };
+  }, [fetchCoreData, debouncedRefresh]);
 
-  const fetchSafetyRules = async () => {
-    const { data } = await supabase.from("safety_rules").select("*").order("created_at", { ascending: false });
-    if (data) setSafetyRules(data);
-  };
-
-  const fetchAiRequests = async () => {
-    const { data } = await supabase.from("ai_requests").select("*").order("created_at", { ascending: false }).limit(100);
-    if (data) setAiRequests(data);
-  };
-
-  const fetchTokenBuckets = async () => {
-    const { data } = await supabase.from("token_buckets").select("*").order("created_at", { ascending: false });
-    if (data) setTokenBuckets(data);
-  };
-
-  const fetchRateLimits = async () => {
-    const { data } = await supabase.from("rate_limits").select("*").order("created_at", { ascending: false });
-    if (data) setRateLimits(data);
-  };
-
-  const fetchKillSwitch = async () => {
-    const { data } = await supabase.from("system_settings").select("*").eq("key", "ai_global_kill_switch").single();
-    if (data) setGlobalKillSwitch(data.value === "true" || data.value === true);
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    fetchTabData(tab);
   };
 
   const toggleKillSwitch = async () => {
     const newValue = !globalKillSwitch;
+    setGlobalKillSwitch(newValue); // optimistic
     const { error } = await supabase.from("system_settings").update({ value: JSON.stringify(newValue) }).eq("key", "ai_global_kill_switch");
-    if (error) { toast.error("Failed to toggle kill switch"); return; }
-    setGlobalKillSwitch(newValue);
+    if (error) { setGlobalKillSwitch(!newValue); toast.error("Failed to toggle kill switch"); return; }
+    invalidateNamespace(CACHE_ID, "kill_switch");
     await supabase.from("audit_logs").insert({ action: newValue ? "ai_kill_switch_on" : "ai_kill_switch_off", entity_type: "system_settings", entity_id: "ai_global_kill_switch", actor_type: "admin", metadata: { new_value: newValue } });
     toast.success(newValue ? "🚨 AI KILL SWITCH ACTIVATED" : "✅ AI Kill Switch Deactivated");
   };
 
   const createModel = async () => {
-    const { error } = await supabase.from("ai_models").insert({ ...modelForm, pricing_input: Number(modelForm.pricing_input), pricing_output: Number(modelForm.pricing_output), max_tokens: Number(modelForm.max_tokens), rate_limit_rpm: Number(modelForm.rate_limit_rpm) });
+    const insertData = { ...modelForm, pricing_input: Number(modelForm.pricing_input), pricing_output: Number(modelForm.pricing_output), max_tokens: Number(modelForm.max_tokens), rate_limit_rpm: Number(modelForm.rate_limit_rpm) };
+    const { data, error } = await supabase.from("ai_models").insert(insertData).select().single();
     if (error) { toast.error("Failed to create model"); return; }
+    setModels(prev => [data, ...prev]); // optimistic
+    invalidateNamespace(CACHE_ID, "ai_models");
     toast.success("Model created");
     setShowModelDialog(false);
     setModelForm({ name: "", provider: "openai", model_id: "", description: "", max_tokens: 4096, rate_limit_rpm: 60, pricing_input: 0, pricing_output: 0 });
-    fetchModels();
   };
 
   const toggleModelStatus = async (id: string, currentStatus: string) => {
     const newStatus = currentStatus === "live" ? "paused" : "live";
+    setModels(prev => prev.map(m => m.id === id ? { ...m, status: newStatus } : m)); // optimistic
     await supabase.from("ai_models").update({ status: newStatus }).eq("id", id);
+    invalidateNamespace(CACHE_ID, "ai_models");
     await supabase.from("audit_logs").insert({ action: `model_status_${newStatus}`, entity_type: "ai_models", entity_id: id, actor_type: "admin" });
     toast.success(`Model ${newStatus}`);
-    fetchModels();
   };
 
   const toggleModelKillSwitch = async (id: string, current: boolean) => {
+    setModels(prev => prev.map(m => m.id === id ? { ...m, kill_switch: !current } : m)); // optimistic
     await supabase.from("ai_models").update({ kill_switch: !current }).eq("id", id);
+    invalidateNamespace(CACHE_ID, "ai_models");
     await supabase.from("audit_logs").insert({ action: !current ? "model_killed" : "model_unkilled", entity_type: "ai_models", entity_id: id, actor_type: "admin" });
     toast.success(!current ? "🚨 Model killed" : "Model restored");
-    fetchModels();
   };
 
   const createPrompt = async () => {
     let vars;
     try { vars = JSON.parse(promptForm.variables); } catch { vars = []; }
-    const { error } = await supabase.from("prompt_templates").insert({ ...promptForm, variables: vars });
+    const { data, error } = await supabase.from("prompt_templates").insert({ ...promptForm, variables: vars }).select().single();
     if (error) { toast.error("Failed to create prompt"); return; }
+    setPrompts(prev => [data, ...prev]); // optimistic
+    invalidateNamespace(CACHE_ID, "prompt_templates");
     toast.success("Prompt template created");
     setShowPromptDialog(false);
     setPromptForm({ name: "", description: "", category: "general", template: "", variables: "[]" });
-    fetchPrompts();
   };
 
   const createSafetyRule = async () => {
-    const { error } = await supabase.from("safety_rules").insert(safetyForm);
+    const { data, error } = await supabase.from("safety_rules").insert(safetyForm).select().single();
     if (error) { toast.error("Failed to create safety rule"); return; }
+    setSafetyRules(prev => [data, ...prev]); // optimistic
+    invalidateNamespace(CACHE_ID, "safety_rules");
     toast.success("Safety rule created");
     setShowSafetyDialog(false);
     setSafetyForm({ name: "", description: "", rule_type: "content_filter", pattern: "", action: "block", severity: "medium" });
-    fetchSafetyRules();
   };
 
   const toggleSafetyRule = async (id: string, current: boolean) => {
+    setSafetyRules(prev => prev.map(r => r.id === id ? { ...r, is_active: !current } : r)); // optimistic
     await supabase.from("safety_rules").update({ is_active: !current }).eq("id", id);
+    invalidateNamespace(CACHE_ID, "safety_rules");
     toast.success(!current ? "Rule activated" : "Rule deactivated");
-    fetchSafetyRules();
+  };
+
+  const togglePromptActive = async (id: string, current: boolean) => {
+    setPrompts(prev => prev.map(p => p.id === id ? { ...p, is_active: !current } : p)); // optimistic
+    await supabase.from("prompt_templates").update({ is_active: !current }).eq("id", id);
+    invalidateNamespace(CACHE_ID, "prompt_templates");
   };
 
   const statusColor = (s: string) => {
@@ -179,7 +238,7 @@ const AIControlPanel = () => {
         </CardContent>
       </Card>
 
-      <Tabs defaultValue="models" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
         <TabsList className="bg-white/5 border border-white/10 p-1 rounded-xl h-auto gap-1 flex-wrap">
           <TabsTrigger value="models" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
             <Brain className="h-3.5 w-3.5" /> Models
@@ -328,10 +387,7 @@ const AIControlPanel = () => {
                       <p className="text-white/40 text-xs mt-1">{p.description}</p>
                       <pre className="text-white/30 text-[10px] mt-2 bg-black/20 rounded p-2 max-h-20 overflow-auto font-mono">{p.template?.substring(0, 200)}{p.template?.length > 200 ? "..." : ""}</pre>
                     </div>
-                    <Button size="sm" variant="ghost" onClick={async () => {
-                      await supabase.from("prompt_templates").update({ is_active: !p.is_active }).eq("id", p.id);
-                      fetchPrompts();
-                    }} className="text-white/50 text-xs h-7">
+                    <Button size="sm" variant="ghost" onClick={() => togglePromptActive(p.id, p.is_active)} className="text-white/50 text-xs h-7">
                       {p.is_active ? "Deactivate" : "Activate"}
                     </Button>
                   </div>

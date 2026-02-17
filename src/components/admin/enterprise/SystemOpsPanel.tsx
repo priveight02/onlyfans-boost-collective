@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { cachedFetch, invalidateNamespace } from "@/lib/supabaseCache";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +13,9 @@ import { toast } from "sonner";
 import { Settings, Activity, Webhook, Briefcase, Plus, RefreshCw, Power, Shield } from "lucide-react";
 import { format } from "date-fns";
 
+const CACHE_ID = "admin";
+const CACHE_TTL = 5 * 60 * 1000;
+
 const SystemOpsPanel = () => {
   const [settings, setSettings] = useState<any[]>([]);
   const [healthMetrics, setHealthMetrics] = useState<any[]>([]);
@@ -20,81 +24,125 @@ const SystemOpsPanel = () => {
   const [deliveries, setDeliveries] = useState<any[]>([]);
   const [adminSessions, setAdminSessions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState("settings");
+  const loadedTabs = useRef<Set<string>>(new Set(["settings"]));
   const [showWebhookDialog, setShowWebhookDialog] = useState(false);
   const [webhookForm, setWebhookForm] = useState({ name: "", url: "", events: "" });
   const [editingSetting, setEditingSetting] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
 
-  useEffect(() => {
-    fetchAll();
-    const channel = supabase.channel("system-ops-realtime")
-      .on("postgres_changes", { event: "*", schema: "public", table: "system_settings" }, () => fetchSettings())
-      .on("postgres_changes", { event: "*", schema: "public", table: "system_health" }, () => fetchHealth())
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
+  const realtimeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const debouncedRefresh = useCallback((fn: () => void) => {
+    if (realtimeTimer.current) clearTimeout(realtimeTimer.current);
+    realtimeTimer.current = setTimeout(fn, 2000);
   }, []);
 
-  const fetchAll = async () => {
-    setLoading(true);
-    await Promise.all([fetchSettings(), fetchHealth(), fetchJobs(), fetchWebhooks(), fetchDeliveries(), fetchSessions()]);
-    setLoading(false);
-  };
+  const fetchSettings = useCallback(async () => {
+    const data = await cachedFetch<any[]>(CACHE_ID, "system_settings", async () => {
+      const { data } = await supabase.from("system_settings").select("*").order("category").order("key"); return data || [];
+    },
+      undefined, { ttlMs: CACHE_TTL }
+    );
+    setSettings(data);
+  }, []);
 
-  const fetchSettings = async () => {
-    const { data } = await supabase.from("system_settings").select("*").order("category").order("key");
-    if (data) setSettings(data);
-  };
+  const fetchTabData = useCallback(async (tab: string) => {
+    if (loadedTabs.current.has(tab)) return;
+    loadedTabs.current.add(tab);
+    switch (tab) {
+      case "health": {
+        const data = await cachedFetch<any[]>(CACHE_ID, "system_health", async () => {
+          const { data } = await supabase.from("system_health").select("*").order("recorded_at", { ascending: false }).limit(30); return data || [];
+        }, undefined, { ttlMs: 60_000 }
+        );
+        setHealthMetrics(data);
+        break;
+      }
+      case "jobs": {
+        const data = await cachedFetch<any[]>(CACHE_ID, "system_jobs", async () => {
+          const { data } = await supabase.from("system_jobs").select("*").order("created_at", { ascending: false }).limit(30); return data || [];
+        }, undefined, { ttlMs: CACHE_TTL }
+        );
+        setJobs(data);
+        break;
+      }
+      case "webhooks": {
+        const [wh, del] = await Promise.all([
+          cachedFetch<any[]>(CACHE_ID, "webhooks", async () => {
+            const { data } = await supabase.from("webhooks").select("*").order("created_at", { ascending: false }); return data || [];
+          }, undefined, { ttlMs: CACHE_TTL }),
+          cachedFetch<any[]>(CACHE_ID, "webhook_deliveries", async () => {
+            const { data } = await supabase.from("webhook_deliveries").select("*").order("created_at", { ascending: false }).limit(30); return data || [];
+          }, undefined, { ttlMs: 60_000 }
+          ),
+        ]);
+        setWebhooks(wh);
+        setDeliveries(del);
+        break;
+      }
+      case "sessions": {
+        const data = await cachedFetch<any[]>(CACHE_ID, "admin_sessions", async () => {
+          const { data } = await supabase.from("admin_sessions").select("*").order("started_at", { ascending: false }).limit(20); return data || [];
+        }, undefined, { ttlMs: CACHE_TTL }
+        );
+        setAdminSessions(data);
+        break;
+      }
+    }
+  }, []);
 
-  const fetchHealth = async () => {
-    const { data } = await supabase.from("system_health").select("*").order("recorded_at", { ascending: false }).limit(50);
-    if (data) setHealthMetrics(data);
-  };
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      await fetchSettings();
+      setLoading(false);
+    })();
+    const channel = supabase.channel("system-ops-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "system_settings" }, () => {
+        debouncedRefresh(() => { invalidateNamespace(CACHE_ID, "system_settings"); fetchSettings(); });
+      })
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "system_health" }, (payload) => {
+        setHealthMetrics(prev => [payload.new as any, ...prev].slice(0, 30));
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); if (realtimeTimer.current) clearTimeout(realtimeTimer.current); };
+  }, [fetchSettings, debouncedRefresh]);
 
-  const fetchJobs = async () => {
-    const { data } = await supabase.from("system_jobs").select("*").order("created_at", { ascending: false }).limit(50);
-    if (data) setJobs(data);
-  };
-
-  const fetchWebhooks = async () => {
-    const { data } = await supabase.from("webhooks").select("*").order("created_at", { ascending: false });
-    if (data) setWebhooks(data);
-  };
-
-  const fetchDeliveries = async () => {
-    const { data } = await supabase.from("webhook_deliveries").select("*").order("created_at", { ascending: false }).limit(50);
-    if (data) setDeliveries(data);
-  };
-
-  const fetchSessions = async () => {
-    const { data } = await supabase.from("admin_sessions").select("*").order("started_at", { ascending: false }).limit(20);
-    if (data) setAdminSessions(data);
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    fetchTabData(tab);
   };
 
   const updateSetting = async (key: string, value: string) => {
     const parsed = value === "true" || value === "false" ? JSON.parse(value) : value;
-    await supabase.from("system_settings").update({ value: JSON.stringify(parsed) }).eq("key", key);
-    await supabase.from("audit_logs").insert({ action: "system_setting_updated", entity_type: "system_settings", entity_id: key, actor_type: "admin", after_state: { value: parsed } });
+    setSettings(prev => prev.map(s => s.key === key ? { ...s, value: parsed } : s)); // optimistic
+    await Promise.all([
+      supabase.from("system_settings").update({ value: JSON.stringify(parsed) }).eq("key", key),
+      supabase.from("audit_logs").insert({ action: "system_setting_updated", entity_type: "system_settings", entity_id: key, actor_type: "admin", after_state: { value: parsed } }),
+    ]);
+    invalidateNamespace(CACHE_ID, "system_settings");
     toast.success(`Setting "${key}" updated`);
     setEditingSetting(null);
-    fetchSettings();
   };
 
   const createWebhook = async () => {
     if (!webhookForm.name || !webhookForm.url) { toast.error("Name and URL required"); return; }
     let events;
     try { events = JSON.parse(webhookForm.events || "[]"); } catch { events = webhookForm.events.split(",").map(s => s.trim()); }
-    const { error } = await supabase.from("webhooks").insert({ ...webhookForm, events });
+    const { data, error } = await supabase.from("webhooks").insert({ ...webhookForm, events }).select().single();
     if (error) { toast.error(error.message); return; }
+    setWebhooks(prev => [data, ...prev]); // optimistic
+    invalidateNamespace(CACHE_ID, "webhooks");
     toast.success("Webhook created");
     setShowWebhookDialog(false);
     setWebhookForm({ name: "", url: "", events: "" });
-    fetchWebhooks();
   };
 
   const toggleWebhook = async (id: string, current: boolean) => {
+    setWebhooks(prev => prev.map(w => w.id === id ? { ...w, is_active: !current } : w)); // optimistic
     await supabase.from("webhooks").update({ is_active: !current }).eq("id", id);
+    invalidateNamespace(CACHE_ID, "webhooks");
     toast.success(!current ? "Webhook enabled" : "Webhook disabled");
-    fetchWebhooks();
   };
 
   const healthColor = (status: string) => {
@@ -120,7 +168,7 @@ const SystemOpsPanel = () => {
 
   return (
     <div className="space-y-6">
-      <Tabs defaultValue="settings" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
         <TabsList className="bg-white/5 border border-white/10 p-1 rounded-xl h-auto gap-1 flex-wrap">
           <TabsTrigger value="settings" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
             <Settings className="h-3.5 w-3.5" /> Settings & Kill Switches
@@ -143,7 +191,7 @@ const SystemOpsPanel = () => {
         <TabsContent value="settings" className="space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-white font-semibold">System Settings & Kill Switches</h3>
-            <Button size="sm" variant="outline" onClick={fetchSettings} className="border-white/10 text-white/60 gap-1.5 text-xs">
+            <Button size="sm" variant="outline" onClick={() => { invalidateNamespace(CACHE_ID, "system_settings"); loadedTabs.current.delete("settings"); fetchSettings(); }} className="border-white/10 text-white/60 gap-1.5 text-xs">
               <RefreshCw className="h-3 w-3" /> Refresh
             </Button>
           </div>
