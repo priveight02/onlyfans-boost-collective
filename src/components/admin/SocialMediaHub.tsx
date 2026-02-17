@@ -1601,7 +1601,7 @@ const SocialMediaHub = () => {
   };
 
   return (
-    <div className="dark space-y-4" style={{ '--foreground': '215 20% 75%', '--muted-foreground': '215 15% 50%', '--muted': '220 50% 16%', '--background': '220 100% 10%', '--border': '220 40% 20%', '--card': '220 80% 12%', '--card-foreground': '215 20% 75%', '--popover': '220 80% 12%', '--popover-foreground': '215 20% 75%', '--input': '220 40% 20%', '--secondary': '220 60% 18%', '--secondary-foreground': '215 20% 75%', '--accent-foreground': '215 20% 75%', color: 'hsl(215, 20%, 75%)' } as React.CSSProperties}>
+    <div className="dark space-y-4 text-[13px]" style={{ '--foreground': '215 25% 82%', '--muted-foreground': '215 18% 56%', '--muted': '220 50% 16%', '--background': '220 100% 10%', '--border': '220 40% 20%', '--card': '220 80% 12%', '--card-foreground': '215 25% 82%', '--popover': '220 80% 12%', '--popover-foreground': '215 25% 82%', '--input': '220 40% 20%', '--secondary': '220 60% 18%', '--secondary-foreground': '215 25% 82%', '--accent-foreground': '215 25% 82%', color: 'hsl(215, 25%, 82%)', fontSize: '13px' } as React.CSSProperties}>
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

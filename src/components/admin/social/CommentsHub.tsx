@@ -443,25 +443,31 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading, onNavigateTo
     setAiSummaryLoading(false);
   };
 
-  // Session check helper - allows both session cookie AND OAuth token for private API features
-  // The backend now supports using OAuth tokens as a private API auth alternative
-  const requireSession = (): boolean => {
+  // Session check helper - allows session cookie OR OAuth connection for Graph API features
+  // Graph API covers: search users (business_discovery), explore (hashtag), user feed, own post comments
+  // Private API ONLY (requires session cookie): like external posts, follow users, mass actions, scrape followers
+  const requireSession = (requirePrivateApi = false): boolean => {
     if (selectedPlatform !== "instagram") return true;
     const effectiveSessionId = parentSessionId || sessionId;
     const effectiveStatus = parentSessionStatus || sessionStatus;
     
-    // Allow real session cookies
+    // Real session cookies work for everything
     const isOAuthToken = effectiveSessionId && (effectiveSessionId.startsWith("IGQV") || effectiveSessionId.startsWith("IGQ"));
     if (effectiveSessionId && !isOAuthToken && effectiveStatus !== "expired") return true;
     
-    // Also allow if user has an active OAuth connection (token-based alternative)
-    const igConnection = connections.find((c: any) => c.platform === "instagram" && c.is_connected);
-    if (igConnection?.access_token) return true;
+    // OAuth connection works for Graph API-backed actions (search, explore via hashtags, user feed via business_discovery)
+    if (!requirePrivateApi) {
+      const igConnection = connections.find((c: any) => c.platform === "instagram" && c.is_connected);
+      if (igConnection?.access_token) return true;
+    }
     
     // No auth available - redirect to connect
     if (onNavigateToSession) {
       onNavigateToSession();
-      toast.error("Instagram login or session cookie required. Login via Instagram or paste your sessionid.", { duration: 4000 });
+      const msg = requirePrivateApi 
+        ? "Session cookie required for this action (like, follow, mass actions). Paste your sessionid from DevTools."
+        : "Instagram login or session cookie required. Login via Instagram or paste your sessionid.";
+      toast.error(msg, { duration: 4000 });
     } else {
       setSessionRequiredDialog(true);
     }
@@ -815,7 +821,7 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading, onNavigateTo
   const startMassLike = async () => {
     const selected = allPosts.filter(p => p.selected);
     if (selected.length === 0) { toast.error("Select posts first"); return; }
-    if (!requireSession()) return;
+    if (!requireSession(true)) return;
     setMassLiking(true);
     setMassLikeProgress({ done: 0, total: selected.length, failed: 0 });
     let done = 0, failed = 0;
@@ -836,7 +842,7 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading, onNavigateTo
   const startMassFollow = async () => {
     const selected = allPosts.filter(p => p.selected);
     if (selected.length === 0) { toast.error("Select posts first"); return; }
-    if (!requireSession()) return;
+    if (!requireSession(true)) return;
     // Deduplicate by username
     const uniqueUsers = new Map<string, DiscoverPost>();
     for (const p of selected) {
