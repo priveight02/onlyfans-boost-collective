@@ -1,24 +1,24 @@
 import { useState, useEffect } from "react";
-import { Shield, Wrench, Clock } from "lucide-react";
 import { motion } from "framer-motion";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
 
 const Maintenance = () => {
   const { settings } = useSiteSettings();
   const endTime = settings.maintenance_end_time;
-  const [timeLeft, setTimeLeft] = useState("");
+  const [timeLeft, setTimeLeft] = useState<{ h: number; m: number; s: number } | null>(null);
+  const [expired, setExpired] = useState(false);
 
   useEffect(() => {
-    if (!endTime) { setTimeLeft(""); return; }
+    if (!endTime) { setTimeLeft(null); setExpired(false); return; }
     const update = () => {
       const diff = new Date(endTime).getTime() - Date.now();
-      if (diff <= 0) { setTimeLeft("Any moment now..."); return; }
-      const h = Math.floor(diff / 3600000);
-      const m = Math.floor((diff % 3600000) / 60000);
-      const s = Math.floor((diff % 60000) / 1000);
-      setTimeLeft(
-        h > 0 ? `${h}h ${m}m ${s}s` : m > 0 ? `${m}m ${s}s` : `${s}s`
-      );
+      if (diff <= 0) { setTimeLeft(null); setExpired(true); return; }
+      setExpired(false);
+      setTimeLeft({
+        h: Math.floor(diff / 3600000),
+        m: Math.floor((diff % 3600000) / 60000),
+        s: Math.floor((diff % 60000) / 1000),
+      });
     };
     update();
     const iv = setInterval(update, 1000);
@@ -28,7 +28,7 @@ const Maintenance = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-[hsl(222,35%,8%)] via-[hsl(220,35%,10%)] to-[hsl(225,35%,6%)] flex items-center justify-center px-4">
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-purple-500/5 rounded-full blur-3xl" />
+        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[500px] h-[500px] bg-purple-500/5 rounded-full blur-3xl" />
       </div>
 
       <motion.div
@@ -37,45 +37,50 @@ const Maintenance = () => {
         transition={{ duration: 0.6 }}
         className="relative text-center max-w-lg"
       >
-        <div className="flex justify-center mb-8">
-          <div className="relative">
-            <div className="p-6 rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10">
-              <Wrench className="h-16 w-16 text-purple-400" />
-            </div>
-            <div className="absolute -top-2 -right-2 p-2 rounded-full bg-amber-500/20 border border-amber-500/30">
-              <Shield className="h-4 w-4 text-amber-400" />
-            </div>
-          </div>
-        </div>
-
-        <h1 className="text-4xl md:text-5xl font-bold font-heading text-white mb-4">
-          Under Maintenance
+        <h1 className="text-5xl md:text-6xl font-bold font-heading text-white mb-4 tracking-tight">
+          We'll be right back
         </h1>
-        <p className="text-lg text-white/50 mb-6 leading-relaxed">
-          We're currently performing scheduled maintenance to improve your experience.
-          We'll be back shortly.
+        <p className="text-lg text-white/40 mb-10 leading-relaxed max-w-md mx-auto">
+          We're making some improvements. Everything will be back to normal shortly.
         </p>
 
+        <div className="flex items-center justify-center gap-2 mb-8">
+          <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+          <span className="text-sm text-white/30 uppercase tracking-widest">Maintenance in progress</span>
+        </div>
+
         {/* Countdown */}
-        {endTime && (
-          <div className="mb-6">
-            <div className="inline-flex items-center gap-3 px-6 py-4 rounded-2xl bg-white/5 border border-white/10">
-              <Clock className="h-5 w-5 text-purple-400" />
-              <div className="text-left">
-                <p className="text-xs text-white/40 uppercase tracking-wider">Estimated time remaining</p>
-                <p className="text-2xl font-bold text-white font-mono tracking-wider">{timeLeft}</p>
-              </div>
+        {timeLeft && !expired && (
+          <div className="mb-10">
+            <p className="text-xs text-white/25 uppercase tracking-widest mb-4">Estimated time remaining</p>
+            <div className="flex items-center justify-center gap-4">
+              {[
+                { val: timeLeft.h, label: "hours" },
+                { val: timeLeft.m, label: "min" },
+                { val: timeLeft.s, label: "sec" },
+              ].map((unit, i) => (
+                <div key={unit.label} className="flex items-center gap-4">
+                  <div className="text-center">
+                    <span className="text-4xl md:text-5xl font-bold text-white font-mono tabular-nums">
+                      {String(unit.val).padStart(2, "0")}
+                    </span>
+                    <p className="text-[10px] text-white/20 uppercase tracking-wider mt-1">{unit.label}</p>
+                  </div>
+                  {i < 2 && <span className="text-2xl text-white/15 font-light -mt-4">:</span>}
+                </div>
+              ))}
             </div>
           </div>
         )}
 
-        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-white/40 text-sm">
-          <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-          Maintenance in progress
-        </div>
+        {expired && (
+          <p className="text-white/40 text-sm mb-10">
+            Should be back any moment now. Try refreshing.
+          </p>
+        )}
 
-        <p className="mt-8 text-white/30 text-sm">
-          If you believe this is an error, please contact support.
+        <p className="text-white/15 text-xs">
+          If this persists, reach out to support.
         </p>
       </motion.div>
     </div>

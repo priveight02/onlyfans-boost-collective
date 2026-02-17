@@ -6,6 +6,9 @@ export interface SiteSettings {
   logins_paused: boolean;
   maintenance_mode: boolean;
   maintenance_end_time: string | null;
+  hide_pricing: boolean;
+  read_only_mode: boolean;
+  force_password_reset: boolean;
 }
 
 const DEFAULT: SiteSettings = {
@@ -13,6 +16,9 @@ const DEFAULT: SiteSettings = {
   logins_paused: false,
   maintenance_mode: false,
   maintenance_end_time: null,
+  hide_pricing: false,
+  read_only_mode: false,
+  force_password_reset: false,
 };
 
 export const useSiteSettings = () => {
@@ -35,12 +41,15 @@ export const useSiteSettings = () => {
         logins_paused: map.logins_paused ?? false,
         maintenance_mode: map.maintenance_mode ?? false,
         maintenance_end_time: metaMap.maintenance_mode || null,
+        hide_pricing: map.hide_pricing ?? false,
+        read_only_mode: map.read_only_mode ?? false,
+        force_password_reset: map.force_password_reset ?? false,
       });
     }
     setLoading(false);
   };
 
-  const updateSetting = async (key: keyof SiteSettings, value: boolean) => {
+  const updateSetting = async (key: string, value: boolean) => {
     const { error } = await (supabase as any)
       .from("site_settings")
       .update({ setting_value: value, updated_at: new Date().toISOString() })
