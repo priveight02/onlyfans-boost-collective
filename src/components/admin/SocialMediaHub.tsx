@@ -1200,96 +1200,109 @@ const SocialMediaHub = () => {
   };
 
   const [autoFindLoading, setAutoFindLoading] = useState(false);
+  const [foundSessions, setFoundSessions] = useState<Array<{ id: string; source: string; sessionId: string; csrfToken?: string; dsUserId?: string; savedAt?: string; status: "active" | "expired" | "unknown" }>>([]);
 
   const autoFindSession = async () => {
     setAutoFindLoading(true);
-    let found = false;
+    const sessions: typeof foundSessions = [];
+    const seenIds = new Set<string>();
 
-    // Fallback 1: Check existing metadata in DB for the selected account
+    const addSession = (sessionId: string, source: string, csrf?: string, dsUser?: string, savedAt?: string) => {
+      const key = sessionId.trim().slice(0, 30);
+      if (seenIds.has(key)) return;
+      seenIds.add(key);
+      // Heuristic: sessions with savedAt in last 48h likely active, otherwise unknown
+      let status: "active" | "expired" | "unknown" = "unknown";
+      if (savedAt) {
+        const age = Date.now() - new Date(savedAt).getTime();
+        status = age < 48 * 60 * 60 * 1000 ? "active" : age < 7 * 24 * 60 * 60 * 1000 ? "unknown" : "expired";
+      }
+      sessions.push({ id: `${source}-${sessions.length}`, source, sessionId: sessionId.trim(), csrfToken: csrf?.trim(), dsUserId: dsUser?.trim(), savedAt, status });
+    };
+
+    // 1. Browser document.cookie (highest priority — from Instagram pages)
+    try {
+      const cookies = document.cookie.split(";").map(c => c.trim());
+      const sc = cookies.find(c => c.startsWith("sessionid="));
+      const cc = cookies.find(c => c.startsWith("csrftoken="));
+      const dc = cookies.find(c => c.startsWith("ds_user_id="));
+      if (sc) {
+        addSession(sc.split("=").slice(1).join("="), "Browser Cookies", cc?.split("=").slice(1).join("="), dc?.split("=").slice(1).join("="), new Date().toISOString());
+        // Mark as active since it's from live browser
+        const last = sessions[sessions.length - 1];
+        if (last) last.status = "active";
+      }
+    } catch {}
+
+    // 2. CookieStore API (modern browsers — also from IG pages)
+    if ('cookieStore' in window) {
+      try {
+        const allCookies = await (window as any).cookieStore.getAll();
+        const sc = allCookies.find((c: any) => c.name === "sessionid");
+        const cc = allCookies.find((c: any) => c.name === "csrftoken");
+        const dc = allCookies.find((c: any) => c.name === "ds_user_id");
+        if (sc) {
+          addSession(sc.value, "CookieStore API", cc?.value, dc?.value, new Date().toISOString());
+          const last = sessions[sessions.length - 1];
+          if (last) last.status = "active";
+        }
+      } catch {}
+    }
+
+    // 3. Current account DB metadata
     try {
       const { data } = await supabase.from("social_connections").select("metadata").eq("account_id", selectedAccount).eq("platform", "instagram").eq("is_connected", true).single();
       const meta = (data?.metadata as any) || {};
       if (meta.ig_session_id) {
-        setIgSessionId(meta.ig_session_id);
-        if (meta.ig_csrf_token) setIgCsrfToken(meta.ig_csrf_token);
-        if (meta.ig_ds_user_id) setIgDsUserId(meta.ig_ds_user_id);
-        if (meta.ig_session_saved_at) setIgSessionSavedAt(meta.ig_session_saved_at);
-        found = true;
-        toast.success("Session found from saved connection data!");
+        addSession(meta.ig_session_id, "Current Account", meta.ig_csrf_token, meta.ig_ds_user_id, meta.ig_session_saved_at);
       }
     } catch {}
 
-    // Fallback 2: Try reading document.cookie (same-origin only, unlikely for IG but worth trying)
-    if (!found) {
-      try {
-        const cookies = document.cookie.split(";").map(c => c.trim());
-        const sessionCookie = cookies.find(c => c.startsWith("sessionid="));
-        const csrfCookie = cookies.find(c => c.startsWith("csrftoken="));
-        const dsUserCookie = cookies.find(c => c.startsWith("ds_user_id="));
-        if (sessionCookie) {
-          setIgSessionId(sessionCookie.split("=").slice(1).join("="));
-          if (csrfCookie) setIgCsrfToken(csrfCookie.split("=").slice(1).join("="));
-          if (dsUserCookie) setIgDsUserId(dsUserCookie.split("=").slice(1).join("="));
-          found = true;
-          toast.success("Session found from browser cookies!");
-        }
-      } catch {}
-    }
-
-    // Fallback 3: Try CookieStore API (modern browsers)
-    if (!found && 'cookieStore' in window) {
-      try {
-        const allCookies = await (window as any).cookieStore.getAll();
-        const sessionCookie = allCookies.find((c: any) => c.name === "sessionid");
-        const csrfCookie = allCookies.find((c: any) => c.name === "csrftoken");
-        const dsUserCookie = allCookies.find((c: any) => c.name === "ds_user_id");
-        if (sessionCookie) {
-          setIgSessionId(sessionCookie.value);
-          if (csrfCookie) setIgCsrfToken(csrfCookie.value);
-          if (dsUserCookie) setIgDsUserId(dsUserCookie.value);
-          found = true;
-          toast.success("Session found via CookieStore API!");
-        }
-      } catch {}
-    }
-
-    // Fallback 4: Try clipboard — user may have copied from DevTools
-    if (!found) {
-      try {
-        const clipText = await navigator.clipboard.readText();
-        if (clipText && clipText.length > 20 && clipText.includes("%3A")) {
-          setIgSessionId(clipText.trim());
-          found = true;
-          toast.success("Session ID detected from clipboard! Fill in CSRF token and DS User ID manually.");
-        }
-      } catch {}
-    }
-
-    // Fallback 5: Check other managed accounts for IG session data
-    if (!found) {
-      try {
-        const { data: allConns } = await supabase.from("social_connections").select("metadata, account_id").eq("platform", "instagram").eq("is_connected", true);
-        if (allConns) {
-          for (const conn of allConns) {
-            const meta = (conn.metadata as any) || {};
-            if (meta.ig_session_id && conn.account_id !== selectedAccount) {
-              setIgSessionId(meta.ig_session_id);
-              if (meta.ig_csrf_token) setIgCsrfToken(meta.ig_csrf_token);
-              if (meta.ig_ds_user_id) setIgDsUserId(meta.ig_ds_user_id);
-              found = true;
-              toast.success("Session found from another connected account! Verify it works with Test Session.");
-              break;
-            }
+    // 4. Other managed accounts
+    try {
+      const { data: allConns } = await supabase.from("social_connections").select("metadata, account_id").eq("platform", "instagram").eq("is_connected", true);
+      if (allConns) {
+        for (const conn of allConns) {
+          if (conn.account_id === selectedAccount) continue;
+          const meta = (conn.metadata as any) || {};
+          if (meta.ig_session_id) {
+            addSession(meta.ig_session_id, `Account ${String(conn.account_id).slice(0, 6)}…`, meta.ig_csrf_token, meta.ig_ds_user_id, meta.ig_session_saved_at);
           }
         }
-      } catch {}
-    }
+      }
+    } catch {}
 
-    if (!found) {
-      toast.error("Could not auto-detect session. Please copy cookies manually from instagram.com DevTools (F12 → Application → Cookies).");
+    // 5. Clipboard fallback
+    try {
+      const clipText = await navigator.clipboard.readText();
+      if (clipText && clipText.length > 20 && clipText.includes("%3A")) {
+        addSession(clipText, "Clipboard");
+      }
+    } catch {}
+
+    // Sort: active first, then unknown, then expired
+    const order = { active: 0, unknown: 1, expired: 2 };
+    sessions.sort((a, b) => order[a.status] - order[b.status]);
+
+    setFoundSessions(sessions);
+
+    if (sessions.length === 0) {
+      toast.error("No sessions found. Copy cookies manually from instagram.com DevTools (F12 → Application → Cookies).");
+    } else if (sessions.length === 1) {
+      toast.success(`Found 1 session — click to connect.`);
+    } else {
+      toast.success(`Found ${sessions.length} sessions — select one to connect.`);
     }
 
     setAutoFindLoading(false);
+  };
+
+  const selectFoundSession = (session: typeof foundSessions[0]) => {
+    setIgSessionId(session.sessionId);
+    if (session.csrfToken) setIgCsrfToken(session.csrfToken);
+    if (session.dsUserId) setIgDsUserId(session.dsUserId);
+    setFoundSessions([]);
+    toast.success(`Session from "${session.source}" applied. Click Save Session to persist.`);
   };
 
   return (
@@ -1932,6 +1945,38 @@ const SocialMediaHub = () => {
                         Test Session
                       </Button>
                     </div>
+
+                    {foundSessions.length > 0 && (
+                      <div className="space-y-2">
+                        <p className="text-[10px] font-semibold text-foreground">Found Sessions — click to connect:</p>
+                        <div className="flex flex-wrap gap-2">
+                          {foundSessions.map(s => (
+                            <button
+                              key={s.id}
+                              onClick={() => selectFoundSession(s)}
+                              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-medium border cursor-pointer transition-all hover:scale-105 active:scale-95 ${
+                                s.status === "active"
+                                  ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/25"
+                                  : s.status === "expired"
+                                  ? "bg-red-500/15 border-red-500/40 text-red-400 hover:bg-red-500/25"
+                                  : "bg-yellow-500/15 border-yellow-500/40 text-yellow-400 hover:bg-yellow-500/25"
+                              }`}
+                            >
+                              <span className={`h-1.5 w-1.5 rounded-full ${
+                                s.status === "active" ? "bg-emerald-400" : s.status === "expired" ? "bg-red-400" : "bg-yellow-400"
+                              }`} />
+                              {s.source}
+                              <Badge variant="outline" className={`text-[9px] px-1 py-0 h-4 ${
+                                s.status === "active" ? "border-emerald-500/50 text-emerald-400" : s.status === "expired" ? "border-red-500/50 text-red-400" : "border-yellow-500/50 text-yellow-400"
+                              }`}>
+                                {s.status}
+                              </Badge>
+                              {s.dsUserId && <span className="text-[9px] opacity-60">ID: …{s.dsUserId.slice(-4)}</span>}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
                     <Card className="bg-muted/30 border-border">
                       <CardContent className="p-3 space-y-2">
