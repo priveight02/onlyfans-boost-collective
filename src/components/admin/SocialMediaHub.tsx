@@ -1205,6 +1205,24 @@ const SocialMediaHub = () => {
 
   type FoundSession = typeof foundSessions[number];
 
+  // Parse Instagram cookies from a raw cookie string (e.g. pasted from DevTools)
+  const parseIgCookies = (raw: string): { sessionId?: string; csrfToken?: string; dsUserId?: string } => {
+    const result: { sessionId?: string; csrfToken?: string; dsUserId?: string } = {};
+    // Handle "name=value; name=value" format (cookie header) or just a raw sessionid value
+    if (raw.includes("sessionid=")) {
+      const parts = raw.split(/[;\n]/).map(s => s.trim());
+      for (const p of parts) {
+        if (p.startsWith("sessionid=")) result.sessionId = p.split("=").slice(1).join("=");
+        if (p.startsWith("csrftoken=")) result.csrfToken = p.split("=").slice(1).join("=");
+        if (p.startsWith("ds_user_id=")) result.dsUserId = p.split("=").slice(1).join("=");
+      }
+    } else if (raw.includes("%3A") && raw.length > 20) {
+      // Looks like a raw sessionid value
+      result.sessionId = raw.trim();
+    }
+    return result;
+  };
+
   const gatherSessions = async (): Promise<FoundSession[]> => {
     const sessions: FoundSession[] = [];
     const seenIds = new Set<string>();
@@ -1221,27 +1239,23 @@ const SocialMediaHub = () => {
       sessions.push({ id: `${source}-${sessions.length}`, source, sessionId: sessionId.trim(), csrfToken: csrf?.trim(), dsUserId: dsUser?.trim(), savedAt, status });
     };
 
-    // 1. Browser document.cookie (from Instagram pages — highest priority)
+    // 1. CLIPBOARD — highest priority (user copies from instagram.com DevTools)
     try {
-      const cookies = document.cookie.split(";").map(c => c.trim());
-      const sc = cookies.find(c => c.startsWith("sessionid="));
-      const cc = cookies.find(c => c.startsWith("csrftoken="));
-      const dc = cookies.find(c => c.startsWith("ds_user_id="));
-      if (sc) addSession(sc.split("=").slice(1).join("="), "Browser Cookies", cc?.split("=").slice(1).join("="), dc?.split("=").slice(1).join("="), undefined, "active");
+      const clipText = await Promise.race([
+        navigator.clipboard.readText(),
+        new Promise<string>((_, rej) => setTimeout(() => rej("timeout"), 2000))
+      ]);
+      if (clipText && clipText.length > 10) {
+        const parsed = parseIgCookies(clipText);
+        if (parsed.sessionId) {
+          addSession(parsed.sessionId, "📋 Clipboard (fresh)", parsed.csrfToken, parsed.dsUserId, undefined, "active");
+        }
+      }
     } catch {}
 
-    // 2. CookieStore API (modern browsers)
-    if ('cookieStore' in window) {
-      try {
-        const allCookies = await Promise.race([
-          (window as any).cookieStore.getAll(),
-          new Promise((_, rej) => setTimeout(() => rej("timeout"), 2000))
-        ]) as any[];
-        const sc = allCookies.find((c: any) => c.name === "sessionid");
-        const cc = allCookies.find((c: any) => c.name === "csrftoken");
-        const dc = allCookies.find((c: any) => c.name === "ds_user_id");
-        if (sc) addSession(sc.value, "CookieStore API", cc?.value, dc?.value, undefined, "active");
-      } catch {}
+    // 2. Paste input field value (if user typed/pasted into the sessionid field and it differs from DB)
+    if (igSessionId && igSessionId.length > 20 && igSessionId.includes("%3A")) {
+      addSession(igSessionId, "Current Input Field", igCsrfToken || undefined, igDsUserId || undefined, undefined, "unknown");
     }
 
     // 3. Current account DB metadata
@@ -1251,7 +1265,7 @@ const SocialMediaHub = () => {
         new Promise<any>((_, rej) => setTimeout(() => rej("timeout"), 3000))
       ]);
       const meta = (data?.metadata as any) || {};
-      if (meta.ig_session_id) addSession(meta.ig_session_id, "Current Account", meta.ig_csrf_token, meta.ig_ds_user_id, meta.ig_session_saved_at);
+      if (meta.ig_session_id) addSession(meta.ig_session_id, "💾 Saved Session", meta.ig_csrf_token, meta.ig_ds_user_id, meta.ig_session_saved_at);
     } catch {}
 
     // 4. Other managed accounts
@@ -1267,15 +1281,6 @@ const SocialMediaHub = () => {
           if (meta.ig_session_id) addSession(meta.ig_session_id, `Account ${String(conn.account_id).slice(0, 6)}…`, meta.ig_csrf_token, meta.ig_ds_user_id, meta.ig_session_saved_at);
         }
       }
-    } catch {}
-
-    // 5. Clipboard fallback
-    try {
-      const clipText = await Promise.race([
-        navigator.clipboard.readText(),
-        new Promise<string>((_, rej) => setTimeout(() => rej("timeout"), 1500))
-      ]);
-      if (clipText && clipText.length > 20 && clipText.includes("%3A")) addSession(clipText, "Clipboard");
     } catch {}
 
     // Sort: active first, then unknown, then expired
@@ -1295,7 +1300,7 @@ const SocialMediaHub = () => {
       ]);
       setFoundSessions(sessions);
       if (sessions.length === 0) {
-        toast.error("No sessions found. Copy cookies manually from instagram.com DevTools.");
+        toast.error("No sessions found. Copy your sessionid cookie from instagram.com → DevTools → Application → Cookies, then paste it in the field or copy to clipboard and retry.");
       } else {
         toast.success(`Found ${sessions.length} session${sessions.length > 1 ? "s" : ""} — click one to use it.`);
       }
@@ -1305,7 +1310,7 @@ const SocialMediaHub = () => {
     setFindSessionsLoading(false);
   };
 
-  // Button 2: Auto Connect — scan, test each, connect first working one
+  // Button 2: Auto Connect — clipboard first, then test all, connect first working one
   const autoConnectSession = async () => {
     setSessionAutoConnectLoading(true);
     setFoundSessions([]);
@@ -1318,27 +1323,31 @@ const SocialMediaHub = () => {
       ]);
 
       if (sessions.length === 0) {
-        toast.error("No sessions found. Paste cookies manually.");
+        toast.error("No sessions found. Copy your sessionid from instagram.com DevTools → Clipboard, then click Auto Connect again.");
         setSessionAutoConnectLoading(false);
         return;
       }
 
       toast.info(`Found ${sessions.length} — testing…`);
 
-      for (const session of sessions) {
+      // Backup current metadata before testing
+      const { data: existingConn } = await supabase.from("social_connections").select("metadata").eq("account_id", selectedAccount).eq("platform", "instagram").eq("is_connected", true).single();
+      const originalMeta = (existingConn?.metadata as any) || {};
+
+      for (let i = 0; i < sessions.length; i++) {
+        const session = sessions[i];
+        toast.info(`Found ${i + 1} — testing "${session.source}"…`);
         try {
-          const { data: existing } = await supabase.from("social_connections").select("metadata").eq("account_id", selectedAccount).eq("platform", "instagram").eq("is_connected", true).single();
-          const currentMeta = (existing?.metadata as any) || {};
-          const testMeta = { ...currentMeta, ig_session_id: session.sessionId, ig_csrf_token: session.csrfToken || currentMeta.ig_csrf_token, ig_ds_user_id: session.dsUserId || currentMeta.ig_ds_user_id };
+          const testMeta = { ...originalMeta, ig_session_id: session.sessionId, ig_csrf_token: session.csrfToken || originalMeta.ig_csrf_token, ig_ds_user_id: session.dsUserId || originalMeta.ig_ds_user_id };
           await supabase.from("social_connections").update({ metadata: testMeta }).eq("account_id", selectedAccount).eq("platform", "instagram").eq("is_connected", true);
 
           const d = await Promise.race([
             callApi("instagram-api", { action: "explore_feed", params: { limit: 1 } }),
-            new Promise<null>((resolve) => setTimeout(() => resolve(null), 6000))
+            new Promise<null>((resolve) => setTimeout(() => resolve(null), 8000))
           ]);
 
-          const posts = (d as any)?.posts || [];
-          if (posts.length > 0) {
+          const posts = (d as any)?.posts || (d as any)?.data?.posts || [];
+          if (Array.isArray(posts) ? posts.length > 0 : !!posts) {
             const savedAt = new Date().toISOString();
             const finalMeta = { ...testMeta, ig_session_saved_at: savedAt };
             await supabase.from("social_connections").update({ metadata: finalMeta }).eq("account_id", selectedAccount).eq("platform", "instagram").eq("is_connected", true);
@@ -1352,14 +1361,18 @@ const SocialMediaHub = () => {
             setSessionAutoConnectLoading(false);
             return;
           } else {
-            await supabase.from("social_connections").update({ metadata: currentMeta }).eq("account_id", selectedAccount).eq("platform", "instagram").eq("is_connected", true);
+            // Revert to original metadata before trying next
+            await supabase.from("social_connections").update({ metadata: originalMeta }).eq("account_id", selectedAccount).eq("platform", "instagram").eq("is_connected", true);
           }
-        } catch {}
+        } catch {
+          // Revert on error too
+          await supabase.from("social_connections").update({ metadata: originalMeta }).eq("account_id", selectedAccount).eq("platform", "instagram").eq("is_connected", true);
+        }
       }
 
       const markedExpired = sessions.map(s => ({ ...s, status: "expired" as const }));
       setFoundSessions(markedExpired);
-      toast.error("No working session found. All tested sessions are expired. Paste a fresh cookie.");
+      toast.error("No working session found. Copy a fresh sessionid cookie from instagram.com DevTools → Clipboard, then try again.");
     } catch {
       toast.error("Auto-connect failed. Try finding sessions manually.");
     }
