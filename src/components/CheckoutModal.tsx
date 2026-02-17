@@ -190,12 +190,17 @@ const CheckoutModal = ({ clientSecret, onClose }: CheckoutModalProps) => {
               </AnimatePresence>
 
               <div
-                className="flex-1 min-h-0 overflow-hidden bg-white rounded-b-2xl"
+                className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden bg-white rounded-b-2xl"
+                style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(0,0,0,0.12) transparent" }}
                 ref={(el) => {
                   if (el) {
                     const observer = new MutationObserver(() => {
                       if (el.querySelector("iframe")) {
                         setStripeReady(true);
+                        // Auto-scroll to bottom after Stripe loads so pay button is visible
+                        setTimeout(() => {
+                          el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+                        }, 800);
                         observer.disconnect();
                       }
                     });
@@ -203,17 +208,15 @@ const CheckoutModal = ({ clientSecret, onClose }: CheckoutModalProps) => {
                   }
                 }}
               >
-                <div className="h-full [&>div]:h-full [&>div>div]:h-full [&_iframe]:!h-full">
-                  <EmbeddedCheckoutProvider
-                    stripe={stripePromise}
-                    options={{
-                      clientSecret,
-                      onComplete: handleComplete,
-                    }}
-                  >
-                    <EmbeddedCheckout />
-                  </EmbeddedCheckoutProvider>
-                </div>
+                <EmbeddedCheckoutProvider
+                  stripe={stripePromise}
+                  options={{
+                    clientSecret,
+                    onComplete: handleComplete,
+                  }}
+                >
+                  <EmbeddedCheckout />
+                </EmbeddedCheckoutProvider>
               </div>
             </>
           )}
