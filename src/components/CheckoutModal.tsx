@@ -204,15 +204,17 @@ const CheckoutModal = ({ clientSecret, onClose }: CheckoutModalProps) => {
                   }
                 }}
               >
-                <EmbeddedCheckoutProvider
-                  stripe={stripePromise}
-                  options={{
-                    clientSecret,
-                    onComplete: handleComplete,
-                  }}
-                >
-                  <EmbeddedCheckout />
-                </EmbeddedCheckoutProvider>
+                <div style={{ transform: "scale(0.96)", transformOrigin: "top center", width: "104.17%", marginLeft: "-2.08%" }}>
+                  <EmbeddedCheckoutProvider
+                    stripe={stripePromise}
+                    options={{
+                      clientSecret,
+                      onComplete: handleComplete,
+                    }}
+                  >
+                    <EmbeddedCheckout />
+                  </EmbeddedCheckoutProvider>
+                </div>
               </div>
             </>
           )}
