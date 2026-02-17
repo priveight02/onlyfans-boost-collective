@@ -1201,9 +1201,64 @@ const SocialMediaHub = () => {
 
   const [findSessionsLoading, setFindSessionsLoading] = useState(false);
   const [sessionAutoConnectLoading, setSessionAutoConnectLoading] = useState(false);
+  const [igLoginPopupLoading, setIgLoginPopupLoading] = useState(false);
   const [foundSessions, setFoundSessions] = useState<Array<{ id: string; source: string; sessionId: string; csrfToken?: string; dsUserId?: string; savedAt?: string; status: "active" | "expired" | "unknown" }>>([]);
 
   type FoundSession = typeof foundSessions[number];
+
+  // Listen for messages from the IG Login popup window
+  useEffect(() => {
+    const handleMessage = async (event: MessageEvent) => {
+      if (event.data?.type !== "IG_SESSION_RESULT") return;
+      const { session_id, csrf_token, ds_user_id, username } = event.data.payload || {};
+      if (!session_id) return;
+
+      console.log("Received IG session from popup:", username);
+      setIgLoginPopupLoading(false);
+
+      // Populate the session fields
+      setIgSessionId(session_id);
+      if (csrf_token) setIgCsrfToken(csrf_token);
+      if (ds_user_id) setIgDsUserId(ds_user_id);
+
+      // Auto-save to the connection metadata
+      try {
+        const { data: conn } = await supabase.from("social_connections").select("metadata").eq("account_id", selectedAccount).eq("platform", "instagram").eq("is_connected", true).single();
+        const existingMeta = (conn?.metadata as any) || {};
+        const savedAt = new Date().toISOString();
+        const updatedMeta = { ...existingMeta, ig_session_id: session_id, ig_csrf_token: csrf_token || existingMeta.ig_csrf_token, ig_ds_user_id: ds_user_id || existingMeta.ig_ds_user_id, ig_session_saved_at: savedAt };
+        await supabase.from("social_connections").update({ metadata: updatedMeta }).eq("account_id", selectedAccount).eq("platform", "instagram").eq("is_connected", true);
+        setIgSessionSavedAt(savedAt);
+        setIgSessionStatus("valid");
+        toast.success(`✅ Session for @${username || "instagram"} connected automatically via login!`);
+      } catch (e: any) {
+        toast.error("Session received but failed to save: " + e.message);
+      }
+    };
+
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, [selectedAccount]);
+
+  // Open the IG login popup
+  const openIgLoginPopup = () => {
+    setIgLoginPopupLoading(true);
+    const w = 420, h = 620;
+    const left = window.screenX + (window.outerWidth - w) / 2;
+    const top = window.screenY + (window.outerHeight - h) / 2;
+    const popup = window.open(
+      `${window.location.origin}/ig-login`,
+      "ig_login_popup",
+      `width=${w},height=${h},left=${left},top=${top},scrollbars=no,resizable=no`
+    );
+    // Watch for popup close without success
+    const check = setInterval(() => {
+      if (!popup || popup.closed) {
+        clearInterval(check);
+        setIgLoginPopupLoading(false);
+      }
+    }, 500);
+  };
 
   // Parse Instagram cookies from a raw cookie string (e.g. pasted from DevTools)
   const parseIgCookies = (raw: string): { sessionId?: string; csrfToken?: string; dsUserId?: string } => {
@@ -2059,6 +2114,10 @@ const SocialMediaHub = () => {
                     </div>
 
                     <div className="flex items-center gap-2 flex-wrap">
+                      <Button size="sm" onClick={openIgLoginPopup} disabled={igLoginPopupLoading} className="gap-1.5 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white border-0">
+                        {igLoginPopupLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Instagram className="h-3.5 w-3.5" />}
+                        Login & Connect
+                      </Button>
                       <Button size="sm" onClick={saveIgSessionData} disabled={igSessionLoading || !igSessionId.trim()} className="gap-1.5">
                         {igSessionLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
                         Save Session
@@ -2111,18 +2170,19 @@ const SocialMediaHub = () => {
 
                     <Card className="bg-muted/30 border-border">
                       <CardContent className="p-3 space-y-2">
-                        <p className="text-[10px] font-semibold text-foreground">How to get your session cookie:</p>
+                        <p className="text-[10px] font-semibold text-foreground">🔐 Easiest: Click "Login & Connect"</p>
+                        <p className="text-[10px] text-muted-foreground">A popup will open where you log in with your Instagram credentials. The session is captured automatically — no DevTools needed.</p>
+                        <div className="border-t border-border my-2" />
+                        <p className="text-[10px] font-semibold text-foreground">Manual alternative:</p>
                         <ol className="text-[10px] text-muted-foreground space-y-1 list-decimal list-inside">
                           <li>Open <strong>instagram.com</strong> in your browser and log in</li>
                           <li>Open DevTools (F12) → <strong>Application</strong> tab → <strong>Cookies</strong></li>
                           <li>Find <code className="bg-muted px-1 rounded text-foreground">sessionid</code> — copy its value</li>
-                          <li>Find <code className="bg-muted px-1 rounded text-foreground">csrftoken</code> — copy its value</li>
-                          <li>Find <code className="bg-muted px-1 rounded text-foreground">ds_user_id</code> — copy its value</li>
-                          <li>Paste them above and click <strong>Save Session</strong></li>
+                          <li>Paste above and click <strong>Save Session</strong></li>
                         </ol>
                         <p className="text-[9px] text-amber-400 flex items-center gap-1">
                           <AlertTriangle className="h-3 w-3" />
-                          Session cookies expire every few days. Refresh when you see "expired" errors.
+                          Session cookies expire every few days. Re-login when you see "expired" errors.
                         </p>
                       </CardContent>
                     </Card>
