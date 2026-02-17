@@ -1256,8 +1256,9 @@ const SocialMediaHub = () => {
     setIgLoginPopupLoading(true);
     const publishedOrigin = "https://onlyfans-boost-collective.lovable.app";
     const redirectUri = `${publishedOrigin}/ig-login`;
-    const scope = "instagram_basic,instagram_content_publish,instagram_manage_comments,instagram_manage_insights";
-    const authUrl = `https://api.instagram.com/oauth/authorize?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scope}&response_type=code`;
+    // Use Facebook Login dialog (NOT deprecated api.instagram.com) for Instagram Graph API permissions
+    const scope = "instagram_basic,instagram_content_publish,instagram_manage_comments,instagram_manage_insights,pages_show_list,pages_read_engagement";
+    const authUrl = `https://www.facebook.com/v24.0/dialog/oauth?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scope)}&response_type=code&extras=${encodeURIComponent(JSON.stringify({setup: {channel: "IG_API_ONBOARDING"}}))}`;
     
     // Use window.open directly — must be synchronous from user click to avoid popup blocker
     const popup = window.open(authUrl, "_blank");
