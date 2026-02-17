@@ -10,10 +10,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Users, Shield, UserPlus, Trash2, RefreshCw, Loader2, Search,
   Crown, ShieldCheck, UserCog, Eye, Mail, Clock, CheckCircle, XCircle,
-  Activity, MoreHorizontal, ShieldAlert, Ban,
+  Activity, MoreHorizontal, ShieldAlert, Ban, Key,
 } from "lucide-react";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
@@ -27,6 +28,29 @@ const roleStyles: Record<string, { label: string; color: string; icon: React.Ele
   moderator: { label: "Moderator", color: "bg-violet-500/15 text-violet-400 border-violet-500/20", icon: ShieldCheck },
   user: { label: "User", color: "bg-sky-500/15 text-sky-400 border-sky-500/20", icon: Users },
 };
+
+const ALL_PERMISSIONS = [
+  "grant_credits",
+  "revoke_credits",
+  "manage_users",
+  "manage_roles",
+  "view_analytics",
+  "manage_accounts",
+  "manage_content",
+  "send_messages",
+  "manage_contracts",
+  "manage_billing",
+  "view_audit_logs",
+  "manage_settings",
+  "manage_scripts",
+  "manage_social",
+  "manage_automations",
+  "access_copilot",
+  "manage_team",
+  "manage_bio_links",
+  "view_financials",
+  "export_data",
+];
 
 const WorkspaceAdmin = () => {
   const { user } = useAuth();
@@ -53,9 +77,15 @@ const WorkspaceAdmin = () => {
   const [showSetRoleDialog, setShowSetRoleDialog] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("user");
+  const [invitePermissions, setInvitePermissions] = useState<string[]>([]);
   const [setRoleUserId, setSetRoleUserId] = useState("");
   const [setRoleValue, setSetRoleValue] = useState("user");
+  const [setRolePermissions, setSetRolePermissions] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+
+  const togglePermission = (perm: string, list: string[], setter: (v: string[]) => void) => {
+    setter(list.includes(perm) ? list.filter(p => p !== perm) : [...list, perm]);
+  };
 
   const fetchRoles = useCallback(async () => {
     setRolesLoading(true);
@@ -66,7 +96,6 @@ const WorkspaceAdmin = () => {
       .limit(100);
     if (error) toast.error(error.message);
     else {
-      // Enrich with profile data
       const userIds = (data || []).map((r: any) => r.user_id);
       if (userIds.length > 0) {
         const { data: profiles } = await supabase
@@ -120,50 +149,42 @@ const WorkspaceAdmin = () => {
   };
 
   const handleSetRole = async () => {
-    if (!setRoleUserId.trim()) { toast.error("User ID required"); return; }
+    if (!setRoleUserId.trim()) { toast.error("User ID or email required"); return; }
     setSaving(true);
-    // Check if user exists
-    const { data: profile } = await supabase
+    // Find user by ID or email
+    let targetUserId = setRoleUserId.trim();
+    const { data: profileByEmail } = await supabase
       .from("profiles")
       .select("user_id, email")
-      .eq("user_id", setRoleUserId.trim())
+      .eq("email", targetUserId)
       .single();
-    if (!profile) {
-      // Try by email
-      const { data: profileByEmail } = await supabase
-        .from("profiles")
-        .select("user_id, email")
-        .eq("email", setRoleUserId.trim())
-        .single();
-      if (!profileByEmail) {
-        toast.error("User not found"); setSaving(false); return;
-      }
-      // Delete existing roles first, then insert new one
-      await supabase.from("user_roles").delete().eq("user_id", profileByEmail.user_id);
-      const { error } = await supabase.from("user_roles").insert(
-        { user_id: profileByEmail.user_id, role: setRoleValue as any }
-      );
-      if (error) toast.error(error.message);
-      else {
-        toast.success(`Role "${setRoleValue}" assigned to ${profileByEmail.email}`);
-        await logActivity("set_role", "user", profileByEmail.user_id, { role: setRoleValue });
-        setShowSetRoleDialog(false);
-        setSetRoleUserId("");
-        if (rolesLoaded) fetchRoles();
-      }
-    } else {
-      await supabase.from("user_roles").delete().eq("user_id", profile.user_id);
-      const { error } = await supabase.from("user_roles").insert(
-        { user_id: profile.user_id, role: setRoleValue as any }
-      );
-      if (error) toast.error(error.message);
-      else {
-        toast.success(`Role "${setRoleValue}" assigned to ${profile.email}`);
-        await logActivity("set_role", "user", profile.user_id, { role: setRoleValue });
-        setShowSetRoleDialog(false);
-        setSetRoleUserId("");
-        if (rolesLoaded) fetchRoles();
-      }
+    
+    if (profileByEmail) targetUserId = profileByEmail.user_id;
+    
+    const { data: profileById } = await supabase
+      .from("profiles")
+      .select("user_id, email")
+      .eq("user_id", targetUserId)
+      .single();
+
+    if (!profileById) {
+      toast.error("User not found");
+      setSaving(false);
+      return;
+    }
+
+    await supabase.from("user_roles").delete().eq("user_id", profileById.user_id);
+    const { error } = await supabase.from("user_roles").insert(
+      { user_id: profileById.user_id, role: setRoleValue as any }
+    );
+    if (error) { toast.error(error.message); }
+    else {
+      toast.success(`Role "${setRoleValue}" assigned to ${profileById.email}`);
+      await logActivity("set_role", "user", profileById.user_id, { role: setRoleValue, permissions: setRolePermissions });
+      setShowSetRoleDialog(false);
+      setSetRoleUserId("");
+      setSetRolePermissions([]);
+      if (rolesLoaded) fetchRoles();
     }
     setSaving(false);
   };
@@ -182,18 +203,29 @@ const WorkspaceAdmin = () => {
   const handleSendInvitation = async () => {
     if (!inviteEmail.trim()) { toast.error("Email required"); return; }
     setSaving(true);
-    const { error } = await supabase.from("workspace_invitations").insert({
-      email: inviteEmail.trim().toLowerCase(),
-      role: inviteRole,
-      invited_by: user?.id,
-    });
-    if (error) toast.error(error.message);
-    else {
-      toast.success(`Invitation sent to ${inviteEmail}`);
-      await logActivity("invite_sent", "invitation", undefined, { email: inviteEmail, role: inviteRole });
+
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData?.session?.access_token;
+      if (!accessToken) throw new Error("Not authenticated");
+
+      const res = await supabase.functions.invoke("send-workspace-invite", {
+        body: {
+          email: inviteEmail.trim().toLowerCase(),
+          role: inviteRole,
+          permissions: invitePermissions,
+        },
+      });
+
+      if (res.error) throw new Error(res.error.message);
+
+      toast.success(`Invitation email sent to ${inviteEmail}`);
       setShowInviteDialog(false);
       setInviteEmail("");
+      setInvitePermissions([]);
       if (invLoaded) fetchInvitations();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to send invitation");
     }
     setSaving(false);
   };
@@ -223,6 +255,31 @@ const WorkspaceAdmin = () => {
         {l ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
         Load
       </Button>
+    </div>
+  );
+
+  const PermissionsGrid = ({ selected, onToggle }: { selected: string[]; onToggle: (p: string) => void }) => (
+    <div className="space-y-1.5">
+      <Label className="text-xs text-white/50 flex items-center gap-1"><Key className="h-3 w-3" /> Permissions</Label>
+      <ScrollArea className="h-[180px] rounded-lg border border-white/[0.06] bg-white/[0.02] p-3">
+        <div className="grid grid-cols-2 gap-1.5">
+          {ALL_PERMISSIONS.map(perm => (
+            <label
+              key={perm}
+              className={`flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs cursor-pointer transition-all ${
+                selected.includes(perm) ? "bg-accent/10 text-accent border border-accent/20" : "text-white/50 hover:bg-white/[0.04] border border-transparent"
+              }`}
+            >
+              <Checkbox
+                checked={selected.includes(perm)}
+                onCheckedChange={() => onToggle(perm)}
+                className="h-3.5 w-3.5 border-white/20 data-[state=checked]:bg-accent data-[state=checked]:border-accent"
+              />
+              {perm.replace(/_/g, " ")}
+            </label>
+          ))}
+        </div>
+      </ScrollArea>
     </div>
   );
 
@@ -307,7 +364,7 @@ const WorkspaceAdmin = () => {
                               <MoreHorizontal className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="bg-[hsl(220,60%,13%)] border-white/10 text-white">
+                          <DropdownMenuContent align="end" className="bg-[hsl(220,60%,13%)] border-white/10">
                             <DropdownMenuItem onClick={() => handleRemoveRole(entry)} className="text-red-400 hover:bg-red-500/10 cursor-pointer gap-2">
                               <Trash2 className="h-3.5 w-3.5" /> Remove Role
                             </DropdownMenuItem>
@@ -344,9 +401,13 @@ const WorkspaceAdmin = () => {
                         <Mail className="h-4 w-4 text-white/30" />
                         <div>
                           <p className="text-sm text-white">{inv.email}</p>
-                          <p className="text-xs text-white/30">
-                            Role: {inv.role} • {new Date(inv.created_at).toLocaleDateString()}
-                          </p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className="text-xs text-white/30">Role: {inv.role}</span>
+                            {inv.permissions && inv.permissions.length > 0 && (
+                              <span className="text-[10px] text-accent/60">{inv.permissions.length} permissions</span>
+                            )}
+                            <span className="text-xs text-white/20">{new Date(inv.created_at).toLocaleDateString()}</span>
+                          </div>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
@@ -416,7 +477,7 @@ const WorkspaceAdmin = () => {
 
       {/* Set Role Dialog */}
       <Dialog open={showSetRoleDialog} onOpenChange={setShowSetRoleDialog}>
-        <DialogContent className="bg-[hsl(220,60%,10%)] border-white/10 text-white max-w-md">
+        <DialogContent className="bg-[hsl(220,60%,10%)] border-white/10 text-white max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <ShieldAlert className="h-5 w-5 text-accent" /> Assign Role to User
@@ -437,12 +498,13 @@ const WorkspaceAdmin = () => {
               <Select value={setRoleValue} onValueChange={setSetRoleValue}>
                 <SelectTrigger className="bg-white/5 border-white/10 text-white h-9 text-sm"><SelectValue /></SelectTrigger>
                 <SelectContent className="bg-[hsl(220,60%,13%)] border-white/10">
-                  <SelectItem value="admin">Admin</SelectItem>
-                  <SelectItem value="moderator">Moderator</SelectItem>
-                  <SelectItem value="user">User</SelectItem>
+                  <SelectItem value="admin" className="text-white hover:bg-white/10">Admin</SelectItem>
+                  <SelectItem value="moderator" className="text-white hover:bg-white/10">Moderator</SelectItem>
+                  <SelectItem value="user" className="text-white hover:bg-white/10">User</SelectItem>
                 </SelectContent>
               </Select>
             </div>
+            <PermissionsGrid selected={setRolePermissions} onToggle={(p) => togglePermission(p, setRolePermissions, setSetRolePermissions)} />
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setShowSetRoleDialog(false)} className="text-white/50 hover:text-white hover:bg-white/10">Cancel</Button>
@@ -455,7 +517,7 @@ const WorkspaceAdmin = () => {
 
       {/* Invite Dialog */}
       <Dialog open={showInviteDialog} onOpenChange={setShowInviteDialog}>
-        <DialogContent className="bg-[hsl(220,60%,10%)] border-white/10 text-white max-w-md">
+        <DialogContent className="bg-[hsl(220,60%,10%)] border-white/10 text-white max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <UserPlus className="h-5 w-5 text-accent" /> Invite User to Workspace
@@ -477,17 +539,18 @@ const WorkspaceAdmin = () => {
               <Select value={inviteRole} onValueChange={setInviteRole}>
                 <SelectTrigger className="bg-white/5 border-white/10 text-white h-9 text-sm"><SelectValue /></SelectTrigger>
                 <SelectContent className="bg-[hsl(220,60%,13%)] border-white/10">
-                  <SelectItem value="admin">Admin</SelectItem>
-                  <SelectItem value="moderator">Moderator</SelectItem>
-                  <SelectItem value="user">User</SelectItem>
+                  <SelectItem value="admin" className="text-white hover:bg-white/10">Admin</SelectItem>
+                  <SelectItem value="moderator" className="text-white hover:bg-white/10">Moderator</SelectItem>
+                  <SelectItem value="user" className="text-white hover:bg-white/10">User</SelectItem>
                 </SelectContent>
               </Select>
             </div>
+            <PermissionsGrid selected={invitePermissions} onToggle={(p) => togglePermission(p, invitePermissions, setInvitePermissions)} />
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setShowInviteDialog(false)} className="text-white/50 hover:text-white hover:bg-white/10">Cancel</Button>
             <Button onClick={handleSendInvitation} disabled={saving} className="bg-accent hover:bg-accent/80">
-              {saving ? "Sending..." : "Send Invitation"}
+              {saving ? "Sending..." : "Send Invitation Email"}
             </Button>
           </DialogFooter>
         </DialogContent>

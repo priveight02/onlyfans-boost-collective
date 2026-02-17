@@ -79,6 +79,68 @@ export type Database = {
         }
         Relationships: []
       }
+      admin_onboarding_profiles: {
+        Row: {
+          avatar_url: string | null
+          bio: string | null
+          created_at: string | null
+          department: string
+          display_name: string
+          email: string
+          full_name: string
+          id: string
+          invitation_id: string | null
+          permissions: string[] | null
+          phone: string
+          role: string
+          timezone: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string | null
+          department: string
+          display_name: string
+          email: string
+          full_name: string
+          id?: string
+          invitation_id?: string | null
+          permissions?: string[] | null
+          phone: string
+          role: string
+          timezone?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string | null
+          department?: string
+          display_name?: string
+          email?: string
+          full_name?: string
+          id?: string
+          invitation_id?: string | null
+          permissions?: string[] | null
+          phone?: string
+          role?: string
+          timezone?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admin_onboarding_profiles_invitation_id_fkey"
+            columns: ["invitation_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_invitations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       admin_sessions: {
         Row: {
           admin_id: string
@@ -4195,6 +4257,9 @@ export type Database = {
           expires_at: string
           id: string
           invited_by: string | null
+          onboarded_at: string | null
+          permissions: string[] | null
+          personal_info: Json | null
           role: string
           status: string
           token: string
@@ -4206,6 +4271,9 @@ export type Database = {
           expires_at?: string
           id?: string
           invited_by?: string | null
+          onboarded_at?: string | null
+          permissions?: string[] | null
+          personal_info?: Json | null
           role?: string
           status?: string
           token?: string
@@ -4217,6 +4285,9 @@ export type Database = {
           expires_at?: string
           id?: string
           invited_by?: string | null
+          onboarded_at?: string | null
+          permissions?: string[] | null
+          personal_info?: Json | null
           role?: string
           status?: string
           token?: string
