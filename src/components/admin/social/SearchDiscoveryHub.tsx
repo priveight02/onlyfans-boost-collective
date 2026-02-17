@@ -86,7 +86,7 @@ const SearchDiscoveryHub = ({ accountId }: SearchDiscoveryHubProps) => {
 
   // Search state
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchMode, setSearchMode] = useState<"username" | "hashtag" | "keyword" | "similar" | "competitors">("username");
+  const [searchMode, setSearchMode] = useState<"username" | "hashtag" | "post" | "similar">("username");
   const [searchPlatform, setSearchPlatform] = useState<"instagram" | "tiktok" | "all">("all");
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchResults, setSearchResults] = useState<any[]>([]);
@@ -250,8 +250,8 @@ const SearchDiscoveryHub = ({ accountId }: SearchDiscoveryHubProps) => {
             setSearchResults(Array.from(userMap.values()));
           }
         }
-      } else if (searchMode === "keyword") {
-        // Use Instagram search_users with keyword
+      } else if (searchMode === "post") {
+        // Search by post/content name - use Instagram search_users with post-related keyword
         const { data: connData } = await supabase
           .from("social_connections")
           .select("metadata")
@@ -271,10 +271,10 @@ const SearchDiscoveryHub = ({ accountId }: SearchDiscoveryHubProps) => {
             setSearchResults(data.data.users.map((u: any) => ({ ...u, platform: "instagram" })));
           }
         } else {
-          toast.error("Session cookie required for keyword search");
+          toast.error("Session cookie required for post search");
           setSearchResults([]);
         }
-      } else if (searchMode === "similar" || searchMode === "competitors") {
+      } else if (searchMode === "similar") {
         // First discover the user, then search by their name/bio keywords
         const { data } = await supabase.functions.invoke("instagram-api", {
           body: { action: "discover_user", account_id: accountId, params: { username: q, media_limit: 0 } },
@@ -312,7 +312,7 @@ const SearchDiscoveryHub = ({ accountId }: SearchDiscoveryHubProps) => {
 
   const onSearchQueryChange = (val: string) => {
     setSearchQuery(val);
-    if (searchMode === "username" || searchMode === "keyword") {
+    if (searchMode === "username" || searchMode === "post") {
       if (searchTimeout.current) clearTimeout(searchTimeout.current);
       searchTimeout.current = setTimeout(() => performSearch(val), 500);
     }
@@ -520,23 +520,20 @@ const SearchDiscoveryHub = ({ accountId }: SearchDiscoveryHubProps) => {
         {/* Search Header */}
         <div className="p-3 border-b border-border space-y-2 flex-shrink-0">
           <div className="flex items-center gap-2">
-            <Search className="h-4 w-4 text-purple-400" />
-            <span className="text-sm font-semibold text-foreground">Discovery Engine</span>
+            <span className="text-sm font-semibold text-foreground">Discovery</span>
             <Badge variant="outline" className="text-[9px] ml-auto">{searchResults.length} results</Badge>
           </div>
 
-          {/* Search mode pills */}
           <div className="flex gap-1 flex-wrap">
             {([
-              { v: "username" as const, icon: Users, l: "Username" },
-              { v: "hashtag" as const, icon: Hash, l: "Hashtag" },
-              { v: "keyword" as const, icon: Search, l: "Keyword" },
-              { v: "similar" as const, icon: Compass, l: "Similar" },
-              { v: "competitors" as const, icon: Target, l: "Competitors" },
+              { v: "username" as const, l: "Username" },
+              { v: "hashtag" as const, l: "Hashtag" },
+              { v: "post" as const, l: "Post Name" },
+              { v: "similar" as const, l: "Similar" },
             ]).map(t => (
               <button key={t.v} onClick={() => setSearchMode(t.v)}
-                className={`flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium transition-colors ${searchMode === t.v ? "bg-purple-500/20 text-purple-400" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"}`}>
-                <t.icon className="h-3 w-3" />{t.l}
+                className={`px-2.5 py-1 rounded-md text-[10px] font-medium transition-colors ${searchMode === t.v ? "bg-foreground/10 text-foreground ring-1 ring-border" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"}`}>
+                {t.l}
               </button>
             ))}
           </div>
@@ -575,7 +572,7 @@ const SearchDiscoveryHub = ({ accountId }: SearchDiscoveryHubProps) => {
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
             <Input
-              placeholder={searchMode === "username" ? "Search @username..." : searchMode === "hashtag" ? "Search #hashtag..." : searchMode === "similar" ? "@username to find similar..." : "Search keywords..."}
+              placeholder={searchMode === "username" ? "Search @username..." : searchMode === "hashtag" ? "Search #hashtag..." : searchMode === "similar" ? "@username to find similar..." : "Search by post name..."}
               value={searchQuery}
               onChange={e => onSearchQueryChange(e.target.value)}
               onKeyDown={e => e.key === "Enter" && performSearch()}
@@ -589,10 +586,9 @@ const SearchDiscoveryHub = ({ accountId }: SearchDiscoveryHubProps) => {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5">
               <Switch checked={expandedSearch} onCheckedChange={setExpandedSearch} className="h-4 w-7" />
-              <span className="text-[10px] text-muted-foreground">List Expander</span>
-              {expandedSearch && <Zap className="h-3 w-3 text-purple-400" />}
+              <span className="text-[10px] text-muted-foreground">Expand results</span>
             </div>
-            <span className="text-[10px] text-muted-foreground">{expandedSearch ? `Target: ${expanderTarget.toLocaleString()}` : "Standard (200)"}</span>
+            <span className="text-[10px] text-muted-foreground">{expandedSearch ? `Target: ${expanderTarget.toLocaleString()}` : "200 max"}</span>
           </div>
           {expandedSearch && (
             <div className="flex items-center gap-2">
@@ -638,9 +634,9 @@ const SearchDiscoveryHub = ({ accountId }: SearchDiscoveryHubProps) => {
                   <div className="flex items-center gap-1.5">
                     <span className="text-xs font-medium text-foreground truncate">{user.full_name || user.username}</span>
                     {user.is_verified && <VerifiedBadge size={14} />}
-                    {user.is_private && <span className="text-amber-400 text-[9px]">🔒</span>}
+                    {user.is_private && <Shield className="h-3 w-3 text-amber-400" />}
                     {user.platform === "tiktok" && <Music2 className="h-3 w-3 text-cyan-400" />}
-                    {isAdded && <span className="text-[8px] text-emerald-400">✓ added</span>}
+                    {isAdded && <span className="text-[9px] text-emerald-400">added</span>}
                   </div>
                   <span className="text-[10px] text-muted-foreground">@{user.username}</span>
                   <div className="flex items-center gap-2.5 mt-0.5">
@@ -811,8 +807,8 @@ const SearchDiscoveryHub = ({ accountId }: SearchDiscoveryHubProps) => {
           <div className="grid grid-cols-3 gap-1">
             {[10, 50, 100, 500, 1000, 5000].map(n => (
               <Button key={n} size="sm" variant="outline" onClick={() => selectRandom(n)} disabled={userList.length === 0}
-                className="h-6 text-[9px] gap-1">
-                <Shuffle className="h-2.5 w-2.5" /> {n >= 1000 ? `${n / 1000}K` : n}
+                className="h-6 text-[9px] gap-1 text-foreground">
+                {n >= 1000 ? `${n / 1000}K` : n}
               </Button>
             ))}
           </div>

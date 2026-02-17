@@ -1200,12 +1200,11 @@ const SocialMediaHub = () => {
 
       {/* Tabs */}
       <Tabs value={activeSubTab} onValueChange={setActiveSubTab}>
-        <div className="w-full overflow-x-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent pb-1">
-          <TabsList className="bg-muted/50 border border-border p-0.5 rounded-lg gap-0.5 inline-flex w-max">
+        <TabsList className="bg-muted/50 border border-border p-0.5 rounded-lg gap-0.5 flex flex-wrap w-full">
             {[
               { v: "dashboard", icon: LayoutDashboard, l: "Dashboard" },
-              { v: "ai-auto", icon: Brain, l: "AI Auto-DM" },
-              { v: "ai-mass", icon: Megaphone, l: "AI Mass DM" },
+              { v: "ai-auto", icon: Brain, l: "Auto-DM" },
+              { v: "ai-mass", icon: Megaphone, l: "Mass DM" },
               { v: "search", icon: Search, l: "Search" },
               { v: "content", icon: Layers, l: "Content" },
               { v: "engagement", icon: MessageSquare, l: "Comments" },
@@ -1213,16 +1212,15 @@ const SocialMediaHub = () => {
               { v: "ai-tools", icon: Wand2, l: "AI Tools" },
               { v: "analytics", icon: BarChart3, l: "Analytics" },
               { v: "biolink", icon: Link2, l: "Bio Links" },
-              { v: "automation", icon: Zap, l: "IG Automation" },
+              { v: "automation", icon: Zap, l: "Automation" },
               { v: "social-networks", icon: Globe, l: "Networks" },
               { v: "connect", icon: Plus, l: "Connect" },
             ].map(t => (
-              <TabsTrigger key={t.v} value={t.v} className="data-[state=active]:bg-background data-[state=active]:text-foreground text-muted-foreground rounded-md gap-1 text-xs px-2.5 py-1.5 whitespace-nowrap flex-shrink-0">
+              <TabsTrigger key={t.v} value={t.v} className="data-[state=active]:bg-background data-[state=active]:text-foreground text-muted-foreground rounded-md gap-1 text-xs px-2 py-1.5 whitespace-nowrap">
                 <t.icon className="h-3.5 w-3.5" />{t.l}
               </TabsTrigger>
             ))}
           </TabsList>
-        </div>
 
         {/* ===== DASHBOARD ===== */}
         <TabsContent value="dashboard" className="space-y-4 mt-4">
