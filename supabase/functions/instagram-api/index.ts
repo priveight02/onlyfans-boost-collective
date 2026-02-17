@@ -666,21 +666,60 @@ Analyze every character in the name and username for any gender signal at all. L
 
       case "post_comment":
         if (!params?.media_id || !params?.message) throw new Error("media_id and message required");
-        result = await igFetch(`/${params.media_id}/comments`, token, "POST", { message: params.message });
-        // Track in social_comment_replies for analytics
-        try {
-          await supabase.from("social_comment_replies").insert({
-            account_id: account_id,
-            platform: "instagram",
-            post_id: params.media_id,
-            comment_id: result?.id || "posted",
-            comment_text: "",
-            comment_author: params.post_author || "discover",
-            reply_text: params.message,
-            reply_sent_at: new Date().toISOString(),
-            status: "sent",
-          });
-        } catch {}
+        {
+          let commentResult: any = null;
+          let commentMethod = "graph";
+          
+          // Try Graph API first (works for own posts & mentioned posts)
+          try {
+            commentResult = await igFetch(`/${params.media_id}/comments`, token, "POST", { message: params.message });
+          } catch (graphErr: any) {
+            console.log("Graph API comment failed, trying private API:", graphErr.message);
+            // Fallback to private API for external/discover posts
+            const metaC = conn.metadata as any || {};
+            const sessionIdC = metaC?.ig_session_id;
+            if (sessionIdC) {
+              commentMethod = "private";
+              const dsUserIdC = metaC?.ig_ds_user_id || conn.platform_user_id;
+              const csrfTokenC = metaC?.ig_csrf_token;
+              const commentHeaders: Record<string, string> = {
+                "User-Agent": "Instagram 275.0.0.27.98 Android (33/13; 420dpi; 1080x2400; samsung; SM-G991B; o1s; exynos2100; en_US; 458229258)",
+                "Cookie": `sessionid=${sessionIdC};${csrfTokenC ? ` csrftoken=${csrfTokenC};` : ""}${dsUserIdC ? ` ds_user_id=${dsUserIdC};` : ""}`,
+                "X-IG-App-ID": "936619743392459",
+                "Content-Type": "application/x-www-form-urlencoded",
+              };
+              if (csrfTokenC) commentHeaders["X-CSRFToken"] = csrfTokenC;
+              const commentResp = await fetch(`https://i.instagram.com/api/v1/media/${params.media_id}/comment/`, {
+                method: "POST",
+                headers: commentHeaders,
+                body: `comment_text=${encodeURIComponent(params.message)}&_uuid=device123&_uid=${dsUserIdC || ""}`,
+              });
+              commentResult = await commentResp.json();
+              if (commentResult?.comment) {
+                commentResult = { id: commentResult.comment.pk, ...commentResult };
+              }
+            } else {
+              throw new Error("Comment failed via Graph API and no session cookie available for private API fallback");
+            }
+          }
+          
+          result = commentResult;
+          // Track in social_comment_replies for analytics
+          try {
+            await supabase.from("social_comment_replies").insert({
+              account_id: account_id,
+              platform: "instagram",
+              post_id: params.media_id,
+              comment_id: result?.id || "posted",
+              comment_text: "",
+              comment_author: params.post_author || "discover",
+              reply_text: params.message,
+              reply_sent_at: new Date().toISOString(),
+              status: "sent",
+              metadata: { method: commentMethod } as any,
+            });
+          } catch {}
+        }
         break;
 
       case "like_media":
