@@ -113,7 +113,7 @@ const CheckoutModal = ({ clientSecret, onClose }: CheckoutModalProps) => {
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.94, y: 24 }}
           transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-          className="relative w-full max-w-[1200px] h-[94vh] rounded-3xl overflow-hidden flex flex-col"
+          className="relative w-full max-w-[1400px] h-[96vh] rounded-3xl overflow-hidden flex flex-col"
           style={{
             background: "linear-gradient(180deg, hsl(222, 35%, 10%) 0%, hsl(222, 35%, 7%) 100%)",
             boxShadow: "0 0 0 1px rgba(255,255,255,0.06), 0 32px 80px -12px rgba(0,0,0,0.7), 0 0 120px -40px rgba(147,51,234,0.15)",
@@ -191,7 +191,7 @@ const CheckoutModal = ({ clientSecret, onClose }: CheckoutModalProps) => {
 
               <div
                 className="flex-1 overflow-y-auto min-h-0"
-                style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(255,255,255,0.08) transparent" }}
+                style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(255,255,255,0.08) transparent", transform: "scale(0.92)", transformOrigin: "top center", height: "108.7%" }}
                 ref={(el) => {
                   if (el) {
                     const observer = new MutationObserver(() => {
