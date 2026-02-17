@@ -484,9 +484,9 @@ Return ONLY the 4 messages separated by ||| with no numbering or labels.`,
   };
 
   return (
-    <div className="flex h-[calc(100vh-280px)] min-h-[600px] rounded-xl border border-border overflow-hidden bg-background">
+    <div className="flex h-[calc(100vh-340px)] min-h-[500px] max-h-[700px] rounded-xl border border-border overflow-hidden bg-background">
       {/* ===== LEFT SIDEBAR — Campaign List ===== */}
-      <div className="w-[280px] flex-shrink-0 border-r border-border flex flex-col bg-muted/5">
+      <div className="w-[240px] flex-shrink-0 border-r border-border flex flex-col bg-muted/5">
         {/* Header */}
         <div className="px-3 py-2.5 border-b border-border">
           <div className="flex items-center justify-between mb-1.5">
@@ -868,7 +868,7 @@ Return ONLY the 4 messages separated by ||| with no numbering or labels.`,
 
       {/* ===== RIGHT PANEL — Pipeline & Activity ===== */}
       {showRightPanel && selectedCampaign && (
-        <div className="w-[240px] flex-shrink-0 border-l border-border flex flex-col bg-muted/5">
+        <div className="w-[220px] flex-shrink-0 border-l border-border flex flex-col bg-muted/5">
           {/* Quick actions */}
           <div className="px-3 py-2.5 border-b border-border/50">
             <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2">Quick Actions</p>
@@ -998,8 +998,8 @@ Return ONLY the 4 messages separated by ||| with no numbering or labels.`,
 
       {/* ===== CREATE CAMPAIGN MODAL ===== */}
       {showCreate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowCreate(false)}>
-          <div className="bg-background border border-border rounded-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto p-5 space-y-3 shadow-2xl" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowCreate(false)}>
+          <div className="bg-card text-card-foreground border border-border rounded-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto p-5 space-y-3 shadow-2xl" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-bold text-foreground flex items-center gap-2"><Rocket className="h-4 w-4 text-orange-400" />New Campaign</h3>
               <Button size="sm" variant="ghost" onClick={() => setShowCreate(false)} className="h-7 w-7 p-0"><X className="h-4 w-4" /></Button>

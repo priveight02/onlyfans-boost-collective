@@ -27,7 +27,7 @@ import {
   Activity, Copy, Wifi, WifiOff,
   MessageCircle, LayoutDashboard, Compass,
   Sparkles, Bot, Brain, Wand2, AtSign, Megaphone, FolderOpen,
-  PieChart, Layers, Twitter, Phone, Camera, Gamepad2,
+  PieChart, Layers, Twitter, Phone, Camera, Gamepad2, ArrowRight,
 } from "lucide-react";
 
 const VerifiedBadge = ({ size = 12 }: { size?: number }) => (
@@ -1199,8 +1199,8 @@ const SocialMediaHub = () => {
 
       {/* Tabs */}
       <Tabs value={activeSubTab} onValueChange={setActiveSubTab}>
-        <ScrollArea className="w-full">
-          <TabsList className="bg-muted/50 border border-border p-0.5 rounded-lg gap-0.5 inline-flex w-auto min-w-full">
+        <div className="w-full overflow-x-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent pb-1">
+          <TabsList className="bg-muted/50 border border-border p-0.5 rounded-lg gap-0.5 inline-flex w-max">
             {[
               { v: "dashboard", icon: LayoutDashboard, l: "Dashboard" },
               { v: "ai-auto", icon: Brain, l: "AI Auto-DM" },
@@ -1216,12 +1216,12 @@ const SocialMediaHub = () => {
               { v: "social-networks", icon: Globe, l: "Networks" },
               { v: "connect", icon: Plus, l: "Connect" },
             ].map(t => (
-              <TabsTrigger key={t.v} value={t.v} className="data-[state=active]:bg-background data-[state=active]:text-foreground text-muted-foreground rounded-md gap-1 text-xs px-2.5 py-1.5 whitespace-nowrap">
+              <TabsTrigger key={t.v} value={t.v} className="data-[state=active]:bg-background data-[state=active]:text-foreground text-muted-foreground rounded-md gap-1 text-xs px-2.5 py-1.5 whitespace-nowrap flex-shrink-0">
                 <t.icon className="h-3.5 w-3.5" />{t.l}
               </TabsTrigger>
             ))}
           </TabsList>
-        </ScrollArea>
+        </div>
 
         {/* ===== DASHBOARD ===== */}
         <TabsContent value="dashboard" className="space-y-4 mt-4">
@@ -1389,153 +1389,304 @@ const SocialMediaHub = () => {
         <TabsContent value="search" className="space-y-4 mt-4">
           <Card>
             <CardContent className="p-4 space-y-3">
-              <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><Search className="h-4 w-4 text-purple-400" />Universal Search</h4>
-              <div className="grid grid-cols-3 gap-2">
-                <select value={searchType} onChange={e => setSearchType(e.target.value)} className="bg-background border border-border text-foreground rounded-lg px-2 py-1.5 text-sm">
-                  <option value="username">By Username</option>
-                  <option value="hashtag">By Hashtag</option>
-                  <option value="keyword">By Keyword</option>
-                  <option value="content">By Content</option>
-                </select>
-                <select value={searchPlatform} onChange={e => setSearchPlatform(e.target.value)} className="bg-background border border-border text-foreground rounded-lg px-2 py-1.5 text-sm">
-                  <option value="both">Both</option>
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><Search className="h-4 w-4 text-purple-400" />Universal Search & Discovery</h4>
+                <CreditCostBadge cost="1–5" variant="header" label="/search" />
+              </div>
+
+              {/* Search mode tabs */}
+              <div className="flex gap-1 flex-wrap">
+                {[
+                  { v: "username", icon: Users, l: "Username" },
+                  { v: "hashtag", icon: Hash, l: "Hashtag" },
+                  { v: "keyword", icon: Search, l: "Keyword" },
+                  { v: "content", icon: Layers, l: "My Content" },
+                  { v: "competitors", icon: Target, l: "Competitors" },
+                  { v: "similar", icon: Compass, l: "Similar" },
+                ].map(t => (
+                  <Button key={t.v} size="sm" variant={searchType === t.v ? "default" : "outline"}
+                    onClick={() => setSearchType(t.v)} className="text-[10px] h-7 px-2 gap-1">
+                    <t.icon className="h-3 w-3" />{t.l}
+                  </Button>
+                ))}
+              </div>
+
+              <div className="grid grid-cols-[1fr_120px_auto] gap-2">
+                <Input value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+                  placeholder={searchType === "username" ? "@username to discover..." : searchType === "hashtag" ? "#hashtag to research..." : searchType === "competitors" ? "@competitor username..." : searchType === "similar" ? "@username to find similar..." : "Search keywords..."}
+                  className="text-sm" onKeyDown={e => e.key === "Enter" && performSearch()} />
+                <select value={searchPlatform} onChange={e => setSearchPlatform(e.target.value)} className="bg-card text-card-foreground border border-border rounded-lg px-2 py-1.5 text-sm">
+                  <option value="both">All</option>
                   <option value="instagram">Instagram</option>
                   <option value="tiktok">TikTok</option>
                 </select>
-                <div className="flex gap-1">
-                  <Input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search..." className="text-sm" onKeyDown={e => e.key === "Enter" && performSearch()} />
-                  <Button size="sm" onClick={performSearch} disabled={apiLoading}><Search className="h-3.5 w-3.5" /></Button>
-                </div>
+                <Button size="sm" onClick={performSearch} disabled={apiLoading} className="bg-gradient-to-r from-purple-500 to-pink-500 text-white border-0">
+                  {apiLoading ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Search className="h-3.5 w-3.5" />}
+                </Button>
               </div>
 
+              {/* Quick discovery buttons */}
+              <div className="flex gap-1.5 flex-wrap">
+                <Button size="sm" variant="outline" onClick={async () => { const d = await callApi("instagram-api", { action: "get_tagged_media", params: { limit: 25 } }); if (d) { setSearchResults({ type: "tagged", data: { media: d.data || [] } }); toast.success(`${d.data?.length || 0} tagged posts found`); } }} disabled={!igConnected || apiLoading} className="text-xs h-7 text-foreground"><AtSign className="h-3 w-3 mr-1" />Tagged</Button>
+                <Button size="sm" variant="outline" onClick={async () => { const d = await callApi("instagram-api", { action: "get_mentioned_media", params: { limit: 25 } }); if (d) { setSearchResults({ type: "mentions", data: { media: d.data || [] } }); toast.success(`${d.data?.length || 0} mentions found`); } }} disabled={!igConnected || apiLoading} className="text-xs h-7 text-foreground"><Megaphone className="h-3 w-3 mr-1" />Mentions</Button>
+                <Button size="sm" variant="outline" onClick={async () => { const d = await callApi("instagram-api", { action: "get_stories" }); if (d) { setSearchResults({ type: "stories", data: { media: d.data || [] } }); toast.success(`${d.data?.length || 0} stories found`); } }} disabled={!igConnected || apiLoading} className="text-xs h-7 text-foreground"><Radio className="h-3 w-3 mr-1" />Stories</Button>
+                <Button size="sm" variant="outline" onClick={async () => {
+                  const d = await callApi("instagram-api", { action: "search_users", params: { query: searchQuery || "model", limit: 30 } });
+                  if (d) { setSearchResults({ type: "users", data: { users: d.users || d.data || [] } }); toast.success("Users discovered"); }
+                }} disabled={!igConnected || apiLoading} className="text-xs h-7 text-foreground"><Users className="h-3 w-3 mr-1" />Discover Users</Button>
+                <Button size="sm" variant="outline" onClick={fetchMedia} disabled={apiLoading} className="text-xs h-7 text-foreground"><Download className="h-3 w-3 mr-1" />Pull Media</Button>
+              </div>
+
+              {/* Results */}
               {searchResults && (
-                <ScrollArea className="max-h-[400px]">
+                <ScrollArea className="max-h-[500px]">
                   <div className="space-y-2">
-                    {searchResults.type === "username" && (
-                      <>
-                        {searchResults.data?.instagram && (() => {
-                          const bd = searchResults.data.instagram.business_discovery || searchResults.data.instagram;
-                          const fmtNum = (n: number) => n >= 1000000 ? `${(n/1000000).toFixed(1)}M` : n >= 1000 ? `${(n/1000).toFixed(1)}K` : String(n);
-                          return (
-                            <div className="bg-muted/30 rounded-lg p-3">
-                              <div className="flex items-center gap-2 mb-2"><Instagram className="h-4 w-4 text-pink-400" /><span className="text-xs font-medium text-foreground">Instagram</span></div>
-                              <div className="flex items-center gap-3">
-                                {bd.profile_picture_url && (
-                                  <img src={bd.profile_picture_url} alt="" className="h-12 w-12 rounded-full object-cover flex-shrink-0" referrerPolicy="no-referrer" />
-                                )}
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-1.5">
-                                    <p className="text-sm font-medium text-white">{bd.name || bd.username}</p>
-                                    {bd.is_verified && <VerifiedBadge size={14} />}
-                                  </div>
-                                  <p className="text-[11px] text-white/50">@{bd.username}</p>
-                                  <p className="text-xs text-white/40 line-clamp-2 mt-0.5">{bd.biography}</p>
-                                  <div className="flex gap-3 mt-1.5 text-[11px] text-white/40">
-                                    <span><span className="font-semibold text-white">{fmtNum(bd.followers_count || 0)}</span> followers</span>
-                                    <span><span className="font-semibold text-white">{fmtNum(bd.follows_count || 0)}</span> following</span>
-                                    <span><span className="font-semibold text-white">{fmtNum(bd.media_count || 0)}</span> posts</span>
-                                  </div>
+                    {/* Username search results */}
+                    {searchResults.type === "username" && searchResults.data?.instagram && (() => {
+                      const bd = searchResults.data.instagram.business_discovery || searchResults.data.instagram;
+                      const fmtNum = (n: number) => n >= 1000000 ? `${(n/1000000).toFixed(1)}M` : n >= 1000 ? `${(n/1000).toFixed(1)}K` : String(n);
+                      const engRate = bd.followers_count > 0 ? ((bd.media_count || 0) / bd.followers_count * 100).toFixed(1) : "0";
+                      return (
+                        <Card className="border-pink-500/20">
+                          <CardContent className="p-4">
+                            <div className="flex items-center gap-2 mb-3"><Instagram className="h-4 w-4 text-pink-400" /><span className="text-xs font-medium text-foreground">Instagram Profile</span></div>
+                            <div className="flex items-center gap-4">
+                              {bd.profile_picture_url && <img src={bd.profile_picture_url} alt="" className="h-16 w-16 rounded-full object-cover flex-shrink-0" referrerPolicy="no-referrer" />}
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-1.5">
+                                  <p className="text-base font-bold text-foreground">{bd.name || bd.username}</p>
+                                  {bd.is_verified && <VerifiedBadge size={16} />}
                                 </div>
+                                <p className="text-xs text-muted-foreground">@{bd.username}</p>
+                                <p className="text-xs text-muted-foreground/80 line-clamp-2 mt-1">{bd.biography}</p>
                               </div>
                             </div>
-                          );
-                        })()}
-                        {searchResults.data?.tiktok && (
-                          <div className="bg-muted/30 rounded-lg p-3">
-                            <div className="flex items-center gap-2 mb-2"><Music2 className="h-4 w-4 text-cyan-400" /><span className="text-xs font-medium text-foreground">TikTok</span></div>
-                            <p className="text-sm text-foreground">{JSON.stringify(searchResults.data.tiktok).slice(0, 200)}</p>
-                          </div>
-                        )}
-                      </>
+                            <div className="grid grid-cols-4 gap-2 mt-3">
+                              <div className="bg-muted/40 rounded-lg p-2 text-center"><p className="text-sm font-bold text-foreground">{fmtNum(bd.followers_count || 0)}</p><p className="text-[9px] text-muted-foreground">Followers</p></div>
+                              <div className="bg-muted/40 rounded-lg p-2 text-center"><p className="text-sm font-bold text-foreground">{fmtNum(bd.follows_count || 0)}</p><p className="text-[9px] text-muted-foreground">Following</p></div>
+                              <div className="bg-muted/40 rounded-lg p-2 text-center"><p className="text-sm font-bold text-foreground">{fmtNum(bd.media_count || 0)}</p><p className="text-[9px] text-muted-foreground">Posts</p></div>
+                              <div className="bg-muted/40 rounded-lg p-2 text-center"><p className="text-sm font-bold text-foreground">{engRate}%</p><p className="text-[9px] text-muted-foreground">Eng Rate</p></div>
+                            </div>
+                            {bd.media?.data && (
+                              <div className="mt-3">
+                                <p className="text-xs text-muted-foreground mb-2">Recent Media ({bd.media.data.length})</p>
+                                <div className="grid grid-cols-4 gap-1.5">
+                                  {bd.media.data.slice(0, 8).map((m: any) => (
+                                    <div key={m.id} className="aspect-square rounded-lg overflow-hidden bg-muted/30 relative">
+                                      {m.media_url && <img src={m.media_url} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />}
+                                      {m.like_count !== undefined && <span className="absolute bottom-0.5 right-0.5 text-[8px] text-white bg-black/60 rounded px-1">{m.like_count}♡</span>}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            <div className="flex gap-2 mt-3">
+                              <Button size="sm" variant="outline" onClick={() => { setDmRecipientId(bd.id || ""); setActiveSubTab("messaging"); }} className="text-xs h-7"><Send className="h-3 w-3 mr-1" />DM</Button>
+                              <Button size="sm" variant="outline" onClick={() => { navigator.clipboard.writeText(`https://instagram.com/${bd.username}`); toast.success("Link copied"); }} className="text-xs h-7"><Copy className="h-3 w-3 mr-1" />Copy Link</Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })()}
+
+                    {searchResults.type === "username" && searchResults.data?.tiktok && (
+                      <Card className="border-cyan-500/20">
+                        <CardContent className="p-4">
+                          <div className="flex items-center gap-2 mb-2"><Music2 className="h-4 w-4 text-cyan-400" /><span className="text-xs font-medium text-foreground">TikTok</span></div>
+                          <pre className="text-xs text-foreground whitespace-pre-wrap">{JSON.stringify(searchResults.data.tiktok, null, 2).slice(0, 500)}</pre>
+                        </CardContent>
+                      </Card>
                     )}
+
+                    {/* Hashtag results */}
                     {searchResults.type === "hashtag" && searchResults.data?.instagram && (
-                      <div className="bg-muted/30 rounded-lg p-3">
-                        <div className="flex items-center gap-2 mb-2"><Hash className="h-4 w-4 text-pink-400" /><span className="text-xs font-medium text-foreground">#{searchQuery}</span></div>
-                        <p className="text-xs text-muted-foreground">{searchResults.data.instagram.top?.length || 0} top + {searchResults.data.instagram.recent?.length || 0} recent posts</p>
-                      </div>
+                      <Card className="border-pink-500/20">
+                        <CardContent className="p-4">
+                          <div className="flex items-center gap-2 mb-2"><Hash className="h-4 w-4 text-pink-400" /><span className="text-sm font-semibold text-foreground">#{searchQuery}</span></div>
+                          <div className="grid grid-cols-2 gap-2 mb-3">
+                            <div className="bg-muted/40 rounded-lg p-2 text-center"><p className="text-lg font-bold text-foreground">{searchResults.data.instagram.top?.length || 0}</p><p className="text-[9px] text-muted-foreground">Top Posts</p></div>
+                            <div className="bg-muted/40 rounded-lg p-2 text-center"><p className="text-lg font-bold text-foreground">{searchResults.data.instagram.recent?.length || 0}</p><p className="text-[9px] text-muted-foreground">Recent Posts</p></div>
+                          </div>
+                          {(searchResults.data.instagram.top || searchResults.data.instagram.recent) && (
+                            <div className="space-y-1.5">
+                              {[...(searchResults.data.instagram.top || []), ...(searchResults.data.instagram.recent || [])].slice(0, 12).map((m: any, i: number) => (
+                                <div key={m.id || i} className="bg-muted/20 rounded p-2 flex items-center gap-2">
+                                  {m.media_url && <img src={m.media_url} alt="" className="h-10 w-10 rounded object-cover flex-shrink-0" referrerPolicy="no-referrer" />}
+                                  <div className="min-w-0 flex-1"><p className="text-xs text-foreground line-clamp-1">{m.caption || "No caption"}</p>
+                                    <div className="flex gap-2 text-[10px] text-muted-foreground">{m.like_count !== undefined && <span>♡ {m.like_count}</span>}{m.comments_count !== undefined && <span>💬 {m.comments_count}</span>}</div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
                     )}
+
+                    {/* Keyword results */}
                     {searchResults.type === "keyword" && searchResults.data?.tiktok?.data?.videos && (
-                      <div className="space-y-1">
+                      <div className="space-y-1.5">
                         {searchResults.data.tiktok.data.videos.map((v: any) => (
-                          <div key={v.id} className="bg-muted/30 rounded p-2 flex justify-between items-center">
+                          <div key={v.id} className="bg-muted/30 rounded-lg p-3 flex items-center gap-3">
+                            {v.cover_image_url && <img src={v.cover_image_url} alt="" className="h-12 w-12 rounded object-cover flex-shrink-0" />}
                             <div className="min-w-0 flex-1">
-                              <p className="text-xs text-foreground truncate">{v.video_description || "No desc"}</p>
-                              <div className="flex gap-2 text-[10px] text-muted-foreground"><span>@{v.username}</span><span>{(v.view_count || 0).toLocaleString()} views</span></div>
+                              <p className="text-xs text-foreground line-clamp-2">{v.video_description || "No desc"}</p>
+                              <div className="flex gap-3 text-[10px] text-muted-foreground mt-1"><span>@{v.username}</span><span>👁 {(v.view_count || 0).toLocaleString()}</span><span>♡ {(v.like_count || 0).toLocaleString()}</span></div>
                             </div>
                           </div>
                         ))}
                       </div>
                     )}
+
+                    {/* Content search */}
                     {searchResults.type === "content" && (
-                      <div className="space-y-1">
+                      <div className="space-y-1.5">
                         {(searchResults.data?.posts || []).map((p: any) => (
-                          <div key={p.id} className="bg-muted/30 rounded p-2">
-                            <Badge variant="outline" className="text-[10px] mb-1">{p.post_type} · {p.status}</Badge>
+                          <div key={p.id} className="bg-muted/30 rounded-lg p-3">
+                            <div className="flex items-center gap-1.5 mb-1">
+                              <Badge variant="outline" className="text-[10px]">{p.post_type}</Badge>
+                              <Badge className={`text-[10px] ${p.status === "published" ? "bg-green-500/15 text-green-400" : p.status === "scheduled" ? "bg-yellow-500/15 text-yellow-400" : "bg-muted text-muted-foreground"}`}>{p.status}</Badge>
+                            </div>
                             <p className="text-xs text-foreground line-clamp-2">{p.caption}</p>
                           </div>
                         ))}
-                        {(!searchResults.data?.posts?.length && !searchResults.data?.media?.length) && <p className="text-xs text-muted-foreground text-center py-3">No results. Pull media first.</p>}
+                        {(!searchResults.data?.posts?.length && !searchResults.data?.media?.length) && <p className="text-xs text-muted-foreground text-center py-3">No results found</p>}
+                      </div>
+                    )}
+
+                    {/* Tagged/Mentions/Stories results */}
+                    {(searchResults.type === "tagged" || searchResults.type === "mentions" || searchResults.type === "stories" || searchResults.type === "users") && (
+                      <div className="space-y-1.5">
+                        {searchResults.type === "users" && (searchResults.data?.users || []).map((u: any, i: number) => (
+                          <div key={u.id || i} className="bg-muted/30 rounded-lg p-3 flex items-center gap-3">
+                            {u.profile_picture_url && <img src={u.profile_picture_url} alt="" className="h-10 w-10 rounded-full object-cover flex-shrink-0" referrerPolicy="no-referrer" />}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-semibold text-foreground">@{u.username || u.name}</p>
+                              <p className="text-[10px] text-muted-foreground">{u.full_name || u.biography || ""}</p>
+                            </div>
+                            <Button size="sm" variant="outline" className="h-6 text-[10px]" onClick={() => { setSearchQuery(u.username); setSearchType("username"); performSearch(); }}>View</Button>
+                          </div>
+                        ))}
+                        {(searchResults.data?.media || []).map((m: any, i: number) => (
+                          <div key={m.id || i} className="bg-muted/30 rounded-lg p-3 flex items-center gap-3">
+                            {m.media_url && <img src={m.media_url} alt="" className="h-12 w-12 rounded object-cover flex-shrink-0" referrerPolicy="no-referrer" />}
+                            <div className="min-w-0 flex-1">
+                              <p className="text-xs text-foreground line-clamp-1">{m.caption || "No caption"}</p>
+                              <div className="flex gap-2 text-[10px] text-muted-foreground">{m.like_count !== undefined && <span>♡ {m.like_count}</span>}{m.timestamp && <span>{new Date(m.timestamp).toLocaleDateString()}</span>}</div>
+                            </div>
+                          </div>
+                        ))}
+                        {(searchResults.data?.media || []).length === 0 && (searchResults.data?.users || []).length === 0 && <p className="text-xs text-muted-foreground text-center py-3">No results found</p>}
                       </div>
                     )}
                   </div>
                 </ScrollArea>
               )}
-
-              {/* Quick discovery */}
-              <div className="border-t border-border pt-3">
-                <p className="text-xs text-muted-foreground mb-2">Quick Discovery</p>
-                <div className="flex gap-1.5 flex-wrap">
-                  <Button size="sm" variant="outline" onClick={async () => { const d = await callApi("instagram-api", { action: "get_tagged_media", params: { limit: 25 } }); if (d) toast.success(`${d.data?.length || 0} tagged`); }} disabled={!igConnected || apiLoading} className="text-xs h-7 text-foreground"><AtSign className="h-3 w-3 mr-1" />Tagged</Button>
-                  <Button size="sm" variant="outline" onClick={async () => { const d = await callApi("instagram-api", { action: "get_mentioned_media", params: { limit: 25 } }); if (d) toast.success(`${d.data?.length || 0} mentions`); }} disabled={!igConnected || apiLoading} className="text-xs h-7 text-foreground"><Megaphone className="h-3 w-3 mr-1" />Mentions</Button>
-                  <Button size="sm" variant="outline" onClick={async () => { const d = await callApi("instagram-api", { action: "get_stories" }); if (d) toast.success(`${d.data?.length || 0} stories`); }} disabled={!igConnected || apiLoading} className="text-xs h-7 text-foreground"><Radio className="h-3 w-3 mr-1" />Stories</Button>
-                </div>
-              </div>
             </CardContent>
           </Card>
         </TabsContent>
 
         {/* ===== CONTENT ===== */}
         <TabsContent value="content" className="space-y-4 mt-4">
+          {/* AI Content Assistant */}
+          <Card className="border-purple-500/20">
+            <CardContent className="p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><Brain className="h-4 w-4 text-purple-400" />AI Content Assistant</h4>
+                <CreditCostBadge cost="5–10" variant="header" label="/gen" />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <Input value={aiCaptionTopic} onChange={e => setAiCaptionTopic(e.target.value)} placeholder="Topic: fitness motivation, beach vibes..." className="text-sm" />
+                <div className="flex gap-1">
+                  <select value={aiCaptionPlatform} onChange={e => setAiCaptionPlatform(e.target.value)} className="bg-card text-card-foreground border border-border rounded-lg px-2 py-1.5 text-sm w-24">
+                    <option value="instagram">IG</option><option value="tiktok">TT</option><option value="twitter">X</option>
+                  </select>
+                  <Button size="sm" onClick={generateAiCaption} disabled={apiLoading || !aiCaptionTopic} className="bg-gradient-to-r from-purple-500 to-pink-500 text-white border-0">
+                    <Sparkles className="h-3.5 w-3.5 mr-1" />Generate
+                  </Button>
+                </div>
+              </div>
+              {aiCaptionResult && (
+                <div className="bg-muted/30 rounded-lg p-3 border border-border">
+                  <p className="text-xs text-foreground whitespace-pre-wrap">{aiCaptionResult}</p>
+                  <div className="flex gap-2 mt-2">
+                    <Button size="sm" variant="outline" className="h-6 text-[10px]" onClick={() => { navigator.clipboard.writeText(aiCaptionResult); toast.success("Copied"); }}><Copy className="h-2.5 w-2.5 mr-0.5" />Copy</Button>
+                    <Button size="sm" variant="outline" className="h-6 text-[10px]" onClick={() => { setNewPost(p => ({ ...p, caption: aiCaptionResult })); toast.success("Pasted to composer"); }}><ArrowRight className="h-2.5 w-2.5 mr-0.5" />Use</Button>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Post Composer */}
           <Card>
             <CardContent className="p-4 space-y-3">
-              <h4 className="text-sm font-semibold text-foreground">Create Post</h4>
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><Layers className="h-4 w-4 text-blue-400" />Post Composer & Scheduler</h4>
+              </div>
               <div className="grid grid-cols-2 gap-2">
-                <select value={newPost.platform} onChange={e => setNewPost(p => ({ ...p, platform: e.target.value }))} className="bg-background border border-border text-foreground rounded-lg px-2 py-1.5 text-sm">
-                  <option value="instagram">Instagram</option>
-                  <option value="tiktok">TikTok</option>
-                  <option value="twitter">X / Twitter</option>
-                  <option value="reddit">Reddit</option>
-                  <option value="telegram">Telegram</option>
+                <select value={newPost.platform} onChange={e => setNewPost(p => ({ ...p, platform: e.target.value }))} className="bg-card text-card-foreground border border-border rounded-lg px-2 py-1.5 text-sm">
+                  <option value="instagram">Instagram</option><option value="tiktok">TikTok</option><option value="twitter">X / Twitter</option><option value="reddit">Reddit</option><option value="telegram">Telegram</option>
                 </select>
-                <select value={newPost.post_type} onChange={e => setNewPost(p => ({ ...p, post_type: e.target.value }))} className="bg-background border border-border text-foreground rounded-lg px-2 py-1.5 text-sm">
-                  <option value="feed">Photo</option>
-                  <option value="reel">Reel</option>
-                  <option value="story">Story</option>
-                  <option value="carousel">Carousel</option>
+                <select value={newPost.post_type} onChange={e => setNewPost(p => ({ ...p, post_type: e.target.value }))} className="bg-card text-card-foreground border border-border rounded-lg px-2 py-1.5 text-sm">
+                  <option value="feed">Photo</option><option value="reel">Reel</option><option value="story">Story</option><option value="carousel">Carousel</option>
                 </select>
               </div>
-              <Textarea value={newPost.caption} onChange={e => setNewPost(p => ({ ...p, caption: e.target.value }))} placeholder="Caption..." rows={3} className="text-sm" />
-              <Input value={newPost.media_url} onChange={e => setNewPost(p => ({ ...p, media_url: e.target.value }))} placeholder="Media URL..." className="text-sm" />
+              <Textarea value={newPost.caption} onChange={e => setNewPost(p => ({ ...p, caption: e.target.value }))} placeholder="Write your caption... (or use AI above)" rows={4} className="text-sm" />
+              <Input value={newPost.media_url} onChange={e => setNewPost(p => ({ ...p, media_url: e.target.value }))} placeholder="Media URL (image/video link)..." className="text-sm" />
+              <Input value={newPost.alt_text} onChange={e => setNewPost(p => ({ ...p, alt_text: e.target.value }))} placeholder="Alt text for accessibility..." className="text-sm" />
               <div className="grid grid-cols-2 gap-2">
-                <Input type="datetime-local" value={newPost.scheduled_at} onChange={e => setNewPost(p => ({ ...p, scheduled_at: e.target.value }))} className="text-sm" />
-                <Input value={newPost.redirect_url} onChange={e => setNewPost(p => ({ ...p, redirect_url: e.target.value }))} placeholder="Redirect URL" className="text-sm" />
+                <div>
+                  <label className="text-[10px] text-muted-foreground mb-0.5 block">Schedule</label>
+                  <Input type="datetime-local" value={newPost.scheduled_at} onChange={e => setNewPost(p => ({ ...p, scheduled_at: e.target.value }))} className="text-sm" />
+                </div>
+                <div>
+                  <label className="text-[10px] text-muted-foreground mb-0.5 block">Redirect URL</label>
+                  <Input value={newPost.redirect_url} onChange={e => setNewPost(p => ({ ...p, redirect_url: e.target.value }))} placeholder="https://..." className="text-sm" />
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <Switch checked={newPost.auto_reply_enabled} onCheckedChange={v => setNewPost(p => ({ ...p, auto_reply_enabled: v }))} />
-                <span className="text-xs text-muted-foreground">Auto-reply to comments</span>
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2"><Switch checked={newPost.auto_reply_enabled} onCheckedChange={v => setNewPost(p => ({ ...p, auto_reply_enabled: v }))} /><span className="text-xs text-muted-foreground">Auto-reply comments</span></div>
+                <div className="flex items-center gap-2"><Switch checked={aiCaptionCta} onCheckedChange={setAiCaptionCta} /><span className="text-xs text-muted-foreground">Include CTA</span></div>
               </div>
               {newPost.auto_reply_enabled && (
-                <Input value={newPost.auto_reply_message} onChange={e => setNewPost(p => ({ ...p, auto_reply_message: e.target.value }))} placeholder="Auto-reply message..." className="text-sm" />
+                <Input value={newPost.auto_reply_message} onChange={e => setNewPost(p => ({ ...p, auto_reply_message: e.target.value }))} placeholder="Auto-reply message for comments..." className="text-sm" />
               )}
-              <Button onClick={schedulePost} size="sm">{newPost.scheduled_at ? <><Calendar className="h-3.5 w-3.5 mr-1" />Schedule</> : <><Send className="h-3.5 w-3.5 mr-1" />Save Draft</>}</Button>
+              <div className="flex gap-2">
+                <Button onClick={schedulePost} size="sm" className="bg-gradient-to-r from-blue-500 to-purple-500 text-white border-0">
+                  {newPost.scheduled_at ? <><Calendar className="h-3.5 w-3.5 mr-1" />Schedule</> : <><Send className="h-3.5 w-3.5 mr-1" />Save Draft</>}
+                </Button>
+                {newPost.caption && <Button size="sm" variant="outline" onClick={() => publishPost({ ...newPost, media_urls: newPost.media_url ? [newPost.media_url] : [] })} disabled={apiLoading}><Zap className="h-3.5 w-3.5 mr-1" />Publish Now</Button>}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Content Analyzer */}
+          <Card>
+            <CardContent className="p-4 space-y-3">
+              <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><TrendingUp className="h-4 w-4 text-green-400" />Content Analyzer</h4>
+              <Textarea value={aiAnalyzeCaption} onChange={e => setAiAnalyzeCaption(e.target.value)} placeholder="Paste a caption to analyze performance potential..." rows={2} className="text-sm" />
+              <Button size="sm" onClick={analyzeContent} disabled={apiLoading || !aiAnalyzeCaption}><Brain className="h-3.5 w-3.5 mr-1" />Analyze</Button>
+              {aiAnalyzeResult && (
+                <div className="bg-muted/30 rounded-lg p-3 border border-border">
+                  <p className="text-xs text-foreground whitespace-pre-wrap">{aiAnalyzeResult}</p>
+                </div>
+              )}
             </CardContent>
           </Card>
 
           {/* Posts list */}
-          {posts.length > 0 && (
-            <Card>
-              <CardContent className="p-4">
-                <h4 className="text-sm font-semibold text-foreground mb-2">Posts ({posts.length})</h4>
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-sm font-semibold text-foreground">Posts Queue ({posts.length})</h4>
+                <div className="flex gap-1.5 text-[10px] text-muted-foreground">
+                  <Badge className="bg-green-500/15 text-green-400">{posts.filter(p => p.status === "published").length} published</Badge>
+                  <Badge className="bg-yellow-500/15 text-yellow-400">{posts.filter(p => p.status === "scheduled").length} scheduled</Badge>
+                  <Badge className="bg-muted text-muted-foreground">{posts.filter(p => p.status === "draft").length} drafts</Badge>
+                </div>
+              </div>
+              {posts.length > 0 ? (
                 <ScrollArea className="max-h-[350px]">
                   <div className="space-y-2">
                     {posts.map(p => (
@@ -1550,49 +1701,83 @@ const SocialMediaHub = () => {
                           {p.scheduled_at && <p className="text-[10px] text-muted-foreground mt-1"><Clock className="h-2.5 w-2.5 inline mr-0.5" />{new Date(p.scheduled_at).toLocaleString()}</p>}
                         </div>
                         <div className="flex gap-1">
-                          {p.status !== "published" && <Button size="sm" variant="ghost" onClick={() => publishPost(p)} className="h-7 w-7 p-0"><Send className="h-3 w-3" /></Button>}
+                          {p.status !== "published" && <Button size="sm" variant="ghost" onClick={() => publishPost(p)} className="h-7 w-7 p-0 text-green-400"><Send className="h-3 w-3" /></Button>}
                           <Button size="sm" variant="ghost" onClick={() => deletePost(p.id)} className="h-7 w-7 p-0 text-red-400"><Trash2 className="h-3 w-3" /></Button>
                         </div>
                       </div>
                     ))}
                   </div>
                 </ScrollArea>
-              </CardContent>
-            </Card>
-          )}
+              ) : (
+                <div className="text-center py-6"><Layers className="h-8 w-8 text-muted-foreground/20 mx-auto mb-2" /><p className="text-xs text-muted-foreground">No posts yet — create your first one above</p></div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* ===== ENGAGEMENT / COMMENTS ===== */}
         <TabsContent value="engagement" className="space-y-4 mt-4">
           <Card>
             <CardContent className="p-4 space-y-3">
-              <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><Bot className="h-4 w-4 text-green-400" />Comment Manager + AI Bulk Reply</h4>
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><Bot className="h-4 w-4 text-green-400" />Comment Manager + AI Bulk Reply</h4>
+                <CreditCostBadge cost="2–5" variant="header" label="/reply" />
+              </div>
+              
               <div className="flex gap-2">
-                <select value={commentsPlatform} onChange={e => setCommentsPlatform(e.target.value)} className="bg-background border border-border text-foreground rounded-lg px-2 py-1.5 text-sm">
-                  <option value="instagram">IG</option>
-                  <option value="tiktok">TT</option>
+                <select value={commentsPlatform} onChange={e => setCommentsPlatform(e.target.value)} className="bg-card text-card-foreground border border-border rounded-lg px-2 py-1.5 text-sm">
+                  <option value="instagram">Instagram</option><option value="tiktok">TikTok</option>
                 </select>
-                <Input value={commentsMediaId} onChange={e => setCommentsMediaId(e.target.value)} placeholder="Media/Video ID" className="text-sm flex-1" />
+                <Input value={commentsMediaId} onChange={e => setCommentsMediaId(e.target.value)} placeholder="Media/Video ID (or auto-load from recent)" className="text-sm flex-1" />
                 <Button size="sm" variant="outline" onClick={fetchComments} disabled={apiLoading}><MessageSquare className="h-3.5 w-3.5 mr-1" />Load</Button>
-                <Button size="sm" onClick={bulkGenerateReplies} disabled={apiLoading || commentsList.length === 0}><Sparkles className="h-3.5 w-3.5 mr-1" />AI Reply All</Button>
+              </div>
+
+              {/* Auto-load from recent media */}
+              <div className="flex gap-1.5 flex-wrap">
+                <Button size="sm" variant="outline" className="text-[10px] h-7" onClick={async () => {
+                  const d = await callApi("instagram-api", { action: "get_media", params: { limit: 5 } });
+                  if (d?.data?.[0]) { setCommentsMediaId(d.data[0].id); toast.success(`Selected latest post: ${d.data[0].caption?.slice(0, 30) || d.data[0].id}...`); }
+                }} disabled={!igConnected || apiLoading}><Instagram className="h-3 w-3 mr-0.5" />Latest IG Post</Button>
+                <Button size="sm" variant="outline" className="text-[10px] h-7" onClick={async () => {
+                  if (igMedia.length > 0) {
+                    setCommentsMediaId(igMedia[0].id);
+                    toast.success("Selected from pulled media");
+                  } else {
+                    toast.error("Pull media first (Dashboard → Pull Media)");
+                  }
+                }} disabled={igMedia.length === 0}><Layers className="h-3 w-3 mr-0.5" />From Pulled Media</Button>
+                <Button size="sm" onClick={bulkGenerateReplies} disabled={apiLoading || commentsList.length === 0} className="text-[10px] h-7 bg-gradient-to-r from-green-500 to-emerald-500 text-white border-0">
+                  <Sparkles className="h-3 w-3 mr-0.5" />AI Reply All ({commentsList.length})
+                </Button>
               </div>
 
               <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Redirect link for AI replies</label>
-                <Input value={aiAutoReplyRedirect} onChange={e => setAiAutoReplyRedirect(e.target.value)} placeholder="https://..." className="text-sm" />
+                <label className="text-[10px] text-muted-foreground mb-0.5 block">Redirect link for AI replies</label>
+                <Input value={aiAutoReplyRedirect} onChange={e => setAiAutoReplyRedirect(e.target.value)} placeholder="https://onlyfans.com/..." className="text-sm" />
               </div>
 
-              {commentsList.length > 0 && <p className="text-xs text-muted-foreground">{commentsList.length} comments loaded</p>}
+              {commentsList.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <Badge className="bg-green-500/15 text-green-400">{commentsList.length} comments loaded</Badge>
+                  <Button size="sm" variant="ghost" className="h-6 text-[10px]" onClick={() => sendAllBulkReplies()} disabled={bulkAiReplies.length === 0}>
+                    <Send className="h-2.5 w-2.5 mr-0.5" />Send All AI Replies
+                  </Button>
+                </div>
+              )}
 
               {/* Individual comments */}
               {commentsList.length > 0 && !bulkAiReplies.length && (
-                <ScrollArea className="max-h-[300px]">
+                <ScrollArea className="max-h-[400px]">
                   <div className="space-y-1.5">
                     {commentsList.map((c: any, i: number) => (
-                      <div key={i} className="bg-muted/30 rounded p-2">
-                        <p className="text-xs text-muted-foreground">@{c.username || c.from?.username || "user"}</p>
-                        <p className="text-xs text-foreground">{c.text}</p>
-                        <div className="flex gap-1 mt-1">
+                      <div key={i} className="bg-muted/30 rounded-lg p-2.5">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-[11px] font-semibold text-foreground">@{c.username || c.from?.username || "user"}</span>
+                          {c.timestamp && <span className="text-[9px] text-muted-foreground">{new Date(c.timestamp).toLocaleDateString()}</span>}
+                          {c.like_count !== undefined && <span className="text-[9px] text-muted-foreground">♡ {c.like_count}</span>}
+                        </div>
+                        <p className="text-xs text-foreground mb-1.5">{c.text}</p>
+                        <div className="flex gap-1">
                           <Input value={replyText} onChange={e => setReplyText(e.target.value)} placeholder="Reply..." className="text-xs h-7 flex-1" />
                           <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => replyToComment(c.id, c.text, c.username || c.from?.username)}><Send className="h-3 w-3" /></Button>
                         </div>
@@ -1607,21 +1792,25 @@ const SocialMediaHub = () => {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <p className="text-xs font-medium text-foreground">{bulkAiReplies.length} AI replies ready</p>
-                    <Button size="sm" onClick={sendAllBulkReplies}><Send className="h-3 w-3 mr-1" />Send All</Button>
+                    <Button size="sm" onClick={sendAllBulkReplies} className="bg-gradient-to-r from-green-500 to-emerald-500 text-white border-0"><Send className="h-3 w-3 mr-1" />Send All</Button>
                   </div>
-                  <ScrollArea className="max-h-[300px]">
+                  <ScrollArea className="max-h-[400px]">
                     {bulkAiReplies.map((r, i) => (
-                      <div key={i} className="bg-muted/30 rounded p-2 mb-1.5">
+                      <div key={i} className="bg-muted/30 rounded-lg p-2.5 mb-1.5">
                         <p className="text-[10px] text-muted-foreground">@{r.username}: "{r.comment_text}"</p>
-                        <p className="text-xs text-foreground mt-0.5">→ {r.generated_reply}</p>
-                        <div className="flex gap-1 mt-1">
-                          <Button size="sm" variant="outline" className="h-6 text-[10px]" onClick={() => sendBulkReply(r)}>Send</Button>
+                        <p className="text-xs text-foreground mt-0.5 font-medium">→ {r.generated_reply}</p>
+                        <div className="flex gap-1 mt-1.5">
+                          <Button size="sm" variant="outline" className="h-6 text-[10px]" onClick={() => sendBulkReply(r)}><Send className="h-2.5 w-2.5 mr-0.5" />Send</Button>
                           <Button size="sm" variant="ghost" className="h-6 text-[10px] text-red-400" onClick={() => setBulkAiReplies(p => p.filter(x => x.comment_id !== r.comment_id))}>Skip</Button>
                         </div>
                       </div>
                     ))}
                   </ScrollArea>
                 </div>
+              )}
+
+              {commentsList.length === 0 && !apiLoading && (
+                <div className="text-center py-6"><MessageSquare className="h-8 w-8 text-muted-foreground/20 mx-auto mb-2" /><p className="text-xs text-muted-foreground">Load comments from a post to start managing and auto-replying</p></div>
               )}
             </CardContent>
           </Card>
@@ -1653,23 +1842,74 @@ const SocialMediaHub = () => {
 
         {/* ===== ANALYTICS ===== */}
         <TabsContent value="analytics" className="space-y-4 mt-4">
-          <div className="flex gap-2">
-            <Button size="sm" variant="outline" className="text-foreground" onClick={async () => { await callApi("instagram-api", { action: "get_account_insights", params: { period: "day" } }); toast.success("Updated"); loadData(); }} disabled={!igConnected || apiLoading}><Instagram className="h-3.5 w-3.5 mr-1" />Sync IG</Button>
+          <div className="flex gap-2 flex-wrap">
+            <Button size="sm" variant="outline" className="text-foreground" onClick={async () => {
+              const d = await callApi("instagram-api", { action: "get_account_insights", params: { period: "day", metrics: "reach,impressions,profile_views,follower_count,email_contacts,phone_call_clicks,text_message_clicks,get_directions_clicks,website_clicks" } });
+              if (d) { toast.success("IG insights synced"); loadData(); }
+            }} disabled={!igConnected || apiLoading}><Instagram className="h-3.5 w-3.5 mr-1" />Sync IG Insights</Button>
             <Button size="sm" variant="outline" className="text-foreground" onClick={async () => { await callApi("tiktok-api", { action: "get_user_info" }); toast.success("Updated"); loadData(); }} disabled={!ttConnected || apiLoading}><Music2 className="h-3.5 w-3.5 mr-1" />Sync TT</Button>
             <Button size="sm" variant="outline" className="text-foreground" onClick={async () => { await callApi("twitter-api", { action: "get_profile" }); toast.success("Updated"); loadData(); }} disabled={!xConnected || apiLoading}><Twitter className="h-3.5 w-3.5 mr-1" />Sync X</Button>
             <Button size="sm" variant="outline" className="text-foreground" onClick={async () => { await callApi("reddit-api", { action: "get_profile" }); toast.success("Updated"); loadData(); }} disabled={!redditConnected || apiLoading}><Globe className="h-3.5 w-3.5 mr-1" />Sync Reddit</Button>
             <Button size="sm" variant="outline" className="text-foreground" onClick={async () => { await callApi("telegram-api", { action: "get_me" }); toast.success("Updated"); loadData(); }} disabled={!telegramConnected || apiLoading}><Phone className="h-3.5 w-3.5 mr-1" />Sync TG</Button>
+            <Button size="sm" variant="outline" className="text-foreground" onClick={async () => {
+              const d = await callApi("instagram-api", { action: "get_media_insights", params: { limit: 10 } });
+              if (d) toast.success("Media insights fetched");
+            }} disabled={!igConnected || apiLoading}><BarChart3 className="h-3.5 w-3.5 mr-1" />Media Insights</Button>
           </div>
+
+          {/* Platform overview cards */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+            {igProfile && (
+              <Card className="border-pink-500/20">
+                <CardContent className="p-3">
+                  <div className="flex items-center gap-1.5 mb-1"><Instagram className="h-3 w-3 text-pink-400" /><span className="text-[10px] text-muted-foreground">Instagram</span></div>
+                  <p className="text-lg font-bold text-foreground">{(igProfile.followers_count || 0).toLocaleString()}</p>
+                  <p className="text-[9px] text-muted-foreground">followers · {(igProfile.media_count || 0)} posts</p>
+                </CardContent>
+              </Card>
+            )}
+            {ttProfile && (
+              <Card className="border-cyan-500/20">
+                <CardContent className="p-3">
+                  <div className="flex items-center gap-1.5 mb-1"><Music2 className="h-3 w-3 text-cyan-400" /><span className="text-[10px] text-muted-foreground">TikTok</span></div>
+                  <p className="text-lg font-bold text-foreground">{(ttProfile.follower_count || 0).toLocaleString()}</p>
+                  <p className="text-[9px] text-muted-foreground">followers · {(ttProfile.likes_count || 0).toLocaleString()} likes</p>
+                </CardContent>
+              </Card>
+            )}
+            {xProfile && (
+              <Card className="border-blue-500/20">
+                <CardContent className="p-3">
+                  <div className="flex items-center gap-1.5 mb-1"><Twitter className="h-3 w-3 text-blue-400" /><span className="text-[10px] text-muted-foreground">X/Twitter</span></div>
+                  <p className="text-lg font-bold text-foreground">{(xProfile.public_metrics?.followers_count || 0).toLocaleString()}</p>
+                  <p className="text-[9px] text-muted-foreground">followers</p>
+                </CardContent>
+              </Card>
+            )}
+            <Card>
+              <CardContent className="p-3">
+                <div className="flex items-center gap-1.5 mb-1"><Activity className="h-3 w-3 text-green-400" /><span className="text-[10px] text-muted-foreground">Total Activity</span></div>
+                <p className="text-lg font-bold text-foreground">{posts.length}</p>
+                <p className="text-[9px] text-muted-foreground">posts · {commentReplies.length} replies</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Analytics data */}
           {analytics.length > 0 ? (
             <Card>
               <CardContent className="p-4">
+                <h4 className="text-sm font-semibold text-foreground mb-3">Metrics History</h4>
                 <ScrollArea className="max-h-[400px]">
                   <div className="space-y-1.5">
                     {analytics.map(a => (
-                      <div key={a.id} className="bg-muted/30 rounded p-2 flex justify-between items-center">
-                        <div>
-                          <p className="text-xs font-medium text-foreground">{a.metric_type}</p>
-                          <p className="text-[10px] text-muted-foreground">{a.platform} · {new Date(a.fetched_at).toLocaleDateString()}</p>
+                      <div key={a.id} className="bg-muted/30 rounded-lg p-2.5 flex justify-between items-center">
+                        <div className="flex items-center gap-2">
+                          {a.platform === "instagram" ? <Instagram className="h-3 w-3 text-pink-400" /> : a.platform === "tiktok" ? <Music2 className="h-3 w-3 text-cyan-400" /> : <Globe className="h-3 w-3 text-blue-400" />}
+                          <div>
+                            <p className="text-xs font-medium text-foreground">{a.metric_type}</p>
+                            <p className="text-[10px] text-muted-foreground">{a.platform} · {new Date(a.fetched_at).toLocaleDateString()}</p>
+                          </div>
                         </div>
                         <p className="text-sm font-bold text-foreground">{a.metric_value?.toLocaleString()}</p>
                       </div>
@@ -1679,7 +1919,7 @@ const SocialMediaHub = () => {
               </CardContent>
             </Card>
           ) : (
-            <Card><CardContent className="p-6 text-center"><BarChart3 className="h-8 w-8 text-muted-foreground mx-auto mb-2" /><p className="text-xs text-muted-foreground">Sync platforms to see analytics</p></CardContent></Card>
+            <Card><CardContent className="p-8 text-center"><BarChart3 className="h-10 w-10 text-muted-foreground/20 mx-auto mb-2" /><p className="text-sm text-muted-foreground">No analytics data yet</p><p className="text-xs text-muted-foreground/60 mt-1">Click the sync buttons above to pull real-time data from connected platforms</p></CardContent></Card>
           )}
         </TabsContent>
 
