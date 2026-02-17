@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { cachedFetch } from "@/lib/supabaseCache";
+import { cachedFetch, invalidateNamespace } from "@/lib/supabaseCache";
 import SocialAITools from "./SocialAITools";
 import LiveDMConversations from "./LiveDMConversations";
 import IGAutomationSuite from "./social/IGAutomationSuite";
@@ -430,20 +430,25 @@ const SocialMediaHub = () => {
   };
 
   const disconnectPlatform = async (id: string) => {
-    // Find platform before deleting for cleanup
     const conn = connections.find(c => c.id === id);
     const platform = conn?.platform;
     
-    // Fully delete the connection row — wipes access_token, refresh_token, all credentials
     const { error } = await supabase.from("social_connections").delete().eq("id", id);
     if (error) { toast.error("Failed to disconnect: " + error.message); return; }
+    
+    // Immediately remove from local state for instant UI update
+    setConnections(prev => prev.filter(c => c.id !== id));
     
     // Clear local profile state
     if (platform === "instagram") setIgProfile(null);
     if (platform === "tiktok") setTtProfile(null);
     
+    // Invalidate cache so next loadData fetches fresh from DB
+    if (selectedAccount) {
+      invalidateNamespace(selectedAccount, "social_connections");
+    }
+    
     toast.success("Disconnected & credentials wiped");
-    await loadData();
   };
 
   // ===== AUTOMATED ONE-CLICK CONNECT =====
