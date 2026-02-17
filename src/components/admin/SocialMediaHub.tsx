@@ -8,6 +8,7 @@ import SocialNetworksTab from "./social/SocialNetworksTab";
 import BioLinksManager from "./social/BioLinksManager";
 import AIMassDMOutreach from "./social/AIMassDMOutreach";
 import SearchDiscoveryHub from "./social/SearchDiscoveryHub";
+import CommentsHub from "./social/CommentsHub";
 import { toast } from "sonner";
 import CreditCostBadge from "./CreditCostBadge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -1154,9 +1155,6 @@ const SocialMediaHub = () => {
         </div>
         <div className="flex items-center gap-2">
           {apiLoading && <Badge variant="outline" className="text-yellow-400 border-yellow-400/30 animate-pulse"><RefreshCw className="h-3 w-3 mr-1 animate-spin" />API</Badge>}
-          <select value={selectedAccount} onChange={e => setSelectedAccount(e.target.value)} className="bg-background border border-border text-foreground rounded-lg px-3 py-1.5 text-sm">
-            {accounts.map(a => <option key={a.id} value={a.id}>{a.display_name || a.username}</option>)}
-          </select>
         </div>
       </div>
 
@@ -1519,104 +1517,8 @@ const SocialMediaHub = () => {
         </TabsContent>
 
         {/* ===== ENGAGEMENT / COMMENTS ===== */}
-        <TabsContent value="engagement" className="space-y-4 mt-4">
-          <Card>
-            <CardContent className="p-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><Bot className="h-4 w-4 text-green-400" />Comment Manager + AI Bulk Reply</h4>
-                <CreditCostBadge cost="2–5" variant="header" label="/reply" />
-              </div>
-              
-              <div className="flex gap-2">
-                <select value={commentsPlatform} onChange={e => setCommentsPlatform(e.target.value)} className="bg-card text-card-foreground border border-border rounded-lg px-2 py-1.5 text-sm">
-                  <option value="instagram">Instagram</option><option value="tiktok">TikTok</option>
-                </select>
-                <Input value={commentsMediaId} onChange={e => setCommentsMediaId(e.target.value)} placeholder="Media/Video ID (or auto-load from recent)" className="text-sm flex-1" />
-                <Button size="sm" variant="outline" onClick={fetchComments} disabled={apiLoading}><MessageSquare className="h-3.5 w-3.5 mr-1" />Load</Button>
-              </div>
-
-              {/* Auto-load from recent media */}
-              <div className="flex gap-1.5 flex-wrap">
-                <Button size="sm" variant="outline" className="text-[10px] h-7" onClick={async () => {
-                  const d = await callApi("instagram-api", { action: "get_media", params: { limit: 5 } });
-                  if (d?.data?.[0]) { setCommentsMediaId(d.data[0].id); toast.success(`Selected latest post: ${d.data[0].caption?.slice(0, 30) || d.data[0].id}...`); }
-                }} disabled={!igConnected || apiLoading}><Instagram className="h-3 w-3 mr-0.5" />Latest IG Post</Button>
-                <Button size="sm" variant="outline" className="text-[10px] h-7" onClick={async () => {
-                  if (igMedia.length > 0) {
-                    setCommentsMediaId(igMedia[0].id);
-                    toast.success("Selected from pulled media");
-                  } else {
-                    toast.error("Pull media first (Dashboard → Pull Media)");
-                  }
-                }} disabled={igMedia.length === 0}><Layers className="h-3 w-3 mr-0.5" />From Pulled Media</Button>
-                <Button size="sm" onClick={bulkGenerateReplies} disabled={apiLoading || commentsList.length === 0} className="text-[10px] h-7 bg-gradient-to-r from-green-500 to-emerald-500 text-white border-0">
-                  <Sparkles className="h-3 w-3 mr-0.5" />AI Reply All ({commentsList.length})
-                </Button>
-              </div>
-
-              <div>
-                <label className="text-[10px] text-muted-foreground mb-0.5 block">Redirect link for AI replies</label>
-                <Input value={aiAutoReplyRedirect} onChange={e => setAiAutoReplyRedirect(e.target.value)} placeholder="https://onlyfans.com/..." className="text-sm" />
-              </div>
-
-              {commentsList.length > 0 && (
-                <div className="flex items-center gap-2">
-                  <Badge className="bg-green-500/15 text-green-400">{commentsList.length} comments loaded</Badge>
-                  <Button size="sm" variant="ghost" className="h-6 text-[10px]" onClick={() => sendAllBulkReplies()} disabled={bulkAiReplies.length === 0}>
-                    <Send className="h-2.5 w-2.5 mr-0.5" />Send All AI Replies
-                  </Button>
-                </div>
-              )}
-
-              {/* Individual comments */}
-              {commentsList.length > 0 && !bulkAiReplies.length && (
-                <ScrollArea className="max-h-[400px]">
-                  <div className="space-y-1.5">
-                    {commentsList.map((c: any, i: number) => (
-                      <div key={i} className="bg-muted/30 rounded-lg p-2.5">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="text-[11px] font-semibold text-foreground">@{c.username || c.from?.username || "user"}</span>
-                          {c.timestamp && <span className="text-[9px] text-muted-foreground">{new Date(c.timestamp).toLocaleDateString()}</span>}
-                          {c.like_count !== undefined && <span className="text-[9px] text-muted-foreground">♡ {c.like_count}</span>}
-                        </div>
-                        <p className="text-xs text-foreground mb-1.5">{c.text}</p>
-                        <div className="flex gap-1">
-                          <Input value={replyText} onChange={e => setReplyText(e.target.value)} placeholder="Reply..." className="text-xs h-7 flex-1" />
-                          <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => replyToComment(c.id, c.text, c.username || c.from?.username)}><Send className="h-3 w-3" /></Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </ScrollArea>
-              )}
-
-              {/* Bulk AI replies */}
-              {bulkAiReplies.length > 0 && (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs font-medium text-foreground">{bulkAiReplies.length} AI replies ready</p>
-                    <Button size="sm" onClick={sendAllBulkReplies} className="bg-gradient-to-r from-green-500 to-emerald-500 text-white border-0"><Send className="h-3 w-3 mr-1" />Send All</Button>
-                  </div>
-                  <ScrollArea className="max-h-[400px]">
-                    {bulkAiReplies.map((r, i) => (
-                      <div key={i} className="bg-muted/30 rounded-lg p-2.5 mb-1.5">
-                        <p className="text-[10px] text-muted-foreground">@{r.username}: "{r.comment_text}"</p>
-                        <p className="text-xs text-foreground mt-0.5 font-medium">→ {r.generated_reply}</p>
-                        <div className="flex gap-1 mt-1.5">
-                          <Button size="sm" variant="outline" className="h-6 text-[10px]" onClick={() => sendBulkReply(r)}><Send className="h-2.5 w-2.5 mr-0.5" />Send</Button>
-                          <Button size="sm" variant="ghost" className="h-6 text-[10px] text-red-400" onClick={() => setBulkAiReplies(p => p.filter(x => x.comment_id !== r.comment_id))}>Skip</Button>
-                        </div>
-                      </div>
-                    ))}
-                  </ScrollArea>
-                </div>
-              )}
-
-              {commentsList.length === 0 && !apiLoading && (
-                <div className="text-center py-6"><MessageSquare className="h-8 w-8 text-muted-foreground/20 mx-auto mb-2" /><p className="text-xs text-muted-foreground">Load comments from a post to start managing and auto-replying</p></div>
-              )}
-            </CardContent>
-          </Card>
+        <TabsContent value="engagement" className="mt-4">
+          <CommentsHub accountId={selectedAccount} connections={connections} callApi={callApi} apiLoading={apiLoading} />
         </TabsContent>
 
         {/* ===== DMs ===== */}
