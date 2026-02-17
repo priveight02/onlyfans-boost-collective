@@ -205,8 +205,8 @@ const CheckoutModal = ({ clientSecret, onClose }: CheckoutModalProps) => {
                 }}
               >
                 <div
-                  className="[&>div]:h-full [&>div>div]:h-full [&_iframe]:!h-full"
-                  style={{ transform: "scale(0.88)", transformOrigin: "top center", width: "113.6%", marginLeft: "-6.8%", height: "113.6%" }}
+                  className="flex-1 [&>div]:h-full [&>div>div]:h-full [&_iframe]:!h-full [&_iframe]:!min-h-full"
+                  style={{ transform: "scale(0.92)", transformOrigin: "top center", width: "108.7%", marginLeft: "-4.35%", height: "108.7%" }}
                 >
                   <EmbeddedCheckoutProvider
                     stripe={stripePromise}
