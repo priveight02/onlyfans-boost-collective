@@ -105,7 +105,25 @@ const SocialAITools = ({ selectedAccount }: SocialAIToolsProps) => {
     toast.success("Copied");
   };
 
+  // Account Insights
+  const [insightsResult, setInsightsResult] = useState<any>(null);
+
+  // Post Ranker
+  const [rankerResult, setRankerResult] = useState<any>(null);
+
+  // Content Calendar
+  const [calendarResult, setCalendarResult] = useState<any>(null);
+  const [calendarDays, setCalendarDays] = useState("7");
+  const [calendarGoals, setCalendarGoals] = useState("");
+
+  // Reply Style
+  const [replyStyleResult, setReplyStyleResult] = useState<any>(null);
+
   const tools = [
+    { id: "insights", icon: BarChart3, label: "Account Intel", color: "text-emerald-400" },
+    { id: "ranker", icon: TrendingUp, label: "Post Ranker", color: "text-red-400" },
+    { id: "calendar_ai", icon: Calendar, label: "AI Calendar", color: "text-indigo-400" },
+    { id: "reply_style", icon: Brain, label: "Reply Style", color: "text-violet-400" },
     { id: "caption", icon: Wand2, label: "Captions", color: "text-yellow-400" },
     { id: "hashtags", icon: Hash, label: "Hashtags", color: "text-pink-400" },
     { id: "hooks", icon: Zap, label: "Hooks", color: "text-orange-400" },
@@ -157,6 +175,239 @@ const SocialAITools = ({ selectedAccount }: SocialAIToolsProps) => {
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <RefreshCw className="h-3 w-3 animate-spin" />AI is thinking...
         </div>
+      )}
+
+      {/* ===== ACCOUNT INSIGHTS (REAL DATA) ===== */}
+      {activeAiTool === "insights" && (
+        <Card>
+          <CardContent className="p-4 space-y-3">
+            <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
+              <BarChart3 className="h-4 w-4 text-emerald-400" />Account Intelligence <Badge variant="outline" className="text-[10px] text-emerald-400">Live Data</Badge>
+            </h4>
+            <p className="text-xs text-muted-foreground">Pulls real data from your connected Instagram account and AI-analyzes it.</p>
+            <Button size="sm" onClick={async () => {
+              const d = await callApi("account_insights", {});
+              if (d) setInsightsResult(d);
+            }} disabled={apiLoading}>
+              <BarChart3 className="h-3.5 w-3.5 mr-1" />Analyze My Account
+            </Button>
+            {insightsResult?.insights && (
+              <div className="space-y-3">
+                <div className="text-center p-4 bg-muted/30 rounded-lg">
+                  <p className="text-3xl font-bold text-foreground">{insightsResult.insights.overall_score || "?"}<span className="text-sm text-muted-foreground">/100</span></p>
+                  <p className="text-xs text-muted-foreground mt-1">Overall Account Score</p>
+                  {insightsResult.insights.growth_rate && <Badge variant="outline" className="mt-2 text-xs">{insightsResult.insights.growth_rate}</Badge>}
+                </div>
+                {insightsResult.insights.engagement_analysis && (
+                  <div className="grid grid-cols-3 gap-2">
+                    {Object.entries(insightsResult.insights.engagement_analysis).map(([k, v]) => (
+                      <div key={k} className="bg-muted/30 rounded p-2 text-center">
+                        <p className="text-xs font-bold text-foreground">{String(v)}</p>
+                        <p className="text-[10px] text-muted-foreground capitalize">{k.replace(/_/g, " ")}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {insightsResult.insights.quick_wins && (
+                  <div>
+                    <p className="text-xs font-medium text-green-400 mb-1">Quick Wins</p>
+                    {insightsResult.insights.quick_wins.map((w: string, i: number) => (
+                      <p key={i} className="text-xs text-muted-foreground">✓ {w}</p>
+                    ))}
+                  </div>
+                )}
+                {insightsResult.insights.content_strategy && (
+                  <div>
+                    <p className="text-xs font-medium text-foreground mb-1">Strategy</p>
+                    {insightsResult.insights.content_strategy.map((s: string, i: number) => (
+                      <p key={i} className="text-xs text-muted-foreground">→ {s}</p>
+                    ))}
+                  </div>
+                )}
+                {insightsResult.insights.weak_spots && (
+                  <div>
+                    <p className="text-xs font-medium text-red-400 mb-1">Weak Spots</p>
+                    {insightsResult.insights.weak_spots.map((w: string, i: number) => (
+                      <p key={i} className="text-xs text-muted-foreground">⚠ {w}</p>
+                    ))}
+                  </div>
+                )}
+                <p className="text-[10px] text-muted-foreground">Analyzed {insightsResult.posts_analyzed} posts from your account</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ===== POST RANKER (REAL DATA) ===== */}
+      {activeAiTool === "ranker" && (
+        <Card>
+          <CardContent className="p-4 space-y-3">
+            <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
+              <TrendingUp className="h-4 w-4 text-red-400" />Post Performance Ranker <Badge variant="outline" className="text-[10px] text-red-400">Live Data</Badge>
+            </h4>
+            <p className="text-xs text-muted-foreground">Ranks your real posts by performance and explains what works.</p>
+            <Button size="sm" onClick={async () => {
+              const d = await callApi("rank_posts", {});
+              if (d) setRankerResult(d);
+            }} disabled={apiLoading}>
+              <TrendingUp className="h-3.5 w-3.5 mr-1" />Rank My Posts
+            </Button>
+            {rankerResult && (
+              <ScrollArea className="max-h-[450px]">
+                <div className="space-y-3">
+                  {rankerResult.ranked?.slice(0, 10).map((p: any, i: number) => (
+                    <div key={i} className="bg-muted/30 rounded-lg p-2.5 flex gap-2">
+                      <div className="text-lg font-bold text-foreground w-6">#{i + 1}</div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-foreground truncate">{p.caption || "No caption"}</p>
+                        <div className="flex gap-2 mt-1">
+                          <Badge variant="outline" className="text-[10px]">{p.likes}❤</Badge>
+                          <Badge variant="outline" className="text-[10px]">{p.comments}💬</Badge>
+                          <Badge variant="outline" className="text-[10px]">{p.media_type}</Badge>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  {rankerResult.analysis?.top_patterns && (
+                    <div>
+                      <p className="text-xs font-medium text-green-400 mb-1">What Works</p>
+                      {rankerResult.analysis.top_patterns.map((p: string, i: number) => (
+                        <p key={i} className="text-xs text-muted-foreground">✓ {p}</p>
+                      ))}
+                    </div>
+                  )}
+                  {rankerResult.analysis?.recommendations && (
+                    <div>
+                      <p className="text-xs font-medium text-foreground mb-1">Recommendations</p>
+                      {rankerResult.analysis.recommendations.map((r: string, i: number) => (
+                        <p key={i} className="text-xs text-muted-foreground">→ {r}</p>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </ScrollArea>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ===== AI CONTENT CALENDAR (REAL DATA) ===== */}
+      {activeAiTool === "calendar_ai" && (
+        <Card>
+          <CardContent className="p-4 space-y-3">
+            <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-indigo-400" />AI Content Calendar <Badge variant="outline" className="text-[10px] text-indigo-400">Live Data</Badge>
+            </h4>
+            <p className="text-xs text-muted-foreground">Generates a personalized content plan based on your top-performing posts.</p>
+            <div className="grid grid-cols-2 gap-2">
+              <select value={calendarDays} onChange={e => setCalendarDays(e.target.value)} className="bg-background border border-border text-foreground rounded-lg px-2 py-1.5 text-sm">
+                <option value="3">3 Days</option>
+                <option value="7">7 Days</option>
+                <option value="14">14 Days</option>
+                <option value="30">30 Days</option>
+              </select>
+              <Input value={calendarGoals} onChange={e => setCalendarGoals(e.target.value)} placeholder="Goals (optional)" className="text-sm" />
+            </div>
+            <Button size="sm" onClick={async () => {
+              const d = await callApi("generate_content_calendar", { days: parseInt(calendarDays), goals: calendarGoals });
+              if (d) setCalendarResult(d.calendar);
+            }} disabled={apiLoading}>
+              <Calendar className="h-3.5 w-3.5 mr-1" />Generate Calendar
+            </Button>
+            {calendarResult?.calendar && (
+              <ScrollArea className="max-h-[500px]">
+                <div className="space-y-2">
+                  {(calendarResult.calendar || []).map((day: any, i: number) => (
+                    <div key={i} className="bg-muted/30 rounded-lg p-3">
+                      <p className="text-xs font-bold text-foreground mb-1.5">Day {day.day_number} — {day.date_label || ""}</p>
+                      {(day.posts || []).map((post: any, j: number) => (
+                        <div key={j} className="border-l-2 border-indigo-500/30 pl-2 mb-2">
+                          <div className="flex items-center gap-1.5">
+                            <Badge variant="outline" className="text-[9px]">{post.time}</Badge>
+                            <Badge variant="outline" className="text-[9px] capitalize">{post.content_type}</Badge>
+                          </div>
+                          <p className="text-xs text-foreground mt-0.5">{post.topic}</p>
+                          {post.hook && <p className="text-[10px] text-yellow-400">Hook: {post.hook}</p>}
+                          {post.caption && (
+                            <div className="mt-1 flex justify-between items-start">
+                              <p className="text-[10px] text-muted-foreground flex-1">{post.caption.slice(0, 120)}...</p>
+                              <Button size="sm" variant="ghost" className="h-5 w-5 p-0" onClick={() => copyText(post.caption)}>
+                                <Copy className="h-2.5 w-2.5" />
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ===== REPLY STYLE GENERATOR ===== */}
+      {activeAiTool === "reply_style" && (
+        <Card>
+          <CardContent className="p-4 space-y-3">
+            <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
+              <Brain className="h-4 w-4 text-violet-400" />Reply Style Generator
+            </h4>
+            <p className="text-xs text-muted-foreground">Creates a personalized reply style guide for your comment responses.</p>
+            <Button size="sm" onClick={async () => {
+              const d = await callApi("generate_reply_style", {});
+              if (d) setReplyStyleResult(d.style);
+            }} disabled={apiLoading}>
+              <Brain className="h-3.5 w-3.5 mr-1" />Generate Style Guide
+            </Button>
+            {replyStyleResult && (
+              <div className="space-y-3">
+                {replyStyleResult.tone && (
+                  <div className="bg-muted/30 rounded p-2">
+                    <p className="text-[10px] text-muted-foreground">Tone</p>
+                    <p className="text-sm font-bold text-foreground">{replyStyleResult.tone}</p>
+                  </div>
+                )}
+                {replyStyleResult.personality_traits && (
+                  <div className="flex flex-wrap gap-1">
+                    {replyStyleResult.personality_traits.map((t: string, i: number) => (
+                      <Badge key={i} variant="outline" className="text-xs">{t}</Badge>
+                    ))}
+                  </div>
+                )}
+                {replyStyleResult.do_list && (
+                  <div>
+                    <p className="text-xs font-medium text-green-400 mb-1">Do</p>
+                    {replyStyleResult.do_list.map((d: string, i: number) => (
+                      <p key={i} className="text-xs text-muted-foreground">✓ {d}</p>
+                    ))}
+                  </div>
+                )}
+                {replyStyleResult.dont_list && (
+                  <div>
+                    <p className="text-xs font-medium text-red-400 mb-1">Don't</p>
+                    {replyStyleResult.dont_list.map((d: string, i: number) => (
+                      <p key={i} className="text-xs text-muted-foreground">✗ {d}</p>
+                    ))}
+                  </div>
+                )}
+                {replyStyleResult.sample_replies && (
+                  <div>
+                    <p className="text-xs font-medium text-foreground mb-1">Sample Replies</p>
+                    {replyStyleResult.sample_replies.map((s: any, i: number) => (
+                      <div key={i} className="bg-muted/30 rounded p-2 mb-1">
+                        <p className="text-[10px] text-muted-foreground">"{s.comment}"</p>
+                        <p className="text-xs text-foreground mt-0.5">→ {s.reply}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       {/* ===== CAPTION GENERATOR ===== */}

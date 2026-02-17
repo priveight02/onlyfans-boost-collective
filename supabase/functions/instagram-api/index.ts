@@ -195,22 +195,104 @@ function getPrivateApiHeaders(conn: any, params?: any): { headers: Record<string
     return { headers, authMethod: "session_cookie" };
   }
 
-  // Priority 2: OAuth access token as private API auth alternative
-  // Instagram's private API can accept the access token via Authorization header
-  // or as a cookie-like parameter for certain endpoints
-  const oauthToken = conn.access_token;
-  if (oauthToken) {
-    const headers: Record<string, string> = {
-      "User-Agent": userAgent,
-      "Authorization": `Bearer IGT:2:${oauthToken}`,
-      "X-IG-App-ID": igAppId,
-      "X-IG-WWW-Claim": "0",
-    };
-    if (dsUserId) headers["Cookie"] = `ds_user_id=${dsUserId};`;
-    return { headers, authMethod: "oauth_token" };
-  }
-
+  // Priority 2: OAuth access token — NOT usable for private API endpoints
+  // Graph API OAuth tokens cannot be used with Instagram's private API (i.instagram.com)
+  // The old Bearer IGT:2 approach only works with Instagram's internal mobile tokens
+  // Instead, actions should use Graph API endpoints directly when OAuth token is available
+  // This function now ONLY returns headers for session-cookie-based private API access
   return null;
+}
+
+// Helper: Check if connection has a valid Graph API OAuth token
+function hasGraphApiToken(conn: any): boolean {
+  return !!(conn?.access_token);
+}
+
+// Graph API alternative for search_users: use business_discovery
+async function graphApiSearchUser(token: string, username: string, igUserId: string): Promise<any> {
+  try {
+    const fields = "username,name,biography,profile_picture_url,followers_count,follows_count,media_count,ig_id";
+    const resp = await fetch(`${IG_GRAPH_URL}/${igUserId}?fields=business_discovery.username(${username}){${fields}}&access_token=${token}`);
+    const data = await resp.json();
+    if (data?.business_discovery) {
+      const bd = data.business_discovery;
+      return {
+        id: bd.ig_id || bd.id,
+        username: bd.username,
+        full_name: bd.name,
+        profile_pic_url: bd.profile_picture_url,
+        is_private: false,
+        is_verified: false,
+        follower_count: bd.followers_count,
+        following_count: bd.follows_count,
+        media_count: bd.media_count,
+        biography: bd.biography,
+        source: "graph_api",
+      };
+    }
+    return null;
+  } catch (e) {
+    console.log("Graph API business_discovery search failed:", e);
+    return null;
+  }
+}
+
+// Graph API alternative for get_user_feed: use business_discovery media
+async function graphApiGetUserFeed(token: string, username: string, igUserId: string, limit = 12): Promise<any[]> {
+  try {
+    const fields = `business_discovery.username(${username}){media.limit(${limit}){id,caption,media_type,media_url,thumbnail_url,timestamp,like_count,comments_count,permalink,username}}`;
+    const resp = await fetch(`${IG_GRAPH_URL}/${igUserId}?fields=${fields}&access_token=${token}`);
+    const data = await resp.json();
+    const media = data?.business_discovery?.media?.data || [];
+    return media.map((m: any) => ({
+      id: m.id,
+      shortcode: m.permalink?.match(/\/p\/([^/?]+)/)?.[1] || "",
+      caption: m.caption || "",
+      media_url: m.media_url || m.thumbnail_url || "",
+      media_type: m.media_type || "IMAGE",
+      like_count: m.like_count || 0,
+      comments_count: m.comments_count || 0,
+      permalink: m.permalink || "",
+      timestamp: m.timestamp,
+      username: username,
+      source: "graph_api",
+    }));
+  } catch (e) {
+    console.log("Graph API user feed failed:", e);
+    return [];
+  }
+}
+
+// Graph API alternative for explore: search hashtag media
+async function graphApiHashtagExplore(token: string, igUserId: string, hashtag = "trending"): Promise<any[]> {
+  try {
+    // Step 1: Search for hashtag ID
+    const searchResp = await fetch(`${IG_GRAPH_URL}/ig_hashtag_search?q=${encodeURIComponent(hashtag)}&user_id=${igUserId}&access_token=${token}`);
+    const searchData = await searchResp.json();
+    const hashtagId = searchData?.data?.[0]?.id;
+    if (!hashtagId) return [];
+
+    // Step 2: Get top media for hashtag
+    const fields = "id,caption,media_type,media_url,timestamp,like_count,comments_count,permalink";
+    const mediaResp = await fetch(`${IG_GRAPH_URL}/${hashtagId}/top_media?user_id=${igUserId}&fields=${fields}&access_token=${token}`);
+    const mediaData = await mediaResp.json();
+    return (mediaData?.data || []).map((m: any) => ({
+      id: m.id,
+      shortcode: m.permalink?.match(/\/p\/([^/?]+)/)?.[1] || "",
+      caption: m.caption || "",
+      media_url: m.media_url || "",
+      media_type: m.media_type || "IMAGE",
+      like_count: m.like_count || 0,
+      comments_count: m.comments_count || 0,
+      permalink: m.permalink || "",
+      timestamp: m.timestamp,
+      username: "",
+      source: "graph_api_hashtag",
+    }));
+  } catch (e) {
+    console.log("Graph API hashtag explore failed:", e);
+    return [];
+  }
 }
 
 // Helper: Try private API request with token fallback
@@ -1931,7 +2013,18 @@ Analyze every character in the name and username for any gender signal at all. L
         const query = params?.query;
         if (!query) throw new Error("query required");
         const auth = getPrivateApiHeaders(conn, params);
-        if (!auth) throw new Error("Login via Instagram or enter session cookie for user search");
+        if (!auth && !hasGraphApiToken(conn)) throw new Error("Login via Instagram or enter session cookie for user search");
+        
+        // If only Graph API is available (no session cookie), use business_discovery
+        if (!auth && hasGraphApiToken(conn)) {
+          const graphResult = await graphApiSearchUser(conn.access_token, query.replace("@", ""), igUserId);
+          if (graphResult) {
+            graphResult.gender = classifyGender(graphResult.full_name || graphResult.username);
+            result = { users: [graphResult], total: 1, method: "graph_api" };
+            break;
+          }
+          throw new Error("User not found via Graph API. For broader search, enter a session cookie.");
+        }
         const maxResults = Math.min(params?.max_results || 50, 100000);
         const expanded = params?.expanded || false;
         const dsUserId = (conn.metadata as any)?.ig_ds_user_id || conn.platform_user_id;
@@ -2117,8 +2210,18 @@ Analyze every character in the name and username for any gender signal at all. L
       // ===== GET USER FEED (Private API — fetch any public user's media) =====
       case "get_user_feed": {
         const targetUserId = params?.user_id;
-        if (!targetUserId) throw new Error("user_id required");
+        if (!targetUserId) throw new Error("user_id or username required");
         const auth = getPrivateApiHeaders(conn, params);
+        
+        // Graph API fallback: use business_discovery if no session cookie
+        if (!auth && hasGraphApiToken(conn) && params?.username) {
+          const feedLimit = Math.min(params?.limit || 12, 50);
+          const graphPosts = await graphApiGetUserFeed(conn.access_token, params.username, igUserId, feedLimit);
+          if (graphPosts.length > 0) {
+            result = { posts: graphPosts, count: graphPosts.length, method: "graph_api" };
+            break;
+          }
+        }
         if (!auth) throw new Error("Login via Instagram or enter session cookie for user feed");
         const feedLimit = Math.min(params?.limit || 12, 50);
 
@@ -2167,6 +2270,27 @@ Analyze every character in the name and username for any gender signal at all. L
       // ===== EXPLORE / DISCOVER FEED (Private API — trending content) =====
       case "explore_feed": {
         const auth = getPrivateApiHeaders(conn, params);
+        
+        // Graph API fallback: use hashtag search to simulate explore
+        if (!auth && hasGraphApiToken(conn)) {
+          const hashtags = ["trending", "viral", "fyp", "explore", "instagood"];
+          const allGraphPosts: any[] = [];
+          for (const tag of hashtags.slice(0, 3)) {
+            try {
+              const posts = await graphApiHashtagExplore(conn.access_token, igUserId, tag);
+              allGraphPosts.push(...posts);
+            } catch {}
+            if (allGraphPosts.length >= 25) break;
+          }
+          if (allGraphPosts.length > 0) {
+            // Deduplicate
+            const seen = new Set<string>();
+            const unique = allGraphPosts.filter(p => { if (seen.has(p.id)) return false; seen.add(p.id); return true; });
+            result = { posts: unique.slice(0, params?.limit || 30), count: unique.length, method: "graph_api_hashtag" };
+            break;
+          }
+          throw new Error("Graph API hashtag explore returned no results. For full explore feed, enter a session cookie.");
+        }
         if (!auth) throw new Error("Login via Instagram or enter session cookie for explore feed");
 
         const exploreHeaders: Record<string, string> = auth.headers;

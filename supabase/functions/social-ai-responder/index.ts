@@ -2141,6 +2141,151 @@ Rules:
         break;
       }
 
+      // ===== ACCOUNT INSIGHTS ANALYZER (pulls real data from IG API) =====
+      case "account_insights": {
+        const igFuncUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/instagram-api`;
+        const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+        
+        // Fetch real account data
+        const [profileResp, mediaResp, insightsResp] = await Promise.all([
+          fetch(igFuncUrl, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` }, body: JSON.stringify({ action: "profile_info", account_id, params: {} }) }),
+          fetch(igFuncUrl, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` }, body: JSON.stringify({ action: "get_media", account_id, params: { limit: 25 } }) }),
+          fetch(igFuncUrl, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` }, body: JSON.stringify({ action: "get_insights", account_id, params: { metrics: "impressions,reach,profile_views", period: "day" } }) }),
+        ]);
+        
+        const profileData = await profileResp.json();
+        const mediaData = await mediaResp.json();
+        const insightsData = await insightsResp.json();
+        
+        const profile = profileData?.data || {};
+        const posts = mediaData?.data?.data || [];
+        const insights = insightsData?.data || {};
+        
+        // AI analyze the real data
+        const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${Deno.env.get("LOVABLE_API_KEY")}` },
+          body: JSON.stringify({
+            model: "google/gemini-2.5-flash",
+            messages: [
+              { role: "system", content: "You are a social media analyst. Analyze real Instagram account data and provide actionable insights. Return JSON with: overall_score (1-100), growth_rate (string), engagement_analysis (object with rate, avg_likes, avg_comments, best_performing_type), content_strategy (array of recommendations), posting_frequency (current and recommended), audience_peak_times (array), weak_spots (array), quick_wins (array of immediate actions). No markdown." },
+              { role: "user", content: `Profile: ${JSON.stringify({ followers: profile.followers_count, following: profile.follows_count, posts: profile.media_count, name: profile.name, bio: profile.biography })}\n\nRecent ${posts.length} posts: ${posts.slice(0, 15).map((p: any) => `[${p.media_type}] likes:${p.like_count} comments:${p.comments_count} "${(p.caption || "").slice(0, 80)}"`).join(" | ")}\n\nInsights: ${JSON.stringify(insights).slice(0, 500)}` },
+            ],
+            max_tokens: 800, temperature: 0.5,
+          }),
+        });
+        if (!aiResp.ok) throw new Error("AI analysis failed");
+        const aiData = await aiResp.json();
+        const raw = aiData.choices?.[0]?.message?.content || "{}";
+        let parsed; try { parsed = JSON.parse(raw.replace(/```json\n?|\n?```/g, "")); } catch { parsed = { raw }; }
+        result = { insights: parsed, profile, posts_analyzed: posts.length };
+        break;
+      }
+
+      // ===== POST PERFORMANCE RANKER =====
+      case "rank_posts": {
+        const igFuncUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/instagram-api`;
+        const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+        
+        const mediaResp = await fetch(igFuncUrl, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` }, body: JSON.stringify({ action: "get_media", account_id, params: { limit: 50 } }) });
+        const mediaData = await mediaResp.json();
+        const posts = mediaData?.data?.data || [];
+        
+        if (posts.length === 0) { result = { error: "No posts found" }; break; }
+        
+        // Sort by engagement
+        const ranked = posts.map((p: any) => ({
+          id: p.id,
+          caption: (p.caption || "").slice(0, 100),
+          media_type: p.media_type,
+          likes: p.like_count || 0,
+          comments: p.comments_count || 0,
+          engagement: (p.like_count || 0) + (p.comments_count || 0) * 3,
+          permalink: p.permalink,
+          timestamp: p.timestamp,
+          media_url: p.media_url || p.thumbnail_url,
+        })).sort((a: any, b: any) => b.engagement - a.engagement);
+        
+        const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${Deno.env.get("LOVABLE_API_KEY")}` },
+          body: JSON.stringify({
+            model: "google/gemini-2.5-flash",
+            messages: [
+              { role: "system", content: "Analyze ranked Instagram posts and explain WHY top posts performed well and bottom posts didn't. Return JSON with: top_patterns (array of what works), bottom_patterns (array of what fails), content_type_ranking (object with type:avg_engagement), best_posting_days (array), optimal_caption_length (number range), recommendations (array of specific actionable tips). No markdown." },
+              { role: "user", content: `Top 5 posts: ${ranked.slice(0, 5).map((p: any) => `[${p.media_type}] ${p.likes}❤ ${p.comments}💬 "${p.caption}"`).join(" | ")}\n\nBottom 5: ${ranked.slice(-5).map((p: any) => `[${p.media_type}] ${p.likes}❤ ${p.comments}💬 "${p.caption}"`).join(" | ")}\n\nTotal posts: ${ranked.length}` },
+            ],
+            max_tokens: 600, temperature: 0.5,
+          }),
+        });
+        if (!aiResp.ok) throw new Error("AI ranking failed");
+        const aiData = await aiResp.json();
+        const raw = aiData.choices?.[0]?.message?.content || "{}";
+        let parsed; try { parsed = JSON.parse(raw.replace(/```json\n?|\n?```/g, "")); } catch { parsed = { raw }; }
+        result = { ranked: ranked.slice(0, 20), analysis: parsed, total: posts.length };
+        break;
+      }
+
+      // ===== AI CONTENT CALENDAR GENERATOR (based on real account data) =====
+      case "generate_content_calendar": {
+        const { days = 7, goals = "" } = params || {};
+        const igFuncUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/instagram-api`;
+        const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+        
+        const [profileResp, mediaResp] = await Promise.all([
+          fetch(igFuncUrl, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` }, body: JSON.stringify({ action: "profile_info", account_id, params: {} }) }),
+          fetch(igFuncUrl, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` }, body: JSON.stringify({ action: "get_media", account_id, params: { limit: 20 } }) }),
+        ]);
+        
+        const profileData = await profileResp.json();
+        const mediaData = await mediaResp.json();
+        const profile = profileData?.data || {};
+        const posts = mediaData?.data?.data || [];
+        
+        const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${Deno.env.get("LOVABLE_API_KEY")}` },
+          body: JSON.stringify({
+            model: "google/gemini-2.5-flash",
+            messages: [
+              { role: "system", content: `Generate a ${days}-day content calendar for this Instagram account. Return JSON with: calendar (array of day objects with: day_number, date_label, posts array of { time, content_type (reel/carousel/story/post), topic, caption, hashtags (array), hook, cta, expected_engagement }), weekly_themes (array), content_mix_ratio (object), notes (array of tips). Base it on their actual top-performing content. No markdown.` },
+              { role: "user", content: `Account: ${profile.name || "Creator"} | ${profile.followers_count} followers | Bio: ${(profile.biography || "").slice(0, 200)}\nGoals: ${goals || "grow engagement and followers"}\n\nTop performing posts: ${posts.slice(0, 10).map((p: any) => `[${p.media_type}] ${p.like_count}❤ "${(p.caption || "").slice(0, 60)}"`).join(" | ")}` },
+            ],
+            max_tokens: 1500, temperature: 0.7,
+          }),
+        });
+        if (!aiResp.ok) throw new Error("AI calendar failed");
+        const aiData = await aiResp.json();
+        const raw = aiData.choices?.[0]?.message?.content || "{}";
+        let parsed; try { parsed = JSON.parse(raw.replace(/```json\n?|\n?```/g, "")); } catch { parsed = { raw }; }
+        result = { calendar: parsed };
+        break;
+      }
+
+      // ===== AI REPLY STYLE GENERATOR (learns from account's actual replies) =====
+      case "generate_reply_style": {
+        const { sample_comments = [] } = params || {};
+        
+        const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${Deno.env.get("LOVABLE_API_KEY")}` },
+          body: JSON.stringify({
+            model: "google/gemini-2.5-flash",
+            messages: [
+              { role: "system", content: "Create a reply style guide based on sample comments. Return JSON with: tone (string), personality_traits (array), do_list (array of do's), dont_list (array of don'ts), sample_replies (array of { comment, reply } pairs), emoji_usage (string: none/minimal/moderate/heavy), reply_length (string: short/medium/long), signature_phrases (array). No markdown." },
+              { role: "user", content: `Sample comments to reply to: ${(sample_comments.length > 0 ? sample_comments : ["Great post!", "Love this 🔥", "How do I start?", "This is fire 💯", "Can you make a tutorial?"]).map((c: any) => typeof c === "string" ? c : c.text).join(" | ")}` },
+            ],
+            max_tokens: 600, temperature: 0.7,
+          }),
+        });
+        if (!aiResp.ok) throw new Error("AI style generation failed");
+        const aiData = await aiResp.json();
+        const raw = aiData.choices?.[0]?.message?.content || "{}";
+        let parsed; try { parsed = JSON.parse(raw.replace(/```json\n?|\n?```/g, "")); } catch { parsed = { raw }; }
+        result = { style: parsed };
+        break;
+      }
+
       case "scan_all_conversations": {
         // Import ALL conversations from IG into DB - works regardless of auto-respond state
         const igFuncUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/instagram-api`;
