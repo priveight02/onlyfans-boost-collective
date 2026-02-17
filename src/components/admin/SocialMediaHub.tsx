@@ -1252,24 +1252,40 @@ const SocialMediaHub = () => {
     }
     if (!appId) { toast.error("Enter your Meta App ID in the One-Click Connect section, or configure INSTAGRAM_APP_ID in backend secrets"); return; }
     setIgLoginPopupLoading(true);
-    const redirectUri = `${window.location.origin}/ig-login`;
+    // Use the published app URL for redirect, not the preview iframe origin
+    const publishedOrigin = "https://onlyfans-boost-collective.lovable.app";
+    const redirectUri = `${publishedOrigin}/ig-login`;
     const scope = "instagram_basic,instagram_content_publish,instagram_manage_comments,instagram_manage_insights";
     const authUrl = `https://api.instagram.com/oauth/authorize?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scope}&response_type=code`;
+    
+    // Open from top-level window context to escape iframe restrictions
+    const opener = window.top || window;
     const w = 420, h = 620;
-    const left = window.screenX + (window.outerWidth - w) / 2;
-    const top = window.screenY + (window.outerHeight - h) / 2;
-    const popup = window.open(
-      authUrl,
-      "ig_login_popup",
-      `width=${w},height=${h},left=${left},top=${top},scrollbars=yes,resizable=yes`
-    );
-    // Watch for popup close without success
-    const check = setInterval(() => {
-      if (!popup || popup.closed) {
-        clearInterval(check);
-        setIgLoginPopupLoading(false);
-      }
-    }, 500);
+    const left = (opener.screen?.width || 1920) / 2 - w / 2;
+    const topPos = (opener.screen?.height || 1080) / 2 - h / 2;
+    try {
+      const popup = opener.open(
+        authUrl,
+        "ig_login_popup",
+        `width=${w},height=${h},left=${left},top=${topPos},scrollbars=yes,resizable=yes`
+      );
+      // Watch for popup close without success
+      const check = setInterval(() => {
+        try {
+          if (!popup || popup.closed) {
+            clearInterval(check);
+            setIgLoginPopupLoading(false);
+          }
+        } catch {
+          clearInterval(check);
+          setIgLoginPopupLoading(false);
+        }
+      }, 500);
+    } catch {
+      // If window.top.open fails due to cross-origin, fall back to direct navigation
+      window.open(authUrl, "_blank");
+      setIgLoginPopupLoading(false);
+    }
   };
 
   // Parse Instagram cookies from a raw cookie string (e.g. pasted from DevTools)
