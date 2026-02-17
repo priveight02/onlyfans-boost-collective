@@ -691,9 +691,17 @@ Analyze every character in the name and username for any gender signal at all. L
       }
 
       // ===== PROFILE =====
-      case "get_profile":
-        result = await igFetch(`/${igUserId}?fields=id,username,name,biography,profile_picture_url,followers_count,follows_count,media_count,website`, token);
+      case "get_profile": {
+        // Instagram Business Login tokens don't support biography/website fields
+        // Try full fields first, fallback to basic fields if it fails
+        try {
+          result = await igFetch(`/${igUserId}?fields=id,username,name,biography,profile_picture_url,followers_count,follows_count,media_count,website`, token);
+        } catch (fullErr) {
+          console.log("Full profile fields failed, trying basic fields:", fullErr.message);
+          result = await igFetch(`/${igUserId}?fields=id,username,name,profile_picture_url,followers_count,follows_count,media_count`, token);
+        }
         break;
+      }
 
       case "get_profile_basic":
         result = await igFetch(`/${igUserId}?fields=id,username,name,profile_picture_url,followers_count,follows_count,media_count`, token);
