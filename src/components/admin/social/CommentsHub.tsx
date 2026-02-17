@@ -28,6 +28,8 @@ interface CommentsHubProps {
   callApi: (funcName: string, body: any, overrideAccountId?: string) => Promise<any>;
   apiLoading: boolean;
   onNavigateToSession?: () => void;
+  igSessionId?: string;
+  igSessionStatus?: "unknown" | "valid" | "expired";
 }
 
 interface CommentItem {
@@ -77,7 +79,7 @@ const extractShortcode = (permalink?: string): string => {
   return match ? match[1] : "";
 };
 
-const CommentsHub = ({ accountId, connections, callApi, apiLoading, onNavigateToSession }: CommentsHubProps) => {
+const CommentsHub = ({ accountId, connections, callApi, apiLoading, onNavigateToSession, igSessionId: parentSessionId, igSessionStatus: parentSessionStatus }: CommentsHubProps) => {
   const [activeTab, setActiveTab] = useState("my-posts");
   const [sessionRequiredDialog, setSessionRequiredDialog] = useState(false);
 
@@ -437,11 +439,19 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading, onNavigateTo
     setAiSummaryLoading(false);
   };
 
-  // Session check helper - returns true if session is valid, false if needs setup
+  // Session check helper - uses parent session state if available, falls back to local
   const requireSession = (): boolean => {
     if (selectedPlatform !== "instagram") return true;
-    if (sessionId && sessionStatus !== "expired") return true;
-    setSessionRequiredDialog(true);
+    const effectiveSessionId = parentSessionId || sessionId;
+    const effectiveStatus = parentSessionStatus || sessionStatus;
+    if (effectiveSessionId && effectiveStatus !== "expired") return true;
+    // Navigate to connect tab with pulse animation
+    if (onNavigateToSession) {
+      onNavigateToSession();
+      toast.error("Session cookie required. Set your Instagram session cookie to continue.", { duration: 4000 });
+    } else {
+      setSessionRequiredDialog(true);
+    }
     return false;
   };
 
