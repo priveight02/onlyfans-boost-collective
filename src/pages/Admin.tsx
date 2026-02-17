@@ -7,8 +7,14 @@ import AdminSecurity from "@/components/admin/AdminSecurity";
 import ComplianceCenter from "@/components/admin/ComplianceCenter";
 import AdminCredits from "@/components/admin/AdminCredits";
 import AdminCustomers from "@/components/admin/AdminCustomers";
+import AIControlPanel from "@/components/admin/enterprise/AIControlPanel";
+import FeatureFlagsPanel from "@/components/admin/enterprise/FeatureFlagsPanel";
+import AuditTrailPanel from "@/components/admin/enterprise/AuditTrailPanel";
+import IncidentManager from "@/components/admin/enterprise/IncidentManager";
+import SystemOpsPanel from "@/components/admin/enterprise/SystemOpsPanel";
 import {
   Shield, LayoutDashboard, Lock, LogOut, ShieldCheck, Coins, UserCheck,
+  Brain, Flag, FileText, AlertTriangle, Settings,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -39,8 +45,8 @@ const Admin = () => {
               <Shield className="h-6 w-6 text-accent" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold font-heading text-white">Admin Panel</h1>
-              <p className="text-sm text-white/50">Security, Compliance & Customer Management</p>
+              <h1 className="text-2xl font-bold font-heading text-white">Admin Control Plane</h1>
+              <p className="text-sm text-white/50">Enterprise Operations • Security • AI Governance • Compliance</p>
             </div>
           </div>
           <Button
@@ -65,6 +71,21 @@ const Admin = () => {
             <TabsTrigger value="credits" className="data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-400 data-[state=active]:border-amber-500/30 text-white/50 rounded-lg gap-1.5 text-xs border border-transparent">
               <Coins className="h-3.5 w-3.5" /> Credits
             </TabsTrigger>
+            <TabsTrigger value="ai" className="data-[state=active]:bg-purple-500/20 data-[state=active]:text-purple-300 data-[state=active]:border-purple-500/30 text-white/50 rounded-lg gap-1.5 text-xs border border-transparent">
+              <Brain className="h-3.5 w-3.5" /> AI Control
+            </TabsTrigger>
+            <TabsTrigger value="flags" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-300 data-[state=active]:border-blue-500/30 text-white/50 rounded-lg gap-1.5 text-xs border border-transparent">
+              <Flag className="h-3.5 w-3.5" /> Feature Flags
+            </TabsTrigger>
+            <TabsTrigger value="incidents" className="data-[state=active]:bg-red-500/20 data-[state=active]:text-red-300 data-[state=active]:border-red-500/30 text-white/50 rounded-lg gap-1.5 text-xs border border-transparent">
+              <AlertTriangle className="h-3.5 w-3.5" /> Incidents
+            </TabsTrigger>
+            <TabsTrigger value="audit" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
+              <FileText className="h-3.5 w-3.5" /> Audit Trail
+            </TabsTrigger>
+            <TabsTrigger value="ops" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
+              <Settings className="h-3.5 w-3.5" /> System Ops
+            </TabsTrigger>
             <TabsTrigger value="security" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
               <Lock className="h-3.5 w-3.5" /> Security
             </TabsTrigger>
@@ -76,6 +97,11 @@ const Admin = () => {
           <TabsContent value="dashboard"><EnhancedDashboard /></TabsContent>
           <TabsContent value="customers"><AdminCustomers /></TabsContent>
           <TabsContent value="credits"><AdminCredits /></TabsContent>
+          <TabsContent value="ai"><AIControlPanel /></TabsContent>
+          <TabsContent value="flags"><FeatureFlagsPanel /></TabsContent>
+          <TabsContent value="incidents"><IncidentManager /></TabsContent>
+          <TabsContent value="audit"><AuditTrailPanel /></TabsContent>
+          <TabsContent value="ops"><SystemOpsPanel /></TabsContent>
           <TabsContent value="security"><AdminSecurity /></TabsContent>
           <TabsContent value="compliance"><ComplianceCenter /></TabsContent>
         </Tabs>
