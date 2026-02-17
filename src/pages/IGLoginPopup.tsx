@@ -86,7 +86,7 @@ const IGLoginPopup = () => {
             </div>
             <button
               onClick={() => {
-                const scope = "instagram_business_basic,instagram_business_content_publish,instagram_business_manage_comments,instagram_business_manage_messages";
+                const scope = "instagram_business_basic,instagram_business_content_publish,instagram_business_manage_comments,instagram_business_manage_messages,instagram_business_manage_insights";
                 const dynamicRedirect = redirectUri;
                 const authUrl = `https://api.instagram.com/oauth/authorize?client_id=${INSTAGRAM_APP_ID}&redirect_uri=${encodeURIComponent(dynamicRedirect)}&response_type=code&scope=${encodeURIComponent(scope)}`;
                 if (window.top && window.top !== window) {

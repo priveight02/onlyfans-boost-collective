@@ -1255,7 +1255,7 @@ const SocialMediaHub = () => {
     setIgLoginPopupLoading(true);
     const publishedOrigin = window.location.hostname.includes("ozcagency.com") ? "https://ozcagency.com" : "https://onlyfans-boost-collective.lovable.app";
     const redirectUri = `${publishedOrigin}/ig-login`;
-    const scope = "instagram_business_basic,instagram_business_content_publish,instagram_business_manage_comments,instagram_business_manage_messages";
+    const scope = "instagram_business_basic,instagram_business_content_publish,instagram_business_manage_comments,instagram_business_manage_messages,instagram_business_manage_insights";
     const authUrl = `https://api.instagram.com/oauth/authorize?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent(scope)}`;
     
     // Open as a centered popup window
