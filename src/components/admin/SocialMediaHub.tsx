@@ -1690,262 +1690,273 @@ const SocialMediaHub = () => {
 
         {/* ===== CONNECT ===== */}
         <TabsContent value="connect" className="space-y-4 mt-4">
-          <Card>
-            <CardContent className="p-4 space-y-2">
-              <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><Globe className="h-4 w-4 text-blue-400" />OAuth Redirect URI</h4>
-              <p className="text-[10px] text-muted-foreground">Set this as the redirect URI in all your developer app settings</p>
-              <div className="flex gap-2">
-                <Input value={oauthRedirectUri} onChange={e => setOauthRedirectUri(e.target.value)} placeholder="Redirect URI" className="text-sm flex-1" />
-                <Button size="sm" variant="outline" onClick={() => { navigator.clipboard.writeText(oauthRedirectUri); toast.success("Copied!"); }}><Copy className="h-3.5 w-3.5" /></Button>
-              </div>
-            </CardContent>
-          </Card>
+          <Tabs defaultValue="session" className="space-y-4">
+            <TabsList className="bg-muted/50 p-1 rounded-lg">
+              <TabsTrigger value="session" className="text-xs gap-1.5 data-[state=active]:bg-background">
+                <Key className="h-3.5 w-3.5" /> Session & Credentials
+              </TabsTrigger>
+              <TabsTrigger value="one-click" className="text-xs gap-1.5 data-[state=active]:bg-background">
+                <Zap className="h-3.5 w-3.5" /> One-Click Connect
+              </TabsTrigger>
+            </TabsList>
 
-          {/* ===== AUTO CONNECT CARDS ===== */}
-          {[
-            { id: "instagram", name: "Instagram", icon: Instagram, color: "text-pink-400", gradient: "from-purple-600 to-pink-600", connected: igConnected, desc: "Meta OAuth popup — profile synced automatically.", fields: [{ val: oauthAppId, set: setOauthAppId, placeholder: "Meta App ID (developers.facebook.com)", type: "text" }], action: automatedInstagramConnect },
-            { id: "facebook", name: "Facebook", icon: Globe, color: "text-blue-500", gradient: "from-blue-600 to-indigo-600", connected: facebookConnected, desc: "Meta OAuth popup — pages, groups, and profile synced.", fields: [{ val: fbAppId, set: setFbAppId, placeholder: "Facebook App ID (developers.facebook.com)", type: "text" }], action: automatedFacebookConnect },
-            { id: "tiktok", name: "TikTok", icon: Music2, color: "text-cyan-400", gradient: "from-cyan-600 to-teal-600", connected: ttConnected, desc: "TikTok Login Kit — auth code exchanged for token automatically.", fields: [{ val: ttClientKey, set: setTtClientKey, placeholder: "TikTok Client Key", type: "text" }, { val: ttClientSecret, set: setTtClientSecret, placeholder: "TikTok Client Secret", type: "password" }], action: automatedTikTokConnect },
-            { id: "twitter", name: "X / Twitter", icon: Twitter, color: "text-blue-400", gradient: "from-blue-600 to-sky-600", connected: xConnected, desc: "OAuth2 PKCE — token captured and profile synced.", fields: [{ val: xClientId, set: setXClientId, placeholder: "X Client ID (developer.x.com)", type: "text" }, { val: xClientSecret, set: setXClientSecret, placeholder: "X Client Secret", type: "password" }], action: automatedTwitterConnect },
-            { id: "reddit", name: "Reddit", icon: Globe, color: "text-orange-400", gradient: "from-orange-600 to-red-600", connected: redditConnected, desc: "Reddit OAuth — auth code exchanged for token.", fields: [{ val: redditClientId, set: setRedditClientId, placeholder: "Reddit App ID (reddit.com/prefs/apps)", type: "text" }, { val: redditClientSecret, set: setRedditClientSecret, placeholder: "Reddit App Secret", type: "password" }], action: automatedRedditConnect },
-            { id: "telegram", name: "Telegram", icon: Phone, color: "text-blue-400", gradient: "from-blue-500 to-indigo-600", connected: telegramConnected, desc: "Enter Bot Token from @BotFather — verified instantly.", fields: [{ val: telegramBotToken, set: setTelegramBotToken, placeholder: "Bot Token (123456789:ABCdef...)", type: "password" }], action: automatedTelegramConnect },
-            { id: "threads", name: "Threads", icon: MessageCircle, color: "text-purple-400", gradient: "from-purple-600 to-violet-600", connected: threadsConnected, desc: "Threads OAuth — profile and posting access.", fields: [{ val: threadsAppId, set: setThreadsAppId, placeholder: "Threads App ID (developers.facebook.com)", type: "text" }, { val: threadsAppSecret, set: setThreadsAppSecret, placeholder: "Threads App Secret", type: "password" }], action: automatedThreadsConnect },
-            { id: "whatsapp", name: "WhatsApp", icon: Phone, color: "text-green-400", gradient: "from-green-600 to-emerald-600", connected: whatsappConnected, desc: "WhatsApp Business API — enter Phone Number ID and token.", fields: [{ val: waPhoneNumberId, set: setWaPhoneNumberId, placeholder: "Phone Number ID", type: "text" }, { val: waAccessToken, set: setWaAccessToken, placeholder: "Permanent Access Token", type: "password" }, { val: waBusinessId, set: setWaBusinessId, placeholder: "WABA ID (optional)", type: "text" }], action: automatedWhatsAppConnect },
-            { id: "snapchat", name: "Snapchat", icon: Camera, color: "text-yellow-400", gradient: "from-yellow-500 to-orange-500", connected: snapchatConnected, desc: "Snapchat Marketing API OAuth.", fields: [{ val: snapClientId, set: setSnapClientId, placeholder: "Snapchat Client ID", type: "text" }, { val: snapClientSecret, set: setSnapClientSecret, placeholder: "Snapchat Client Secret", type: "password" }], action: automatedSnapchatConnect },
-            { id: "youtube", name: "YouTube", icon: Play, color: "text-red-400", gradient: "from-red-600 to-rose-600", connected: youtubeConnected, desc: "Google OAuth — channel and analytics access.", fields: [{ val: ytClientId, set: setYtClientId, placeholder: "Google Client ID (console.cloud.google.com)", type: "text" }, { val: ytClientSecret, set: setYtClientSecret, placeholder: "Google Client Secret", type: "password" }], action: automatedYouTubeConnect },
-            { id: "pinterest", name: "Pinterest", icon: Target, color: "text-rose-400", gradient: "from-rose-600 to-pink-600", connected: pinterestConnected, desc: "Pinterest OAuth — pins, boards, and ads access.", fields: [{ val: pinAppId, set: setPinAppId, placeholder: "Pinterest App ID", type: "text" }, { val: pinAppSecret, set: setPinAppSecret, placeholder: "Pinterest App Secret", type: "password" }], action: automatedPinterestConnect },
-            { id: "discord", name: "Discord", icon: Gamepad2, color: "text-indigo-400", gradient: "from-indigo-600 to-violet-600", connected: discordConnected, desc: "Enter Bot Token — verified instantly.", fields: [{ val: discordBotToken, set: setDiscordBotToken, placeholder: "Discord Bot Token (discord.com/developers)", type: "password" }], action: automatedDiscordConnect },
-            { id: "signal", name: "Signal", icon: Shield, color: "text-blue-300", gradient: "from-blue-500 to-sky-500", connected: signalConnected, desc: "Signal CLI REST API — enter API URL and phone.", fields: [{ val: signalApiUrl, set: setSignalApiUrl, placeholder: "Signal API URL (e.g. http://localhost:8080)", type: "text" }, { val: signalPhoneNumber, set: setSignalPhoneNumber, placeholder: "Phone number (+1234...)", type: "text" }], action: automatedSignalConnect },
-          ].map(p => (
-            <Card key={p.id} className={`border-${p.color.replace("text-","").split("-")[0]}-500/20`}>
-              <CardContent className="p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                    <p.icon className={`h-4 w-4 ${p.color}`} />
-                    {p.name} — {p.id === "telegram" || p.id === "discord" ? "Token Connect" : p.id === "whatsapp" || p.id === "signal" ? "API Connect" : "One-Click Connect"}
-                  </h4>
-                  {p.connected && <Badge className="bg-green-500/15 text-green-400 text-[10px]">● Connected</Badge>}
-                </div>
-                <p className="text-[10px] text-muted-foreground">{p.desc}</p>
-                {p.fields.map((f, i) => (
-                  <Input key={i} value={f.val} onChange={e => f.set(e.target.value)} placeholder={f.placeholder} type={f.type} className="text-sm" />
-                ))}
-                <Button
-                  onClick={p.action}
-                  disabled={autoConnectLoading === p.id}
-                  className={`w-full bg-gradient-to-r ${p.gradient} text-white`}
-                >
-                  {autoConnectLoading === p.id ? (
-                    <><RefreshCw className="h-4 w-4 mr-2 animate-spin" />Connecting...</>
-                  ) : (
-                    <><p.icon className="h-4 w-4 mr-2" />Connect {p.name}</>
-                  )}
-                </Button>
-                {autoConnectLoading === p.id && (
-                  <Badge className="bg-yellow-500/15 text-yellow-400 text-xs animate-pulse w-full justify-center">Processing...</Badge>
-                )}
-              </CardContent>
-            </Card>
-          ))}
-
-          {/* ===== INSTAGRAM SESSION COOKIE ===== */}
-          {igConnected && (
-            <Card id="ig-session-section" className="border-pink-500/20 ring-2 ring-pink-500/10">
-              <CardContent className="p-4 space-y-4">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                    <Key className="h-4 w-4 text-pink-400" />
-                    Instagram Session Cookie
-                  </h4>
-                  <div className="flex items-center gap-2">
-                    {igSessionStatus === "valid" && (
-                      <Badge className="bg-emerald-500/15 text-emerald-400 border-emerald-500/30 text-[10px]">
-                        <CheckCircle2 className="h-3 w-3 mr-1" /> Active
-                      </Badge>
-                    )}
-                    {igSessionStatus === "expired" && (
-                      <Badge className="bg-destructive/15 text-destructive border-destructive/30 text-[10px]">
-                        <AlertTriangle className="h-3 w-3 mr-1" /> Expired
-                      </Badge>
-                    )}
-                    {igSessionStatus === "unknown" && !igSessionId && (
-                      <Badge className="bg-amber-500/15 text-amber-400 border-amber-500/30 text-[10px]">
-                        <AlertCircle className="h-3 w-3 mr-1" /> Not Set
-                      </Badge>
-                    )}
-                    {igSessionSavedAt && (
-                      <span className="text-[9px] text-muted-foreground">
-                        Saved: {new Date(igSessionSavedAt).toLocaleString()}
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                <p className="text-[11px] text-muted-foreground leading-relaxed">
-                  A valid session cookie is required to <strong>discover posts</strong>, <strong>mass comment</strong>, <strong>like</strong>, and <strong>follow</strong> on other accounts' content. Your own posts use the Graph API and don't need this.
-                </p>
-
-                <div className="space-y-3">
-                  <div>
-                    <label className="text-[10px] font-medium text-foreground mb-1 block">Session ID <span className="text-destructive">*</span></label>
-                    <Input value={igSessionId} onChange={e => setIgSessionId(e.target.value)} placeholder="Paste your sessionid cookie value here..." className="text-xs font-mono" />
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-[10px] font-medium text-foreground mb-1 block">CSRF Token</label>
-                      <Input value={igCsrfToken} onChange={e => setIgCsrfToken(e.target.value)} placeholder="csrftoken cookie value" className="text-xs font-mono" />
+            {/* ===== SESSION & CREDENTIALS SUBTAB (DEFAULT) ===== */}
+            <TabsContent value="session" className="space-y-4">
+              {igConnected && (
+                <Card id="ig-session-section" className="border-pink-500/20 ring-2 ring-pink-500/10">
+                  <CardContent className="p-4 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                        <Key className="h-4 w-4 text-pink-400" />
+                        Instagram Session Cookie
+                      </h4>
+                      <div className="flex items-center gap-2">
+                        {igSessionStatus === "valid" && (
+                          <Badge className="bg-emerald-500/15 text-emerald-400 border-emerald-500/30 text-[10px]">
+                            <CheckCircle2 className="h-3 w-3 mr-1" /> Active
+                          </Badge>
+                        )}
+                        {igSessionStatus === "expired" && (
+                          <Badge className="bg-destructive/15 text-destructive border-destructive/30 text-[10px]">
+                            <AlertTriangle className="h-3 w-3 mr-1" /> Expired
+                          </Badge>
+                        )}
+                        {igSessionStatus === "unknown" && !igSessionId && (
+                          <Badge className="bg-amber-500/15 text-amber-400 border-amber-500/30 text-[10px]">
+                            <AlertCircle className="h-3 w-3 mr-1" /> Not Set
+                          </Badge>
+                        )}
+                        {igSessionSavedAt && (
+                          <span className="text-[9px] text-muted-foreground">
+                            Saved: {new Date(igSessionSavedAt).toLocaleString()}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    <div>
-                      <label className="text-[10px] font-medium text-foreground mb-1 block">DS User ID</label>
-                      <Input value={igDsUserId} onChange={e => setIgDsUserId(e.target.value)} placeholder="ds_user_id cookie value" className="text-xs font-mono" />
-                    </div>
-                  </div>
-                </div>
 
-                <div className="flex items-center gap-2 flex-wrap">
-                  <Button size="sm" onClick={saveIgSessionData} disabled={igSessionLoading || !igSessionId.trim()} className="gap-1.5">
-                    {igSessionLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
-                    Save Session
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={testIgSession} disabled={igSessionLoading} className="gap-1.5 text-foreground">
-                    {igSessionLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />}
-                    Test Session
-                  </Button>
-                </div>
-
-                <Card className="bg-muted/30 border-border">
-                  <CardContent className="p-3 space-y-2">
-                    <p className="text-[10px] font-semibold text-foreground">How to get your session cookie:</p>
-                    <ol className="text-[10px] text-muted-foreground space-y-1 list-decimal list-inside">
-                      <li>Open <strong>instagram.com</strong> in your browser and log in</li>
-                      <li>Open DevTools (F12) → <strong>Application</strong> tab → <strong>Cookies</strong></li>
-                      <li>Find <code className="bg-muted px-1 rounded text-foreground">sessionid</code> — copy its value</li>
-                      <li>Find <code className="bg-muted px-1 rounded text-foreground">csrftoken</code> — copy its value</li>
-                      <li>Find <code className="bg-muted px-1 rounded text-foreground">ds_user_id</code> — copy its value</li>
-                      <li>Paste them above and click <strong>Save Session</strong></li>
-                    </ol>
-                    <p className="text-[9px] text-amber-400 flex items-center gap-1">
-                      <AlertTriangle className="h-3 w-3" />
-                      Session cookies expire every few days. Refresh when you see "expired" errors.
+                    <p className="text-[11px] text-muted-foreground leading-relaxed">
+                      A valid session cookie is required to <strong>discover posts</strong>, <strong>mass comment</strong>, <strong>like</strong>, and <strong>follow</strong> on other accounts' content.
                     </p>
-                  </CardContent>
-                </Card>
-              </CardContent>
-            </Card>
-          )}
 
-          {/* ===== MANUAL CONNECTION ===== */}
-          <Card>
-            <CardContent className="p-4 space-y-3">
-              <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><Shield className="h-4 w-4 text-muted-foreground" />Manual Connection</h4>
-              <p className="text-[10px] text-muted-foreground">Paste credentials directly if you already have them.</p>
-              <select value={connectForm.platform} onChange={e => setConnectForm(p => ({ ...p, platform: e.target.value }))} className="w-full bg-background border border-border text-foreground rounded-lg px-2 py-1.5 text-sm">
-                {["instagram","facebook","tiktok","twitter","reddit","telegram","snapchat","threads","whatsapp","signal","youtube","pinterest","discord"].map(pl => (
-                  <option key={pl} value={pl}>{pl.charAt(0).toUpperCase() + pl.slice(1)}</option>
-                ))}
-              </select>
-
-              {/* Platform-specific fields */}
-              {["instagram","facebook","threads","whatsapp"].includes(connectForm.platform) ? (
-                <>
-                  <Input value={connectForm.platform_username} onChange={e => setConnectForm(p => ({ ...p, platform_username: e.target.value }))} placeholder={connectForm.platform === "whatsapp" ? "Phone Number" : "Username"} className="text-sm" />
-                  <Input value={connectForm.platform_user_id} onChange={e => setConnectForm(p => ({ ...p, platform_user_id: e.target.value }))} placeholder={connectForm.platform === "whatsapp" ? "Phone Number ID" : connectForm.platform === "facebook" ? "User/Page ID" : "User ID"} className="text-sm" />
-                  <Input value={connectForm.access_token} onChange={e => setConnectForm(p => ({ ...p, access_token: e.target.value }))} placeholder="Access Token" type="password" className="text-sm" />
-                  <Input value={connectForm.refresh_token} onChange={e => setConnectForm(p => ({ ...p, refresh_token: e.target.value }))} placeholder="Refresh Token (optional)" type="password" className="text-sm" />
-                </>
-              ) : connectForm.platform === "telegram" ? (
-                <>
-                  <Input value={connectForm.platform_username} onChange={e => setConnectForm(p => ({ ...p, platform_username: e.target.value }))} placeholder="Bot Username" className="text-sm" />
-                  <Input value={connectForm.access_token} onChange={e => setConnectForm(p => ({ ...p, access_token: e.target.value }))} placeholder="Bot Token (from @BotFather)" type="password" className="text-sm" />
-                </>
-              ) : connectForm.platform === "discord" ? (
-                <>
-                  <Input value={connectForm.platform_username} onChange={e => setConnectForm(p => ({ ...p, platform_username: e.target.value }))} placeholder="Bot Username" className="text-sm" />
-                  <Input value={connectForm.access_token} onChange={e => setConnectForm(p => ({ ...p, access_token: e.target.value }))} placeholder="Bot Token (from discord.com/developers)" type="password" className="text-sm" />
-                </>
-              ) : connectForm.platform === "signal" ? (
-                <>
-                  <Input value={connectForm.platform_username} onChange={e => setConnectForm(p => ({ ...p, platform_username: e.target.value }))} placeholder="Phone Number (+1234...)" className="text-sm" />
-                  <Input value={connectForm.access_token} onChange={e => setConnectForm(p => ({ ...p, access_token: e.target.value }))} placeholder="Signal API URL (http://localhost:8080)" className="text-sm" />
-                </>
-              ) : connectForm.platform === "youtube" ? (
-                <>
-                  <Input value={connectForm.platform_username} onChange={e => setConnectForm(p => ({ ...p, platform_username: e.target.value }))} placeholder="Channel Name" className="text-sm" />
-                  <Input value={connectForm.platform_user_id} onChange={e => setConnectForm(p => ({ ...p, platform_user_id: e.target.value }))} placeholder="Channel ID" className="text-sm" />
-                  <Input value={connectForm.access_token} onChange={e => setConnectForm(p => ({ ...p, access_token: e.target.value }))} placeholder="OAuth Access Token" type="password" className="text-sm" />
-                  <Input value={connectForm.refresh_token} onChange={e => setConnectForm(p => ({ ...p, refresh_token: e.target.value }))} placeholder="Refresh Token" type="password" className="text-sm" />
-                </>
-              ) : connectForm.platform === "snapchat" ? (
-                <>
-                  <Input value={connectForm.platform_username} onChange={e => setConnectForm(p => ({ ...p, platform_username: e.target.value }))} placeholder="Organization/Account Name" className="text-sm" />
-                  <Input value={connectForm.access_token} onChange={e => setConnectForm(p => ({ ...p, access_token: e.target.value }))} placeholder="OAuth Access Token" type="password" className="text-sm" />
-                  <Input value={connectForm.refresh_token} onChange={e => setConnectForm(p => ({ ...p, refresh_token: e.target.value }))} placeholder="Refresh Token" type="password" className="text-sm" />
-                </>
-              ) : (
-                <>
-                  <Input value={connectForm.platform_username} onChange={e => setConnectForm(p => ({ ...p, platform_username: e.target.value }))} placeholder="Username" className="text-sm" />
-                  <Input value={connectForm.platform_user_id} onChange={e => setConnectForm(p => ({ ...p, platform_user_id: e.target.value }))} placeholder="User ID" className="text-sm" />
-                  <Input value={connectForm.access_token} onChange={e => setConnectForm(p => ({ ...p, access_token: e.target.value }))} placeholder="Access Token / API Key" type="password" className="text-sm" />
-                  <Input value={connectForm.refresh_token} onChange={e => setConnectForm(p => ({ ...p, refresh_token: e.target.value }))} placeholder="Refresh Token (optional)" type="password" className="text-sm" />
-                </>
-              )}
-              <Button onClick={connectPlatform} size="sm" variant="outline" className="text-foreground"><Plus className="h-3.5 w-3.5 mr-1" />Connect Manually</Button>
-            </CardContent>
-          </Card>
-
-          {/* ===== CONNECTED ACCOUNTS ===== */}
-          {connections.length > 0 && (
-            <Card>
-              <CardContent className="p-4">
-                <h4 className="text-sm font-semibold text-foreground mb-3">Connected Accounts</h4>
-                <div className="space-y-3">
-                  {connections.map(c => {
-                    const meta = (c.metadata || {}) as any;
-                    const profilePic = meta.profile_picture_url || meta.avatar_url || meta.profile_image_url || meta.icon_img || meta.picture_url || meta.thumbnail;
-                    const name = meta.name || meta.display_name || meta.verified_name || meta.title || c.platform_username;
-                    return (
-                      <div key={c.id} className={`rounded-xl p-4 border ${c.is_connected ? "bg-green-500/5 border-green-500/20" : "bg-muted/20 border-border"}`}>
-                        <div className="flex items-center gap-3">
-                          <div className="relative">
-                            {profilePic ? (
-                              <img src={profilePic} alt={name} className="h-12 w-12 rounded-full object-cover border-2 border-green-500/30" />
-                            ) : (
-                              <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center border-2 border-border">
-                                <Users className="h-5 w-5 text-muted-foreground" />
-                              </div>
-                            )}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <p className="text-sm font-bold text-foreground truncate">{name}</p>
-                              {c.is_connected && <CheckCircle2 className="h-3.5 w-3.5 text-green-400 flex-shrink-0" />}
-                            </div>
-                            <p className="text-xs text-muted-foreground">@{c.platform_username} · {c.platform}</p>
-                          </div>
-                          <div className="flex flex-col gap-1">
-                            <Badge className={c.is_connected ? "bg-green-500/15 text-green-400 text-[10px]" : "bg-muted text-muted-foreground text-[10px]"}>
-                              {c.is_connected ? "● Live" : "Offline"}
-                            </Badge>
-                            {c.is_connected && (
-                              <Button size="sm" variant="ghost" onClick={() => disconnectPlatform(c.id)} className="text-red-400 text-xs h-6 px-2">
-                                <WifiOff className="h-3 w-3 mr-1" />Disconnect
-                              </Button>
-                            )}
-                          </div>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-[10px] font-medium text-foreground mb-1 block">Session ID <span className="text-destructive">*</span></label>
+                        <Input value={igSessionId} onChange={e => setIgSessionId(e.target.value)} placeholder="Paste your sessionid cookie value here..." className="text-xs font-mono" />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-[10px] font-medium text-foreground mb-1 block">CSRF Token</label>
+                          <Input value={igCsrfToken} onChange={e => setIgCsrfToken(e.target.value)} placeholder="csrftoken cookie value" className="text-xs font-mono" />
                         </div>
-                        <div className="mt-2 pt-2 border-t border-border/50 flex items-center gap-3 text-[10px] text-muted-foreground">
-                          <span>ID: {c.platform_user_id || "—"}</span>
-                          <span>·</span>
-                          <span>Connected: {new Date(c.connected_at).toLocaleDateString()}</span>
-                          {(meta.connected_via) && <><span>·</span><span>Via: {meta.connected_via}</span></>}
+                        <div>
+                          <label className="text-[10px] font-medium text-foreground mb-1 block">DS User ID</label>
+                          <Input value={igDsUserId} onChange={e => setIgDsUserId(e.target.value)} placeholder="ds_user_id cookie value" className="text-xs font-mono" />
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-          )}
+                    </div>
+
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Button size="sm" onClick={saveIgSessionData} disabled={igSessionLoading || !igSessionId.trim()} className="gap-1.5">
+                        {igSessionLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+                        Save Session
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={testIgSession} disabled={igSessionLoading} className="gap-1.5 text-foreground">
+                        {igSessionLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />}
+                        Test Session
+                      </Button>
+                    </div>
+
+                    <Card className="bg-muted/30 border-border">
+                      <CardContent className="p-3 space-y-2">
+                        <p className="text-[10px] font-semibold text-foreground">How to get your session cookie:</p>
+                        <ol className="text-[10px] text-muted-foreground space-y-1 list-decimal list-inside">
+                          <li>Open <strong>instagram.com</strong> in your browser and log in</li>
+                          <li>Open DevTools (F12) → <strong>Application</strong> tab → <strong>Cookies</strong></li>
+                          <li>Find <code className="bg-muted px-1 rounded text-foreground">sessionid</code> — copy its value</li>
+                          <li>Find <code className="bg-muted px-1 rounded text-foreground">csrftoken</code> — copy its value</li>
+                          <li>Find <code className="bg-muted px-1 rounded text-foreground">ds_user_id</code> — copy its value</li>
+                          <li>Paste them above and click <strong>Save Session</strong></li>
+                        </ol>
+                        <p className="text-[9px] text-amber-400 flex items-center gap-1">
+                          <AlertTriangle className="h-3 w-3" />
+                          Session cookies expire every few days. Refresh when you see "expired" errors.
+                        </p>
+                      </CardContent>
+                    </Card>
+                  </CardContent>
+                </Card>
+              )}
+
+              <Card>
+                <CardContent className="p-4 space-y-3">
+                  <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><Shield className="h-4 w-4 text-muted-foreground" />Manual Connection</h4>
+                  <p className="text-[10px] text-muted-foreground">Paste credentials directly if you already have them.</p>
+                  <select value={connectForm.platform} onChange={e => setConnectForm(p => ({ ...p, platform: e.target.value }))} className="w-full bg-background border border-border text-foreground rounded-lg px-2 py-1.5 text-sm">
+                    {["instagram","facebook","tiktok","twitter","reddit","telegram","snapchat","threads","whatsapp","signal","youtube","pinterest","discord"].map(pl => (
+                      <option key={pl} value={pl}>{pl.charAt(0).toUpperCase() + pl.slice(1)}</option>
+                    ))}
+                  </select>
+                  {["instagram","facebook","threads","whatsapp"].includes(connectForm.platform) ? (
+                    <>
+                      <Input value={connectForm.platform_username} onChange={e => setConnectForm(p => ({ ...p, platform_username: e.target.value }))} placeholder={connectForm.platform === "whatsapp" ? "Phone Number" : "Username"} className="text-sm" />
+                      <Input value={connectForm.platform_user_id} onChange={e => setConnectForm(p => ({ ...p, platform_user_id: e.target.value }))} placeholder={connectForm.platform === "whatsapp" ? "Phone Number ID" : connectForm.platform === "facebook" ? "User/Page ID" : "User ID"} className="text-sm" />
+                      <Input value={connectForm.access_token} onChange={e => setConnectForm(p => ({ ...p, access_token: e.target.value }))} placeholder="Access Token" type="password" className="text-sm" />
+                      <Input value={connectForm.refresh_token} onChange={e => setConnectForm(p => ({ ...p, refresh_token: e.target.value }))} placeholder="Refresh Token (optional)" type="password" className="text-sm" />
+                    </>
+                  ) : connectForm.platform === "telegram" ? (
+                    <>
+                      <Input value={connectForm.platform_username} onChange={e => setConnectForm(p => ({ ...p, platform_username: e.target.value }))} placeholder="Bot Username" className="text-sm" />
+                      <Input value={connectForm.access_token} onChange={e => setConnectForm(p => ({ ...p, access_token: e.target.value }))} placeholder="Bot Token (from @BotFather)" type="password" className="text-sm" />
+                    </>
+                  ) : connectForm.platform === "discord" ? (
+                    <>
+                      <Input value={connectForm.platform_username} onChange={e => setConnectForm(p => ({ ...p, platform_username: e.target.value }))} placeholder="Bot Username" className="text-sm" />
+                      <Input value={connectForm.access_token} onChange={e => setConnectForm(p => ({ ...p, access_token: e.target.value }))} placeholder="Bot Token (from discord.com/developers)" type="password" className="text-sm" />
+                    </>
+                  ) : connectForm.platform === "signal" ? (
+                    <>
+                      <Input value={connectForm.platform_username} onChange={e => setConnectForm(p => ({ ...p, platform_username: e.target.value }))} placeholder="Phone Number (+1234...)" className="text-sm" />
+                      <Input value={connectForm.access_token} onChange={e => setConnectForm(p => ({ ...p, access_token: e.target.value }))} placeholder="Signal API URL (http://localhost:8080)" className="text-sm" />
+                    </>
+                  ) : connectForm.platform === "youtube" ? (
+                    <>
+                      <Input value={connectForm.platform_username} onChange={e => setConnectForm(p => ({ ...p, platform_username: e.target.value }))} placeholder="Channel Name" className="text-sm" />
+                      <Input value={connectForm.platform_user_id} onChange={e => setConnectForm(p => ({ ...p, platform_user_id: e.target.value }))} placeholder="Channel ID" className="text-sm" />
+                      <Input value={connectForm.access_token} onChange={e => setConnectForm(p => ({ ...p, access_token: e.target.value }))} placeholder="OAuth Access Token" type="password" className="text-sm" />
+                      <Input value={connectForm.refresh_token} onChange={e => setConnectForm(p => ({ ...p, refresh_token: e.target.value }))} placeholder="Refresh Token" type="password" className="text-sm" />
+                    </>
+                  ) : connectForm.platform === "snapchat" ? (
+                    <>
+                      <Input value={connectForm.platform_username} onChange={e => setConnectForm(p => ({ ...p, platform_username: e.target.value }))} placeholder="Organization/Account Name" className="text-sm" />
+                      <Input value={connectForm.access_token} onChange={e => setConnectForm(p => ({ ...p, access_token: e.target.value }))} placeholder="OAuth Access Token" type="password" className="text-sm" />
+                      <Input value={connectForm.refresh_token} onChange={e => setConnectForm(p => ({ ...p, refresh_token: e.target.value }))} placeholder="Refresh Token" type="password" className="text-sm" />
+                    </>
+                  ) : (
+                    <>
+                      <Input value={connectForm.platform_username} onChange={e => setConnectForm(p => ({ ...p, platform_username: e.target.value }))} placeholder="Username" className="text-sm" />
+                      <Input value={connectForm.platform_user_id} onChange={e => setConnectForm(p => ({ ...p, platform_user_id: e.target.value }))} placeholder="User ID" className="text-sm" />
+                      <Input value={connectForm.access_token} onChange={e => setConnectForm(p => ({ ...p, access_token: e.target.value }))} placeholder="Access Token / API Key" type="password" className="text-sm" />
+                      <Input value={connectForm.refresh_token} onChange={e => setConnectForm(p => ({ ...p, refresh_token: e.target.value }))} placeholder="Refresh Token (optional)" type="password" className="text-sm" />
+                    </>
+                  )}
+                  <Button onClick={connectPlatform} size="sm" variant="outline" className="text-foreground"><Plus className="h-3.5 w-3.5 mr-1" />Connect Manually</Button>
+                </CardContent>
+              </Card>
+
+              {connections.length > 0 && (
+                <Card>
+                  <CardContent className="p-4">
+                    <h4 className="text-sm font-semibold text-foreground mb-3">Connected Accounts</h4>
+                    <div className="space-y-3">
+                      {connections.map(c => {
+                        const meta = (c.metadata || {}) as any;
+                        const profilePic = meta.profile_picture_url || meta.avatar_url || meta.profile_image_url || meta.icon_img || meta.picture_url || meta.thumbnail;
+                        const name = meta.name || meta.display_name || meta.verified_name || meta.title || c.platform_username;
+                        return (
+                          <div key={c.id} className={`rounded-xl p-4 border ${c.is_connected ? "bg-green-500/5 border-green-500/20" : "bg-muted/20 border-border"}`}>
+                            <div className="flex items-center gap-3">
+                              <div className="relative">
+                                {profilePic ? (
+                                  <img src={profilePic} alt={name} className="h-12 w-12 rounded-full object-cover border-2 border-green-500/30" />
+                                ) : (
+                                  <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center border-2 border-border">
+                                    <Users className="h-5 w-5 text-muted-foreground" />
+                                  </div>
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <p className="text-sm font-bold text-foreground truncate">{name}</p>
+                                  {c.is_connected && <CheckCircle2 className="h-3.5 w-3.5 text-green-400 flex-shrink-0" />}
+                                </div>
+                                <p className="text-xs text-muted-foreground">@{c.platform_username} · {c.platform}</p>
+                              </div>
+                              <div className="flex flex-col gap-1">
+                                <Badge className={c.is_connected ? "bg-green-500/15 text-green-400 text-[10px]" : "bg-muted text-muted-foreground text-[10px]"}>
+                                  {c.is_connected ? "● Live" : "Offline"}
+                                </Badge>
+                                {c.is_connected && (
+                                  <Button size="sm" variant="ghost" onClick={() => disconnectPlatform(c.id)} className="text-red-400 text-xs h-6 px-2">
+                                    <WifiOff className="h-3 w-3 mr-1" />Disconnect
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                            <div className="mt-2 pt-2 border-t border-border/50 flex items-center gap-3 text-[10px] text-muted-foreground">
+                              <span>ID: {c.platform_user_id || "—"}</span>
+                              <span>·</span>
+                              <span>Connected: {new Date(c.connected_at).toLocaleDateString()}</span>
+                              {(meta.connected_via) && <><span>·</span><span>Via: {meta.connected_via}</span></>}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </TabsContent>
+
+            {/* ===== ONE-CLICK CONNECT SUBTAB ===== */}
+            <TabsContent value="one-click" className="space-y-4">
+              <Card>
+                <CardContent className="p-4 space-y-2">
+                  <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><Globe className="h-4 w-4 text-blue-400" />OAuth Redirect URI</h4>
+                  <p className="text-[10px] text-muted-foreground">Set this as the redirect URI in all your developer app settings</p>
+                  <div className="flex gap-2">
+                    <Input value={oauthRedirectUri} onChange={e => setOauthRedirectUri(e.target.value)} placeholder="Redirect URI" className="text-sm flex-1" />
+                    <Button size="sm" variant="outline" onClick={() => { navigator.clipboard.writeText(oauthRedirectUri); toast.success("Copied!"); }}><Copy className="h-3.5 w-3.5" /></Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {[
+                { id: "instagram", name: "Instagram", icon: Instagram, color: "text-pink-400", gradient: "from-purple-600 to-pink-600", connected: igConnected, desc: "Meta OAuth popup — profile synced automatically.", fields: [{ val: oauthAppId, set: setOauthAppId, placeholder: "Meta App ID (developers.facebook.com)", type: "text" }], action: automatedInstagramConnect },
+                { id: "facebook", name: "Facebook", icon: Globe, color: "text-blue-500", gradient: "from-blue-600 to-indigo-600", connected: facebookConnected, desc: "Meta OAuth popup — pages, groups, and profile synced.", fields: [{ val: fbAppId, set: setFbAppId, placeholder: "Facebook App ID (developers.facebook.com)", type: "text" }], action: automatedFacebookConnect },
+                { id: "tiktok", name: "TikTok", icon: Music2, color: "text-cyan-400", gradient: "from-cyan-600 to-teal-600", connected: ttConnected, desc: "TikTok Login Kit — auth code exchanged for token automatically.", fields: [{ val: ttClientKey, set: setTtClientKey, placeholder: "TikTok Client Key", type: "text" }, { val: ttClientSecret, set: setTtClientSecret, placeholder: "TikTok Client Secret", type: "password" }], action: automatedTikTokConnect },
+                { id: "twitter", name: "X / Twitter", icon: Twitter, color: "text-blue-400", gradient: "from-blue-600 to-sky-600", connected: xConnected, desc: "OAuth2 PKCE — token captured and profile synced.", fields: [{ val: xClientId, set: setXClientId, placeholder: "X Client ID (developer.x.com)", type: "text" }, { val: xClientSecret, set: setXClientSecret, placeholder: "X Client Secret", type: "password" }], action: automatedTwitterConnect },
+                { id: "reddit", name: "Reddit", icon: Globe, color: "text-orange-400", gradient: "from-orange-600 to-red-600", connected: redditConnected, desc: "Reddit OAuth — auth code exchanged for token.", fields: [{ val: redditClientId, set: setRedditClientId, placeholder: "Reddit App ID (reddit.com/prefs/apps)", type: "text" }, { val: redditClientSecret, set: setRedditClientSecret, placeholder: "Reddit App Secret", type: "password" }], action: automatedRedditConnect },
+                { id: "telegram", name: "Telegram", icon: Phone, color: "text-blue-400", gradient: "from-blue-500 to-indigo-600", connected: telegramConnected, desc: "Enter Bot Token from @BotFather — verified instantly.", fields: [{ val: telegramBotToken, set: setTelegramBotToken, placeholder: "Bot Token (123456789:ABCdef...)", type: "password" }], action: automatedTelegramConnect },
+                { id: "threads", name: "Threads", icon: MessageCircle, color: "text-purple-400", gradient: "from-purple-600 to-violet-600", connected: threadsConnected, desc: "Threads OAuth — profile and posting access.", fields: [{ val: threadsAppId, set: setThreadsAppId, placeholder: "Threads App ID (developers.facebook.com)", type: "text" }, { val: threadsAppSecret, set: setThreadsAppSecret, placeholder: "Threads App Secret", type: "password" }], action: automatedThreadsConnect },
+                { id: "whatsapp", name: "WhatsApp", icon: Phone, color: "text-green-400", gradient: "from-green-600 to-emerald-600", connected: whatsappConnected, desc: "WhatsApp Business API — enter Phone Number ID and token.", fields: [{ val: waPhoneNumberId, set: setWaPhoneNumberId, placeholder: "Phone Number ID", type: "text" }, { val: waAccessToken, set: setWaAccessToken, placeholder: "Permanent Access Token", type: "password" }, { val: waBusinessId, set: setWaBusinessId, placeholder: "WABA ID (optional)", type: "text" }], action: automatedWhatsAppConnect },
+                { id: "snapchat", name: "Snapchat", icon: Camera, color: "text-yellow-400", gradient: "from-yellow-500 to-orange-500", connected: snapchatConnected, desc: "Snapchat Marketing API OAuth.", fields: [{ val: snapClientId, set: setSnapClientId, placeholder: "Snapchat Client ID", type: "text" }, { val: snapClientSecret, set: setSnapClientSecret, placeholder: "Snapchat Client Secret", type: "password" }], action: automatedSnapchatConnect },
+                { id: "youtube", name: "YouTube", icon: Play, color: "text-red-400", gradient: "from-red-600 to-rose-600", connected: youtubeConnected, desc: "Google OAuth — channel and analytics access.", fields: [{ val: ytClientId, set: setYtClientId, placeholder: "Google Client ID (console.cloud.google.com)", type: "text" }, { val: ytClientSecret, set: setYtClientSecret, placeholder: "Google Client Secret", type: "password" }], action: automatedYouTubeConnect },
+                { id: "pinterest", name: "Pinterest", icon: Target, color: "text-rose-400", gradient: "from-rose-600 to-pink-600", connected: pinterestConnected, desc: "Pinterest OAuth — pins, boards, and ads access.", fields: [{ val: pinAppId, set: setPinAppId, placeholder: "Pinterest App ID", type: "text" }, { val: pinAppSecret, set: setPinAppSecret, placeholder: "Pinterest App Secret", type: "password" }], action: automatedPinterestConnect },
+                { id: "discord", name: "Discord", icon: Gamepad2, color: "text-indigo-400", gradient: "from-indigo-600 to-violet-600", connected: discordConnected, desc: "Enter Bot Token — verified instantly.", fields: [{ val: discordBotToken, set: setDiscordBotToken, placeholder: "Discord Bot Token (discord.com/developers)", type: "password" }], action: automatedDiscordConnect },
+                { id: "signal", name: "Signal", icon: Shield, color: "text-blue-300", gradient: "from-blue-500 to-sky-500", connected: signalConnected, desc: "Signal CLI REST API — enter API URL and phone.", fields: [{ val: signalApiUrl, set: setSignalApiUrl, placeholder: "Signal API URL (e.g. http://localhost:8080)", type: "text" }, { val: signalPhoneNumber, set: setSignalPhoneNumber, placeholder: "Phone number (+1234...)", type: "text" }], action: automatedSignalConnect },
+              ].map(p => (
+                <Card key={p.id} className={`border-${p.color.replace("text-","").split("-")[0]}-500/20`}>
+                  <CardContent className="p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                        <p.icon className={`h-4 w-4 ${p.color}`} />
+                        {p.name} — {p.id === "telegram" || p.id === "discord" ? "Token Connect" : p.id === "whatsapp" || p.id === "signal" ? "API Connect" : "One-Click Connect"}
+                      </h4>
+                      {p.connected && <Badge className="bg-green-500/15 text-green-400 text-[10px]">● Connected</Badge>}
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">{p.desc}</p>
+                    {p.fields.map((f, i) => (
+                      <Input key={i} value={f.val} onChange={e => f.set(e.target.value)} placeholder={f.placeholder} type={f.type} className="text-sm" />
+                    ))}
+                    <Button
+                      onClick={p.action}
+                      disabled={autoConnectLoading === p.id}
+                      className={`w-full bg-gradient-to-r ${p.gradient} text-white`}
+                    >
+                      {autoConnectLoading === p.id ? (
+                        <><RefreshCw className="h-4 w-4 mr-2 animate-spin" />Connecting...</>
+                      ) : (
+                        <><p.icon className="h-4 w-4 mr-2" />Connect {p.name}</>
+                      )}
+                    </Button>
+                    {autoConnectLoading === p.id && (
+                      <Badge className="bg-yellow-500/15 text-yellow-400 text-xs animate-pulse w-full justify-center">Processing...</Badge>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+            </TabsContent>
+          </Tabs>
         </TabsContent>
       </Tabs>
     </div>
