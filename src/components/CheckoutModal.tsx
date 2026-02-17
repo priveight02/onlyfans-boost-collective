@@ -97,7 +97,7 @@ const CheckoutModal = ({ clientSecret, onClose }: CheckoutModalProps) => {
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.35 }}
-        className="fixed inset-0 z-[9999] flex items-center justify-center p-3 md:p-6"
+        className="fixed inset-0 z-[9999] flex items-center justify-center p-1 md:p-2"
       >
         {/* Backdrop */}
         <motion.div
@@ -113,7 +113,7 @@ const CheckoutModal = ({ clientSecret, onClose }: CheckoutModalProps) => {
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.94, y: 24 }}
           transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-          className="relative w-full max-w-[1400px] h-[96vh] rounded-3xl overflow-hidden flex flex-col"
+          className="relative w-full max-w-[1400px] h-[99vh] rounded-2xl overflow-hidden flex flex-col"
           style={{
             background: "linear-gradient(180deg, hsl(222, 35%, 10%) 0%, hsl(222, 35%, 7%) 100%)",
             boxShadow: "0 0 0 1px rgba(255,255,255,0.06), 0 32px 80px -12px rgba(0,0,0,0.7), 0 0 120px -40px rgba(147,51,234,0.15)",
@@ -124,7 +124,7 @@ const CheckoutModal = ({ clientSecret, onClose }: CheckoutModalProps) => {
 
           {/* Header — only show during checkout */}
           {(view === "checkout" || view === "verifying") && (
-            <div className="flex items-center justify-between px-6 py-3.5 border-b border-white/[0.06] flex-shrink-0">
+            <div className="flex items-center justify-between px-6 py-2 border-b border-white/[0.06] flex-shrink-0">
               <div className="flex items-center gap-3">
                 <div className="flex items-center justify-center w-7 h-7 rounded-full bg-emerald-500/10 border border-emerald-500/20">
                   <Lock className="h-3 w-3 text-emerald-400" />
@@ -190,8 +190,8 @@ const CheckoutModal = ({ clientSecret, onClose }: CheckoutModalProps) => {
               </AnimatePresence>
 
               <div
-                className="flex-1 min-h-0 overflow-auto bg-white rounded-b-3xl"
-                style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(0,0,0,0.1) transparent" }}
+                className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden bg-white rounded-b-2xl"
+                style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(0,0,0,0.12) transparent" }}
                 ref={(el) => {
                   if (el) {
                     const observer = new MutationObserver(() => {
@@ -204,20 +204,15 @@ const CheckoutModal = ({ clientSecret, onClose }: CheckoutModalProps) => {
                   }
                 }}
               >
-                <div
-                  className="[&>div]:min-h-full [&>div>div]:min-h-full [&_iframe]:!min-h-full"
-                  style={{ transform: "scale(0.92)", transformOrigin: "top center", width: "108.7%", marginLeft: "-4.35%" }}
+                <EmbeddedCheckoutProvider
+                  stripe={stripePromise}
+                  options={{
+                    clientSecret,
+                    onComplete: handleComplete,
+                  }}
                 >
-                  <EmbeddedCheckoutProvider
-                    stripe={stripePromise}
-                    options={{
-                      clientSecret,
-                      onComplete: handleComplete,
-                    }}
-                  >
-                    <EmbeddedCheckout />
-                  </EmbeddedCheckoutProvider>
-                </div>
+                  <EmbeddedCheckout />
+                </EmbeddedCheckoutProvider>
               </div>
             </>
           )}
