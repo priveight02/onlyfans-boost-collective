@@ -1202,6 +1202,14 @@ const SocialMediaHub = () => {
   const [findSessionsLoading, setFindSessionsLoading] = useState(false);
   const [sessionAutoConnectLoading, setSessionAutoConnectLoading] = useState(false);
   const [igLoginPopupLoading, setIgLoginPopupLoading] = useState(false);
+  const [cachedIgAppId, setCachedIgAppId] = useState<string | null>(null);
+
+  // Pre-fetch Instagram App ID from backend on mount
+  useEffect(() => {
+    supabase.functions.invoke("ig-oauth-callback", { body: { action: "get_app_id" } })
+      .then(({ data }) => { if (data?.app_id) setCachedIgAppId(data.app_id); })
+      .catch(() => {});
+  }, []);
   const [foundSessions, setFoundSessions] = useState<Array<{ id: string; source: string; sessionId: string; csrfToken?: string; dsUserId?: string; savedAt?: string; status: "active" | "expired" | "unknown" }>>([]);
 
   type FoundSession = typeof foundSessions[number];
@@ -1241,51 +1249,35 @@ const SocialMediaHub = () => {
   }, [selectedAccount]);
 
   // Open the IG login popup — directly open Instagram OAuth to avoid iframe blocking
-  const openIgLoginPopup = async () => {
-    // Use the oauthAppId from the UI input, or fetch from backend secret
-    let appId = oauthAppId;
-    if (!appId) {
-      try {
-        const { data } = await supabase.functions.invoke("ig-oauth-callback", { body: { action: "get_app_id" } });
-        appId = data?.app_id;
-      } catch {}
-    }
+  const openIgLoginPopup = () => {
+    // Use oauthAppId from UI, or pre-fetched backend secret
+    const appId = oauthAppId || cachedIgAppId;
     if (!appId) { toast.error("Enter your Meta App ID in the One-Click Connect section, or configure INSTAGRAM_APP_ID in backend secrets"); return; }
     setIgLoginPopupLoading(true);
-    // Use the published app URL for redirect, not the preview iframe origin
     const publishedOrigin = "https://onlyfans-boost-collective.lovable.app";
     const redirectUri = `${publishedOrigin}/ig-login`;
     const scope = "instagram_basic,instagram_content_publish,instagram_manage_comments,instagram_manage_insights";
     const authUrl = `https://api.instagram.com/oauth/authorize?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scope}&response_type=code`;
     
-    // Open from top-level window context to escape iframe restrictions
-    const opener = window.top || window;
-    const w = 420, h = 620;
-    const left = (opener.screen?.width || 1920) / 2 - w / 2;
-    const topPos = (opener.screen?.height || 1080) / 2 - h / 2;
-    try {
-      const popup = opener.open(
-        authUrl,
-        "ig_login_popup",
-        `width=${w},height=${h},left=${left},top=${topPos},scrollbars=yes,resizable=yes`
-      );
-      // Watch for popup close without success
-      const check = setInterval(() => {
-        try {
-          if (!popup || popup.closed) {
-            clearInterval(check);
-            setIgLoginPopupLoading(false);
-          }
-        } catch {
+    // Use window.open directly — must be synchronous from user click to avoid popup blocker
+    const popup = window.open(authUrl, "_blank");
+    if (!popup) {
+      // Popup was blocked — try direct navigation as last resort
+      toast.info("Popup blocked — opening in current tab. You'll be redirected back after login.");
+      window.location.href = authUrl;
+      return;
+    }
+    const check = setInterval(() => {
+      try {
+        if (popup.closed) {
           clearInterval(check);
           setIgLoginPopupLoading(false);
         }
-      }, 500);
-    } catch {
-      // If window.top.open fails due to cross-origin, fall back to direct navigation
-      window.open(authUrl, "_blank");
-      setIgLoginPopupLoading(false);
-    }
+      } catch {
+        clearInterval(check);
+        setIgLoginPopupLoading(false);
+      }
+    }, 500);
   };
 
   // Parse Instagram cookies from a raw cookie string (e.g. pasted from DevTools)
