@@ -1,6 +1,5 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { cachedFetch, invalidateNamespace } from "@/lib/supabaseCache";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,11 +11,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
-import { Brain, Plus, Shield, Zap, AlertTriangle, Power, History, FileText, Clock, BarChart3 } from "lucide-react";
+import { Brain, Plus, Shield, Zap, AlertTriangle, Power, History, FileText, Clock, BarChart3, RefreshCw } from "lucide-react";
 import { format } from "date-fns";
-
-const CACHE_ID = "admin";
-const CACHE_TTL = 5 * 60 * 1000; // 5 min
 
 const AIControlPanel = () => {
   const [models, setModels] = useState<any[]>([]);
@@ -26,9 +22,9 @@ const AIControlPanel = () => {
   const [tokenBuckets, setTokenBuckets] = useState<any[]>([]);
   const [rateLimits, setRateLimits] = useState<any[]>([]);
   const [globalKillSwitch, setGlobalKillSwitch] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("models");
-  const loadedTabs = useRef<Set<string>>(new Set(["models"]));
+  const [loaded, setLoaded] = useState(false);
 
   const [showModelDialog, setShowModelDialog] = useState(false);
   const [showPromptDialog, setShowPromptDialog] = useState(false);
@@ -38,95 +34,50 @@ const AIControlPanel = () => {
   const [promptForm, setPromptForm] = useState({ name: "", description: "", category: "general", template: "", variables: "[]" });
   const [safetyForm, setSafetyForm] = useState({ name: "", description: "", rule_type: "content_filter", pattern: "", action: "block", severity: "medium" });
 
-  // Debounce realtime updates
-  const realtimeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const debouncedRefresh = useCallback((fn: () => void) => {
-    if (realtimeTimer.current) clearTimeout(realtimeTimer.current);
-    realtimeTimer.current = setTimeout(fn, 2000);
-  }, []);
-
-  // Single batched fetch for core data (models + kill switch only on mount)
   const fetchCoreData = useCallback(async () => {
-    const [modelsData, killData] = await Promise.all([
-      cachedFetch<any[]>(CACHE_ID, "ai_models", async () => {
-        const { data } = await supabase.from("ai_models").select("*").order("created_at", { ascending: false }); return data || [];
-      }, undefined, { ttlMs: CACHE_TTL }),
-      cachedFetch<any>(CACHE_ID, "kill_switch", async () => {
-        const { data } = await supabase.from("system_settings").select("*").eq("key", "ai_global_kill_switch").single(); return data;
-      }, undefined, { ttlMs: CACHE_TTL }
-      ),
+    setLoading(true);
+    const [modelsRes, killRes] = await Promise.all([
+      supabase.from("ai_models").select("*").order("created_at", { ascending: false }),
+      supabase.from("system_settings").select("*").eq("key", "ai_global_kill_switch").single(),
     ]);
-    setModels(modelsData);
-    if (killData) setGlobalKillSwitch(killData.value === "true" || killData.value === true);
+    setModels(modelsRes.data || []);
+    if (killRes.data) setGlobalKillSwitch(killRes.data.value === "true" || killRes.data.value === true);
+    setLoaded(true);
+    setLoading(false);
   }, []);
 
-  // Lazy-load tab data only when tab becomes active
   const fetchTabData = useCallback(async (tab: string) => {
-    if (loadedTabs.current.has(tab)) return;
-    loadedTabs.current.add(tab);
     switch (tab) {
-      case "prompts":
-        const prompts = await cachedFetch<any[]>(CACHE_ID, "prompt_templates", async () => {
-          const { data } = await supabase.from("prompt_templates").select("*").order("created_at", { ascending: false }); return data || [];
-        }, undefined, { ttlMs: CACHE_TTL }
-        );
-        setPrompts(prompts);
+      case "prompts": {
+        const { data } = await supabase.from("prompt_templates").select("*").order("created_at", { ascending: false });
+        setPrompts(data || []);
         break;
-      case "safety":
-        const rules = await cachedFetch<any[]>(CACHE_ID, "safety_rules", async () => {
-          const { data } = await supabase.from("safety_rules").select("*").order("created_at", { ascending: false }); return data || [];
-        }, undefined, { ttlMs: CACHE_TTL }
-        );
-        setSafetyRules(rules);
+      }
+      case "safety": {
+        const { data } = await supabase.from("safety_rules").select("*").order("created_at", { ascending: false });
+        setSafetyRules(data || []);
         break;
-      case "requests":
-        const reqs = await cachedFetch<any[]>(CACHE_ID, "ai_requests", async () => {
-          const { data } = await supabase.from("ai_requests").select("*").order("created_at", { ascending: false }).limit(20); return data || [];
-        }, undefined, { ttlMs: 60_000 }
-        );
-        setAiRequests(reqs);
+      }
+      case "requests": {
+        const { data } = await supabase.from("ai_requests").select("*").order("created_at", { ascending: false }).limit(20);
+        setAiRequests(data || []);
         break;
-      case "throttling":
-        const limits = await cachedFetch<any[]>(CACHE_ID, "rate_limits", async () => {
-          const { data } = await supabase.from("rate_limits").select("*").order("created_at", { ascending: false }).limit(20); return data || [];
-        }, undefined, { ttlMs: CACHE_TTL }
-        );
-        setRateLimits(limits);
+      }
+      case "throttling": {
+        const { data } = await supabase.from("rate_limits").select("*").order("created_at", { ascending: false }).limit(20);
+        setRateLimits(data || []);
         break;
-      case "usage":
-        const buckets = await cachedFetch<any[]>(CACHE_ID, "token_buckets", async () => {
-          const { data } = await supabase.from("token_buckets").select("*").order("created_at", { ascending: false }).limit(20); return data || [];
-        }, undefined, { ttlMs: CACHE_TTL }
-        );
-        setTokenBuckets(buckets);
+      }
+      case "usage": {
+        const { data } = await supabase.from("token_buckets").select("*").order("created_at", { ascending: false }).limit(20);
+        setTokenBuckets(data || []);
         break;
+      }
     }
   }, []);
 
-  useEffect(() => {
-    (async () => {
-      setLoading(true);
-      await fetchCoreData();
-      setLoading(false);
-    })();
-    const channel = supabase.channel("ai-control-realtime")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "ai_requests" }, (payload) => {
-        // Optimistic append instead of re-fetch
-        setAiRequests(prev => [payload.new as any, ...prev].slice(0, 50));
-      })
-      .on("postgres_changes", { event: "*", schema: "public", table: "system_settings" }, () => {
-        debouncedRefresh(() => {
-          invalidateNamespace(CACHE_ID, "kill_switch");
-          fetchCoreData();
-        });
-      })
-      .subscribe();
-    return () => { supabase.removeChannel(channel); if (realtimeTimer.current) clearTimeout(realtimeTimer.current); };
-  }, [fetchCoreData, debouncedRefresh]);
-
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
-    fetchTabData(tab);
   };
 
   const toggleKillSwitch = async () => {
@@ -134,7 +85,7 @@ const AIControlPanel = () => {
     setGlobalKillSwitch(newValue); // optimistic
     const { error } = await supabase.from("system_settings").update({ value: JSON.stringify(newValue) }).eq("key", "ai_global_kill_switch");
     if (error) { setGlobalKillSwitch(!newValue); toast.error("Failed to toggle kill switch"); return; }
-    invalidateNamespace(CACHE_ID, "kill_switch");
+    
     await supabase.from("audit_logs").insert({ action: newValue ? "ai_kill_switch_on" : "ai_kill_switch_off", entity_type: "system_settings", entity_id: "ai_global_kill_switch", actor_type: "admin", metadata: { new_value: newValue } });
     toast.success(newValue ? "🚨 AI KILL SWITCH ACTIVATED" : "✅ AI Kill Switch Deactivated");
   };
@@ -144,7 +95,6 @@ const AIControlPanel = () => {
     const { data, error } = await supabase.from("ai_models").insert(insertData).select().single();
     if (error) { toast.error("Failed to create model"); return; }
     setModels(prev => [data, ...prev]); // optimistic
-    invalidateNamespace(CACHE_ID, "ai_models");
     toast.success("Model created");
     setShowModelDialog(false);
     setModelForm({ name: "", provider: "openai", model_id: "", description: "", max_tokens: 4096, rate_limit_rpm: 60, pricing_input: 0, pricing_output: 0 });
@@ -154,7 +104,6 @@ const AIControlPanel = () => {
     const newStatus = currentStatus === "live" ? "paused" : "live";
     setModels(prev => prev.map(m => m.id === id ? { ...m, status: newStatus } : m)); // optimistic
     await supabase.from("ai_models").update({ status: newStatus }).eq("id", id);
-    invalidateNamespace(CACHE_ID, "ai_models");
     await supabase.from("audit_logs").insert({ action: `model_status_${newStatus}`, entity_type: "ai_models", entity_id: id, actor_type: "admin" });
     toast.success(`Model ${newStatus}`);
   };
@@ -162,7 +111,7 @@ const AIControlPanel = () => {
   const toggleModelKillSwitch = async (id: string, current: boolean) => {
     setModels(prev => prev.map(m => m.id === id ? { ...m, kill_switch: !current } : m)); // optimistic
     await supabase.from("ai_models").update({ kill_switch: !current }).eq("id", id);
-    invalidateNamespace(CACHE_ID, "ai_models");
+    
     await supabase.from("audit_logs").insert({ action: !current ? "model_killed" : "model_unkilled", entity_type: "ai_models", entity_id: id, actor_type: "admin" });
     toast.success(!current ? "🚨 Model killed" : "Model restored");
   };
@@ -173,7 +122,6 @@ const AIControlPanel = () => {
     const { data, error } = await supabase.from("prompt_templates").insert({ ...promptForm, variables: vars }).select().single();
     if (error) { toast.error("Failed to create prompt"); return; }
     setPrompts(prev => [data, ...prev]); // optimistic
-    invalidateNamespace(CACHE_ID, "prompt_templates");
     toast.success("Prompt template created");
     setShowPromptDialog(false);
     setPromptForm({ name: "", description: "", category: "general", template: "", variables: "[]" });
@@ -183,7 +131,6 @@ const AIControlPanel = () => {
     const { data, error } = await supabase.from("safety_rules").insert(safetyForm).select().single();
     if (error) { toast.error("Failed to create safety rule"); return; }
     setSafetyRules(prev => [data, ...prev]); // optimistic
-    invalidateNamespace(CACHE_ID, "safety_rules");
     toast.success("Safety rule created");
     setShowSafetyDialog(false);
     setSafetyForm({ name: "", description: "", rule_type: "content_filter", pattern: "", action: "block", severity: "medium" });
@@ -192,14 +139,14 @@ const AIControlPanel = () => {
   const toggleSafetyRule = async (id: string, current: boolean) => {
     setSafetyRules(prev => prev.map(r => r.id === id ? { ...r, is_active: !current } : r)); // optimistic
     await supabase.from("safety_rules").update({ is_active: !current }).eq("id", id);
-    invalidateNamespace(CACHE_ID, "safety_rules");
+    
     toast.success(!current ? "Rule activated" : "Rule deactivated");
   };
 
   const togglePromptActive = async (id: string, current: boolean) => {
     setPrompts(prev => prev.map(p => p.id === id ? { ...p, is_active: !current } : p)); // optimistic
     await supabase.from("prompt_templates").update({ is_active: !current }).eq("id", id);
-    invalidateNamespace(CACHE_ID, "prompt_templates");
+    
   };
 
   const statusColor = (s: string) => {
@@ -216,6 +163,13 @@ const AIControlPanel = () => {
   };
 
   if (loading) return <div className="flex items-center justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent" /></div>;
+
+  if (!loaded) return (
+    <div className="flex flex-col items-center justify-center py-12 gap-3">
+      <p className="text-white/40 text-sm">Data not loaded — click to fetch</p>
+      <Button onClick={fetchCoreData} className="gap-1.5"><RefreshCw className="h-4 w-4" /> Load AI Control Data</Button>
+    </div>
+  );
 
   return (
     <div className="space-y-6">

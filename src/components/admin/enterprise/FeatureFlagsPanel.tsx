@@ -1,6 +1,5 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { cachedFetch, invalidateNamespace } from "@/lib/supabaseCache";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,73 +12,41 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Slider } from "@/components/ui/slider";
 import { toast } from "sonner";
-import { Flag, Plus, FlaskConical, BarChart3, Trash2 } from "lucide-react";
+import { Flag, Plus, FlaskConical, BarChart3, Trash2, RefreshCw } from "lucide-react";
 import { format } from "date-fns";
-
-const CACHE_ID = "admin";
-const CACHE_TTL = 5 * 60 * 1000;
 
 const FeatureFlagsPanel = () => {
   const [flags, setFlags] = useState<any[]>([]);
   const [experiments, setExperiments] = useState<any[]>([]);
   const [evaluations, setEvaluations] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("flags");
-  const loadedTabs = useRef<Set<string>>(new Set(["flags"]));
+  const [loaded, setLoaded] = useState(false);
   const [showFlagDialog, setShowFlagDialog] = useState(false);
   const [showExperimentDialog, setShowExperimentDialog] = useState(false);
   const [flagForm, setFlagForm] = useState({ key: "", name: "", description: "", flag_type: "boolean", percentage_rollout: 0 });
   const [experimentForm, setExperimentForm] = useState({ name: "", description: "", hypothesis: "", success_metric: "", flag_id: "" });
 
-  const realtimeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const debouncedRefresh = useCallback((fn: () => void) => {
-    if (realtimeTimer.current) clearTimeout(realtimeTimer.current);
-    realtimeTimer.current = setTimeout(fn, 2000);
-  }, []);
-
   const fetchFlags = useCallback(async () => {
-    const data = await cachedFetch<any[]>(CACHE_ID, "feature_flags", async () => {
-      const { data } = await supabase.from("feature_flags").select("*").is("archived_at", null).order("created_at", { ascending: false }); return data || [];
-    }, undefined, { ttlMs: CACHE_TTL }
-    );
-    setFlags(data);
+    setLoading(true);
+    const { data } = await supabase.from("feature_flags").select("*").is("archived_at", null).order("created_at", { ascending: false });
+    setFlags(data || []);
+    setLoaded(true);
+    setLoading(false);
   }, []);
 
   const fetchTabData = useCallback(async (tab: string) => {
-    if (loadedTabs.current.has(tab)) return;
-    loadedTabs.current.add(tab);
     if (tab === "experiments") {
-      const data = await cachedFetch<any[]>(CACHE_ID, "experiments", async () => {
-        const { data } = await supabase.from("experiments").select("*").order("created_at", { ascending: false }); return data || [];
-      }, undefined, { ttlMs: CACHE_TTL }
-      );
-      setExperiments(data);
+      const { data } = await supabase.from("experiments").select("*").order("created_at", { ascending: false });
+      setExperiments(data || []);
     } else if (tab === "evaluations") {
-      const data = await cachedFetch<any[]>(CACHE_ID, "flag_evaluations", async () => {
-        const { data } = await supabase.from("feature_flag_evaluations").select("*").order("evaluated_at", { ascending: false }).limit(20); return data || [];
-      }, undefined, { ttlMs: 60_000 }
-      );
-      setEvaluations(data);
+      const { data } = await supabase.from("feature_flag_evaluations").select("*").order("evaluated_at", { ascending: false }).limit(20);
+      setEvaluations(data || []);
     }
   }, []);
 
-  useEffect(() => {
-    (async () => {
-      setLoading(true);
-      await fetchFlags();
-      setLoading(false);
-    })();
-    const channel = supabase.channel("flags-realtime")
-      .on("postgres_changes", { event: "*", schema: "public", table: "feature_flags" }, () => {
-        debouncedRefresh(() => { invalidateNamespace(CACHE_ID, "feature_flags"); fetchFlags(); });
-      })
-      .subscribe();
-    return () => { supabase.removeChannel(channel); if (realtimeTimer.current) clearTimeout(realtimeTimer.current); };
-  }, [fetchFlags, debouncedRefresh]);
-
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
-    fetchTabData(tab);
   };
 
   const createFlag = async () => {
@@ -89,7 +56,6 @@ const FeatureFlagsPanel = () => {
     }).select().single();
     if (error) { toast.error(error.message); return; }
     setFlags(prev => [data, ...prev]); // optimistic
-    invalidateNamespace(CACHE_ID, "feature_flags");
     // Batch audit log — no separate fetch
     await supabase.from("audit_logs").insert({ action: "feature_flag_created", entity_type: "feature_flags", entity_id: flagForm.key, actor_type: "admin", metadata: { flag_key: flagForm.key } });
     toast.success("Feature flag created");
@@ -100,7 +66,6 @@ const FeatureFlagsPanel = () => {
   const toggleFlag = async (id: string, current: boolean, key: string) => {
     setFlags(prev => prev.map(f => f.id === id ? { ...f, enabled: !current } : f)); // optimistic
     await supabase.from("feature_flags").update({ enabled: !current }).eq("id", id);
-    invalidateNamespace(CACHE_ID, "feature_flags");
     await supabase.from("audit_logs").insert({ action: !current ? "feature_flag_enabled" : "feature_flag_disabled", entity_type: "feature_flags", entity_id: key, actor_type: "admin" });
     toast.success(!current ? `Flag "${key}" enabled` : `Flag "${key}" disabled`);
   };
@@ -108,13 +73,12 @@ const FeatureFlagsPanel = () => {
   const updateRollout = async (id: string, value: number) => {
     setFlags(prev => prev.map(f => f.id === id ? { ...f, percentage_rollout: value } : f)); // optimistic
     await supabase.from("feature_flags").update({ percentage_rollout: value }).eq("id", id);
-    invalidateNamespace(CACHE_ID, "feature_flags");
   };
 
   const archiveFlag = async (id: string) => {
     setFlags(prev => prev.filter(f => f.id !== id)); // optimistic
     await supabase.from("feature_flags").update({ archived_at: new Date().toISOString() }).eq("id", id);
-    invalidateNamespace(CACHE_ID, "feature_flags");
+    
     toast.success("Flag archived");
   };
 
@@ -125,7 +89,6 @@ const FeatureFlagsPanel = () => {
     const { data, error } = await supabase.from("experiments").insert(insert).select().single();
     if (error) { toast.error(error.message); return; }
     setExperiments(prev => [data, ...prev]); // optimistic
-    invalidateNamespace(CACHE_ID, "experiments");
     toast.success("Experiment created");
     setShowExperimentDialog(false);
     setExperimentForm({ name: "", description: "", hypothesis: "", success_metric: "", flag_id: "" });
@@ -137,11 +100,18 @@ const FeatureFlagsPanel = () => {
     if (status === "completed") updates.ended_at = new Date().toISOString();
     setExperiments(prev => prev.map(e => e.id === id ? { ...e, ...updates } : e)); // optimistic
     await supabase.from("experiments").update(updates).eq("id", id);
-    invalidateNamespace(CACHE_ID, "experiments");
+    
     toast.success(`Experiment ${status}`);
   };
 
   if (loading) return <div className="flex items-center justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent" /></div>;
+
+  if (!loaded) return (
+    <div className="flex flex-col items-center justify-center py-12 gap-3">
+      <p className="text-white/40 text-sm">Data not loaded — click to fetch</p>
+      <Button onClick={fetchFlags} className="gap-1.5"><RefreshCw className="h-4 w-4" /> Load Feature Flags</Button>
+    </div>
+  );
 
   return (
     <div className="space-y-6">
@@ -222,6 +192,8 @@ const FeatureFlagsPanel = () => {
         <TabsContent value="experiments" className="space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-white font-semibold">Experiments ({experiments.length})</h3>
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" onClick={() => fetchTabData("experiments")} className="gap-1.5 text-xs border-white/10 text-white/60"><RefreshCw className="h-3 w-3" /> Load</Button>
             <Dialog open={showExperimentDialog} onOpenChange={setShowExperimentDialog}>
               <DialogTrigger asChild><Button size="sm" className="gap-1.5"><Plus className="h-3.5 w-3.5" /> New Experiment</Button></DialogTrigger>
               <DialogContent className="bg-[hsl(220,60%,8%)] border-white/10 text-white max-w-lg">
@@ -243,6 +215,7 @@ const FeatureFlagsPanel = () => {
                 </div>
               </DialogContent>
             </Dialog>
+            </div>
           </div>
           <div className="grid gap-3">
             {experiments.map(e => (
@@ -273,7 +246,10 @@ const FeatureFlagsPanel = () => {
         </TabsContent>
 
         <TabsContent value="evaluations" className="space-y-4">
-          <h3 className="text-white font-semibold">Recent Evaluations ({evaluations.length})</h3>
+          <div className="flex items-center justify-between">
+            <h3 className="text-white font-semibold">Recent Evaluations ({evaluations.length})</h3>
+            <Button size="sm" variant="outline" onClick={() => fetchTabData("evaluations")} className="gap-1.5 text-xs border-white/10 text-white/60"><RefreshCw className="h-3 w-3" /> Load</Button>
+          </div>
           <div className="rounded-xl border border-white/10 overflow-hidden">
             <Table>
               <TableHeader>
