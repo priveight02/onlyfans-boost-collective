@@ -197,6 +197,10 @@ const CheckoutModal = ({ clientSecret, onClose }: CheckoutModalProps) => {
                     const observer = new MutationObserver(() => {
                       if (el.querySelector("iframe")) {
                         setStripeReady(true);
+                        // Auto-scroll to bottom after Stripe loads so pay button is visible
+                        setTimeout(() => {
+                          el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+                        }, 800);
                         observer.disconnect();
                       }
                     });
@@ -204,17 +208,15 @@ const CheckoutModal = ({ clientSecret, onClose }: CheckoutModalProps) => {
                   }
                 }}
               >
-                <div style={{ transform: "scale(0.96)", transformOrigin: "top center", width: "104.17%", marginLeft: "-2.08%" }}>
-                  <EmbeddedCheckoutProvider
-                    stripe={stripePromise}
-                    options={{
-                      clientSecret,
-                      onComplete: handleComplete,
-                    }}
-                  >
-                    <EmbeddedCheckout />
-                  </EmbeddedCheckoutProvider>
-                </div>
+                <EmbeddedCheckoutProvider
+                  stripe={stripePromise}
+                  options={{
+                    clientSecret,
+                    onComplete: handleComplete,
+                  }}
+                >
+                  <EmbeddedCheckout />
+                </EmbeddedCheckoutProvider>
               </div>
             </>
           )}
