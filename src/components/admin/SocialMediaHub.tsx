@@ -1273,16 +1273,21 @@ const SocialMediaHub = () => {
       if (event.data?.type === "IG_SESSION_RESULT") {
         window.removeEventListener("message", handleMessage);
         setIgLoginPopupLoading(false);
-        const { access_token, user_id, username } = event.data.payload;
+        const { access_token, user_id, username, expires_in } = event.data.payload;
         if (access_token && selectedAccount) {
+          const tokenExpiresAt = expires_in 
+            ? new Date(Date.now() + expires_in * 1000).toISOString() 
+            : null;
           supabase.from("social_connections").upsert({
             account_id: selectedAccount,
             platform: "instagram",
             access_token,
             platform_user_id: user_id,
-            username,
+            platform_username: username,
             is_connected: true,
             connected_at: new Date().toISOString(),
+            token_expires_at: tokenExpiresAt,
+            scopes: ["instagram_business_basic", "instagram_business_content_publish", "instagram_business_manage_comments", "instagram_business_manage_messages", "instagram_business_manage_insights"],
           }, { onConflict: "account_id,platform" }).then(async () => {
             toast.success(`Instagram connected as @${username}`);
             const { data: refreshed } = await supabase.from("social_connections").select("*").eq("account_id", selectedAccount);
