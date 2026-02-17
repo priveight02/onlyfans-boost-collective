@@ -86,6 +86,12 @@ const EnhancedDashboard = () => {
   const { settings, updateSetting, updateMaintenanceEndTime } = useSiteSettings();
   const [toggling, setToggling] = useState<string | null>(null);
   const [endTimeInput, setEndTimeInput] = useState(settings.maintenance_end_time || "");
+  const [durationMode, setDurationMode] = useState<"datetime" | "duration">("datetime");
+  const [durWeeks, setDurWeeks] = useState(0);
+  const [durDays, setDurDays] = useState(0);
+  const [durHours, setDurHours] = useState(0);
+  const [durMinutes, setDurMinutes] = useState(0);
+  const [durSeconds, setDurSeconds] = useState(0);
 
   useEffect(() => {
     setEndTimeInput(settings.maintenance_end_time || "");
@@ -115,6 +121,19 @@ const EnhancedDashboard = () => {
       toast.success(endTimeInput ? "Maintenance end time set" : "Maintenance end time cleared");
     } catch (err: any) {
       toast.error(err.message || "Failed to update end time");
+    }
+  };
+
+  const handleSaveDuration = async () => {
+    const totalMs = ((durWeeks * 7 + durDays) * 86400 + durHours * 3600 + durMinutes * 60 + durSeconds) * 1000;
+    if (totalMs <= 0) { toast.error("Enter a duration greater than 0"); return; }
+    const endIso = new Date(Date.now() + totalMs).toISOString();
+    try {
+      await updateMaintenanceEndTime(endIso);
+      setEndTimeInput(endIso);
+      toast.success("Maintenance countdown started");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to set duration");
     }
   };
 
@@ -169,11 +188,32 @@ const EnhancedDashboard = () => {
 
       {/* Maintenance End Time */}
       {settings.maintenance_mode && (
-        <div className="flex items-center gap-3 p-4 rounded-xl bg-amber-500/5 border border-amber-500/20">
-          <Clock className="h-5 w-5 text-amber-400 shrink-0" />
-          <div className="flex-1">
-            <p className="text-sm text-amber-300 font-medium mb-2">Maintenance Countdown</p>
-            <div className="flex gap-2">
+        <div className="p-4 rounded-xl bg-amber-500/5 border border-amber-500/20 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Clock className="h-5 w-5 text-amber-400" />
+              <p className="text-sm text-amber-300 font-medium">Maintenance Countdown</p>
+            </div>
+            <div className="flex gap-1">
+              <Button
+                size="sm" variant="ghost"
+                onClick={() => setDurationMode("datetime")}
+                className={`h-7 text-xs px-3 ${durationMode === "datetime" ? "bg-amber-500/20 text-amber-300" : "text-white/40"}`}
+              >
+                Date & Time
+              </Button>
+              <Button
+                size="sm" variant="ghost"
+                onClick={() => setDurationMode("duration")}
+                className={`h-7 text-xs px-3 ${durationMode === "duration" ? "bg-amber-500/20 text-amber-300" : "text-white/40"}`}
+              >
+                Duration
+              </Button>
+            </div>
+          </div>
+
+          {durationMode === "datetime" ? (
+            <div className="flex gap-2 flex-wrap">
               <Input
                 type="datetime-local"
                 value={endTimeInput ? new Date(new Date(endTimeInput).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ""}
@@ -189,7 +229,44 @@ const EnhancedDashboard = () => {
                 </Button>
               )}
             </div>
-          </div>
+          ) : (
+            <div className="space-y-2">
+              <div className="flex gap-2 flex-wrap">
+                {[
+                  { label: "Weeks", value: durWeeks, set: setDurWeeks },
+                  { label: "Days", value: durDays, set: setDurDays },
+                  { label: "Hours", value: durHours, set: setDurHours },
+                  { label: "Minutes", value: durMinutes, set: setDurMinutes },
+                  { label: "Seconds", value: durSeconds, set: setDurSeconds },
+                ].map((f) => (
+                  <div key={f.label} className="flex flex-col items-center gap-1">
+                    <Input
+                      type="number" min={0} value={f.value}
+                      onChange={(e) => f.set(Math.max(0, parseInt(e.target.value) || 0))}
+                      className="bg-white/5 border-white/10 text-white text-sm h-9 w-20 text-center"
+                    />
+                    <span className="text-[10px] text-white/40">{f.label}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <Button onClick={handleSaveDuration} size="sm" className="bg-amber-600 hover:bg-amber-700 text-white h-9">
+                  Start Countdown
+                </Button>
+                {settings.maintenance_end_time && (
+                  <Button onClick={() => { setEndTimeInput(""); updateMaintenanceEndTime(null); toast.success("Countdown cleared"); }} size="sm" variant="ghost" className="text-white/50 hover:text-white h-9">
+                    Clear
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {settings.maintenance_end_time && (
+            <p className="text-xs text-amber-400/60">
+              Countdown ends: {new Date(settings.maintenance_end_time).toLocaleString()}
+            </p>
+          )}
         </div>
       )}
 
