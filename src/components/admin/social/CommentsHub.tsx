@@ -16,6 +16,7 @@ import {
   Loader2, Instagram, Music2, Heart, Clock, CheckCheck,
   Compass, Image, Eye, ArrowRight, Search, X, Share2,
   Bookmark, MoreHorizontal, ThumbsUp, Repeat2, Check, Square, CheckSquare,
+  Trophy, Shield, BarChart3, Download, Filter, TrendingUp, Users, Flame,
 } from "lucide-react";
 import CreditCostBadge from "../CreditCostBadge";
 
@@ -114,6 +115,20 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading }: CommentsHu
   const [aiSentimentResults, setAiSentimentResults] = useState<any>(null);
   const [aiSummaryLoading, setAiSummaryLoading] = useState(false);
   const [aiSummary, setAiSummary] = useState("");
+
+  // New features state
+  const [spamFilterLoading, setSpamFilterLoading] = useState(false);
+  const [spamResults, setSpamResults] = useState<any>(null);
+  const [topFans, setTopFans] = useState<any[]>([]);
+  const [topFansLoading, setTopFansLoading] = useState(false);
+  const [engagementRate, setEngagementRate] = useState<any>(null);
+  const [commentFilter, setCommentFilter] = useState<"all" | "positive" | "negative" | "questions">("all");
+  const [filteredComments, setFilteredComments] = useState<CommentItem[]>([]);
+  const [aiFilterLoading, setAiFilterLoading] = useState(false);
+
+  // Discover hashtags
+  const [discoverHashtags, setDiscoverHashtags] = useState<string[]>(["explore", "trending", "viral", "foryou", "fyp"]);
+  const [activeDiscoverTag, setActiveDiscoverTag] = useState("explore");
 
   // Post viewer dialog
   const [viewingPost, setViewingPost] = useState<(MediaPost | DiscoverPost) | null>(null);
@@ -287,41 +302,146 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading }: CommentsHu
     setAiSummaryLoading(false);
   };
 
-  // ===== DISCOVER =====
+  // ===== DISCOVER (For You / Explore — NOT own posts) =====
   const loadDiscoverFeed = async () => {
     setDiscoverLoading(true);
     try {
       if (selectedPlatform === "instagram") {
-        const d = await callApi("instagram-api", { action: "get_media", params: { limit: 50 } });
-        const taggedData = await callApi("instagram-api", { action: "get_tagged_media", params: { limit: 50 } });
-        const posts: DiscoverPost[] = [];
-        if (d?.data) {
-          for (const m of d.data.slice(0, 10)) {
-            posts.push({ id: m.id, caption: m.caption, media_url: m.media_url || m.thumbnail_url, media_type: m.media_type, username: "you", like_count: m.like_count, comments_count: m.comments_count, permalink: m.permalink, selected: false });
-          }
+        // Search trending hashtags to find OTHER people's posts (not our own)
+        const hashtagResults: DiscoverPost[] = [];
+        
+        // Search multiple trending hashtags to populate discover feed
+        const tagsToSearch = [activeDiscoverTag, "trending", "viral"].slice(0, 2);
+        for (const tag of tagsToSearch) {
+          try {
+            const d = await callApi("instagram-api", { action: "search_hashtag", params: { hashtag: tag, limit: 25 } });
+            if (d?.data) {
+              for (const m of d.data) {
+                if (!hashtagResults.some(p => p.id === m.id)) {
+                  hashtagResults.push({
+                    id: m.id, caption: m.caption, media_url: m.media_url || m.thumbnail_url,
+                    media_type: m.media_type, username: m.username || m.owner?.username || m.user?.username || "creator",
+                    like_count: m.like_count, comments_count: m.comments_count,
+                    permalink: m.permalink, selected: false,
+                  });
+                }
+              }
+            }
+          } catch { /* continue */ }
         }
-        if (taggedData?.data) {
-          for (const m of taggedData.data) {
-            if (!posts.some(p => p.id === m.id)) {
-              posts.push({ id: m.id, caption: m.caption, media_url: m.media_url || m.thumbnail_url, media_type: m.media_type, username: m.username || "tagged", like_count: m.like_count, comments_count: m.comments_count, permalink: m.permalink, selected: false });
+        
+        // Also try tagged media as supplementary discover content
+        try {
+          const taggedData = await callApi("instagram-api", { action: "get_tagged_media", params: { limit: 25 } });
+          if (taggedData?.data) {
+            for (const m of taggedData.data) {
+              if (!hashtagResults.some(p => p.id === m.id)) {
+                hashtagResults.push({
+                  id: m.id, caption: m.caption, media_url: m.media_url || m.thumbnail_url,
+                  media_type: m.media_type, username: m.username || "tagged",
+                  like_count: m.like_count, comments_count: m.comments_count,
+                  permalink: m.permalink, selected: false,
+                });
+              }
             }
           }
-        }
-        setDiscoverPosts(posts);
-        if (posts.length > 0) toast.success(`Found ${posts.length} posts`);
+        } catch { /* ok */ }
+
+        setDiscoverPosts(hashtagResults);
+        if (hashtagResults.length > 0) toast.success(`Discovered ${hashtagResults.length} posts`);
+        else toast.info("No discover posts found. Try a different hashtag.");
       } else if (selectedPlatform === "tiktok") {
-        const d = await callApi("tiktok-api", { action: "get_videos", params: { limit: 50 } });
-        if (d?.data?.videos) {
-          setDiscoverPosts(d.data.videos.map((v: any) => ({
-            id: v.id, caption: v.title || v.description, media_url: v.cover_image_url,
-            media_type: "VIDEO", username: "you",
-            like_count: v.like_count, comments_count: v.comment_count,
-            permalink: v.share_url, selected: false,
-          })));
-        }
+        // Use search_videos for trending content
+        try {
+          const d = await callApi("tiktok-api", { action: "search_videos", params: { keyword: activeDiscoverTag, limit: 30 } });
+          if (d?.data?.videos) {
+            setDiscoverPosts(d.data.videos.map((v: any) => ({
+              id: v.id, caption: v.title || v.description, media_url: v.cover_image_url,
+              media_type: "VIDEO", username: v.author?.unique_id || v.author?.nickname || "creator",
+              like_count: v.like_count, comments_count: v.comment_count,
+              permalink: v.share_url, selected: false,
+            })));
+          }
+        } catch { toast.error("Failed to load TikTok discover"); }
       }
     } catch (e: any) { toast.error(e.message); }
     setDiscoverLoading(false);
+  };
+
+  // New features: Spam filter
+  const runSpamFilter = async () => {
+    if (commentsList.length === 0) return;
+    setSpamFilterLoading(true);
+    try {
+      const d = await callApi("social-ai-responder", {
+        action: "detect_spam_comments",
+        params: { comments: commentsList.slice(0, 50).map(c => ({ id: c.id, text: c.text, username: c.username })) },
+      });
+      if (d) {
+        setSpamResults(d);
+        toast.success(`Spam analysis: ${d.spam_count || 0} spam detected`);
+      }
+    } catch { toast.error("Spam filter failed"); }
+    setSpamFilterLoading(false);
+  };
+
+  // New features: Top Fans
+  const calculateTopFans = () => {
+    const fanMap: Record<string, { count: number; likes: number }> = {};
+    for (const c of commentsList) {
+      if (!fanMap[c.username]) fanMap[c.username] = { count: 0, likes: 0 };
+      fanMap[c.username].count++;
+      fanMap[c.username].likes += c.like_count || 0;
+    }
+    const sorted = Object.entries(fanMap)
+      .map(([username, data]) => ({ username, ...data }))
+      .sort((a, b) => b.count - a.count);
+    setTopFans(sorted.slice(0, 10));
+  };
+
+  // New features: Engagement rate
+  const calculateEngagement = () => {
+    const post = myPosts.find(p => p.id === selectedPostId);
+    if (!post) return;
+    const totalEngagement = (post.like_count || 0) + (post.comments_count || 0);
+    setEngagementRate({
+      likes: post.like_count || 0,
+      comments: post.comments_count || 0,
+      total: totalEngagement,
+      avgLikesPerComment: commentsList.length > 0 ? Math.round(commentsList.reduce((a, c) => a + (c.like_count || 0), 0) / commentsList.length) : 0,
+    });
+  };
+
+  // New features: AI Comment Filter
+  const filterCommentsByType = async (type: "all" | "positive" | "negative" | "questions") => {
+    setCommentFilter(type);
+    if (type === "all") { setFilteredComments([]); return; }
+    setAiFilterLoading(true);
+    try {
+      const d = await callApi("social-ai-responder", {
+        action: "filter_comments",
+        params: { comments: commentsList.slice(0, 50).map(c => ({ id: c.id, text: c.text, username: c.username })), filter_type: type },
+      });
+      if (d?.filtered_ids) {
+        setFilteredComments(commentsList.filter(c => d.filtered_ids.includes(c.id)));
+      }
+    } catch { setFilteredComments([]); }
+    setAiFilterLoading(false);
+  };
+
+  // Export comments
+  const exportComments = () => {
+    const csv = ["Username,Comment,Likes,Date"]
+      .concat(commentsList.map(c => `"@${c.username}","${(c.text || '').replace(/"/g, '""')}",${c.like_count || 0},${c.timestamp || ''}`))
+      .join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `comments_${selectedPostId}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Comments exported");
   };
 
   // Keyword search for posts
@@ -526,24 +646,47 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading }: CommentsHu
           {/* AI Suite toolbar */}
           {selectedPostId && commentsList.length > 0 && (
             <Card>
-              <CardContent className="p-2.5 flex items-center gap-2 flex-wrap">
-                <span className="text-[10px] font-semibold text-foreground mr-1">AI Suite:</span>
-                <Button size="sm" variant="outline" className="h-6 text-[10px] gap-1" onClick={bulkGenerateReplies} disabled={generatingReplies}>
-                  {generatingReplies ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />} Auto-Reply All
-                </Button>
-                <Button size="sm" variant="outline" className="h-6 text-[10px] gap-1" onClick={runSentimentAnalysis} disabled={aiSentimentLoading}>
-                  {aiSentimentLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <ThumbsUp className="h-3 w-3" />} Sentiment
-                </Button>
-                <Button size="sm" variant="outline" className="h-6 text-[10px] gap-1" onClick={summarizeComments} disabled={aiSummaryLoading}>
-                  {aiSummaryLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Brain className="h-3 w-3" />} Summarize
-                </Button>
-                {bulkAiReplies.length > 0 && (
-                  <Button size="sm" className="h-6 text-[10px] gap-1 bg-emerald-600 hover:bg-emerald-700 text-white" onClick={sendAllBulkReplies}>
-                    <Send className="h-3 w-3" /> Send All ({bulkAiReplies.length})
+              <CardContent className="p-2.5 space-y-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-[10px] font-semibold text-foreground mr-1">AI Suite:</span>
+                  <Button size="sm" variant="outline" className="h-6 text-[10px] gap-1" onClick={bulkGenerateReplies} disabled={generatingReplies}>
+                    {generatingReplies ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />} Auto-Reply All
                   </Button>
-                )}
-                <Input value={aiRedirectUrl} onChange={e => setAiRedirectUrl(e.target.value)}
-                  placeholder="Redirect link (optional)" className="text-[10px] h-6 max-w-[200px] ml-auto" />
+                  <Button size="sm" variant="outline" className="h-6 text-[10px] gap-1" onClick={runSentimentAnalysis} disabled={aiSentimentLoading}>
+                    {aiSentimentLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <ThumbsUp className="h-3 w-3" />} Sentiment
+                  </Button>
+                  <Button size="sm" variant="outline" className="h-6 text-[10px] gap-1" onClick={summarizeComments} disabled={aiSummaryLoading}>
+                    {aiSummaryLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Brain className="h-3 w-3" />} Summarize
+                  </Button>
+                  <Button size="sm" variant="outline" className="h-6 text-[10px] gap-1" onClick={runSpamFilter} disabled={spamFilterLoading}>
+                    {spamFilterLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Shield className="h-3 w-3" />} Spam Filter
+                  </Button>
+                  <Button size="sm" variant="outline" className="h-6 text-[10px] gap-1" onClick={() => { calculateTopFans(); calculateEngagement(); }}>
+                    <Trophy className="h-3 w-3" /> Top Fans
+                  </Button>
+                  <Button size="sm" variant="outline" className="h-6 text-[10px] gap-1" onClick={exportComments}>
+                    <Download className="h-3 w-3" /> Export CSV
+                  </Button>
+                  {bulkAiReplies.length > 0 && (
+                    <Button size="sm" className="h-6 text-[10px] gap-1 bg-emerald-600 hover:bg-emerald-700 text-white" onClick={sendAllBulkReplies}>
+                      <Send className="h-3 w-3" /> Send All ({bulkAiReplies.length})
+                    </Button>
+                  )}
+                  <Input value={aiRedirectUrl} onChange={e => setAiRedirectUrl(e.target.value)}
+                    placeholder="Redirect link (optional)" className="text-[10px] h-6 max-w-[200px] ml-auto" />
+                </div>
+                {/* Comment type filter */}
+                <div className="flex items-center gap-1.5">
+                  <Filter className="h-3 w-3 text-muted-foreground" />
+                  <span className="text-[9px] text-muted-foreground">Filter:</span>
+                  {(["all", "positive", "negative", "questions"] as const).map(f => (
+                    <button key={f} onClick={() => filterCommentsByType(f)}
+                      className={`text-[9px] px-1.5 py-0.5 rounded capitalize ${commentFilter === f ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground bg-muted/30"}`}>
+                      {f}
+                    </button>
+                  ))}
+                  {aiFilterLoading && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+                </div>
               </CardContent>
             </Card>
           )}
@@ -588,12 +731,92 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading }: CommentsHu
             </Card>
           )}
 
+          {/* Spam results */}
+          {spamResults && (
+            <Card>
+              <CardContent className="p-2.5">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[10px] font-semibold text-foreground flex items-center gap-1"><Shield className="h-3 w-3" /> Spam Filter Results</span>
+                  <button onClick={() => setSpamResults(null)} className="text-muted-foreground hover:text-foreground"><X className="h-3 w-3" /></button>
+                </div>
+                <div className="flex items-center gap-3 text-[10px]">
+                  <span className="text-foreground">Spam: <b className="text-destructive">{spamResults.spam_count || 0}</b></span>
+                  <span className="text-foreground">Clean: <b className="text-emerald-400">{spamResults.clean_count || commentsList.length}</b></span>
+                </div>
+                {spamResults.spam_ids?.length > 0 && (
+                  <Button size="sm" variant="outline" className="h-6 text-[9px] mt-1.5 text-destructive border-destructive/30"
+                    onClick={async () => { for (const id of spamResults.spam_ids) { await deleteComment(id); await new Promise(r => setTimeout(r, 500)); } setSpamResults(null); }}>
+                    <Trash2 className="h-2.5 w-2.5 mr-1" /> Delete All Spam ({spamResults.spam_ids.length})
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Top Fans + Engagement */}
+          {(topFans.length > 0 || engagementRate) && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {topFans.length > 0 && (
+                <Card>
+                  <CardContent className="p-2.5">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-[10px] font-semibold text-foreground flex items-center gap-1"><Trophy className="h-3 w-3 text-yellow-400" /> Top Fans</span>
+                      <button onClick={() => setTopFans([])} className="text-muted-foreground hover:text-foreground"><X className="h-3 w-3" /></button>
+                    </div>
+                    <div className="space-y-1">
+                      {topFans.map((fan, i) => (
+                        <div key={fan.username} className="flex items-center justify-between text-[10px]">
+                          <div className="flex items-center gap-1.5">
+                            <span className={`font-bold ${i === 0 ? "text-yellow-400" : i === 1 ? "text-muted-foreground" : i === 2 ? "text-amber-600" : "text-muted-foreground"}`}>#{i + 1}</span>
+                            <span className="text-foreground font-medium">@{fan.username}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-muted-foreground">{fan.count} comments</span>
+                            <span className="text-muted-foreground flex items-center gap-0.5"><Heart className="h-2 w-2" /> {fan.likes}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+              {engagementRate && (
+                <Card>
+                  <CardContent className="p-2.5">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-[10px] font-semibold text-foreground flex items-center gap-1"><BarChart3 className="h-3 w-3" /> Engagement Stats</span>
+                      <button onClick={() => setEngagementRate(null)} className="text-muted-foreground hover:text-foreground"><X className="h-3 w-3" /></button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-[10px]">
+                      <div className="bg-muted/30 rounded p-1.5 text-center">
+                        <p className="text-foreground font-bold">{engagementRate.likes}</p>
+                        <p className="text-muted-foreground">Likes</p>
+                      </div>
+                      <div className="bg-muted/30 rounded p-1.5 text-center">
+                        <p className="text-foreground font-bold">{engagementRate.comments}</p>
+                        <p className="text-muted-foreground">Comments</p>
+                      </div>
+                      <div className="bg-muted/30 rounded p-1.5 text-center">
+                        <p className="text-foreground font-bold">{engagementRate.total}</p>
+                        <p className="text-muted-foreground">Total Engagement</p>
+                      </div>
+                      <div className="bg-muted/30 rounded p-1.5 text-center">
+                        <p className="text-foreground font-bold">{engagementRate.avgLikesPerComment}</p>
+                        <p className="text-muted-foreground">Avg Likes/Comment</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          )}
+
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
             {/* Posts list */}
             <Card>
               <CardContent className="p-3">
                 <p className="text-xs font-semibold text-foreground mb-2">Select a post ({myPosts.length})</p>
-                <ScrollArea className="max-h-[500px]">
+                <div className="overflow-y-auto max-h-[700px] pr-1">
                   <div className="space-y-1.5">
                     {postsLoading && <div className="flex items-center gap-2 py-8 justify-center"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /><span className="text-xs text-muted-foreground">Loading...</span></div>}
                     {!postsLoading && myPosts.length === 0 && (
@@ -622,7 +845,7 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading }: CommentsHu
                       </div>
                     ))}
                   </div>
-                </ScrollArea>
+                </div>
               </CardContent>
             </Card>
 
@@ -633,7 +856,7 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading }: CommentsHu
                   <p className="text-xs font-semibold text-foreground">Comments</p>
                 </div>
 
-                <ScrollArea className="max-h-[460px]">
+                <ScrollArea className="max-h-[600px]">
                   {commentsLoading && <div className="flex items-center gap-2 py-8 justify-center"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /><span className="text-xs text-muted-foreground">Loading comments...</span></div>}
                   {!commentsLoading && commentsList.length === 0 && !selectedPostId && (
                     <div className="text-center py-8"><MessageSquare className="h-6 w-6 text-muted-foreground/30 mx-auto mb-1" /><p className="text-[11px] text-muted-foreground">Select a post to view comments</p></div>
@@ -660,7 +883,7 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading }: CommentsHu
                   )}
 
                   {/* Individual comments */}
-                  {!bulkAiReplies.length && commentsList.map(comment => (
+                  {!bulkAiReplies.length && (commentFilter !== "all" && filteredComments.length > 0 ? filteredComments : commentsList).map(comment => (
                     <div key={comment.id} className="bg-muted/20 rounded-lg p-2.5 mb-1.5 border border-border/30">
                       <div className="flex items-center justify-between mb-1">
                         <div className="flex items-center gap-2">
@@ -731,6 +954,26 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading }: CommentsHu
             <Button size="sm" variant="outline" onClick={searchPostsByKeyword} disabled={searchLoading || !discoverSearch.trim()} className="text-foreground h-8">
               {searchLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Search className="h-3.5 w-3.5" />}
             </Button>
+          </div>
+
+          {/* Hashtag quick-picks for discover */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <Flame className="h-3.5 w-3.5 text-muted-foreground" />
+            <span className="text-[10px] text-muted-foreground">Explore:</span>
+            {discoverHashtags.map(tag => (
+              <button key={tag} onClick={() => setActiveDiscoverTag(tag)}
+                className={`text-[10px] px-2 py-0.5 rounded-full transition-colors ${activeDiscoverTag === tag ? "bg-primary/20 text-primary ring-1 ring-primary/30" : "text-muted-foreground hover:text-foreground bg-muted/30"}`}>
+                #{tag}
+              </button>
+            ))}
+            <Input placeholder="Custom tag..." className="text-[10px] h-6 w-24" onKeyDown={e => {
+              if (e.key === "Enter" && (e.target as HTMLInputElement).value.trim()) {
+                const val = (e.target as HTMLInputElement).value.trim().replace("#", "");
+                setActiveDiscoverTag(val);
+                if (!discoverHashtags.includes(val)) setDiscoverHashtags(prev => [...prev, val]);
+                (e.target as HTMLInputElement).value = "";
+              }
+            }} />
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
