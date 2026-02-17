@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from "recharts";
-import { TrendingUp, DollarSign, Users, BarChart3, Crown, AlertTriangle, ArrowUpRight, ArrowDownRight, Activity, ShieldOff, UserX, Wrench, Play, Pause, Clock } from "lucide-react";
+import { DollarSign, Users, BarChart3, Crown, Activity, Wrench, Clock, EyeOff, PenOff, KeyRound } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -137,63 +137,38 @@ const EnhancedDashboard = () => {
     }
   };
 
-  return (
+   return (
     <div className="space-y-6">
       {/* Site Controls */}
-      <div className="grid gap-3 grid-cols-1 sm:grid-cols-3">
-        <Button
-          onClick={() => handleToggle("registrations_paused")}
-          disabled={toggling === "registrations_paused"}
-          className={`h-16 text-base font-bold gap-3 rounded-xl border-2 transition-all ${
-            settings.registrations_paused
-              ? "bg-red-500/20 border-red-500/40 text-red-300 hover:bg-red-500/30"
-              : "bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20"
-          }`}
-          variant="ghost"
-        >
-          {settings.registrations_paused ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
-          <UserX className="h-5 w-5" />
-          {settings.registrations_paused ? "Resume Registrations" : "Pause Registrations"}
-        </Button>
-
-        <Button
-          onClick={() => handleToggle("logins_paused")}
-          disabled={toggling === "logins_paused"}
-          className={`h-16 text-base font-bold gap-3 rounded-xl border-2 transition-all ${
-            settings.logins_paused
-              ? "bg-red-500/20 border-red-500/40 text-red-300 hover:bg-red-500/30"
-              : "bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20"
-          }`}
-          variant="ghost"
-        >
-          {settings.logins_paused ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
-          <ShieldOff className="h-5 w-5" />
-          {settings.logins_paused ? "Resume Logins" : "Pause Logins"}
-        </Button>
-
-        <Button
-          onClick={() => handleToggle("maintenance_mode")}
-          disabled={toggling === "maintenance_mode"}
-          className={`h-16 text-base font-bold gap-3 rounded-xl border-2 transition-all ${
-            settings.maintenance_mode
-              ? "bg-amber-500/20 border-amber-500/40 text-amber-300 hover:bg-amber-500/30"
-              : "bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20"
-          }`}
-          variant="ghost"
-        >
-          <Wrench className="h-5 w-5" />
-          {settings.maintenance_mode ? "Disable Maintenance" : "Enable Maintenance"}
-        </Button>
+      <div className="grid gap-3 grid-cols-2 sm:grid-cols-3">
+        {[
+          { key: "registrations_paused", label: "Registrations", onLabel: "Paused", offLabel: "Open", onColor: "bg-red-500/15 border-red-500/30 text-red-300", offColor: "bg-white/5 border-white/10 text-white/60" },
+          { key: "logins_paused", label: "Logins", onLabel: "Paused", offLabel: "Open", onColor: "bg-red-500/15 border-red-500/30 text-red-300", offColor: "bg-white/5 border-white/10 text-white/60" },
+          { key: "maintenance_mode", label: "Maintenance", onLabel: "Active", offLabel: "Off", onColor: "bg-amber-500/15 border-amber-500/30 text-amber-300", offColor: "bg-white/5 border-white/10 text-white/60", icon: Wrench },
+          { key: "hide_pricing", label: "Pricing Page", onLabel: "Hidden", offLabel: "Visible", onColor: "bg-orange-500/15 border-orange-500/30 text-orange-300", offColor: "bg-white/5 border-white/10 text-white/60", icon: EyeOff },
+          { key: "read_only_mode", label: "Read-Only Mode", onLabel: "Active", offLabel: "Off", onColor: "bg-violet-500/15 border-violet-500/30 text-violet-300", offColor: "bg-white/5 border-white/10 text-white/60", icon: PenOff },
+          { key: "force_password_reset", label: "Force Password Reset", onLabel: "Enforced", offLabel: "Off", onColor: "bg-rose-500/15 border-rose-500/30 text-rose-300", offColor: "bg-white/5 border-white/10 text-white/60", icon: KeyRound },
+        ].map((ctrl) => {
+          const isOn = settings[ctrl.key as keyof typeof settings] as boolean;
+          return (
+            <button
+              key={ctrl.key}
+              onClick={() => handleToggle(ctrl.key as any)}
+              disabled={toggling === ctrl.key}
+              className={`flex flex-col items-start gap-1 p-4 rounded-xl border transition-all text-left ${isOn ? ctrl.onColor : ctrl.offColor} hover:bg-white/[0.08]`}
+            >
+              <span className="text-sm font-semibold">{ctrl.label}</span>
+              <span className="text-xs opacity-60">{isOn ? ctrl.onLabel : ctrl.offLabel}</span>
+            </button>
+          );
+        })}
       </div>
 
       {/* Maintenance End Time */}
       {settings.maintenance_mode && (
         <div className="p-4 rounded-xl bg-amber-500/5 border border-amber-500/20 space-y-3">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Clock className="h-5 w-5 text-amber-400" />
-              <p className="text-sm text-amber-300 font-medium">Maintenance Countdown</p>
-            </div>
+            <p className="text-sm text-amber-300 font-medium">Maintenance Countdown</p>
             <div className="flex gap-1">
               <Button
                 size="sm" variant="ghost"
@@ -236,14 +211,14 @@ const EnhancedDashboard = () => {
                   { label: "Weeks", value: durWeeks, set: setDurWeeks },
                   { label: "Days", value: durDays, set: setDurDays },
                   { label: "Hours", value: durHours, set: setDurHours },
-                  { label: "Minutes", value: durMinutes, set: setDurMinutes },
-                  { label: "Seconds", value: durSeconds, set: setDurSeconds },
+                  { label: "Min", value: durMinutes, set: setDurMinutes },
+                  { label: "Sec", value: durSeconds, set: setDurSeconds },
                 ].map((f) => (
                   <div key={f.label} className="flex flex-col items-center gap-1">
                     <Input
                       type="number" min={0} value={f.value}
                       onChange={(e) => f.set(Math.max(0, parseInt(e.target.value) || 0))}
-                      className="bg-white/5 border-white/10 text-white text-sm h-9 w-20 text-center"
+                      className="bg-white/5 border-white/10 text-white text-sm h-9 w-16 text-center"
                     />
                     <span className="text-[10px] text-white/40">{f.label}</span>
                   </div>
@@ -263,30 +238,9 @@ const EnhancedDashboard = () => {
           )}
 
           {settings.maintenance_end_time && (
-            <p className="text-xs text-amber-400/60">
-              Countdown ends: {new Date(settings.maintenance_end_time).toLocaleString()}
+            <p className="text-xs text-white/30">
+              Ends: {new Date(settings.maintenance_end_time).toLocaleString()}
             </p>
-          )}
-        </div>
-      )}
-
-      {/* Status indicators */}
-      {(settings.registrations_paused || settings.logins_paused || settings.maintenance_mode) && (
-        <div className="flex flex-wrap gap-2">
-          {settings.maintenance_mode && (
-            <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/30 gap-1.5 py-1">
-              <Wrench className="h-3 w-3" /> Maintenance Mode Active — All logins & registrations disabled
-            </Badge>
-          )}
-          {settings.registrations_paused && !settings.maintenance_mode && (
-            <Badge className="bg-red-500/20 text-red-300 border-red-500/30 gap-1.5 py-1">
-              <UserX className="h-3 w-3" /> Registrations Paused
-            </Badge>
-          )}
-          {settings.logins_paused && !settings.maintenance_mode && (
-            <Badge className="bg-red-500/20 text-red-300 border-red-500/30 gap-1.5 py-1">
-              <ShieldOff className="h-3 w-3" /> Logins Paused
-            </Badge>
           )}
         </div>
       )}

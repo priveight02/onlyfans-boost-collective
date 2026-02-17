@@ -6,6 +6,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { createPost } from '@/hooks/useSocial';
 import { useAuth } from '@/hooks/useAuth';
+import { useSiteSettings } from '@/hooks/useSiteSettings';
+import { toast } from 'sonner';
 
 interface Props {
   onCreated: () => void;
@@ -14,6 +16,7 @@ interface Props {
 
 export default function CreatePostDialog({ onCreated, trigger }: Props) {
   const { user } = useAuth();
+  const { settings } = useSiteSettings();
   const [open, setOpen] = useState(false);
   const [caption, setCaption] = useState('');
   const [file, setFile] = useState<File | null>(null);
@@ -32,6 +35,7 @@ export default function CreatePostDialog({ onCreated, trigger }: Props) {
 
   const handlePost = async () => {
     if (!user || (!caption.trim() && !file)) return;
+    if (settings.read_only_mode) { toast.error("The site is in read-only mode. Posting is temporarily disabled."); return; }
     setPosting(true);
     const result = await createPost(user.id, caption.trim(), file || undefined, visibility);
     setPosting(false);

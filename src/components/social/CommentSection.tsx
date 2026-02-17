@@ -7,6 +7,8 @@ import { fetchComments, addComment, PostComment } from '@/hooks/useSocial';
 import { useAuth } from '@/hooks/useAuth';
 import { Link } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
+import { useSiteSettings } from '@/hooks/useSiteSettings';
+import { toast } from 'sonner';
 
 interface Props {
   postId: string;
@@ -15,6 +17,7 @@ interface Props {
 
 export default function CommentSection({ postId, postOwnerId }: Props) {
   const { user } = useAuth();
+  const { settings } = useSiteSettings();
   const [comments, setComments] = useState<PostComment[]>([]);
   const [newComment, setNewComment] = useState('');
   const [loading, setLoading] = useState(true);
@@ -26,6 +29,7 @@ export default function CommentSection({ postId, postOwnerId }: Props) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !newComment.trim()) return;
+    if (settings.read_only_mode) { toast.error("The site is in read-only mode. Comments are temporarily disabled."); return; }
     const result = await addComment(user.id, postId, newComment.trim(), postOwnerId);
     if (result) {
       setComments(prev => [...prev, { ...result, profiles: { user_id: user.id, username: null, display_name: null, avatar_url: null } as any }]);

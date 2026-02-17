@@ -5,6 +5,7 @@ import { Button } from "./ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import CreditsDisplay from "./CreditsDisplay";
+import { useSiteSettings } from "@/hooks/useSiteSettings";
 
 type MenuItem = {
   name: string;
@@ -18,6 +19,7 @@ const Navigation = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, profile, loading, isAdmin, logout } = useAuth();
+  const { settings: siteSettings } = useSiteSettings();
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 50);
@@ -38,7 +40,7 @@ const Navigation = () => {
   const menuItems: MenuItem[] = [
     { name: "Home", href: "/", icon: Home },
     { name: "Services", href: "/services", icon: Briefcase },
-    { name: "Pricing", href: "/pricing", icon: CreditCard },
+    ...(!siteSettings.hide_pricing || isAdmin ? [{ name: "Pricing", href: "/pricing", icon: CreditCard }] : []),
     { name: "FAQ", href: "/faq", icon: HelpCircle },
   ];
 

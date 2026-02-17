@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, useLocation, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation, Navigate, useNavigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { WalletProvider } from "@/hooks/useWallet";
 import Navigation from "./components/Navigation";
@@ -36,6 +36,7 @@ const MaintenanceGuard = ({ children }: { children: React.ReactNode }) => {
   const { settings, loading: settingsLoading } = useSiteSettings();
   const { user, loading: authLoading } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
 
   // Don't block while loading
   if (settingsLoading || authLoading) return <>{children}</>;
@@ -50,6 +51,16 @@ const MaintenanceGuard = ({ children }: { children: React.ReactNode }) => {
   // Redirect to maintenance if active
   if (settings.maintenance_mode) {
     return <Navigate to="/maintenance" replace />;
+  }
+
+  // Hide pricing page
+  if (settings.hide_pricing && location.pathname === "/pricing") {
+    return <Navigate to="/" replace />;
+  }
+
+  // Force password reset — redirect authenticated non-admin users to reset page
+  if (settings.force_password_reset && user && location.pathname !== "/auth/reset-password" && location.pathname !== "/auth") {
+    return <Navigate to="/auth/reset-password" replace />;
   }
 
   return <>{children}</>;
