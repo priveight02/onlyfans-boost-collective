@@ -1199,6 +1199,99 @@ const SocialMediaHub = () => {
     setIgSessionLoading(false);
   };
 
+  const [autoFindLoading, setAutoFindLoading] = useState(false);
+
+  const autoFindSession = async () => {
+    setAutoFindLoading(true);
+    let found = false;
+
+    // Fallback 1: Check existing metadata in DB for the selected account
+    try {
+      const { data } = await supabase.from("social_connections").select("metadata").eq("account_id", selectedAccount).eq("platform", "instagram").eq("is_connected", true).single();
+      const meta = (data?.metadata as any) || {};
+      if (meta.ig_session_id) {
+        setIgSessionId(meta.ig_session_id);
+        if (meta.ig_csrf_token) setIgCsrfToken(meta.ig_csrf_token);
+        if (meta.ig_ds_user_id) setIgDsUserId(meta.ig_ds_user_id);
+        if (meta.ig_session_saved_at) setIgSessionSavedAt(meta.ig_session_saved_at);
+        found = true;
+        toast.success("Session found from saved connection data!");
+      }
+    } catch {}
+
+    // Fallback 2: Try reading document.cookie (same-origin only, unlikely for IG but worth trying)
+    if (!found) {
+      try {
+        const cookies = document.cookie.split(";").map(c => c.trim());
+        const sessionCookie = cookies.find(c => c.startsWith("sessionid="));
+        const csrfCookie = cookies.find(c => c.startsWith("csrftoken="));
+        const dsUserCookie = cookies.find(c => c.startsWith("ds_user_id="));
+        if (sessionCookie) {
+          setIgSessionId(sessionCookie.split("=").slice(1).join("="));
+          if (csrfCookie) setIgCsrfToken(csrfCookie.split("=").slice(1).join("="));
+          if (dsUserCookie) setIgDsUserId(dsUserCookie.split("=").slice(1).join("="));
+          found = true;
+          toast.success("Session found from browser cookies!");
+        }
+      } catch {}
+    }
+
+    // Fallback 3: Try CookieStore API (modern browsers)
+    if (!found && 'cookieStore' in window) {
+      try {
+        const allCookies = await (window as any).cookieStore.getAll();
+        const sessionCookie = allCookies.find((c: any) => c.name === "sessionid");
+        const csrfCookie = allCookies.find((c: any) => c.name === "csrftoken");
+        const dsUserCookie = allCookies.find((c: any) => c.name === "ds_user_id");
+        if (sessionCookie) {
+          setIgSessionId(sessionCookie.value);
+          if (csrfCookie) setIgCsrfToken(csrfCookie.value);
+          if (dsUserCookie) setIgDsUserId(dsUserCookie.value);
+          found = true;
+          toast.success("Session found via CookieStore API!");
+        }
+      } catch {}
+    }
+
+    // Fallback 4: Try clipboard — user may have copied from DevTools
+    if (!found) {
+      try {
+        const clipText = await navigator.clipboard.readText();
+        if (clipText && clipText.length > 20 && clipText.includes("%3A")) {
+          setIgSessionId(clipText.trim());
+          found = true;
+          toast.success("Session ID detected from clipboard! Fill in CSRF token and DS User ID manually.");
+        }
+      } catch {}
+    }
+
+    // Fallback 5: Check other managed accounts for IG session data
+    if (!found) {
+      try {
+        const { data: allConns } = await supabase.from("social_connections").select("metadata, account_id").eq("platform", "instagram").eq("is_connected", true);
+        if (allConns) {
+          for (const conn of allConns) {
+            const meta = (conn.metadata as any) || {};
+            if (meta.ig_session_id && conn.account_id !== selectedAccount) {
+              setIgSessionId(meta.ig_session_id);
+              if (meta.ig_csrf_token) setIgCsrfToken(meta.ig_csrf_token);
+              if (meta.ig_ds_user_id) setIgDsUserId(meta.ig_ds_user_id);
+              found = true;
+              toast.success("Session found from another connected account! Verify it works with Test Session.");
+              break;
+            }
+          }
+        }
+      } catch {}
+    }
+
+    if (!found) {
+      toast.error("Could not auto-detect session. Please copy cookies manually from instagram.com DevTools (F12 → Application → Cookies).");
+    }
+
+    setAutoFindLoading(false);
+  };
+
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -1829,6 +1922,10 @@ const SocialMediaHub = () => {
                       <Button size="sm" onClick={saveIgSessionData} disabled={igSessionLoading || !igSessionId.trim()} className="gap-1.5">
                         {igSessionLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
                         Save Session
+                      </Button>
+                      <Button size="sm" variant="secondary" onClick={autoFindSession} disabled={autoFindLoading} className="gap-1.5">
+                        {autoFindLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Search className="h-3.5 w-3.5" />}
+                        Auto Find Session
                       </Button>
                       <Button size="sm" variant="outline" onClick={testIgSession} disabled={igSessionLoading} className="gap-1.5 text-foreground">
                         {igSessionLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />}
