@@ -717,56 +717,114 @@ Analyze every character in the name and username for any gender signal at all. L
         if (!params?.media_id || !params?.message) throw new Error("media_id and message required");
         {
           let commentResult: any = null;
-          let commentMethod = "private";
-          
-          // Always try private API first for reliability (works on ALL posts)
+          let commentMethod = "none";
           const metaC = conn.metadata as any || {};
           const sessionIdC = metaC?.ig_session_id;
+          const dsUserIdC = metaC?.ig_ds_user_id || conn.platform_user_id;
+          const csrfTokenC = metaC?.ig_csrf_token;
+          
+          // Generate proper UUID v4 for Instagram private API
+          const genUUID = () => {
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+              const r = Math.random() * 16 | 0;
+              return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+            });
+          };
+          
+          // STEP 1: Try private API with proper Instagram mobile app format
           if (sessionIdC) {
-            const dsUserIdC = metaC?.ig_ds_user_id || conn.platform_user_id;
-            const csrfTokenC = metaC?.ig_csrf_token;
+            commentMethod = "private";
             const commentHeaders: Record<string, string> = {
               "User-Agent": "Instagram 275.0.0.27.98 Android (33/13; 420dpi; 1080x2400; samsung; SM-G991B; o1s; exynos2100; en_US; 458229258)",
-              "Cookie": `sessionid=${sessionIdC};${csrfTokenC ? ` csrftoken=${csrfTokenC};` : ""}${dsUserIdC ? ` ds_user_id=${dsUserIdC};` : ""}`,
+              "Cookie": `sessionid=${sessionIdC}; csrftoken=${csrfTokenC || "missing"}; ds_user_id=${dsUserIdC || ""}; mid=${Date.now()}`,
               "X-IG-App-ID": "936619743392459",
+              "X-IG-WWW-Claim": "0",
               "Content-Type": "application/x-www-form-urlencoded",
             };
             if (csrfTokenC) commentHeaders["X-CSRFToken"] = csrfTokenC;
             
+            // Build proper request body matching Instagram's mobile app
+            const deviceUUID = genUUID();
+            const idempotenceToken = genUUID();
             const commentBody = new URLSearchParams();
             commentBody.set("comment_text", params.message);
-            commentBody.set("_uuid", `${Date.now()}-device`);
-            if (dsUserIdC) commentBody.set("_uid", dsUserIdC);
+            commentBody.set("idempotence_token", idempotenceToken);
+            commentBody.set("_uuid", deviceUUID);
+            commentBody.set("_uid", dsUserIdC || "");
+            if (csrfTokenC) commentBody.set("_csrftoken", csrfTokenC);
+            commentBody.set("containermodule", "comments_v2_feed_timeline");
+            commentBody.set("feed_position", "0");
+            commentBody.set("carousel_index", "0");
+            commentBody.set("is_carousel_bumped_post", "false");
             
-            const commentResp = await fetch(`https://i.instagram.com/api/v1/media/${params.media_id}/comment/`, {
-              method: "POST",
-              headers: commentHeaders,
-              body: commentBody.toString(),
-            });
-            const commentRespData = await commentResp.json();
-            console.log("Private API comment response status:", commentResp.status, "data:", JSON.stringify(commentRespData).slice(0, 300));
+            try {
+              const commentResp = await fetch(`https://i.instagram.com/api/v1/media/${params.media_id}/comment/`, {
+                method: "POST",
+                headers: commentHeaders,
+                body: commentBody.toString(),
+              });
+              const commentRespData = await commentResp.json();
+              console.log("Private API comment:", commentResp.status, JSON.stringify(commentRespData).slice(0, 500));
+              
+              if (commentRespData?.comment) {
+                commentResult = { id: String(commentRespData.comment.pk), success: true, method: "private", text: commentRespData.comment.text };
+              } else if (commentRespData?.status === "ok") {
+                commentResult = { id: "posted", success: true, method: "private" };
+              } else {
+                console.log("Private API comment rejected:", JSON.stringify(commentRespData));
+              }
+            } catch (privErr: any) {
+              console.log("Private API comment exception:", privErr.message);
+            }
+          }
+          
+          // STEP 2: If private API failed, try Graph API
+          // For Graph API we need the Graph media ID, not the pk
+          // If shortcode is provided, resolve it to Graph API media ID via web endpoint
+          if (!commentResult) {
+            commentMethod = "graph";
+            const shortcode = params.shortcode;
             
-            if (commentRespData?.comment) {
-              commentResult = { id: String(commentRespData.comment.pk), success: true, ...commentRespData };
-            } else if (commentRespData?.status === "ok") {
-              commentResult = { id: "posted", success: true };
-            } else {
-              // Private API failed, try Graph API as fallback
-              console.log("Private API comment failed, trying Graph API. Response:", JSON.stringify(commentRespData).slice(0, 200));
-              commentMethod = "graph";
+            if (shortcode) {
+              // Try to resolve shortcode → Graph API media ID via Instagram's web API
               try {
-                commentResult = await igFetch(`/${params.media_id}/comments`, token, "POST", { message: params.message });
-              } catch (graphErr: any) {
-                throw new Error(`Comment failed. Private API: ${commentRespData?.message || commentRespData?.status || "error"}. Graph API: ${graphErr.message}`);
+                const webHeaders: Record<string, string> = {
+                  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                };
+                if (sessionIdC) {
+                  webHeaders["Cookie"] = `sessionid=${sessionIdC}; csrftoken=${csrfTokenC || ""}; ds_user_id=${dsUserIdC || ""}`;
+                }
+                const mediaInfoResp = await fetch(`https://i.instagram.com/api/v1/media/${params.media_id}/info/`, {
+                  headers: {
+                    ...webHeaders,
+                    "X-IG-App-ID": "936619743392459",
+                  },
+                });
+                if (mediaInfoResp.ok) {
+                  const mediaInfo = await mediaInfoResp.json();
+                  const igMediaId = mediaInfo?.items?.[0]?.ig_media_id || mediaInfo?.items?.[0]?.media_id;
+                  if (igMediaId) {
+                    try {
+                      commentResult = await igFetch(`/${igMediaId}/comments`, token, "POST", { message: params.message });
+                      commentResult = { ...commentResult, method: "graph", success: true };
+                    } catch (graphErr: any) {
+                      console.log("Graph API comment with resolved ID failed:", graphErr.message);
+                    }
+                  }
+                }
+              } catch (resolveErr: any) {
+                console.log("Media ID resolution failed:", resolveErr.message);
               }
             }
-          } else {
-            // No session cookie, try Graph API only
-            commentMethod = "graph";
-            try {
-              commentResult = await igFetch(`/${params.media_id}/comments`, token, "POST", { message: params.message });
-            } catch (graphErr: any) {
-              throw new Error("No session cookie for private API and Graph API failed: " + graphErr.message);
+            
+            // Last resort: try Graph API directly with the pk (sometimes works for own business posts)
+            if (!commentResult) {
+              try {
+                commentResult = await igFetch(`/${params.media_id}/comments`, token, "POST", { message: params.message });
+                commentResult = { ...commentResult, method: "graph_direct", success: true };
+              } catch (graphErr: any) {
+                throw new Error(`Comment failed on all methods. Media: ${params.media_id}. Ensure your IG session cookie is fresh and your account is not restricted.`);
+              }
             }
           }
           
@@ -2050,6 +2108,7 @@ Analyze every character in the name and username for any gender signal at all. L
               
               posts.push({
                 id: String(item.pk || item.id),
+                shortcode: item.code || "",
                 caption: item.caption?.text || "",
                 media_url: videoUrl || mediaUrl,
                 thumbnail_url: mediaUrl,
@@ -2059,6 +2118,7 @@ Analyze every character in the name and username for any gender signal at all. L
                 permalink: `https://www.instagram.com/p/${item.code}/`,
                 timestamp: item.taken_at ? new Date(item.taken_at * 1000).toISOString() : null,
                 username: item.user?.username || "",
+                user_id: String(item.user?.pk || item.user?.id || ""),
               });
             }
           } else {
@@ -2107,6 +2167,7 @@ Analyze every character in the name and username for any gender signal at all. L
                 
                 explorePosts.push({
                   id: String(media.pk || media.id),
+                  shortcode: media.code || "",
                   caption: media.caption?.text || "",
                   media_url: videoUrl || mediaUrl,
                   thumbnail_url: mediaUrl,
@@ -2116,6 +2177,7 @@ Analyze every character in the name and username for any gender signal at all. L
                   permalink: media.code ? `https://www.instagram.com/p/${media.code}/` : "",
                   timestamp: media.taken_at ? new Date(media.taken_at * 1000).toISOString() : null,
                   username: media.user?.username || "",
+                  user_id: String(media.user?.pk || media.user?.id || ""),
                   profile_pic_url: media.user?.profile_pic_url || "",
                 });
               }
@@ -2130,6 +2192,7 @@ Analyze every character in the name and username for any gender signal at all. L
               
               explorePosts.push({
                 id: String(media.pk),
+                shortcode: media.code || "",
                 caption: media.caption?.text || "",
                 media_url: videoUrl || mediaUrl,
                 thumbnail_url: mediaUrl,
@@ -2139,6 +2202,7 @@ Analyze every character in the name and username for any gender signal at all. L
                 permalink: media.code ? `https://www.instagram.com/p/${media.code}/` : "",
                 timestamp: media.taken_at ? new Date(media.taken_at * 1000).toISOString() : null,
                 username: media.user?.username || "",
+                user_id: String(media.user?.pk || media.user?.id || ""),
                 profile_pic_url: media.user?.profile_pic_url || "",
               });
             }
@@ -2181,6 +2245,7 @@ Analyze every character in the name and username for any gender signal at all. L
                     const mUrl = iv[0]?.url || "";
                     paginatedPosts.push({
                       id: String(media.pk),
+                      shortcode: media.code || "",
                       caption: media.caption?.text || "",
                       media_url: vUrl || mUrl,
                       thumbnail_url: mUrl,
@@ -2190,6 +2255,7 @@ Analyze every character in the name and username for any gender signal at all. L
                       permalink: media.code ? `https://www.instagram.com/p/${media.code}/` : "",
                       timestamp: media.taken_at ? new Date(media.taken_at * 1000).toISOString() : null,
                       username: media.user?.username || "",
+                      user_id: String(media.user?.pk || media.user?.id || ""),
                       profile_pic_url: media.user?.profile_pic_url || "",
                     });
                     added++;
@@ -2203,6 +2269,7 @@ Analyze every character in the name and username for any gender signal at all. L
                   const mUrl = iv[0]?.url || "";
                   paginatedPosts.push({
                     id: String(media.pk),
+                    shortcode: media.code || "",
                     caption: media.caption?.text || "",
                     media_url: vUrl || mUrl,
                     thumbnail_url: mUrl,
@@ -2212,6 +2279,7 @@ Analyze every character in the name and username for any gender signal at all. L
                     permalink: media.code ? `https://www.instagram.com/p/${media.code}/` : "",
                     timestamp: media.taken_at ? new Date(media.taken_at * 1000).toISOString() : null,
                     username: media.user?.username || "",
+                    user_id: String(media.user?.pk || media.user?.id || ""),
                     profile_pic_url: media.user?.profile_pic_url || "",
                   });
                   added++;

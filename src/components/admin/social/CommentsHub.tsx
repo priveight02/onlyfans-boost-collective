@@ -55,16 +55,25 @@ interface MediaPost {
 
 interface DiscoverPost {
   id: string;
+  shortcode?: string;
   caption?: string;
   media_url?: string;
   media_type?: string;
   username?: string;
+  user_id?: string;
   like_count?: number;
   comments_count?: number;
   permalink?: string;
   selected: boolean;
   shares_count?: number;
 }
+
+// Extract shortcode from Instagram permalink URL
+const extractShortcode = (permalink?: string): string => {
+  if (!permalink) return "";
+  const match = permalink.match(/\/p\/([^/?]+)/);
+  return match ? match[1] : "";
+};
 
 const CommentsHub = ({ accountId, connections, callApi, apiLoading }: CommentsHubProps) => {
   const [activeTab, setActiveTab] = useState("my-posts");
@@ -330,8 +339,9 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading }: CommentsHu
           for (const p of explorePosts) {
             if (!discoverResults.some(x => x.id === p.id)) {
               discoverResults.push({
-                id: p.id, caption: p.caption, media_url: p.media_url || p.thumbnail_url,
+                id: p.id, shortcode: p.shortcode || "", caption: p.caption, media_url: p.media_url || p.thumbnail_url,
                 media_type: p.media_type, username: p.username || "creator",
+                user_id: p.user_id || "",
                 like_count: p.like_count, comments_count: p.comments_count,
                 permalink: p.permalink, selected: false,
               });
@@ -361,8 +371,9 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading }: CommentsHu
                 for (const p of feedPosts) {
                   if (!discoverResults.some(x => x.id === p.id)) {
                     discoverResults.push({
-                      id: p.id, caption: p.caption, media_url: p.media_url || p.thumbnail_url,
+                      id: p.id, shortcode: p.shortcode || "", caption: p.caption, media_url: p.media_url || p.thumbnail_url,
                       media_type: p.media_type, username: p.username || u.username || "creator",
+                      user_id: p.user_id || String(u.id || ""),
                       like_count: p.like_count, comments_count: p.comments_count,
                       permalink: p.permalink, selected: false,
                     });
@@ -491,8 +502,9 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading }: CommentsHu
               for (const p of feedPosts) {
                 if (!results.some(x => x.id === p.id)) {
                   results.push({
-                    id: p.id, caption: p.caption, media_url: p.media_url || p.thumbnail_url,
+                    id: p.id, shortcode: p.shortcode || "", caption: p.caption, media_url: p.media_url || p.thumbnail_url,
                     media_type: p.media_type, username: p.username || u.username,
+                    user_id: p.user_id || String(u.id || ""),
                     like_count: p.like_count, comments_count: p.comments_count,
                     permalink: p.permalink, selected: false,
                   });
@@ -562,7 +574,9 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading }: CommentsHu
           if (aiResult?.comment) { commentText = aiResult.comment; } else { failed++; setMassProgress({ done, total: selected.length, failed }); continue; }
         }
         if (selectedPlatform === "instagram") {
-          await callApi("instagram-api", { action: "post_comment", params: { media_id: post.id, message: commentText } });
+          // Extract shortcode from permalink or stored shortcode
+          const shortcode = (post as DiscoverPost).shortcode || extractShortcode(post.permalink);
+          await callApi("instagram-api", { action: "post_comment", params: { media_id: post.id, message: commentText, shortcode, post_author: post.username } });
         } else {
           await callApi("tiktok-api", { action: "post_comment", params: { video_id: post.id, message: commentText } });
         }
@@ -618,7 +632,8 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading }: CommentsHu
     if (!viewingPost || !viewerNewComment.trim()) return;
     try {
       if (selectedPlatform === "instagram") {
-        await callApi("instagram-api", { action: "post_comment", params: { media_id: viewingPost.id, message: viewerNewComment } });
+        const shortcode = (viewingPost as DiscoverPost).shortcode || extractShortcode(viewingPost.permalink);
+        await callApi("instagram-api", { action: "post_comment", params: { media_id: viewingPost.id, message: viewerNewComment, shortcode, post_author: (viewingPost as any).username } });
       } else {
         await callApi("tiktok-api", { action: "post_comment", params: { video_id: viewingPost.id, message: viewerNewComment } });
       }
