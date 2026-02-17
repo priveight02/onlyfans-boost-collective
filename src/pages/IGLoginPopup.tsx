@@ -9,7 +9,7 @@ const IGLoginPopup = () => {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
 
-  const redirectUri = "https://onlyfans-boost-collective.lovable.app/ig-login";
+  const redirectUri = window.location.hostname.includes("ozcagency.com") ? "https://ozcagency.com/ig-login" : "https://onlyfans-boost-collective.lovable.app/ig-login";
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
