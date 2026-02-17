@@ -1,6 +1,5 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { cachedFetch, invalidateNamespace } from "@/lib/supabaseCache";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,51 +9,28 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { AlertTriangle, Plus, Clock, CheckCircle2, XCircle, Megaphone, MessageSquare } from "lucide-react";
+import { AlertTriangle, Plus, Clock, CheckCircle2, XCircle, Megaphone, MessageSquare, RefreshCw } from "lucide-react";
 import { format } from "date-fns";
-
-const CACHE_ID = "admin";
-const CACHE_TTL = 3 * 60 * 1000;
 
 const IncidentManager = () => {
   const [incidents, setIncidents] = useState<any[]>([]);
   const [updates, setUpdates] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [loaded, setLoaded] = useState(false);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showUpdateDialog, setShowUpdateDialog] = useState(false);
   const [selectedIncident, setSelectedIncident] = useState<any>(null);
   const [form, setForm] = useState({ title: "", description: "", severity: "medium", incident_type: "system", blast_radius: "", banner_message: "" });
   const [updateMsg, setUpdateMsg] = useState("");
 
-  const realtimeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const debouncedRefresh = useCallback((fn: () => void) => {
-    if (realtimeTimer.current) clearTimeout(realtimeTimer.current);
-    realtimeTimer.current = setTimeout(fn, 2000);
-  }, []);
-
   const fetchIncidents = useCallback(async () => {
-    const data = await cachedFetch<any[]>(CACHE_ID, "incidents", async () => {
-      const { data } = await supabase.from("incidents").select("*").order("created_at", { ascending: false }).limit(20); return data || [];
-    }, undefined, { ttlMs: CACHE_TTL }
-    );
-    setIncidents(data);
+    setLoading(true);
+    const { data } = await supabase.from("incidents").select("*").order("created_at", { ascending: false }).limit(20);
+    setIncidents(data || []);
+    setLoaded(true);
+    setLoading(false);
   }, []);
 
-  useEffect(() => {
-    (async () => {
-      setLoading(true);
-      await fetchIncidents();
-      setLoading(false);
-    })();
-    const channel = supabase.channel("incidents-realtime")
-      .on("postgres_changes", { event: "*", schema: "public", table: "incidents" }, () => {
-        debouncedRefresh(() => { invalidateNamespace(CACHE_ID, "incidents"); fetchIncidents(); });
-      })
-      .subscribe();
-    return () => { supabase.removeChannel(channel); if (realtimeTimer.current) clearTimeout(realtimeTimer.current); };
-  }, [fetchIncidents, debouncedRefresh]);
-
-  // Updates are fetched on-demand only for selected incident — no caching needed
   const fetchUpdates = async (incidentId: string) => {
     const { data } = await supabase.from("incident_updates").select("*").eq("incident_id", incidentId).order("created_at", { ascending: false }).limit(10);
     if (data) setUpdates(data);
@@ -67,7 +43,6 @@ const IncidentManager = () => {
     }).select().single();
     if (error) { toast.error(error.message); return; }
     setIncidents(prev => [data, ...prev]); // optimistic
-    invalidateNamespace(CACHE_ID, "incidents");
     await supabase.from("audit_logs").insert({ action: "incident_created", entity_type: "incidents", entity_id: data.id, actor_type: "admin", metadata: { severity: form.severity, title: form.title } });
     toast.success("Incident created");
     setShowCreateDialog(false);
@@ -84,7 +59,6 @@ const IncidentManager = () => {
       supabase.from("incident_updates").insert({ incident_id: id, update_type: "status", message: `Status changed to ${status}`, status_change: status }),
       supabase.from("audit_logs").insert({ action: `incident_${status}`, entity_type: "incidents", entity_id: id, actor_type: "admin" }),
     ]);
-    invalidateNamespace(CACHE_ID, "incidents");
     toast.success(`Incident ${status}`);
     if (selectedIncident?.id === id) fetchUpdates(id);
   };
@@ -92,7 +66,7 @@ const IncidentManager = () => {
   const toggleBanner = async (id: string, current: boolean) => {
     setIncidents(prev => prev.map(i => i.id === id ? { ...i, show_banner: !current } : i)); // optimistic
     await supabase.from("incidents").update({ show_banner: !current }).eq("id", id);
-    invalidateNamespace(CACHE_ID, "incidents");
+    
     toast.success(!current ? "Banner enabled" : "Banner disabled");
   };
 
@@ -129,6 +103,13 @@ const IncidentManager = () => {
   const resolvedIncidents = incidents.filter(i => i.status === "resolved" || i.status === "closed");
 
   if (loading) return <div className="flex items-center justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent" /></div>;
+
+  if (!loaded) return (
+    <div className="flex flex-col items-center justify-center py-12 gap-3">
+      <p className="text-white/40 text-sm">Data not loaded — click to fetch</p>
+      <Button onClick={fetchIncidents} className="gap-1.5"><RefreshCw className="h-4 w-4" /> Load Incidents</Button>
+    </div>
+  );
 
   return (
     <div className="space-y-6">

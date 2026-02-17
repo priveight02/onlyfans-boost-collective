@@ -1,6 +1,5 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { cachedFetch, invalidateNamespace } from "@/lib/supabaseCache";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,61 +9,34 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
-import { FileText, Search, Download, Eye, ShieldCheck, Filter } from "lucide-react";
+import { FileText, Search, Download, Eye, ShieldCheck, Filter, RefreshCw } from "lucide-react";
 import { format } from "date-fns";
-
-const CACHE_ID = "admin";
 
 const AuditTrailPanel = () => {
   const [logs, setLogs] = useState<any[]>([]);
   const [policyDecisions, setPolicyDecisions] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [entityFilter, setEntityFilter] = useState("all");
   const [selectedLog, setSelectedLog] = useState<any>(null);
   const [activeTab, setActiveTab] = useState("audit");
-  const loadedTabs = useRef<Set<string>>(new Set(["audit"]));
-
-  const realtimeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [loaded, setLoaded] = useState(false);
 
   const fetchLogs = useCallback(async () => {
-    const data = await cachedFetch<any[]>(CACHE_ID, "audit_logs", async () => {
-      const { data } = await supabase.from("audit_logs").select("*").order("created_at", { ascending: false }).limit(50); return data || [];
-    }, undefined, { ttlMs: 2 * 60 * 1000 }
-    );
-    setLogs(data);
+    setLoading(true);
+    const { data } = await supabase.from("audit_logs").select("*").order("created_at", { ascending: false }).limit(50);
+    setLogs(data || []);
+    setLoaded(true);
+    setLoading(false);
   }, []);
 
-  const fetchTabData = useCallback(async (tab: string) => {
-    if (loadedTabs.current.has(tab)) return;
-    loadedTabs.current.add(tab);
-    if (tab === "policy") {
-      const data = await cachedFetch<any[]>(CACHE_ID, "policy_decisions", async () => {
-        const { data } = await supabase.from("policy_decisions").select("*").order("evaluated_at", { ascending: false }).limit(30); return data || [];
-      }, undefined, { ttlMs: 2 * 60 * 1000 }
-      );
-      setPolicyDecisions(data);
-    }
+  const fetchPolicyDecisions = useCallback(async () => {
+    const { data } = await supabase.from("policy_decisions").select("*").order("evaluated_at", { ascending: false }).limit(30);
+    setPolicyDecisions(data || []);
   }, []);
-
-  useEffect(() => {
-    (async () => {
-      setLoading(true);
-      await fetchLogs();
-      setLoading(false);
-    })();
-    const channel = supabase.channel("audit-realtime")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "audit_logs" }, (payload) => {
-        // Optimistic append — no re-fetch
-        setLogs(prev => [payload.new as any, ...prev].slice(0, 50));
-      })
-      .subscribe();
-    return () => { supabase.removeChannel(channel); if (realtimeTimer.current) clearTimeout(realtimeTimer.current); };
-  }, [fetchLogs]);
 
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
-    fetchTabData(tab);
   };
 
   const exportAuditLogs = () => {
@@ -103,6 +75,9 @@ const AuditTrailPanel = () => {
 
         <TabsContent value="audit" className="space-y-4">
           <div className="flex items-center gap-3 flex-wrap">
+            <Button size="sm" onClick={fetchLogs} className="gap-1.5 text-xs">
+              <RefreshCw className="h-3.5 w-3.5" /> {loaded ? "Refresh" : "Load Logs"}
+            </Button>
             <div className="relative flex-1 min-w-[200px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/30" />
               <Input placeholder="Search actions, entities..." value={search} onChange={e => setSearch(e.target.value)} className="bg-white/5 border-white/10 text-white pl-9 text-xs" />
@@ -162,7 +137,12 @@ const AuditTrailPanel = () => {
         </TabsContent>
 
         <TabsContent value="policy" className="space-y-4">
-          <h3 className="text-white font-semibold">Policy Decisions ({policyDecisions.length})</h3>
+          <div className="flex items-center justify-between">
+            <h3 className="text-white font-semibold">Policy Decisions ({policyDecisions.length})</h3>
+            <Button size="sm" onClick={fetchPolicyDecisions} className="gap-1.5 text-xs">
+              <RefreshCw className="h-3.5 w-3.5" /> Load
+            </Button>
+          </div>
           <div className="rounded-xl border border-white/10 overflow-hidden">
             <Table>
               <TableHeader>
