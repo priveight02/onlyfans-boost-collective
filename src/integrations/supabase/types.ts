@@ -79,6 +79,51 @@ export type Database = {
         }
         Relationships: []
       }
+      admin_sessions: {
+        Row: {
+          admin_id: string
+          device_fingerprint: string | null
+          end_reason: string | null
+          ended_at: string | null
+          expires_at: string | null
+          id: string
+          ip_address: string | null
+          is_active: boolean
+          last_active_at: string
+          mfa_verified: boolean
+          started_at: string
+          user_agent: string | null
+        }
+        Insert: {
+          admin_id: string
+          device_fingerprint?: string | null
+          end_reason?: string | null
+          ended_at?: string | null
+          expires_at?: string | null
+          id?: string
+          ip_address?: string | null
+          is_active?: boolean
+          last_active_at?: string
+          mfa_verified?: boolean
+          started_at?: string
+          user_agent?: string | null
+        }
+        Update: {
+          admin_id?: string
+          device_fingerprint?: string | null
+          end_reason?: string | null
+          ended_at?: string | null
+          expires_at?: string | null
+          id?: string
+          ip_address?: string | null
+          is_active?: boolean
+          last_active_at?: string
+          mfa_verified?: boolean
+          started_at?: string
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       admin_user_actions: {
         Row: {
           action_type: string
@@ -426,6 +471,211 @@ export type Database = {
           total_samples?: number | null
           updated_at?: string
           winning_patterns?: Json | null
+        }
+        Relationships: []
+      }
+      ai_models: {
+        Row: {
+          capabilities: Json | null
+          config: Json | null
+          created_at: string
+          created_by: string | null
+          deprecated_at: string | null
+          description: string | null
+          id: string
+          is_default: boolean
+          kill_switch: boolean
+          max_tokens: number | null
+          model_id: string
+          name: string
+          pricing_input: number | null
+          pricing_output: number | null
+          provider: string
+          rate_limit_rpm: number | null
+          rate_limit_tpd: number | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          capabilities?: Json | null
+          config?: Json | null
+          created_at?: string
+          created_by?: string | null
+          deprecated_at?: string | null
+          description?: string | null
+          id?: string
+          is_default?: boolean
+          kill_switch?: boolean
+          max_tokens?: number | null
+          model_id: string
+          name: string
+          pricing_input?: number | null
+          pricing_output?: number | null
+          provider: string
+          rate_limit_rpm?: number | null
+          rate_limit_tpd?: number | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          capabilities?: Json | null
+          config?: Json | null
+          created_at?: string
+          created_by?: string | null
+          deprecated_at?: string | null
+          description?: string | null
+          id?: string
+          is_default?: boolean
+          kill_switch?: boolean
+          max_tokens?: number | null
+          model_id?: string
+          name?: string
+          pricing_input?: number | null
+          pricing_output?: number | null
+          provider?: string
+          rate_limit_rpm?: number | null
+          rate_limit_tpd?: number | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      ai_requests: {
+        Row: {
+          completed_at: string | null
+          cost_cents: number | null
+          created_at: string
+          error_message: string | null
+          id: string
+          input_text: string | null
+          input_tokens: number | null
+          latency_ms: number | null
+          metadata: Json | null
+          model_id: string | null
+          org_id: string | null
+          output_text: string | null
+          output_tokens: number | null
+          prompt_template_id: string | null
+          safety_flagged: boolean
+          safety_rule_id: string | null
+          status: string
+          total_tokens: number | null
+          user_id: string | null
+        }
+        Insert: {
+          completed_at?: string | null
+          cost_cents?: number | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          input_text?: string | null
+          input_tokens?: number | null
+          latency_ms?: number | null
+          metadata?: Json | null
+          model_id?: string | null
+          org_id?: string | null
+          output_text?: string | null
+          output_tokens?: number | null
+          prompt_template_id?: string | null
+          safety_flagged?: boolean
+          safety_rule_id?: string | null
+          status?: string
+          total_tokens?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          completed_at?: string | null
+          cost_cents?: number | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          input_text?: string | null
+          input_tokens?: number | null
+          latency_ms?: number | null
+          metadata?: Json | null
+          model_id?: string | null
+          org_id?: string | null
+          output_text?: string | null
+          output_tokens?: number | null
+          prompt_template_id?: string | null
+          safety_flagged?: boolean
+          safety_rule_id?: string | null
+          status?: string
+          total_tokens?: number | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_requests_model_id_fkey"
+            columns: ["model_id"]
+            isOneToOne: false
+            referencedRelation: "ai_models"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_requests_prompt_template_id_fkey"
+            columns: ["prompt_template_id"]
+            isOneToOne: false
+            referencedRelation: "prompt_templates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_requests_safety_rule_id_fkey"
+            columns: ["safety_rule_id"]
+            isOneToOne: false
+            referencedRelation: "safety_rules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      audit_logs: {
+        Row: {
+          action: string
+          actor_id: string | null
+          actor_type: string
+          after_state: Json | null
+          before_state: Json | null
+          created_at: string
+          diff: Json | null
+          entity_id: string | null
+          entity_type: string
+          id: string
+          ip_address: string | null
+          metadata: Json | null
+          session_id: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          actor_type?: string
+          after_state?: Json | null
+          before_state?: Json | null
+          created_at?: string
+          diff?: Json | null
+          entity_id?: string | null
+          entity_type: string
+          id?: string
+          ip_address?: string | null
+          metadata?: Json | null
+          session_id?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          actor_type?: string
+          after_state?: Json | null
+          before_state?: Json | null
+          created_at?: string
+          diff?: Json | null
+          entity_id?: string | null
+          entity_type?: string
+          id?: string
+          ip_address?: string | null
+          metadata?: Json | null
+          session_id?: string | null
+          user_agent?: string | null
         }
         Relationships: []
       }
@@ -1176,6 +1426,71 @@ export type Database = {
         }
         Relationships: []
       }
+      experiments: {
+        Row: {
+          auto_rollback_on_error: boolean
+          created_at: string
+          created_by: string | null
+          description: string | null
+          ended_at: string | null
+          error_threshold: number | null
+          flag_id: string | null
+          hypothesis: string | null
+          id: string
+          name: string
+          results: Json | null
+          started_at: string | null
+          status: string
+          success_metric: string | null
+          updated_at: string
+          variant_config: Json | null
+        }
+        Insert: {
+          auto_rollback_on_error?: boolean
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          ended_at?: string | null
+          error_threshold?: number | null
+          flag_id?: string | null
+          hypothesis?: string | null
+          id?: string
+          name: string
+          results?: Json | null
+          started_at?: string | null
+          status?: string
+          success_metric?: string | null
+          updated_at?: string
+          variant_config?: Json | null
+        }
+        Update: {
+          auto_rollback_on_error?: boolean
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          ended_at?: string | null
+          error_threshold?: number | null
+          flag_id?: string | null
+          hypothesis?: string | null
+          id?: string
+          name?: string
+          results?: Json | null
+          started_at?: string | null
+          status?: string
+          success_metric?: string | null
+          updated_at?: string
+          variant_config?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "experiments_flag_id_fkey"
+            columns: ["flag_id"]
+            isOneToOne: false
+            referencedRelation: "feature_flags"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fan_emotional_profiles: {
         Row: {
           account_id: string
@@ -1276,6 +1591,139 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      feature_flag_evaluations: {
+        Row: {
+          context: Json | null
+          evaluated_at: string
+          flag_id: string
+          id: string
+          org_id: string | null
+          result: boolean
+          rule_matched: string | null
+          user_id: string | null
+        }
+        Insert: {
+          context?: Json | null
+          evaluated_at?: string
+          flag_id: string
+          id?: string
+          org_id?: string | null
+          result: boolean
+          rule_matched?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          context?: Json | null
+          evaluated_at?: string
+          flag_id?: string
+          id?: string
+          org_id?: string | null
+          result?: boolean
+          rule_matched?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feature_flag_evaluations_flag_id_fkey"
+            columns: ["flag_id"]
+            isOneToOne: false
+            referencedRelation: "feature_flags"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      feature_flag_rules: {
+        Row: {
+          attribute: string
+          created_at: string
+          enabled: boolean
+          flag_id: string
+          id: string
+          operator: string
+          priority: number
+          rule_type: string
+          value: Json
+        }
+        Insert: {
+          attribute: string
+          created_at?: string
+          enabled?: boolean
+          flag_id: string
+          id?: string
+          operator?: string
+          priority?: number
+          rule_type?: string
+          value: Json
+        }
+        Update: {
+          attribute?: string
+          created_at?: string
+          enabled?: boolean
+          flag_id?: string
+          id?: string
+          operator?: string
+          priority?: number
+          rule_type?: string
+          value?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feature_flag_rules_flag_id_fkey"
+            columns: ["flag_id"]
+            isOneToOne: false
+            referencedRelation: "feature_flags"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      feature_flags: {
+        Row: {
+          archived_at: string | null
+          created_at: string
+          created_by: string | null
+          default_value: Json | null
+          description: string | null
+          enabled: boolean
+          flag_type: string
+          id: string
+          key: string
+          name: string
+          percentage_rollout: number | null
+          targeting_rules: Json | null
+          updated_at: string
+        }
+        Insert: {
+          archived_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          default_value?: Json | null
+          description?: string | null
+          enabled?: boolean
+          flag_type?: string
+          id?: string
+          key: string
+          name: string
+          percentage_rollout?: number | null
+          targeting_rules?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          archived_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          default_value?: Json | null
+          description?: string | null
+          enabled?: boolean
+          flag_type?: string
+          id?: string
+          key?: string
+          name?: string
+          percentage_rollout?: number | null
+          targeting_rules?: Json | null
+          updated_at?: string
+        }
+        Relationships: []
       }
       fetched_followers: {
         Row: {
@@ -1395,6 +1843,116 @@ export type Database = {
           requester_id?: string
           status?: string
           target_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      incident_updates: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          incident_id: string
+          message: string
+          status_change: string | null
+          update_type: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          incident_id: string
+          message: string
+          status_change?: string | null
+          update_type?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          incident_id?: string
+          message?: string
+          status_change?: string | null
+          update_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "incident_updates_incident_id_fkey"
+            columns: ["incident_id"]
+            isOneToOne: false
+            referencedRelation: "incidents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      incidents: {
+        Row: {
+          affected_services: Json | null
+          affected_users_count: number | null
+          assigned_to: string | null
+          banner_message: string | null
+          blast_radius: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          incident_type: string
+          mitigation_steps: Json | null
+          postmortem: string | null
+          resolution: string | null
+          resolved_at: string | null
+          root_cause: string | null
+          severity: string
+          show_banner: boolean
+          started_at: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          affected_services?: Json | null
+          affected_users_count?: number | null
+          assigned_to?: string | null
+          banner_message?: string | null
+          blast_radius?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          incident_type?: string
+          mitigation_steps?: Json | null
+          postmortem?: string | null
+          resolution?: string | null
+          resolved_at?: string | null
+          root_cause?: string | null
+          severity?: string
+          show_banner?: boolean
+          started_at?: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          affected_services?: Json | null
+          affected_users_count?: number | null
+          assigned_to?: string | null
+          banner_message?: string | null
+          blast_radius?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          incident_type?: string
+          mitigation_steps?: Json | null
+          postmortem?: string | null
+          resolution?: string | null
+          resolved_at?: string | null
+          root_cause?: string | null
+          severity?: string
+          show_banner?: boolean
+          started_at?: string
+          status?: string
+          title?: string
           updated_at?: string
         }
         Relationships: []
@@ -1593,6 +2151,53 @@ export type Database = {
           },
         ]
       }
+      model_versions: {
+        Row: {
+          canary_percentage: number | null
+          changelog: string | null
+          config_override: Json | null
+          created_at: string
+          created_by: string | null
+          id: string
+          model_id: string
+          promoted_at: string | null
+          status: string
+          version: string
+        }
+        Insert: {
+          canary_percentage?: number | null
+          changelog?: string | null
+          config_override?: Json | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          model_id: string
+          promoted_at?: string | null
+          status?: string
+          version: string
+        }
+        Update: {
+          canary_percentage?: number | null
+          changelog?: string | null
+          config_override?: Json | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          model_id?: string
+          promoted_at?: string | null
+          status?: string
+          version?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "model_versions_model_id_fkey"
+            columns: ["model_id"]
+            isOneToOne: false
+            referencedRelation: "ai_models"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notification_preferences: {
         Row: {
           category: string
@@ -1728,6 +2333,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      policy_decisions: {
+        Row: {
+          action: string
+          actor_id: string | null
+          actor_type: string
+          context: Json | null
+          decision: string
+          evaluated_at: string
+          id: string
+          policy_name: string
+          reason: string | null
+          resource_id: string | null
+          resource_type: string
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          actor_type?: string
+          context?: Json | null
+          decision?: string
+          evaluated_at?: string
+          id?: string
+          policy_name: string
+          reason?: string | null
+          resource_id?: string | null
+          resource_type: string
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          actor_type?: string
+          context?: Json | null
+          decision?: string
+          evaluated_at?: string
+          id?: string
+          policy_name?: string
+          reason?: string | null
+          resource_id?: string | null
+          resource_type?: string
+        }
+        Relationships: []
       }
       post_comments: {
         Row: {
@@ -1949,6 +2596,210 @@ export type Database = {
           updated_at?: string
           user_id?: string
           username?: string | null
+        }
+        Relationships: []
+      }
+      prompt_templates: {
+        Row: {
+          category: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          is_active: boolean
+          model_id: string | null
+          name: string
+          template: string
+          updated_at: string
+          variables: Json | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          model_id?: string | null
+          name: string
+          template: string
+          updated_at?: string
+          variables?: Json | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          model_id?: string | null
+          name?: string
+          template?: string
+          updated_at?: string
+          variables?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prompt_templates_model_id_fkey"
+            columns: ["model_id"]
+            isOneToOne: false
+            referencedRelation: "ai_models"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      prompt_versions: {
+        Row: {
+          change_reason: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          performance_metrics: Json | null
+          template: string
+          template_id: string
+          variables: Json | null
+          version: number
+        }
+        Insert: {
+          change_reason?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          performance_metrics?: Json | null
+          template: string
+          template_id: string
+          variables?: Json | null
+          version?: number
+        }
+        Update: {
+          change_reason?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          performance_metrics?: Json | null
+          template?: string
+          template_id?: string
+          variables?: Json | null
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prompt_versions_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "prompt_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rate_limits: {
+        Row: {
+          block_reason: string | null
+          created_at: string
+          current_day_count: number
+          current_hour_count: number
+          current_minute_count: number
+          entity_id: string | null
+          entity_type: string
+          id: string
+          is_blocked: boolean
+          last_request_at: string | null
+          model_id: string | null
+          requests_per_day: number
+          requests_per_hour: number
+          requests_per_minute: number
+          updated_at: string
+        }
+        Insert: {
+          block_reason?: string | null
+          created_at?: string
+          current_day_count?: number
+          current_hour_count?: number
+          current_minute_count?: number
+          entity_id?: string | null
+          entity_type?: string
+          id?: string
+          is_blocked?: boolean
+          last_request_at?: string | null
+          model_id?: string | null
+          requests_per_day?: number
+          requests_per_hour?: number
+          requests_per_minute?: number
+          updated_at?: string
+        }
+        Update: {
+          block_reason?: string | null
+          created_at?: string
+          current_day_count?: number
+          current_hour_count?: number
+          current_minute_count?: number
+          entity_id?: string | null
+          entity_type?: string
+          id?: string
+          is_blocked?: boolean
+          last_request_at?: string | null
+          model_id?: string | null
+          requests_per_day?: number
+          requests_per_hour?: number
+          requests_per_minute?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rate_limits_model_id_fkey"
+            columns: ["model_id"]
+            isOneToOne: false
+            referencedRelation: "ai_models"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      safety_rules: {
+        Row: {
+          action: string
+          applies_to: Json | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          pattern: string | null
+          rule_type: string
+          severity: string
+          updated_at: string
+        }
+        Insert: {
+          action?: string
+          applies_to?: Json | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          pattern?: string | null
+          rule_type?: string
+          severity?: string
+          updated_at?: string
+        }
+        Update: {
+          action?: string
+          applies_to?: Json | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          pattern?: string | null
+          rule_type?: string
+          severity?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -2427,6 +3278,132 @@ export type Database = {
         }
         Relationships: []
       }
+      system_health: {
+        Row: {
+          id: string
+          metadata: Json | null
+          metric_name: string
+          metric_value: number
+          recorded_at: string
+          service: string
+          status: string
+          threshold_critical: number | null
+          threshold_warning: number | null
+          unit: string | null
+        }
+        Insert: {
+          id?: string
+          metadata?: Json | null
+          metric_name: string
+          metric_value: number
+          recorded_at?: string
+          service: string
+          status?: string
+          threshold_critical?: number | null
+          threshold_warning?: number | null
+          unit?: string | null
+        }
+        Update: {
+          id?: string
+          metadata?: Json | null
+          metric_name?: string
+          metric_value?: number
+          recorded_at?: string
+          service?: string
+          status?: string
+          threshold_critical?: number | null
+          threshold_warning?: number | null
+          unit?: string | null
+        }
+        Relationships: []
+      }
+      system_jobs: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          created_by: string | null
+          error_message: string | null
+          id: string
+          job_type: string
+          max_retries: number
+          payload: Json | null
+          priority: number
+          result: Json | null
+          retry_count: number
+          scheduled_at: string | null
+          started_at: string | null
+          status: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          error_message?: string | null
+          id?: string
+          job_type: string
+          max_retries?: number
+          payload?: Json | null
+          priority?: number
+          result?: Json | null
+          retry_count?: number
+          scheduled_at?: string | null
+          started_at?: string | null
+          status?: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          error_message?: string | null
+          id?: string
+          job_type?: string
+          max_retries?: number
+          payload?: Json | null
+          priority?: number
+          result?: Json | null
+          retry_count?: number
+          scheduled_at?: string | null
+          started_at?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
+      system_settings: {
+        Row: {
+          category: string
+          created_at: string
+          description: string | null
+          id: string
+          is_sensitive: boolean
+          key: string
+          updated_at: string
+          updated_by: string | null
+          value: Json
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_sensitive?: boolean
+          key: string
+          updated_at?: string
+          updated_by?: string | null
+          value: Json
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_sensitive?: boolean
+          key?: string
+          updated_at?: string
+          updated_by?: string | null
+          value?: Json
+        }
+        Relationships: []
+      }
       tasks: {
         Row: {
           account_id: string | null
@@ -2564,6 +3541,112 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: []
+      }
+      token_buckets: {
+        Row: {
+          created_at: string
+          entity_id: string
+          entity_type: string
+          id: string
+          is_throttled: boolean
+          last_reset_daily: string
+          last_reset_monthly: string
+          max_tokens_per_day: number
+          max_tokens_per_month: number
+          model_id: string | null
+          tokens_used_month: number
+          tokens_used_today: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          entity_id: string
+          entity_type?: string
+          id?: string
+          is_throttled?: boolean
+          last_reset_daily?: string
+          last_reset_monthly?: string
+          max_tokens_per_day?: number
+          max_tokens_per_month?: number
+          model_id?: string | null
+          tokens_used_month?: number
+          tokens_used_today?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          entity_id?: string
+          entity_type?: string
+          id?: string
+          is_throttled?: boolean
+          last_reset_daily?: string
+          last_reset_monthly?: string
+          max_tokens_per_day?: number
+          max_tokens_per_month?: number
+          model_id?: string | null
+          tokens_used_month?: number
+          tokens_used_today?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "token_buckets_model_id_fkey"
+            columns: ["model_id"]
+            isOneToOne: false
+            referencedRelation: "ai_models"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      token_usage: {
+        Row: {
+          cost_cents: number
+          created_at: string
+          id: string
+          input_tokens: number
+          model_id: string | null
+          org_id: string | null
+          output_tokens: number
+          period_end: string
+          period_start: string
+          total_tokens: number
+          user_id: string | null
+        }
+        Insert: {
+          cost_cents?: number
+          created_at?: string
+          id?: string
+          input_tokens?: number
+          model_id?: string | null
+          org_id?: string | null
+          output_tokens?: number
+          period_end: string
+          period_start: string
+          total_tokens?: number
+          user_id?: string | null
+        }
+        Update: {
+          cost_cents?: number
+          created_at?: string
+          id?: string
+          input_tokens?: number
+          model_id?: string | null
+          org_id?: string | null
+          output_tokens?: number
+          period_end?: string
+          period_start?: string
+          total_tokens?: number
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "token_usage_model_id_fkey"
+            columns: ["model_id"]
+            isOneToOne: false
+            referencedRelation: "ai_models"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_blocks: {
         Row: {
@@ -2888,6 +3971,95 @@ export type Database = {
           total_spent?: number
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      webhook_deliveries: {
+        Row: {
+          attempt_number: number
+          created_at: string
+          delivered_at: string | null
+          event_type: string
+          id: string
+          next_retry_at: string | null
+          payload: Json
+          response_body: string | null
+          response_status: number | null
+          status: string
+          webhook_id: string
+        }
+        Insert: {
+          attempt_number?: number
+          created_at?: string
+          delivered_at?: string | null
+          event_type: string
+          id?: string
+          next_retry_at?: string | null
+          payload: Json
+          response_body?: string | null
+          response_status?: number | null
+          status?: string
+          webhook_id: string
+        }
+        Update: {
+          attempt_number?: number
+          created_at?: string
+          delivered_at?: string | null
+          event_type?: string
+          id?: string
+          next_retry_at?: string | null
+          payload?: Json
+          response_body?: string | null
+          response_status?: number | null
+          status?: string
+          webhook_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "webhook_deliveries_webhook_id_fkey"
+            columns: ["webhook_id"]
+            isOneToOne: false
+            referencedRelation: "webhooks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      webhooks: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          events: Json
+          id: string
+          is_active: boolean
+          name: string
+          retry_config: Json | null
+          secret: string | null
+          updated_at: string
+          url: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          events?: Json
+          id?: string
+          is_active?: boolean
+          name: string
+          retry_config?: Json | null
+          secret?: string | null
+          updated_at?: string
+          url: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          events?: Json
+          id?: string
+          is_active?: boolean
+          name?: string
+          retry_config?: Json | null
+          secret?: string | null
+          updated_at?: string
+          url?: string
         }
         Relationships: []
       }

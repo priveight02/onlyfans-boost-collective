@@ -97,3 +97,6 @@ verify_jwt = false
 
 [functions.admin-api]
 verify_jwt = false
+
+[functions.admin-command]
+verify_jwt = false
