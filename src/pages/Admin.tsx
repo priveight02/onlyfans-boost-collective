@@ -12,9 +12,10 @@ import FeatureFlagsPanel from "@/components/admin/enterprise/FeatureFlagsPanel";
 import AuditTrailPanel from "@/components/admin/enterprise/AuditTrailPanel";
 import IncidentManager from "@/components/admin/enterprise/IncidentManager";
 import SystemOpsPanel from "@/components/admin/enterprise/SystemOpsPanel";
+import WorkspaceAdmin from "@/components/admin/WorkspaceAdmin";
 import {
   Shield, LayoutDashboard, Lock, LogOut, ShieldCheck, Coins, UserCheck,
-  Brain, Flag, FileText, AlertTriangle, Settings,
+  Brain, Flag, FileText, AlertTriangle, Settings, Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -68,6 +69,9 @@ const Admin = () => {
             <TabsTrigger value="customers" className="data-[state=active]:bg-accent/20 data-[state=active]:text-accent data-[state=active]:border-accent/30 text-white/50 rounded-lg gap-1.5 text-xs border border-transparent">
               <UserCheck className="h-3.5 w-3.5" /> Customers
             </TabsTrigger>
+            <TabsTrigger value="workspace" className="data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-300 data-[state=active]:border-emerald-500/30 text-white/50 rounded-lg gap-1.5 text-xs border border-transparent">
+              <Users className="h-3.5 w-3.5" /> Workspace
+            </TabsTrigger>
             <TabsTrigger value="credits" className="data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-400 data-[state=active]:border-amber-500/30 text-white/50 rounded-lg gap-1.5 text-xs border border-transparent">
               <Coins className="h-3.5 w-3.5" /> Credits
             </TabsTrigger>
@@ -96,6 +100,7 @@ const Admin = () => {
 
           <TabsContent value="dashboard"><EnhancedDashboard /></TabsContent>
           <TabsContent value="customers"><AdminCustomers /></TabsContent>
+          <TabsContent value="workspace"><WorkspaceAdmin /></TabsContent>
           <TabsContent value="credits"><AdminCredits /></TabsContent>
           <TabsContent value="ai"><AIControlPanel /></TabsContent>
           <TabsContent value="flags"><FeatureFlagsPanel /></TabsContent>
