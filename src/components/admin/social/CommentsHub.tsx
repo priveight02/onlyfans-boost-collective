@@ -17,8 +17,9 @@ import {
   Compass, Image, Eye, ArrowRight, Search, X, Share2,
   Bookmark, MoreHorizontal, ThumbsUp, Repeat2, Check, Square, CheckSquare,
   Trophy, Shield, BarChart3, Download, Filter, TrendingUp, Users, Flame,
-  UserPlus, Zap,
+  UserPlus, Zap, Key, Link2, AlertTriangle, CheckCircle2,
 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import CreditCostBadge from "../CreditCostBadge";
 
 interface CommentsHubProps {
@@ -158,6 +159,115 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading }: CommentsHu
   const [viewerComments, setViewerComments] = useState<CommentItem[]>([]);
   const [viewerCommentsLoading, setViewerCommentsLoading] = useState(false);
   const [viewerNewComment, setViewerNewComment] = useState("");
+
+  // Session management
+  const [sessionId, setSessionId] = useState("");
+  const [csrfToken, setCsrfToken] = useState("");
+  const [dsUserId, setDsUserId] = useState("");
+  const [sessionSavedAt, setSessionSavedAt] = useState<string | null>(null);
+  const [sessionLoading, setSessionLoading] = useState(false);
+  const [sessionStatus, setSessionStatus] = useState<"unknown" | "valid" | "expired">("unknown");
+
+  // Load existing session on mount
+  useEffect(() => {
+    if (accountId && selectedPlatform === "instagram") loadSessionData();
+  }, [accountId, selectedPlatform]);
+
+  const loadSessionData = async () => {
+    try {
+      const { data } = await supabase
+        .from("social_connections")
+        .select("metadata")
+        .eq("account_id", accountId)
+        .eq("platform", "instagram")
+        .eq("is_connected", true)
+        .single();
+      if (data?.metadata) {
+        const meta = data.metadata as any;
+        setSessionId(meta.ig_session_id || "");
+        setCsrfToken(meta.ig_csrf_token || "");
+        setDsUserId(meta.ig_ds_user_id || "");
+        setSessionSavedAt(meta.ig_session_saved_at || null);
+        setSessionStatus(meta.ig_session_id ? "valid" : "unknown");
+      }
+    } catch { /* no connection */ }
+  };
+
+  const saveSessionData = async () => {
+    if (!sessionId.trim()) { toast.error("Session ID is required"); return; }
+    setSessionLoading(true);
+    try {
+      // Get current metadata first to preserve other fields
+      const { data: existing } = await supabase
+        .from("social_connections")
+        .select("metadata")
+        .eq("account_id", accountId)
+        .eq("platform", "instagram")
+        .eq("is_connected", true)
+        .single();
+      
+      const currentMeta = (existing?.metadata as any) || {};
+      const updatedMeta = {
+        ...currentMeta,
+        ig_session_id: sessionId.trim(),
+        ig_csrf_token: csrfToken.trim() || undefined,
+        ig_ds_user_id: dsUserId.trim() || undefined,
+        ig_session_saved_at: new Date().toISOString(),
+      };
+
+      const { error } = await supabase
+        .from("social_connections")
+        .update({ metadata: updatedMeta })
+        .eq("account_id", accountId)
+        .eq("platform", "instagram")
+        .eq("is_connected", true);
+
+      if (error) throw error;
+      setSessionSavedAt(updatedMeta.ig_session_saved_at);
+      setSessionStatus("valid");
+      toast.success("Session cookie saved! You can now comment on discovered posts.");
+    } catch (e: any) { toast.error("Failed to save: " + e.message); }
+    setSessionLoading(false);
+  };
+
+  const autoFetchSession = async () => {
+    setSessionLoading(true);
+    try {
+      // Use the connected account's access token to fetch session info via private API
+      const d = await callApi("instagram-api", { action: "get_session_info", params: {} });
+      if (d?.data?.session_id) {
+        setSessionId(d.data.session_id);
+        if (d.data.csrf_token) setCsrfToken(d.data.csrf_token);
+        if (d.data.ds_user_id) setDsUserId(d.data.ds_user_id);
+        toast.success("Session fetched from connected account! Click Save to apply.");
+      } else {
+        toast.error("Could not auto-fetch session. Please enter manually.");
+      }
+    } catch {
+      toast.error("Auto-fetch not available. Please enter session cookie manually from your browser.");
+    }
+    setSessionLoading(false);
+  };
+
+  const testSession = async () => {
+    setSessionLoading(true);
+    try {
+      // Quick test: try to fetch explore feed which requires session
+      const d = await callApi("instagram-api", { action: "explore_feed", params: { limit: 1 } });
+      const posts = d?.data?.posts || d?.posts || [];
+      if (posts.length > 0) {
+        setSessionStatus("valid");
+        toast.success("Session is valid! ✅");
+      } else {
+        setSessionStatus("expired");
+        toast.error("Session may be expired. Update with a fresh cookie.");
+      }
+    } catch {
+      setSessionStatus("expired");
+      toast.error("Session expired or invalid. Please update.");
+    }
+    setSessionLoading(false);
+  };
 
   useEffect(() => {
     if (accountId && (igConnected || ttConnected)) loadMyPosts();
@@ -756,6 +866,11 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading }: CommentsHu
           <TabsTrigger value="discover" className="data-[state=active]:bg-background data-[state=active]:text-foreground text-muted-foreground rounded-md gap-1 text-xs px-2 py-1.5">
             <Compass className="h-3.5 w-3.5" /> Discover & Mass Comment
           </TabsTrigger>
+          <TabsTrigger value="session" className="data-[state=active]:bg-background data-[state=active]:text-foreground text-muted-foreground rounded-md gap-1 text-xs px-2 py-1.5">
+            <Key className="h-3.5 w-3.5" /> Session
+            {sessionStatus === "expired" && <span className="h-1.5 w-1.5 rounded-full bg-destructive" />}
+            {sessionStatus === "valid" && <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />}
+          </TabsTrigger>
         </TabsList>
 
         {/* ===== MY POSTS & COMMENTS ===== */}
@@ -1321,6 +1436,108 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading }: CommentsHu
             </div>
           </div>
         </TabsContent>
+        {/* ===== SESSION MANAGEMENT ===== */}
+        <TabsContent value="session" className="space-y-4 mt-3">
+          <Card>
+            <CardContent className="p-4 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Key className="h-4 w-4 text-primary" />
+                  <h4 className="text-sm font-semibold text-foreground">Instagram Session Cookie</h4>
+                </div>
+                <div className="flex items-center gap-2">
+                  {sessionStatus === "valid" && (
+                    <Badge className="bg-emerald-500/15 text-emerald-400 border-emerald-500/30 text-[10px]">
+                      <CheckCircle2 className="h-3 w-3 mr-1" /> Connected
+                    </Badge>
+                  )}
+                  {sessionStatus === "expired" && (
+                    <Badge className="bg-destructive/15 text-destructive border-destructive/30 text-[10px]">
+                      <AlertTriangle className="h-3 w-3 mr-1" /> Expired
+                    </Badge>
+                  )}
+                  {sessionSavedAt && (
+                    <span className="text-[9px] text-muted-foreground">
+                      Last saved: {new Date(sessionSavedAt).toLocaleString()}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                A valid session cookie is required to comment on, like, and interact with <strong>discovered posts</strong> (posts from other accounts). 
+                Your own posts use the Graph API and don't need this.
+              </p>
+
+              <div className="space-y-3">
+                <div>
+                  <label className="text-[10px] font-medium text-foreground mb-1 block">Session ID <span className="text-destructive">*</span></label>
+                  <Input
+                    value={sessionId}
+                    onChange={e => setSessionId(e.target.value)}
+                    placeholder="Paste your sessionid cookie value here..."
+                    className="text-xs font-mono"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[10px] font-medium text-foreground mb-1 block">CSRF Token</label>
+                    <Input
+                      value={csrfToken}
+                      onChange={e => setCsrfToken(e.target.value)}
+                      placeholder="csrftoken cookie value"
+                      className="text-xs font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-medium text-foreground mb-1 block">DS User ID</label>
+                    <Input
+                      value={dsUserId}
+                      onChange={e => setDsUserId(e.target.value)}
+                      placeholder="ds_user_id cookie value"
+                      className="text-xs font-mono"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 flex-wrap">
+                <Button size="sm" onClick={saveSessionData} disabled={sessionLoading || !sessionId.trim()} className="gap-1.5">
+                  {sessionLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+                  Save Session
+                </Button>
+                <Button size="sm" variant="outline" onClick={autoFetchSession} disabled={sessionLoading} className="gap-1.5 text-foreground">
+                  {sessionLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Link2 className="h-3.5 w-3.5" />}
+                  Auto-Fetch from Account
+                </Button>
+                <Button size="sm" variant="outline" onClick={testSession} disabled={sessionLoading} className="gap-1.5 text-foreground">
+                  {sessionLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />}
+                  Test Session
+                </Button>
+              </div>
+
+              {/* How to get session cookie guide */}
+              <Card className="bg-muted/30 border-border">
+                <CardContent className="p-3 space-y-2">
+                  <p className="text-[10px] font-semibold text-foreground">How to get your session cookie manually:</p>
+                  <ol className="text-[10px] text-muted-foreground space-y-1 list-decimal list-inside">
+                    <li>Open <strong>instagram.com</strong> in your browser and log in</li>
+                    <li>Open DevTools (F12) → <strong>Application</strong> tab → <strong>Cookies</strong></li>
+                    <li>Find <code className="bg-muted px-1 rounded text-foreground">sessionid</code> — copy its value</li>
+                    <li>Find <code className="bg-muted px-1 rounded text-foreground">csrftoken</code> — copy its value</li>
+                    <li>Find <code className="bg-muted px-1 rounded text-foreground">ds_user_id</code> — copy its value</li>
+                    <li>Paste them above and click <strong>Save Session</strong></li>
+                  </ol>
+                  <p className="text-[9px] text-amber-400 flex items-center gap-1">
+                    <AlertTriangle className="h-3 w-3" />
+                    Session cookies expire every few days. Refresh when you see "expired" errors.
+                  </p>
+                </CardContent>
+              </Card>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
       </Tabs>
 
       {/* ===== POST VIEWER DIALOG (Instagram-style) ===== */}

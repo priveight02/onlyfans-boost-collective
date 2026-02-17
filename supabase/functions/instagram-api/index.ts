@@ -507,6 +507,18 @@ Analyze every character in the name and username for any gender signal at all. L
     let result: any;
 
     switch (action) {
+      // ===== SESSION INFO =====
+      case "get_session_info": {
+        const meta = conn.metadata as any || {};
+        result = {
+          session_id: meta.ig_session_id || null,
+          csrf_token: meta.ig_csrf_token || null,
+          ds_user_id: meta.ig_ds_user_id || conn.platform_user_id || null,
+          saved_at: meta.ig_session_saved_at || null,
+        };
+        break;
+      }
+
       // ===== PROFILE =====
       case "get_profile":
         result = await igFetch(`/${igUserId}?fields=id,username,name,biography,profile_picture_url,followers_count,follows_count,media_count,website`, token);
