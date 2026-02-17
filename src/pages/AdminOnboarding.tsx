@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
-  Shield, Loader2, CheckCircle, XCircle, Crown, ShieldCheck, Users, Clock, Lock,
+  Shield, Loader2, CheckCircle, XCircle, Crown, ShieldCheck, Users, Clock, Lock, LogIn,
 } from "lucide-react";
 
 const roleStyles: Record<string, { label: string; color: string; icon: React.ElementType }> = {
@@ -29,9 +29,9 @@ const timezones = [
 const AdminOnboarding = () => {
   const { token } = useParams<{ token: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
 
-  const [loading, setLoading] = useState(true);
+  const [validating, setValidating] = useState(true);
   const [invitation, setInvitation] = useState<any>(null);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -45,40 +45,54 @@ const AdminOnboarding = () => {
   const [timezone, setTimezone] = useState("UTC");
 
   useEffect(() => {
-    validateToken();
-  }, [token]);
+    if (!authLoading) {
+      validateToken();
+    }
+  }, [token, authLoading]);
 
   const validateToken = async () => {
-    if (!token) { setError("Invalid invitation link"); setLoading(false); return; }
+    if (!token) { setError("Invalid invitation link"); setValidating(false); return; }
 
-    const { data, error: fetchError } = await supabase
-      .from("workspace_invitations")
-      .select("*")
-      .eq("token", token)
-      .single();
+    try {
+      const { data, error: fetchError } = await supabase
+        .from("workspace_invitations")
+        .select("*")
+        .eq("token", token)
+        .maybeSingle();
 
-    if (fetchError || !data) {
-      setError("Invalid or expired invitation link");
-      setLoading(false);
-      return;
+      if (fetchError) {
+        console.error("Token validation error:", fetchError);
+        setError("Failed to validate invitation. Please try again.");
+        setValidating(false);
+        return;
+      }
+
+      if (!data) {
+        setError("Invalid or expired invitation link.");
+        setValidating(false);
+        return;
+      }
+
+      // Check expiration
+      if (data.expires_at && new Date(data.expires_at) < new Date()) {
+        setError("This invitation has expired. Please contact your administrator for a new invitation.");
+        setValidating(false);
+        return;
+      }
+
+      // Check if already used
+      if (data.status !== "pending") {
+        setError("This invitation has already been used or revoked.");
+        setValidating(false);
+        return;
+      }
+
+      setInvitation(data);
+    } catch (err: any) {
+      console.error("Validation error:", err);
+      setError("Something went wrong. Please try again.");
     }
-
-    // Check expiration
-    if (new Date(data.expires_at) < new Date()) {
-      setError("This invitation has expired. Please contact your administrator for a new invitation.");
-      setLoading(false);
-      return;
-    }
-
-    // Check if already used
-    if (data.status !== "pending") {
-      setError("This invitation has already been used or revoked.");
-      setLoading(false);
-      return;
-    }
-
-    setInvitation(data);
-    setLoading(false);
+    setValidating(false);
   };
 
   const handleSubmit = async () => {
@@ -118,7 +132,7 @@ const AdminOnboarding = () => {
       await supabase.from("user_roles").delete().eq("user_id", user.id);
       const { error: roleError } = await supabase
         .from("user_roles")
-        .insert({ user_id: user.id, role: invitation.role });
+        .insert({ user_id: user.id, role: invitation.role as any });
 
       if (roleError) throw roleError;
 
@@ -145,7 +159,6 @@ const AdminOnboarding = () => {
 
       toast.success("Onboarding complete! Welcome to the team.");
 
-      // Redirect based on role
       if (invitation.role === "admin") {
         navigate("/admin");
       } else {
@@ -158,14 +171,19 @@ const AdminOnboarding = () => {
     }
   };
 
-  if (loading) {
+  // Loading state
+  if (authLoading || validating) {
     return (
       <div className="min-h-screen bg-[hsl(222,35%,8%)] flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-accent" />
+        <div className="text-center space-y-4">
+          <Loader2 className="h-8 w-8 animate-spin text-accent mx-auto" />
+          <p className="text-white/40 text-sm">Validating invitation...</p>
+        </div>
       </div>
     );
   }
 
+  // Error state
   if (error) {
     return (
       <div className="min-h-screen bg-[hsl(222,35%,8%)] flex items-center justify-center px-4">
@@ -176,9 +194,32 @@ const AdminOnboarding = () => {
             </div>
             <h1 className="text-xl font-bold text-white mb-2">Access Denied</h1>
             <p className="text-white/50 text-sm mb-6">{error}</p>
-            <Button onClick={() => navigate("/auth")} variant="outline" className="border-white/10 text-white hover:bg-white/10">
-              Go to Login
+            <Button onClick={() => navigate("/")} variant="outline" className="border-white/10 text-white hover:bg-white/10">
+              Go Home
             </Button>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
+
+  // Not logged in - prompt login
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-[hsl(222,35%,8%)] flex items-center justify-center px-4">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-md w-full">
+          <div className="bg-white/[0.03] border border-white/[0.08] rounded-2xl p-8 text-center backdrop-blur-xl">
+            <div className="w-16 h-16 rounded-2xl bg-accent/10 flex items-center justify-center mx-auto mb-4">
+              <LogIn className="h-8 w-8 text-accent" />
+            </div>
+            <h1 className="text-xl font-bold text-white mb-2">Sign In Required</h1>
+            <p className="text-white/50 text-sm mb-2">You need to sign in or create an account to complete your onboarding.</p>
+            <p className="text-white/30 text-xs mb-6">Your invitation for <span className="text-accent">{invitation?.email}</span> as <span className="text-emerald-400">{invitation?.role}</span> is valid.</p>
+            <Link to={`/auth?redirect=/admin-onboarding/${token}`}>
+              <Button className="w-full bg-accent hover:bg-accent/80 gap-2">
+                <LogIn className="h-4 w-4" /> Sign In to Continue
+              </Button>
+            </Link>
           </div>
         </motion.div>
       </div>
@@ -218,17 +259,19 @@ const AdminOnboarding = () => {
             </div>
             {permissions.length > 0 && (
               <div className="flex flex-wrap gap-1.5">
-                {permissions.map(p => (
+                {permissions.map((p: string) => (
                   <span key={p} className="text-[10px] px-2 py-1 rounded-md bg-accent/10 text-accent/80 border border-accent/10">
                     {p.replace(/_/g, " ")}
                   </span>
                 ))}
               </div>
             )}
-            <div className="flex items-center gap-2 mt-3 text-[10px] text-white/20">
-              <Clock className="h-3 w-3" />
-              Link expires: {new Date(invitation.expires_at).toLocaleString()}
-            </div>
+            {invitation?.expires_at && (
+              <div className="flex items-center gap-2 mt-3 text-[10px] text-white/20">
+                <Clock className="h-3 w-3" />
+                Link expires: {new Date(invitation.expires_at).toLocaleString()}
+              </div>
+            )}
           </div>
 
           {/* Form */}
@@ -238,7 +281,7 @@ const AdminOnboarding = () => {
             {/* Email (read-only) */}
             <div className="space-y-1.5">
               <Label className="text-xs text-white/40 flex items-center gap-1"><Lock className="h-3 w-3" /> Email Address</Label>
-              <Input value={invitation.email} disabled className="bg-white/[0.02] border-white/[0.06] text-white/40 h-10 cursor-not-allowed" />
+              <Input value={invitation?.email || ""} disabled className="bg-white/[0.02] border-white/[0.06] text-white/40 h-10 cursor-not-allowed" />
             </div>
 
             {/* Role (read-only) */}
