@@ -190,8 +190,8 @@ const CheckoutModal = ({ clientSecret, onClose }: CheckoutModalProps) => {
               </AnimatePresence>
 
               <div
-                className="flex-1 min-h-0 [&_iframe]:!h-full"
-                style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(255,255,255,0.08) transparent", display: "flex", flexDirection: "column" }}
+                className="flex-1 min-h-0 overflow-hidden"
+                style={{ display: "flex", flexDirection: "column" }}
                 ref={(el) => {
                   if (el) {
                     const observer = new MutationObserver(() => {
@@ -204,7 +204,10 @@ const CheckoutModal = ({ clientSecret, onClose }: CheckoutModalProps) => {
                   }
                 }}
               >
-                <div className="flex-1 min-h-0 [&>div]:h-full [&>div>div]:h-full [&_iframe]:!h-full">
+                <div
+                  className="[&>div]:h-full [&>div>div]:h-full [&_iframe]:!h-full"
+                  style={{ transform: "scale(0.88)", transformOrigin: "top center", width: "113.6%", marginLeft: "-6.8%", height: "113.6%" }}
+                >
                   <EmbeddedCheckoutProvider
                     stripe={stripePromise}
                     options={{
