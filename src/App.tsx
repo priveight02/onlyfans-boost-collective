@@ -43,7 +43,7 @@ const AppContent = () => {
         <Route path="/profile" element={<ProtectedRoute><UserProfile /></ProtectedRoute>} />
         <Route path="/crm" element={<ProtectedRoute><CRM /></ProtectedRoute>} />
         <Route path="/admin" element={<ProtectedRoute requireAdmin><Admin /></ProtectedRoute>} />
-        <Route path="/admin-onboarding/:token" element={<AdminOnboarding />} />
+        <Route path="/admin-onboarding/:token" element={<ProtectedRoute><AdminOnboarding /></ProtectedRoute>} />
         <Route path="/link/:slug" element={<BioLink />} />
         <Route path="/privacy" element={<PrivacyPolicy />} />
         <Route path="/terms" element={<TermsAndConditions />} />
