@@ -1589,7 +1589,7 @@ const SocialMediaHub = () => {
   };
 
   return (
-    <div className="dark space-y-4">
+    <div className="dark space-y-4" style={{ '--foreground': '210 40% 98%', '--muted-foreground': '210 20% 60%', '--muted': '220 50% 16%', '--background': '220 100% 10%', '--border': '220 40% 20%', '--card': '220 80% 12%', '--card-foreground': '210 40% 98%', '--popover': '220 80% 12%', '--popover-foreground': '210 40% 98%', '--input': '220 40% 20%', '--secondary': '220 60% 18%', '--secondary-foreground': '210 40% 98%', '--accent-foreground': '210 40% 98%', color: 'hsl(210, 40%, 98%)' } as React.CSSProperties}>
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

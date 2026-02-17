@@ -181,18 +181,24 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading, onNavigateTo
     try {
       const { data } = await supabase
         .from("social_connections")
-        .select("metadata")
+        .select("metadata, access_token")
         .eq("account_id", accountId)
         .eq("platform", "instagram")
         .eq("is_connected", true)
         .single();
       if (data?.metadata) {
         const meta = data.metadata as any;
-        setSessionId(meta.ig_session_id || "");
+        // Support both manual session cookie AND OAuth access token as session equivalent
+        const sessionValue = meta.ig_session_id || meta.ig_access_token || data.access_token || "";
+        setSessionId(sessionValue);
         setCsrfToken(meta.ig_csrf_token || "");
         setDsUserId(meta.ig_ds_user_id || "");
         setSessionSavedAt(meta.ig_session_saved_at || null);
-        setSessionStatus(meta.ig_session_id ? "valid" : "unknown");
+        setSessionStatus(sessionValue ? "valid" : "unknown");
+      } else if (data?.access_token) {
+        // Fallback: use the connection's access_token directly as session
+        setSessionId(data.access_token);
+        setSessionStatus("valid");
       }
     } catch { /* no connection */ }
   };
@@ -440,15 +446,21 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading, onNavigateTo
   };
 
   // Session check helper - uses parent session state if available, falls back to local
+  // Also recognizes OAuth access tokens as valid session equivalents
   const requireSession = (): boolean => {
     if (selectedPlatform !== "instagram") return true;
     const effectiveSessionId = parentSessionId || sessionId;
     const effectiveStatus = parentSessionStatus || sessionStatus;
     if (effectiveSessionId && effectiveStatus !== "expired") return true;
+    
+    // Check if there's a connected IG account with an access_token (OAuth login)
+    const igConn = connections.find((c: any) => c.platform === "instagram" && c.is_connected);
+    if (igConn?.access_token) return true;
+    
     // Navigate to connect tab with pulse animation
     if (onNavigateToSession) {
       onNavigateToSession();
-      toast.error("Session cookie required. Set your Instagram session cookie to continue.", { duration: 4000 });
+      toast.error("Instagram session required. Connect via Instagram Login or enter a session cookie.", { duration: 4000 });
     } else {
       setSessionRequiredDialog(true);
     }
