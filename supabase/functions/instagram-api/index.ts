@@ -1836,6 +1836,143 @@ Analyze every character in the name and username for any gender signal at all. L
         break;
       }
 
+      // ===== GET USER FEED (Private API — fetch any public user's media) =====
+      case "get_user_feed": {
+        const targetUserId = params?.user_id;
+        if (!targetUserId) throw new Error("user_id required");
+        const metadata = conn.metadata as any || {};
+        const sessionId = params?.session_id || metadata?.ig_session_id;
+        if (!sessionId) throw new Error("Instagram session cookie required for user feed");
+        const dsUserId = params?.ds_user_id || metadata?.ig_ds_user_id || conn.platform_user_id;
+        const csrfToken = params?.csrf_token || metadata?.ig_csrf_token;
+        const igAppId = "936619743392459";
+        const feedLimit = Math.min(params?.limit || 12, 50);
+
+        const feedHeaders: Record<string, string> = {
+          "User-Agent": "Instagram 275.0.0.27.98 Android (33/13; 420dpi; 1080x2400; samsung; SM-G991B; o1s; exynos2100; en_US; 458229258)",
+          "Cookie": `sessionid=${sessionId};${csrfToken ? ` csrftoken=${csrfToken};` : ""}${dsUserId ? ` ds_user_id=${dsUserId};` : ""}`,
+          "X-IG-App-ID": igAppId,
+        };
+
+        const posts: any[] = [];
+        try {
+          // Fetch user's media feed via private API
+          const feedUrl = `https://i.instagram.com/api/v1/feed/user/${targetUserId}/?count=${feedLimit}`;
+          const feedResp = await fetch(feedUrl, { headers: feedHeaders });
+          if (feedResp.ok) {
+            const feedData = await feedResp.json();
+            for (const item of (feedData?.items || [])) {
+              const imageVersions = item.image_versions2?.candidates || [];
+              const carouselMedia = item.carousel_media || [];
+              const mediaUrl = imageVersions[0]?.url || (carouselMedia[0]?.image_versions2?.candidates?.[0]?.url) || "";
+              const videoUrl = item.video_versions?.[0]?.url || "";
+              
+              posts.push({
+                id: String(item.pk || item.id),
+                caption: item.caption?.text || "",
+                media_url: videoUrl || mediaUrl,
+                thumbnail_url: mediaUrl,
+                media_type: item.media_type === 2 ? "VIDEO" : item.media_type === 8 ? "CAROUSEL_ALBUM" : "IMAGE",
+                like_count: item.like_count || 0,
+                comments_count: item.comment_count || 0,
+                permalink: `https://www.instagram.com/p/${item.code}/`,
+                timestamp: item.taken_at ? new Date(item.taken_at * 1000).toISOString() : null,
+                username: item.user?.username || "",
+              });
+            }
+          } else {
+            const errText = await feedResp.text();
+            console.log("Feed fetch failed:", feedResp.status, errText.slice(0, 200));
+          }
+        } catch (e: any) {
+          console.log("User feed error:", e.message);
+        }
+
+        result = { posts, count: posts.length };
+        break;
+      }
+
+      // ===== EXPLORE / DISCOVER FEED (Private API — trending content) =====
+      case "explore_feed": {
+        const metadata = conn.metadata as any || {};
+        const sessionId = params?.session_id || metadata?.ig_session_id;
+        if (!sessionId) throw new Error("Instagram session cookie required for explore feed");
+        const dsUserId = params?.ds_user_id || metadata?.ig_ds_user_id || conn.platform_user_id;
+        const csrfToken = params?.csrf_token || metadata?.ig_csrf_token;
+        const igAppId = "936619743392459";
+
+        const exploreHeaders: Record<string, string> = {
+          "User-Agent": "Instagram 275.0.0.27.98 Android (33/13; 420dpi; 1080x2400; samsung; SM-G991B; o1s; exynos2100; en_US; 458229258)",
+          "Cookie": `sessionid=${sessionId};${csrfToken ? ` csrftoken=${csrfToken};` : ""}${dsUserId ? ` ds_user_id=${dsUserId};` : ""}`,
+          "X-IG-App-ID": igAppId,
+        };
+
+        const explorePosts: any[] = [];
+        try {
+          const exploreUrl = `https://i.instagram.com/api/v1/discover/topical_explore/?is_prefetch=false&omit_cover_media=false&use_sectional_payload=true&timezone_offset=0&session_id=${Date.now()}&include_fixed_destinations=true`;
+          const exploreResp = await fetch(exploreUrl, { headers: exploreHeaders });
+          if (exploreResp.ok) {
+            const exploreData = await exploreResp.json();
+            // Parse sectional items
+            const sections = exploreData?.sectional_items || [];
+            for (const section of sections) {
+              const layoutContent = section?.layout_content?.medias || section?.layout_content?.one_by_two_item?.clips?.items || [];
+              for (const item of layoutContent) {
+                const media = item?.media || item;
+                if (!media?.pk) continue;
+                const imageVersions = media.image_versions2?.candidates || [];
+                const videoUrl = media.video_versions?.[0]?.url || "";
+                const mediaUrl = imageVersions[0]?.url || "";
+                
+                explorePosts.push({
+                  id: String(media.pk || media.id),
+                  caption: media.caption?.text || "",
+                  media_url: videoUrl || mediaUrl,
+                  thumbnail_url: mediaUrl,
+                  media_type: media.media_type === 2 ? "VIDEO" : media.media_type === 8 ? "CAROUSEL_ALBUM" : "IMAGE",
+                  like_count: media.like_count || 0,
+                  comments_count: media.comment_count || 0,
+                  permalink: media.code ? `https://www.instagram.com/p/${media.code}/` : "",
+                  timestamp: media.taken_at ? new Date(media.taken_at * 1000).toISOString() : null,
+                  username: media.user?.username || "",
+                  profile_pic_url: media.user?.profile_pic_url || "",
+                });
+              }
+            }
+            // Also parse fill items (grid items)
+            const fillItems = exploreData?.fill_items || [];
+            for (const media of fillItems) {
+              if (!media?.pk || explorePosts.some(p => p.id === String(media.pk))) continue;
+              const imageVersions = media.image_versions2?.candidates || [];
+              const videoUrl = media.video_versions?.[0]?.url || "";
+              const mediaUrl = imageVersions[0]?.url || "";
+              
+              explorePosts.push({
+                id: String(media.pk),
+                caption: media.caption?.text || "",
+                media_url: videoUrl || mediaUrl,
+                thumbnail_url: mediaUrl,
+                media_type: media.media_type === 2 ? "VIDEO" : "IMAGE",
+                like_count: media.like_count || 0,
+                comments_count: media.comment_count || 0,
+                permalink: media.code ? `https://www.instagram.com/p/${media.code}/` : "",
+                timestamp: media.taken_at ? new Date(media.taken_at * 1000).toISOString() : null,
+                username: media.user?.username || "",
+                profile_pic_url: media.user?.profile_pic_url || "",
+              });
+            }
+          } else {
+            const errText = await exploreResp.text();
+            console.log("Explore feed failed:", exploreResp.status, errText.slice(0, 200));
+          }
+        } catch (e: any) {
+          console.log("Explore feed error:", e.message);
+        }
+
+        result = { posts: explorePosts.slice(0, params?.limit || 30), count: explorePosts.length };
+        break;
+      }
+
       // ===== FETCH ACTUAL FOLLOWERS (Private API — UPGRADED CHUNKED with skip-already-scraped) =====
       case "scrape_followers": {
         const metadata = conn.metadata as any || {};
