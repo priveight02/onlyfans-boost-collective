@@ -1271,89 +1271,136 @@ const SocialMediaHub = () => {
         
         if (!access_token && !session_id) return;
         
-        if (selectedAccount) {
-          try {
-            const tokenExpiresAt = expires_in 
-              ? new Date(Date.now() + expires_in * 1000).toISOString() 
-              : null;
-            
-            // Get existing metadata to preserve any previously saved data
-            const { data: existingConn } = await supabase
-              .from("social_connections")
-              .select("metadata")
-              .eq("account_id", selectedAccount)
-              .eq("platform", "instagram")
-              .single();
-            
-            const existingMeta = (existingConn?.metadata as any) || {};
-            const savedAt = new Date().toISOString();
-            
-            const updatedMeta = {
-              ...existingMeta,
-              // OAuth data
-              ...(access_token && {
-                ig_access_token: access_token,
-                ig_account_type: payload.account_type,
-                ig_name: name,
-                ig_profile_pic: profile_picture_url,
-                ig_token_expires_at: tokenExpiresAt,
-                ig_oauth_connected_at: savedAt,
-              }),
-              // Session data (for private API features)
-              ...(session_id && {
-                ig_session_id: session_id,
-                ig_session_saved_at: savedAt,
-              }),
-              ...(csrf_token && { ig_csrf_token: csrf_token }),
-              // ds_user_id from either source
-              ig_ds_user_id: ds_user_id || String(user_id) || existingMeta.ig_ds_user_id,
-            };
-
-            await supabase.from("social_connections").upsert({
-              account_id: selectedAccount,
+        try {
+          const tokenExpiresAt = expires_in 
+            ? new Date(Date.now() + expires_in * 1000).toISOString() 
+            : null;
+          const savedAt = new Date().toISOString();
+          
+          // Auto-create managed account if none selected (same as main connect form)
+          let accountId = selectedAccount;
+          if (!accountId) {
+            const { data: newAccount, error: createErr } = await supabase.from("managed_accounts").insert({
+              username: username || "instagram_user",
+              display_name: name || username || "Instagram User",
               platform: "instagram",
-              access_token: access_token || existingMeta.ig_access_token || null,
-              platform_user_id: String(user_id || ds_user_id),
-              platform_username: username,
-              is_connected: true,
-              connected_at: savedAt,
-              token_expires_at: tokenExpiresAt,
-              scopes: ["instagram_business_basic", "instagram_business_content_publish", "instagram_business_manage_comments", "instagram_business_manage_messages", "instagram_business_manage_insights"],
-              metadata: updatedMeta,
-            }, { onConflict: "account_id,platform" });
-            
-            // Update local state for session fields
-            if (session_id) {
-              setIgSessionId(session_id);
-              setIgSessionSavedAt(savedAt);
-              setIgSessionStatus("valid");
-            }
-            if (csrf_token) setIgCsrfToken(csrf_token);
-            if (ds_user_id || user_id) setIgDsUserId(ds_user_id || String(user_id));
-            
-            const hasSession = !!session_id;
-            
-            // If OAuth succeeded but no session_id was captured, mark as oauth-only
-            // Do NOT store the access_token as ig_session_id — it's not a session cookie
-            // and will fail with login_required on private API endpoints
-            if (!hasSession && access_token) {
-              const oauthOnlyMeta = {
-                ...updatedMeta,
-                ig_session_source: "oauth_token",
-                ig_oauth_connected_at: new Date().toISOString(),
-              };
-              await supabase.from("social_connections").update({ metadata: oauthOnlyMeta }).eq("account_id", selectedAccount).eq("platform", "instagram").eq("is_connected", true);
-              // Don't set igSessionId to the OAuth token — it won't work as a cookie
-              if (ds_user_id || user_id) setIgDsUserId(ds_user_id || String(user_id));
-            }
-            
-            toast.success(`Instagram connected as @${username} — logged in and synced across all features.`);
-            
-            const { data: refreshed } = await supabase.from("social_connections").select("*").eq("account_id", selectedAccount);
-            if (refreshed) setConnections(refreshed);
-          } catch (e: any) {
-            toast.error("Failed to save connection: " + e.message);
+              status: "active",
+              avatar_url: profile_picture_url || null,
+              subscriber_count: 0,
+              content_count: 0,
+            }).select("id").single();
+            if (createErr || !newAccount) { toast.error(createErr?.message || "Failed to create account"); return; }
+            accountId = newAccount.id;
+            setSelectedAccount(accountId);
+            toast.success(`Account @${username} created`);
           }
+          
+          // Get existing metadata to preserve any previously saved data
+          const { data: existingConn } = await supabase
+            .from("social_connections")
+            .select("metadata")
+            .eq("account_id", accountId)
+            .eq("platform", "instagram")
+            .maybeSingle();
+          
+          const existingMeta = (existingConn?.metadata as any) || {};
+          
+          const updatedMeta = {
+            ...existingMeta,
+            profile_picture_url: profile_picture_url || existingMeta.profile_picture_url,
+            name: name || existingMeta.name,
+            connected_via: "ig_oauth_popup",
+            // OAuth data
+            ...(access_token && {
+              ig_access_token: access_token,
+              ig_account_type: payload.account_type,
+              ig_name: name,
+              ig_profile_pic: profile_picture_url,
+              ig_token_expires_at: tokenExpiresAt,
+              ig_oauth_connected_at: savedAt,
+            }),
+            // Session data (for private API features)
+            ...(session_id && {
+              ig_session_id: session_id,
+              ig_session_saved_at: savedAt,
+            }),
+            ...(csrf_token && { ig_csrf_token: csrf_token }),
+            ig_ds_user_id: ds_user_id || String(user_id) || existingMeta.ig_ds_user_id,
+          };
+
+          // Upsert social connection (same as main connect form)
+          await supabase.from("social_connections").upsert({
+            account_id: accountId,
+            platform: "instagram",
+            access_token: access_token || existingMeta.ig_access_token || null,
+            platform_user_id: String(user_id || ds_user_id),
+            platform_username: username,
+            is_connected: true,
+            connected_at: savedAt,
+            token_expires_at: tokenExpiresAt,
+            scopes: ["instagram_business_basic", "instagram_business_content_publish", "instagram_business_manage_comments", "instagram_business_manage_messages", "instagram_business_manage_insights"],
+            metadata: updatedMeta,
+          }, { onConflict: "account_id,platform" });
+          
+          // Sync managed account with profile data (same as main connect form)
+          await supabase.from("managed_accounts").update({
+            avatar_url: profile_picture_url || undefined,
+            display_name: name || username,
+            social_links: { instagram: `https://instagram.com/${username}`, ig_user_id: String(user_id || ds_user_id) },
+            last_activity_at: savedAt,
+          }).eq("id", accountId);
+          
+          // Update local state for session fields
+          if (session_id) {
+            setIgSessionId(session_id);
+            setIgSessionSavedAt(savedAt);
+            setIgSessionStatus("valid");
+          }
+          if (csrf_token) setIgCsrfToken(csrf_token);
+          if (ds_user_id || user_id) setIgDsUserId(ds_user_id || String(user_id));
+          
+          // If OAuth succeeded but no session_id was captured, mark as oauth-only
+          if (!session_id && access_token) {
+            const oauthOnlyMeta = {
+              ...updatedMeta,
+              ig_session_source: "oauth_token",
+            };
+            await supabase.from("social_connections").update({ metadata: oauthOnlyMeta }).eq("account_id", accountId).eq("platform", "instagram").eq("is_connected", true);
+          }
+          
+          // Set profile state for dashboard/username pill
+          setIgProfile({
+            profile_picture_url,
+            name: name || username,
+            username,
+            followers_count: 0,
+            media_count: 0,
+          });
+          
+          // Auto-fetch full profile from Graph API to get follower counts etc.
+          try {
+            const profileData = await callApi("instagram-api", { action: "get_profile" }, accountId);
+            if (profileData) {
+              setIgProfile(profileData);
+              await supabase.from("social_connections").update({
+                metadata: { ...updatedMeta, profile_picture_url: profileData.profile_picture_url, name: profileData.name, followers_count: profileData.followers_count, media_count: profileData.media_count },
+              }).eq("account_id", accountId).eq("platform", "instagram");
+              await supabase.from("managed_accounts").update({
+                avatar_url: profileData.profile_picture_url || profile_picture_url || undefined,
+                display_name: profileData.name || name || username,
+                subscriber_count: profileData.followers_count || 0,
+                content_count: profileData.media_count || 0,
+              }).eq("id", accountId);
+            }
+          } catch (e) { console.log("Auto profile sync after OAuth:", e); }
+          
+          // Reload accounts list and data to show in UI
+          await loadAccounts();
+          await loadData(accountId);
+          
+          toast.success(`✅ @${username} connected via Instagram Login — synced across all features.`);
+        } catch (e: any) {
+          toast.error("Failed to save connection: " + e.message);
         }
       }
     };
@@ -2394,8 +2441,40 @@ const SocialMediaHub = () => {
                 </CardContent>
               </Card>
 
+              {/* Instagram One-Click: Uses direct Instagram OAuth popup (ig-login) — same as Login button */}
+              <Card className="border-pink-500/20">
+                <CardContent className="p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                      <Instagram className="h-4 w-4 text-pink-400" />
+                      Instagram — One-Click Connect
+                    </h4>
+                    {igConnected && <Badge className="bg-green-500/15 text-green-400 text-[10px]">● Connected</Badge>}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">
+                    Sign in directly with your Instagram account. Creates your account, syncs profile picture, username, and enables Graph API features (posts, comments, insights, publishing). No app credentials needed if backend is configured.
+                  </p>
+                  {!cachedIgAppId && (
+                    <Input value={oauthAppId} onChange={e => setOauthAppId(e.target.value)} placeholder="Meta App ID (optional — auto-detected from backend)" className="text-sm" />
+                  )}
+                  <Button
+                    onClick={openIgLoginPopup}
+                    disabled={igLoginPopupLoading}
+                    className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white"
+                  >
+                    {igLoginPopupLoading ? (
+                      <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Connecting...</>
+                    ) : (
+                      <><Instagram className="h-4 w-4 mr-2" />Connect Instagram</>
+                    )}
+                  </Button>
+                  {igLoginPopupLoading && (
+                    <Badge className="bg-yellow-500/15 text-yellow-400 text-xs animate-pulse w-full justify-center">Processing...</Badge>
+                  )}
+                </CardContent>
+              </Card>
+
               {[
-                { id: "instagram", name: "Instagram", icon: Instagram, color: "text-pink-400", gradient: "from-purple-600 to-pink-600", connected: igConnected, desc: "Meta OAuth popup — profile synced automatically.", fields: [{ val: oauthAppId, set: setOauthAppId, placeholder: "Meta App ID (developers.facebook.com)", type: "text" }], action: automatedInstagramConnect },
                 { id: "facebook", name: "Facebook", icon: Globe, color: "text-blue-500", gradient: "from-blue-600 to-indigo-600", connected: facebookConnected, desc: "Meta OAuth popup — pages, groups, and profile synced.", fields: [{ val: fbAppId, set: setFbAppId, placeholder: "Facebook App ID (developers.facebook.com)", type: "text" }], action: automatedFacebookConnect },
                 { id: "tiktok", name: "TikTok", icon: Music2, color: "text-cyan-400", gradient: "from-cyan-600 to-teal-600", connected: ttConnected, desc: "TikTok Login Kit — auth code exchanged for token automatically.", fields: [{ val: ttClientKey, set: setTtClientKey, placeholder: "TikTok Client Key", type: "text" }, { val: ttClientSecret, set: setTtClientSecret, placeholder: "TikTok Client Secret", type: "password" }], action: automatedTikTokConnect },
                 { id: "twitter", name: "X / Twitter", icon: Twitter, color: "text-blue-400", gradient: "from-blue-600 to-sky-600", connected: xConnected, desc: "OAuth2 PKCE — token captured and profile synced.", fields: [{ val: xClientId, set: setXClientId, placeholder: "X Client ID (developer.x.com)", type: "text" }, { val: xClientSecret, set: setXClientSecret, placeholder: "X Client Secret", type: "password" }], action: automatedTwitterConnect },
