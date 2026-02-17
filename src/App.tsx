@@ -2,13 +2,14 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
-import { AuthProvider } from "@/hooks/useAuth";
+import { BrowserRouter, Routes, Route, useLocation, Navigate } from "react-router-dom";
+import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { WalletProvider } from "@/hooks/useWallet";
 import Navigation from "./components/Navigation";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { useVisitorTracking } from "@/hooks/useVisitorTracking";
 import AdminNotificationPopup from "@/components/AdminNotificationPopup";
+import { useSiteSettings } from "@/hooks/useSiteSettings";
 import Index from "./pages/Index";
 import About from "./pages/About";
 import Services from "./pages/Services";
@@ -25,8 +26,34 @@ import SocialProfile from "./pages/SocialProfile";
 import Pricing from "./pages/Pricing";
 import AdminOnboarding from "./pages/AdminOnboarding";
 import IGLoginPopup from "./pages/IGLoginPopup";
+import Maintenance from "./pages/Maintenance";
+
+const OWNER_EMAIL = "liam@ozcagency.com";
 
 const queryClient = new QueryClient();
+
+const MaintenanceGuard = ({ children }: { children: React.ReactNode }) => {
+  const { settings, loading: settingsLoading } = useSiteSettings();
+  const { user, loading: authLoading } = useAuth();
+  const location = useLocation();
+
+  // Don't block while loading
+  if (settingsLoading || authLoading) return <>{children}</>;
+
+  // Owner is immune
+  const isOwner = user?.email === OWNER_EMAIL;
+  if (isOwner) return <>{children}</>;
+
+  // Allow maintenance page itself and ig-login popup
+  if (location.pathname === "/maintenance" || location.pathname === "/ig-login") return <>{children}</>;
+
+  // Redirect to maintenance if active
+  if (settings.maintenance_mode) {
+    return <Navigate to="/maintenance" replace />;
+  }
+
+  return <>{children}</>;
+};
 
 const AppContent = () => {
   useVisitorTracking();
@@ -34,7 +61,7 @@ const AppContent = () => {
   const isPopupRoute = location.pathname === "/ig-login";
 
   return (
-    <>
+    <MaintenanceGuard>
       {!isPopupRoute && <Navigation />}
       {!isPopupRoute && <AdminNotificationPopup />}
       <Routes>
@@ -53,8 +80,9 @@ const AppContent = () => {
         <Route path="/terms" element={<TermsAndConditions />} />
         <Route path="/social/u/:username" element={<SocialProfile />} />
         <Route path="/ig-login" element={<IGLoginPopup />} />
+        <Route path="/maintenance" element={<Maintenance />} />
       </Routes>
-    </>
+    </MaintenanceGuard>
   );
 };
 

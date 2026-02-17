@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from "recharts";
-import { TrendingUp, DollarSign, Users, BarChart3, Crown, AlertTriangle, ArrowUpRight, ArrowDownRight, Activity } from "lucide-react";
+import { TrendingUp, DollarSign, Users, BarChart3, Crown, AlertTriangle, ArrowUpRight, ArrowDownRight, Activity, ShieldOff, UserX, Wrench, Play, Pause } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { cachedFetch } from "@/lib/supabaseCache";
+import { Button } from "@/components/ui/button";
+import { useSiteSettings } from "@/hooks/useSiteSettings";
+import { toast } from "sonner";
 
 const COLORS = ["hsl(200,100%,50%)", "hsl(260,100%,65%)", "hsl(340,80%,55%)", "hsl(160,70%,45%)", "hsl(30,90%,55%)"];
 
@@ -79,8 +82,97 @@ const EnhancedDashboard = () => {
     { title: "Team Members", value: activeTeam.toString(), icon: Users, change: `${teamMembers.length} total`, positive: true },
   ];
 
+  const { settings, updateSetting } = useSiteSettings();
+  const [toggling, setToggling] = useState<string | null>(null);
+
+  const handleToggle = async (key: "registrations_paused" | "logins_paused" | "maintenance_mode") => {
+    setToggling(key);
+    try {
+      const newValue = !settings[key];
+      await updateSetting(key, newValue);
+      const labels: Record<string, string> = {
+        registrations_paused: newValue ? "Registrations paused" : "Registrations resumed",
+        logins_paused: newValue ? "Logins paused" : "Logins resumed",
+        maintenance_mode: newValue ? "Maintenance mode enabled" : "Maintenance mode disabled",
+      };
+      toast.success(labels[key]);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update setting");
+    } finally {
+      setToggling(null);
+    }
+  };
+
   return (
     <div className="space-y-6">
+      {/* Site Controls */}
+      <div className="grid gap-3 grid-cols-1 sm:grid-cols-3">
+        <Button
+          onClick={() => handleToggle("registrations_paused")}
+          disabled={toggling === "registrations_paused"}
+          className={`h-16 text-base font-bold gap-3 rounded-xl border-2 transition-all ${
+            settings.registrations_paused
+              ? "bg-red-500/20 border-red-500/40 text-red-300 hover:bg-red-500/30"
+              : "bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20"
+          }`}
+          variant="ghost"
+        >
+          {settings.registrations_paused ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
+          <UserX className="h-5 w-5" />
+          {settings.registrations_paused ? "Resume Registrations" : "Pause Registrations"}
+        </Button>
+
+        <Button
+          onClick={() => handleToggle("logins_paused")}
+          disabled={toggling === "logins_paused"}
+          className={`h-16 text-base font-bold gap-3 rounded-xl border-2 transition-all ${
+            settings.logins_paused
+              ? "bg-red-500/20 border-red-500/40 text-red-300 hover:bg-red-500/30"
+              : "bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20"
+          }`}
+          variant="ghost"
+        >
+          {settings.logins_paused ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
+          <ShieldOff className="h-5 w-5" />
+          {settings.logins_paused ? "Resume Logins" : "Pause Logins"}
+        </Button>
+
+        <Button
+          onClick={() => handleToggle("maintenance_mode")}
+          disabled={toggling === "maintenance_mode"}
+          className={`h-16 text-base font-bold gap-3 rounded-xl border-2 transition-all ${
+            settings.maintenance_mode
+              ? "bg-amber-500/20 border-amber-500/40 text-amber-300 hover:bg-amber-500/30"
+              : "bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20"
+          }`}
+          variant="ghost"
+        >
+          <Wrench className="h-5 w-5" />
+          {settings.maintenance_mode ? "Disable Maintenance" : "Enable Maintenance"}
+        </Button>
+      </div>
+
+      {/* Status indicators */}
+      {(settings.registrations_paused || settings.logins_paused || settings.maintenance_mode) && (
+        <div className="flex flex-wrap gap-2">
+          {settings.maintenance_mode && (
+            <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/30 gap-1.5 py-1">
+              <Wrench className="h-3 w-3" /> Maintenance Mode Active — All logins & registrations disabled
+            </Badge>
+          )}
+          {settings.registrations_paused && !settings.maintenance_mode && (
+            <Badge className="bg-red-500/20 text-red-300 border-red-500/30 gap-1.5 py-1">
+              <UserX className="h-3 w-3" /> Registrations Paused
+            </Badge>
+          )}
+          {settings.logins_paused && !settings.maintenance_mode && (
+            <Badge className="bg-red-500/20 text-red-300 border-red-500/30 gap-1.5 py-1">
+              <ShieldOff className="h-3 w-3" /> Logins Paused
+            </Badge>
+          )}
+        </div>
+      )}
+
       {/* KPI Grid */}
       <div className="grid gap-3 grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         {stats.map((stat) => (
