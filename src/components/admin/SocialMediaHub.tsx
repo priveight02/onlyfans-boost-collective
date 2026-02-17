@@ -1254,7 +1254,7 @@ const SocialMediaHub = () => {
     const appId = oauthAppId || cachedIgAppId;
     if (!appId) { toast.error("Enter your Meta App ID in the One-Click Connect section, or configure INSTAGRAM_APP_ID in backend secrets"); return; }
     setIgLoginPopupLoading(true);
-    const publishedOrigin = "https://onlyfans-boost-collective.lovable.app";
+    const publishedOrigin = "https://ozcagency.com";
     const redirectUri = `${publishedOrigin}/ig-login`;
     // Use Facebook Login dialog (NOT deprecated api.instagram.com) for Instagram Graph API permissions
     const scope = "instagram_basic,instagram_content_publish,instagram_manage_comments,instagram_manage_insights,pages_show_list,pages_read_engagement";
