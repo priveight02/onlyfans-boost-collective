@@ -1717,6 +1717,9 @@ const SocialMediaHub = () => {
                 accountId={selectedAccount}
                 autoRespondActive={autoRespondActive}
                 onToggleAutoRespond={toggleAutoRespond}
+                onNavigateToSession={navigateToSessionCard}
+                igSessionId={igSessionId}
+                igSessionStatus={igSessionStatus}
               />
             </CardContent>
           </Card>
