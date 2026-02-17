@@ -44,33 +44,15 @@ const Maintenance = () => {
           We're making some improvements. Everything will be back to normal shortly.
         </p>
 
-        <div className="flex items-center justify-center gap-2 mb-8">
+        <div className="flex items-center justify-center gap-2 mb-2">
           <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
           <span className="text-sm text-white/30 uppercase tracking-widest">Maintenance in progress</span>
         </div>
 
-        {/* Countdown */}
         {timeLeft && !expired && (
-          <div className="mb-10">
-            <p className="text-xs text-white/25 uppercase tracking-widest mb-4">Estimated time remaining</p>
-            <div className="flex items-center justify-center gap-3">
-              {[
-                { val: timeLeft.h, label: "hours" },
-                { val: timeLeft.m, label: "min" },
-                { val: timeLeft.s, label: "sec" },
-              ].map((unit, i) => (
-                <div key={unit.label} className="flex items-center gap-3">
-                  <div className="text-center bg-white/[0.04] backdrop-blur-sm border border-white/[0.08] rounded-xl px-4 py-3 min-w-[72px] md:min-w-[85px]">
-                    <span className="text-3xl md:text-4xl font-bold text-white font-mono tabular-nums">
-                      {String(unit.val).padStart(2, "0")}
-                    </span>
-                    <p className="text-[10px] text-white/25 uppercase tracking-wider mt-1">{unit.label}</p>
-                  </div>
-                  {i < 2 && <span className="text-xl text-white/15 font-light">:</span>}
-                </div>
-              ))}
-            </div>
-          </div>
+          <p className="text-sm text-white/25 font-mono tabular-nums mb-8">
+            {String(timeLeft.h).padStart(2, "0")}:{String(timeLeft.m).padStart(2, "0")}:{String(timeLeft.s).padStart(2, "0")}
+          </p>
         )}
 
         {expired && (
