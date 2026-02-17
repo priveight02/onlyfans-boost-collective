@@ -307,36 +307,46 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading }: CommentsHu
     setDiscoverLoading(true);
     try {
       if (selectedPlatform === "instagram") {
-        // Search trending hashtags to find OTHER people's posts (not our own)
-        const hashtagResults: DiscoverPost[] = [];
+        const discoverResults: DiscoverPost[] = [];
         
-        // Search multiple trending hashtags to populate discover feed
-        const tagsToSearch = [activeDiscoverTag, "trending", "viral"].slice(0, 2);
-        for (const tag of tagsToSearch) {
+        // Use business_discovery to browse popular creators' recent media
+        const creatorsByTag: Record<string, string[]> = {
+          explore: ["instagram", "natgeo", "nike", "therock", "selenagomez"],
+          trending: ["kyliejenner", "cristiano", "arianagrande", "beyonce", "justinbieber"],
+          viral: ["khaby.lame", "charlidamelio", "addisonraee", "zachking", "mrbeast"],
+          foryou: ["kendalljenner", "leomessi", "taylorswift", "kimkardashian", "badgalriri"],
+          fyp: ["champagnepapi", "vindiesel", "kevinhart4real", "nickiminaj", "cfrfrfr"],
+        };
+        
+        const usernames = creatorsByTag[activeDiscoverTag] || creatorsByTag.explore;
+        
+        for (const username of usernames.slice(0, 3)) {
           try {
-            const d = await callApi("instagram-api", { action: "search_hashtag", params: { hashtag: tag, limit: 25 } });
-            if (d?.data) {
-              for (const m of d.data) {
-                if (!hashtagResults.some(p => p.id === m.id)) {
-                  hashtagResults.push({
+            const d = await callApi("instagram-api", { action: "discover_user", params: { username, media_limit: 8 } });
+            const bd = d?.business_discovery || d?.data?.business_discovery;
+            if (bd?.media?.data) {
+              for (const m of bd.media.data) {
+                if (!discoverResults.some(p => p.id === m.id)) {
+                  discoverResults.push({
                     id: m.id, caption: m.caption, media_url: m.media_url || m.thumbnail_url,
-                    media_type: m.media_type, username: m.username || m.owner?.username || m.user?.username || "creator",
+                    media_type: m.media_type, username: bd.username || username,
                     like_count: m.like_count, comments_count: m.comments_count,
                     permalink: m.permalink, selected: false,
                   });
                 }
               }
             }
-          } catch { /* continue */ }
+          } catch { /* continue to next creator */ }
         }
         
-        // Also try tagged media as supplementary discover content
+        // Also try tagged media as supplementary
         try {
           const taggedData = await callApi("instagram-api", { action: "get_tagged_media", params: { limit: 25 } });
-          if (taggedData?.data) {
-            for (const m of taggedData.data) {
-              if (!hashtagResults.some(p => p.id === m.id)) {
-                hashtagResults.push({
+          const taggedArr = taggedData?.data?.data || taggedData?.data || [];
+          if (Array.isArray(taggedArr)) {
+            for (const m of taggedArr) {
+              if (!discoverResults.some(p => p.id === m.id)) {
+                discoverResults.push({
                   id: m.id, caption: m.caption, media_url: m.media_url || m.thumbnail_url,
                   media_type: m.media_type, username: m.username || "tagged",
                   like_count: m.like_count, comments_count: m.comments_count,
@@ -347,11 +357,10 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading }: CommentsHu
           }
         } catch { /* ok */ }
 
-        setDiscoverPosts(hashtagResults);
-        if (hashtagResults.length > 0) toast.success(`Discovered ${hashtagResults.length} posts`);
-        else toast.info("No discover posts found. Try a different hashtag.");
+        setDiscoverPosts(discoverResults);
+        if (discoverResults.length > 0) toast.success(`Discovered ${discoverResults.length} posts`);
+        else toast.info("No discover posts found. Your account may need Business/Creator status for discovery.");
       } else if (selectedPlatform === "tiktok") {
-        // Use search_videos for trending content
         try {
           const d = await callApi("tiktok-api", { action: "search_videos", params: { keyword: activeDiscoverTag, limit: 30 } });
           if (d?.data?.videos) {
@@ -450,20 +459,53 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading }: CommentsHu
     setSearchLoading(true);
     try {
       if (selectedPlatform === "instagram") {
-        const d = await callApi("instagram-api", { action: "search_hashtag", params: { hashtag: discoverSearch.replace("#", ""), limit: 30 } });
-        if (d?.data) {
-          const results: DiscoverPost[] = d.data.map((m: any) => ({
-            id: m.id, caption: m.caption, media_url: m.media_url || m.thumbnail_url,
-            media_type: m.media_type, username: m.username || m.owner?.username || "unknown",
-            like_count: m.like_count, comments_count: m.comments_count,
-            permalink: m.permalink, selected: false,
-          }));
-          setSearchResults(results);
-          toast.success(`Found ${results.length} posts for "${discoverSearch}"`);
-        } else {
-          setSearchResults([]);
-          toast.info("No posts found");
+        // Use business_discovery to search by username keyword
+        const searchTerm = discoverSearch.replace("#", "").replace("@", "").trim();
+        const results: DiscoverPost[] = [];
+        
+        // Try discovering the user directly as a username
+        try {
+          const d = await callApi("instagram-api", { action: "discover_user", params: { username: searchTerm, media_limit: 20 } });
+          const bd = d?.business_discovery || d?.data?.business_discovery;
+          if (bd?.media?.data) {
+            for (const m of bd.media.data) {
+              results.push({
+                id: m.id, caption: m.caption, media_url: m.media_url || m.thumbnail_url,
+                media_type: m.media_type, username: bd.username || searchTerm,
+                like_count: m.like_count, comments_count: m.comments_count,
+                permalink: m.permalink, selected: false,
+              });
+            }
+          }
+        } catch { /* not a valid username, try search */ }
+        
+        // Also search users by keyword
+        if (results.length === 0) {
+          try {
+            const s = await callApi("instagram-api", { action: "search_users", params: { query: searchTerm, limit: 5 } });
+            const users = s?.data?.users || s?.users || [];
+            for (const u of (Array.isArray(users) ? users.slice(0, 3) : [])) {
+              try {
+                const ud = await callApi("instagram-api", { action: "discover_user", params: { username: u.username, media_limit: 8 } });
+                const ubd = ud?.business_discovery || ud?.data?.business_discovery;
+                if (ubd?.media?.data) {
+                  for (const m of ubd.media.data) {
+                    results.push({
+                      id: m.id, caption: m.caption, media_url: m.media_url || m.thumbnail_url,
+                      media_type: m.media_type, username: ubd.username || u.username,
+                      like_count: m.like_count, comments_count: m.comments_count,
+                      permalink: m.permalink, selected: false,
+                    });
+                  }
+                }
+              } catch { /* skip */ }
+            }
+          } catch { /* search_users not available */ }
         }
+        
+        setSearchResults(results);
+        if (results.length > 0) toast.success(`Found ${results.length} posts for "${discoverSearch}"`);
+        else toast.info("No posts found. Try searching an exact Instagram username.");
       } else if (selectedPlatform === "tiktok") {
         const d = await callApi("tiktok-api", { action: "search_videos", params: { keyword: discoverSearch, limit: 30 } });
         if (d?.data?.videos) {
