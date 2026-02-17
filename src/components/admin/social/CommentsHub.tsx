@@ -443,20 +443,25 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading, onNavigateTo
     setAiSummaryLoading(false);
   };
 
-  // Session check helper - requires actual session cookie for private API features
-  // OAuth access tokens are NOT valid for private API (discover, mass comment, like, follow)
+  // Session check helper - allows both session cookie AND OAuth token for private API features
+  // The backend now supports using OAuth tokens as a private API auth alternative
   const requireSession = (): boolean => {
     if (selectedPlatform !== "instagram") return true;
     const effectiveSessionId = parentSessionId || sessionId;
     const effectiveStatus = parentSessionStatus || sessionStatus;
-    // Check it's a real session cookie, not an OAuth token
+    
+    // Allow real session cookies
     const isOAuthToken = effectiveSessionId && (effectiveSessionId.startsWith("IGQV") || effectiveSessionId.startsWith("IGQ"));
     if (effectiveSessionId && !isOAuthToken && effectiveStatus !== "expired") return true;
     
-    // Navigate to connect tab with pulse animation
+    // Also allow if user has an active OAuth connection (token-based alternative)
+    const igConnection = connections.find((c: any) => c.platform === "instagram" && c.is_connected);
+    if (igConnection?.access_token) return true;
+    
+    // No auth available - redirect to connect
     if (onNavigateToSession) {
       onNavigateToSession();
-      toast.error("Instagram session cookie required. Paste your sessionid from browser DevTools → Cookies.", { duration: 4000 });
+      toast.error("Instagram login or session cookie required. Login via Instagram or paste your sessionid.", { duration: 4000 });
     } else {
       setSessionRequiredDialog(true);
     }

@@ -168,6 +168,81 @@ async function getConnection(supabase: any, accountId: string) {
   return data;
 }
 
+// ===== TOKEN-BASED PRIVATE API ALTERNATIVE =====
+// When session cookie is missing, use OAuth access_token with Instagram's private API
+// This allows users who logged in via Instagram OAuth to perform private API actions
+// without needing to manually paste session cookies
+function getPrivateApiHeaders(conn: any, params?: any): { headers: Record<string, string>; authMethod: string } | null {
+  const metadata = conn.metadata as any || {};
+  const sessionId = params?.session_id || metadata?.ig_session_id;
+  const dsUserId = params?.ds_user_id || metadata?.ig_ds_user_id || conn.platform_user_id;
+  const csrfToken = params?.csrf_token || metadata?.ig_csrf_token;
+  const igAppId = "936619743392459";
+  const userAgent = "Instagram 275.0.0.27.98 Android (33/13; 420dpi; 1080x2400; samsung; SM-G991B; o1s; exynos2100; en_US; 458229258)";
+
+  // Check if sessionId is an actual cookie (not an OAuth token)
+  const isOAuthToken = sessionId && (sessionId.startsWith("IGQV") || sessionId.startsWith("IGQ"));
+  const hasRealSession = sessionId && !isOAuthToken;
+
+  if (hasRealSession) {
+    // Priority 1: Real session cookie
+    const headers: Record<string, string> = {
+      "User-Agent": userAgent,
+      "Cookie": `sessionid=${sessionId};${csrfToken ? ` csrftoken=${csrfToken};` : ""}${dsUserId ? ` ds_user_id=${dsUserId};` : ""}`,
+      "X-IG-App-ID": igAppId,
+    };
+    if (csrfToken) headers["X-CSRFToken"] = csrfToken;
+    return { headers, authMethod: "session_cookie" };
+  }
+
+  // Priority 2: OAuth access token as private API auth alternative
+  // Instagram's private API can accept the access token via Authorization header
+  // or as a cookie-like parameter for certain endpoints
+  const oauthToken = conn.access_token;
+  if (oauthToken) {
+    const headers: Record<string, string> = {
+      "User-Agent": userAgent,
+      "Authorization": `Bearer IGT:2:${oauthToken}`,
+      "X-IG-App-ID": igAppId,
+      "X-IG-WWW-Claim": "0",
+    };
+    if (dsUserId) headers["Cookie"] = `ds_user_id=${dsUserId};`;
+    return { headers, authMethod: "oauth_token" };
+  }
+
+  return null;
+}
+
+// Helper: Try private API request with token fallback
+async function privateApiFetch(url: string, conn: any, params?: any, method = "GET", body?: any): Promise<{ data: any; authMethod: string }> {
+  const auth = getPrivateApiHeaders(conn, params);
+  if (!auth) throw new Error("No authentication available. Connect your Instagram account or enter session cookie.");
+  
+  const opts: any = { method, headers: { ...auth.headers } };
+  if (body) {
+    if (typeof body === "string") {
+      opts.body = body;
+      opts.headers["Content-Type"] = "application/x-www-form-urlencoded";
+    } else {
+      opts.body = JSON.stringify(body);
+      opts.headers["Content-Type"] = "application/json";
+    }
+  }
+
+  const resp = await fetch(url, opts);
+  const data = await resp.json();
+  
+  if (data?.message === "login_required" || data?.message === "checkpoint_required") {
+    // If OAuth token failed, provide helpful error
+    if (auth.authMethod === "oauth_token") {
+      throw new Error("OAuth token not accepted for this action. Enter a session cookie for full private API access, or try again.");
+    }
+    throw new Error("Session expired. Please update your Instagram session cookie.");
+  }
+  
+  return { data, authMethod: auth.authMethod };
+}
+
 async function getPageId(token: string, igUserId: string): Promise<{ pageId: string; pageToken: string } | null> {
   try {
     const pagesResp = await fetch(`${FB_GRAPH_URL}/me/accounts?fields=id,name,instagram_business_account,access_token&access_token=${token}`);
@@ -685,21 +760,13 @@ Analyze every character in the name and username for any gender signal at all. L
             }
           }
           
-          // Fallback to private API for external/discover posts
+          // Fallback to private API for external/discover posts (supports token alternative)
           if (!commentsResult || usePrivateComments) {
-            const metaComments = conn.metadata as any || {};
-            const sessionIdComments = metaComments?.ig_session_id;
-            if (sessionIdComments) {
-              const dsUserIdComments = metaComments?.ig_ds_user_id || conn.platform_user_id;
-              const csrfTokenComments = metaComments?.ig_csrf_token;
-              const commentsHeaders: Record<string, string> = {
-                "User-Agent": "Instagram 275.0.0.27.98 Android (33/13; 420dpi; 1080x2400; samsung; SM-G991B; o1s; exynos2100; en_US; 458229258)",
-                "Cookie": `sessionid=${sessionIdComments};${csrfTokenComments ? ` csrftoken=${csrfTokenComments};` : ""}${dsUserIdComments ? ` ds_user_id=${dsUserIdComments};` : ""}`,
-                "X-IG-App-ID": "936619743392459",
-              };
+            const auth = getPrivateApiHeaders(conn, params);
+            if (auth) {
               const commentsResp = await fetch(`https://i.instagram.com/api/v1/media/${params.media_id}/comments/?can_support_threading=true&min_id=&max_id=&sort_order=popular`, {
                 method: "GET",
-                headers: commentsHeaders,
+                headers: auth.headers,
               });
               const commentsData = await commentsResp.json();
               if (commentsData?.comments) {
@@ -712,6 +779,7 @@ Analyze every character in the name and username for any gender signal at all. L
                     like_count: c.comment_like_count || 0,
                     replies: null,
                   })),
+                  _auth_method: auth.authMethod,
                 };
               } else {
                 commentsResult = { data: [] };
@@ -769,28 +837,28 @@ Analyze every character in the name and username for any gender signal at all. L
               throw new Error(`Failed to comment on your own post: ${graphErr.message}`);
             }
           } else {
-            // ─── PATH B: EXTERNAL/DISCOVER POST → Private API (needs session cookie) ───
-            if (!sessionIdC) {
-              throw new Error("Session cookie required to comment on discovered posts. Go to Social Networks → Instagram → update your session cookie (sessionid, csrftoken, ds_user_id).");
+            // ─── PATH B: EXTERNAL/DISCOVER POST → Private API (supports token alternative) ───
+            const auth = getPrivateApiHeaders(conn, params);
+            if (!auth) {
+              throw new Error("Login via Instagram or enter session cookie to comment on discovered posts.");
             }
             
-            commentMethod = "private";
+            commentMethod = auth.authMethod === "session_cookie" ? "private" : "token_private";
             const commentHeaders: Record<string, string> = {
-              "User-Agent": "Instagram 275.0.0.27.98 Android (33/13; 420dpi; 1080x2400; samsung; SM-G991B; o1s; exynos2100; en_US; 458229258)",
-              "Cookie": `sessionid=${sessionIdC}; csrftoken=${csrfTokenC || "missing"}; ds_user_id=${dsUserIdC || ""}; mid=${Date.now()}`,
-              "X-IG-App-ID": "936619743392459",
+              ...auth.headers,
               "X-IG-WWW-Claim": "0",
               "Content-Type": "application/x-www-form-urlencoded",
             };
-            if (csrfTokenC) commentHeaders["X-CSRFToken"] = csrfTokenC;
             
             const deviceUUID = genUUID();
             const idempotenceToken = genUUID();
+            const dsUserIdC = (conn.metadata as any)?.ig_ds_user_id || conn.platform_user_id || "";
+            const csrfTokenC = (conn.metadata as any)?.ig_csrf_token || "";
             const commentBody = new URLSearchParams();
             commentBody.set("comment_text", params.message);
             commentBody.set("idempotence_token", idempotenceToken);
             commentBody.set("_uuid", deviceUUID);
-            commentBody.set("_uid", dsUserIdC || "");
+            commentBody.set("_uid", dsUserIdC);
             if (csrfTokenC) commentBody.set("_csrftoken", csrfTokenC);
             commentBody.set("containermodule", "comments_v2_feed_timeline");
             commentBody.set("feed_position", "0");
@@ -806,15 +874,18 @@ Analyze every character in the name and username for any gender signal at all. L
             console.log("Private API comment:", commentResp.status, JSON.stringify(commentRespData).slice(0, 500));
             
             if (commentRespData?.comment) {
-              commentResult = { id: String(commentRespData.comment.pk), success: true, method: "private", text: commentRespData.comment.text };
+              commentResult = { id: String(commentRespData.comment.pk), success: true, method: commentMethod, text: commentRespData.comment.text };
             } else if (commentRespData?.status === "ok") {
-              commentResult = { id: "posted", success: true, method: "private" };
+              commentResult = { id: "posted", success: true, method: commentMethod };
             } else if (commentRespData?.message === "login_required") {
-              throw new Error("Your Instagram session cookie has expired. Go to Social Networks → Instagram → update your session cookie with a fresh sessionid.");
+              if (auth.authMethod === "oauth_token") {
+                throw new Error("OAuth token not accepted for commenting. Enter a session cookie for full private API access.");
+              }
+              throw new Error("Your Instagram session cookie has expired. Update your session cookie with a fresh sessionid.");
             } else if (commentRespData?.message === "feedback_required") {
               throw new Error("Instagram has temporarily restricted commenting from this account. Wait a few hours and try again.");
             } else {
-              throw new Error(`Comment failed: ${commentRespData?.message || "Unknown error"}. Try refreshing your IG session cookie.`);
+              throw new Error(`Comment failed: ${commentRespData?.message || "Unknown error"}. Try refreshing your IG session or re-logging in.`);
             }
           }
           
@@ -839,29 +910,21 @@ Analyze every character in the name and username for any gender signal at all. L
 
       case "like_media":
         if (!params?.media_id) throw new Error("media_id required");
-        // Instagram Graph API doesn't have a direct like endpoint for own likes on others' posts
-        // Use the private API for liking
+        // Use private API with token-based alternative for liking
         {
-          const metadata2 = conn.metadata as any || {};
-          const sessionId2 = metadata2?.ig_session_id;
-          if (sessionId2) {
-            const dsUserId2 = metadata2?.ig_ds_user_id || conn.platform_user_id;
-            const csrfToken2 = metadata2?.ig_csrf_token;
-            const likeHeaders: Record<string, string> = {
-              "User-Agent": "Instagram 275.0.0.27.98 Android (33/13; 420dpi; 1080x2400; samsung; SM-G991B; o1s; exynos2100; en_US; 458229258)",
-              "Cookie": `sessionid=${sessionId2};${csrfToken2 ? ` csrftoken=${csrfToken2};` : ""}${dsUserId2 ? ` ds_user_id=${dsUserId2};` : ""}`,
-              "X-IG-App-ID": "936619743392459",
-              "Content-Type": "application/x-www-form-urlencoded",
-            };
-            if (csrfToken2) likeHeaders["X-CSRFToken"] = csrfToken2;
+          const auth = getPrivateApiHeaders(conn, params);
+          if (auth) {
+            const dsUid = (conn.metadata as any)?.ig_ds_user_id || conn.platform_user_id || "";
+            const likeHeaders = { ...auth.headers, "Content-Type": "application/x-www-form-urlencoded" };
             const likeResp = await fetch(`https://i.instagram.com/api/v1/media/${params.media_id}/like/`, {
               method: "POST",
               headers: likeHeaders,
-              body: "_uuid=device123&_uid=" + (dsUserId2 || ""),
+              body: `_uuid=device123&_uid=${dsUid}`,
             });
             result = await likeResp.json();
+            (result as any)._auth_method = auth.authMethod;
           } else {
-            result = { success: false, error: "Session cookie required for liking posts" };
+            result = { success: false, error: "Login via Instagram or enter session cookie to like posts" };
           }
         }
         break;
@@ -869,26 +932,19 @@ Analyze every character in the name and username for any gender signal at all. L
       case "follow_user":
         if (!params?.user_id) throw new Error("user_id required");
         {
-          const metadata3 = conn.metadata as any || {};
-          const sessionId3 = metadata3?.ig_session_id;
-          if (sessionId3) {
-            const dsUserId3 = metadata3?.ig_ds_user_id || conn.platform_user_id;
-            const csrfToken3 = metadata3?.ig_csrf_token;
-            const followHeaders: Record<string, string> = {
-              "User-Agent": "Instagram 275.0.0.27.98 Android (33/13; 420dpi; 1080x2400; samsung; SM-G991B; o1s; exynos2100; en_US; 458229258)",
-              "Cookie": `sessionid=${sessionId3};${csrfToken3 ? ` csrftoken=${csrfToken3};` : ""}${dsUserId3 ? ` ds_user_id=${dsUserId3};` : ""}`,
-              "X-IG-App-ID": "936619743392459",
-              "Content-Type": "application/x-www-form-urlencoded",
-            };
-            if (csrfToken3) followHeaders["X-CSRFToken"] = csrfToken3;
+          const auth = getPrivateApiHeaders(conn, params);
+          if (auth) {
+            const dsUid = (conn.metadata as any)?.ig_ds_user_id || conn.platform_user_id || "";
+            const followHeaders = { ...auth.headers, "Content-Type": "application/x-www-form-urlencoded" };
             const followResp = await fetch(`https://i.instagram.com/api/v1/friendships/create/${params.user_id}/`, {
               method: "POST",
               headers: followHeaders,
-              body: "_uuid=device123&_uid=" + (dsUserId3 || ""),
+              body: `_uuid=device123&_uid=${dsUid}`,
             });
             result = await followResp.json();
+            (result as any)._auth_method = auth.authMethod;
           } else {
-            result = { success: false, error: "Session cookie required for following users" };
+            result = { success: false, error: "Login via Instagram or enter session cookie to follow users" };
           }
         }
         break;
@@ -1874,20 +1930,13 @@ Analyze every character in the name and username for any gender signal at all. L
       case "search_users": {
         const query = params?.query;
         if (!query) throw new Error("query required");
-        const metadata = conn.metadata as any || {};
-        const sessionId = params?.session_id || metadata?.ig_session_id;
-        if (!sessionId) throw new Error("Instagram session cookie required for user search");
-        const dsUserId = params?.ds_user_id || metadata?.ig_ds_user_id || conn.platform_user_id;
-        const csrfToken = params?.csrf_token || metadata?.ig_csrf_token;
-        const igAppId = "936619743392459";
+        const auth = getPrivateApiHeaders(conn, params);
+        if (!auth) throw new Error("Login via Instagram or enter session cookie for user search");
         const maxResults = Math.min(params?.max_results || 50, 100000);
         const expanded = params?.expanded || false;
+        const dsUserId = (conn.metadata as any)?.ig_ds_user_id || conn.platform_user_id;
 
-        const headers = {
-          "User-Agent": "Instagram 275.0.0.27.98 Android (33/13; 420dpi; 1080x2400; samsung; SM-G991B; o1s; exynos2100; en_US; 458229258)",
-          "Cookie": `sessionid=${sessionId};${csrfToken ? ` csrftoken=${csrfToken};` : ""}${dsUserId ? ` ds_user_id=${dsUserId};` : ""}`,
-          "X-IG-App-ID": igAppId,
-        };
+        const headers = auth.headers;
 
         // Try multiple search surfaces to get more results
         const allUsers: any[] = [];
@@ -2069,19 +2118,11 @@ Analyze every character in the name and username for any gender signal at all. L
       case "get_user_feed": {
         const targetUserId = params?.user_id;
         if (!targetUserId) throw new Error("user_id required");
-        const metadata = conn.metadata as any || {};
-        const sessionId = params?.session_id || metadata?.ig_session_id;
-        if (!sessionId) throw new Error("Instagram session cookie required for user feed");
-        const dsUserId = params?.ds_user_id || metadata?.ig_ds_user_id || conn.platform_user_id;
-        const csrfToken = params?.csrf_token || metadata?.ig_csrf_token;
-        const igAppId = "936619743392459";
+        const auth = getPrivateApiHeaders(conn, params);
+        if (!auth) throw new Error("Login via Instagram or enter session cookie for user feed");
         const feedLimit = Math.min(params?.limit || 12, 50);
 
-        const feedHeaders: Record<string, string> = {
-          "User-Agent": "Instagram 275.0.0.27.98 Android (33/13; 420dpi; 1080x2400; samsung; SM-G991B; o1s; exynos2100; en_US; 458229258)",
-          "Cookie": `sessionid=${sessionId};${csrfToken ? ` csrftoken=${csrfToken};` : ""}${dsUserId ? ` ds_user_id=${dsUserId};` : ""}`,
-          "X-IG-App-ID": igAppId,
-        };
+        const feedHeaders: Record<string, string> = auth.headers;
 
         const posts: any[] = [];
         try {
@@ -2125,18 +2166,10 @@ Analyze every character in the name and username for any gender signal at all. L
 
       // ===== EXPLORE / DISCOVER FEED (Private API — trending content) =====
       case "explore_feed": {
-        const metadata = conn.metadata as any || {};
-        const sessionId = params?.session_id || metadata?.ig_session_id;
-        if (!sessionId) throw new Error("Instagram session cookie required for explore feed");
-        const dsUserId = params?.ds_user_id || metadata?.ig_ds_user_id || conn.platform_user_id;
-        const csrfToken = params?.csrf_token || metadata?.ig_csrf_token;
-        const igAppId = "936619743392459";
+        const auth = getPrivateApiHeaders(conn, params);
+        if (!auth) throw new Error("Login via Instagram or enter session cookie for explore feed");
 
-        const exploreHeaders: Record<string, string> = {
-          "User-Agent": "Instagram 275.0.0.27.98 Android (33/13; 420dpi; 1080x2400; samsung; SM-G991B; o1s; exynos2100; en_US; 458229258)",
-          "Cookie": `sessionid=${sessionId};${csrfToken ? ` csrftoken=${csrfToken};` : ""}${dsUserId ? ` ds_user_id=${dsUserId};` : ""}`,
-          "X-IG-App-ID": igAppId,
-        };
+        const exploreHeaders: Record<string, string> = auth.headers;
 
         const explorePosts: any[] = [];
         try {
@@ -2293,15 +2326,11 @@ Analyze every character in the name and username for any gender signal at all. L
 
       // ===== FETCH ACTUAL FOLLOWERS (Private API — UPGRADED CHUNKED with skip-already-scraped) =====
       case "scrape_followers": {
-        const metadata = conn.metadata as any || {};
-        const sessionId = params?.session_id || metadata?.ig_session_id;
-        const dsUserId = params?.ds_user_id || metadata?.ig_ds_user_id || conn.platform_user_id;
-        const csrfToken = params?.csrf_token || metadata?.ig_csrf_token;
-        const igAppId = "936619743392459";
-        
-        if (!sessionId) {
-          throw new Error("Instagram session cookie required. Go to instagram.com → DevTools → Application → Cookies → copy 'sessionid' value");
+        const auth = getPrivateApiHeaders(conn, params);
+        if (!auth) {
+          throw new Error("Login via Instagram or enter session cookie to scrape followers.");
         }
+        const dsUserId = (conn.metadata as any)?.ig_ds_user_id || conn.platform_user_id;
 
         // Save session credentials for future use
         if (params?.session_id) {
@@ -2310,7 +2339,7 @@ Analyze every character in the name and username for any gender signal at all. L
               ...(conn.metadata as any || {}),
               ig_session_id: params.session_id,
               ig_ds_user_id: params.ds_user_id || dsUserId,
-              ig_csrf_token: params.csrf_token || csrfToken,
+              ig_csrf_token: params.csrf_token || (conn.metadata as any)?.ig_csrf_token,
               ig_session_saved_at: new Date().toISOString(),
             }
           }).eq("id", conn.id);
@@ -2320,11 +2349,7 @@ Analyze every character in the name and username for any gender signal at all. L
         if (!userPk || userPk.length > 15) {
           try {
             const webResp = await fetch(`https://i.instagram.com/api/v1/users/web_profile_info/?username=${conn.platform_username || ""}`, {
-              headers: {
-                "User-Agent": "Instagram 275.0.0.27.98 Android (33/13; 420dpi; 1080x2400; samsung; SM-G991B; o1s; exynos2100; en_US; 458229258)",
-                "Cookie": `sessionid=${sessionId};${csrfToken ? ` csrftoken=${csrfToken};` : ""}${dsUserId ? ` ds_user_id=${dsUserId};` : ""}`,
-                "X-IG-App-ID": igAppId,
-              },
+              headers: auth.headers,
             });
             const webData = await webResp.json();
             if (webData?.data?.user?.id) {
@@ -2365,12 +2390,7 @@ Analyze every character in the name and username for any gender signal at all. L
         
         console.log(`UPGRADED chunked fetch for PK ${userPk}, pages: ${pagesPerChunk}, turbo: ${turboMode}, cursor: ${cursor ? "yes" : "start"}`);
 
-        const igHeaders = {
-          "User-Agent": "Instagram 275.0.0.27.98 Android (33/13; 420dpi; 1080x2400; samsung; SM-G991B; o1s; exynos2100; en_US; 458229258)",
-          "Cookie": `sessionid=${sessionId};${csrfToken ? ` csrftoken=${csrfToken};` : ""} ds_user_id=${userPk};`,
-          "X-IG-App-ID": igAppId,
-          "X-IG-WWW-Claim": "0",
-        };
+        const igHeaders = auth.headers;
 
         while (page < pagesPerChunk) {
           if (maxFollowers > 0 && scrapedFollowers.length >= maxFollowers) {
