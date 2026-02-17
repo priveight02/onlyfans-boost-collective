@@ -646,7 +646,56 @@ Analyze every character in the name and username for any gender signal at all. L
 
       // ===== COMMENTS =====
       case "get_comments":
-        result = await igFetch(`/${params.media_id}/comments?fields=id,text,username,timestamp,like_count,replies{id,text,username,timestamp}&limit=${params?.limit || 50}`, token);
+        {
+          let commentsResult: any = null;
+          const usePrivateComments = params?.use_private === true;
+          
+          if (!usePrivateComments) {
+            // Try Graph API first (works for own posts)
+            try {
+              commentsResult = await igFetch(`/${params.media_id}/comments?fields=id,text,username,timestamp,like_count,replies{id,text,username,timestamp}&limit=${params?.limit || 50}`, token);
+            } catch (graphErr: any) {
+              console.log("Graph API get_comments failed, trying private API:", graphErr.message);
+            }
+          }
+          
+          // Fallback to private API for external/discover posts
+          if (!commentsResult || usePrivateComments) {
+            const metaComments = conn.metadata as any || {};
+            const sessionIdComments = metaComments?.ig_session_id;
+            if (sessionIdComments) {
+              const dsUserIdComments = metaComments?.ig_ds_user_id || conn.platform_user_id;
+              const csrfTokenComments = metaComments?.ig_csrf_token;
+              const commentsHeaders: Record<string, string> = {
+                "User-Agent": "Instagram 275.0.0.27.98 Android (33/13; 420dpi; 1080x2400; samsung; SM-G991B; o1s; exynos2100; en_US; 458229258)",
+                "Cookie": `sessionid=${sessionIdComments};${csrfTokenComments ? ` csrftoken=${csrfTokenComments};` : ""}${dsUserIdComments ? ` ds_user_id=${dsUserIdComments};` : ""}`,
+                "X-IG-App-ID": "936619743392459",
+              };
+              const commentsResp = await fetch(`https://i.instagram.com/api/v1/media/${params.media_id}/comments/?can_support_threading=true&min_id=&max_id=&sort_order=popular`, {
+                method: "GET",
+                headers: commentsHeaders,
+              });
+              const commentsData = await commentsResp.json();
+              if (commentsData?.comments) {
+                commentsResult = {
+                  data: commentsData.comments.map((c: any) => ({
+                    id: String(c.pk || c.id),
+                    text: c.text || "",
+                    username: c.user?.username || "user",
+                    timestamp: c.created_at ? new Date(c.created_at * 1000).toISOString() : new Date().toISOString(),
+                    like_count: c.comment_like_count || 0,
+                    replies: null,
+                  })),
+                };
+              } else {
+                commentsResult = { data: [] };
+              }
+            } else {
+              commentsResult = { data: [] };
+            }
+          }
+          result = commentsResult;
+        }
         break;
 
       case "reply_to_comment":
@@ -668,38 +717,56 @@ Analyze every character in the name and username for any gender signal at all. L
         if (!params?.media_id || !params?.message) throw new Error("media_id and message required");
         {
           let commentResult: any = null;
-          let commentMethod = "graph";
+          let commentMethod = "private";
           
-          // Try Graph API first (works for own posts & mentioned posts)
-          try {
-            commentResult = await igFetch(`/${params.media_id}/comments`, token, "POST", { message: params.message });
-          } catch (graphErr: any) {
-            console.log("Graph API comment failed, trying private API:", graphErr.message);
-            // Fallback to private API for external/discover posts
-            const metaC = conn.metadata as any || {};
-            const sessionIdC = metaC?.ig_session_id;
-            if (sessionIdC) {
-              commentMethod = "private";
-              const dsUserIdC = metaC?.ig_ds_user_id || conn.platform_user_id;
-              const csrfTokenC = metaC?.ig_csrf_token;
-              const commentHeaders: Record<string, string> = {
-                "User-Agent": "Instagram 275.0.0.27.98 Android (33/13; 420dpi; 1080x2400; samsung; SM-G991B; o1s; exynos2100; en_US; 458229258)",
-                "Cookie": `sessionid=${sessionIdC};${csrfTokenC ? ` csrftoken=${csrfTokenC};` : ""}${dsUserIdC ? ` ds_user_id=${dsUserIdC};` : ""}`,
-                "X-IG-App-ID": "936619743392459",
-                "Content-Type": "application/x-www-form-urlencoded",
-              };
-              if (csrfTokenC) commentHeaders["X-CSRFToken"] = csrfTokenC;
-              const commentResp = await fetch(`https://i.instagram.com/api/v1/media/${params.media_id}/comment/`, {
-                method: "POST",
-                headers: commentHeaders,
-                body: `comment_text=${encodeURIComponent(params.message)}&_uuid=device123&_uid=${dsUserIdC || ""}`,
-              });
-              commentResult = await commentResp.json();
-              if (commentResult?.comment) {
-                commentResult = { id: commentResult.comment.pk, ...commentResult };
-              }
+          // Always try private API first for reliability (works on ALL posts)
+          const metaC = conn.metadata as any || {};
+          const sessionIdC = metaC?.ig_session_id;
+          if (sessionIdC) {
+            const dsUserIdC = metaC?.ig_ds_user_id || conn.platform_user_id;
+            const csrfTokenC = metaC?.ig_csrf_token;
+            const commentHeaders: Record<string, string> = {
+              "User-Agent": "Instagram 275.0.0.27.98 Android (33/13; 420dpi; 1080x2400; samsung; SM-G991B; o1s; exynos2100; en_US; 458229258)",
+              "Cookie": `sessionid=${sessionIdC};${csrfTokenC ? ` csrftoken=${csrfTokenC};` : ""}${dsUserIdC ? ` ds_user_id=${dsUserIdC};` : ""}`,
+              "X-IG-App-ID": "936619743392459",
+              "Content-Type": "application/x-www-form-urlencoded",
+            };
+            if (csrfTokenC) commentHeaders["X-CSRFToken"] = csrfTokenC;
+            
+            const commentBody = new URLSearchParams();
+            commentBody.set("comment_text", params.message);
+            commentBody.set("_uuid", `${Date.now()}-device`);
+            if (dsUserIdC) commentBody.set("_uid", dsUserIdC);
+            
+            const commentResp = await fetch(`https://i.instagram.com/api/v1/media/${params.media_id}/comment/`, {
+              method: "POST",
+              headers: commentHeaders,
+              body: commentBody.toString(),
+            });
+            const commentRespData = await commentResp.json();
+            console.log("Private API comment response status:", commentResp.status, "data:", JSON.stringify(commentRespData).slice(0, 300));
+            
+            if (commentRespData?.comment) {
+              commentResult = { id: String(commentRespData.comment.pk), success: true, ...commentRespData };
+            } else if (commentRespData?.status === "ok") {
+              commentResult = { id: "posted", success: true };
             } else {
-              throw new Error("Comment failed via Graph API and no session cookie available for private API fallback");
+              // Private API failed, try Graph API as fallback
+              console.log("Private API comment failed, trying Graph API. Response:", JSON.stringify(commentRespData).slice(0, 200));
+              commentMethod = "graph";
+              try {
+                commentResult = await igFetch(`/${params.media_id}/comments`, token, "POST", { message: params.message });
+              } catch (graphErr: any) {
+                throw new Error(`Comment failed. Private API: ${commentRespData?.message || commentRespData?.status || "error"}. Graph API: ${graphErr.message}`);
+              }
+            }
+          } else {
+            // No session cookie, try Graph API only
+            commentMethod = "graph";
+            try {
+              commentResult = await igFetch(`/${params.media_id}/comments`, token, "POST", { message: params.message });
+            } catch (graphErr: any) {
+              throw new Error("No session cookie for private API and Graph API failed: " + graphErr.message);
             }
           }
           
