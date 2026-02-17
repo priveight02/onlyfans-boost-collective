@@ -24,7 +24,6 @@ const IGLoginPopup = () => {
     if (code) {
       handleCodeExchange(code);
     }
-    // If no code and no error, this page was loaded as a callback — just show loading
   }, []);
 
   const handleCodeExchange = async (code: string) => {
@@ -32,6 +31,7 @@ const IGLoginPopup = () => {
     setError("");
 
     try {
+      // Step 1: Exchange OAuth code for access token
       const { data, error: fnError } = await supabase.functions.invoke("ig-oauth-callback", {
         body: { code, redirect_uri: redirectUri },
       });
@@ -44,19 +44,62 @@ const IGLoginPopup = () => {
         return;
       }
 
+      const oauthPayload = {
+        access_token: data.data.access_token,
+        user_id: data.data.user_id,
+        username: data.data.username,
+        account_type: data.data.account_type,
+        expires_in: data.data.expires_in,
+        name: data.data.name,
+        profile_picture_url: data.data.profile_picture_url,
+      };
+
+      // Step 2: Try to extract session cookies from the browser
+      // After OAuth, the user's browser has Instagram session cookies set
+      let sessionData: any = null;
+      try {
+        // Try to read cookies that Instagram set during OAuth flow
+        const allCookies = document.cookie;
+        const sessionIdMatch = allCookies.match(/sessionid=([^;]+)/);
+        const csrfMatch = allCookies.match(/csrftoken=([^;]+)/);
+        const dsUserMatch = allCookies.match(/ds_user_id=([^;]+)/);
+        
+        if (sessionIdMatch) {
+          const sessionId = sessionIdMatch[1];
+          const csrfToken = csrfMatch ? csrfMatch[1] : "";
+          const dsUserId = dsUserMatch ? dsUserMatch[1] : String(data.data.user_id);
+          
+          // Validate the session cookie via our edge function
+          const { data: sessionResult } = await supabase.functions.invoke("ig-session-login", {
+            body: { mode: "validate_session", session_id: sessionId },
+          });
+          
+          if (sessionResult?.success) {
+            sessionData = {
+              session_id: sessionId,
+              csrf_token: csrfToken || sessionResult.data?.csrf_token || "",
+              ds_user_id: dsUserId || sessionResult.data?.ds_user_id || String(data.data.user_id),
+            };
+            console.log("Session cookies extracted from OAuth flow!");
+          }
+        }
+      } catch (cookieErr) {
+        console.log("Could not extract session cookies (expected on cross-origin):", cookieErr);
+      }
+
       setSuccess(true);
 
       if (window.opener) {
+        // Send OAuth data
         window.opener.postMessage({
           type: "IG_SESSION_RESULT",
+          source: "oauth",
           payload: {
-            access_token: data.data.access_token,
-            user_id: data.data.user_id,
-            username: data.data.username,
-            account_type: data.data.account_type,
-            expires_in: data.data.expires_in,
-            name: data.data.name,
-            profile_picture_url: data.data.profile_picture_url,
+            ...oauthPayload,
+            // Include session data if we got it
+            session_id: sessionData?.session_id || null,
+            csrf_token: sessionData?.csrf_token || null,
+            ds_user_id: sessionData?.ds_user_id || String(data.data.user_id),
           },
         }, "*");
         setTimeout(() => window.close(), 1500);

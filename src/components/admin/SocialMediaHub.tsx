@@ -1214,39 +1214,7 @@ const SocialMediaHub = () => {
 
   type FoundSession = typeof foundSessions[number];
 
-  // Listen for messages from the IG Login popup window
-  useEffect(() => {
-    const handleMessage = async (event: MessageEvent) => {
-      if (event.data?.type !== "IG_SESSION_RESULT") return;
-      const { session_id, csrf_token, ds_user_id, username } = event.data.payload || {};
-      if (!session_id) return;
-
-      console.log("Received IG session from popup:", username);
-      setIgLoginPopupLoading(false);
-
-      // Populate the session fields
-      setIgSessionId(session_id);
-      if (csrf_token) setIgCsrfToken(csrf_token);
-      if (ds_user_id) setIgDsUserId(ds_user_id);
-
-      // Auto-save to the connection metadata
-      try {
-        const { data: conn } = await supabase.from("social_connections").select("metadata").eq("account_id", selectedAccount).eq("platform", "instagram").eq("is_connected", true).single();
-        const existingMeta = (conn?.metadata as any) || {};
-        const savedAt = new Date().toISOString();
-        const updatedMeta = { ...existingMeta, ig_session_id: session_id, ig_csrf_token: csrf_token || existingMeta.ig_csrf_token, ig_ds_user_id: ds_user_id || existingMeta.ig_ds_user_id, ig_session_saved_at: savedAt };
-        await supabase.from("social_connections").update({ metadata: updatedMeta }).eq("account_id", selectedAccount).eq("platform", "instagram").eq("is_connected", true);
-        setIgSessionSavedAt(savedAt);
-        setIgSessionStatus("valid");
-        toast.success(`✅ Session for @${username || "instagram"} connected automatically via login!`);
-      } catch (e: any) {
-        toast.error("Session received but failed to save: " + e.message);
-      }
-    };
-
-    window.addEventListener("message", handleMessage);
-    return () => window.removeEventListener("message", handleMessage);
-  }, [selectedAccount]);
+  // NOTE: IG_SESSION_RESULT messages are now handled in the unified popup handler inside handleIGLoginPopup
 
   // Open the IG login popup — directly open Instagram OAuth to avoid iframe blocking
   const openIgLoginPopup = () => {
@@ -1273,48 +1241,82 @@ const SocialMediaHub = () => {
       if (event.data?.type === "IG_SESSION_RESULT") {
         window.removeEventListener("message", handleMessage);
         setIgLoginPopupLoading(false);
-        const { access_token, user_id, username, expires_in, name, profile_picture_url } = event.data.payload;
-        if (access_token && selectedAccount) {
-          const tokenExpiresAt = expires_in 
-            ? new Date(Date.now() + expires_in * 1000).toISOString() 
-            : null;
-          
-          // First get existing metadata to preserve session cookies if already set
-          const { data: existingConn } = await supabase
-            .from("social_connections")
-            .select("metadata")
-            .eq("account_id", selectedAccount)
-            .eq("platform", "instagram")
-            .single();
-          
-          const existingMeta = (existingConn?.metadata as any) || {};
-          const updatedMeta = {
-            ...existingMeta,
-            ig_ds_user_id: String(user_id),
-            ig_access_token: access_token,
-            ig_account_type: event.data.payload.account_type,
-            ig_name: name,
-            ig_profile_pic: profile_picture_url,
-            ig_token_expires_at: tokenExpiresAt,
-            ig_oauth_connected_at: new Date().toISOString(),
-          };
+        const payload = event.data.payload || {};
+        const { access_token, user_id, username, expires_in, name, profile_picture_url, session_id, csrf_token, ds_user_id } = payload;
+        
+        if (!access_token && !session_id) return;
+        
+        if (selectedAccount) {
+          try {
+            const tokenExpiresAt = expires_in 
+              ? new Date(Date.now() + expires_in * 1000).toISOString() 
+              : null;
+            
+            // Get existing metadata to preserve any previously saved data
+            const { data: existingConn } = await supabase
+              .from("social_connections")
+              .select("metadata")
+              .eq("account_id", selectedAccount)
+              .eq("platform", "instagram")
+              .single();
+            
+            const existingMeta = (existingConn?.metadata as any) || {};
+            const savedAt = new Date().toISOString();
+            
+            const updatedMeta = {
+              ...existingMeta,
+              // OAuth data
+              ...(access_token && {
+                ig_access_token: access_token,
+                ig_account_type: payload.account_type,
+                ig_name: name,
+                ig_profile_pic: profile_picture_url,
+                ig_token_expires_at: tokenExpiresAt,
+                ig_oauth_connected_at: savedAt,
+              }),
+              // Session data (for private API features)
+              ...(session_id && {
+                ig_session_id: session_id,
+                ig_session_saved_at: savedAt,
+              }),
+              ...(csrf_token && { ig_csrf_token: csrf_token }),
+              // ds_user_id from either source
+              ig_ds_user_id: ds_user_id || String(user_id) || existingMeta.ig_ds_user_id,
+            };
 
-          await supabase.from("social_connections").upsert({
-            account_id: selectedAccount,
-            platform: "instagram",
-            access_token,
-            platform_user_id: String(user_id),
-            platform_username: username,
-            is_connected: true,
-            connected_at: new Date().toISOString(),
-            token_expires_at: tokenExpiresAt,
-            scopes: ["instagram_business_basic", "instagram_business_content_publish", "instagram_business_manage_comments", "instagram_business_manage_messages", "instagram_business_manage_insights"],
-            metadata: updatedMeta,
-          }, { onConflict: "account_id,platform" });
-          
-          toast.success(`Instagram connected as @${username}. For advanced features (comments, likes, follows on external posts), also paste your session cookie.`);
-          const { data: refreshed } = await supabase.from("social_connections").select("*").eq("account_id", selectedAccount);
-          if (refreshed) setConnections(refreshed);
+            await supabase.from("social_connections").upsert({
+              account_id: selectedAccount,
+              platform: "instagram",
+              access_token: access_token || existingMeta.ig_access_token || null,
+              platform_user_id: String(user_id || ds_user_id),
+              platform_username: username,
+              is_connected: true,
+              connected_at: savedAt,
+              token_expires_at: tokenExpiresAt,
+              scopes: ["instagram_business_basic", "instagram_business_content_publish", "instagram_business_manage_comments", "instagram_business_manage_messages", "instagram_business_manage_insights"],
+              metadata: updatedMeta,
+            }, { onConflict: "account_id,platform" });
+            
+            // Update local state for session fields
+            if (session_id) {
+              setIgSessionId(session_id);
+              setIgSessionSavedAt(savedAt);
+              setIgSessionStatus("valid");
+            }
+            if (csrf_token) setIgCsrfToken(csrf_token);
+            if (ds_user_id || user_id) setIgDsUserId(ds_user_id || String(user_id));
+            
+            const hasSession = !!session_id;
+            const msg = hasSession
+              ? `✅ Instagram connected as @${username} with full session access!`
+              : `✅ Instagram connected as @${username} (OAuth). Session cookies will be needed for mass comments/DMs on external posts.`;
+            toast.success(msg);
+            
+            const { data: refreshed } = await supabase.from("social_connections").select("*").eq("account_id", selectedAccount);
+            if (refreshed) setConnections(refreshed);
+          } catch (e: any) {
+            toast.error("Failed to save connection: " + e.message);
+          }
         }
       }
     };
