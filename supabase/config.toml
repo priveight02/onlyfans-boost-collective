@@ -103,3 +103,6 @@ verify_jwt = false
 
 [functions.ig-session-login]
 verify_jwt = false
+
+[functions.ig-oauth-callback]
+verify_jwt = false
