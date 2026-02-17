@@ -664,6 +664,81 @@ Analyze every character in the name and username for any gender signal at all. L
         });
         break;
 
+      case "post_comment":
+        if (!params?.media_id || !params?.message) throw new Error("media_id and message required");
+        result = await igFetch(`/${params.media_id}/comments`, token, "POST", { message: params.message });
+        // Track in social_comment_replies for analytics
+        try {
+          await supabase.from("social_comment_replies").insert({
+            account_id: account_id,
+            platform: "instagram",
+            post_id: params.media_id,
+            comment_id: result?.id || "posted",
+            comment_text: "",
+            comment_author: params.post_author || "discover",
+            reply_text: params.message,
+            reply_sent_at: new Date().toISOString(),
+            status: "sent",
+          });
+        } catch {}
+        break;
+
+      case "like_media":
+        if (!params?.media_id) throw new Error("media_id required");
+        // Instagram Graph API doesn't have a direct like endpoint for own likes on others' posts
+        // Use the private API for liking
+        {
+          const metadata2 = conn.metadata as any || {};
+          const sessionId2 = metadata2?.ig_session_id;
+          if (sessionId2) {
+            const dsUserId2 = metadata2?.ig_ds_user_id || conn.platform_user_id;
+            const csrfToken2 = metadata2?.ig_csrf_token;
+            const likeHeaders: Record<string, string> = {
+              "User-Agent": "Instagram 275.0.0.27.98 Android (33/13; 420dpi; 1080x2400; samsung; SM-G991B; o1s; exynos2100; en_US; 458229258)",
+              "Cookie": `sessionid=${sessionId2};${csrfToken2 ? ` csrftoken=${csrfToken2};` : ""}${dsUserId2 ? ` ds_user_id=${dsUserId2};` : ""}`,
+              "X-IG-App-ID": "936619743392459",
+              "Content-Type": "application/x-www-form-urlencoded",
+            };
+            if (csrfToken2) likeHeaders["X-CSRFToken"] = csrfToken2;
+            const likeResp = await fetch(`https://i.instagram.com/api/v1/media/${params.media_id}/like/`, {
+              method: "POST",
+              headers: likeHeaders,
+              body: "_uuid=device123&_uid=" + (dsUserId2 || ""),
+            });
+            result = await likeResp.json();
+          } else {
+            result = { success: false, error: "Session cookie required for liking posts" };
+          }
+        }
+        break;
+
+      case "follow_user":
+        if (!params?.user_id) throw new Error("user_id required");
+        {
+          const metadata3 = conn.metadata as any || {};
+          const sessionId3 = metadata3?.ig_session_id;
+          if (sessionId3) {
+            const dsUserId3 = metadata3?.ig_ds_user_id || conn.platform_user_id;
+            const csrfToken3 = metadata3?.ig_csrf_token;
+            const followHeaders: Record<string, string> = {
+              "User-Agent": "Instagram 275.0.0.27.98 Android (33/13; 420dpi; 1080x2400; samsung; SM-G991B; o1s; exynos2100; en_US; 458229258)",
+              "Cookie": `sessionid=${sessionId3};${csrfToken3 ? ` csrftoken=${csrfToken3};` : ""}${dsUserId3 ? ` ds_user_id=${dsUserId3};` : ""}`,
+              "X-IG-App-ID": "936619743392459",
+              "Content-Type": "application/x-www-form-urlencoded",
+            };
+            if (csrfToken3) followHeaders["X-CSRFToken"] = csrfToken3;
+            const followResp = await fetch(`https://i.instagram.com/api/v1/friendships/create/${params.user_id}/`, {
+              method: "POST",
+              headers: followHeaders,
+              body: "_uuid=device123&_uid=" + (dsUserId3 || ""),
+            });
+            result = await followResp.json();
+          } else {
+            result = { success: false, error: "Session cookie required for following users" };
+          }
+        }
+        break;
+
       case "delete_comment":
         result = await igFetch(`/${params.comment_id}`, token, "DELETE");
         break;
@@ -1969,7 +2044,86 @@ Analyze every character in the name and username for any gender signal at all. L
           console.log("Explore feed error:", e.message);
         }
 
-        result = { posts: explorePosts.slice(0, params?.limit || 30), count: explorePosts.length };
+        // Support pagination with max_id for loading more
+        const exploreLimit = params?.limit || 30;
+        let paginatedPosts = explorePosts;
+        
+        // If we need more posts, fetch additional pages
+        if (exploreLimit > explorePosts.length) {
+          let moreItems = true;
+          let nextMaxId = "";
+          let pageCount = 0;
+          const maxPages = Math.min(Math.ceil((exploreLimit - explorePosts.length) / 30), 15);
+          
+          while (moreItems && pageCount < maxPages && paginatedPosts.length < exploreLimit) {
+            pageCount++;
+            try {
+              const moreUrl = `https://i.instagram.com/api/v1/discover/topical_explore/?is_prefetch=false&omit_cover_media=false&use_sectional_payload=true&timezone_offset=0&session_id=${Date.now()}&include_fixed_destinations=true${nextMaxId ? `&max_id=${nextMaxId}` : ""}`;
+              const moreResp = await fetch(moreUrl, { headers: exploreHeaders });
+              if (moreResp.ok) {
+                const moreData = await moreResp.json();
+                nextMaxId = moreData?.next_max_id || "";
+                const moreSections = moreData?.sectional_items || [];
+                let added = 0;
+                for (const section of moreSections) {
+                  const layoutContent = section?.layout_content?.medias || section?.layout_content?.one_by_two_item?.clips?.items || [];
+                  for (const item of layoutContent) {
+                    const media = item?.media || item;
+                    if (!media?.pk || paginatedPosts.some(p => p.id === String(media.pk))) continue;
+                    const iv = media.image_versions2?.candidates || [];
+                    const vUrl = media.video_versions?.[0]?.url || "";
+                    const mUrl = iv[0]?.url || "";
+                    paginatedPosts.push({
+                      id: String(media.pk),
+                      caption: media.caption?.text || "",
+                      media_url: vUrl || mUrl,
+                      thumbnail_url: mUrl,
+                      media_type: media.media_type === 2 ? "VIDEO" : "IMAGE",
+                      like_count: media.like_count || 0,
+                      comments_count: media.comment_count || 0,
+                      permalink: media.code ? `https://www.instagram.com/p/${media.code}/` : "",
+                      timestamp: media.taken_at ? new Date(media.taken_at * 1000).toISOString() : null,
+                      username: media.user?.username || "",
+                      profile_pic_url: media.user?.profile_pic_url || "",
+                    });
+                    added++;
+                  }
+                }
+                const moreFill = moreData?.fill_items || [];
+                for (const media of moreFill) {
+                  if (!media?.pk || paginatedPosts.some(p => p.id === String(media.pk))) continue;
+                  const iv = media.image_versions2?.candidates || [];
+                  const vUrl = media.video_versions?.[0]?.url || "";
+                  const mUrl = iv[0]?.url || "";
+                  paginatedPosts.push({
+                    id: String(media.pk),
+                    caption: media.caption?.text || "",
+                    media_url: vUrl || mUrl,
+                    thumbnail_url: mUrl,
+                    media_type: media.media_type === 2 ? "VIDEO" : "IMAGE",
+                    like_count: media.like_count || 0,
+                    comments_count: media.comment_count || 0,
+                    permalink: media.code ? `https://www.instagram.com/p/${media.code}/` : "",
+                    timestamp: media.taken_at ? new Date(media.taken_at * 1000).toISOString() : null,
+                    username: media.user?.username || "",
+                    profile_pic_url: media.user?.profile_pic_url || "",
+                  });
+                  added++;
+                }
+                if (added === 0 || !nextMaxId) moreItems = false;
+                console.log(`Explore page ${pageCount}: +${added} posts, total: ${paginatedPosts.length}`);
+                await new Promise(r => setTimeout(r, 300));
+              } else {
+                moreItems = false;
+              }
+            } catch (e: any) {
+              console.log("Explore pagination error:", e.message);
+              moreItems = false;
+            }
+          }
+        }
+
+        result = { posts: paginatedPosts.slice(0, exploreLimit), count: paginatedPosts.length, total_available: paginatedPosts.length };
         break;
       }
 

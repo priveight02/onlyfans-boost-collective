@@ -17,6 +17,7 @@ import {
   Compass, Image, Eye, ArrowRight, Search, X, Share2,
   Bookmark, MoreHorizontal, ThumbsUp, Repeat2, Check, Square, CheckSquare,
   Trophy, Shield, BarChart3, Download, Filter, TrendingUp, Users, Flame,
+  UserPlus, Zap,
 } from "lucide-react";
 import CreditCostBadge from "../CreditCostBadge";
 
@@ -129,6 +130,19 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading }: CommentsHu
   // Discover hashtags
   const [discoverHashtags, setDiscoverHashtags] = useState<string[]>(["explore", "trending", "viral", "foryou", "fyp"]);
   const [activeDiscoverTag, setActiveDiscoverTag] = useState("explore");
+  
+  // Feed limit control
+  const [feedLimit, setFeedLimit] = useState(25);
+  
+  // Outreach actions
+  const [likingPostId, setLikingPostId] = useState<string | null>(null);
+  const [followingUserId, setFollowingUserId] = useState<string | null>(null);
+  const [massLikeMode, setMassLikeMode] = useState(false);
+  const [massLiking, setMassLiking] = useState(false);
+  const [massLikeProgress, setMassLikeProgress] = useState<{ done: number; total: number; failed: number } | null>(null);
+  const [massFollowMode, setMassFollowMode] = useState(false);
+  const [massFollowing, setMassFollowing] = useState(false);
+  const [massFollowProgress, setMassFollowProgress] = useState<{ done: number; total: number; failed: number } | null>(null);
 
   // Post viewer dialog
   const [viewingPost, setViewingPost] = useState<(MediaPost | DiscoverPost) | null>(null);
@@ -311,7 +325,7 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading }: CommentsHu
         
         // Strategy 1: Use the private explore_feed API (actual Instagram Explore page)
         try {
-          const exploreData = await callApi("instagram-api", { action: "explore_feed", params: { limit: 30 } });
+          const exploreData = await callApi("instagram-api", { action: "explore_feed", params: { limit: feedLimit } });
           const explorePosts = exploreData?.data?.posts || exploreData?.posts || [];
           for (const p of explorePosts) {
             if (!discoverResults.some(x => x.id === p.id)) {
@@ -610,6 +624,72 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading }: CommentsHu
       toast.success("Comment posted");
       openPostViewer(viewingPost); // reload
     } catch { toast.error("Failed to post comment"); }
+  };
+
+  // ===== OUTREACH: Like a post =====
+  const likePost = async (mediaId: string) => {
+    setLikingPostId(mediaId);
+    try {
+      await callApi("instagram-api", { action: "like_media", params: { media_id: mediaId } });
+      toast.success("Post liked!");
+    } catch { toast.error("Like failed"); }
+    setLikingPostId(null);
+  };
+
+  // ===== OUTREACH: Follow a user =====
+  const followUser = async (userId: string, username: string) => {
+    setFollowingUserId(userId);
+    try {
+      await callApi("instagram-api", { action: "follow_user", params: { user_id: userId } });
+      toast.success(`Followed @${username}`);
+    } catch { toast.error("Follow failed"); }
+    setFollowingUserId(null);
+  };
+
+  // ===== MASS LIKE =====
+  const startMassLike = async () => {
+    const selected = allPosts.filter(p => p.selected);
+    if (selected.length === 0) { toast.error("Select posts first"); return; }
+    setMassLiking(true);
+    setMassLikeProgress({ done: 0, total: selected.length, failed: 0 });
+    let done = 0, failed = 0;
+    for (const post of selected) {
+      if (cancelMassRef.current) break;
+      try {
+        await callApi("instagram-api", { action: "like_media", params: { media_id: post.id } });
+        done++;
+      } catch { failed++; }
+      setMassLikeProgress({ done, total: selected.length, failed });
+      await new Promise(r => setTimeout(r, massDelay));
+    }
+    setMassLiking(false);
+    toast.success(`Liked ${done} posts (${failed} failed)`);
+  };
+
+  // ===== MASS FOLLOW =====
+  const startMassFollow = async () => {
+    const selected = allPosts.filter(p => p.selected);
+    if (selected.length === 0) { toast.error("Select posts first"); return; }
+    // Deduplicate by username
+    const uniqueUsers = new Map<string, DiscoverPost>();
+    for (const p of selected) {
+      if (p.username && !uniqueUsers.has(p.username)) uniqueUsers.set(p.username, p);
+    }
+    const users = Array.from(uniqueUsers.values());
+    setMassFollowing(true);
+    setMassFollowProgress({ done: 0, total: users.length, failed: 0 });
+    let done = 0, failed = 0;
+    for (const user of users) {
+      if (cancelMassRef.current) break;
+      try {
+        await callApi("instagram-api", { action: "follow_user", params: { user_id: user.id } });
+        done++;
+      } catch { failed++; }
+      setMassFollowProgress({ done, total: users.length, failed });
+      await new Promise(r => setTimeout(r, massDelay + 1000)); // extra delay for follows
+    }
+    setMassFollowing(false);
+    toast.success(`Followed ${done} users (${failed} failed)`);
   };
 
   const connectedPlatforms = connections.filter((c: any) => c.is_connected && ["instagram", "tiktok"].includes(c.platform));
@@ -1007,6 +1087,20 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading }: CommentsHu
             <Button size="sm" variant="outline" onClick={loadDiscoverFeed} disabled={discoverLoading} className="text-foreground">
               <Compass className={`h-3.5 w-3.5 mr-1 ${discoverLoading ? "animate-spin" : ""}`} /> Load Feed
             </Button>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] text-muted-foreground">Posts:</span>
+              <Input
+                type="number"
+                min={10}
+                max={1000}
+                value={feedLimit}
+                onChange={e => {
+                  const v = Math.min(1000, Math.max(10, parseInt(e.target.value) || 25));
+                  setFeedLimit(v);
+                }}
+                className="text-[10px] h-7 w-16 text-center"
+              />
+            </div>
             <Button size="sm" variant="outline" onClick={selectAllDiscover} disabled={allPosts.length === 0} className="text-foreground">
               <CheckSquare className="h-3.5 w-3.5 mr-1" /> Select All
             </Button>
@@ -1053,11 +1147,14 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading }: CommentsHu
               </Card>
             </div>
 
-            {/* Mass comment panel */}
-            <div>
+            {/* Outreach Panel */}
+            <div className="space-y-3">
+              {/* Mass Comment */}
               <Card>
                 <CardContent className="p-3 space-y-3">
-                  <p className="text-xs font-semibold text-foreground">Mass Comment</p>
+                  <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                    <MessageSquare className="h-3.5 w-3.5 text-emerald-400" /> Mass Comment
+                  </p>
                   <div className="flex gap-1">
                     <button onClick={() => setMassCommentMode("ai")}
                       className={`flex-1 px-2.5 py-1.5 rounded-md text-[10px] font-medium transition-colors ${massCommentMode === "ai" ? "bg-purple-500/15 text-purple-400 ring-1 ring-purple-500/30" : "text-muted-foreground hover:text-foreground bg-muted/30"}`}>
@@ -1124,6 +1221,82 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading }: CommentsHu
                       <Progress value={massProgress.total > 0 ? (massProgress.done / massProgress.total) * 100 : 0} className="h-1.5" />
                     </div>
                   )}
+                </CardContent>
+              </Card>
+
+              {/* Mass Like */}
+              <Card>
+                <CardContent className="p-3 space-y-2">
+                  <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                    <Heart className="h-3.5 w-3.5 text-red-400" /> Mass Like
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">Auto-like selected posts to boost your visibility and engagement.</p>
+                  <Button size="sm" onClick={startMassLike} disabled={massLiking || selectedCount === 0}
+                    className="w-full h-8 text-[11px] gap-1.5 bg-gradient-to-r from-red-500 to-pink-600 text-white border-0">
+                    {massLiking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Heart className="h-3.5 w-3.5" />}
+                    Like {selectedCount} posts
+                  </Button>
+                  {massLikeProgress && (
+                    <div>
+                      <div className="flex items-center gap-2 text-[10px] mb-1">
+                        {massLiking ? <Loader2 className="h-3 w-3 animate-spin text-red-400" /> : <CheckCheck className="h-3 w-3 text-red-400" />}
+                        <span className="text-red-400">
+                          {massLiking ? `Liking ${massLikeProgress.done}/${massLikeProgress.total}` : `Done: ${massLikeProgress.done} liked`}
+                        </span>
+                        {massLikeProgress.failed > 0 && <span className="text-destructive">({massLikeProgress.failed} failed)</span>}
+                      </div>
+                      <Progress value={massLikeProgress.total > 0 ? (massLikeProgress.done / massLikeProgress.total) * 100 : 0} className="h-1.5" />
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Mass Follow */}
+              <Card>
+                <CardContent className="p-3 space-y-2">
+                  <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                    <UserPlus className="h-3.5 w-3.5 text-blue-400" /> Mass Follow
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">Follow creators from selected posts. Deduplicated by username.</p>
+                  <Button size="sm" onClick={startMassFollow} disabled={massFollowing || selectedCount === 0}
+                    className="w-full h-8 text-[11px] gap-1.5 bg-gradient-to-r from-blue-500 to-indigo-600 text-white border-0">
+                    {massFollowing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <UserPlus className="h-3.5 w-3.5" />}
+                    Follow creators ({selectedCount} posts)
+                  </Button>
+                  {massFollowProgress && (
+                    <div>
+                      <div className="flex items-center gap-2 text-[10px] mb-1">
+                        {massFollowing ? <Loader2 className="h-3 w-3 animate-spin text-blue-400" /> : <CheckCheck className="h-3 w-3 text-blue-400" />}
+                        <span className="text-blue-400">
+                          {massFollowing ? `Following ${massFollowProgress.done}/${massFollowProgress.total}` : `Done: ${massFollowProgress.done} followed`}
+                        </span>
+                        {massFollowProgress.failed > 0 && <span className="text-destructive">({massFollowProgress.failed} failed)</span>}
+                      </div>
+                      <Progress value={massFollowProgress.total > 0 ? (massFollowProgress.done / massFollowProgress.total) * 100 : 0} className="h-1.5" />
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Quick Actions */}
+              <Card>
+                <CardContent className="p-3 space-y-2">
+                  <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                    <Zap className="h-3.5 w-3.5 text-yellow-400" /> Combo Outreach
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">Run Like + Comment + Follow in one pass for maximum impact.</p>
+                  <Button size="sm" onClick={async () => {
+                    if (selectedCount === 0) { toast.error("Select posts first"); return; }
+                    cancelMassRef.current = false;
+                    toast.info("Starting combo outreach: Like → Comment → Follow");
+                    await startMassLike();
+                    if (!cancelMassRef.current) await startMassComment();
+                    if (!cancelMassRef.current) await startMassFollow();
+                    toast.success("Combo outreach complete!");
+                  }} disabled={massCommenting || massLiking || massFollowing || selectedCount === 0}
+                    className="w-full h-8 text-[11px] gap-1.5 bg-gradient-to-r from-yellow-500 via-orange-500 to-red-500 text-white border-0">
+                    <Zap className="h-3.5 w-3.5" /> Combo: Like + Comment + Follow ({selectedCount})
+                  </Button>
                 </CardContent>
               </Card>
             </div>
