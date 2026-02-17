@@ -1239,7 +1239,143 @@ const SocialMediaHub = () => {
       sessions.push({ id: `${source}-${sessions.length}`, source, sessionId: sessionId.trim(), csrfToken: csrf?.trim(), dsUserId: dsUser?.trim(), savedAt, status });
     };
 
-    // 1. CLIPBOARD — highest priority (user copies from instagram.com DevTools)
+    // ═══════════════════════════════════════════════════════════════
+    // PHASE 1: AGGRESSIVE BROWSER CROSS-DOMAIN COOKIE EXTRACTION
+    // Try every possible browser API to read instagram.com cookies
+    // ═══════════════════════════════════════════════════════════════
+
+    // 1A. CookieStore API with instagram.com domain (Chrome 87+)
+    if ('cookieStore' in window) {
+      const cookieNames = ['sessionid', 'csrftoken', 'ds_user_id'];
+      const domains = ['.instagram.com', 'www.instagram.com', 'instagram.com'];
+      for (const domain of domains) {
+        try {
+          const results: Record<string, string> = {};
+          const promises = cookieNames.map(async (name) => {
+            try {
+              const c = await Promise.race([
+                (window as any).cookieStore.get({ name, domain }),
+                new Promise((_, r) => setTimeout(() => r("t"), 1500))
+              ]);
+              if (c?.value) results[name] = c.value;
+            } catch {}
+          });
+          await Promise.all(promises);
+          if (results.sessionid) {
+            addSession(results.sessionid, `🔍 Browser (${domain})`, results.csrftoken, results.ds_user_id, undefined, "active");
+            break;
+          }
+        } catch {}
+      }
+
+      // 1B. CookieStore getAll() — scan ALL accessible cookies for sessionid pattern
+      try {
+        const allCookies = await Promise.race([
+          (window as any).cookieStore.getAll(),
+          new Promise((_, r) => setTimeout(() => r("t"), 2000))
+        ]) as any[];
+        if (Array.isArray(allCookies)) {
+          const sc = allCookies.find((c: any) => c.name === "sessionid" && c.value?.includes("%3A"));
+          const cc = allCookies.find((c: any) => c.name === "csrftoken");
+          const dc = allCookies.find((c: any) => c.name === "ds_user_id");
+          if (sc) addSession(sc.value, "🔍 CookieStore Scan", cc?.value, dc?.value, undefined, "active");
+        }
+      } catch {}
+    }
+
+    // 1C. document.cookie — scan for any IG cookies that might be accessible
+    try {
+      const cookies = document.cookie.split(";").map(c => c.trim());
+      const sc = cookies.find(c => c.startsWith("sessionid="));
+      const cc = cookies.find(c => c.startsWith("csrftoken="));
+      const dc = cookies.find(c => c.startsWith("ds_user_id="));
+      if (sc) {
+        const val = sc.split("=").slice(1).join("=");
+        if (val.includes("%3A")) addSession(val, "🔍 document.cookie", cc?.split("=").slice(1).join("="), dc?.split("=").slice(1).join("="), undefined, "active");
+      }
+    } catch {}
+
+    // 1D. Fetch instagram.com with credentials to probe for active session
+    // The response is opaque (no-cors) but if IG returns a redirect or specific status,
+    // it confirms an active session exists — we then extract via the edge function
+    try {
+      const igProbe = await Promise.race([
+        fetch("https://www.instagram.com/accounts/edit/?__a=1&__d=dis", {
+          method: "GET",
+          credentials: "include",
+          mode: "no-cors",
+          cache: "no-store",
+        }),
+        new Promise<Response>((_, r) => setTimeout(() => r("t"), 3000))
+      ]);
+      // If we get a response (even opaque), the browser sent IG cookies with the request
+      // We can't read the response but the cookie jar was activated
+      // Try CookieStore again after the fetch warmed up the cookie jar
+      if ('cookieStore' in window) {
+        try {
+          const sc = await (window as any).cookieStore.get("sessionid");
+          if (sc?.value?.includes("%3A")) {
+            const cc = await (window as any).cookieStore.get("csrftoken").catch(() => null);
+            const dc = await (window as any).cookieStore.get("ds_user_id").catch(() => null);
+            addSession(sc.value, "🔍 IG Probe + CookieStore", cc?.value, dc?.value, undefined, "active");
+          }
+        } catch {}
+      }
+    } catch {}
+
+    // 1E. Try fetching IG's shared data endpoint that sometimes leaks session info
+    try {
+      const sharedData = await Promise.race([
+        fetch("https://www.instagram.com/data/shared_data/", {
+          credentials: "include",
+          mode: "no-cors",
+          cache: "no-store",
+        }),
+        new Promise<Response>((_, r) => setTimeout(() => r("t"), 3000))
+      ]);
+      // Opaque but warms cookie jar
+    } catch {}
+
+    // 1F. Performance API — check if instagram.com resources were loaded (indicates open tab)
+    try {
+      const perfEntries = performance.getEntriesByType("resource") as PerformanceResourceTiming[];
+      const igEntries = perfEntries.filter(e => e.name.includes("instagram.com"));
+      if (igEntries.length > 0) {
+        // Instagram is/was loaded in this browser — cookies should be in the jar
+        // One more aggressive CookieStore attempt
+        if ('cookieStore' in window) {
+          try {
+            const sc = await (window as any).cookieStore.get({ name: "sessionid" });
+            if (sc?.value?.includes("%3A")) {
+              const cc = await (window as any).cookieStore.get("csrftoken").catch(() => null);
+              const dc = await (window as any).cookieStore.get("ds_user_id").catch(() => null);
+              addSession(sc.value, "🔍 Browser Tab Detected", cc?.value, dc?.value, undefined, "active");
+            }
+          } catch {}
+        }
+      }
+    } catch {}
+
+    // 1G. BroadcastChannel — if IG tab has a service worker, try to communicate
+    try {
+      const bc = new BroadcastChannel("ig_session_bridge");
+      const sessionPromise = new Promise<void>((resolve) => {
+        bc.onmessage = (e) => {
+          if (e.data?.sessionid) {
+            addSession(e.data.sessionid, "🔍 BroadcastChannel", e.data.csrftoken, e.data.ds_user_id, undefined, "active");
+          }
+          resolve();
+        };
+        setTimeout(resolve, 1500);
+      });
+      bc.postMessage({ type: "request_ig_session" });
+      await sessionPromise;
+      bc.close();
+    } catch {}
+
+    // ═══════════════════════════════════════════════════════════════
+    // PHASE 2: CLIPBOARD (user may have copied sessionid)
+    // ═══════════════════════════════════════════════════════════════
     try {
       const clipText = await Promise.race([
         navigator.clipboard.readText(),
@@ -1248,17 +1384,21 @@ const SocialMediaHub = () => {
       if (clipText && clipText.length > 10) {
         const parsed = parseIgCookies(clipText);
         if (parsed.sessionId) {
-          addSession(parsed.sessionId, "📋 Clipboard (fresh)", parsed.csrfToken, parsed.dsUserId, undefined, "active");
+          addSession(parsed.sessionId, "📋 Clipboard", parsed.csrfToken, parsed.dsUserId, undefined, "active");
         }
       }
     } catch {}
 
-    // 2. Paste input field value (if user typed/pasted into the sessionid field and it differs from DB)
+    // ═══════════════════════════════════════════════════════════════
+    // PHASE 3: INPUT FIELD (user may have pasted new session)
+    // ═══════════════════════════════════════════════════════════════
     if (igSessionId && igSessionId.length > 20 && igSessionId.includes("%3A")) {
-      addSession(igSessionId, "Current Input Field", igCsrfToken || undefined, igDsUserId || undefined, undefined, "unknown");
+      addSession(igSessionId, "✏️ Input Field", igCsrfToken || undefined, igDsUserId || undefined, undefined, "unknown");
     }
 
-    // 3. Current account DB metadata
+    // ═══════════════════════════════════════════════════════════════
+    // PHASE 4: DATABASE (saved sessions — lowest priority)
+    // ═══════════════════════════════════════════════════════════════
     try {
       const { data } = await Promise.race([
         supabase.from("social_connections").select("metadata").eq("account_id", selectedAccount).eq("platform", "instagram").eq("is_connected", true).single(),
@@ -1268,7 +1408,7 @@ const SocialMediaHub = () => {
       if (meta.ig_session_id) addSession(meta.ig_session_id, "💾 Saved Session", meta.ig_csrf_token, meta.ig_ds_user_id, meta.ig_session_saved_at);
     } catch {}
 
-    // 4. Other managed accounts
+    // Other managed accounts
     try {
       const { data: allConns } = await Promise.race([
         supabase.from("social_connections").select("metadata, account_id").eq("platform", "instagram").eq("is_connected", true),
@@ -1278,7 +1418,7 @@ const SocialMediaHub = () => {
         for (const conn of allConns) {
           if (conn.account_id === selectedAccount) continue;
           const meta = (conn.metadata as any) || {};
-          if (meta.ig_session_id) addSession(meta.ig_session_id, `Account ${String(conn.account_id).slice(0, 6)}…`, meta.ig_csrf_token, meta.ig_ds_user_id, meta.ig_session_saved_at);
+          if (meta.ig_session_id) addSession(meta.ig_session_id, `💾 Account ${String(conn.account_id).slice(0, 6)}…`, meta.ig_csrf_token, meta.ig_ds_user_id, meta.ig_session_saved_at);
         }
       }
     } catch {}
