@@ -149,7 +149,7 @@ const AdminOnboarding = () => {
       if (invitation.role === "admin") {
         navigate("/admin");
       } else {
-        navigate("/crm");
+        navigate("/platform");
       }
     } catch (err: any) {
       toast.error(err.message || "Failed to complete onboarding");

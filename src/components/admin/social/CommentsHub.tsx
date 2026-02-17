@@ -188,17 +188,15 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading, onNavigateTo
         .single();
       if (data?.metadata) {
         const meta = data.metadata as any;
-        // Support both manual session cookie AND OAuth access token as session equivalent
-        const sessionValue = meta.ig_session_id || meta.ig_access_token || data.access_token || "";
+        // Only use actual session cookies, NOT OAuth tokens
+        const rawSession = meta.ig_session_id || "";
+        const isOAuthToken = rawSession && (rawSession.startsWith("IGQV") || rawSession.startsWith("IGQ"));
+        const sessionValue = isOAuthToken ? "" : rawSession;
         setSessionId(sessionValue);
         setCsrfToken(meta.ig_csrf_token || "");
         setDsUserId(meta.ig_ds_user_id || "");
         setSessionSavedAt(meta.ig_session_saved_at || null);
         setSessionStatus(sessionValue ? "valid" : "unknown");
-      } else if (data?.access_token) {
-        // Fallback: use the connection's access_token directly as session
-        setSessionId(data.access_token);
-        setSessionStatus("valid");
       }
     } catch { /* no connection */ }
   };
@@ -445,22 +443,20 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading, onNavigateTo
     setAiSummaryLoading(false);
   };
 
-  // Session check helper - uses parent session state if available, falls back to local
-  // Also recognizes OAuth access tokens as valid session equivalents
+  // Session check helper - requires actual session cookie for private API features
+  // OAuth access tokens are NOT valid for private API (discover, mass comment, like, follow)
   const requireSession = (): boolean => {
     if (selectedPlatform !== "instagram") return true;
     const effectiveSessionId = parentSessionId || sessionId;
     const effectiveStatus = parentSessionStatus || sessionStatus;
-    if (effectiveSessionId && effectiveStatus !== "expired") return true;
-    
-    // Check if there's a connected IG account with an access_token (OAuth login)
-    const igConn = connections.find((c: any) => c.platform === "instagram" && c.is_connected);
-    if (igConn?.access_token) return true;
+    // Check it's a real session cookie, not an OAuth token
+    const isOAuthToken = effectiveSessionId && (effectiveSessionId.startsWith("IGQV") || effectiveSessionId.startsWith("IGQ"));
+    if (effectiveSessionId && !isOAuthToken && effectiveStatus !== "expired") return true;
     
     // Navigate to connect tab with pulse animation
     if (onNavigateToSession) {
       onNavigateToSession();
-      toast.error("Instagram session required. Connect via Instagram Login or enter a session cookie.", { duration: 4000 });
+      toast.error("Instagram session cookie required. Paste your sessionid from browser DevTools → Cookies.", { duration: 4000 });
     } else {
       setSessionRequiredDialog(true);
     }
