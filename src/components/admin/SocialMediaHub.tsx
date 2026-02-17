@@ -30,6 +30,7 @@ import {
   MessageCircle, LayoutDashboard, Compass,
   Sparkles, Bot, Brain, Wand2, AtSign, Megaphone, FolderOpen,
   PieChart, Layers, Twitter, Phone, Camera, Gamepad2, ArrowRight,
+  Key, Loader2,
 } from "lucide-react";
 
 const VerifiedBadge = ({ size = 12 }: { size?: number }) => (
@@ -174,6 +175,14 @@ const SocialMediaHub = () => {
    // Automated connect loading
    const [autoConnectLoading, setAutoConnectLoading] = useState<string | null>(null);
 
+   // Session cookie management
+   const [igSessionId, setIgSessionId] = useState("");
+   const [igCsrfToken, setIgCsrfToken] = useState("");
+   const [igDsUserId, setIgDsUserId] = useState("");
+   const [igSessionSavedAt, setIgSessionSavedAt] = useState<string | null>(null);
+   const [igSessionLoading, setIgSessionLoading] = useState(false);
+   const [igSessionStatus, setIgSessionStatus] = useState<"unknown" | "valid" | "expired">("unknown");
+
   useEffect(() => { loadAccounts(); }, []);
   useEffect(() => {
     if (selectedAccount) {
@@ -182,7 +191,7 @@ const SocialMediaHub = () => {
     }
   }, [selectedAccount]);
 
-  // Restore profile data from stored connection metadata on session load
+  // Restore profile data and session from stored connection metadata on session load
   useEffect(() => {
     if (connections.length > 0) {
       const igConn = connections.find(c => c.platform === "instagram" && c.is_connected);
@@ -198,6 +207,15 @@ const SocialMediaHub = () => {
             media_count: meta.media_count,
           });
         }
+      }
+      // Load session cookie data from IG connection metadata
+      if (igConn?.metadata) {
+        const meta = igConn.metadata as any;
+        if (meta.ig_session_id) setIgSessionId(meta.ig_session_id);
+        if (meta.ig_csrf_token) setIgCsrfToken(meta.ig_csrf_token);
+        if (meta.ig_ds_user_id) setIgDsUserId(meta.ig_ds_user_id);
+        if (meta.ig_session_saved_at) setIgSessionSavedAt(meta.ig_session_saved_at);
+        setIgSessionStatus(meta.ig_session_id ? "valid" : "unknown");
       }
       if (ttConn?.metadata && !ttProfile) {
         const meta = ttConn.metadata as any;
@@ -1142,6 +1160,33 @@ const SocialMediaHub = () => {
     setActiveSubTab("connect");
   };
 
+  const saveIgSessionData = async () => {
+    if (!igSessionId.trim()) { toast.error("Session ID is required"); return; }
+    setIgSessionLoading(true);
+    try {
+      const { data: existing } = await supabase.from("social_connections").select("metadata").eq("account_id", selectedAccount).eq("platform", "instagram").eq("is_connected", true).single();
+      const currentMeta = (existing?.metadata as any) || {};
+      const updatedMeta = { ...currentMeta, ig_session_id: igSessionId.trim(), ig_csrf_token: igCsrfToken.trim() || undefined, ig_ds_user_id: igDsUserId.trim() || undefined, ig_session_saved_at: new Date().toISOString() };
+      const { error } = await supabase.from("social_connections").update({ metadata: updatedMeta }).eq("account_id", selectedAccount).eq("platform", "instagram").eq("is_connected", true);
+      if (error) throw error;
+      setIgSessionSavedAt(updatedMeta.ig_session_saved_at);
+      setIgSessionStatus("valid");
+      toast.success("Session cookie saved! You can now interact with discovered posts.");
+    } catch (e: any) { toast.error("Failed to save: " + e.message); }
+    setIgSessionLoading(false);
+  };
+
+  const testIgSession = async () => {
+    setIgSessionLoading(true);
+    try {
+      const d = await callApi("instagram-api", { action: "explore_feed", params: { limit: 1 } });
+      const posts = d?.posts || [];
+      if (posts.length > 0) { setIgSessionStatus("valid"); toast.success("Session is valid! ✅"); }
+      else { setIgSessionStatus("expired"); toast.error("Session may be expired. Update with a fresh cookie."); }
+    } catch { setIgSessionStatus("expired"); toast.error("Session expired or invalid."); }
+    setIgSessionLoading(false);
+  };
+
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -1518,7 +1563,7 @@ const SocialMediaHub = () => {
 
         {/* ===== ENGAGEMENT / COMMENTS ===== */}
         <TabsContent value="engagement" className="mt-4">
-          <CommentsHub accountId={selectedAccount} connections={connections} callApi={callApi} apiLoading={apiLoading} />
+          <CommentsHub accountId={selectedAccount} connections={connections} callApi={callApi} apiLoading={apiLoading} onNavigateToSession={() => setActiveSubTab("connect")} />
         </TabsContent>
 
         {/* ===== DMs ===== */}
@@ -1702,6 +1747,92 @@ const SocialMediaHub = () => {
               </CardContent>
             </Card>
           ))}
+
+          {/* ===== INSTAGRAM SESSION COOKIE ===== */}
+          {igConnected && (
+            <Card id="ig-session-section" className="border-pink-500/20 ring-2 ring-pink-500/10">
+              <CardContent className="p-4 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                    <Key className="h-4 w-4 text-pink-400" />
+                    Instagram Session Cookie
+                  </h4>
+                  <div className="flex items-center gap-2">
+                    {igSessionStatus === "valid" && (
+                      <Badge className="bg-emerald-500/15 text-emerald-400 border-emerald-500/30 text-[10px]">
+                        <CheckCircle2 className="h-3 w-3 mr-1" /> Active
+                      </Badge>
+                    )}
+                    {igSessionStatus === "expired" && (
+                      <Badge className="bg-destructive/15 text-destructive border-destructive/30 text-[10px]">
+                        <AlertTriangle className="h-3 w-3 mr-1" /> Expired
+                      </Badge>
+                    )}
+                    {igSessionStatus === "unknown" && !igSessionId && (
+                      <Badge className="bg-amber-500/15 text-amber-400 border-amber-500/30 text-[10px]">
+                        <AlertCircle className="h-3 w-3 mr-1" /> Not Set
+                      </Badge>
+                    )}
+                    {igSessionSavedAt && (
+                      <span className="text-[9px] text-muted-foreground">
+                        Saved: {new Date(igSessionSavedAt).toLocaleString()}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  A valid session cookie is required to <strong>discover posts</strong>, <strong>mass comment</strong>, <strong>like</strong>, and <strong>follow</strong> on other accounts' content. Your own posts use the Graph API and don't need this.
+                </p>
+
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-[10px] font-medium text-foreground mb-1 block">Session ID <span className="text-destructive">*</span></label>
+                    <Input value={igSessionId} onChange={e => setIgSessionId(e.target.value)} placeholder="Paste your sessionid cookie value here..." className="text-xs font-mono" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[10px] font-medium text-foreground mb-1 block">CSRF Token</label>
+                      <Input value={igCsrfToken} onChange={e => setIgCsrfToken(e.target.value)} placeholder="csrftoken cookie value" className="text-xs font-mono" />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-medium text-foreground mb-1 block">DS User ID</label>
+                      <Input value={igDsUserId} onChange={e => setIgDsUserId(e.target.value)} placeholder="ds_user_id cookie value" className="text-xs font-mono" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Button size="sm" onClick={saveIgSessionData} disabled={igSessionLoading || !igSessionId.trim()} className="gap-1.5">
+                    {igSessionLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+                    Save Session
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={testIgSession} disabled={igSessionLoading} className="gap-1.5 text-foreground">
+                    {igSessionLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />}
+                    Test Session
+                  </Button>
+                </div>
+
+                <Card className="bg-muted/30 border-border">
+                  <CardContent className="p-3 space-y-2">
+                    <p className="text-[10px] font-semibold text-foreground">How to get your session cookie:</p>
+                    <ol className="text-[10px] text-muted-foreground space-y-1 list-decimal list-inside">
+                      <li>Open <strong>instagram.com</strong> in your browser and log in</li>
+                      <li>Open DevTools (F12) → <strong>Application</strong> tab → <strong>Cookies</strong></li>
+                      <li>Find <code className="bg-muted px-1 rounded text-foreground">sessionid</code> — copy its value</li>
+                      <li>Find <code className="bg-muted px-1 rounded text-foreground">csrftoken</code> — copy its value</li>
+                      <li>Find <code className="bg-muted px-1 rounded text-foreground">ds_user_id</code> — copy its value</li>
+                      <li>Paste them above and click <strong>Save Session</strong></li>
+                    </ol>
+                    <p className="text-[9px] text-amber-400 flex items-center gap-1">
+                      <AlertTriangle className="h-3 w-3" />
+                      Session cookies expire every few days. Refresh when you see "expired" errors.
+                    </p>
+                  </CardContent>
+                </Card>
+              </CardContent>
+            </Card>
+          )}
 
           {/* ===== MANUAL CONNECTION ===== */}
           <Card>
