@@ -1383,8 +1383,12 @@ const SocialMediaHub = () => {
           });
           
           // Auto-fetch full profile from Graph API to get follower counts etc.
+          // Use silent fetch (no toast on error) — token may not be propagated yet
           try {
-            const profileData = await callApi("instagram-api", { action: "get_profile" }, accountId);
+            const { data: profileResp } = await supabase.functions.invoke("instagram-api", {
+              body: { action: "get_profile", account_id: accountId },
+            });
+            const profileData = profileResp?.success ? profileResp.data : null;
             if (profileData) {
               setIgProfile(profileData);
               await supabase.from("social_connections").update({
@@ -1397,7 +1401,7 @@ const SocialMediaHub = () => {
                 content_count: profileData.media_count || 0,
               }).eq("id", accountId);
             }
-          } catch (e) { console.log("Auto profile sync after OAuth:", e); }
+          } catch (e) { console.log("Auto profile sync after OAuth (will retry on next load):", e); }
           
           // Invalidate caches so fresh data loads
           invalidateNamespace(accountId, "social_connections");
