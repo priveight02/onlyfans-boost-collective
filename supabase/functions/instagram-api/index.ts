@@ -768,15 +768,15 @@ Analyze every character in the name and username for any gender signal at all. L
 
       // ===== HASHTAG SEARCH =====
       case "search_hashtag":
-        result = await igFetch(`/ig_hashtag_search?q=${encodeURIComponent(params.hashtag)}&user_id=${igUserId}`, token);
+        result = await igFetch(`/ig_hashtag_search?q=${encodeURIComponent(params.hashtag)}&user_id=${igUserId}`, token, "GET", undefined, true);
         break;
 
       case "get_hashtag_top_media":
-        result = await igFetch(`/${params.hashtag_id}/top_media?user_id=${igUserId}&fields=id,caption,media_type,like_count,comments_count,permalink,timestamp`, token);
+        result = await igFetch(`/${params.hashtag_id}/top_media?user_id=${igUserId}&fields=id,caption,media_type,like_count,comments_count,permalink,timestamp`, token, "GET", undefined, true);
         break;
 
       case "get_hashtag_recent_media":
-        result = await igFetch(`/${params.hashtag_id}/recent_media?user_id=${igUserId}&fields=id,caption,media_type,like_count,comments_count,permalink,timestamp`, token);
+        result = await igFetch(`/${params.hashtag_id}/recent_media?user_id=${igUserId}&fields=id,caption,media_type,like_count,comments_count,permalink,timestamp`, token, "GET", undefined, true);
         break;
 
       // ===== BUSINESS DISCOVERY (requires Business/Creator account) =====
