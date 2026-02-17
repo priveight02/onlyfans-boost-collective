@@ -37,8 +37,6 @@ const Maintenance = () => {
         transition={{ duration: 0.6 }}
         className="relative text-center max-w-lg"
       >
-        <div className="text-6xl mb-6">🔧</div>
-
         <h1 className="text-5xl md:text-6xl font-bold font-heading text-white mb-4 tracking-tight">
           We'll be right back
         </h1>
@@ -46,28 +44,27 @@ const Maintenance = () => {
           We're making some improvements. Everything will be back to normal shortly.
         </p>
 
-        <div className="inline-flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 rounded-full px-5 py-2 mb-8">
-          <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-          <span className="text-sm text-amber-300/80 font-medium">🛠️ Maintenance in progress</span>
+        <div className="inline-flex items-center gap-3 bg-white/[0.04] border border-white/[0.08] rounded-full px-8 py-4 mb-8">
+          <div className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse" />
+          <span className="text-base md:text-lg text-white/50 font-medium uppercase tracking-widest">Maintenance in progress</span>
         </div>
 
         {timeLeft && !expired && (
           <div className="mb-10">
-            <p className="text-xs text-white/25 uppercase tracking-widest mb-4">⏳ Estimated time remaining</p>
-            <div className="flex items-center justify-center gap-3">
+            <div className="flex items-center justify-center gap-2">
               {[
-                { val: timeLeft.h, label: "hours" },
-                { val: timeLeft.m, label: "min" },
-                { val: timeLeft.s, label: "sec" },
+                { val: timeLeft.h, label: "h" },
+                { val: timeLeft.m, label: "m" },
+                { val: timeLeft.s, label: "s" },
               ].map((unit, i) => (
-                <div key={unit.label} className="flex items-center gap-3">
-                  <div className="text-center bg-white/[0.04] backdrop-blur-sm border border-white/[0.08] rounded-xl px-4 py-3 min-w-[72px] md:min-w-[85px]">
-                    <span className="text-3xl md:text-4xl font-bold text-white font-mono tabular-nums">
+                <div key={unit.label} className="flex items-center gap-2">
+                  <div className="text-center bg-white/[0.03] border border-white/[0.06] rounded-lg px-2.5 py-1.5 min-w-[44px]">
+                    <span className="text-base font-semibold text-white/70 font-mono tabular-nums">
                       {String(unit.val).padStart(2, "0")}
                     </span>
-                    <p className="text-[10px] text-white/25 uppercase tracking-wider mt-1">{unit.label}</p>
+                    <p className="text-[8px] text-white/20 uppercase tracking-wider">{unit.label}</p>
                   </div>
-                  {i < 2 && <span className="text-xl text-white/15 font-light">:</span>}
+                  {i < 2 && <span className="text-sm text-white/10 font-light">:</span>}
                 </div>
               ))}
             </div>
@@ -76,7 +73,7 @@ const Maintenance = () => {
 
         {expired && (
           <p className="text-white/40 text-sm mb-10">
-            ✅ Should be back any moment now. Try refreshing.
+            Should be back any moment now. Try refreshing.
           </p>
         )}
 
