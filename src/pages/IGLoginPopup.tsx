@@ -86,9 +86,9 @@ const IGLoginPopup = () => {
             </div>
             <button
               onClick={() => {
-                const scope = "instagram_basic,instagram_content_publish,instagram_manage_comments,instagram_manage_insights,pages_show_list,pages_read_engagement";
+                const scope = "instagram_basic,instagram_content_publish,instagram_manage_comments,instagram_manage_insights";
                 const dynamicRedirect = redirectUri;
-                const authUrl = `https://www.facebook.com/v24.0/dialog/oauth?client_id=${INSTAGRAM_APP_ID}&redirect_uri=${encodeURIComponent(dynamicRedirect)}&scope=${encodeURIComponent(scope)}&response_type=code&extras=${encodeURIComponent(JSON.stringify({setup: {channel: "IG_API_ONBOARDING"}}))}`;
+                const authUrl = `https://www.facebook.com/v24.0/dialog/oauth?client_id=${INSTAGRAM_APP_ID}&redirect_uri=${encodeURIComponent(dynamicRedirect)}&scope=${encodeURIComponent(scope)}&response_type=code`;
                 if (window.top && window.top !== window) {
                   window.top.location.href = authUrl;
                 } else {
