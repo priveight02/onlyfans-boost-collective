@@ -71,7 +71,19 @@ const UserAvatar = ({ src, name, username, size = 8 }: { src: string | null; nam
   return <img src={src} alt="" className={`${sizeClass} rounded-full object-cover flex-shrink-0`} onError={() => setFailed(true)} referrerPolicy="no-referrer" crossOrigin="anonymous" />;
 };
 
+interface ConnectedAccount {
+  platform: string;
+  platform_username: string;
+  platform_user_id: string;
+  metadata: any;
+}
+
 const SearchDiscoveryHub = ({ accountId }: SearchDiscoveryHubProps) => {
+  // Connected accounts
+  const [connectedAccounts, setConnectedAccounts] = useState<ConnectedAccount[]>([]);
+  const [selectedConnection, setSelectedConnection] = useState<string>("all");
+  const [connectionsLoaded, setConnectionsLoaded] = useState(false);
+
   // Search state
   const [searchQuery, setSearchQuery] = useState("");
   const [searchMode, setSearchMode] = useState<"username" | "hashtag" | "keyword" | "similar" | "competitors">("username");
@@ -100,6 +112,27 @@ const SearchDiscoveryHub = ({ accountId }: SearchDiscoveryHubProps) => {
   const messageRef = useRef(message);
 
   useEffect(() => { messageRef.current = message; }, [message]);
+
+  // Load connected accounts
+  useEffect(() => {
+    const loadConnections = async () => {
+      const { data } = await supabase
+        .from("social_connections")
+        .select("platform, platform_username, platform_user_id, metadata")
+        .eq("account_id", accountId)
+        .eq("is_connected", true);
+      if (data && data.length > 0) {
+        setConnectedAccounts(data as ConnectedAccount[]);
+        // Auto-select first platform if only one
+        if (data.length === 1) {
+          setSelectedConnection(data[0].platform);
+          setSearchPlatform(data[0].platform as any);
+        }
+      }
+      setConnectionsLoaded(true);
+    };
+    loadConnections();
+  }, [accountId]);
 
   // Load persisted list from localStorage
   useEffect(() => {
@@ -508,14 +541,34 @@ const SearchDiscoveryHub = ({ accountId }: SearchDiscoveryHubProps) => {
             ))}
           </div>
 
-          {/* Platform selector */}
-          <div className="flex gap-1">
-            {(["all", "instagram", "tiktok"] as const).map(p => (
-              <button key={p} onClick={() => setSearchPlatform(p)}
-                className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors ${searchPlatform === p ? "bg-foreground/10 text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
-                {p === "all" ? "All" : p === "instagram" ? "IG" : "TT"}
-              </button>
-            ))}
+          {/* Connected account selector */}
+          <div className="space-y-1">
+            {connectedAccounts.length === 0 && connectionsLoaded && (
+              <p className="text-[10px] text-amber-400">⚠ No accounts connected. Connect in Social Networks tab.</p>
+            )}
+            {connectedAccounts.length > 0 && (
+              <div className="flex gap-1 flex-wrap items-center">
+                {connectedAccounts.length > 1 && (
+                  <button onClick={() => { setSelectedConnection("all"); setSearchPlatform("all"); }}
+                    className={`flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium transition-colors ${selectedConnection === "all" ? "bg-foreground/10 text-foreground ring-1 ring-border" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"}`}>
+                    <Globe className="h-3 w-3" /> All
+                  </button>
+                )}
+                {connectedAccounts.map(conn => {
+                  const isIG = conn.platform === "instagram";
+                  const Icon = isIG ? Instagram : Music2;
+                  return (
+                    <button key={conn.platform + conn.platform_user_id}
+                      onClick={() => { setSelectedConnection(conn.platform); setSearchPlatform(conn.platform as any); }}
+                      className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-medium transition-colors ${selectedConnection === conn.platform ? "bg-foreground/10 text-foreground ring-1 ring-border" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"}`}>
+                      <Icon className={`h-3 w-3 ${isIG ? "text-pink-400" : "text-cyan-400"}`} />
+                      <span>@{conn.platform_username}</span>
+                      <span className="text-[8px] text-muted-foreground capitalize">({conn.platform})</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Search input */}
