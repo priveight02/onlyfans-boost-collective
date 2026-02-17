@@ -23,18 +23,8 @@ const IGLoginPopup = () => {
 
     if (code) {
       handleCodeExchange(code);
-      return;
     }
-
-    // No code and no error — redirect immediately to Instagram OAuth
-    const scope = "instagram_basic,instagram_content_publish,instagram_manage_comments,instagram_manage_insights";
-    const authUrl = `https://api.instagram.com/oauth/authorize?client_id=${INSTAGRAM_APP_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scope}&response_type=code`;
-    // Use top-level navigation to escape iframe context (Instagram blocks iframe embeds)
-    if (window.top && window.top !== window) {
-      window.top.location.href = authUrl;
-    } else {
-      window.location.href = authUrl;
-    }
+    // If no code and no error, this page was loaded as a callback — just show loading
   }, []);
 
   const handleCodeExchange = async (code: string) => {
