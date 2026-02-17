@@ -88,12 +88,7 @@ const IGLoginPopup = () => {
               onClick={() => {
                 const scope = "instagram_basic,instagram_content_publish,instagram_manage_comments,instagram_manage_insights,pages_show_list,pages_read_engagement";
                 const authUrl = `https://www.facebook.com/v24.0/dialog/oauth?client_id=${INSTAGRAM_APP_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scope)}&response_type=code&extras=${encodeURIComponent(JSON.stringify({setup: {channel: "IG_API_ONBOARDING"}}))}`;
-
-                if (window.top && window.top !== window) {
-                  window.top.location.href = authUrl;
-                } else {
-                  window.location.href = authUrl;
-                }
+                window.location.href = authUrl;
               }}
               className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-medium h-11 rounded-lg transition-all"
             >
