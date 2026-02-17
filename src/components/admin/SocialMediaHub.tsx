@@ -223,21 +223,13 @@ const SocialMediaHub = () => {
       // Load session cookie data from IG connection metadata
       if (igConn?.metadata) {
         const meta = igConn.metadata as any;
-        // Only load actual session cookies, NOT OAuth tokens
-        const sessionValue = meta.ig_session_id;
-        // Check if the stored ig_session_id is actually an OAuth token (shouldn't be used as cookie)
-        const isOAuthToken = sessionValue && (sessionValue.startsWith("IGQV") || sessionValue.startsWith("IGQ"));
-        const realSession = isOAuthToken ? "" : (sessionValue || "");
-        if (realSession) setIgSessionId(realSession);
+        // Support both manual session_id and OAuth access_token as session equivalent
+        const sessionValue = meta.ig_session_id || meta.ig_access_token;
+        if (sessionValue) setIgSessionId(sessionValue);
         if (meta.ig_csrf_token) setIgCsrfToken(meta.ig_csrf_token);
         if (meta.ig_ds_user_id) setIgDsUserId(meta.ig_ds_user_id);
-        if (meta.ig_session_saved_at && realSession) setIgSessionSavedAt(meta.ig_session_saved_at);
-        if (realSession) {
-          setIgSessionStatus("valid");
-        } else if (meta.ig_session_source === "oauth_token" || meta.ig_access_token) {
-          // OAuth connected but no session cookie — show as "oauth" status
-          setIgSessionStatus("unknown");
-        }
+        if (meta.ig_session_saved_at) setIgSessionSavedAt(meta.ig_session_saved_at);
+        setIgSessionStatus(sessionValue ? "valid" : "unknown");
       }
       if (ttConn?.metadata && !ttProfile) {
         const meta = ttConn.metadata as any;
@@ -1188,21 +1180,15 @@ const SocialMediaHub = () => {
     try {
       const { data: existing } = await supabase.from("social_connections").select("metadata").eq("account_id", selectedAccount).eq("platform", "instagram").eq("is_connected", true).single();
       const currentMeta = (existing?.metadata as any) || {};
-      // Reject OAuth tokens being saved as session cookies — they won't work
-      const trimmedSession = igSessionId.trim();
-      const isOAuthToken = trimmedSession.startsWith("IGQV") || trimmedSession.startsWith("IGQ") || (!trimmedSession.includes("%3A") && !trimmedSession.includes(":") && trimmedSession.length > 150);
-      if (isOAuthToken) {
-        toast.error("This looks like an OAuth access token, not a session cookie. Session cookies contain '%3A' and come from browser DevTools → Cookies → sessionid.");
-        setIgSessionLoading(false);
-        return;
-      }
+      // Detect if input looks like an OAuth token (starts with IGQV or is very long without %3A) vs session cookie
+      const isOAuthToken = igSessionId.trim().startsWith("IGQV") || igSessionId.trim().startsWith("IGQ") || (!igSessionId.includes("%3A") && igSessionId.trim().length > 100);
       const updatedMeta = { 
         ...currentMeta, 
-        ig_session_id: trimmedSession, 
+        ig_session_id: igSessionId.trim(), 
         ig_csrf_token: igCsrfToken.trim() || undefined, 
         ig_ds_user_id: igDsUserId.trim() || undefined, 
         ig_session_saved_at: new Date().toISOString(),
-        ig_session_source: "manual_cookie",
+        ig_session_source: isOAuthToken ? "oauth_token" : "manual_cookie",
       };
       const { error } = await supabase.from("social_connections").update({ metadata: updatedMeta }).eq("account_id", selectedAccount).eq("platform", "instagram").eq("is_connected", true);
       if (error) throw error;
@@ -1333,17 +1319,19 @@ const SocialMediaHub = () => {
             
             const hasSession = !!session_id;
             
-            // If OAuth succeeded but no session_id was captured, mark as oauth-only
-            // Do NOT store the access_token as ig_session_id — it's not a session cookie
-            // and will fail with login_required on private API endpoints
+            // If OAuth succeeded but no session_id was captured, use the access_token as session equivalent
+            // This allows private API features to work via the OAuth token
             if (!hasSession && access_token) {
-              const oauthOnlyMeta = {
+              const oauthSessionMeta = {
                 ...updatedMeta,
+                ig_session_id: access_token,
+                ig_session_saved_at: savedAt,
                 ig_session_source: "oauth_token",
-                ig_oauth_connected_at: new Date().toISOString(),
               };
-              await supabase.from("social_connections").update({ metadata: oauthOnlyMeta }).eq("account_id", selectedAccount).eq("platform", "instagram").eq("is_connected", true);
-              // Don't set igSessionId to the OAuth token — it won't work as a cookie
+              await supabase.from("social_connections").update({ metadata: oauthSessionMeta }).eq("account_id", selectedAccount).eq("platform", "instagram").eq("is_connected", true);
+              setIgSessionId(access_token);
+              setIgSessionSavedAt(savedAt);
+              setIgSessionStatus("valid");
               if (ds_user_id || user_id) setIgDsUserId(ds_user_id || String(user_id));
             }
             
@@ -1601,7 +1589,7 @@ const SocialMediaHub = () => {
   };
 
   return (
-    <div className="dark space-y-4" style={{ '--foreground': '215 20% 75%', '--muted-foreground': '215 15% 50%', '--muted': '220 50% 16%', '--background': '220 100% 10%', '--border': '220 40% 20%', '--card': '220 80% 12%', '--card-foreground': '215 20% 75%', '--popover': '220 80% 12%', '--popover-foreground': '215 20% 75%', '--input': '220 40% 20%', '--secondary': '220 60% 18%', '--secondary-foreground': '215 20% 75%', '--accent-foreground': '215 20% 75%', color: 'hsl(215, 20%, 75%)' } as React.CSSProperties}>
+    <div className="dark space-y-4" style={{ '--foreground': '210 40% 98%', '--muted-foreground': '210 20% 60%', '--muted': '220 50% 16%', '--background': '220 100% 10%', '--border': '220 40% 20%', '--card': '220 80% 12%', '--card-foreground': '210 40% 98%', '--popover': '220 80% 12%', '--popover-foreground': '210 40% 98%', '--input': '220 40% 20%', '--secondary': '220 60% 18%', '--secondary-foreground': '210 40% 98%', '--accent-foreground': '210 40% 98%', color: 'hsl(210, 40%, 98%)' } as React.CSSProperties}>
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -2185,30 +2173,23 @@ const SocialMediaHub = () => {
                         Instagram Session
                       </h4>
                       <div className="flex items-center gap-2">
-                        {igSessionStatus === "valid" && igSessionId && (
+                        {igSessionStatus === "valid" && (
                           <Badge className="bg-emerald-500/15 text-emerald-400 border-emerald-500/30 text-[10px]">
-                            <CheckCircle2 className="h-3 w-3 mr-1" /> Session Active
+                            <CheckCircle2 className="h-3 w-3 mr-1" /> {(() => {
+                              const igConn = connections.find(c => c.platform === "instagram" && c.is_connected);
+                              const meta = (igConn?.metadata as any) || {};
+                              const connUsername = igConn?.platform_username;
+                              if (meta.ig_session_source === "oauth_token" && connUsername) return `Logged into Instagram @${connUsername}`;
+                              return "Active";
+                            })()}
                           </Badge>
                         )}
-                        {!igSessionId && (() => {
-                          const igConn = connections.find(c => c.platform === "instagram" && c.is_connected);
-                          const meta = (igConn?.metadata as any) || {};
-                          const connUsername = igConn?.platform_username;
-                          if (meta.ig_access_token || meta.ig_session_source === "oauth_token") {
-                            return (
-                              <Badge className="bg-blue-500/15 text-blue-400 border-blue-500/30 text-[10px]">
-                                <CheckCircle2 className="h-3 w-3 mr-1" /> Logged into Instagram @{connUsername}
-                              </Badge>
-                            );
-                          }
-                          return null;
-                        })()}
                         {igSessionStatus === "expired" && (
                           <Badge className="bg-destructive/15 text-destructive border-destructive/30 text-[10px]">
                             <AlertTriangle className="h-3 w-3 mr-1" /> Expired
                           </Badge>
                         )}
-                        {igSessionStatus === "unknown" && !igSessionId && !connections.find(c => c.platform === "instagram" && c.is_connected && ((c.metadata as any)?.ig_access_token || (c.metadata as any)?.ig_session_source === "oauth_token")) && (
+                        {igSessionStatus === "unknown" && !igSessionId && (
                           <Badge className="bg-amber-500/15 text-amber-400 border-amber-500/30 text-[10px]">
                             <AlertCircle className="h-3 w-3 mr-1" /> Not Set
                           </Badge>
@@ -2222,16 +2203,9 @@ const SocialMediaHub = () => {
                     </div>
 
                     <p className="text-[11px] text-muted-foreground leading-relaxed">
-                      {igSessionId && igSessionStatus === "valid"
-                        ? "Session cookie is active and synced across all social media features (discover, mass comment, like, follow, DMs)."
-                        : (() => {
-                            const igConn = connections.find(c => c.platform === "instagram" && c.is_connected);
-                            const meta = (igConn?.metadata as any) || {};
-                            if (meta.ig_access_token || meta.ig_session_source === "oauth_token") {
-                              return "Logged in via Instagram OAuth (Graph API). For private API features (discover external posts, mass comment, like, follow), paste your session cookie below.";
-                            }
-                            return "A valid session cookie is required to discover posts, mass comment, like, and follow on other accounts' content. Use \"Login\" for OAuth or paste a session cookie below.";
-                          })()}
+                      {igSessionStatus === "valid" 
+                        ? "Session is active and synced across all social media features (discover, mass comment, like, follow, DMs)."
+                        : "A valid session or OAuth login is required to discover posts, mass comment, like, and follow on other accounts' content. Use \"Login & Connect\" for easiest setup."}
                     </p>
 
                     <div className="space-y-3">
@@ -2254,7 +2228,7 @@ const SocialMediaHub = () => {
                     <div className="flex items-center gap-2 flex-wrap">
                       <Button size="sm" onClick={openIgLoginPopup} disabled={igLoginPopupLoading} className="gap-1.5 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white border-0">
                         {igLoginPopupLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Instagram className="h-3.5 w-3.5" />}
-                        Login
+                        Login & Connect
                       </Button>
                       <Button size="sm" onClick={saveIgSessionData} disabled={igSessionLoading || !igSessionId.trim()} className="gap-1.5">
                         {igSessionLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
@@ -2263,6 +2237,10 @@ const SocialMediaHub = () => {
                       <Button size="sm" variant="secondary" onClick={findSessions} disabled={findSessionsLoading || sessionAutoConnectLoading} className="gap-1.5">
                         {findSessionsLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Search className="h-3.5 w-3.5" />}
                         Find Sessions
+                      </Button>
+                      <Button size="sm" variant="secondary" onClick={autoConnectSession} disabled={sessionAutoConnectLoading || findSessionsLoading} className="gap-1.5 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30">
+                        {sessionAutoConnectLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />}
+                        Auto Connect
                       </Button>
                       <Button size="sm" variant="outline" onClick={testIgSession} disabled={igSessionLoading} className="gap-1.5 text-foreground">
                         {igSessionLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Activity className="h-3.5 w-3.5" />}
@@ -2304,8 +2282,8 @@ const SocialMediaHub = () => {
 
                     <Card className="bg-muted/30 border-border">
                       <CardContent className="p-3 space-y-2">
-                        <p className="text-[10px] font-semibold text-foreground">🔐 "Login" connects via Instagram OAuth (Graph API)</p>
-                        <p className="text-[10px] text-muted-foreground">This grants access to your own posts, comments, insights, and publishing. For private API features (discover external posts, mass comment, like, follow), you need a <strong>session cookie</strong> from DevTools.</p>
+                        <p className="text-[10px] font-semibold text-foreground">🔐 Easiest: Click "Login & Connect"</p>
+                        <p className="text-[10px] text-muted-foreground">A popup will open where you log in with your Instagram credentials. The session is captured automatically — no DevTools needed.</p>
                         <div className="border-t border-border my-2" />
                         <p className="text-[10px] font-semibold text-foreground">Manual alternative:</p>
                         <ol className="text-[10px] text-muted-foreground space-y-1 list-decimal list-inside">

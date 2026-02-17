@@ -46,7 +46,7 @@ const Navigation = () => {
 
   const finalMenuItems: MenuItem[] = [
     ...menuItems,
-    ...(user ? [{ name: "Platform", href: "/platform", icon: LayoutDashboard }] : []),
+    ...(user ? [{ name: "CRM", href: "/crm", icon: LayoutDashboard }] : []),
     ...(isAdmin ? [{ name: "Admin", href: "/admin", icon: Shield }] : []),
   ];
 
