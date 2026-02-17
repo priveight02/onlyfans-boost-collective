@@ -29,7 +29,12 @@ const IGLoginPopup = () => {
     // No code and no error — redirect immediately to Instagram OAuth
     const scope = "instagram_basic,instagram_content_publish,instagram_manage_comments,instagram_manage_insights";
     const authUrl = `https://api.instagram.com/oauth/authorize?client_id=${INSTAGRAM_APP_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scope}&response_type=code`;
-    window.location.href = authUrl;
+    // Use top-level navigation to escape iframe context (Instagram blocks iframe embeds)
+    if (window.top && window.top !== window) {
+      window.top.location.href = authUrl;
+    } else {
+      window.location.href = authUrl;
+    }
   }, []);
 
   const handleCodeExchange = async (code: string) => {
@@ -93,7 +98,11 @@ const IGLoginPopup = () => {
               onClick={() => {
                 const scope = "instagram_basic,instagram_content_publish,instagram_manage_comments,instagram_manage_insights";
                 const authUrl = `https://api.instagram.com/oauth/authorize?client_id=${INSTAGRAM_APP_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scope}&response_type=code`;
-                window.location.href = authUrl;
+                if (window.top && window.top !== window) {
+                  window.top.location.href = authUrl;
+                } else {
+                  window.location.href = authUrl;
+                }
               }}
               className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-medium h-11 rounded-lg transition-all"
             >
