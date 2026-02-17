@@ -56,7 +56,7 @@ const FeatureFlagsPanel = () => {
       setExperiments(data);
     } else if (tab === "evaluations") {
       const data = await cachedFetch<any[]>(CACHE_ID, "flag_evaluations", async () => {
-        const { data } = await supabase.from("feature_flag_evaluations").select("*").order("evaluated_at", { ascending: false }).limit(50); return data || [];
+        const { data } = await supabase.from("feature_flag_evaluations").select("*").order("evaluated_at", { ascending: false }).limit(20); return data || [];
       }, undefined, { ttlMs: 60_000 }
       );
       setEvaluations(data);
