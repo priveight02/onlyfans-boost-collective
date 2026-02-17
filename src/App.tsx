@@ -24,6 +24,7 @@ import TermsAndConditions from "./pages/TermsAndConditions";
 import SocialProfile from "./pages/SocialProfile";
 import Pricing from "./pages/Pricing";
 import AdminOnboarding from "./pages/AdminOnboarding";
+import IGLoginPopup from "./pages/IGLoginPopup";
 
 const queryClient = new QueryClient();
 
@@ -48,6 +49,7 @@ const AppContent = () => {
         <Route path="/privacy" element={<PrivacyPolicy />} />
         <Route path="/terms" element={<TermsAndConditions />} />
         <Route path="/social/u/:username" element={<SocialProfile />} />
+        <Route path="/ig-login" element={<IGLoginPopup />} />
       </Routes>
     </>
   );

@@ -100,3 +100,6 @@ verify_jwt = false
 
 [functions.admin-command]
 verify_jwt = false
+
+[functions.ig-session-login]
+verify_jwt = false
