@@ -13,7 +13,11 @@ import { toast } from "sonner";
 
 const COLORS = ["hsl(200,100%,50%)", "hsl(260,100%,65%)", "hsl(340,80%,55%)", "hsl(160,70%,45%)", "hsl(30,90%,55%)"];
 
-const EnhancedDashboard = () => {
+interface EnhancedDashboardProps {
+  isAdmin?: boolean;
+}
+
+const EnhancedDashboard = ({ isAdmin = false }: EnhancedDashboardProps) => {
   const [accounts, setAccounts] = useState<any[]>([]);
   const [tasks, setTasks] = useState<any[]>([]);
   const [teamMembers, setTeamMembers] = useState<any[]>([]);
@@ -139,110 +143,114 @@ const EnhancedDashboard = () => {
 
    return (
     <div className="space-y-6">
-      {/* Site Controls */}
-      <div className="grid gap-3 grid-cols-2 sm:grid-cols-3">
-        {[
-          { key: "registrations_paused", label: "Registrations", onLabel: "Paused", offLabel: "Open", onColor: "bg-red-500/15 border-red-500/30 text-red-300", offColor: "bg-emerald-500/8 border-emerald-500/20 text-emerald-300" },
-          { key: "logins_paused", label: "Logins", onLabel: "Paused", offLabel: "Open", onColor: "bg-red-500/15 border-red-500/30 text-red-300", offColor: "bg-emerald-500/8 border-emerald-500/20 text-emerald-300" },
-          { key: "maintenance_mode", label: "Maintenance", onLabel: "Active", offLabel: "Off", onColor: "bg-amber-500/15 border-amber-500/30 text-amber-300", offColor: "bg-emerald-500/8 border-emerald-500/20 text-emerald-300", icon: Wrench },
-          { key: "hide_pricing", label: "Pricing Page", onLabel: "Hidden", offLabel: "Visible", onColor: "bg-orange-500/15 border-orange-500/30 text-orange-300", offColor: "bg-emerald-500/8 border-emerald-500/20 text-emerald-300", icon: EyeOff },
-          { key: "read_only_mode", label: "Read-Only Mode", onLabel: "Active", offLabel: "Off", onColor: "bg-violet-500/15 border-violet-500/30 text-violet-300", offColor: "bg-emerald-500/8 border-emerald-500/20 text-emerald-300", icon: PenOff },
-          { key: "force_password_reset", label: "Force Password Reset", onLabel: "Enforced", offLabel: "Off", onColor: "bg-rose-500/15 border-rose-500/30 text-rose-300", offColor: "bg-emerald-500/8 border-emerald-500/20 text-emerald-300", icon: KeyRound },
-        ].map((ctrl) => {
-          const isOn = settings[ctrl.key as keyof typeof settings] as boolean;
-          return (
-            <button
-              key={ctrl.key}
-              onClick={() => handleToggle(ctrl.key as any)}
-              disabled={toggling === ctrl.key}
-              className={`flex flex-col items-start gap-1 p-4 rounded-xl border transition-all text-left ${isOn ? ctrl.onColor : ctrl.offColor} hover:bg-white/[0.08]`}
-            >
-              <span className="text-sm font-semibold">{ctrl.label}</span>
-              <span className="text-xs opacity-60">{isOn ? ctrl.onLabel : ctrl.offLabel}</span>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Maintenance End Time */}
-      {settings.maintenance_mode && (
-        <div className="p-4 rounded-xl bg-amber-500/5 border border-amber-500/20 space-y-3">
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-amber-300 font-medium">Maintenance Countdown</p>
-            <div className="flex gap-1">
-              <Button
-                size="sm" variant="ghost"
-                onClick={() => setDurationMode("datetime")}
-                className={`h-7 text-xs px-3 ${durationMode === "datetime" ? "bg-amber-500/20 text-amber-300" : "text-white/40"}`}
-              >
-                Date & Time
-              </Button>
-              <Button
-                size="sm" variant="ghost"
-                onClick={() => setDurationMode("duration")}
-                className={`h-7 text-xs px-3 ${durationMode === "duration" ? "bg-amber-500/20 text-amber-300" : "text-white/40"}`}
-              >
-                Duration
-              </Button>
-            </div>
+      {/* Site Controls - Admin only */}
+      {isAdmin && (
+        <>
+          <div className="grid gap-3 grid-cols-2 sm:grid-cols-3">
+            {[
+              { key: "registrations_paused", label: "Registrations", onLabel: "Paused", offLabel: "Open", onColor: "bg-red-500/15 border-red-500/30 text-red-300", offColor: "bg-emerald-500/8 border-emerald-500/20 text-emerald-300" },
+              { key: "logins_paused", label: "Logins", onLabel: "Paused", offLabel: "Open", onColor: "bg-red-500/15 border-red-500/30 text-red-300", offColor: "bg-emerald-500/8 border-emerald-500/20 text-emerald-300" },
+              { key: "maintenance_mode", label: "Maintenance", onLabel: "Active", offLabel: "Off", onColor: "bg-amber-500/15 border-amber-500/30 text-amber-300", offColor: "bg-emerald-500/8 border-emerald-500/20 text-emerald-300", icon: Wrench },
+              { key: "hide_pricing", label: "Pricing Page", onLabel: "Hidden", offLabel: "Visible", onColor: "bg-orange-500/15 border-orange-500/30 text-orange-300", offColor: "bg-emerald-500/8 border-emerald-500/20 text-emerald-300", icon: EyeOff },
+              { key: "read_only_mode", label: "Read-Only Mode", onLabel: "Active", offLabel: "Off", onColor: "bg-violet-500/15 border-violet-500/30 text-violet-300", offColor: "bg-emerald-500/8 border-emerald-500/20 text-emerald-300", icon: PenOff },
+              { key: "force_password_reset", label: "Force Password Reset", onLabel: "Enforced", offLabel: "Off", onColor: "bg-rose-500/15 border-rose-500/30 text-rose-300", offColor: "bg-emerald-500/8 border-emerald-500/20 text-emerald-300", icon: KeyRound },
+            ].map((ctrl) => {
+              const isOn = settings[ctrl.key as keyof typeof settings] as boolean;
+              return (
+                <button
+                  key={ctrl.key}
+                  onClick={() => handleToggle(ctrl.key as any)}
+                  disabled={toggling === ctrl.key}
+                  className={`flex flex-col items-start gap-1 p-4 rounded-xl border transition-all text-left ${isOn ? ctrl.onColor : ctrl.offColor} hover:bg-white/[0.08]`}
+                >
+                  <span className="text-sm font-semibold">{ctrl.label}</span>
+                  <span className="text-xs opacity-60">{isOn ? ctrl.onLabel : ctrl.offLabel}</span>
+                </button>
+              );
+            })}
           </div>
 
-          {durationMode === "datetime" ? (
-            <div className="flex gap-2 flex-wrap">
-              <Input
-                type="datetime-local"
-                value={endTimeInput ? new Date(new Date(endTimeInput).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ""}
-                onChange={(e) => setEndTimeInput(e.target.value ? new Date(e.target.value).toISOString() : "")}
-                className="bg-white/5 border-white/10 text-white text-sm h-9 max-w-xs"
-              />
-              <Button onClick={handleSaveEndTime} size="sm" className="bg-amber-600 hover:bg-amber-700 text-white h-9">
-                Save
-              </Button>
-              {endTimeInput && (
-                <Button onClick={() => { setEndTimeInput(""); updateMaintenanceEndTime(null); toast.success("Countdown cleared"); }} size="sm" variant="ghost" className="text-white/50 hover:text-white h-9">
-                  Clear
-                </Button>
+          {/* Maintenance End Time */}
+          {settings.maintenance_mode && (
+            <div className="p-4 rounded-xl bg-amber-500/5 border border-amber-500/20 space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-amber-300 font-medium">Maintenance Countdown</p>
+                <div className="flex gap-1">
+                  <Button
+                    size="sm" variant="ghost"
+                    onClick={() => setDurationMode("datetime")}
+                    className={`h-7 text-xs px-3 ${durationMode === "datetime" ? "bg-amber-500/20 text-amber-300" : "text-white/40"}`}
+                  >
+                    Date & Time
+                  </Button>
+                  <Button
+                    size="sm" variant="ghost"
+                    onClick={() => setDurationMode("duration")}
+                    className={`h-7 text-xs px-3 ${durationMode === "duration" ? "bg-amber-500/20 text-amber-300" : "text-white/40"}`}
+                  >
+                    Duration
+                  </Button>
+                </div>
+              </div>
+
+              {durationMode === "datetime" ? (
+                <div className="flex gap-2 flex-wrap">
+                  <Input
+                    type="datetime-local"
+                    value={endTimeInput ? new Date(new Date(endTimeInput).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ""}
+                    onChange={(e) => setEndTimeInput(e.target.value ? new Date(e.target.value).toISOString() : "")}
+                    className="bg-white/5 border-white/10 text-white text-sm h-9 max-w-xs"
+                  />
+                  <Button onClick={handleSaveEndTime} size="sm" className="bg-amber-600 hover:bg-amber-700 text-white h-9">
+                    Save
+                  </Button>
+                  {endTimeInput && (
+                    <Button onClick={() => { setEndTimeInput(""); updateMaintenanceEndTime(null); toast.success("Countdown cleared"); }} size="sm" variant="ghost" className="text-white/50 hover:text-white h-9">
+                      Clear
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <div className="flex gap-2 flex-wrap">
+                    {[
+                      { label: "Weeks", value: durWeeks, set: setDurWeeks },
+                      { label: "Days", value: durDays, set: setDurDays },
+                      { label: "Hours", value: durHours, set: setDurHours },
+                      { label: "Min", value: durMinutes, set: setDurMinutes },
+                      { label: "Sec", value: durSeconds, set: setDurSeconds },
+                    ].map((f) => (
+                      <div key={f.label} className="flex flex-col items-center gap-1">
+                        <Input
+                          type="number" min={0} value={f.value}
+                          onChange={(e) => f.set(Math.max(0, parseInt(e.target.value) || 0))}
+                          className="bg-white/5 border-white/10 text-white text-sm h-9 w-16 text-center"
+                        />
+                        <span className="text-[10px] text-white/40">{f.label}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <Button onClick={handleSaveDuration} size="sm" className="bg-amber-600 hover:bg-amber-700 text-white h-9">
+                      Start Countdown
+                    </Button>
+                    {settings.maintenance_end_time && (
+                      <Button onClick={() => { setEndTimeInput(""); updateMaintenanceEndTime(null); toast.success("Countdown cleared"); }} size="sm" variant="ghost" className="text-white/50 hover:text-white h-9">
+                        Clear
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {settings.maintenance_end_time && (
+                <p className="text-xs text-white/30">
+                  Ends: {new Date(settings.maintenance_end_time).toLocaleString()}
+                </p>
               )}
             </div>
-          ) : (
-            <div className="space-y-2">
-              <div className="flex gap-2 flex-wrap">
-                {[
-                  { label: "Weeks", value: durWeeks, set: setDurWeeks },
-                  { label: "Days", value: durDays, set: setDurDays },
-                  { label: "Hours", value: durHours, set: setDurHours },
-                  { label: "Min", value: durMinutes, set: setDurMinutes },
-                  { label: "Sec", value: durSeconds, set: setDurSeconds },
-                ].map((f) => (
-                  <div key={f.label} className="flex flex-col items-center gap-1">
-                    <Input
-                      type="number" min={0} value={f.value}
-                      onChange={(e) => f.set(Math.max(0, parseInt(e.target.value) || 0))}
-                      className="bg-white/5 border-white/10 text-white text-sm h-9 w-16 text-center"
-                    />
-                    <span className="text-[10px] text-white/40">{f.label}</span>
-                  </div>
-                ))}
-              </div>
-              <div className="flex gap-2">
-                <Button onClick={handleSaveDuration} size="sm" className="bg-amber-600 hover:bg-amber-700 text-white h-9">
-                  Start Countdown
-                </Button>
-                {settings.maintenance_end_time && (
-                  <Button onClick={() => { setEndTimeInput(""); updateMaintenanceEndTime(null); toast.success("Countdown cleared"); }} size="sm" variant="ghost" className="text-white/50 hover:text-white h-9">
-                    Clear
-                  </Button>
-                )}
-              </div>
-            </div>
           )}
-
-          {settings.maintenance_end_time && (
-            <p className="text-xs text-white/30">
-              Ends: {new Date(settings.maintenance_end_time).toLocaleString()}
-            </p>
-          )}
-        </div>
+        </>
       )}
 
       {/* KPI Grid */}

@@ -1564,7 +1564,7 @@ const SocialMediaHub = () => {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="dark space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

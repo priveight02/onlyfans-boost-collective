@@ -98,7 +98,7 @@ const Admin = () => {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="dashboard"><EnhancedDashboard /></TabsContent>
+          <TabsContent value="dashboard"><EnhancedDashboard isAdmin={true} /></TabsContent>
           <TabsContent value="customers"><AdminCustomers /></TabsContent>
           <TabsContent value="workspace"><WorkspaceAdmin /></TabsContent>
           <TabsContent value="credits"><AdminCredits /></TabsContent>
