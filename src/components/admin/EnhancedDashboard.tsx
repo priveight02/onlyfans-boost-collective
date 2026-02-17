@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from "recharts";
-import { TrendingUp, DollarSign, Users, BarChart3, Crown, AlertTriangle, ArrowUpRight, ArrowDownRight, Activity, ShieldOff, UserX, Wrench, Play, Pause } from "lucide-react";
+import { TrendingUp, DollarSign, Users, BarChart3, Crown, AlertTriangle, ArrowUpRight, ArrowDownRight, Activity, ShieldOff, UserX, Wrench, Play, Pause, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { cachedFetch } from "@/lib/supabaseCache";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
 import { toast } from "sonner";
 
@@ -82,8 +83,13 @@ const EnhancedDashboard = () => {
     { title: "Team Members", value: activeTeam.toString(), icon: Users, change: `${teamMembers.length} total`, positive: true },
   ];
 
-  const { settings, updateSetting } = useSiteSettings();
+  const { settings, updateSetting, updateMaintenanceEndTime } = useSiteSettings();
   const [toggling, setToggling] = useState<string | null>(null);
+  const [endTimeInput, setEndTimeInput] = useState(settings.maintenance_end_time || "");
+
+  useEffect(() => {
+    setEndTimeInput(settings.maintenance_end_time || "");
+  }, [settings.maintenance_end_time]);
 
   const handleToggle = async (key: "registrations_paused" | "logins_paused" | "maintenance_mode") => {
     setToggling(key);
@@ -100,6 +106,15 @@ const EnhancedDashboard = () => {
       toast.error(err.message || "Failed to update setting");
     } finally {
       setToggling(null);
+    }
+  };
+
+  const handleSaveEndTime = async () => {
+    try {
+      await updateMaintenanceEndTime(endTimeInput || null);
+      toast.success(endTimeInput ? "Maintenance end time set" : "Maintenance end time cleared");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update end time");
     }
   };
 
@@ -151,6 +166,32 @@ const EnhancedDashboard = () => {
           {settings.maintenance_mode ? "Disable Maintenance" : "Enable Maintenance"}
         </Button>
       </div>
+
+      {/* Maintenance End Time */}
+      {settings.maintenance_mode && (
+        <div className="flex items-center gap-3 p-4 rounded-xl bg-amber-500/5 border border-amber-500/20">
+          <Clock className="h-5 w-5 text-amber-400 shrink-0" />
+          <div className="flex-1">
+            <p className="text-sm text-amber-300 font-medium mb-2">Maintenance Countdown</p>
+            <div className="flex gap-2">
+              <Input
+                type="datetime-local"
+                value={endTimeInput ? new Date(new Date(endTimeInput).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ""}
+                onChange={(e) => setEndTimeInput(e.target.value ? new Date(e.target.value).toISOString() : "")}
+                className="bg-white/5 border-white/10 text-white text-sm h-9 max-w-xs"
+              />
+              <Button onClick={handleSaveEndTime} size="sm" className="bg-amber-600 hover:bg-amber-700 text-white h-9">
+                Save
+              </Button>
+              {endTimeInput && (
+                <Button onClick={() => { setEndTimeInput(""); updateMaintenanceEndTime(null); toast.success("Countdown cleared"); }} size="sm" variant="ghost" className="text-white/50 hover:text-white h-9">
+                  Clear
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Status indicators */}
       {(settings.registrations_paused || settings.logins_paused || settings.maintenance_mode) && (

@@ -160,6 +160,14 @@ const Auth = () => {
   };
 
   const handleGoogleLogin = async () => {
+    if (siteSettings.maintenance_mode || siteSettings.logins_paused) {
+      setNotification({ type: "error", message: siteSettings.maintenance_mode ? "The site is currently under maintenance. Logins are temporarily disabled." : "Logins have been temporarily disabled by an administrator." });
+      return;
+    }
+    if (mode === "register" && (siteSettings.maintenance_mode || siteSettings.registrations_paused)) {
+      setNotification({ type: "error", message: siteSettings.maintenance_mode ? "The site is currently under maintenance. Registrations are temporarily disabled." : "Registrations have been temporarily disabled by an administrator." });
+      return;
+    }
     try {
       const { error } = await lovable.auth.signInWithOAuth("google", {
         redirect_uri: window.location.origin,

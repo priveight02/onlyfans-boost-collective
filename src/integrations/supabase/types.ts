@@ -3015,6 +3015,7 @@ export type Database = {
         Row: {
           id: string
           setting_key: string
+          setting_meta: string | null
           setting_value: boolean
           updated_at: string
           updated_by: string | null
@@ -3022,6 +3023,7 @@ export type Database = {
         Insert: {
           id?: string
           setting_key: string
+          setting_meta?: string | null
           setting_value?: boolean
           updated_at?: string
           updated_by?: string | null
@@ -3029,6 +3031,7 @@ export type Database = {
         Update: {
           id?: string
           setting_key?: string
+          setting_meta?: string | null
           setting_value?: boolean
           updated_at?: string
           updated_by?: string | null

@@ -5,12 +5,14 @@ export interface SiteSettings {
   registrations_paused: boolean;
   logins_paused: boolean;
   maintenance_mode: boolean;
+  maintenance_end_time: string | null;
 }
 
 const DEFAULT: SiteSettings = {
   registrations_paused: false,
   logins_paused: false,
   maintenance_mode: false,
+  maintenance_end_time: null,
 };
 
 export const useSiteSettings = () => {
@@ -20,16 +22,19 @@ export const useSiteSettings = () => {
   const fetchSettings = async () => {
     const { data } = await supabase
       .from("site_settings" as any)
-      .select("setting_key, setting_value");
+      .select("setting_key, setting_value, setting_meta");
     if (data) {
       const map: any = {};
+      const metaMap: any = {};
       (data as any[]).forEach((r: any) => {
         map[r.setting_key] = r.setting_value;
+        metaMap[r.setting_key] = r.setting_meta;
       });
       setSettings({
         registrations_paused: map.registrations_paused ?? false,
         logins_paused: map.logins_paused ?? false,
         maintenance_mode: map.maintenance_mode ?? false,
+        maintenance_end_time: metaMap.maintenance_mode || null,
       });
     }
     setLoading(false);
@@ -44,10 +49,18 @@ export const useSiteSettings = () => {
     setSettings((prev) => ({ ...prev, [key]: value }));
   };
 
+  const updateMaintenanceEndTime = async (endTime: string | null) => {
+    const { error } = await (supabase as any)
+      .from("site_settings")
+      .update({ setting_meta: endTime || null, updated_at: new Date().toISOString() })
+      .eq("setting_key", "maintenance_mode");
+    if (error) throw error;
+    setSettings((prev) => ({ ...prev, maintenance_end_time: endTime }));
+  };
+
   useEffect(() => {
     fetchSettings();
 
-    // Subscribe to realtime changes
     const channel = supabase
       .channel("site_settings_changes")
       .on(
@@ -64,5 +77,5 @@ export const useSiteSettings = () => {
     };
   }, []);
 
-  return { settings, loading, updateSetting, refetch: fetchSettings };
+  return { settings, loading, updateSetting, updateMaintenanceEndTime, refetch: fetchSettings };
 };

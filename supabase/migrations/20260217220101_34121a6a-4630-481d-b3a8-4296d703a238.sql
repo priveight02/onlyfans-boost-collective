@@ -1,0 +1,1 @@
+ALTER TABLE public.site_settings ADD COLUMN setting_meta text DEFAULT NULL;
