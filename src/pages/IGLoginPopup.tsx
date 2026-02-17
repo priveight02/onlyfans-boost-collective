@@ -1,14 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2, Instagram, Shield, CheckCircle2, AlertTriangle, Eye, EyeOff, ExternalLink, RefreshCw } from "lucide-react";
 
-/**
- * This page is opened as a popup window from the Social Media Hub.
- * It performs a server-side Instagram login via our edge function,
- * captures the session tokens, and sends them back to the parent window.
- */
 const IGLoginPopup = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -16,12 +11,73 @@ const IGLoginPopup = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [checkpointRequired, setCheckpointRequired] = useState(false);
+  const [checkpointUrl, setCheckpointUrl] = useState("");
+  const [checkpointOpened, setCheckpointOpened] = useState(false);
+  const [autoRetryCount, setAutoRetryCount] = useState(0);
+  const [autoRetrying, setAutoRetrying] = useState(false);
   const [success, setSuccess] = useState(false);
+  const retryTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // 2FA state
   const [twoFactorRequired, setTwoFactorRequired] = useState(false);
   const [twoFactorIdentifier, setTwoFactorIdentifier] = useState("");
   const [verificationCode, setVerificationCode] = useState("");
+
+  // Auto-retry login after checkpoint verification — polls every 8s up to 10 times
+  useEffect(() => {
+    if (!checkpointOpened || !username || !password) return;
+
+    setAutoRetrying(true);
+    setAutoRetryCount(0);
+
+    retryTimerRef.current = setInterval(async () => {
+      setAutoRetryCount((prev) => {
+        if (prev >= 10) {
+          // Stop after 10 attempts
+          if (retryTimerRef.current) clearInterval(retryTimerRef.current);
+          setAutoRetrying(false);
+          setError("Auto-retry timed out. Complete the verification on Instagram, then click 'Retry Now'.");
+          return prev;
+        }
+        return prev + 1;
+      });
+
+      try {
+        const { data, error: fnError } = await supabase.functions.invoke("ig-session-login", {
+          body: { username: username.trim(), password },
+        });
+        if (fnError) return;
+
+        if (data?.success) {
+          // Checkpoint cleared! 
+          if (retryTimerRef.current) clearInterval(retryTimerRef.current);
+          setAutoRetrying(false);
+          setCheckpointRequired(false);
+          setCheckpointOpened(false);
+          setSuccess(true);
+          setError("");
+
+          if (window.opener) {
+            window.opener.postMessage({
+              type: "IG_SESSION_RESULT",
+              payload: {
+                session_id: data.data.session_id,
+                csrf_token: data.data.csrf_token,
+                ds_user_id: data.data.ds_user_id,
+                username: data.data.username,
+              },
+            }, "*");
+            setTimeout(() => window.close(), 1500);
+          }
+        }
+        // If still checkpoint_required, just keep polling
+      } catch {}
+    }, 8000);
+
+    return () => {
+      if (retryTimerRef.current) clearInterval(retryTimerRef.current);
+    };
+  }, [checkpointOpened, username, password]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,9 +104,14 @@ const IGLoginPopup = () => {
       }
 
       if (data?.checkpoint_required) {
+        const cpUrl = data.checkpoint_url || "https://www.instagram.com/challenge/";
         setCheckpointRequired(true);
-        setError("Instagram requires a security verification. Complete it in the link below, then retry.");
+        setCheckpointUrl(cpUrl);
+        setError("");
         setLoading(false);
+        // Automatically open the checkpoint URL
+        window.open(cpUrl, "_blank");
+        setCheckpointOpened(true);
         return;
       }
 
@@ -60,7 +121,7 @@ const IGLoginPopup = () => {
         return;
       }
 
-      // Success! Send session data back to parent window
+      // Success!
       setSuccess(true);
       if (window.opener) {
         window.opener.postMessage({
@@ -72,12 +133,47 @@ const IGLoginPopup = () => {
             username: data.data.username,
           },
         }, "*");
-
-        // Close after a short delay so user sees success
         setTimeout(() => window.close(), 1500);
       }
     } catch (err: any) {
       setError(err.message || "Connection failed. Try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleManualRetry = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const { data, error: fnError } = await supabase.functions.invoke("ig-session-login", {
+        body: { username: username.trim(), password },
+      });
+      if (fnError) throw new Error(fnError.message);
+      if (data?.success) {
+        if (retryTimerRef.current) clearInterval(retryTimerRef.current);
+        setAutoRetrying(false);
+        setCheckpointRequired(false);
+        setSuccess(true);
+        if (window.opener) {
+          window.opener.postMessage({
+            type: "IG_SESSION_RESULT",
+            payload: {
+              session_id: data.data.session_id,
+              csrf_token: data.data.csrf_token,
+              ds_user_id: data.data.ds_user_id,
+              username: data.data.username,
+            },
+          }, "*");
+          setTimeout(() => window.close(), 1500);
+        }
+      } else if (data?.checkpoint_required) {
+        setError("Verification still pending. Complete it on Instagram, we'll keep trying automatically.");
+      } else {
+        setError(data?.error || "Login failed.");
+      }
+    } catch (err: any) {
+      setError(err.message || "Retry failed.");
     } finally {
       setLoading(false);
     }
@@ -106,6 +202,62 @@ const IGLoginPopup = () => {
             <CheckCircle2 className="h-16 w-16 text-emerald-400 mx-auto animate-bounce" />
             <p className="text-lg font-semibold text-white">Connected!</p>
             <p className="text-sm text-white/60">Session synced. This window will close automatically.</p>
+          </div>
+        ) : checkpointRequired ? (
+          <div className="space-y-4 py-4">
+            <div className="flex items-start gap-3 p-4 rounded-xl bg-orange-500/10 border border-orange-500/20">
+              <AlertTriangle className="h-5 w-5 text-orange-400 mt-0.5 flex-shrink-0" />
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-orange-300">Security Verification Required</p>
+                <p className="text-xs text-orange-200/70">
+                  Instagram opened a verification page in a new tab. Complete it there — we're automatically retrying in the background.
+                </p>
+              </div>
+            </div>
+
+            {autoRetrying && (
+              <div className="flex items-center justify-center gap-2 py-2">
+                <Loader2 className="h-4 w-4 animate-spin text-purple-400" />
+                <span className="text-xs text-purple-300">
+                  Auto-checking… attempt {autoRetryCount}/10
+                </span>
+              </div>
+            )}
+
+            {error && (
+              <div className="flex items-start gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/20">
+                <AlertTriangle className="h-4 w-4 text-red-400 mt-0.5 flex-shrink-0" />
+                <p className="text-xs text-red-300">{error}</p>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => window.open(checkpointUrl || "https://www.instagram.com/challenge/", "_blank")}
+                className="w-full border-orange-500/30 bg-orange-500/10 text-orange-300 hover:bg-orange-500/20 hover:text-orange-200 gap-2"
+              >
+                <ExternalLink className="h-4 w-4" /> Re-open Verification Page
+              </Button>
+              <Button
+                type="button"
+                onClick={handleManualRetry}
+                disabled={loading}
+                className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-medium gap-2"
+              >
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                Retry Now
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => { setCheckpointRequired(false); setCheckpointOpened(false); setError(""); if (retryTimerRef.current) clearInterval(retryTimerRef.current); setAutoRetrying(false); }}
+                className="w-full text-white/50 hover:text-white/80"
+              >
+                ← Back to login
+              </Button>
+            </div>
           </div>
         ) : (
           <form onSubmit={handleLogin} className="space-y-4">
@@ -163,31 +315,9 @@ const IGLoginPopup = () => {
             )}
 
             {error && (
-              <div className="space-y-2">
-                <div className="flex items-start gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/20">
-                  <AlertTriangle className="h-4 w-4 text-red-400 mt-0.5 flex-shrink-0" />
-                  <p className="text-xs text-red-300">{error}</p>
-                </div>
-                {checkpointRequired && (
-                  <div className="space-y-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => window.open("https://www.instagram.com/accounts/login/", "_blank")}
-                      className="w-full border-orange-500/30 bg-orange-500/10 text-orange-300 hover:bg-orange-500/20 hover:text-orange-200 gap-2"
-                    >
-                      <ExternalLink className="h-4 w-4" /> Open Instagram to Verify
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      onClick={() => { setCheckpointRequired(false); setError(""); }}
-                      className="w-full text-white/50 hover:text-white/80 gap-2"
-                    >
-                      <RefreshCw className="h-4 w-4" /> Try Again
-                    </Button>
-                  </div>
-                )}
+              <div className="flex items-start gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/20">
+                <AlertTriangle className="h-4 w-4 text-red-400 mt-0.5 flex-shrink-0" />
+                <p className="text-xs text-red-300">{error}</p>
               </div>
             )}
 
