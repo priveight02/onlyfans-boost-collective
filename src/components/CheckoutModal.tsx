@@ -197,10 +197,12 @@ const CheckoutModal = ({ clientSecret, onClose }: CheckoutModalProps) => {
                     const observer = new MutationObserver(() => {
                       if (el.querySelector("iframe")) {
                         setStripeReady(true);
-                        // Auto-scroll to bottom after Stripe loads so pay button is visible
-                        setTimeout(() => {
-                          el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
-                        }, 800);
+                        // Auto-scroll to bottom after Stripe fully renders
+                        const scrollToBottom = () => {
+                          el.scrollTo({ top: 999999, behavior: "smooth" });
+                        };
+                        setTimeout(scrollToBottom, 1200);
+                        setTimeout(scrollToBottom, 2500);
                         observer.disconnect();
                       }
                     });
