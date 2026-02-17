@@ -73,7 +73,7 @@ serve(async (req) => {
 
     // Get user profile
     const profileRes = await fetch(
-      `https://graph.instagram.com/me?fields=id,username,account_type&access_token=${longLivedData.access_token || tokenData.access_token}`
+      `https://graph.instagram.com/me?fields=id,username,account_type,name&access_token=${longLivedData.access_token || tokenData.access_token}`
     );
     const profileData = await profileRes.json();
 
