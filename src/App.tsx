@@ -83,7 +83,8 @@ const AppContent = () => {
         <Route path="/auth" element={<Auth />} />
         <Route path="/auth/reset-password" element={<ResetPassword />} />
         <Route path="/profile" element={<ProtectedRoute><UserProfile /></ProtectedRoute>} />
-        <Route path="/crm" element={<ProtectedRoute><CRM /></ProtectedRoute>} />
+        <Route path="/platform" element={<ProtectedRoute><CRM /></ProtectedRoute>} />
+        <Route path="/crm" element={<Navigate to="/platform" replace />} />
         <Route path="/admin" element={<ProtectedRoute requireAdmin><Admin /></ProtectedRoute>} />
         <Route path="/admin-onboarding/:token" element={<ProtectedRoute><AdminOnboarding /></ProtectedRoute>} />
         <Route path="/link/:slug" element={<BioLink />} />
