@@ -54,6 +54,9 @@ const IGLoginPopup = () => {
             user_id: data.data.user_id,
             username: data.data.username,
             account_type: data.data.account_type,
+            expires_in: data.data.expires_in,
+            name: data.data.name,
+            profile_picture_url: data.data.profile_picture_url,
           },
         }, "*");
         setTimeout(() => window.close(), 1500);
