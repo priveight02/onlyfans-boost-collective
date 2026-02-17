@@ -2,7 +2,7 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Instagram, Shield, CheckCircle2, AlertTriangle, Eye, EyeOff } from "lucide-react";
+import { Loader2, Instagram, Shield, CheckCircle2, AlertTriangle, Eye, EyeOff, ExternalLink, RefreshCw } from "lucide-react";
 
 /**
  * This page is opened as a popup window from the Social Media Hub.
@@ -15,6 +15,7 @@ const IGLoginPopup = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [checkpointRequired, setCheckpointRequired] = useState(false);
   const [success, setSuccess] = useState(false);
 
   // 2FA state
@@ -47,7 +48,8 @@ const IGLoginPopup = () => {
       }
 
       if (data?.checkpoint_required) {
-        setError(data.error || "Security checkpoint required. Complete it in the Instagram app, then try again.");
+        setCheckpointRequired(true);
+        setError("Instagram requires a security verification. Complete it in the link below, then retry.");
         setLoading(false);
         return;
       }
@@ -161,9 +163,31 @@ const IGLoginPopup = () => {
             )}
 
             {error && (
-              <div className="flex items-start gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/20">
-                <AlertTriangle className="h-4 w-4 text-red-400 mt-0.5 flex-shrink-0" />
-                <p className="text-xs text-red-300">{error}</p>
+              <div className="space-y-2">
+                <div className="flex items-start gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/20">
+                  <AlertTriangle className="h-4 w-4 text-red-400 mt-0.5 flex-shrink-0" />
+                  <p className="text-xs text-red-300">{error}</p>
+                </div>
+                {checkpointRequired && (
+                  <div className="space-y-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => window.open("https://www.instagram.com/accounts/login/", "_blank")}
+                      className="w-full border-orange-500/30 bg-orange-500/10 text-orange-300 hover:bg-orange-500/20 hover:text-orange-200 gap-2"
+                    >
+                      <ExternalLink className="h-4 w-4" /> Open Instagram to Verify
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => { setCheckpointRequired(false); setError(""); }}
+                      className="w-full text-white/50 hover:text-white/80 gap-2"
+                    >
+                      <RefreshCw className="h-4 w-4" /> Try Again
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
 

@@ -27,6 +27,9 @@ interface LiveDMConversationsProps {
   accountId: string;
   autoRespondActive: boolean;
   onToggleAutoRespond: () => void;
+  onNavigateToSession?: () => void;
+  igSessionId?: string;
+  igSessionStatus?: "unknown" | "valid" | "expired";
 }
 
 interface Conversation {
@@ -184,7 +187,7 @@ const PipelineDelayCountdown = ({ delay_ms, started_at }: { delay_ms: number; st
   );
 };
 
-const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond }: LiveDMConversationsProps) => {
+const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond, onNavigateToSession, igSessionId, igSessionStatus }: LiveDMConversationsProps) => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [selectedConvo, setSelectedConvo] = useState<string | null>(null);
@@ -263,7 +266,7 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
     setAiLog(prev => [{ convo, phase, time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }), status }, ...prev].slice(0, 50));
   }, []);
 
-  // Check Instagram connection
+  // Check Instagram connection + session validity
   const checkConnection = useCallback(async () => {
     if (!accountId) return;
     setConnectionStatus("checking");
@@ -278,11 +281,16 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
       setConnectionStatus("connected");
       setConnectionError("");
       igConnRef.current = { platform_user_id: data.platform_user_id || "", platform_username: data.platform_username || "" };
+      // Also check session status
+      const meta = data.metadata as any;
+      if (!meta?.ig_session_id && igSessionStatus !== "valid" && !igSessionId) {
+        setConnectionError("Session ID required for DM features — click to connect");
+      }
     } else {
       setConnectionStatus("error");
       setConnectionError("Instagram not connected — connect in Social Hub settings");
     }
-  }, [accountId]);
+  }, [accountId, igSessionId, igSessionStatus]);
 
   // Load conversations from DB — MERGE instead of replace to avoid re-renders
   const loadConversations = useCallback(async () => {
@@ -1474,7 +1482,15 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
                 <div className="h-2 w-2 rounded-full bg-green-500" title="Instagram connected" />
               )}
               {connectionStatus === "error" && (
-                <div className="h-2 w-2 rounded-full bg-red-500" title={connectionError} />
+                <div
+                  className="h-2 w-2 rounded-full bg-red-500 cursor-pointer"
+                  title={connectionError}
+                  onClick={() => {
+                    if (connectionError.includes("Session ID") && onNavigateToSession) {
+                      onNavigateToSession();
+                    }
+                  }}
+                />
               )}
               {polling && (
                 <Badge variant="outline" className="text-green-400 border-green-500/30 text-[9px] animate-pulse px-1.5 py-0">
@@ -2630,7 +2646,7 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
       )}
 
       {/* Bulk Message Hub Dialog */}
-      <BulkMessageHub accountId={accountId} open={bulkHubOpen} onOpenChange={setBulkHubOpen} />
+      <BulkMessageHub accountId={accountId} open={bulkHubOpen} onOpenChange={setBulkHubOpen} onNavigateToSession={onNavigateToSession} igSessionId={igSessionId} igSessionStatus={igSessionStatus} />
       {/* Persona Creator Dialog */}
       <PersonaCreatorDialog accountId={accountId} open={personaCreatorOpen} onOpenChange={setPersonaCreatorOpen} />
     </div>

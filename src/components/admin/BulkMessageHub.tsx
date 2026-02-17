@@ -27,6 +27,9 @@ interface BulkMessageHubProps {
   accountId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onNavigateToSession?: () => void;
+  igSessionId?: string;
+  igSessionStatus?: "unknown" | "valid" | "expired";
 }
 
 interface Follower {
@@ -96,7 +99,7 @@ const UserAvatar = ({ src, name, username, size = 8 }: { src: string | null; nam
   );
 };
 
-const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) => {
+const BulkMessageHub = ({ accountId, open, onOpenChange, onNavigateToSession, igSessionId: parentSessionId, igSessionStatus }: BulkMessageHubProps) => {
   const [followers, setFollowers] = useState<Follower[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -145,6 +148,32 @@ const BulkMessageHub = ({ accountId, open, onOpenChange }: BulkMessageHubProps) 
   const discoverTimeout = useRef<any>(null);
 
   useEffect(() => { messageRef.current = message; }, [message]);
+
+  // Session gate: if opened without active session, close and redirect to connect tab
+  useEffect(() => {
+    if (!open) return;
+    if (igSessionStatus === "expired" || (!parentSessionId && igSessionStatus !== "valid")) {
+      // Check DB fallback
+      (async () => {
+        const { data: connData } = await supabase
+          .from("social_connections")
+          .select("metadata")
+          .eq("account_id", accountId)
+          .eq("platform", "instagram")
+          .single();
+        const savedSession = (connData?.metadata as any)?.ig_session_id;
+        if (!savedSession) {
+          onOpenChange(false);
+          toast.error("Instagram session required — redirecting to connect your session");
+          setTimeout(() => onNavigateToSession?.(), 300);
+        } else {
+          setSessionId(savedSession);
+        }
+      })();
+    } else if (parentSessionId) {
+      setSessionId(parentSessionId);
+    }
+  }, [open, parentSessionId, igSessionStatus]);
 
   // Real-time follower count sync from Instagram
   const syncFollowerCount = useCallback(async () => {
