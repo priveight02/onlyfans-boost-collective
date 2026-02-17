@@ -1250,33 +1250,58 @@ const SocialMediaHub = () => {
 
   // Open the IG login popup — directly open Instagram OAuth to avoid iframe blocking
   const openIgLoginPopup = () => {
-    // Use oauthAppId from UI, or pre-fetched backend secret
     const appId = oauthAppId || cachedIgAppId;
     if (!appId) { toast.error("Enter your Meta App ID in the One-Click Connect section, or configure INSTAGRAM_APP_ID in backend secrets"); return; }
     setIgLoginPopupLoading(true);
-    const publishedOrigin = "https://ozcagency.com";
-    const redirectUri = `${publishedOrigin}/ig-login`;
-    // Use Facebook Login dialog (NOT deprecated api.instagram.com) for Instagram Graph API permissions
+    const redirectUri = `${window.location.origin}/ig-login`;
     const scope = "instagram_basic,instagram_content_publish,instagram_manage_comments,instagram_manage_insights,pages_show_list,pages_read_engagement";
     const authUrl = `https://www.facebook.com/v24.0/dialog/oauth?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scope)}&response_type=code&extras=${encodeURIComponent(JSON.stringify({setup: {channel: "IG_API_ONBOARDING"}}))}`;
     
-    // Use window.open directly — must be synchronous from user click to avoid popup blocker
-    const popup = window.open(authUrl, "_blank");
+    // Open as a centered popup window
+    const w = 520, h = 620;
+    const left = Math.round(window.screenX + (window.outerWidth - w) / 2);
+    const top = Math.round(window.screenY + (window.outerHeight - h) / 2);
+    const popup = window.open(authUrl, "ig_login_popup", `width=${w},height=${h},left=${left},top=${top},toolbar=no,menubar=no,scrollbars=yes,resizable=yes`);
     if (!popup) {
-      // Popup was blocked — try direct navigation as last resort
       toast.info("Popup blocked — opening in current tab. You'll be redirected back after login.");
       window.location.href = authUrl;
       return;
     }
+    // Listen for the postMessage result from the popup
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === "IG_SESSION_RESULT") {
+        window.removeEventListener("message", handleMessage);
+        setIgLoginPopupLoading(false);
+        const { access_token, user_id, username } = event.data.payload;
+        if (access_token && selectedAccount) {
+          supabase.from("social_connections").upsert({
+            account_id: selectedAccount,
+            platform: "instagram",
+            access_token,
+            platform_user_id: user_id,
+            username,
+            is_connected: true,
+            connected_at: new Date().toISOString(),
+          }, { onConflict: "account_id,platform" }).then(async () => {
+            toast.success(`Instagram connected as @${username}`);
+            const { data: refreshed } = await supabase.from("social_connections").select("*").eq("account_id", selectedAccount);
+            if (refreshed) setConnections(refreshed);
+          });
+        }
+      }
+    };
+    window.addEventListener("message", handleMessage);
     const check = setInterval(() => {
       try {
         if (popup.closed) {
           clearInterval(check);
           setIgLoginPopupLoading(false);
+          window.removeEventListener("message", handleMessage);
         }
       } catch {
         clearInterval(check);
         setIgLoginPopupLoading(false);
+        window.removeEventListener("message", handleMessage);
       }
     }, 500);
   };
