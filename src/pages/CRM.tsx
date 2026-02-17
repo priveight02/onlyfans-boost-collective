@@ -25,14 +25,14 @@ import FloatingCopilot from "@/components/admin/FloatingCopilot";
 import SocialMediaHub from "@/components/admin/SocialMediaHub";
 import AdminAPI from "@/components/admin/AdminAPI";
 import EnhancedDashboard from "@/components/admin/EnhancedDashboard";
-import WorkspaceAdmin from "@/components/admin/WorkspaceAdmin";
+
 import CRMHelpWidget from "@/components/crm/CRMHelpWidget";
 import { supabase } from "@/integrations/supabase/client";
 import {
   LayoutDashboard, Contact, Search, BarChart3, Users, DollarSign,
   FileText, MessageSquare, CheckSquare, MessageCircle, Award,
   TrendingUp, Activity, Zap, Download, Brain, Calendar, Heart,
-  Bot, Globe, Code2, Coins, Lock, Settings, Shield,
+  Bot, Globe, Code2, Coins, Lock, Settings,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -176,9 +176,6 @@ const CRM = () => {
             <TabsTrigger value="chat" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
               <MessageCircle className="h-3.5 w-3.5" /> Intranet
             </TabsTrigger>
-            <TabsTrigger value="workspace" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
-              <Shield className="h-3.5 w-3.5" /> Workspace
-            </TabsTrigger>
             <TabsTrigger value="settings" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
               <Settings className="h-3.5 w-3.5" /> Settings
             </TabsTrigger>
@@ -207,7 +204,7 @@ const CRM = () => {
           <TabsContent value="audience"><AudienceIntelligence accounts={accounts} /></TabsContent>
           <TabsContent value="reports"><ReportingExport /></TabsContent>
           <TabsContent value="chat"><IntranetChat /></TabsContent>
-          <TabsContent value="workspace"><WorkspaceAdmin /></TabsContent>
+          
           <TabsContent value="settings">
             <Card className="bg-white/5 backdrop-blur-sm border-white/10">
               <CardHeader>
