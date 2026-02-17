@@ -9,6 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/hooks/useAuth";
 import { lovable } from "@/integrations/lovable/index";
 import { supabase } from "@/integrations/supabase/client";
+import { useSiteSettings } from "@/hooks/useSiteSettings";
 import { trackAdminLogin } from "@/hooks/useVisitorTracking";
 import {
   Eye, EyeOff, LogIn, Lock, Mail, User, ArrowLeft,
@@ -49,6 +50,7 @@ const Auth = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [notification, setNotification] = useState<CardNotification>(null);
   const { signIn, signUp, signInWithMagicLink, resetPassword, user } = useAuth();
+  const { settings: siteSettings } = useSiteSettings();
   const navigate = useNavigate();
 
   // Clear notification on mode change
@@ -61,6 +63,10 @@ const Auth = () => {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setNotification(null);
+    if (siteSettings.maintenance_mode || siteSettings.logins_paused) {
+      setNotification({ type: "error", message: siteSettings.maintenance_mode ? "The site is currently under maintenance. Logins are temporarily disabled." : "Logins have been temporarily disabled by an administrator." });
+      return;
+    }
     const result = loginSchema.safeParse({ email, password });
     if (!result.success) {
       setNotification({ type: "error", message: result.error.errors[0].message });
@@ -83,6 +89,10 @@ const Auth = () => {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setNotification(null);
+    if (siteSettings.maintenance_mode || siteSettings.registrations_paused) {
+      setNotification({ type: "error", message: siteSettings.maintenance_mode ? "The site is currently under maintenance. Registrations are temporarily disabled." : "Registrations have been temporarily disabled by an administrator." });
+      return;
+    }
     const result = registerSchema.safeParse({ email, password, username, displayName });
     if (!result.success) {
       setNotification({ type: "error", message: result.error.errors[0].message });

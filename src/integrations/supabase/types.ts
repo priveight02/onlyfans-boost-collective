@@ -3011,6 +3011,30 @@ export type Database = {
           },
         ]
       }
+      site_settings: {
+        Row: {
+          id: string
+          setting_key: string
+          setting_value: boolean
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          id?: string
+          setting_key: string
+          setting_value?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          id?: string
+          setting_key?: string
+          setting_value?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       social_analytics: {
         Row: {
           account_id: string | null
