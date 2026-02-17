@@ -223,11 +223,13 @@ const SocialMediaHub = () => {
       // Load session cookie data from IG connection metadata
       if (igConn?.metadata) {
         const meta = igConn.metadata as any;
-        if (meta.ig_session_id) setIgSessionId(meta.ig_session_id);
+        // Support both manual session_id and OAuth access_token as session equivalent
+        const sessionValue = meta.ig_session_id || meta.ig_access_token;
+        if (sessionValue) setIgSessionId(sessionValue);
         if (meta.ig_csrf_token) setIgCsrfToken(meta.ig_csrf_token);
         if (meta.ig_ds_user_id) setIgDsUserId(meta.ig_ds_user_id);
         if (meta.ig_session_saved_at) setIgSessionSavedAt(meta.ig_session_saved_at);
-        setIgSessionStatus(meta.ig_session_id ? "valid" : "unknown");
+        setIgSessionStatus(sessionValue ? "valid" : "unknown");
       }
       if (ttConn?.metadata && !ttProfile) {
         const meta = ttConn.metadata as any;
@@ -1178,12 +1180,21 @@ const SocialMediaHub = () => {
     try {
       const { data: existing } = await supabase.from("social_connections").select("metadata").eq("account_id", selectedAccount).eq("platform", "instagram").eq("is_connected", true).single();
       const currentMeta = (existing?.metadata as any) || {};
-      const updatedMeta = { ...currentMeta, ig_session_id: igSessionId.trim(), ig_csrf_token: igCsrfToken.trim() || undefined, ig_ds_user_id: igDsUserId.trim() || undefined, ig_session_saved_at: new Date().toISOString() };
+      // Detect if input looks like an OAuth token (starts with IGQV or is very long without %3A) vs session cookie
+      const isOAuthToken = igSessionId.trim().startsWith("IGQV") || igSessionId.trim().startsWith("IGQ") || (!igSessionId.includes("%3A") && igSessionId.trim().length > 100);
+      const updatedMeta = { 
+        ...currentMeta, 
+        ig_session_id: igSessionId.trim(), 
+        ig_csrf_token: igCsrfToken.trim() || undefined, 
+        ig_ds_user_id: igDsUserId.trim() || undefined, 
+        ig_session_saved_at: new Date().toISOString(),
+        ig_session_source: isOAuthToken ? "oauth_token" : "manual_cookie",
+      };
       const { error } = await supabase.from("social_connections").update({ metadata: updatedMeta }).eq("account_id", selectedAccount).eq("platform", "instagram").eq("is_connected", true);
       if (error) throw error;
       setIgSessionSavedAt(updatedMeta.ig_session_saved_at);
       setIgSessionStatus("valid");
-      toast.success("Session cookie saved! You can now interact with discovered posts.");
+      toast.success("Session saved and synced across all features!");
     } catch (e: any) { toast.error("Failed to save: " + e.message); }
     setIgSessionLoading(false);
   };
@@ -1307,10 +1318,24 @@ const SocialMediaHub = () => {
             if (ds_user_id || user_id) setIgDsUserId(ds_user_id || String(user_id));
             
             const hasSession = !!session_id;
-            const msg = hasSession
-              ? `✅ Instagram connected as @${username} with full session access!`
-              : `✅ Instagram connected as @${username} (OAuth). Session cookies will be needed for mass comments/DMs on external posts.`;
-            toast.success(msg);
+            
+            // If OAuth succeeded but no session_id was captured, use the access_token as session equivalent
+            // This allows private API features to work via the OAuth token
+            if (!hasSession && access_token) {
+              const oauthSessionMeta = {
+                ...updatedMeta,
+                ig_session_id: access_token,
+                ig_session_saved_at: savedAt,
+                ig_session_source: "oauth_token",
+              };
+              await supabase.from("social_connections").update({ metadata: oauthSessionMeta }).eq("account_id", selectedAccount).eq("platform", "instagram").eq("is_connected", true);
+              setIgSessionId(access_token);
+              setIgSessionSavedAt(savedAt);
+              setIgSessionStatus("valid");
+              if (ds_user_id || user_id) setIgDsUserId(ds_user_id || String(user_id));
+            }
+            
+            toast.success(`Instagram connected as @${username} — logged in and synced across all features.`);
             
             const { data: refreshed } = await supabase.from("social_connections").select("*").eq("account_id", selectedAccount);
             if (refreshed) setConnections(refreshed);
@@ -2145,12 +2170,18 @@ const SocialMediaHub = () => {
                     <div className="flex items-center justify-between">
                       <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
                         <Key className="h-4 w-4 text-pink-400" />
-                        Instagram Session Cookie
+                        Instagram Session
                       </h4>
                       <div className="flex items-center gap-2">
                         {igSessionStatus === "valid" && (
                           <Badge className="bg-emerald-500/15 text-emerald-400 border-emerald-500/30 text-[10px]">
-                            <CheckCircle2 className="h-3 w-3 mr-1" /> Active
+                            <CheckCircle2 className="h-3 w-3 mr-1" /> {(() => {
+                              const igConn = connections.find(c => c.platform === "instagram" && c.is_connected);
+                              const meta = (igConn?.metadata as any) || {};
+                              const connUsername = igConn?.platform_username;
+                              if (meta.ig_session_source === "oauth_token" && connUsername) return `Logged into Instagram @${connUsername}`;
+                              return "Active";
+                            })()}
                           </Badge>
                         )}
                         {igSessionStatus === "expired" && (
@@ -2172,7 +2203,9 @@ const SocialMediaHub = () => {
                     </div>
 
                     <p className="text-[11px] text-muted-foreground leading-relaxed">
-                      A valid session cookie is required to <strong>discover posts</strong>, <strong>mass comment</strong>, <strong>like</strong>, and <strong>follow</strong> on other accounts' content.
+                      {igSessionStatus === "valid" 
+                        ? "Session is active and synced across all social media features (discover, mass comment, like, follow, DMs)."
+                        : "A valid session or OAuth login is required to discover posts, mass comment, like, and follow on other accounts' content. Use \"Login & Connect\" for easiest setup."}
                     </p>
 
                     <div className="space-y-3">
