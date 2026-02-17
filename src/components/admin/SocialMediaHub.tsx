@@ -6,6 +6,7 @@ import LiveDMConversations from "./LiveDMConversations";
 import IGAutomationSuite from "./social/IGAutomationSuite";
 import SocialNetworksTab from "./social/SocialNetworksTab";
 import BioLinksManager from "./social/BioLinksManager";
+import AIMassDMOutreach from "./social/AIMassDMOutreach";
 import { toast } from "sonner";
 import CreditCostBadge from "./CreditCostBadge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -1203,6 +1204,7 @@ const SocialMediaHub = () => {
             {[
               { v: "dashboard", icon: LayoutDashboard, l: "Dashboard" },
               { v: "ai-auto", icon: Brain, l: "AI Auto-DM" },
+              { v: "ai-mass", icon: Megaphone, l: "AI Mass DM" },
               { v: "search", icon: Search, l: "Search" },
               { v: "content", icon: Layers, l: "Content" },
               { v: "engagement", icon: MessageSquare, l: "Comments" },
@@ -1376,6 +1378,11 @@ const SocialMediaHub = () => {
               />
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* ===== AI MASS DM ===== */}
+        <TabsContent value="ai-mass" className="space-y-4 mt-4">
+          <AIMassDMOutreach accountId={selectedAccount} />
         </TabsContent>
 
         {/* ===== SEARCH ===== */}
