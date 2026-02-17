@@ -3278,6 +3278,39 @@ export type Database = {
         }
         Relationships: []
       }
+      support_tickets: {
+        Row: {
+          attachment_url: string | null
+          created_at: string
+          email: string
+          id: string
+          message: string
+          status: string
+          subject: string
+          user_id: string | null
+        }
+        Insert: {
+          attachment_url?: string | null
+          created_at?: string
+          email: string
+          id?: string
+          message: string
+          status?: string
+          subject: string
+          user_id?: string | null
+        }
+        Update: {
+          attachment_url?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          message?: string
+          status?: string
+          subject?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       system_health: {
         Row: {
           id: string
@@ -4123,6 +4156,72 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      workspace_activity_log: {
+        Row: {
+          action: string
+          actor_id: string | null
+          created_at: string
+          details: Json | null
+          id: string
+          target_id: string | null
+          target_type: string
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          created_at?: string
+          details?: Json | null
+          id?: string
+          target_id?: string | null
+          target_type: string
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          created_at?: string
+          details?: Json | null
+          id?: string
+          target_id?: string | null
+          target_type?: string
+        }
+        Relationships: []
+      }
+      workspace_invitations: {
+        Row: {
+          accepted_at: string | null
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          invited_by: string | null
+          role: string
+          status: string
+          token: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          created_at?: string
+          email: string
+          expires_at?: string
+          id?: string
+          invited_by?: string | null
+          role?: string
+          status?: string
+          token?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          invited_by?: string | null
+          role?: string
+          status?: string
+          token?: string
+        }
+        Relationships: []
       }
     }
     Views: {
