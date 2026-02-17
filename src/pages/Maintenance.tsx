@@ -53,20 +53,20 @@ const Maintenance = () => {
         {timeLeft && !expired && (
           <div className="mb-10">
             <p className="text-xs text-white/25 uppercase tracking-widest mb-4">Estimated time remaining</p>
-            <div className="flex items-center justify-center gap-4">
+            <div className="flex items-center justify-center gap-3">
               {[
                 { val: timeLeft.h, label: "hours" },
                 { val: timeLeft.m, label: "min" },
                 { val: timeLeft.s, label: "sec" },
               ].map((unit, i) => (
-                <div key={unit.label} className="flex items-center gap-4">
-                  <div className="text-center">
-                    <span className="text-4xl md:text-5xl font-bold text-white font-mono tabular-nums">
+                <div key={unit.label} className="flex items-center gap-3">
+                  <div className="text-center bg-white/[0.04] backdrop-blur-sm border border-white/[0.08] rounded-xl px-4 py-3 min-w-[72px] md:min-w-[85px]">
+                    <span className="text-3xl md:text-4xl font-bold text-white font-mono tabular-nums">
                       {String(unit.val).padStart(2, "0")}
                     </span>
-                    <p className="text-[10px] text-white/20 uppercase tracking-wider mt-1">{unit.label}</p>
+                    <p className="text-[10px] text-white/25 uppercase tracking-wider mt-1">{unit.label}</p>
                   </div>
-                  {i < 2 && <span className="text-2xl text-white/15 font-light -mt-4">:</span>}
+                  {i < 2 && <span className="text-xl text-white/15 font-light">:</span>}
                 </div>
               ))}
             </div>
