@@ -1254,8 +1254,8 @@ const SocialMediaHub = () => {
     if (!appId) { toast.error("Enter your Meta App ID in the One-Click Connect section, or configure INSTAGRAM_APP_ID in backend secrets"); return; }
     setIgLoginPopupLoading(true);
     const redirectUri = `${window.location.origin}/ig-login`;
-    const scope = "instagram_business_basic,instagram_business_content_publish,instagram_business_manage_messages,instagram_business_manage_comments,instagram_business_manage_insights";
-    const authUrl = `https://www.instagram.com/oauth/authorize?enable_fb_login=0&force_authentication=1&client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent(scope)}`;
+    const scope = "instagram_basic,instagram_content_publish,instagram_manage_comments,instagram_manage_insights,pages_show_list,pages_read_engagement";
+    const authUrl = `https://www.facebook.com/v24.0/dialog/oauth?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scope)}&response_type=code&extras=${encodeURIComponent(JSON.stringify({setup: {channel: "IG_API_ONBOARDING"}}))}`;
     
     // Open as a centered popup window
     const w = 520, h = 620;
