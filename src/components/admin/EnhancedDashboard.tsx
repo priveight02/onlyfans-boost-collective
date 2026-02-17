@@ -142,12 +142,12 @@ const EnhancedDashboard = () => {
       {/* Site Controls */}
       <div className="grid gap-3 grid-cols-2 sm:grid-cols-3">
         {[
-          { key: "registrations_paused", label: "Registrations", onLabel: "Paused", offLabel: "Open", onColor: "bg-red-500/15 border-red-500/30 text-red-300", offColor: "bg-white/5 border-white/10 text-white/60" },
-          { key: "logins_paused", label: "Logins", onLabel: "Paused", offLabel: "Open", onColor: "bg-red-500/15 border-red-500/30 text-red-300", offColor: "bg-white/5 border-white/10 text-white/60" },
-          { key: "maintenance_mode", label: "Maintenance", onLabel: "Active", offLabel: "Off", onColor: "bg-amber-500/15 border-amber-500/30 text-amber-300", offColor: "bg-white/5 border-white/10 text-white/60", icon: Wrench },
-          { key: "hide_pricing", label: "Pricing Page", onLabel: "Hidden", offLabel: "Visible", onColor: "bg-orange-500/15 border-orange-500/30 text-orange-300", offColor: "bg-white/5 border-white/10 text-white/60", icon: EyeOff },
-          { key: "read_only_mode", label: "Read-Only Mode", onLabel: "Active", offLabel: "Off", onColor: "bg-violet-500/15 border-violet-500/30 text-violet-300", offColor: "bg-white/5 border-white/10 text-white/60", icon: PenOff },
-          { key: "force_password_reset", label: "Force Password Reset", onLabel: "Enforced", offLabel: "Off", onColor: "bg-rose-500/15 border-rose-500/30 text-rose-300", offColor: "bg-white/5 border-white/10 text-white/60", icon: KeyRound },
+          { key: "registrations_paused", label: "Registrations", onLabel: "Paused", offLabel: "Open", onColor: "bg-red-500/15 border-red-500/30 text-red-300", offColor: "bg-emerald-500/8 border-emerald-500/20 text-emerald-300" },
+          { key: "logins_paused", label: "Logins", onLabel: "Paused", offLabel: "Open", onColor: "bg-red-500/15 border-red-500/30 text-red-300", offColor: "bg-emerald-500/8 border-emerald-500/20 text-emerald-300" },
+          { key: "maintenance_mode", label: "Maintenance", onLabel: "Active", offLabel: "Off", onColor: "bg-amber-500/15 border-amber-500/30 text-amber-300", offColor: "bg-emerald-500/8 border-emerald-500/20 text-emerald-300", icon: Wrench },
+          { key: "hide_pricing", label: "Pricing Page", onLabel: "Hidden", offLabel: "Visible", onColor: "bg-orange-500/15 border-orange-500/30 text-orange-300", offColor: "bg-emerald-500/8 border-emerald-500/20 text-emerald-300", icon: EyeOff },
+          { key: "read_only_mode", label: "Read-Only Mode", onLabel: "Active", offLabel: "Off", onColor: "bg-violet-500/15 border-violet-500/30 text-violet-300", offColor: "bg-emerald-500/8 border-emerald-500/20 text-emerald-300", icon: PenOff },
+          { key: "force_password_reset", label: "Force Password Reset", onLabel: "Enforced", offLabel: "Off", onColor: "bg-rose-500/15 border-rose-500/30 text-rose-300", offColor: "bg-emerald-500/8 border-emerald-500/20 text-emerald-300", icon: KeyRound },
         ].map((ctrl) => {
           const isOn = settings[ctrl.key as keyof typeof settings] as boolean;
           return (
