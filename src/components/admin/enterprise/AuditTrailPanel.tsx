@@ -1,16 +1,19 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { cachedFetch, invalidateNamespace } from "@/lib/supabaseCache";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import { FileText, Search, Download, Eye, ShieldCheck, Filter } from "lucide-react";
 import { format } from "date-fns";
+
+const CACHE_ID = "admin";
 
 const AuditTrailPanel = () => {
   const [logs, setLogs] = useState<any[]>([]);
@@ -19,31 +22,49 @@ const AuditTrailPanel = () => {
   const [search, setSearch] = useState("");
   const [entityFilter, setEntityFilter] = useState("all");
   const [selectedLog, setSelectedLog] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState("audit");
+  const loadedTabs = useRef<Set<string>>(new Set(["audit"]));
 
-  useEffect(() => {
-    fetchAll();
-    const channel = supabase.channel("audit-realtime")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "audit_logs" }, (payload) => {
-        setLogs(prev => [payload.new as any, ...prev].slice(0, 500));
-      })
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
+  const realtimeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const fetchLogs = useCallback(async () => {
+    const data = await cachedFetch<any[]>(CACHE_ID, "audit_logs", async () => {
+      const { data } = await supabase.from("audit_logs").select("*").order("created_at", { ascending: false }).limit(200); return data || [];
+    }, undefined, { ttlMs: 2 * 60 * 1000 }
+    );
+    setLogs(data);
   }, []);
 
-  const fetchAll = async () => {
-    setLoading(true);
-    await Promise.all([fetchLogs(), fetchPolicyDecisions()]);
-    setLoading(false);
-  };
+  const fetchTabData = useCallback(async (tab: string) => {
+    if (loadedTabs.current.has(tab)) return;
+    loadedTabs.current.add(tab);
+    if (tab === "policy") {
+      const data = await cachedFetch<any[]>(CACHE_ID, "policy_decisions", async () => {
+        const { data } = await supabase.from("policy_decisions").select("*").order("evaluated_at", { ascending: false }).limit(100); return data || [];
+      }, undefined, { ttlMs: 2 * 60 * 1000 }
+      );
+      setPolicyDecisions(data);
+    }
+  }, []);
 
-  const fetchLogs = async () => {
-    const { data } = await supabase.from("audit_logs").select("*").order("created_at", { ascending: false }).limit(500);
-    if (data) setLogs(data);
-  };
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      await fetchLogs();
+      setLoading(false);
+    })();
+    const channel = supabase.channel("audit-realtime")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "audit_logs" }, (payload) => {
+        // Optimistic append — no re-fetch
+        setLogs(prev => [payload.new as any, ...prev].slice(0, 200));
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); if (realtimeTimer.current) clearTimeout(realtimeTimer.current); };
+  }, [fetchLogs]);
 
-  const fetchPolicyDecisions = async () => {
-    const { data } = await supabase.from("policy_decisions").select("*").order("evaluated_at", { ascending: false }).limit(200);
-    if (data) setPolicyDecisions(data);
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    fetchTabData(tab);
   };
 
   const exportAuditLogs = () => {
@@ -70,7 +91,7 @@ const AuditTrailPanel = () => {
 
   return (
     <div className="space-y-6">
-      <Tabs defaultValue="audit" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
         <TabsList className="bg-white/5 border border-white/10 p-1 rounded-xl h-auto gap-1">
           <TabsTrigger value="audit" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
             <FileText className="h-3.5 w-3.5" /> Audit Logs

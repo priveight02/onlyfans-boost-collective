@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { cachedFetch, invalidateNamespace } from "@/lib/supabaseCache";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,11 +8,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { AlertTriangle, Plus, Clock, CheckCircle2, XCircle, Megaphone, MessageSquare } from "lucide-react";
 import { format } from "date-fns";
+
+const CACHE_ID = "admin";
+const CACHE_TTL = 3 * 60 * 1000;
 
 const IncidentManager = () => {
   const [incidents, setIncidents] = useState<any[]>([]);
@@ -23,67 +26,82 @@ const IncidentManager = () => {
   const [form, setForm] = useState({ title: "", description: "", severity: "medium", incident_type: "system", blast_radius: "", banner_message: "" });
   const [updateMsg, setUpdateMsg] = useState("");
 
-  useEffect(() => {
-    fetchAll();
-    const channel = supabase.channel("incidents-realtime")
-      .on("postgres_changes", { event: "*", schema: "public", table: "incidents" }, () => fetchIncidents())
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
+  const realtimeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const debouncedRefresh = useCallback((fn: () => void) => {
+    if (realtimeTimer.current) clearTimeout(realtimeTimer.current);
+    realtimeTimer.current = setTimeout(fn, 2000);
   }, []);
 
-  const fetchAll = async () => {
-    setLoading(true);
-    await fetchIncidents();
-    setLoading(false);
-  };
+  const fetchIncidents = useCallback(async () => {
+    const data = await cachedFetch<any[]>(CACHE_ID, "incidents", async () => {
+      const { data } = await supabase.from("incidents").select("*").order("created_at", { ascending: false }).limit(50); return data || [];
+    }, undefined, { ttlMs: CACHE_TTL }
+    );
+    setIncidents(data);
+  }, []);
 
-  const fetchIncidents = async () => {
-    const { data } = await supabase.from("incidents").select("*").order("created_at", { ascending: false });
-    if (data) setIncidents(data);
-  };
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      await fetchIncidents();
+      setLoading(false);
+    })();
+    const channel = supabase.channel("incidents-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "incidents" }, () => {
+        debouncedRefresh(() => { invalidateNamespace(CACHE_ID, "incidents"); fetchIncidents(); });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); if (realtimeTimer.current) clearTimeout(realtimeTimer.current); };
+  }, [fetchIncidents, debouncedRefresh]);
 
+  // Updates are fetched on-demand only for selected incident — no caching needed
   const fetchUpdates = async (incidentId: string) => {
-    const { data } = await supabase.from("incident_updates").select("*").eq("incident_id", incidentId).order("created_at", { ascending: false });
+    const { data } = await supabase.from("incident_updates").select("*").eq("incident_id", incidentId).order("created_at", { ascending: false }).limit(30);
     if (data) setUpdates(data);
   };
 
   const createIncident = async () => {
     if (!form.title) { toast.error("Title required"); return; }
     const { data, error } = await supabase.from("incidents").insert({
-      ...form,
-      show_banner: !!form.banner_message,
+      ...form, show_banner: !!form.banner_message,
     }).select().single();
     if (error) { toast.error(error.message); return; }
+    setIncidents(prev => [data, ...prev]); // optimistic
+    invalidateNamespace(CACHE_ID, "incidents");
     await supabase.from("audit_logs").insert({ action: "incident_created", entity_type: "incidents", entity_id: data.id, actor_type: "admin", metadata: { severity: form.severity, title: form.title } });
     toast.success("Incident created");
     setShowCreateDialog(false);
     setForm({ title: "", description: "", severity: "medium", incident_type: "system", blast_radius: "", banner_message: "" });
-    fetchIncidents();
   };
 
   const updateIncidentStatus = async (id: string, status: string) => {
-    const updates: any = { status };
-    if (status === "resolved") updates.resolved_at = new Date().toISOString();
-    await supabase.from("incidents").update(updates).eq("id", id);
-    await supabase.from("incident_updates").insert({ incident_id: id, update_type: "status", message: `Status changed to ${status}`, status_change: status });
-    await supabase.from("audit_logs").insert({ action: `incident_${status}`, entity_type: "incidents", entity_id: id, actor_type: "admin" });
+    const upd: any = { status };
+    if (status === "resolved") upd.resolved_at = new Date().toISOString();
+    setIncidents(prev => prev.map(i => i.id === id ? { ...i, ...upd } : i)); // optimistic
+    // Batch: update + insert update + audit log in parallel
+    await Promise.all([
+      supabase.from("incidents").update(upd).eq("id", id),
+      supabase.from("incident_updates").insert({ incident_id: id, update_type: "status", message: `Status changed to ${status}`, status_change: status }),
+      supabase.from("audit_logs").insert({ action: `incident_${status}`, entity_type: "incidents", entity_id: id, actor_type: "admin" }),
+    ]);
+    invalidateNamespace(CACHE_ID, "incidents");
     toast.success(`Incident ${status}`);
-    fetchIncidents();
     if (selectedIncident?.id === id) fetchUpdates(id);
   };
 
   const toggleBanner = async (id: string, current: boolean) => {
+    setIncidents(prev => prev.map(i => i.id === id ? { ...i, show_banner: !current } : i)); // optimistic
     await supabase.from("incidents").update({ show_banner: !current }).eq("id", id);
+    invalidateNamespace(CACHE_ID, "incidents");
     toast.success(!current ? "Banner enabled" : "Banner disabled");
-    fetchIncidents();
   };
 
   const addUpdate = async () => {
     if (!updateMsg || !selectedIncident) return;
-    await supabase.from("incident_updates").insert({ incident_id: selectedIncident.id, update_type: "update", message: updateMsg });
+    const { data } = await supabase.from("incident_updates").insert({ incident_id: selectedIncident.id, update_type: "update", message: updateMsg }).select().single();
+    if (data) setUpdates(prev => [data, ...prev]); // optimistic
     toast.success("Update added");
     setUpdateMsg("");
-    fetchUpdates(selectedIncident.id);
   };
 
   const severityColor = (s: string) => {

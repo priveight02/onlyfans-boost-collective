@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { cachedFetch, invalidateNamespace } from "@/lib/supabaseCache";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,104 +16,136 @@ import { toast } from "sonner";
 import { Flag, Plus, FlaskConical, BarChart3, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 
+const CACHE_ID = "admin";
+const CACHE_TTL = 5 * 60 * 1000;
+
 const FeatureFlagsPanel = () => {
   const [flags, setFlags] = useState<any[]>([]);
   const [experiments, setExperiments] = useState<any[]>([]);
   const [evaluations, setEvaluations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState("flags");
+  const loadedTabs = useRef<Set<string>>(new Set(["flags"]));
   const [showFlagDialog, setShowFlagDialog] = useState(false);
   const [showExperimentDialog, setShowExperimentDialog] = useState(false);
   const [flagForm, setFlagForm] = useState({ key: "", name: "", description: "", flag_type: "boolean", percentage_rollout: 0 });
   const [experimentForm, setExperimentForm] = useState({ name: "", description: "", hypothesis: "", success_metric: "", flag_id: "" });
 
-  useEffect(() => {
-    fetchAll();
-    const channel = supabase.channel("flags-realtime")
-      .on("postgres_changes", { event: "*", schema: "public", table: "feature_flags" }, () => fetchFlags())
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
+  const realtimeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const debouncedRefresh = useCallback((fn: () => void) => {
+    if (realtimeTimer.current) clearTimeout(realtimeTimer.current);
+    realtimeTimer.current = setTimeout(fn, 2000);
   }, []);
 
-  const fetchAll = async () => {
-    setLoading(true);
-    await Promise.all([fetchFlags(), fetchExperiments(), fetchEvaluations()]);
-    setLoading(false);
-  };
+  const fetchFlags = useCallback(async () => {
+    const data = await cachedFetch<any[]>(CACHE_ID, "feature_flags", async () => {
+      const { data } = await supabase.from("feature_flags").select("*").is("archived_at", null).order("created_at", { ascending: false }); return data || [];
+    }, undefined, { ttlMs: CACHE_TTL }
+    );
+    setFlags(data);
+  }, []);
 
-  const fetchFlags = async () => {
-    const { data } = await supabase.from("feature_flags").select("*").is("archived_at", null).order("created_at", { ascending: false });
-    if (data) setFlags(data);
-  };
+  const fetchTabData = useCallback(async (tab: string) => {
+    if (loadedTabs.current.has(tab)) return;
+    loadedTabs.current.add(tab);
+    if (tab === "experiments") {
+      const data = await cachedFetch<any[]>(CACHE_ID, "experiments", async () => {
+        const { data } = await supabase.from("experiments").select("*").order("created_at", { ascending: false }); return data || [];
+      }, undefined, { ttlMs: CACHE_TTL }
+      );
+      setExperiments(data);
+    } else if (tab === "evaluations") {
+      const data = await cachedFetch<any[]>(CACHE_ID, "flag_evaluations", async () => {
+        const { data } = await supabase.from("feature_flag_evaluations").select("*").order("evaluated_at", { ascending: false }).limit(50); return data || [];
+      }, undefined, { ttlMs: 60_000 }
+      );
+      setEvaluations(data);
+    }
+  }, []);
 
-  const fetchExperiments = async () => {
-    const { data } = await supabase.from("experiments").select("*").order("created_at", { ascending: false });
-    if (data) setExperiments(data);
-  };
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      await fetchFlags();
+      setLoading(false);
+    })();
+    const channel = supabase.channel("flags-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "feature_flags" }, () => {
+        debouncedRefresh(() => { invalidateNamespace(CACHE_ID, "feature_flags"); fetchFlags(); });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); if (realtimeTimer.current) clearTimeout(realtimeTimer.current); };
+  }, [fetchFlags, debouncedRefresh]);
 
-  const fetchEvaluations = async () => {
-    const { data } = await supabase.from("feature_flag_evaluations").select("*").order("evaluated_at", { ascending: false }).limit(100);
-    if (data) setEvaluations(data);
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    fetchTabData(tab);
   };
 
   const createFlag = async () => {
     if (!flagForm.key || !flagForm.name) { toast.error("Key and name required"); return; }
-    const { error } = await supabase.from("feature_flags").insert({
-      ...flagForm,
-      percentage_rollout: Number(flagForm.percentage_rollout),
-      default_value: JSON.stringify(false),
-    });
+    const { data, error } = await supabase.from("feature_flags").insert({
+      ...flagForm, percentage_rollout: Number(flagForm.percentage_rollout), default_value: JSON.stringify(false),
+    }).select().single();
     if (error) { toast.error(error.message); return; }
+    setFlags(prev => [data, ...prev]); // optimistic
+    invalidateNamespace(CACHE_ID, "feature_flags");
+    // Batch audit log — no separate fetch
     await supabase.from("audit_logs").insert({ action: "feature_flag_created", entity_type: "feature_flags", entity_id: flagForm.key, actor_type: "admin", metadata: { flag_key: flagForm.key } });
     toast.success("Feature flag created");
     setShowFlagDialog(false);
     setFlagForm({ key: "", name: "", description: "", flag_type: "boolean", percentage_rollout: 0 });
-    fetchFlags();
   };
 
   const toggleFlag = async (id: string, current: boolean, key: string) => {
+    setFlags(prev => prev.map(f => f.id === id ? { ...f, enabled: !current } : f)); // optimistic
     await supabase.from("feature_flags").update({ enabled: !current }).eq("id", id);
+    invalidateNamespace(CACHE_ID, "feature_flags");
     await supabase.from("audit_logs").insert({ action: !current ? "feature_flag_enabled" : "feature_flag_disabled", entity_type: "feature_flags", entity_id: key, actor_type: "admin" });
     toast.success(!current ? `Flag "${key}" enabled` : `Flag "${key}" disabled`);
-    fetchFlags();
   };
 
   const updateRollout = async (id: string, value: number) => {
+    setFlags(prev => prev.map(f => f.id === id ? { ...f, percentage_rollout: value } : f)); // optimistic
     await supabase.from("feature_flags").update({ percentage_rollout: value }).eq("id", id);
-    fetchFlags();
+    invalidateNamespace(CACHE_ID, "feature_flags");
   };
 
   const archiveFlag = async (id: string) => {
+    setFlags(prev => prev.filter(f => f.id !== id)); // optimistic
     await supabase.from("feature_flags").update({ archived_at: new Date().toISOString() }).eq("id", id);
+    invalidateNamespace(CACHE_ID, "feature_flags");
     toast.success("Flag archived");
-    fetchFlags();
   };
 
   const createExperiment = async () => {
     if (!experimentForm.name) { toast.error("Name required"); return; }
     const insert: any = { ...experimentForm };
     if (!insert.flag_id) delete insert.flag_id;
-    const { error } = await supabase.from("experiments").insert(insert);
+    const { data, error } = await supabase.from("experiments").insert(insert).select().single();
     if (error) { toast.error(error.message); return; }
+    setExperiments(prev => [data, ...prev]); // optimistic
+    invalidateNamespace(CACHE_ID, "experiments");
     toast.success("Experiment created");
     setShowExperimentDialog(false);
     setExperimentForm({ name: "", description: "", hypothesis: "", success_metric: "", flag_id: "" });
-    fetchExperiments();
   };
 
   const updateExperimentStatus = async (id: string, status: string) => {
     const updates: any = { status };
     if (status === "running") updates.started_at = new Date().toISOString();
     if (status === "completed") updates.ended_at = new Date().toISOString();
+    setExperiments(prev => prev.map(e => e.id === id ? { ...e, ...updates } : e)); // optimistic
     await supabase.from("experiments").update(updates).eq("id", id);
+    invalidateNamespace(CACHE_ID, "experiments");
     toast.success(`Experiment ${status}`);
-    fetchExperiments();
   };
 
   if (loading) return <div className="flex items-center justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent" /></div>;
 
   return (
     <div className="space-y-6">
-      <Tabs defaultValue="flags" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
         <TabsList className="bg-white/5 border border-white/10 p-1 rounded-xl h-auto gap-1">
           <TabsTrigger value="flags" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
             <Flag className="h-3.5 w-3.5" /> Feature Flags
