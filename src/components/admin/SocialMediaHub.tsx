@@ -182,6 +182,18 @@ const SocialMediaHub = () => {
    const [igSessionSavedAt, setIgSessionSavedAt] = useState<string | null>(null);
    const [igSessionLoading, setIgSessionLoading] = useState(false);
    const [igSessionStatus, setIgSessionStatus] = useState<"unknown" | "valid" | "expired">("unknown");
+   const [igSessionPulse, setIgSessionPulse] = useState(false);
+
+   // Navigate to connect tab and pulse the session card
+   const navigateToSessionCard = () => {
+     setActiveSubTab("connect");
+     setIgSessionPulse(true);
+     setTimeout(() => {
+       const el = document.getElementById("ig-session-section");
+       if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+     }, 200);
+     setTimeout(() => setIgSessionPulse(false), 3000);
+   };
 
   useEffect(() => { loadAccounts(); }, []);
   useEffect(() => {
@@ -1563,7 +1575,7 @@ const SocialMediaHub = () => {
 
         {/* ===== ENGAGEMENT / COMMENTS ===== */}
         <TabsContent value="engagement" className="mt-4">
-          <CommentsHub accountId={selectedAccount} connections={connections} callApi={callApi} apiLoading={apiLoading} onNavigateToSession={() => setActiveSubTab("connect")} />
+          <CommentsHub accountId={selectedAccount} connections={connections} callApi={callApi} apiLoading={apiLoading} onNavigateToSession={navigateToSessionCard} igSessionId={igSessionId} igSessionStatus={igSessionStatus} />
         </TabsContent>
 
         {/* ===== DMs ===== */}
@@ -1702,8 +1714,66 @@ const SocialMediaHub = () => {
 
             {/* ===== SESSION & CREDENTIALS SUBTAB (DEFAULT) ===== */}
             <TabsContent value="session" className="space-y-4">
+              {/* Manual Connection - FIRST */}
+              <Card>
+                <CardContent className="p-4 space-y-3">
+                  <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><Shield className="h-4 w-4 text-muted-foreground" />Manual Connection</h4>
+                  <p className="text-[10px] text-muted-foreground">Paste credentials directly if you already have them.</p>
+                  <select value={connectForm.platform} onChange={e => setConnectForm(p => ({ ...p, platform: e.target.value }))} className="w-full bg-background border border-border text-foreground rounded-lg px-2 py-1.5 text-sm">
+                    {["instagram","facebook","tiktok","twitter","reddit","telegram","snapchat","threads","whatsapp","signal","youtube","pinterest","discord"].map(pl => (
+                      <option key={pl} value={pl}>{pl.charAt(0).toUpperCase() + pl.slice(1)}</option>
+                    ))}
+                  </select>
+                  {["instagram","facebook","threads","whatsapp"].includes(connectForm.platform) ? (
+                    <>
+                      <Input value={connectForm.platform_username} onChange={e => setConnectForm(p => ({ ...p, platform_username: e.target.value }))} placeholder={connectForm.platform === "whatsapp" ? "Phone Number" : "Username"} className="text-sm" />
+                      <Input value={connectForm.platform_user_id} onChange={e => setConnectForm(p => ({ ...p, platform_user_id: e.target.value }))} placeholder={connectForm.platform === "whatsapp" ? "Phone Number ID" : connectForm.platform === "facebook" ? "User/Page ID" : "User ID"} className="text-sm" />
+                      <Input value={connectForm.access_token} onChange={e => setConnectForm(p => ({ ...p, access_token: e.target.value }))} placeholder="Access Token" type="password" className="text-sm" />
+                      <Input value={connectForm.refresh_token} onChange={e => setConnectForm(p => ({ ...p, refresh_token: e.target.value }))} placeholder="Refresh Token (optional)" type="password" className="text-sm" />
+                    </>
+                  ) : connectForm.platform === "telegram" ? (
+                    <>
+                      <Input value={connectForm.platform_username} onChange={e => setConnectForm(p => ({ ...p, platform_username: e.target.value }))} placeholder="Bot Username" className="text-sm" />
+                      <Input value={connectForm.access_token} onChange={e => setConnectForm(p => ({ ...p, access_token: e.target.value }))} placeholder="Bot Token (from @BotFather)" type="password" className="text-sm" />
+                    </>
+                  ) : connectForm.platform === "discord" ? (
+                    <>
+                      <Input value={connectForm.platform_username} onChange={e => setConnectForm(p => ({ ...p, platform_username: e.target.value }))} placeholder="Bot Username" className="text-sm" />
+                      <Input value={connectForm.access_token} onChange={e => setConnectForm(p => ({ ...p, access_token: e.target.value }))} placeholder="Bot Token (from discord.com/developers)" type="password" className="text-sm" />
+                    </>
+                  ) : connectForm.platform === "signal" ? (
+                    <>
+                      <Input value={connectForm.platform_username} onChange={e => setConnectForm(p => ({ ...p, platform_username: e.target.value }))} placeholder="Phone Number (+1234...)" className="text-sm" />
+                      <Input value={connectForm.access_token} onChange={e => setConnectForm(p => ({ ...p, access_token: e.target.value }))} placeholder="Signal API URL (http://localhost:8080)" className="text-sm" />
+                    </>
+                  ) : connectForm.platform === "youtube" ? (
+                    <>
+                      <Input value={connectForm.platform_username} onChange={e => setConnectForm(p => ({ ...p, platform_username: e.target.value }))} placeholder="Channel Name" className="text-sm" />
+                      <Input value={connectForm.platform_user_id} onChange={e => setConnectForm(p => ({ ...p, platform_user_id: e.target.value }))} placeholder="Channel ID" className="text-sm" />
+                      <Input value={connectForm.access_token} onChange={e => setConnectForm(p => ({ ...p, access_token: e.target.value }))} placeholder="OAuth Access Token" type="password" className="text-sm" />
+                      <Input value={connectForm.refresh_token} onChange={e => setConnectForm(p => ({ ...p, refresh_token: e.target.value }))} placeholder="Refresh Token" type="password" className="text-sm" />
+                    </>
+                  ) : connectForm.platform === "snapchat" ? (
+                    <>
+                      <Input value={connectForm.platform_username} onChange={e => setConnectForm(p => ({ ...p, platform_username: e.target.value }))} placeholder="Organization/Account Name" className="text-sm" />
+                      <Input value={connectForm.access_token} onChange={e => setConnectForm(p => ({ ...p, access_token: e.target.value }))} placeholder="OAuth Access Token" type="password" className="text-sm" />
+                      <Input value={connectForm.refresh_token} onChange={e => setConnectForm(p => ({ ...p, refresh_token: e.target.value }))} placeholder="Refresh Token" type="password" className="text-sm" />
+                    </>
+                  ) : (
+                    <>
+                      <Input value={connectForm.platform_username} onChange={e => setConnectForm(p => ({ ...p, platform_username: e.target.value }))} placeholder="Username" className="text-sm" />
+                      <Input value={connectForm.platform_user_id} onChange={e => setConnectForm(p => ({ ...p, platform_user_id: e.target.value }))} placeholder="User ID" className="text-sm" />
+                      <Input value={connectForm.access_token} onChange={e => setConnectForm(p => ({ ...p, access_token: e.target.value }))} placeholder="Access Token / API Key" type="password" className="text-sm" />
+                      <Input value={connectForm.refresh_token} onChange={e => setConnectForm(p => ({ ...p, refresh_token: e.target.value }))} placeholder="Refresh Token (optional)" type="password" className="text-sm" />
+                    </>
+                  )}
+                  <Button onClick={connectPlatform} size="sm" variant="outline" className="text-foreground"><Plus className="h-3.5 w-3.5 mr-1" />Connect Manually</Button>
+                </CardContent>
+              </Card>
+
+              {/* Instagram Session Cookie - SECOND */}
               {igConnected && (
-                <Card id="ig-session-section" className="border-pink-500/20 ring-2 ring-pink-500/10">
+                <Card id="ig-session-section" className={`border-pink-500/20 ring-2 ring-pink-500/10 transition-all ${igSessionPulse ? "animate-session-pulse" : ""}`}>
                   <CardContent className="p-4 space-y-4">
                     <div className="flex items-center justify-between">
                       <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
@@ -1787,61 +1857,8 @@ const SocialMediaHub = () => {
                 </Card>
               )}
 
-              <Card>
-                <CardContent className="p-4 space-y-3">
-                  <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><Shield className="h-4 w-4 text-muted-foreground" />Manual Connection</h4>
-                  <p className="text-[10px] text-muted-foreground">Paste credentials directly if you already have them.</p>
-                  <select value={connectForm.platform} onChange={e => setConnectForm(p => ({ ...p, platform: e.target.value }))} className="w-full bg-background border border-border text-foreground rounded-lg px-2 py-1.5 text-sm">
-                    {["instagram","facebook","tiktok","twitter","reddit","telegram","snapchat","threads","whatsapp","signal","youtube","pinterest","discord"].map(pl => (
-                      <option key={pl} value={pl}>{pl.charAt(0).toUpperCase() + pl.slice(1)}</option>
-                    ))}
-                  </select>
-                  {["instagram","facebook","threads","whatsapp"].includes(connectForm.platform) ? (
-                    <>
-                      <Input value={connectForm.platform_username} onChange={e => setConnectForm(p => ({ ...p, platform_username: e.target.value }))} placeholder={connectForm.platform === "whatsapp" ? "Phone Number" : "Username"} className="text-sm" />
-                      <Input value={connectForm.platform_user_id} onChange={e => setConnectForm(p => ({ ...p, platform_user_id: e.target.value }))} placeholder={connectForm.platform === "whatsapp" ? "Phone Number ID" : connectForm.platform === "facebook" ? "User/Page ID" : "User ID"} className="text-sm" />
-                      <Input value={connectForm.access_token} onChange={e => setConnectForm(p => ({ ...p, access_token: e.target.value }))} placeholder="Access Token" type="password" className="text-sm" />
-                      <Input value={connectForm.refresh_token} onChange={e => setConnectForm(p => ({ ...p, refresh_token: e.target.value }))} placeholder="Refresh Token (optional)" type="password" className="text-sm" />
-                    </>
-                  ) : connectForm.platform === "telegram" ? (
-                    <>
-                      <Input value={connectForm.platform_username} onChange={e => setConnectForm(p => ({ ...p, platform_username: e.target.value }))} placeholder="Bot Username" className="text-sm" />
-                      <Input value={connectForm.access_token} onChange={e => setConnectForm(p => ({ ...p, access_token: e.target.value }))} placeholder="Bot Token (from @BotFather)" type="password" className="text-sm" />
-                    </>
-                  ) : connectForm.platform === "discord" ? (
-                    <>
-                      <Input value={connectForm.platform_username} onChange={e => setConnectForm(p => ({ ...p, platform_username: e.target.value }))} placeholder="Bot Username" className="text-sm" />
-                      <Input value={connectForm.access_token} onChange={e => setConnectForm(p => ({ ...p, access_token: e.target.value }))} placeholder="Bot Token (from discord.com/developers)" type="password" className="text-sm" />
-                    </>
-                  ) : connectForm.platform === "signal" ? (
-                    <>
-                      <Input value={connectForm.platform_username} onChange={e => setConnectForm(p => ({ ...p, platform_username: e.target.value }))} placeholder="Phone Number (+1234...)" className="text-sm" />
-                      <Input value={connectForm.access_token} onChange={e => setConnectForm(p => ({ ...p, access_token: e.target.value }))} placeholder="Signal API URL (http://localhost:8080)" className="text-sm" />
-                    </>
-                  ) : connectForm.platform === "youtube" ? (
-                    <>
-                      <Input value={connectForm.platform_username} onChange={e => setConnectForm(p => ({ ...p, platform_username: e.target.value }))} placeholder="Channel Name" className="text-sm" />
-                      <Input value={connectForm.platform_user_id} onChange={e => setConnectForm(p => ({ ...p, platform_user_id: e.target.value }))} placeholder="Channel ID" className="text-sm" />
-                      <Input value={connectForm.access_token} onChange={e => setConnectForm(p => ({ ...p, access_token: e.target.value }))} placeholder="OAuth Access Token" type="password" className="text-sm" />
-                      <Input value={connectForm.refresh_token} onChange={e => setConnectForm(p => ({ ...p, refresh_token: e.target.value }))} placeholder="Refresh Token" type="password" className="text-sm" />
-                    </>
-                  ) : connectForm.platform === "snapchat" ? (
-                    <>
-                      <Input value={connectForm.platform_username} onChange={e => setConnectForm(p => ({ ...p, platform_username: e.target.value }))} placeholder="Organization/Account Name" className="text-sm" />
-                      <Input value={connectForm.access_token} onChange={e => setConnectForm(p => ({ ...p, access_token: e.target.value }))} placeholder="OAuth Access Token" type="password" className="text-sm" />
-                      <Input value={connectForm.refresh_token} onChange={e => setConnectForm(p => ({ ...p, refresh_token: e.target.value }))} placeholder="Refresh Token" type="password" className="text-sm" />
-                    </>
-                  ) : (
-                    <>
-                      <Input value={connectForm.platform_username} onChange={e => setConnectForm(p => ({ ...p, platform_username: e.target.value }))} placeholder="Username" className="text-sm" />
-                      <Input value={connectForm.platform_user_id} onChange={e => setConnectForm(p => ({ ...p, platform_user_id: e.target.value }))} placeholder="User ID" className="text-sm" />
-                      <Input value={connectForm.access_token} onChange={e => setConnectForm(p => ({ ...p, access_token: e.target.value }))} placeholder="Access Token / API Key" type="password" className="text-sm" />
-                      <Input value={connectForm.refresh_token} onChange={e => setConnectForm(p => ({ ...p, refresh_token: e.target.value }))} placeholder="Refresh Token (optional)" type="password" className="text-sm" />
-                    </>
-                  )}
-                  <Button onClick={connectPlatform} size="sm" variant="outline" className="text-foreground"><Plus className="h-3.5 w-3.5 mr-1" />Connect Manually</Button>
-                </CardContent>
-              </Card>
+
+
 
               {connections.length > 0 && (
                 <Card>
