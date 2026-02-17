@@ -1399,6 +1399,10 @@ const SocialMediaHub = () => {
             }
           } catch (e) { console.log("Auto profile sync after OAuth:", e); }
           
+          // Invalidate caches so fresh data loads
+          invalidateNamespace(accountId, "social_connections");
+          invalidateNamespace("global", "smh_accounts");
+          
           // Reload accounts list and data to show in UI
           await loadAccounts();
           await loadData(accountId);
