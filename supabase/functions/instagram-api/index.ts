@@ -502,7 +502,21 @@ Analyze every character in the name and username for any gender signal at all. L
 
     const conn = await getConnection(supabase, account_id);
     const token = conn.access_token;
-    const igUserId = conn.platform_user_id;
+    let igUserId = conn.platform_user_id;
+    
+    // If platform_user_id is missing, try to fetch it from the token
+    if (!igUserId && token) {
+      try {
+        const meResp = await fetch(`${IG_GRAPH_URL}/me?fields=id&access_token=${token}`);
+        const meData = await meResp.json();
+        if (meData.id) {
+          igUserId = meData.id;
+          // Persist it so we don't have to fetch again
+          await supabase.from("social_connections").update({ platform_user_id: igUserId }).eq("id", conn.id);
+          console.log(`Auto-resolved igUserId: ${igUserId}`);
+        }
+      } catch (e) { console.log("Could not auto-resolve user ID:", e); }
+    }
     
     let result: any;
 
