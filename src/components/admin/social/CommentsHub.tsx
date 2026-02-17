@@ -27,6 +27,7 @@ interface CommentsHubProps {
   connections: any[];
   callApi: (funcName: string, body: any, overrideAccountId?: string) => Promise<any>;
   apiLoading: boolean;
+  onNavigateToSession?: () => void;
 }
 
 interface CommentItem {
@@ -76,8 +77,9 @@ const extractShortcode = (permalink?: string): string => {
   return match ? match[1] : "";
 };
 
-const CommentsHub = ({ accountId, connections, callApi, apiLoading }: CommentsHubProps) => {
+const CommentsHub = ({ accountId, connections, callApi, apiLoading, onNavigateToSession }: CommentsHubProps) => {
   const [activeTab, setActiveTab] = useState("my-posts");
+  const [sessionRequiredDialog, setSessionRequiredDialog] = useState(false);
 
   const igConnected = connections.some((c: any) => c.platform === "instagram" && c.is_connected);
   const ttConnected = connections.some((c: any) => c.platform === "tiktok" && c.is_connected);
@@ -435,8 +437,17 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading }: CommentsHu
     setAiSummaryLoading(false);
   };
 
+  // Session check helper - returns true if session is valid, false if needs setup
+  const requireSession = (): boolean => {
+    if (selectedPlatform !== "instagram") return true;
+    if (sessionId && sessionStatus !== "expired") return true;
+    setSessionRequiredDialog(true);
+    return false;
+  };
+
   // ===== DISCOVER (For You / Explore — NOT own posts) =====
   const loadDiscoverFeed = async () => {
+    if (!requireSession()) return;
     setDiscoverLoading(true);
     try {
       if (selectedPlatform === "instagram") {
@@ -593,6 +604,7 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading }: CommentsHu
   // Keyword search for posts
   const searchPostsByKeyword = async () => {
     if (!discoverSearch.trim()) return;
+    if (!requireSession()) return;
     setSearchLoading(true);
     try {
       if (selectedPlatform === "instagram") {
@@ -667,6 +679,7 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading }: CommentsHu
   const startMassComment = async () => {
     const selected = allPosts.filter(p => p.selected);
     if (selected.length === 0) { toast.error("Select posts first"); return; }
+    if (!requireSession()) return;
     if (massCommentMode === "template" && !massCommentTemplate.trim()) { toast.error("Enter a template message"); return; }
     setMassCommenting(true);
     cancelMassRef.current = false;
@@ -779,6 +792,7 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading }: CommentsHu
   const startMassLike = async () => {
     const selected = allPosts.filter(p => p.selected);
     if (selected.length === 0) { toast.error("Select posts first"); return; }
+    if (!requireSession()) return;
     setMassLiking(true);
     setMassLikeProgress({ done: 0, total: selected.length, failed: 0 });
     let done = 0, failed = 0;
@@ -799,6 +813,7 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading }: CommentsHu
   const startMassFollow = async () => {
     const selected = allPosts.filter(p => p.selected);
     if (selected.length === 0) { toast.error("Select posts first"); return; }
+    if (!requireSession()) return;
     // Deduplicate by username
     const uniqueUsers = new Map<string, DiscoverPost>();
     for (const p of selected) {
@@ -865,11 +880,7 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading }: CommentsHu
           </TabsTrigger>
           <TabsTrigger value="discover" className="data-[state=active]:bg-background data-[state=active]:text-foreground text-muted-foreground rounded-md gap-1 text-xs px-2 py-1.5">
             <Compass className="h-3.5 w-3.5" /> Discover & Mass Comment
-          </TabsTrigger>
-          <TabsTrigger value="session" className="data-[state=active]:bg-background data-[state=active]:text-foreground text-muted-foreground rounded-md gap-1 text-xs px-2 py-1.5">
-            <Key className="h-3.5 w-3.5" /> Session
-            {sessionStatus === "expired" && <span className="h-1.5 w-1.5 rounded-full bg-destructive" />}
-            {sessionStatus === "valid" && <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />}
+            {selectedPlatform === "instagram" && (!sessionId || sessionStatus === "expired") && <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />}
           </TabsTrigger>
         </TabsList>
 
@@ -1436,109 +1447,50 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading }: CommentsHu
             </div>
           </div>
         </TabsContent>
-        {/* ===== SESSION MANAGEMENT ===== */}
-        <TabsContent value="session" className="space-y-4 mt-3">
-          <Card>
-            <CardContent className="p-4 space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Key className="h-4 w-4 text-primary" />
-                  <h4 className="text-sm font-semibold text-foreground">Instagram Session Cookie</h4>
-                </div>
-                <div className="flex items-center gap-2">
-                  {sessionStatus === "valid" && (
-                    <Badge className="bg-emerald-500/15 text-emerald-400 border-emerald-500/30 text-[10px]">
-                      <CheckCircle2 className="h-3 w-3 mr-1" /> Connected
-                    </Badge>
-                  )}
-                  {sessionStatus === "expired" && (
-                    <Badge className="bg-destructive/15 text-destructive border-destructive/30 text-[10px]">
-                      <AlertTriangle className="h-3 w-3 mr-1" /> Expired
-                    </Badge>
-                  )}
-                  {sessionSavedAt && (
-                    <span className="text-[9px] text-muted-foreground">
-                      Last saved: {new Date(sessionSavedAt).toLocaleString()}
-                    </span>
-                  )}
-                </div>
-              </div>
 
-              <p className="text-[11px] text-muted-foreground leading-relaxed">
-                A valid session cookie is required to comment on, like, and interact with <strong>discovered posts</strong> (posts from other accounts). 
-                Your own posts use the Graph API and don't need this.
-              </p>
-
-              <div className="space-y-3">
-                <div>
-                  <label className="text-[10px] font-medium text-foreground mb-1 block">Session ID <span className="text-destructive">*</span></label>
-                  <Input
-                    value={sessionId}
-                    onChange={e => setSessionId(e.target.value)}
-                    placeholder="Paste your sessionid cookie value here..."
-                    className="text-xs font-mono"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-[10px] font-medium text-foreground mb-1 block">CSRF Token</label>
-                    <Input
-                      value={csrfToken}
-                      onChange={e => setCsrfToken(e.target.value)}
-                      placeholder="csrftoken cookie value"
-                      className="text-xs font-mono"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-medium text-foreground mb-1 block">DS User ID</label>
-                    <Input
-                      value={dsUserId}
-                      onChange={e => setDsUserId(e.target.value)}
-                      placeholder="ds_user_id cookie value"
-                      className="text-xs font-mono"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 flex-wrap">
-                <Button size="sm" onClick={saveSessionData} disabled={sessionLoading || !sessionId.trim()} className="gap-1.5">
-                  {sessionLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
-                  Save Session
-                </Button>
-                <Button size="sm" variant="outline" onClick={autoFetchSession} disabled={sessionLoading} className="gap-1.5 text-foreground">
-                  {sessionLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Link2 className="h-3.5 w-3.5" />}
-                  Auto-Fetch from Account
-                </Button>
-                <Button size="sm" variant="outline" onClick={testSession} disabled={sessionLoading} className="gap-1.5 text-foreground">
-                  {sessionLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />}
-                  Test Session
-                </Button>
-              </div>
-
-              {/* How to get session cookie guide */}
-              <Card className="bg-muted/30 border-border">
-                <CardContent className="p-3 space-y-2">
-                  <p className="text-[10px] font-semibold text-foreground">How to get your session cookie manually:</p>
-                  <ol className="text-[10px] text-muted-foreground space-y-1 list-decimal list-inside">
-                    <li>Open <strong>instagram.com</strong> in your browser and log in</li>
-                    <li>Open DevTools (F12) → <strong>Application</strong> tab → <strong>Cookies</strong></li>
-                    <li>Find <code className="bg-muted px-1 rounded text-foreground">sessionid</code> — copy its value</li>
-                    <li>Find <code className="bg-muted px-1 rounded text-foreground">csrftoken</code> — copy its value</li>
-                    <li>Find <code className="bg-muted px-1 rounded text-foreground">ds_user_id</code> — copy its value</li>
-                    <li>Paste them above and click <strong>Save Session</strong></li>
-                  </ol>
-                  <p className="text-[9px] text-amber-400 flex items-center gap-1">
-                    <AlertTriangle className="h-3 w-3" />
-                    Session cookies expire every few days. Refresh when you see "expired" errors.
-                  </p>
-                </CardContent>
-              </Card>
-            </CardContent>
-          </Card>
-        </TabsContent>
 
       </Tabs>
+
+      {/* ===== SESSION REQUIRED DIALOG ===== */}
+      <Dialog open={sessionRequiredDialog} onOpenChange={setSessionRequiredDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-foreground">
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              Instagram Session Cookie Required
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              To <strong>discover posts</strong>, <strong>mass comment</strong>, <strong>like</strong>, or <strong>follow</strong> on other accounts' content, you need a valid Instagram session cookie.
+            </p>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Your session cookie {sessionStatus === "expired" ? "has expired" : "has not been set up yet"}. Go to the <strong>Connect</strong> tab to enter your session credentials.
+            </p>
+            <Card className="bg-muted/30 border-border">
+              <CardContent className="p-3">
+                <p className="text-[10px] text-muted-foreground">
+                  <strong>How it works:</strong> Open instagram.com → DevTools (F12) → Application → Cookies → copy <code className="bg-muted px-1 rounded text-foreground">sessionid</code>, <code className="bg-muted px-1 rounded text-foreground">csrftoken</code>, and <code className="bg-muted px-1 rounded text-foreground">ds_user_id</code>.
+                </p>
+              </CardContent>
+            </Card>
+            <div className="flex gap-2">
+              <Button
+                className="flex-1 gap-1.5"
+                onClick={() => {
+                  setSessionRequiredDialog(false);
+                  onNavigateToSession?.();
+                }}
+              >
+                <Key className="h-4 w-4" /> Go to Connect Tab
+              </Button>
+              <Button variant="outline" onClick={() => setSessionRequiredDialog(false)} className="text-foreground">
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* ===== POST VIEWER DIALOG (Instagram-style) ===== */}
       <Dialog open={!!viewingPost} onOpenChange={(open) => { if (!open) setViewingPost(null); }}>
