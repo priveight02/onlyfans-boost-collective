@@ -576,7 +576,8 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading }: CommentsHu
         if (selectedPlatform === "instagram") {
           // Extract shortcode from permalink or stored shortcode
           const shortcode = (post as DiscoverPost).shortcode || extractShortcode(post.permalink);
-          await callApi("instagram-api", { action: "post_comment", params: { media_id: post.id, message: commentText, shortcode, post_author: post.username } });
+          const isOwn = myPosts.some(p => p.id === post.id);
+          await callApi("instagram-api", { action: "post_comment", params: { media_id: post.id, message: commentText, shortcode, post_author: post.username, is_own_post: isOwn } });
         } else {
           await callApi("tiktok-api", { action: "post_comment", params: { video_id: post.id, message: commentText } });
         }
@@ -632,8 +633,9 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading }: CommentsHu
     if (!viewingPost || !viewerNewComment.trim()) return;
     try {
       if (selectedPlatform === "instagram") {
+        const isOwnPost = myPosts.some(p => p.id === viewingPost.id);
         const shortcode = (viewingPost as DiscoverPost).shortcode || extractShortcode(viewingPost.permalink);
-        await callApi("instagram-api", { action: "post_comment", params: { media_id: viewingPost.id, message: viewerNewComment, shortcode, post_author: (viewingPost as any).username } });
+        await callApi("instagram-api", { action: "post_comment", params: { media_id: viewingPost.id, message: viewerNewComment, shortcode, post_author: (viewingPost as any).username, is_own_post: isOwnPost } });
       } else {
         await callApi("tiktok-api", { action: "post_comment", params: { video_id: viewingPost.id, message: viewerNewComment } });
       }

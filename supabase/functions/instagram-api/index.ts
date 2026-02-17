@@ -722,6 +722,7 @@ Analyze every character in the name and username for any gender signal at all. L
           const sessionIdC = metaC?.ig_session_id;
           const dsUserIdC = metaC?.ig_ds_user_id || conn.platform_user_id;
           const csrfTokenC = metaC?.ig_csrf_token;
+          const isOwnPost = params.is_own_post === true;
           
           // Generate proper UUID v4 for Instagram private API
           const genUUID = () => {
@@ -731,8 +732,22 @@ Analyze every character in the name and username for any gender signal at all. L
             });
           };
           
-          // STEP 1: Try private API with proper Instagram mobile app format
-          if (sessionIdC) {
+          // ─── PATH A: OWN POST → Graph API (works with OAuth token, no session needed) ───
+          if (isOwnPost) {
+            commentMethod = "graph";
+            try {
+              commentResult = await igFetch(`/${params.media_id}/comments`, token, "POST", { message: params.message });
+              commentResult = { ...commentResult, method: "graph", success: true };
+            } catch (graphErr: any) {
+              console.log("Graph API comment on own post failed:", graphErr.message);
+              throw new Error(`Failed to comment on your own post: ${graphErr.message}`);
+            }
+          } else {
+            // ─── PATH B: EXTERNAL/DISCOVER POST → Private API (needs session cookie) ───
+            if (!sessionIdC) {
+              throw new Error("Session cookie required to comment on discovered posts. Go to Social Networks → Instagram → update your session cookie (sessionid, csrftoken, ds_user_id).");
+            }
+            
             commentMethod = "private";
             const commentHeaders: Record<string, string> = {
               "User-Agent": "Instagram 275.0.0.27.98 Android (33/13; 420dpi; 1080x2400; samsung; SM-G991B; o1s; exynos2100; en_US; 458229258)",
@@ -743,7 +758,6 @@ Analyze every character in the name and username for any gender signal at all. L
             };
             if (csrfTokenC) commentHeaders["X-CSRFToken"] = csrfTokenC;
             
-            // Build proper request body matching Instagram's mobile app
             const deviceUUID = genUUID();
             const idempotenceToken = genUUID();
             const commentBody = new URLSearchParams();
@@ -757,74 +771,24 @@ Analyze every character in the name and username for any gender signal at all. L
             commentBody.set("carousel_index", "0");
             commentBody.set("is_carousel_bumped_post", "false");
             
-            try {
-              const commentResp = await fetch(`https://i.instagram.com/api/v1/media/${params.media_id}/comment/`, {
-                method: "POST",
-                headers: commentHeaders,
-                body: commentBody.toString(),
-              });
-              const commentRespData = await commentResp.json();
-              console.log("Private API comment:", commentResp.status, JSON.stringify(commentRespData).slice(0, 500));
-              
-              if (commentRespData?.comment) {
-                commentResult = { id: String(commentRespData.comment.pk), success: true, method: "private", text: commentRespData.comment.text };
-              } else if (commentRespData?.status === "ok") {
-                commentResult = { id: "posted", success: true, method: "private" };
-              } else {
-                console.log("Private API comment rejected:", JSON.stringify(commentRespData));
-              }
-            } catch (privErr: any) {
-              console.log("Private API comment exception:", privErr.message);
-            }
-          }
-          
-          // STEP 2: If private API failed, try Graph API
-          // For Graph API we need the Graph media ID, not the pk
-          // If shortcode is provided, resolve it to Graph API media ID via web endpoint
-          if (!commentResult) {
-            commentMethod = "graph";
-            const shortcode = params.shortcode;
+            const commentResp = await fetch(`https://i.instagram.com/api/v1/media/${params.media_id}/comment/`, {
+              method: "POST",
+              headers: commentHeaders,
+              body: commentBody.toString(),
+            });
+            const commentRespData = await commentResp.json();
+            console.log("Private API comment:", commentResp.status, JSON.stringify(commentRespData).slice(0, 500));
             
-            if (shortcode) {
-              // Try to resolve shortcode → Graph API media ID via Instagram's web API
-              try {
-                const webHeaders: Record<string, string> = {
-                  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                };
-                if (sessionIdC) {
-                  webHeaders["Cookie"] = `sessionid=${sessionIdC}; csrftoken=${csrfTokenC || ""}; ds_user_id=${dsUserIdC || ""}`;
-                }
-                const mediaInfoResp = await fetch(`https://i.instagram.com/api/v1/media/${params.media_id}/info/`, {
-                  headers: {
-                    ...webHeaders,
-                    "X-IG-App-ID": "936619743392459",
-                  },
-                });
-                if (mediaInfoResp.ok) {
-                  const mediaInfo = await mediaInfoResp.json();
-                  const igMediaId = mediaInfo?.items?.[0]?.ig_media_id || mediaInfo?.items?.[0]?.media_id;
-                  if (igMediaId) {
-                    try {
-                      commentResult = await igFetch(`/${igMediaId}/comments`, token, "POST", { message: params.message });
-                      commentResult = { ...commentResult, method: "graph", success: true };
-                    } catch (graphErr: any) {
-                      console.log("Graph API comment with resolved ID failed:", graphErr.message);
-                    }
-                  }
-                }
-              } catch (resolveErr: any) {
-                console.log("Media ID resolution failed:", resolveErr.message);
-              }
-            }
-            
-            // Last resort: try Graph API directly with the pk (sometimes works for own business posts)
-            if (!commentResult) {
-              try {
-                commentResult = await igFetch(`/${params.media_id}/comments`, token, "POST", { message: params.message });
-                commentResult = { ...commentResult, method: "graph_direct", success: true };
-              } catch (graphErr: any) {
-                throw new Error(`Comment failed on all methods. Media: ${params.media_id}. Ensure your IG session cookie is fresh and your account is not restricted.`);
-              }
+            if (commentRespData?.comment) {
+              commentResult = { id: String(commentRespData.comment.pk), success: true, method: "private", text: commentRespData.comment.text };
+            } else if (commentRespData?.status === "ok") {
+              commentResult = { id: "posted", success: true, method: "private" };
+            } else if (commentRespData?.message === "login_required") {
+              throw new Error("Your Instagram session cookie has expired. Go to Social Networks → Instagram → update your session cookie with a fresh sessionid.");
+            } else if (commentRespData?.message === "feedback_required") {
+              throw new Error("Instagram has temporarily restricted commenting from this account. Wait a few hours and try again.");
+            } else {
+              throw new Error(`Comment failed: ${commentRespData?.message || "Unknown error"}. Try refreshing your IG session cookie.`);
             }
           }
           
