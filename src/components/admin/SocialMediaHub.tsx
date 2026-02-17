@@ -1240,16 +1240,21 @@ const SocialMediaHub = () => {
     return () => window.removeEventListener("message", handleMessage);
   }, [selectedAccount]);
 
-  // Open the IG login popup
+  // Open the IG login popup — directly open Instagram OAuth to avoid iframe blocking
   const openIgLoginPopup = () => {
+    const appId = import.meta.env.VITE_INSTAGRAM_APP_ID;
+    if (!appId) { toast.error("Instagram App ID not configured"); return; }
     setIgLoginPopupLoading(true);
+    const redirectUri = `${window.location.origin}/ig-login`;
+    const scope = "instagram_basic,instagram_content_publish,instagram_manage_comments,instagram_manage_insights";
+    const authUrl = `https://api.instagram.com/oauth/authorize?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scope}&response_type=code`;
     const w = 420, h = 620;
     const left = window.screenX + (window.outerWidth - w) / 2;
     const top = window.screenY + (window.outerHeight - h) / 2;
     const popup = window.open(
-      `${window.location.origin}/ig-login`,
+      authUrl,
       "ig_login_popup",
-      `width=${w},height=${h},left=${left},top=${top},scrollbars=no,resizable=no`
+      `width=${w},height=${h},left=${left},top=${top},scrollbars=yes,resizable=yes`
     );
     // Watch for popup close without success
     const check = setInterval(() => {
