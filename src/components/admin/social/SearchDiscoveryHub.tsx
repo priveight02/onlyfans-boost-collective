@@ -312,7 +312,8 @@ const SearchDiscoveryHub = ({ accountId }: SearchDiscoveryHubProps) => {
 
   const onSearchQueryChange = (val: string) => {
     setSearchQuery(val);
-    if (searchMode === "username" || searchMode === "post") {
+    // Auto-search on typing for username mode only
+    if (searchMode === "username") {
       if (searchTimeout.current) clearTimeout(searchTimeout.current);
       searchTimeout.current = setTimeout(() => performSearch(val), 500);
     }
@@ -681,7 +682,7 @@ const SearchDiscoveryHub = ({ accountId }: SearchDiscoveryHubProps) => {
               <Filter className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
               <Input placeholder="Filter list..." value={listFilter} onChange={e => setListFilter(e.target.value)} className="pl-7 h-7 text-[11px]" />
             </div>
-            <select value={sortMode} onChange={e => setSortMode(e.target.value as any)} className="bg-card text-card-foreground border border-border rounded px-2 py-1 text-[10px] h-7">
+            <select value={sortMode} onChange={e => setSortMode(e.target.value as any)} className="bg-muted border border-border rounded px-2 py-1 text-[10px] h-7 text-foreground">
               <option value="name">A-Z</option>
               <option value="followers">Followers</option>
               <option value="recent">Recent</option>
