@@ -1241,9 +1241,16 @@ const SocialMediaHub = () => {
   }, [selectedAccount]);
 
   // Open the IG login popup — directly open Instagram OAuth to avoid iframe blocking
-  const openIgLoginPopup = () => {
-    const appId = import.meta.env.VITE_INSTAGRAM_APP_ID;
-    if (!appId) { toast.error("Instagram App ID not configured"); return; }
+  const openIgLoginPopup = async () => {
+    // Use the oauthAppId from the UI input, or fetch from backend secret
+    let appId = oauthAppId;
+    if (!appId) {
+      try {
+        const { data } = await supabase.functions.invoke("ig-oauth-callback", { body: { action: "get_app_id" } });
+        appId = data?.app_id;
+      } catch {}
+    }
+    if (!appId) { toast.error("Enter your Meta App ID in the One-Click Connect section, or configure INSTAGRAM_APP_ID in backend secrets"); return; }
     setIgLoginPopupLoading(true);
     const redirectUri = `${window.location.origin}/ig-login`;
     const scope = "instagram_basic,instagram_content_publish,instagram_manage_comments,instagram_manage_insights";

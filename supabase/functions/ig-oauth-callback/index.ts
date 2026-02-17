@@ -11,7 +11,17 @@ serve(async (req) => {
   }
 
   try {
-    const { code, redirect_uri } = await req.json();
+    const body = await req.json();
+
+    // Return app ID for frontend use
+    if (body.action === "get_app_id") {
+      const appId = Deno.env.get("INSTAGRAM_APP_ID");
+      return new Response(JSON.stringify({ app_id: appId || null }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const { code, redirect_uri } = body;
 
     if (!code) {
       return new Response(JSON.stringify({ error: "Missing authorization code" }), {
