@@ -29,7 +29,7 @@ const AuditTrailPanel = () => {
 
   const fetchLogs = useCallback(async () => {
     const data = await cachedFetch<any[]>(CACHE_ID, "audit_logs", async () => {
-      const { data } = await supabase.from("audit_logs").select("*").order("created_at", { ascending: false }).limit(200); return data || [];
+      const { data } = await supabase.from("audit_logs").select("*").order("created_at", { ascending: false }).limit(50); return data || [];
     }, undefined, { ttlMs: 2 * 60 * 1000 }
     );
     setLogs(data);
@@ -40,7 +40,7 @@ const AuditTrailPanel = () => {
     loadedTabs.current.add(tab);
     if (tab === "policy") {
       const data = await cachedFetch<any[]>(CACHE_ID, "policy_decisions", async () => {
-        const { data } = await supabase.from("policy_decisions").select("*").order("evaluated_at", { ascending: false }).limit(100); return data || [];
+        const { data } = await supabase.from("policy_decisions").select("*").order("evaluated_at", { ascending: false }).limit(30); return data || [];
       }, undefined, { ttlMs: 2 * 60 * 1000 }
       );
       setPolicyDecisions(data);
@@ -56,7 +56,7 @@ const AuditTrailPanel = () => {
     const channel = supabase.channel("audit-realtime")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "audit_logs" }, (payload) => {
         // Optimistic append — no re-fetch
-        setLogs(prev => [payload.new as any, ...prev].slice(0, 200));
+        setLogs(prev => [payload.new as any, ...prev].slice(0, 50));
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); if (realtimeTimer.current) clearTimeout(realtimeTimer.current); };

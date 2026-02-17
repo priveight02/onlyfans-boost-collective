@@ -52,7 +52,7 @@ const SystemOpsPanel = () => {
     switch (tab) {
       case "health": {
         const data = await cachedFetch<any[]>(CACHE_ID, "system_health", async () => {
-          const { data } = await supabase.from("system_health").select("*").order("recorded_at", { ascending: false }).limit(30); return data || [];
+          const { data } = await supabase.from("system_health").select("*").order("recorded_at", { ascending: false }).limit(10); return data || [];
         }, undefined, { ttlMs: 60_000 }
         );
         setHealthMetrics(data);
@@ -60,7 +60,7 @@ const SystemOpsPanel = () => {
       }
       case "jobs": {
         const data = await cachedFetch<any[]>(CACHE_ID, "system_jobs", async () => {
-          const { data } = await supabase.from("system_jobs").select("*").order("created_at", { ascending: false }).limit(30); return data || [];
+          const { data } = await supabase.from("system_jobs").select("*").order("created_at", { ascending: false }).limit(10); return data || [];
         }, undefined, { ttlMs: CACHE_TTL }
         );
         setJobs(data);
@@ -72,7 +72,7 @@ const SystemOpsPanel = () => {
             const { data } = await supabase.from("webhooks").select("*").order("created_at", { ascending: false }); return data || [];
           }, undefined, { ttlMs: CACHE_TTL }),
           cachedFetch<any[]>(CACHE_ID, "webhook_deliveries", async () => {
-            const { data } = await supabase.from("webhook_deliveries").select("*").order("created_at", { ascending: false }).limit(30); return data || [];
+            const { data } = await supabase.from("webhook_deliveries").select("*").order("created_at", { ascending: false }).limit(10); return data || [];
           }, undefined, { ttlMs: 60_000 }
           ),
         ]);
@@ -82,7 +82,7 @@ const SystemOpsPanel = () => {
       }
       case "sessions": {
         const data = await cachedFetch<any[]>(CACHE_ID, "admin_sessions", async () => {
-          const { data } = await supabase.from("admin_sessions").select("*").order("started_at", { ascending: false }).limit(20); return data || [];
+          const { data } = await supabase.from("admin_sessions").select("*").order("started_at", { ascending: false }).limit(10); return data || [];
         }, undefined, { ttlMs: CACHE_TTL }
         );
         setAdminSessions(data);

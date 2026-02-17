@@ -81,21 +81,21 @@ const AIControlPanel = () => {
         break;
       case "requests":
         const reqs = await cachedFetch<any[]>(CACHE_ID, "ai_requests", async () => {
-          const { data } = await supabase.from("ai_requests").select("*").order("created_at", { ascending: false }).limit(50); return data || [];
+          const { data } = await supabase.from("ai_requests").select("*").order("created_at", { ascending: false }).limit(20); return data || [];
         }, undefined, { ttlMs: 60_000 }
         );
         setAiRequests(reqs);
         break;
       case "throttling":
         const limits = await cachedFetch<any[]>(CACHE_ID, "rate_limits", async () => {
-          const { data } = await supabase.from("rate_limits").select("*").order("created_at", { ascending: false }).limit(50); return data || [];
+          const { data } = await supabase.from("rate_limits").select("*").order("created_at", { ascending: false }).limit(20); return data || [];
         }, undefined, { ttlMs: CACHE_TTL }
         );
         setRateLimits(limits);
         break;
       case "usage":
         const buckets = await cachedFetch<any[]>(CACHE_ID, "token_buckets", async () => {
-          const { data } = await supabase.from("token_buckets").select("*").order("created_at", { ascending: false }).limit(50); return data || [];
+          const { data } = await supabase.from("token_buckets").select("*").order("created_at", { ascending: false }).limit(20); return data || [];
         }, undefined, { ttlMs: CACHE_TTL }
         );
         setTokenBuckets(buckets);

@@ -34,7 +34,7 @@ const IncidentManager = () => {
 
   const fetchIncidents = useCallback(async () => {
     const data = await cachedFetch<any[]>(CACHE_ID, "incidents", async () => {
-      const { data } = await supabase.from("incidents").select("*").order("created_at", { ascending: false }).limit(50); return data || [];
+      const { data } = await supabase.from("incidents").select("*").order("created_at", { ascending: false }).limit(20); return data || [];
     }, undefined, { ttlMs: CACHE_TTL }
     );
     setIncidents(data);
@@ -56,7 +56,7 @@ const IncidentManager = () => {
 
   // Updates are fetched on-demand only for selected incident — no caching needed
   const fetchUpdates = async (incidentId: string) => {
-    const { data } = await supabase.from("incident_updates").select("*").eq("incident_id", incidentId).order("created_at", { ascending: false }).limit(30);
+    const { data } = await supabase.from("incident_updates").select("*").eq("incident_id", incidentId).order("created_at", { ascending: false }).limit(10);
     if (data) setUpdates(data);
   };
 
