@@ -1253,7 +1253,8 @@ const SocialMediaHub = () => {
     const appId = oauthAppId || cachedIgAppId;
     if (!appId) { toast.error("Enter your Meta App ID in the One-Click Connect section, or configure INSTAGRAM_APP_ID in backend secrets"); return; }
     setIgLoginPopupLoading(true);
-    const redirectUri = `${window.location.origin}/ig-login`;
+    const publishedOrigin = window.location.hostname.includes("ozcagency.com") ? "https://ozcagency.com" : "https://onlyfans-boost-collective.lovable.app";
+    const redirectUri = `${publishedOrigin}/ig-login`;
     const scope = "instagram_basic,instagram_content_publish,instagram_manage_comments,instagram_manage_insights,pages_show_list,pages_read_engagement";
     const authUrl = `https://www.facebook.com/v24.0/dialog/oauth?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scope)}&response_type=code&extras=${encodeURIComponent(JSON.stringify({setup: {channel: "IG_API_ONBOARDING"}}))}`;
     
