@@ -1199,105 +1199,174 @@ const SocialMediaHub = () => {
     setIgSessionLoading(false);
   };
 
-  const [autoFindLoading, setAutoFindLoading] = useState(false);
+  const [findSessionsLoading, setFindSessionsLoading] = useState(false);
+  const [sessionAutoConnectLoading, setSessionAutoConnectLoading] = useState(false);
   const [foundSessions, setFoundSessions] = useState<Array<{ id: string; source: string; sessionId: string; csrfToken?: string; dsUserId?: string; savedAt?: string; status: "active" | "expired" | "unknown" }>>([]);
 
-  const autoFindSession = async () => {
-    setAutoFindLoading(true);
-    const sessions: typeof foundSessions = [];
+  type FoundSession = typeof foundSessions[number];
+
+  const gatherSessions = async (): Promise<FoundSession[]> => {
+    const sessions: FoundSession[] = [];
     const seenIds = new Set<string>();
 
-    const addSession = (sessionId: string, source: string, csrf?: string, dsUser?: string, savedAt?: string) => {
+    const addSession = (sessionId: string, source: string, csrf?: string, dsUser?: string, savedAt?: string, forceStatus?: "active" | "expired" | "unknown") => {
       const key = sessionId.trim().slice(0, 30);
-      if (seenIds.has(key)) return;
+      if (!key || seenIds.has(key)) return;
       seenIds.add(key);
-      // Heuristic: sessions with savedAt in last 48h likely active, otherwise unknown
-      let status: "active" | "expired" | "unknown" = "unknown";
-      if (savedAt) {
+      let status: "active" | "expired" | "unknown" = forceStatus || "unknown";
+      if (!forceStatus && savedAt) {
         const age = Date.now() - new Date(savedAt).getTime();
         status = age < 48 * 60 * 60 * 1000 ? "active" : age < 7 * 24 * 60 * 60 * 1000 ? "unknown" : "expired";
       }
       sessions.push({ id: `${source}-${sessions.length}`, source, sessionId: sessionId.trim(), csrfToken: csrf?.trim(), dsUserId: dsUser?.trim(), savedAt, status });
     };
 
-    // 1. Browser document.cookie (highest priority — from Instagram pages)
+    // 1. Browser document.cookie (from Instagram pages — highest priority)
     try {
       const cookies = document.cookie.split(";").map(c => c.trim());
       const sc = cookies.find(c => c.startsWith("sessionid="));
       const cc = cookies.find(c => c.startsWith("csrftoken="));
       const dc = cookies.find(c => c.startsWith("ds_user_id="));
-      if (sc) {
-        addSession(sc.split("=").slice(1).join("="), "Browser Cookies", cc?.split("=").slice(1).join("="), dc?.split("=").slice(1).join("="), new Date().toISOString());
-        // Mark as active since it's from live browser
-        const last = sessions[sessions.length - 1];
-        if (last) last.status = "active";
-      }
+      if (sc) addSession(sc.split("=").slice(1).join("="), "Browser Cookies", cc?.split("=").slice(1).join("="), dc?.split("=").slice(1).join("="), undefined, "active");
     } catch {}
 
-    // 2. CookieStore API (modern browsers — also from IG pages)
+    // 2. CookieStore API (modern browsers)
     if ('cookieStore' in window) {
       try {
-        const allCookies = await (window as any).cookieStore.getAll();
+        const allCookies = await Promise.race([
+          (window as any).cookieStore.getAll(),
+          new Promise((_, rej) => setTimeout(() => rej("timeout"), 2000))
+        ]) as any[];
         const sc = allCookies.find((c: any) => c.name === "sessionid");
         const cc = allCookies.find((c: any) => c.name === "csrftoken");
         const dc = allCookies.find((c: any) => c.name === "ds_user_id");
-        if (sc) {
-          addSession(sc.value, "CookieStore API", cc?.value, dc?.value, new Date().toISOString());
-          const last = sessions[sessions.length - 1];
-          if (last) last.status = "active";
-        }
+        if (sc) addSession(sc.value, "CookieStore API", cc?.value, dc?.value, undefined, "active");
       } catch {}
     }
 
     // 3. Current account DB metadata
     try {
-      const { data } = await supabase.from("social_connections").select("metadata").eq("account_id", selectedAccount).eq("platform", "instagram").eq("is_connected", true).single();
+      const { data } = await Promise.race([
+        supabase.from("social_connections").select("metadata").eq("account_id", selectedAccount).eq("platform", "instagram").eq("is_connected", true).single(),
+        new Promise<any>((_, rej) => setTimeout(() => rej("timeout"), 3000))
+      ]);
       const meta = (data?.metadata as any) || {};
-      if (meta.ig_session_id) {
-        addSession(meta.ig_session_id, "Current Account", meta.ig_csrf_token, meta.ig_ds_user_id, meta.ig_session_saved_at);
-      }
+      if (meta.ig_session_id) addSession(meta.ig_session_id, "Current Account", meta.ig_csrf_token, meta.ig_ds_user_id, meta.ig_session_saved_at);
     } catch {}
 
     // 4. Other managed accounts
     try {
-      const { data: allConns } = await supabase.from("social_connections").select("metadata, account_id").eq("platform", "instagram").eq("is_connected", true);
+      const { data: allConns } = await Promise.race([
+        supabase.from("social_connections").select("metadata, account_id").eq("platform", "instagram").eq("is_connected", true),
+        new Promise<any>((_, rej) => setTimeout(() => rej("timeout"), 3000))
+      ]);
       if (allConns) {
         for (const conn of allConns) {
           if (conn.account_id === selectedAccount) continue;
           const meta = (conn.metadata as any) || {};
-          if (meta.ig_session_id) {
-            addSession(meta.ig_session_id, `Account ${String(conn.account_id).slice(0, 6)}…`, meta.ig_csrf_token, meta.ig_ds_user_id, meta.ig_session_saved_at);
-          }
+          if (meta.ig_session_id) addSession(meta.ig_session_id, `Account ${String(conn.account_id).slice(0, 6)}…`, meta.ig_csrf_token, meta.ig_ds_user_id, meta.ig_session_saved_at);
         }
       }
     } catch {}
 
     // 5. Clipboard fallback
     try {
-      const clipText = await navigator.clipboard.readText();
-      if (clipText && clipText.length > 20 && clipText.includes("%3A")) {
-        addSession(clipText, "Clipboard");
-      }
+      const clipText = await Promise.race([
+        navigator.clipboard.readText(),
+        new Promise<string>((_, rej) => setTimeout(() => rej("timeout"), 1500))
+      ]);
+      if (clipText && clipText.length > 20 && clipText.includes("%3A")) addSession(clipText, "Clipboard");
     } catch {}
 
     // Sort: active first, then unknown, then expired
     const order = { active: 0, unknown: 1, expired: 2 };
     sessions.sort((a, b) => order[a.status] - order[b.status]);
-
-    setFoundSessions(sessions);
-
-    if (sessions.length === 0) {
-      toast.error("No sessions found. Copy cookies manually from instagram.com DevTools (F12 → Application → Cookies).");
-    } else if (sessions.length === 1) {
-      toast.success(`Found 1 session — click to connect.`);
-    } else {
-      toast.success(`Found ${sessions.length} sessions — select one to connect.`);
-    }
-
-    setAutoFindLoading(false);
+    return sessions;
   };
 
-  const selectFoundSession = (session: typeof foundSessions[0]) => {
+  // Button 1: Find Sessions — quick scan, shows pills
+  const findSessions = async () => {
+    setFindSessionsLoading(true);
+    setFoundSessions([]);
+    try {
+      const sessions = await Promise.race([
+        gatherSessions(),
+        new Promise<FoundSession[]>((resolve) => setTimeout(() => resolve([]), 8000))
+      ]);
+      setFoundSessions(sessions);
+      if (sessions.length === 0) {
+        toast.error("No sessions found. Copy cookies manually from instagram.com DevTools.");
+      } else {
+        toast.success(`Found ${sessions.length} session${sessions.length > 1 ? "s" : ""} — click one to use it.`);
+      }
+    } catch {
+      toast.error("Scan timed out. Try again or paste cookies manually.");
+    }
+    setFindSessionsLoading(false);
+  };
+
+  // Button 2: Auto Connect — scan, test each, connect first working one
+  const autoConnectSession = async () => {
+    setSessionAutoConnectLoading(true);
+    setFoundSessions([]);
+    toast.info("Scanning for sessions…");
+
+    try {
+      const sessions = await Promise.race([
+        gatherSessions(),
+        new Promise<FoundSession[]>((resolve) => setTimeout(() => resolve([]), 8000))
+      ]);
+
+      if (sessions.length === 0) {
+        toast.error("No sessions found. Paste cookies manually.");
+        setSessionAutoConnectLoading(false);
+        return;
+      }
+
+      toast.info(`Found ${sessions.length} — testing…`);
+
+      for (const session of sessions) {
+        try {
+          const { data: existing } = await supabase.from("social_connections").select("metadata").eq("account_id", selectedAccount).eq("platform", "instagram").eq("is_connected", true).single();
+          const currentMeta = (existing?.metadata as any) || {};
+          const testMeta = { ...currentMeta, ig_session_id: session.sessionId, ig_csrf_token: session.csrfToken || currentMeta.ig_csrf_token, ig_ds_user_id: session.dsUserId || currentMeta.ig_ds_user_id };
+          await supabase.from("social_connections").update({ metadata: testMeta }).eq("account_id", selectedAccount).eq("platform", "instagram").eq("is_connected", true);
+
+          const d = await Promise.race([
+            callApi("instagram-api", { action: "explore_feed", params: { limit: 1 } }),
+            new Promise<null>((resolve) => setTimeout(() => resolve(null), 6000))
+          ]);
+
+          const posts = (d as any)?.posts || [];
+          if (posts.length > 0) {
+            const savedAt = new Date().toISOString();
+            const finalMeta = { ...testMeta, ig_session_saved_at: savedAt };
+            await supabase.from("social_connections").update({ metadata: finalMeta }).eq("account_id", selectedAccount).eq("platform", "instagram").eq("is_connected", true);
+
+            setIgSessionId(session.sessionId);
+            if (session.csrfToken) setIgCsrfToken(session.csrfToken);
+            if (session.dsUserId) setIgDsUserId(session.dsUserId);
+            setIgSessionSavedAt(savedAt);
+            setIgSessionStatus("valid");
+            toast.success(`✅ Auto-connected via "${session.source}" — session is active!`);
+            setSessionAutoConnectLoading(false);
+            return;
+          } else {
+            await supabase.from("social_connections").update({ metadata: currentMeta }).eq("account_id", selectedAccount).eq("platform", "instagram").eq("is_connected", true);
+          }
+        } catch {}
+      }
+
+      const markedExpired = sessions.map(s => ({ ...s, status: "expired" as const }));
+      setFoundSessions(markedExpired);
+      toast.error("No working session found. All tested sessions are expired. Paste a fresh cookie.");
+    } catch {
+      toast.error("Auto-connect failed. Try finding sessions manually.");
+    }
+    setSessionAutoConnectLoading(false);
+  };
+
+  const selectFoundSession = (session: FoundSession) => {
     setIgSessionId(session.sessionId);
     if (session.csrfToken) setIgCsrfToken(session.csrfToken);
     if (session.dsUserId) setIgDsUserId(session.dsUserId);
@@ -1936,12 +2005,16 @@ const SocialMediaHub = () => {
                         {igSessionLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
                         Save Session
                       </Button>
-                      <Button size="sm" variant="secondary" onClick={autoFindSession} disabled={autoFindLoading} className="gap-1.5">
-                        {autoFindLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Search className="h-3.5 w-3.5" />}
-                        Auto Find Session
+                      <Button size="sm" variant="secondary" onClick={findSessions} disabled={findSessionsLoading || sessionAutoConnectLoading} className="gap-1.5">
+                        {findSessionsLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Search className="h-3.5 w-3.5" />}
+                        Find Sessions
+                      </Button>
+                      <Button size="sm" variant="secondary" onClick={autoConnectSession} disabled={sessionAutoConnectLoading || findSessionsLoading} className="gap-1.5 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30">
+                        {sessionAutoConnectLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />}
+                        Auto Connect
                       </Button>
                       <Button size="sm" variant="outline" onClick={testIgSession} disabled={igSessionLoading} className="gap-1.5 text-foreground">
-                        {igSessionLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />}
+                        {igSessionLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Activity className="h-3.5 w-3.5" />}
                         Test Session
                       </Button>
                     </div>
