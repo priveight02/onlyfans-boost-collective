@@ -1218,41 +1218,29 @@ const SocialMediaHub = () => {
   useEffect(() => {
     const handleMessage = async (event: MessageEvent) => {
       if (event.data?.type !== "IG_SESSION_RESULT") return;
-      const payload = event.data.payload || {};
-      
-      // Support both OAuth token flow (access_token) and session cookie flow (session_id)
-      const accessToken = payload.access_token;
-      const sessionId = payload.session_id;
-      const username = payload.username;
-      
-      if (!accessToken && !sessionId) return;
+      const { session_id, csrf_token, ds_user_id, username } = event.data.payload || {};
+      if (!session_id) return;
 
-      console.log("Received IG result from popup:", username);
+      console.log("Received IG session from popup:", username);
       setIgLoginPopupLoading(false);
 
+      // Populate the session fields
+      setIgSessionId(session_id);
+      if (csrf_token) setIgCsrfToken(csrf_token);
+      if (ds_user_id) setIgDsUserId(ds_user_id);
+
+      // Auto-save to the connection metadata
       try {
         const { data: conn } = await supabase.from("social_connections").select("metadata").eq("account_id", selectedAccount).eq("platform", "instagram").eq("is_connected", true).single();
         const existingMeta = (conn?.metadata as any) || {};
         const savedAt = new Date().toISOString();
-        
-        if (accessToken) {
-          // OAuth token flow — save the Graph API access token
-          const updatedMeta = { ...existingMeta, ig_oauth_token: accessToken, ig_oauth_user_id: payload.user_id, ig_oauth_username: username, ig_oauth_account_type: payload.account_type, ig_oauth_saved_at: savedAt };
-          await supabase.from("social_connections").update({ access_token: accessToken, metadata: updatedMeta }).eq("account_id", selectedAccount).eq("platform", "instagram").eq("is_connected", true);
-        } else {
-          // Session cookie flow
-          setIgSessionId(sessionId);
-          if (payload.csrf_token) setIgCsrfToken(payload.csrf_token);
-          if (payload.ds_user_id) setIgDsUserId(payload.ds_user_id);
-          const updatedMeta = { ...existingMeta, ig_session_id: sessionId, ig_csrf_token: payload.csrf_token || existingMeta.ig_csrf_token, ig_ds_user_id: payload.ds_user_id || existingMeta.ig_ds_user_id, ig_session_saved_at: savedAt };
-          await supabase.from("social_connections").update({ metadata: updatedMeta }).eq("account_id", selectedAccount).eq("platform", "instagram").eq("is_connected", true);
-        }
-        
+        const updatedMeta = { ...existingMeta, ig_session_id: session_id, ig_csrf_token: csrf_token || existingMeta.ig_csrf_token, ig_ds_user_id: ds_user_id || existingMeta.ig_ds_user_id, ig_session_saved_at: savedAt };
+        await supabase.from("social_connections").update({ metadata: updatedMeta }).eq("account_id", selectedAccount).eq("platform", "instagram").eq("is_connected", true);
         setIgSessionSavedAt(savedAt);
         setIgSessionStatus("valid");
-        toast.success(`✅ @${username || "instagram"} connected via OAuth!`);
+        toast.success(`✅ Session for @${username || "instagram"} connected automatically via login!`);
       } catch (e: any) {
-        toast.error("Connection received but failed to save: " + e.message);
+        toast.error("Session received but failed to save: " + e.message);
       }
     };
 
@@ -1272,8 +1260,8 @@ const SocialMediaHub = () => {
     const scope = "instagram_basic,instagram_content_publish,instagram_manage_comments,instagram_manage_insights,pages_show_list,pages_read_engagement";
     const authUrl = `https://www.facebook.com/v24.0/dialog/oauth?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scope)}&response_type=code&extras=${encodeURIComponent(JSON.stringify({setup: {channel: "IG_API_ONBOARDING"}}))}`;
     
-    // Use window.open with popup dimensions — must be synchronous from user click to avoid popup blocker
-    const popup = window.open(authUrl, "ig_oauth_popup", "width=600,height=700,scrollbars=yes");
+    // Use window.open directly — must be synchronous from user click to avoid popup blocker
+    const popup = window.open(authUrl, "_blank");
     if (!popup) {
       // Popup was blocked — try direct navigation as last resort
       toast.info("Popup blocked — opening in current tab. You'll be redirected back after login.");
