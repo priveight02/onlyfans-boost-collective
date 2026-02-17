@@ -693,12 +693,28 @@ Analyze every character in the name and username for any gender signal at all. L
       // ===== PROFILE =====
       case "get_profile": {
         // Instagram Business Login tokens don't support biography/website fields
-        // Try full fields first, fallback to basic fields if it fails
+        // Try full fields first, fallback to basic fields, then return stored data if all fails
         try {
           result = await igFetch(`/${igUserId}?fields=id,username,name,biography,profile_picture_url,followers_count,follows_count,media_count,website`, token);
         } catch (fullErr) {
           console.log("Full profile fields failed, trying basic fields:", fullErr.message);
-          result = await igFetch(`/${igUserId}?fields=id,username,name,profile_picture_url,followers_count,follows_count,media_count`, token);
+          try {
+            result = await igFetch(`/${igUserId}?fields=id,username,name,profile_picture_url,followers_count,follows_count,media_count`, token);
+          } catch (basicErr) {
+            console.log("Basic profile also failed (token may not be propagated yet):", basicErr.message);
+            // Return stored connection data as fallback so caller doesn't get an error
+            const meta = conn.metadata as any || {};
+            result = {
+              id: igUserId,
+              username: conn.platform_username || meta.ig_name || "unknown",
+              name: meta.name || meta.ig_name || conn.platform_username,
+              profile_picture_url: meta.profile_picture_url || meta.ig_profile_pic || null,
+              followers_count: meta.followers_count || 0,
+              follows_count: 0,
+              media_count: meta.media_count || 0,
+              _source: "cached_fallback",
+            };
+          }
         }
         break;
       }
