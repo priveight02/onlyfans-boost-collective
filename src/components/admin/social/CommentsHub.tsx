@@ -591,7 +591,9 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading }: CommentsHu
     setViewerCommentsLoading(true);
     try {
       if (selectedPlatform === "instagram") {
-        const d = await callApi("instagram-api", { action: "get_comments", params: { media_id: post.id, limit: 50 } });
+        // Determine if this is a discover post (not our own) — use private API
+        const isOwnPost = myPosts.some(p => p.id === post.id);
+        const d = await callApi("instagram-api", { action: "get_comments", params: { media_id: post.id, limit: 50, use_private: !isOwnPost } });
         if (d?.data) {
           setViewerComments(d.data.map((c: any) => ({
             id: c.id, text: c.text, username: c.username || c.from?.username || "user",
@@ -608,7 +610,7 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading }: CommentsHu
           })));
         }
       }
-    } catch { /* silent */ }
+    } catch (e: any) { console.log("Failed to load comments:", e.message); }
     setViewerCommentsLoading(false);
   };
 
