@@ -565,8 +565,9 @@ const AdminAPI = () => {
   const [keysLoading, setKeysLoading] = useState(false);
   const [showCreateKey, setShowCreateKey] = useState(false);
   const [newKeyName, setNewKeyName] = useState("");
-  const [newKeyScopes, setNewKeyScopes] = useState("read");
+  const [newKeyScopes, setNewKeyScopes] = useState<string[]>(["read"]);
   const [newKeyExpiry, setNewKeyExpiry] = useState("");
+  const [scopeDropdownOpen, setScopeDropdownOpen] = useState(false);
   const [createdKey, setCreatedKey] = useState<string | null>(null);
   const [showKey, setShowKey] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -647,7 +648,7 @@ const AdminAPI = () => {
       const rawKey = generateApiKey();
       const keyHash = await hashKey(rawKey);
       const prefix = rawKey.substring(0, 16);
-      const scopes = newKeyScopes.split(",").map(s => s.trim()).filter(Boolean);
+      const scopes = newKeyScopes.length > 0 ? newKeyScopes : ["read"];
 
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { toast.error("Not authenticated"); setCreating(false); return; }
@@ -832,7 +833,7 @@ const AdminAPI = () => {
                   <Button size="sm" variant="outline" onClick={loadApiKeys} disabled={keysLoading} className="h-7 text-xs border-white/10 text-white/60 hover:text-white gap-1.5">
                     <RefreshCw className={`h-3 w-3 ${keysLoading ? "animate-spin" : ""}`} /> Refresh
                   </Button>
-                  <Button size="sm" onClick={() => { setShowCreateKey(true); setCreatedKey(null); setNewKeyName(""); setNewKeyScopes("read"); setNewKeyExpiry(""); }} className="h-7 text-xs bg-accent hover:bg-accent/90 text-accent-foreground gap-1.5">
+                  <Button size="sm" onClick={() => { setShowCreateKey(true); setCreatedKey(null); setNewKeyName(""); setNewKeyScopes(["read"]); setNewKeyExpiry(""); setScopeDropdownOpen(false); }} className="h-7 text-xs bg-accent hover:bg-accent/90 text-accent-foreground gap-1.5">
                     <Plus className="h-3 w-3" /> Create Key
                   </Button>
                 </div>
@@ -947,8 +948,64 @@ const AdminAPI = () => {
                     <Input value={newKeyName} onChange={e => setNewKeyName(e.target.value)} placeholder="e.g. Production, Development" className="bg-white/5 border-white/10 text-white text-sm" />
                   </div>
                   <div>
-                    <label className="text-xs text-white/60 mb-1 block">Scopes (comma-separated)</label>
-                    <Input value={newKeyScopes} onChange={e => setNewKeyScopes(e.target.value)} placeholder="read, write, delete" className="bg-white/5 border-white/10 text-white text-sm" />
+                    <label className="text-xs text-white/60 mb-1.5 block">Scopes</label>
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={() => setScopeDropdownOpen(!scopeDropdownOpen)}
+                        className="flex items-center justify-between w-full rounded-md border border-white/10 bg-white/5 px-3 py-2 text-sm text-white h-10"
+                      >
+                        <span className="truncate text-white/70">
+                          {newKeyScopes.length === 4 ? "All Permissions" : newKeyScopes.length === 0 ? "Select scopes..." : newKeyScopes.join(", ")}
+                        </span>
+                        <ChevronDown className="h-4 w-4 opacity-50 flex-shrink-0" />
+                      </button>
+                      {scopeDropdownOpen && (
+                        <div className="absolute z-50 mt-1 w-full rounded-md border border-white/10 bg-[hsl(220,100%,8%)] shadow-lg">
+                          {[
+                            { value: "all", label: "All Permissions", desc: "Full access — read, write, delete, admin" },
+                            { value: "read", label: "Read", desc: "GET requests — view data" },
+                            { value: "write", label: "Write", desc: "POST/PATCH requests — create & update" },
+                            { value: "delete", label: "Delete", desc: "DELETE requests — remove data" },
+                            { value: "admin", label: "Admin", desc: "Admin-level operations" },
+                          ].map((scope) => {
+                            const isAll = scope.value === "all";
+                            const isAllSelected = newKeyScopes.length === 4;
+                            const isChecked = isAll ? isAllSelected : newKeyScopes.includes(scope.value);
+                            return (
+                              <button
+                                key={scope.value}
+                                type="button"
+                                onClick={() => {
+                                  if (isAll) {
+                                    setNewKeyScopes(isAllSelected ? [] : ["read", "write", "delete", "admin"]);
+                                  } else {
+                                    setNewKeyScopes(prev =>
+                                      prev.includes(scope.value) ? prev.filter(s => s !== scope.value) : [...prev, scope.value]
+                                    );
+                                  }
+                                }}
+                                className="w-full flex items-start gap-3 px-3 py-2.5 hover:bg-white/5 transition-colors text-left"
+                              >
+                                <div className={`mt-0.5 h-4 w-4 rounded border flex-shrink-0 flex items-center justify-center ${isChecked ? "bg-accent border-accent" : "border-white/20"}`}>
+                                  {isChecked && <Check className="h-3 w-3 text-accent-foreground" />}
+                                </div>
+                                <div>
+                                  <span className="text-sm text-white font-medium">{scope.label}</span>
+                                  <p className="text-[10px] text-white/40 mt-0.5">{scope.desc}</p>
+                                </div>
+                              </button>
+                            );
+                          })}
+                          <div className="border-t border-white/10 p-2">
+                            <Button size="sm" onClick={() => setScopeDropdownOpen(false)} className="w-full h-7 text-xs bg-accent hover:bg-accent/90 text-accent-foreground">
+                              Done
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-white/30 mt-1">Select which operations this key can perform</p>
                   </div>
                   <div>
                     <label className="text-xs text-white/60 mb-1 block">Expires in (days, leave empty for never)</label>
