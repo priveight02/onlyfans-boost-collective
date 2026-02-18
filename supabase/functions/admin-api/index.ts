@@ -5,15 +5,38 @@ const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-api-key",
   "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+  "X-Content-Type-Options": "nosniff",
+  "X-Frame-Options": "DENY",
+  "X-XSS-Protection": "1; mode=block",
+  "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+  "Cache-Control": "no-store, no-cache, must-revalidate",
+  "Referrer-Policy": "strict-origin-when-cross-origin",
 };
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
+// Rate limiting state (per-instance, resets on cold start)
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+const RATE_LIMIT_WINDOW_MS = 60_000; // 1 minute
+const RATE_LIMIT_MAX = 120; // max requests per minute per key
+
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 }
 function err(message: string, status = 400) { return json({ error: message }, status); }
+
+function checkRateLimit(keyId: string): boolean {
+  const now = Date.now();
+  const entry = rateLimitMap.get(keyId);
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(keyId, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+    return true;
+  }
+  entry.count++;
+  if (entry.count > RATE_LIMIT_MAX) return false;
+  return true;
+}
 
 async function authenticateAdmin(req: Request) {
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
@@ -21,6 +44,23 @@ async function authenticateAdmin(req: Request) {
   // Try X-API-Key header first (for playground/external usage)
   const apiKey = req.headers.get("X-API-Key") || req.headers.get("x-api-key");
   if (apiKey) {
+    // ── STRICT: Only admin keys (ozc_ak_live_) are accepted ──
+    if (apiKey.startsWith("ozc_sk_live_") || apiKey.startsWith("ozc_pk_live_")) {
+      return {
+        error: "Access denied. This is a protected administrative endpoint. Standard user API keys (ozc_sk_live_ / ozc_pk_live_) cannot access administrative resources. If you believe this is an error, please contact support at support@ozcagency.com.",
+        user: null,
+        keyId: null,
+      };
+    }
+
+    if (!apiKey.startsWith("ozc_ak_live_")) {
+      return {
+        error: "Invalid API key format. Administrative endpoints require an Admin API key (ozc_ak_live_...).",
+        user: null,
+        keyId: null,
+      };
+    }
+
     // Hash the provided key and look it up
     const encoder = new TextEncoder();
     const data = encoder.encode(apiKey);
@@ -35,16 +75,31 @@ async function authenticateAdmin(req: Request) {
       .eq("is_active", true)
       .maybeSingle();
 
-    if (keyError || !keyData) return { error: "Invalid or revoked API key", user: null };
+    if (keyError || !keyData) return { error: "Invalid or revoked API key.", user: null, keyId: null };
 
     // Check expiry
     if (keyData.expires_at && new Date(keyData.expires_at) < new Date()) {
-      return { error: "API key has expired", user: null };
+      return { error: "API key has expired. Please generate a new admin key.", user: null, keyId: null };
+    }
+
+    // Verify key is actually an admin-type key via metadata
+    const keyType = keyData.metadata?.key_type;
+    if (keyType !== "admin") {
+      return {
+        error: "Access denied. This key does not have administrative privileges. Only keys explicitly created as Admin keys can access this API.",
+        user: null,
+        keyId: null,
+      };
+    }
+
+    // Check rate limit for this key
+    if (!checkRateLimit(keyData.id)) {
+      return { error: "Rate limit exceeded. Maximum 120 requests per minute. Please wait and try again.", user: null, keyId: null };
     }
 
     // Check admin role for the key owner
     const { data: roleData } = await supabase.from("user_roles").select("role").eq("user_id", keyData.user_id).eq("role", "admin").maybeSingle();
-    if (!roleData) return { error: "Unauthorized: Admin access required", user: null };
+    if (!roleData) return { error: "Unauthorized: The owner of this API key does not have admin privileges.", user: null, keyId: null };
 
     // Update usage stats
     await supabase.from("api_keys").update({
@@ -55,18 +110,24 @@ async function authenticateAdmin(req: Request) {
 
     // Get the user
     const { data: userData } = await supabase.auth.admin.getUserById(keyData.user_id);
-    return { error: null, user: userData?.user || { id: keyData.user_id }, supabase };
+    return { error: null, user: userData?.user || { id: keyData.user_id }, supabase, keyId: keyData.id };
   }
 
-  // Fallback to Bearer token auth
+  // Fallback to Bearer token auth (for internal admin panel usage)
   const authHeader = req.headers.get("Authorization");
-  if (!authHeader?.startsWith("Bearer ")) return { error: "Missing or invalid Authorization header. Provide X-API-Key or Bearer token.", user: null };
+  if (!authHeader?.startsWith("Bearer ")) {
+    return {
+      error: "Authentication required. Provide an Admin API key via X-API-Key header (ozc_ak_live_...) or a valid Bearer token.",
+      user: null,
+      keyId: null,
+    };
+  }
   const token = authHeader.replace("Bearer ", "");
   const { data: { user }, error } = await supabase.auth.getUser(token);
-  if (error || !user) return { error: "Invalid or expired token", user: null };
+  if (error || !user) return { error: "Invalid or expired authentication token.", user: null, keyId: null };
   const { data: roleData } = await supabase.from("user_roles").select("role").eq("user_id", user.id).eq("role", "admin").maybeSingle();
-  if (!roleData) return { error: "Unauthorized: Admin access required", user: null };
-  return { error: null, user, supabase };
+  if (!roleData) return { error: "Unauthorized: Admin access required. If you believe this is an error, please contact support.", user: null, keyId: null };
+  return { error: null, user, supabase, keyId: null };
 }
 
 function parseRoute(url: URL) {
@@ -80,11 +141,10 @@ function makeCrud(table: string, orderBy = "created_at", orderAsc = false) {
   return async (method: string, id: string | null, _sub: string | null, params: Record<string, string>, body: any, supabase: any) => {
     if (method === "GET" && !id) {
       let q = supabase.from(table).select("*").order(orderBy, { ascending: orderAsc });
-      // Apply generic filters from params
       for (const [key, val] of Object.entries(params)) {
         if (key === "limit") { q = q.limit(parseInt(val)); continue; }
         if (key === "offset") { q = q.range(parseInt(val), parseInt(val) + parseInt(params.limit || "50") - 1); continue; }
-        if (key === "search") continue; // handled per-handler
+        if (key === "search") continue;
         q = q.eq(key, val);
       }
       const { data, error } = await q;
@@ -565,7 +625,11 @@ serve(async (req) => {
     }
 
     const auth = await authenticateAdmin(req);
-    if (auth.error) return err(auth.error, 401);
+    if (auth.error) {
+      // Determine appropriate status code
+      const status = auth.error.includes("Access denied") || auth.error.includes("protected administrative") ? 403 : 401;
+      return err(auth.error, status);
+    }
 
     const handler = ROUTES[resource];
     if (!handler) return err(`Unknown resource: ${resource}. Available: ${Object.keys(ROUTES).join(", ")}`, 404);
