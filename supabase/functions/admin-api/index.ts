@@ -16,10 +16,52 @@ function json(data: unknown, status = 200) {
 function err(message: string, status = 400) { return json({ error: message }, status); }
 
 async function authenticateAdmin(req: Request) {
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader?.startsWith("Bearer ")) return { error: "Missing or invalid Authorization header", user: null };
-  const token = authHeader.replace("Bearer ", "");
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+  // Try X-API-Key header first (for playground/external usage)
+  const apiKey = req.headers.get("X-API-Key") || req.headers.get("x-api-key");
+  if (apiKey) {
+    // Hash the provided key and look it up
+    const encoder = new TextEncoder();
+    const data = encoder.encode(apiKey);
+    const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const keyHash = hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+
+    const { data: keyData, error: keyError } = await supabase
+      .from("api_keys")
+      .select("*")
+      .eq("key_hash", keyHash)
+      .eq("is_active", true)
+      .maybeSingle();
+
+    if (keyError || !keyData) return { error: "Invalid or revoked API key", user: null };
+
+    // Check expiry
+    if (keyData.expires_at && new Date(keyData.expires_at) < new Date()) {
+      return { error: "API key has expired", user: null };
+    }
+
+    // Check admin role for the key owner
+    const { data: roleData } = await supabase.from("user_roles").select("role").eq("user_id", keyData.user_id).eq("role", "admin").maybeSingle();
+    if (!roleData) return { error: "Unauthorized: Admin access required", user: null };
+
+    // Update usage stats
+    await supabase.from("api_keys").update({
+      last_used_at: new Date().toISOString(),
+      requests_today: (keyData.requests_today || 0) + 1,
+      requests_total: (keyData.requests_total || 0) + 1,
+    }).eq("id", keyData.id);
+
+    // Get the user
+    const { data: userData } = await supabase.auth.admin.getUserById(keyData.user_id);
+    return { error: null, user: userData?.user || { id: keyData.user_id }, supabase };
+  }
+
+  // Fallback to Bearer token auth
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader?.startsWith("Bearer ")) return { error: "Missing or invalid Authorization header. Provide X-API-Key or Bearer token.", user: null };
+  const token = authHeader.replace("Bearer ", "");
   const { data: { user }, error } = await supabase.auth.getUser(token);
   if (error || !user) return { error: "Invalid or expired token", user: null };
   const { data: roleData } = await supabase.from("user_roles").select("role").eq("user_id", user.id).eq("role", "admin").maybeSingle();

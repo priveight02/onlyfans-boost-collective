@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Bell, AlertTriangle, Info, CheckCircle, AlertCircle } from "lucide-react";
+import { AlertTriangle, Info, CheckCircle, AlertCircle } from "lucide-react";
 
 interface AdminNotification {
   id: string;
@@ -15,17 +15,24 @@ interface AdminNotification {
 }
 
 const getIcon = (type: string) => {
-  if (type === "warning") return <AlertTriangle className="h-5 w-5 text-amber-400" />;
-  if (type === "urgent") return <AlertCircle className="h-5 w-5 text-red-400" />;
-  if (type === "success") return <CheckCircle className="h-5 w-5 text-emerald-400" />;
-  return <Info className="h-5 w-5 text-sky-400" />;
+  if (type === "warning") return <AlertTriangle className="h-4 w-4 text-amber-400" />;
+  if (type === "urgent") return <AlertCircle className="h-4 w-4 text-red-400" />;
+  if (type === "success") return <CheckCircle className="h-4 w-4 text-emerald-400" />;
+  return <Info className="h-4 w-4 text-sky-400" />;
 };
 
-const getBg = (type: string) => {
-  if (type === "warning") return "border-amber-500/30";
-  if (type === "urgent") return "border-red-500/30";
-  if (type === "success") return "border-emerald-500/30";
-  return "border-sky-500/30";
+const getAccentColor = (type: string) => {
+  if (type === "warning") return "border-amber-500/20 shadow-amber-500/5";
+  if (type === "urgent") return "border-red-500/20 shadow-red-500/5";
+  if (type === "success") return "border-emerald-500/20 shadow-emerald-500/5";
+  return "border-sky-500/20 shadow-sky-500/5";
+};
+
+const getIconBg = (type: string) => {
+  if (type === "warning") return "bg-amber-500/10";
+  if (type === "urgent") return "bg-red-500/10";
+  if (type === "success") return "bg-emerald-500/10";
+  return "bg-sky-500/10";
 };
 
 const AdminNotificationPopup = () => {
@@ -80,16 +87,24 @@ const AdminNotificationPopup = () => {
 
   return (
     <Dialog open={!!notification} onOpenChange={() => dismiss()}>
-      <DialogContent className={`bg-[hsl(220,30%,10%)] ${getBg(notification.notification_type)} text-white max-w-md`}>
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            {getIcon(notification.notification_type)}
-            {notification.title}
-          </DialogTitle>
-        </DialogHeader>
-        <p className="text-sm text-white/70 leading-relaxed">{notification.message}</p>
-        <div className="flex justify-end">
-          <Button onClick={dismiss} className="bg-accent text-white hover:bg-accent/80">Dismiss</Button>
+      <DialogContent className={`bg-[hsl(222,30%,8%)]/95 backdrop-blur-xl ${getAccentColor(notification.notification_type)} text-white max-w-sm rounded-2xl shadow-2xl shadow-black/40 border p-0 overflow-hidden gap-0 [&>button]:hidden`}>
+        {/* Accent stripe */}
+        <div className={`h-0.5 w-full ${notification.notification_type === "warning" ? "bg-gradient-to-r from-amber-500/60 to-amber-500/0" : notification.notification_type === "urgent" ? "bg-gradient-to-r from-red-500/60 to-red-500/0" : notification.notification_type === "success" ? "bg-gradient-to-r from-emerald-500/60 to-emerald-500/0" : "bg-gradient-to-r from-sky-500/60 to-sky-500/0"}`} />
+        <div className="p-4 space-y-3">
+          <div className="flex items-start gap-3">
+            <div className={`p-2 rounded-xl ${getIconBg(notification.notification_type)} flex-shrink-0`}>
+              {getIcon(notification.notification_type)}
+            </div>
+            <div className="flex-1 min-w-0">
+              <h4 className="text-sm font-semibold text-white leading-tight">{notification.title}</h4>
+              <p className="text-xs text-white/50 leading-relaxed mt-1.5">{notification.message}</p>
+            </div>
+          </div>
+          <div className="flex justify-end pt-1">
+            <Button onClick={dismiss} size="sm" className="h-7 px-4 text-[11px] bg-white/8 hover:bg-white/12 text-white/70 hover:text-white border border-white/8 rounded-lg transition-all">
+              Dismiss
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
