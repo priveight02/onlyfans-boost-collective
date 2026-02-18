@@ -554,13 +554,13 @@ const AdminAPIManagement = () => {
   const sendPlaygroundRequest = async () => {
     if (!pgSelectedEndpoint) return;
 
-    // Validate API key — admin playground requires ONLY admin keys (ozc_ak_live_)
+    // Validate API key — admin playground requires admin key (ozc_ak_live_) or secret key with admin scope
     if (!pgApiKey.trim()) {
-      toast.error("Admin API key required. Use an admin key (ozc_ak_live_...) to authenticate.");
+      toast.error("Admin API key required. Use an admin key (ozc_ak_live_...) or secret key with admin scope.");
       return;
     }
-    if (!pgApiKey.startsWith("ozc_ak_live_")) {
-      toast.error("Access denied. The Admin API Playground requires an Admin API key (ozc_ak_live_...). Standard user keys (ozc_sk_live_ / ozc_pk_live_) are not accepted. Contact support if you believe this is an error.");
+    if (!pgApiKey.startsWith("ozc_ak_live_") && !pgApiKey.startsWith("ozc_sk_live_")) {
+      toast.error("Invalid key format. Admin playground requires ozc_ak_live_ (admin) or ozc_sk_live_ (secret with admin scope).");
       return;
     }
 
