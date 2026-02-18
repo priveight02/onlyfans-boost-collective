@@ -573,6 +573,10 @@ const AdminAPI = () => {
   const [showKey, setShowKey] = useState(false);
   const [creating, setCreating] = useState(false);
 
+  // Key history
+  const [keyHistory, setKeyHistory] = useState<any[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+
   // Playground state
   const [pgSearch, setPgSearch] = useState("");
   const [pgSelectedEndpoint, setPgSelectedEndpoint] = useState<(Endpoint & { group: string }) | null>(null);
@@ -644,6 +648,30 @@ const AdminAPI = () => {
     return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
   };
 
+  const logKeyHistory = async (apiKeyId: string | null, prefix: string, name: string, keyType: string, scopes: string[], action: string) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    await supabase.from("api_key_history").insert({
+      api_key_id: apiKeyId,
+      user_id: user.id,
+      key_prefix: prefix,
+      key_name: name,
+      key_type: keyType,
+      scopes,
+      action,
+      action_by: user.id,
+      metadata: {},
+    } as any);
+  };
+
+
+  const loadKeyHistory = async () => {
+    setHistoryLoading(true);
+    const { data } = await supabase.from("api_key_history").select("*").order("created_at", { ascending: false }).limit(100);
+    setKeyHistory(data || []);
+    setHistoryLoading(false);
+  };
+
   const createApiKey = async () => {
     if (!newKeyName.trim()) { toast.error("Key name is required"); return; }
     setCreating(true);
@@ -676,6 +704,7 @@ const AdminAPI = () => {
       const { error } = await supabase.from("api_keys").insert(insertData);
       if (error) throw error;
 
+      await logKeyHistory(null, prefix, newKeyName.trim(), newKeyType, scopes, "created");
       setCreatedKey(rawKey);
       setShowKey(true);
       toast.success("API key created — copy it now, it won't be shown again!");
@@ -687,6 +716,8 @@ const AdminAPI = () => {
   };
 
   const revokeKey = async (id: string) => {
+    const key = apiKeys.find(k => k.id === id);
+    if (key) await logKeyHistory(id, key.key_prefix, key.name, (key as any).metadata?.key_type || "user", key.scopes, "revoked_and_deleted");
     const { error } = await supabase.from("api_keys").delete().eq("id", id);
     if (error) toast.error("Failed to revoke key");
     else { toast.success("API key revoked & deleted"); loadApiKeys(); }
@@ -833,6 +864,9 @@ const AdminAPI = () => {
           </TabsTrigger>
           <TabsTrigger value="quickstart" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
             <Zap className="h-3.5 w-3.5" /> Quick Start
+          </TabsTrigger>
+          <TabsTrigger value="history" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
+            <Clock className="h-3.5 w-3.5" /> Key History
           </TabsTrigger>
         </TabsList>
 
@@ -1549,6 +1583,60 @@ X-RateLimit-Reset: 1710000000`}</pre>
                 <li><strong className="text-white/70">Monitor usage</strong> — Check your key stats in the "My API Keys" tab regularly</li>
                 <li><strong className="text-white/70">Set expiration dates</strong> — For temporary integrations, set key TTLs</li>
               </ul>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ── KEY HISTORY TAB ── */}
+        <TabsContent value="history" className="space-y-4">
+          <Card className="bg-white/[0.03] border-white/[0.06]">
+            <CardHeader className="p-4">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm text-white flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-accent" /> Your Key History
+                  <Badge variant="outline" className="text-[10px] border-white/10 text-white/40">{keyHistory.length} events</Badge>
+                </CardTitle>
+                <div className="flex gap-2 items-center">
+                  <Badge className="bg-red-500/10 text-red-300 border-red-500/20 text-[9px]">
+                    <Lock className="h-2.5 w-2.5 mr-1" /> Permanent record
+                  </Badge>
+                  <Button size="sm" variant="outline" onClick={loadKeyHistory} disabled={historyLoading} className="h-7 text-xs border-white/10 text-white/60 hover:text-white gap-1.5">
+                    <RefreshCw className={`h-3 w-3 ${historyLoading ? "animate-spin" : ""}`} /> Load
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="p-4 pt-0">
+              {keyHistory.length === 0 ? (
+                <div className="text-center py-8 text-white/30">
+                  <Clock className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                  <p className="text-sm">No history yet</p>
+                  <p className="text-xs text-white/20 mt-1">Click "Load" to see your key creation and revocation history</p>
+                </div>
+              ) : (
+                <ScrollArea className="h-[400px]">
+                  <div className="space-y-1.5">
+                    {keyHistory.map((h: any) => (
+                      <div key={h.id} className="flex items-center justify-between p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.04]">
+                        <div className="flex items-center gap-3">
+                          <Badge className={`text-[9px] px-1.5 border ${h.action === "created" ? "bg-emerald-500/10 text-emerald-300 border-emerald-500/20" : h.action.includes("revoked") ? "bg-amber-500/10 text-amber-300 border-amber-500/20" : "bg-red-500/10 text-red-300 border-red-500/20"}`}>
+                            {h.action}
+                          </Badge>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-white/70 font-medium">{h.key_name}</span>
+                              <code className="text-[10px] text-white/25 font-mono">{h.key_prefix}•••</code>
+                              <Badge className="text-[8px] px-1 border bg-white/5 text-white/30 border-white/10">{h.key_type}</Badge>
+                            </div>
+                            <span className="text-[10px] text-white/30">Scopes: {h.scopes?.join(", ") || "none"}</span>
+                          </div>
+                        </div>
+                        <span className="text-[10px] text-white/20">{new Date(h.created_at).toLocaleString()}</span>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

@@ -258,6 +258,20 @@ interface UserProfile {
   username: string | null;
 }
 
+interface KeyHistoryRow {
+  id: string;
+  api_key_id: string | null;
+  user_id: string;
+  key_prefix: string;
+  key_name: string;
+  key_type: string;
+  scopes: string[];
+  action: string;
+  action_by: string | null;
+  metadata: any;
+  created_at: string;
+}
+
 const AdminAPIManagement = () => {
   const [search, setSearch] = useState("");
   const [copied, setCopied] = useState("");
@@ -269,6 +283,10 @@ const AdminAPIManagement = () => {
   const [userProfiles, setUserProfiles] = useState<Record<string, UserProfile>>({});
   const [keyFilter, setKeyFilter] = useState<"all" | "active" | "revoked">("all");
   const [keyUserFilter, setKeyUserFilter] = useState("");
+
+  // Key history
+  const [keyHistory, setKeyHistory] = useState<KeyHistoryRow[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   // Edit key dialog
   const [editingKey, setEditingKey] = useState<ApiKeyRow | null>(null);
@@ -285,6 +303,7 @@ const AdminAPIManagement = () => {
   const [grantScopes, setGrantScopes] = useState<string[]>(["read"]);
   const [grantRpm, setGrantRpm] = useState("60");
   const [grantDaily, setGrantDaily] = useState("10000");
+  const [grantKeyType, setGrantKeyType] = useState<"user" | "admin">("user");
   const [grantScopeDropdownOpen, setGrantScopeDropdownOpen] = useState(false);
   const [granting, setGranting] = useState(false);
   const [grantedKey, setGrantedKey] = useState<string | null>(null);
@@ -374,19 +393,53 @@ const AdminAPIManagement = () => {
     setKeysLoading(false);
   };
 
+  const logKeyHistory = async (apiKeyId: string | null, userId: string, prefix: string, name: string, keyType: string, scopes: string[], action: string, meta?: any) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    await supabase.from("api_key_history").insert({
+      api_key_id: apiKeyId,
+      user_id: userId,
+      key_prefix: prefix,
+      key_name: name,
+      key_type: keyType,
+      scopes,
+      action,
+      action_by: user?.id || null,
+      metadata: meta || {},
+    } as any);
+  };
+
+  const loadKeyHistory = async () => {
+    setHistoryLoading(true);
+    const { data } = await supabase.from("api_key_history").select("*").order("created_at", { ascending: false }).limit(200);
+    setKeyHistory((data || []) as any as KeyHistoryRow[]);
+    setHistoryLoading(false);
+  };
+
   const revokeKey = async (id: string) => {
+    const key = apiKeys.find(k => k.id === id);
     const { error } = await supabase.from("api_keys").update({ is_active: false, revoked_at: new Date().toISOString() }).eq("id", id);
     if (error) toast.error("Failed to revoke key");
-    else { toast.success("API key revoked"); loadApiKeys(); }
+    else {
+      if (key) await logKeyHistory(id, key.user_id, key.key_prefix, key.name, (key as any).metadata?.key_type || "user", key.scopes, "revoked");
+      toast.success("API key revoked");
+      loadApiKeys();
+    }
   };
 
   const reactivateKey = async (id: string) => {
+    const key = apiKeys.find(k => k.id === id);
     const { error } = await supabase.from("api_keys").update({ is_active: true, revoked_at: null }).eq("id", id);
     if (error) toast.error("Failed to reactivate key");
-    else { toast.success("API key reactivated"); loadApiKeys(); }
+    else {
+      if (key) await logKeyHistory(id, key.user_id, key.key_prefix, key.name, (key as any).metadata?.key_type || "user", key.scopes, "reactivated");
+      toast.success("API key reactivated");
+      loadApiKeys();
+    }
   };
 
   const deleteKey = async (id: string) => {
+    const key = apiKeys.find(k => k.id === id);
+    if (key) await logKeyHistory(id, key.user_id, key.key_prefix, key.name, (key as any).metadata?.key_type || "user", key.scopes, "deleted");
     const { error } = await supabase.from("api_keys").delete().eq("id", id);
     if (error) toast.error("Failed to delete key");
     else { toast.success("API key permanently deleted"); loadApiKeys(); }
@@ -413,9 +466,10 @@ const AdminAPIManagement = () => {
     setSaving(false);
   };
 
-  const generateApiKey = () => {
+  const generateApiKey = (type: "user" | "admin" = "user") => {
     const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-    let key = "ozcpk_live_";
+    const prefix = type === "admin" ? "ozc_ak_live_" : "ozc_sk_live_";
+    let key = prefix;
     for (let i = 0; i < 40; i++) key += chars.charAt(Math.floor(Math.random() * chars.length));
     return key;
   };
@@ -432,22 +486,26 @@ const AdminAPIManagement = () => {
     if (!grantUserId.trim() || !grantKeyName.trim()) { toast.error("User ID and key name are required"); return; }
     setGranting(true);
     try {
-      const rawKey = generateApiKey();
+      const rawKey = generateApiKey(grantKeyType);
       const keyHash = await hashKey(rawKey);
       const prefix = rawKey.substring(0, 16);
+      const scopes = grantScopes.length > 0 ? grantScopes : ["read"];
+      const { data: { user } } = await supabase.auth.getUser();
       const { error } = await supabase.from("api_keys").insert({
         user_id: grantUserId.trim(),
         name: grantKeyName.trim(),
         key_prefix: prefix,
         key_hash: keyHash,
-        scopes: grantScopes.length > 0 ? grantScopes : ["read"],
+        scopes,
         rate_limit_rpm: parseInt(grantRpm) || 60,
         rate_limit_daily: parseInt(grantDaily) || 10000,
+        metadata: { key_type: grantKeyType, granted_by: user?.id },
       });
       if (error) throw error;
+      await logKeyHistory(null, grantUserId.trim(), prefix, grantKeyName.trim(), grantKeyType, scopes, "created");
       setGrantedKey(rawKey);
       setShowGrantedKey(true);
-      toast.success("API key granted to user");
+      toast.success(`${grantKeyType === "admin" ? "Admin" : "User"} API key granted`);
       loadApiKeys();
     } catch (e: any) {
       toast.error(e.message || "Failed to grant key");
@@ -496,17 +554,13 @@ const AdminAPIManagement = () => {
   const sendPlaygroundRequest = async () => {
     if (!pgSelectedEndpoint) return;
 
-    // Validate API key
+    // Validate API key — admin playground requires admin key (ozc_ak_live_) or secret key with admin scope
     if (!pgApiKey.trim()) {
-      toast.error("API key is required. Enter your secret key (ozc_sk_live_...) to authenticate.");
+      toast.error("Admin API key required. Use an admin key (ozc_ak_live_...) or secret key with admin scope.");
       return;
     }
-    if (!pgApiKey.startsWith("ozc_sk_live_") && !pgApiKey.startsWith("ozc_pk_live_") && !pgApiKey.startsWith("ozcpk_live_")) {
-      toast.error("Invalid API key format. Keys must start with ozc_sk_live_ or ozc_pk_live_");
-      return;
-    }
-    if (pgApiKey.startsWith("ozc_pk_live_") && pgSelectedEndpoint.method !== "GET") {
-      toast.error("Publishable keys (pk) can only perform GET requests. Use a secret key (sk) for write operations.");
+    if (!pgApiKey.startsWith("ozc_ak_live_") && !pgApiKey.startsWith("ozc_sk_live_")) {
+      toast.error("Invalid key format. Admin playground requires ozc_ak_live_ (admin) or ozc_sk_live_ (secret with admin scope).");
       return;
     }
 
@@ -652,6 +706,9 @@ const AdminAPIManagement = () => {
           </TabsTrigger>
           <TabsTrigger value="usage" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
             <BarChart3 className="h-3.5 w-3.5" /> Usage
+          </TabsTrigger>
+          <TabsTrigger value="history" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
+            <Clock className="h-3.5 w-3.5" /> Key History
           </TabsTrigger>
         </TabsList>
 
@@ -859,12 +916,19 @@ const AdminAPIManagement = () => {
                               </div>
                             </div>
                             <div className="flex gap-1">
-                              <Button size="sm" variant="outline" onClick={() => { setShowGrantDialog(true); setGrantedKey(null); setGrantUserId(userId); setGrantKeyName(""); setGrantScopes(["read"]); setGrantRpm("60"); setGrantDaily("10000"); }}
+                              <Button size="sm" variant="outline" onClick={() => { setShowGrantDialog(true); setGrantedKey(null); setGrantUserId(userId); setGrantKeyName(""); setGrantScopes(["read"]); setGrantRpm("60"); setGrantDaily("10000"); setGrantKeyType("user"); }}
                                 className="h-7 text-xs border-white/10 text-white/50 gap-1">
                                 <Plus className="h-3 w-3" /> Grant Key
                               </Button>
                               <Button size="sm" variant="ghost" onClick={async () => {
-                                for (const k of keys.filter(k => k.is_active)) await revokeKey(k.id);
+                                const activeKeys = keys.filter(k => k.is_active);
+                                if (activeKeys.length === 0) { toast.info("No active keys to revoke"); return; }
+                                for (const k of activeKeys) {
+                                  await supabase.from("api_keys").update({ is_active: false, revoked_at: new Date().toISOString() }).eq("id", k.id);
+                                  await logKeyHistory(k.id, k.user_id, k.key_prefix, k.name, (k as any).metadata?.key_type || "user", k.scopes, "revoked");
+                                }
+                                toast.success(`Revoked ${activeKeys.length} keys`);
+                                loadApiKeys();
                               }} className="h-7 text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10 gap-1">
                                 <Ban className="h-3 w-3" /> Revoke All
                               </Button>
@@ -1086,10 +1150,10 @@ const AdminAPIManagement = () => {
                           value={pgApiKey}
                           onChange={(e) => setPgApiKey(e.target.value)}
                           type="password"
-                          placeholder="ozc_sk_live_... or ozc_pk_live_..."
+                          placeholder="ozc_ak_live_... (admin key) or ozc_sk_live_... (secret with admin scope)"
                           className="bg-white/5 border-white/10 text-white h-8 text-xs font-mono"
                         />
-                        <p className="text-[9px] text-white/20 mt-1">Paste your API key. Publishable keys are read-only (GET only).</p>
+                        <p className="text-[9px] text-white/20 mt-1">Admin playground requires an admin API key (ozc_ak_live_) or a secret key with admin scope.</p>
                       </div>
                     </div>
 
@@ -1257,6 +1321,71 @@ const AdminAPIManagement = () => {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* ── KEY HISTORY TAB ── */}
+        <TabsContent value="history" className="space-y-4">
+          <Card className="bg-white/[0.03] border-white/[0.06]">
+            <CardHeader className="p-4">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm text-white flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-accent" /> Immutable Key History
+                  <Badge variant="outline" className="text-[10px] border-white/10 text-white/40">{keyHistory.length} events</Badge>
+                </CardTitle>
+                <div className="flex gap-2 items-center">
+                  <Badge className="bg-red-500/10 text-red-300 border-red-500/20 text-[9px]">
+                    <Lock className="h-2.5 w-2.5 mr-1" /> Cannot be deleted
+                  </Badge>
+                  <Button size="sm" variant="outline" onClick={loadKeyHistory} disabled={historyLoading} className="h-7 text-xs border-white/10 text-white/60 hover:text-white gap-1.5">
+                    <RefreshCw className={`h-3 w-3 ${historyLoading ? "animate-spin" : ""}`} /> Load History
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="p-4 pt-0">
+              {keyHistory.length === 0 ? (
+                <div className="text-center py-8 text-white/30">
+                  <Clock className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                  <p className="text-sm">No key history yet</p>
+                  <p className="text-xs text-white/20 mt-1">Click "Load History" to fetch the immutable audit log</p>
+                </div>
+              ) : (
+                <ScrollArea className="h-[500px]">
+                  <div className="space-y-1.5">
+                    {keyHistory.map((h) => {
+                      const profile = userProfiles[h.user_id];
+                      const actionColor = h.action === "created" ? "text-emerald-400" : h.action === "revoked" ? "text-amber-400" : h.action === "deleted" ? "text-red-400" : "text-blue-400";
+                      return (
+                        <div key={h.id} className="flex items-center justify-between p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.04]">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <Badge className={`text-[9px] px-1.5 border ${h.action === "created" ? "bg-emerald-500/10 text-emerald-300 border-emerald-500/20" : h.action === "revoked" ? "bg-amber-500/10 text-amber-300 border-amber-500/20" : h.action === "deleted" ? "bg-red-500/10 text-red-300 border-red-500/20" : "bg-blue-500/10 text-blue-300 border-blue-500/20"}`}>
+                              {h.action}
+                            </Badge>
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-xs text-white/70 font-medium">{h.key_name}</span>
+                                <code className="text-[10px] text-white/25 font-mono">{h.key_prefix}•••</code>
+                                <Badge className={`text-[8px] px-1 border ${h.key_type === "admin" ? "bg-red-500/10 text-red-300 border-red-500/20" : "bg-white/5 text-white/30 border-white/10"}`}>
+                                  {h.key_type}
+                                </Badge>
+                              </div>
+                              <span className="text-[10px] text-white/30">
+                                {profile ? `${profile.display_name || profile.email}` : h.user_id.slice(0, 8) + "..."}
+                                {" — "}Scopes: {h.scopes?.join(", ") || "none"}
+                              </span>
+                            </div>
+                          </div>
+                          <span className="text-[10px] text-white/20 flex-shrink-0">
+                            {new Date(h.created_at).toLocaleString()}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </ScrollArea>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
 
       {/* Edit Key Dialog */}
@@ -1337,6 +1466,28 @@ const AdminAPIManagement = () => {
             </div>
           ) : (
             <div className="space-y-4">
+              {/* Key Type */}
+              <div>
+                <label className="text-xs text-white/60 mb-1.5 block">Key Type</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button type="button" onClick={() => setGrantKeyType("user")}
+                    className={`p-3 rounded-lg border text-left transition-all ${grantKeyType === "user" ? "border-accent/40 bg-accent/10" : "border-white/10 bg-white/[0.02] hover:bg-white/[0.04]"}`}>
+                    <div className="flex items-center gap-2 mb-1">
+                      <Key className={`h-3.5 w-3.5 ${grantKeyType === "user" ? "text-accent" : "text-white/30"}`} />
+                      <span className={`text-xs font-semibold ${grantKeyType === "user" ? "text-accent" : "text-white/50"}`}>User Key</span>
+                    </div>
+                    <p className="text-[10px] text-white/30">ozc_sk_live_ — Standard API access</p>
+                  </button>
+                  <button type="button" onClick={() => { setGrantKeyType("admin"); setGrantScopes(["read", "write", "delete", "admin"]); }}
+                    className={`p-3 rounded-lg border text-left transition-all ${grantKeyType === "admin" ? "border-red-500/40 bg-red-500/10" : "border-white/10 bg-white/[0.02] hover:bg-white/[0.04]"}`}>
+                    <div className="flex items-center gap-2 mb-1">
+                      <Shield className={`h-3.5 w-3.5 ${grantKeyType === "admin" ? "text-red-400" : "text-white/30"}`} />
+                      <span className={`text-xs font-semibold ${grantKeyType === "admin" ? "text-red-300" : "text-white/50"}`}>Admin Key</span>
+                    </div>
+                    <p className="text-[10px] text-white/30">ozc_ak_live_ — Full admin access</p>
+                  </button>
+                </div>
+              </div>
               <div>
                 <label className="text-xs text-white/60 mb-1 block">User ID</label>
                 <Input value={grantUserId} onChange={e => setGrantUserId(e.target.value)} placeholder="UUID of the target user" className="bg-white/5 border-white/10 text-white text-sm font-mono" />
