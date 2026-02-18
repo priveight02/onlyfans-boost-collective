@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import {
   Code2, Copy, Check, Search, Globe, Lock, Zap, Database, ChevronDown, ChevronRight,
   Server, Shield, BookOpen, Terminal, Send, Loader2, Play, Key, Plus, Trash2,
-  RefreshCw, Eye, EyeOff, Clock, AlertTriangle,
+  RefreshCw, Eye, EyeOff, Clock, AlertTriangle, Unlock,
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -567,6 +567,7 @@ const AdminAPI = () => {
   const [newKeyName, setNewKeyName] = useState("");
   const [newKeyScopes, setNewKeyScopes] = useState<string[]>(["read"]);
   const [newKeyExpiry, setNewKeyExpiry] = useState("");
+  const [newKeyType, setNewKeyType] = useState<"secret" | "publishable">("secret");
   const [scopeDropdownOpen, setScopeDropdownOpen] = useState(false);
   const [createdKey, setCreatedKey] = useState<string | null>(null);
   const [showKey, setShowKey] = useState(false);
@@ -582,6 +583,7 @@ const AdminAPI = () => {
   const [pgLoading, setPgLoading] = useState(false);
   const [pgStatusCode, setPgStatusCode] = useState<number | null>(null);
   const [pgLatency, setPgLatency] = useState<number | null>(null);
+  const [pgApiKey, setPgApiKey] = useState("");
 
   const totalEndpoints = API_GROUPS.reduce((s, g) => s + g.endpoints.length, 0);
 
@@ -626,9 +628,10 @@ const AdminAPI = () => {
 
   useEffect(() => { loadApiKeys(); }, []);
 
-  const generateApiKey = () => {
+  const generateApiKey = (type: "secret" | "publishable" = "secret") => {
     const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-    let key = "ozcpk_live_";
+    const prefix = type === "publishable" ? "ozc_pk_live_" : "ozc_sk_live_";
+    let key = prefix;
     for (let i = 0; i < 40; i++) key += chars.charAt(Math.floor(Math.random() * chars.length));
     return key;
   };
@@ -645,10 +648,10 @@ const AdminAPI = () => {
     if (!newKeyName.trim()) { toast.error("Key name is required"); return; }
     setCreating(true);
     try {
-      const rawKey = generateApiKey();
+      const rawKey = generateApiKey(newKeyType);
       const keyHash = await hashKey(rawKey);
       const prefix = rawKey.substring(0, 16);
-      const scopes = newKeyScopes.length > 0 ? newKeyScopes : ["read"];
+      const scopes = newKeyType === "publishable" ? ["read"] : (newKeyScopes.length > 0 ? newKeyScopes : ["read"]);
 
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { toast.error("Not authenticated"); setCreating(false); return; }
@@ -659,8 +662,9 @@ const AdminAPI = () => {
         key_prefix: prefix,
         key_hash: keyHash,
         scopes,
-        rate_limit_rpm: 60,
-        rate_limit_daily: 10000,
+        rate_limit_rpm: newKeyType === "publishable" ? 120 : 60,
+        rate_limit_daily: newKeyType === "publishable" ? 50000 : 10000,
+        metadata: { key_type: newKeyType },
       };
 
       if (newKeyExpiry) {
@@ -722,15 +726,29 @@ const AdminAPI = () => {
 
   const sendPlaygroundRequest = async () => {
     if (!pgSelectedEndpoint) return;
+
+    // Validate API key
+    if (!pgApiKey.trim()) {
+      toast.error("API key is required. Enter your secret key (ozc_sk_live_...) to authenticate.");
+      return;
+    }
+    if (!pgApiKey.startsWith("ozc_sk_live_") && !pgApiKey.startsWith("ozc_pk_live_") && !pgApiKey.startsWith("ozcpk_live_")) {
+      toast.error("Invalid API key format. Keys must start with ozc_sk_live_ or ozc_pk_live_");
+      return;
+    }
+
+    // Publishable keys can only do GET
+    if (pgApiKey.startsWith("ozc_pk_live_") && pgSelectedEndpoint.method !== "GET") {
+      toast.error("Publishable keys (pk) can only perform GET requests. Use a secret key (sk) for write operations.");
+      return;
+    }
+
     setPgLoading(true);
     setPgResponse(null);
     setPgStatusCode(null);
     setPgLatency(null);
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { toast.error("Not authenticated"); setPgLoading(false); return; }
-
       let path = pgSelectedEndpoint.path;
       const pathParamRegex = /:([a-zA-Z_]+)/g;
       let match;
@@ -764,7 +782,7 @@ const AdminAPI = () => {
       const res = await fetch(`${BASE_URL}${path}${queryStr}`, {
         method: pgSelectedEndpoint.method,
         headers: {
-          Authorization: `Bearer ${session.access_token}`,
+          "X-API-Key": pgApiKey.trim(),
           "Content-Type": "application/json",
         },
         ...(bodyObj && Object.keys(bodyObj).length > 0 ? { body: JSON.stringify(bodyObj) } : {}),
@@ -799,9 +817,6 @@ const AdminAPI = () => {
           <Badge className="bg-emerald-500/10 text-emerald-300 border-emerald-500/20 text-xs">
             <Server className="h-3 w-3 mr-1" /> v1.0.0
           </Badge>
-          <Badge className="bg-accent/10 text-accent border-accent/20 text-xs">
-            <Key className="h-3 w-3 mr-1" /> API Key Auth
-          </Badge>
         </div>
       </div>
 
@@ -833,7 +848,7 @@ const AdminAPI = () => {
                   <Button size="sm" variant="outline" onClick={loadApiKeys} disabled={keysLoading} className="h-7 text-xs border-white/10 text-white/60 hover:text-white gap-1.5">
                     <RefreshCw className={`h-3 w-3 ${keysLoading ? "animate-spin" : ""}`} /> Refresh
                   </Button>
-                  <Button size="sm" onClick={() => { setShowCreateKey(true); setCreatedKey(null); setNewKeyName(""); setNewKeyScopes(["read"]); setNewKeyExpiry(""); setScopeDropdownOpen(false); }} className="h-7 text-xs bg-accent hover:bg-accent/90 text-accent-foreground gap-1.5">
+                  <Button size="sm" onClick={() => { setShowCreateKey(true); setCreatedKey(null); setNewKeyName(""); setNewKeyScopes(["read"]); setNewKeyExpiry(""); setNewKeyType("secret"); setScopeDropdownOpen(false); }} className="h-7 text-xs bg-accent hover:bg-accent/90 text-accent-foreground gap-1.5">
                     <Plus className="h-3 w-3" /> Create Key
                   </Button>
                 </div>
@@ -852,12 +867,15 @@ const AdminAPI = () => {
                     <div key={key.id} className="flex items-center justify-between p-3 rounded-lg bg-white/[0.02] border border-white/[0.06]">
                       <div className="flex items-center gap-3">
                         <div className={`p-1.5 rounded-md ${key.is_active ? "bg-emerald-500/10" : "bg-red-500/10"}`}>
-                          <Key className={`h-3.5 w-3.5 ${key.is_active ? "text-emerald-400" : "text-red-400"}`} />
+                          {key.key_prefix.includes("pk") ? <Unlock className="h-3.5 w-3.5 text-blue-400" /> : <Lock className="h-3.5 w-3.5 text-amber-400" />}
                         </div>
                         <div>
                           <div className="flex items-center gap-2">
                             <span className="text-sm font-medium text-white">{key.name}</span>
                             <code className="text-[10px] text-white/30 font-mono bg-white/5 px-1.5 rounded">{key.key_prefix}•••</code>
+                            <Badge className={`text-[9px] ${key.key_prefix.includes("pk") ? "bg-blue-500/10 text-blue-300 border-blue-500/20" : "bg-amber-500/10 text-amber-300 border-amber-500/20"} border`}>
+                              {key.key_prefix.includes("pk") ? "Publishable" : "Secret"}
+                            </Badge>
                             <Badge className={`text-[9px] ${key.is_active ? "bg-emerald-500/10 text-emerald-300 border-emerald-500/20" : "bg-red-500/10 text-red-300 border-red-500/20"} border`}>
                               {key.is_active ? "Active" : "Revoked"}
                             </Badge>
@@ -886,24 +904,41 @@ const AdminAPI = () => {
             </CardContent>
           </Card>
 
-          {/* Security Info */}
-          <Card className="bg-white/[0.03] border-white/[0.06]">
-            <CardContent className="p-4">
-              <div className="flex items-start gap-3">
-                <Shield className="h-4 w-4 text-accent mt-0.5 flex-shrink-0" />
-                <div className="text-[11px] text-white/60 space-y-1">
-                  <p className="font-semibold text-white/80">API Key Security</p>
-                  <ul className="list-disc pl-4 space-y-0.5">
-                    <li>Keys are SHA-256 hashed — the raw key is shown only once at creation</li>
-                    <li>Format: <code className="bg-white/5 px-1 rounded text-accent font-mono">ozcpk_live_</code> followed by 40 random characters</li>
-                    <li>Scoped permissions: <code className="bg-white/5 px-1 rounded font-mono text-white/40">read</code>, <code className="bg-white/5 px-1 rounded font-mono text-white/40">write</code>, <code className="bg-white/5 px-1 rounded font-mono text-white/40">delete</code></li>
-                    <li>Rate limits enforced per-key: 60 RPM / 10,000 daily by default</li>
-                    <li>Keys can be revoked instantly and never reactivated</li>
-                  </ul>
+          {/* Key Types Info */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Card className="bg-amber-500/5 border-amber-500/15">
+              <CardContent className="p-4">
+                <div className="flex items-start gap-3">
+                  <Lock className="h-4 w-4 text-amber-400 mt-0.5 flex-shrink-0" />
+                  <div className="text-[11px] text-white/60 space-y-1">
+                    <p className="font-semibold text-amber-300">Secret Key (sk_live_)</p>
+                    <ul className="list-disc pl-4 space-y-0.5">
+                      <li>Full read/write/delete access based on scopes</li>
+                      <li>Must be kept server-side only — never expose in client code</li>
+                      <li>SHA-256 hashed — raw key shown only once at creation</li>
+                      <li>Default: 60 RPM / 10,000 daily requests</li>
+                    </ul>
+                  </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+            <Card className="bg-blue-500/5 border-blue-500/15">
+              <CardContent className="p-4">
+                <div className="flex items-start gap-3">
+                  <Unlock className="h-4 w-4 text-blue-400 mt-0.5 flex-shrink-0" />
+                  <div className="text-[11px] text-white/60 space-y-1">
+                    <p className="font-semibold text-blue-300">Publishable Key (pk_live_)</p>
+                    <ul className="list-disc pl-4 space-y-0.5">
+                      <li>Read-only access — safe to use in frontend/client code</li>
+                      <li>Cannot create, update, or delete resources</li>
+                      <li>Higher default rate limits: 120 RPM / 50,000 daily</li>
+                      <li>Ideal for dashboards, widgets, and public integrations</li>
+                    </ul>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
 
           {/* Create Key Dialog */}
           <Dialog open={showCreateKey} onOpenChange={setShowCreateKey}>
@@ -943,70 +978,103 @@ const AdminAPI = () => {
                 </div>
               ) : (
                 <div className="space-y-4">
+                  {/* Key Type Selection */}
                   <div>
-                    <label className="text-xs text-white/60 mb-1 block">Key Name</label>
-                    <Input value={newKeyName} onChange={e => setNewKeyName(e.target.value)} placeholder="e.g. Production, Development" className="bg-white/5 border-white/10 text-white text-sm" />
-                  </div>
-                  <div>
-                    <label className="text-xs text-white/60 mb-1.5 block">Scopes</label>
-                    <div className="relative">
+                    <label className="text-xs text-white/60 mb-1.5 block">Key Type</label>
+                    <div className="grid grid-cols-2 gap-2">
                       <button
                         type="button"
-                        onClick={() => setScopeDropdownOpen(!scopeDropdownOpen)}
-                        className="flex items-center justify-between w-full rounded-md border border-white/10 bg-white/5 px-3 py-2 text-sm text-white h-10"
+                        onClick={() => setNewKeyType("secret")}
+                        className={`p-3 rounded-lg border text-left transition-all ${newKeyType === "secret" ? "border-amber-500/40 bg-amber-500/10" : "border-white/10 bg-white/[0.02] hover:bg-white/[0.04]"}`}
                       >
-                        <span className="truncate text-white/70">
-                          {newKeyScopes.length === 4 ? "All Permissions" : newKeyScopes.length === 0 ? "Select scopes..." : newKeyScopes.join(", ")}
-                        </span>
-                        <ChevronDown className="h-4 w-4 opacity-50 flex-shrink-0" />
-                      </button>
-                      {scopeDropdownOpen && (
-                        <div className="absolute z-50 mt-1 w-full rounded-md border border-white/10 bg-[hsl(220,100%,8%)] shadow-lg">
-                          {[
-                            { value: "all", label: "All Permissions", desc: "Full access — read, write, delete, admin" },
-                            { value: "read", label: "Read", desc: "GET requests — view data" },
-                            { value: "write", label: "Write", desc: "POST/PATCH requests — create & update" },
-                            { value: "delete", label: "Delete", desc: "DELETE requests — remove data" },
-                            { value: "admin", label: "Admin", desc: "Admin-level operations" },
-                          ].map((scope) => {
-                            const isAll = scope.value === "all";
-                            const isAllSelected = newKeyScopes.length === 4;
-                            const isChecked = isAll ? isAllSelected : newKeyScopes.includes(scope.value);
-                            return (
-                              <button
-                                key={scope.value}
-                                type="button"
-                                onClick={() => {
-                                  if (isAll) {
-                                    setNewKeyScopes(isAllSelected ? [] : ["read", "write", "delete", "admin"]);
-                                  } else {
-                                    setNewKeyScopes(prev =>
-                                      prev.includes(scope.value) ? prev.filter(s => s !== scope.value) : [...prev, scope.value]
-                                    );
-                                  }
-                                }}
-                                className="w-full flex items-start gap-3 px-3 py-2.5 hover:bg-white/5 transition-colors text-left"
-                              >
-                                <div className={`mt-0.5 h-4 w-4 rounded border flex-shrink-0 flex items-center justify-center ${isChecked ? "bg-accent border-accent" : "border-white/20"}`}>
-                                  {isChecked && <Check className="h-3 w-3 text-accent-foreground" />}
-                                </div>
-                                <div>
-                                  <span className="text-sm text-white font-medium">{scope.label}</span>
-                                  <p className="text-[10px] text-white/40 mt-0.5">{scope.desc}</p>
-                                </div>
-                              </button>
-                            );
-                          })}
-                          <div className="border-t border-white/10 p-2">
-                            <Button size="sm" onClick={() => setScopeDropdownOpen(false)} className="w-full h-7 text-xs bg-accent hover:bg-accent/90 text-accent-foreground">
-                              Done
-                            </Button>
-                          </div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <Lock className={`h-3.5 w-3.5 ${newKeyType === "secret" ? "text-amber-400" : "text-white/30"}`} />
+                          <span className={`text-xs font-semibold ${newKeyType === "secret" ? "text-amber-300" : "text-white/50"}`}>Secret</span>
                         </div>
-                      )}
+                        <p className="text-[10px] text-white/30">Full access — server-side only</p>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setNewKeyType("publishable"); setNewKeyScopes(["read"]); }}
+                        className={`p-3 rounded-lg border text-left transition-all ${newKeyType === "publishable" ? "border-blue-500/40 bg-blue-500/10" : "border-white/10 bg-white/[0.02] hover:bg-white/[0.04]"}`}
+                      >
+                        <div className="flex items-center gap-2 mb-1">
+                          <Unlock className={`h-3.5 w-3.5 ${newKeyType === "publishable" ? "text-blue-400" : "text-white/30"}`} />
+                          <span className={`text-xs font-semibold ${newKeyType === "publishable" ? "text-blue-300" : "text-white/50"}`}>Publishable</span>
+                        </div>
+                        <p className="text-[10px] text-white/30">Read-only — safe for clients</p>
+                      </button>
                     </div>
-                    <p className="text-[10px] text-white/30 mt-1">Select which operations this key can perform</p>
                   </div>
+
+                  <div>
+                    <label className="text-xs text-white/60 mb-1 block">Key Name</label>
+                    <Input value={newKeyName} onChange={e => setNewKeyName(e.target.value)} placeholder="e.g. Production, Development, Mobile App" className="bg-white/5 border-white/10 text-white text-sm" />
+                  </div>
+
+                  {newKeyType === "secret" && (
+                    <div>
+                      <label className="text-xs text-white/60 mb-1.5 block">Scopes</label>
+                      <div className="relative">
+                        <button
+                          type="button"
+                          onClick={() => setScopeDropdownOpen(!scopeDropdownOpen)}
+                          className="flex items-center justify-between w-full rounded-md border border-white/10 bg-white/5 px-3 py-2 text-sm text-white h-10"
+                        >
+                          <span className="truncate text-white/70">
+                            {newKeyScopes.length === 4 ? "All Permissions" : newKeyScopes.length === 0 ? "Select scopes..." : newKeyScopes.join(", ")}
+                          </span>
+                          <ChevronDown className="h-4 w-4 opacity-50 flex-shrink-0" />
+                        </button>
+                        {scopeDropdownOpen && (
+                          <div className="absolute z-50 mt-1 w-full rounded-md border border-white/10 bg-[hsl(220,100%,8%)] shadow-lg">
+                            {[
+                              { value: "all", label: "All Permissions", desc: "Full access — read, write, delete, admin" },
+                              { value: "read", label: "Read", desc: "GET requests — view data" },
+                              { value: "write", label: "Write", desc: "POST/PATCH requests — create & update" },
+                              { value: "delete", label: "Delete", desc: "DELETE requests — remove data" },
+                              { value: "admin", label: "Admin", desc: "Admin-level operations" },
+                            ].map((scope) => {
+                              const isAll = scope.value === "all";
+                              const isAllSelected = newKeyScopes.length === 4;
+                              const isChecked = isAll ? isAllSelected : newKeyScopes.includes(scope.value);
+                              return (
+                                <button
+                                  key={scope.value}
+                                  type="button"
+                                  onClick={() => {
+                                    if (isAll) {
+                                      setNewKeyScopes(isAllSelected ? [] : ["read", "write", "delete", "admin"]);
+                                    } else {
+                                      setNewKeyScopes(prev =>
+                                        prev.includes(scope.value) ? prev.filter(s => s !== scope.value) : [...prev, scope.value]
+                                      );
+                                    }
+                                  }}
+                                  className="w-full flex items-start gap-3 px-3 py-2.5 hover:bg-white/5 transition-colors text-left"
+                                >
+                                  <div className={`mt-0.5 h-4 w-4 rounded border flex-shrink-0 flex items-center justify-center ${isChecked ? "bg-accent border-accent" : "border-white/20"}`}>
+                                    {isChecked && <Check className="h-3 w-3 text-accent-foreground" />}
+                                  </div>
+                                  <div>
+                                    <span className="text-sm text-white font-medium">{scope.label}</span>
+                                    <p className="text-[10px] text-white/40 mt-0.5">{scope.desc}</p>
+                                  </div>
+                                </button>
+                              );
+                            })}
+                            <div className="border-t border-white/10 p-2">
+                              <Button size="sm" onClick={() => setScopeDropdownOpen(false)} className="w-full h-7 text-xs bg-accent hover:bg-accent/90 text-accent-foreground">
+                                Done
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-white/30 mt-1">Select which operations this key can perform</p>
+                    </div>
+                  )}
+
                   <div>
                     <label className="text-xs text-white/60 mb-1 block">Expires in (days, leave empty for never)</label>
                     <Input value={newKeyExpiry} onChange={e => setNewKeyExpiry(e.target.value)} type="number" placeholder="30" className="bg-white/5 border-white/10 text-white text-sm" />
@@ -1014,7 +1082,7 @@ const AdminAPI = () => {
                   <DialogFooter>
                     <Button variant="ghost" onClick={() => setShowCreateKey(false)} className="text-white/60">Cancel</Button>
                     <Button onClick={createApiKey} disabled={creating} className="bg-accent hover:bg-accent/90 text-accent-foreground gap-1.5">
-                      {creating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />} Create Key
+                      {creating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />} Create {newKeyType === "publishable" ? "Publishable" : "Secret"} Key
                     </Button>
                   </DialogFooter>
                 </div>
@@ -1032,14 +1100,31 @@ const AdminAPI = () => {
                 <div className="text-xs text-white/60 space-y-1">
                   <p className="font-semibold text-white/80">API Key Authentication</p>
                   <p>All endpoints require a valid API key. Include it in every request header:</p>
-                  <div className="flex items-center gap-2 mt-2">
-                    <code className="bg-white/5 px-2 py-1 rounded text-[11px] text-accent font-mono">
-                      X-API-Key: ozcpk_live_••••••••••••••••
-                    </code>
-                    <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-white/30 hover:text-white"
-                      onClick={() => copyToClipboard('X-API-Key: YOUR_API_KEY', 'auth-header')}>
-                      {copied === "auth-header" ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-                    </Button>
+                  <div className="space-y-2 mt-2">
+                    <div>
+                      <span className="text-[10px] text-amber-300 uppercase tracking-wider font-semibold">Secret Key (server-side)</span>
+                      <div className="flex items-center gap-2 mt-1">
+                        <code className="bg-white/5 px-2 py-1 rounded text-[11px] text-amber-300 font-mono">
+                          X-API-Key: ozc_sk_live_••••••••••••••••
+                        </code>
+                        <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-white/30 hover:text-white"
+                          onClick={() => copyToClipboard('X-API-Key: ozc_sk_live_YOUR_SECRET_KEY', 'auth-sk')}>
+                          {copied === "auth-sk" ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                        </Button>
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-blue-300 uppercase tracking-wider font-semibold">Publishable Key (client-side, read-only)</span>
+                      <div className="flex items-center gap-2 mt-1">
+                        <code className="bg-white/5 px-2 py-1 rounded text-[11px] text-blue-300 font-mono">
+                          X-API-Key: ozc_pk_live_••••••••••••••••
+                        </code>
+                        <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-white/30 hover:text-white"
+                          onClick={() => copyToClipboard('X-API-Key: ozc_pk_live_YOUR_PUBLISHABLE_KEY', 'auth-pk')}>
+                          {copied === "auth-pk" ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                        </Button>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1099,7 +1184,7 @@ const AdminAPI = () => {
                               <Badge className={`${METHOD_COLORS[ep.method]} text-[10px] font-mono px-2 py-0.5 border`}>{ep.method}</Badge>
                               <code className="text-xs text-white/70 font-mono">{ep.path}</code>
                               <Button size="sm" variant="ghost" className="h-5 w-5 p-0 text-white/20 hover:text-white ml-auto"
-                                onClick={() => copyToClipboard(`curl -X ${ep.method} "${BASE_URL}${ep.path}" -H "X-API-Key: YOUR_KEY" -H "Content-Type: application/json"`, `ep-${group.name}-${i}`)}>
+                                onClick={() => copyToClipboard(`curl -X ${ep.method} "${BASE_URL}${ep.path}" -H "X-API-Key: ozc_sk_live_YOUR_KEY" -H "Content-Type: application/json"`, `ep-${group.name}-${i}`)}>
                                 {copied === `ep-${group.name}-${i}` ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
                               </Button>
                             </div>
@@ -1201,6 +1286,32 @@ const AdminAPI = () => {
                         <Badge className={`${METHOD_COLORS[pgSelectedEndpoint.method]} text-[10px] font-mono px-2 py-0.5 border`}>{pgSelectedEndpoint.method}</Badge>
                       </div>
                       <code className="text-[11px] text-white/40 font-mono">{pgSelectedEndpoint.path}</code>
+                    </div>
+
+                    {/* API Key Field — Always first */}
+                    <div className="space-y-2">
+                      <span className="text-[10px] text-white/40 uppercase tracking-wider font-bold flex items-center gap-1.5">
+                        <Key className="h-3 w-3 text-accent" /> Authentication
+                      </span>
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <code className="text-[11px] text-accent font-mono">X-API-Key</code>
+                          <Badge className="bg-red-500/10 text-red-300 border-red-500/20 text-[9px] px-1">required</Badge>
+                          {pgApiKey && (
+                            <Badge className={`text-[9px] border ${pgApiKey.includes("sk_live") ? "bg-amber-500/10 text-amber-300 border-amber-500/20" : pgApiKey.includes("pk_live") ? "bg-blue-500/10 text-blue-300 border-blue-500/20" : "bg-white/5 text-white/30 border-white/10"}`}>
+                              {pgApiKey.includes("sk_live") ? "Secret" : pgApiKey.includes("pk_live") ? "Publishable" : "Unknown"}
+                            </Badge>
+                          )}
+                        </div>
+                        <Input
+                          value={pgApiKey}
+                          onChange={(e) => setPgApiKey(e.target.value)}
+                          type="password"
+                          placeholder="ozc_sk_live_... or ozc_pk_live_..."
+                          className="bg-white/5 border-white/10 text-white h-8 text-xs font-mono"
+                        />
+                        <p className="text-[9px] text-white/20 mt-1">Paste your secret or publishable key. Publishable keys are read-only (GET only).</p>
+                      </div>
                     </div>
 
                     {(() => {
@@ -1305,31 +1416,77 @@ const AdminAPI = () => {
         <TabsContent value="quickstart" className="space-y-4">
           <Card className="bg-white/[0.03] border-white/[0.06]">
             <CardHeader className="p-4">
-              <CardTitle className="text-sm text-white">1. Create an API Key</CardTitle>
+              <CardTitle className="text-sm text-white flex items-center gap-2">
+                <Zap className="h-4 w-4 text-accent" /> Getting Started with the Platform API
+              </CardTitle>
             </CardHeader>
-            <CardContent className="p-4 pt-0 space-y-2">
-              <p className="text-[11px] text-white/50">Go to the "My API Keys" tab and create a new key. Copy it immediately — it won't be shown again.</p>
-              <pre className="bg-black/30 rounded-lg p-3 text-[11px] text-blue-300/80 font-mono overflow-x-auto">{`# Your API key format:
-ozcpk_live_ABCDEFghijklmnopqrstuvwxyz1234567890ABCD`}</pre>
+            <CardContent className="p-4 pt-0">
+              <p className="text-[11px] text-white/50 mb-3">
+                The Platform API uses two types of API keys, similar to Stripe. Each key pair gives you a publishable key for client-side read-only access and a secret key for full server-side operations.
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="p-3 rounded-lg bg-amber-500/5 border border-amber-500/15">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Lock className="h-3.5 w-3.5 text-amber-400" />
+                    <span className="text-xs font-semibold text-amber-300">Secret Key</span>
+                  </div>
+                  <code className="text-[10px] text-amber-300/70 font-mono block">ozc_sk_live_•••••••••••••••</code>
+                  <p className="text-[10px] text-white/30 mt-1.5">Full read/write/delete access. Keep server-side only. Never expose in browser code, GitHub repos, or client bundles.</p>
+                </div>
+                <div className="p-3 rounded-lg bg-blue-500/5 border border-blue-500/15">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Unlock className="h-3.5 w-3.5 text-blue-400" />
+                    <span className="text-xs font-semibold text-blue-300">Publishable Key</span>
+                  </div>
+                  <code className="text-[10px] text-blue-300/70 font-mono block">ozc_pk_live_•••••••••••••••</code>
+                  <p className="text-[10px] text-white/30 mt-1.5">Read-only (GET requests). Safe to embed in frontend apps, mobile apps, and public-facing widgets.</p>
+                </div>
+              </div>
             </CardContent>
           </Card>
 
           <Card className="bg-white/[0.03] border-white/[0.06]">
             <CardHeader className="p-4">
-              <CardTitle className="text-sm text-white">2. Make API Calls</CardTitle>
+              <CardTitle className="text-sm text-white">Step 1 — Create Your API Keys</CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 pt-0 space-y-2">
+              <p className="text-[11px] text-white/50">Go to the "My API Keys" tab, click "Create Key", choose Secret or Publishable, and copy it immediately. The raw key is shown only once.</p>
+              <pre className="bg-black/30 rounded-lg p-3 text-[11px] text-blue-300/80 font-mono overflow-x-auto">{`# Secret key — for your backend
+ozc_sk_live_ABCDEFghijklmnopqrstuvwxyz1234567890ABCD
+
+# Publishable key — for your frontend
+ozc_pk_live_XYZabcdefghijklmnopqrstuvwxyz0987654321`}</pre>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white/[0.03] border-white/[0.06]">
+            <CardHeader className="p-4">
+              <CardTitle className="text-sm text-white">Step 2 — Make Your First API Call</CardTitle>
             </CardHeader>
             <CardContent className="p-4 pt-0 space-y-3">
               <div>
-                <p className="text-[11px] text-white/50 mb-2">cURL — List all accounts:</p>
+                <p className="text-[11px] text-white/50 mb-2">cURL — List accounts using your secret key:</p>
                 <pre className="bg-black/30 rounded-lg p-3 text-[11px] text-amber-300/80 font-mono overflow-x-auto">{`curl -X GET "${BASE_URL}/v1/accounts?status=active&limit=10" \\
-  -H "X-API-Key: ozcpk_live_YOUR_KEY" \\
+  -H "X-API-Key: ozc_sk_live_YOUR_SECRET_KEY" \\
   -H "Content-Type: application/json"`}</pre>
               </div>
               <div>
-                <p className="text-[11px] text-white/50 mb-2">JavaScript / Fetch:</p>
+                <p className="text-[11px] text-white/50 mb-2">JavaScript / Fetch (server-side):</p>
                 <pre className="bg-black/30 rounded-lg p-3 text-[11px] text-emerald-300/80 font-mono overflow-x-auto">{`const res = await fetch("${BASE_URL}/v1/accounts", {
   headers: {
-    "X-API-Key": "ozcpk_live_YOUR_KEY",
+    "X-API-Key": process.env.OZC_SECRET_KEY,
+    "Content-Type": "application/json"
+  }
+});
+const { data } = await res.json();
+console.log(\`Found \${data.length} accounts\`);`}</pre>
+              </div>
+              <div>
+                <p className="text-[11px] text-white/50 mb-2">JavaScript / Fetch (client-side with publishable key):</p>
+                <pre className="bg-black/30 rounded-lg p-3 text-[11px] text-blue-300/80 font-mono overflow-x-auto">{`// Safe to use in browser — read-only access
+const res = await fetch("${BASE_URL}/v1/accounts?limit=5", {
+  headers: {
+    "X-API-Key": "ozc_pk_live_YOUR_PUBLISHABLE_KEY",
     "Content-Type": "application/json"
   }
 });
@@ -1338,57 +1495,95 @@ const { data } = await res.json();`}</pre>
               <div>
                 <p className="text-[11px] text-white/50 mb-2">Python:</p>
                 <pre className="bg-black/30 rounded-lg p-3 text-[11px] text-purple-300/80 font-mono overflow-x-auto">{`import requests
+import os
 
 headers = {
-    "X-API-Key": "ozcpk_live_YOUR_KEY",
+    "X-API-Key": os.environ["OZC_SECRET_KEY"],
     "Content-Type": "application/json"
 }
 
 resp = requests.get(
     "${BASE_URL}/v1/accounts",
     headers=headers,
-    params={"status": "active"}
+    params={"status": "active", "limit": 50}
 )
-accounts = resp.json()["data"]`}</pre>
+accounts = resp.json()["data"]
+print(f"Loaded {len(accounts)} accounts")`}</pre>
+              </div>
+              <div>
+                <p className="text-[11px] text-white/50 mb-2">Node.js (with axios):</p>
+                <pre className="bg-black/30 rounded-lg p-3 text-[11px] text-cyan-300/80 font-mono overflow-x-auto">{`const axios = require("axios");
+
+const client = axios.create({
+  baseURL: "${BASE_URL}",
+  headers: {
+    "X-API-Key": process.env.OZC_SECRET_KEY,
+    "Content-Type": "application/json",
+  },
+});
+
+// List accounts
+const { data } = await client.get("/v1/accounts", {
+  params: { status: "active" }
+});
+
+// Create an account
+await client.post("/v1/accounts", {
+  username: "new_creator",
+  display_name: "New Creator",
+  platform: "onlyfans",
+  tier: "pro"
+});`}</pre>
               </div>
             </CardContent>
           </Card>
 
           <Card className="bg-white/[0.03] border-white/[0.06]">
             <CardHeader className="p-4">
-              <CardTitle className="text-sm text-white">3. Error Handling</CardTitle>
+              <CardTitle className="text-sm text-white">Step 3 — Understand Rate Limits & Errors</CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 pt-0 space-y-3">
+              <div className="space-y-2 text-[11px]">
+                <p className="text-white/50 mb-2">Every response includes rate limit headers:</p>
+                <pre className="bg-black/30 rounded-lg p-3 text-[11px] text-white/40 font-mono overflow-x-auto">{`X-RateLimit-Limit: 60
+X-RateLimit-Remaining: 58
+X-RateLimit-Reset: 1710000000`}</pre>
+              </div>
+              <div className="space-y-2 text-[11px] mt-4">
+                <p className="text-white/50 font-semibold">HTTP Status Codes</p>
+                {[
+                  { code: "200", color: "emerald", desc: "OK — Request succeeded, data in response body" },
+                  { code: "201", color: "blue", desc: "Created — Resource successfully created" },
+                  { code: "400", color: "amber", desc: "Bad Request — Invalid parameters or missing required fields" },
+                  { code: "401", color: "amber", desc: "Unauthorized — Invalid, expired, or missing API key" },
+                  { code: "403", color: "amber", desc: "Forbidden — API key lacks required scope for this operation" },
+                  { code: "404", color: "red", desc: "Not Found — Resource or endpoint does not exist" },
+                  { code: "429", color: "red", desc: "Too Many Requests — Rate limit exceeded (RPM or daily)" },
+                  { code: "500", color: "red", desc: "Internal Server Error — Retry with exponential backoff" },
+                ].map(({ code, color, desc }) => (
+                  <div key={code} className="flex items-center gap-3">
+                    <Badge className={`bg-${color}-500/10 text-${color}-300 border-${color}-500/20 text-[10px] w-14 justify-center`}>{code}</Badge>
+                    <span className="text-white/50">{desc}</span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white/[0.03] border-white/[0.06]">
+            <CardHeader className="p-4">
+              <CardTitle className="text-sm text-white">Step 4 — Best Practices</CardTitle>
             </CardHeader>
             <CardContent className="p-4 pt-0">
-              <div className="space-y-2 text-[11px]">
-                <div className="flex items-center gap-3">
-                  <Badge className="bg-emerald-500/10 text-emerald-300 border-emerald-500/20 text-[10px] w-14 justify-center">200</Badge>
-                  <span className="text-white/50">Success — data returned in response body</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Badge className="bg-blue-500/10 text-blue-300 border-blue-500/20 text-[10px] w-14 justify-center">201</Badge>
-                  <span className="text-white/50">Created — resource successfully created</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Badge className="bg-amber-500/10 text-amber-300 border-amber-500/20 text-[10px] w-14 justify-center">401</Badge>
-                  <span className="text-white/50">Unauthorized — invalid or missing API key</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Badge className="bg-amber-500/10 text-amber-300 border-amber-500/20 text-[10px] w-14 justify-center">403</Badge>
-                  <span className="text-white/50">Forbidden — key lacks required scope</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Badge className="bg-red-500/10 text-red-300 border-red-500/20 text-[10px] w-14 justify-center">429</Badge>
-                  <span className="text-white/50">Rate limited — exceeded RPM or daily limit</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Badge className="bg-red-500/10 text-red-300 border-red-500/20 text-[10px] w-14 justify-center">404</Badge>
-                  <span className="text-white/50">Not found — resource or endpoint doesn't exist</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Badge className="bg-red-500/10 text-red-300 border-red-500/20 text-[10px] w-14 justify-center">500</Badge>
-                  <span className="text-white/50">Server error — check request body and retry</span>
-                </div>
-              </div>
+              <ul className="text-[11px] text-white/50 space-y-2 list-disc pl-4">
+                <li><strong className="text-white/70">Never hardcode secret keys</strong> — Use environment variables (<code className="bg-white/5 px-1 rounded font-mono text-[10px]">OZC_SECRET_KEY</code>)</li>
+                <li><strong className="text-white/70">Use publishable keys for client apps</strong> — They're read-only and safe to expose</li>
+                <li><strong className="text-white/70">Rotate keys regularly</strong> — Create new keys and revoke old ones without downtime</li>
+                <li><strong className="text-white/70">Use scoped keys</strong> — Grant minimum required permissions per integration</li>
+                <li><strong className="text-white/70">Handle rate limits gracefully</strong> — Implement exponential backoff on 429 responses</li>
+                <li><strong className="text-white/70">Monitor usage</strong> — Check your key stats in the "My API Keys" tab regularly</li>
+                <li><strong className="text-white/70">Set expiration dates</strong> — For temporary integrations, set key TTLs</li>
+              </ul>
             </CardContent>
           </Card>
         </TabsContent>

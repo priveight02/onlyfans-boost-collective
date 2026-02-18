@@ -300,6 +300,7 @@ const AdminAPIManagement = () => {
   const [pgLoading, setPgLoading] = useState(false);
   const [pgStatusCode, setPgStatusCode] = useState<number | null>(null);
   const [pgLatency, setPgLatency] = useState<number | null>(null);
+  const [pgApiKey, setPgApiKey] = useState("");
 
   const totalEndpoints = ADMIN_API_GROUPS.reduce((s, g) => s + g.endpoints.length, 0);
 
@@ -494,15 +495,27 @@ const AdminAPIManagement = () => {
 
   const sendPlaygroundRequest = async () => {
     if (!pgSelectedEndpoint) return;
+
+    // Validate API key
+    if (!pgApiKey.trim()) {
+      toast.error("API key is required. Enter your secret key (ozc_sk_live_...) to authenticate.");
+      return;
+    }
+    if (!pgApiKey.startsWith("ozc_sk_live_") && !pgApiKey.startsWith("ozc_pk_live_") && !pgApiKey.startsWith("ozcpk_live_")) {
+      toast.error("Invalid API key format. Keys must start with ozc_sk_live_ or ozc_pk_live_");
+      return;
+    }
+    if (pgApiKey.startsWith("ozc_pk_live_") && pgSelectedEndpoint.method !== "GET") {
+      toast.error("Publishable keys (pk) can only perform GET requests. Use a secret key (sk) for write operations.");
+      return;
+    }
+
     setPgLoading(true);
     setPgResponse(null);
     setPgStatusCode(null);
     setPgLatency(null);
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { toast.error("Not authenticated"); setPgLoading(false); return; }
-
       let path = pgSelectedEndpoint.path;
       const pathParamRegex = /:([a-zA-Z_]+)/g;
       let match;
@@ -536,7 +549,7 @@ const AdminAPIManagement = () => {
       const res = await fetch(`${BASE_URL}${path}${queryStr}`, {
         method: pgSelectedEndpoint.method,
         headers: {
-          Authorization: `Bearer ${session.access_token}`,
+          "X-API-Key": pgApiKey.trim(),
           "Content-Type": "application/json",
         },
         ...(bodyObj && Object.keys(bodyObj).length > 0 ? { body: JSON.stringify(bodyObj) } : {}),
@@ -1057,6 +1070,27 @@ const AdminAPIManagement = () => {
                         <Badge className={`${METHOD_COLORS[pgSelectedEndpoint.method]} text-[10px] font-mono px-2 py-0.5 border`}>{pgSelectedEndpoint.method}</Badge>
                       </div>
                       <code className="text-[11px] text-white/40 font-mono">{pgSelectedEndpoint.path}</code>
+                    </div>
+
+                    {/* API Key Field */}
+                    <div className="space-y-2">
+                      <span className="text-[10px] text-white/40 uppercase tracking-wider font-bold flex items-center gap-1.5">
+                        <Key className="h-3 w-3 text-accent" /> Authentication
+                      </span>
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <code className="text-[11px] text-accent font-mono">X-API-Key</code>
+                          <Badge className="bg-red-500/10 text-red-300 border-red-500/20 text-[9px] px-1">required</Badge>
+                        </div>
+                        <Input
+                          value={pgApiKey}
+                          onChange={(e) => setPgApiKey(e.target.value)}
+                          type="password"
+                          placeholder="ozc_sk_live_... or ozc_pk_live_..."
+                          className="bg-white/5 border-white/10 text-white h-8 text-xs font-mono"
+                        />
+                        <p className="text-[9px] text-white/20 mt-1">Paste your API key. Publishable keys are read-only (GET only).</p>
+                      </div>
                     </div>
 
                     {(() => {
