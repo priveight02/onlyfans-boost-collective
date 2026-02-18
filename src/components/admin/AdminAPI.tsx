@@ -1021,21 +1021,20 @@ const AdminAPI = () => {
                           className="flex items-center justify-between w-full rounded-md border border-white/10 bg-white/5 px-3 py-2 text-sm text-white h-10"
                         >
                           <span className="truncate text-white/70">
-                            {newKeyScopes.length === 4 ? "All Permissions" : newKeyScopes.length === 0 ? "Select scopes..." : newKeyScopes.join(", ")}
+                            {newKeyScopes.length === 3 && ["read", "write", "delete"].every(s => newKeyScopes.includes(s)) ? "All Permissions" : newKeyScopes.length === 0 ? "Select scopes..." : newKeyScopes.join(", ")}
                           </span>
                           <ChevronDown className="h-4 w-4 opacity-50 flex-shrink-0" />
                         </button>
                         {scopeDropdownOpen && (
                           <div className="absolute z-50 mt-1 w-full rounded-md border border-white/10 bg-[hsl(220,100%,8%)] shadow-lg">
                             {[
-                              { value: "all", label: "All Permissions", desc: "Full access — read, write, delete, admin" },
+                              { value: "all", label: "All Permissions", desc: "Full access — read, write, delete" },
                               { value: "read", label: "Read", desc: "GET requests — view data" },
                               { value: "write", label: "Write", desc: "POST/PATCH requests — create & update" },
                               { value: "delete", label: "Delete", desc: "DELETE requests — remove data" },
-                              { value: "admin", label: "Admin", desc: "Admin-level operations" },
                             ].map((scope) => {
                               const isAll = scope.value === "all";
-                              const isAllSelected = newKeyScopes.length === 4;
+                              const isAllSelected = newKeyScopes.length === 3 && ["read", "write", "delete"].every(s => newKeyScopes.includes(s));
                               const isChecked = isAll ? isAllSelected : newKeyScopes.includes(scope.value);
                               return (
                                 <button
@@ -1043,7 +1042,7 @@ const AdminAPI = () => {
                                   type="button"
                                   onClick={() => {
                                     if (isAll) {
-                                      setNewKeyScopes(isAllSelected ? [] : ["read", "write", "delete", "admin"]);
+                                      setNewKeyScopes(isAllSelected ? [] : ["read", "write", "delete"]);
                                     } else {
                                       setNewKeyScopes(prev =>
                                         prev.includes(scope.value) ? prev.filter(s => s !== scope.value) : [...prev, scope.value]
