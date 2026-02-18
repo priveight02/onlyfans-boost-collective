@@ -687,9 +687,9 @@ const AdminAPI = () => {
   };
 
   const revokeKey = async (id: string) => {
-    const { error } = await supabase.from("api_keys").update({ is_active: false, revoked_at: new Date().toISOString() }).eq("id", id);
+    const { error } = await supabase.from("api_keys").delete().eq("id", id);
     if (error) toast.error("Failed to revoke key");
-    else { toast.success("API key revoked"); loadApiKeys(); }
+    else { toast.success("API key revoked & deleted"); loadApiKeys(); }
   };
 
   const copyToClipboard = (text: string, label: string) => {
@@ -904,41 +904,6 @@ const AdminAPI = () => {
             </CardContent>
           </Card>
 
-          {/* Key Types Info */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Card className="bg-amber-500/5 border-amber-500/15">
-              <CardContent className="p-4">
-                <div className="flex items-start gap-3">
-                  <Lock className="h-4 w-4 text-amber-400 mt-0.5 flex-shrink-0" />
-                  <div className="text-[11px] text-white/60 space-y-1">
-                    <p className="font-semibold text-amber-300">Secret Key (sk_live_)</p>
-                    <ul className="list-disc pl-4 space-y-0.5">
-                      <li>Full read/write/delete access based on scopes</li>
-                      <li>Must be kept server-side only — never expose in client code</li>
-                      <li>SHA-256 hashed — raw key shown only once at creation</li>
-                      <li>Default: 60 RPM / 10,000 daily requests</li>
-                    </ul>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="bg-blue-500/5 border-blue-500/15">
-              <CardContent className="p-4">
-                <div className="flex items-start gap-3">
-                  <Unlock className="h-4 w-4 text-blue-400 mt-0.5 flex-shrink-0" />
-                  <div className="text-[11px] text-white/60 space-y-1">
-                    <p className="font-semibold text-blue-300">Publishable Key (pk_live_)</p>
-                    <ul className="list-disc pl-4 space-y-0.5">
-                      <li>Read-only access — safe to use in frontend/client code</li>
-                      <li>Cannot create, update, or delete resources</li>
-                      <li>Higher default rate limits: 120 RPM / 50,000 daily</li>
-                      <li>Ideal for dashboards, widgets, and public integrations</li>
-                    </ul>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
 
           {/* Create Key Dialog */}
           <Dialog open={showCreateKey} onOpenChange={setShowCreateKey}>
