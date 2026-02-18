@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -6,9 +6,11 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import {
   Code2, Copy, Check, Search, Globe, Lock, Zap, Database, ChevronDown, ChevronRight,
-  Server, Shield, BookOpen, Terminal, ExternalLink, Send, Loader2, Play,
+  Server, Shield, BookOpen, Terminal, Send, Loader2, Play, Key, Plus, Trash2,
+  RefreshCw, Eye, EyeOff, Clock, AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -22,20 +24,18 @@ interface Endpoint {
   description: string;
   params?: { name: string; type: string; required?: boolean; description: string }[];
   body?: { name: string; type: string; required?: boolean; description: string }[];
-  example_response?: string;
 }
 
 interface EndpointGroup {
   name: string;
-  icon: string;
   description: string;
   endpoints: Endpoint[];
 }
 
+// User-level endpoint groups only (admin endpoints moved to AdminAPIManagement)
 const API_GROUPS: EndpointGroup[] = [
   {
     name: "Accounts",
-    icon: "",
     description: "Manage creator/model accounts in the Platform",
     endpoints: [
       { method: "GET", path: "/v1/accounts", description: "List all managed accounts with optional filters", params: [
@@ -71,7 +71,6 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "Scripts & Storylines",
-    icon: "",
     description: "Chat scripts, steps, and storyline flows",
     endpoints: [
       { method: "GET", path: "/v1/scripts", description: "List all scripts with steps", params: [
@@ -93,7 +92,6 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "AI Conversations",
-    icon: "",
     description: "AI DM conversations, messages, and auto-respond",
     endpoints: [
       { method: "GET", path: "/v1/conversations", description: "List all DM conversations", params: [
@@ -113,7 +111,6 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "DM Messages",
-    icon: "",
     description: "Direct access to AI DM messages across all conversations",
     endpoints: [
       { method: "GET", path: "/v1/dm-messages", description: "List DM messages", params: [
@@ -128,7 +125,6 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "Auto-Respond",
-    icon: "",
     description: "AI auto-respond state per account",
     endpoints: [
       { method: "GET", path: "/v1/auto-respond", description: "List all auto-respond states", params: [{ name: "account_id", type: "uuid", description: "Filter by account" }] },
@@ -139,7 +135,6 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "Keywords & Delays",
-    icon: "",
     description: "AI keyword trigger rules and automated responses",
     endpoints: [
       { method: "GET", path: "/v1/keywords", description: "List keyword rules", params: [{ name: "account_id", type: "uuid", description: "Filter by account" }] },
@@ -151,7 +146,6 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "Conversation Learnings",
-    icon: "",
     description: "AI conversation learning outcomes and strategy tracking",
     endpoints: [
       { method: "GET", path: "/v1/conversation-learnings", description: "List conversation learnings", params: [
@@ -164,7 +158,6 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "AI Learnings",
-    icon: "",
     description: "AI-learned strategies, winning patterns, and behavior models",
     endpoints: [
       { method: "GET", path: "/v1/learnings", description: "Get learned strategies", params: [
@@ -176,7 +169,6 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "Followers & Discovery",
-    icon: "",
     description: "Fetched/discovered followers, bulk outreach targets",
     endpoints: [
       { method: "GET", path: "/v1/followers", description: "List discovered followers", params: [
@@ -194,7 +186,6 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "Message Threads",
-    icon: "",
     description: "Messaging threads with assignment and priority",
     endpoints: [
       { method: "GET", path: "/v1/threads", description: "List message threads", params: [
@@ -210,7 +201,6 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "Social Connections",
-    icon: "",
     description: "Platform OAuth connections and tokens",
     endpoints: [
       { method: "GET", path: "/v1/social-connections", description: "List all social connections", params: [
@@ -226,7 +216,6 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "Social Posts",
-    icon: "",
     description: "Social media posts management and publishing",
     endpoints: [
       { method: "GET", path: "/v1/social-posts", description: "List social posts", params: [
@@ -243,7 +232,6 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "Social Comment Replies",
-    icon: "",
     description: "Comment replies tracking and AI-generated responses",
     endpoints: [
       { method: "GET", path: "/v1/comment-replies", description: "List comment replies", params: [
@@ -256,7 +244,6 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "Social Analytics",
-    icon: "",
     description: "Social media analytics, metrics, and insights",
     endpoints: [
       { method: "GET", path: "/v1/social-analytics", description: "Get analytics data", params: [
@@ -271,7 +258,6 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "Community Posts",
-    icon: "",
     description: "User-generated community posts, likes, comments, and saves",
     endpoints: [
       { method: "GET", path: "/v1/posts", description: "List posts", params: [{ name: "user_id", type: "uuid", description: "Filter by user" }] },
@@ -285,7 +271,6 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "Post Comments",
-    icon: "",
     description: "Direct access to post comments",
     endpoints: [
       { method: "GET", path: "/v1/post-comments", description: "List all comments", params: [{ name: "post_id", type: "uuid", description: "Filter by post" }] },
@@ -295,7 +280,6 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "Follows & Requests",
-    icon: "",
     description: "Follow requests management",
     endpoints: [
       { method: "GET", path: "/v1/follows", description: "List follow requests", params: [
@@ -309,7 +293,6 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "User Ranks",
-    icon: "",
     description: "XP, tiers, and gamification ranks",
     endpoints: [
       { method: "GET", path: "/v1/ranks", description: "List all user ranks", params: [{ name: "rank_tier", type: "string", description: "Filter by tier" }] },
@@ -319,7 +302,6 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "Personas",
-    icon: "",
     description: "Persona DNA profiles and consistency checks",
     endpoints: [
       { method: "GET", path: "/v1/personas", description: "List personas", params: [{ name: "account_id", type: "uuid", description: "Filter by account" }] },
@@ -331,7 +313,6 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "Consistency Checks",
-    icon: "",
     description: "Persona consistency analysis results",
     endpoints: [
       { method: "GET", path: "/v1/consistency-checks", description: "List consistency checks", params: [
@@ -342,7 +323,6 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "Fans & Psychology",
-    icon: "",
     description: "Fan emotional profiling and behavior tracking",
     endpoints: [
       { method: "GET", path: "/v1/fans", description: "List fan profiles", params: [
@@ -358,7 +338,6 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "Team",
-    icon: "",
     description: "Team members management",
     endpoints: [
       { method: "GET", path: "/v1/team", description: "List all team members" },
@@ -371,7 +350,6 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "Contracts",
-    icon: "",
     description: "Contracts and agreements",
     endpoints: [
       { method: "GET", path: "/v1/contracts", description: "List contracts", params: [{ name: "account_id", type: "uuid", description: "Filter by account" }] },
@@ -384,7 +362,6 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "Content Calendar",
-    icon: "",
     description: "Content scheduling and management",
     endpoints: [
       { method: "GET", path: "/v1/content", description: "List content items", params: [
@@ -403,7 +380,6 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "Bio Links",
-    icon: "",
     description: "Bio link pages and click analytics",
     endpoints: [
       { method: "GET", path: "/v1/bio-links", description: "List bio links" },
@@ -416,7 +392,6 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "Financials",
-    icon: "",
     description: "Financial records and revenue tracking",
     endpoints: [
       { method: "GET", path: "/v1/financials", description: "List financial records", params: [
@@ -431,32 +406,7 @@ const API_GROUPS: EndpointGroup[] = [
     ],
   },
   {
-    name: "Wallets & Credits",
-    icon: "",
-    description: "User credit wallets and transactions",
-    endpoints: [
-      { method: "GET", path: "/v1/wallets", description: "List all wallets" },
-      { method: "GET", path: "/v1/wallets/:user_id", description: "Get wallet by user ID" },
-      { method: "GET", path: "/v1/wallets/:user_id/transactions", description: "Get credit transaction history" },
-      { method: "PATCH", path: "/v1/wallets/:user_id", description: "Update wallet balance" },
-      { method: "POST", path: "/v1/wallets/:user_id/grant", description: "Grant credits to user" },
-      { method: "POST", path: "/v1/wallets/:user_id/deduct", description: "Deduct credits from user" },
-    ],
-  },
-  {
-    name: "Credit Packages",
-    icon: "",
-    description: "Credit package configuration",
-    endpoints: [
-      { method: "GET", path: "/v1/credit-packages", description: "List all credit packages" },
-      { method: "POST", path: "/v1/credit-packages", description: "Create credit package" },
-      { method: "PATCH", path: "/v1/credit-packages/:id", description: "Update package pricing/settings" },
-      { method: "DELETE", path: "/v1/credit-packages/:id", description: "Deactivate credit package" },
-    ],
-  },
-  {
     name: "Workflows & Automation",
-    icon: "",
     description: "Automation workflows and triggers",
     endpoints: [
       { method: "GET", path: "/v1/workflows", description: "List workflows", params: [
@@ -474,7 +424,6 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "AI Copilot",
-    icon: "",
     description: "Copilot conversations and generated content",
     endpoints: [
       { method: "GET", path: "/v1/copilot", description: "List copilot conversations", params: [
@@ -489,7 +438,6 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "Generated Content",
-    icon: "",
     description: "AI-generated images, videos, and media",
     endpoints: [
       { method: "GET", path: "/v1/generated-content", description: "List generated content", params: [
@@ -503,7 +451,6 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "Voices",
-    icon: "",
     description: "AI voice profiles for copilot",
     endpoints: [
       { method: "GET", path: "/v1/voices", description: "List all voices" },
@@ -515,7 +462,6 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "Chat Rooms",
-    icon: "",
     description: "Intranet chat rooms, messages, and members",
     endpoints: [
       { method: "GET", path: "/v1/chat-rooms", description: "List all chat rooms" },
@@ -531,7 +477,6 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "User Profiles",
-    icon: "",
     description: "Platform user profiles and preferences",
     endpoints: [
       { method: "GET", path: "/v1/profiles", description: "List profiles", params: [{ name: "search", type: "string", description: "Search by username, name, email" }] },
@@ -540,165 +485,7 @@ const API_GROUPS: EndpointGroup[] = [
     ],
   },
   {
-    name: "AI Models & Config",
-    icon: "",
-    description: "AI model registry, prompt templates, and safety rules",
-    endpoints: [
-      { method: "GET", path: "/v1/ai-models", description: "List all AI models" },
-      { method: "GET", path: "/v1/ai-models/:id", description: "Get model details" },
-      { method: "POST", path: "/v1/ai-models", description: "Register new AI model" },
-      { method: "PATCH", path: "/v1/ai-models/:id", description: "Update model config or kill switch" },
-      { method: "GET", path: "/v1/prompt-templates", description: "List prompt templates" },
-      { method: "POST", path: "/v1/prompt-templates", description: "Create prompt template" },
-      { method: "PATCH", path: "/v1/prompt-templates/:id", description: "Update template" },
-      { method: "GET", path: "/v1/safety-rules", description: "List safety rules" },
-      { method: "POST", path: "/v1/safety-rules", description: "Create safety rule" },
-    ],
-  },
-  {
-    name: "AI Requests Log",
-    icon: "",
-    description: "AI request history, usage tracking, and cost monitoring",
-    endpoints: [
-      { method: "GET", path: "/v1/ai-requests", description: "List AI requests", params: [
-        { name: "model_id", type: "uuid", description: "Filter by model" },
-        { name: "status", type: "string", description: "Filter by status" },
-        { name: "safety_flagged", type: "boolean", description: "Filter flagged requests" },
-        { name: "from", type: "date", description: "From date" },
-        { name: "to", type: "date", description: "To date" },
-      ] },
-      { method: "GET", path: "/v1/ai-requests/:id", description: "Get request details" },
-      { method: "GET", path: "/v1/ai-requests/stats", description: "Get aggregated AI usage stats" },
-    ],
-  },
-  {
-    name: "Feature Flags",
-    icon: "",
-    description: "Feature flags, targeting rules, and experiments",
-    endpoints: [
-      { method: "GET", path: "/v1/feature-flags", description: "List all feature flags" },
-      { method: "GET", path: "/v1/feature-flags/:id", description: "Get flag with rules" },
-      { method: "POST", path: "/v1/feature-flags", description: "Create feature flag" },
-      { method: "PATCH", path: "/v1/feature-flags/:id", description: "Update flag (toggle, rollout %)" },
-      { method: "DELETE", path: "/v1/feature-flags/:id", description: "Archive feature flag" },
-      { method: "GET", path: "/v1/experiments", description: "List experiments" },
-      { method: "POST", path: "/v1/experiments", description: "Create experiment" },
-      { method: "PATCH", path: "/v1/experiments/:id", description: "Start/stop experiment" },
-    ],
-  },
-  {
-    name: "Audit Logs",
-    icon: "",
-    description: "Complete audit trail for all system actions",
-    endpoints: [
-      { method: "GET", path: "/v1/audit-logs", description: "List audit logs", params: [
-        { name: "entity_type", type: "string", description: "Filter by entity type" },
-        { name: "action", type: "string", description: "Filter by action" },
-        { name: "actor_id", type: "uuid", description: "Filter by actor" },
-        { name: "from", type: "date", description: "From date" },
-        { name: "to", type: "date", description: "To date" },
-      ] },
-      { method: "GET", path: "/v1/audit-logs/:id", description: "Get full audit detail with before/after state" },
-    ],
-  },
-  {
-    name: "Incidents",
-    icon: "",
-    description: "Incident management and postmortem tracking",
-    endpoints: [
-      { method: "GET", path: "/v1/incidents", description: "List incidents", params: [
-        { name: "status", type: "string", description: "Filter by status" },
-        { name: "severity", type: "string", description: "Filter by severity" },
-      ] },
-      { method: "GET", path: "/v1/incidents/:id", description: "Get incident with updates" },
-      { method: "POST", path: "/v1/incidents", description: "Create incident" },
-      { method: "POST", path: "/v1/incidents/:id/updates", description: "Post incident update" },
-      { method: "PATCH", path: "/v1/incidents/:id", description: "Update/resolve incident" },
-    ],
-  },
-  {
-    name: "Workspace",
-    icon: "",
-    description: "Workspace settings, invitations, and admin onboarding",
-    endpoints: [
-      { method: "GET", path: "/v1/workspace/invitations", description: "List workspace invitations" },
-      { method: "POST", path: "/v1/workspace/invitations", description: "Send workspace invitation" },
-      { method: "DELETE", path: "/v1/workspace/invitations/:id", description: "Revoke invitation" },
-      { method: "GET", path: "/v1/workspace/onboarding-profiles", description: "List admin onboarding profiles" },
-    ],
-  },
-  {
-    name: "Site Visits",
-    icon: "",
-    description: "Website visitor tracking",
-    endpoints: [
-      { method: "GET", path: "/v1/site-visits", description: "List site visits", params: [
-        { name: "page_path", type: "string", description: "Filter by page path" },
-        { name: "from", type: "date", description: "From date" },
-        { name: "to", type: "date", description: "To date" },
-      ] },
-      { method: "GET", path: "/v1/site-visits/stats", description: "Get aggregated visit statistics" },
-    ],
-  },
-  {
-    name: "Profile Lookups",
-    icon: "",
-    description: "Profile lookup history and snapshots",
-    endpoints: [
-      { method: "GET", path: "/v1/profile-lookups", description: "List lookup history", params: [{ name: "username", type: "string", description: "Filter by username" }] },
-      { method: "POST", path: "/v1/profile-lookups", description: "Trigger new profile lookup" },
-    ],
-  },
-  {
-    name: "Device Sessions",
-    icon: "",
-    description: "User device sessions and security",
-    endpoints: [
-      { method: "GET", path: "/v1/device-sessions", description: "List device sessions", params: [{ name: "user_id", type: "uuid", description: "Filter by user" }] },
-      { method: "DELETE", path: "/v1/device-sessions/:id", description: "Revoke a device session" },
-    ],
-  },
-  {
-    name: "Login Activity",
-    icon: "",
-    description: "User login history and audit",
-    endpoints: [
-      { method: "GET", path: "/v1/login-activity", description: "List login activity", params: [{ name: "user_id", type: "uuid", description: "Filter by user" }] },
-    ],
-  },
-  {
-    name: "Admin Sessions & Logins",
-    icon: "",
-    description: "Admin sessions, login auditing, and user actions",
-    endpoints: [
-      { method: "GET", path: "/v1/admin-logins", description: "List admin login attempts", params: [{ name: "success", type: "boolean", description: "Filter by success" }] },
-      { method: "GET", path: "/v1/admin-sessions", description: "List active admin sessions" },
-      { method: "DELETE", path: "/v1/admin-sessions/:id", description: "Terminate admin session" },
-      { method: "GET", path: "/v1/admin-actions", description: "List admin user actions", params: [
-        { name: "action_type", type: "string", description: "Filter by action type" },
-        { name: "target_user_id", type: "uuid", description: "Filter by target user" },
-      ] },
-    ],
-  },
-  {
-    name: "Notifications",
-    icon: "",
-    description: "Admin user notifications and alerts",
-    endpoints: [
-      { method: "GET", path: "/v1/notifications", description: "List notifications", params: [
-        { name: "user_id", type: "uuid", description: "Filter by user" },
-        { name: "is_read", type: "boolean", description: "Filter read/unread" },
-        { name: "notification_type", type: "string", description: "Filter by type" },
-      ] },
-      { method: "POST", path: "/v1/notifications", description: "Send notification to user" },
-      { method: "POST", path: "/v1/notifications/bulk", description: "Send bulk notifications" },
-      { method: "PATCH", path: "/v1/notifications/:id", description: "Mark notification as read" },
-      { method: "DELETE", path: "/v1/notifications/:id", description: "Delete notification" },
-    ],
-  },
-  {
     name: "Activities",
-    icon: "",
     description: "Account activity log (standalone)",
     endpoints: [
       { method: "GET", path: "/v1/activities", description: "List all activities", params: [
@@ -710,7 +497,6 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "Support Tickets",
-    icon: "",
     description: "CRM help desk and support ticket management",
     endpoints: [
       { method: "GET", path: "/v1/support-tickets", description: "List support tickets", params: [
@@ -723,14 +509,26 @@ const API_GROUPS: EndpointGroup[] = [
     ],
   },
   {
-    name: "Stats",
-    icon: "",
-    description: "System-wide statistics overview across all tables",
+    name: "Profile Lookups",
+    description: "Profile lookup history and snapshots",
     endpoints: [
-      { method: "GET", path: "/v1/stats", description: "Get aggregated counts for all major tables" },
-      { method: "GET", path: "/v1/stats/credits", description: "Get credit circulation statistics" },
-      { method: "GET", path: "/v1/stats/revenue", description: "Get revenue summary" },
-      { method: "GET", path: "/v1/stats/ai-usage", description: "Get AI usage breakdown" },
+      { method: "GET", path: "/v1/profile-lookups", description: "List lookup history", params: [{ name: "username", type: "string", description: "Filter by username" }] },
+      { method: "POST", path: "/v1/profile-lookups", description: "Trigger new profile lookup" },
+    ],
+  },
+  {
+    name: "My API Keys",
+    description: "Manage your personal API keys for platform access",
+    endpoints: [
+      { method: "GET", path: "/v1/my/api-keys", description: "List your API keys" },
+      { method: "POST", path: "/v1/my/api-keys", description: "Create a new API key", body: [
+        { name: "name", type: "string", required: true, description: "Key name (e.g. 'Production', 'Development')" },
+        { name: "scopes", type: "string[]", description: "Permissions: read, write, delete (default: read)" },
+        { name: "rate_limit_rpm", type: "number", description: "Requests per minute limit (default: 60)" },
+        { name: "expires_in_days", type: "number", description: "Expiration in days (optional, never expires if omitted)" },
+      ] },
+      { method: "PATCH", path: "/v1/my/api-keys/:id", description: "Update key name or rate limits" },
+      { method: "DELETE", path: "/v1/my/api-keys/:id", description: "Revoke an API key permanently" },
     ],
   },
 ];
@@ -742,13 +540,36 @@ const METHOD_COLORS: Record<string, string> = {
   DELETE: "bg-red-500/15 text-red-300 border-red-500/20",
 };
 
-// Flatten all endpoints for playground
-const ALL_ENDPOINTS = API_GROUPS.flatMap(g => g.endpoints.map(ep => ({ ...ep, group: g.name })));
+interface ApiKeyRow {
+  id: string;
+  name: string;
+  key_prefix: string;
+  scopes: string[];
+  is_active: boolean;
+  rate_limit_rpm: number;
+  rate_limit_daily: number;
+  last_used_at: string | null;
+  requests_today: number;
+  requests_total: number;
+  expires_at: string | null;
+  created_at: string;
+}
 
 const AdminAPI = () => {
   const [search, setSearch] = useState("");
   const [copied, setCopied] = useState("");
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(["Accounts"]));
+
+  // API Keys
+  const [apiKeys, setApiKeys] = useState<ApiKeyRow[]>([]);
+  const [keysLoading, setKeysLoading] = useState(false);
+  const [showCreateKey, setShowCreateKey] = useState(false);
+  const [newKeyName, setNewKeyName] = useState("");
+  const [newKeyScopes, setNewKeyScopes] = useState("read");
+  const [newKeyExpiry, setNewKeyExpiry] = useState("");
+  const [createdKey, setCreatedKey] = useState<string | null>(null);
+  const [showKey, setShowKey] = useState(false);
+  const [creating, setCreating] = useState(false);
 
   // Playground state
   const [pgSearch, setPgSearch] = useState("");
@@ -760,6 +581,8 @@ const AdminAPI = () => {
   const [pgLoading, setPgLoading] = useState(false);
   const [pgStatusCode, setPgStatusCode] = useState<number | null>(null);
   const [pgLatency, setPgLatency] = useState<number | null>(null);
+
+  const totalEndpoints = API_GROUPS.reduce((s, g) => s + g.endpoints.length, 0);
 
   const filteredGroups = useMemo(() => {
     if (!search) return API_GROUPS;
@@ -775,7 +598,6 @@ const AdminAPI = () => {
     })).filter(g => g.endpoints.length > 0);
   }, [search]);
 
-  // Playground filtered groups
   const pgFilteredGroups = useMemo(() => {
     if (!pgSearch) return API_GROUPS;
     const q = pgSearch.toLowerCase();
@@ -790,7 +612,80 @@ const AdminAPI = () => {
     })).filter(g => g.endpoints.length > 0);
   }, [pgSearch]);
 
-  const totalEndpoints = API_GROUPS.reduce((s, g) => s + g.endpoints.length, 0);
+  const loadApiKeys = async () => {
+    setKeysLoading(true);
+    const { data, error } = await supabase
+      .from("api_keys")
+      .select("id,name,key_prefix,scopes,is_active,rate_limit_rpm,rate_limit_daily,last_used_at,requests_today,requests_total,expires_at,created_at")
+      .order("created_at", { ascending: false });
+    if (error) toast.error("Failed to load API keys");
+    else setApiKeys((data || []) as ApiKeyRow[]);
+    setKeysLoading(false);
+  };
+
+  useEffect(() => { loadApiKeys(); }, []);
+
+  const generateApiKey = () => {
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    let key = "ozcpk_live_";
+    for (let i = 0; i < 40; i++) key += chars.charAt(Math.floor(Math.random() * chars.length));
+    return key;
+  };
+
+  const hashKey = async (key: string): Promise<string> => {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(key);
+    const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+  };
+
+  const createApiKey = async () => {
+    if (!newKeyName.trim()) { toast.error("Key name is required"); return; }
+    setCreating(true);
+    try {
+      const rawKey = generateApiKey();
+      const keyHash = await hashKey(rawKey);
+      const prefix = rawKey.substring(0, 16);
+      const scopes = newKeyScopes.split(",").map(s => s.trim()).filter(Boolean);
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { toast.error("Not authenticated"); setCreating(false); return; }
+
+      const insertData: any = {
+        user_id: user.id,
+        name: newKeyName.trim(),
+        key_prefix: prefix,
+        key_hash: keyHash,
+        scopes,
+        rate_limit_rpm: 60,
+        rate_limit_daily: 10000,
+      };
+
+      if (newKeyExpiry) {
+        const expiresAt = new Date();
+        expiresAt.setDate(expiresAt.getDate() + parseInt(newKeyExpiry));
+        insertData.expires_at = expiresAt.toISOString();
+      }
+
+      const { error } = await supabase.from("api_keys").insert(insertData);
+      if (error) throw error;
+
+      setCreatedKey(rawKey);
+      setShowKey(true);
+      toast.success("API key created — copy it now, it won't be shown again!");
+      loadApiKeys();
+    } catch (e: any) {
+      toast.error(e.message || "Failed to create key");
+    }
+    setCreating(false);
+  };
+
+  const revokeKey = async (id: string) => {
+    const { error } = await supabase.from("api_keys").update({ is_active: false, revoked_at: new Date().toISOString() }).eq("id", id);
+    if (error) toast.error("Failed to revoke key");
+    else { toast.success("API key revoked"); loadApiKeys(); }
+  };
 
   const copyToClipboard = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
@@ -833,11 +728,9 @@ const AdminAPI = () => {
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { toast.error("Not logged in — sign in first"); setPgLoading(false); return; }
+      if (!session) { toast.error("Not authenticated"); setPgLoading(false); return; }
 
-      // Build URL with path params replaced
       let path = pgSelectedEndpoint.path;
-      // Replace :id, :user_id, :account_id etc. from field values
       const pathParamRegex = /:([a-zA-Z_]+)/g;
       let match;
       while ((match = pathParamRegex.exec(pgSelectedEndpoint.path)) !== null) {
@@ -846,7 +739,6 @@ const AdminAPI = () => {
         if (val) path = path.replace(`:${paramName}`, val);
       }
 
-      // Build query string from params
       const queryParts: string[] = [];
       if (pgSelectedEndpoint.params) {
         for (const p of pgSelectedEndpoint.params) {
@@ -856,19 +748,13 @@ const AdminAPI = () => {
       }
       const queryStr = queryParts.length > 0 ? `?${queryParts.join("&")}` : "";
 
-      // Build body
       let bodyObj: any = undefined;
       if (["POST", "PATCH"].includes(pgSelectedEndpoint.method) && pgSelectedEndpoint.body) {
         bodyObj = {};
         for (const b of pgSelectedEndpoint.body) {
           const val = pgBodyValues[b.name];
           if (val !== undefined && val !== "") {
-            // Try to parse JSON arrays/objects
-            try {
-              bodyObj[b.name] = JSON.parse(val);
-            } catch {
-              bodyObj[b.name] = val;
-            }
+            try { bodyObj[b.name] = JSON.parse(val); } catch { bodyObj[b.name] = val; }
           }
         }
       }
@@ -902,24 +788,27 @@ const AdminAPI = () => {
       <div className="flex items-start justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-lg font-bold text-white flex items-center gap-2">
-            <Code2 className="h-5 w-5 text-accent" /> API Management
+            <Code2 className="h-5 w-5 text-accent" /> Platform API
           </h1>
           <p className="text-xs text-white/40 mt-1">
-            Full REST API — {totalEndpoints} endpoints across {API_GROUPS.length} resources
+            REST API — {totalEndpoints} endpoints across {API_GROUPS.length} resources
           </p>
         </div>
         <div className="flex items-center gap-2">
           <Badge className="bg-emerald-500/10 text-emerald-300 border-emerald-500/20 text-xs">
             <Server className="h-3 w-3 mr-1" /> v1.0.0
           </Badge>
-          <Badge className="bg-purple-500/10 text-purple-300 border-purple-500/20 text-xs">
-            <Shield className="h-3 w-3 mr-1" /> Admin Only
+          <Badge className="bg-accent/10 text-accent border-accent/20 text-xs">
+            <Key className="h-3 w-3 mr-1" /> API Key Auth
           </Badge>
         </div>
       </div>
 
-      <Tabs defaultValue="docs" className="space-y-4">
+      <Tabs defaultValue="keys" className="space-y-4">
         <TabsList className="bg-white/5 border border-white/10 p-1 rounded-xl h-auto gap-1">
+          <TabsTrigger value="keys" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
+            <Key className="h-3.5 w-3.5" /> My API Keys
+          </TabsTrigger>
           <TabsTrigger value="docs" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
             <BookOpen className="h-3.5 w-3.5" /> Documentation
           </TabsTrigger>
@@ -931,26 +820,167 @@ const AdminAPI = () => {
           </TabsTrigger>
         </TabsList>
 
-        {/* ── DOCS TAB ── */}
-        <TabsContent value="docs" className="space-y-4">
-          {/* Auth info */}
+        {/* ── API KEYS TAB ── */}
+        <TabsContent value="keys" className="space-y-4">
+          <Card className="bg-white/[0.03] border-white/[0.06]">
+            <CardHeader className="p-4">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm text-white flex items-center gap-2">
+                  <Key className="h-4 w-4 text-accent" /> Your API Keys
+                </CardTitle>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" onClick={loadApiKeys} disabled={keysLoading} className="h-7 text-xs border-white/10 text-white/60 hover:text-white gap-1.5">
+                    <RefreshCw className={`h-3 w-3 ${keysLoading ? "animate-spin" : ""}`} /> Refresh
+                  </Button>
+                  <Button size="sm" onClick={() => { setShowCreateKey(true); setCreatedKey(null); setNewKeyName(""); setNewKeyScopes("read"); setNewKeyExpiry(""); }} className="h-7 text-xs bg-accent hover:bg-accent/90 text-accent-foreground gap-1.5">
+                    <Plus className="h-3 w-3" /> Create Key
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="p-4 pt-0">
+              {apiKeys.length === 0 ? (
+                <div className="text-center py-8 text-white/30">
+                  <Key className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                  <p className="text-sm">No API keys yet</p>
+                  <p className="text-xs text-white/20 mt-1">Create your first key to start using the API</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {apiKeys.map((key) => (
+                    <div key={key.id} className="flex items-center justify-between p-3 rounded-lg bg-white/[0.02] border border-white/[0.06]">
+                      <div className="flex items-center gap-3">
+                        <div className={`p-1.5 rounded-md ${key.is_active ? "bg-emerald-500/10" : "bg-red-500/10"}`}>
+                          <Key className={`h-3.5 w-3.5 ${key.is_active ? "text-emerald-400" : "text-red-400"}`} />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium text-white">{key.name}</span>
+                            <code className="text-[10px] text-white/30 font-mono bg-white/5 px-1.5 rounded">{key.key_prefix}•••</code>
+                            <Badge className={`text-[9px] ${key.is_active ? "bg-emerald-500/10 text-emerald-300 border-emerald-500/20" : "bg-red-500/10 text-red-300 border-red-500/20"} border`}>
+                              {key.is_active ? "Active" : "Revoked"}
+                            </Badge>
+                          </div>
+                          <div className="flex items-center gap-3 mt-0.5">
+                            <span className="text-[10px] text-white/25">Scopes: {key.scopes.join(", ") || "none"}</span>
+                            <span className="text-[10px] text-white/25">{key.rate_limit_rpm} RPM</span>
+                            <span className="text-[10px] text-white/25">{Number(key.requests_total).toLocaleString()} requests</span>
+                            {key.expires_at && (
+                              <span className="text-[10px] text-amber-400/60 flex items-center gap-1">
+                                <Clock className="h-2.5 w-2.5" /> Expires {new Date(key.expires_at).toLocaleDateString()}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      {key.is_active && (
+                        <Button size="sm" variant="ghost" onClick={() => revokeKey(key.id)} className="h-7 text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10 gap-1">
+                          <Trash2 className="h-3 w-3" /> Revoke
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Security Info */}
           <Card className="bg-white/[0.03] border-white/[0.06]">
             <CardContent className="p-4">
               <div className="flex items-start gap-3">
-                <Lock className="h-4 w-4 text-amber-400 mt-0.5 flex-shrink-0" />
+                <Shield className="h-4 w-4 text-accent mt-0.5 flex-shrink-0" />
+                <div className="text-[11px] text-white/60 space-y-1">
+                  <p className="font-semibold text-white/80">API Key Security</p>
+                  <ul className="list-disc pl-4 space-y-0.5">
+                    <li>Keys are SHA-256 hashed — the raw key is shown only once at creation</li>
+                    <li>Format: <code className="bg-white/5 px-1 rounded text-accent font-mono">ozcpk_live_</code> followed by 40 random characters</li>
+                    <li>Scoped permissions: <code className="bg-white/5 px-1 rounded font-mono text-white/40">read</code>, <code className="bg-white/5 px-1 rounded font-mono text-white/40">write</code>, <code className="bg-white/5 px-1 rounded font-mono text-white/40">delete</code></li>
+                    <li>Rate limits enforced per-key: 60 RPM / 10,000 daily by default</li>
+                    <li>Keys can be revoked instantly and never reactivated</li>
+                  </ul>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Create Key Dialog */}
+          <Dialog open={showCreateKey} onOpenChange={setShowCreateKey}>
+            <DialogContent className="bg-[hsl(220,100%,8%)] border-white/10 text-white max-w-md">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Key className="h-5 w-5 text-accent" />
+                  {createdKey ? "API Key Created" : "Create API Key"}
+                </DialogTitle>
+              </DialogHeader>
+              {createdKey ? (
+                <div className="space-y-4">
+                  <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                    <div className="flex items-start gap-2">
+                      <AlertTriangle className="h-4 w-4 text-amber-400 mt-0.5 flex-shrink-0" />
+                      <p className="text-xs text-amber-300">Copy this key now — it will never be shown again.</p>
+                    </div>
+                  </div>
+                  <div className="relative">
+                    <Input
+                      value={showKey ? createdKey : "•".repeat(51)}
+                      readOnly
+                      className="bg-white/5 border-white/10 text-white font-mono text-xs pr-20"
+                    />
+                    <div className="absolute right-1 top-1/2 -translate-y-1/2 flex gap-1">
+                      <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => setShowKey(!showKey)}>
+                        {showKey ? <EyeOff className="h-3 w-3 text-white/40" /> : <Eye className="h-3 w-3 text-white/40" />}
+                      </Button>
+                      <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => copyToClipboard(createdKey, "new-key")}>
+                        {copied === "new-key" ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3 text-white/40" />}
+                      </Button>
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button onClick={() => setShowCreateKey(false)} className="bg-accent hover:bg-accent/90 text-accent-foreground">Done</Button>
+                  </DialogFooter>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-xs text-white/60 mb-1 block">Key Name</label>
+                    <Input value={newKeyName} onChange={e => setNewKeyName(e.target.value)} placeholder="e.g. Production, Development" className="bg-white/5 border-white/10 text-white text-sm" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-white/60 mb-1 block">Scopes (comma-separated)</label>
+                    <Input value={newKeyScopes} onChange={e => setNewKeyScopes(e.target.value)} placeholder="read, write, delete" className="bg-white/5 border-white/10 text-white text-sm" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-white/60 mb-1 block">Expires in (days, leave empty for never)</label>
+                    <Input value={newKeyExpiry} onChange={e => setNewKeyExpiry(e.target.value)} type="number" placeholder="30" className="bg-white/5 border-white/10 text-white text-sm" />
+                  </div>
+                  <DialogFooter>
+                    <Button variant="ghost" onClick={() => setShowCreateKey(false)} className="text-white/60">Cancel</Button>
+                    <Button onClick={createApiKey} disabled={creating} className="bg-accent hover:bg-accent/90 text-accent-foreground gap-1.5">
+                      {creating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />} Create Key
+                    </Button>
+                  </DialogFooter>
+                </div>
+              )}
+            </DialogContent>
+          </Dialog>
+        </TabsContent>
+
+        {/* ── DOCS TAB ── */}
+        <TabsContent value="docs" className="space-y-4">
+          <Card className="bg-white/[0.03] border-white/[0.06]">
+            <CardContent className="p-4">
+              <div className="flex items-start gap-3">
+                <Key className="h-4 w-4 text-accent mt-0.5 flex-shrink-0" />
                 <div className="text-xs text-white/60 space-y-1">
-                  <p className="font-semibold text-white/80">Authentication Required</p>
-                  <p>All endpoints (except /health) require a valid admin JWT in the Authorization header.</p>
+                  <p className="font-semibold text-white/80">API Key Authentication</p>
+                  <p>All endpoints require a valid API key. Include it in every request header:</p>
                   <div className="flex items-center gap-2 mt-2">
                     <code className="bg-white/5 px-2 py-1 rounded text-[11px] text-accent font-mono">
-                      Authorization: Bearer {"<your-jwt-token>"}
+                      X-API-Key: ozcpk_live_••••••••••••••••
                     </code>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-6 w-6 p-0 text-white/30 hover:text-white"
-                      onClick={() => copyToClipboard('Authorization: Bearer <your-jwt-token>', 'auth-header')}
-                    >
+                    <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-white/30 hover:text-white"
+                      onClick={() => copyToClipboard('X-API-Key: YOUR_API_KEY', 'auth-header')}>
                       {copied === "auth-header" ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
                     </Button>
                   </div>
@@ -959,7 +989,6 @@ const AdminAPI = () => {
             </CardContent>
           </Card>
 
-          {/* Base URL */}
           <Card className="bg-white/[0.03] border-white/[0.06]">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
@@ -969,12 +998,8 @@ const AdminAPI = () => {
                 </div>
                 <div className="flex items-center gap-2">
                   <code className="bg-white/5 px-3 py-1.5 rounded text-xs text-emerald-300 font-mono">{BASE_URL}</code>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-7 w-7 p-0 text-white/30 hover:text-white"
-                    onClick={() => copyToClipboard(BASE_URL, 'base-url')}
-                  >
+                  <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-white/30 hover:text-white"
+                    onClick={() => copyToClipboard(BASE_URL, 'base-url')}>
                     {copied === "base-url" ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
                   </Button>
                 </div>
@@ -982,42 +1007,30 @@ const AdminAPI = () => {
             </CardContent>
           </Card>
 
-          {/* Search */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30" />
             <Input
-              placeholder={`Search ${totalEndpoints}+ endpoints by path, method, summary...`}
+              placeholder={`Search ${totalEndpoints} endpoints...`}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-10 bg-white/5 border-white/10 text-white placeholder:text-white/30 h-9 text-sm"
             />
           </div>
 
-          {/* Endpoint groups */}
           <ScrollArea className="h-[calc(100vh-500px)] min-h-[400px]">
             <div className="space-y-3 pr-3">
               {filteredGroups.map((group) => (
-                <Collapsible
-                  key={group.name}
-                  open={expandedGroups.has(group.name)}
-                  onOpenChange={() => toggleGroup(group.name)}
-                >
+                <Collapsible key={group.name} open={expandedGroups.has(group.name)} onOpenChange={() => toggleGroup(group.name)}>
                   <Card className="bg-white/[0.02] border-white/[0.06] overflow-hidden">
                     <CollapsibleTrigger asChild>
                       <button className="w-full flex items-center justify-between p-3 hover:bg-white/[0.02] transition-colors">
                         <div className="flex items-center gap-2.5">
                           <span className="text-sm font-semibold text-white">{group.name}</span>
-                          <Badge variant="outline" className="text-[10px] border-white/10 text-white/40">
-                            {group.endpoints.length}
-                          </Badge>
+                          <Badge variant="outline" className="text-[10px] border-white/10 text-white/40">{group.endpoints.length}</Badge>
                         </div>
                         <div className="flex items-center gap-2">
                           <span className="text-[11px] text-white/30 hidden sm:inline">{group.description}</span>
-                          {expandedGroups.has(group.name) ? (
-                            <ChevronDown className="h-4 w-4 text-white/30" />
-                          ) : (
-                            <ChevronRight className="h-4 w-4 text-white/30" />
-                          )}
+                          {expandedGroups.has(group.name) ? <ChevronDown className="h-4 w-4 text-white/30" /> : <ChevronRight className="h-4 w-4 text-white/30" />}
                         </div>
                       </button>
                     </CollapsibleTrigger>
@@ -1026,17 +1039,11 @@ const AdminAPI = () => {
                         {group.endpoints.map((ep, i) => (
                           <div key={i} className="p-3 space-y-2">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <Badge className={`${METHOD_COLORS[ep.method]} text-[10px] font-mono px-2 py-0.5 border`}>
-                                {ep.method}
-                              </Badge>
+                              <Badge className={`${METHOD_COLORS[ep.method]} text-[10px] font-mono px-2 py-0.5 border`}>{ep.method}</Badge>
                               <code className="text-xs text-white/70 font-mono">{ep.path}</code>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="h-5 w-5 p-0 text-white/20 hover:text-white ml-auto"
-                                onClick={() => copyToClipboard(`curl -X ${ep.method} "${BASE_URL}${ep.path}" -H "Authorization: Bearer <token>" -H "Content-Type: application/json"`, `ep-${i}`)}
-                              >
-                                {copied === `ep-${i}` ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                              <Button size="sm" variant="ghost" className="h-5 w-5 p-0 text-white/20 hover:text-white ml-auto"
+                                onClick={() => copyToClipboard(`curl -X ${ep.method} "${BASE_URL}${ep.path}" -H "X-API-Key: YOUR_KEY" -H "Content-Type: application/json"`, `ep-${group.name}-${i}`)}>
+                                {copied === `ep-${group.name}-${i}` ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
                               </Button>
                             </div>
                             <p className="text-[11px] text-white/40">{ep.description}</p>
@@ -1066,12 +1073,6 @@ const AdminAPI = () => {
                                 ))}
                               </div>
                             )}
-                            {ep.example_response && (
-                              <div className="space-y-1">
-                                <span className="text-[10px] text-white/30 uppercase tracking-wider font-semibold">Example Response</span>
-                                <pre className="bg-black/30 rounded-lg p-2 text-[10px] text-emerald-300/80 font-mono overflow-x-auto">{ep.example_response}</pre>
-                              </div>
-                            )}
                           </div>
                         ))}
                       </div>
@@ -1086,50 +1087,32 @@ const AdminAPI = () => {
         {/* ── PLAYGROUND TAB ── */}
         <TabsContent value="playground" className="space-y-0">
           <div className="flex h-[calc(100vh-300px)] min-h-[500px] border border-white/[0.06] rounded-xl overflow-hidden bg-black/20">
-            {/* LEFT SIDEBAR - Endpoint Browser */}
             <div className="w-[320px] border-r border-white/[0.06] flex flex-col flex-shrink-0">
               <div className="p-3 border-b border-white/[0.06]">
                 <div className="relative">
                   <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/30" />
-                  <Input
-                    placeholder={`Search ${totalEndpoints}+ endpoints...`}
-                    value={pgSearch}
-                    onChange={(e) => setPgSearch(e.target.value)}
-                    className="pl-8 bg-white/5 border-white/10 text-white placeholder:text-white/30 h-8 text-xs"
-                  />
+                  <Input placeholder={`Search ${totalEndpoints} endpoints...`} value={pgSearch} onChange={(e) => setPgSearch(e.target.value)}
+                    className="pl-8 bg-white/5 border-white/10 text-white placeholder:text-white/30 h-8 text-xs" />
                 </div>
               </div>
               <ScrollArea className="flex-1">
                 <div className="py-1">
                   {pgFilteredGroups.map((group) => (
-                    <Collapsible
-                      key={group.name}
-                      open={pgExpandedGroups.has(group.name)}
-                      onOpenChange={() => togglePgGroup(group.name)}
-                    >
+                    <Collapsible key={group.name} open={pgExpandedGroups.has(group.name)} onOpenChange={() => togglePgGroup(group.name)}>
                       <CollapsibleTrigger asChild>
                         <button className="w-full flex items-center justify-between px-3 py-2 hover:bg-white/[0.03] transition-colors text-left">
                           <span className="text-xs font-semibold text-white/70">{group.name}</span>
-                          {pgExpandedGroups.has(group.name) ? (
-                            <ChevronDown className="h-3 w-3 text-white/30" />
-                          ) : (
-                            <ChevronRight className="h-3 w-3 text-white/30" />
-                          )}
+                          {pgExpandedGroups.has(group.name) ? <ChevronDown className="h-3 w-3 text-white/30" /> : <ChevronRight className="h-3 w-3 text-white/30" />}
                         </button>
                       </CollapsibleTrigger>
                       <CollapsibleContent>
                         {group.endpoints.map((ep, i) => {
                           const isSelected = pgSelectedEndpoint?.path === ep.path && pgSelectedEndpoint?.method === ep.method;
                           return (
-                            <button
-                              key={i}
-                              onClick={() => selectEndpoint(ep, group.name)}
-                              className={`w-full text-left px-3 py-2 transition-colors border-l-2 ${isSelected ? "bg-white/[0.05] border-l-accent" : "border-l-transparent hover:bg-white/[0.02]"}`}
-                            >
+                            <button key={i} onClick={() => selectEndpoint(ep, group.name)}
+                              className={`w-full text-left px-3 py-2 transition-colors border-l-2 ${isSelected ? "bg-white/[0.05] border-l-accent" : "border-l-transparent hover:bg-white/[0.02]"}`}>
                               <div className="flex items-center gap-2">
-                                <Badge className={`${METHOD_COLORS[ep.method]} text-[9px] font-mono px-1.5 py-0 border`}>
-                                  {ep.method}
-                                </Badge>
+                                <Badge className={`${METHOD_COLORS[ep.method]} text-[9px] font-mono px-1.5 py-0 border`}>{ep.method}</Badge>
                                 <span className="text-[11px] text-white/50 truncate">{ep.description}</span>
                               </div>
                               <code className="text-[10px] text-white/30 font-mono mt-0.5 block truncate">{ep.path}</code>
@@ -1143,16 +1126,11 @@ const AdminAPI = () => {
               </ScrollArea>
             </div>
 
-            {/* CENTER - Request Config */}
             <div className="flex-1 flex flex-col min-w-0 border-r border-white/[0.06]">
               <div className="p-3 border-b border-white/[0.06] flex items-center justify-between">
                 <span className="text-xs font-semibold text-white/60">Configure Request</span>
-                <Button
-                  size="sm"
-                  onClick={sendPlaygroundRequest}
-                  disabled={pgLoading || !pgSelectedEndpoint}
-                  className="h-7 text-xs bg-accent hover:bg-accent/90 text-accent-foreground gap-1.5"
-                >
+                <Button size="sm" onClick={sendPlaygroundRequest} disabled={pgLoading || !pgSelectedEndpoint}
+                  className="h-7 text-xs bg-accent hover:bg-accent/90 text-accent-foreground gap-1.5">
                   {pgLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
                   Send
                 </Button>
@@ -1160,18 +1138,14 @@ const AdminAPI = () => {
               <ScrollArea className="flex-1">
                 {pgSelectedEndpoint ? (
                   <div className="p-4 space-y-5">
-                    {/* Endpoint header */}
                     <div>
                       <div className="flex items-center gap-2 mb-1">
                         <span className="text-sm font-bold text-white">{pgSelectedEndpoint.description}</span>
-                        <Badge className={`${METHOD_COLORS[pgSelectedEndpoint.method]} text-[10px] font-mono px-2 py-0.5 border`}>
-                          {pgSelectedEndpoint.method}
-                        </Badge>
+                        <Badge className={`${METHOD_COLORS[pgSelectedEndpoint.method]} text-[10px] font-mono px-2 py-0.5 border`}>{pgSelectedEndpoint.method}</Badge>
                       </div>
                       <code className="text-[11px] text-white/40 font-mono">{pgSelectedEndpoint.path}</code>
                     </div>
 
-                    {/* Path params */}
                     {(() => {
                       const pathParams = pgSelectedEndpoint.path.match(/:([a-zA-Z_]+)/g);
                       if (!pathParams) return null;
@@ -1186,12 +1160,8 @@ const AdminAPI = () => {
                                   <code className="text-[11px] text-purple-300 font-mono">{name}</code>
                                   <Badge className="bg-red-500/10 text-red-300 border-red-500/20 text-[9px] px-1">required</Badge>
                                 </div>
-                                <Input
-                                  value={pgFieldValues[name] || ""}
-                                  onChange={(e) => setPgFieldValues(p => ({ ...p, [name]: e.target.value }))}
-                                  placeholder={name}
-                                  className="bg-white/5 border-white/10 text-white h-8 text-xs font-mono"
-                                />
+                                <Input value={pgFieldValues[name] || ""} onChange={(e) => setPgFieldValues(p => ({ ...p, [name]: e.target.value }))}
+                                  placeholder={name} className="bg-white/5 border-white/10 text-white h-8 text-xs font-mono" />
                               </div>
                             );
                           })}
@@ -1199,7 +1169,6 @@ const AdminAPI = () => {
                       );
                     })()}
 
-                    {/* Query params */}
                     {pgSelectedEndpoint.params && pgSelectedEndpoint.params.length > 0 && (
                       <div className="space-y-2">
                         <span className="text-[10px] text-white/40 uppercase tracking-wider font-bold">Query Parameters</span>
@@ -1207,26 +1176,15 @@ const AdminAPI = () => {
                           <div key={p.name}>
                             <div className="flex items-center gap-2 mb-1">
                               <code className="text-[11px] text-purple-300 font-mono">{p.name}</code>
-                              <Copy className="h-3 w-3 text-white/20 cursor-pointer hover:text-white/50" onClick={() => copyToClipboard(p.name, `pg-${p.name}`)} />
-                              {p.required ? (
-                                <Badge className="bg-red-500/10 text-red-300 border-red-500/20 text-[9px] px-1">required</Badge>
-                              ) : (
-                                <span className="text-[9px] text-white/30 italic">optional</span>
-                              )}
+                              {p.required ? <Badge className="bg-red-500/10 text-red-300 border-red-500/20 text-[9px] px-1">required</Badge> : <span className="text-[9px] text-white/30 italic">optional</span>}
                             </div>
-                            <Input
-                              value={pgFieldValues[p.name] || ""}
-                              onChange={(e) => setPgFieldValues(prev => ({ ...prev, [p.name]: e.target.value }))}
-                              placeholder={p.description}
-                              className="bg-white/5 border-white/10 text-white h-8 text-xs font-mono"
-                            />
-                            <p className="text-[10px] text-white/25 mt-0.5">{p.description}</p>
+                            <Input value={pgFieldValues[p.name] || ""} onChange={(e) => setPgFieldValues(prev => ({ ...prev, [p.name]: e.target.value }))}
+                              placeholder={p.description} className="bg-white/5 border-white/10 text-white h-8 text-xs font-mono" />
                           </div>
                         ))}
                       </div>
                     )}
 
-                    {/* Request Body */}
                     {pgSelectedEndpoint.body && pgSelectedEndpoint.body.length > 0 && (
                       <div className="space-y-2">
                         <span className="text-[10px] text-white/40 uppercase tracking-wider font-bold">Request Body</span>
@@ -1234,30 +1192,10 @@ const AdminAPI = () => {
                           <div key={b.name}>
                             <div className="flex items-center gap-2 mb-1">
                               <code className="text-[11px] text-blue-300 font-mono">{b.name}</code>
-                              <Copy className="h-3 w-3 text-white/20 cursor-pointer hover:text-white/50" onClick={() => copyToClipboard(b.name, `pg-b-${b.name}`)} />
-                              {b.required ? (
-                                <Badge className="bg-red-500/10 text-red-300 border-red-500/20 text-[9px] px-1">required</Badge>
-                              ) : (
-                                <span className="text-[9px] text-white/30 italic">optional</span>
-                              )}
+                              {b.required ? <Badge className="bg-red-500/10 text-red-300 border-red-500/20 text-[9px] px-1">required</Badge> : <span className="text-[9px] text-white/30 italic">optional</span>}
                             </div>
-                            {b.type === "string" && b.description.length > 50 ? (
-                              <Textarea
-                                value={pgBodyValues[b.name] || ""}
-                                onChange={(e) => setPgBodyValues(prev => ({ ...prev, [b.name]: e.target.value }))}
-                                placeholder={b.description}
-                                rows={2}
-                                className="bg-white/5 border-white/10 text-white text-xs font-mono"
-                              />
-                            ) : (
-                              <Input
-                                value={pgBodyValues[b.name] || ""}
-                                onChange={(e) => setPgBodyValues(prev => ({ ...prev, [b.name]: e.target.value }))}
-                                placeholder={b.description}
-                                className="bg-white/5 border-white/10 text-white h-8 text-xs font-mono"
-                              />
-                            )}
-                            <p className="text-[10px] text-white/25 mt-0.5">{b.description}</p>
+                            <Input value={pgBodyValues[b.name] || ""} onChange={(e) => setPgBodyValues(prev => ({ ...prev, [b.name]: e.target.value }))}
+                              placeholder={b.description} className="bg-white/5 border-white/10 text-white h-8 text-xs font-mono" />
                           </div>
                         ))}
                       </div>
@@ -1275,19 +1213,14 @@ const AdminAPI = () => {
               </ScrollArea>
             </div>
 
-            {/* RIGHT - Response Preview */}
             <div className="w-[380px] flex flex-col flex-shrink-0">
               <div className="p-3 border-b border-white/[0.06] flex items-center justify-between">
                 <span className="text-xs font-semibold text-white/60">Response</span>
                 <div className="flex items-center gap-2">
                   {pgStatusCode !== null && (
-                    <Badge className={`text-[10px] ${pgStatusCode < 300 ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/20" : pgStatusCode < 500 ? "bg-amber-500/15 text-amber-300 border-amber-500/20" : "bg-red-500/15 text-red-300 border-red-500/20"} border`}>
-                      {pgStatusCode}
-                    </Badge>
+                    <Badge className={`text-[10px] ${pgStatusCode < 300 ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/20" : pgStatusCode < 500 ? "bg-amber-500/15 text-amber-300 border-amber-500/20" : "bg-red-500/15 text-red-300 border-red-500/20"} border`}>{pgStatusCode}</Badge>
                   )}
-                  {pgLatency !== null && (
-                    <span className="text-[10px] text-white/30">{pgLatency}ms</span>
-                  )}
+                  {pgLatency !== null && <span className="text-[10px] text-white/30">{pgLatency}ms</span>}
                   {pgResponse && (
                     <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-white/30 hover:text-white" onClick={() => copyToClipboard(pgResponse, 'pg-resp')}>
                       {copied === "pg-resp" ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
@@ -1315,16 +1248,12 @@ const AdminAPI = () => {
         <TabsContent value="quickstart" className="space-y-4">
           <Card className="bg-white/[0.03] border-white/[0.06]">
             <CardHeader className="p-4">
-              <CardTitle className="text-sm text-white">1. Get Your Auth Token</CardTitle>
+              <CardTitle className="text-sm text-white">1. Create an API Key</CardTitle>
             </CardHeader>
             <CardContent className="p-4 pt-0 space-y-2">
-              <p className="text-[11px] text-white/50">Sign in to get a JWT token for API authentication:</p>
-              <pre className="bg-black/30 rounded-lg p-3 text-[11px] text-blue-300/80 font-mono overflow-x-auto">{`// JavaScript
-const { data } = await supabase.auth.signInWithPassword({
-  email: "admin@ozcagency.com",
-  password: "your-password"
-});
-const token = data.session.access_token;`}</pre>
+              <p className="text-[11px] text-white/50">Go to the "My API Keys" tab and create a new key. Copy it immediately — it won't be shown again.</p>
+              <pre className="bg-black/30 rounded-lg p-3 text-[11px] text-blue-300/80 font-mono overflow-x-auto">{`# Your API key format:
+ozcpk_live_ABCDEFghijklmnopqrstuvwxyz1234567890ABCD`}</pre>
             </CardContent>
           </Card>
 
@@ -1334,53 +1263,36 @@ const token = data.session.access_token;`}</pre>
             </CardHeader>
             <CardContent className="p-4 pt-0 space-y-3">
               <div>
-                <p className="text-[11px] text-white/50 mb-2">cURL example — List all accounts:</p>
+                <p className="text-[11px] text-white/50 mb-2">cURL — List all accounts:</p>
                 <pre className="bg-black/30 rounded-lg p-3 text-[11px] text-amber-300/80 font-mono overflow-x-auto">{`curl -X GET "${BASE_URL}/v1/accounts?status=active&limit=10" \\
-  -H "Authorization: Bearer <token>" \\
+  -H "X-API-Key: ozcpk_live_YOUR_KEY" \\
   -H "Content-Type: application/json"`}</pre>
               </div>
               <div>
-                <p className="text-[11px] text-white/50 mb-2">Create an account:</p>
-                <pre className="bg-black/30 rounded-lg p-3 text-[11px] text-amber-300/80 font-mono overflow-x-auto">{`curl -X POST "${BASE_URL}/v1/accounts" \\
-  -H "Authorization: Bearer <token>" \\
-  -H "Content-Type: application/json" \\
-  -d '{"username": "new_model", "display_name": "New Model", "tier": "pro"}'`}</pre>
-              </div>
-              <div>
                 <p className="text-[11px] text-white/50 mb-2">JavaScript / Fetch:</p>
-                <pre className="bg-black/30 rounded-lg p-3 text-[11px] text-emerald-300/80 font-mono overflow-x-auto">{`const res = await fetch("${BASE_URL}/v1/stats", {
+                <pre className="bg-black/30 rounded-lg p-3 text-[11px] text-emerald-300/80 font-mono overflow-x-auto">{`const res = await fetch("${BASE_URL}/v1/accounts", {
   headers: {
-    "Authorization": \`Bearer \${token}\`,
+    "X-API-Key": "ozcpk_live_YOUR_KEY",
     "Content-Type": "application/json"
   }
 });
-const { data } = await res.json();
-console.log(data);`}</pre>
+const { data } = await res.json();`}</pre>
               </div>
               <div>
-                <p className="text-[11px] text-white/50 mb-2">Python example:</p>
+                <p className="text-[11px] text-white/50 mb-2">Python:</p>
                 <pre className="bg-black/30 rounded-lg p-3 text-[11px] text-purple-300/80 font-mono overflow-x-auto">{`import requests
 
 headers = {
-    "Authorization": f"Bearer {token}",
+    "X-API-Key": "ozcpk_live_YOUR_KEY",
     "Content-Type": "application/json"
 }
 
-# Get all active accounts
 resp = requests.get(
     "${BASE_URL}/v1/accounts",
     headers=headers,
-    params={"status": "active", "limit": 25}
+    params={"status": "active"}
 )
-accounts = resp.json()["data"]
-
-# Batch update — loop with care
-for acc in accounts:
-    requests.patch(
-        f"${BASE_URL}/v1/accounts/{acc['id']}",
-        headers=headers,
-        json={"notes": "Reviewed via API"}
-    )`}</pre>
+accounts = resp.json()["data"]`}</pre>
               </div>
             </CardContent>
           </Card>
@@ -1401,7 +1313,15 @@ for acc in accounts:
                 </div>
                 <div className="flex items-center gap-3">
                   <Badge className="bg-amber-500/10 text-amber-300 border-amber-500/20 text-[10px] w-14 justify-center">401</Badge>
-                  <span className="text-white/50">Unauthorized — invalid or missing admin token</span>
+                  <span className="text-white/50">Unauthorized — invalid or missing API key</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Badge className="bg-amber-500/10 text-amber-300 border-amber-500/20 text-[10px] w-14 justify-center">403</Badge>
+                  <span className="text-white/50">Forbidden — key lacks required scope</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Badge className="bg-red-500/10 text-red-300 border-red-500/20 text-[10px] w-14 justify-center">429</Badge>
+                  <span className="text-white/50">Rate limited — exceeded RPM or daily limit</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <Badge className="bg-red-500/10 text-red-300 border-red-500/20 text-[10px] w-14 justify-center">404</Badge>
@@ -1410,24 +1330,6 @@ for acc in accounts:
                 <div className="flex items-center gap-3">
                   <Badge className="bg-red-500/10 text-red-300 border-red-500/20 text-[10px] w-14 justify-center">500</Badge>
                   <span className="text-white/50">Server error — check request body and retry</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-amber-500/5 border-amber-500/15">
-            <CardContent className="p-4">
-              <div className="flex items-start gap-3">
-                <Shield className="h-4 w-4 text-amber-400 mt-0.5 flex-shrink-0" />
-                <div className="text-[11px] text-white/60 space-y-1">
-                  <p className="font-semibold text-amber-300">Security Notes</p>
-                  <ul className="list-disc pl-4 space-y-0.5">
-                    <li>API is restricted to admin accounts only</li>
-                    <li>Non-admin tokens are rejected with 401</li>
-                    <li>All requests are logged and auditable</li>
-                    <li>Never share your JWT token publicly</li>
-                    <li>Tokens expire — refresh via auth session</li>
-                  </ul>
                 </div>
               </div>
             </CardContent>

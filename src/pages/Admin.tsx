@@ -13,9 +13,10 @@ import AuditTrailPanel from "@/components/admin/enterprise/AuditTrailPanel";
 import IncidentManager from "@/components/admin/enterprise/IncidentManager";
 import SystemOpsPanel from "@/components/admin/enterprise/SystemOpsPanel";
 import WorkspaceAdmin from "@/components/admin/WorkspaceAdmin";
+import AdminAPIManagement from "@/components/admin/AdminAPIManagement";
 import {
   Shield, LayoutDashboard, Lock, LogOut, ShieldCheck, Coins, UserCheck,
-  Brain, Flag, FileText, AlertTriangle, Settings, Users,
+  Brain, Flag, FileText, AlertTriangle, Settings, Users, Code2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -96,6 +97,9 @@ const Admin = () => {
             <TabsTrigger value="compliance" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
               <ShieldCheck className="h-3.5 w-3.5" /> Compliance
             </TabsTrigger>
+            <TabsTrigger value="api-mgmt" className="data-[state=active]:bg-cyan-500/20 data-[state=active]:text-cyan-300 data-[state=active]:border-cyan-500/30 text-white/50 rounded-lg gap-1.5 text-xs border border-transparent">
+              <Code2 className="h-3.5 w-3.5" /> API Management
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="dashboard"><EnhancedDashboard isAdmin={true} /></TabsContent>
@@ -109,6 +113,7 @@ const Admin = () => {
           <TabsContent value="ops"><SystemOpsPanel /></TabsContent>
           <TabsContent value="security"><AdminSecurity /></TabsContent>
           <TabsContent value="compliance"><ComplianceCenter /></TabsContent>
+          <TabsContent value="api-mgmt"><AdminAPIManagement /></TabsContent>
         </Tabs>
       </div>
     </div>
