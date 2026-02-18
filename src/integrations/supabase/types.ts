@@ -690,6 +690,48 @@ export type Database = {
           },
         ]
       }
+      api_key_history: {
+        Row: {
+          action: string
+          action_by: string | null
+          api_key_id: string | null
+          created_at: string
+          id: string
+          key_name: string
+          key_prefix: string
+          key_type: string
+          metadata: Json | null
+          scopes: string[] | null
+          user_id: string
+        }
+        Insert: {
+          action: string
+          action_by?: string | null
+          api_key_id?: string | null
+          created_at?: string
+          id?: string
+          key_name: string
+          key_prefix: string
+          key_type?: string
+          metadata?: Json | null
+          scopes?: string[] | null
+          user_id: string
+        }
+        Update: {
+          action?: string
+          action_by?: string | null
+          api_key_id?: string | null
+          created_at?: string
+          id?: string
+          key_name?: string
+          key_prefix?: string
+          key_type?: string
+          metadata?: Json | null
+          scopes?: string[] | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       api_keys: {
         Row: {
           created_at: string
