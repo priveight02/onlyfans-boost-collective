@@ -5,9 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Code2, Copy, Check, Search, Globe, Lock, Zap, Database, ChevronDown, ChevronRight,
-  Server, Shield, BookOpen, Terminal, ExternalLink,
+  Server, Shield, BookOpen, Terminal, ExternalLink, Send, Loader2, Play,
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -34,7 +35,7 @@ interface EndpointGroup {
 const API_GROUPS: EndpointGroup[] = [
   {
     name: "Accounts",
-    icon: "👤",
+    icon: "",
     description: "Manage creator/model accounts in the Platform",
     endpoints: [
       { method: "GET", path: "/v1/accounts", description: "List all managed accounts with optional filters", params: [
@@ -70,7 +71,7 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "Scripts & Storylines",
-    icon: "📝",
+    icon: "",
     description: "Chat scripts, steps, and storyline flows",
     endpoints: [
       { method: "GET", path: "/v1/scripts", description: "List all scripts with steps", params: [
@@ -92,7 +93,7 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "AI Conversations",
-    icon: "💬",
+    icon: "",
     description: "AI DM conversations, messages, and auto-respond",
     endpoints: [
       { method: "GET", path: "/v1/conversations", description: "List all DM conversations", params: [
@@ -112,7 +113,7 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "DM Messages",
-    icon: "✉️",
+    icon: "",
     description: "Direct access to AI DM messages across all conversations",
     endpoints: [
       { method: "GET", path: "/v1/dm-messages", description: "List DM messages", params: [
@@ -127,7 +128,7 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "Auto-Respond",
-    icon: "🤖",
+    icon: "",
     description: "AI auto-respond state per account",
     endpoints: [
       { method: "GET", path: "/v1/auto-respond", description: "List all auto-respond states", params: [{ name: "account_id", type: "uuid", description: "Filter by account" }] },
@@ -138,7 +139,7 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "Keywords & Delays",
-    icon: "🔑",
+    icon: "",
     description: "AI keyword trigger rules and automated responses",
     endpoints: [
       { method: "GET", path: "/v1/keywords", description: "List keyword rules", params: [{ name: "account_id", type: "uuid", description: "Filter by account" }] },
@@ -150,7 +151,7 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "Conversation Learnings",
-    icon: "📚",
+    icon: "",
     description: "AI conversation learning outcomes and strategy tracking",
     endpoints: [
       { method: "GET", path: "/v1/conversation-learnings", description: "List conversation learnings", params: [
@@ -163,7 +164,7 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "AI Learnings",
-    icon: "🧠",
+    icon: "",
     description: "AI-learned strategies, winning patterns, and behavior models",
     endpoints: [
       { method: "GET", path: "/v1/learnings", description: "Get learned strategies", params: [
@@ -175,7 +176,7 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "Followers & Discovery",
-    icon: "🔍",
+    icon: "",
     description: "Fetched/discovered followers, bulk outreach targets",
     endpoints: [
       { method: "GET", path: "/v1/followers", description: "List discovered followers", params: [
@@ -193,7 +194,7 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "Message Threads",
-    icon: "📨",
+    icon: "",
     description: "Messaging threads with assignment and priority",
     endpoints: [
       { method: "GET", path: "/v1/threads", description: "List message threads", params: [
@@ -209,7 +210,7 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "Social Connections",
-    icon: "🔗",
+    icon: "",
     description: "Platform OAuth connections and tokens",
     endpoints: [
       { method: "GET", path: "/v1/social-connections", description: "List all social connections", params: [
@@ -225,7 +226,7 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "Social Posts",
-    icon: "📱",
+    icon: "",
     description: "Social media posts management and publishing",
     endpoints: [
       { method: "GET", path: "/v1/social-posts", description: "List social posts", params: [
@@ -242,7 +243,7 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "Social Comment Replies",
-    icon: "💬",
+    icon: "",
     description: "Comment replies tracking and AI-generated responses",
     endpoints: [
       { method: "GET", path: "/v1/comment-replies", description: "List comment replies", params: [
@@ -255,7 +256,7 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "Social Analytics",
-    icon: "📊",
+    icon: "",
     description: "Social media analytics, metrics, and insights",
     endpoints: [
       { method: "GET", path: "/v1/social-analytics", description: "Get analytics data", params: [
@@ -270,7 +271,7 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "Community Posts",
-    icon: "📰",
+    icon: "",
     description: "User-generated community posts, likes, comments, and saves",
     endpoints: [
       { method: "GET", path: "/v1/posts", description: "List posts", params: [{ name: "user_id", type: "uuid", description: "Filter by user" }] },
@@ -284,7 +285,7 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "Post Comments",
-    icon: "💭",
+    icon: "",
     description: "Direct access to post comments",
     endpoints: [
       { method: "GET", path: "/v1/post-comments", description: "List all comments", params: [{ name: "post_id", type: "uuid", description: "Filter by post" }] },
@@ -294,7 +295,7 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "Follows & Requests",
-    icon: "👥",
+    icon: "",
     description: "Follow requests management",
     endpoints: [
       { method: "GET", path: "/v1/follows", description: "List follow requests", params: [
@@ -308,7 +309,7 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "User Ranks",
-    icon: "🏆",
+    icon: "",
     description: "XP, tiers, and gamification ranks",
     endpoints: [
       { method: "GET", path: "/v1/ranks", description: "List all user ranks", params: [{ name: "rank_tier", type: "string", description: "Filter by tier" }] },
@@ -318,7 +319,7 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "Personas",
-    icon: "🎭",
+    icon: "",
     description: "Persona DNA profiles and consistency checks",
     endpoints: [
       { method: "GET", path: "/v1/personas", description: "List personas", params: [{ name: "account_id", type: "uuid", description: "Filter by account" }] },
@@ -330,7 +331,7 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "Consistency Checks",
-    icon: "✅",
+    icon: "",
     description: "Persona consistency analysis results",
     endpoints: [
       { method: "GET", path: "/v1/consistency-checks", description: "List consistency checks", params: [
@@ -341,7 +342,7 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "Fans & Psychology",
-    icon: "❤️",
+    icon: "",
     description: "Fan emotional profiling and behavior tracking",
     endpoints: [
       { method: "GET", path: "/v1/fans", description: "List fan profiles", params: [
@@ -357,7 +358,7 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "Team",
-    icon: "👨‍💼",
+    icon: "",
     description: "Team members management",
     endpoints: [
       { method: "GET", path: "/v1/team", description: "List all team members" },
@@ -370,7 +371,7 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "Contracts",
-    icon: "📄",
+    icon: "",
     description: "Contracts and agreements",
     endpoints: [
       { method: "GET", path: "/v1/contracts", description: "List contracts", params: [{ name: "account_id", type: "uuid", description: "Filter by account" }] },
@@ -383,7 +384,7 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "Content Calendar",
-    icon: "📅",
+    icon: "",
     description: "Content scheduling and management",
     endpoints: [
       { method: "GET", path: "/v1/content", description: "List content items", params: [
@@ -402,7 +403,7 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "Bio Links",
-    icon: "🔗",
+    icon: "",
     description: "Bio link pages and click analytics",
     endpoints: [
       { method: "GET", path: "/v1/bio-links", description: "List bio links" },
@@ -415,7 +416,7 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "Financials",
-    icon: "💰",
+    icon: "",
     description: "Financial records and revenue tracking",
     endpoints: [
       { method: "GET", path: "/v1/financials", description: "List financial records", params: [
@@ -431,7 +432,7 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "Wallets & Credits",
-    icon: "💳",
+    icon: "",
     description: "User credit wallets and transactions",
     endpoints: [
       { method: "GET", path: "/v1/wallets", description: "List all wallets" },
@@ -444,7 +445,7 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "Credit Packages",
-    icon: "🪙",
+    icon: "",
     description: "Credit package configuration",
     endpoints: [
       { method: "GET", path: "/v1/credit-packages", description: "List all credit packages" },
@@ -455,7 +456,7 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "Workflows & Automation",
-    icon: "⚡",
+    icon: "",
     description: "Automation workflows and triggers",
     endpoints: [
       { method: "GET", path: "/v1/workflows", description: "List workflows", params: [
@@ -473,7 +474,7 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "AI Copilot",
-    icon: "🤖",
+    icon: "",
     description: "Copilot conversations and generated content",
     endpoints: [
       { method: "GET", path: "/v1/copilot", description: "List copilot conversations", params: [
@@ -488,7 +489,7 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "Generated Content",
-    icon: "🎨",
+    icon: "",
     description: "AI-generated images, videos, and media",
     endpoints: [
       { method: "GET", path: "/v1/generated-content", description: "List generated content", params: [
@@ -502,7 +503,7 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "Voices",
-    icon: "🎙️",
+    icon: "",
     description: "AI voice profiles for copilot",
     endpoints: [
       { method: "GET", path: "/v1/voices", description: "List all voices" },
@@ -514,7 +515,7 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "Chat Rooms",
-    icon: "🏠",
+    icon: "",
     description: "Intranet chat rooms, messages, and members",
     endpoints: [
       { method: "GET", path: "/v1/chat-rooms", description: "List all chat rooms" },
@@ -530,7 +531,7 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "User Profiles",
-    icon: "🧑",
+    icon: "",
     description: "Platform user profiles and preferences",
     endpoints: [
       { method: "GET", path: "/v1/profiles", description: "List profiles", params: [{ name: "search", type: "string", description: "Search by username, name, email" }] },
@@ -540,7 +541,7 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "AI Models & Config",
-    icon: "⚙️",
+    icon: "",
     description: "AI model registry, prompt templates, and safety rules",
     endpoints: [
       { method: "GET", path: "/v1/ai-models", description: "List all AI models" },
@@ -556,7 +557,7 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "AI Requests Log",
-    icon: "📋",
+    icon: "",
     description: "AI request history, usage tracking, and cost monitoring",
     endpoints: [
       { method: "GET", path: "/v1/ai-requests", description: "List AI requests", params: [
@@ -572,7 +573,7 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "Feature Flags",
-    icon: "🚩",
+    icon: "",
     description: "Feature flags, targeting rules, and experiments",
     endpoints: [
       { method: "GET", path: "/v1/feature-flags", description: "List all feature flags" },
@@ -587,7 +588,7 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "Audit Logs",
-    icon: "🔒",
+    icon: "",
     description: "Complete audit trail for all system actions",
     endpoints: [
       { method: "GET", path: "/v1/audit-logs", description: "List audit logs", params: [
@@ -602,7 +603,7 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "Incidents",
-    icon: "🚨",
+    icon: "",
     description: "Incident management and postmortem tracking",
     endpoints: [
       { method: "GET", path: "/v1/incidents", description: "List incidents", params: [
@@ -617,7 +618,7 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "Workspace",
-    icon: "🏢",
+    icon: "",
     description: "Workspace settings, invitations, and admin onboarding",
     endpoints: [
       { method: "GET", path: "/v1/workspace/invitations", description: "List workspace invitations" },
@@ -628,7 +629,7 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "Site Visits",
-    icon: "🌐",
+    icon: "",
     description: "Website visitor tracking",
     endpoints: [
       { method: "GET", path: "/v1/site-visits", description: "List site visits", params: [
@@ -641,7 +642,7 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "Profile Lookups",
-    icon: "🔎",
+    icon: "",
     description: "Profile lookup history and snapshots",
     endpoints: [
       { method: "GET", path: "/v1/profile-lookups", description: "List lookup history", params: [{ name: "username", type: "string", description: "Filter by username" }] },
@@ -650,7 +651,7 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "Device Sessions",
-    icon: "📱",
+    icon: "",
     description: "User device sessions and security",
     endpoints: [
       { method: "GET", path: "/v1/device-sessions", description: "List device sessions", params: [{ name: "user_id", type: "uuid", description: "Filter by user" }] },
@@ -659,7 +660,7 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "Login Activity",
-    icon: "🔐",
+    icon: "",
     description: "User login history and audit",
     endpoints: [
       { method: "GET", path: "/v1/login-activity", description: "List login activity", params: [{ name: "user_id", type: "uuid", description: "Filter by user" }] },
@@ -667,7 +668,7 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "Admin Sessions & Logins",
-    icon: "🛡️",
+    icon: "",
     description: "Admin sessions, login auditing, and user actions",
     endpoints: [
       { method: "GET", path: "/v1/admin-logins", description: "List admin login attempts", params: [{ name: "success", type: "boolean", description: "Filter by success" }] },
@@ -681,22 +682,23 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "Notifications",
-    icon: "🔔",
-    description: "User and admin notifications",
+    icon: "",
+    description: "Admin user notifications and alerts",
     endpoints: [
       { method: "GET", path: "/v1/notifications", description: "List notifications", params: [
         { name: "user_id", type: "uuid", description: "Filter by user" },
         { name: "is_read", type: "boolean", description: "Filter read/unread" },
         { name: "notification_type", type: "string", description: "Filter by type" },
       ] },
-      { method: "PATCH", path: "/v1/notifications/:id", description: "Mark as read" },
       { method: "POST", path: "/v1/notifications", description: "Send notification to user" },
       { method: "POST", path: "/v1/notifications/bulk", description: "Send bulk notifications" },
+      { method: "PATCH", path: "/v1/notifications/:id", description: "Mark notification as read" },
+      { method: "DELETE", path: "/v1/notifications/:id", description: "Delete notification" },
     ],
   },
   {
     name: "Activities",
-    icon: "📋",
+    icon: "",
     description: "Account activity log (standalone)",
     endpoints: [
       { method: "GET", path: "/v1/activities", description: "List all activities", params: [
@@ -708,7 +710,7 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "Support Tickets",
-    icon: "🎫",
+    icon: "",
     description: "CRM help desk and support ticket management",
     endpoints: [
       { method: "GET", path: "/v1/support-tickets", description: "List support tickets", params: [
@@ -722,7 +724,7 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "Stats",
-    icon: "📈",
+    icon: "",
     description: "System-wide statistics overview across all tables",
     endpoints: [
       { method: "GET", path: "/v1/stats", description: "Get aggregated counts for all major tables" },
@@ -740,12 +742,24 @@ const METHOD_COLORS: Record<string, string> = {
   DELETE: "bg-red-500/15 text-red-300 border-red-500/20",
 };
 
+// Flatten all endpoints for playground
+const ALL_ENDPOINTS = API_GROUPS.flatMap(g => g.endpoints.map(ep => ({ ...ep, group: g.name })));
+
 const AdminAPI = () => {
   const [search, setSearch] = useState("");
   const [copied, setCopied] = useState("");
-  const [testResult, setTestResult] = useState<string | null>(null);
-  const [testing, setTesting] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(["Accounts"]));
+
+  // Playground state
+  const [pgSearch, setPgSearch] = useState("");
+  const [pgSelectedEndpoint, setPgSelectedEndpoint] = useState<(Endpoint & { group: string }) | null>(null);
+  const [pgExpandedGroups, setPgExpandedGroups] = useState<Set<string>>(new Set());
+  const [pgFieldValues, setPgFieldValues] = useState<Record<string, string>>({});
+  const [pgBodyValues, setPgBodyValues] = useState<Record<string, string>>({});
+  const [pgResponse, setPgResponse] = useState<string | null>(null);
+  const [pgLoading, setPgLoading] = useState(false);
+  const [pgStatusCode, setPgStatusCode] = useState<number | null>(null);
+  const [pgLatency, setPgLatency] = useState<number | null>(null);
 
   const filteredGroups = useMemo(() => {
     if (!search) return API_GROUPS;
@@ -760,6 +774,21 @@ const AdminAPI = () => {
       ),
     })).filter(g => g.endpoints.length > 0);
   }, [search]);
+
+  // Playground filtered groups
+  const pgFilteredGroups = useMemo(() => {
+    if (!pgSearch) return API_GROUPS;
+    const q = pgSearch.toLowerCase();
+    return API_GROUPS.map(g => ({
+      ...g,
+      endpoints: g.endpoints.filter(e =>
+        e.path.toLowerCase().includes(q) ||
+        e.description.toLowerCase().includes(q) ||
+        e.method.toLowerCase().includes(q) ||
+        g.name.toLowerCase().includes(q)
+      ),
+    })).filter(g => g.endpoints.length > 0);
+  }, [pgSearch]);
 
   const totalEndpoints = API_GROUPS.reduce((s, g) => s + g.endpoints.length, 0);
 
@@ -778,36 +807,93 @@ const AdminAPI = () => {
     });
   };
 
-  const testHealthEndpoint = async () => {
-    setTesting(true);
-    try {
-      const res = await fetch(`${BASE_URL}/health`);
-      const data = await res.json();
-      setTestResult(JSON.stringify(data, null, 2));
-      toast.success("API is operational!");
-    } catch (e) {
-      setTestResult(JSON.stringify({ error: "Failed to reach API" }, null, 2));
-      toast.error("API test failed");
-    }
-    setTesting(false);
+  const togglePgGroup = (name: string) => {
+    setPgExpandedGroups(prev => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name); else next.add(name);
+      return next;
+    });
   };
 
-  const testAuthEndpoint = async () => {
-    setTesting(true);
+  const selectEndpoint = (ep: Endpoint, group: string) => {
+    setPgSelectedEndpoint({ ...ep, group });
+    setPgFieldValues({});
+    setPgBodyValues({});
+    setPgResponse(null);
+    setPgStatusCode(null);
+    setPgLatency(null);
+  };
+
+  const sendPlaygroundRequest = async () => {
+    if (!pgSelectedEndpoint) return;
+    setPgLoading(true);
+    setPgResponse(null);
+    setPgStatusCode(null);
+    setPgLatency(null);
+
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { toast.error("Not logged in"); setTesting(false); return; }
-      const res = await fetch(`${BASE_URL}/v1/stats`, {
-        headers: { Authorization: `Bearer ${session.access_token}` },
+      if (!session) { toast.error("Not logged in — sign in first"); setPgLoading(false); return; }
+
+      // Build URL with path params replaced
+      let path = pgSelectedEndpoint.path;
+      // Replace :id, :user_id, :account_id etc. from field values
+      const pathParamRegex = /:([a-zA-Z_]+)/g;
+      let match;
+      while ((match = pathParamRegex.exec(pgSelectedEndpoint.path)) !== null) {
+        const paramName = match[1];
+        const val = pgFieldValues[paramName] || pgBodyValues[paramName];
+        if (val) path = path.replace(`:${paramName}`, val);
+      }
+
+      // Build query string from params
+      const queryParts: string[] = [];
+      if (pgSelectedEndpoint.params) {
+        for (const p of pgSelectedEndpoint.params) {
+          const val = pgFieldValues[p.name];
+          if (val) queryParts.push(`${encodeURIComponent(p.name)}=${encodeURIComponent(val)}`);
+        }
+      }
+      const queryStr = queryParts.length > 0 ? `?${queryParts.join("&")}` : "";
+
+      // Build body
+      let bodyObj: any = undefined;
+      if (["POST", "PATCH"].includes(pgSelectedEndpoint.method) && pgSelectedEndpoint.body) {
+        bodyObj = {};
+        for (const b of pgSelectedEndpoint.body) {
+          const val = pgBodyValues[b.name];
+          if (val !== undefined && val !== "") {
+            // Try to parse JSON arrays/objects
+            try {
+              bodyObj[b.name] = JSON.parse(val);
+            } catch {
+              bodyObj[b.name] = val;
+            }
+          }
+        }
+      }
+
+      const startTime = Date.now();
+      const res = await fetch(`${BASE_URL}${path}${queryStr}`, {
+        method: pgSelectedEndpoint.method,
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          "Content-Type": "application/json",
+        },
+        ...(bodyObj && Object.keys(bodyObj).length > 0 ? { body: JSON.stringify(bodyObj) } : {}),
       });
+      const latency = Date.now() - startTime;
       const data = await res.json();
-      setTestResult(JSON.stringify(data, null, 2));
-      if (res.ok) toast.success("Authenticated request successful!");
-      else toast.error(`Error ${res.status}`);
-    } catch (e) {
-      setTestResult(JSON.stringify({ error: "Request failed" }, null, 2));
+      setPgStatusCode(res.status);
+      setPgLatency(latency);
+      setPgResponse(JSON.stringify(data, null, 2));
+      if (res.ok) toast.success(`${res.status} OK — ${latency}ms`);
+      else toast.error(`${res.status} Error`);
+    } catch (e: any) {
+      setPgResponse(JSON.stringify({ error: e.message }, null, 2));
+      toast.error("Request failed");
     }
-    setTesting(false);
+    setPgLoading(false);
   };
 
   return (
@@ -900,7 +986,7 @@ const AdminAPI = () => {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30" />
             <Input
-              placeholder="Search endpoints..."
+              placeholder={`Search ${totalEndpoints}+ endpoints by path, method, summary...`}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-10 bg-white/5 border-white/10 text-white placeholder:text-white/30 h-9 text-sm"
@@ -920,7 +1006,6 @@ const AdminAPI = () => {
                     <CollapsibleTrigger asChild>
                       <button className="w-full flex items-center justify-between p-3 hover:bg-white/[0.02] transition-colors">
                         <div className="flex items-center gap-2.5">
-                          <span className="text-base">{group.icon}</span>
                           <span className="text-sm font-semibold text-white">{group.name}</span>
                           <Badge variant="outline" className="text-[10px] border-white/10 text-white/40">
                             {group.endpoints.length}
@@ -999,58 +1084,231 @@ const AdminAPI = () => {
         </TabsContent>
 
         {/* ── PLAYGROUND TAB ── */}
-        <TabsContent value="playground" className="space-y-4">
-          <div className="grid gap-3 md:grid-cols-2">
-            <Card className="bg-white/[0.03] border-white/[0.06]">
-              <CardHeader className="p-4 pb-2">
-                <CardTitle className="text-sm text-white flex items-center gap-2">
-                  <Globe className="h-4 w-4 text-emerald-400" /> Health Check
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-4 pt-0">
-                <p className="text-[11px] text-white/40 mb-3">Test API connectivity (no auth required)</p>
-                <Button onClick={testHealthEndpoint} disabled={testing} size="sm" className="bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/20 text-xs">
-                  <Zap className="h-3 w-3 mr-1" /> Test Health
-                </Button>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-white/[0.03] border-white/[0.06]">
-              <CardHeader className="p-4 pb-2">
-                <CardTitle className="text-sm text-white flex items-center gap-2">
-                  <Shield className="h-4 w-4 text-purple-400" /> Authenticated Test
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-4 pt-0">
-                <p className="text-[11px] text-white/40 mb-3">Test with your current admin session (GET /v1/stats)</p>
-                <Button onClick={testAuthEndpoint} disabled={testing} size="sm" className="bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 border border-purple-500/20 text-xs">
-                  <Lock className="h-3 w-3 mr-1" /> Test Auth Request
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
-
-          {testResult && (
-            <Card className="bg-black/30 border-white/[0.06]">
-              <CardHeader className="p-4 pb-2">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-xs text-white/60">Response</CardTitle>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-6 text-[10px] text-white/30 hover:text-white"
-                    onClick={() => copyToClipboard(testResult, 'result')}
-                  >
-                    {copied === "result" ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
-                    Copy
-                  </Button>
+        <TabsContent value="playground" className="space-y-0">
+          <div className="flex h-[calc(100vh-300px)] min-h-[500px] border border-white/[0.06] rounded-xl overflow-hidden bg-black/20">
+            {/* LEFT SIDEBAR - Endpoint Browser */}
+            <div className="w-[320px] border-r border-white/[0.06] flex flex-col flex-shrink-0">
+              <div className="p-3 border-b border-white/[0.06]">
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/30" />
+                  <Input
+                    placeholder={`Search ${totalEndpoints}+ endpoints...`}
+                    value={pgSearch}
+                    onChange={(e) => setPgSearch(e.target.value)}
+                    className="pl-8 bg-white/5 border-white/10 text-white placeholder:text-white/30 h-8 text-xs"
+                  />
                 </div>
-              </CardHeader>
-              <CardContent className="p-4 pt-0">
-                <pre className="text-[11px] text-emerald-300/80 font-mono overflow-x-auto whitespace-pre-wrap">{testResult}</pre>
-              </CardContent>
-            </Card>
-          )}
+              </div>
+              <ScrollArea className="flex-1">
+                <div className="py-1">
+                  {pgFilteredGroups.map((group) => (
+                    <Collapsible
+                      key={group.name}
+                      open={pgExpandedGroups.has(group.name)}
+                      onOpenChange={() => togglePgGroup(group.name)}
+                    >
+                      <CollapsibleTrigger asChild>
+                        <button className="w-full flex items-center justify-between px-3 py-2 hover:bg-white/[0.03] transition-colors text-left">
+                          <span className="text-xs font-semibold text-white/70">{group.name}</span>
+                          {pgExpandedGroups.has(group.name) ? (
+                            <ChevronDown className="h-3 w-3 text-white/30" />
+                          ) : (
+                            <ChevronRight className="h-3 w-3 text-white/30" />
+                          )}
+                        </button>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        {group.endpoints.map((ep, i) => {
+                          const isSelected = pgSelectedEndpoint?.path === ep.path && pgSelectedEndpoint?.method === ep.method;
+                          return (
+                            <button
+                              key={i}
+                              onClick={() => selectEndpoint(ep, group.name)}
+                              className={`w-full text-left px-3 py-2 transition-colors border-l-2 ${isSelected ? "bg-white/[0.05] border-l-accent" : "border-l-transparent hover:bg-white/[0.02]"}`}
+                            >
+                              <div className="flex items-center gap-2">
+                                <Badge className={`${METHOD_COLORS[ep.method]} text-[9px] font-mono px-1.5 py-0 border`}>
+                                  {ep.method}
+                                </Badge>
+                                <span className="text-[11px] text-white/50 truncate">{ep.description}</span>
+                              </div>
+                              <code className="text-[10px] text-white/30 font-mono mt-0.5 block truncate">{ep.path}</code>
+                            </button>
+                          );
+                        })}
+                      </CollapsibleContent>
+                    </Collapsible>
+                  ))}
+                </div>
+              </ScrollArea>
+            </div>
+
+            {/* CENTER - Request Config */}
+            <div className="flex-1 flex flex-col min-w-0 border-r border-white/[0.06]">
+              <div className="p-3 border-b border-white/[0.06] flex items-center justify-between">
+                <span className="text-xs font-semibold text-white/60">Configure Request</span>
+                <Button
+                  size="sm"
+                  onClick={sendPlaygroundRequest}
+                  disabled={pgLoading || !pgSelectedEndpoint}
+                  className="h-7 text-xs bg-accent hover:bg-accent/90 text-accent-foreground gap-1.5"
+                >
+                  {pgLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
+                  Send
+                </Button>
+              </div>
+              <ScrollArea className="flex-1">
+                {pgSelectedEndpoint ? (
+                  <div className="p-4 space-y-5">
+                    {/* Endpoint header */}
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-sm font-bold text-white">{pgSelectedEndpoint.description}</span>
+                        <Badge className={`${METHOD_COLORS[pgSelectedEndpoint.method]} text-[10px] font-mono px-2 py-0.5 border`}>
+                          {pgSelectedEndpoint.method}
+                        </Badge>
+                      </div>
+                      <code className="text-[11px] text-white/40 font-mono">{pgSelectedEndpoint.path}</code>
+                    </div>
+
+                    {/* Path params */}
+                    {(() => {
+                      const pathParams = pgSelectedEndpoint.path.match(/:([a-zA-Z_]+)/g);
+                      if (!pathParams) return null;
+                      return (
+                        <div className="space-y-2">
+                          <span className="text-[10px] text-white/40 uppercase tracking-wider font-bold">Path Parameters</span>
+                          {pathParams.map(param => {
+                            const name = param.slice(1);
+                            return (
+                              <div key={name}>
+                                <div className="flex items-center gap-2 mb-1">
+                                  <code className="text-[11px] text-purple-300 font-mono">{name}</code>
+                                  <Badge className="bg-red-500/10 text-red-300 border-red-500/20 text-[9px] px-1">required</Badge>
+                                </div>
+                                <Input
+                                  value={pgFieldValues[name] || ""}
+                                  onChange={(e) => setPgFieldValues(p => ({ ...p, [name]: e.target.value }))}
+                                  placeholder={name}
+                                  className="bg-white/5 border-white/10 text-white h-8 text-xs font-mono"
+                                />
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
+
+                    {/* Query params */}
+                    {pgSelectedEndpoint.params && pgSelectedEndpoint.params.length > 0 && (
+                      <div className="space-y-2">
+                        <span className="text-[10px] text-white/40 uppercase tracking-wider font-bold">Query Parameters</span>
+                        {pgSelectedEndpoint.params.map((p) => (
+                          <div key={p.name}>
+                            <div className="flex items-center gap-2 mb-1">
+                              <code className="text-[11px] text-purple-300 font-mono">{p.name}</code>
+                              <Copy className="h-3 w-3 text-white/20 cursor-pointer hover:text-white/50" onClick={() => copyToClipboard(p.name, `pg-${p.name}`)} />
+                              {p.required ? (
+                                <Badge className="bg-red-500/10 text-red-300 border-red-500/20 text-[9px] px-1">required</Badge>
+                              ) : (
+                                <span className="text-[9px] text-white/30 italic">optional</span>
+                              )}
+                            </div>
+                            <Input
+                              value={pgFieldValues[p.name] || ""}
+                              onChange={(e) => setPgFieldValues(prev => ({ ...prev, [p.name]: e.target.value }))}
+                              placeholder={p.description}
+                              className="bg-white/5 border-white/10 text-white h-8 text-xs font-mono"
+                            />
+                            <p className="text-[10px] text-white/25 mt-0.5">{p.description}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Request Body */}
+                    {pgSelectedEndpoint.body && pgSelectedEndpoint.body.length > 0 && (
+                      <div className="space-y-2">
+                        <span className="text-[10px] text-white/40 uppercase tracking-wider font-bold">Request Body</span>
+                        {pgSelectedEndpoint.body.map((b) => (
+                          <div key={b.name}>
+                            <div className="flex items-center gap-2 mb-1">
+                              <code className="text-[11px] text-blue-300 font-mono">{b.name}</code>
+                              <Copy className="h-3 w-3 text-white/20 cursor-pointer hover:text-white/50" onClick={() => copyToClipboard(b.name, `pg-b-${b.name}`)} />
+                              {b.required ? (
+                                <Badge className="bg-red-500/10 text-red-300 border-red-500/20 text-[9px] px-1">required</Badge>
+                              ) : (
+                                <span className="text-[9px] text-white/30 italic">optional</span>
+                              )}
+                            </div>
+                            {b.type === "string" && b.description.length > 50 ? (
+                              <Textarea
+                                value={pgBodyValues[b.name] || ""}
+                                onChange={(e) => setPgBodyValues(prev => ({ ...prev, [b.name]: e.target.value }))}
+                                placeholder={b.description}
+                                rows={2}
+                                className="bg-white/5 border-white/10 text-white text-xs font-mono"
+                              />
+                            ) : (
+                              <Input
+                                value={pgBodyValues[b.name] || ""}
+                                onChange={(e) => setPgBodyValues(prev => ({ ...prev, [b.name]: e.target.value }))}
+                                placeholder={b.description}
+                                className="bg-white/5 border-white/10 text-white h-8 text-xs font-mono"
+                              />
+                            )}
+                            <p className="text-[10px] text-white/25 mt-0.5">{b.description}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center h-full text-white/20">
+                    <div className="text-center">
+                      <Terminal className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                      <p className="text-sm">Select an endpoint to get started</p>
+                      <p className="text-[11px] text-white/15 mt-1">Browse the sidebar or search</p>
+                    </div>
+                  </div>
+                )}
+              </ScrollArea>
+            </div>
+
+            {/* RIGHT - Response Preview */}
+            <div className="w-[380px] flex flex-col flex-shrink-0">
+              <div className="p-3 border-b border-white/[0.06] flex items-center justify-between">
+                <span className="text-xs font-semibold text-white/60">Response</span>
+                <div className="flex items-center gap-2">
+                  {pgStatusCode !== null && (
+                    <Badge className={`text-[10px] ${pgStatusCode < 300 ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/20" : pgStatusCode < 500 ? "bg-amber-500/15 text-amber-300 border-amber-500/20" : "bg-red-500/15 text-red-300 border-red-500/20"} border`}>
+                      {pgStatusCode}
+                    </Badge>
+                  )}
+                  {pgLatency !== null && (
+                    <span className="text-[10px] text-white/30">{pgLatency}ms</span>
+                  )}
+                  {pgResponse && (
+                    <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-white/30 hover:text-white" onClick={() => copyToClipboard(pgResponse, 'pg-resp')}>
+                      {copied === "pg-resp" ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                    </Button>
+                  )}
+                </div>
+              </div>
+              <ScrollArea className="flex-1">
+                {pgResponse ? (
+                  <pre className="p-4 text-[11px] text-emerald-300/80 font-mono whitespace-pre-wrap break-all">{pgResponse}</pre>
+                ) : (
+                  <div className="flex items-center justify-center h-full text-white/20">
+                    <div className="text-center">
+                      <Play className="h-8 w-8 mx-auto mb-2 opacity-20" />
+                      <p className="text-xs">Click Send to get a response</p>
+                    </div>
+                  </div>
+                )}
+              </ScrollArea>
+            </div>
+          </div>
         </TabsContent>
 
         {/* ── QUICKSTART TAB ── */}
