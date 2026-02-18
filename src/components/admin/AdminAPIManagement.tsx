@@ -828,25 +828,6 @@ const AdminAPIManagement = () => {
             </CardContent>
           </Card>
 
-          {/* Security Info */}
-          <Card className="bg-amber-500/5 border-amber-500/15">
-            <CardContent className="p-4">
-              <div className="flex items-start gap-3">
-                <Shield className="h-4 w-4 text-amber-400 mt-0.5 flex-shrink-0" />
-                <div className="text-[11px] text-white/60 space-y-1">
-                  <p className="font-semibold text-amber-300">API Key Security</p>
-                  <ul className="list-disc pl-4 space-y-0.5">
-                    <li>API keys are hashed with SHA-256 — raw keys are never stored</li>
-                    <li>Keys support fine-grained scope permissions (read, write, delete, admin)</li>
-                    <li>Rate limiting is enforced per-key (RPM + daily limits)</li>
-                    <li>All API key usage is tracked and auditable</li>
-                    <li>Keys can be revoked/reactivated or permanently deleted</li>
-                    <li>Admin can grant keys to any user with custom quotas</li>
-                  </ul>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
         </TabsContent>
 
         {/* ── API USERS TAB ── */}
@@ -1258,68 +1239,85 @@ const AdminAPIManagement = () => {
 
         {/* ── USAGE TAB ── */}
         <TabsContent value="usage" className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <Card className="bg-white/[0.03] border-white/[0.06]">
-              <CardContent className="p-4 text-center">
-                <Users className="h-6 w-6 text-accent mx-auto mb-2" />
-                <p className="text-2xl font-bold text-white">{new Set(apiKeys.map(k => k.user_id)).size}</p>
-                <p className="text-xs text-white/40">API Users</p>
-              </CardContent>
-            </Card>
-            <Card className="bg-white/[0.03] border-white/[0.06]">
-              <CardContent className="p-4 text-center">
-                <Key className="h-6 w-6 text-emerald-400 mx-auto mb-2" />
-                <p className="text-2xl font-bold text-white">{apiKeys.filter(k => k.is_active).length}</p>
-                <p className="text-xs text-white/40">Active Keys</p>
-              </CardContent>
-            </Card>
-            <Card className="bg-white/[0.03] border-white/[0.06]">
-              <CardContent className="p-4 text-center">
-                <BarChart3 className="h-6 w-6 text-blue-400 mx-auto mb-2" />
-                <p className="text-2xl font-bold text-white">{apiKeys.reduce((s, k) => s + k.requests_today, 0).toLocaleString()}</p>
-                <p className="text-xs text-white/40">Requests Today</p>
-              </CardContent>
-            </Card>
-            <Card className="bg-white/[0.03] border-white/[0.06]">
-              <CardContent className="p-4 text-center">
-                <Database className="h-6 w-6 text-amber-400 mx-auto mb-2" />
-                <p className="text-2xl font-bold text-white">{apiKeys.reduce((s, k) => s + Number(k.requests_total), 0).toLocaleString()}</p>
-                <p className="text-xs text-white/40">Total Requests</p>
-              </CardContent>
-            </Card>
-          </div>
-
-          <Card className="bg-white/[0.03] border-white/[0.06]">
-            <CardHeader className="p-4">
-              <CardTitle className="text-sm text-white">Top API Keys by Usage</CardTitle>
-            </CardHeader>
-            <CardContent className="p-4 pt-0">
-              <Button size="sm" onClick={loadApiKeys} disabled={keysLoading} className="h-7 text-xs gap-1.5">
-                <RefreshCw className={`h-3 w-3 ${keysLoading ? "animate-spin" : ""}`} /> Load Data
-              </Button>
-              {apiKeys.length > 0 && (
-                <div className="mt-4 space-y-2">
-                  {[...apiKeys].sort((a, b) => Number(b.requests_total) - Number(a.requests_total)).slice(0, 10).map((key) => {
-                    const profile = userProfiles[key.user_id];
-                    return (
-                      <div key={key.id} className="flex items-center justify-between text-xs p-2 rounded bg-white/[0.02]">
-                        <div className="flex items-center gap-2">
-                          <div className={`h-1.5 w-1.5 rounded-full ${key.is_active ? "bg-emerald-400" : "bg-red-400"}`} />
-                          <code className="text-white/40 font-mono">{key.key_prefix}•••</code>
-                          <span className="text-white/60">{key.name}</span>
-                          <span className="text-white/20">({profile?.email || key.user_id.slice(0, 8)})</span>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <span className="text-white/30">{key.requests_today} today</span>
-                          <span className="text-white/30">{Number(key.requests_total).toLocaleString()} total</span>
-                        </div>
-                      </div>
-                    );
-                  })}
+          {(() => {
+            // Compute usage from freshly loaded keys
+            const uniqueUsers = new Set(apiKeys.map(k => k.user_id)).size;
+            const activeCount = apiKeys.filter(k => k.is_active).length;
+            const todayTotal = apiKeys.reduce((s, k) => s + (k.requests_today || 0), 0);
+            const allTimeTotal = apiKeys.reduce((s, k) => s + (Number(k.requests_total) || 0), 0);
+            return (
+              <>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-semibold text-white">API Usage Dashboard</span>
+                  <Button size="sm" variant="outline" onClick={loadApiKeys} disabled={keysLoading} className="h-7 text-xs border-white/10 text-white/60 hover:text-white gap-1.5">
+                    <RefreshCw className={`h-3 w-3 ${keysLoading ? "animate-spin" : ""}`} /> Refresh Data
+                  </Button>
                 </div>
-              )}
-            </CardContent>
-          </Card>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <Card className="bg-white/[0.03] border-white/[0.06]">
+                    <CardContent className="p-4 text-center">
+                      <Users className="h-6 w-6 text-accent mx-auto mb-2" />
+                      <p className="text-2xl font-bold text-white">{uniqueUsers}</p>
+                      <p className="text-xs text-white/40">API Users</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="bg-white/[0.03] border-white/[0.06]">
+                    <CardContent className="p-4 text-center">
+                      <Key className="h-6 w-6 text-emerald-400 mx-auto mb-2" />
+                      <p className="text-2xl font-bold text-white">{activeCount}</p>
+                      <p className="text-xs text-white/40">Active Keys</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="bg-white/[0.03] border-white/[0.06]">
+                    <CardContent className="p-4 text-center">
+                      <BarChart3 className="h-6 w-6 text-blue-400 mx-auto mb-2" />
+                      <p className="text-2xl font-bold text-white">{todayTotal.toLocaleString()}</p>
+                      <p className="text-xs text-white/40">Requests Today</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="bg-white/[0.03] border-white/[0.06]">
+                    <CardContent className="p-4 text-center">
+                      <Database className="h-6 w-6 text-amber-400 mx-auto mb-2" />
+                      <p className="text-2xl font-bold text-white">{allTimeTotal.toLocaleString()}</p>
+                      <p className="text-xs text-white/40">Total Requests</p>
+                    </CardContent>
+                  </Card>
+                </div>
+                <Card className="bg-white/[0.03] border-white/[0.06]">
+                  <CardHeader className="p-4">
+                    <CardTitle className="text-sm text-white">Top API Keys by Usage</CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-4 pt-0">
+                    {apiKeys.length === 0 ? (
+                      <p className="text-xs text-white/30 text-center py-4">Load keys to see usage breakdown</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {[...apiKeys].sort((a, b) => Number(b.requests_total) - Number(a.requests_total)).slice(0, 10).map((key) => {
+                          const profile = userProfiles[key.user_id];
+                          const isAdmin = key.key_prefix?.startsWith("ozc_ak_live_");
+                          return (
+                            <div key={key.id} className="flex items-center justify-between text-xs p-2.5 rounded bg-white/[0.02] border border-white/[0.04]">
+                              <div className="flex items-center gap-2">
+                                <div className={`h-1.5 w-1.5 rounded-full ${key.is_active ? "bg-emerald-400" : "bg-red-400"}`} />
+                                <code className="text-white/40 font-mono">{key.key_prefix}•••</code>
+                                <span className="text-white/60">{key.name}</span>
+                                {isAdmin && <Badge className="text-[8px] bg-red-500/10 text-red-300 border-red-500/20 border px-1">admin</Badge>}
+                                <span className="text-white/20">({profile?.email || key.user_id.slice(0, 8)})</span>
+                              </div>
+                              <div className="flex items-center gap-3">
+                                <span className="text-blue-400/70 font-medium">{(key.requests_today || 0).toLocaleString()} today</span>
+                                <span className="text-white/40">{Number(key.requests_total || 0).toLocaleString()} total</span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </>
+            );
+          })()}
         </TabsContent>
 
         {/* ── KEY HISTORY TAB ── */}
