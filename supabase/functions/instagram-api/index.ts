@@ -2037,7 +2037,10 @@ Analyze every character in the name and username for any gender signal at all. L
         const query = params?.query;
         if (!query) throw new Error("query required");
         const auth = getPrivateApiHeaders(conn, params);
-        if (!auth && !hasGraphApiToken(conn)) throw new Error("Login via Instagram or enter session cookie for user search");
+        if (!auth && !hasGraphApiToken(conn)) {
+          result = { users: [], total: 0, needs_session: true, message: "User search requires a session cookie or OAuth token. Connect via Session & Credentials tab." };
+          break;
+        }
         
         // If only Graph API is available (no session cookie), use business_discovery
         if (!auth && hasGraphApiToken(conn)) {
@@ -2047,7 +2050,9 @@ Analyze every character in the name and username for any gender signal at all. L
             result = { users: [graphResult], total: 1, method: "graph_api" };
             break;
           }
-          throw new Error("User not found via Graph API. For broader search, enter a session cookie.");
+          // Return graceful needs_session instead of throwing
+          result = { users: [], total: 0, needs_session: true, message: "Broader search requires a session cookie. Connect via Session & Credentials tab." };
+          break;
         }
         const maxResults = Math.min(params?.max_results || 50, 100000);
         const expanded = params?.expanded || false;
@@ -2313,9 +2318,14 @@ Analyze every character in the name and username for any gender signal at all. L
             result = { posts: unique.slice(0, params?.limit || 30), count: unique.length, method: "graph_api_hashtag" };
             break;
           }
-          throw new Error("Graph API hashtag explore returned no results. For full explore feed, enter a session cookie.");
+          // Return graceful needs_session instead of throwing
+          result = { posts: [], count: 0, needs_session: true, message: "Full explore feed requires a session cookie. Connect via Session & Credentials tab." };
+          break;
         }
-        if (!auth) throw new Error("Login via Instagram or enter session cookie for explore feed");
+        if (!auth) {
+          result = { posts: [], count: 0, needs_session: true, message: "Explore feed requires a session cookie. Connect via Session & Credentials tab." };
+          break;
+        }
 
         const exploreHeaders: Record<string, string> = auth.headers;
 

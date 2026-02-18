@@ -365,6 +365,12 @@ const SocialMediaHub = () => {
       const { data, error } = await supabase.functions.invoke(funcName, { body: { ...body, account_id: acctId } });
       if (error) throw error;
       if (!data?.success) throw new Error(data?.error || "API call failed");
+      // Auto-redirect to session tab if private API feature needs session cookie
+      if (data.data?.needs_session) {
+        toast.info("This feature requires a session cookie. Redirecting to connection setup…");
+        navigateToSessionCard();
+        return null;
+      }
       return data.data;
     } catch (e: any) {
       toast.error(e.message || "API error");
