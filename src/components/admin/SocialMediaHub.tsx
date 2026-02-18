@@ -2448,95 +2448,98 @@ const SocialMediaHub = () => {
             </TabsContent>
 
             {/* ===== ONE-CLICK CONNECT SUBTAB ===== */}
-            <TabsContent value="one-click" className="space-y-4">
-              <Card>
-                <CardContent className="p-4 space-y-2">
-                  <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><Globe className="h-4 w-4 text-blue-400" />OAuth Redirect URI</h4>
-                  <p className="text-[10px] text-muted-foreground">Set this as the redirect URI in all your developer app settings</p>
-                  <div className="flex gap-2">
-                    <Input value={oauthRedirectUri} onChange={e => setOauthRedirectUri(e.target.value)} placeholder="Redirect URI" className="text-sm flex-1" />
-                    <Button size="sm" variant="outline" onClick={() => { navigator.clipboard.writeText(oauthRedirectUri); toast.success("Copied!"); }}><Copy className="h-3.5 w-3.5" /></Button>
-                  </div>
-                </CardContent>
-              </Card>
+            <TabsContent value="one-click" className="space-y-5">
+              {/* Header */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-bold text-foreground tracking-tight">Connect Platforms</h3>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">Tap to link your accounts instantly</p>
+                </div>
+                <Badge variant="outline" className="text-[9px] border-primary/30 text-primary gap-1"><Zap className="h-2.5 w-2.5" />OAuth</Badge>
+              </div>
 
-              {/* Instagram One-Click: Uses direct Instagram OAuth popup (ig-login) — same as Login button */}
-              <Card className="border-pink-500/20">
-                <CardContent className="p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                      <Instagram className="h-4 w-4 text-pink-400" />
-                      Instagram — One-Click Connect
-                    </h4>
-                    {igConnected && <Badge className="bg-green-500/15 text-green-400 text-[10px]">● Connected</Badge>}
-                  </div>
-                  <p className="text-[10px] text-muted-foreground">
-                    Sign in directly with your Instagram account. Creates your account, syncs profile picture, username, and enables Graph API features (posts, comments, insights, publishing). No app credentials needed if backend is configured.
-                  </p>
-                  {!cachedIgAppId && (
-                    <Input value={oauthAppId} onChange={e => setOauthAppId(e.target.value)} placeholder="Meta App ID (optional — auto-detected from backend)" className="text-sm" />
-                  )}
-                  <Button
-                    onClick={openIgLoginPopup}
-                    disabled={igLoginPopupLoading}
-                    className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white"
-                  >
-                    {igLoginPopupLoading ? (
-                      <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Connecting...</>
-                    ) : (
-                      <><Instagram className="h-4 w-4 mr-2" />Connect Instagram</>
-                    )}
-                  </Button>
-                  {igLoginPopupLoading && (
-                    <Badge className="bg-yellow-500/15 text-yellow-400 text-xs animate-pulse w-full justify-center">Processing...</Badge>
-                  )}
-                </CardContent>
-              </Card>
+              {/* Redirect URI - collapsed */}
+              <details className="group">
+                <summary className="text-[10px] text-muted-foreground cursor-pointer hover:text-foreground transition-colors flex items-center gap-1.5">
+                  <Globe className="h-3 w-3" />Redirect URI
+                  <ArrowRight className="h-2.5 w-2.5 transition-transform group-open:rotate-90" />
+                </summary>
+                <div className="flex gap-2 mt-2">
+                  <Input value={oauthRedirectUri} onChange={e => setOauthRedirectUri(e.target.value)} placeholder="Redirect URI" className="text-xs flex-1 h-8" />
+                  <Button size="sm" variant="outline" className="h-8 w-8 p-0" onClick={() => { navigator.clipboard.writeText(oauthRedirectUri); toast.success("Copied!"); }}><Copy className="h-3 w-3" /></Button>
+                </div>
+              </details>
 
-              {[
-                { id: "facebook", name: "Facebook", icon: Globe, color: "text-blue-500", gradient: "from-blue-600 to-indigo-600", connected: facebookConnected, desc: "Meta OAuth popup — pages, groups, and profile synced.", fields: [{ val: fbAppId, set: setFbAppId, placeholder: "Facebook App ID (developers.facebook.com)", type: "text" }], action: automatedFacebookConnect },
-                { id: "tiktok", name: "TikTok", icon: Music2, color: "text-cyan-400", gradient: "from-cyan-600 to-teal-600", connected: ttConnected, desc: "TikTok Login Kit — auth code exchanged for token automatically.", fields: [{ val: ttClientKey, set: setTtClientKey, placeholder: "TikTok Client Key", type: "text" }, { val: ttClientSecret, set: setTtClientSecret, placeholder: "TikTok Client Secret", type: "password" }], action: automatedTikTokConnect },
-                { id: "twitter", name: "X / Twitter", icon: Twitter, color: "text-blue-400", gradient: "from-blue-600 to-sky-600", connected: xConnected, desc: "OAuth2 PKCE — token captured and profile synced.", fields: [{ val: xClientId, set: setXClientId, placeholder: "X Client ID (developer.x.com)", type: "text" }, { val: xClientSecret, set: setXClientSecret, placeholder: "X Client Secret", type: "password" }], action: automatedTwitterConnect },
-                { id: "reddit", name: "Reddit", icon: Globe, color: "text-orange-400", gradient: "from-orange-600 to-red-600", connected: redditConnected, desc: "Reddit OAuth — auth code exchanged for token.", fields: [{ val: redditClientId, set: setRedditClientId, placeholder: "Reddit App ID (reddit.com/prefs/apps)", type: "text" }, { val: redditClientSecret, set: setRedditClientSecret, placeholder: "Reddit App Secret", type: "password" }], action: automatedRedditConnect },
-                { id: "telegram", name: "Telegram", icon: Phone, color: "text-blue-400", gradient: "from-blue-500 to-indigo-600", connected: telegramConnected, desc: "Enter Bot Token from @BotFather — verified instantly.", fields: [{ val: telegramBotToken, set: setTelegramBotToken, placeholder: "Bot Token (123456789:ABCdef...)", type: "password" }], action: automatedTelegramConnect },
-                { id: "threads", name: "Threads", icon: MessageCircle, color: "text-purple-400", gradient: "from-purple-600 to-violet-600", connected: threadsConnected, desc: "Threads OAuth — profile and posting access.", fields: [{ val: threadsAppId, set: setThreadsAppId, placeholder: "Threads App ID (developers.facebook.com)", type: "text" }, { val: threadsAppSecret, set: setThreadsAppSecret, placeholder: "Threads App Secret", type: "password" }], action: automatedThreadsConnect },
-                { id: "whatsapp", name: "WhatsApp", icon: Phone, color: "text-green-400", gradient: "from-green-600 to-emerald-600", connected: whatsappConnected, desc: "WhatsApp Business API — enter Phone Number ID and token.", fields: [{ val: waPhoneNumberId, set: setWaPhoneNumberId, placeholder: "Phone Number ID", type: "text" }, { val: waAccessToken, set: setWaAccessToken, placeholder: "Permanent Access Token", type: "password" }, { val: waBusinessId, set: setWaBusinessId, placeholder: "WABA ID (optional)", type: "text" }], action: automatedWhatsAppConnect },
-                { id: "snapchat", name: "Snapchat", icon: Camera, color: "text-yellow-400", gradient: "from-yellow-500 to-orange-500", connected: snapchatConnected, desc: "Snapchat Marketing API OAuth.", fields: [{ val: snapClientId, set: setSnapClientId, placeholder: "Snapchat Client ID", type: "text" }, { val: snapClientSecret, set: setSnapClientSecret, placeholder: "Snapchat Client Secret", type: "password" }], action: automatedSnapchatConnect },
-                { id: "youtube", name: "YouTube", icon: Play, color: "text-red-400", gradient: "from-red-600 to-rose-600", connected: youtubeConnected, desc: "Google OAuth — channel and analytics access.", fields: [{ val: ytClientId, set: setYtClientId, placeholder: "Google Client ID (console.cloud.google.com)", type: "text" }, { val: ytClientSecret, set: setYtClientSecret, placeholder: "Google Client Secret", type: "password" }], action: automatedYouTubeConnect },
-                { id: "pinterest", name: "Pinterest", icon: Target, color: "text-rose-400", gradient: "from-rose-600 to-pink-600", connected: pinterestConnected, desc: "Pinterest OAuth — pins, boards, and ads access.", fields: [{ val: pinAppId, set: setPinAppId, placeholder: "Pinterest App ID", type: "text" }, { val: pinAppSecret, set: setPinAppSecret, placeholder: "Pinterest App Secret", type: "password" }], action: automatedPinterestConnect },
-                { id: "discord", name: "Discord", icon: Gamepad2, color: "text-indigo-400", gradient: "from-indigo-600 to-violet-600", connected: discordConnected, desc: "Enter Bot Token — verified instantly.", fields: [{ val: discordBotToken, set: setDiscordBotToken, placeholder: "Discord Bot Token (discord.com/developers)", type: "password" }], action: automatedDiscordConnect },
-                { id: "signal", name: "Signal", icon: Shield, color: "text-blue-300", gradient: "from-blue-500 to-sky-500", connected: signalConnected, desc: "Signal CLI REST API — enter API URL and phone.", fields: [{ val: signalApiUrl, set: setSignalApiUrl, placeholder: "Signal API URL (e.g. http://localhost:8080)", type: "text" }, { val: signalPhoneNumber, set: setSignalPhoneNumber, placeholder: "Phone number (+1234...)", type: "text" }], action: automatedSignalConnect },
-              ].map(p => (
-                <Card key={p.id} className={`border-${p.color.replace("text-","").split("-")[0]}-500/20`}>
-                  <CardContent className="p-4 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                        <p.icon className={`h-4 w-4 ${p.color}`} />
-                        {p.name} — {p.id === "telegram" || p.id === "discord" ? "Token Connect" : p.id === "whatsapp" || p.id === "signal" ? "API Connect" : "One-Click Connect"}
-                      </h4>
-                      {p.connected && <Badge className="bg-green-500/15 text-green-400 text-[10px]">● Connected</Badge>}
-                    </div>
-                    <p className="text-[10px] text-muted-foreground">{p.desc}</p>
-                    {p.fields.map((f, i) => (
-                      <Input key={i} value={f.val} onChange={e => f.set(e.target.value)} placeholder={f.placeholder} type={f.type} className="text-sm" />
-                    ))}
-                    <Button
-                      onClick={p.action}
-                      disabled={autoConnectLoading === p.id}
-                      className={`w-full bg-gradient-to-r ${p.gradient} text-white`}
+              {/* Platform Grid */}
+              <div className="grid grid-cols-5 gap-2.5">
+                {/* Instagram cube */}
+                {(() => {
+                  const isLoading = igLoginPopupLoading;
+                  return (
+                    <button
+                      onClick={openIgLoginPopup}
+                      disabled={isLoading}
+                      className="group/cube relative flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl border border-border/50 bg-card/50 backdrop-blur-sm transition-all duration-300 hover:border-pink-500/40 hover:bg-pink-500/5 hover:shadow-[0_0_20px_-5px] hover:shadow-pink-500/20 disabled:opacity-50 disabled:pointer-events-none aspect-square"
                     >
-                      {autoConnectLoading === p.id ? (
-                        <><RefreshCw className="h-4 w-4 mr-2 animate-spin" />Connecting...</>
-                      ) : (
-                        <><p.icon className="h-4 w-4 mr-2" />Connect {p.name}</>
-                      )}
-                    </Button>
-                    {autoConnectLoading === p.id && (
-                      <Badge className="bg-yellow-500/15 text-yellow-400 text-xs animate-pulse w-full justify-center">Processing...</Badge>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
+                      {igConnected && <div className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-green-400 shadow-[0_0_6px] shadow-green-400/60" />}
+                      <div className="relative">
+                        {isLoading ? <Loader2 className="h-6 w-6 text-pink-400 animate-spin" /> : <Instagram className="h-6 w-6 text-pink-400 transition-all duration-300 group-hover/cube:text-pink-300 group-hover/cube:drop-shadow-[0_0_8px_rgba(236,72,153,0.4)]" />}
+                      </div>
+                      <span className="text-[9px] font-medium text-muted-foreground group-hover/cube:text-foreground transition-colors">Instagram</span>
+                    </button>
+                  );
+                })()}
+
+                {[
+                  { id: "facebook", name: "Facebook", icon: Globe, hoverBorder: "hover:border-blue-500/40", hoverBg: "hover:bg-blue-500/5", hoverShadow: "hover:shadow-blue-500/20", iconColor: "text-blue-500", hoverIcon: "group-hover/cube:text-blue-400 group-hover/cube:drop-shadow-[0_0_8px_rgba(59,130,246,0.4)]", connected: facebookConnected, action: automatedFacebookConnect, expandFields: [{ val: fbAppId, set: setFbAppId, placeholder: "App ID", type: "text" }] },
+                  { id: "tiktok", name: "TikTok", icon: Music2, hoverBorder: "hover:border-cyan-400/40", hoverBg: "hover:bg-cyan-400/5", hoverShadow: "hover:shadow-cyan-400/20", iconColor: "text-cyan-400", hoverIcon: "group-hover/cube:text-cyan-300 group-hover/cube:drop-shadow-[0_0_8px_rgba(34,211,238,0.4)]", connected: ttConnected, action: automatedTikTokConnect, expandFields: [{ val: ttClientKey, set: setTtClientKey, placeholder: "Client Key", type: "text" }, { val: ttClientSecret, set: setTtClientSecret, placeholder: "Secret", type: "password" }] },
+                  { id: "twitter", name: "X", icon: Twitter, hoverBorder: "hover:border-sky-400/40", hoverBg: "hover:bg-sky-400/5", hoverShadow: "hover:shadow-sky-400/20", iconColor: "text-sky-400", hoverIcon: "group-hover/cube:text-sky-300 group-hover/cube:drop-shadow-[0_0_8px_rgba(56,189,248,0.4)]", connected: xConnected, action: automatedTwitterConnect, expandFields: [{ val: xClientId, set: setXClientId, placeholder: "Client ID", type: "text" }, { val: xClientSecret, set: setXClientSecret, placeholder: "Secret", type: "password" }] },
+                  { id: "reddit", name: "Reddit", icon: Globe, hoverBorder: "hover:border-orange-400/40", hoverBg: "hover:bg-orange-400/5", hoverShadow: "hover:shadow-orange-400/20", iconColor: "text-orange-400", hoverIcon: "group-hover/cube:text-orange-300 group-hover/cube:drop-shadow-[0_0_8px_rgba(251,146,60,0.4)]", connected: redditConnected, action: automatedRedditConnect, expandFields: [{ val: redditClientId, set: setRedditClientId, placeholder: "App ID", type: "text" }, { val: redditClientSecret, set: setRedditClientSecret, placeholder: "Secret", type: "password" }] },
+                  { id: "telegram", name: "Telegram", icon: Phone, hoverBorder: "hover:border-blue-400/40", hoverBg: "hover:bg-blue-400/5", hoverShadow: "hover:shadow-blue-400/20", iconColor: "text-blue-400", hoverIcon: "group-hover/cube:text-blue-300 group-hover/cube:drop-shadow-[0_0_8px_rgba(96,165,250,0.4)]", connected: telegramConnected, action: automatedTelegramConnect, expandFields: [{ val: telegramBotToken, set: setTelegramBotToken, placeholder: "Bot Token", type: "password" }] },
+                  { id: "threads", name: "Threads", icon: MessageCircle, hoverBorder: "hover:border-purple-400/40", hoverBg: "hover:bg-purple-400/5", hoverShadow: "hover:shadow-purple-400/20", iconColor: "text-purple-400", hoverIcon: "group-hover/cube:text-purple-300 group-hover/cube:drop-shadow-[0_0_8px_rgba(192,132,252,0.4)]", connected: threadsConnected, action: automatedThreadsConnect, expandFields: [{ val: threadsAppId, set: setThreadsAppId, placeholder: "App ID", type: "text" }, { val: threadsAppSecret, set: setThreadsAppSecret, placeholder: "Secret", type: "password" }] },
+                  { id: "whatsapp", name: "WhatsApp", icon: Phone, hoverBorder: "hover:border-green-400/40", hoverBg: "hover:bg-green-400/5", hoverShadow: "hover:shadow-green-400/20", iconColor: "text-green-400", hoverIcon: "group-hover/cube:text-green-300 group-hover/cube:drop-shadow-[0_0_8px_rgba(74,222,128,0.4)]", connected: whatsappConnected, action: automatedWhatsAppConnect, expandFields: [{ val: waPhoneNumberId, set: setWaPhoneNumberId, placeholder: "Phone ID", type: "text" }, { val: waAccessToken, set: setWaAccessToken, placeholder: "Token", type: "password" }] },
+                  { id: "snapchat", name: "Snap", icon: Camera, hoverBorder: "hover:border-yellow-400/40", hoverBg: "hover:bg-yellow-400/5", hoverShadow: "hover:shadow-yellow-400/20", iconColor: "text-yellow-400", hoverIcon: "group-hover/cube:text-yellow-300 group-hover/cube:drop-shadow-[0_0_8px_rgba(250,204,21,0.4)]", connected: snapchatConnected, action: automatedSnapchatConnect, expandFields: [{ val: snapClientId, set: setSnapClientId, placeholder: "Client ID", type: "text" }, { val: snapClientSecret, set: setSnapClientSecret, placeholder: "Secret", type: "password" }] },
+                  { id: "youtube", name: "YouTube", icon: Play, hoverBorder: "hover:border-red-400/40", hoverBg: "hover:bg-red-400/5", hoverShadow: "hover:shadow-red-400/20", iconColor: "text-red-400", hoverIcon: "group-hover/cube:text-red-300 group-hover/cube:drop-shadow-[0_0_8px_rgba(248,113,113,0.4)]", connected: youtubeConnected, action: automatedYouTubeConnect, expandFields: [{ val: ytClientId, set: setYtClientId, placeholder: "Client ID", type: "text" }, { val: ytClientSecret, set: setYtClientSecret, placeholder: "Secret", type: "password" }] },
+                  { id: "pinterest", name: "Pinterest", icon: Target, hoverBorder: "hover:border-rose-400/40", hoverBg: "hover:bg-rose-400/5", hoverShadow: "hover:shadow-rose-400/20", iconColor: "text-rose-400", hoverIcon: "group-hover/cube:text-rose-300 group-hover/cube:drop-shadow-[0_0_8px_rgba(251,113,133,0.4)]", connected: pinterestConnected, action: automatedPinterestConnect, expandFields: [{ val: pinAppId, set: setPinAppId, placeholder: "App ID", type: "text" }, { val: pinAppSecret, set: setPinAppSecret, placeholder: "Secret", type: "password" }] },
+                  { id: "discord", name: "Discord", icon: Gamepad2, hoverBorder: "hover:border-indigo-400/40", hoverBg: "hover:bg-indigo-400/5", hoverShadow: "hover:shadow-indigo-400/20", iconColor: "text-indigo-400", hoverIcon: "group-hover/cube:text-indigo-300 group-hover/cube:drop-shadow-[0_0_8px_rgba(129,140,248,0.4)]", connected: discordConnected, action: automatedDiscordConnect, expandFields: [{ val: discordBotToken, set: setDiscordBotToken, placeholder: "Bot Token", type: "password" }] },
+                  { id: "signal", name: "Signal", icon: Shield, hoverBorder: "hover:border-sky-300/40", hoverBg: "hover:bg-sky-300/5", hoverShadow: "hover:shadow-sky-300/20", iconColor: "text-sky-300", hoverIcon: "group-hover/cube:text-sky-200 group-hover/cube:drop-shadow-[0_0_8px_rgba(125,211,252,0.4)]", connected: signalConnected, action: automatedSignalConnect, expandFields: [{ val: signalApiUrl, set: setSignalApiUrl, placeholder: "API URL", type: "text" }, { val: signalPhoneNumber, set: setSignalPhoneNumber, placeholder: "Phone", type: "text" }] },
+                ].map(p => {
+                  const isLoading = autoConnectLoading === p.id;
+                  const needsFields = p.expandFields.some(f => !f.val);
+                  return (
+                    <div key={p.id} className="group/wrap relative">
+                      <button
+                        onClick={() => {
+                          if (needsFields) {
+                            // Show expand panel
+                            const el = document.getElementById(`connect-expand-${p.id}`);
+                            if (el) el.classList.toggle("hidden");
+                          } else {
+                            p.action();
+                          }
+                        }}
+                        disabled={isLoading}
+                        className={`group/cube relative flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl border border-border/50 bg-card/50 backdrop-blur-sm transition-all duration-300 ${p.hoverBorder} ${p.hoverBg} hover:shadow-[0_0_20px_-5px] ${p.hoverShadow} disabled:opacity-50 disabled:pointer-events-none aspect-square w-full`}
+                      >
+                        {p.connected && <div className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-green-400 shadow-[0_0_6px] shadow-green-400/60" />}
+                        <div className="relative">
+                          {isLoading ? <Loader2 className={`h-6 w-6 ${p.iconColor} animate-spin`} /> : <p.icon className={`h-6 w-6 ${p.iconColor} transition-all duration-300 ${p.hoverIcon}`} />}
+                        </div>
+                        <span className="text-[9px] font-medium text-muted-foreground group-hover/cube:text-foreground transition-colors truncate max-w-full">{p.name}</span>
+                      </button>
+                      {/* Expandable credentials panel */}
+                      <div id={`connect-expand-${p.id}`} className="hidden absolute z-20 top-full left-0 mt-1.5 w-56 p-3 rounded-xl border border-border bg-card shadow-xl space-y-2 animate-fade-in">
+                        {p.expandFields.map((f, i) => (
+                          <Input key={i} value={f.val} onChange={e => f.set(e.target.value)} placeholder={f.placeholder} type={f.type} className="text-xs h-7" />
+                        ))}
+                        <Button size="sm" onClick={() => { p.action(); const el = document.getElementById(`connect-expand-${p.id}`); if (el) el.classList.add("hidden"); }} disabled={isLoading} className="w-full h-7 text-[10px]">
+                          {isLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : "Connect"}
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </TabsContent>
           </Tabs>
         </TabsContent>
