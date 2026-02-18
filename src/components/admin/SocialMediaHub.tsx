@@ -2172,13 +2172,13 @@ const SocialMediaHub = () => {
 
         {/* ===== CONNECT ===== */}
         <TabsContent value="connect" className="space-y-4 mt-4">
-          <Tabs defaultValue="session" className="space-y-4">
+          <Tabs defaultValue="one-click" className="space-y-4">
             <TabsList className="bg-muted/50 p-1 rounded-lg">
-              <TabsTrigger value="session" className="text-xs gap-1.5 data-[state=active]:bg-background">
-                <Key className="h-3.5 w-3.5" /> Session & Credentials
-              </TabsTrigger>
               <TabsTrigger value="one-click" className="text-xs gap-1.5 data-[state=active]:bg-background">
                 <Zap className="h-3.5 w-3.5" /> One-Click Connect
+              </TabsTrigger>
+              <TabsTrigger value="session" className="text-xs gap-1.5 data-[state=active]:bg-background">
+                <Key className="h-3.5 w-3.5" /> Session & Credentials
               </TabsTrigger>
             </TabsList>
 
@@ -2450,25 +2450,10 @@ const SocialMediaHub = () => {
             {/* ===== ONE-CLICK CONNECT SUBTAB ===== */}
             <TabsContent value="one-click" className="space-y-5">
               {/* Header */}
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-bold text-foreground tracking-tight">Connect Platforms</h3>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">Tap to link your accounts instantly</p>
-                </div>
-                <Badge variant="outline" className="text-[9px] border-primary/30 text-primary gap-1"><Zap className="h-2.5 w-2.5" />OAuth</Badge>
+              <div>
+                <h3 className="text-sm font-bold text-foreground tracking-tight">Connect Platforms</h3>
+                <p className="text-[10px] text-muted-foreground mt-0.5">Tap to link your accounts instantly</p>
               </div>
-
-              {/* Redirect URI - collapsed */}
-              <details className="group">
-                <summary className="text-[10px] text-muted-foreground cursor-pointer hover:text-foreground transition-colors flex items-center gap-1.5">
-                  <Globe className="h-3 w-3" />Redirect URI
-                  <ArrowRight className="h-2.5 w-2.5 transition-transform group-open:rotate-90" />
-                </summary>
-                <div className="flex gap-2 mt-2">
-                  <Input value={oauthRedirectUri} onChange={e => setOauthRedirectUri(e.target.value)} placeholder="Redirect URI" className="text-xs flex-1 h-8" />
-                  <Button size="sm" variant="outline" className="h-8 w-8 p-0" onClick={() => { navigator.clipboard.writeText(oauthRedirectUri); toast.success("Copied!"); }}><Copy className="h-3 w-3" /></Button>
-                </div>
-              </details>
 
               {/* Platform Grid */}
               <div className="grid grid-cols-5 gap-2.5">
@@ -2479,7 +2464,7 @@ const SocialMediaHub = () => {
                     <button
                       onClick={openIgLoginPopup}
                       disabled={isLoading}
-                      className="group/cube relative flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl border border-border/50 bg-card/50 backdrop-blur-sm transition-all duration-300 hover:border-pink-500/40 hover:bg-pink-500/5 hover:shadow-[0_0_24px_-5px] hover:shadow-pink-500/20 disabled:opacity-50 disabled:pointer-events-none h-[88px]"
+                      className="group/cube relative flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl border border-border/50 bg-card/50 backdrop-blur-sm transition-all duration-300 hover:border-pink-500/40 hover:bg-pink-500/5 hover:shadow-[0_0_24px_-5px] hover:shadow-pink-500/20 disabled:opacity-50 disabled:pointer-events-none aspect-square"
                     >
                       {igConnected && <div className="absolute top-2 right-2 h-2 w-2 rounded-full bg-green-400 shadow-[0_0_6px] shadow-green-400/60" />}
                       <div className="relative">
@@ -2499,7 +2484,7 @@ const SocialMediaHub = () => {
                       <button
                         onClick={() => { if (needsFields) { const el = document.getElementById("connect-expand-facebook"); if (el) el.classList.toggle("hidden"); } else { automatedFacebookConnect(); } }}
                         disabled={isLoading}
-                        className="group/cube relative flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl border border-border/50 bg-card/50 backdrop-blur-sm transition-all duration-300 hover:border-blue-500/40 hover:bg-blue-500/5 hover:shadow-[0_0_24px_-5px] hover:shadow-blue-500/20 disabled:opacity-50 disabled:pointer-events-none h-[88px] w-full"
+                        className="group/cube relative flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl border border-border/50 bg-card/50 backdrop-blur-sm transition-all duration-300 hover:border-blue-500/40 hover:bg-blue-500/5 hover:shadow-[0_0_24px_-5px] hover:shadow-blue-500/20 disabled:opacity-50 disabled:pointer-events-none aspect-square w-full"
                       >
                         {facebookConnected && <div className="absolute top-2 right-2 h-2 w-2 rounded-full bg-green-400 shadow-[0_0_6px] shadow-green-400/60" />}
                         <div className="relative">
@@ -2544,7 +2529,7 @@ const SocialMediaHub = () => {
                           }
                         }}
                         disabled={isLoading}
-                        className={`group/cube relative flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl border border-border/50 bg-card/50 backdrop-blur-sm transition-all duration-300 ${p.hoverBorder} ${p.hoverBg} hover:shadow-[0_0_24px_-5px] ${p.hoverShadow} disabled:opacity-50 disabled:pointer-events-none h-[88px] w-full`}
+                        className={`group/cube relative flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl border border-border/50 bg-card/50 backdrop-blur-sm transition-all duration-300 ${p.hoverBorder} ${p.hoverBg} hover:shadow-[0_0_24px_-5px] ${p.hoverShadow} disabled:opacity-50 disabled:pointer-events-none aspect-square w-full`}
                       >
                         {p.connected && <div className="absolute top-2 right-2 h-2 w-2 rounded-full bg-green-400 shadow-[0_0_6px] shadow-green-400/60" />}
                         <div className="relative">
