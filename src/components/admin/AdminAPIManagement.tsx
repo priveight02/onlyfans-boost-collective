@@ -7,11 +7,12 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import {
   Code2, Copy, Check, Search, Globe, Lock, Zap, Database, ChevronDown, ChevronRight,
   Server, Shield, BookOpen, Terminal, Send, Loader2, Play, Key, Plus, Trash2, Eye,
-  EyeOff, RefreshCw, AlertTriangle, Clock, BarChart3, Users,
+  EyeOff, RefreshCw, AlertTriangle, Clock, BarChart3, Users, Settings, Ban, UserCheck,
+  Edit, Save,
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -213,7 +214,15 @@ const ADMIN_API_GROUPS: EndpointGroup[] = [
         { name: "is_active", type: "boolean", description: "Filter active/revoked" },
       ] },
       { method: "GET", path: "/v1/api-keys/:id", description: "Get API key details" },
+      { method: "PATCH", path: "/v1/api-keys/:id", description: "Update key quotas, scopes, or status" },
       { method: "DELETE", path: "/v1/api-keys/:id", description: "Revoke an API key" },
+      { method: "POST", path: "/v1/api-keys/grant", description: "Grant a new API key to a user", body: [
+        { name: "user_id", type: "uuid", required: true, description: "Target user ID" },
+        { name: "name", type: "string", required: true, description: "Key name" },
+        { name: "scopes", type: "string[]", description: "Permissions" },
+        { name: "rate_limit_rpm", type: "number", description: "RPM limit" },
+        { name: "rate_limit_daily", type: "number", description: "Daily limit" },
+      ] },
       { method: "GET", path: "/v1/api-keys/usage", description: "Get aggregated API usage stats" },
     ],
   },
@@ -242,6 +251,13 @@ interface ApiKeyRow {
   user_id: string;
 }
 
+interface UserProfile {
+  user_id: string;
+  email: string;
+  display_name: string | null;
+  username: string | null;
+}
+
 const AdminAPIManagement = () => {
   const [search, setSearch] = useState("");
   const [copied, setCopied] = useState("");
@@ -250,6 +266,29 @@ const AdminAPIManagement = () => {
   // API Keys state
   const [apiKeys, setApiKeys] = useState<ApiKeyRow[]>([]);
   const [keysLoading, setKeysLoading] = useState(false);
+  const [userProfiles, setUserProfiles] = useState<Record<string, UserProfile>>({});
+  const [keyFilter, setKeyFilter] = useState<"all" | "active" | "revoked">("all");
+  const [keyUserFilter, setKeyUserFilter] = useState("");
+
+  // Edit key dialog
+  const [editingKey, setEditingKey] = useState<ApiKeyRow | null>(null);
+  const [editRpm, setEditRpm] = useState("");
+  const [editDaily, setEditDaily] = useState("");
+  const [editScopes, setEditScopes] = useState<string[]>([]);
+  const [editScopeDropdownOpen, setEditScopeDropdownOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  // Grant key dialog
+  const [showGrantDialog, setShowGrantDialog] = useState(false);
+  const [grantUserId, setGrantUserId] = useState("");
+  const [grantKeyName, setGrantKeyName] = useState("");
+  const [grantScopes, setGrantScopes] = useState<string[]>(["read"]);
+  const [grantRpm, setGrantRpm] = useState("60");
+  const [grantDaily, setGrantDaily] = useState("10000");
+  const [grantScopeDropdownOpen, setGrantScopeDropdownOpen] = useState(false);
+  const [granting, setGranting] = useState(false);
+  const [grantedKey, setGrantedKey] = useState<string | null>(null);
+  const [showGrantedKey, setShowGrantedKey] = useState(false);
 
   // Playground state
   const [pgSearch, setPgSearch] = useState("");
@@ -292,11 +331,45 @@ const AdminAPIManagement = () => {
     })).filter(g => g.endpoints.length > 0);
   }, [pgSearch]);
 
+  const filteredKeys = useMemo(() => {
+    let keys = apiKeys;
+    if (keyFilter === "active") keys = keys.filter(k => k.is_active);
+    if (keyFilter === "revoked") keys = keys.filter(k => !k.is_active);
+    if (keyUserFilter.trim()) {
+      const q = keyUserFilter.toLowerCase();
+      keys = keys.filter(k => {
+        const profile = userProfiles[k.user_id];
+        if (!profile) return k.user_id.toLowerCase().includes(q);
+        return (
+          (profile.email || "").toLowerCase().includes(q) ||
+          (profile.display_name || "").toLowerCase().includes(q) ||
+          (profile.username || "").toLowerCase().includes(q) ||
+          k.user_id.toLowerCase().includes(q) ||
+          k.name.toLowerCase().includes(q)
+        );
+      });
+    }
+    return keys;
+  }, [apiKeys, keyFilter, keyUserFilter, userProfiles]);
+
   const loadApiKeys = async () => {
     setKeysLoading(true);
     const { data, error } = await supabase.from("api_keys").select("*").order("created_at", { ascending: false });
     if (error) toast.error("Failed to load API keys");
-    else setApiKeys((data || []) as ApiKeyRow[]);
+    else {
+      const keys = (data || []) as ApiKeyRow[];
+      setApiKeys(keys);
+      // Load user profiles for all unique user_ids
+      const userIds = [...new Set(keys.map(k => k.user_id))];
+      if (userIds.length > 0) {
+        const { data: profiles } = await supabase.from("profiles").select("user_id, email, display_name, username").in("user_id", userIds);
+        if (profiles) {
+          const profileMap: Record<string, UserProfile> = {};
+          profiles.forEach((p: any) => { profileMap[p.user_id] = p; });
+          setUserProfiles(profileMap);
+        }
+      }
+    }
     setKeysLoading(false);
   };
 
@@ -304,6 +377,87 @@ const AdminAPIManagement = () => {
     const { error } = await supabase.from("api_keys").update({ is_active: false, revoked_at: new Date().toISOString() }).eq("id", id);
     if (error) toast.error("Failed to revoke key");
     else { toast.success("API key revoked"); loadApiKeys(); }
+  };
+
+  const reactivateKey = async (id: string) => {
+    const { error } = await supabase.from("api_keys").update({ is_active: true, revoked_at: null }).eq("id", id);
+    if (error) toast.error("Failed to reactivate key");
+    else { toast.success("API key reactivated"); loadApiKeys(); }
+  };
+
+  const deleteKey = async (id: string) => {
+    const { error } = await supabase.from("api_keys").delete().eq("id", id);
+    if (error) toast.error("Failed to delete key");
+    else { toast.success("API key permanently deleted"); loadApiKeys(); }
+  };
+
+  const openEditDialog = (key: ApiKeyRow) => {
+    setEditingKey(key);
+    setEditRpm(String(key.rate_limit_rpm));
+    setEditDaily(String(key.rate_limit_daily));
+    setEditScopes([...key.scopes]);
+    setEditScopeDropdownOpen(false);
+  };
+
+  const saveKeyChanges = async () => {
+    if (!editingKey) return;
+    setSaving(true);
+    const { error } = await supabase.from("api_keys").update({
+      rate_limit_rpm: parseInt(editRpm) || 60,
+      rate_limit_daily: parseInt(editDaily) || 10000,
+      scopes: editScopes,
+    }).eq("id", editingKey.id);
+    if (error) toast.error("Failed to update key");
+    else { toast.success("API key updated"); setEditingKey(null); loadApiKeys(); }
+    setSaving(false);
+  };
+
+  const generateApiKey = () => {
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    let key = "ozcpk_live_";
+    for (let i = 0; i < 40; i++) key += chars.charAt(Math.floor(Math.random() * chars.length));
+    return key;
+  };
+
+  const hashKey = async (key: string): Promise<string> => {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(key);
+    const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+  };
+
+  const grantApiKey = async () => {
+    if (!grantUserId.trim() || !grantKeyName.trim()) { toast.error("User ID and key name are required"); return; }
+    setGranting(true);
+    try {
+      const rawKey = generateApiKey();
+      const keyHash = await hashKey(rawKey);
+      const prefix = rawKey.substring(0, 16);
+      const { error } = await supabase.from("api_keys").insert({
+        user_id: grantUserId.trim(),
+        name: grantKeyName.trim(),
+        key_prefix: prefix,
+        key_hash: keyHash,
+        scopes: grantScopes.length > 0 ? grantScopes : ["read"],
+        rate_limit_rpm: parseInt(grantRpm) || 60,
+        rate_limit_daily: parseInt(grantDaily) || 10000,
+      });
+      if (error) throw error;
+      setGrantedKey(rawKey);
+      setShowGrantedKey(true);
+      toast.success("API key granted to user");
+      loadApiKeys();
+    } catch (e: any) {
+      toast.error(e.message || "Failed to grant key");
+    }
+    setGranting(false);
+  };
+
+  const resetQuota = async (id: string) => {
+    const { error } = await supabase.from("api_keys").update({ requests_today: 0 }).eq("id", id);
+    if (error) toast.error("Failed to reset quota");
+    else { toast.success("Daily quota reset"); loadApiKeys(); }
   };
 
   const copyToClipboard = (text: string, label: string) => {
@@ -401,6 +555,52 @@ const AdminAPIManagement = () => {
     setPgLoading(false);
   };
 
+  const ScopeDropdown = ({ scopes, setScopes, open, setOpen }: { scopes: string[]; setScopes: (s: string[]) => void; open: boolean; setOpen: (o: boolean) => void }) => (
+    <div className="relative">
+      <button type="button" onClick={() => setOpen(!open)}
+        className="flex items-center justify-between w-full rounded-md border border-white/10 bg-white/5 px-3 py-2 text-sm text-white h-10">
+        <span className="truncate text-white/70">
+          {scopes.length === 4 ? "All Permissions" : scopes.length === 0 ? "Select scopes..." : scopes.join(", ")}
+        </span>
+        <ChevronDown className="h-4 w-4 opacity-50 flex-shrink-0" />
+      </button>
+      {open && (
+        <div className="absolute z-50 mt-1 w-full rounded-md border border-white/10 bg-[hsl(220,100%,8%)] shadow-lg">
+          {[
+            { value: "all", label: "All Permissions", desc: "Full access — read, write, delete, admin" },
+            { value: "read", label: "Read", desc: "GET requests — view data" },
+            { value: "write", label: "Write", desc: "POST/PATCH requests — create & update" },
+            { value: "delete", label: "Delete", desc: "DELETE requests — remove data" },
+            { value: "admin", label: "Admin", desc: "Admin-level operations" },
+          ].map((scope) => {
+            const isAll = scope.value === "all";
+            const isAllSelected = scopes.length === 4;
+            const isChecked = isAll ? isAllSelected : scopes.includes(scope.value);
+            return (
+              <button key={scope.value} type="button"
+                onClick={() => {
+                  if (isAll) setScopes(isAllSelected ? [] : ["read", "write", "delete", "admin"]);
+                  else setScopes(scopes.includes(scope.value) ? scopes.filter(s => s !== scope.value) : [...scopes, scope.value]);
+                }}
+                className="w-full flex items-start gap-3 px-3 py-2.5 hover:bg-white/5 transition-colors text-left">
+                <div className={`mt-0.5 h-4 w-4 rounded border flex-shrink-0 flex items-center justify-center ${isChecked ? "bg-accent border-accent" : "border-white/20"}`}>
+                  {isChecked && <Check className="h-3 w-3 text-accent-foreground" />}
+                </div>
+                <div>
+                  <span className="text-sm text-white font-medium">{scope.label}</span>
+                  <p className="text-[10px] text-white/40 mt-0.5">{scope.desc}</p>
+                </div>
+              </button>
+            );
+          })}
+          <div className="border-t border-white/10 p-2">
+            <Button size="sm" onClick={() => setOpen(false)} className="w-full h-7 text-xs bg-accent hover:bg-accent/90 text-accent-foreground">Done</Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -424,9 +624,12 @@ const AdminAPIManagement = () => {
       </div>
 
       <Tabs defaultValue="keys" className="space-y-4">
-        <TabsList className="bg-white/5 border border-white/10 p-1 rounded-xl h-auto gap-1">
+        <TabsList className="bg-white/5 border border-white/10 p-1 rounded-xl h-auto gap-1 flex-wrap">
           <TabsTrigger value="keys" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
             <Key className="h-3.5 w-3.5" /> API Keys
+          </TabsTrigger>
+          <TabsTrigger value="users" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
+            <Users className="h-3.5 w-3.5" /> API Users
           </TabsTrigger>
           <TabsTrigger value="docs" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
             <BookOpen className="h-3.5 w-3.5" /> Documentation
@@ -443,19 +646,41 @@ const AdminAPIManagement = () => {
         <TabsContent value="keys" className="space-y-4">
           <Card className="bg-white/[0.03] border-white/[0.06]">
             <CardHeader className="p-4">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between flex-wrap gap-2">
                 <CardTitle className="text-sm text-white flex items-center gap-2">
                   <Key className="h-4 w-4 text-accent" /> Platform API Keys
+                  <Badge variant="outline" className="text-[10px] border-white/10 text-white/40">{apiKeys.length} total</Badge>
                 </CardTitle>
                 <div className="flex gap-2">
                   <Button size="sm" variant="outline" onClick={loadApiKeys} disabled={keysLoading} className="h-7 text-xs border-white/10 text-white/60 hover:text-white gap-1.5">
                     <RefreshCw className={`h-3 w-3 ${keysLoading ? "animate-spin" : ""}`} /> Load Keys
                   </Button>
+                  <Button size="sm" onClick={() => { setShowGrantDialog(true); setGrantedKey(null); setGrantUserId(""); setGrantKeyName(""); setGrantScopes(["read"]); setGrantRpm("60"); setGrantDaily("10000"); }}
+                    className="h-7 text-xs bg-accent hover:bg-accent/90 text-accent-foreground gap-1.5">
+                    <Plus className="h-3 w-3" /> Grant Key
+                  </Button>
+                </div>
+              </div>
+              {/* Filters */}
+              <div className="flex items-center gap-2 mt-3 flex-wrap">
+                <div className="flex gap-1">
+                  {(["all", "active", "revoked"] as const).map((f) => (
+                    <Button key={f} size="sm" variant={keyFilter === f ? "default" : "outline"}
+                      onClick={() => setKeyFilter(f)}
+                      className={`h-6 text-[10px] px-2 ${keyFilter === f ? "bg-accent text-accent-foreground" : "border-white/10 text-white/40"}`}>
+                      {f === "all" ? "All" : f === "active" ? "Active" : "Revoked"}
+                    </Button>
+                  ))}
+                </div>
+                <div className="relative flex-1 min-w-[200px]">
+                  <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-white/30" />
+                  <Input placeholder="Search by user, email, key name..." value={keyUserFilter} onChange={e => setKeyUserFilter(e.target.value)}
+                    className="pl-7 bg-white/5 border-white/10 text-white placeholder:text-white/30 h-7 text-[11px]" />
                 </div>
               </div>
             </CardHeader>
             <CardContent className="p-4 pt-0">
-              {apiKeys.length === 0 ? (
+              {filteredKeys.length === 0 ? (
                 <div className="text-center py-8 text-white/30">
                   <Key className="h-10 w-10 mx-auto mb-3 opacity-30" />
                   <p className="text-sm">No API keys found</p>
@@ -463,47 +688,77 @@ const AdminAPIManagement = () => {
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {apiKeys.map((key) => (
-                    <div key={key.id} className="flex items-center justify-between p-3 rounded-lg bg-white/[0.02] border border-white/[0.06]">
-                      <div className="flex items-center gap-3">
-                        <div className={`p-1.5 rounded-md ${key.is_active ? "bg-emerald-500/10" : "bg-red-500/10"}`}>
-                          <Key className={`h-3.5 w-3.5 ${key.is_active ? "text-emerald-400" : "text-red-400"}`} />
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium text-white">{key.name}</span>
-                            <code className="text-[10px] text-white/30 font-mono bg-white/5 px-1.5 rounded">{key.key_prefix}•••</code>
-                            <Badge className={`text-[9px] ${key.is_active ? "bg-emerald-500/10 text-emerald-300 border-emerald-500/20" : "bg-red-500/10 text-red-300 border-red-500/20"} border`}>
-                              {key.is_active ? "Active" : "Revoked"}
-                            </Badge>
+                  {filteredKeys.map((key) => {
+                    const profile = userProfiles[key.user_id];
+                    return (
+                      <div key={key.id} className="p-3 rounded-lg bg-white/[0.02] border border-white/[0.06]">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-start gap-3 min-w-0">
+                            <div className={`p-1.5 rounded-md mt-0.5 ${key.is_active ? "bg-emerald-500/10" : "bg-red-500/10"}`}>
+                              <Key className={`h-3.5 w-3.5 ${key.is_active ? "text-emerald-400" : "text-red-400"}`} />
+                            </div>
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-sm font-medium text-white">{key.name}</span>
+                                <code className="text-[10px] text-white/30 font-mono bg-white/5 px-1.5 rounded">{key.key_prefix}•••</code>
+                                <Badge className={`text-[9px] ${key.is_active ? "bg-emerald-500/10 text-emerald-300 border-emerald-500/20" : "bg-red-500/10 text-red-300 border-red-500/20"} border`}>
+                                  {key.is_active ? "Active" : "Revoked"}
+                                </Badge>
+                              </div>
+                              {/* User info */}
+                              <div className="flex items-center gap-2 mt-1">
+                                <Users className="h-3 w-3 text-white/20" />
+                                <span className="text-[10px] text-white/40">
+                                  {profile ? `${profile.display_name || profile.username || "—"} (${profile.email})` : key.user_id.slice(0, 8) + "..."}
+                                </span>
+                              </div>
+                              {/* Stats row */}
+                              <div className="flex items-center gap-3 mt-1 flex-wrap">
+                                <span className="text-[10px] text-white/25">Scopes: {key.scopes.join(", ") || "none"}</span>
+                                <span className="text-[10px] text-white/25">{key.rate_limit_rpm} RPM</span>
+                                <span className="text-[10px] text-white/25">{key.rate_limit_daily.toLocaleString()} daily</span>
+                                <span className="text-[10px] text-white/25">{key.requests_today}/{key.rate_limit_daily} today</span>
+                                <span className="text-[10px] text-white/25">{Number(key.requests_total).toLocaleString()} total</span>
+                                {key.last_used_at && <span className="text-[10px] text-white/25">Last: {new Date(key.last_used_at).toLocaleDateString()}</span>}
+                                {key.expires_at && (
+                                  <span className="text-[10px] text-amber-400/60 flex items-center gap-1">
+                                    <Clock className="h-2.5 w-2.5" /> Expires {new Date(key.expires_at).toLocaleDateString()}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-3 mt-0.5">
-                            <span className="text-[10px] text-white/25">{key.requests_total.toLocaleString()} requests total</span>
-                            <span className="text-[10px] text-white/25">{key.rate_limit_rpm} RPM</span>
-                            {key.last_used_at && (
-                              <span className="text-[10px] text-white/25">Last: {new Date(key.last_used_at).toLocaleDateString()}</span>
+                          {/* Actions */}
+                          <div className="flex items-center gap-1 flex-shrink-0">
+                            <Button size="sm" variant="ghost" onClick={() => openEditDialog(key)} className="h-7 w-7 p-0 text-white/30 hover:text-white" title="Edit quotas & scopes">
+                              <Edit className="h-3 w-3" />
+                            </Button>
+                            <Button size="sm" variant="ghost" onClick={() => resetQuota(key.id)} className="h-7 w-7 p-0 text-white/30 hover:text-blue-300" title="Reset daily quota">
+                              <RefreshCw className="h-3 w-3" />
+                            </Button>
+                            {key.is_active ? (
+                              <Button size="sm" variant="ghost" onClick={() => revokeKey(key.id)} className="h-7 w-7 p-0 text-white/30 hover:text-red-300" title="Revoke key">
+                                <Ban className="h-3 w-3" />
+                              </Button>
+                            ) : (
+                              <Button size="sm" variant="ghost" onClick={() => reactivateKey(key.id)} className="h-7 w-7 p-0 text-white/30 hover:text-emerald-300" title="Reactivate key">
+                                <UserCheck className="h-3 w-3" />
+                              </Button>
                             )}
-                            {key.scopes.length > 0 && (
-                              <span className="text-[10px] text-white/25">{key.scopes.length} scopes</span>
-                            )}
+                            <Button size="sm" variant="ghost" onClick={() => deleteKey(key.id)} className="h-7 w-7 p-0 text-white/30 hover:text-red-400" title="Delete permanently">
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
                           </div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        {key.is_active && (
-                          <Button size="sm" variant="ghost" onClick={() => revokeKey(key.id)} className="h-7 text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10 gap-1">
-                            <Trash2 className="h-3 w-3" /> Revoke
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </CardContent>
           </Card>
 
-          {/* API Key Info */}
+          {/* Security Info */}
           <Card className="bg-amber-500/5 border-amber-500/15">
             <CardContent className="p-4">
               <div className="flex items-start gap-3">
@@ -512,14 +767,116 @@ const AdminAPIManagement = () => {
                   <p className="font-semibold text-amber-300">API Key Security</p>
                   <ul className="list-disc pl-4 space-y-0.5">
                     <li>API keys are hashed with SHA-256 — raw keys are never stored</li>
-                    <li>Keys support fine-grained scope permissions (read, write, admin)</li>
+                    <li>Keys support fine-grained scope permissions (read, write, delete, admin)</li>
                     <li>Rate limiting is enforced per-key (RPM + daily limits)</li>
                     <li>All API key usage is tracked and auditable</li>
-                    <li>Keys can be revoked instantly — takes effect immediately</li>
-                    <li>Optional expiration dates for temporary access</li>
+                    <li>Keys can be revoked/reactivated or permanently deleted</li>
+                    <li>Admin can grant keys to any user with custom quotas</li>
                   </ul>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ── API USERS TAB ── */}
+        <TabsContent value="users" className="space-y-4">
+          <Card className="bg-white/[0.03] border-white/[0.06]">
+            <CardHeader className="p-4">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm text-white flex items-center gap-2">
+                  <Users className="h-4 w-4 text-accent" /> API Users Overview
+                </CardTitle>
+                <Button size="sm" variant="outline" onClick={loadApiKeys} disabled={keysLoading} className="h-7 text-xs border-white/10 text-white/60 hover:text-white gap-1.5">
+                  <RefreshCw className={`h-3 w-3 ${keysLoading ? "animate-spin" : ""}`} /> Refresh
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="p-4 pt-0">
+              {(() => {
+                const userMap = new Map<string, { keys: ApiKeyRow[]; profile: UserProfile | undefined }>();
+                apiKeys.forEach(k => {
+                  if (!userMap.has(k.user_id)) userMap.set(k.user_id, { keys: [], profile: userProfiles[k.user_id] });
+                  userMap.get(k.user_id)!.keys.push(k);
+                });
+                const users = Array.from(userMap.entries());
+                if (users.length === 0) return (
+                  <div className="text-center py-8 text-white/30">
+                    <Users className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                    <p className="text-sm">No API users found</p>
+                    <p className="text-xs text-white/20 mt-1">Load keys first to see user breakdown</p>
+                  </div>
+                );
+                return (
+                  <div className="space-y-3">
+                    {users.map(([userId, { keys, profile }]) => {
+                      const activeKeys = keys.filter(k => k.is_active).length;
+                      const totalReqs = keys.reduce((s, k) => s + Number(k.requests_total), 0);
+                      const todayReqs = keys.reduce((s, k) => s + k.requests_today, 0);
+                      return (
+                        <div key={userId} className="p-4 rounded-lg bg-white/[0.02] border border-white/[0.06]">
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <div className="h-8 w-8 rounded-full bg-accent/10 flex items-center justify-center">
+                                  <Users className="h-4 w-4 text-accent" />
+                                </div>
+                                <div>
+                                  <p className="text-sm font-medium text-white">{profile?.display_name || profile?.username || "Unknown User"}</p>
+                                  <p className="text-[10px] text-white/40">{profile?.email || userId.slice(0, 16) + "..."}</p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-4 mt-3">
+                                <div className="text-center">
+                                  <p className="text-lg font-bold text-white">{keys.length}</p>
+                                  <p className="text-[10px] text-white/30">Total Keys</p>
+                                </div>
+                                <div className="text-center">
+                                  <p className="text-lg font-bold text-emerald-400">{activeKeys}</p>
+                                  <p className="text-[10px] text-white/30">Active</p>
+                                </div>
+                                <div className="text-center">
+                                  <p className="text-lg font-bold text-blue-400">{todayReqs.toLocaleString()}</p>
+                                  <p className="text-[10px] text-white/30">Today</p>
+                                </div>
+                                <div className="text-center">
+                                  <p className="text-lg font-bold text-white/60">{totalReqs.toLocaleString()}</p>
+                                  <p className="text-[10px] text-white/30">All Time</p>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex gap-1">
+                              <Button size="sm" variant="outline" onClick={() => { setShowGrantDialog(true); setGrantedKey(null); setGrantUserId(userId); setGrantKeyName(""); setGrantScopes(["read"]); setGrantRpm("60"); setGrantDaily("10000"); }}
+                                className="h-7 text-xs border-white/10 text-white/50 gap-1">
+                                <Plus className="h-3 w-3" /> Grant Key
+                              </Button>
+                              <Button size="sm" variant="ghost" onClick={async () => {
+                                for (const k of keys.filter(k => k.is_active)) await revokeKey(k.id);
+                              }} className="h-7 text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10 gap-1">
+                                <Ban className="h-3 w-3" /> Revoke All
+                              </Button>
+                            </div>
+                          </div>
+                          {/* Keys list */}
+                          <div className="mt-3 space-y-1">
+                            {keys.map(k => (
+                              <div key={k.id} className="flex items-center justify-between text-[11px] py-1.5 px-2 rounded bg-white/[0.02]">
+                                <div className="flex items-center gap-2">
+                                  <div className={`h-1.5 w-1.5 rounded-full ${k.is_active ? "bg-emerald-400" : "bg-red-400"}`} />
+                                  <span className="text-white/60">{k.name}</span>
+                                  <code className="text-white/20 font-mono">{k.key_prefix}•••</code>
+                                  <span className="text-white/20">{k.scopes.join(", ")}</span>
+                                </div>
+                                <span className="text-white/20">{Number(k.requests_total).toLocaleString()} reqs</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
             </CardContent>
           </Card>
         </TabsContent>
@@ -537,12 +894,8 @@ const AdminAPIManagement = () => {
                     <code className="bg-white/5 px-2 py-1 rounded text-[11px] text-accent font-mono">
                       X-API-Key: ozcpk_live_••••••••••••••••
                     </code>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-6 w-6 p-0 text-white/30 hover:text-white"
-                      onClick={() => copyToClipboard('X-API-Key: ozcpk_live_YOUR_API_KEY', 'auth-header')}
-                    >
+                    <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-white/30 hover:text-white"
+                      onClick={() => copyToClipboard('X-API-Key: ozcpk_live_YOUR_API_KEY', 'auth-header')}>
                       {copied === "auth-header" ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
                     </Button>
                   </div>
@@ -560,12 +913,8 @@ const AdminAPIManagement = () => {
                 </div>
                 <div className="flex items-center gap-2">
                   <code className="bg-white/5 px-3 py-1.5 rounded text-xs text-emerald-300 font-mono">{BASE_URL}</code>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-7 w-7 p-0 text-white/30 hover:text-white"
-                    onClick={() => copyToClipboard(BASE_URL, 'base-url')}
-                  >
+                  <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-white/30 hover:text-white"
+                    onClick={() => copyToClipboard(BASE_URL, 'base-url')}>
                     {copied === "base-url" ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
                   </Button>
                 </div>
@@ -575,12 +924,8 @@ const AdminAPIManagement = () => {
 
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30" />
-            <Input
-              placeholder={`Search ${totalEndpoints} admin endpoints...`}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-10 bg-white/5 border-white/10 text-white placeholder:text-white/30 h-9 text-sm"
-            />
+            <Input placeholder={`Search ${totalEndpoints} admin endpoints...`} value={search} onChange={(e) => setSearch(e.target.value)}
+              className="pl-10 bg-white/5 border-white/10 text-white placeholder:text-white/30 h-9 text-sm" />
           </div>
 
           <ScrollArea className="h-[calc(100vh-500px)] min-h-[400px]">
@@ -658,12 +1003,8 @@ const AdminAPIManagement = () => {
               <div className="p-3 border-b border-white/[0.06]">
                 <div className="relative">
                   <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/30" />
-                  <Input
-                    placeholder={`Search ${totalEndpoints} admin endpoints...`}
-                    value={pgSearch}
-                    onChange={(e) => setPgSearch(e.target.value)}
-                    className="pl-8 bg-white/5 border-white/10 text-white placeholder:text-white/30 h-8 text-xs"
-                  />
+                  <Input placeholder={`Search ${totalEndpoints} admin endpoints...`} value={pgSearch} onChange={(e) => setPgSearch(e.target.value)}
+                    className="pl-8 bg-white/5 border-white/10 text-white placeholder:text-white/30 h-8 text-xs" />
                 </div>
               </div>
               <ScrollArea className="flex-1">
@@ -819,10 +1160,17 @@ const AdminAPIManagement = () => {
 
         {/* ── USAGE TAB ── */}
         <TabsContent value="usage" className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <Card className="bg-white/[0.03] border-white/[0.06]">
               <CardContent className="p-4 text-center">
-                <Key className="h-6 w-6 text-accent mx-auto mb-2" />
+                <Users className="h-6 w-6 text-accent mx-auto mb-2" />
+                <p className="text-2xl font-bold text-white">{new Set(apiKeys.map(k => k.user_id)).size}</p>
+                <p className="text-xs text-white/40">API Users</p>
+              </CardContent>
+            </Card>
+            <Card className="bg-white/[0.03] border-white/[0.06]">
+              <CardContent className="p-4 text-center">
+                <Key className="h-6 w-6 text-emerald-400 mx-auto mb-2" />
                 <p className="text-2xl font-bold text-white">{apiKeys.filter(k => k.is_active).length}</p>
                 <p className="text-xs text-white/40">Active Keys</p>
               </CardContent>
@@ -836,7 +1184,7 @@ const AdminAPIManagement = () => {
             </Card>
             <Card className="bg-white/[0.03] border-white/[0.06]">
               <CardContent className="p-4 text-center">
-                <Database className="h-6 w-6 text-emerald-400 mx-auto mb-2" />
+                <Database className="h-6 w-6 text-amber-400 mx-auto mb-2" />
                 <p className="text-2xl font-bold text-white">{apiKeys.reduce((s, k) => s + Number(k.requests_total), 0).toLocaleString()}</p>
                 <p className="text-xs text-white/40">Total Requests</p>
               </CardContent>
@@ -845,7 +1193,7 @@ const AdminAPIManagement = () => {
 
           <Card className="bg-white/[0.03] border-white/[0.06]">
             <CardHeader className="p-4">
-              <CardTitle className="text-sm text-white">API Key Activity</CardTitle>
+              <CardTitle className="text-sm text-white">Top API Keys by Usage</CardTitle>
             </CardHeader>
             <CardContent className="p-4 pt-0">
               <Button size="sm" onClick={loadApiKeys} disabled={keysLoading} className="h-7 text-xs gap-1.5">
@@ -853,24 +1201,140 @@ const AdminAPIManagement = () => {
               </Button>
               {apiKeys.length > 0 && (
                 <div className="mt-4 space-y-2">
-                  {apiKeys.slice(0, 10).map((key) => (
-                    <div key={key.id} className="flex items-center justify-between text-xs p-2 rounded bg-white/[0.02]">
-                      <div className="flex items-center gap-2">
-                        <code className="text-white/40 font-mono">{key.key_prefix}•••</code>
-                        <span className="text-white/60">{key.name}</span>
+                  {[...apiKeys].sort((a, b) => Number(b.requests_total) - Number(a.requests_total)).slice(0, 10).map((key) => {
+                    const profile = userProfiles[key.user_id];
+                    return (
+                      <div key={key.id} className="flex items-center justify-between text-xs p-2 rounded bg-white/[0.02]">
+                        <div className="flex items-center gap-2">
+                          <div className={`h-1.5 w-1.5 rounded-full ${key.is_active ? "bg-emerald-400" : "bg-red-400"}`} />
+                          <code className="text-white/40 font-mono">{key.key_prefix}•••</code>
+                          <span className="text-white/60">{key.name}</span>
+                          <span className="text-white/20">({profile?.email || key.user_id.slice(0, 8)})</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="text-white/30">{key.requests_today} today</span>
+                          <span className="text-white/30">{Number(key.requests_total).toLocaleString()} total</span>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-3">
-                        <span className="text-white/30">{key.requests_today} today</span>
-                        <span className="text-white/30">{Number(key.requests_total).toLocaleString()} total</span>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Edit Key Dialog */}
+      <Dialog open={!!editingKey} onOpenChange={(open) => { if (!open) setEditingKey(null); }}>
+        <DialogContent className="bg-[hsl(220,100%,8%)] border-white/10 text-white max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Settings className="h-5 w-5 text-accent" /> Edit API Key
+            </DialogTitle>
+          </DialogHeader>
+          {editingKey && (
+            <div className="space-y-4">
+              <div className="p-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-white">{editingKey.name}</span>
+                  <code className="text-[10px] text-white/30 font-mono bg-white/5 px-1.5 rounded">{editingKey.key_prefix}•••</code>
+                </div>
+                <p className="text-[10px] text-white/40 mt-1">
+                  Owner: {userProfiles[editingKey.user_id]?.email || editingKey.user_id.slice(0, 16)}
+                </p>
+              </div>
+              <div>
+                <label className="text-xs text-white/60 mb-1.5 block">Scopes</label>
+                <ScopeDropdown scopes={editScopes} setScopes={setEditScopes} open={editScopeDropdownOpen} setOpen={setEditScopeDropdownOpen} />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-white/60 mb-1 block">RPM Limit</label>
+                  <Input value={editRpm} onChange={e => setEditRpm(e.target.value)} type="number" className="bg-white/5 border-white/10 text-white text-sm" />
+                </div>
+                <div>
+                  <label className="text-xs text-white/60 mb-1 block">Daily Limit</label>
+                  <Input value={editDaily} onChange={e => setEditDaily(e.target.value)} type="number" className="bg-white/5 border-white/10 text-white text-sm" />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="ghost" onClick={() => setEditingKey(null)} className="text-white/60">Cancel</Button>
+                <Button onClick={saveKeyChanges} disabled={saving} className="bg-accent hover:bg-accent/90 text-accent-foreground gap-1.5">
+                  {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />} Save Changes
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Grant Key Dialog */}
+      <Dialog open={showGrantDialog} onOpenChange={setShowGrantDialog}>
+        <DialogContent className="bg-[hsl(220,100%,8%)] border-white/10 text-white max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Key className="h-5 w-5 text-accent" />
+              {grantedKey ? "Key Granted Successfully" : "Grant API Key to User"}
+            </DialogTitle>
+          </DialogHeader>
+          {grantedKey ? (
+            <div className="space-y-4">
+              <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                <div className="flex items-start gap-2">
+                  <AlertTriangle className="h-4 w-4 text-amber-400 mt-0.5 flex-shrink-0" />
+                  <p className="text-xs text-amber-300">Copy this key now and share it securely with the user — it will never be shown again.</p>
+                </div>
+              </div>
+              <div className="relative">
+                <Input value={showGrantedKey ? grantedKey : "•".repeat(51)} readOnly className="bg-white/5 border-white/10 text-white font-mono text-xs pr-20" />
+                <div className="absolute right-1 top-1/2 -translate-y-1/2 flex gap-1">
+                  <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => setShowGrantedKey(!showGrantedKey)}>
+                    {showGrantedKey ? <EyeOff className="h-3 w-3 text-white/40" /> : <Eye className="h-3 w-3 text-white/40" />}
+                  </Button>
+                  <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => copyToClipboard(grantedKey, "granted-key")}>
+                    {copied === "granted-key" ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3 text-white/40" />}
+                  </Button>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button onClick={() => setShowGrantDialog(false)} className="bg-accent hover:bg-accent/90 text-accent-foreground">Done</Button>
+              </DialogFooter>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs text-white/60 mb-1 block">User ID</label>
+                <Input value={grantUserId} onChange={e => setGrantUserId(e.target.value)} placeholder="UUID of the target user" className="bg-white/5 border-white/10 text-white text-sm font-mono" />
+              </div>
+              <div>
+                <label className="text-xs text-white/60 mb-1 block">Key Name</label>
+                <Input value={grantKeyName} onChange={e => setGrantKeyName(e.target.value)} placeholder="e.g. Production, Development" className="bg-white/5 border-white/10 text-white text-sm" />
+              </div>
+              <div>
+                <label className="text-xs text-white/60 mb-1.5 block">Scopes</label>
+                <ScopeDropdown scopes={grantScopes} setScopes={setGrantScopes} open={grantScopeDropdownOpen} setOpen={setGrantScopeDropdownOpen} />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-white/60 mb-1 block">RPM Limit</label>
+                  <Input value={grantRpm} onChange={e => setGrantRpm(e.target.value)} type="number" className="bg-white/5 border-white/10 text-white text-sm" />
+                </div>
+                <div>
+                  <label className="text-xs text-white/60 mb-1 block">Daily Limit</label>
+                  <Input value={grantDaily} onChange={e => setGrantDaily(e.target.value)} type="number" className="bg-white/5 border-white/10 text-white text-sm" />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="ghost" onClick={() => setShowGrantDialog(false)} className="text-white/60">Cancel</Button>
+                <Button onClick={grantApiKey} disabled={granting} className="bg-accent hover:bg-accent/90 text-accent-foreground gap-1.5">
+                  {granting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />} Grant Key
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
