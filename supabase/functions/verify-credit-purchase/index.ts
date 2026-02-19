@@ -6,7 +6,8 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const POLAR_API = "https://api.polar.sh/v1";
+const POLAR_MODE = Deno.env.get("POLAR_MODE") || "live";
+const POLAR_API = POLAR_MODE === "sandbox" ? "https://sandbox-api.polar.sh/v1" : "https://api.polar.sh/v1";
 
 const polarFetch = async (path: string) => {
   const token = Deno.env.get("POLAR_ACCESS_TOKEN");
