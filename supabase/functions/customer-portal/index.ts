@@ -41,30 +41,62 @@ serve(async (req) => {
     const storeId = storesData.data?.[0]?.id;
     if (!storeId) throw new Error("No store found");
 
-    // Find active subscription by email
+    // Try to find active subscription first
     const subsRes = await lsFetch(`/subscriptions?filter[store_id]=${storeId}&filter[user_email]=${encodeURIComponent(userData.user.email)}&filter[status]=active&page[size]=1`);
-    if (!subsRes.ok) throw new Error("Failed to fetch subscriptions");
-    const subsData = await subsRes.json();
+    const subsData = subsRes.ok ? await subsRes.json() : { data: [] };
 
-    if (!subsData.data?.length) {
-      throw new Error("No active subscription found. The customer portal is available for subscribers.");
-    }
-
-    const subscription = subsData.data[0];
-    const portalUrl = subscription.attributes?.urls?.customer_portal;
-
-    if (!portalUrl) {
-      // Fallback: try update_payment_method URL
+    if (subsData.data?.length) {
+      const subscription = subsData.data[0];
+      const portalUrl = subscription.attributes?.urls?.customer_portal;
+      if (portalUrl) {
+        return new Response(JSON.stringify({ url: portalUrl }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
       const fallbackUrl = subscription.attributes?.urls?.update_payment_method;
       if (fallbackUrl) {
         return new Response(JSON.stringify({ url: fallbackUrl }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      throw new Error("No portal URL available for this subscription");
     }
 
-    return new Response(JSON.stringify({ url: portalUrl }), {
+    // No active subscription — try ANY subscription (cancelled, paused, expired)
+    const allSubsRes = await lsFetch(`/subscriptions?filter[store_id]=${storeId}&filter[user_email]=${encodeURIComponent(userData.user.email)}&page[size]=1`);
+    const allSubsData = allSubsRes.ok ? await allSubsRes.json() : { data: [] };
+
+    if (allSubsData.data?.length) {
+      const sub = allSubsData.data[0];
+      const portalUrl = sub.attributes?.urls?.customer_portal;
+      if (portalUrl) {
+        return new Response(JSON.stringify({ url: portalUrl }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
+    // No subscription at all — try orders to find a customer portal
+    const ordersRes = await lsFetch(`/orders?filter[store_id]=${storeId}&filter[user_email]=${encodeURIComponent(userData.user.email)}&page[size]=1`);
+    const ordersData = ordersRes.ok ? await ordersRes.json() : { data: [] };
+
+    if (ordersData.data?.length) {
+      const order = ordersData.data[0];
+      const receiptUrl = order.attributes?.urls?.receipt;
+      if (receiptUrl) {
+        return new Response(JSON.stringify({ url: receiptUrl }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
+    // Ultimate fallback: return store URL
+    const storeSlug = storesData.data?.[0]?.attributes?.slug;
+    const fallbackStoreUrl = storeSlug ? `https://${storeSlug}.lemonsqueezy.com/billing` : null;
+
+    return new Response(JSON.stringify({
+      url: fallbackStoreUrl,
+      message: "No subscription found. You can manage your billing from the store.",
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
