@@ -26,6 +26,13 @@ const log = (step: string, d?: any) => console.log(`[CREATE-CHECKOUT] ${step}${d
 const PLAN_TIER_ORDER: Record<string, number> = { free: 0, starter: 1, pro: 2, business: 3, enterprise: 4 };
 const PLAN_CREDITS: Record<string, number> = { starter: 215, pro: 1075, business: 4300 };
 
+// Yearly discount code mapping per plan
+const YEARLY_DISCOUNT_CODES: Record<string, string> = {
+  starter: "YEARLY15",
+  pro: "YEARLY30",
+  business: "YEARLY33",
+};
+
 // Find subscription product by metadata
 const findSubscriptionProduct = async (plan: string, cycle: string): Promise<{ productId: string; priceId: string } | null> => {
   const res = await polarFetch("/products?limit=100");
@@ -39,6 +46,17 @@ const findSubscriptionProduct = async (plan: string, cycle: string): Promise<{ p
       const priceId = product.prices?.[0]?.id;
       if (priceId) return { productId: product.id, priceId };
     }
+  }
+  return null;
+};
+
+// Find a Polar discount by code
+const findDiscountByCode = async (code: string): Promise<string | null> => {
+  const res = await polarFetch(`/discounts?limit=100`);
+  if (!res.ok) return null;
+  const data = await res.json();
+  for (const d of data.items || []) {
+    if (d.code?.toUpperCase() === code.toUpperCase()) return d.id;
   }
   return null;
 };
@@ -76,7 +94,7 @@ serve(async (req) => {
     if (!user?.email) throw new Error("User not authenticated");
     log("User authenticated", { userId: user.id, email: user.email });
 
-    const { planId, billingCycle } = await req.json();
+    const { planId, billingCycle, useRetentionDiscount } = await req.json();
     if (!planId) throw new Error("Plan ID required");
 
     if (planId === "enterprise") {
@@ -168,31 +186,71 @@ serve(async (req) => {
 
     const credits = PLAN_CREDITS[planId] || 0;
 
+    // ═══ AUTO-APPLY DISCOUNT LOGIC ═══
+    let discountId: string | null = null;
+    let discountCode: string | null = null;
+
+    // Check retention discount first (SPECIAL50 - highest priority)
+    if (useRetentionDiscount) {
+      const adminClient = createClient(Deno.env.get("SUPABASE_URL") ?? "", Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "");
+      const { data: wallet } = await adminClient.from("wallets").select("retention_credits_used").eq("user_id", user.id).single();
+      
+      if (!wallet?.retention_credits_used) {
+        discountId = await findDiscountByCode("SPECIAL50");
+        if (discountId) {
+          discountCode = "SPECIAL50";
+          // Mark retention as used
+          await adminClient.from("wallets").update({ retention_credits_used: true }).eq("user_id", user.id);
+          log("Auto-applied SPECIAL50 retention discount", { discountId });
+        }
+      }
+    }
+
+    // If no retention discount, check yearly discounts
+    if (!discountId && cycle === "yearly") {
+      const yearlyCode = YEARLY_DISCOUNT_CODES[planId];
+      if (yearlyCode) {
+        discountId = await findDiscountByCode(yearlyCode);
+        if (discountId) {
+          discountCode = yearlyCode;
+          log("Auto-applied yearly discount", { code: yearlyCode, discountId });
+        }
+      }
+    }
+
+    const checkoutBody: any = {
+      product_price_id: target.priceId,
+      customer_email: user.email,
+      customer_external_id: user.id,
+      metadata: {
+        user_id: user.id,
+        plan_id: planId,
+        billing_cycle: cycle,
+        credits: String(credits),
+        type: "subscription",
+        discount_applied: discountCode || "none",
+      },
+      success_url: `${origin}/profile?subscription=success&plan=${planId}`,
+      allow_discount_codes: false, // Prevent manual coupon entry
+      embed_origin: origin,
+    };
+
+    // Attach discount if eligible
+    if (discountId) {
+      checkoutBody.discount_id = discountId;
+    }
+
     const checkoutRes = await polarFetch("/checkouts/custom", {
       method: "POST",
-      body: JSON.stringify({
-        product_price_id: target.priceId,
-        customer_email: user.email,
-        customer_external_id: user.id,
-        metadata: {
-          user_id: user.id,
-          plan_id: planId,
-          billing_cycle: cycle,
-          credits: String(credits),
-          type: "subscription",
-        },
-        success_url: `${origin}/profile?subscription=success&plan=${planId}`,
-        allow_discount_codes: false,
-        embed_origin: origin,
-      }),
+      body: JSON.stringify(checkoutBody),
     });
 
     if (!checkoutRes.ok) throw new Error(`Checkout failed: ${await checkoutRes.text()}`);
     const checkout = await checkoutRes.json();
     const checkoutUrl = checkout.url;
-    log("Checkout created", { url: checkoutUrl });
+    log("Checkout created", { url: checkoutUrl, discountCode, discountId });
 
-    return new Response(JSON.stringify({ checkoutUrl }), {
+    return new Response(JSON.stringify({ checkoutUrl, discount_applied: discountCode }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {

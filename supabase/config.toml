@@ -139,3 +139,6 @@ verify_jwt = false
 
 [functions.ls-webhook]
 verify_jwt = false
+
+[functions.polar-setup-discounts]
+verify_jwt = false
