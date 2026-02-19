@@ -102,3 +102,16 @@ html {
 .animate-session-pulse {
   animation: session-pulse 1s ease-in-out 3;
 }
+
+@keyframes logo-shimmer {
+  0%, 80% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.animate-logo-shimmer {
+  animation: logo-shimmer 5s ease-in-out infinite;
+}
