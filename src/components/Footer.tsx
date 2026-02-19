@@ -54,6 +54,7 @@ const Footer = () => {
                   { to: "/", label: "Home" },
                   { to: "/services", label: "Features" },
                   { to: "/pricing", label: "Pricing" },
+                  { to: "/blog", label: "Blog" },
                   { to: "/faq", label: "FAQ" },
                   { to: "/admin", label: "Dashboard" },
                 ].map((link) => (

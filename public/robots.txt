@@ -8,6 +8,8 @@ Allow: /pricing
 Allow: /faq
 Allow: /privacy
 Allow: /terms
+Allow: /about
+Allow: /blog
 
 Disallow: /admin
 Disallow: /admin-onboarding
