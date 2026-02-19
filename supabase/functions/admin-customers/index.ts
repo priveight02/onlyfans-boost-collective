@@ -10,18 +10,17 @@ const logStep = (step: string, details?: any) => {
   console.log(`[ADMIN-CUSTOMERS] ${step}${details ? ` - ${JSON.stringify(details)}` : ''}`);
 };
 
-const LS_API = "https://api.lemonsqueezy.com/v1";
+const POLAR_API = "https://api.polar.sh/v1";
 
-const lsFetch = async (path: string, options: RequestInit = {}) => {
-  const key = Deno.env.get("LEMONSQUEEZY_API_KEY");
-  if (!key) throw new Error("LEMONSQUEEZY_API_KEY not set");
-  return fetch(`${LS_API}${path}`, {
+const polarFetch = async (path: string, options: RequestInit = {}) => {
+  const token = Deno.env.get("POLAR_ACCESS_TOKEN");
+  if (!token) throw new Error("POLAR_ACCESS_TOKEN not set");
+  return fetch(`${POLAR_API}${path}`, {
     ...options,
     headers: {
-      "Accept": "application/vnd.api+json",
-      "Content-Type": "application/vnd.api+json",
-      "Authorization": `Bearer ${key}`,
-      ...((options.headers as Record<string, string>) || {}),
+      "Authorization": `Bearer ${token}`,
+      "Content-Type": "application/json",
+      ...(options.headers || {}),
     },
   });
 };
@@ -46,6 +45,7 @@ const parseAdminNotes = (notes: string | null) => {
   return result;
 };
 
+// ─── computeInsights function (lines 49-150) ───
 const computeInsights = (profile: any, wallet: any, transactions: any[], loginActivity: any[]) => {
   const now = Date.now();
   const joinDate = new Date(profile.created_at).getTime();
@@ -70,32 +70,27 @@ const computeInsights = (profile: any, wallet: any, transactions: any[], loginAc
   const lastPurchase = purchases.length > 0 ? purchases[0].created_at : null;
   const daysSinceLastPurchase = lastPurchase ? Math.floor((now - new Date(lastPurchase).getTime()) / 86400000) : 999;
 
-  // Spender score 0-100
   let spenderScore = 0;
   if (ltv >= 500) spenderScore += 40; else if (ltv >= 100) spenderScore += 25; else if (ltv >= 20) spenderScore += 10;
   if (purchases.length >= 10) spenderScore += 30; else if (purchases.length >= 5) spenderScore += 20; else if (purchases.length >= 2) spenderScore += 10;
   if (monthlyVelocity >= 50) spenderScore += 30; else if (monthlyVelocity >= 20) spenderScore += 20; else if (monthlyVelocity >= 5) spenderScore += 10;
 
-  // Engagement score 0-100
   let engagementScore = 0;
   if (daysSinceLastLogin <= 1) engagementScore += 40; else if (daysSinceLastLogin <= 7) engagementScore += 25; else if (daysSinceLastLogin <= 30) engagementScore += 10;
   if ((profile.post_count || 0) >= 20) engagementScore += 30; else if ((profile.post_count || 0) >= 5) engagementScore += 15;
   if ((profile.follower_count || 0) >= 50) engagementScore += 30; else if ((profile.follower_count || 0) >= 10) engagementScore += 15;
 
-  // Churn risk
   let churnRisk = "Low";
   if (daysSinceLastLogin > 90 || (purchases.length > 0 && daysSinceLastPurchase > 120)) churnRisk = "Critical";
   else if (daysSinceLastLogin > 30 || daysSinceLastPurchase > 60) churnRisk = "High";
   else if (daysSinceLastLogin > 14 || daysSinceLastPurchase > 30) churnRisk = "Medium";
 
-  // Spender tier
   let spenderTier = "Low";
   if (spenderScore >= 80) spenderTier = "Whale";
   else if (spenderScore >= 70) spenderTier = "High Whale";
   else if (spenderScore >= 50) spenderTier = "High";
   else if (spenderScore >= 30) spenderTier = "Medium";
 
-  // Purchase trend
   const recentPurchases = purchases.filter((t: any) => now - new Date(t.created_at).getTime() < 30 * 86400000).length;
   const olderPurchases = purchases.filter((t: any) => {
     const age = now - new Date(t.created_at).getTime();
@@ -103,7 +98,6 @@ const computeInsights = (profile: any, wallet: any, transactions: any[], loginAc
   }).length;
   const purchaseTrend = recentPurchases > olderPurchases ? "increasing" : recentPurchases < olderPurchases ? "decreasing" : "stable";
 
-  // Customer segment
   let customerSegment = "New";
   if (spenderScore >= 70 && engagementScore >= 60) customerSegment = "Champion";
   else if (spenderScore >= 50 && daysSinceLastLogin <= 14) customerSegment = "Loyal";
@@ -113,14 +107,10 @@ const computeInsights = (profile: any, wallet: any, transactions: any[], loginAc
   else if (spenderScore >= 20) customerSegment = "Potential Loyalist";
   else if (engagementScore >= 40) customerSegment = "Promising";
 
-  // Plan from notes
   const parsedNotes = parseAdminNotes(profile.admin_notes);
   const currentPlan = parsedNotes.plan_override || "Free";
-
-  // Credit velocity (credits used per day)
   const creditVelocity = totalDeductedCredits / daysSinceJoin;
 
-  // Retention probability
   let retentionProb = 100;
   if (churnRisk === "Critical") retentionProb = 15;
   else if (churnRisk === "High") retentionProb = 40;
@@ -149,18 +139,38 @@ const computeInsights = (profile: any, wallet: any, transactions: any[], loginAc
   };
 };
 
-// ─── Lemon Squeezy payment data (summary) ───
-const fetchLSPaymentData = async (userId: string, supabaseAdmin: any) => {
+// ─── Polar payment data (summary) ───
+const fetchPolarPaymentData = async (userId: string, supabaseAdmin: any) => {
   try {
-    const { data: ud } = await supabaseAdmin.from("user_details").select("ls_customer_id").eq("user_id", userId).single();
-    if (!ud?.ls_customer_id) {
+    // Find Polar customer by external_id (Supabase user ID)
+    let polarCustomerId: string | null = null;
+
+    const custRes = await polarFetch(`/customers?external_id=${encodeURIComponent(userId)}&limit=1`);
+    if (custRes.ok) {
+      const custData = await custRes.json();
+      polarCustomerId = custData.items?.[0]?.id || null;
+    }
+
+    // Fallback: find by email
+    if (!polarCustomerId) {
+      const { data: profile } = await supabaseAdmin.from("profiles").select("email").eq("user_id", userId).single();
+      if (profile?.email) {
+        const emailRes = await polarFetch(`/customers?email=${encodeURIComponent(profile.email)}&limit=1`);
+        if (emailRes.ok) {
+          const emailData = await emailRes.json();
+          polarCustomerId = emailData.items?.[0]?.id || null;
+        }
+      }
+    }
+
+    if (!polarCustomerId) {
       // Fallback: check wallet_transactions for payment metadata
       const { data: txs } = await supabaseAdmin.from("wallet_transactions")
         .select("*").eq("user_id", userId).eq("type", "purchase").order("created_at", { ascending: false }).limit(50);
       const totalCharged = (txs || []).reduce((s: number, t: any) => s + (t.metadata?.amount_cents || 0), 0);
       return {
         current_plan: "Free",
-        ls_customer_id: null,
+        polar_customer_id: null,
         total_charged_cents: totalCharged,
         total_refunded_cents: 0,
         net_revenue_cents: totalCharged,
@@ -178,25 +188,21 @@ const fetchLSPaymentData = async (userId: string, supabaseAdmin: any) => {
       };
     }
 
-    const lsCustomerId = ud.ls_customer_id;
-
-    // Fetch subscriptions from LS
-    const subsRes = await lsFetch(`/subscriptions?filter[customer_id]=${lsCustomerId}`);
-    const subsData = subsRes.ok ? await subsRes.json() : { data: [] };
-    const subscriptions = (subsData.data || []).map((s: any) => ({
+    // Fetch subscriptions from Polar
+    const subsRes = await polarFetch(`/subscriptions?customer_id=${polarCustomerId}&limit=50`);
+    const subsData = subsRes.ok ? await subsRes.json() : { items: [] };
+    const subscriptions = (subsData.items || []).map((s: any) => ({
       id: s.id,
-      status: s.attributes.status,
-      plan: s.attributes.product_name || s.attributes.variant_name || "Unknown",
-      variant_name: s.attributes.variant_name || null,
-      interval: s.attributes.billing_anchor ? "month" : "month",
-      amount: s.attributes.first_subscription_item?.price || 0,
-      start_date: s.attributes.created_at,
-      canceled_at: s.attributes.cancelled ? s.attributes.updated_at : null,
-      cancel_at_period_end: s.attributes.status === "cancelled",
-      renews_at: s.attributes.renews_at,
-      ends_at: s.attributes.ends_at,
-      trial_ends_at: s.attributes.trial_ends_at,
-      urls: s.attributes.urls || {},
+      status: s.status,
+      plan: s.product?.name || "Unknown",
+      interval: s.recurring_interval || "month",
+      amount: s.amount || s.price?.price_amount || 0,
+      start_date: s.created_at,
+      canceled_at: s.canceled_at || null,
+      cancel_at_period_end: s.cancel_at_period_end || false,
+      current_period_start: s.current_period_start,
+      current_period_end: s.current_period_end,
+      product_id: s.product_id,
     }));
 
     // Determine current plan from active subscription
@@ -210,25 +216,19 @@ const fetchLSPaymentData = async (userId: string, supabaseAdmin: any) => {
       else currentPlan = activeSub.plan;
     }
 
-    // Fetch orders from LS
-    const ordersRes = await lsFetch(`/orders?filter[customer_id]=${lsCustomerId}&sort=-created_at`);
-    const ordersData = ordersRes.ok ? await ordersRes.json() : { data: [] };
-    const orders = (ordersData.data || []);
+    // Fetch orders from Polar
+    const ordersRes = await polarFetch(`/orders?customer_id=${polarCustomerId}&limit=50&sorting=-created_at`);
+    const ordersData = ordersRes.ok ? await ordersRes.json() : { items: [] };
+    const orders = ordersData.items || [];
 
     const charges = orders.map((o: any) => ({
       id: o.id,
-      order_number: o.attributes.order_number,
-      amount: o.attributes.total || 0,
-      subtotal: o.attributes.subtotal || 0,
-      tax: o.attributes.tax || 0,
-      discount_total: o.attributes.discount_total || 0,
-      created: o.attributes.created_at,
-      description: o.attributes.first_order_item?.product_name || "Order",
-      variant_name: o.attributes.first_order_item?.variant_name || null,
-      paid: o.attributes.status === "paid",
-      refunded: o.attributes.status === "refunded",
-      receipt_url: o.attributes.urls?.receipt || null,
-      currency: o.attributes.currency || "USD",
+      amount: o.amount || 0,
+      created: o.created_at,
+      description: o.product?.name || "Order",
+      paid: true,
+      refunded: o.refunded || false,
+      currency: o.currency || "usd",
     }));
 
     const totalCharged = charges.filter((c: any) => c.paid).reduce((s: number, c: any) => s + c.amount, 0);
@@ -236,7 +236,7 @@ const fetchLSPaymentData = async (userId: string, supabaseAdmin: any) => {
 
     return {
       current_plan: currentPlan,
-      ls_customer_id: lsCustomerId,
+      polar_customer_id: polarCustomerId,
       total_charged_cents: totalCharged,
       total_refunded_cents: totalRefunded,
       net_revenue_cents: totalCharged - totalRefunded,
@@ -247,171 +247,106 @@ const fetchLSPaymentData = async (userId: string, supabaseAdmin: any) => {
       active_subscription: activeSub || null,
     };
   } catch (e) {
-    logStep("LS payment fetch error", { error: e.message });
-    return { error: e.message, current_plan: "Free", ls_customer_id: null, total_charged_cents: 0, total_refunded_cents: 0, net_revenue_cents: 0, charge_count: 0, refund_count: 0, all_subscriptions: [], charges: [], active_subscription: null };
+    logStep("Polar payment fetch error", { error: e.message });
+    return { error: e.message, current_plan: "Free", polar_customer_id: null, total_charged_cents: 0, total_refunded_cents: 0, net_revenue_cents: 0, charge_count: 0, refund_count: 0, all_subscriptions: [], charges: [], active_subscription: null };
   }
 };
 
-// ─── Full Payment Intel (detailed LS data) ───
+// ─── Full Payment Intel (detailed Polar data) ───
 const fetchPaymentIntel = async (userId: string, supabaseAdmin: any) => {
   try {
-    const { data: ud } = await supabaseAdmin.from("user_details").select("ls_customer_id").eq("user_id", userId).single();
-    if (!ud?.ls_customer_id) return { error: "No LS customer found", subscriptions: [], charges: [], invoices: [], payment_methods: [], subscription_invoices: [] };
-
-    const lsCustomerId = ud.ls_customer_id;
+    // Find Polar customer
+    let polarCustomerId: string | null = null;
+    const custRes = await polarFetch(`/customers?external_id=${encodeURIComponent(userId)}&limit=1`);
+    if (custRes.ok) {
+      const custData = await custRes.json();
+      polarCustomerId = custData.items?.[0]?.id || null;
+    }
+    if (!polarCustomerId) {
+      const { data: profile } = await supabaseAdmin.from("profiles").select("email").eq("user_id", userId).single();
+      if (profile?.email) {
+        const emailRes = await polarFetch(`/customers?email=${encodeURIComponent(profile.email)}&limit=1`);
+        if (emailRes.ok) {
+          const emailData = await emailRes.json();
+          polarCustomerId = emailData.items?.[0]?.id || null;
+        }
+      }
+    }
+    if (!polarCustomerId) return { error: "No Polar customer found", subscriptions: [], charges: [], invoices: [], payment_methods: [], subscription_invoices: [] };
 
     // Fetch all data in parallel
-    const [subsRes, ordersRes, subInvoicesRes] = await Promise.all([
-      lsFetch(`/subscriptions?filter[customer_id]=${lsCustomerId}`),
-      lsFetch(`/orders?filter[customer_id]=${lsCustomerId}&sort=-created_at&page[size]=50`),
-      lsFetch(`/subscription-invoices?filter[customer_id]=${lsCustomerId}&sort=-created_at&page[size]=50`),
+    const [subsRes, ordersRes] = await Promise.all([
+      polarFetch(`/subscriptions?customer_id=${polarCustomerId}&limit=50`),
+      polarFetch(`/orders?customer_id=${polarCustomerId}&limit=50&sorting=-created_at`),
     ]);
 
-    const subsData = subsRes.ok ? await subsRes.json() : { data: [] };
-    const ordersData = ordersRes.ok ? await ordersRes.json() : { data: [] };
-    const subInvoicesData = subInvoicesRes.ok ? await subInvoicesRes.json() : { data: [] };
+    const subsData = subsRes.ok ? await subsRes.json() : { items: [] };
+    const ordersData = ordersRes.ok ? await ordersRes.json() : { items: [] };
 
-    const subscriptions = (subsData.data || []).map((s: any) => ({
+    const subscriptions = (subsData.items || []).map((s: any) => ({
       id: s.id,
-      status: s.attributes.status,
-      plan: s.attributes.product_name || s.attributes.variant_name || "Unknown",
-      variant_name: s.attributes.variant_name || null,
-      interval: "month",
-      amount: s.attributes.first_subscription_item?.price || 0,
-      start: s.attributes.created_at,
-      canceled_at: s.attributes.cancelled ? s.attributes.updated_at : null,
-      cancel_at_period_end: s.attributes.status === "cancelled",
-      renews_at: s.attributes.renews_at,
-      ends_at: s.attributes.ends_at,
-      trial_ends_at: s.attributes.trial_ends_at,
-      card_brand: s.attributes.card_brand || null,
-      card_last_four: s.attributes.card_last_four || null,
-      pause: s.attributes.pause || null,
-      urls: s.attributes.urls || {},
+      status: s.status,
+      plan: s.product?.name || "Unknown",
+      interval: s.recurring_interval || "month",
+      amount: s.amount || s.price?.price_amount || 0,
+      start: s.created_at,
+      canceled_at: s.canceled_at || null,
+      cancel_at_period_end: s.cancel_at_period_end || false,
+      current_period_start: s.current_period_start,
+      current_period_end: s.current_period_end,
+      product_id: s.product_id,
     }));
 
-    const charges = (ordersData.data || []).map((o: any) => ({
+    const charges = (ordersData.items || []).map((o: any) => ({
       id: o.id,
-      order_number: o.attributes.order_number,
-      amount: o.attributes.total || 0,
-      subtotal: o.attributes.subtotal || 0,
-      tax: o.attributes.tax || 0,
-      discount_total: o.attributes.discount_total || 0,
-      created: o.attributes.created_at,
-      description: o.attributes.first_order_item?.product_name || "Order",
-      variant_name: o.attributes.first_order_item?.variant_name || null,
-      paid: o.attributes.status === "paid",
-      refunded: o.attributes.status === "refunded",
-      receipt_url: o.attributes.urls?.receipt || null,
-      card_brand: null,
-      card_last4: null,
-      currency: o.attributes.currency || "USD",
+      amount: o.amount || 0,
+      created: o.created_at,
+      description: o.product?.name || "Order",
+      paid: true,
+      refunded: o.refunded || false,
+      currency: o.currency || "usd",
     }));
 
-    // LS subscription invoices (recurring billing records)
-    const subscriptionInvoices = (subInvoicesData.data || []).map((inv: any) => ({
-      id: inv.id,
-      store_id: inv.attributes.store_id,
-      subscription_id: inv.attributes.subscription_id,
-      billing_reason: inv.attributes.billing_reason,
-      card_brand: inv.attributes.card_brand,
-      card_last_four: inv.attributes.card_last_four,
-      currency: inv.attributes.currency,
-      subtotal: inv.attributes.subtotal,
-      tax: inv.attributes.tax,
-      total: inv.attributes.total,
-      status: inv.attributes.status,
-      refunded: inv.attributes.refunded,
-      refunded_at: inv.attributes.refunded_at,
-      created_at: inv.attributes.created_at,
-      updated_at: inv.attributes.updated_at,
-      urls: inv.attributes.urls || {},
-    }));
-
-    // LS doesn't expose invoices separately — orders + subscription invoices serve as invoices
-    const invoices = (ordersData.data || []).map((o: any) => ({
+    // Orders serve as invoices in Polar
+    const invoices = (ordersData.items || []).map((o: any) => ({
       id: o.id,
-      status: o.attributes.status === "paid" ? "paid" : o.attributes.status,
-      amount_paid: o.attributes.total || 0,
-      amount_due: o.attributes.total || 0,
-      number: o.attributes.order_number?.toString() || null,
-      created: o.attributes.created_at,
-      hosted_invoice_url: o.attributes.urls?.receipt || null,
+      status: "paid",
+      amount_paid: o.amount || 0,
+      amount_due: o.amount || 0,
+      number: o.id,
+      created: o.created_at,
+      hosted_invoice_url: null,
     }));
 
-    // Extract payment method info from the most recent subscription
-    const paymentMethods: any[] = [];
-    const latestSub = subscriptions[0];
-    if (latestSub?.card_brand && latestSub?.card_last_four) {
-      paymentMethods.push({
-        type: "card",
-        brand: latestSub.card_brand,
-        last4: latestSub.card_last_four,
-        source: "subscription",
-      });
-    }
-
-    return { subscriptions, charges, invoices, payment_methods: paymentMethods, subscription_invoices: subscriptionInvoices };
+    return { subscriptions, charges, invoices, payment_methods: [], subscription_invoices: [] };
   } catch (e) {
     logStep("Payment intel error", { error: e.message });
     return { error: e.message, subscriptions: [], charges: [], invoices: [], payment_methods: [], subscription_invoices: [] };
   }
 };
 
-// ─── LS Subscription Management ───
-const manageLSSubscription = async (subscriptionId: string, action: string) => {
+// ─── Polar Subscription Management ───
+const managePolarSubscription = async (subscriptionId: string, action: string) => {
   try {
     switch (action) {
       case "cancel": {
-        const res = await lsFetch(`/subscriptions/${subscriptionId}`, {
+        const res = await polarFetch(`/subscriptions/${subscriptionId}`, {
           method: "DELETE",
         });
         return { success: res.ok, action: "cancelled" };
       }
-      case "pause": {
-        const res = await lsFetch(`/subscriptions/${subscriptionId}`, {
-          method: "PATCH",
-          body: JSON.stringify({
-            data: {
-              type: "subscriptions",
-              id: subscriptionId,
-              attributes: { pause: { mode: "void" } },
-            },
-          }),
+      case "revoke": {
+        // Immediate cancellation
+        const res = await polarFetch(`/subscriptions/${subscriptionId}`, {
+          method: "DELETE",
         });
-        return { success: res.ok, action: "paused" };
-      }
-      case "resume": {
-        const res = await lsFetch(`/subscriptions/${subscriptionId}`, {
-          method: "PATCH",
-          body: JSON.stringify({
-            data: {
-              type: "subscriptions",
-              id: subscriptionId,
-              attributes: { pause: null },
-            },
-          }),
-        });
-        return { success: res.ok, action: "resumed" };
-      }
-      case "unpause": {
-        const res = await lsFetch(`/subscriptions/${subscriptionId}`, {
-          method: "PATCH",
-          body: JSON.stringify({
-            data: {
-              type: "subscriptions",
-              id: subscriptionId,
-              attributes: { cancelled: false, pause: null },
-            },
-          }),
-        });
-        return { success: res.ok, action: "unpaused" };
+        return { success: res.ok, action: "revoked" };
       }
       default:
         return { success: false, error: `Unknown subscription action: ${action}` };
     }
   } catch (e) {
-    logStep("LS subscription management error", { error: e.message });
+    logStep("Polar subscription management error", { error: e.message });
     return { success: false, error: e.message };
   }
 };
@@ -456,7 +391,6 @@ serve(async (req) => {
         .order("created_at", { ascending: false })
         .limit(50);
 
-      // Enrich with wallet data
       const userIds = (results || []).map((r: any) => r.user_id);
       const { data: wallets } = await supabaseAdmin.from("wallets").select("user_id, balance, total_purchased").in("user_id", userIds);
       const walletMap = new Map((wallets || []).map((w: any) => [w.user_id, w]));
@@ -486,22 +420,16 @@ serve(async (req) => {
     if (action === "list") {
       logStep("Fetching customer list");
 
-      // Get all profiles
       const { data: profiles, error: profilesErr } = await supabaseAdmin
         .from("profiles")
         .select("user_id, email, display_name, username, avatar_url, created_at, account_status, post_count, follower_count, admin_notes")
         .order("created_at", { ascending: false });
       if (profilesErr) throw new Error("Failed to fetch profiles");
 
-      // Get all wallets
       const { data: wallets } = await supabaseAdmin.from("wallets").select("user_id, balance, total_purchased");
-
-      // Get all transactions (recent)
       const { data: allTx } = await supabaseAdmin.from("wallet_transactions")
         .select("user_id, type, amount, created_at, metadata, description")
         .order("created_at", { ascending: false });
-
-      // Get login activity counts
       const { data: logins } = await supabaseAdmin.from("admin_login_attempts")
         .select("email, created_at").eq("success", true).order("created_at", { ascending: false });
 
@@ -511,7 +439,6 @@ serve(async (req) => {
         if (!txMap.has(t.user_id)) txMap.set(t.user_id, []);
         txMap.get(t.user_id)!.push(t);
       });
-
       const loginMap = new Map<string, string>();
       (logins || []).forEach((l: any) => {
         if (!loginMap.has(l.email)) loginMap.set(l.email, l.created_at);
@@ -521,50 +448,29 @@ serve(async (req) => {
         const wallet = walletMap.get(p.user_id) || { balance: 0, total_purchased: 0 };
         const txs = txMap.get(p.user_id) || [];
         const insights = computeInsights(p, wallet, txs, []);
-
         return {
-          user_id: p.user_id,
-          email: p.email,
-          display_name: p.display_name,
-          username: p.username,
-          avatar_url: p.avatar_url,
-          created_at: p.created_at,
-          account_status: p.account_status || "active",
-          credit_balance: wallet.balance || 0,
-          total_purchased_credits: wallet.total_purchased || 0,
-          granted_credits: insights.total_granted_credits,
-          grant_count: insights.grant_count,
-          deducted_credits: insights.total_deducted_credits,
-          deduct_count: insights.deduct_count,
-          purchase_count: insights.purchase_count,
-          total_spent_cents: insights.total_spent_cents,
-          tx_purchase_count: insights.purchase_count,
-          tx_total_credits: insights.total_purchased_credits,
+          user_id: p.user_id, email: p.email, display_name: p.display_name, username: p.username,
+          avatar_url: p.avatar_url, created_at: p.created_at, account_status: p.account_status || "active",
+          credit_balance: wallet.balance || 0, total_purchased_credits: wallet.total_purchased || 0,
+          granted_credits: insights.total_granted_credits, grant_count: insights.grant_count,
+          deducted_credits: insights.total_deducted_credits, deduct_count: insights.deduct_count,
+          purchase_count: insights.purchase_count, total_spent_cents: insights.total_spent_cents,
+          tx_purchase_count: insights.purchase_count, tx_total_credits: insights.total_purchased_credits,
           last_purchase: txs.find((t: any) => t.type === "purchase")?.created_at || null,
           first_purchase: [...txs].reverse().find((t: any) => t.type === "purchase")?.created_at || null,
-          ltv: insights.ltv,
-          avg_order_value: insights.purchase_count > 0 ? insights.total_spent_cents / insights.purchase_count / 100 : 0,
-          days_since_join: insights.days_since_join,
-          monthly_velocity: insights.monthly_velocity,
-          spender_score: insights.spender_score,
-          engagement_score: insights.engagement_score,
-          churn_risk: insights.churn_risk,
-          last_login: loginMap.get(p.email) || null,
-          days_since_last_login: insights.days_since_last_login,
-          post_count: p.post_count || 0,
-          avg_purchase_credits: insights.avg_purchase_credits,
-          purchase_trend: insights.purchase_trend,
-          follower_count: p.follower_count || 0,
-          current_plan: insights.current_plan,
-          purchase_frequency: insights.purchase_frequency,
-          projected_annual: insights.projected_annual_ltv,
-          customer_segment: insights.customer_segment,
-          spender_tier: insights.spender_tier,
+          ltv: insights.ltv, avg_order_value: insights.purchase_count > 0 ? insights.total_spent_cents / insights.purchase_count / 100 : 0,
+          days_since_join: insights.days_since_join, monthly_velocity: insights.monthly_velocity,
+          spender_score: insights.spender_score, engagement_score: insights.engagement_score,
+          churn_risk: insights.churn_risk, last_login: loginMap.get(p.email) || null,
+          days_since_last_login: insights.days_since_last_login, post_count: p.post_count || 0,
+          avg_purchase_credits: insights.avg_purchase_credits, purchase_trend: insights.purchase_trend,
+          follower_count: p.follower_count || 0, current_plan: insights.current_plan,
+          purchase_frequency: insights.purchase_frequency, projected_annual: insights.projected_annual_ltv,
+          customer_segment: insights.customer_segment, spender_tier: insights.spender_tier,
           retention_probability: insights.retention_probability,
         };
       });
 
-      // Apply filters if provided
       let filtered = customers;
       if (filters) {
         if (filters.status) filtered = filtered.filter((c: any) => c.account_status === filters.status);
@@ -585,7 +491,6 @@ serve(async (req) => {
       if (!userId) return err("Missing userId", 400);
       logStep("Fetching detail", { userId });
 
-      // Parallel fetches
       const [profileRes, walletRes, txRes, loginRes, deviceRes, adminActionsRes, authRes, rankRes, notificationsRes] = await Promise.all([
         supabaseAdmin.from("profiles").select("*").eq("user_id", userId).single(),
         supabaseAdmin.from("wallets").select("*").eq("user_id", userId).single(),
@@ -601,7 +506,6 @@ serve(async (req) => {
       const profile = profileRes.data;
       const wallet = walletRes.data;
       const transactions = txRes.data || [];
-      const loginActivity = loginRes.data || [];
       const deviceSessions = deviceRes.data || [];
       const adminActions = adminActionsRes.data || [];
       const authUser = authRes.data?.user;
@@ -610,60 +514,41 @@ serve(async (req) => {
 
       if (!profile) return err("User not found", 404);
 
-      // Get login activity by email instead
       const { data: loginByEmail } = await supabaseAdmin.from("admin_login_attempts")
         .select("*").eq("email", profile.email).order("created_at", { ascending: false }).limit(50);
 
       const insights = computeInsights(profile, wallet || { balance: 0, total_purchased: 0 }, transactions, loginByEmail || []);
 
-      // Fetch LS payment data
-      const payment = await fetchLSPaymentData(userId, supabaseAdmin);
+      // Fetch Polar payment data
+      const payment = await fetchPolarPaymentData(userId, supabaseAdmin);
 
-      // Override plan from payment if available
       if (payment.current_plan !== "Free") {
         insights.current_plan = payment.current_plan;
       }
 
-      // Parse admin notes
       const parsedNotes = parseAdminNotes(profile.admin_notes);
 
-      // Recent posts
       const { data: recentPosts } = await supabaseAdmin.from("user_posts")
         .select("id, content, image_url, like_count, comment_count, created_at")
         .eq("user_id", userId).order("created_at", { ascending: false }).limit(5);
 
-      // Social connections
       const { data: followers } = await supabaseAdmin.from("social_follows")
         .select("follower_id").eq("following_id", userId);
       const { data: following } = await supabaseAdmin.from("social_follows")
         .select("following_id").eq("follower_id", userId);
 
       return ok({
-        profile,
-        wallet: wallet || { balance: 0, total_purchased: 0 },
-        transactions,
-        login_activity: loginByEmail || [],
-        device_sessions: deviceSessions,
-        admin_actions: adminActions,
-        user_rank: userRank,
-        insights,
-        payment,
-        admin_tags: parsedNotes.tags,
-        admin_flags: parsedNotes.flags || [],
-        daily_credit_limit: parsedNotes.credit_limit,
-        recent_posts: recentPosts || [],
+        profile, wallet: wallet || { balance: 0, total_purchased: 0 },
+        transactions, login_activity: loginByEmail || [], device_sessions: deviceSessions,
+        admin_actions: adminActions, user_rank: userRank, insights, payment,
+        admin_tags: parsedNotes.tags, admin_flags: parsedNotes.flags || [],
+        daily_credit_limit: parsedNotes.credit_limit, recent_posts: recentPosts || [],
         notifications,
-        social: {
-          follower_count: (followers || []).length,
-          following_count: (following || []).length,
-        },
+        social: { follower_count: (followers || []).length, following_count: (following || []).length },
         auth_meta: authUser ? {
-          email_confirmed: !!authUser.email_confirmed_at,
-          last_sign_in_at: authUser.last_sign_in_at,
-          providers: authUser.app_metadata?.providers || ["email"],
-          created_at: authUser.created_at,
-          phone: authUser.phone || null,
-          role: authUser.role || null,
+          email_confirmed: !!authUser.email_confirmed_at, last_sign_in_at: authUser.last_sign_in_at,
+          providers: authUser.app_metadata?.providers || ["email"], created_at: authUser.created_at,
+          phone: authUser.phone || null, role: authUser.role || null,
         } : null,
       });
     }
@@ -688,32 +573,24 @@ serve(async (req) => {
       const wallet = walletRes.data || { balance: 0, total_purchased: 0 };
       const rank = rankRes.data;
 
-      // Get unread notifications count
       const { count: unreadCount } = await supabaseAdmin
         .from("admin_user_notifications")
         .select("id", { count: "exact", head: true })
         .eq("user_id", userId).eq("is_read", false);
 
-      // Get active devices
       const { data: activeDevices } = await supabaseAdmin.from("device_sessions")
         .select("device_name, device_type, last_active_at, status")
         .eq("user_id", userId).eq("status", "active").order("last_active_at", { ascending: false }).limit(5);
 
-      // LS subscription status
-      const payment = await fetchLSPaymentData(userId, supabaseAdmin);
+      const payment = await fetchPolarPaymentData(userId, supabaseAdmin);
 
       return ok({
         user_view: {
-          display_name: profile.display_name,
-          username: profile.username,
-          avatar_url: profile.avatar_url,
-          bio: profile.bio,
-          is_private: profile.is_private || false,
-          credit_balance: wallet.balance,
-          total_purchased: wallet.total_purchased,
-          rank_tier: rank?.rank_tier || "metal",
-          xp: rank?.xp || 0,
-          points_balance: rank?.points_balance || 0,
+          display_name: profile.display_name, username: profile.username,
+          avatar_url: profile.avatar_url, bio: profile.bio,
+          is_private: profile.is_private || false, credit_balance: wallet.balance,
+          total_purchased: wallet.total_purchased, rank_tier: rank?.rank_tier || "metal",
+          xp: rank?.xp || 0, points_balance: rank?.points_balance || 0,
           post_count: profile.post_count || 0,
           follower_count: (followersRes.data || []).length,
           following_count: (followingRes.data || []).length,
@@ -740,7 +617,6 @@ serve(async (req) => {
       if (!userId) return err("Missing userId", 400);
       logStep("Running AI analysis", { userId });
 
-      // Get user data
       const { data: profile } = await supabaseAdmin.from("profiles").select("*").eq("user_id", userId).single();
       const { data: wallet } = await supabaseAdmin.from("wallets").select("*").eq("user_id", userId).single();
       const { data: txs } = await supabaseAdmin.from("wallet_transactions").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(100);
@@ -799,42 +675,28 @@ Return this exact JSON structure:
       try {
         const aiResponse = await fetch("https://ufsnuobtvkciydftsyff.supabase.co/functions/v1/agency-copilot", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            messages: [{ role: "user", content: prompt }],
-            model: "google/gemini-2.5-flash",
-          }),
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+          body: JSON.stringify({ messages: [{ role: "user", content: prompt }], model: "google/gemini-2.5-flash" }),
         });
 
-        if (!aiResponse.ok) {
-          const errText = await aiResponse.text();
-          logStep("AI response error", { status: aiResponse.status, body: errText });
-          throw new Error("AI analysis failed");
-        }
+        if (!aiResponse.ok) throw new Error("AI analysis failed");
 
         const aiData = await aiResponse.json();
         let analysisText = aiData.choices?.[0]?.message?.content || aiData.content || aiData.text || "";
-
-        // Clean markdown code blocks
         analysisText = analysisText.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
-
         const analysis = JSON.parse(analysisText);
         return ok({ analysis });
       } catch (e) {
         logStep("AI analysis error", { error: e.message });
-        // Return a computed fallback
         return ok({
           analysis: {
-            behavioral_profile: `${profile.display_name} is a ${insights.customer_segment.toLowerCase()} user with ${insights.churn_risk.toLowerCase()} churn risk. They have a ${insights.spender_tier.toLowerCase()} spending profile.`,
-            spending_pattern: `Lifetime value of $${insights.ltv.toFixed(2)} with ${insights.purchase_count} purchases over ${insights.days_since_join} days. Monthly velocity: $${insights.monthly_velocity.toFixed(2)}/mo.`,
+            behavioral_profile: `${profile.display_name} is a ${insights.customer_segment.toLowerCase()} user with ${insights.churn_risk.toLowerCase()} churn risk.`,
+            spending_pattern: `Lifetime value of $${insights.ltv.toFixed(2)} with ${insights.purchase_count} purchases over ${insights.days_since_join} days.`,
             engagement_level: insights.engagement_score >= 60 ? "High" : insights.engagement_score >= 30 ? "Medium" : "Low",
             churn_probability: insights.churn_risk === "Critical" ? 85 : insights.churn_risk === "High" ? 60 : insights.churn_risk === "Medium" ? 35 : 10,
             upsell_potential: Math.min(100, Math.max(0, insights.spender_score + 10)),
             predicted_next_action: insights.purchase_trend === "increasing" ? "Likely to purchase again within 2 weeks" : "May need re-engagement campaign",
-            revenue_forecast_30d: `$${(insights.monthly_velocity).toFixed(2)}`,
+            revenue_forecast_30d: `$${insights.monthly_velocity.toFixed(2)}`,
             revenue_forecast_90d: `$${(insights.monthly_velocity * 3).toFixed(2)}`,
             customer_segment: insights.customer_segment,
             recommended_actions: ["Monitor engagement patterns", "Consider targeted offer", "Review support history"],
@@ -843,7 +705,7 @@ Return this exact JSON structure:
             lifetime_value_projection: `$${insights.projected_annual_ltv.toFixed(2)}`,
             optimal_engagement_time: "Weekday mornings (based on general patterns)",
             personality_tags: [insights.customer_segment, insights.spender_tier, insights.churn_risk + " risk"],
-            retention_strategy: insights.churn_risk === "Critical" ? "Immediate outreach with retention offer" : insights.churn_risk === "High" ? "Personalized re-engagement campaign" : "Continue current engagement cadence",
+            retention_strategy: insights.churn_risk === "Critical" ? "Immediate outreach with retention offer" : "Continue current engagement cadence",
             credit_usage_efficiency: insights.credit_velocity > 10 ? "High" : insights.credit_velocity > 3 ? "Medium" : "Low",
           },
         });
@@ -885,9 +747,7 @@ Return this exact JSON structure:
       const deductions = transactions.filter((t: any) => t.type === "deduction" || t.type === "admin_revoke");
 
       const parsedNotes = parseAdminNotes(profile.admin_notes);
-
-      // Fetch LS payment data for audit
-      const payment = await fetchLSPaymentData(userId, supabaseAdmin);
+      const payment = await fetchPolarPaymentData(userId, supabaseAdmin);
 
       return ok({
         analytics: {
@@ -895,17 +755,11 @@ Return this exact JSON structure:
           total_purchased_credits: purchases.reduce((s: number, t: any) => s + Math.abs(t.amount), 0),
           total_granted_credits: grants.reduce((s: number, t: any) => s + Math.abs(t.amount), 0),
           total_deducted_credits: deductions.reduce((s: number, t: any) => s + Math.abs(t.amount), 0),
-          total_logins: loginsByEmail.length,
-          unique_ips: uniqueIps.size,
-          unique_user_agents: uniqueAgents.size,
-          unique_devices: (deviceRes.data || []).length,
-          total_posts: posts.length,
-          total_likes_received: totalLikes,
-          total_comments_received: totalComments,
-          total_saves_received: totalSaves,
-          purchase_count: purchases.length,
-          grant_count: grants.length,
-          deduction_count: deductions.length,
+          total_logins: loginsByEmail.length, unique_ips: uniqueIps.size,
+          unique_user_agents: uniqueAgents.size, unique_devices: (deviceRes.data || []).length,
+          total_posts: posts.length, total_likes_received: totalLikes,
+          total_comments_received: totalComments, total_saves_received: totalSaves,
+          purchase_count: purchases.length, grant_count: grants.length, deduction_count: deductions.length,
           notification_count: (notifRes.data || []).length,
           unread_notifications: (notifRes.data || []).filter((n: any) => !n.is_read).length,
         },
@@ -913,7 +767,7 @@ Return this exact JSON structure:
         admin_actions: adminActionsRes.data || [],
         payment_summary: {
           current_plan: payment.current_plan,
-          ls_customer_id: payment.ls_customer_id,
+          polar_customer_id: payment.polar_customer_id,
           total_charged: payment.total_charged_cents,
           total_refunded: payment.total_refunded_cents,
           net_revenue: payment.net_revenue_cents,
@@ -923,8 +777,7 @@ Return this exact JSON structure:
         auth_meta: authRes.data?.user ? {
           email_confirmed: !!authRes.data.user.email_confirmed_at,
           last_sign_in_at: authRes.data.user.last_sign_in_at,
-          force_logout_at: null,
-          created_at: authRes.data.user.created_at,
+          force_logout_at: null, created_at: authRes.data.user.created_at,
           phone: authRes.data.user.phone || null,
           providers: authRes.data.user.app_metadata?.providers || ["email"],
         } : null,
@@ -947,8 +800,7 @@ Return this exact JSON structure:
       const walletMap = new Map((wallets || []).map((w: any) => [w.user_id, w]));
 
       const { data: allTx } = await supabaseAdmin.from("wallet_transactions")
-        .select("user_id, type, amount, metadata")
-        .order("created_at", { ascending: false });
+        .select("user_id, type, amount, metadata").order("created_at", { ascending: false });
 
       const txMap = new Map<string, any[]>();
       (allTx || []).forEach((t: any) => {
@@ -962,22 +814,13 @@ Return this exact JSON structure:
         const purchases = txs.filter((t: any) => t.type === "purchase");
         const totalSpentCents = purchases.reduce((s: number, t: any) => s + (t.metadata?.amount_cents || 0), 0);
         const parsedNotes = parseAdminNotes(p.admin_notes);
-
         return {
-          user_id: p.user_id,
-          email: p.email,
-          display_name: p.display_name,
-          username: p.username,
-          joined: p.created_at,
-          status: p.account_status || "active",
-          credit_balance: wallet.balance || 0,
-          total_purchased_credits: wallet.total_purchased || 0,
-          total_spent_usd: (totalSpentCents / 100).toFixed(2),
-          purchase_count: purchases.length,
-          post_count: p.post_count || 0,
-          follower_count: p.follower_count || 0,
-          following_count: p.following_count || 0,
-          plan: parsedNotes.plan_override || "Free",
+          user_id: p.user_id, email: p.email, display_name: p.display_name, username: p.username,
+          joined: p.created_at, status: p.account_status || "active",
+          credit_balance: wallet.balance || 0, total_purchased_credits: wallet.total_purchased || 0,
+          total_spent_usd: (totalSpentCents / 100).toFixed(2), purchase_count: purchases.length,
+          post_count: p.post_count || 0, follower_count: p.follower_count || 0,
+          following_count: p.following_count || 0, plan: parsedNotes.plan_override || "Free",
           tags: (parsedNotes.tags || []).join("; "),
         };
       });
@@ -996,12 +839,9 @@ Return this exact JSON structure:
 
       for (const uid of userIds) {
         try {
-          // Log each action
           await supabaseAdmin.from("admin_user_actions").insert({
-            target_user_id: uid,
-            performed_by: performedBy,
-            action_type: `bulk_${bulkAction}`,
-            reason: reason || `Bulk action: ${bulkAction}`,
+            target_user_id: uid, performed_by: performedBy,
+            action_type: `bulk_${bulkAction}`, reason: reason || `Bulk action: ${bulkAction}`,
             metadata: { bulk: true, total_in_batch: userIds.length },
           });
 
@@ -1030,10 +870,8 @@ Return this exact JSON structure:
             }
             case "send_notification":
               await supabaseAdmin.from("admin_user_notifications").insert({
-                user_id: uid,
-                title: actionData?.title || "Notification",
-                message: actionData?.message || "",
-                notification_type: actionData?.notification_type || "info",
+                user_id: uid, title: actionData?.title || "Notification",
+                message: actionData?.message || "", notification_type: actionData?.notification_type || "info",
                 sent_by: performedBy,
               });
               break;
@@ -1061,13 +899,9 @@ Return this exact JSON structure:
 
       const performedBy = userData.user.id;
 
-      // Log the action
       await supabaseAdmin.from("admin_user_actions").insert({
-        target_user_id: userId,
-        performed_by: performedBy,
-        action_type: adminAction,
-        reason: reason || null,
-        metadata: actionData || null,
+        target_user_id: userId, performed_by: performedBy,
+        action_type: adminAction, reason: reason || null, metadata: actionData || null,
       });
 
       switch (adminAction) {
@@ -1092,8 +926,7 @@ Return this exact JSON structure:
           const newBalance = isGrant ? (wallet?.balance || 0) + amount : Math.max(0, (wallet?.balance || 0) - amount);
           await supabaseAdmin.from("wallets").update({ balance: newBalance }).eq("user_id", userId);
           await supabaseAdmin.from("wallet_transactions").insert({
-            user_id: userId,
-            type: isGrant ? "admin_grant" : "admin_revoke",
+            user_id: userId, type: isGrant ? "admin_grant" : "admin_revoke",
             amount: isGrant ? amount : -amount,
             description: `Admin ${isGrant ? "grant" : "revoke"}: ${reason || "No reason"}`,
             balance_after: newBalance,
@@ -1102,10 +935,8 @@ Return this exact JSON structure:
         }
         case "send_notification":
           await supabaseAdmin.from("admin_user_notifications").insert({
-            user_id: userId,
-            title: actionData?.title || "Notification",
-            message: actionData?.message || "",
-            notification_type: actionData?.notification_type || "info",
+            user_id: userId, title: actionData?.title || "Notification",
+            message: actionData?.message || "", notification_type: actionData?.notification_type || "info",
             sent_by: performedBy,
           });
           break;
@@ -1131,32 +962,28 @@ Return this exact JSON structure:
           const { data: p } = await supabaseAdmin.from("profiles").select("admin_notes").eq("user_id", userId).single();
           const existingNotes = (p?.admin_notes || "").replace(/\[PLAN_OVERRIDE\]\s*\w+/g, "");
           const plan = actionData?.plan || "free";
-          const updatedNotes = existingNotes + `\n[PLAN_OVERRIDE] ${plan}`;
-          await supabaseAdmin.from("profiles").update({ admin_notes: updatedNotes }).eq("user_id", userId);
+          await supabaseAdmin.from("profiles").update({ admin_notes: existingNotes + `\n[PLAN_OVERRIDE] ${plan}` }).eq("user_id", userId);
           break;
         }
         case "tag_user": {
           const { data: p } = await supabaseAdmin.from("profiles").select("admin_notes").eq("user_id", userId).single();
           const existingNotes = (p?.admin_notes || "").replace(/\[TAGS\].*?(?=\[|$)/s, "");
           const tags = (actionData?.tags || []).join(", ");
-          const updatedNotes = existingNotes + `\n[TAGS]${tags}`;
-          await supabaseAdmin.from("profiles").update({ admin_notes: updatedNotes }).eq("user_id", userId);
+          await supabaseAdmin.from("profiles").update({ admin_notes: existingNotes + `\n[TAGS]${tags}` }).eq("user_id", userId);
           break;
         }
         case "set_credit_limit": {
           const { data: p } = await supabaseAdmin.from("profiles").select("admin_notes").eq("user_id", userId).single();
           const existingNotes = (p?.admin_notes || "").replace(/\[CREDIT_LIMIT\]\s*\d+/g, "");
           const limit = actionData?.daily_limit || 0;
-          const updatedNotes = existingNotes + (limit > 0 ? `\n[CREDIT_LIMIT] ${limit}` : "");
-          await supabaseAdmin.from("profiles").update({ admin_notes: updatedNotes }).eq("user_id", userId);
+          await supabaseAdmin.from("profiles").update({ admin_notes: existingNotes + (limit > 0 ? `\n[CREDIT_LIMIT] ${limit}` : "") }).eq("user_id", userId);
           break;
         }
         case "flag_user": {
           const { data: p } = await supabaseAdmin.from("profiles").select("admin_notes").eq("user_id", userId).single();
           const existingNotes = (p?.admin_notes || "").replace(/\[FLAGS\].*?(?=\[|$)/s, "");
           const flags = (actionData?.flags || []).join(", ");
-          const updatedNotes = existingNotes + `\n[FLAGS]${flags}`;
-          await supabaseAdmin.from("profiles").update({ admin_notes: updatedNotes }).eq("user_id", userId);
+          await supabaseAdmin.from("profiles").update({ admin_notes: existingNotes + `\n[FLAGS]${flags}` }).eq("user_id", userId);
           break;
         }
         case "ban_ip": {
@@ -1165,33 +992,29 @@ Return this exact JSON structure:
           const bannedMatch = existingNotes.match(/\[BANNED_IPS\](.*?)(?:\[|$)/s);
           const existingBanned = bannedMatch ? bannedMatch[1].split(",").map((ip: string) => ip.trim()).filter(Boolean) : [];
           const newIp = actionData?.ip_address;
-          if (newIp && !existingBanned.includes(newIp)) {
-            existingBanned.push(newIp);
-          }
+          if (newIp && !existingBanned.includes(newIp)) existingBanned.push(newIp);
           const cleanNotes = existingNotes.replace(/\[BANNED_IPS\].*?(?=\[|$)/s, "");
           await supabaseAdmin.from("profiles").update({ admin_notes: cleanNotes + `\n[BANNED_IPS]${existingBanned.join(", ")}` }).eq("user_id", userId);
           break;
         }
         case "cancel_subscription": {
           if (actionData?.subscription_id) {
-            const result = await manageLSSubscription(actionData.subscription_id, "cancel");
+            const result = await managePolarSubscription(actionData.subscription_id, "cancel");
             if (!result.success) return err(result.error || "Failed to cancel subscription", 500);
           }
           break;
         }
         case "pause_subscription": {
+          // Polar doesn't support pause — cancel instead
           if (actionData?.subscription_id) {
-            const result = await manageLSSubscription(actionData.subscription_id, "pause");
-            if (!result.success) return err(result.error || "Failed to pause subscription", 500);
+            const result = await managePolarSubscription(actionData.subscription_id, "cancel");
+            if (!result.success) return err(result.error || "Failed to cancel subscription", 500);
           }
           break;
         }
         case "resume_subscription": {
-          if (actionData?.subscription_id) {
-            const result = await manageLSSubscription(actionData.subscription_id, "resume");
-            if (!result.success) return err(result.error || "Failed to resume subscription", 500);
-          }
-          break;
+          // Polar doesn't support resume — user needs to re-subscribe
+          return ok({ success: true, action: "resume_subscription", note: "User must re-subscribe via checkout. Polar does not support resuming cancelled subscriptions." });
         }
         case "send_email": {
           try {
@@ -1246,11 +1069,9 @@ Return this exact JSON structure:
           break;
         case "credit_expiry_warn":
           await supabaseAdmin.from("admin_user_notifications").insert({
-            user_id: userId,
-            title: "Credit Expiry Warning",
+            user_id: userId, title: "Credit Expiry Warning",
             message: actionData?.message || "Some of your credits may expire soon. Use them before they expire!",
-            notification_type: "warning",
-            sent_by: performedBy,
+            notification_type: "warning", sent_by: performedBy,
           });
           break;
         case "mark_vip": {
