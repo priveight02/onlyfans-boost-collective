@@ -26,6 +26,7 @@ const polarFetch = async (path: string, options: RequestInit = {}) => {
 const logStep = (step: string, details?: any) => {
   console.log(`[POLAR-SETUP] ${step}${details ? ` - ${JSON.stringify(details)}` : ""}`);
 };
+logStep("Init", { POLAR_MODE, POLAR_API });
 
 // Upload image from URL to Polar as product_media, returns file ID
 const uploadProductImage = async (imageUrl: string, fileName: string): Promise<string | null> => {
