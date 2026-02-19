@@ -59,7 +59,7 @@ const DISCOUNT_DEFINITIONS = [
   { name: "Loyalty 30% Off", code: "LOYALTY30", amount: 30, amount_type: "percent" as const, duration: "once" as const, description: "30% loyalty discount — awarded after 3rd+ purchase" },
 
   // ─── Retention Discount (one-time 50% off to retain at-risk customers) ───
-  { name: "Retention 50% Off", code: "RETENTION50", amount: 50, amount_type: "percent" as const, duration: "once" as const, description: "50% one-time retention offer for at-risk users" },
+  { name: "Special Offer 50%", code: "SPECIAL50", amount: 50, amount_type: "percent" as const, duration: "once" as const, description: "50% special offer — one-time discount for eligible users" },
 
   // ─── Yearly Subscription Incentives ───
   { name: "Yearly Starter 15%", code: "YEARLY15", amount: 15, amount_type: "percent" as const, duration: "forever" as const, description: "15% yearly billing discount for Starter plan" },
