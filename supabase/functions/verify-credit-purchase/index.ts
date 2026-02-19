@@ -44,8 +44,14 @@ serve(async (req) => {
     if (!storeId) throw new Error("No store found");
 
     // Fetch recent orders for this user by email
-    const ordersRes = await lsFetch(`/orders?filter[store_id]=${storeId}&filter[user_email]=${encodeURIComponent(user.email)}&page[size]=25&sort=-created_at`);
-    if (!ordersRes.ok) throw new Error("Failed to fetch orders");
+    const ordersUrl = `/orders?filter[store_id]=${storeId}&filter[user_email]=${encodeURIComponent(user.email)}&page[size]=25`;
+    log("Fetching orders", { url: ordersUrl });
+    const ordersRes = await lsFetch(ordersUrl);
+    if (!ordersRes.ok) {
+      const errBody = await ordersRes.text();
+      log("Orders fetch failed", { status: ordersRes.status, body: errBody });
+      throw new Error(`Failed to fetch orders: ${ordersRes.status} - ${errBody}`);
+    }
     const ordersData = await ordersRes.json();
     const orders = ordersData.data || [];
     log("Found orders", { count: orders.length });
