@@ -178,7 +178,6 @@ const Auth = () => {
     }
   };
 
-
   const titles: Record<AuthMode, { title: string; subtitle: string; icon: typeof LogIn }> = {
     login: { title: "Welcome Back", subtitle: "Sign in to your account", icon: LogIn },
     register: { title: "Create Account", subtitle: "Join the community", icon: UserPlus },
