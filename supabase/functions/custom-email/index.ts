@@ -22,7 +22,7 @@ const emailFooter = `
       <tr>
         <td>
           <p style="font-size: 13px; color: #a0a0b0; margin: 0 0 4px 0; font-weight: 600;">${BRAND_NAME}</p>
-          <p style="font-size: 11px; color: #666680; margin: 0 0 12px 0;">Creator Management · Premium OnlyFans Agency</p>
+          <p style="font-size: 11px; color: #666680; margin: 0 0 12px 0;">Creator Management · Premium Agency</p>
         </td>
       </tr>
       <tr>
