@@ -634,7 +634,7 @@ const AdminAPI = () => {
 
   const generateApiKey = (type: "secret" | "publishable" = "secret") => {
     const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-    const prefix = type === "publishable" ? "ozc_pk_live_" : "ozc_sk_live_";
+    const prefix = type === "publishable" ? "uplyze_pk_live_" : "uplyze_sk_live_";
     let key = prefix;
     for (let i = 0; i < 40; i++) key += chars.charAt(Math.floor(Math.random() * chars.length));
     return key;
@@ -760,16 +760,16 @@ const AdminAPI = () => {
 
     // Validate API key
     if (!pgApiKey.trim()) {
-      toast.error("API key is required. Enter your secret key (ozc_sk_live_...) to authenticate.");
+      toast.error("API key is required. Enter your secret key (uplyze_sk_live_...) to authenticate.");
       return;
     }
-    if (!pgApiKey.startsWith("ozc_sk_live_") && !pgApiKey.startsWith("ozc_pk_live_") && !pgApiKey.startsWith("ozcpk_live_")) {
-      toast.error("Invalid API key format. Keys must start with ozc_sk_live_ or ozc_pk_live_");
+    if (!pgApiKey.startsWith("uplyze_sk_live_") && !pgApiKey.startsWith("uplyze_pk_live_") && !pgApiKey.startsWith("ozc_sk_live_") && !pgApiKey.startsWith("ozc_pk_live_")) {
+      toast.error("Invalid API key format. Keys must start with uplyze_sk_live_ or uplyze_pk_live_");
       return;
     }
 
     // Publishable keys can only do GET
-    if (pgApiKey.startsWith("ozc_pk_live_") && pgSelectedEndpoint.method !== "GET") {
+    if ((pgApiKey.startsWith("uplyze_pk_live_") || pgApiKey.startsWith("ozc_pk_live_")) && pgSelectedEndpoint.method !== "GET") {
       toast.error("Publishable keys (pk) can only perform GET requests. Use a secret key (sk) for write operations.");
       return;
     }
@@ -1104,10 +1104,10 @@ const AdminAPI = () => {
                       <span className="text-[10px] text-amber-300 uppercase tracking-wider font-semibold">Secret Key (server-side)</span>
                       <div className="flex items-center gap-2 mt-1">
                         <code className="bg-white/5 px-2 py-1 rounded text-[11px] text-amber-300 font-mono">
-                          X-API-Key: ozc_sk_live_••••••••••••••••
+                          X-API-Key: uplyze_sk_live_••••••••••••••••
                         </code>
                         <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-white/30 hover:text-white"
-                          onClick={() => copyToClipboard('X-API-Key: ozc_sk_live_YOUR_SECRET_KEY', 'auth-sk')}>
+                          onClick={() => copyToClipboard('X-API-Key: uplyze_sk_live_YOUR_SECRET_KEY', 'auth-sk')}>
                           {copied === "auth-sk" ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
                         </Button>
                       </div>
@@ -1116,10 +1116,10 @@ const AdminAPI = () => {
                       <span className="text-[10px] text-blue-300 uppercase tracking-wider font-semibold">Publishable Key (client-side, read-only)</span>
                       <div className="flex items-center gap-2 mt-1">
                         <code className="bg-white/5 px-2 py-1 rounded text-[11px] text-blue-300 font-mono">
-                          X-API-Key: ozc_pk_live_••••••••••••••••
+                          X-API-Key: uplyze_pk_live_••••••••••••••••
                         </code>
                         <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-white/30 hover:text-white"
-                          onClick={() => copyToClipboard('X-API-Key: ozc_pk_live_YOUR_PUBLISHABLE_KEY', 'auth-pk')}>
+                          onClick={() => copyToClipboard('X-API-Key: uplyze_pk_live_YOUR_PUBLISHABLE_KEY', 'auth-pk')}>
                           {copied === "auth-pk" ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
                         </Button>
                       </div>
@@ -1183,7 +1183,7 @@ const AdminAPI = () => {
                               <Badge className={`${METHOD_COLORS[ep.method]} text-[10px] font-mono px-2 py-0.5 border`}>{ep.method}</Badge>
                               <code className="text-xs text-white/70 font-mono">{ep.path}</code>
                               <Button size="sm" variant="ghost" className="h-5 w-5 p-0 text-white/20 hover:text-white ml-auto"
-                                onClick={() => copyToClipboard(`curl -X ${ep.method} "${BASE_URL}${ep.path}" -H "X-API-Key: ozc_sk_live_YOUR_KEY" -H "Content-Type: application/json"`, `ep-${group.name}-${i}`)}>
+                                onClick={() => copyToClipboard(`curl -X ${ep.method} "${BASE_URL}${ep.path}" -H "X-API-Key: uplyze_sk_live_YOUR_KEY" -H "Content-Type: application/json"`, `ep-${group.name}-${i}`)}>
                                 {copied === `ep-${group.name}-${i}` ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
                               </Button>
                             </div>
@@ -1306,7 +1306,7 @@ const AdminAPI = () => {
                           value={pgApiKey}
                           onChange={(e) => setPgApiKey(e.target.value)}
                           type="password"
-                          placeholder="ozc_sk_live_... or ozc_pk_live_..."
+                          placeholder="uplyze_sk_live_... or uplyze_pk_live_..."
                           className="bg-white/5 border-white/10 text-white h-8 text-xs font-mono"
                         />
                         <p className="text-[9px] text-white/20 mt-1">Paste your secret or publishable key. Publishable keys are read-only (GET only).</p>
@@ -1429,7 +1429,7 @@ const AdminAPI = () => {
                     <Lock className="h-3.5 w-3.5 text-amber-400" />
                     <span className="text-xs font-semibold text-amber-300">Secret Key</span>
                   </div>
-                  <code className="text-[10px] text-amber-300/70 font-mono block">ozc_sk_live_•••••••••••••••</code>
+                  <code className="text-[10px] text-amber-300/70 font-mono block">uplyze_sk_live_•••••••••••••••</code>
                   <p className="text-[10px] text-white/30 mt-1.5">Full read/write/delete access. Keep server-side only. Never expose in browser code, GitHub repos, or client bundles.</p>
                 </div>
                 <div className="p-3 rounded-lg bg-blue-500/5 border border-blue-500/15">
@@ -1437,7 +1437,7 @@ const AdminAPI = () => {
                     <Unlock className="h-3.5 w-3.5 text-blue-400" />
                     <span className="text-xs font-semibold text-blue-300">Publishable Key</span>
                   </div>
-                  <code className="text-[10px] text-blue-300/70 font-mono block">ozc_pk_live_•••••••••••••••</code>
+                  <code className="text-[10px] text-blue-300/70 font-mono block">uplyze_pk_live_•••••••••••••••</code>
                   <p className="text-[10px] text-white/30 mt-1.5">Read-only (GET requests). Safe to embed in frontend apps, mobile apps, and public-facing widgets.</p>
                 </div>
               </div>
@@ -1451,10 +1451,10 @@ const AdminAPI = () => {
             <CardContent className="p-4 pt-0 space-y-2">
               <p className="text-[11px] text-white/50">Go to the "My API Keys" tab, click "Create Key", choose Secret or Publishable, and copy it immediately. The raw key is shown only once.</p>
               <pre className="bg-black/30 rounded-lg p-3 text-[11px] text-blue-300/80 font-mono overflow-x-auto">{`# Secret key — for your backend
-ozc_sk_live_ABCDEFghijklmnopqrstuvwxyz1234567890ABCD
+uplyze_sk_live_ABCDEFghijklmnopqrstuvwxyz1234567890ABCD
 
 # Publishable key — for your frontend
-ozc_pk_live_XYZabcdefghijklmnopqrstuvwxyz0987654321`}</pre>
+uplyze_pk_live_XYZabcdefghijklmnopqrstuvwxyz0987654321`}</pre>
             </CardContent>
           </Card>
 
@@ -1466,14 +1466,14 @@ ozc_pk_live_XYZabcdefghijklmnopqrstuvwxyz0987654321`}</pre>
               <div>
                 <p className="text-[11px] text-white/50 mb-2">cURL — List accounts using your secret key:</p>
                 <pre className="bg-black/30 rounded-lg p-3 text-[11px] text-amber-300/80 font-mono overflow-x-auto">{`curl -X GET "${BASE_URL}/v1/accounts?status=active&limit=10" \\
-  -H "X-API-Key: ozc_sk_live_YOUR_SECRET_KEY" \\
+  -H "X-API-Key: uplyze_sk_live_YOUR_SECRET_KEY" \\
   -H "Content-Type: application/json"`}</pre>
               </div>
               <div>
                 <p className="text-[11px] text-white/50 mb-2">JavaScript / Fetch (server-side):</p>
                 <pre className="bg-black/30 rounded-lg p-3 text-[11px] text-emerald-300/80 font-mono overflow-x-auto">{`const res = await fetch("${BASE_URL}/v1/accounts", {
   headers: {
-    "X-API-Key": process.env.OZC_SECRET_KEY,
+    "X-API-Key": process.env.UPLYZE_SECRET_KEY,
     "Content-Type": "application/json"
   }
 });
@@ -1485,7 +1485,7 @@ console.log(\`Found \${data.length} accounts\`);`}</pre>
                 <pre className="bg-black/30 rounded-lg p-3 text-[11px] text-blue-300/80 font-mono overflow-x-auto">{`// Safe to use in browser — read-only access
 const res = await fetch("${BASE_URL}/v1/accounts?limit=5", {
   headers: {
-    "X-API-Key": "ozc_pk_live_YOUR_PUBLISHABLE_KEY",
+    "X-API-Key": "uplyze_pk_live_YOUR_PUBLISHABLE_KEY",
     "Content-Type": "application/json"
   }
 });
@@ -1497,7 +1497,7 @@ const { data } = await res.json();`}</pre>
 import os
 
 headers = {
-    "X-API-Key": os.environ["OZC_SECRET_KEY"],
+    "X-API-Key": os.environ["UPLYZE_SECRET_KEY"],
     "Content-Type": "application/json"
 }
 
@@ -1516,7 +1516,7 @@ print(f"Loaded {len(accounts)} accounts")`}</pre>
 const client = axios.create({
   baseURL: "${BASE_URL}",
   headers: {
-    "X-API-Key": process.env.OZC_SECRET_KEY,
+    "X-API-Key": process.env.UPLYZE_SECRET_KEY,
     "Content-Type": "application/json",
   },
 });
@@ -1575,7 +1575,7 @@ X-RateLimit-Reset: 1710000000`}</pre>
             </CardHeader>
             <CardContent className="p-4 pt-0">
               <ul className="text-[11px] text-white/50 space-y-2 list-disc pl-4">
-                <li><strong className="text-white/70">Never hardcode secret keys</strong> — Use environment variables (<code className="bg-white/5 px-1 rounded font-mono text-[10px]">OZC_SECRET_KEY</code>)</li>
+                <li><strong className="text-white/70">Never hardcode secret keys</strong> — Use environment variables (<code className="bg-white/5 px-1 rounded font-mono text-[10px]">UPLYZE_SECRET_KEY</code>)</li>
                 <li><strong className="text-white/70">Use publishable keys for client apps</strong> — They're read-only and safe to expose</li>
                 <li><strong className="text-white/70">Rotate keys regularly</strong> — Create new keys and revoke old ones without downtime</li>
                 <li><strong className="text-white/70">Use scoped keys</strong> — Grant minimum required permissions per integration</li>

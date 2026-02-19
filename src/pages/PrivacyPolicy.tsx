@@ -27,7 +27,7 @@ const PrivacyPolicy = () => {
           <div className="space-y-8 text-white/80 leading-relaxed">
             <section className="bg-white/5 backdrop-blur-md rounded-2xl p-6 sm:p-8 border border-white/10">
               <h2 className="text-xl font-semibold text-white mb-4">1. Introduction</h2>
-              <p>Ozc Agency ("we," "our," or "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you visit our website and use our services. This policy complies with the General Data Protection Regulation (GDPR), the California Consumer Privacy Act (CCPA), the California Privacy Rights Act (CPRA), and other applicable data protection laws.</p>
+              <p>Uplyze ("we," "our," or "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you visit our website and use our services. This policy complies with the General Data Protection Regulation (GDPR), the California Consumer Privacy Act (CCPA), the California Privacy Rights Act (CPRA), and other applicable data protection laws.</p>
               <p className="mt-3">By accessing or using our services, you acknowledge that you have read, understood, and agree to be bound by this Privacy Policy. If you do not agree, please discontinue use of our services immediately.</p>
             </section>
 
@@ -37,12 +37,12 @@ const PrivacyPolicy = () => {
               <p>We may collect the following personal information when you interact with our services:</p>
               <ul className="list-disc list-inside mt-2 space-y-1">
                 <li>Full name and display name</li>
-                <li>Email address (e.g., when you contact us at liam@ozcagency.com)</li>
+                <li>Email address (e.g., when you contact us at contact@uplyze.ai)</li>
                 <li>Phone number</li>
                 <li>Social media account usernames and profile information</li>
                 <li>Billing and payment information</li>
                 <li>Content you provide through onboarding forms</li>
-                <li>Communication records between you and Ozc Agency</li>
+                <li>Communication records between you and Uplyze</li>
               </ul>
 
               <h3 className="text-lg font-medium text-white/90 mt-4 mb-2">2.2 Automatically Collected Information</h3>
@@ -128,7 +128,7 @@ const PrivacyPolicy = () => {
                 <li>Right to limit use of sensitive personal information</li>
                 <li>Right to non-discrimination for exercising your rights</li>
               </ul>
-              <p className="mt-3">To exercise any of these rights, contact us at <a href="mailto:liam@ozcagency.com" className="text-accent underline hover:text-white transition-colors">liam@ozcagency.com</a>. We will respond within 30 days (GDPR) or 45 days (CCPA/CPRA).</p>
+              <p className="mt-3">To exercise any of these rights, contact us at <a href="mailto:contact@uplyze.ai" className="text-accent underline hover:text-white transition-colors">contact@uplyze.ai</a>. We will respond within 30 days (GDPR) or 45 days (CCPA/CPRA).</p>
             </section>
 
             <section className="bg-white/5 backdrop-blur-md rounded-2xl p-6 sm:p-8 border border-white/10">
@@ -161,7 +161,7 @@ const PrivacyPolicy = () => {
 
             <section className="bg-white/5 backdrop-blur-md rounded-2xl p-6 sm:p-8 border border-white/10">
               <h2 className="text-xl font-semibold text-white mb-4">11. Children's Privacy</h2>
-              <p>Our services are not directed to individuals under the age of 18. We do not knowingly collect personal information from minors. If we learn that we have collected data from a person under 18, we will delete that information immediately. If you believe a minor has provided us with personal data, please contact us at <a href="mailto:liam@ozcagency.com" className="text-accent underline hover:text-white transition-colors">liam@ozcagency.com</a>.</p>
+              <p>Our services are not directed to individuals under the age of 18. We do not knowingly collect personal information from minors. If we learn that we have collected data from a person under 18, we will delete that information immediately. If you believe a minor has provided us with personal data, please contact us at <a href="mailto:contact@uplyze.ai" className="text-accent underline hover:text-white transition-colors">contact@uplyze.ai</a>.</p>
             </section>
 
             <section className="bg-white/5 backdrop-blur-md rounded-2xl p-6 sm:p-8 border border-white/10">
@@ -173,8 +173,8 @@ const PrivacyPolicy = () => {
               <h2 className="text-xl font-semibold text-white mb-4">13. Contact Us</h2>
               <p>If you have questions, concerns, or requests regarding this Privacy Policy or our data practices, contact us at:</p>
               <div className="mt-3 space-y-1">
-                <p><strong className="text-white">Ozc Agency</strong></p>
-                <p>Email: <a href="mailto:liam@ozcagency.com" className="text-accent underline hover:text-white transition-colors">liam@ozcagency.com</a></p>
+                <p><strong className="text-white">Uplyze</strong></p>
+                <p>Email: <a href="mailto:contact@uplyze.ai" className="text-accent underline hover:text-white transition-colors">contact@uplyze.ai</a></p>
               </div>
               <p className="mt-3">If you are not satisfied with our response, you have the right to lodge a complaint with your local data protection authority.</p>
             </section>

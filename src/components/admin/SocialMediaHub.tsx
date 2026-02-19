@@ -1257,7 +1257,7 @@ const SocialMediaHub = () => {
     const appId = oauthAppId || cachedIgAppId;
     if (!appId) { toast.error("Enter your Meta App ID in the One-Click Connect section, or configure INSTAGRAM_APP_ID in backend secrets"); return; }
     setIgLoginPopupLoading(true);
-    const publishedOrigin = "https://ozcagency.com";
+    const publishedOrigin = "https://uplyze.ai";
     const redirectUri = `${publishedOrigin}/ig-login`;
     const scope = "instagram_business_basic,instagram_business_content_publish,instagram_business_manage_comments,instagram_business_manage_messages,instagram_business_manage_insights";
     const authUrl = `https://www.instagram.com/oauth/authorize?force_reauth=true&client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent(scope)}`;

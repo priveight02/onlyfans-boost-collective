@@ -592,7 +592,7 @@ const UserProfile = () => {
 
   const handleDeleteAccount = async () => {
     if (deleteConfirmText !== "DELETE") { toast.error("Type DELETE to confirm"); return; }
-    toast.error("Please contact liam@ozcagency.com to request account deletion.");
+    toast.error("Please contact contact@uplyze.ai to request account deletion.");
     setShowDeleteDialog(false); setDeleteConfirmText("");
   };
 

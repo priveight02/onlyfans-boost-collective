@@ -468,7 +468,7 @@ const AdminAPIManagement = () => {
 
   const generateApiKey = (type: "user" | "admin" = "user") => {
     const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-    const prefix = type === "admin" ? "ozc_ak_live_" : "ozc_sk_live_";
+    const prefix = type === "admin" ? "uplyze_ak_live_" : "uplyze_sk_live_";
     let key = prefix;
     for (let i = 0; i < 40; i++) key += chars.charAt(Math.floor(Math.random() * chars.length));
     return key;
@@ -554,13 +554,13 @@ const AdminAPIManagement = () => {
   const sendPlaygroundRequest = async () => {
     if (!pgSelectedEndpoint) return;
 
-    // Validate API key — admin playground requires admin key (ozc_ak_live_) or secret key with admin scope
+    // Validate API key — admin playground requires admin key (uplyze_ak_live_) or secret key with admin scope
     if (!pgApiKey.trim()) {
-      toast.error("Admin API key required. Use an admin key (ozc_ak_live_...) or secret key with admin scope.");
+      toast.error("Admin API key required. Use an admin key (uplyze_ak_live_...) or secret key with admin scope.");
       return;
     }
-    if (!pgApiKey.startsWith("ozc_ak_live_") && !pgApiKey.startsWith("ozc_sk_live_")) {
-      toast.error("Invalid key format. Admin playground requires ozc_ak_live_ (admin) or ozc_sk_live_ (secret with admin scope).");
+    if (!pgApiKey.startsWith("uplyze_ak_live_") && !pgApiKey.startsWith("uplyze_sk_live_") && !pgApiKey.startsWith("ozc_ak_live_") && !pgApiKey.startsWith("ozc_sk_live_")) {
+      toast.error("Invalid key format. Admin playground requires uplyze_ak_live_ (admin) or uplyze_sk_live_ (secret with admin scope).");
       return;
     }
 
@@ -1131,10 +1131,10 @@ const AdminAPIManagement = () => {
                           value={pgApiKey}
                           onChange={(e) => setPgApiKey(e.target.value)}
                           type="password"
-                          placeholder="ozc_ak_live_... (admin key) or ozc_sk_live_... (secret with admin scope)"
+                          placeholder="uplyze_ak_live_... (admin key) or uplyze_sk_live_... (secret with admin scope)"
                           className="bg-white/5 border-white/10 text-white h-8 text-xs font-mono"
                         />
-                        <p className="text-[9px] text-white/20 mt-1">Admin playground requires an admin API key (ozc_ak_live_) or a secret key with admin scope.</p>
+                        <p className="text-[9px] text-white/20 mt-1">Admin playground requires an admin API key (uplyze_ak_live_) or a secret key with admin scope.</p>
                       </div>
                     </div>
 
@@ -1294,7 +1294,7 @@ const AdminAPIManagement = () => {
                       <div className="space-y-2">
                         {[...apiKeys].sort((a, b) => Number(b.requests_total) - Number(a.requests_total)).slice(0, 10).map((key) => {
                           const profile = userProfiles[key.user_id];
-                          const isAdmin = key.key_prefix?.startsWith("ozc_ak_live_");
+                          const isAdmin = key.key_prefix?.startsWith("uplyze_ak_live_") || key.key_prefix?.startsWith("ozc_ak_live_");
                           return (
                             <div key={key.id} className="flex items-center justify-between text-xs p-2.5 rounded bg-white/[0.02] border border-white/[0.04]">
                               <div className="flex items-center gap-2">
@@ -1474,7 +1474,7 @@ const AdminAPIManagement = () => {
                       <Key className={`h-3.5 w-3.5 ${grantKeyType === "user" ? "text-accent" : "text-white/30"}`} />
                       <span className={`text-xs font-semibold ${grantKeyType === "user" ? "text-accent" : "text-white/50"}`}>User Key</span>
                     </div>
-                    <p className="text-[10px] text-white/30">ozc_sk_live_ — Standard API access</p>
+                    <p className="text-[10px] text-white/30">uplyze_sk_live_ — Standard API access</p>
                   </button>
                   <button type="button" onClick={() => { setGrantKeyType("admin"); setGrantScopes(["read", "write", "delete", "admin"]); }}
                     className={`p-3 rounded-lg border text-left transition-all ${grantKeyType === "admin" ? "border-red-500/40 bg-red-500/10" : "border-white/10 bg-white/[0.02] hover:bg-white/[0.04]"}`}>
@@ -1482,7 +1482,7 @@ const AdminAPIManagement = () => {
                       <Shield className={`h-3.5 w-3.5 ${grantKeyType === "admin" ? "text-red-400" : "text-white/30"}`} />
                       <span className={`text-xs font-semibold ${grantKeyType === "admin" ? "text-red-300" : "text-white/50"}`}>Admin Key</span>
                     </div>
-                    <p className="text-[10px] text-white/30">ozc_ak_live_ — Full admin access</p>
+                    <p className="text-[10px] text-white/30">uplyze_ak_live_ — Full admin access</p>
                   </button>
                 </div>
               </div>

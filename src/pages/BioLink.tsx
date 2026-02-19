@@ -143,7 +143,7 @@ const BioLink = () => {
 
         {/* Footer */}
         <div className="text-center pt-8">
-          <p className={`text-xs ${subtextColor}`}>Powered by OZC Agency</p>
+          <p className={`text-xs ${subtextColor}`}>Powered by Uplyze</p>
         </div>
       </div>
     </div>
