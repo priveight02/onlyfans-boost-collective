@@ -22,8 +22,8 @@ const FAQ = () => {
       category: "Getting Started",
       questions: [
         {
-          question: "What is Ozc Agency's Platform?",
-          answer: "Ozc Agency provides an AI-powered growth platform. We combine intelligent customer management, workflow automation, multi-channel outreach, and advanced analytics into one unified system designed to help businesses, content creators, freelancers, and anyone looking to build a stronger digital presence scale faster and smarter."
+          question: "What is Uplyze's Platform?",
+          answer: "Uplyze provides an AI-powered growth platform. We combine intelligent customer management, workflow automation, multi-channel outreach, and advanced analytics into one unified system designed to help businesses, content creators, freelancers, and anyone looking to build a stronger digital presence scale faster and smarter."
         },
         {
           question: "How do I get started?",
@@ -34,7 +34,7 @@ const FAQ = () => {
           answer: "Not at all. Our platform is built with a no-code approach. You can set up automations, build workflows, and generate AI content without writing a single line of code. If you can use a spreadsheet, you can use our platform."
         },
         {
-          question: "What makes Ozc Agency different from other platforms?",
+          question: "What makes Uplyze different from other platforms?",
           answer: "We're AI-first. While other platforms bolt on AI as an afterthought, our entire platform is built around intelligent automation. From AI lead scoring and predictive deal insights to automated content generation and smart engagement sequences, AI powers everything we do."
         }
       ]
@@ -237,7 +237,7 @@ const FAQ = () => {
             Ready to Start Growing?
           </h2>
           <p className="text-lg text-white/40 mb-8 max-w-xl mx-auto animate-fade-in">
-            Join thousands of businesses, creators, and entrepreneurs already scaling with Ozc Agency's AI-powered platform.
+            Join thousands of businesses, creators, and entrepreneurs already scaling with Uplyze's AI-powered platform.
           </p>
           <Button
             size="lg"

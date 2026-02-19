@@ -28,7 +28,7 @@ import AdminOnboarding from "./pages/AdminOnboarding";
 import IGLoginPopup from "./pages/IGLoginPopup";
 import Maintenance from "./pages/Maintenance";
 
-const OWNER_EMAIL = "liam@ozcagency.com";
+const OWNER_EMAIL = "contact@uplyze.ai";
 
 const queryClient = new QueryClient();
 

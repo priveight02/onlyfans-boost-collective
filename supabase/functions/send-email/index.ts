@@ -175,10 +175,10 @@ function getEmailHtml(actionType: string, confirmUrl: string): { subject: string
                   <td style="padding: 24px 48px 0 48px; text-align: center;">
                     <table cellpadding="0" cellspacing="0" role="presentation" style="margin: 0 auto;">
                       <tr>
-                        <td style="padding: 0 5px;"><a href="https://instagram.com/ozcagency" style="display: inline-block; width: 38px; height: 38px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; text-align: center; text-decoration: none; line-height: 38px; font-size: 16px;">📸</a></td>
-                        <td style="padding: 0 5px;"><a href="https://x.com/ozcagency" style="display: inline-block; width: 38px; height: 38px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; text-align: center; text-decoration: none; line-height: 38px; font-size: 16px;">𝕏</a></td>
-                        <td style="padding: 0 5px;"><a href="https://tiktok.com/@ozcagency" style="display: inline-block; width: 38px; height: 38px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; text-align: center; text-decoration: none; line-height: 38px; font-size: 16px;">🎵</a></td>
-                        <td style="padding: 0 5px;"><a href="mailto:contact@ozcagency.com" style="display: inline-block; width: 38px; height: 38px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; text-align: center; text-decoration: none; line-height: 38px; font-size: 16px;">✉️</a></td>
+                        <td style="padding: 0 5px;"><a href="https://instagram.com/uplyze.ai" style="display: inline-block; width: 38px; height: 38px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; text-align: center; text-decoration: none; line-height: 38px; font-size: 16px;">📸</a></td>
+                        <td style="padding: 0 5px;"><a href="https://x.com/uplyze_ai" style="display: inline-block; width: 38px; height: 38px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; text-align: center; text-decoration: none; line-height: 38px; font-size: 16px;">𝕏</a></td>
+                        <td style="padding: 0 5px;"><a href="https://tiktok.com/@uplyze.ai" style="display: inline-block; width: 38px; height: 38px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; text-align: center; text-decoration: none; line-height: 38px; font-size: 16px;">🎵</a></td>
+                        <td style="padding: 0 5px;"><a href="mailto:contact@uplyze.ai" style="display: inline-block; width: 38px; height: 38px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; text-align: center; text-decoration: none; line-height: 38px; font-size: 16px;">✉️</a></td>
                       </tr>
                     </table>
                   </td>
@@ -187,7 +187,7 @@ function getEmailHtml(actionType: string, confirmUrl: string): { subject: string
                 <!-- Contact -->
                 <tr>
                   <td style="padding: 12px 48px 0 48px; text-align: center;">
-                    <p style="margin: 0;"><a href="mailto:contact@ozcagency.com" style="font-size: 12px; color: #475569; text-decoration: none;">contact@ozcagency.com</a></p>
+                    <p style="margin: 0;"><a href="mailto:contact@uplyze.ai" style="font-size: 12px; color: #475569; text-decoration: none;">contact@uplyze.ai</a></p>
                   </td>
                 </tr>
 

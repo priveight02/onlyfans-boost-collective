@@ -27,7 +27,7 @@ const TermsAndConditions = () => {
           <div className="space-y-8 text-white/80 leading-relaxed">
             <section className="bg-white/5 backdrop-blur-md rounded-2xl p-6 sm:p-8 border border-white/10">
               <h2 className="text-xl font-semibold text-white mb-4">1. Agreement to Terms</h2>
-              <p>These Terms and Conditions ("Terms") constitute a legally binding agreement between you ("Client," "you," or "your") and Ozc Agency ("Company," "we," "our," or "us"). By accessing our website, engaging our services, or submitting an onboarding form, you agree to be bound by these Terms in their entirety.</p>
+              <p>These Terms and Conditions ("Terms") constitute a legally binding agreement between you ("Client," "you," or "your") and Uplyze ("Company," "we," "our," or "us"). By accessing our website, engaging our services, or submitting an onboarding form, you agree to be bound by these Terms in their entirety.</p>
               <p className="mt-3">If you do not agree to these Terms, you must not access or use our services. These Terms are governed by and comply with applicable consumer protection laws, distance selling regulations, and digital services legislation.</p>
             </section>
 
@@ -45,7 +45,7 @@ const TermsAndConditions = () => {
 
             <section className="bg-white/5 backdrop-blur-md rounded-2xl p-6 sm:p-8 border border-white/10">
               <h2 className="text-xl font-semibold text-white mb-4">3. Services Description</h2>
-              <p>Ozc Agency provides content creator management services, which may include but are not limited to:</p>
+              <p>Uplyze provides content creator management services, which may include but are not limited to:</p>
               <ul className="list-disc list-inside mt-2 space-y-1">
                 <li>Account management and growth strategy</li>
                 <li>Content planning, scheduling, and optimization</li>
@@ -54,16 +54,16 @@ const TermsAndConditions = () => {
                 <li>Analytics, reporting, and performance tracking</li>
                 <li>Branding and marketing consultation</li>
               </ul>
-              <p className="mt-3">The specific scope of services will be defined in the individual service agreement or onboarding documentation agreed upon between you and Ozc Agency.</p>
+              <p className="mt-3">The specific scope of services will be defined in the individual service agreement or onboarding documentation agreed upon between you and Uplyze.</p>
             </section>
 
             <section className="bg-white/5 backdrop-blur-md rounded-2xl p-6 sm:p-8 border border-white/10">
               <h2 className="text-xl font-semibold text-white mb-4">4. Client Obligations</h2>
-              <p>As a client of Ozc Agency, you agree to:</p>
+              <p>As a client of Uplyze, you agree to:</p>
               <ul className="list-disc list-inside mt-2 space-y-1">
                 <li>Provide timely and accurate information required for service delivery</li>
                 <li>Grant necessary access to platforms and accounts as agreed upon</li>
-                <li>Respond to communications from Ozc Agency within a reasonable timeframe</li>
+                <li>Respond to communications from Uplyze within a reasonable timeframe</li>
                 <li>Comply with the terms of service of all third-party platforms used in connection with our services</li>
                 <li>Not engage in any illegal, fraudulent, or deceptive activities</li>
                 <li>Ensure all content you provide is legally owned or licensed by you</li>
@@ -86,13 +86,13 @@ const TermsAndConditions = () => {
             <section className="bg-white/5 backdrop-blur-md rounded-2xl p-6 sm:p-8 border border-white/10">
               <h2 className="text-xl font-semibold text-white mb-4">6. Intellectual Property</h2>
               <h3 className="text-lg font-medium text-white/90 mb-2">6.1 Client Content</h3>
-              <p>You retain all ownership rights to the content you provide to us. By providing content, you grant Ozc Agency a limited, non-exclusive, revocable license to use, modify, and distribute such content solely for the purpose of providing our services.</p>
+              <p>You retain all ownership rights to the content you provide to us. By providing content, you grant Uplyze a limited, non-exclusive, revocable license to use, modify, and distribute such content solely for the purpose of providing our services.</p>
 
-              <h3 className="text-lg font-medium text-white/90 mt-4 mb-2">6.2 Ozc Agency Materials</h3>
-              <p>All materials, strategies, templates, tools, software, and proprietary methodologies developed by Ozc Agency remain our exclusive intellectual property. You may not reproduce, distribute, or create derivative works from our proprietary materials without our prior written consent.</p>
+              <h3 className="text-lg font-medium text-white/90 mt-4 mb-2">6.2 Uplyze Materials</h3>
+              <p>All materials, strategies, templates, tools, software, and proprietary methodologies developed by Uplyze remain our exclusive intellectual property. You may not reproduce, distribute, or create derivative works from our proprietary materials without our prior written consent.</p>
 
               <h3 className="text-lg font-medium text-white/90 mt-4 mb-2">6.3 Feedback</h3>
-              <p>Any feedback, suggestions, or ideas you provide regarding our services may be used by Ozc Agency without obligation or compensation to you.</p>
+              <p>Any feedback, suggestions, or ideas you provide regarding our services may be used by Uplyze without obligation or compensation to you.</p>
             </section>
 
             <section className="bg-white/5 backdrop-blur-md rounded-2xl p-6 sm:p-8 border border-white/10">
@@ -112,8 +112,8 @@ const TermsAndConditions = () => {
               <h2 className="text-xl font-semibold text-white mb-4">8. Limitation of Liability</h2>
               <p>To the maximum extent permitted by applicable law:</p>
               <ul className="list-disc list-inside mt-2 space-y-1">
-                <li>Ozc Agency shall not be liable for any indirect, incidental, special, consequential, or punitive damages arising from or related to your use of our services</li>
-                <li>Our total liability for any claim arising under these Terms shall not exceed the total fees paid by you to Ozc Agency in the 3 months preceding the event giving rise to the claim</li>
+                <li>Uplyze shall not be liable for any indirect, incidental, special, consequential, or punitive damages arising from or related to your use of our services</li>
+                <li>Our total liability for any claim arising under these Terms shall not exceed the total fees paid by you to Uplyze in the 3 months preceding the event giving rise to the claim</li>
                 <li>We are not liable for any losses resulting from third-party platform changes, outages, or policy modifications</li>
                 <li>We do not guarantee specific results, revenue increases, or follower growth</li>
               </ul>
@@ -122,7 +122,7 @@ const TermsAndConditions = () => {
 
             <section className="bg-white/5 backdrop-blur-md rounded-2xl p-6 sm:p-8 border border-white/10">
               <h2 className="text-xl font-semibold text-white mb-4">9. Indemnification</h2>
-              <p>You agree to indemnify, defend, and hold harmless Ozc Agency, its officers, directors, employees, and agents from and against any claims, damages, losses, liabilities, and expenses (including reasonable attorneys' fees) arising out of or related to:</p>
+              <p>You agree to indemnify, defend, and hold harmless Uplyze, its officers, directors, employees, and agents from and against any claims, damages, losses, liabilities, and expenses (including reasonable attorneys' fees) arising out of or related to:</p>
               <ul className="list-disc list-inside mt-2 space-y-1">
                 <li>Your breach of these Terms</li>
                 <li>Your violation of any applicable law or third-party rights</li>
@@ -135,8 +135,8 @@ const TermsAndConditions = () => {
               <h2 className="text-xl font-semibold text-white mb-4">10. Termination</h2>
               <p>Either party may terminate the service relationship under the following conditions:</p>
               <ul className="list-disc list-inside mt-2 space-y-1">
-                <li><strong className="text-white">By Client:</strong> You may terminate services by providing 30 days' written notice to liam@ozcagency.com</li>
-                <li><strong className="text-white">By Ozc Agency:</strong> We may terminate services with 30 days' notice, or immediately in cases of breach, non-payment, or illegal activity</li>
+                <li><strong className="text-white">By Client:</strong> You may terminate services by providing 30 days' written notice to contact@uplyze.ai</li>
+                <li><strong className="text-white">By Uplyze:</strong> We may terminate services with 30 days' notice, or immediately in cases of breach, non-payment, or illegal activity</li>
                 <li><strong className="text-white">Effect of termination:</strong> Upon termination, all access credentials will be returned, outstanding fees become immediately due, and confidentiality obligations survive</li>
               </ul>
             </section>
@@ -147,7 +147,7 @@ const TermsAndConditions = () => {
               <ul className="list-disc list-inside mt-2 space-y-1">
                 <li><strong className="text-white">Informal resolution:</strong> Both parties agree to first attempt to resolve disputes informally by contacting each other in good faith</li>
                 <li><strong className="text-white">Mediation:</strong> If informal resolution fails within 30 days, either party may propose mediation through a mutually agreed-upon mediator</li>
-                <li><strong className="text-white">Governing law:</strong> These Terms are governed by and construed in accordance with applicable laws of the jurisdiction in which Ozc Agency operates</li>
+                <li><strong className="text-white">Governing law:</strong> These Terms are governed by and construed in accordance with applicable laws of the jurisdiction in which Uplyze operates</li>
               </ul>
               <p className="mt-3">Nothing in this section prevents either party from seeking injunctive or equitable relief from a court of competent jurisdiction.</p>
             </section>
@@ -161,7 +161,7 @@ const TermsAndConditions = () => {
                 <li>Interfere with or disrupt the integrity or performance of our services</li>
                 <li>Attempt to gain unauthorized access to our systems or data</li>
                 <li>Use automated means (bots, scrapers) to access our website without permission</li>
-                <li>Harass, abuse, or harm Ozc Agency staff or other clients</li>
+                <li>Harass, abuse, or harm Uplyze staff or other clients</li>
                 <li>Infringe upon any third-party intellectual property rights</li>
               </ul>
             </section>
@@ -178,20 +178,20 @@ const TermsAndConditions = () => {
 
             <section className="bg-white/5 backdrop-blur-md rounded-2xl p-6 sm:p-8 border border-white/10">
               <h2 className="text-xl font-semibold text-white mb-4">15. Entire Agreement</h2>
-              <p>These Terms, together with our Privacy Policy and any individual service agreements, constitute the entire agreement between you and Ozc Agency. They supersede all prior or contemporaneous communications, proposals, and agreements, whether oral or written, relating to the subject matter herein.</p>
+              <p>These Terms, together with our Privacy Policy and any individual service agreements, constitute the entire agreement between you and Uplyze. They supersede all prior or contemporaneous communications, proposals, and agreements, whether oral or written, relating to the subject matter herein.</p>
             </section>
 
             <section className="bg-white/5 backdrop-blur-md rounded-2xl p-6 sm:p-8 border border-white/10">
               <h2 className="text-xl font-semibold text-white mb-4">16. Modifications</h2>
-              <p>Ozc Agency reserves the right to modify these Terms at any time. Material changes will be communicated with at least 30 days' notice via email or a prominent notice on our website. Continued use of our services after modifications take effect constitutes acceptance of the updated Terms.</p>
+              <p>Uplyze reserves the right to modify these Terms at any time. Material changes will be communicated with at least 30 days' notice via email or a prominent notice on our website. Continued use of our services after modifications take effect constitutes acceptance of the updated Terms.</p>
             </section>
 
             <section className="bg-white/5 backdrop-blur-md rounded-2xl p-6 sm:p-8 border border-white/10">
               <h2 className="text-xl font-semibold text-white mb-4">17. Contact Information</h2>
               <p>For questions, concerns, or notices regarding these Terms, contact us at:</p>
               <div className="mt-3 space-y-1">
-                <p><strong className="text-white">Ozc Agency</strong></p>
-                <p>Email: <a href="mailto:liam@ozcagency.com" className="text-accent underline hover:text-white transition-colors">liam@ozcagency.com</a></p>
+                <p><strong className="text-white">Uplyze</strong></p>
+                <p>Email: <a href="mailto:contact@uplyze.ai" className="text-accent underline hover:text-white transition-colors">contact@uplyze.ai</a></p>
               </div>
             </section>
           </div>

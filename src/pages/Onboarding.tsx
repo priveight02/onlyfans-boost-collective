@@ -19,7 +19,7 @@ const Onboarding = () => {
           className="text-center mb-3 sm:mb-4"
         >
           <span className="text-4xl sm:text-5xl mb-2 block">🧙‍♂️</span>
-          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-2 drop-shadow-lg">Welcome to Ozc Agency</h1>
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-2 drop-shadow-lg">Welcome to Uplyze</h1>
           <p className="text-sm sm:text-base md:text-lg text-white/90 drop-shadow-md px-4">
             Ready to take your content creation to the next level? Let's get you onboarded!
           </p>
@@ -34,9 +34,9 @@ const Onboarding = () => {
         >
           <div className="text-center mb-6">
             <ExternalLink className="h-10 w-10 sm:h-12 sm:w-12 text-white mx-auto mb-4" />
-            <h3 className="text-xl sm:text-2xl font-bold text-white mb-2">Ozc Agency Onboarding Form</h3>
+            <h3 className="text-xl sm:text-2xl font-bold text-white mb-2">Uplyze Onboarding Form</h3>
             <p className="text-sm sm:text-base text-white/70">
-              Complete our Google Form to get onboarded with Ozc Agency
+              Complete our Google Form to get onboarded with Uplyze
             </p>
           </div>
           

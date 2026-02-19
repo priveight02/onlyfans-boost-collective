@@ -50,7 +50,7 @@ const emailFooter = `
           <table cellpadding="0" cellspacing="0" role="presentation">
             <tr>
               <td style="padding-right: 16px;">
-                <a href="https://instagram.com/ozcagency" style="color: #666680; font-size: 11px; text-decoration: none;">Instagram</a>
+                <a href="https://instagram.com/uplyze.ai" style="color: #666680; font-size: 11px; text-decoration: none;">Instagram</a>
               </td>
               <td style="padding-right: 16px;">
                 <a href="mailto:${SUPPORT_EMAIL}" style="color: #666680; font-size: 11px; text-decoration: none;">${SUPPORT_EMAIL}</a>
