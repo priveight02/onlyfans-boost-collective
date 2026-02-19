@@ -26,6 +26,19 @@ const log = (step: string, d?: any) => console.log(`[CREATE-CHECKOUT] ${step}${d
 const PLAN_TIER_ORDER: Record<string, number> = { free: 0, starter: 1, pro: 2, business: 3, enterprise: 4 };
 const PLAN_CREDITS: Record<string, number> = { starter: 215, pro: 1075, business: 4300 };
 
+const YEARLY_DISCOUNT_CODES: Record<string, string> = { starter: "YEARLY15", pro: "YEARLY30", business: "YEARLY33" };
+
+const resolveDiscountId = async (storeId: string, code: string): Promise<string | null> => {
+  try {
+    const res = await lsFetch(`/discounts?filter[store_id]=${storeId}&filter[code]=${code}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.data?.[0]?.id ? String(data.data[0].id) : null;
+  } catch {
+    return null;
+  }
+};
+
 const getStoreId = async (): Promise<string> => {
   const res = await lsFetch("/stores");
   if (!res.ok) throw new Error("Failed to fetch stores");
@@ -177,34 +190,49 @@ serve(async (req) => {
     }
 
     const credits = PLAN_CREDITS[planId] || 0;
+
+    // Auto-apply yearly discount coupon
+    let yearlyDiscountId: string | null = null;
+    if (cycle === "yearly" && YEARLY_DISCOUNT_CODES[planId]) {
+      yearlyDiscountId = await resolveDiscountId(storeId, YEARLY_DISCOUNT_CODES[planId]);
+      log("Yearly discount", { code: YEARLY_DISCOUNT_CODES[planId], discountId: yearlyDiscountId });
+    }
+
+    const checkoutBody: any = {
+      data: {
+        type: "checkouts",
+        attributes: {
+          checkout_data: {
+            email: user.email,
+            custom: {
+              user_id: user.id,
+              plan_id: planId,
+              billing_cycle: cycle,
+              credits: String(credits),
+              type: "subscription",
+            },
+            ...(yearlyDiscountId ? { discount_code: YEARLY_DISCOUNT_CODES[planId] } : {}),
+          },
+          product_options: {
+            redirect_url: `${origin}/profile?subscription=success&plan=${planId}`,
+            receipt_button_text: "Back to Uplyze",
+          },
+          checkout_options: { embed: true, dark: true, media: true, logo: true, discount: false },
+        },
+        relationships: {
+          store: { data: { type: "stores", id: storeId } },
+          variant: { data: { type: "variants", id: String(target.variant.id) } },
+        },
+      },
+    };
+
+    if (yearlyDiscountId) {
+      checkoutBody.data.relationships.discount = { data: { type: "discounts", id: yearlyDiscountId } };
+    }
+
     const checkoutRes = await lsFetch("/checkouts", {
       method: "POST",
-      body: JSON.stringify({
-        data: {
-          type: "checkouts",
-          attributes: {
-            checkout_data: {
-              email: user.email,
-              custom: {
-                user_id: user.id,
-                plan_id: planId,
-                billing_cycle: cycle,
-                credits: String(credits),
-                type: "subscription",
-              },
-            },
-            product_options: {
-              redirect_url: `${origin}/profile?subscription=success&plan=${planId}`,
-              receipt_button_text: "Back to Uplyze",
-            },
-            checkout_options: { embed: true, dark: true, media: true, logo: true },
-          },
-          relationships: {
-            store: { data: { type: "stores", id: storeId } },
-            variant: { data: { type: "variants", id: String(target.variant.id) } },
-          },
-        },
-      }),
+      body: JSON.stringify(checkoutBody),
     });
 
     if (!checkoutRes.ok) throw new Error(`Checkout failed: ${await checkoutRes.text()}`);
