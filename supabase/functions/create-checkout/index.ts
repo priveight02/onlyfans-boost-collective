@@ -26,6 +26,26 @@ const log = (step: string, d?: any) => console.log(`[CREATE-CHECKOUT] ${step}${d
 const PLAN_TIER_ORDER: Record<string, number> = { free: 0, starter: 1, pro: 2, business: 3, enterprise: 4 };
 const PLAN_CREDITS: Record<string, number> = { starter: 215, pro: 1075, business: 4300 };
 
+// ═══════════════════════════════════════════════════════
+// LS SUBSCRIPTION VARIANT MAP (synced from Lemon Squeezy)
+// ═══════════════════════════════════════════════════════
+
+const LS_SUBSCRIPTION_VARIANTS: Record<string, Record<string, { productId: string; variantId: string; priceCents: number }>> = {
+  starter: {
+    monthly: { productId: "840231", variantId: "1323972", priceCents: 900 },
+    yearly:  { productId: "840234", variantId: "1323977", priceCents: 10800 },
+  },
+  pro: {
+    monthly: { productId: "840240", variantId: "1323985", priceCents: 2900 },
+    yearly:  { productId: "840246", variantId: "1323992", priceCents: 34800 },
+  },
+  business: {
+    monthly: { productId: "840249", variantId: "1323995", priceCents: 7900 },
+    yearly:  { productId: "840253", variantId: "1324000", priceCents: 94800 },
+  },
+};
+
+// Yearly discount coupons (auto-applied at checkout)
 const YEARLY_DISCOUNT_CODES: Record<string, string> = { starter: "YEARLY15", pro: "YEARLY30", business: "YEARLY33" };
 
 const resolveDiscountId = async (storeId: string, code: string): Promise<string | null> => {
@@ -47,27 +67,7 @@ const getStoreId = async (): Promise<string> => {
   return String(data.data[0].id);
 };
 
-// Find subscription variant by matching product name
-const findSubscriptionVariant = async (storeId: string, planId: string, cycle: string): Promise<any> => {
-  const cycleLabel = cycle === "yearly" ? "Yearly" : "Monthly";
-  const planLabel = planId.charAt(0).toUpperCase() + planId.slice(1);
-  const targetName = `${planLabel} Plan ${cycleLabel}`;
-
-  const productsRes = await lsFetch(`/products?filter[store_id]=${storeId}&page[size]=100`);
-  if (!productsRes.ok) throw new Error("Failed to list products");
-  const productsData = await productsRes.json();
-
-  const product = (productsData.data || []).find(
-    (p: any) => p.attributes.name.toLowerCase() === targetName.toLowerCase()
-  );
-  if (!product) return null;
-
-  const varRes = await lsFetch(`/variants?filter[product_id]=${product.id}&page[size]=1`);
-  const varData = await varRes.json();
-  return varData.data?.[0] ? { product, variant: varData.data[0] } : null;
-};
-
-// Detect plan from product name
+// Detect plan from product name (for existing subscriptions)
 const detectPlan = (productName: string): { plan: string; cycle: string } => {
   const name = productName.toLowerCase();
   let plan = "free";
@@ -105,10 +105,12 @@ serve(async (req) => {
     const cycle = billingCycle === "yearly" ? "yearly" : "monthly";
     const storeId = await getStoreId();
 
-    // Find target subscription variant
-    const target = await findSubscriptionVariant(storeId, planId, cycle);
-    if (!target) throw new Error(`Subscription product not found: ${planId}/${cycle}. Create it in Lemon Squeezy dashboard.`);
-    log("Found target variant", { name: target.product.attributes.name, variantId: target.variant.id });
+    // Resolve target subscription variant from hardcoded map
+    const planVariants = LS_SUBSCRIPTION_VARIANTS[planId];
+    if (!planVariants) throw new Error(`Unknown plan: ${planId}`);
+    const target = planVariants[cycle];
+    if (!target) throw new Error(`No variant for ${planId}/${cycle}`);
+    log("Target variant", { planId, cycle, productId: target.productId, variantId: target.variantId });
 
     // Check existing subscription
     const subsRes = await lsFetch(`/subscriptions?filter[store_id]=${storeId}&filter[user_email]=${encodeURIComponent(user.email)}&filter[status]=active`);
@@ -136,14 +138,14 @@ serve(async (req) => {
 
     // UPGRADE: change variant, invoice immediately
     if (existingSub && isUpgrade) {
-      log("Upgrading subscription", { subId: existingSub.id, newVariant: target.variant.id });
+      log("Upgrading subscription", { subId: existingSub.id, newVariant: target.variantId });
       const updateRes = await lsFetch(`/subscriptions/${existingSub.id}`, {
         method: "PATCH",
         body: JSON.stringify({
           data: {
             type: "subscriptions",
             id: String(existingSub.id),
-            attributes: { variant_id: Number(target.variant.id), invoice_immediately: true },
+            attributes: { variant_id: Number(target.variantId), invoice_immediately: true },
           },
         }),
       });
@@ -166,14 +168,14 @@ serve(async (req) => {
 
     // DOWNGRADE: change variant, no proration
     if (existingSub && isDowngrade) {
-      log("Downgrading subscription", { subId: existingSub.id, newVariant: target.variant.id });
+      log("Downgrading subscription", { subId: existingSub.id, newVariant: target.variantId });
       const updateRes = await lsFetch(`/subscriptions/${existingSub.id}`, {
         method: "PATCH",
         body: JSON.stringify({
           data: {
             type: "subscriptions",
             id: String(existingSub.id),
-            attributes: { variant_id: Number(target.variant.id), disable_prorations: true },
+            attributes: { variant_id: Number(target.variantId), disable_prorations: true },
           },
         }),
       });
@@ -221,7 +223,7 @@ serve(async (req) => {
         },
         relationships: {
           store: { data: { type: "stores", id: storeId } },
-          variant: { data: { type: "variants", id: String(target.variant.id) } },
+          variant: { data: { type: "variants", id: target.variantId } },
         },
       },
     };

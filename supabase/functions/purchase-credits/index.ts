@@ -25,15 +25,51 @@ const log = (step: string, d?: any) => console.log(`[PURCHASE-CREDITS] ${step}${
 
 const BASE_PRICE_PER_CREDIT_CENTS = 1.816;
 
-const getVolumeDiscountCode = (credits: number): string | null => {
-  if (credits >= 100000) return "VOLUME40";
-  if (credits >= 75000) return "VOLUME35";
-  if (credits >= 50000) return "VOLUME30";
-  if (credits >= 30000) return "VOLUME25";
-  if (credits >= 20000) return "VOLUME20";
-  if (credits >= 15000) return "VOLUME15";
-  if (credits >= 10000) return "VOLUME5";
-  return null;
+// ═══════════════════════════════════════════════════════
+// LS PRODUCT / VARIANT ID MAP (synced from Lemon Squeezy)
+// Each tier has: base, 10%, 20%, 30%, 50% discount variants
+// ═══════════════════════════════════════════════════════
+
+const LS_CREDIT_VARIANTS: Record<string, Record<string, { productId: string; variantId: string; priceCents: number }>> = {
+  starter: {
+    base:  { productId: "840259", variantId: "1324008", priceCents: 900 },
+    "10":  { productId: "840275", variantId: "1324031", priceCents: 810 },
+    "20":  { productId: "840277", variantId: "1324035", priceCents: 720 },
+    "30":  { productId: "840279", variantId: "1324037", priceCents: 630 },
+    "50":  { productId: "840283", variantId: "1324043", priceCents: 450 },
+  },
+  pro: {
+    base:  { productId: "840262", variantId: "1324011", priceCents: 2900 },
+    "10":  { productId: "840285", variantId: "1324045", priceCents: 2610 },
+    "20":  { productId: "840286", variantId: "1324046", priceCents: 2320 },
+    "30":  { productId: "840290", variantId: "1324054", priceCents: 2030 },
+    "50":  { productId: "840292", variantId: "1324056", priceCents: 1450 },
+  },
+  studio: {
+    base:  { productId: "840264", variantId: "1324015", priceCents: 4900 },
+    "10":  { productId: "840298", variantId: "1324066", priceCents: 4410 },
+    "20":  { productId: "840305", variantId: "1324074", priceCents: 3920 },
+    "30":  { productId: "840306", variantId: "1324075", priceCents: 3430 },
+    "50":  { productId: "840311", variantId: "1324085", priceCents: 2450 },
+  },
+  power: {
+    base:  { productId: "840272", variantId: "1324028", priceCents: 14900 },
+    "10":  { productId: "840313", variantId: "1324087", priceCents: 13410 },
+    "20":  { productId: "840318", variantId: "1324094", priceCents: 11920 },
+    "30":  { productId: "840321", variantId: "1324097", priceCents: 10430 },
+    "50":  { productId: "840323", variantId: "1324099", priceCents: 7450 },
+  },
+};
+
+// Custom Credits product (pay-what-you-want with custom_price)
+const LS_CUSTOM_CREDITS = { productId: "840329", variantId: "1324110" };
+
+// Map DB package name to tier key
+const PACKAGE_TIER_MAP: Record<string, string> = {
+  "starter credits": "starter",
+  "pro credits": "pro",
+  "studio credits": "studio",
+  "power user credits": "power",
 };
 
 const getVolumeDiscountPercent = (credits: number): number => {
@@ -47,18 +83,13 @@ const getVolumeDiscountPercent = (credits: number): number => {
   return 0;
 };
 
-const getLoyaltyDiscountCode = (purchaseCount: number): string | null => {
-  if (purchaseCount >= 3) return "LOYALTY30";
-  if (purchaseCount >= 2) return "LOYALTY20";
-  if (purchaseCount >= 1) return "LOYALTY10";
-  return null;
-};
-
-const getLoyaltyDiscountPercent = (purchaseCount: number): number => {
-  if (purchaseCount >= 3) return 30;
-  if (purchaseCount >= 2) return 20;
-  if (purchaseCount >= 1) return 10;
-  return 0;
+// Determine discount tier based on purchase history & retention
+const getDiscountTier = (purchaseCount: number, useRetention: boolean, retentionUsed: boolean): string => {
+  if (useRetention && !retentionUsed) return "50";
+  if (purchaseCount >= 3) return "30";
+  if (purchaseCount >= 2) return "20";
+  if (purchaseCount >= 1) return "10";
+  return "base";
 };
 
 const getStoreId = async (): Promise<string> => {
@@ -67,18 +98,6 @@ const getStoreId = async (): Promise<string> => {
   const data = await res.json();
   if (!data.data?.length) throw new Error("No store found");
   return String(data.data[0].id);
-};
-
-// Resolve an LS discount code to its discount ID
-const resolveDiscountId = async (storeId: string, code: string): Promise<string | null> => {
-  try {
-    const res = await lsFetch(`/discounts?filter[store_id]=${storeId}&filter[code]=${code}`);
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data.data?.[0]?.id ? String(data.data[0].id) : null;
-  } catch {
-    return null;
-  }
 };
 
 serve(async (req) => {
@@ -107,61 +126,30 @@ serve(async (req) => {
 
     const origin = req.headers.get("origin") || "https://uplyze.ai";
     const storeId = await getStoreId();
+    const discountTier = getDiscountTier(currentPurchaseCount, useRetentionDiscount || false, retentionAlreadyUsed);
 
     // ═══ CUSTOM CREDITS MODE ═══
     if (customCredits && typeof customCredits === "number" && customCredits >= 500) {
-      log("Custom credits mode", { customCredits });
+      log("Custom credits mode", { customCredits, discountTier });
 
-      // Find Custom Credits product variant
-      const productsRes = await lsFetch(`/products?filter[store_id]=${storeId}&page[size]=100`);
-      const productsData = await productsRes.json();
-      const customProduct = (productsData.data || []).find(
-        (p: any) => p.attributes.name.toLowerCase().includes("custom credits")
-      );
-      if (!customProduct) throw new Error("Custom Credits product not found in Lemon Squeezy.");
-
-      const varRes = await lsFetch(`/variants?filter[product_id]=${customProduct.id}&page[size]=1`);
-      const varData = await varRes.json();
-      const variant = varData.data?.[0];
-      if (!variant) throw new Error("No variant found for Custom Credits product.");
-
-      // Calculate base price
+      // Calculate price with volume discount
       const volumeDiscountPercent = getVolumeDiscountPercent(customCredits);
       const pricePerCredit = BASE_PRICE_PER_CREDIT_CENTS * (1 - volumeDiscountPercent / 100);
       let totalCents = Math.round(customCredits * pricePerCredit);
 
-      // Determine which discount code to apply
-      let discountCode: string | null = null;
-      let discountId: string | null = null;
-      let discountTier = "none";
-
-      if (useRetentionDiscount && !retentionAlreadyUsed) {
-        // Retention takes priority — apply via LS discount code
-        discountCode = "SPECIAL50";
-        discountTier = "retention_50";
-        // Still need custom_price for volume-adjusted base, then LS applies 50% on top
-        // But since we can't stack: use custom_price with retention baked in
+      // Apply loyalty/retention discount on top of volume
+      if (discountTier === "50") {
         totalCents = Math.round(totalCents * 0.5);
         await supabaseAdmin.from("wallets").update({ retention_credits_used: true }).eq("user_id", user.id);
-        log("Applied retention 50% on custom credits");
-      } else {
-        // Apply loyalty discount
-        const loyaltyCode = getLoyaltyDiscountCode(currentPurchaseCount);
-        if (loyaltyCode) {
-          const loyaltyPercent = getLoyaltyDiscountPercent(currentPurchaseCount);
-          totalCents = Math.round(totalCents * (1 - loyaltyPercent / 100));
-          discountCode = loyaltyCode;
-          discountTier = `loyalty_${loyaltyPercent}`;
-        }
+      } else if (discountTier === "30") {
+        totalCents = Math.round(totalCents * 0.7);
+      } else if (discountTier === "20") {
+        totalCents = Math.round(totalCents * 0.8);
+      } else if (discountTier === "10") {
+        totalCents = Math.round(totalCents * 0.9);
       }
 
-      // Resolve discount ID from LS
-      if (discountCode) {
-        discountId = await resolveDiscountId(storeId, discountCode);
-        log("Resolved discount", { code: discountCode, id: discountId });
-      }
-
-      log("Custom price calculated", { totalCents, volumeDiscountPercent, discountCode, discountTier });
+      log("Custom price calculated", { totalCents, volumeDiscountPercent, discountTier });
 
       const checkoutPayload: any = {
         data: {
@@ -169,7 +157,6 @@ serve(async (req) => {
           attributes: {
             custom_price: totalCents,
             checkout_data: {
-              discount_code: discountCode || undefined,
               custom: {
                 user_id: user.id,
                 package_id: "custom",
@@ -189,17 +176,10 @@ serve(async (req) => {
           },
           relationships: {
             store: { data: { type: "stores", id: storeId } },
-            variant: { data: { type: "variants", id: String(variant.id) } },
+            variant: { data: { type: "variants", id: LS_CUSTOM_CREDITS.variantId } },
           },
         },
       };
-
-      // Attach discount relationship if we have an ID
-      if (discountId) {
-        checkoutPayload.data.relationships.discount = {
-          data: { type: "discounts", id: discountId },
-        };
-      }
 
       const checkoutRes = await lsFetch("/checkouts", {
         method: "POST",
@@ -209,9 +189,9 @@ serve(async (req) => {
       if (!checkoutRes.ok) throw new Error(`Checkout failed: ${await checkoutRes.text()}`);
       const checkout = await checkoutRes.json();
       const checkoutUrl = checkout.data?.attributes?.url;
-      log("Custom checkout created", { url: checkoutUrl, discountCode });
+      log("Custom checkout created", { url: checkoutUrl, discountTier });
 
-      return new Response(JSON.stringify({ checkoutUrl, discount_applied: discountCode, discount_tier: discountTier }), {
+      return new Response(JSON.stringify({ checkoutUrl, discount_tier: discountTier }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -224,53 +204,34 @@ serve(async (req) => {
     if (pkgError || !pkg) throw new Error("Invalid package");
     log("Package found", { name: pkg.name, credits: pkg.credits, price: pkg.price_cents });
 
-    const variantId = pkg.stripe_price_id;
-    if (!variantId) throw new Error("Variant not mapped. Run lemon-setup first.");
+    // Resolve tier key from package name
+    const tierKey = Object.entries(PACKAGE_TIER_MAP).find(
+      ([pattern]) => pkg.name.toLowerCase().includes(pattern)
+    )?.[1];
+    if (!tierKey || !LS_CREDIT_VARIANTS[tierKey]) throw new Error(`Unknown package tier: ${pkg.name}`);
 
-    // Determine discount code to apply
-    let discountCode: string | null = null;
-    let discountId: string | null = null;
-    let discountTier = "none";
-    let priceCents = pkg.price_cents;
+    // Select the correct discount variant product
+    const variantInfo = LS_CREDIT_VARIANTS[tierKey][discountTier];
+    if (!variantInfo) throw new Error(`No variant found for tier=${tierKey}, discount=${discountTier}`);
 
-    if (useRetentionDiscount && !retentionAlreadyUsed) {
-      discountCode = "SPECIAL50";
-      discountTier = "retention_50";
-      priceCents = Math.round(priceCents * 0.5);
+    // Mark retention as used if applicable
+    if (discountTier === "50") {
       await supabaseAdmin.from("wallets").update({ retention_credits_used: true }).eq("user_id", user.id);
-      log("Applied retention 50% discount");
-    } else {
-      const loyaltyCode = getLoyaltyDiscountCode(currentPurchaseCount);
-      if (loyaltyCode) {
-        discountCode = loyaltyCode;
-        const loyaltyPercent = getLoyaltyDiscountPercent(currentPurchaseCount);
-        priceCents = Math.round(priceCents * (1 - loyaltyPercent / 100));
-        discountTier = `loyalty_${loyaltyPercent}`;
-      }
     }
 
-    // Resolve discount ID from LS
-    if (discountCode) {
-      discountId = await resolveDiscountId(storeId, discountCode);
-      log("Resolved discount", { code: discountCode, id: discountId });
-    }
-
-    log("Discount applied", { discountCode, discountTier, originalPrice: pkg.price_cents, finalPrice: priceCents });
+    log("Selected variant", { tierKey, discountTier, productId: variantInfo.productId, variantId: variantInfo.variantId, priceCents: variantInfo.priceCents });
 
     const checkoutPayload: any = {
       data: {
         type: "checkouts",
         attributes: {
-          custom_price: priceCents,
           checkout_data: {
-            discount_code: discountCode || undefined,
             custom: {
               user_id: user.id,
               package_id: pkg.id,
               credits: String(pkg.credits),
               bonus_credits: String(pkg.bonus_credits),
               discount_tier: discountTier,
-              discount_code: discountCode || "",
               is_returning: String(currentPurchaseCount > 0),
               retention_used: String(useRetentionDiscount || false),
             },
@@ -284,17 +245,10 @@ serve(async (req) => {
         },
         relationships: {
           store: { data: { type: "stores", id: storeId } },
-          variant: { data: { type: "variants", id: variantId } },
+          variant: { data: { type: "variants", id: variantInfo.variantId } },
         },
       },
     };
-
-    // Attach discount relationship if resolved
-    if (discountId) {
-      checkoutPayload.data.relationships.discount = {
-        data: { type: "discounts", id: discountId },
-      };
-    }
 
     const checkoutRes = await lsFetch("/checkouts", {
       method: "POST",
@@ -304,9 +258,9 @@ serve(async (req) => {
     if (!checkoutRes.ok) throw new Error(`Checkout failed: ${await checkoutRes.text()}`);
     const checkout = await checkoutRes.json();
     const checkoutUrl = checkout.data?.attributes?.url;
-    log("Checkout created", { url: checkoutUrl, discountCode, discountTier });
+    log("Checkout created", { url: checkoutUrl, discountTier });
 
-    return new Response(JSON.stringify({ checkoutUrl, discount_applied: discountCode, discount_tier: discountTier }), {
+    return new Response(JSON.stringify({ checkoutUrl, discount_tier: discountTier }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
