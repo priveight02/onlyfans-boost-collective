@@ -172,6 +172,10 @@ const AdminCustomers = () => {
   const [showCreditExpiryDialog, setShowCreditExpiryDialog] = useState(false);
   const [showPaymentIntelDialog, setShowPaymentIntelDialog] = useState(false);
   const [showSetAvatarDialog, setShowSetAvatarDialog] = useState(false);
+  const [showResetPlanDialog, setShowResetPlanDialog] = useState(false);
+  const [showRevertPlanDialog, setShowRevertPlanDialog] = useState(false);
+  const [resetPlanReason, setResetPlanReason] = useState("");
+  const [revertPlanReason, setRevertPlanReason] = useState("");
   const [newEmail, setNewEmail] = useState("");
   const [newUsername, setNewUsername] = useState("");
   const [newDisplayName, setNewDisplayName] = useState("");
@@ -417,6 +421,14 @@ const AdminCustomers = () => {
               <Button size="sm" variant="outline" className="text-pink-400 border-pink-500/30 bg-pink-500/5 hover:bg-pink-500/10 gap-1.5 text-xs h-7"
                 onClick={() => { setSelectedPlan(detail?.payment?.current_plan?.toLowerCase() || "free"); setPlanReason(""); setShowChangePlanDialog(true); }}>
                 <Tag className="h-3 w-3" /> Plan
+              </Button>
+              <Button size="sm" variant="outline" className="text-orange-400 border-orange-500/30 bg-orange-500/5 hover:bg-orange-500/10 gap-1.5 text-xs h-7"
+                onClick={() => setShowResetPlanDialog(true)}>
+                <RotateCcw className="h-3 w-3" /> Reset Plan
+              </Button>
+              <Button size="sm" variant="outline" className="text-yellow-400 border-yellow-500/30 bg-yellow-500/5 hover:bg-yellow-500/10 gap-1.5 text-xs h-7"
+                onClick={() => setShowRevertPlanDialog(true)}>
+                <History className="h-3 w-3" /> Revert Plan
               </Button>
               <Button size="sm" variant="outline" className="text-cyan-400 border-cyan-500/30 bg-cyan-500/5 hover:bg-cyan-500/10 gap-1.5 text-xs h-7"
                 onClick={() => setShowResetPasswordDialog(true)}>
@@ -986,6 +998,83 @@ const AdminCustomers = () => {
                 finally { setActionLoading(false); }
               }} disabled={actionLoading} className="bg-pink-600 text-white hover:bg-pink-700">
                 {actionLoading ? "Updating..." : "Update Plan"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+
+        {/* Reset Plan to Default Dialog */}
+        <Dialog open={showResetPlanDialog} onOpenChange={setShowResetPlanDialog}>
+          <DialogContent className="bg-[hsl(220,30%,12%)] border-white/10 text-white max-w-md">
+            <DialogHeader><DialogTitle className="flex items-center gap-2"><RotateCcw className="h-5 w-5 text-orange-400" /> Reset Plan to Default</DialogTitle></DialogHeader>
+            <div className="space-y-3">
+              <div className="p-3 rounded-xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-between">
+                <div><p className="text-xs text-white/40">Current</p><p className="text-sm font-bold text-white">{detail?.stripe?.current_plan || detail?.insights?.current_plan || "Free"}</p></div>
+                <Crown className="h-5 w-5 text-amber-400" />
+              </div>
+              <div className="p-3 rounded-lg bg-orange-500/5 border border-orange-500/15">
+                <p className="text-xs text-orange-300/80">This will reset the user's plan to Free (default). Any admin overrides and active subscriptions will be removed.</p>
+              </div>
+              <Input value={resetPlanReason} onChange={e => setResetPlanReason(e.target.value)} placeholder="Reason..." className="bg-white/5 border-white/10 text-white placeholder:text-white/25" />
+            </div>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setShowResetPlanDialog(false)} className="text-white/50">Cancel</Button>
+              <Button onClick={async () => {
+                setShowResetPlanDialog(false);
+                setActionLoading(true);
+                try {
+                  const { error } = await supabase.functions.invoke("admin-customers", {
+                    body: { action: "admin_action", userId: selectedUserId, adminAction: "reset_plan_default", reason: resetPlanReason || "Plan reset to default (Free)", data: { plan: "free" } },
+                  });
+                  if (error) throw error;
+                  toast.success("Plan reset to Free (default)");
+                  invalidateNamespace(CACHE_ACCOUNT, CACHE_NS_DETAIL);
+                  invalidateNamespace(CACHE_ACCOUNT, CACHE_NS_LIST);
+                  if (selectedUserId) fetchDetail(selectedUserId);
+                  fetchCustomers(true);
+                } catch (err: any) { toast.error(err.message || "Failed"); }
+                finally { setActionLoading(false); setResetPlanReason(""); }
+              }} disabled={actionLoading} className="bg-orange-600 text-white hover:bg-orange-700">
+                {actionLoading ? "Resetting..." : "Reset to Free"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Revert Admin Changes (restore previous plan) Dialog */}
+        <Dialog open={showRevertPlanDialog} onOpenChange={setShowRevertPlanDialog}>
+          <DialogContent className="bg-[hsl(220,30%,12%)] border-white/10 text-white max-w-md">
+            <DialogHeader><DialogTitle className="flex items-center gap-2"><History className="h-5 w-5 text-yellow-400" /> Revert Admin Plan Changes</DialogTitle></DialogHeader>
+            <div className="space-y-3">
+              <div className="p-3 rounded-xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-between">
+                <div><p className="text-xs text-white/40">Current (admin-set)</p><p className="text-sm font-bold text-white">{detail?.stripe?.current_plan || detail?.insights?.current_plan || "Free"}</p></div>
+                <Crown className="h-5 w-5 text-amber-400" />
+              </div>
+              <div className="p-3 rounded-lg bg-yellow-500/5 border border-yellow-500/15">
+                <p className="text-xs text-yellow-300/80">This will revert the user's plan to whatever they had before admin changes — their last purchased/subscribed plan. If no previous plan exists, it will revert to Free.</p>
+              </div>
+              <Input value={revertPlanReason} onChange={e => setRevertPlanReason(e.target.value)} placeholder="Reason..." className="bg-white/5 border-white/10 text-white placeholder:text-white/25" />
+            </div>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setShowRevertPlanDialog(false)} className="text-white/50">Cancel</Button>
+              <Button onClick={async () => {
+                setShowRevertPlanDialog(false);
+                setActionLoading(true);
+                try {
+                  const { error } = await supabase.functions.invoke("admin-customers", {
+                    body: { action: "admin_action", userId: selectedUserId, adminAction: "revert_plan", reason: revertPlanReason || "Reverted to user's previous plan", data: {} },
+                  });
+                  if (error) throw error;
+                  toast.success("Plan reverted to user's previous plan");
+                  invalidateNamespace(CACHE_ACCOUNT, CACHE_NS_DETAIL);
+                  invalidateNamespace(CACHE_ACCOUNT, CACHE_NS_LIST);
+                  if (selectedUserId) fetchDetail(selectedUserId);
+                  fetchCustomers(true);
+                } catch (err: any) { toast.error(err.message || "Failed"); }
+                finally { setActionLoading(false); setRevertPlanReason(""); }
+              }} disabled={actionLoading} className="bg-yellow-600 text-white hover:bg-yellow-700">
+                {actionLoading ? "Reverting..." : "Revert Plan"}
               </Button>
             </DialogFooter>
           </DialogContent>
