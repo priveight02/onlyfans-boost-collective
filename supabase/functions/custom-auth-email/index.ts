@@ -12,41 +12,53 @@ const LOGO_URL = "https://ufsnuobtvkciydftsyff.supabase.co/storage/v1/object/pub
 const SITE_URL = "https://uplyze.ai";
 const BRAND_NAME = "Uplyze";
 
+// SVG social icons as data URIs
+const IG_ICON = `<img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23818cf8' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='2' y='2' width='20' height='20' rx='5' ry='5'/%3E%3Cpath d='M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z'/%3E%3Cline x1='17.5' y1='6.5' x2='17.51' y2='6.5'/%3E%3C/svg%3E" width="16" height="16" alt="IG" style="vertical-align:middle;" />`;
+const X_ICON = `<img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='%23818cf8'%3E%3Cpath d='M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z'/%3E%3C/svg%3E" width="14" height="14" alt="X" style="vertical-align:middle;" />`;
+const TIKTOK_ICON = `<img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23818cf8' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5'/%3E%3C/svg%3E" width="14" height="14" alt="TikTok" style="vertical-align:middle;" />`;
+const MAIL_ICON = `<img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='15' height='15' viewBox='0 0 24 24' fill='none' stroke='%23818cf8' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='2' y='4' width='20' height='16' rx='2'/%3E%3Cpath d='m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7'/%3E%3C/svg%3E" width="15" height="15" alt="Email" style="vertical-align:middle;" />`;
+
+function socialIcon(icon: string, href: string) {
+  return `<td style="padding:0 4px;">
+    <a href="${href}" style="display:inline-block;width:36px;height:36px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;text-align:center;text-decoration:none;line-height:36px;" target="_blank">${icon}</a>
+  </td>`;
+}
+
 function getEmailContent(actionType: string, confirmUrl: string): { subject: string; html: string } {
   const button = (label: string) => `
-    <table cellpadding="0" cellspacing="0" role="presentation" style="margin: 0 auto;">
+    <table cellpadding="0" cellspacing="0" role="presentation" style="margin:0 auto;">
       <tr>
-        <td style="padding: 14px 36px; background: linear-gradient(135deg, #7c3aed, #6366f1); border-radius: 12px;">
-          <a href="${confirmUrl}" style="color: #ffffff; font-size: 14px; font-weight: 700; text-decoration: none; display: block; text-align: center; letter-spacing: 0.3px;">${label}</a>
+        <td style="padding:14px 44px;background:linear-gradient(135deg,#6366f1 0%,#8b5cf6 100%);border-radius:14px;box-shadow:0 4px 20px rgba(99,102,241,0.35),0 0 0 1px rgba(139,92,246,0.2);">
+          <a href="${confirmUrl}" style="color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;display:block;text-align:center;letter-spacing:0.3px;">${label}</a>
         </td>
       </tr>
     </table>`;
 
   const content: Record<string, { subject: string; heading: string; desc: string; btn: string; note: string }> = {
     recovery: {
-      subject: `${BRAND_NAME} — Reset your password`,
+      subject: `${BRAND_NAME} | Reset your password`,
       heading: "Reset Your Password",
       desc: "We received a request to reset your password. Click below to set a new one.",
       btn: "Reset Password",
       note: "This link expires in 24 hours. If you didn't request this, ignore this email.",
     },
     magiclink: {
-      subject: `${BRAND_NAME} — Your magic login link`,
-      heading: "Magic Login Link ✨",
+      subject: `${BRAND_NAME} | Your magic login link`,
+      heading: "Magic Login Link",
       desc: `Click below to sign in to your ${BRAND_NAME} account. No password needed.`,
       btn: "Sign In Now",
       note: "This link expires in 24 hours and can only be used once.",
     },
     signup: {
-      subject: `${BRAND_NAME} — Verify your email`,
+      subject: `${BRAND_NAME} | Verify your email`,
       heading: "Verify Your Email",
-      desc: `Welcome to ${BRAND_NAME}! Please verify your email to activate your account.`,
+      desc: `Welcome to ${BRAND_NAME}. Please verify your email to activate your account.`,
       btn: "Verify Email Address",
       note: "If you didn't create an account, you can safely ignore this email.",
     },
     invite: {
-      subject: `${BRAND_NAME} — You've been invited`,
-      heading: "You're Invited! 🎉",
+      subject: `${BRAND_NAME} | You've been invited`,
+      heading: "You're Invited",
       desc: `You've been invited to join ${BRAND_NAME}. Click below to set up your account.`,
       btn: "Accept Invitation",
       note: "",
@@ -58,116 +70,77 @@ function getEmailContent(actionType: string, confirmUrl: string): { subject: str
   const html = `<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
-<body style="margin: 0; padding: 0; background-color: #030308; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif; -webkit-font-smoothing: antialiased;">
-  <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background-color: #030308;">
+<body style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;-webkit-font-smoothing:antialiased;">
+  <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background-color:#060a14;background-image:radial-gradient(ellipse at 20% 0%,rgba(99,102,241,0.12) 0%,transparent 50%),radial-gradient(ellipse at 80% 100%,rgba(139,92,246,0.10) 0%,transparent 50%),radial-gradient(ellipse at 50% 50%,rgba(59,130,246,0.06) 0%,transparent 60%);">
     <tr>
-      <td align="center" style="padding: 48px 16px;">
-        <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="max-width: 540px; width: 100%;">
+      <td align="center" style="padding:48px 16px;">
+        <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="max-width:560px;">
           <tr>
-            <td style="background: linear-gradient(160deg, rgba(139,92,246,0.35), rgba(59,130,246,0.15) 40%, rgba(139,92,246,0.08) 60%, rgba(236,72,153,0.12)); border-radius: 24px; padding: 1px;">
-              <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background: #0a0a1a; border-radius: 23px;">
+            <td>
+              <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background:linear-gradient(180deg,rgba(15,17,30,0.95) 0%,rgba(10,12,22,0.98) 100%);border:1px solid rgba(99,102,241,0.15);border-radius:24px;overflow:hidden;box-shadow:0 0 80px rgba(99,102,241,0.08),0 0 40px rgba(139,92,246,0.05);">
+                <tr><td style="height:2px;background:linear-gradient(90deg,transparent,#6366f1 20%,#8b5cf6 50%,#6366f1 80%,transparent);"></td></tr>
                 <tr>
-                  <td style="padding: 44px 48px 0 48px; text-align: center;">
-                    <table cellpadding="0" cellspacing="0" role="presentation" style="margin: 0 auto;">
+                  <td style="padding:36px 40px 0 40px;" align="center">
+                    <img src="${LOGO_URL}" alt="${BRAND_NAME}" width="56" height="56" style="border-radius:16px;display:block;" />
+                    <p style="color:#ffffff;font-size:20px;font-weight:700;margin:14px 0 6px 0;letter-spacing:0.3px;">${BRAND_NAME}</p>
+                    <table cellpadding="0" cellspacing="0" role="presentation">
                       <tr>
-                        <td style="padding: 3px; background: linear-gradient(145deg, #8b5cf6, #6366f1, #3b82f6); border-radius: 20px;">
-                          <img src="${LOGO_URL}" alt="${BRAND_NAME}" width="64" height="64" style="border-radius: 17px; display: block; border: 3px solid #0a0a1a;" />
+                        <td style="padding:5px 16px;background:linear-gradient(135deg,rgba(99,102,241,0.15),rgba(139,92,246,0.15));border:1px solid rgba(99,102,241,0.25);border-radius:20px;">
+                          <span style="color:#a5b4fc;font-size:10px;font-weight:600;letter-spacing:1.8px;text-transform:uppercase;">AI-Powered Platform</span>
                         </td>
                       </tr>
                     </table>
                   </td>
                 </tr>
                 <tr>
-                  <td style="padding: 20px 48px 0 48px; text-align: center;">
-                    <p style="font-size: 24px; font-weight: 800; color: #ffffff; margin: 0; letter-spacing: -0.5px;">${BRAND_NAME}</p>
+                  <td style="padding:24px 40px 0 40px;">
+                    <div style="height:1px;background:linear-gradient(90deg,transparent,rgba(99,102,241,0.3),transparent);"></div>
                   </td>
                 </tr>
                 <tr>
-                  <td style="padding: 12px 48px 28px 48px; text-align: center;">
-                    <table cellpadding="0" cellspacing="0" role="presentation" style="margin: 0 auto;">
-                      <tr>
-                        <td style="padding: 6px 20px; background: rgba(139,92,246,0.1); border: 1px solid rgba(139,92,246,0.18); border-radius: 100px;">
-                          <p style="font-size: 10px; color: #a78bfa; text-transform: uppercase; letter-spacing: 3px; font-weight: 700; margin: 0;">Premium Creator Management</p>
-                        </td>
-                      </tr>
-                    </table>
-                  </td>
-                </tr>
-                <tr>
-                  <td style="padding: 0 48px;">
-                    <table width="100%" cellpadding="0" cellspacing="0" role="presentation"><tr><td style="height: 1px; background: linear-gradient(90deg, transparent, rgba(139,92,246,0.4) 30%, rgba(59,130,246,0.4) 70%, transparent);"></td></tr></table>
-                  </td>
-                </tr>
-                <tr>
-                  <td style="padding: 36px 48px 0 48px; text-align: center;">
-                    <p style="font-size: 22px; font-weight: 700; color: #ffffff; margin: 0 0 8px 0;">${c.heading}</p>
-                    <p style="font-size: 14px; color: #94a3b8; margin: 0 0 28px 0; line-height: 1.6;">${c.desc}</p>
+                  <td style="padding:28px 40px 36px 40px;text-align:center;">
+                    <h1 style="color:#ffffff;font-size:24px;font-weight:700;margin:0 0 10px 0;">${c.heading}</h1>
+                    <p style="color:rgba(255,255,255,0.55);font-size:15px;margin:0 0 32px 0;line-height:1.65;">${c.desc}</p>
                     ${button(c.btn)}
-                    ${c.note ? `<p style="font-size: 12px; color: #475569; margin: 24px 0 0 0;">${c.note}</p>` : ""}
+                    ${c.note ? `<p style="color:rgba(255,255,255,0.28);font-size:12px;margin:24px 0 0 0;line-height:1.5;">${c.note}</p>` : ""}
                   </td>
                 </tr>
                 <tr>
-                  <td style="padding: 36px 40px 0 40px;">
-                    <table width="100%" cellpadding="0" cellspacing="0" role="presentation"><tr><td style="height: 1px; background: rgba(255,255,255,0.05);"></td></tr></table>
+                  <td style="padding:0 40px;">
+                    <div style="height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.06),transparent);"></div>
                   </td>
                 </tr>
                 <tr>
-                  <td style="padding: 28px 24px 0 24px; text-align: center;">
-                    <table cellpadding="0" cellspacing="0" role="presentation" style="margin: 0 auto;">
+                  <td align="center" style="padding:24px 40px 16px 40px;">
+                    <a href="${SITE_URL}" style="display:inline-block;padding:7px 16px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;color:rgba(255,255,255,0.5);font-size:12px;font-weight:500;text-decoration:none;margin:0 3px 6px 3px;">Home</a>
+                    <a href="${SITE_URL}/services" style="display:inline-block;padding:7px 16px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;color:rgba(255,255,255,0.5);font-size:12px;font-weight:500;text-decoration:none;margin:0 3px 6px 3px;">Services</a>
+                    <a href="${SITE_URL}/pricing" style="display:inline-block;padding:7px 16px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;color:rgba(255,255,255,0.5);font-size:12px;font-weight:500;text-decoration:none;margin:0 3px 6px 3px;">Pricing</a>
+                    <a href="${SITE_URL}/admin" style="display:inline-block;padding:7px 16px;background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.25);border-radius:10px;color:#a5b4fc;font-size:12px;font-weight:500;text-decoration:none;margin:0 3px 6px 3px;">CRM Panel</a>
+                  </td>
+                </tr>
+                <tr>
+                  <td align="center" style="padding:4px 40px 20px 40px;">
+                    <table cellpadding="0" cellspacing="0" role="presentation" style="margin:0 auto;">
                       <tr>
-                        <td style="padding: 0 3px;"><a href="${SITE_URL}" style="display: inline-block; padding: 10px 16px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); border-radius: 10px; color: #64748b; font-size: 12px; font-weight: 500; text-decoration: none;">Home</a></td>
-                        <td style="padding: 0 3px;"><a href="${SITE_URL}/services" style="display: inline-block; padding: 10px 16px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); border-radius: 10px; color: #64748b; font-size: 12px; font-weight: 500; text-decoration: none;">Services</a></td>
-                        <td style="padding: 0 3px;"><a href="${SITE_URL}/onboarding" style="display: inline-block; padding: 10px 16px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); border-radius: 10px; color: #64748b; font-size: 12px; font-weight: 500; text-decoration: none;">Get Started</a></td>
-                        <td style="padding: 0 3px;"><a href="${SITE_URL}/admin" style="display: inline-block; padding: 10px 16px; background: rgba(139,92,246,0.1); border: 1px solid rgba(139,92,246,0.2); border-radius: 10px; color: #a78bfa; font-size: 12px; font-weight: 600; text-decoration: none;">CRM Panel</a></td>
+                        ${socialIcon(IG_ICON, "https://instagram.com/uplyze.ai")}
+                        ${socialIcon(X_ICON, "https://x.com/uplyze")}
+                        ${socialIcon(TIKTOK_ICON, "https://tiktok.com/@uplyze")}
+                        ${socialIcon(MAIL_ICON, "mailto:contact@uplyze.ai")}
                       </tr>
                     </table>
                   </td>
                 </tr>
                 <tr>
-                  <td style="padding: 24px 48px 0 48px; text-align: center;">
-                    <table cellpadding="0" cellspacing="0" role="presentation" style="margin: 0 auto;">
-                      <tr>
-                        <td style="padding: 0 5px;"><a href="https://instagram.com/uplyze.ai" style="display: inline-block; width: 38px; height: 38px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; text-align: center; text-decoration: none; line-height: 38px; font-size: 16px;">📸</a></td>
-                        <td style="padding: 0 5px;"><a href="https://x.com/uplyze_ai" style="display: inline-block; width: 38px; height: 38px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; text-align: center; text-decoration: none; line-height: 38px; font-size: 16px;">𝕏</a></td>
-                        <td style="padding: 0 5px;"><a href="https://tiktok.com/@uplyze.ai" style="display: inline-block; width: 38px; height: 38px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; text-align: center; text-decoration: none; line-height: 38px; font-size: 16px;">🎵</a></td>
-                        <td style="padding: 0 5px;"><a href="mailto:contact@uplyze.ai" style="display: inline-block; width: 38px; height: 38px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; text-align: center; text-decoration: none; line-height: 38px; font-size: 16px;">✉️</a></td>
-                      </tr>
-                    </table>
-                  </td>
-                </tr>
-                <tr>
-                  <td style="padding: 12px 48px 0 48px; text-align: center;">
-                    <p style="margin: 0;"><a href="mailto:contact@uplyze.ai" style="font-size: 12px; color: #475569; text-decoration: none;">contact@uplyze.ai</a></p>
-                  </td>
-                </tr>
-                <tr>
-                  <td style="padding: 24px 48px 0 48px;">
-                    <table width="100%" cellpadding="0" cellspacing="0" role="presentation"><tr><td style="height: 1px; background: rgba(255,255,255,0.03);"></td></tr></table>
-                  </td>
-                </tr>
-                <tr>
-                  <td style="padding: 18px 48px 8px 48px; text-align: center;">
-                    <p style="font-size: 11px; color: #334155; margin: 0 0 6px 0; font-weight: 500;">&copy; 2026 ${BRAND_NAME}. All rights reserved.</p>
-                    <p style="font-size: 10px; margin: 0;">
-                      <a href="${SITE_URL}/privacy" style="color: #3f4f63; text-decoration: none;">Privacy</a>
-                      <span style="margin: 0 8px; color: #1e293b;">&middot;</span>
-                      <a href="${SITE_URL}/terms" style="color: #3f4f63; text-decoration: none;">Terms</a>
-                      <span style="margin: 0 8px; color: #1e293b;">&middot;</span>
-                      <a href="${SITE_URL}/faq" style="color: #3f4f63; text-decoration: none;">FAQ</a>
+                  <td align="center" style="padding:0 40px 28px 40px;">
+                    <p style="font-size:12px;color:rgba(255,255,255,0.35);margin:0 0 6px 0;">contact@uplyze.ai</p>
+                    <p style="font-size:10px;color:rgba(255,255,255,0.18);margin:0;">
+                      &copy; 2026 ${BRAND_NAME}. All rights reserved. &middot;
+                      <a href="${SITE_URL}/privacy" style="color:rgba(255,255,255,0.25);text-decoration:none;">Privacy</a> &middot;
+                      <a href="${SITE_URL}/terms" style="color:rgba(255,255,255,0.25);text-decoration:none;">Terms</a>
                     </p>
                   </td>
                 </tr>
-                <tr>
-                  <td style="padding: 10px 48px 32px 48px; text-align: center;">
-                    <table cellpadding="0" cellspacing="0" role="presentation" style="margin: 0 auto;">
-                      <tr>
-                        <td style="padding: 4px 12px; background: rgba(255,255,255,0.015); border: 1px solid rgba(255,255,255,0.03); border-radius: 6px;">
-                          <p style="font-size: 8px; color: #1e293b; letter-spacing: 2px; font-weight: 700; text-transform: uppercase; margin: 0;">GDPR &middot; CCPA &middot; CPRA &middot; 18+</p>
-                        </td>
-                      </tr>
-                    </table>
-                  </td>
-                </tr>
+                <tr><td style="height:1px;background:linear-gradient(90deg,transparent,rgba(99,102,241,0.2),transparent);"></td></tr>
               </table>
             </td>
           </tr>
@@ -188,7 +161,6 @@ Deno.serve(async (req) => {
 
   try {
     const { email, type, redirectTo } = await req.json();
-    // type: "recovery" | "magiclink" | "signup" | "invite"
 
     if (!email || !type) {
       return new Response(JSON.stringify({ error: "email and type are required" }), {
@@ -203,7 +175,6 @@ Deno.serve(async (req) => {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    // Generate the auth link using admin API
     const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
       type: type as any,
       email,
@@ -220,7 +191,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Build the verification URL
     const tokenHash = linkData.properties?.hashed_token;
     const typeMap: Record<string, string> = {
       recovery: "recovery",
@@ -234,7 +204,6 @@ Deno.serve(async (req) => {
 
     console.log(`Generated confirm URL for type ${verifyType}`);
 
-    // Build and send email via Resend
     const { subject, html } = getEmailContent(type, confirmUrl);
 
     const resendRes = await fetch("https://api.resend.com/emails", {
