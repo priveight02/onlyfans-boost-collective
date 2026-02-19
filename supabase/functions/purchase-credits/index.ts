@@ -113,8 +113,10 @@ serve(async (req) => {
       }
 
       // Apply retention discount if requested
+      let customRetentionUsed = false;
       if (useRetentionDiscount && !retentionAlreadyUsed) {
         totalCents = Math.round(totalCents * 0.5);
+        customRetentionUsed = true;
         await supabaseAdmin.from("wallets").update({ retention_credits_used: true }).eq("user_id", user.id);
         logStep("Applied retention 50% discount");
       } else if (useRetentionDiscount && retentionAlreadyUsed) {
@@ -122,6 +124,17 @@ serve(async (req) => {
       }
 
       logStep("Price calculated", { totalCents, volumeDiscount, returningDiscount: returningDiscountPercent });
+
+      // Build metadata - omit empty strings (Polar rejects them)
+      const customMeta: Record<string, string> = {
+        user_id: user.id,
+        package_id: "custom",
+        credits: String(customCredits),
+        bonus_credits: "0",
+        is_returning: String(returningDiscountPercent > 0),
+        volume_discount: String(Math.round(volumeDiscount * 100)),
+        retention_used: String(customRetentionUsed),
+      };
 
       // Build checkout body
       const checkoutBody: any = {
@@ -136,15 +149,7 @@ serve(async (req) => {
         customer_email: user.email,
         external_customer_id: user.id,
         embed_origin: origin,
-        metadata: {
-          user_id: user.id,
-          package_id: "custom",
-          credits: String(customCredits),
-          bonus_credits: "0",
-          is_returning: String(returningDiscountPercent > 0),
-          volume_discount: String(Math.round(volumeDiscount * 100)),
-          retention_used: String(usedRetention || false),
-        },
+        metadata: customMeta,
       };
 
       // Attach Polar discount if applicable
@@ -221,15 +226,17 @@ serve(async (req) => {
       customer_email: user.email,
       external_customer_id: user.id,
       embed_origin: origin,
-      metadata: {
-        user_id: user.id,
-        package_id: pkg.id,
-        credits: String(pkg.credits),
-        bonus_credits: String(pkg.bonus_credits),
-        is_returning: String(returningDiscountPercent > 0),
-        discount_code: appliedDiscountCode || "",
-        retention_used: String(usedRetention),
-      },
+      metadata: Object.fromEntries(
+        Object.entries({
+          user_id: user.id,
+          package_id: pkg.id,
+          credits: String(pkg.credits),
+          bonus_credits: String(pkg.bonus_credits),
+          is_returning: String(returningDiscountPercent > 0),
+          discount_code: appliedDiscountCode || undefined,
+          retention_used: String(usedRetention),
+        }).filter(([_, v]) => v !== undefined && v !== "")
+      ),
     };
 
     // Use ad-hoc pricing if discount applied
