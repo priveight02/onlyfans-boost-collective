@@ -26,6 +26,8 @@ const log = (step: string, d?: any) => console.log(`[CREATE-CHECKOUT] ${step}${d
 
 const PLAN_TIER_ORDER: Record<string, number> = { free: 0, starter: 1, pro: 2, business: 3, enterprise: 4 };
 const PLAN_CREDITS: Record<string, number> = { starter: 215, pro: 1075, business: 4300 };
+const PLAN_PRICES: Record<string, number> = { free: 0, starter: 9, pro: 29, business: 79 };
+const PLAN_YEARLY_PRICES: Record<string, number> = { free: 0, starter: 8, pro: 20, business: 53 };
 
 // Yearly discount code mapping per plan
 const YEARLY_DISCOUNT_CODES: Record<string, string> = {
@@ -95,7 +97,7 @@ serve(async (req) => {
     if (!user?.email) throw new Error("User not authenticated");
     log("User authenticated", { userId: user.id, email: user.email });
 
-    const { planId, billingCycle, useRetentionDiscount } = await req.json();
+    const { planId, billingCycle, useRetentionDiscount, confirmed } = await req.json();
     if (!planId) throw new Error("Plan ID required");
 
     if (planId === "enterprise") {
@@ -215,9 +217,32 @@ serve(async (req) => {
       }
     }
 
-    // UPGRADE: PATCH subscription, charge prorated difference immediately
+    // UPGRADE: Two-step flow — first return preview with price difference, then execute on confirmation
     if (existingSub && isUpgrade) {
-      log("Upgrading subscription", { subId: existingSub.id, from: detectedCurrentPlanId, to: planId });
+      const priceMap = (detectedCurrentCycle === "yearly" || cycle === "yearly") ? PLAN_YEARLY_PRICES : PLAN_PRICES;
+      const currentPrice = priceMap[detectedCurrentPlanId] || 0;
+      const targetPrice = priceMap[planId] || 0;
+      const priceDifference = targetPrice - currentPrice;
+
+      // Step 1: Return preview info if not confirmed
+      if (!confirmed) {
+        log("Upgrade preview requested", { from: detectedCurrentPlanId, to: planId, priceDifference });
+        return new Response(JSON.stringify({
+          upgradePreview: true,
+          fromPlan: detectedCurrentPlanId,
+          toPlan: planId,
+          currentPrice,
+          newPrice: targetPrice,
+          priceDifference: Math.max(priceDifference, 0),
+          cycle: cycle,
+          credits: PLAN_CREDITS[planId] || 0,
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Step 2: Execute upgrade (confirmed = true)
+      log("Upgrading subscription (confirmed)", { subId: existingSub.id, from: detectedCurrentPlanId, to: planId });
 
       const updateRes = await polarFetch(`/subscriptions/${existingSub.id}`, {
         method: "PATCH",
@@ -244,12 +269,6 @@ serve(async (req) => {
       let creditsGranted = false;
       if (credits > 0) {
         const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-        const { data: recentGrant, error: grantCheckErr } = await adminClient
-          .from("wallet_transactions")
-          .select("id")
-          .eq("user_id", user.id)
-          .eq("type", "upgrade_credit")
-          .gte("created_at", thirtyDaysAgo);
 
         // Count how many upgrade credits for THIS SPECIFIC plan
         const { data: planSpecificGrants } = await adminClient
@@ -291,7 +310,7 @@ serve(async (req) => {
         notification_type: "success",
       });
 
-      return new Response(JSON.stringify({ upgraded: true, creditsGranted, message: `Upgraded to ${planId}. Prorated difference charged immediately.` }), {
+      return new Response(JSON.stringify({ upgraded: true, creditsGranted, priceDifference: Math.max(priceDifference, 0), message: `Upgraded to ${planId}. Prorated difference charged immediately.` }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
