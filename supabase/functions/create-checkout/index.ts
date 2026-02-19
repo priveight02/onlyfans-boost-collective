@@ -144,75 +144,113 @@ serve(async (req) => {
       });
     }
 
-    // ═══ ANTI-ABUSE: Rate-limit plan changes to max 3 per 24 hours ═══
-    const adminClientEarly = createClient(Deno.env.get("SUPABASE_URL") ?? "", Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "");
+    // ═══ ANTI-ABUSE: Rate-limit plan changes to max 2 per 24 hours ═══
+    const adminClient = createClient(Deno.env.get("SUPABASE_URL") ?? "", Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "");
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-    const { data: recentChanges } = await adminClientEarly
+    const { data: recentChanges } = await adminClient
       .from("wallet_transactions")
       .select("id")
       .eq("user_id", user.id)
-      .in("type", ["upgrade_credit", "plan_change"])
+      .eq("type", "plan_change")
       .gte("created_at", oneDayAgo);
 
-    if (recentChanges && recentChanges.length >= 3) {
-      log("ABUSE BLOCKED — too many plan changes in 24h", { count: recentChanges.length, userId: user.id });
-      return new Response(JSON.stringify({ error: "Too many plan changes in 24 hours. Please try again later." }), {
+    const changeCount = recentChanges?.length || 0;
+    if (changeCount >= 2) {
+      log("ABUSE BLOCKED — too many plan changes in 24h", { count: changeCount, userId: user.id });
+      // Send real-time notification
+      await adminClient.from("admin_user_notifications").insert({
+        user_id: user.id,
+        title: "Plan Change Limit Reached",
+        message: "You've reached the maximum of 2 plan changes per 24 hours. Please try again later.",
+        notification_type: "warning",
+      });
+      return new Response(JSON.stringify({ error: "You've reached the maximum of 2 plan changes per 24 hours. Please try again later.", blocked: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 429,
       });
     }
 
-    // UPGRADE: update subscription product price
+    // UPGRADE: PATCH subscription, charge prorated difference immediately
     if (existingSub && isUpgrade) {
-      log("Upgrading subscription", { subId: existingSub.id, newProduct: target.productId });
+      log("Upgrading subscription", { subId: existingSub.id, from: detectedCurrentPlanId, to: planId });
+
       const updateRes = await polarFetch(`/subscriptions/${existingSub.id}`, {
         method: "PATCH",
         body: JSON.stringify({ product_id: target.productId, proration_behavior: "invoice" }),
       });
-      if (!updateRes.ok) throw new Error(`Upgrade failed: ${await updateRes.text()}`);
-      log("Upgrade successful — prorated invoice charged immediately");
+      const updateBody = await updateRes.text();
+      if (!updateRes.ok) throw new Error(`Upgrade failed: ${updateBody}`);
+      log("Polar upgrade PATCH success — prorated invoice charged", { response: updateBody.substring(0, 200) });
 
-      // Grant credits for upgrade — but prevent abuse from upgrade/downgrade spirals
-      const adminClient = createClient(Deno.env.get("SUPABASE_URL") ?? "", Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "");
+      // Log this plan change for rate-limiting (ALWAYS, before credit check)
+      await adminClient.from("wallet_transactions").insert({
+        user_id: user.id,
+        amount: 0,
+        type: "plan_change",
+        description: `Upgraded from ${detectedCurrentPlanId} to ${planId}`,
+        reference_id: existingSub.id,
+        metadata: { from_plan: detectedCurrentPlanId, to_plan: planId, direction: "upgrade" },
+      });
+
+      // Grant credits ONLY if not already granted for this plan tier in last 30 days
       const credits = PLAN_CREDITS[planId] || 0;
+      let creditsGranted = false;
       if (credits > 0) {
-        // Check if upgrade credits were already granted for this plan in the last 30 days
         const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-        const { data: recentGrant } = await adminClient
+        const { data: recentGrant, error: grantCheckErr } = await adminClient
+          .from("wallet_transactions")
+          .select("id")
+          .eq("user_id", user.id)
+          .eq("type", "upgrade_credit")
+          .gte("created_at", thirtyDaysAgo);
+
+        // Count how many upgrade credits for THIS SPECIFIC plan
+        const { data: planSpecificGrants } = await adminClient
           .from("wallet_transactions")
           .select("id")
           .eq("user_id", user.id)
           .eq("type", "upgrade_credit")
           .gte("created_at", thirtyDaysAgo)
-          .ilike("description", `%${planId}%`)
-          .limit(1);
+          .eq("reference_id", planId);
 
-        if (recentGrant && recentGrant.length > 0) {
-          log("Upgrade credits already granted this billing period — skipping to prevent abuse", { planId, userId: user.id });
+        if (planSpecificGrants && planSpecificGrants.length > 0) {
+          log("Credits already granted for this plan tier — skipping", { planId, existingGrants: planSpecificGrants.length });
         } else {
           const { data: walletData } = await adminClient.from("wallets").select("balance").eq("user_id", user.id).single();
           if (walletData) {
             await adminClient.from("wallets").update({ balance: walletData.balance + credits }).eq("user_id", user.id);
-            // Record the grant to prevent duplicates
             await adminClient.from("wallet_transactions").insert({
               user_id: user.id,
               amount: credits,
               type: "upgrade_credit",
-              description: `Upgrade to ${planId} plan`,
-              reference_id: existingSub.id,
+              description: `Upgrade credits for ${planId} plan`,
+              reference_id: planId, // Use planId as reference so we can dedupe by plan
+              metadata: { plan: planId, from_plan: detectedCurrentPlanId },
             });
+            creditsGranted = true;
             log("Upgrade credits granted", { credits, planId });
           }
         }
       }
 
-      return new Response(JSON.stringify({ upgraded: true, message: `Upgraded to ${planId}. Prorated difference charged immediately.` }), {
+      // Notify user
+      await adminClient.from("admin_user_notifications").insert({
+        user_id: user.id,
+        title: `Upgraded to ${planId.charAt(0).toUpperCase() + planId.slice(1)}`,
+        message: creditsGranted
+          ? `Your plan has been upgraded. ${credits} credits added. Prorated difference charged.`
+          : `Your plan has been upgraded. Prorated difference charged. Credits were already granted for this plan.`,
+        notification_type: "success",
+      });
+
+      return new Response(JSON.stringify({ upgraded: true, creditsGranted, message: `Upgraded to ${planId}. Prorated difference charged immediately.` }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // DOWNGRADE: update subscription
+    // DOWNGRADE: PATCH subscription, credit on next invoice
     if (existingSub && isDowngrade) {
-      log("Downgrading subscription", { subId: existingSub.id, newProduct: target.productId });
+      log("Downgrading subscription", { subId: existingSub.id, from: detectedCurrentPlanId, to: planId });
+
       const updateRes = await polarFetch(`/subscriptions/${existingSub.id}`, {
         method: "PATCH",
         body: JSON.stringify({ product_id: target.productId, proration_behavior: "prorate" }),
@@ -220,12 +258,20 @@ serve(async (req) => {
       if (!updateRes.ok) throw new Error(`Downgrade failed: ${await updateRes.text()}`);
 
       // Log plan change for rate-limiting
-      await adminClientEarly.from("wallet_transactions").insert({
+      await adminClient.from("wallet_transactions").insert({
         user_id: user.id,
         amount: 0,
         type: "plan_change",
-        description: `Downgraded to ${planId} plan`,
+        description: `Downgraded from ${detectedCurrentPlanId} to ${planId}`,
         reference_id: existingSub.id,
+        metadata: { from_plan: detectedCurrentPlanId, to_plan: planId, direction: "downgrade" },
+      });
+
+      await adminClient.from("admin_user_notifications").insert({
+        user_id: user.id,
+        title: `Downgraded to ${planId.charAt(0).toUpperCase() + planId.slice(1)}`,
+        message: "Your plan has been downgraded. Credit will be applied to your next invoice.",
+        notification_type: "info",
       });
 
       return new Response(JSON.stringify({ downgraded: true, message: `Downgraded to ${planId}. Credit applied to next invoice.` }), {
@@ -233,11 +279,10 @@ serve(async (req) => {
       });
     }
 
-    // NEW SUBSCRIPTION — only for users with NO active subscription
-    // If somehow an existing sub still exists here (edge case), block instead of canceling
+    // BLOCK if active sub exists but didn't match upgrade/downgrade (same-tier edge case)
     if (existingSub) {
-      log("BLOCKED — active subscription exists, use upgrade/downgrade path", { subId: existingSub.id, currentPlan: detectedCurrentPlanId, targetPlan: planId });
-      return new Response(JSON.stringify({ error: "You already have an active subscription. Please upgrade or downgrade instead of creating a new one." }), {
+      log("BLOCKED — active sub exists, no valid upgrade/downgrade path", { currentPlan: detectedCurrentPlanId, targetPlan: planId });
+      return new Response(JSON.stringify({ error: "You already have an active subscription. Please upgrade or downgrade instead." }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400,
       });
     }
@@ -250,7 +295,6 @@ serve(async (req) => {
 
     // Check retention discount first (SPECIAL50 - highest priority)
     if (useRetentionDiscount) {
-      const adminClient = createClient(Deno.env.get("SUPABASE_URL") ?? "", Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "");
       const { data: wallet } = await adminClient.from("wallets").select("retention_credits_used").eq("user_id", user.id).single();
       
       if (!wallet?.retention_credits_used) {
