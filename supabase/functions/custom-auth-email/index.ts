@@ -8,9 +8,9 @@ const corsHeaders = {
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY")!;
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const LOGO_URL = "https://ozcagency.com/lovable-uploads/ozc-agency-logo.jpg";
-const SITE_URL = "https://ozcagency.com";
-const BRAND_NAME = "Ozc Agency";
+const LOGO_URL = "https://ufsnuobtvkciydftsyff.supabase.co/storage/v1/object/public/email-assets/uplyze-logo.png";
+const SITE_URL = "https://uplyze.ai";
+const BRAND_NAME = "Uplyze";
 
 function getEmailContent(actionType: string, confirmUrl: string): { subject: string; html: string } {
   const button = (label: string) => `
@@ -244,7 +244,7 @@ Deno.serve(async (req) => {
         Authorization: `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: `${BRAND_NAME} <contact@ozcagency.com>`,
+        from: `${BRAND_NAME} <contact@uplyze.ai>`,
         to: [email],
         subject,
         html,

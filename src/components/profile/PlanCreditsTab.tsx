@@ -253,7 +253,7 @@ const PlanCreditsTab = ({ onSwitchTab }: { onSwitchTab?: (tab: string) => void }
     const stripeInfo = PLAN_STRIPE_MAP[planId];
     if (!stripeInfo) {
       // Enterprise — open contact
-      window.location.href = "mailto:contact@ozcagency.com?subject=Enterprise Plan Inquiry";
+      window.location.href = "mailto:contact@uplyze.ai?subject=Enterprise%20Plan%20Inquiry";
       return;
     }
     setUpgradingPlan(planId);

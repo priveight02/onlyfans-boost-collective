@@ -672,9 +672,9 @@ const SocialMediaHub = () => {
            const accessToken = tokenData?.access_token;
            if (!accessToken) { toast.error("No access token in response"); setAutoConnectLoading(null); return; }
            toast.info("Fetching Reddit profile...");
-           const profileRes = await fetch("https://oauth.reddit.com/api/v1/me", {
-             headers: { "Authorization": `Bearer ${accessToken}`, "User-Agent": "OZC-Agency-Hub/1.0" },
-           });
+            const profileRes = await fetch("https://oauth.reddit.com/api/v1/me", {
+              headers: { "Authorization": `Bearer ${accessToken}`, "User-Agent": "Uplyze-Hub/1.0" },
+            });
            const redditUser = await profileRes.json();
            const username = redditUser.name || "reddit_user";
            let accountId = selectedAccount;

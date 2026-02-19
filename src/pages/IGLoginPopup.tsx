@@ -9,7 +9,7 @@ const IGLoginPopup = () => {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
 
-  const redirectUri = "https://ozcagency.com/ig-login";
+  const redirectUri = "https://uplyze.ai/ig-login";
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);

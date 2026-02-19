@@ -40,7 +40,7 @@ async function authenticateAdmin(req: Request) {
     }
 
     // Determine if this is an admin key (no quotas) or user key (enforced quotas)
-    const isAdminKey = keyData.key_prefix?.startsWith("ozc_ak_live_");
+    const isAdminKey = ["uplyze_ak_live_", "ozc_ak_live_"].some((p) => keyData.key_prefix?.startsWith(p));
 
     if (!isAdminKey) {
       // Enforce daily limit for user keys (sk and pk): 100/day
@@ -705,7 +705,7 @@ async function handleApiKeys(method: string, id: string | null, sub: string | nu
     }
 
     const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-    const prefix = isAdmin ? "ozc_ak_live_" : "ozc_sk_live_";
+    const prefix = isAdmin ? "uplyze_ak_live_" : "uplyze_sk_live_";
     let rawKey = prefix;
     for (let i = 0; i < 40; i++) rawKey += chars.charAt(Math.floor(Math.random() * chars.length));
     const encoder = new TextEncoder();

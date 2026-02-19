@@ -21,10 +21,10 @@ const Footer = () => {
           <div className="lg:col-span-4 space-y-3">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl overflow-hidden ring-2 ring-white/10">
-                <img src="/lovable-uploads/ozc-agency-logo.jpg" alt="Ozc Agency" className="w-full h-full object-cover" />
+                <img src="/lovable-uploads/uplyze-logo.png" alt="Uplyze" className="w-full h-full object-cover" />
               </div>
               <div>
-                <span className="text-white font-bold text-base tracking-tight">Ozc Agency</span>
+                <span className="text-white font-bold text-base tracking-tight">Uplyze</span>
                 <span className="block text-white/40 text-[10px] uppercase tracking-[0.2em] font-medium">AI-Powered CRM</span>
               </div>
             </div>
@@ -32,12 +32,12 @@ const Footer = () => {
               The intelligent CRM platform that helps businesses, creators, and entrepreneurs automate workflows, engage audiences with AI, and scale their digital presence.
             </p>
             <div className="flex items-center gap-2">
-              <a href="https://ozcagency.com" target="_blank" rel="noopener noreferrer"
+              <a href="https://uplyze.ai" target="_blank" rel="noopener noreferrer"
                 className="group flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.05] border border-white/[0.08] hover:bg-white/[0.1] hover:border-white/[0.15] transition-all duration-300">
                 <Globe className="h-3.5 w-3.5 text-white/60 group-hover:text-white transition-colors" />
-                <span className="text-white/60 group-hover:text-white text-xs font-medium transition-colors">ozcagency.com</span>
+                <span className="text-white/60 group-hover:text-white text-xs font-medium transition-colors">uplyze.ai</span>
               </a>
-              <a href="mailto:liam@ozcagency.com"
+              <a href="mailto:contact@uplyze.ai"
                 className="group flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.05] border border-white/[0.08] hover:bg-white/[0.1] hover:border-white/[0.15] transition-all duration-300">
                 <Mail className="h-3.5 w-3.5 text-white/60 group-hover:text-white transition-colors" />
                 <span className="text-white/60 group-hover:text-white text-xs font-medium transition-colors">Contact</span>
@@ -84,7 +84,7 @@ const Footer = () => {
             <div>
               <h4 className="text-white/70 text-[11px] font-semibold uppercase tracking-[0.15em] mb-3">Contact</h4>
               <div className="flex flex-col gap-1.5">
-                <a href="mailto:liam@ozcagency.com" className="text-white/45 hover:text-white text-sm transition-colors">liam@ozcagency.com</a>
+                <a href="mailto:contact@uplyze.ai" className="text-white/45 hover:text-white text-sm transition-colors">contact@uplyze.ai</a>
                 <span className="text-white/30 text-xs">Replies within 2 hours</span>
               </div>
               <Link to={ctaPath}
@@ -98,7 +98,7 @@ const Footer = () => {
         {/* Bottom */}
         <div className="mt-6 pt-4 border-t border-white/[0.06] flex flex-col sm:flex-row items-center justify-between gap-2">
           <p className="text-white/30 text-xs flex items-center gap-1">
-            © {year} Ozc Agency. Built with <Heart className="h-3 w-3 text-pink-500/60 fill-pink-500/60" /> for creators, businesses, and dreamers.
+            © {year} Uplyze. Built with <Heart className="h-3 w-3 text-pink-500/60 fill-pink-500/60" /> for creators, businesses, and dreamers.
           </p>
           <div className="flex items-center gap-3 text-[11px] text-white/30">
             <span>GDPR</span>

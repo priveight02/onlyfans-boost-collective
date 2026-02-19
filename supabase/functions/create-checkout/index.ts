@@ -202,7 +202,7 @@ serve(async (req) => {
       await stripe.subscriptions.cancel(existingSub.id, { prorate: true });
     }
 
-    const origin = "https://ozcagency.com";
+    const origin = "https://uplyze.ai";
     const credits = PLAN_CREDITS[planId] || 0;
 
     const sessionParams: any = {

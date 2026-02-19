@@ -6,10 +6,10 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const LOGO_URL = "https://ozcagency.com/lovable-uploads/ozc-agency-logo.jpg";
-const SITE_URL = "https://ozcagency.com";
-const BRAND_NAME = "Ozc Agency";
-const SUPPORT_EMAIL = "contact@ozcagency.com";
+const LOGO_URL = "https://ufsnuobtvkciydftsyff.supabase.co/storage/v1/object/public/email-assets/uplyze-logo.png";
+const SITE_URL = "https://uplyze.ai";
+const BRAND_NAME = "Uplyze";
+const SUPPORT_EMAIL = "contact@uplyze.ai";
 
 const emailFooter = `
   <div style="margin-top: 40px; padding-top: 24px; border-top: 1px solid #1a1a2e;">
