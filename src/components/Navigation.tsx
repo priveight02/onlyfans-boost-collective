@@ -56,7 +56,7 @@ const Navigation = () => {
     <div className="w-full fixed top-0 z-50">
       <nav className="transition-all duration-300 bg-white/5 backdrop-blur-xl border-b border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.12)]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16 pl-2 lg:pl-4">
+        <div className="flex items-center justify-between h-16 pl-4 lg:pl-8">
             <div className="flex-shrink-0 w-[180px]">
               <Link to="/" className="flex items-center group transition-all duration-300 hover:scale-105">
                 <img src="/lovable-uploads/uplyze-logo.png" alt="Uplyze Logo" className="h-[70px] w-auto object-contain" />
