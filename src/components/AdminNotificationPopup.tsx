@@ -87,9 +87,9 @@ const AdminNotificationPopup = () => {
 
   return (
     <Dialog open={!!notification} onOpenChange={() => dismiss()}>
-      <DialogContent className={`bg-[hsl(222,30%,8%)]/95 backdrop-blur-xl ${getAccentColor(notification.notification_type)} text-white max-w-sm rounded-2xl shadow-2xl shadow-black/40 border p-0 overflow-hidden gap-0 [&>button]:hidden`}>
-        {/* Accent stripe */}
-        <div className={`h-0.5 w-full ${notification.notification_type === "warning" ? "bg-gradient-to-r from-amber-500/60 to-amber-500/0" : notification.notification_type === "urgent" ? "bg-gradient-to-r from-red-500/60 to-red-500/0" : notification.notification_type === "success" ? "bg-gradient-to-r from-emerald-500/60 to-emerald-500/0" : "bg-gradient-to-r from-sky-500/60 to-sky-500/0"}`} />
+      <DialogContent className="bg-[hsl(222,35%,8%)]/95 backdrop-blur-xl border-white/[0.06] text-white max-w-sm rounded-2xl shadow-2xl shadow-black/50 p-0 overflow-hidden gap-0 [&>button]:hidden" style={{ boxShadow: "0 0 0 1px rgba(255,255,255,0.06), 0 32px 80px -12px rgba(0,0,0,0.7), 0 0 120px -40px rgba(147,51,234,0.15)" }}>
+        {/* Thin gradient top line matching checkout embed */}
+        <div className="h-[2px] w-full bg-gradient-to-r from-transparent via-purple-500/40 to-transparent" />
         <div className="p-4 space-y-3">
           <div className="flex items-start gap-3">
             <div className={`p-2 rounded-xl ${getIconBg(notification.notification_type)} flex-shrink-0`}>
@@ -101,7 +101,7 @@ const AdminNotificationPopup = () => {
             </div>
           </div>
           <div className="flex justify-end pt-1">
-            <Button onClick={dismiss} size="sm" className="h-7 px-4 text-[11px] bg-white/8 hover:bg-white/12 text-white/70 hover:text-white border border-white/8 rounded-lg transition-all">
+            <Button onClick={dismiss} size="sm" className="h-7 px-4 text-[11px] bg-white/[0.06] hover:bg-white/[0.1] text-white/50 hover:text-white/80 border border-white/[0.08] rounded-lg transition-all duration-200">
               Dismiss
             </Button>
           </div>

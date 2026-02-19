@@ -251,7 +251,7 @@ serve(async (req) => {
           });
 
           if (granted) {
-            await notify(userId, "Credits Purchased!", `${totalCredits} credits have been added to your wallet${bonus > 0 ? ` (includes ${bonus} bonus)` : ""}.`, "payment_success", {
+            await notify(userId, "Credits Purchased", `${totalCredits} credits have been added to your wallet${bonus > 0 ? ` (includes ${bonus} bonus)` : ""}.`, "payment_success", {
               credits: totalCredits, order_id: data.id, amount: data.amount,
             });
           }
@@ -312,10 +312,10 @@ serve(async (req) => {
             subscription_id: data.id, plan: planId, cycle,
           });
           if (granted) {
-            await notify(userId, "Subscription Activated!", `Welcome to the ${planId.charAt(0).toUpperCase() + planId.slice(1)} plan! ${credits} credits have been added.`, "subscription", { plan: planId, credits });
+            await notify(userId, "Subscription Activated", `Welcome to the ${planId.charAt(0).toUpperCase() + planId.slice(1)} plan. ${credits} credits have been added.`, "subscription", { plan: planId, credits });
           }
         } else {
-          await notify(userId, "Subscription Activated!", `Welcome to the ${planId.charAt(0).toUpperCase() + planId.slice(1)} plan!`, "subscription", { plan: planId });
+          await notify(userId, "Subscription Activated", `Welcome to the ${planId.charAt(0).toUpperCase() + planId.slice(1)} plan.`, "subscription", { plan: planId });
         }
         log("Subscription created", { userId, planId, cycle, credits });
         break;
@@ -364,7 +364,7 @@ serve(async (req) => {
           subscription_status: "active", subscription_plan: planId,
           subscription_id: String(data.id), subscription_cycle: cycle,
         }).eq("user_id", userId);
-        await notify(userId, "Subscription Reactivated!", "Great news — your subscription cancellation has been reversed.", "subscription", { plan: planId });
+        await notify(userId, "Subscription Reactivated", "Your subscription cancellation has been reversed.", "subscription", { plan: planId });
         log("Subscription uncanceled", { userId, planId });
         break;
       }
