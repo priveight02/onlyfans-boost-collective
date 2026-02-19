@@ -6,41 +6,68 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-async function verifySignature(payload: string, signature: string, secret: string): Promise<boolean> {
-  const encoder = new TextEncoder();
-  const key = await crypto.subtle.importKey(
-    "raw", encoder.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]
-  );
-  const sig = await crypto.subtle.sign("HMAC", key, encoder.encode(payload));
-  const computed = Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, "0")).join("");
-  return computed === signature;
-}
-
 const log = (step: string, d?: any) => console.log(`[ls-webhook] ${step}${d ? ` - ${JSON.stringify(d)}` : ""}`);
+
+// Polar webhooks use Svix-style signature verification
+async function verifyPolarWebhook(payload: string, headers: Headers, secret: string): Promise<boolean> {
+  try {
+    const msgId = headers.get("webhook-id");
+    const msgTimestamp = headers.get("webhook-timestamp");
+    const msgSignature = headers.get("webhook-signature");
+
+    if (!msgId || !msgTimestamp || !msgSignature) {
+      log("Missing webhook verification headers");
+      return false;
+    }
+
+    // Secret might be prefixed with "whsec_"
+    const secretBytes = secret.startsWith("whsec_")
+      ? Uint8Array.from(atob(secret.slice(6)), c => c.charCodeAt(0))
+      : new TextEncoder().encode(secret);
+
+    const toSign = `${msgId}.${msgTimestamp}.${payload}`;
+    const key = await crypto.subtle.importKey(
+      "raw", secretBytes, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]
+    );
+    const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(toSign));
+    const expectedSig = btoa(String.fromCharCode(...new Uint8Array(sig)));
+
+    // Signature header can contain multiple signatures separated by space
+    const signatures = msgSignature.split(" ");
+    for (const s of signatures) {
+      const [, sigValue] = s.split(",");
+      if (sigValue === expectedSig) return true;
+    }
+    return false;
+  } catch (e) {
+    log("Signature verification error", { error: e instanceof Error ? e.message : String(e) });
+    return false;
+  }
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const secret = Deno.env.get("LEMONSQUEEZY_WEBHOOK_SECRET");
-    if (!secret) throw new Error("Webhook secret not configured");
-
     const rawBody = await req.text();
-    const signature = req.headers.get("x-signature") || "";
 
-    const valid = await verifySignature(rawBody, signature, secret);
-    if (!valid) {
-      log("Invalid webhook signature");
-      return new Response(JSON.stringify({ error: "Invalid signature" }), { status: 401, headers: corsHeaders });
+    // Verify webhook signature if secret is configured
+    const webhookSecret = Deno.env.get("POLAR_WEBHOOK_SECRET") || Deno.env.get("LEMONSQUEEZY_WEBHOOK_SECRET");
+    if (webhookSecret) {
+      const valid = await verifyPolarWebhook(rawBody, req.headers, webhookSecret);
+      if (!valid) {
+        log("Invalid webhook signature");
+        return new Response(JSON.stringify({ error: "Invalid signature" }), { status: 401, headers: corsHeaders });
+      }
+    } else {
+      log("WARNING: No webhook secret configured, skipping verification");
     }
 
     const event = JSON.parse(rawBody);
-    const eventName = event.meta?.event_name;
+    const eventType = event.type;
     const data = event.data;
-    const attrs = data?.attributes;
-    const customData = event.meta?.custom_data || attrs?.first_order_item?.custom_data || {};
 
-    log("Event received", { event: eventName, id: data?.id, customData });
+    log("Event received", { type: eventType, id: data?.id });
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
@@ -48,17 +75,24 @@ serve(async (req) => {
       { auth: { persistSession: false } }
     );
 
-    // ── Resolve user: prefer user_id from custom_data, fallback to email ──
+    // ── Resolve user from Polar customer ──
     const resolveUserId = async (): Promise<string | null> => {
-      // 1. Direct user_id from checkout custom data
-      const uid = customData?.user_id;
-      if (uid) {
-        log("Resolved user from custom_data", { userId: uid });
-        return uid;
+      // 1. From checkout/order metadata
+      const meta = data?.metadata || {};
+      if (meta.user_id) {
+        log("Resolved user from metadata", { userId: meta.user_id });
+        return meta.user_id;
       }
 
-      // 2. Fallback: lookup by email
-      const email = attrs?.user_email || customData?.user_email;
+      // 2. From customer external_id
+      const externalId = data?.customer?.external_id;
+      if (externalId) {
+        log("Resolved user from external_id", { userId: externalId });
+        return externalId;
+      }
+
+      // 3. Fallback: lookup by email
+      const email = data?.customer?.email;
       if (!email) return null;
 
       const { data: users } = await supabase.auth.admin.listUsers();
@@ -74,7 +108,6 @@ serve(async (req) => {
 
     // ── Grant credits with idempotency ──
     const grantCredits = async (userId: string, credits: number, source: string, refId: string, metadata: Record<string, any> = {}) => {
-      // IDEMPOTENCY: check if already processed
       const { data: existing } = await supabase
         .from("wallet_transactions")
         .select("id")
@@ -87,7 +120,6 @@ serve(async (req) => {
         return false;
       }
 
-      // Insert transaction record
       await supabase.from("wallet_transactions").insert({
         user_id: userId,
         amount: credits,
@@ -97,7 +129,6 @@ serve(async (req) => {
         metadata: { ...metadata, webhook_processed_at: new Date().toISOString() },
       });
 
-      // Update wallet balance
       const { data: wallet } = await supabase
         .from("wallets")
         .select("balance, total_purchased, purchase_count")
@@ -138,75 +169,56 @@ serve(async (req) => {
       return true;
     };
 
-    // ── Resolve credits from order ──
-    const resolveCreditsFromOrder = (): { credits: number; bonus: number } => {
-      const credits = parseInt(customData?.credits || "0", 10);
-      const bonus = parseInt(customData?.bonus_credits || "0", 10);
-      if (credits > 0) return { credits, bonus };
-
-      // Fallback: try product name
-      const productName = attrs?.first_order_item?.product_name || "";
-      const match = productName.match(/(\d+)\s*credits?/i);
-      if (match) return { credits: parseInt(match[1], 10), bonus: 0 };
-
-      return { credits: 0, bonus: 0 };
-    };
-
     const userId = await resolveUserId();
 
-    switch (eventName) {
-      // ══════════ ORDER CREATED ══════════
-      case "order_created": {
-        if (!userId) { log("order_created: no user found"); break; }
-        if (attrs?.status !== "paid") { log("order_created: status not paid", { status: attrs?.status }); break; }
+    switch (eventType) {
+      // ══════════ ORDER CREATED / PAID ══════════
+      case "order.created": {
+        if (!userId) { log("order.created: no user found"); break; }
 
-        const { credits, bonus } = resolveCreditsFromOrder();
+        const meta = data?.metadata || {};
+        const productMeta = data?.product?.metadata || {};
+        let credits = parseInt(meta.credits || productMeta.credits || "0", 10);
+        let bonus = parseInt(meta.bonus_credits || productMeta.bonus_credits || "0", 10);
+
+        // Fallback: extract from product name
+        if (credits <= 0) {
+          const productName = data?.product?.name || "";
+          const match = productName.match(/(\d+)\s*credits?/i);
+          if (match) credits = parseInt(match[1], 10);
+        }
+
         const totalCredits = credits + bonus;
-
         if (totalCredits > 0) {
           await grantCredits(userId, totalCredits, "Credit Purchase", String(data.id), {
             order_id: data.id,
             credits_base: credits,
             credits_bonus: bonus,
-            amount: attrs?.total,
-            currency: attrs?.currency,
-            package_id: customData?.package_id || null,
-            discount_tier: customData?.discount_tier || null,
+            amount: data.amount,
+            currency: data.currency,
+            package_id: meta.package_id || null,
+            discount_tier: meta.discount_tier || null,
           });
         } else {
-          log("order_created: 0 credits resolved", { customData, productName: attrs?.first_order_item?.product_name });
-        }
-        break;
-      }
-
-      // ══════════ ORDER REFUNDED ══════════
-      case "order_refunded": {
-        if (!userId) break;
-        const { credits, bonus } = resolveCreditsFromOrder();
-        const totalCredits = credits + bonus;
-        if (totalCredits > 0) {
-          const { data: wallet } = await supabase
-            .from("wallets").select("balance").eq("user_id", userId).maybeSingle();
-          if (wallet) {
-            await supabase.from("wallets").update({
-              balance: Math.max(0, wallet.balance - totalCredits),
-            }).eq("user_id", userId);
-
-            await supabase.from("wallet_transactions").insert({
-              user_id: userId, amount: -totalCredits, type: "refund",
-              reference_id: String(data.id), description: `Refund: -${totalCredits} credits`,
-            });
-          }
-          log("Credits deducted (refund)", { userId, totalCredits });
+          log("order.created: 0 credits resolved", { meta, productMeta });
         }
         break;
       }
 
       // ══════════ SUBSCRIPTION CREATED ══════════
-      case "subscription_created": {
+      case "subscription.created":
+      case "subscription.active": {
         if (!userId) break;
-        const planId = customData?.plan_id || attrs?.product_name?.toLowerCase() || "unknown";
-        const cycle = customData?.billing_cycle || customData?.cycle || (attrs?.variant_name?.toLowerCase().includes("yearly") ? "yearly" : "monthly");
+        const meta = data?.metadata || {};
+        const productMeta = data?.product?.metadata || {};
+        const planId = meta.plan_id || productMeta.plan || (() => {
+          const name = (data?.product?.name || "").toLowerCase();
+          if (name.includes("business")) return "business";
+          if (name.includes("pro")) return "pro";
+          if (name.includes("starter")) return "starter";
+          return "unknown";
+        })();
+        const cycle = meta.billing_cycle || productMeta.cycle || "monthly";
 
         await supabase.from("profiles").update({
           subscription_plan: planId,
@@ -216,23 +228,23 @@ serve(async (req) => {
         }).eq("user_id", userId);
 
         // Grant initial credits
-        const credits = parseInt(customData?.credits || "0", 10);
-        if (credits > 0) {
+        const credits = parseInt(meta.credits || productMeta.credits_per_month || "0", 10);
+        if (credits > 0 && eventType === "subscription.created") {
           await grantCredits(userId, credits, "Subscription", `sub_initial_${data.id}`, {
             subscription_id: data.id, plan: planId, cycle,
           });
         }
 
-        log("Subscription created", { userId, planId, cycle, credits });
+        log("Subscription active", { userId, planId, cycle, credits });
         break;
       }
 
       // ══════════ SUBSCRIPTION UPDATED ══════════
-      case "subscription_updated": {
+      case "subscription.updated": {
         if (!userId) break;
-        const status = attrs?.status;
+        const status = data?.status;
         const updates: Record<string, any> = { subscription_status: status };
-        if (status === "cancelled" || status === "expired") {
+        if (status === "canceled" || status === "revoked") {
           updates.subscription_plan = null;
           updates.subscription_id = null;
           updates.subscription_cycle = null;
@@ -242,101 +254,29 @@ serve(async (req) => {
         break;
       }
 
-      // ══════════ SUBSCRIPTION CANCELLED ══════════
-      case "subscription_cancelled": {
+      // ══════════ SUBSCRIPTION CANCELED ══════════
+      case "subscription.canceled":
+      case "subscription.revoked": {
         if (!userId) break;
         await supabase.from("profiles").update({
-          subscription_status: "cancelled",
+          subscription_status: eventType === "subscription.revoked" ? "expired" : "cancelled",
           subscription_plan: null, subscription_id: null, subscription_cycle: null,
         }).eq("user_id", userId);
-        log("Subscription cancelled", { userId });
+        log("Subscription ended", { userId, type: eventType });
         break;
       }
 
-      // ══════════ SUBSCRIPTION RESUMED / UNPAUSED ══════════
-      case "subscription_resumed":
-      case "subscription_unpaused": {
-        if (!userId) break;
-        await supabase.from("profiles").update({ subscription_status: "active" }).eq("user_id", userId);
-        log("Subscription resumed", { userId });
-        break;
-      }
-
-      // ══════════ SUBSCRIPTION PAUSED ══════════
-      case "subscription_paused": {
-        if (!userId) break;
-        await supabase.from("profiles").update({ subscription_status: "paused" }).eq("user_id", userId);
-        log("Subscription paused", { userId });
-        break;
-      }
-
-      // ══════════ SUBSCRIPTION EXPIRED ══════════
-      case "subscription_expired": {
-        if (!userId) break;
-        await supabase.from("profiles").update({
-          subscription_status: "expired",
-          subscription_plan: null, subscription_id: null, subscription_cycle: null,
-        }).eq("user_id", userId);
-        log("Subscription expired", { userId });
-        break;
-      }
-
-      // ══════════ SUBSCRIPTION PAYMENT SUCCESS ══════════
-      case "subscription_payment_success": {
-        if (!userId) break;
-        const planId = customData?.plan_id || "";
-        let credits = parseInt(customData?.credits || "0", 10);
-
-        // Fallback: resolve from plan name
-        if (credits <= 0) {
-          const productName = (attrs?.product_name || "").toLowerCase();
-          if (productName.includes("business")) credits = 4300;
-          else if (productName.includes("pro")) credits = 1075;
-          else if (productName.includes("starter")) credits = 215;
+      // ══════════ CHECKOUT COMPLETED (fallback) ══════════
+      case "checkout.created":
+      case "checkout.updated": {
+        if (data?.status === "succeeded" || data?.status === "confirmed") {
+          log("Checkout completed, will be processed via order.created");
         }
-
-        if (credits > 0) {
-          const invoiceId = attrs?.subscription_invoice_id || `sub_renewal_${data.id}_${Date.now()}`;
-          await grantCredits(userId, credits, "Subscription Renewal", String(invoiceId), {
-            subscription_id: data.id, plan: planId,
-          });
-        }
-
-        await supabase.from("profiles").update({ subscription_status: "active" }).eq("user_id", userId);
-        log("Subscription payment success", { userId, credits });
-        break;
-      }
-
-      // ══════════ SUBSCRIPTION PAYMENT FAILED ══════════
-      case "subscription_payment_failed": {
-        if (!userId) break;
-        await supabase.from("profiles").update({ subscription_status: "past_due" }).eq("user_id", userId);
-        log("Subscription payment failed", { userId });
-        break;
-      }
-
-      // ══════════ SUBSCRIPTION PAYMENT RECOVERED ══════════
-      case "subscription_payment_recovered": {
-        if (!userId) break;
-        await supabase.from("profiles").update({ subscription_status: "active" }).eq("user_id", userId);
-        log("Subscription payment recovered", { userId });
-        break;
-      }
-
-      // ══════════ SUBSCRIPTION PLAN CHANGED ══════════
-      case "subscription_plan_changed": {
-        if (!userId) break;
-        const newPlanId = customData?.plan_id || attrs?.product_name?.toLowerCase() || "unknown";
-        const newCycle = customData?.cycle || "monthly";
-        await supabase.from("profiles").update({
-          subscription_plan: newPlanId, subscription_cycle: newCycle, subscription_status: "active",
-        }).eq("user_id", userId);
-        log("Plan changed", { userId, newPlanId });
         break;
       }
 
       default:
-        log("Unhandled event", { eventName });
+        log("Unhandled event", { eventType });
     }
 
     return new Response(JSON.stringify({ received: true }), {
