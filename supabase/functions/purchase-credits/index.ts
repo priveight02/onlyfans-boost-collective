@@ -137,7 +137,7 @@ serve(async (req) => {
 
       if (useRetentionDiscount && !retentionAlreadyUsed) {
         // Retention takes priority — apply via LS discount code
-        discountCode = "RETENTION50";
+        discountCode = "SPECIAL50";
         discountTier = "retention_50";
         // Still need custom_price for volume-adjusted base, then LS applies 50% on top
         // But since we can't stack: use custom_price with retention baked in
@@ -238,7 +238,7 @@ serve(async (req) => {
     let priceCents = pkg.price_cents;
 
     if (useRetentionDiscount && !retentionAlreadyUsed) {
-      discountCode = "RETENTION50";
+      discountCode = "SPECIAL50";
       discountTier = "retention_50";
       priceCents = Math.round(priceCents * 0.5);
       await supabaseAdmin.from("wallets").update({ retention_credits_used: true }).eq("user_id", user.id);
