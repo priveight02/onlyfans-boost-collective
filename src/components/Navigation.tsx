@@ -59,7 +59,7 @@ const Navigation = () => {
           <div className="flex justify-between h-16">
             <div className="flex items-center ml-36 lg:ml-52">
               <Link to="/" className="flex items-center group transition-all duration-300 hover:scale-105">
-                <img src="/lovable-uploads/uplyze-logo.png" alt="Uplyze Logo" className="h-10 w-auto object-contain" />
+                <img src="/lovable-uploads/uplyze-logo.png" alt="Uplyze Logo" className="h-[100px] w-auto object-contain" />
               </Link>
             </div>
 
