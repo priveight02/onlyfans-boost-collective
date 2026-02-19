@@ -667,10 +667,10 @@ const AdminCustomers = () => {
                   <div className="space-y-4">
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                       {[
-                        { label: "Total Charged", value: formatCurrency((detail.payment || detail.stripe)?.total_charged_cents || 0), color: "text-emerald-400" },
-                        { label: "Refunded", value: formatCurrency((detail.payment || detail.stripe)?.total_refunded_cents || 0), color: "text-red-400" },
-                        { label: "Net Revenue", value: formatCurrency((detail.payment || detail.stripe)?.net_revenue_cents || 0), color: "text-sky-400" },
-                        { label: "Plan", value: (detail.payment || detail.stripe)?.current_plan || "Free", color: "text-purple-400" },
+                        { label: "Total Charged", value: formatCurrency(detail.payment?.total_charged_cents || 0), color: "text-emerald-400" },
+                        { label: "Refunded", value: formatCurrency(detail.payment?.total_refunded_cents || 0), color: "text-red-400" },
+                        { label: "Net Revenue", value: formatCurrency(detail.payment?.net_revenue_cents || 0), color: "text-sky-400" },
+                        { label: "Plan", value: detail.payment?.current_plan || "Free", color: "text-purple-400" },
                       ].map(s => (
                         <Card key={s.label} className="bg-white/5 border-white/10">
                           <CardContent className="p-3">
@@ -681,12 +681,12 @@ const AdminCustomers = () => {
                       ))}
                     </div>
                     {/* Subscription History */}
-                    {(detail.payment || detail.stripe)?.all_subscriptions?.length > 0 && (
+                    {detail.payment?.all_subscriptions?.length > 0 && (
                       <Card className="bg-white/5 border-white/10">
                         <CardContent className="p-4">
                           <p className="text-xs font-semibold text-white/60 uppercase mb-3">Subscription History</p>
                           <div className="space-y-2">
-                            {(detail.payment || detail.stripe).all_subscriptions.map((sub: any) => (
+                            {detail.payment.all_subscriptions.map((sub: any) => (
                               <div key={sub.id} className="flex items-center justify-between p-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
                                 <div className="flex items-center gap-3">
                                   <Badge className={sub.status === "active" ? "bg-emerald-500/15 text-emerald-400" : sub.status === "canceled" ? "bg-red-500/15 text-red-400" : "bg-white/10 text-white/50"}>
@@ -706,13 +706,13 @@ const AdminCustomers = () => {
                       </Card>
                     )}
                     {/* Recent Charges */}
-                    {(detail.payment || detail.stripe)?.charges?.length > 0 && (
+                    {detail.payment?.charges?.length > 0 && (
                       <Card className="bg-white/5 border-white/10">
                         <CardContent className="p-4">
                           <p className="text-xs font-semibold text-white/60 uppercase mb-3">Recent Charges</p>
                           <ScrollArea className="h-[200px]">
                             <div className="space-y-1.5">
-                              {(detail.payment || detail.stripe).charges.slice(0, 20).map((c: any) => (
+                              {detail.payment.charges.slice(0, 20).map((c: any) => (
                                 <div key={c.id} className="flex items-center justify-between p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.05] text-xs">
                                   <div className="flex items-center gap-2">
                                     <span className={c.refunded ? "text-red-400" : "text-emerald-400"}>{formatCurrency(c.amount)}</span>
@@ -1018,7 +1018,7 @@ const AdminCustomers = () => {
                 if (exportSections.includes("transactions")) exportData.transactions = detail?.transactions;
                 if (exportSections.includes("activity")) exportData.login_activity = detail?.login_activity;
                 if (exportSections.includes("devices")) exportData.devices = detail?.device_sessions;
-                if (exportSections.includes("payments")) exportData.payments = detail?.stripe;
+                if (exportSections.includes("payments")) exportData.payments = detail?.payment;
                 if (exportSections.includes("admin_log")) exportData.admin_actions = detail?.admin_actions;
                 let blob: Blob, filename: string;
                 if (exportFormat === "csv") {
@@ -1162,12 +1162,12 @@ const AdminCustomers = () => {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
                   <div><span className="text-white/40 text-xs">Balance</span><p className="text-amber-400 font-bold">{(detail?.wallet?.balance || 0).toLocaleString()} cr</p></div>
                   <div><span className="text-white/40 text-xs">Total Purchased</span><p className="text-emerald-400 font-bold">{(detail?.wallet?.total_purchased || 0).toLocaleString()} cr</p></div>
-                  <div><span className="text-white/40 text-xs">Plan</span><p className="text-pink-400 font-bold">{detail?.stripe?.current_plan || detail?.insights?.current_plan || "Free"}</p></div>
+                  <div><span className="text-white/40 text-xs">Plan</span><p className="text-pink-400 font-bold">{detail?.payment?.current_plan || detail?.insights?.current_plan || "Free"}</p></div>
                   <div><span className="text-white/40 text-xs">LTV</span><p className="text-white font-bold">${detail?.insights?.ltv?.toFixed(2) || "0.00"}</p></div>
                   <div><span className="text-white/40 text-xs">Monthly Velocity</span><p className="text-white font-medium">${detail?.insights?.monthly_velocity?.toFixed(2) || "0"}/mo</p></div>
                   <div><span className="text-white/40 text-xs">Projected Annual</span><p className="text-white font-medium">${detail?.insights?.projected_annual_ltv?.toFixed(0) || "0"}</p></div>
-                  <div><span className="text-white/40 text-xs">Charges</span><p className="text-white font-medium">{detail?.stripe?.charge_count || 0}</p></div>
-                  <div><span className="text-white/40 text-xs">Refunds</span><p className="text-red-400 font-medium">{detail?.stripe?.refund_count || 0}</p></div>
+                  <div><span className="text-white/40 text-xs">Orders</span><p className="text-white font-medium">{detail?.payment?.charge_count || 0}</p></div>
+                  <div><span className="text-white/40 text-xs">Refunds</span><p className="text-red-400 font-medium">{detail?.payment?.refund_count || 0}</p></div>
                 </div>
               </div>
               {/* Social */}
