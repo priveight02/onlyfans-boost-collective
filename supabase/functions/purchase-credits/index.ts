@@ -25,21 +25,39 @@ const log = (step: string, d?: any) => console.log(`[PURCHASE-CREDITS] ${step}${
 
 const BASE_PRICE_PER_CREDIT_CENTS = 1.816;
 
-const getVolumeDiscount = (credits: number): number => {
-  if (credits >= 100000) return 0.40;
-  if (credits >= 75000) return 0.35;
-  if (credits >= 50000) return 0.30;
-  if (credits >= 30000) return 0.25;
-  if (credits >= 20000) return 0.20;
-  if (credits >= 15000) return 0.15;
-  if (credits >= 10000) return 0.05;
+const getVolumeDiscountCode = (credits: number): string | null => {
+  if (credits >= 100000) return "VOLUME40";
+  if (credits >= 75000) return "VOLUME35";
+  if (credits >= 50000) return "VOLUME30";
+  if (credits >= 30000) return "VOLUME25";
+  if (credits >= 20000) return "VOLUME20";
+  if (credits >= 15000) return "VOLUME15";
+  if (credits >= 10000) return "VOLUME5";
+  return null;
+};
+
+const getVolumeDiscountPercent = (credits: number): number => {
+  if (credits >= 100000) return 40;
+  if (credits >= 75000) return 35;
+  if (credits >= 50000) return 30;
+  if (credits >= 30000) return 25;
+  if (credits >= 20000) return 20;
+  if (credits >= 15000) return 15;
+  if (credits >= 10000) return 5;
   return 0;
 };
 
-const getReturningDiscount = (count: number): number => {
-  if (count >= 3) return 30;
-  if (count >= 2) return 20;
-  if (count >= 1) return 10;
+const getLoyaltyDiscountCode = (purchaseCount: number): string | null => {
+  if (purchaseCount >= 3) return "LOYALTY30";
+  if (purchaseCount >= 2) return "LOYALTY20";
+  if (purchaseCount >= 1) return "LOYALTY10";
+  return null;
+};
+
+const getLoyaltyDiscountPercent = (purchaseCount: number): number => {
+  if (purchaseCount >= 3) return 30;
+  if (purchaseCount >= 2) return 20;
+  if (purchaseCount >= 1) return 10;
   return 0;
 };
 
@@ -49,6 +67,18 @@ const getStoreId = async (): Promise<string> => {
   const data = await res.json();
   if (!data.data?.length) throw new Error("No store found");
   return String(data.data[0].id);
+};
+
+// Resolve an LS discount code to its discount ID
+const resolveDiscountId = async (storeId: string, code: string): Promise<string | null> => {
+  try {
+    const res = await lsFetch(`/discounts?filter[store_id]=${storeId}&filter[code]=${code}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.data?.[0]?.id ? String(data.data[0].id) : null;
+  } catch {
+    return null;
+  }
 };
 
 serve(async (req) => {
@@ -66,7 +96,7 @@ serve(async (req) => {
     log("User authenticated", { userId: user.id, email: user.email });
 
     const body = await req.json();
-    const { packageId, customCredits, useRetentionDiscount } = body;
+    const { packageId, customCredits, useRetentionDiscount, promoCode } = body;
 
     const { data: wallet } = await supabaseAdmin
       .from("wallets").select("purchase_count, retention_credits_used").eq("user_id", user.id).single();
@@ -75,7 +105,6 @@ serve(async (req) => {
 
     if (useRetentionDiscount && retentionAlreadyUsed) throw new Error("Retention discount already used.");
 
-    const returningDiscountPercent = getReturningDiscount(currentPurchaseCount);
     const origin = req.headers.get("origin") || "https://uplyze.ai";
     const storeId = await getStoreId();
 
@@ -89,118 +118,69 @@ serve(async (req) => {
       const customProduct = (productsData.data || []).find(
         (p: any) => p.attributes.name.toLowerCase().includes("custom credits")
       );
-      if (!customProduct) throw new Error("Custom Credits product not found in Lemon Squeezy. Create it in the dashboard first.");
+      if (!customProduct) throw new Error("Custom Credits product not found in Lemon Squeezy.");
 
-      // Get variant
       const varRes = await lsFetch(`/variants?filter[product_id]=${customProduct.id}&page[size]=1`);
       const varData = await varRes.json();
       const variant = varData.data?.[0];
       if (!variant) throw new Error("No variant found for Custom Credits product.");
 
-      const volumeDiscount = getVolumeDiscount(customCredits);
-      const pricePerCredit = BASE_PRICE_PER_CREDIT_CENTS * (1 - volumeDiscount);
+      // Calculate base price
+      const volumeDiscountPercent = getVolumeDiscountPercent(customCredits);
+      const pricePerCredit = BASE_PRICE_PER_CREDIT_CENTS * (1 - volumeDiscountPercent / 100);
       let totalCents = Math.round(customCredits * pricePerCredit);
 
-      if (returningDiscountPercent > 0 && !useRetentionDiscount) {
-        totalCents = Math.round(totalCents * (1 - returningDiscountPercent / 100));
-      }
+      // Determine which discount code to apply
+      let discountCode: string | null = null;
+      let discountId: string | null = null;
+      let discountTier = "none";
 
-      let retentionUsed = false;
       if (useRetentionDiscount && !retentionAlreadyUsed) {
+        // Retention takes priority — apply via LS discount code
+        discountCode = "RETENTION50";
+        discountTier = "retention_50";
+        // Still need custom_price for volume-adjusted base, then LS applies 50% on top
+        // But since we can't stack: use custom_price with retention baked in
         totalCents = Math.round(totalCents * 0.5);
-        retentionUsed = true;
         await supabaseAdmin.from("wallets").update({ retention_credits_used: true }).eq("user_id", user.id);
-        log("Applied retention 50% discount");
+        log("Applied retention 50% on custom credits");
+      } else if (promoCode) {
+        // User-entered promo code — pass to LS directly
+        discountCode = promoCode.toUpperCase();
+        discountTier = `promo_${promoCode}`;
+      } else {
+        // Apply loyalty discount
+        const loyaltyCode = getLoyaltyDiscountCode(currentPurchaseCount);
+        if (loyaltyCode) {
+          const loyaltyPercent = getLoyaltyDiscountPercent(currentPurchaseCount);
+          totalCents = Math.round(totalCents * (1 - loyaltyPercent / 100));
+          discountCode = loyaltyCode;
+          discountTier = `loyalty_${loyaltyPercent}`;
+        }
       }
 
-      log("Custom price calculated", { totalCents, volumeDiscount, returningDiscount: returningDiscountPercent });
+      // Resolve discount ID from LS
+      if (discountCode) {
+        discountId = await resolveDiscountId(storeId, discountCode);
+        log("Resolved discount", { code: discountCode, id: discountId });
+      }
 
-      const checkoutRes = await lsFetch("/checkouts", {
-        method: "POST",
-        body: JSON.stringify({
-          data: {
-            type: "checkouts",
-            attributes: {
-              custom_price: totalCents,
-              checkout_data: {
-                custom: {
-                  user_id: user.id,
-                  package_id: "custom",
-                  credits: String(customCredits),
-                  bonus_credits: "0",
-                  is_returning: String(returningDiscountPercent > 0),
-                  volume_discount: String(Math.round(volumeDiscount * 100)),
-                  retention_used: String(retentionUsed),
-                },
-              },
-              product_options: {
-                redirect_url: `${origin}/pricing?success=true`,
-                receipt_button_text: "Back to Uplyze",
-                receipt_thank_you_note: "Your credits have been added to your wallet!",
-              },
-              checkout_options: { embed: true, dark: true, media: true, logo: true },
-            },
-            relationships: {
-              store: { data: { type: "stores", id: storeId } },
-              variant: { data: { type: "variants", id: String(variant.id) } },
-            },
-          },
-        }),
-      });
+      log("Custom price calculated", { totalCents, volumeDiscountPercent, discountCode, discountTier });
 
-      if (!checkoutRes.ok) throw new Error(`Checkout failed: ${await checkoutRes.text()}`);
-      const checkout = await checkoutRes.json();
-      const checkoutUrl = checkout.data?.attributes?.url;
-      log("Custom checkout created", { url: checkoutUrl });
-
-      return new Response(JSON.stringify({ checkoutUrl }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // ═══ PACKAGE MODE ═══
-    if (!packageId) throw new Error("Package ID or customCredits required");
-
-    const { data: pkg, error: pkgError } = await supabaseAdmin
-      .from("credit_packages").select("*").eq("id", packageId).eq("is_active", true).single();
-    if (pkgError || !pkg) throw new Error("Invalid package");
-    log("Package found", { name: pkg.name, credits: pkg.credits, price: pkg.price_cents });
-
-    // Get variant ID from credit_packages table (mapped by lemon-setup)
-    const variantId = pkg.stripe_price_id;
-    if (!variantId) throw new Error("Variant not mapped. Run lemon-setup first.");
-
-    // Calculate discounted price
-    let priceCents = pkg.price_cents;
-    let discountTier = "none";
-
-    if (useRetentionDiscount && !retentionAlreadyUsed) {
-      priceCents = Math.round(priceCents * 0.5);
-      discountTier = "retention_50";
-      await supabaseAdmin.from("wallets").update({ retention_credits_used: true }).eq("user_id", user.id);
-      log("Applied retention 50% discount");
-    } else if (returningDiscountPercent > 0) {
-      priceCents = Math.round(priceCents * (1 - returningDiscountPercent / 100));
-      discountTier = `loyalty_${returningDiscountPercent}`;
-    }
-
-    log("Discount applied", { discountTier, originalPrice: pkg.price_cents, finalPrice: priceCents });
-
-    const checkoutRes = await lsFetch("/checkouts", {
-      method: "POST",
-      body: JSON.stringify({
+      const checkoutPayload: any = {
         data: {
           type: "checkouts",
           attributes: {
-            custom_price: priceCents,
+            custom_price: totalCents,
             checkout_data: {
+              discount_code: discountCode || undefined,
               custom: {
                 user_id: user.id,
-                package_id: pkg.id,
-                credits: String(pkg.credits),
-                bonus_credits: String(pkg.bonus_credits),
+                package_id: "custom",
+                credits: String(customCredits),
+                bonus_credits: "0",
                 discount_tier: discountTier,
-                is_returning: String(returningDiscountPercent > 0),
+                volume_discount: String(volumeDiscountPercent),
                 retention_used: String(useRetentionDiscount || false),
               },
             },
@@ -213,18 +193,130 @@ serve(async (req) => {
           },
           relationships: {
             store: { data: { type: "stores", id: storeId } },
-            variant: { data: { type: "variants", id: variantId } },
+            variant: { data: { type: "variants", id: String(variant.id) } },
           },
         },
-      }),
+      };
+
+      // Attach discount relationship if we have an ID
+      if (discountId) {
+        checkoutPayload.data.relationships.discount = {
+          data: { type: "discounts", id: discountId },
+        };
+      }
+
+      const checkoutRes = await lsFetch("/checkouts", {
+        method: "POST",
+        body: JSON.stringify(checkoutPayload),
+      });
+
+      if (!checkoutRes.ok) throw new Error(`Checkout failed: ${await checkoutRes.text()}`);
+      const checkout = await checkoutRes.json();
+      const checkoutUrl = checkout.data?.attributes?.url;
+      log("Custom checkout created", { url: checkoutUrl, discountCode });
+
+      return new Response(JSON.stringify({ checkoutUrl, discount_applied: discountCode, discount_tier: discountTier }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ═══ PACKAGE MODE ═══
+    if (!packageId) throw new Error("Package ID or customCredits required");
+
+    const { data: pkg, error: pkgError } = await supabaseAdmin
+      .from("credit_packages").select("*").eq("id", packageId).eq("is_active", true).single();
+    if (pkgError || !pkg) throw new Error("Invalid package");
+    log("Package found", { name: pkg.name, credits: pkg.credits, price: pkg.price_cents });
+
+    const variantId = pkg.stripe_price_id;
+    if (!variantId) throw new Error("Variant not mapped. Run lemon-setup first.");
+
+    // Determine discount code to apply
+    let discountCode: string | null = null;
+    let discountId: string | null = null;
+    let discountTier = "none";
+    let priceCents = pkg.price_cents;
+
+    if (useRetentionDiscount && !retentionAlreadyUsed) {
+      discountCode = "RETENTION50";
+      discountTier = "retention_50";
+      priceCents = Math.round(priceCents * 0.5);
+      await supabaseAdmin.from("wallets").update({ retention_credits_used: true }).eq("user_id", user.id);
+      log("Applied retention 50% discount");
+    } else if (promoCode) {
+      // User-entered promo code
+      discountCode = promoCode.toUpperCase();
+      discountTier = `promo_${promoCode}`;
+      // Price will be adjusted by LS based on the discount — keep base price
+      priceCents = pkg.price_cents; // LS handles the discount
+    } else {
+      const loyaltyCode = getLoyaltyDiscountCode(currentPurchaseCount);
+      if (loyaltyCode) {
+        discountCode = loyaltyCode;
+        const loyaltyPercent = getLoyaltyDiscountPercent(currentPurchaseCount);
+        priceCents = Math.round(priceCents * (1 - loyaltyPercent / 100));
+        discountTier = `loyalty_${loyaltyPercent}`;
+      }
+    }
+
+    // Resolve discount ID from LS
+    if (discountCode) {
+      discountId = await resolveDiscountId(storeId, discountCode);
+      log("Resolved discount", { code: discountCode, id: discountId });
+    }
+
+    log("Discount applied", { discountCode, discountTier, originalPrice: pkg.price_cents, finalPrice: priceCents });
+
+    const checkoutPayload: any = {
+      data: {
+        type: "checkouts",
+        attributes: {
+          custom_price: priceCents,
+          checkout_data: {
+            discount_code: discountCode || undefined,
+            custom: {
+              user_id: user.id,
+              package_id: pkg.id,
+              credits: String(pkg.credits),
+              bonus_credits: String(pkg.bonus_credits),
+              discount_tier: discountTier,
+              discount_code: discountCode || "",
+              is_returning: String(currentPurchaseCount > 0),
+              retention_used: String(useRetentionDiscount || false),
+            },
+          },
+          product_options: {
+            redirect_url: `${origin}/pricing?success=true`,
+            receipt_button_text: "Back to Uplyze",
+            receipt_thank_you_note: "Your credits have been added to your wallet!",
+          },
+          checkout_options: { embed: true, dark: true, media: true, logo: true },
+        },
+        relationships: {
+          store: { data: { type: "stores", id: storeId } },
+          variant: { data: { type: "variants", id: variantId } },
+        },
+      },
+    };
+
+    // Attach discount relationship if resolved
+    if (discountId) {
+      checkoutPayload.data.relationships.discount = {
+        data: { type: "discounts", id: discountId },
+      };
+    }
+
+    const checkoutRes = await lsFetch("/checkouts", {
+      method: "POST",
+      body: JSON.stringify(checkoutPayload),
     });
 
     if (!checkoutRes.ok) throw new Error(`Checkout failed: ${await checkoutRes.text()}`);
     const checkout = await checkoutRes.json();
     const checkoutUrl = checkout.data?.attributes?.url;
-    log("Checkout created", { url: checkoutUrl, discountTier });
+    log("Checkout created", { url: checkoutUrl, discountCode, discountTier });
 
-    return new Response(JSON.stringify({ checkoutUrl }), {
+    return new Response(JSON.stringify({ checkoutUrl, discount_applied: discountCode, discount_tier: discountTier }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
