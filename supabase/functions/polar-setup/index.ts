@@ -7,11 +7,12 @@ const corsHeaders = {
 };
 
 const POLAR_API = "https://api.polar.sh/v1";
+const SUPABASE_STORAGE_BASE = "https://ufsnuobtvkciydftsyff.supabase.co/storage/v1/object/public/product-images";
 
 const polarFetch = async (path: string, options: RequestInit = {}) => {
   const token = Deno.env.get("POLAR_ACCESS_TOKEN");
   if (!token) throw new Error("POLAR_ACCESS_TOKEN not set");
-  const res = await fetch(`${POLAR_API}${path}`, {
+  return fetch(`${POLAR_API}${path}`, {
     ...options,
     headers: {
       "Authorization": `Bearer ${token}`,
@@ -19,11 +20,77 @@ const polarFetch = async (path: string, options: RequestInit = {}) => {
       ...(options.headers || {}),
     },
   });
-  return res;
 };
 
 const logStep = (step: string, details?: any) => {
   console.log(`[POLAR-SETUP] ${step}${details ? ` - ${JSON.stringify(details)}` : ""}`);
+};
+
+// Upload image from URL to Polar as product_media, returns file ID
+const uploadProductImage = async (imageUrl: string, fileName: string): Promise<string | null> => {
+  try {
+    // 1. Download the image
+    const imgRes = await fetch(imageUrl);
+    if (!imgRes.ok) { logStep("Image download failed", { imageUrl }); return null; }
+    const imgBytes = new Uint8Array(await imgRes.arrayBuffer());
+    const mimeType = imgRes.headers.get("content-type") || "image/png";
+    logStep("Image downloaded", { fileName, size: imgBytes.length });
+
+    // 2. Create file on Polar
+    const createRes = await polarFetch("/files", {
+      method: "POST",
+      body: JSON.stringify({
+        name: fileName,
+        mime_type: mimeType,
+        size: imgBytes.length,
+        service: "product_media",
+        upload: {
+          parts: [{ number: 1, chunk_start: 0, chunk_end: imgBytes.length }],
+        },
+      }),
+    });
+    if (!createRes.ok) {
+      const err = await createRes.text();
+      logStep("File create failed", { err });
+      return null;
+    }
+    const fileData = await createRes.json();
+    const fileId = fileData.id;
+    const uploadUrl = fileData.upload?.parts?.[0]?.url;
+    if (!uploadUrl) { logStep("No upload URL returned"); return null; }
+
+    // 3. Upload to S3 presigned URL
+    const s3Res = await fetch(uploadUrl, {
+      method: "PUT",
+      headers: { "Content-Type": mimeType },
+      body: imgBytes,
+    });
+    if (!s3Res.ok) {
+      logStep("S3 upload failed", { status: s3Res.status });
+      return null;
+    }
+    const etag = s3Res.headers.get("etag") || "";
+
+    // 4. Complete the upload
+    const completeRes = await polarFetch(`/files/${fileId}/uploaded`, {
+      method: "POST",
+      body: JSON.stringify({
+        id: fileId,
+        path: fileName,
+        parts: [{ number: 1, checksum_etag: etag.replace(/"/g, ""), chunk_start: 0, chunk_end: imgBytes.length }],
+      }),
+    });
+    if (!completeRes.ok) {
+      const err = await completeRes.text();
+      logStep("File complete failed", { err });
+      return null;
+    }
+    logStep("Image uploaded to Polar", { fileId, fileName });
+    return fileId;
+  } catch (e) {
+    logStep("Image upload error", { error: e instanceof Error ? e.message : String(e) });
+    return null;
+  }
 };
 
 serve(async (req) => {
@@ -41,33 +108,60 @@ serve(async (req) => {
     if (!token) throw new Error("No auth token");
     const { data: userData } = await supabaseAdmin.auth.getUser(token);
     if (!userData.user) throw new Error("Not authenticated");
-
     const { data: roleData } = await supabaseAdmin
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userData.user.id)
-      .eq("role", "admin")
-      .single();
+      .from("user_roles").select("role").eq("user_id", userData.user.id).eq("role", "admin").single();
     if (!roleData) throw new Error("Admin access required");
 
-    logStep("Admin verified, starting product creation");
+    logStep("Admin verified, starting full product creation (26 products)");
 
-    // Check for existing products to avoid duplicates
+    // Fetch existing products to avoid duplicates
     const existingRes = await polarFetch("/products?limit=100");
     const existingProducts = await existingRes.json();
-    const existingNames = new Set((existingProducts.items || []).map((p: any) => p.name));
-    logStep("Existing products", { count: existingNames.size });
+    const existingByName = new Map<string, any>();
+    for (const p of (existingProducts.items || [])) {
+      existingByName.set(p.name, p);
+    }
+    logStep("Existing products", { count: existingByName.size });
 
-    const createProduct = async (data: any) => {
-      if (existingNames.has(data.name)) {
-        const existing = (existingProducts.items || []).find((p: any) => p.name === data.name);
-        logStep("Product already exists, skipping", { name: data.name, id: existing?.id });
+    // Upload product images once and reuse
+    const imageMap: Record<string, string | null> = {};
+    const imageUrls: Record<string, string> = {
+      starter: `${SUPABASE_STORAGE_BASE}/credits-starter.png`,
+      pro: `${SUPABASE_STORAGE_BASE}/credits-pro.png`,
+      studio: `${SUPABASE_STORAGE_BASE}/credits-studio.png`,
+      power: `${SUPABASE_STORAGE_BASE}/credits-power.png`,
+      custom: `${SUPABASE_STORAGE_BASE}/credits-custom.png`,
+      plan_starter: `${SUPABASE_STORAGE_BASE}/plan-starter.png`,
+      plan_pro: `${SUPABASE_STORAGE_BASE}/plan-pro.png`,
+      plan_business: `${SUPABASE_STORAGE_BASE}/plan-business.png`,
+    };
+
+    for (const [key, url] of Object.entries(imageUrls)) {
+      imageMap[key] = await uploadProductImage(url, `${key}.png`);
+    }
+    logStep("Images uploaded", { uploaded: Object.values(imageMap).filter(Boolean).length });
+
+    const createProduct = async (data: any, imageKey?: string) => {
+      if (existingByName.has(data.name)) {
+        const existing = existingByName.get(data.name);
+        logStep("Product exists, skipping", { name: data.name, id: existing?.id });
+        // Still try to attach image if missing
+        if (imageKey && imageMap[imageKey] && existing && (!existing.medias || existing.medias.length === 0)) {
+          try {
+            await polarFetch(`/products/${existing.id}`, {
+              method: "PATCH",
+              body: JSON.stringify({ medias: [imageMap[imageKey]] }),
+            });
+            logStep("Attached image to existing product", { name: data.name });
+          } catch {}
+        }
         return existing;
       }
-      const res = await polarFetch("/products", {
-        method: "POST",
-        body: JSON.stringify(data),
-      });
+      // Add media if available
+      if (imageKey && imageMap[imageKey]) {
+        data.medias = [imageMap[imageKey]];
+      }
+      const res = await polarFetch("/products", { method: "POST", body: JSON.stringify(data) });
       if (!res.ok) {
         const errText = await res.text();
         throw new Error(`Failed to create "${data.name}": ${errText}`);
@@ -77,160 +171,122 @@ serve(async (req) => {
       return product;
     };
 
-    // Check for existing discounts
-    const existingDiscountsRes = await polarFetch("/discounts?limit=100");
-    const existingDiscounts = await existingDiscountsRes.json();
-    const existingDiscountNames = new Set((existingDiscounts.items || []).map((d: any) => d.name));
+    const results: any = { credit_products: [], subscriptions: [], custom: null };
 
-    const createDiscount = async (data: any) => {
-      if (existingDiscountNames.has(data.name)) {
-        const existing = (existingDiscounts.items || []).find((d: any) => d.name === data.name);
-        logStep("Discount already exists, skipping", { name: data.name, id: existing?.id });
-        return existing;
-      }
-      const res = await polarFetch("/discounts", {
-        method: "POST",
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) {
-        const errText = await res.text();
-        logStep("Warning: Failed to create discount", { name: data.name, error: errText });
-        return null;
-      }
-      const discount = await res.json();
-      logStep("Created discount", { name: data.name, id: discount.id });
-      return discount;
-    };
-
-    const results: any = { credit_packages: {}, subscriptions: {}, custom_credits: null, discounts: {} };
-
-    // ═══════════════════════════════════════════════════════
-    // CREDIT PACKAGES (one-time) — 4 base packages
-    // ═══════════════════════════════════════════════════════
-    const creditPackages = [
-      { name: "Starter Credits", credits: 350, bonus: 0, price: 900, desc: "350 credits for the Uplyze AI platform. Instant delivery, never expires. Access all basic AI tools and managed account features." },
-      { name: "Pro Credits", credits: 1650, bonus: 350, price: 2900, desc: "1,650 credits + 350 bonus for the Uplyze AI platform. Instant delivery, never expires. Unlock advanced AI features and priority support." },
-      { name: "Studio Credits", credits: 3300, bonus: 550, price: 4900, desc: "3,300 credits + 550 bonus for the Uplyze AI platform. Instant delivery, never expires. Full platform access with premium AI capabilities." },
-      { name: "Power User Credits", credits: 11500, bonus: 2000, price: 14900, desc: "11,500 credits + 2,000 bonus for the Uplyze AI platform. Instant delivery, never expires. Our best value package with maximum credits." },
+    // ═══════════════════════════════════════════════════════════
+    // CREDIT PACKAGES — 4 base × (base + 10% + 20% + 30% + 50%) = 20 products
+    // ═══════════════════════════════════════════════════════════
+    const basePackages = [
+      { key: "starter", name: "Starter", credits: 350, bonus: 0, basePriceCents: 900, desc: "350 credits for the Uplyze AI platform. Instant delivery, never expires." },
+      { key: "pro", name: "Pro", credits: 1650, bonus: 350, basePriceCents: 2900, desc: "1,650 credits + 350 bonus for Uplyze AI. Instant delivery, never expires." },
+      { key: "studio", name: "Studio", credits: 3300, bonus: 550, basePriceCents: 4900, desc: "3,300 credits + 550 bonus for Uplyze AI. Instant delivery, never expires." },
+      { key: "power", name: "Power User", credits: 11500, bonus: 2000, basePriceCents: 14900, desc: "11,500 credits + 2,000 bonus for Uplyze AI. Our best value package." },
     ];
 
-    for (const pkg of creditPackages) {
-      const product = await createProduct({
-        name: pkg.name,
-        description: pkg.desc,
-        prices: [{ amount_type: "fixed", price_amount: pkg.price, price_currency: "usd" }],
-        metadata: { type: "credit_package", credits: String(pkg.credits), bonus_credits: String(pkg.bonus) },
-      });
-      results.credit_packages[pkg.name] = {
-        product_id: product.id,
-        price_id: product.prices?.[0]?.id,
-        credits: pkg.credits,
-        bonus: pkg.bonus,
-        price: pkg.price,
-      };
+    const discountTiers = [
+      { suffix: "", discountPct: 0, metaDiscount: "none" },
+      { suffix: " — 10% Loyalty", discountPct: 10, metaDiscount: "loyalty_10" },
+      { suffix: " — 20% Loyalty", discountPct: 20, metaDiscount: "loyalty_20" },
+      { suffix: " — 30% Loyalty", discountPct: 30, metaDiscount: "loyalty_30" },
+      { suffix: " — 50% Retention", discountPct: 50, metaDiscount: "retention_50" },
+    ];
 
-      // Update credit_packages table
-      const { error: updateErr } = await supabaseAdmin
-        .from("credit_packages")
-        .update({
-          stripe_product_id: product.id,
-          stripe_price_id: product.prices?.[0]?.id || product.id,
-        })
-        .ilike("name", `%${pkg.name.split(" ")[0]}%`);
-      if (updateErr) logStep("Warning: could not update credit_packages", { name: pkg.name, error: updateErr.message });
+    for (const pkg of basePackages) {
+      for (const tier of discountTiers) {
+        const productName = `${pkg.name} Credits${tier.suffix}`;
+        const discountedPrice = Math.round(pkg.basePriceCents * (1 - tier.discountPct / 100));
+        const product = await createProduct({
+          name: productName,
+          description: `${pkg.desc}${tier.discountPct > 0 ? ` ${tier.discountPct}% discount auto-applied.` : ""}`,
+          prices: [{ amount_type: "fixed", price_amount: discountedPrice, price_currency: "usd" }],
+          metadata: {
+            type: "credit_package",
+            base_package: pkg.key,
+            credits: String(pkg.credits),
+            bonus_credits: String(pkg.bonus),
+            discount_tier: tier.metaDiscount,
+            original_price: String(pkg.basePriceCents),
+          },
+        }, pkg.key);
+
+        results.credit_products.push({
+          name: productName,
+          product_id: product.id,
+          price_id: product.prices?.[0]?.id,
+          credits: pkg.credits,
+          bonus: pkg.bonus,
+          price: discountedPrice,
+          discount_tier: tier.metaDiscount,
+        });
+      }
+
+      // Update credit_packages table with base product IDs
+      const baseProduct = results.credit_products.find(
+        (p: any) => p.discount_tier === "none" && p.name === `${pkg.name} Credits`
+      );
+      if (baseProduct) {
+        const { error: updateErr } = await supabaseAdmin
+          .from("credit_packages")
+          .update({
+            stripe_product_id: baseProduct.product_id,
+            stripe_price_id: baseProduct.price_id || baseProduct.product_id,
+          })
+          .ilike("name", `%${pkg.name}%`);
+        if (updateErr) logStep("Warning: credit_packages update failed", { name: pkg.name, error: updateErr.message });
+      }
     }
 
-    // Custom Credits product (used for ad-hoc pricing)
+    // ═══════════════════════════════════════════════════════════
+    // CUSTOM CREDITS (1 product, ad-hoc pricing)
+    // ═══════════════════════════════════════════════════════════
     const customProduct = await createProduct({
       name: "Custom Credits",
-      description: "Custom credit package for the Uplyze AI platform. Choose your own amount with volume discounts up to 40%. Instant delivery, never expires.",
+      description: "Custom credit package for Uplyze AI. Choose your own amount with volume discounts up to 40%.",
       prices: [{ amount_type: "custom", price_currency: "usd" }],
       metadata: { type: "custom_credits" },
-    });
-    results.custom_credits = { product_id: customProduct.id };
+    }, "custom");
+    results.custom = { product_id: customProduct.id };
 
-    // ═══════════════════════════════════════════════════════
-    // SUBSCRIPTION PLANS (recurring)
-    // ═══════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════
+    // SUBSCRIPTION PLANS (6 products)
+    // ═══════════════════════════════════════════════════════════
     const subscriptions = [
-      { name: "Starter Plan (Monthly)", plan: "starter", cycle: "monthly", interval: "month", price: 900, credits: 215, desc: "Starter monthly subscription. 215 credits/month, platform access, basic AI tools, 1 managed account." },
-      { name: "Starter Plan (Yearly)", plan: "starter", cycle: "yearly", interval: "year", price: 9180, credits: 215, desc: "Starter annual subscription. 215 credits/month, platform access, basic AI tools, 1 managed account. Save 15% vs monthly!" },
-      { name: "Pro Plan (Monthly)", plan: "pro", cycle: "monthly", interval: "month", price: 2900, credits: 1075, desc: "Pro monthly subscription. 1,075 credits/month, advanced platform access, premium AI features, 5 managed accounts, priority support." },
-      { name: "Pro Plan (Yearly)", plan: "pro", cycle: "yearly", interval: "year", price: 24360, credits: 1075, desc: "Pro annual subscription. 1,075 credits/month, advanced platform access, premium AI features, 5 managed accounts. Save 30% vs monthly!" },
-      { name: "Business Plan (Monthly)", plan: "business", cycle: "monthly", interval: "month", price: 7900, credits: 4300, desc: "Business monthly subscription. 4,300 credits/month, full platform access, unlimited accounts, dedicated support, team workspace." },
-      { name: "Business Plan (Yearly)", plan: "business", cycle: "yearly", interval: "year", price: 63516, credits: 4300, desc: "Business annual subscription. 4,300 credits/month, full platform access, unlimited accounts, dedicated support. Save 33% vs monthly!" },
+      { name: "Starter Plan (Monthly)", plan: "starter", cycle: "monthly", interval: "month", price: 900, credits: 215, imgKey: "plan_starter" },
+      { name: "Starter Plan (Yearly)", plan: "starter", cycle: "yearly", interval: "year", price: 9180, credits: 215, imgKey: "plan_starter" },
+      { name: "Pro Plan (Monthly)", plan: "pro", cycle: "monthly", interval: "month", price: 2900, credits: 1075, imgKey: "plan_pro" },
+      { name: "Pro Plan (Yearly)", plan: "pro", cycle: "yearly", interval: "year", price: 24360, credits: 1075, imgKey: "plan_pro" },
+      { name: "Business Plan (Monthly)", plan: "business", cycle: "monthly", interval: "month", price: 7900, credits: 4300, imgKey: "plan_business" },
+      { name: "Business Plan (Yearly)", plan: "business", cycle: "yearly", interval: "year", price: 63516, credits: 4300, imgKey: "plan_business" },
     ];
 
     for (const sub of subscriptions) {
       const product = await createProduct({
         name: sub.name,
-        description: sub.desc,
+        description: `${sub.plan.charAt(0).toUpperCase() + sub.plan.slice(1)} ${sub.cycle} subscription. ${sub.credits} credits/month.`,
         recurring_interval: sub.interval,
         prices: [{ amount_type: "fixed", price_amount: sub.price, price_currency: "usd" }],
         metadata: { type: "subscription", plan: sub.plan, cycle: sub.cycle, credits_per_month: String(sub.credits) },
-      });
-      const key = `${sub.plan}_${sub.cycle}`;
-      results.subscriptions[key] = {
+      }, sub.imgKey);
+
+      results.subscriptions.push({
+        name: sub.name,
         product_id: product.id,
         price_id: product.prices?.[0]?.id,
         plan: sub.plan,
         cycle: sub.cycle,
-        price: sub.price,
-        credits_per_month: sub.credits,
-      };
+      });
     }
 
-    // ═══════════════════════════════════════════════════════
-    // DISCOUNTS — Loyalty, Retention, Yearly
-    // ═══════════════════════════════════════════════════════
-    const discountDefs = [
-      // Loyalty discounts (declining: 1st repurchase=30%, 2nd=20%, 3rd=10%)
-      { name: "Loyalty 30% — 1st Repurchase", type: "percentage", amount: 30, duration: "once", code: "LOYALTY30", metadata: { tier: "1", category: "loyalty" } },
-      { name: "Loyalty 20% — 2nd Repurchase", type: "percentage", amount: 20, duration: "once", code: "LOYALTY20", metadata: { tier: "2", category: "loyalty" } },
-      { name: "Loyalty 10% — 3rd Repurchase", type: "percentage", amount: 10, duration: "once", code: "LOYALTY10", metadata: { tier: "3", category: "loyalty" } },
-      // Retention discount
-      { name: "Retention 50% OFF", type: "percentage", amount: 50, duration: "once", code: "STAY50", metadata: { category: "retention" } },
-      // Yearly subscription discounts (informational — actual savings baked into yearly price)
-      { name: "Starter Yearly 15% OFF", type: "percentage", amount: 15, duration: "forever", code: "STARTYEARLY", metadata: { category: "yearly", plan: "starter" } },
-      { name: "Pro Yearly 30% OFF", type: "percentage", amount: 30, duration: "forever", code: "PROYEARLY", metadata: { category: "yearly", plan: "pro" } },
-      { name: "Business Yearly 33% OFF", type: "percentage", amount: 33, duration: "forever", code: "BIZYEARLY", metadata: { category: "yearly", plan: "business" } },
-      // Volume discount tiers for custom credits
-      { name: "Volume 5% — 500+ credits", type: "percentage", amount: 5, duration: "once", code: "VOL5", metadata: { category: "volume", min_credits: "500" } },
-      { name: "Volume 10% — 1000+ credits", type: "percentage", amount: 10, duration: "once", code: "VOL10", metadata: { category: "volume", min_credits: "1000" } },
-      { name: "Volume 15% — 3000+ credits", type: "percentage", amount: 15, duration: "once", code: "VOL15", metadata: { category: "volume", min_credits: "3000" } },
-      { name: "Volume 20% — 5000+ credits", type: "percentage", amount: 20, duration: "once", code: "VOL20", metadata: { category: "volume", min_credits: "5000" } },
-      { name: "Volume 25% — 8000+ credits", type: "percentage", amount: 25, duration: "once", code: "VOL25", metadata: { category: "volume", min_credits: "8000" } },
-      { name: "Volume 30% — 12000+ credits", type: "percentage", amount: 30, duration: "once", code: "VOL30", metadata: { category: "volume", min_credits: "12000" } },
-      { name: "Volume 35% — 20000+ credits", type: "percentage", amount: 35, duration: "once", code: "VOL35", metadata: { category: "volume", min_credits: "20000" } },
-      { name: "Volume 40% — 50000+ credits", type: "percentage", amount: 40, duration: "once", code: "VOL40", metadata: { category: "volume", min_credits: "50000" } },
-    ];
-
-    for (const disc of discountDefs) {
-      const discountBody: any = {
-        name: disc.name,
-        type: disc.type,
-        amount: disc.amount,
-        duration: disc.duration,
-        code: disc.code,
-        metadata: disc.metadata,
-      };
-      const discount = await createDiscount(discountBody);
-      if (discount) {
-        results.discounts[disc.name] = { id: discount.id, code: disc.code };
-      }
-    }
-
-    logStep("All products and discounts created successfully");
+    logStep("All 26+ products created successfully");
 
     return new Response(JSON.stringify({
       success: true,
-      message: "All Polar products, subscriptions, and discounts created. credit_packages table updated.",
+      message: "All Polar products created with images. credit_packages table updated.",
       summary: {
-        credit_packages: Object.keys(results.credit_packages).length,
-        subscriptions: Object.keys(results.subscriptions).length,
-        discounts: Object.keys(results.discounts).length,
-        custom_credits: results.custom_credits ? 1 : 0,
-        total: Object.keys(results.credit_packages).length + Object.keys(results.subscriptions).length + Object.keys(results.discounts).length + (results.custom_credits ? 1 : 0),
+        credit_products: results.credit_products.length,
+        subscriptions: results.subscriptions.length,
+        custom: results.custom ? 1 : 0,
+        total: results.credit_products.length + results.subscriptions.length + (results.custom ? 1 : 0),
       },
       products: results,
     }), {

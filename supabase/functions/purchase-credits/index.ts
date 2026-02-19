@@ -38,15 +38,34 @@ const getVolumeDiscount = (credits: number): number => {
   return 0;
 };
 
-// Fetch matching Polar discount by code
-const findDiscountByCode = async (code: string): Promise<string | null> => {
-  try {
-    const res = await polarFetch(`/discounts?limit=50`);
-    if (!res.ok) return null;
-    const data = await res.json();
-    const match = (data.items || []).find((d: any) => d.code?.toLowerCase() === code.toLowerCase());
-    return match?.id || null;
-  } catch { return null; }
+// Map purchase count to discount tier metadata key
+const getDiscountTier = (purchaseCount: number, useRetention: boolean): string => {
+  if (useRetention) return "retention_50";
+  if (purchaseCount === 1) return "loyalty_30";
+  if (purchaseCount === 2) return "loyalty_20";
+  if (purchaseCount === 3) return "loyalty_10";
+  return "none";
+};
+
+// Map purchase count to returning discount %
+const getReturningDiscount = (count: number): number => {
+  if (count === 1) return 30;
+  if (count === 2) return 20;
+  if (count === 3) return 10;
+  return 0;
+};
+
+// Find the correct product variant from Polar catalog
+const findProductVariant = async (basePackageKey: string, discountTier: string): Promise<any | null> => {
+  const res = await polarFetch("/products?limit=100");
+  if (!res.ok) return null;
+  const data = await res.json();
+  const match = (data.items || []).find((p: any) =>
+    p.metadata?.type === "credit_package" &&
+    p.metadata?.base_package === basePackageKey &&
+    p.metadata?.discount_tier === discountTier
+  );
+  return match || null;
 };
 
 serve(async (req) => {
@@ -80,23 +99,19 @@ serve(async (req) => {
     const currentPurchaseCount = wallet?.purchase_count || 0;
     const retentionAlreadyUsed = wallet?.retention_credits_used || false;
 
-    // Declining discount: 1st repurchase=30%, 2nd=20%, 3rd=10%, then 0%
-    const getReturningDiscount = (count: number): number => {
-      if (count === 1) return 30;
-      if (count === 2) return 20;
-      if (count === 3) return 10;
-      return 0;
-    };
-    const returningDiscountPercent = getReturningDiscount(currentPurchaseCount);
+    if (useRetentionDiscount && retentionAlreadyUsed) {
+      throw new Error("Retention discount already used.");
+    }
 
+    const returningDiscountPercent = getReturningDiscount(currentPurchaseCount);
     const origin = req.headers.get("origin") || "https://uplyze.ai";
 
-    // --- CUSTOM CREDITS MODE ---
+    // ═══ CUSTOM CREDITS MODE ═══
     if (customCredits && typeof customCredits === "number" && customCredits >= 500) {
       logStep("Custom credits mode", { customCredits });
 
       // Find the Custom Credits product on Polar
-      const productsRes = await polarFetch("/products?limit=50");
+      const productsRes = await polarFetch("/products?limit=100");
       const productsData = await productsRes.json();
       const customProduct = (productsData.items || []).find(
         (p: any) => p.metadata?.type === "custom_credits"
@@ -108,7 +123,7 @@ serve(async (req) => {
       let totalCents = Math.round(customCredits * pricePerCredit);
 
       // Apply returning discount on top
-      if (returningDiscountPercent > 0) {
+      if (returningDiscountPercent > 0 && !useRetentionDiscount) {
         totalCents = Math.round(totalCents * (1 - returningDiscountPercent / 100));
       }
 
@@ -119,14 +134,11 @@ serve(async (req) => {
         customRetentionUsed = true;
         await supabaseAdmin.from("wallets").update({ retention_credits_used: true }).eq("user_id", user.id);
         logStep("Applied retention 50% discount");
-      } else if (useRetentionDiscount && retentionAlreadyUsed) {
-        throw new Error("Retention discount already used.");
       }
 
       logStep("Price calculated", { totalCents, volumeDiscount, returningDiscount: returningDiscountPercent });
 
-      // Build metadata - omit empty strings (Polar rejects them)
-      const customMeta: Record<string, string> = {
+      const metadata: Record<string, string> = {
         user_id: user.id,
         package_id: "custom",
         credits: String(customCredits),
@@ -136,7 +148,6 @@ serve(async (req) => {
         retention_used: String(customRetentionUsed),
       };
 
-      // Build checkout body
       const checkoutBody: any = {
         products: [customProduct.id],
         prices: {
@@ -149,34 +160,17 @@ serve(async (req) => {
         customer_email: user.email,
         external_customer_id: user.id,
         embed_origin: origin,
-        metadata: customMeta,
+        metadata,
       };
-
-      // Attach Polar discount if applicable
-      if (useRetentionDiscount) {
-        const discountId = await findDiscountByCode("STAY50");
-        if (discountId) checkoutBody.discount_id = discountId;
-      } else if (returningDiscountPercent === 30) {
-        const discountId = await findDiscountByCode("LOYALTY30");
-        if (discountId) checkoutBody.discount_id = discountId;
-      } else if (returningDiscountPercent === 20) {
-        const discountId = await findDiscountByCode("LOYALTY20");
-        if (discountId) checkoutBody.discount_id = discountId;
-      } else if (returningDiscountPercent === 10) {
-        const discountId = await findDiscountByCode("LOYALTY10");
-        if (discountId) checkoutBody.discount_id = discountId;
-      }
 
       const checkoutRes = await polarFetch("/checkouts", {
         method: "POST",
         body: JSON.stringify(checkoutBody),
       });
-
       if (!checkoutRes.ok) {
         const errText = await checkoutRes.text();
         throw new Error(`Polar checkout failed: ${errText}`);
       }
-
       const checkout = await checkoutRes.json();
       logStep("Custom checkout created", { checkoutId: checkout.id });
 
@@ -185,7 +179,7 @@ serve(async (req) => {
       });
     }
 
-    // --- PACKAGE MODE ---
+    // ═══ PACKAGE MODE — auto-select correct discount variant ═══
     if (!packageId) throw new Error("Package ID or customCredits required");
 
     const { data: pkg, error: pkgError } = await supabaseAdmin
@@ -197,77 +191,86 @@ serve(async (req) => {
     if (pkgError || !pkg) throw new Error("Invalid package");
     logStep("Package found", { name: pkg.name, credits: pkg.credits, price: pkg.price_cents });
 
-    // stripe_product_id now contains Polar product ID
-    const polarProductId = pkg.stripe_product_id;
-    if (!polarProductId) throw new Error("Polar product ID not set. Run polar-setup first.");
+    // Determine base package key from name
+    const nameLC = pkg.name.toLowerCase();
+    let baseKey = "starter";
+    if (nameLC.includes("pro")) baseKey = "pro";
+    if (nameLC.includes("studio")) baseKey = "studio";
+    if (nameLC.includes("power")) baseKey = "power";
 
-    // Calculate discounted price for ad-hoc pricing
-    let finalPrice = pkg.price_cents;
-    let usedRetention = false;
-    let appliedDiscountCode: string | null = null;
+    // Determine which discount tier to use
+    const discountTier = getDiscountTier(currentPurchaseCount, useRetentionDiscount || false);
+    logStep("Discount tier selected", { baseKey, discountTier, purchaseCount: currentPurchaseCount });
 
-    if (useRetentionDiscount && !retentionAlreadyUsed) {
-      finalPrice = Math.round(finalPrice * 0.5);
-      usedRetention = true;
-      appliedDiscountCode = "STAY50";
-      await supabaseAdmin.from("wallets").update({ retention_credits_used: true }).eq("user_id", user.id);
-      logStep("Applied retention 50% discount");
-    } else if (useRetentionDiscount && retentionAlreadyUsed) {
-      throw new Error("Retention discount already used.");
-    } else if (returningDiscountPercent > 0) {
-      finalPrice = Math.round(finalPrice * (1 - returningDiscountPercent / 100));
-      appliedDiscountCode = returningDiscountPercent === 30 ? "LOYALTY30" : returningDiscountPercent === 20 ? "LOYALTY20" : "LOYALTY10";
-      logStep("Applied loyalty discount", { percent: returningDiscountPercent });
-    }
+    // Find the exact pre-baked product variant on Polar
+    const variantProduct = await findProductVariant(baseKey, discountTier);
+    if (!variantProduct) {
+      // Fallback: use base product from credit_packages table
+      logStep("Variant not found, falling back to base product");
+      const polarProductId = pkg.stripe_product_id;
+      if (!polarProductId) throw new Error("Polar product ID not set. Run polar-setup first.");
 
-    // Build checkout request
-    const checkoutBody: any = {
-      products: [polarProductId],
-      customer_email: user.email,
-      external_customer_id: user.id,
-      embed_origin: origin,
-      metadata: Object.fromEntries(
-        Object.entries({
+      const checkoutBody: any = {
+        products: [polarProductId],
+        customer_email: user.email,
+        external_customer_id: user.id,
+        embed_origin: origin,
+        metadata: {
           user_id: user.id,
           package_id: pkg.id,
           credits: String(pkg.credits),
           bonus_credits: String(pkg.bonus_credits),
           is_returning: String(returningDiscountPercent > 0),
-          discount_code: appliedDiscountCode || undefined,
-          retention_used: String(usedRetention),
-        }).filter(([_, v]) => v !== undefined && v !== "")
-      ),
-    };
-
-    // Use ad-hoc pricing if discount applied
-    if (finalPrice !== pkg.price_cents) {
-      checkoutBody.prices = {
-        [polarProductId]: [{
-          amount_type: "fixed",
-          price_amount: finalPrice,
-          price_currency: "usd",
-        }],
+          retention_used: "false",
+        },
       };
+
+      const checkoutRes = await polarFetch("/checkouts", { method: "POST", body: JSON.stringify(checkoutBody) });
+      if (!checkoutRes.ok) throw new Error(`Polar checkout failed: ${await checkoutRes.text()}`);
+      const checkout = await checkoutRes.json();
+      return new Response(JSON.stringify({ checkoutUrl: checkout.url }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    // Attach Polar discount object if available
-    if (appliedDiscountCode) {
-      const discountId = await findDiscountByCode(appliedDiscountCode);
-      if (discountId) checkoutBody.discount_id = discountId;
+    // Mark retention as used if applicable
+    if (useRetentionDiscount) {
+      await supabaseAdmin.from("wallets").update({ retention_credits_used: true }).eq("user_id", user.id);
+      logStep("Marked retention discount as used");
     }
+
+    logStep("Using pre-baked variant", {
+      name: variantProduct.name,
+      id: variantProduct.id,
+      price: variantProduct.prices?.[0]?.price_amount,
+    });
+
+    const checkoutBody: any = {
+      products: [variantProduct.id],
+      customer_email: user.email,
+      external_customer_id: user.id,
+      embed_origin: origin,
+      metadata: {
+        user_id: user.id,
+        package_id: pkg.id,
+        credits: String(pkg.credits),
+        bonus_credits: String(pkg.bonus_credits),
+        discount_tier: discountTier,
+        is_returning: String(returningDiscountPercent > 0),
+        retention_used: String(useRetentionDiscount || false),
+      },
+    };
 
     const checkoutRes = await polarFetch("/checkouts", {
       method: "POST",
       body: JSON.stringify(checkoutBody),
     });
-
     if (!checkoutRes.ok) {
       const errText = await checkoutRes.text();
       throw new Error(`Polar checkout failed: ${errText}`);
     }
-
     const checkout = await checkoutRes.json();
-    logStep("Checkout created", { checkoutId: checkout.id });
+    logStep("Checkout created with variant", { checkoutId: checkout.id, variant: variantProduct.name });
 
     return new Response(JSON.stringify({ checkoutUrl: checkout.url }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
