@@ -170,14 +170,14 @@ const AdminCustomers = () => {
   const [showResetFollowersDialog, setShowResetFollowersDialog] = useState(false);
   const [showTogglePrivateDialog, setShowTogglePrivateDialog] = useState(false);
   const [showCreditExpiryDialog, setShowCreditExpiryDialog] = useState(false);
-  const [showStripeIntelDialog, setShowStripeIntelDialog] = useState(false);
+  const [showPaymentIntelDialog, setShowPaymentIntelDialog] = useState(false);
   const [showSetAvatarDialog, setShowSetAvatarDialog] = useState(false);
   const [newEmail, setNewEmail] = useState("");
   const [newUsername, setNewUsername] = useState("");
   const [newDisplayName, setNewDisplayName] = useState("");
   const [newAvatarUrl, setNewAvatarUrl] = useState("");
-  const [stripeIntelData, setStripeIntelData] = useState<any>(null);
-  const [stripeIntelLoading, setStripeIntelLoading] = useState(false);
+  const [paymentIntelData, setPaymentIntelData] = useState<any>(null);
+  const [paymentIntelLoading, setPaymentIntelLoading] = useState(false);
   const [auditData, setAuditData] = useState<any>(null);
   const [auditLoading, setAuditLoading] = useState(false);
 
@@ -272,16 +272,16 @@ const AdminCustomers = () => {
     finally { setAiLoading(false); }
   };
 
-  const fetchStripeIntel = async () => {
+  const fetchPaymentIntel = async () => {
     if (!selectedUserId) return;
-    setStripeIntelLoading(true);
-    setStripeIntelData(null);
+    setPaymentIntelLoading(true);
+    setPaymentIntelData(null);
     try {
       const { data, error } = await supabase.functions.invoke("admin-customers", { body: { action: "stripe_intel", userId: selectedUserId } });
       if (error) throw error;
-      setStripeIntelData(data);
-    } catch (err: any) { toast.error(err.message || "Stripe intel failed"); }
-    finally { setStripeIntelLoading(false); }
+      setPaymentIntelData(data);
+    } catch (err: any) { toast.error(err.message || "Payment intel failed"); }
+    finally { setPaymentIntelLoading(false); }
   };
 
   const fetchAudit = async () => {
@@ -486,8 +486,8 @@ const AdminCustomers = () => {
 
               {/* Intelligence */}
               <Button size="sm" variant="outline" className="text-emerald-400 border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/10 gap-1.5 text-xs h-7"
-                onClick={() => { setShowStripeIntelDialog(true); fetchStripeIntel(); }}>
-                <CreditCard className="h-3 w-3" /> Stripe Intel
+                onClick={() => { setShowPaymentIntelDialog(true); fetchPaymentIntel(); }}>
+                <CreditCard className="h-3 w-3" /> Payment Intel
               </Button>
               <Button size="sm" variant="outline" className="text-fuchsia-400 border-fuchsia-500/30 bg-fuchsia-500/5 hover:bg-fuchsia-500/10 gap-1.5 text-xs h-7"
                 onClick={() => setShowImpersonateDialog(true)}>
@@ -637,10 +637,10 @@ const AdminCustomers = () => {
             </div>
 
             {/* Detail Tabs */}
-            <Tabs defaultValue="stripe" className="space-y-4">
+            <Tabs defaultValue="payments" className="space-y-4">
               <TabsList className="bg-white/5 border border-white/10 p-1 rounded-xl gap-1 h-auto flex-wrap">
-                <TabsTrigger value="stripe" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg text-xs gap-1.5">
-                  <CreditCard className="h-3.5 w-3.5" /> Stripe
+                <TabsTrigger value="payments" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg text-xs gap-1.5">
+                  <CreditCard className="h-3.5 w-3.5" /> Payments
                 </TabsTrigger>
                 <TabsTrigger value="transactions" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg text-xs gap-1.5">
                   <Receipt className="h-3.5 w-3.5" /> Credits Log
@@ -659,10 +659,10 @@ const AdminCustomers = () => {
                 </TabsTrigger>
               </TabsList>
 
-              {/* Stripe Tab */}
-              <TabsContent value="stripe">
+              {/* Payments Tab */}
+              <TabsContent value="payments">
                 {detail.stripe?.error ? (
-                  <Card className="bg-white/5 border-white/10"><CardContent className="p-6 text-center text-white/40">No Stripe data available</CardContent></Card>
+                  <Card className="bg-white/5 border-white/10"><CardContent className="p-6 text-center text-white/40">No payment data available</CardContent></Card>
                 ) : detail.stripe ? (
                   <div className="space-y-4">
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -730,7 +730,7 @@ const AdminCustomers = () => {
                       </Card>
                     )}
                   </div>
-                ) : <Card className="bg-white/5 border-white/10"><CardContent className="p-6 text-center text-white/40">No Stripe customer found</CardContent></Card>}
+                ) : <Card className="bg-white/5 border-white/10"><CardContent className="p-6 text-center text-white/40">No payment customer found</CardContent></Card>}
               </TabsContent>
 
               {/* Transactions Tab */}
@@ -964,7 +964,7 @@ const AdminCustomers = () => {
               </div>
               <Input value={planReason} onChange={e => setPlanReason(e.target.value)} placeholder="Reason..." className="bg-white/5 border-white/10 text-white placeholder:text-white/25" />
               <div className="p-3 rounded-lg bg-pink-500/5 border border-pink-500/15">
-                <p className="text-xs text-pink-300/80">This overrides the user's plan immediately. Any active Stripe subscriptions will be canceled.</p>
+                <p className="text-xs text-pink-300/80">This overrides the user's plan immediately. Any active subscriptions will be canceled.</p>
               </div>
             </div>
             <DialogFooter>
@@ -1002,7 +1002,7 @@ const AdminCustomers = () => {
                 ))}
               </div>
               <div className="grid grid-cols-2 gap-2">
-                {["profile", "transactions", "activity", "devices", "stripe", "admin_log"].map(s => (
+                {["profile", "transactions", "activity", "devices", "payments", "admin_log"].map(s => (
                   <button key={s} onClick={() => setExportSections(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s])}
                     className={`p-2 rounded-xl border text-xs font-medium ${exportSections.includes(s) ? "border-indigo-500/40 bg-indigo-500/10 text-white" : "border-white/10 text-white/40"}`}>
                     {s.replace("_", " ")}
@@ -1018,7 +1018,7 @@ const AdminCustomers = () => {
                 if (exportSections.includes("transactions")) exportData.transactions = detail?.transactions;
                 if (exportSections.includes("activity")) exportData.login_activity = detail?.login_activity;
                 if (exportSections.includes("devices")) exportData.devices = detail?.device_sessions;
-                if (exportSections.includes("stripe")) exportData.stripe = detail?.stripe;
+                if (exportSections.includes("payments")) exportData.payments = detail?.stripe;
                 if (exportSections.includes("admin_log")) exportData.admin_actions = detail?.admin_actions;
                 let blob: Blob, filename: string;
                 if (exportFormat === "csv") {
@@ -1353,24 +1353,24 @@ const AdminCustomers = () => {
           </DialogContent>
         </Dialog>
 
-        {/* Stripe Intelligence */}
-        <Dialog open={showStripeIntelDialog} onOpenChange={setShowStripeIntelDialog}>
+        {/* Payment Intelligence */}
+        <Dialog open={showPaymentIntelDialog} onOpenChange={setShowPaymentIntelDialog}>
           <DialogContent className="bg-[hsl(220,30%,12%)] border-white/10 text-white max-w-3xl max-h-[80vh] overflow-y-auto">
-            <DialogHeader><DialogTitle className="flex items-center gap-2"><CreditCard className="h-5 w-5 text-emerald-400" /> Stripe Intelligence</DialogTitle></DialogHeader>
-            {stripeIntelLoading ? (
+            <DialogHeader><DialogTitle className="flex items-center gap-2"><CreditCard className="h-5 w-5 text-emerald-400" /> Payment Intelligence</DialogTitle></DialogHeader>
+            {paymentIntelLoading ? (
               <div className="flex items-center justify-center h-32"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-accent" /></div>
-            ) : stripeIntelData?.error ? (
-              <p className="text-sm text-white/40 text-center py-8">{stripeIntelData.error}</p>
-            ) : stripeIntelData ? (
+            ) : paymentIntelData?.error ? (
+              <p className="text-sm text-white/40 text-center py-8">{paymentIntelData.error}</p>
+            ) : paymentIntelData ? (
               <div className="space-y-4">
                 {/* Summary */}
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-                  {[
-                    { l: "Total Paid", v: formatCurrency(stripeIntelData.summary.total_paid), c: "text-emerald-400" },
-                    { l: "Refunded", v: formatCurrency(stripeIntelData.summary.total_refunded), c: "text-red-400" },
-                    { l: "Charges", v: `${stripeIntelData.summary.successful_charges}/${stripeIntelData.summary.total_charges}`, c: "text-sky-400" },
-                    { l: "Active Subs", v: stripeIntelData.summary.active_subs, c: "text-purple-400" },
-                    { l: "Canceled", v: stripeIntelData.summary.canceled_subs, c: "text-orange-400" },
+                    {[
+                    { l: "Total Paid", v: formatCurrency(paymentIntelData.summary.total_paid), c: "text-emerald-400" },
+                    { l: "Refunded", v: formatCurrency(paymentIntelData.summary.total_refunded), c: "text-red-400" },
+                    { l: "Charges", v: `${paymentIntelData.summary.successful_charges}/${paymentIntelData.summary.total_charges}`, c: "text-sky-400" },
+                    { l: "Active Subs", v: paymentIntelData.summary.active_subs, c: "text-purple-400" },
+                    { l: "Canceled", v: paymentIntelData.summary.canceled_subs, c: "text-orange-400" },
                   ].map(s => (
                     <Card key={s.l} className="bg-white/5 border-white/10">
                       <CardContent className="p-3">
@@ -1385,19 +1385,19 @@ const AdminCustomers = () => {
                   <CardContent className="p-4">
                     <p className="text-xs text-white/40 uppercase mb-2">Customer</p>
                     <div className="grid grid-cols-3 gap-2 text-xs">
-                      <div><span className="text-white/30">ID</span><p className="text-white/60 font-mono">{stripeIntelData.customer.id}</p></div>
-                      <div><span className="text-white/30">Created</span><p className="text-white/60">{formatDate(stripeIntelData.customer.created)}</p></div>
-                      <div><span className="text-white/30">Balance</span><p className="text-white/60">{formatCurrency(Math.abs(stripeIntelData.customer.balance || 0))}</p></div>
+                      <div><span className="text-white/30">ID</span><p className="text-white/60 font-mono">{paymentIntelData.customer.id}</p></div>
+                      <div><span className="text-white/30">Created</span><p className="text-white/60">{formatDate(paymentIntelData.customer.created)}</p></div>
+                      <div><span className="text-white/30">Balance</span><p className="text-white/60">{formatCurrency(Math.abs(paymentIntelData.customer.balance || 0))}</p></div>
                     </div>
                   </CardContent>
                 </Card>
                 {/* Payment Methods */}
-                {stripeIntelData.payment_methods?.length > 0 && (
+                {paymentIntelData.payment_methods?.length > 0 && (
                   <Card className="bg-white/5 border-white/10">
                     <CardContent className="p-4">
                       <p className="text-xs text-white/40 uppercase mb-2">Payment Methods</p>
                       <div className="space-y-1.5">
-                        {stripeIntelData.payment_methods.map((pm: any) => (
+                        {paymentIntelData.payment_methods.map((pm: any) => (
                           <div key={pm.id} className="flex items-center gap-3 p-2 rounded-lg bg-white/[0.02] text-xs">
                             <CreditCard className="h-3.5 w-3.5 text-white/30" />
                             <span className="text-white capitalize">{pm.brand}</span>
@@ -1411,13 +1411,13 @@ const AdminCustomers = () => {
                   </Card>
                 )}
                 {/* Subscriptions */}
-                {stripeIntelData.subscriptions?.length > 0 && (
+                {paymentIntelData.subscriptions?.length > 0 && (
                   <Card className="bg-white/5 border-white/10">
                     <CardContent className="p-4">
-                      <p className="text-xs text-white/40 uppercase mb-2">All Subscriptions ({stripeIntelData.subscriptions.length})</p>
+                      <p className="text-xs text-white/40 uppercase mb-2">All Subscriptions ({paymentIntelData.subscriptions.length})</p>
                       <ScrollArea className="h-[200px]">
                         <div className="space-y-1.5">
-                          {stripeIntelData.subscriptions.map((s: any) => (
+                          {paymentIntelData.subscriptions.map((s: any) => (
                             <div key={s.id} className="flex items-center justify-between p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.05] text-xs">
                               <div className="flex items-center gap-2">
                                 <Badge className={s.status === "active" ? "bg-emerald-500/15 text-emerald-400" : s.status === "canceled" ? "bg-red-500/15 text-red-400" : "bg-white/10 text-white/50"}>{s.status}</Badge>
@@ -1437,13 +1437,13 @@ const AdminCustomers = () => {
                   </Card>
                 )}
                 {/* Charges */}
-                {stripeIntelData.charges?.length > 0 && (
+                {paymentIntelData.charges?.length > 0 && (
                   <Card className="bg-white/5 border-white/10">
                     <CardContent className="p-4">
-                      <p className="text-xs text-white/40 uppercase mb-2">All Charges ({stripeIntelData.charges.length})</p>
+                      <p className="text-xs text-white/40 uppercase mb-2">All Orders ({paymentIntelData.charges.length})</p>
                       <ScrollArea className="h-[200px]">
                         <div className="space-y-1">
-                          {stripeIntelData.charges.map((c: any) => (
+                          {paymentIntelData.charges.map((c: any) => (
                             <div key={c.id} className="flex items-center justify-between p-2 rounded-lg bg-white/[0.02] text-xs">
                               <div className="flex items-center gap-2">
                                 <span className={c.refunded ? "text-red-400 line-through" : c.paid ? "text-emerald-400" : "text-white/40"}>{formatCurrency(c.amount)}</span>
@@ -1462,13 +1462,13 @@ const AdminCustomers = () => {
                   </Card>
                 )}
                 {/* Invoices */}
-                {stripeIntelData.invoices?.length > 0 && (
+                {paymentIntelData.invoices?.length > 0 && (
                   <Card className="bg-white/5 border-white/10">
                     <CardContent className="p-4">
-                      <p className="text-xs text-white/40 uppercase mb-2">Invoices ({stripeIntelData.invoices.length})</p>
+                      <p className="text-xs text-white/40 uppercase mb-2">Invoices ({paymentIntelData.invoices.length})</p>
                       <ScrollArea className="h-[150px]">
                         <div className="space-y-1">
-                          {stripeIntelData.invoices.map((inv: any) => (
+                          {paymentIntelData.invoices.map((inv: any) => (
                             <div key={inv.id} className="flex items-center justify-between p-2 rounded-lg bg-white/[0.02] text-xs">
                               <div className="flex items-center gap-2">
                                 <Badge className={inv.status === "paid" ? "bg-emerald-500/10 text-emerald-400" : "bg-white/5 text-white/40"}>{inv.status}</Badge>
@@ -1489,7 +1489,7 @@ const AdminCustomers = () => {
               </div>
             ) : <p className="text-sm text-white/30 text-center py-8">Loading...</p>}
             <DialogFooter>
-              <Button variant="ghost" onClick={() => setShowStripeIntelDialog(false)} className="text-white/50">Close</Button>
+              <Button variant="ghost" onClick={() => setShowPaymentIntelDialog(false)} className="text-white/50">Close</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

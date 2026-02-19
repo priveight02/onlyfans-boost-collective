@@ -1,5 +1,4 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
@@ -11,19 +10,19 @@ const logStep = (step: string, details?: any) => {
   console.log(`[ADMIN-CUSTOMERS] ${step}${details ? ` - ${JSON.stringify(details)}` : ''}`);
 };
 
-const PRODUCT_TO_PLAN: Record<string, string> = {
-  "prod_TzAqP0zH90vzyR": "Starter", "prod_TzAypr06as419B": "Starter",
-  "prod_TzArZUF2DIlzHq": "Pro", "prod_TzAywFFZ0SdhfZ": "Pro",
-  "prod_TzAram9it2Kedf": "Business", "prod_TzAzgoteaSHuDB": "Business",
-  "prod_TzDPwhTrnCOnYm": "Starter", "prod_TzDPUEvS935A88": "Starter",
-  "prod_TzDPNCljqBJ2Cq": "Pro", "prod_TzDPxffqvU9iSq": "Pro",
-  "prod_TzDPr3jeAGF9mm": "Business", "prod_TzDQJVbiYpTH9Y": "Business",
-};
+const POLAR_API = "https://api.polar.sh/v1";
 
-const PLAN_STRIPE_PRICES: Record<string, string> = {
-  "starter": "price_1RTnZVP7ynHhQQPGiVdCxFj4",
-  "pro": "price_1RTnaLP7ynHhQQPGJ2xfNg7L",
-  "business": "price_1RTnblP7ynHhQQPGTrdIzrFG",
+const polarFetch = async (path: string, options: RequestInit = {}) => {
+  const token = Deno.env.get("POLAR_ACCESS_TOKEN");
+  if (!token) throw new Error("POLAR_ACCESS_TOKEN not set");
+  return fetch(`${POLAR_API}${path}`, {
+    ...options,
+    headers: {
+      "Authorization": `Bearer ${token}`,
+      "Content-Type": "application/json",
+      ...(options.headers || {}),
+    },
+  });
 };
 
 const VERIFIED_BADGE_SVG = `<div style="position:absolute;top:16px;right:16px;"><svg width="28" height="28" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="11" fill="#3B82F6"/><path d="M8 12l3 3 5-5" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>`;
@@ -72,7 +71,6 @@ serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
     const { action, userId } = body;
-    const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", { apiVersion: "2025-04-30.basil" });
 
     // ─── LIST ALL CUSTOMERS (batch-optimized) ───
     if (action === "list" || !action) {
@@ -123,44 +121,24 @@ serve(async (req) => {
         avgCentsPerCredit = totalCents / totalCredits;
       }
 
-      let stripeChargesByEmail: Record<string, { totalCents: number; count: number; lastCharge: string | null }> = {};
-      let stripeSubsByEmail: Record<string, { plan: string; status: string }> = {};
+      // Fetch Polar subscription data (best-effort)
+      let polarSubsByExternalId: Record<string, { plan: string; status: string }> = {};
       try {
-        const allCharges = await stripe.charges.list({ limit: 100 });
-        for (const c of allCharges.data) {
-          if (!c.paid || c.refunded) continue;
-          const email = c.billing_details?.email || c.receipt_email || "";
-          if (!email) continue;
-          const key = email.toLowerCase();
-          if (!stripeChargesByEmail[key]) stripeChargesByEmail[key] = { totalCents: 0, count: 0, lastCharge: null };
-          stripeChargesByEmail[key].totalCents += c.amount;
-          stripeChargesByEmail[key].count += 1;
-          const chargeDate = new Date(c.created * 1000).toISOString();
-          if (!stripeChargesByEmail[key].lastCharge || chargeDate > stripeChargesByEmail[key].lastCharge!) {
-            stripeChargesByEmail[key].lastCharge = chargeDate;
+        const subsRes = await polarFetch(`/subscriptions?active=true&limit=100`);
+        if (subsRes.ok) {
+          const subsData = await subsRes.json();
+          for (const s of (subsData.items || [])) {
+            const extId = s.customer?.external_id;
+            if (!extId) continue;
+            const plan = s.product?.metadata?.plan || s.product?.name || "Unknown";
+            polarSubsByExternalId[extId] = {
+              plan: plan.charAt(0).toUpperCase() + plan.slice(1),
+              status: s.status,
+            };
           }
-        }
-
-        const allSubs = await stripe.subscriptions.list({ status: "active", limit: 100 });
-        for (const s of allSubs.data) {
-          let customerEmail = "";
-          if (typeof s.customer === "string") {
-            try {
-              const cust = await stripe.customers.retrieve(s.customer);
-              if (cust && !cust.deleted) customerEmail = (cust as any).email || "";
-            } catch {}
-          } else {
-            customerEmail = (s.customer as any)?.email || "";
-          }
-          if (!customerEmail) continue;
-          const productId = typeof s.items.data[0]?.price?.product === "string" ? s.items.data[0].price.product : "";
-          stripeSubsByEmail[customerEmail.toLowerCase()] = {
-            plan: PRODUCT_TO_PLAN[productId] || "Unknown",
-            status: s.status,
-          };
         }
       } catch (e) {
-        logStep("Stripe batch fetch warning", { error: String(e) });
+        logStep("Polar subscription fetch warning", { error: String(e) });
       }
 
       const walletMap: Record<string, any> = {};
@@ -193,27 +171,23 @@ serve(async (req) => {
       const customers = profiles.map(p => {
         const wallet = walletMap[p.user_id] || {};
         const txInfo = txMap[p.user_id] || {};
-        const email = (p.email || "").toLowerCase();
-        const stripeCharges = stripeChargesByEmail[email];
-        const stripeSub = stripeSubsByEmail[email];
         const daysSinceJoin = Math.max(1, Math.floor((Date.now() - new Date(p.created_at).getTime()) / 86400000));
 
         let totalSpentDollars = 0;
-        if (stripeCharges) {
-          totalSpentDollars = stripeCharges.totalCents / 100;
-        } else if (txInfo.total_credits > 0) {
+        if (txInfo.total_credits > 0) {
           totalSpentDollars = (txInfo.total_credits * avgCentsPerCredit) / 100;
         }
 
         const lastLogin = lastLoginMap[p.user_id];
         const daysSinceLastLogin = lastLogin ? Math.floor((Date.now() - new Date(lastLogin).getTime()) / 86400000) : 999;
-        const lastPurchaseOrCharge = stripeCharges?.lastCharge || txInfo.last_purchase;
+        const lastPurchaseOrCharge = txInfo.last_purchase;
         const daysSinceLastPurchase = lastPurchaseOrCharge ? Math.floor((Date.now() - new Date(lastPurchaseOrCharge).getTime()) / 86400000) : 999;
 
-        // Current plan: check admin override first, then Stripe
+        // Current plan: check admin override first, then Polar
         const adminNotes = p.admin_notes || "";
         const planOverrideMatch = adminNotes.match(/\[PLAN_OVERRIDE\]\s*(\w+)/);
-        const currentPlan = planOverrideMatch ? planOverrideMatch[1].charAt(0).toUpperCase() + planOverrideMatch[1].slice(1) : (stripeSub?.plan || "Free");
+        const polarSub = polarSubsByExternalId[p.user_id];
+        const currentPlan = planOverrideMatch ? planOverrideMatch[1].charAt(0).toUpperCase() + planOverrideMatch[1].slice(1) : (polarSub?.plan || "Free");
 
         const loginRecency = daysSinceLastLogin < 1 ? 30 : daysSinceLastLogin < 3 ? 25 : daysSinceLastLogin < 7 ? 20 : daysSinceLastLogin < 14 ? 10 : daysSinceLastLogin < 30 ? 5 : 0;
         const postActivity = Math.min(20, (postMap[p.user_id] || 0) * 4);
@@ -221,7 +195,7 @@ serve(async (req) => {
         const spendDepth = Math.min(20, totalSpentDollars / 25);
         const engagementScore = Math.min(100, Math.round(loginRecency + postActivity + purchaseRecency + spendDepth));
 
-        const purchaseCount = stripeCharges?.count || txInfo.purchase_count || 0;
+        const purchaseCount = txInfo.purchase_count || 0;
         const spenderScore = Math.min(100, Math.round(
           (Math.min(totalSpentDollars, 500) / 500) * 40 +
           (Math.min(purchaseCount, 10) / 10) * 30 +
@@ -280,27 +254,27 @@ serve(async (req) => {
       const { data: logins } = await supabaseAdmin.from("login_activity").select("*").eq("user_id", userId).order("login_at", { ascending: false }).limit(30);
       const { data: posts } = await supabaseAdmin.from("user_posts").select("id, content, like_count, comment_count, created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(20);
 
-      let stripeInfo = "No Stripe data.";
-      if (profile?.email) {
-        try {
-          const customers = await stripe.customers.list({ email: profile.email, limit: 1 });
-          if (customers.data.length > 0) {
-            const cid = customers.data[0].id;
-            const [subs, charges] = await Promise.all([
-              stripe.subscriptions.list({ customer: cid, limit: 5 }),
-              stripe.charges.list({ customer: cid, limit: 30 }),
+      // Polar subscription info
+      let paymentInfo = "No payment data.";
+      try {
+        const custRes = await polarFetch(`/customers?external_id=${userId}&limit=1`);
+        if (custRes.ok) {
+          const custData = await custRes.json();
+          if (custData.items?.length > 0) {
+            const cid = custData.items[0].id;
+            const [subsRes, ordersRes] = await Promise.all([
+              polarFetch(`/subscriptions?customer_id=${cid}&limit=10`),
+              polarFetch(`/orders?customer_id=${cid}&limit=30`),
             ]);
-            const activeSub = subs.data.find(s => s.status === "active");
-            const totalCharged = charges.data.filter(c => c.paid && !c.refunded).reduce((sum, c) => sum + c.amount, 0);
-            let plan = "Free";
-            if (activeSub) {
-              const productId = typeof activeSub.items.data[0].price.product === "string" ? activeSub.items.data[0].price.product : "";
-              plan = PRODUCT_TO_PLAN[productId] || "Unknown";
-            }
-            stripeInfo = `Plan: ${plan}. Total charged: $${(totalCharged / 100).toFixed(2)}. ${charges.data.length} charges. ${subs.data.filter(s => s.status === "canceled").length} canceled subs.`;
+            const subs = subsRes.ok ? (await subsRes.json()).items || [] : [];
+            const orders = ordersRes.ok ? (await ordersRes.json()).items || [] : [];
+            const activeSub = subs.find((s: any) => s.status === "active");
+            const totalSpent = orders.reduce((sum: number, o: any) => sum + (o.amount || 0), 0);
+            const plan = activeSub?.product?.metadata?.plan || "Free";
+            paymentInfo = `Plan: ${plan}. Total spent: $${(totalSpent / 100).toFixed(2)}. ${orders.length} orders. ${subs.filter((s: any) => s.status === "canceled").length} canceled subs.`;
           }
-        } catch (e) { stripeInfo = "Stripe lookup failed."; }
-      }
+        }
+      } catch (e) { paymentInfo = "Payment lookup failed."; }
 
       const txSummary = (transactions || []).slice(0, 20).map(t => `${t.type}: ${t.amount} credits on ${new Date(t.created_at).toLocaleDateString()}`).join("; ");
       const loginSummary = (logins || []).slice(0, 10).map(l => new Date(l.login_at).toLocaleDateString()).join(", ");
@@ -313,7 +287,7 @@ CUSTOMER DATA:
 - Joined: ${profile?.created_at}, Account Status: ${profile?.account_status || "active"}
 - Followers: ${profile?.follower_count || 0}, Posts: ${profile?.post_count || 0}
 - Credit Balance: ${wallet?.balance || 0}, Total Purchased: ${wallet?.total_purchased || 0}
-- ${stripeInfo}
+- ${paymentInfo}
 
 RECENT TRANSACTIONS: ${txSummary || "None"}
 RECENT LOGINS: ${loginSummary || "None"}
@@ -372,7 +346,7 @@ behavioral_profile, spending_pattern, engagement_level (high|medium|low|dormant)
       return new Response(JSON.stringify({ analysis }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // ─── DETAIL: single customer with Stripe data ───
+    // ─── DETAIL: single customer with Polar data ───
     if (action === "detail" && userId) {
       logStep("Fetching customer detail", { userId });
 
@@ -418,117 +392,85 @@ behavioral_profile, spending_pattern, engagement_level (high|medium|low|dormant)
         }
       } catch (e) { logStep("Auth meta fetch warning", { error: String(e) }); }
 
-      // Stripe data
-      let stripeData: any = null;
-      if (profile?.email) {
-        try {
-          const customers = await stripe.customers.list({ email: profile.email, limit: 1 });
-          if (customers.data.length > 0) {
-            const customerId = customers.data[0].id;
-            const stripeCustomer = customers.data[0];
-            const [subsRes, chargesRes, invoicesRes, refundsRes] = await Promise.all([
-              stripe.subscriptions.list({ customer: customerId, limit: 20, status: "all" }),
-              stripe.charges.list({ customer: customerId, limit: 100 }),
-              stripe.invoices.list({ customer: customerId, limit: 30 }),
-              stripe.refunds.list({ limit: 20 }),
+      // Polar payment data
+      let paymentData: any = null;
+      try {
+        const custRes = await polarFetch(`/customers?external_id=${userId}&limit=1`);
+        if (custRes.ok) {
+          const custData = await custRes.json();
+          if (custData.items?.length > 0) {
+            const customerId = custData.items[0].id;
+            const polarCustomer = custData.items[0];
+            const [subsRes, ordersRes] = await Promise.all([
+              polarFetch(`/subscriptions?customer_id=${customerId}&limit=20`),
+              polarFetch(`/orders?customer_id=${customerId}&limit=100`),
             ]);
-            const subs = subsRes;
-            const charges = chargesRes;
-            const invoices = invoicesRes;
-            const activeSub = subs.data.find(s => s.status === "active");
-            const totalCharged = charges.data.filter(c => c.paid && !c.refunded).reduce((sum, c) => sum + c.amount, 0);
-            const refunded = charges.data.filter(c => c.refunded).reduce((sum, c) => sum + (c.amount_refunded || 0), 0);
+            const subs = subsRes.ok ? (await subsRes.json()).items || [] : [];
+            const orders = ordersRes.ok ? (await ordersRes.json()).items || [] : [];
+
+            const activeSub = subs.find((s: any) => s.status === "active");
+            const totalCharged = orders.reduce((sum: number, o: any) => sum + (o.amount || 0), 0);
 
             let currentPlan = "Free", planInterval = "", subscriptionEnd = "", subscriptionStart = "";
             const adminNotes = profile?.admin_notes || "";
             const planOverrideMatch = adminNotes.match(/\[PLAN_OVERRIDE\]\s*(\w+)/);
             if (activeSub) {
-              const productId = typeof activeSub.items.data[0].price.product === "string" ? activeSub.items.data[0].price.product : (activeSub.items.data[0].price.product as any)?.id || "";
-              currentPlan = PRODUCT_TO_PLAN[productId] || "Unknown";
-              planInterval = activeSub.items.data[0].price.recurring?.interval || "";
-              subscriptionEnd = new Date(activeSub.current_period_end * 1000).toISOString();
-              subscriptionStart = new Date(activeSub.start_date * 1000).toISOString();
+              currentPlan = activeSub.product?.metadata?.plan || activeSub.product?.name || "Unknown";
+              currentPlan = currentPlan.charAt(0).toUpperCase() + currentPlan.slice(1);
+              planInterval = activeSub.recurring_interval || "";
+              subscriptionEnd = activeSub.current_period_end || "";
+              subscriptionStart = activeSub.started_at || activeSub.created_at || "";
             }
-            // Admin override ALWAYS takes priority
             if (planOverrideMatch) {
               currentPlan = planOverrideMatch[1].charAt(0).toUpperCase() + planOverrideMatch[1].slice(1);
             }
 
-            const customerChargeIds = new Set(charges.data.map(c => c.id));
-            const customerRefunds = refundsRes.data.filter(r => typeof r.charge === "string" && customerChargeIds.has(r.charge));
-
-            stripeData = {
+            paymentData = {
               customer_id: customerId,
-              customer_created: stripeCustomer.created ? new Date(stripeCustomer.created * 1000).toISOString() : null,
-              customer_name: stripeCustomer.name,
-              customer_metadata: stripeCustomer.metadata,
+              customer_created: polarCustomer.created_at || null,
+              customer_name: polarCustomer.name,
               current_plan: currentPlan, plan_interval: planInterval,
               subscription_status: activeSub?.status || "none",
               subscription_start: subscriptionStart || null, subscription_end: subscriptionEnd || null,
               cancel_at_period_end: activeSub?.cancel_at_period_end || false,
-              total_charged_cents: totalCharged, total_refunded_cents: refunded, net_revenue_cents: totalCharged - refunded,
-              charge_count: charges.data.filter(c => c.paid).length, refund_count: charges.data.filter(c => c.refunded).length,
-              charges: charges.data.slice(0, 50).map(c => ({
-                id: c.id, amount: c.amount, currency: c.currency, status: c.status, paid: c.paid, refunded: c.refunded,
-                amount_refunded: c.amount_refunded, description: c.description, created: new Date(c.created * 1000).toISOString(),
-                payment_method_type: c.payment_method_details?.type || "unknown",
-                card_brand: c.payment_method_details?.card?.brand || null,
-                card_last4: c.payment_method_details?.card?.last4 || null,
-                receipt_url: c.receipt_url,
+              total_charged_cents: totalCharged, total_refunded_cents: 0, net_revenue_cents: totalCharged,
+              charge_count: orders.length, refund_count: 0,
+              charges: orders.slice(0, 50).map((o: any) => ({
+                id: o.id, amount: o.amount || 0, currency: o.currency || "usd", status: "succeeded",
+                paid: true, refunded: false, amount_refunded: 0,
+                description: o.product?.name || "Purchase",
+                created: o.created_at,
+                payment_method_type: "card", card_brand: null, card_last4: null,
+                receipt_url: null,
               })),
-              invoices: invoices.data.slice(0, 20).map(inv => ({
-                id: inv.id, number: inv.number, amount_due: inv.amount_due, amount_paid: inv.amount_paid,
-                status: inv.status, created: new Date(inv.created * 1000).toISOString(),
-                hosted_invoice_url: inv.hosted_invoice_url, invoice_pdf: inv.invoice_pdf,
-                period_start: inv.period_start ? new Date(inv.period_start * 1000).toISOString() : null,
-                period_end: inv.period_end ? new Date(inv.period_end * 1000).toISOString() : null,
-                description: inv.description,
+              invoices: [],
+              refunds: [],
+              all_subscriptions: subs.map((s: any) => ({
+                id: s.id, status: s.status,
+                plan: s.product?.metadata?.plan ? s.product.metadata.plan.charAt(0).toUpperCase() + s.product.metadata.plan.slice(1) : s.product?.name || "Unknown",
+                interval: s.recurring_interval || "", amount: s.price?.price_amount || 0,
+                start_date: s.started_at || s.created_at,
+                current_period_end: s.current_period_end || "",
+                cancel_at_period_end: s.cancel_at_period_end || false,
+                canceled_at: s.canceled_at || null,
+                ended_at: s.ended_at || null,
               })),
-              refunds: customerRefunds.map(r => ({
-                id: r.id, amount: r.amount, status: r.status, reason: r.reason,
-                created: new Date(r.created * 1000).toISOString(),
-              })),
-              all_subscriptions: subs.data.map(s => {
-                const productId = typeof s.items.data[0].price.product === "string" ? s.items.data[0].price.product : (s.items.data[0].price.product as any)?.id || "";
-                return {
-                  id: s.id, status: s.status, plan: PRODUCT_TO_PLAN[productId] || "Unknown",
-                  interval: s.items.data[0].price.recurring?.interval || "", amount: s.items.data[0].price.unit_amount || 0,
-                  start_date: new Date(s.start_date * 1000).toISOString(),
-                  current_period_end: new Date(s.current_period_end * 1000).toISOString(),
-                  cancel_at_period_end: s.cancel_at_period_end,
-                  canceled_at: s.canceled_at ? new Date(s.canceled_at * 1000).toISOString() : null,
-                  ended_at: s.ended_at ? new Date(s.ended_at * 1000).toISOString() : null,
-                };
-              }),
-              canceled_subscriptions_count: subs.data.filter(s => s.status === "canceled").length,
-              total_subscription_count: subs.data.length,
+              canceled_subscriptions_count: subs.filter((s: any) => s.status === "canceled").length,
+              total_subscription_count: subs.length,
             };
-          } else {
-            // No Stripe customer - check admin override
-            const adminNotes = profile?.admin_notes || "";
-            const planOverrideMatch = adminNotes.match(/\[PLAN_OVERRIDE\]\s*(\w+)/);
-            if (planOverrideMatch) {
-              stripeData = {
-                current_plan: planOverrideMatch[1].charAt(0).toUpperCase() + planOverrideMatch[1].slice(1),
-                subscription_status: "admin_override",
-                total_charged_cents: 0, total_refunded_cents: 0, net_revenue_cents: 0,
-                charge_count: 0, refund_count: 0, charges: [], invoices: [], refunds: [],
-                all_subscriptions: [], canceled_subscriptions_count: 0, total_subscription_count: 0,
-              };
-            }
           }
-        } catch (err) {
-          logStep("Stripe lookup error", { error: err instanceof Error ? err.message : String(err) });
-          stripeData = { error: "Failed to fetch Stripe data" };
         }
+      } catch (err) {
+        logStep("Polar lookup error", { error: err instanceof Error ? err.message : String(err) });
+        paymentData = { error: "Failed to fetch payment data" };
       }
 
-      // Also check admin_notes for plan override when no Stripe data
-      if (!stripeData) {
+      // Also check admin_notes for plan override when no payment data
+      if (!paymentData) {
         const adminNotes = profile?.admin_notes || "";
         const planOverrideMatch = adminNotes.match(/\[PLAN_OVERRIDE\]\s*(\w+)/);
         if (planOverrideMatch) {
-          stripeData = {
+          paymentData = {
             current_plan: planOverrideMatch[1].charAt(0).toUpperCase() + planOverrideMatch[1].slice(1),
             subscription_status: "admin_override",
             total_charged_cents: 0, total_refunded_cents: 0, net_revenue_cents: 0,
@@ -539,33 +481,33 @@ behavioral_profile, spending_pattern, engagement_level (high|medium|low|dormant)
       }
 
       const daysSinceJoin = Math.max(1, Math.floor((Date.now() - new Date(profile?.created_at || Date.now()).getTime()) / 86400000));
-      const netRevenue = (stripeData?.net_revenue_cents || 0) / 100;
+      const netRevenue = (paymentData?.net_revenue_cents || 0) / 100;
       const monthlyVelocity = netRevenue / (daysSinceJoin / 30);
       const projectedAnnualLTV = monthlyVelocity * 12;
-      const purchaseFrequency = (stripeData?.charge_count || 0) / Math.max(1, daysSinceJoin / 30);
+      const purchaseFrequency = (paymentData?.charge_count || 0) / Math.max(1, daysSinceJoin / 30);
 
       let spenderTier = "Low";
       if (netRevenue >= 500 || projectedAnnualLTV >= 1000) spenderTier = "Whale";
       else if (netRevenue >= 200 || projectedAnnualLTV >= 500) spenderTier = "High";
       else if (netRevenue >= 50 || projectedAnnualLTV >= 100) spenderTier = "Medium";
 
-      const lastChargeDate = stripeData?.charges?.[0]?.created;
+      const lastChargeDate = paymentData?.charges?.[0]?.created;
       const daysSinceLastCharge = lastChargeDate ? Math.floor((Date.now() - new Date(lastChargeDate).getTime()) / 86400000) : 999;
       let churnRisk = "Low";
       if (daysSinceLastCharge > 90) churnRisk = "Critical";
       else if (daysSinceLastCharge > 60) churnRisk = "High";
       else if (daysSinceLastCharge > 30) churnRisk = "Medium";
 
-      // Parse admin tags
       const adminNotes = profile?.admin_notes || "";
       const tagMatch = adminNotes.match(/\[TAGS\]\s*(.+)/);
       const adminTags = tagMatch ? tagMatch[1].split(",").map((t: string) => t.trim()) : [];
       const creditLimitMatch = adminNotes.match(/\[CREDIT_LIMIT\]\s*Daily:\s*(\w+)/);
       const dailyCreditLimit = creditLimitMatch ? creditLimitMatch[1] : "unlimited";
 
+      // Return as "stripe" key for backward compat with frontend
       return new Response(JSON.stringify({
         profile, wallet, transactions, login_activity: loginActivity, device_sessions: deviceSessions,
-        admin_actions: adminActions, notifications, stripe: stripeData, auth_meta: authMeta,
+        admin_actions: adminActions, notifications, stripe: paymentData, auth_meta: authMeta,
         recent_posts: recentPosts, user_rank: userRank, admin_tags: adminTags,
         daily_credit_limit: dailyCreditLimit,
         insights: {
@@ -574,79 +516,72 @@ behavioral_profile, spending_pattern, engagement_level (high|medium|low|dormant)
           purchase_frequency: Math.round(purchaseFrequency * 100) / 100,
           days_since_join: daysSinceJoin, days_since_last_charge: daysSinceLastCharge,
           spender_tier: spenderTier, churn_risk: churnRisk,
-          current_plan: stripeData?.current_plan || "Free",
+          current_plan: paymentData?.current_plan || "Free",
           follower_count_real: followersRes.data?.length || 0,
           following_count_real: followingRes.data?.length || 0,
         },
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // ─── STRIPE INTELLIGENCE ───
+    // ─── PAYMENT INTELLIGENCE (replaces stripe_intel) ───
     if (action === "stripe_intel" && userId) {
-      logStep("Stripe intelligence deep dive", { userId });
-      const { data: prof } = await supabaseAdmin.from("profiles").select("email").eq("user_id", userId).single();
-      if (!prof?.email) return new Response(JSON.stringify({ error: "No email" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      logStep("Payment intelligence deep dive", { userId });
 
-      const customers = await stripe.customers.list({ email: prof.email, limit: 1 });
-      if (customers.data.length === 0) return new Response(JSON.stringify({ error: "No Stripe customer found" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      const custRes = await polarFetch(`/customers?external_id=${userId}&limit=1`);
+      if (!custRes.ok) return new Response(JSON.stringify({ error: "Failed to look up customer" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      const custData = await custRes.json();
+      if (!custData.items?.length) return new Response(JSON.stringify({ error: "No payment customer found" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
-      const cid = customers.data[0].id;
-      const [subs, charges, invoices, paymentMethods] = await Promise.all([
-        stripe.subscriptions.list({ customer: cid, status: "all", limit: 50 }),
-        stripe.charges.list({ customer: cid, limit: 100 }),
-        stripe.invoices.list({ customer: cid, limit: 50 }),
-        stripe.paymentMethods.list({ customer: cid, type: "card", limit: 10 }),
+      const cid = custData.items[0].id;
+      const polarCustomer = custData.items[0];
+      const [subsRes, ordersRes] = await Promise.all([
+        polarFetch(`/subscriptions?customer_id=${cid}&limit=50`),
+        polarFetch(`/orders?customer_id=${cid}&limit=100`),
       ]);
+      const subs = subsRes.ok ? (await subsRes.json()).items || [] : [];
+      const orders = ordersRes.ok ? (await ordersRes.json()).items || [] : [];
 
       const result = {
         customer: {
-          id: cid, name: customers.data[0].name, email: customers.data[0].email,
-          created: new Date(customers.data[0].created * 1000).toISOString(),
-          balance: customers.data[0].balance, currency: customers.data[0].currency,
-          metadata: customers.data[0].metadata,
+          id: cid, name: polarCustomer.name, email: polarCustomer.email,
+          created: polarCustomer.created_at,
+          balance: 0, currency: "usd",
+          metadata: polarCustomer.metadata || {},
         },
-        subscriptions: subs.data.map(s => {
-          const productId = typeof s.items.data[0].price.product === "string" ? s.items.data[0].price.product : "";
-          return {
-            id: s.id, status: s.status, plan: PRODUCT_TO_PLAN[productId] || "Unknown",
-            amount: s.items.data[0].price.unit_amount, interval: s.items.data[0].price.recurring?.interval,
-            start: new Date(s.start_date * 1000).toISOString(),
-            current_period_end: new Date(s.current_period_end * 1000).toISOString(),
-            cancel_at_period_end: s.cancel_at_period_end,
-            canceled_at: s.canceled_at ? new Date(s.canceled_at * 1000).toISOString() : null,
-            ended_at: s.ended_at ? new Date(s.ended_at * 1000).toISOString() : null,
-            trial_end: s.trial_end ? new Date(s.trial_end * 1000).toISOString() : null,
-          };
-        }),
-        charges: charges.data.map(c => ({
-          id: c.id, amount: c.amount, currency: c.currency, status: c.status, paid: c.paid,
-          refunded: c.refunded, amount_refunded: c.amount_refunded,
-          description: c.description, created: new Date(c.created * 1000).toISOString(),
-          card_brand: c.payment_method_details?.card?.brand, card_last4: c.payment_method_details?.card?.last4,
-          receipt_url: c.receipt_url, failure_message: c.failure_message,
+        subscriptions: subs.map((s: any) => ({
+          id: s.id, status: s.status,
+          plan: s.product?.metadata?.plan ? s.product.metadata.plan.charAt(0).toUpperCase() + s.product.metadata.plan.slice(1) : s.product?.name || "Unknown",
+          amount: s.price?.price_amount || 0,
+          interval: s.recurring_interval || "",
+          start: s.started_at || s.created_at,
+          current_period_end: s.current_period_end || "",
+          cancel_at_period_end: s.cancel_at_period_end || false,
+          canceled_at: s.canceled_at || null,
+          ended_at: s.ended_at || null,
+          trial_end: null,
         })),
-        invoices: invoices.data.map(inv => ({
-          id: inv.id, number: inv.number, amount_due: inv.amount_due, amount_paid: inv.amount_paid,
-          status: inv.status, created: new Date(inv.created * 1000).toISOString(),
-          hosted_invoice_url: inv.hosted_invoice_url, invoice_pdf: inv.invoice_pdf,
+        charges: orders.map((o: any) => ({
+          id: o.id, amount: o.amount || 0, currency: o.currency || "usd", status: "succeeded",
+          paid: true, refunded: false, amount_refunded: 0,
+          description: o.product?.name || "Purchase",
+          created: o.created_at,
+          card_brand: null, card_last4: null,
+          receipt_url: null, failure_message: null,
         })),
-        payment_methods: paymentMethods.data.map(pm => ({
-          id: pm.id, brand: pm.card?.brand, last4: pm.card?.last4,
-          exp_month: pm.card?.exp_month, exp_year: pm.card?.exp_year,
-          country: pm.card?.country,
-        })),
+        invoices: [],
+        payment_methods: [],
         summary: {
-          total_paid: charges.data.filter(c => c.paid && !c.refunded).reduce((s, c) => s + c.amount, 0),
-          total_refunded: charges.data.reduce((s, c) => s + (c.amount_refunded || 0), 0),
-          total_charges: charges.data.length,
-          successful_charges: charges.data.filter(c => c.paid).length,
-          failed_charges: charges.data.filter(c => c.status === "failed").length,
-          total_invoices: invoices.data.length,
-          paid_invoices: invoices.data.filter(i => i.status === "paid").length,
-          open_invoices: invoices.data.filter(i => i.status === "open").length,
-          active_subs: subs.data.filter(s => s.status === "active").length,
-          canceled_subs: subs.data.filter(s => s.status === "canceled").length,
-          total_subs: subs.data.length,
+          total_paid: orders.reduce((s: number, o: any) => s + (o.amount || 0), 0),
+          total_refunded: 0,
+          total_charges: orders.length,
+          successful_charges: orders.length,
+          failed_charges: 0,
+          total_invoices: 0,
+          paid_invoices: 0,
+          open_invoices: 0,
+          active_subs: subs.filter((s: any) => s.status === "active").length,
+          canceled_subs: subs.filter((s: any) => s.status === "canceled").length,
+          total_subs: subs.length,
         },
       };
 
@@ -691,7 +626,6 @@ behavioral_profile, spending_pattern, engagement_level (high|medium|low|dormant)
       const creditLimitMatch = adminNotes.match(/\[CREDIT_LIMIT\]\s*Daily:\s*(\w+)/);
       const planOverrideMatch = adminNotes.match(/\[PLAN_OVERRIDE\]\s*(\w+)/);
 
-      // Transaction analytics
       const txData = txRes.data || [];
       const purchaseTx = txData.filter(t => t.type === "purchase");
       const grantTx = txData.filter(t => t.type === "admin_grant");
@@ -700,7 +634,6 @@ behavioral_profile, spending_pattern, engagement_level (high|medium|low|dormant)
       const totalGranted = grantTx.reduce((s, t) => s + t.amount, 0);
       const totalDeducted = Math.abs(deductTx.reduce((s, t) => s + t.amount, 0));
 
-      // Login analytics
       const logins = loginRes.data || [];
       const uniqueIPs = new Set(logins.map(l => l.ip_address).filter(Boolean));
       const uniqueDevices = new Set(logins.map(l => l.device).filter(Boolean));
@@ -745,7 +678,6 @@ behavioral_profile, spending_pattern, engagement_level (high|medium|low|dormant)
       const { adminAction, reason, data: actionData } = body;
       logStep("Admin action", { adminAction, userId });
 
-      // Log every action
       await supabaseAdmin.from("admin_user_actions").insert({
         target_user_id: userId, performed_by: user.id,
         action_type: adminAction, reason: reason || `Admin action: ${adminAction}`,
@@ -860,7 +792,6 @@ behavioral_profile, spending_pattern, engagement_level (high|medium|low|dormant)
         logStep("Change plan", { userId, newPlan });
         const { data: prof } = await supabaseAdmin.from("profiles").select("email, admin_notes").eq("user_id", userId).single();
         
-        // Store plan override in admin_notes — this is the SOURCE OF TRUTH
         const existing = prof?.admin_notes || "";
         const planLine = `[PLAN_OVERRIDE] ${newPlan}`;
         const updated = existing.includes("[PLAN_OVERRIDE]")
@@ -869,7 +800,6 @@ behavioral_profile, spending_pattern, engagement_level (high|medium|low|dormant)
         await supabaseAdmin.from("profiles").update({ admin_notes: updated }).eq("user_id", userId);
         logStep("Plan override saved to admin_notes", { plan: newPlan });
 
-        // Grant plan credits based on new plan tier
         const PLAN_CREDITS: Record<string, number> = { starter: 215, pro: 1075, business: 4300 };
         const creditsToGrant = PLAN_CREDITS[newPlan.toLowerCase()] || 0;
         if (creditsToGrant > 0) {
@@ -886,19 +816,25 @@ behavioral_profile, spending_pattern, engagement_level (high|medium|low|dormant)
           logStep("Plan credits granted", { plan: newPlan, credits: creditsToGrant });
         }
 
-        // Optionally sync with Stripe (best-effort, does NOT affect override)
-        if (prof?.email && newPlan.toLowerCase() === "free") {
+        // Cancel Polar subscription if downgrading to free
+        if (newPlan.toLowerCase() === "free") {
           try {
-            const custs = await stripe.customers.list({ email: prof.email, limit: 1 });
-            if (custs.data.length > 0) {
-              const custId = custs.data[0].id;
-              const activeSubs = await stripe.subscriptions.list({ customer: custId, status: "active" });
-              for (const sub of activeSubs.data) {
-                await stripe.subscriptions.cancel(sub.id);
-                logStep("Canceled existing subscription", { subId: sub.id });
+            const custRes = await polarFetch(`/customers?external_id=${userId}&limit=1`);
+            if (custRes.ok) {
+              const custData = await custRes.json();
+              if (custData.items?.length > 0) {
+                const cid = custData.items[0].id;
+                const subsRes = await polarFetch(`/subscriptions?customer_id=${cid}&active=true&limit=10`);
+                if (subsRes.ok) {
+                  const subsData = await subsRes.json();
+                  for (const sub of (subsData.items || [])) {
+                    await polarFetch(`/subscriptions/${sub.id}`, { method: "DELETE" });
+                    logStep("Canceled Polar subscription", { subId: sub.id });
+                  }
+                }
               }
             }
-          } catch (e) { logStep("Stripe sync warning (non-fatal)", { error: String(e) }); }
+          } catch (e) { logStep("Polar sync warning (non-fatal)", { error: String(e) }); }
         }
       }
 
@@ -907,7 +843,6 @@ behavioral_profile, spending_pattern, engagement_level (high|medium|low|dormant)
       }
 
       if (adminAction === "force_logout") {
-        // Sign out all sessions for the user
         try {
           await supabaseAdmin.auth.admin.signOut(userId, "global");
           logStep("Force signed out all sessions", { userId });
@@ -1067,7 +1002,6 @@ behavioral_profile, spending_pattern, engagement_level (high|medium|low|dormant)
       }
 
       if (adminAction === "export_user_data") {
-        // Export handled client-side, this just logs it
         logStep("User data export requested", { userId, by: user.id });
       }
 
