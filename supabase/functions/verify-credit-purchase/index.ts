@@ -37,21 +37,44 @@ serve(async (req) => {
     if (!user?.id || !user?.email) throw new Error("User not authenticated");
     log("User authenticated", { userId: user.id });
 
-    // Get store ID
+    // STRATEGY 1: Check if webhook already processed recent orders
+    // Look for wallet_transactions created in the last 5 minutes
+    const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+    const { data: recentTx } = await supabaseAdmin
+      .from("wallet_transactions")
+      .select("amount, created_at, reference_id, description")
+      .eq("user_id", user.id)
+      .eq("type", "purchase")
+      .gte("created_at", fiveMinAgo)
+      .order("created_at", { ascending: false })
+      .limit(5);
+
+    if (recentTx && recentTx.length > 0) {
+      const totalRecent = recentTx.reduce((sum, tx) => sum + (tx.amount || 0), 0);
+      log("Found recent webhook-processed transactions", { count: recentTx.length, totalRecent });
+      
+      const { data: updatedWallet } = await supabaseAdmin
+        .from("wallets").select("balance, purchase_count").eq("user_id", user.id).single();
+
+      return new Response(JSON.stringify({
+        credited: true,
+        credits_added: totalRecent,
+        balance: updatedWallet?.balance || 0,
+        purchase_count: updatedWallet?.purchase_count || 0,
+        source: "webhook",
+      }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    // STRATEGY 2: Poll Lemon Squeezy orders directly (fallback if webhook hasn't fired yet)
     const storesRes = await lsFetch("/stores");
     const storesData = await storesRes.json();
     const storeId = storesData.data?.[0]?.id;
     if (!storeId) throw new Error("No store found");
 
-    // Fetch recent orders for this user by email
     const ordersUrl = `/orders?filter[store_id]=${storeId}&filter[user_email]=${encodeURIComponent(user.email)}&page[size]=25`;
     log("Fetching orders", { url: ordersUrl });
     const ordersRes = await lsFetch(ordersUrl);
-    if (!ordersRes.ok) {
-      const errBody = await ordersRes.text();
-      log("Orders fetch failed", { status: ordersRes.status, body: errBody });
-      throw new Error(`Failed to fetch orders: ${ordersRes.status} - ${errBody}`);
-    }
+    if (!ordersRes.ok) throw new Error(`Failed to fetch orders: ${ordersRes.status}`);
     const ordersData = await ordersRes.json();
     const orders = ordersData.data || [];
     log("Found orders", { count: orders.length });
@@ -70,12 +93,16 @@ serve(async (req) => {
       const attrs = order.attributes;
       if (attrs.status !== "paid") continue;
 
-      // Try to get credits from checkout custom data (meta)
+      // Check custom data for credits info
       const meta = attrs.meta?.custom_data || attrs.meta?.custom || attrs.meta || {};
+      
+      // Only process orders belonging to this user
+      if (meta.user_id && meta.user_id !== user.id) continue;
+
       let credits = parseInt(meta.credits || "0");
       let bonusCredits = parseInt(meta.bonus_credits || "0");
 
-      // If no meta, try variant mapping
+      // If no meta credits, try variant mapping
       if (credits <= 0) {
         const firstItem = attrs.first_order_item;
         if (firstItem?.variant_id) {
@@ -111,11 +138,12 @@ serve(async (req) => {
           credits,
           bonus_credits: bonusCredits,
           verified_at: new Date().toISOString(),
+          source: "polling",
         },
       });
 
       if (txError) {
-        log("Transaction insert failed — skip", { orderId, error: txError.message });
+        log("Transaction insert failed", { orderId, error: txError.message });
         continue;
       }
 
@@ -137,18 +165,10 @@ serve(async (req) => {
       else if (totalCredits >= 10) xpToGrant = 25;
 
       if (xpToGrant > 0) {
-        await supabaseAdmin.from("social_profiles").upsert({ user_id: user.id, xp: 0 }, { onConflict: "user_id", ignoreDuplicates: true });
-        const { data: profile } = await supabaseAdmin.from("social_profiles").select("xp").eq("user_id", user.id).single();
-        const newXp = (profile?.xp || 0) + xpToGrant;
-        const tiers = [
-          { name: "Legend", minXp: 50000 }, { name: "Diamond", minXp: 20000 },
-          { name: "Platinum", minXp: 10000 }, { name: "Gold", minXp: 5000 },
-          { name: "Silver", minXp: 2000 }, { name: "Bronze", minXp: 500 },
-          { name: "Metal", minXp: 0 },
-        ];
-        const newTier = tiers.find(t => newXp >= t.minXp)?.name || "Metal";
-        await supabaseAdmin.from("social_profiles").update({ xp: newXp, rank_tier: newTier }).eq("user_id", user.id);
-        log("XP granted", { xpToGrant, newXp, newTier });
+        const { data: rank } = await supabaseAdmin.from("user_ranks").select("xp").eq("user_id", user.id).maybeSingle();
+        if (rank) {
+          await supabaseAdmin.from("user_ranks").update({ xp: rank.xp + xpToGrant }).eq("user_id", user.id);
+        }
       }
 
       totalCredited += totalCredits;
@@ -162,6 +182,7 @@ serve(async (req) => {
       credits_added: totalCredited,
       balance: updatedWallet?.balance || 0,
       purchase_count: updatedWallet?.purchase_count || 0,
+      source: "polling",
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (error) {
     log("ERROR", { message: error instanceof Error ? error.message : String(error) });
