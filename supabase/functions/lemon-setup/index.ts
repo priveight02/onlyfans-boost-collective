@@ -23,6 +23,56 @@ const lsFetch = async (path: string, options: RequestInit = {}) => {
 
 const log = (step: string, d?: any) => console.log(`[LEMON-SETUP] ${step}${d ? ` - ${JSON.stringify(d)}` : ""}`);
 
+const SUPABASE_STORAGE_BASE = "https://ufsnuobtvkciydftsyff.supabase.co/storage/v1/object/public/product-images";
+
+// ═══════════════════════════════════════════════════════
+// PRODUCT DEFINITIONS — exact replica of Stripe catalog
+// ═══════════════════════════════════════════════════════
+
+const CREDIT_PRODUCTS = [
+  // 4 Base credit packages
+  { name: "Starter Credits (350)", description: "350 instant credits to power your AI tools, Platform features, and content creation. Perfect for getting started, delivered instantly, never expires.", price: 900, image: "credits-starter.png", meta: { tier: "starter", credits: "350", bonus: "0" } },
+  { name: "Pro Credits (2,000)", description: "2,000 credits (1,650 + 350 bonus!). Our most popular pack. Unlock advanced AI features, Platform access, and premium content tools. Instant delivery, never expires.", price: 2900, image: "credits-pro.png", meta: { tier: "pro", credits: "1650", bonus: "350" } },
+  { name: "Studio Credits (3,850)", description: "3,850 credits (3,300 + 550 bonus!). Ideal for growing creators. Full Platform access, all AI tools, and priority support included. Instant delivery, never expires.", price: 4900, image: "credits-studio-new.png", meta: { tier: "studio", credits: "3300", bonus: "550" } },
+  { name: "Power User Credits (13,500)", description: "13,500 credits (11,500 + 2,000 bonus). Best value for power users. Everything unlocked: unlimited AI, full Platform, team workspace, and API access. Instant delivery, never expires.", price: 14900, image: "credits-power-new.png", meta: { tier: "power", credits: "11500", bonus: "2000" } },
+
+  // 10% Loyalty variants
+  { name: "Starter Credits (10% Off)", description: "350 instant credits with 10% loyalty reward! Thank you for coming back. Instant delivery, never expires.", price: 810, image: "img-starter-10.png", meta: { tier: "starter", discount: "10" } },
+  { name: "Pro Credits (10% Off)", description: "2,000 credits (1,650 + 350 bonus) with 10% loyalty reward! Instant delivery, never expires.", price: 2610, image: "img-pro-10.png", meta: { tier: "pro", discount: "10" } },
+  { name: "Studio Credits (10% Off)", description: "3,850 credits (3,300 + 550 bonus) with 10% loyalty reward! Instant delivery, never expires.", price: 4410, image: "img-studio-10.png", meta: { tier: "studio", discount: "10" } },
+  { name: "Power User Credits (10% Off)", description: "13,500 credits (11,500 + 2,000 bonus) with 10% loyalty reward! The ultimate pack for power users, everything unlocked at a better price. Instant delivery, never expires.", price: 13410, image: "img-power-10.png", meta: { tier: "power", discount: "10" } },
+
+  // 20% Loyalty variants
+  { name: "Starter Credits (20% Off)", description: "350 instant credits with 20% loyalty reward! Your loyalty pays off, grab your credits at a great price. Instant delivery, never expires.", price: 720, image: "img-starter-20.png", meta: { tier: "starter", discount: "20" } },
+  { name: "Pro Credits (20% Off)", description: "2,000 credits (1,650 + 350 bonus) with 20% loyalty reward! Serious savings on our most popular pack. Instant delivery, never expires.", price: 2320, image: "img-pro-20.png", meta: { tier: "pro", discount: "20" } },
+  { name: "Studio Credits (20% Off)", description: "3,850 credits (3,300 + 550 bonus) with 20% loyalty reward! Grow faster with serious savings. Instant delivery, never expires.", price: 3920, image: "img-studio-20.png", meta: { tier: "studio", discount: "20" } },
+  { name: "Power User Credits (20% Off)", description: "13,500 credits (11,500 + 2,000 bonus) with 20% loyalty reward! Massive savings on the biggest pack. Instant delivery, never expires.", price: 11920, image: "img-power-20.png", meta: { tier: "power", discount: "20" } },
+
+  // 30% Loyalty variants
+  { name: "Starter Credits (30% Off)", description: "350 instant credits with 30% loyalty reward! Welcome back, your biggest loyalty discount yet. Instant delivery, never expires.", price: 630, image: "img-starter-30.png", meta: { tier: "starter", discount: "30" } },
+  { name: "Pro Credits (30% Off)", description: "2,000 credits (1,650 + 350 bonus) with 30% loyalty reward! Your biggest loyalty discount, unlock everything at an incredible price. Instant delivery, never expires.", price: 2030, image: "img-pro-30.png", meta: { tier: "pro", discount: "30" } },
+  { name: "Studio Credits (30% Off)", description: "3,850 credits (3,300 + 550 bonus) with 30% loyalty reward! Your biggest Studio discount, scale your content now for less. Instant delivery, never expires.", price: 3430, image: "img-studio-30.png", meta: { tier: "studio", discount: "30" } },
+  { name: "Power User Credits (30% Off)", description: "13,500 credits (11,500 + 2,000 bonus) with 30% loyalty reward! Your biggest Power User discount, everything at maximum value. Instant delivery, never expires.", price: 10430, image: "img-power-30.png", meta: { tier: "power", discount: "30" } },
+
+  // 50% Retention variants
+  { name: "Starter Credits (50% Off)", description: "350 instant credits at HALF PRICE! An exclusive one-time offer because we would hate to see you go! Instant delivery, never expires.", price: 450, image: "img-starter-50.png", meta: { tier: "starter", discount: "50" } },
+  { name: "Pro Credits (50% Off)", description: "2,000 credits (1,650 + 350 bonus) at HALF PRICE! An exclusive one-time offer just for you because you're a precious customer. Our most popular pack at the best deal ever. Instant delivery, never expires.", price: 1450, image: "img-pro-50.png", meta: { tier: "pro", discount: "50" } },
+  { name: "Studio Credits (50% Off)", description: "3,850 credits (3,300 + 550 bonus) at HALF PRICE! An exclusive one-time offer just for you because we value your time. Instant delivery, never expires.", price: 2450, image: "img-studio-50.png", meta: { tier: "studio", discount: "50" } },
+  { name: "Power User Credits (50% Off)", description: "13,500 credits (11,500 + 2,000 bonus) at HALF PRICE! An exclusive one-time offer just for you because we know there is no better. Instant delivery, never expires.", price: 7450, image: "img-power-50.png", meta: { tier: "power", discount: "50" } },
+];
+
+const SUBSCRIPTION_PRODUCTS = [
+  { name: "Starter Plan (Monthly)", description: "215 credits every month to power your AI tools, Platform features, and content creation. Perfect for solo creators getting started!", price: 900, recurring: "month", image: "plan-starter-coins.png", meta: { plan_id: "starter", cycle: "monthly", credits: "215" } },
+  { name: "Starter Plan (Yearly)", description: "215 credits every month to power your AI tools, save 15% with annual billing! Platform features, and content creation. Perfect for solo creators getting started!", price: 10800, recurring: "year", image: "plan-starter-coins.png", meta: { plan_id: "starter", cycle: "yearly", credits: "215" } },
+  { name: "Pro Plan (Monthly)", description: "1,075 credits every month, unlock advanced AI features, full Platform access, 5 managed accounts, and priority support. The go-to plan for serious creators ready to scale.", price: 2900, recurring: "month", image: "plan-pro-coins-fixed.png", meta: { plan_id: "pro", cycle: "monthly", credits: "1075" } },
+  { name: "Pro Plan (Yearly)", description: "1,075 credits every month, save 30% with annual billing! Advanced AI, full Platform, priority support.", price: 34800, recurring: "year", image: "plan-pro-coins-fixed.png", meta: { plan_id: "pro", cycle: "yearly", credits: "1075" } },
+  { name: "Business Plan (Monthly)", description: "4,300 credits every month, the ultimate powerhouse for agencies and top creators. Unlimited accounts, team workspace, advanced analytics, API access, and dedicated support.", price: 7900, recurring: "month", image: "plan-business-coins.png", meta: { plan_id: "business", cycle: "monthly", credits: "4300" } },
+  { name: "Business Plan (Yearly)", description: "4,300 credits every month, save 33% with annual billing! Full Platform, unlimited accounts, dedicated support.", price: 94800, recurring: "year", image: "plan-business-coins.png", meta: { plan_id: "business", cycle: "yearly", credits: "4300" } },
+];
+
+// Custom Credits product (pay what you want)
+const CUSTOM_CREDITS = { name: "Custom Credits", description: "Buy exactly how many credits you need. Volume discounts up to 40% for bulk purchases. Instant delivery, never expires.", price: 100, image: "credits-custom.png" };
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -63,11 +113,13 @@ serve(async (req) => {
     ];
 
     const discountResults: any[] = [];
+    // Fetch all existing discounts once
+    const allDiscountsRes = await lsFetch(`/discounts?filter[store_id]=${storeId}&page[size]=100`);
+    const allDiscountsData = allDiscountsRes.ok ? await allDiscountsRes.json() : { data: [] };
+    const existingDiscounts = allDiscountsData.data || [];
+
     for (const d of discountDefs) {
-      // Check if exists
-      const checkRes = await lsFetch(`/discounts?filter[store_id]=${storeId}`);
-      const checkData = await checkRes.json();
-      const existing = (checkData.data || []).find((x: any) => x.attributes.code === d.code);
+      const existing = existingDiscounts.find((x: any) => x.attributes.code === d.code);
       if (existing) {
         discountResults.push({ ...d, id: existing.id, status: "exists" });
         continue;
@@ -79,13 +131,9 @@ serve(async (req) => {
           data: {
             type: "discounts",
             attributes: {
-              name: d.name,
-              code: d.code,
-              amount: d.amount,
-              amount_type: d.amount_type,
-              duration: d.duration,
-              is_limited_to_products: false,
-              is_limited_redemptions: false,
+              name: d.name, code: d.code, amount: d.amount,
+              amount_type: d.amount_type, duration: d.duration,
+              is_limited_to_products: false, is_limited_redemptions: false,
             },
             relationships: {
               store: { data: { type: "stores", id: storeId } },
@@ -123,18 +171,18 @@ serve(async (req) => {
     }
     log("Products listed", { products: products.length, variants: allVariants.length });
 
-    // 4. Auto-map credit packages to variants
-    const packageMap: Record<string, string> = {
-      starter: "Starter Credits",
-      pro: "Pro Credits",
-      studio: "Studio Credits",
-      power: "Power User Credits",
+    // 4. Auto-map credit packages to variants (match by product name)
+    const packageMap: Record<string, string[]> = {
+      starter: ["Starter Credits (350)", "Starter Credits"],
+      pro: ["Pro Credits (2,000)", "Pro Credits (2000)", "Pro Credits"],
+      studio: ["Studio Credits (3,850)", "Studio Credits (3850)", "Studio Credits"],
+      power: ["Power User Credits (13,500)", "Power User Credits (13500)", "Power User Credits"],
     };
 
     const mapped: any[] = [];
-    for (const [key, targetName] of Object.entries(packageMap)) {
+    for (const [key, targetNames] of Object.entries(packageMap)) {
       const variant = allVariants.find((v: any) =>
-        v.product_name.toLowerCase() === targetName.toLowerCase()
+        targetNames.some(tn => v.product_name.toLowerCase() === tn.toLowerCase())
       );
       if (variant) {
         const namePattern = key === "power" ? "Power" : key.charAt(0).toUpperCase() + key.slice(1);
@@ -147,24 +195,43 @@ serve(async (req) => {
       }
     }
 
-    // 5. Check for missing products
-    const expectedProducts = [
-      { name: "Starter Credits", price: "$9.00", type: "one-time" },
-      { name: "Pro Credits", price: "$29.00", type: "one-time" },
-      { name: "Studio Credits", price: "$49.00", type: "one-time" },
-      { name: "Power User Credits", price: "$149.00", type: "one-time" },
-      { name: "Custom Credits", price: "Pay what you want", type: "one-time" },
-      { name: "Starter Plan Monthly", price: "$9.00/mo", type: "subscription (monthly)" },
-      { name: "Starter Plan Yearly", price: "$91.80/yr", type: "subscription (yearly)" },
-      { name: "Pro Plan Monthly", price: "$29.00/mo", type: "subscription (monthly)" },
-      { name: "Pro Plan Yearly", price: "$243.60/yr", type: "subscription (yearly)" },
-      { name: "Business Plan Monthly", price: "$79.00/mo", type: "subscription (monthly)" },
-      { name: "Business Plan Yearly", price: "$635.16/yr", type: "subscription (yearly)" },
+    // 5. Build missing product list
+    const ALL_EXPECTED = [
+      ...CREDIT_PRODUCTS.map(p => ({ name: p.name, price: `$${(p.price / 100).toFixed(2)}`, type: "one-time" })),
+      ...SUBSCRIPTION_PRODUCTS.map(p => ({ name: p.name, price: `$${(p.price / 100).toFixed(2)}/${p.recurring}`, type: `subscription (${p.recurring}ly)` })),
+      { name: CUSTOM_CREDITS.name, price: "Pay what you want", type: "one-time" },
     ];
 
-    const missing = expectedProducts.filter(
+    const missing = ALL_EXPECTED.filter(
       (ep) => !products.find((p: any) => p.attributes.name.toLowerCase() === ep.name.toLowerCase())
     );
+
+    // 6. Build product creation guide with images
+    const imageGuide = [
+      ...CREDIT_PRODUCTS.map(p => ({
+        product: p.name,
+        price_cents: p.price,
+        description: p.description,
+        image_url: `${SUPABASE_STORAGE_BASE}/${p.image}`,
+        tax_enabled: false,
+      })),
+      ...SUBSCRIPTION_PRODUCTS.map(p => ({
+        product: p.name,
+        price_cents: p.price,
+        recurring: p.recurring,
+        description: p.description,
+        image_url: `${SUPABASE_STORAGE_BASE}/${p.image}`,
+        tax_enabled: false,
+      })),
+      {
+        product: CUSTOM_CREDITS.name,
+        price_cents: CUSTOM_CREDITS.price,
+        pay_what_you_want: true,
+        description: CUSTOM_CREDITS.description,
+        image_url: `${SUPABASE_STORAGE_BASE}/${CUSTOM_CREDITS.image}`,
+        tax_enabled: false,
+      },
+    ];
 
     return new Response(JSON.stringify({
       success: true,
@@ -174,10 +241,14 @@ serve(async (req) => {
       variants: allVariants,
       mapped_to_credit_packages: mapped,
       missing_products: missing,
+      total_expected: ALL_EXPECTED.length,
       instructions: missing.length > 0
-        ? `Create these ${missing.length} products in Lemon Squeezy dashboard, then re-run this function to complete mapping.`
+        ? `Create these ${missing.length} products in Lemon Squeezy dashboard (Products → + New Product), then re-run this function to complete mapping. NOTE: Lemon Squeezy does NOT support creating products via API — dashboard only. Set Tax to OFF for all products.`
         : "All products found and mapped!",
-      image_note: "Product images must be uploaded manually in the Lemon Squeezy dashboard. Use images from the product-images storage bucket.",
+      product_creation_guide: missing.length > 0 ? imageGuide.filter(
+        g => missing.some(m => m.name.toLowerCase() === g.product.toLowerCase())
+      ) : [],
+      note: "Product images must be uploaded manually in the Lemon Squeezy dashboard. Download from the image_url links provided.",
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (error) {
     log("ERROR", { message: error instanceof Error ? error.message : String(error) });
