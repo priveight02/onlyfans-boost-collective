@@ -6,16 +6,15 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const LS_API = "https://api.lemonsqueezy.com/v1";
+const POLAR_API = "https://api.polar.sh/v1";
 
-const lsFetch = async (path: string) => {
-  const key = Deno.env.get("LEMONSQUEEZY_API_KEY");
-  if (!key) throw new Error("LEMONSQUEEZY_API_KEY not set");
-  return fetch(`${LS_API}${path}`, {
+const polarFetch = async (path: string) => {
+  const token = Deno.env.get("POLAR_ACCESS_TOKEN");
+  if (!token) throw new Error("POLAR_ACCESS_TOKEN not set");
+  return fetch(`${POLAR_API}${path}`, {
     headers: {
-      "Accept": "application/vnd.api+json",
-      "Content-Type": "application/vnd.api+json",
-      "Authorization": `Bearer ${key}`,
+      "Authorization": `Bearer ${token}`,
+      "Content-Type": "application/json",
     },
   });
 };
@@ -38,7 +37,6 @@ serve(async (req) => {
     log("User authenticated", { userId: user.id });
 
     // STRATEGY 1: Check if webhook already processed recent orders
-    // Look for wallet_transactions created in the last 5 minutes
     const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
     const { data: recentTx } = await supabaseAdmin
       .from("wallet_transactions")
@@ -52,7 +50,7 @@ serve(async (req) => {
     if (recentTx && recentTx.length > 0) {
       const totalRecent = recentTx.reduce((sum, tx) => sum + (tx.amount || 0), 0);
       log("Found recent webhook-processed transactions", { count: recentTx.length, totalRecent });
-      
+
       const { data: updatedWallet } = await supabaseAdmin
         .from("wallets").select("balance, purchase_count").eq("user_id", user.id).single();
 
@@ -65,53 +63,50 @@ serve(async (req) => {
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // STRATEGY 2: Poll Lemon Squeezy orders directly (fallback if webhook hasn't fired yet)
-    const storesRes = await lsFetch("/stores");
-    const storesData = await storesRes.json();
-    const storeId = storesData.data?.[0]?.id;
-    if (!storeId) throw new Error("No store found");
+    // STRATEGY 2: Poll Polar orders directly (fallback if webhook hasn't fired yet)
+    // Find customer
+    let customerId: string | null = null;
+    const custRes = await polarFetch(`/customers?external_id=${encodeURIComponent(user.id)}&limit=1`);
+    if (custRes.ok) {
+      const custData = await custRes.json();
+      customerId = custData.items?.[0]?.id || null;
+    }
+    if (!customerId) {
+      const emailRes = await polarFetch(`/customers?email=${encodeURIComponent(user.email)}&limit=1`);
+      if (emailRes.ok) {
+        const emailData = await emailRes.json();
+        customerId = emailData.items?.[0]?.id || null;
+      }
+    }
 
-    const ordersUrl = `/orders?filter[store_id]=${storeId}&filter[user_email]=${encodeURIComponent(user.email)}&page[size]=25`;
-    log("Fetching orders", { url: ordersUrl });
-    const ordersRes = await lsFetch(ordersUrl);
+    if (!customerId) {
+      log("No Polar customer found");
+      return new Response(JSON.stringify({ credited: false, credits_added: 0, balance: 0, purchase_count: 0 }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const ordersRes = await polarFetch(`/orders?customer_id=${customerId}&limit=25&sorting=-created_at`);
     if (!ordersRes.ok) throw new Error(`Failed to fetch orders: ${ordersRes.status}`);
     const ordersData = await ordersRes.json();
-    const orders = ordersData.data || [];
+    const orders = ordersData.items || [];
     log("Found orders", { count: orders.length });
-
-    // Load variant → credit_packages mapping
-    const { data: allPackages } = await supabaseAdmin.from("credit_packages").select("*").eq("is_active", true);
-    const variantMap = new Map<string, any>();
-    for (const pkg of (allPackages || [])) {
-      if (pkg.stripe_price_id) variantMap.set(String(pkg.stripe_price_id), pkg);
-    }
 
     let totalCredited = 0;
 
     for (const order of orders) {
       const orderId = String(order.id);
-      const attrs = order.attributes;
-      if (attrs.status !== "paid") continue;
+      if (order.status !== "paid") continue;
 
-      // Check custom data for credits info
-      const meta = attrs.meta?.custom_data || attrs.meta?.custom || attrs.meta || {};
-      
-      // Only process orders belonging to this user
-      if (meta.user_id && meta.user_id !== user.id) continue;
-
+      // Extract credits from metadata
+      const meta = order.metadata || {};
       let credits = parseInt(meta.credits || "0");
       let bonusCredits = parseInt(meta.bonus_credits || "0");
 
-      // If no meta credits, try variant mapping
-      if (credits <= 0) {
-        const firstItem = attrs.first_order_item;
-        if (firstItem?.variant_id) {
-          const pkg = variantMap.get(String(firstItem.variant_id));
-          if (pkg) {
-            credits = pkg.credits;
-            bonusCredits = pkg.bonus_credits;
-          }
-        }
+      // Fallback: check product metadata
+      if (credits <= 0 && order.product?.metadata) {
+        credits = parseInt(order.product.metadata.credits || "0");
+        bonusCredits = parseInt(order.product.metadata.bonus_credits || "0");
       }
 
       const totalCredits = credits + bonusCredits;
@@ -134,7 +129,7 @@ serve(async (req) => {
         description: `Purchased ${credits} credits${bonusCredits > 0 ? ` + ${bonusCredits} bonus` : ""}`,
         metadata: {
           package_id: meta.package_id || null,
-          ls_order_id: orderId,
+          polar_order_id: orderId,
           credits,
           bonus_credits: bonusCredits,
           verified_at: new Date().toISOString(),

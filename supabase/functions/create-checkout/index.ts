@@ -6,17 +6,17 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const LS_API = "https://api.lemonsqueezy.com/v1";
+const POLAR_API = "https://api.polar.sh/v1";
 
-const lsFetch = async (path: string, options: RequestInit = {}) => {
-  const key = Deno.env.get("LEMONSQUEEZY_API_KEY");
-  if (!key) throw new Error("LEMONSQUEEZY_API_KEY not set");
-  return fetch(`${LS_API}${path}`, {
+const polarFetch = async (path: string, options: RequestInit = {}) => {
+  const token = Deno.env.get("POLAR_ACCESS_TOKEN");
+  if (!token) throw new Error("POLAR_ACCESS_TOKEN not set");
+  return fetch(`${POLAR_API}${path}`, {
     ...options,
     headers: {
-      "Accept": "application/vnd.api+json",
-      "Content-Type": "application/vnd.api+json",
-      "Authorization": `Bearer ${key}`,
+      "Authorization": `Bearer ${token}`,
+      "Content-Type": "application/json",
+      ...(options.headers || {}),
     },
   });
 };
@@ -26,45 +26,21 @@ const log = (step: string, d?: any) => console.log(`[CREATE-CHECKOUT] ${step}${d
 const PLAN_TIER_ORDER: Record<string, number> = { free: 0, starter: 1, pro: 2, business: 3, enterprise: 4 };
 const PLAN_CREDITS: Record<string, number> = { starter: 215, pro: 1075, business: 4300 };
 
-// ═══════════════════════════════════════════════════════
-// LS SUBSCRIPTION VARIANT MAP (synced from Lemon Squeezy)
-// ═══════════════════════════════════════════════════════
-
-const LS_SUBSCRIPTION_VARIANTS: Record<string, Record<string, { productId: string; variantId: string; priceCents: number }>> = {
-  starter: {
-    monthly: { productId: "840231", variantId: "1323972", priceCents: 900 },
-    yearly:  { productId: "840234", variantId: "1323977", priceCents: 10800 },
-  },
-  pro: {
-    monthly: { productId: "840240", variantId: "1323985", priceCents: 2900 },
-    yearly:  { productId: "840246", variantId: "1323992", priceCents: 34800 },
-  },
-  business: {
-    monthly: { productId: "840249", variantId: "1323995", priceCents: 7900 },
-    yearly:  { productId: "840253", variantId: "1324000", priceCents: 94800 },
-  },
-};
-
-// Yearly discount coupons (auto-applied at checkout)
-const YEARLY_DISCOUNT_CODES: Record<string, string> = { starter: "YEARLY15", pro: "YEARLY30", business: "YEARLY33" };
-
-const resolveDiscountId = async (storeId: string, code: string): Promise<string | null> => {
-  try {
-    const res = await lsFetch(`/discounts?filter[store_id]=${storeId}&filter[code]=${code}`);
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data.data?.[0]?.id ? String(data.data[0].id) : null;
-  } catch {
-    return null;
-  }
-};
-
-const getStoreId = async (): Promise<string> => {
-  const res = await lsFetch("/stores");
-  if (!res.ok) throw new Error("Failed to fetch stores");
+// Find subscription product by metadata
+const findSubscriptionProduct = async (plan: string, cycle: string): Promise<{ productId: string; priceId: string } | null> => {
+  const res = await polarFetch("/products?limit=100");
+  if (!res.ok) throw new Error("Failed to fetch Polar products");
   const data = await res.json();
-  if (!data.data?.length) throw new Error("No store found");
-  return String(data.data[0].id);
+  const products = data.items || [];
+
+  for (const product of products) {
+    const meta = product.metadata || {};
+    if (meta.type === "subscription" && meta.plan === plan && meta.cycle === cycle) {
+      const priceId = product.prices?.[0]?.id;
+      if (priceId) return { productId: product.id, priceId };
+    }
+  }
+  return null;
 };
 
 // Detect plan from product name (for existing subscriptions)
@@ -77,6 +53,14 @@ const detectPlan = (productName: string): { plan: string; cycle: string } => {
   else if (name.includes("starter")) plan = "starter";
   if (name.includes("yearly") || name.includes("year")) cycle = "yearly";
   return { plan, cycle };
+};
+
+// Find Polar customer by external ID
+const findCustomer = async (externalId: string): Promise<string | null> => {
+  const res = await polarFetch(`/customers?external_id=${encodeURIComponent(externalId)}&limit=1`);
+  if (!res.ok) return null;
+  const data = await res.json();
+  return data.items?.[0]?.id || null;
 };
 
 serve(async (req) => {
@@ -103,25 +87,28 @@ serve(async (req) => {
 
     const origin = req.headers.get("origin") || "https://uplyze.ai";
     const cycle = billingCycle === "yearly" ? "yearly" : "monthly";
-    const storeId = await getStoreId();
 
-    // Resolve target subscription variant from hardcoded map
-    const planVariants = LS_SUBSCRIPTION_VARIANTS[planId];
-    if (!planVariants) throw new Error(`Unknown plan: ${planId}`);
-    const target = planVariants[cycle];
-    if (!target) throw new Error(`No variant for ${planId}/${cycle}`);
-    log("Target variant", { planId, cycle, productId: target.productId, variantId: target.variantId });
+    // Find target subscription product
+    const target = await findSubscriptionProduct(planId, cycle);
+    if (!target) throw new Error(`No Polar subscription product found for ${planId}/${cycle}`);
+    log("Target product", { planId, cycle, productId: target.productId, priceId: target.priceId });
 
-    // Check existing subscription
-    const subsRes = await lsFetch(`/subscriptions?filter[store_id]=${storeId}&filter[user_email]=${encodeURIComponent(user.email)}&filter[status]=active`);
-    const subsData = subsRes.ok ? await subsRes.json() : { data: [] };
-    const existingSub = subsData.data?.[0] || null;
-
+    // Check existing subscription via Polar
+    const customerId = await findCustomer(user.id);
+    let existingSub: any = null;
     let detectedCurrentPlanId = "free";
-    if (existingSub) {
-      const detected = detectPlan(existingSub.attributes.product_name || "");
-      detectedCurrentPlanId = detected.plan;
-      log("Existing subscription found", { subId: existingSub.id, currentPlan: detectedCurrentPlanId });
+
+    if (customerId) {
+      const subsRes = await polarFetch(`/subscriptions?customer_id=${customerId}&active=true&limit=1`);
+      if (subsRes.ok) {
+        const subsData = await subsRes.json();
+        existingSub = subsData.items?.[0] || null;
+        if (existingSub) {
+          const detected = detectPlan(existingSub.product?.name || "");
+          detectedCurrentPlanId = detected.plan;
+          log("Existing subscription found", { subId: existingSub.id, currentPlan: detectedCurrentPlanId });
+        }
+      }
     }
 
     const currentTier = PLAN_TIER_ORDER[detectedCurrentPlanId] ?? 0;
@@ -136,18 +123,12 @@ serve(async (req) => {
       });
     }
 
-    // UPGRADE: change variant, invoice immediately
+    // UPGRADE: update subscription product price
     if (existingSub && isUpgrade) {
-      log("Upgrading subscription", { subId: existingSub.id, newVariant: target.variantId });
-      const updateRes = await lsFetch(`/subscriptions/${existingSub.id}`, {
+      log("Upgrading subscription", { subId: existingSub.id, newPrice: target.priceId });
+      const updateRes = await polarFetch(`/subscriptions/${existingSub.id}`, {
         method: "PATCH",
-        body: JSON.stringify({
-          data: {
-            type: "subscriptions",
-            id: String(existingSub.id),
-            attributes: { variant_id: Number(target.variantId), invoice_immediately: true },
-          },
-        }),
+        body: JSON.stringify({ product_price_id: target.priceId }),
       });
       if (!updateRes.ok) throw new Error(`Upgrade failed: ${await updateRes.text()}`);
 
@@ -166,18 +147,12 @@ serve(async (req) => {
       });
     }
 
-    // DOWNGRADE: change variant, no proration
+    // DOWNGRADE: update subscription
     if (existingSub && isDowngrade) {
-      log("Downgrading subscription", { subId: existingSub.id, newVariant: target.variantId });
-      const updateRes = await lsFetch(`/subscriptions/${existingSub.id}`, {
+      log("Downgrading subscription", { subId: existingSub.id, newPrice: target.priceId });
+      const updateRes = await polarFetch(`/subscriptions/${existingSub.id}`, {
         method: "PATCH",
-        body: JSON.stringify({
-          data: {
-            type: "subscriptions",
-            id: String(existingSub.id),
-            attributes: { variant_id: Number(target.variantId), disable_prorations: true },
-          },
-        }),
+        body: JSON.stringify({ product_price_id: target.priceId }),
       });
       if (!updateRes.ok) throw new Error(`Downgrade failed: ${await updateRes.text()}`);
       return new Response(JSON.stringify({ downgraded: true, message: `Downgraded to ${planId}. Changes take effect at next renewal.` }), {
@@ -188,58 +163,33 @@ serve(async (req) => {
     // NEW SUBSCRIPTION: cancel existing if any, create checkout
     if (existingSub) {
       log("Canceling existing subscription", { subId: existingSub.id });
-      await lsFetch(`/subscriptions/${existingSub.id}`, { method: "DELETE" });
+      await polarFetch(`/subscriptions/${existingSub.id}`, { method: "DELETE" });
     }
 
     const credits = PLAN_CREDITS[planId] || 0;
 
-    // Auto-apply yearly discount coupon
-    let yearlyDiscountId: string | null = null;
-    if (cycle === "yearly" && YEARLY_DISCOUNT_CODES[planId]) {
-      yearlyDiscountId = await resolveDiscountId(storeId, YEARLY_DISCOUNT_CODES[planId]);
-      log("Yearly discount", { code: YEARLY_DISCOUNT_CODES[planId], discountId: yearlyDiscountId });
-    }
-
-    const checkoutBody: any = {
-      data: {
-        type: "checkouts",
-        attributes: {
-          checkout_data: {
-            email: user.email,
-            custom: {
-              user_id: user.id,
-              plan_id: planId,
-              billing_cycle: cycle,
-              credits: String(credits),
-              type: "subscription",
-            },
-            ...(yearlyDiscountId ? { discount_code: YEARLY_DISCOUNT_CODES[planId] } : {}),
-          },
-          product_options: {
-            redirect_url: `${origin}/profile?subscription=success&plan=${planId}`,
-            receipt_button_text: "Back to Uplyze",
-          },
-          checkout_options: { embed: true, dark: true, media: true, logo: true, discount: false },
-        },
-        relationships: {
-          store: { data: { type: "stores", id: storeId } },
-          variant: { data: { type: "variants", id: target.variantId } },
-        },
-      },
-    };
-
-    if (yearlyDiscountId) {
-      checkoutBody.data.relationships.discount = { data: { type: "discounts", id: yearlyDiscountId } };
-    }
-
-    const checkoutRes = await lsFetch("/checkouts", {
+    const checkoutRes = await polarFetch("/checkouts/custom", {
       method: "POST",
-      body: JSON.stringify(checkoutBody),
+      body: JSON.stringify({
+        product_price_id: target.priceId,
+        customer_email: user.email,
+        customer_external_id: user.id,
+        metadata: {
+          user_id: user.id,
+          plan_id: planId,
+          billing_cycle: cycle,
+          credits: String(credits),
+          type: "subscription",
+        },
+        success_url: `${origin}/profile?subscription=success&plan=${planId}`,
+        allow_discount_codes: false,
+        embed_origin: origin,
+      }),
     });
 
     if (!checkoutRes.ok) throw new Error(`Checkout failed: ${await checkoutRes.text()}`);
     const checkout = await checkoutRes.json();
-    const checkoutUrl = checkout.data?.attributes?.url;
+    const checkoutUrl = checkout.url;
     log("Checkout created", { url: checkoutUrl });
 
     return new Response(JSON.stringify({ checkoutUrl }), {
