@@ -27,6 +27,8 @@ import Pricing from "./pages/Pricing";
 import AdminOnboarding from "./pages/AdminOnboarding";
 import IGLoginPopup from "./pages/IGLoginPopup";
 import Maintenance from "./pages/Maintenance";
+import Blog from "./pages/Blog";
+import BlogPost from "./pages/BlogPost";
 
 const OWNER_EMAIL = "contact@uplyze.ai";
 
@@ -92,6 +94,8 @@ const AppContent = () => {
         <Route path="/terms" element={<TermsAndConditions />} />
         <Route path="/social/u/:username" element={<SocialProfile />} />
         <Route path="/ig-login" element={<IGLoginPopup />} />
+        <Route path="/blog" element={<Blog />} />
+        <Route path="/blog/:slug" element={<BlogPost />} />
         <Route path="/maintenance" element={<Maintenance />} />
       </Routes>
     </MaintenanceGuard>
