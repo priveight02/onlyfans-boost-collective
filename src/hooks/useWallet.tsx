@@ -91,7 +91,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       )
       .subscribe();
 
-    // Refresh wallet when user returns to this tab (e.g. after Stripe checkout)
+    // Refresh wallet when user returns to this tab (e.g. after Polar checkout)
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') {
         refreshWallet();

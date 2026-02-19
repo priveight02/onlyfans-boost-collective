@@ -93,20 +93,47 @@ serve(async (req) => {
     const sub = activeSub || canceledSub;
 
     if (sub) {
-      // Get product details
+      // Get product details to extract plan metadata
       let productName = sub.product?.name || "Unknown Plan";
       const productId = sub.product_id || sub.product?.id;
+      let planId: string | null = null;
+      let cycleInfo: string | null = null;
+
+      // Try to get metadata from the product
+      if (sub.product?.metadata) {
+        planId = sub.product.metadata.plan || null;
+        cycleInfo = sub.product.metadata.cycle || null;
+      }
+
+      // If no product metadata inline, fetch the product directly
+      if (!planId && productId) {
+        try {
+          const productRes = await polarFetch(`/products/${productId}`);
+          if (productRes.ok) {
+            const productData = await productRes.json();
+            planId = productData.metadata?.plan || null;
+            cycleInfo = productData.metadata?.cycle || null;
+            productName = productData.name || productName;
+          }
+        } catch {}
+      }
 
       subscription = {
         id: sub.id,
         status: sub.status,
         product_id: productId,
         product_name: productName,
+        plan_id: planId,
+        cycle: cycleInfo,
         price_id: sub.price_id || "",
         current_period_start: sub.current_period_start,
         current_period_end: sub.current_period_end,
         cancel_at_period_end: sub.cancel_at_period_end || false,
-        discount: null, // Polar handles discounts differently
+        discount: sub.discount ? {
+          coupon_name: sub.discount.name || sub.discount.code || "Discount",
+          percent_off: sub.discount.amount || null,
+          amount_off: null,
+        } : null,
         amount: sub.price?.price_amount || sub.amount || 0,
         currency: sub.price?.price_currency || "usd",
         interval: sub.recurring_interval || sub.product?.recurring_interval || "month",

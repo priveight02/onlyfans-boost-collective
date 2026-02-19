@@ -157,15 +157,16 @@ const PlanCreditsTab = ({ onSwitchTab }: { onSwitchTab?: (tab: string) => void }
       }
 
       if (data.subscription) {
-        const priceId = data.subscription.price_id;
-        const productId = data.subscription.product_id;
-        // Match price_id or product_id to our plan IDs
-        // Match via metadata or product name from Polar
-        const subPlanId = data.subscription.plan_id || data.subscription.metadata?.plan_id;
+        // Match via plan_id from Polar product metadata (set by billing-info)
+        const subPlanId = data.subscription.plan_id;
         if (subPlanId && PLAN_IDS.includes(subPlanId as any)) {
           setActivePlanId(subPlanId);
         } else {
-          console.warn("Unknown subscription product/price", { priceId, productId });
+          // Fallback: try extracting from product_name  
+          const name = (data.subscription.product_name || "").toLowerCase();
+          const matchedPlan = PLAN_IDS.find(p => name.includes(p));
+          if (matchedPlan) setActivePlanId(matchedPlan);
+          else console.warn("Unknown subscription product", data.subscription);
         }
       } else {
         setActivePlanId(null);

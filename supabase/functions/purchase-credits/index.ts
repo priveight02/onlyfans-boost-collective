@@ -38,6 +38,17 @@ const getVolumeDiscount = (credits: number): number => {
   return 0;
 };
 
+// Fetch matching Polar discount by code
+const findDiscountByCode = async (code: string): Promise<string | null> => {
+  try {
+    const res = await polarFetch(`/discounts?limit=50`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    const match = (data.items || []).find((d: any) => d.code?.toLowerCase() === code.toLowerCase());
+    return match?.id || null;
+  } catch { return null; }
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -112,29 +123,48 @@ serve(async (req) => {
 
       logStep("Price calculated", { totalCents, volumeDiscount, returningDiscount: returningDiscountPercent });
 
-      // Create checkout with ad-hoc pricing
+      // Build checkout body
+      const checkoutBody: any = {
+        products: [customProduct.id],
+        prices: {
+          [customProduct.id]: [{
+            amount_type: "fixed",
+            price_amount: totalCents,
+            price_currency: "usd",
+          }],
+        },
+        customer_email: user.email,
+        external_customer_id: user.id,
+        embed_origin: origin,
+        metadata: {
+          user_id: user.id,
+          package_id: "custom",
+          credits: String(customCredits),
+          bonus_credits: "0",
+          is_returning: String(returningDiscountPercent > 0),
+          volume_discount: String(Math.round(volumeDiscount * 100)),
+          retention_used: String(usedRetention || false),
+        },
+      };
+
+      // Attach Polar discount if applicable
+      if (useRetentionDiscount) {
+        const discountId = await findDiscountByCode("STAY50");
+        if (discountId) checkoutBody.discount_id = discountId;
+      } else if (returningDiscountPercent === 30) {
+        const discountId = await findDiscountByCode("LOYALTY30");
+        if (discountId) checkoutBody.discount_id = discountId;
+      } else if (returningDiscountPercent === 20) {
+        const discountId = await findDiscountByCode("LOYALTY20");
+        if (discountId) checkoutBody.discount_id = discountId;
+      } else if (returningDiscountPercent === 10) {
+        const discountId = await findDiscountByCode("LOYALTY10");
+        if (discountId) checkoutBody.discount_id = discountId;
+      }
+
       const checkoutRes = await polarFetch("/checkouts", {
         method: "POST",
-        body: JSON.stringify({
-          products: [customProduct.id],
-          prices: {
-            [customProduct.id]: [{
-              amount_type: "fixed",
-              price_amount: totalCents,
-              price_currency: "usd",
-            }],
-          },
-          customer_email: user.email,
-          external_customer_id: user.id,
-          embed_origin: origin,
-          metadata: {
-            user_id: user.id,
-            package_id: "custom",
-            credits: String(customCredits),
-            bonus_credits: "0",
-            is_returning: String(returningDiscountPercent > 0),
-          },
-        }),
+        body: JSON.stringify(checkoutBody),
       });
 
       if (!checkoutRes.ok) {
@@ -169,16 +199,19 @@ serve(async (req) => {
     // Calculate discounted price for ad-hoc pricing
     let finalPrice = pkg.price_cents;
     let usedRetention = false;
+    let appliedDiscountCode: string | null = null;
 
     if (useRetentionDiscount && !retentionAlreadyUsed) {
       finalPrice = Math.round(finalPrice * 0.5);
       usedRetention = true;
+      appliedDiscountCode = "STAY50";
       await supabaseAdmin.from("wallets").update({ retention_credits_used: true }).eq("user_id", user.id);
       logStep("Applied retention 50% discount");
     } else if (useRetentionDiscount && retentionAlreadyUsed) {
       throw new Error("Retention discount already used.");
     } else if (returningDiscountPercent > 0) {
       finalPrice = Math.round(finalPrice * (1 - returningDiscountPercent / 100));
+      appliedDiscountCode = returningDiscountPercent === 30 ? "LOYALTY30" : returningDiscountPercent === 20 ? "LOYALTY20" : "LOYALTY10";
       logStep("Applied loyalty discount", { percent: returningDiscountPercent });
     }
 
@@ -194,6 +227,8 @@ serve(async (req) => {
         credits: String(pkg.credits),
         bonus_credits: String(pkg.bonus_credits),
         is_returning: String(returningDiscountPercent > 0),
+        discount_code: appliedDiscountCode || "",
+        retention_used: String(usedRetention),
       },
     };
 
@@ -206,6 +241,12 @@ serve(async (req) => {
           price_currency: "usd",
         }],
       };
+    }
+
+    // Attach Polar discount object if available
+    if (appliedDiscountCode) {
+      const discountId = await findDiscountByCode(appliedDiscountCode);
+      if (discountId) checkoutBody.discount_id = discountId;
     }
 
     const checkoutRes = await polarFetch("/checkouts", {
