@@ -34,11 +34,7 @@ function buildConfirmationUrl(emailData: EmailPayload["email_data"]): string {
 }
 
 // SVG social icons as data URIs
-const IG_ICON = `<img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23818cf8' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='2' y='2' width='20' height='20' rx='5' ry='5'/%3E%3Cpath d='M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z'/%3E%3Cline x1='17.5' y1='6.5' x2='17.51' y2='6.5'/%3E%3C/svg%3E" width="16" height="16" alt="IG" style="vertical-align:middle;" />`;
-const X_ICON = `<img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='%23818cf8'%3E%3Cpath d='M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z'/%3E%3C/svg%3E" width="14" height="14" alt="X" style="vertical-align:middle;" />`;
-const TIKTOK_ICON = `<img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23818cf8' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5'/%3E%3C/svg%3E" width="14" height="14" alt="TikTok" style="vertical-align:middle;" />`;
-const MAIL_ICON = `<img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='15' height='15' viewBox='0 0 24 24' fill='none' stroke='%23818cf8' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='2' y='4' width='20' height='16' rx='2'/%3E%3Cpath d='m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7'/%3E%3C/svg%3E" width="15" height="15" alt="Email" style="vertical-align:middle;" />`;
-
+const IG_ICON = `<img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%23818cf8' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='2' y='2' width='20' height='20' rx='5' ry='5'/%3E%3Cpath d='M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z'/%3E%3Cline x1='17.5' y1='6.5' x2='17.51' y2='6.5'/%3E%3C/svg%3E" width="18" height="18" alt="Instagram" style="vertical-align:middle;" />`;
 function socialIcon(icon: string, href: string) {
   return `<td style="padding:0 4px;">
     <a href="${href}" style="display:inline-block;width:36px;height:36px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;text-align:center;text-decoration:none;line-height:36px;" target="_blank">${icon}</a>
@@ -149,7 +145,7 @@ function getEmailHtml(actionType: string, confirmUrl: string): { subject: string
                     <a href="${SITE_URL}" style="display:inline-block;padding:7px 16px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;color:rgba(255,255,255,0.5);font-size:12px;font-weight:500;text-decoration:none;margin:0 3px 6px 3px;">Home</a>
                     <a href="${SITE_URL}/services" style="display:inline-block;padding:7px 16px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;color:rgba(255,255,255,0.5);font-size:12px;font-weight:500;text-decoration:none;margin:0 3px 6px 3px;">Services</a>
                     <a href="${SITE_URL}/pricing" style="display:inline-block;padding:7px 16px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;color:rgba(255,255,255,0.5);font-size:12px;font-weight:500;text-decoration:none;margin:0 3px 6px 3px;">Pricing</a>
-                    <a href="${SITE_URL}/admin" style="display:inline-block;padding:7px 16px;background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.25);border-radius:10px;color:#a5b4fc;font-size:12px;font-weight:500;text-decoration:none;margin:0 3px 6px 3px;">CRM Panel</a>
+                    <a href="${SITE_URL}/platform" style="display:inline-block;padding:7px 16px;background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.25);border-radius:10px;color:#a5b4fc;font-size:12px;font-weight:500;text-decoration:none;margin:0 3px 6px 3px;">CRM Panel</a>
                   </td>
                 </tr>
                 <tr>
@@ -157,9 +153,6 @@ function getEmailHtml(actionType: string, confirmUrl: string): { subject: string
                     <table cellpadding="0" cellspacing="0" role="presentation" style="margin:0 auto;">
                       <tr>
                         ${socialIcon(IG_ICON, "https://instagram.com/uplyze.ai")}
-                        ${socialIcon(X_ICON, "https://x.com/uplyze")}
-                        ${socialIcon(TIKTOK_ICON, "https://tiktok.com/@uplyze")}
-                        ${socialIcon(MAIL_ICON, "mailto:contact@uplyze.ai")}
                       </tr>
                     </table>
                   </td>
