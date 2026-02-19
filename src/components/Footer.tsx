@@ -42,6 +42,14 @@ const Footer = () => {
                 <Mail className="h-3.5 w-3.5 text-white/60 group-hover:text-white transition-colors" />
                 <span className="text-white/60 group-hover:text-white text-xs font-medium transition-colors">Contact</span>
               </a>
+              <Link to="/about"
+                className="group flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.05] border border-white/[0.08] hover:bg-white/[0.1] hover:border-white/[0.15] transition-all duration-300">
+                <span className="text-white/60 group-hover:text-white text-xs font-medium transition-colors">About</span>
+              </Link>
+              <Link to="/blog"
+                className="group flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.05] border border-white/[0.08] hover:bg-white/[0.1] hover:border-white/[0.15] transition-all duration-300">
+                <span className="text-white/60 group-hover:text-white text-xs font-medium transition-colors">Blog</span>
+              </Link>
             </div>
           </div>
 
@@ -91,11 +99,6 @@ const Footer = () => {
                 className="mt-3 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white/[0.06] border border-white/[0.08] hover:bg-white/[0.12] hover:border-white/[0.15] text-white/70 hover:text-white text-xs font-medium transition-all duration-300 group">
                 Get Started <ArrowUpRight className="h-3 w-3 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
               </Link>
-              <div className="flex items-center gap-3 mt-3">
-                <Link to="/about" className="text-white/40 hover:text-white text-xs transition-colors">About</Link>
-                <span className="w-0.5 h-0.5 rounded-full bg-white/25" />
-                <Link to="/blog" className="text-white/40 hover:text-white text-xs transition-colors">Blog</Link>
-              </div>
             </div>
           </div>
         </div>
