@@ -214,24 +214,31 @@ const BlogPost = () => {
             const trimmed = line.trim();
             if (!trimmed) return null;
             if (trimmed.startsWith('## ')) return (
-              <h2 key={i} className="text-[1.65rem] font-bold text-white mt-12 mb-4 tracking-tight">{trimmed.replace('## ', '')}</h2>
+              <h2 key={i} className="text-[1.65rem] font-bold text-white mt-14 mb-5 tracking-tight flex items-center gap-3">
+                <span className="w-1 h-7 rounded-full bg-gradient-to-b from-primary to-blue-400 flex-shrink-0" />
+                {trimmed.replace('## ', '')}
+              </h2>
             );
             if (trimmed.startsWith('### ')) return (
-              <h3 key={i} className="text-lg font-semibold text-white/90 mt-8 mb-3">{trimmed.replace('### ', '')}</h3>
+              <h3 key={i} className="text-lg font-semibold text-white/90 mt-8 mb-3 pl-4 border-l-2 border-primary/30">{trimmed.replace('### ', '')}</h3>
             );
             if (trimmed.startsWith('- **')) {
               const match = trimmed.match(/^- \*\*(.+?)\*\*:?\s*(.*)/);
               if (match) return (
-                <li key={i} className="text-[hsl(215,25%,76%)] leading-relaxed text-[15px] list-disc ml-5">
-                  <strong className="text-white/90 font-semibold">{match[1]}</strong>{match[2] ? `: ${match[2]}` : ''}
+                <li key={i} className="text-[hsl(215,25%,76%)] leading-relaxed text-[15px] ml-5 flex items-start gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary/60 mt-2 flex-shrink-0" />
+                  <span><strong className="text-white/90 font-semibold">{match[1]}</strong>{match[2] ? `: ${match[2]}` : ''}</span>
                 </li>
               );
             }
             if (trimmed.startsWith('- ')) return (
-              <li key={i} className="text-[hsl(215,25%,76%)] leading-relaxed text-[15px] list-disc ml-5">{trimmed.replace('- ', '')}</li>
+              <li key={i} className="text-[hsl(215,25%,76%)] leading-relaxed text-[15px] ml-5 flex items-start gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-primary/40 mt-2 flex-shrink-0" />
+                <span>{trimmed.replace('- ', '')}</span>
+              </li>
             );
             if (trimmed.startsWith('**') && trimmed.endsWith('**')) return (
-              <p key={i} className="text-white/90 font-semibold leading-relaxed text-[15px]">{trimmed.replace(/\*\*/g, '')}</p>
+              <p key={i} className="text-white/90 font-semibold leading-relaxed text-[15px] py-2 px-4 rounded-lg bg-primary/[0.06] border-l-2 border-primary/30">{trimmed.replace(/\*\*/g, '')}</p>
             );
             // Handle inline bold
             const parts = trimmed.split(/(\*\*.+?\*\*)/g);
