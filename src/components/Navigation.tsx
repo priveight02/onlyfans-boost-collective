@@ -59,13 +59,7 @@ const Navigation = () => {
           <div className="flex justify-between h-16">
             <div className="flex items-center ml-36 lg:ml-52">
               <Link to="/" className="flex items-center group transition-all duration-300 hover:scale-105">
-                <div className="relative w-[52px] h-[52px] overflow-hidden rounded-full">
-                  <img src="/lovable-uploads/uplyze-logo.png" alt="Uplyze Logo" className="w-full h-full object-contain rounded-full relative z-10" />
-                  <div className="absolute inset-0 z-20 pointer-events-none rounded-full animate-logo-shimmer" style={{
-                    background: 'linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.25) 50%, transparent 60%)',
-                    backgroundSize: '200% 100%',
-                  }} />
-                </div>
+                <img src="/lovable-uploads/uplyze-logo.png" alt="Uplyze Logo" className="h-10 w-auto object-contain" />
               </Link>
             </div>
 
