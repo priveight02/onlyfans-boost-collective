@@ -68,7 +68,10 @@
   }
 }
 
-/* Custom thin scrollbar for all elements */
+/* Custom adaptive scrollbar - hidden by default, visible on scroll */
+* {
+  scrollbar-width: none; /* Firefox: hide by default */
+}
 *::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -77,14 +80,27 @@
   background: transparent;
 }
 *::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
+  background: transparent;
   border-radius: 3px;
-}
-*::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.2);
+  transition: background 0.3s ease;
 }
 *::-webkit-scrollbar-corner {
   background: transparent;
+}
+
+/* Show scrollbar when .scrolling class is present */
+.scrolling,
+.scrolling * {
+  scrollbar-width: thin !important;
+  scrollbar-color: rgba(255, 255, 255, 0.12) transparent !important;
+}
+.scrolling::-webkit-scrollbar-thumb,
+.scrolling *::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+.scrolling::-webkit-scrollbar-thumb:hover,
+.scrolling *::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2) !important;
 }
 
 html {
