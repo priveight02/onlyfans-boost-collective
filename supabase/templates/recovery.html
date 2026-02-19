@@ -4,91 +4,124 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
-<body style="margin:0;padding:0;background-color:#060a14;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background-color:#060a14;">
+<body style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;-webkit-font-smoothing:antialiased;">
+  <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background-color:#060a14;background-image:radial-gradient(ellipse at 20% 0%,rgba(99,102,241,0.12) 0%,transparent 50%),radial-gradient(ellipse at 80% 100%,rgba(139,92,246,0.10) 0%,transparent 50%),radial-gradient(ellipse at 50% 50%,rgba(59,130,246,0.06) 0%,transparent 60%);">
     <tr>
-      <td align="center" style="padding:40px 16px;">
-        <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="max-width:540px;background:linear-gradient(180deg,rgba(255,255,255,0.04) 0%,rgba(255,255,255,0.02) 100%);border:1px solid rgba(255,255,255,0.06);border-radius:20px;overflow:hidden;">
-          <!-- Gradient accent stripe -->
-          <tr>
-            <td style="height:3px;background:linear-gradient(90deg,#3b82f6,#6366f1,#8b5cf6);"></td>
-          </tr>
-          <tr>
-            <td style="padding:40px 36px 32px 36px;">
-              <!-- Header with logo + verified badge -->
-              <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
-                <tr>
-                  <td align="center" style="padding-bottom:8px;">
-                    <img src="https://ufsnuobtvkciydftsyff.supabase.co/storage/v1/object/public/email-assets/uplyze-logo.png" alt="Uplyze" width="52" height="52" style="border-radius:14px;display:inline-block;" />
-                  </td>
-                </tr>
-                <tr>
-                  <td align="center" style="padding-bottom:4px;">
-                    <span style="color:#ffffff;font-size:18px;font-weight:700;letter-spacing:0.5px;">Uplyze</span>
-                  </td>
-                </tr>
-                <tr>
-                  <td align="center" style="padding-bottom:28px;">
-                    <span style="display:inline-block;padding:4px 14px;background:rgba(139,92,246,0.12);border:1px solid rgba(139,92,246,0.2);border-radius:20px;color:#a78bfa;font-size:10px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;">
-                      <!-- checkmark svg -->
-                      <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23a78bfa' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E" width="12" height="12" style="vertical-align:middle;margin-right:4px;" /> Verified
-                    </span>
-                  </td>
-                </tr>
-              </table>
+      <td align="center" style="padding:48px 16px;">
 
-              <!-- Content card -->
-              <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:16px;">
+        <!-- Outer wrapper with subtle glow -->
+        <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="max-width:560px;">
+          <tr>
+            <td>
+              <!-- Main card -->
+              <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background:linear-gradient(180deg,rgba(15,17,30,0.95) 0%,rgba(10,12,22,0.98) 100%);border:1px solid rgba(99,102,241,0.15);border-radius:24px;overflow:hidden;box-shadow:0 0 80px rgba(99,102,241,0.08),0 0 40px rgba(139,92,246,0.05);">
+                
+                <!-- Top gradient line -->
                 <tr>
-                  <td style="padding:32px 28px;">
-                    <h1 style="color:#ffffff;font-size:22px;font-weight:700;margin:0 0 8px 0;text-align:center;">Reset Your Password</h1>
-                    <p style="color:rgba(255,255,255,0.55);font-size:14px;text-align:center;margin:0 0 28px 0;line-height:1.6;">We received a request to reset your password. Click below to set a new one.</p>
-                    <div style="text-align:center;margin-bottom:24px;">
-                      <a href="{{ .ConfirmationURL }}" style="display:inline-block;padding:13px 36px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#ffffff;font-size:14px;font-weight:600;text-decoration:none;border-radius:12px;letter-spacing:0.3px;">Reset Password</a>
-                    </div>
-                    <p style="color:rgba(255,255,255,0.3);font-size:12px;text-align:center;margin:0;">This link expires in 24 hours. If you didn't request this, ignore this email.</p>
-                  </td>
+                  <td style="height:2px;background:linear-gradient(90deg,transparent,#6366f1 20%,#8b5cf6 50%,#6366f1 80%,transparent);"></td>
                 </tr>
-              </table>
 
-              <!-- Footer -->
-              <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="margin-top:32px;">
+                <!-- Logo & Branding -->
                 <tr>
-                  <td align="center" style="padding-bottom:16px;">
-                    <a href="https://uplyze.ai" style="display:inline-block;padding:6px 14px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:20px;color:rgba(255,255,255,0.5);font-size:11px;text-decoration:none;margin:0 3px;">Home</a>
-                    <a href="https://uplyze.ai/services" style="display:inline-block;padding:6px 14px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:20px;color:rgba(255,255,255,0.5);font-size:11px;text-decoration:none;margin:0 3px;">Services</a>
-                    <a href="https://uplyze.ai/onboarding" style="display:inline-block;padding:6px 14px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:20px;color:rgba(255,255,255,0.5);font-size:11px;text-decoration:none;margin:0 3px;">Get Started</a>
-                    <a href="https://uplyze.ai/admin" style="display:inline-block;padding:6px 14px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:20px;color:rgba(255,255,255,0.5);font-size:11px;text-decoration:none;margin:0 3px;">CRM Panel</a>
+                  <td style="padding:36px 40px 0 40px;" align="center">
+                    <img src="https://ufsnuobtvkciydftsyff.supabase.co/storage/v1/object/public/email-assets/uplyze-logo.png" alt="Uplyze" width="56" height="56" style="border-radius:16px;display:block;" />
+                    <p style="color:#ffffff;font-size:20px;font-weight:700;margin:14px 0 6px 0;letter-spacing:0.3px;">Uplyze</p>
+                    <table cellpadding="0" cellspacing="0" role="presentation">
+                      <tr>
+                        <td style="padding:5px 16px;background:linear-gradient(135deg,rgba(99,102,241,0.15),rgba(139,92,246,0.15));border:1px solid rgba(99,102,241,0.25);border-radius:20px;">
+                          <span style="color:#a5b4fc;font-size:10px;font-weight:600;letter-spacing:1.8px;text-transform:uppercase;">AI-Powered Platform</span>
+                        </td>
+                      </tr>
+                    </table>
                   </td>
                 </tr>
+
+                <!-- Divider -->
                 <tr>
-                  <td align="center" style="padding-bottom:12px;">
-                    <!-- Social icons as inline SVG data URIs -->
-                    <a href="https://instagram.com/uplyze.ai" style="display:inline-block;margin:0 6px;">
-                      <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%236366f1' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='2' y='2' width='20' height='20' rx='5' ry='5'/%3E%3Cpath d='M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z'/%3E%3Cline x1='17.5' y1='6.5' x2='17.51' y2='6.5'/%3E%3C/svg%3E" width="20" height="20" alt="Instagram" />
+                  <td style="padding:24px 40px 0 40px;">
+                    <div style="height:1px;background:linear-gradient(90deg,transparent,rgba(99,102,241,0.3),transparent);"></div>
+                  </td>
+                </tr>
+
+                <!-- Content -->
+                <tr>
+                  <td style="padding:28px 40px 36px 40px;">
+                    <h1 style="color:#ffffff;font-size:24px;font-weight:700;margin:0 0 10px 0;text-align:center;">Reset Your Password</h1>
+                    <p style="color:rgba(255,255,255,0.55);font-size:15px;text-align:center;margin:0 0 32px 0;line-height:1.65;">We received a request to reset your password. Click below to set a new one.</p>
+                    
+                    <!-- CTA Button -->
+                    <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
+                      <tr>
+                        <td align="center">
+                          <a href="{{ .ConfirmationURL }}" style="display:inline-block;padding:14px 44px;background:linear-gradient(135deg,#6366f1 0%,#8b5cf6 100%);color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;border-radius:14px;letter-spacing:0.3px;box-shadow:0 4px 20px rgba(99,102,241,0.35),0 0 0 1px rgba(139,92,246,0.2);">Reset Password</a>
+                        </td>
+                      </tr>
+                    </table>
+                    
+                    <p style="color:rgba(255,255,255,0.28);font-size:12px;text-align:center;margin:24px 0 0 0;line-height:1.5;">This link expires in 24 hours. If you didn't request this, ignore this email.</p>
+                  </td>
+                </tr>
+
+                <!-- Divider -->
+                <tr>
+                  <td style="padding:0 40px;">
+                    <div style="height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.06),transparent);"></div>
+                  </td>
+                </tr>
+
+                <!-- Navigation Links -->
+                <tr>
+                  <td align="center" style="padding:24px 40px 16px 40px;">
+                    <a href="https://uplyze.ai" style="display:inline-block;padding:7px 16px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;color:rgba(255,255,255,0.5);font-size:12px;font-weight:500;text-decoration:none;margin:0 3px 6px 3px;">Home</a>
+                    <a href="https://uplyze.ai/services" style="display:inline-block;padding:7px 16px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;color:rgba(255,255,255,0.5);font-size:12px;font-weight:500;text-decoration:none;margin:0 3px 6px 3px;">Services</a>
+                    <a href="https://uplyze.ai/pricing" style="display:inline-block;padding:7px 16px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;color:rgba(255,255,255,0.5);font-size:12px;font-weight:500;text-decoration:none;margin:0 3px 6px 3px;">Pricing</a>
+                    <a href="https://uplyze.ai/admin" style="display:inline-block;padding:7px 16px;background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.25);border-radius:10px;color:#a5b4fc;font-size:12px;font-weight:500;text-decoration:none;margin:0 3px 6px 3px;">CRM Panel</a>
+                  </td>
+                </tr>
+
+                <!-- Social Icons - Real SVGs -->
+                <tr>
+                  <td align="center" style="padding:4px 40px 20px 40px;">
+                    <!-- Instagram -->
+                    <a href="https://instagram.com/uplyze.ai" style="display:inline-block;width:36px;height:36px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;text-align:center;line-height:36px;margin:0 4px;text-decoration:none;">
+                      <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23818cf8' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='2' y='2' width='20' height='20' rx='5' ry='5'/%3E%3Cpath d='M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z'/%3E%3Cline x1='17.5' y1='6.5' x2='17.51' y2='6.5'/%3E%3C/svg%3E" width="16" height="16" alt="IG" style="vertical-align:middle;" />
                     </a>
-                    <a href="https://x.com/uplyze" style="display:inline-block;margin:0 6px;">
-                      <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='%236366f1'%3E%3Cpath d='M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z'/%3E%3C/svg%3E" width="20" height="20" alt="X" />
+                    <!-- X/Twitter -->
+                    <a href="https://x.com/uplyze" style="display:inline-block;width:36px;height:36px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;text-align:center;line-height:36px;margin:0 4px;text-decoration:none;">
+                      <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='%23818cf8'%3E%3Cpath d='M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z'/%3E%3C/svg%3E" width="14" height="14" alt="X" style="vertical-align:middle;" />
                     </a>
-                    <a href="mailto:contact@uplyze.ai" style="display:inline-block;margin:0 6px;">
-                      <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%236366f1' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='2' y='4' width='20' height='16' rx='2'/%3E%3Cpath d='m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7'/%3E%3C/svg%3E" width="20" height="20" alt="Email" />
+                    <!-- TikTok -->
+                    <a href="https://tiktok.com/@uplyze" style="display:inline-block;width:36px;height:36px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;text-align:center;line-height:36px;margin:0 4px;text-decoration:none;">
+                      <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23818cf8' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5'/%3E%3C/svg%3E" width="14" height="14" alt="TikTok" style="vertical-align:middle;" />
+                    </a>
+                    <!-- Email -->
+                    <a href="mailto:contact@uplyze.ai" style="display:inline-block;width:36px;height:36px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;text-align:center;line-height:36px;margin:0 4px;text-decoration:none;">
+                      <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='15' height='15' viewBox='0 0 24 24' fill='none' stroke='%23818cf8' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='2' y='4' width='20' height='16' rx='2'/%3E%3Cpath d='m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7'/%3E%3C/svg%3E" width="15" height="15" alt="Email" style="vertical-align:middle;" />
                     </a>
                   </td>
                 </tr>
+
+                <!-- Bottom info -->
                 <tr>
-                  <td align="center">
-                    <p style="font-size:11px;color:rgba(255,255,255,0.25);margin:0 0 4px 0;">contact@uplyze.ai</p>
-                    <p style="font-size:10px;color:rgba(255,255,255,0.15);margin:0;">
+                  <td align="center" style="padding:0 40px 28px 40px;">
+                    <p style="font-size:12px;color:rgba(255,255,255,0.35);margin:0 0 6px 0;">contact@uplyze.ai</p>
+                    <p style="font-size:10px;color:rgba(255,255,255,0.18);margin:0;">
                       &copy; 2026 Uplyze. All rights reserved. &middot;
-                      <a href="https://uplyze.ai/privacy" style="color:rgba(255,255,255,0.2);text-decoration:none;">Privacy</a> &middot;
-                      <a href="https://uplyze.ai/terms" style="color:rgba(255,255,255,0.2);text-decoration:none;">Terms</a>
+                      <a href="https://uplyze.ai/privacy" style="color:rgba(255,255,255,0.25);text-decoration:none;">Privacy</a> &middot;
+                      <a href="https://uplyze.ai/terms" style="color:rgba(255,255,255,0.25);text-decoration:none;">Terms</a>
                     </p>
                   </td>
+                </tr>
+
+                <!-- Bottom gradient line -->
+                <tr>
+                  <td style="height:1px;background:linear-gradient(90deg,transparent,rgba(99,102,241,0.2),transparent);"></td>
                 </tr>
               </table>
             </td>
           </tr>
         </table>
+
       </td>
     </tr>
   </table>
