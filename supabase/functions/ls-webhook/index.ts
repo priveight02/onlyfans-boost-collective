@@ -266,31 +266,64 @@ serve(async (req) => {
       }
       case "order.refunded": {
         if (!userId) { log("order.refunded: no user found"); break; }
-        const { credits, bonus } = parseCredits(data);
-        const totalRefund = credits + bonus;
-        log("Order refunded", { userId, totalRefund, orderId: data?.id });
+        const orderId = String(data?.id);
+        const refId = `refund_${orderId}`;
 
-        if (totalRefund > 0) {
-          // Deduct credits if refunded
-          const refId = `refund_${data.id}`;
-          const { data: existing } = await supabase
-            .from("wallet_transactions").select("id").eq("reference_id", refId).limit(1);
-          if (!existing || existing.length === 0) {
-            await supabase.from("wallet_transactions").insert({
-              user_id: userId, amount: -totalRefund, type: "refund", reference_id: refId,
-              description: `Refund: -${totalRefund} credits`,
-              metadata: { order_id: data.id, refunded_at: new Date().toISOString() },
-            });
-            const { data: wallet } = await supabase.from("wallets")
-              .select("balance").eq("user_id", userId).maybeSingle();
-            if (wallet) {
-              await supabase.from("wallets").update({
-                balance: Math.max(0, wallet.balance - totalRefund),
-              }).eq("user_id", userId);
-            }
-            await notify(userId, "Order Refunded", `${totalRefund} credits have been deducted from your wallet due to a refund.`, "refund", { order_id: data.id, credits_deducted: totalRefund });
+        // Idempotency: skip if already processed
+        const { data: existingRefund } = await supabase
+          .from("wallet_transactions").select("id").eq("reference_id", refId).eq("type", "refund").limit(1);
+        if (existingRefund && existingRefund.length > 0) {
+          log("Refund already processed — skip", { orderId });
+          break;
+        }
+
+        // Try metadata first
+        const { credits: metaCredits, bonus: metaBonus } = parseCredits(data);
+        let totalRefund = metaCredits + metaBonus;
+
+        // Fallback: look up original grant from wallet_transactions
+        if (totalRefund <= 0) {
+          const { data: originalTx } = await supabase
+            .from("wallet_transactions")
+            .select("amount")
+            .eq("reference_id", orderId)
+            .eq("type", "purchase")
+            .limit(1);
+          if (originalTx && originalTx.length > 0 && originalTx[0].amount > 0) {
+            totalRefund = originalTx[0].amount;
+            log("Resolved refund amount from original transaction", { totalRefund, orderId });
           }
         }
+
+        if (totalRefund <= 0) {
+          log("order.refunded: could not determine credits to deduct", { orderId, meta: data?.metadata });
+          break;
+        }
+
+        log("Processing refund deduction", { userId, totalRefund, orderId });
+
+        // Record refund transaction
+        const { error: refundTxErr } = await supabase.from("wallet_transactions").insert({
+          user_id: userId, amount: -totalRefund, type: "refund", reference_id: refId,
+          description: `Refund: -${totalRefund} credits (order ${orderId})`,
+          metadata: { order_id: orderId, refunded_at: new Date().toISOString(), source: "webhook" },
+        });
+        if (refundTxErr) {
+          log("ERROR inserting refund transaction", { error: refundTxErr.message });
+          break;
+        }
+
+        // Deduct from wallet
+        const { data: wallet } = await supabase.from("wallets")
+          .select("balance, total_spent").eq("user_id", userId).maybeSingle();
+        if (wallet) {
+          await supabase.from("wallets").update({
+            balance: Math.max(0, wallet.balance - totalRefund),
+          }).eq("user_id", userId);
+        }
+
+        await notify(userId, "Order Refunded", `${totalRefund} credits have been deducted from your wallet due to a refund.`, "refund", { order_id: orderId, credits_deducted: totalRefund });
+        log("Refund processed successfully", { userId, totalRefund, orderId });
         break;
       }
 
@@ -392,7 +425,35 @@ serve(async (req) => {
       case "refund.created":
       case "refund.updated": {
         log(`Refund event: ${eventType}`, { id: data?.id, status: data?.status, amount: data?.amount });
-        // Actual credit deduction happens in order.refunded
+
+        // Also handle refund deduction here as a safety net (idempotent)
+        if (data?.status === "succeeded" || data?.status === "completed" || eventType === "refund.created") {
+          const refundOrderId = data?.order_id || data?.metadata?.order_id;
+          if (refundOrderId && userId) {
+            const refRefId = `refund_${refundOrderId}`;
+            const { data: alreadyDone } = await supabase
+              .from("wallet_transactions").select("id").eq("reference_id", refRefId).eq("type", "refund").limit(1);
+            if (!alreadyDone || alreadyDone.length === 0) {
+              // Look up original grant
+              const { data: origTx } = await supabase
+                .from("wallet_transactions").select("amount").eq("reference_id", String(refundOrderId)).eq("type", "purchase").limit(1);
+              const deductAmount = origTx?.[0]?.amount || 0;
+              if (deductAmount > 0) {
+                await supabase.from("wallet_transactions").insert({
+                  user_id: userId, amount: -deductAmount, type: "refund", reference_id: refRefId,
+                  description: `Refund: -${deductAmount} credits (via ${eventType})`,
+                  metadata: { order_id: refundOrderId, refund_id: data?.id, source: "refund_event" },
+                });
+                const { data: w } = await supabase.from("wallets").select("balance").eq("user_id", userId).maybeSingle();
+                if (w) {
+                  await supabase.from("wallets").update({ balance: Math.max(0, w.balance - deductAmount) }).eq("user_id", userId);
+                }
+                await notify(userId, "Refund Processed", `${deductAmount} credits deducted due to refund.`, "refund", { order_id: refundOrderId, credits_deducted: deductAmount });
+                log("Credits deducted via refund event", { userId, deductAmount, refundOrderId });
+              }
+            }
+          }
+        }
         break;
       }
 
