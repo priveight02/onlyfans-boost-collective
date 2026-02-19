@@ -1,0 +1,29 @@
+# Uplyze AI - Robots.txt
+# https://uplyze.ai
+
+User-agent: *
+Allow: /
+Allow: /services
+Allow: /pricing
+Allow: /faq
+Allow: /privacy
+Allow: /terms
+
+Disallow: /admin
+Disallow: /admin-onboarding
+Disallow: /platform
+Disallow: /crm
+Disallow: /profile
+Disallow: /ig-login
+Disallow: /maintenance
+Disallow: /auth/reset-password
+
+# Sitemap
+Sitemap: https://uplyze.ai/sitemap.xml
+
+# Crawl-delay (optional, for polite crawling)
+User-agent: AhrefsBot
+Crawl-delay: 10
+
+User-agent: SemrushBot
+Crawl-delay: 10
