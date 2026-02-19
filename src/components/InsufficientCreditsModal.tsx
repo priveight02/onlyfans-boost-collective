@@ -33,7 +33,7 @@ const InsufficientCreditsModal = ({ open, onClose, requiredCredits, actionName }
   const [packages, setPackages] = useState<CreditPackage[]>([]);
   const [loading, setLoading] = useState(true);
   const [purchasingId, setPurchasingId] = useState<string | null>(null);
-  const [checkoutSecret, setCheckoutSecret] = useState<string | null>(null);
+  const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -58,7 +58,7 @@ const InsufficientCreditsModal = ({ open, onClose, requiredCredits, actionName }
         body: { packageId: pkg.id },
       });
       if (error) throw error;
-      if (data?.clientSecret) setCheckoutSecret(data.clientSecret);
+      if (data?.checkoutUrl) setCheckoutUrl(data.checkoutUrl);
     } catch (err: any) {
       toast.error(err.message || "Failed to start checkout");
     } finally {
@@ -67,7 +67,7 @@ const InsufficientCreditsModal = ({ open, onClose, requiredCredits, actionName }
   };
 
   const handleCheckoutClose = (purchased: boolean) => {
-    setCheckoutSecret(null);
+    setCheckoutUrl(null);
     if (purchased) {
       refreshWallet();
       onClose();
@@ -201,7 +201,7 @@ const InsufficientCreditsModal = ({ open, onClose, requiredCredits, actionName }
         </div>
       </div>
 
-      <CheckoutModal clientSecret={checkoutSecret} onClose={handleCheckoutClose} />
+      <CheckoutModal checkoutUrl={checkoutUrl} onClose={handleCheckoutClose} />
     </>
   );
 };
