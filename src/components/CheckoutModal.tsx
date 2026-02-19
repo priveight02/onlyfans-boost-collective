@@ -154,7 +154,7 @@ const CheckoutModal = ({ checkoutUrl, onClose }: CheckoutModalProps) => {
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.97, y: 16 }}
           transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-          className="relative w-full max-w-2xl rounded-2xl overflow-hidden flex flex-col"
+          className="relative w-full max-w-6xl rounded-2xl overflow-hidden flex flex-col"
           style={{
             background: "linear-gradient(180deg, hsl(222, 35%, 10%) 0%, hsl(222, 35%, 7%) 100%)",
             boxShadow: "0 0 0 1px rgba(255,255,255,0.06), 0 32px 80px -12px rgba(0,0,0,0.7), 0 0 120px -40px rgba(147,51,234,0.15)",
@@ -184,8 +184,11 @@ const CheckoutModal = ({ checkoutUrl, onClose }: CheckoutModalProps) => {
                 ref={iframeRef}
                 src={checkoutUrl}
                 className="w-full h-full border-0"
-                allow="payment"
+                allow="payment *"
+                loading="eager"
+                sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-top-navigation"
                 title="Lemon Squeezy Checkout"
+                style={{ pointerEvents: "auto" }}
               />
             </div>
           )}
