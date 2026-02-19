@@ -116,6 +116,7 @@ serve(async (req) => {
     const customerId = await findCustomer(user.id);
     let existingSub: any = null;
     let detectedCurrentPlanId = "free";
+    let detectedCurrentCycle = "monthly";
 
     if (customerId) {
       const subsRes = await polarFetch(`/subscriptions?customer_id=${customerId}&active=true&limit=1`);
@@ -125,7 +126,8 @@ serve(async (req) => {
         if (existingSub) {
           const detected = detectPlan(existingSub.product?.name || "");
           detectedCurrentPlanId = detected.plan;
-          log("Existing subscription found", { subId: existingSub.id, currentPlan: detectedCurrentPlanId });
+          detectedCurrentCycle = detected.cycle;
+          log("Existing subscription found", { subId: existingSub.id, currentPlan: detectedCurrentPlanId, currentCycle: detectedCurrentCycle });
         }
       }
     }
@@ -135,10 +137,27 @@ serve(async (req) => {
     const isUpgrade = targetTier > currentTier && currentTier > 0;
     const isDowngrade = targetTier < currentTier && currentTier > 0;
 
-    // SAME PLAN
+    // SAME PLAN (any cycle) — prevent re-subscribing to what you already have
     if (existingSub && detectedCurrentPlanId === planId) {
       return new Response(JSON.stringify({ error: "You're already on this plan." }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400,
+      });
+    }
+
+    // ═══ ANTI-ABUSE: Rate-limit plan changes to max 3 per 24 hours ═══
+    const adminClientEarly = createClient(Deno.env.get("SUPABASE_URL") ?? "", Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "");
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const { data: recentChanges } = await adminClientEarly
+      .from("wallet_transactions")
+      .select("id")
+      .eq("user_id", user.id)
+      .in("type", ["upgrade_credit", "plan_change"])
+      .gte("created_at", oneDayAgo);
+
+    if (recentChanges && recentChanges.length >= 3) {
+      log("ABUSE BLOCKED — too many plan changes in 24h", { count: recentChanges.length, userId: user.id });
+      return new Response(JSON.stringify({ error: "Too many plan changes in 24 hours. Please try again later." }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 429,
       });
     }
 
@@ -199,15 +218,28 @@ serve(async (req) => {
         body: JSON.stringify({ product_id: target.productId, proration_behavior: "prorate" }),
       });
       if (!updateRes.ok) throw new Error(`Downgrade failed: ${await updateRes.text()}`);
+
+      // Log plan change for rate-limiting
+      await adminClientEarly.from("wallet_transactions").insert({
+        user_id: user.id,
+        amount: 0,
+        type: "plan_change",
+        description: `Downgraded to ${planId} plan`,
+        reference_id: existingSub.id,
+      });
+
       return new Response(JSON.stringify({ downgraded: true, message: `Downgraded to ${planId}. Credit applied to next invoice.` }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // NEW SUBSCRIPTION: cancel existing if any, create checkout
+    // NEW SUBSCRIPTION — only for users with NO active subscription
+    // If somehow an existing sub still exists here (edge case), block instead of canceling
     if (existingSub) {
-      log("Canceling existing subscription", { subId: existingSub.id });
-      await polarFetch(`/subscriptions/${existingSub.id}`, { method: "DELETE" });
+      log("BLOCKED — active subscription exists, use upgrade/downgrade path", { subId: existingSub.id, currentPlan: detectedCurrentPlanId, targetPlan: planId });
+      return new Response(JSON.stringify({ error: "You already have an active subscription. Please upgrade or downgrade instead of creating a new one." }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400,
+      });
     }
 
     const credits = PLAN_CREDITS[planId] || 0;
