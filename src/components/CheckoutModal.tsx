@@ -11,7 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
-type ModalView = "checkout" | "confirm-close" | "verifying" | "success" | "canceled";
+type ModalView = "checkout" | "confirm-close" | "verifying" | "success" | "canceled" | "failed" | "expired";
 
 interface VerificationResult {
   credits_added: number;
@@ -40,27 +40,48 @@ const CheckoutModal = ({ checkoutUrl, onClose }: CheckoutModalProps) => {
     }
   }, [checkoutUrl]);
 
-  // Listen for LS postMessage events from iframe
+  // Auto-close on success after 3 seconds
   useEffect(() => {
-    const handler = (event: MessageEvent) => {
-      // Polar/Stripe sends events via postMessage
-      if (typeof event.data === "string") {
-        try {
-          const parsed = JSON.parse(event.data);
-          if (parsed.event === "Checkout.Success") {
-            toast.loading("Payment received! Verifying...", { id: "payment-verify" });
-            setView("verifying");
-            retryCountRef.current = 0;
-            verifyWithRetry();
-          }
-        } catch {}
-      }
-      // Also handle object-style messages
-      if (event.data?.event === "Checkout.Success") {
+    if (view === "success") {
+      const timer = setTimeout(() => {
+        onClose(true);
+        navigate("/");
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [view, onClose, navigate]);
+
+  // Listen for Polar postMessage events from iframe
+  useEffect(() => {
+    const handleCheckoutEvent = (eventName: string) => {
+      const lower = eventName.toLowerCase();
+      if (lower.includes("success") || lower.includes("confirmed")) {
         toast.loading("Payment received! Verifying...", { id: "payment-verify" });
         setView("verifying");
         retryCountRef.current = 0;
         verifyWithRetry();
+      } else if (lower.includes("fail") || lower.includes("decline") || lower.includes("error")) {
+        setView("failed");
+        toast.error("Payment was declined or failed.", { id: "payment-verify" });
+      } else if (lower.includes("expire")) {
+        setView("expired");
+        toast.error("Checkout session expired.", { id: "payment-verify" });
+      } else if (lower.includes("close") || lower.includes("cancel")) {
+        setView("canceled");
+      }
+    };
+
+    const handler = (event: MessageEvent) => {
+      // String-style messages
+      if (typeof event.data === "string") {
+        try {
+          const parsed = JSON.parse(event.data);
+          if (parsed.event) handleCheckoutEvent(parsed.event);
+        } catch {}
+      }
+      // Object-style messages
+      if (event.data?.event) {
+        handleCheckoutEvent(event.data.event);
       }
     };
     window.addEventListener("message", handler);
@@ -299,13 +320,11 @@ const CheckoutModal = ({ checkoutUrl, onClose }: CheckoutModalProps) => {
                 </button>
               </motion.div>
 
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }}>
-                <Button
-                  onClick={() => onClose(true)}
-                  className="px-8 py-5 rounded-xl bg-white/[0.06] hover:bg-white/[0.1] text-white/60 hover:text-white border border-white/[0.08] transition-all"
-                >
-                  <span className="flex items-center gap-2">Close <X className="h-3.5 w-3.5" /></span>
-                </Button>
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}>
+                <div className="flex items-center gap-1.5 text-white/25 text-xs">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  <span>Auto-closing in 3 seconds...</span>
+                </div>
               </motion.div>
             </div>
           )}
@@ -334,6 +353,70 @@ const CheckoutModal = ({ checkoutUrl, onClose }: CheckoutModalProps) => {
                   className="px-6 py-5 rounded-xl bg-white/[0.06] hover:bg-white/[0.1] text-white/60 hover:text-white border border-white/[0.08] transition-all"
                 >
                   Back to Pricing
+                </Button>
+              </motion.div>
+            </div>
+          )}
+
+          {/* === FAILED / DECLINED VIEW === */}
+          {view === "failed" && (
+            <div className="flex-1 flex flex-col items-center justify-center px-6 py-16">
+              <motion.div
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ type: "spring", stiffness: 200, damping: 15 }}
+                className="relative mb-8"
+              >
+                <div className="absolute -inset-6 rounded-full bg-red-500/5 blur-2xl" />
+                <div className="relative flex items-center justify-center w-20 h-20 rounded-3xl bg-red-500/10 border border-red-500/20">
+                  <XCircle className="h-10 w-10 text-red-400" />
+                </div>
+              </motion.div>
+              <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="text-center mb-10">
+                <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">Payment Declined</h2>
+                <p className="text-white/40 text-sm">Your payment could not be processed. Please check your card details or try a different payment method.</p>
+              </motion.div>
+              <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="flex flex-col sm:flex-row items-center gap-3">
+                <Button
+                  onClick={() => { setView("checkout"); }}
+                  className="px-8 py-5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-medium transition-all"
+                >
+                  Try Again
+                </Button>
+                <Button
+                  onClick={() => onClose(false)}
+                  className="px-6 py-5 rounded-xl bg-white/[0.06] hover:bg-white/[0.1] text-white/60 hover:text-white border border-white/[0.08] transition-all"
+                >
+                  Back to Pricing
+                </Button>
+              </motion.div>
+            </div>
+          )}
+
+          {/* === EXPIRED VIEW === */}
+          {view === "expired" && (
+            <div className="flex-1 flex flex-col items-center justify-center px-6 py-16">
+              <motion.div
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ type: "spring", stiffness: 200, damping: 15 }}
+                className="relative mb-8"
+              >
+                <div className="absolute -inset-6 rounded-full bg-amber-500/5 blur-2xl" />
+                <div className="relative flex items-center justify-center w-20 h-20 rounded-3xl bg-amber-500/10 border border-amber-500/20">
+                  <AlertTriangle className="h-10 w-10 text-amber-400" />
+                </div>
+              </motion.div>
+              <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="text-center mb-10">
+                <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">Session Expired</h2>
+                <p className="text-white/40 text-sm">Your checkout session has expired. Please start a new purchase.</p>
+              </motion.div>
+              <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="flex flex-col sm:flex-row items-center gap-3">
+                <Button
+                  onClick={() => onClose(false)}
+                  className="px-8 py-5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-medium transition-all"
+                >
+                  Start New Checkout
                 </Button>
               </motion.div>
             </div>
