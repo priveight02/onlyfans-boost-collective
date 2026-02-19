@@ -253,13 +253,14 @@ serve(async (req) => {
       log("Polar upgrade PATCH success — prorated invoice charged", { response: updateBody.substring(0, 200) });
 
       // Log this plan change for rate-limiting (ALWAYS, before credit check)
+      const upgradeRefId = `${existingSub.id}_upgrade_${Date.now()}`;
       const { error: planChangeErr } = await adminClient.from("wallet_transactions").insert({
         user_id: user.id,
         amount: 0,
         type: "plan_change",
         description: `Upgraded from ${detectedCurrentPlanId} to ${planId}`,
-        reference_id: existingSub.id,
-        metadata: { from_plan: detectedCurrentPlanId, to_plan: planId, direction: "upgrade" },
+        reference_id: upgradeRefId,
+        metadata: { from_plan: detectedCurrentPlanId, to_plan: planId, direction: "upgrade", sub_id: existingSub.id },
       });
       if (planChangeErr) log("ERROR inserting plan_change record", { error: planChangeErr.message });
       else log("Plan change logged for rate-limiting");
@@ -353,13 +354,14 @@ serve(async (req) => {
       }
 
       // Log plan change for rate-limiting
+      const downgradeRefId = `${existingSub.id}_downgrade_${Date.now()}`;
       const { error: downgradeLogErr } = await adminClient.from("wallet_transactions").insert({
         user_id: user.id,
         amount: 0,
         type: "plan_change",
         description: `Downgraded from ${detectedCurrentPlanId} to ${planId}`,
-        reference_id: existingSub.id,
-        metadata: { from_plan: detectedCurrentPlanId, to_plan: planId, direction: "downgrade" },
+        reference_id: downgradeRefId,
+        metadata: { from_plan: detectedCurrentPlanId, to_plan: planId, direction: "downgrade", sub_id: existingSub.id },
       });
       if (downgradeLogErr) log("ERROR inserting downgrade plan_change", { error: downgradeLogErr.message });
       else log("Downgrade plan change logged");
