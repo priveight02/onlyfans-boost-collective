@@ -250,13 +250,13 @@ serve(async (req) => {
       });
     }
 
-    // DOWNGRADE: PATCH subscription — use "prorate" so credit goes to next invoice (no immediate refund)
+    // DOWNGRADE: PATCH subscription — no proration, no refund at all
     if (existingSub && isDowngrade) {
       log("Downgrading subscription", { subId: existingSub.id, from: detectedCurrentPlanId, to: planId });
 
       const updateRes = await polarFetch(`/subscriptions/${existingSub.id}`, {
         method: "PATCH",
-        body: JSON.stringify({ product_id: target.productId, proration_behavior: "prorate" }),
+        body: JSON.stringify({ product_id: target.productId, proration_behavior: "none" }),
       });
       if (!updateRes.ok) {
         const errText = await updateRes.text();
