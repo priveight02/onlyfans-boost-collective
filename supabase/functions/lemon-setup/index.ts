@@ -61,58 +61,10 @@ const DISCOUNT_DEFINITIONS = [
   // ─── Retention Discount (one-time 50% off to retain at-risk customers) ───
   { name: "Retention 50% Off", code: "RETENTION50", amount: 50, amount_type: "percent" as const, duration: "once" as const, description: "50% one-time retention offer for at-risk users" },
 
-  // ─── Volume Discounts (for custom credit bulk purchases) ───
-  { name: "Volume 5% Off (10k+)", code: "VOLUME5", amount: 5, amount_type: "percent" as const, duration: "once" as const, description: "5% volume discount for 10,000+ credits" },
-  { name: "Volume 15% Off (15k+)", code: "VOLUME15", amount: 15, amount_type: "percent" as const, duration: "once" as const, description: "15% volume discount for 15,000+ credits" },
-  { name: "Volume 20% Off (20k+)", code: "VOLUME20", amount: 20, amount_type: "percent" as const, duration: "once" as const, description: "20% volume discount for 20,000+ credits" },
-  { name: "Volume 25% Off (30k+)", code: "VOLUME25", amount: 25, amount_type: "percent" as const, duration: "once" as const, description: "25% volume discount for 30,000+ credits" },
-  { name: "Volume 30% Off (50k+)", code: "VOLUME30", amount: 30, amount_type: "percent" as const, duration: "once" as const, description: "30% volume discount for 50,000+ credits" },
-  { name: "Volume 35% Off (75k+)", code: "VOLUME35", amount: 35, amount_type: "percent" as const, duration: "once" as const, description: "35% volume discount for 75,000+ credits" },
-  { name: "Volume 40% Off (100k+)", code: "VOLUME40", amount: 40, amount_type: "percent" as const, duration: "once" as const, description: "40% volume discount for 100,000+ credits" },
-
   // ─── Yearly Subscription Incentives ───
   { name: "Yearly Starter 15%", code: "YEARLY15", amount: 15, amount_type: "percent" as const, duration: "forever" as const, description: "15% yearly billing discount for Starter plan" },
   { name: "Yearly Pro 30%", code: "YEARLY30", amount: 30, amount_type: "percent" as const, duration: "forever" as const, description: "30% yearly billing discount for Pro plan" },
   { name: "Yearly Business 33%", code: "YEARLY33", amount: 33, amount_type: "percent" as const, duration: "forever" as const, description: "33% yearly billing discount for Business plan" },
-
-  // ─── Promotional / Seasonal Coupons ───
-  { name: "Welcome 15% Off", code: "WELCOME15", amount: 15, amount_type: "percent" as const, duration: "once" as const, description: "15% welcome discount for first-time buyers" },
-  { name: "Flash Sale 25%", code: "FLASH25", amount: 25, amount_type: "percent" as const, duration: "once" as const, description: "25% flash sale — limited time promotion" },
-  { name: "Creator Partner 20%", code: "CREATOR20", amount: 20, amount_type: "percent" as const, duration: "once" as const, description: "20% partner discount for referred creators" },
-  { name: "Agency Bundle 35%", code: "AGENCY35", amount: 35, amount_type: "percent" as const, duration: "once" as const, description: "35% agency bundle discount for bulk onboarding" },
-  { name: "Anniversary 40% Off", code: "ANNIVERSARY40", amount: 40, amount_type: "percent" as const, duration: "once" as const, description: "40% anniversary celebration discount" },
-
-  // ─── Fixed Amount Discounts ───
-  { name: "$5 Off Starter", code: "SAVE5", amount: 500, amount_type: "fixed" as const, duration: "once" as const, description: "$5 off any purchase" },
-  { name: "$10 Off Pro+", code: "SAVE10", amount: 1000, amount_type: "fixed" as const, duration: "once" as const, description: "$10 off Pro or higher packages" },
-  { name: "$25 Off Power User", code: "SAVE25", amount: 2500, amount_type: "fixed" as const, duration: "once" as const, description: "$25 off Power User package" },
-  { name: "$50 Off Business Plan", code: "SAVE50", amount: 5000, amount_type: "fixed" as const, duration: "once" as const, description: "$50 off Business plan subscription" },
-
-  // ─── Referral & Affiliate Coupons ───
-  { name: "Referral 10% Off", code: "REFER10", amount: 10, amount_type: "percent" as const, duration: "once" as const, description: "10% referral reward discount" },
-  { name: "Affiliate 15% Off", code: "AFFILIATE15", amount: 15, amount_type: "percent" as const, duration: "once" as const, description: "15% affiliate partner discount" },
-  { name: "Influencer 25% Off", code: "INFLUENCER25", amount: 25, amount_type: "percent" as const, duration: "once" as const, description: "25% influencer collaboration discount" },
-
-  // ─── Subscription Upgrade Incentives ───
-  { name: "Upgrade 20% Off First Month", code: "UPGRADE20", amount: 20, amount_type: "percent" as const, duration: "once" as const, description: "20% off first month when upgrading plan" },
-  { name: "Downgrade Prevention 30%", code: "STAYPLAN30", amount: 30, amount_type: "percent" as const, duration: "once" as const, description: "30% retention offer to prevent plan downgrade" },
-
-  // ─── Seasonal / Holiday Coupons ───
-  { name: "Summer Sale 20%", code: "SUMMER20", amount: 20, amount_type: "percent" as const, duration: "once" as const, description: "20% summer seasonal promotion" },
-  { name: "Black Friday 50%", code: "BLACKFRIDAY50", amount: 50, amount_type: "percent" as const, duration: "once" as const, description: "50% Black Friday mega sale" },
-  { name: "New Year 25%", code: "NEWYEAR25", amount: 25, amount_type: "percent" as const, duration: "once" as const, description: "25% New Year celebration discount" },
-  { name: "Cyber Monday 40%", code: "CYBERMONDAY40", amount: 40, amount_type: "percent" as const, duration: "once" as const, description: "40% Cyber Monday deal" },
-  { name: "Holiday Special 30%", code: "HOLIDAY30", amount: 30, amount_type: "percent" as const, duration: "once" as const, description: "30% holiday season discount" },
-  { name: "Valentine 15%", code: "LOVE15", amount: 15, amount_type: "percent" as const, duration: "once" as const, description: "15% Valentine's Day promotion" },
-
-  // ─── VIP / Whale Exclusive ───
-  { name: "VIP 35% Exclusive", code: "VIP35", amount: 35, amount_type: "percent" as const, duration: "once" as const, description: "35% exclusive VIP customer discount" },
-  { name: "Whale Reward 45%", code: "WHALE45", amount: 45, amount_type: "percent" as const, duration: "once" as const, description: "45% whale customer loyalty reward" },
-
-  // ─── Win-Back / Re-engagement ───
-  { name: "Win-Back 30%", code: "COMEBACK30", amount: 30, amount_type: "percent" as const, duration: "once" as const, description: "30% win-back offer for churned users" },
-  { name: "We Miss You 40%", code: "MISSYOU40", amount: 40, amount_type: "percent" as const, duration: "once" as const, description: "40% re-engagement for long-inactive users" },
-  { name: "Last Chance 50%", code: "LASTCHANCE50", amount: 50, amount_type: "percent" as const, duration: "once" as const, description: "50% last chance before account cleanup" },
 ];
 
 serve(async (req) => {
@@ -257,15 +209,7 @@ serve(async (req) => {
         categories: {
           loyalty: discountResults.filter(r => r.code.startsWith("LOYALTY")),
           retention: discountResults.filter(r => r.code.startsWith("RETENTION")),
-          volume: discountResults.filter(r => r.code.startsWith("VOLUME")),
           yearly: discountResults.filter(r => r.code.startsWith("YEARLY")),
-          promotional: discountResults.filter(r => ["WELCOME15", "FLASH25", "CREATOR20", "AGENCY35", "ANNIVERSARY40"].includes(r.code)),
-          fixed_amount: discountResults.filter(r => r.code.startsWith("SAVE")),
-          referral: discountResults.filter(r => ["REFER10", "AFFILIATE15", "INFLUENCER25"].includes(r.code)),
-          subscription: discountResults.filter(r => ["UPGRADE20", "STAYPLAN30"].includes(r.code)),
-          seasonal: discountResults.filter(r => ["SUMMER20", "BLACKFRIDAY50", "NEWYEAR25", "CYBERMONDAY40", "HOLIDAY30", "LOVE15"].includes(r.code)),
-          vip: discountResults.filter(r => ["VIP35", "WHALE45"].includes(r.code)),
-          winback: discountResults.filter(r => ["COMEBACK30", "MISSYOU40", "LASTCHANCE50"].includes(r.code)),
         },
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
