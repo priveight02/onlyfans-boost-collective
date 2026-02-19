@@ -1086,6 +1086,54 @@ Return this exact JSON structure:
         case "clear_notes":
           await supabaseAdmin.from("profiles").update({ admin_notes: null }).eq("user_id", userId);
           break;
+        case "reset_plan_default": {
+          // Remove PLAN_OVERRIDE from admin_notes → user reverts to Free
+          const { data: p } = await supabaseAdmin.from("profiles").select("admin_notes").eq("user_id", userId).single();
+          const cleaned = (p?.admin_notes || "").replace(/\n?\[PLAN_OVERRIDE\]\s*\w+/g, "").trim();
+          await supabaseAdmin.from("profiles").update({ admin_notes: cleaned || null }).eq("user_id", userId);
+          await supabaseAdmin.from("wallet_transactions").insert({
+            user_id: userId, type: "admin_revoke", amount: 0,
+            description: `Plan reset to Free (default): ${reason || "No reason"}`, balance_after: null,
+          });
+          break;
+        }
+        case "revert_plan": {
+          // Look at transaction history to find the last plan the user actually purchased/was on before admin override
+          const { data: p } = await supabaseAdmin.from("profiles").select("admin_notes").eq("user_id", userId).single();
+          const notes = p?.admin_notes || "";
+          // Find the last purchase-based plan from wallet_transactions
+          const { data: txs } = await supabaseAdmin
+            .from("wallet_transactions")
+            .select("description, metadata, created_at")
+            .eq("user_id", userId)
+            .or("type.eq.purchase,description.ilike.%plan changed%")
+            .order("created_at", { ascending: false })
+            .limit(20);
+          // Try to detect a previous plan from "Plan changed to X" grant descriptions
+          let previousPlan = "free";
+          const planChanges = (txs || []).filter((t: any) => t.description?.toLowerCase().includes("plan changed to"));
+          // Get the second most recent plan change (the one before current override), or first if only one
+          if (planChanges.length >= 2) {
+            const match = planChanges[1].description.match(/plan changed to (\w+)/i);
+            if (match) previousPlan = match[1].toLowerCase();
+          } else if (planChanges.length === 1) {
+            // Only one plan change exists — that's the current override, revert to free
+            previousPlan = "free";
+          }
+          // Also check if user has any active Polar subscription
+          // Update the PLAN_OVERRIDE or remove it
+          const cleanedNotes = notes.replace(/\n?\[PLAN_OVERRIDE\]\s*\w+/g, "").trim();
+          if (previousPlan !== "free") {
+            await supabaseAdmin.from("profiles").update({ admin_notes: cleanedNotes + `\n[PLAN_OVERRIDE] ${previousPlan}` }).eq("user_id", userId);
+          } else {
+            await supabaseAdmin.from("profiles").update({ admin_notes: cleanedNotes || null }).eq("user_id", userId);
+          }
+          await supabaseAdmin.from("wallet_transactions").insert({
+            user_id: userId, type: "admin_grant", amount: 0,
+            description: `Plan reverted to ${previousPlan}: ${reason || "No reason"}`, balance_after: null,
+          });
+          break;
+        }
         default:
           logStep("Unknown admin action", { adminAction });
       }
