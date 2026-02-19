@@ -24,21 +24,9 @@ interface CreditPackage {
   sort_order: number;
 }
 
-// Plans definition — these match your Stripe products
-const PLAN_STRIPE_MAP: Record<string, { monthly: { price_id: string; product_id: string }; yearly: { price_id: string; product_id: string } }> = {
-  starter: {
-    monthly: { price_id: "price_1T1VtcAMkMnyWeZ53qnVqlx2", product_id: "prod_TzUtPv1PXmYddy" },
-    yearly:  { price_id: "price_1T1Vu0AMkMnyWeZ57TMdUk5H", product_id: "prod_TzUtpBDWyb3qR6" },
-  },
-  pro: {
-    monthly: { price_id: "price_1T1VuFAMkMnyWeZ5oAMJzq3T", product_id: "prod_TzUuDHxcoyItCj" },
-    yearly:  { price_id: "price_1T1VucAMkMnyWeZ50DDf2j2h", product_id: "prod_TzUuv2bXrA1EVF" },
-  },
-  business: {
-    monthly: { price_id: "price_1T1VupAMkMnyWeZ5hyccueXN", product_id: "prod_TzUu26T8Hiv2lS" },
-    yearly:  { price_id: "price_1T1VvOAMkMnyWeZ5zzNrQuDg", product_id: "prod_TzUv67N4QUbXHN" },
-  },
-};
+// Plan config — Polar product IDs are resolved at runtime by the edge function
+// Frontend only needs to send planId + billingCycle
+const PLAN_IDS = ["starter", "pro", "business"] as const;
 
 const PLANS = [
   {
@@ -143,7 +131,7 @@ const PlanCreditsTab = ({ onSwitchTab }: { onSwitchTab?: (tab: string) => void }
   const [activePlanId, setActivePlanId] = useState<string | null>(null);
   const [isAdminAssigned, setIsAdminAssigned] = useState(false);
   const [subscriptionLoading, setSubscriptionLoading] = useState(true);
-  const [checkoutSecret, setCheckoutSecret] = useState<string | null>(null);
+  const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
 
   // Fetch active subscription on mount and when tab regains focus
   const fetchSubscription = useCallback(async () => {
@@ -250,38 +238,30 @@ const PlanCreditsTab = ({ onSwitchTab }: { onSwitchTab?: (tab: string) => void }
 
   const handleUpgrade = async (planId: string) => {
     if (!user) { toast.error("Please log in first"); return; }
-    const stripeInfo = PLAN_STRIPE_MAP[planId];
-    if (!stripeInfo) {
-      // Enterprise — open contact
+    if (planId === "enterprise") {
       window.location.href = "mailto:contact@uplyze.ai?subject=Enterprise%20Plan%20Inquiry";
       return;
     }
     setUpgradingPlan(planId);
     try {
       const cycle = billingCycle === "yearly" ? "yearly" : "monthly";
-      const priceId = stripeInfo[cycle].price_id;
       const { data, error } = await supabase.functions.invoke("create-checkout", {
-        body: { priceId, planId, billingCycle: cycle, currentPlanId: activePlanId || "free" },
+        body: { planId, billingCycle: cycle, currentPlanId: activePlanId || "free" },
       });
       if (error) throw error;
 
-      // Upgrade handled in-place (no checkout needed)
       if (data?.upgraded) {
-        toast.success(`🎉 Upgraded to ${planId.charAt(0).toUpperCase() + planId.slice(1)}! You only paid the prorated difference.`);
+        toast.success(`🎉 Upgraded to ${planId.charAt(0).toUpperCase() + planId.slice(1)}! Prorated charges applied.`);
         setActivePlanId(planId);
         refreshWallet();
         return;
       }
-
-      // Downgrade handled in-place
       if (data?.downgraded) {
-        toast.info(`Plan will change to ${planId.charAt(0).toUpperCase() + planId.slice(1)} at the end of your current billing period. Your credits remain.`);
+        toast.info(`Plan will change to ${planId.charAt(0).toUpperCase() + planId.slice(1)} at the end of your current billing period.`);
         fetchSubscription();
         return;
       }
-
-      // New subscription — open embedded checkout
-      if (data?.clientSecret) setCheckoutSecret(data.clientSecret);
+      if (data?.checkoutUrl) setCheckoutUrl(data.checkoutUrl);
     } catch (err: any) {
       toast.error(err.message || "Failed to start checkout");
     } finally {
@@ -310,7 +290,7 @@ const PlanCreditsTab = ({ onSwitchTab }: { onSwitchTab?: (tab: string) => void }
         body: { packageId: pkg.id },
       });
       if (error) throw error;
-      if (data?.clientSecret) setCheckoutSecret(data.clientSecret);
+      if (data?.checkoutUrl) setCheckoutUrl(data.checkoutUrl);
     } catch (err: any) {
       toast.error(err.message || "Failed to start checkout");
     } finally {
@@ -327,7 +307,7 @@ const PlanCreditsTab = ({ onSwitchTab }: { onSwitchTab?: (tab: string) => void }
         body: { customCredits: credits },
       });
       if (error) throw error;
-      if (data?.clientSecret) setCheckoutSecret(data.clientSecret);
+      if (data?.checkoutUrl) setCheckoutUrl(data.checkoutUrl);
     } catch (err: any) {
       toast.error(err.message || "Failed to start checkout");
     } finally {
