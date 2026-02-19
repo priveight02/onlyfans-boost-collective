@@ -132,6 +132,10 @@ const PlanCreditsTab = ({ onSwitchTab }: { onSwitchTab?: (tab: string) => void }
   const [isAdminAssigned, setIsAdminAssigned] = useState(false);
   const [subscriptionLoading, setSubscriptionLoading] = useState(true);
   const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
+  const [upgradePreview, setUpgradePreview] = useState<{
+    fromPlan: string; toPlan: string; currentPrice: number; newPrice: number;
+    priceDifference: number; cycle: string; credits: number;
+  } | null>(null);
 
   // Fetch active subscription on mount and when tab regains focus
   const fetchSubscription = useCallback(async () => {
@@ -232,7 +236,7 @@ const PlanCreditsTab = ({ onSwitchTab }: { onSwitchTab?: (tab: string) => void }
     setShowTopUpDialog(true);
   };
 
-  const handleUpgrade = async (planId: string) => {
+   const handleUpgrade = async (planId: string, confirmed = false) => {
     if (!user) { toast.error("Please log in first"); return; }
     if (planId === "enterprise") {
       window.location.href = "mailto:contact@uplyze.ai?subject=Enterprise%20Plan%20Inquiry";
@@ -242,7 +246,7 @@ const PlanCreditsTab = ({ onSwitchTab }: { onSwitchTab?: (tab: string) => void }
     try {
       const cycle = billingCycle === "yearly" ? "yearly" : "monthly";
       const { data, error } = await supabase.functions.invoke("create-checkout", {
-        body: { planId, billingCycle: cycle, currentPlanId: activePlanId || "free" },
+        body: { planId, billingCycle: cycle, currentPlanId: activePlanId || "free", confirmed },
       });
       if (error) throw error;
 
@@ -256,8 +260,16 @@ const PlanCreditsTab = ({ onSwitchTab }: { onSwitchTab?: (tab: string) => void }
         return;
       }
 
+      // Step 1: Show upgrade confirmation screen
+      if (data?.upgradePreview) {
+        setUpgradePreview(data);
+        return;
+      }
+
+      // Step 2: Upgrade confirmed and executed
       if (data?.upgraded) {
-        toast.success(`🎉 Upgraded to ${planId.charAt(0).toUpperCase() + planId.slice(1)}! ${data.creditsGranted ? 'Credits added.' : ''} Prorated charges applied.`);
+        setUpgradePreview(null);
+        toast.success(`🎉 Upgraded to ${planId.charAt(0).toUpperCase() + planId.slice(1)}! ${data.creditsGranted ? 'Credits added.' : ''} $${data.priceDifference || 0} prorated charge applied.`);
         setActivePlanId(planId);
         refreshWallet();
         return;
@@ -848,6 +860,83 @@ const PlanCreditsTab = ({ onSwitchTab }: { onSwitchTab?: (tab: string) => void }
       </Dialog>
     </motion.div>
     <CheckoutModal checkoutUrl={checkoutUrl} onClose={(purchased) => { setCheckoutUrl(null); if (purchased) { refreshWallet(); fetchSubscription(); } }} />
+
+    {/* Upgrade Confirmation Dialog */}
+    <Dialog open={!!upgradePreview} onOpenChange={(open) => { if (!open) setUpgradePreview(null); }}>
+      <DialogContent className="bg-[hsl(222,30%,9%)] border-white/10 text-white max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-lg font-bold text-white flex items-center gap-2">
+            <ArrowUpRight className="h-5 w-5 text-emerald-400" />
+            Confirm Upgrade
+          </DialogTitle>
+          <DialogDescription className="text-white/40 text-sm">
+            Review the price difference before confirming your upgrade.
+          </DialogDescription>
+        </DialogHeader>
+        {upgradePreview && (
+          <div className="space-y-4 py-2">
+            <div className="flex items-center justify-between p-3 rounded-xl bg-white/[0.04] border border-white/[0.08]">
+              <div>
+                <p className="text-xs text-white/40">Current Plan</p>
+                <p className="text-sm font-semibold text-white capitalize">{upgradePreview.fromPlan}</p>
+                <p className="text-xs text-white/30">${upgradePreview.currentPrice}/{upgradePreview.cycle === "yearly" ? "mo (billed yearly)" : "mo"}</p>
+              </div>
+              <ArrowRight className="h-4 w-4 text-white/20" />
+              <div className="text-right">
+                <p className="text-xs text-emerald-400/70">New Plan</p>
+                <p className="text-sm font-semibold text-emerald-400 capitalize">{upgradePreview.toPlan}</p>
+                <p className="text-xs text-white/30">${upgradePreview.newPrice}/{upgradePreview.cycle === "yearly" ? "mo (billed yearly)" : "mo"}</p>
+              </div>
+            </div>
+
+            <div className="p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/15 text-center">
+              <p className="text-xs text-white/40 mb-1">Prorated charge for this billing period</p>
+              <p className="text-2xl font-bold text-emerald-400">
+                ~${upgradePreview.priceDifference}<span className="text-sm text-white/30">/{upgradePreview.cycle === "yearly" ? "mo" : "mo"}</span>
+              </p>
+              <p className="text-[10px] text-white/25 mt-1">Exact amount calculated by payment provider based on remaining days</p>
+            </div>
+
+            {upgradePreview.credits > 0 && (
+              <div className="flex items-center gap-2 p-2.5 rounded-lg bg-amber-500/5 border border-amber-500/15">
+                <Sparkles className="h-4 w-4 text-amber-400 flex-shrink-0" />
+                <p className="text-xs text-amber-300/70">
+                  You'll receive <span className="font-semibold text-amber-300">{upgradePreview.credits.toLocaleString()} credits</span> with this plan
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+        <DialogFooter className="flex gap-2 sm:flex-row">
+          <Button
+            variant="ghost"
+            onClick={() => setUpgradePreview(null)}
+            className="text-white/40 hover:text-white/60 text-sm flex-1"
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={() => {
+              if (upgradePreview) {
+                setUpgradePreview(null);
+                handleUpgrade(upgradePreview.toPlan, true);
+              }
+            }}
+            disabled={!!upgradingPlan}
+            className="bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold flex-1"
+          >
+            {upgradingPlan ? (
+              <span className="animate-pulse">Processing...</span>
+            ) : (
+              <span className="flex items-center gap-1.5">
+                <CreditCard className="h-4 w-4" />
+                Confirm & Pay
+              </span>
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
     </>
   );
 };
