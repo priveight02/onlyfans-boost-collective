@@ -160,16 +160,11 @@ const PlanCreditsTab = ({ onSwitchTab }: { onSwitchTab?: (tab: string) => void }
         const priceId = data.subscription.price_id;
         const productId = data.subscription.product_id;
         // Match price_id or product_id to our plan IDs
-        let found = false;
-        for (const [planId, info] of Object.entries(PLAN_STRIPE_MAP)) {
-          if (info.monthly.price_id === priceId || info.yearly.price_id === priceId ||
-              info.monthly.product_id === productId || info.yearly.product_id === productId) {
-            setActivePlanId(planId);
-            found = true;
-            break;
-          }
-        }
-        if (!found) {
+        // Match via metadata or product name from Polar
+        const subPlanId = data.subscription.plan_id || data.subscription.metadata?.plan_id;
+        if (subPlanId && PLAN_IDS.includes(subPlanId as any)) {
+          setActivePlanId(subPlanId);
+        } else {
           console.warn("Unknown subscription product/price", { priceId, productId });
         }
       } else {
@@ -843,7 +838,7 @@ const PlanCreditsTab = ({ onSwitchTab }: { onSwitchTab?: (tab: string) => void }
         </DialogContent>
       </Dialog>
     </motion.div>
-    <CheckoutModal clientSecret={checkoutSecret} onClose={() => setCheckoutSecret(null)} />
+    <CheckoutModal checkoutUrl={checkoutUrl} onClose={(purchased) => { setCheckoutUrl(null); if (purchased) { refreshWallet(); fetchSubscription(); } }} />
     </>
   );
 };
