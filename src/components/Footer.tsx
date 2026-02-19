@@ -54,7 +54,6 @@ const Footer = () => {
                   { to: "/", label: "Home" },
                   { to: "/services", label: "Features" },
                   { to: "/pricing", label: "Pricing" },
-                  { to: "/blog", label: "Blog" },
                   { to: "/faq", label: "FAQ" },
                   { to: "/admin", label: "Dashboard" },
                 ].map((link) => (
@@ -83,18 +82,6 @@ const Footer = () => {
             </div>
 
             <div>
-              <h4 className="text-white/70 text-[11px] font-semibold uppercase tracking-[0.15em] mb-3">Resources</h4>
-              <div className="flex flex-col gap-1.5">
-                <Link to="/about" className="group text-white/45 hover:text-white text-sm transition-all duration-200 flex items-center gap-1 w-fit">
-                  About <ArrowUpRight className="h-3 w-3 opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-200" />
-                </Link>
-                <Link to="/blog" className="group text-white/45 hover:text-white text-sm transition-all duration-200 flex items-center gap-1 w-fit">
-                  Blog <ArrowUpRight className="h-3 w-3 opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-200" />
-                </Link>
-              </div>
-            </div>
-
-            <div>
               <h4 className="text-white/70 text-[11px] font-semibold uppercase tracking-[0.15em] mb-3">Contact</h4>
               <div className="flex flex-col gap-1.5">
                 <a href="mailto:contact@uplyze.ai" className="text-white/45 hover:text-white text-sm transition-colors">contact@uplyze.ai</a>
@@ -104,6 +91,11 @@ const Footer = () => {
                 className="mt-3 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white/[0.06] border border-white/[0.08] hover:bg-white/[0.12] hover:border-white/[0.15] text-white/70 hover:text-white text-xs font-medium transition-all duration-300 group">
                 Get Started <ArrowUpRight className="h-3 w-3 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
               </Link>
+              <div className="flex items-center gap-3 mt-3">
+                <Link to="/about" className="text-white/40 hover:text-white text-xs transition-colors">About</Link>
+                <span className="w-0.5 h-0.5 rounded-full bg-white/25" />
+                <Link to="/blog" className="text-white/40 hover:text-white text-xs transition-colors">Blog</Link>
+              </div>
             </div>
           </div>
         </div>
