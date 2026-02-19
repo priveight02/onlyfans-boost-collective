@@ -16,6 +16,8 @@ async function verifySignature(payload: string, signature: string, secret: strin
   return computed === signature;
 }
 
+const log = (step: string, d?: any) => console.log(`[ls-webhook] ${step}${d ? ` - ${JSON.stringify(d)}` : ""}`);
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -28,7 +30,7 @@ serve(async (req) => {
 
     const valid = await verifySignature(rawBody, signature, secret);
     if (!valid) {
-      console.error("Invalid webhook signature");
+      log("Invalid webhook signature");
       return new Response(JSON.stringify({ error: "Invalid signature" }), { status: 401, headers: corsHeaders });
     }
 
@@ -36,8 +38,9 @@ serve(async (req) => {
     const eventName = event.meta?.event_name;
     const data = event.data;
     const attrs = data?.attributes;
+    const customData = event.meta?.custom_data || attrs?.first_order_item?.custom_data || {};
 
-    console.log(`[ls-webhook] Event: ${eventName}, ID: ${data?.id}`);
+    log("Event received", { event: eventName, id: data?.id, customData });
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
@@ -45,18 +48,56 @@ serve(async (req) => {
       { auth: { persistSession: false } }
     );
 
-    const userEmail = attrs?.user_email || event.meta?.custom_data?.user_email || null;
+    // ── Resolve user: prefer user_id from custom_data, fallback to email ──
+    const resolveUserId = async (): Promise<string | null> => {
+      // 1. Direct user_id from checkout custom data
+      const uid = customData?.user_id;
+      if (uid) {
+        log("Resolved user from custom_data", { userId: uid });
+        return uid;
+      }
 
-    // Helper: find user by email
-    const findUser = async (email: string | null) => {
+      // 2. Fallback: lookup by email
+      const email = attrs?.user_email || customData?.user_email;
       if (!email) return null;
+
       const { data: users } = await supabase.auth.admin.listUsers();
-      return users?.users?.find(u => u.email?.toLowerCase() === email.toLowerCase()) || null;
+      const found = users?.users?.find(u => u.email?.toLowerCase() === email.toLowerCase());
+      if (found) {
+        log("Resolved user from email", { userId: found.id, email });
+        return found.id;
+      }
+
+      log("User not found", { email });
+      return null;
     };
 
-    // Helper: grant credits
-    const grantCredits = async (userId: string, credits: number, source: string, metadata: Record<string, any> = {}) => {
-      // Update wallet
+    // ── Grant credits with idempotency ──
+    const grantCredits = async (userId: string, credits: number, source: string, refId: string, metadata: Record<string, any> = {}) => {
+      // IDEMPOTENCY: check if already processed
+      const { data: existing } = await supabase
+        .from("wallet_transactions")
+        .select("id")
+        .eq("reference_id", refId)
+        .eq("type", "purchase")
+        .limit(1);
+
+      if (existing && existing.length > 0) {
+        log("Already processed — skip", { refId });
+        return false;
+      }
+
+      // Insert transaction record
+      await supabase.from("wallet_transactions").insert({
+        user_id: userId,
+        amount: credits,
+        type: "purchase",
+        reference_id: refId,
+        description: `${source}: ${credits} credits`,
+        metadata: { ...metadata, webhook_processed_at: new Date().toISOString() },
+      });
+
+      // Update wallet balance
       const { data: wallet } = await supabase
         .from("wallets")
         .select("balance, total_purchased, purchase_count")
@@ -78,257 +119,233 @@ serve(async (req) => {
         });
       }
 
-      // Log transaction
-      await supabase.from("credit_transactions").insert({
-        user_id: userId,
-        amount: credits,
-        type: "purchase",
-        source,
-        metadata,
-      }).then(() => {}).catch(() => {});
+      // Grant XP
+      let xpToGrant = 0;
+      if (credits >= 1000) xpToGrant = 750;
+      else if (credits >= 500) xpToGrant = 300;
+      else if (credits >= 200) xpToGrant = 150;
+      else if (credits >= 100) xpToGrant = 50;
+      else if (credits >= 10) xpToGrant = 25;
 
-      console.log(`[ls-webhook] Granted ${credits} credits to ${userId} (${source})`);
-    };
-
-    // Helper: resolve credits from order line items or custom data
-    const resolveCreditsFromOrder = (attrs: any): number => {
-      // Check custom_data first
-      const customCredits = parseInt(event.meta?.custom_data?.credits || "0", 10);
-      if (customCredits > 0) return customCredits;
-
-      // Check first_order_item or product metadata
-      const firstItem = attrs?.first_order_item;
-      if (firstItem?.product_name) {
-        // Try to parse credits from product name (e.g. "Pro Credits - 1075")
-        const match = firstItem.product_name.match(/(\d+)\s*credits?/i);
-        if (match) return parseInt(match[1], 10);
+      if (xpToGrant > 0) {
+        const { data: rank } = await supabase.from("user_ranks").select("xp").eq("user_id", userId).maybeSingle();
+        if (rank) {
+          await supabase.from("user_ranks").update({ xp: rank.xp + xpToGrant }).eq("user_id", userId);
+        }
       }
 
-      return 0;
+      log("Credits granted", { userId, credits, source, refId });
+      return true;
     };
+
+    // ── Resolve credits from order ──
+    const resolveCreditsFromOrder = (): { credits: number; bonus: number } => {
+      const credits = parseInt(customData?.credits || "0", 10);
+      const bonus = parseInt(customData?.bonus_credits || "0", 10);
+      if (credits > 0) return { credits, bonus };
+
+      // Fallback: try product name
+      const productName = attrs?.first_order_item?.product_name || "";
+      const match = productName.match(/(\d+)\s*credits?/i);
+      if (match) return { credits: parseInt(match[1], 10), bonus: 0 };
+
+      return { credits: 0, bonus: 0 };
+    };
+
+    const userId = await resolveUserId();
 
     switch (eventName) {
       // ══════════ ORDER CREATED ══════════
       case "order_created": {
-        const user = await findUser(userEmail);
-        if (!user) {
-          console.warn("[ls-webhook] order_created: user not found for", userEmail);
-          break;
-        }
+        if (!userId) { log("order_created: no user found"); break; }
+        if (attrs?.status !== "paid") { log("order_created: status not paid", { status: attrs?.status }); break; }
 
-        const credits = resolveCreditsFromOrder(attrs);
-        const bonusCredits = parseInt(event.meta?.custom_data?.bonus_credits || "0", 10);
-        const totalCredits = credits + bonusCredits;
+        const { credits, bonus } = resolveCreditsFromOrder();
+        const totalCredits = credits + bonus;
 
         if (totalCredits > 0) {
-          await grantCredits(user.id, totalCredits, "lemon_order", {
+          await grantCredits(userId, totalCredits, "Credit Purchase", String(data.id), {
             order_id: data.id,
             credits_base: credits,
-            credits_bonus: bonusCredits,
+            credits_bonus: bonus,
             amount: attrs?.total,
             currency: attrs?.currency,
+            package_id: customData?.package_id || null,
+            discount_tier: customData?.discount_tier || null,
           });
+        } else {
+          log("order_created: 0 credits resolved", { customData, productName: attrs?.first_order_item?.product_name });
         }
         break;
       }
 
       // ══════════ ORDER REFUNDED ══════════
       case "order_refunded": {
-        const user = await findUser(userEmail);
-        if (!user) break;
-
-        const credits = resolveCreditsFromOrder(attrs);
-        if (credits > 0) {
-          // Deduct refunded credits
+        if (!userId) break;
+        const { credits, bonus } = resolveCreditsFromOrder();
+        const totalCredits = credits + bonus;
+        if (totalCredits > 0) {
           const { data: wallet } = await supabase
-            .from("wallets")
-            .select("balance")
-            .eq("user_id", user.id)
-            .maybeSingle();
-
+            .from("wallets").select("balance").eq("user_id", userId).maybeSingle();
           if (wallet) {
             await supabase.from("wallets").update({
-              balance: Math.max(0, wallet.balance - credits),
-            }).eq("user_id", user.id);
+              balance: Math.max(0, wallet.balance - totalCredits),
+            }).eq("user_id", userId);
+
+            await supabase.from("wallet_transactions").insert({
+              user_id: userId, amount: -totalCredits, type: "refund",
+              reference_id: String(data.id), description: `Refund: -${totalCredits} credits`,
+            });
           }
-          console.log(`[ls-webhook] Deducted ${credits} credits from ${user.id} (refund)`);
+          log("Credits deducted (refund)", { userId, totalCredits });
         }
         break;
       }
 
       // ══════════ SUBSCRIPTION CREATED ══════════
       case "subscription_created": {
-        const user = await findUser(userEmail);
-        if (!user) break;
-
-        const planId = event.meta?.custom_data?.plan_id || attrs?.product_name?.toLowerCase() || "unknown";
-        const cycle = event.meta?.custom_data?.cycle || (attrs?.variant_name?.toLowerCase().includes("yearly") ? "yearly" : "monthly");
+        if (!userId) break;
+        const planId = customData?.plan_id || attrs?.product_name?.toLowerCase() || "unknown";
+        const cycle = customData?.billing_cycle || customData?.cycle || (attrs?.variant_name?.toLowerCase().includes("yearly") ? "yearly" : "monthly");
 
         await supabase.from("profiles").update({
           subscription_plan: planId,
           subscription_status: "active",
           subscription_id: String(data.id),
           subscription_cycle: cycle,
-        }).eq("user_id", user.id);
+        }).eq("user_id", userId);
 
-        console.log(`[ls-webhook] Subscription created: ${planId}/${cycle} for ${user.id}`);
+        // Grant initial credits
+        const credits = parseInt(customData?.credits || "0", 10);
+        if (credits > 0) {
+          await grantCredits(userId, credits, "Subscription", `sub_initial_${data.id}`, {
+            subscription_id: data.id, plan: planId, cycle,
+          });
+        }
+
+        log("Subscription created", { userId, planId, cycle, credits });
         break;
       }
 
       // ══════════ SUBSCRIPTION UPDATED ══════════
       case "subscription_updated": {
-        const user = await findUser(userEmail);
-        if (!user) break;
-
-        const status = attrs?.status; // active, paused, cancelled, expired, etc.
-        const updates: Record<string, any> = {
-          subscription_status: status,
-        };
-
+        if (!userId) break;
+        const status = attrs?.status;
+        const updates: Record<string, any> = { subscription_status: status };
         if (status === "cancelled" || status === "expired") {
           updates.subscription_plan = null;
           updates.subscription_id = null;
           updates.subscription_cycle = null;
         }
-
-        await supabase.from("profiles").update(updates).eq("user_id", user.id);
-        console.log(`[ls-webhook] Subscription updated to ${status} for ${user.id}`);
+        await supabase.from("profiles").update(updates).eq("user_id", userId);
+        log("Subscription updated", { userId, status });
         break;
       }
 
       // ══════════ SUBSCRIPTION CANCELLED ══════════
       case "subscription_cancelled": {
-        const user = await findUser(userEmail);
-        if (!user) break;
-
+        if (!userId) break;
         await supabase.from("profiles").update({
           subscription_status: "cancelled",
-          subscription_plan: null,
-          subscription_id: null,
-          subscription_cycle: null,
-        }).eq("user_id", user.id);
-
-        console.log(`[ls-webhook] Subscription cancelled for ${user.id}`);
+          subscription_plan: null, subscription_id: null, subscription_cycle: null,
+        }).eq("user_id", userId);
+        log("Subscription cancelled", { userId });
         break;
       }
 
       // ══════════ SUBSCRIPTION RESUMED / UNPAUSED ══════════
       case "subscription_resumed":
       case "subscription_unpaused": {
-        const user = await findUser(userEmail);
-        if (!user) break;
-
-        await supabase.from("profiles").update({
-          subscription_status: "active",
-        }).eq("user_id", user.id);
-
-        console.log(`[ls-webhook] Subscription resumed for ${user.id}`);
+        if (!userId) break;
+        await supabase.from("profiles").update({ subscription_status: "active" }).eq("user_id", userId);
+        log("Subscription resumed", { userId });
         break;
       }
 
       // ══════════ SUBSCRIPTION PAUSED ══════════
       case "subscription_paused": {
-        const user = await findUser(userEmail);
-        if (!user) break;
-
-        await supabase.from("profiles").update({
-          subscription_status: "paused",
-        }).eq("user_id", user.id);
+        if (!userId) break;
+        await supabase.from("profiles").update({ subscription_status: "paused" }).eq("user_id", userId);
+        log("Subscription paused", { userId });
         break;
       }
 
       // ══════════ SUBSCRIPTION EXPIRED ══════════
       case "subscription_expired": {
-        const user = await findUser(userEmail);
-        if (!user) break;
-
+        if (!userId) break;
         await supabase.from("profiles").update({
           subscription_status: "expired",
-          subscription_plan: null,
-          subscription_id: null,
-          subscription_cycle: null,
-        }).eq("user_id", user.id);
+          subscription_plan: null, subscription_id: null, subscription_cycle: null,
+        }).eq("user_id", userId);
+        log("Subscription expired", { userId });
         break;
       }
 
       // ══════════ SUBSCRIPTION PAYMENT SUCCESS ══════════
       case "subscription_payment_success": {
-        const user = await findUser(userEmail);
-        if (!user) break;
+        if (!userId) break;
+        const planId = customData?.plan_id || "";
+        let credits = parseInt(customData?.credits || "0", 10);
 
-        // Grant monthly/yearly credits based on plan
-        const planId = event.meta?.custom_data?.plan_id || "";
-        let credits = 0;
-        if (planId.includes("starter")) credits = 215;
-        else if (planId.includes("pro")) credits = 1075;
-        else if (planId.includes("business")) credits = 4300;
+        // Fallback: resolve from plan name
+        if (credits <= 0) {
+          const productName = (attrs?.product_name || "").toLowerCase();
+          if (productName.includes("business")) credits = 4300;
+          else if (productName.includes("pro")) credits = 1075;
+          else if (productName.includes("starter")) credits = 215;
+        }
 
         if (credits > 0) {
-          await grantCredits(user.id, credits, "subscription_renewal", {
-            subscription_id: data.id,
-            plan: planId,
+          const invoiceId = attrs?.subscription_invoice_id || `sub_renewal_${data.id}_${Date.now()}`;
+          await grantCredits(userId, credits, "Subscription Renewal", String(invoiceId), {
+            subscription_id: data.id, plan: planId,
           });
         }
 
-        // Ensure status is active
-        await supabase.from("profiles").update({
-          subscription_status: "active",
-        }).eq("user_id", user.id);
+        await supabase.from("profiles").update({ subscription_status: "active" }).eq("user_id", userId);
+        log("Subscription payment success", { userId, credits });
         break;
       }
 
       // ══════════ SUBSCRIPTION PAYMENT FAILED ══════════
       case "subscription_payment_failed": {
-        const user = await findUser(userEmail);
-        if (!user) break;
-
-        await supabase.from("profiles").update({
-          subscription_status: "past_due",
-        }).eq("user_id", user.id);
+        if (!userId) break;
+        await supabase.from("profiles").update({ subscription_status: "past_due" }).eq("user_id", userId);
+        log("Subscription payment failed", { userId });
         break;
       }
 
       // ══════════ SUBSCRIPTION PAYMENT RECOVERED ══════════
       case "subscription_payment_recovered": {
-        const user = await findUser(userEmail);
-        if (!user) break;
-
-        await supabase.from("profiles").update({
-          subscription_status: "active",
-        }).eq("user_id", user.id);
+        if (!userId) break;
+        await supabase.from("profiles").update({ subscription_status: "active" }).eq("user_id", userId);
+        log("Subscription payment recovered", { userId });
         break;
       }
 
       // ══════════ SUBSCRIPTION PLAN CHANGED ══════════
       case "subscription_plan_changed": {
-        const user = await findUser(userEmail);
-        if (!user) break;
-
-        const newPlanId = event.meta?.custom_data?.plan_id || attrs?.product_name?.toLowerCase() || "unknown";
-        const newCycle = event.meta?.custom_data?.cycle || "monthly";
-
+        if (!userId) break;
+        const newPlanId = customData?.plan_id || attrs?.product_name?.toLowerCase() || "unknown";
+        const newCycle = customData?.cycle || "monthly";
         await supabase.from("profiles").update({
-          subscription_plan: newPlanId,
-          subscription_cycle: newCycle,
-          subscription_status: "active",
-        }).eq("user_id", user.id);
-
-        console.log(`[ls-webhook] Plan changed to ${newPlanId} for ${user.id}`);
+          subscription_plan: newPlanId, subscription_cycle: newCycle, subscription_status: "active",
+        }).eq("user_id", userId);
+        log("Plan changed", { userId, newPlanId });
         break;
       }
 
       default:
-        console.log(`[ls-webhook] Unhandled event: ${eventName}`);
+        log("Unhandled event", { eventName });
     }
 
     return new Response(JSON.stringify({ received: true }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
-    console.error("[ls-webhook] Error:", error);
+    log("ERROR", { message: error instanceof Error ? error.message : String(error) });
     return new Response(JSON.stringify({ error: error instanceof Error ? error.message : String(error) }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });

@@ -39,6 +39,7 @@ const CheckoutModal = ({ checkoutUrl, onClose }: CheckoutModalProps) => {
   const [view, setView] = useState<ModalView>("idle");
   const [result, setResult] = useState<VerificationResult | null>(null);
   const successRef = useRef(false);
+  const retryCountRef = useRef(0);
 
   // Initialize lemon.js and set up event handler
   useEffect(() => {
@@ -46,10 +47,15 @@ const CheckoutModal = ({ checkoutUrl, onClose }: CheckoutModalProps) => {
 
     window.LemonSqueezy?.Setup({
       eventHandler: (event: any) => {
+        console.log("[CheckoutModal] LS event:", event?.event);
         if (event.event === "Checkout.Success") {
           successRef.current = true;
           setView("verifying");
-          verifyPurchase();
+          retryCountRef.current = 0;
+          verifyWithRetry();
+        }
+        if (event.event === "Checkout.Close" && !successRef.current) {
+          setView("canceled");
         }
       },
     });
@@ -61,6 +67,7 @@ const CheckoutModal = ({ checkoutUrl, onClose }: CheckoutModalProps) => {
     setView("idle");
     setResult(null);
     successRef.current = false;
+    retryCountRef.current = 0;
 
     // Re-initialize in case component re-rendered
     window.createLemonSqueezy?.();
@@ -71,7 +78,6 @@ const CheckoutModal = ({ checkoutUrl, onClose }: CheckoutModalProps) => {
         window.LemonSqueezy?.Url.Open(checkoutUrl);
       } catch (err) {
         console.error("Failed to open Lemon Squeezy checkout:", err);
-        // Fallback: open in new tab
         window.open(checkoutUrl, "_blank");
       }
     }, 150);
@@ -79,23 +85,34 @@ const CheckoutModal = ({ checkoutUrl, onClose }: CheckoutModalProps) => {
     return () => clearTimeout(timer);
   }, [checkoutUrl]);
 
-  const verifyPurchase = async () => {
-    try {
-      // Small delay for order to propagate
-      await new Promise((r) => setTimeout(r, 2000));
-      const { data, error } = await supabase.functions.invoke("verify-credit-purchase");
-      if (error) throw error;
-      if (data?.credited && data.credits_added > 0) {
-        setResult({ credits_added: data.credits_added });
-      } else {
-        setResult({ credits_added: 0 });
+  const verifyWithRetry = async () => {
+    const MAX_RETRIES = 5;
+    const RETRY_DELAYS = [3000, 4000, 5000, 6000, 8000];
+
+    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+      retryCountRef.current = attempt + 1;
+      console.log(`[CheckoutModal] Verify attempt ${attempt + 1}/${MAX_RETRIES}`);
+
+      await new Promise((r) => setTimeout(r, RETRY_DELAYS[attempt]));
+
+      try {
+        const { data, error } = await supabase.functions.invoke("verify-credit-purchase");
+        if (error) throw error;
+
+        if (data?.credited && data.credits_added > 0) {
+          setResult({ credits_added: data.credits_added });
+          setView("success");
+          return;
+        }
+      } catch (err) {
+        console.error(`[CheckoutModal] Verify attempt ${attempt + 1} failed:`, err);
       }
-      setView("success");
-    } catch (err) {
-      console.error("Verification error:", err);
-      setResult({ credits_added: 0 });
-      setView("success");
     }
+
+    // All retries exhausted — show success anyway (webhook will handle it)
+    console.warn("[CheckoutModal] All verify retries exhausted, showing success (webhook will handle credits)");
+    setResult({ credits_added: 0 });
+    setView("success");
   };
 
   const handleGoToCRM = () => {
@@ -158,13 +175,17 @@ const CheckoutModal = ({ checkoutUrl, onClose }: CheckoutModalProps) => {
               </motion.div>
               <div className="flex flex-col items-center gap-1.5">
                 <p className="text-white/70 text-base font-semibold">Verifying your purchase</p>
-                <p className="text-white/30 text-sm">Confirming payment and adding credits...</p>
+                <p className="text-white/30 text-sm">
+                  {retryCountRef.current > 2 
+                    ? "Almost there, confirming with payment provider..." 
+                    : "Confirming payment and adding credits..."}
+                </p>
               </div>
             </div>
           )}
 
           {/* === SUCCESS VIEW === */}
-          {view === "success" && (result?.credits_added ?? 0) > 0 && (
+          {view === "success" && (
             <div className="flex-1 flex flex-col items-center justify-center px-6 py-16">
               <motion.div
                 initial={{ scale: 0, opacity: 0 }}
@@ -181,7 +202,11 @@ const CheckoutModal = ({ checkoutUrl, onClose }: CheckoutModalProps) => {
               <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="text-center mb-10">
                 <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">Transaction Successful</h2>
                 <p className="text-white/40 text-sm md:text-base">
-                  <span className="text-emerald-400 font-semibold">{(result?.credits_added ?? 0).toLocaleString()}</span> credits have been added to your wallet
+                  {(result?.credits_added ?? 0) > 0 ? (
+                    <><span className="text-emerald-400 font-semibold">{(result?.credits_added ?? 0).toLocaleString()}</span> credits have been added to your wallet</>
+                  ) : (
+                    <>Your payment was successful! Credits are being processed and will appear in your wallet shortly.</>
+                  )}
                 </p>
               </motion.div>
 
@@ -217,8 +242,8 @@ const CheckoutModal = ({ checkoutUrl, onClose }: CheckoutModalProps) => {
             </div>
           )}
 
-          {/* === CANCELED / NO CREDITS VIEW === */}
-          {(view === "canceled" || (view === "success" && (result?.credits_added ?? 0) === 0)) && (
+          {/* === CANCELED VIEW === */}
+          {view === "canceled" && (
             <div className="flex-1 flex flex-col items-center justify-center px-6 py-16">
               <motion.div
                 initial={{ scale: 0, opacity: 0 }}
