@@ -415,7 +415,7 @@ const AdminCustomers = () => {
 
               {/* Account */}
               <Button size="sm" variant="outline" className="text-pink-400 border-pink-500/30 bg-pink-500/5 hover:bg-pink-500/10 gap-1.5 text-xs h-7"
-                onClick={() => { setSelectedPlan(detail?.payment?.current_plan?.toLowerCase() || detail?.stripe?.current_plan?.toLowerCase() || "free"); setPlanReason(""); setShowChangePlanDialog(true); }}>
+                onClick={() => { setSelectedPlan(detail?.payment?.current_plan?.toLowerCase() || "free"); setPlanReason(""); setShowChangePlanDialog(true); }}>
                 <Tag className="h-3 w-3" /> Plan
               </Button>
               <Button size="sm" variant="outline" className="text-cyan-400 border-cyan-500/30 bg-cyan-500/5 hover:bg-cyan-500/10 gap-1.5 text-xs h-7"
@@ -621,7 +621,7 @@ const AdminCustomers = () => {
                 { label: "Credit Balance", value: (detail.wallet?.balance || 0).toLocaleString(), icon: Coins, accent: "text-sky-400" },
                 { label: "Purchased Credits", value: (detail.wallet?.total_purchased || 0).toLocaleString(), icon: CreditCard, accent: "text-emerald-400" },
                 { label: "Granted Credits", value: ((detail.transactions || []).filter((t: any) => t.type === "admin_grant").reduce((s: number, t: any) => s + t.amount, 0)).toLocaleString(), icon: Gift, accent: "text-purple-400" },
-                { label: "Current Plan", value: detail.payment?.current_plan || detail.stripe?.current_plan || detail.insights?.current_plan || "Free", icon: Crown, accent: "text-pink-400" },
+                { label: "Current Plan", value: detail.payment?.current_plan || detail.insights?.current_plan || "Free", icon: Crown, accent: "text-pink-400" },
                 { label: "Purchase Freq.", value: `${detail.insights.purchase_frequency.toFixed(1)}/mo`, icon: BarChart3, accent: "text-orange-400" },
               ].map(kpi => (
                 <Card key={kpi.label} className="bg-white/5 border-white/10">
@@ -661,9 +661,9 @@ const AdminCustomers = () => {
 
               {/* Payments Tab */}
               <TabsContent value="payments">
-                {(detail.stripe?.error || detail.payment?.error) ? (
+                {(detail.payment?.error) ? (
                   <Card className="bg-white/5 border-white/10"><CardContent className="p-6 text-center text-white/40">No payment data available</CardContent></Card>
-                ) : (detail.stripe || detail.payment) ? (
+                ) : (detail.payment) ? (
                   <div className="space-y-4">
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                       {[
