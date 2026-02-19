@@ -152,13 +152,37 @@ serve(async (req) => {
       if (!updateRes.ok) throw new Error(`Upgrade failed: ${await updateRes.text()}`);
       log("Upgrade successful — prorated invoice charged immediately");
 
-      // Grant credits for upgrade
+      // Grant credits for upgrade — but prevent abuse from upgrade/downgrade spirals
       const adminClient = createClient(Deno.env.get("SUPABASE_URL") ?? "", Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "");
       const credits = PLAN_CREDITS[planId] || 0;
       if (credits > 0) {
-        const { data: walletData } = await adminClient.from("wallets").select("balance").eq("user_id", user.id).single();
-        if (walletData) {
-          await adminClient.from("wallets").update({ balance: walletData.balance + credits }).eq("user_id", user.id);
+        // Check if upgrade credits were already granted for this plan in the last 30 days
+        const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+        const { data: recentGrant } = await adminClient
+          .from("wallet_transactions")
+          .select("id")
+          .eq("user_id", user.id)
+          .eq("type", "upgrade_credit")
+          .gte("created_at", thirtyDaysAgo)
+          .ilike("description", `%${planId}%`)
+          .limit(1);
+
+        if (recentGrant && recentGrant.length > 0) {
+          log("Upgrade credits already granted this billing period — skipping to prevent abuse", { planId, userId: user.id });
+        } else {
+          const { data: walletData } = await adminClient.from("wallets").select("balance").eq("user_id", user.id).single();
+          if (walletData) {
+            await adminClient.from("wallets").update({ balance: walletData.balance + credits }).eq("user_id", user.id);
+            // Record the grant to prevent duplicates
+            await adminClient.from("wallet_transactions").insert({
+              user_id: user.id,
+              amount: credits,
+              type: "upgrade_credit",
+              description: `Upgrade to ${planId} plan`,
+              reference_id: existingSub.id,
+            });
+            log("Upgrade credits granted", { credits, planId });
+          }
         }
       }
 
