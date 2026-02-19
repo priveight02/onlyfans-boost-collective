@@ -49,16 +49,25 @@ const Pricing = () => {
   const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
   const [circulationCredits, setCirculationCredits] = useState<number | null>(null);
 
-  // Declining discount: 1st repurchase=30%, 2nd=20%, 3rd=10%, then 0%
+  // Ascending loyalty: 1st repurchase=10%, 2nd=20%, 3rd+=30%
   const getReturningDiscount = (count: number): number => {
-    if (count === 1) return 0.30;
-    if (count === 2) return 0.20;
-    if (count === 3) return 0.10;
+    if (count >= 3) return 0.30;
+    if (count >= 2) return 0.20;
+    if (count >= 1) return 0.10;
     return 0;
   };
   // If retention is active, loyalty discount is erased (non-stackable)
   const returningDiscount = retentionActive ? 0 : getReturningDiscount(purchaseCount);
   const isReturning = returningDiscount > 0;
+
+  // Loyalty tier label for all users (including first purchase)
+  const getLoyaltyLabel = (count: number): { label: string; next: string | null } => {
+    if (count >= 3) return { label: "30% Loyalty Discount", next: null };
+    if (count === 2) return { label: "20% Loyalty Discount", next: "30% after next purchase" };
+    if (count === 1) return { label: "10% Loyalty Discount", next: "20% after next purchase" };
+    return { label: "First Purchase", next: "10% loyalty discount after this purchase" };
+  };
+  const loyaltyInfo = retentionActive ? null : getLoyaltyLabel(purchaseCount);
 
   useEffect(() => {
     const fetchPackages = async () => {
@@ -227,10 +236,22 @@ const Pricing = () => {
                 <span className="text-xl font-semibold text-white">{balance.toLocaleString()}</span>
               </div>
             </div>
-            {isReturning && (
-              <div className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
-                <BadgePercent className="h-3.5 w-3.5 text-emerald-400" />
-                <span className="text-xs text-emerald-300 font-medium">{Math.round(returningDiscount * 100)}% returning customer discount applied</span>
+            {user && loyaltyInfo && (
+              <div className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-full ${
+                isReturning 
+                  ? 'bg-emerald-500/10 border border-emerald-500/20' 
+                  : 'bg-white/5 border border-white/10'
+              }`}>
+                <BadgePercent className={`h-3.5 w-3.5 ${isReturning ? 'text-emerald-400' : 'text-white/40'}`} />
+                <span className={`text-xs font-medium ${isReturning ? 'text-emerald-300' : 'text-white/50'}`}>
+                  {isReturning 
+                    ? `${Math.round(returningDiscount * 100)}% returning customer discount applied`
+                    : loyaltyInfo.label
+                  }
+                </span>
+                {loyaltyInfo.next && (
+                  <span className="text-[10px] text-white/30 ml-1">→ {loyaltyInfo.next}</span>
+                )}
               </div>
             )}
             {retentionActive && (
