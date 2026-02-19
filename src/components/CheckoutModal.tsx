@@ -154,26 +154,27 @@ const CheckoutModal = ({ checkoutUrl, onClose }: CheckoutModalProps) => {
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.97, y: 16 }}
           transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-          className="relative w-full max-w-6xl rounded-2xl overflow-hidden flex flex-col"
+          className="relative w-full max-w-5xl rounded-2xl overflow-hidden flex flex-col"
           style={{
             background: "linear-gradient(180deg, hsl(222, 35%, 10%) 0%, hsl(222, 35%, 7%) 100%)",
             boxShadow: "0 0 0 1px rgba(255,255,255,0.06), 0 32px 80px -12px rgba(0,0,0,0.7), 0 0 120px -40px rgba(147,51,234,0.15)",
-            height: "95vh",
+            height: "92vh",
           }}
         >
-          <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-purple-500/40 to-transparent" />
+          <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-purple-500/40 to-transparent" />
 
           {/* Header bar */}
-          <div className="flex items-center justify-between px-5 py-3 border-b border-white/[0.06] flex-shrink-0">
-            <div className="flex items-center gap-2">
-              <ShieldCheck className="h-4 w-4 text-emerald-400" />
-              <span className="text-xs text-white/50 font-medium">Secure Checkout — Powered by Stripe</span>
+          <div className="flex items-center justify-between px-4 py-2 border-b border-white/[0.06] flex-shrink-0 bg-white/[0.02]">
+            <div className="flex items-center gap-1.5">
+              <Lock className="h-3 w-3 text-emerald-400/80" />
+              <span className="text-[11px] text-white/40 font-medium tracking-wide">Secure Checkout</span>
+              <span className="text-[10px] text-white/20 ml-1">• Powered by Stripe</span>
             </div>
             <button
               onClick={handleCloseAttempt}
-              className="w-8 h-8 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] flex items-center justify-center text-white/40 hover:text-white/80 transition-colors"
+              className="w-6 h-6 rounded-md bg-white/[0.05] hover:bg-white/[0.12] flex items-center justify-center text-white/30 hover:text-white/70 transition-all duration-200"
             >
-              <X className="h-4 w-4" />
+              <X className="h-3.5 w-3.5" />
             </button>
           </div>
 
