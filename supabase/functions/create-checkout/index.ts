@@ -170,16 +170,21 @@ serve(async (req) => {
     }
 
     // ═══ LIFETIME LIMITS: Starter downgrade max 1x, upgrades max 2x per account ═══
+    // Fetch ALL plan_change records for this user (reliable JS filtering instead of PostgREST JSONB)
+    const { data: allPlanChanges } = await adminClient
+      .from("wallet_transactions")
+      .select("id, metadata")
+      .eq("user_id", user.id)
+      .eq("type", "plan_change");
+
+    const planChanges = allPlanChanges || [];
+
     if (isDowngrade && planId === "starter") {
-      const { data: starterDowngrades } = await adminClient
-        .from("wallet_transactions")
-        .select("id")
-        .eq("user_id", user.id)
-        .eq("type", "plan_change")
-        .filter("metadata->>to_plan", "eq", "starter")
-        .filter("metadata->>direction", "eq", "downgrade");
-      if (starterDowngrades && starterDowngrades.length >= 1) {
-        log("BLOCKED — lifetime starter downgrade limit reached", { userId: user.id, count: starterDowngrades.length });
+      const starterDowngradeCount = planChanges.filter(
+        (r: any) => r.metadata?.to_plan === "starter" && r.metadata?.direction === "downgrade"
+      ).length;
+      if (starterDowngradeCount >= 1) {
+        log("BLOCKED — lifetime starter downgrade limit reached", { userId: user.id, count: starterDowngradeCount });
         await adminClient.from("admin_user_notifications").insert({
           user_id: user.id,
           title: "Downgrade Blocked",
@@ -193,14 +198,11 @@ serve(async (req) => {
     }
 
     if (isUpgrade) {
-      const { data: allUpgrades } = await adminClient
-        .from("wallet_transactions")
-        .select("id")
-        .eq("user_id", user.id)
-        .eq("type", "plan_change")
-        .filter("metadata->>direction", "eq", "upgrade");
-      if (allUpgrades && allUpgrades.length >= 2) {
-        log("BLOCKED — lifetime upgrade limit reached", { userId: user.id, count: allUpgrades.length });
+      const upgradeCount = planChanges.filter(
+        (r: any) => r.metadata?.direction === "upgrade"
+      ).length;
+      if (upgradeCount >= 2) {
+        log("BLOCKED — lifetime upgrade limit reached", { userId: user.id, count: upgradeCount });
         await adminClient.from("admin_user_notifications").insert({
           user_id: user.id,
           title: "Upgrade Blocked",
