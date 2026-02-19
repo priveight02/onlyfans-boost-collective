@@ -220,7 +220,7 @@ serve(async (req) => {
     }
 
     const checkoutBody: any = {
-      product_price_id: target.priceId,
+      products: [target.productId],
       customer_email: user.email,
       customer_external_id: user.id,
       metadata: {
@@ -232,7 +232,7 @@ serve(async (req) => {
         discount_applied: discountCode || "none",
       },
       success_url: `${origin}/profile?subscription=success&plan=${planId}`,
-      allow_discount_codes: false, // Prevent manual coupon entry
+      allow_discount_codes: false,
       embed_origin: origin,
     };
 
@@ -241,7 +241,7 @@ serve(async (req) => {
       checkoutBody.discount_id = discountId;
     }
 
-    const checkoutRes = await polarFetch("/checkouts/custom", {
+    const checkoutRes = await polarFetch("/checkouts/", {
       method: "POST",
       body: JSON.stringify(checkoutBody),
     });
