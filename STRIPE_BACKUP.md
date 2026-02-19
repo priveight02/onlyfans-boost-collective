@@ -95,5 +95,5 @@
 Pro + Business: prod_TzUuDHxcoyItCj, prod_TzUuv2bXrA1EVF, prod_TzUu26T8Hiv2lS, prod_TzUv67N4QUbXHN
 
 ## Checkout Success URLs
-- Credits: `https://ozcagency.com/pricing?success=true&credits={N}`
-- Subscriptions: `https://ozcagency.com/profile?subscription=success&plan={planId}`
+- Credits: `https://uplyze.ai/pricing?success=true&credits={N}`
+- Subscriptions: `https://uplyze.ai/profile?subscription=success&plan={planId}`

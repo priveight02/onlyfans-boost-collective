@@ -88,7 +88,7 @@ serve(async (req) => {
     };
     const returningDiscountPercent = getReturningDiscount(currentPurchaseCount);
 
-    const origin = "https://ozcagency.com";
+    const origin = "https://uplyze.ai";
 
     // --- CUSTOM CREDITS MODE ---
     if (customCredits && typeof customCredits === "number" && customCredits >= 500) {

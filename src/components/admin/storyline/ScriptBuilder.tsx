@@ -137,7 +137,7 @@ const STEP_TYPE_COLORS: Record<string, { bg: string; fg: string; emoji: string }
 /* ── Excel Export ── */
 const exportToExcel = async (script: Script, steps: ScriptStep[]) => {
   const wb = new ExcelJS.Workbook();
-  wb.creator = "OZC Agency Script Builder";
+  wb.creator = "Uplyze Script Builder";
   wb.created = new Date();
 
   // ── OVERVIEW SHEET ──

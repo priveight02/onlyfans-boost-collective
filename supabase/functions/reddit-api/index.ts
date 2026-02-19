@@ -26,7 +26,7 @@ async function redditFetch(endpoint: string, token: string, method = "GET", body
     method,
     headers: {
       "Authorization": `Bearer ${token}`,
-      "User-Agent": "OZC-Agency-Hub/1.0",
+      "User-Agent": "Uplyze-Hub/1.0",
     },
   };
   if (body && method !== "GET") {
@@ -69,11 +69,11 @@ serve(async (req) => {
         const basicAuth = btoa(`${client_id}:${client_secret}`);
         const tokenRes = await fetch("https://www.reddit.com/api/v1/access_token", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-            "Authorization": `Basic ${basicAuth}`,
-            "User-Agent": "OZC-Agency-Hub/1.0",
-          },
+            headers: {
+              "Content-Type": "application/x-www-form-urlencoded",
+              "Authorization": `Basic ${basicAuth}`,
+              "User-Agent": "Uplyze-Hub/1.0",
+            },
           body: new URLSearchParams({ grant_type: "authorization_code", code, redirect_uri: redirect_uri || "" }).toString(),
         });
         const tokenData = await tokenRes.json();
@@ -92,7 +92,7 @@ serve(async (req) => {
         const basicAuth = btoa(`${client_id}:${client_secret}`);
         const resp = await fetch("https://www.reddit.com/api/v1/access_token", {
           method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded", "Authorization": `Basic ${basicAuth}`, "User-Agent": "OZC-Agency-Hub/1.0" },
+          headers: { "Content-Type": "application/x-www-form-urlencoded", "Authorization": `Basic ${basicAuth}`, "User-Agent": "Uplyze-Hub/1.0" },
           body: new URLSearchParams({ grant_type: "refresh_token", refresh_token: conn.refresh_token }).toString(),
         });
         result = await resp.json();

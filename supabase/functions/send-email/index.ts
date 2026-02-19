@@ -2,9 +2,9 @@ import { Webhook } from "https://esm.sh/standardwebhooks@1.0.0";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY")!;
 const hookSecret = Deno.env.get("SEND_EMAIL_HOOK_SECRET")?.replace("v1,whsec_", "") || "";
-const LOGO_URL = "https://ozcagency.com/lovable-uploads/ozc-agency-logo.jpg";
-const SITE_URL = "https://ozcagency.com";
-const BRAND_NAME = "Ozc Agency";
+const LOGO_URL = "https://ufsnuobtvkciydftsyff.supabase.co/storage/v1/object/public/email-assets/uplyze-logo.png";
+const SITE_URL = "https://uplyze.ai";
+const BRAND_NAME = "Uplyze";
 
 interface EmailPayload {
   user: { email: string };
@@ -274,7 +274,7 @@ Deno.serve(async (req) => {
         Authorization: `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: `${BRAND_NAME} <contact@ozcagency.com>`,
+        from: `${BRAND_NAME} <contact@uplyze.ai>`,
         to: [email],
         subject,
         html,
@@ -293,7 +293,7 @@ Deno.serve(async (req) => {
           Authorization: `Bearer ${RESEND_API_KEY}`,
         },
         body: JSON.stringify({
-          from: `${BRAND_NAME} <contact@ozcagency.com>`,
+          from: `${BRAND_NAME} <contact@uplyze.ai>`,
           to: [email],
           subject,
           html,

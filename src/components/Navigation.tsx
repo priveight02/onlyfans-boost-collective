@@ -60,7 +60,7 @@ const Navigation = () => {
             <div className="flex items-center ml-36 lg:ml-52">
               <Link to="/" className="flex items-center group transition-all duration-300 hover:scale-105">
                 <div className="w-16 h-16">
-                  <img src="/lovable-uploads/ozc-agency-logo.jpg" alt="OZC Agency Logo" className="w-full h-full object-contain rounded-full" />
+                  <img src="/lovable-uploads/uplyze-logo.png" alt="Uplyze Logo" className="w-full h-full object-contain rounded-full" />
                 </div>
               </Link>
             </div>

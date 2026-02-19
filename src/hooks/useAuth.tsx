@@ -131,11 +131,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     });
 
     // Check remember me on load
-    const remembered = localStorage.getItem('ozc_remember_me');
+    const newRememberKey = 'uplyze_remember_me';
+    const oldRememberKey = 'ozc_remember_me';
+    const remembered = localStorage.getItem(newRememberKey) || localStorage.getItem(oldRememberKey);
     if (remembered) {
       const parsed = JSON.parse(remembered);
       if (new Date(parsed.until) < new Date()) {
-        localStorage.removeItem('ozc_remember_me');
+        localStorage.removeItem(newRememberKey);
+        localStorage.removeItem(oldRememberKey);
+      } else if (!localStorage.getItem(newRememberKey) && localStorage.getItem(oldRememberKey)) {
+        localStorage.setItem(newRememberKey, remembered);
+        localStorage.removeItem(oldRememberKey);
       }
     }
 
@@ -152,7 +158,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (rememberMe) {
       const until = new Date();
       until.setDate(until.getDate() + 30);
-      localStorage.setItem('ozc_remember_me', JSON.stringify({ until: until.toISOString() }));
+      localStorage.setItem('uplyze_remember_me', JSON.stringify({ until: until.toISOString() }));
       // Update profile
       if (data.user) {
         await supabase.from('profiles').update({ 
@@ -161,6 +167,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }).eq('user_id', data.user.id);
       }
     } else {
+      localStorage.removeItem('uplyze_remember_me');
       localStorage.removeItem('ozc_remember_me');
     }
     
@@ -170,7 +177,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signUp = async (email: string, password: string, username?: string, displayName?: string) => {
     const redirectUrl = window.location.hostname === 'localhost'
       ? window.location.origin
-      : 'https://ozcagency.com';
+      : 'https://uplyze.ai';
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -189,7 +196,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signInWithMagicLink = async (email: string) => {
     const redirectUrl = window.location.hostname === 'localhost'
       ? window.location.origin
-      : 'https://ozcagency.com';
+      : 'https://uplyze.ai';
     const { data, error } = await supabase.functions.invoke('custom-auth-email', {
       body: { email, type: 'magiclink', redirectTo: redirectUrl },
     });
@@ -200,7 +207,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const resetPassword = async (email: string) => {
     const redirectUrl = window.location.hostname === 'localhost' 
       ? `${window.location.origin}/auth/reset-password`
-      : `https://ozcagency.com/auth/reset-password`;
+      : `https://uplyze.ai/auth/reset-password`;
     const { data, error } = await supabase.functions.invoke('custom-auth-email', {
       body: { email, type: 'recovery', redirectTo: redirectUrl },
     });
@@ -218,6 +225,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setIsAdmin(false);
     setUser(null);
     setProfile(null);
+    localStorage.removeItem('uplyze_remember_me');
     localStorage.removeItem('ozc_remember_me');
     const { error } = await supabase.auth.signOut();
     if (error) throw error;

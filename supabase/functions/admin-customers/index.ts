@@ -41,7 +41,7 @@ const EMAIL_TEMPLATE = (categoryLabel: string, subject: string, name: string, bo
     <a href="${ctaUrl}" style="background:linear-gradient(135deg,#8b5cf6,#ec4899);color:#fff;padding:14px 36px;border-radius:12px;text-decoration:none;font-weight:bold;font-size:16px;display:inline-block;">${ctaLabel}</a>
   </div>
   <hr style="border:1px solid #ffffff15;margin:24px 0;" />
-  <p style="color:#ffffff40;font-size:11px;text-align:center;">OZC Agency Platform</p>
+  <p style="color:#ffffff40;font-size:11px;text-align:center;">Uplyze Platform</p>
 </div>`;
 
 serve(async (req) => {
@@ -828,13 +828,13 @@ behavioral_profile, spending_pattern, engagement_level (high|medium|low|dormant)
             const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
             if (RESEND_API_KEY && linkData?.properties?.action_link) {
               const resetLink = linkData.properties.action_link;
-              await fetch("https://api.resend.com/emails", {
-                method: "POST",
-                headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  from: "OZC Agency <contact@ozcagency.com>", to: [prof.email], subject: "Password Reset Request",
-                  html: EMAIL_TEMPLATE("Security", "Password Reset", prof.display_name || "there",
-                    "An administrator has initiated a password reset for your account. Click below to set a new password.",
+                await fetch("https://api.resend.com/emails", {
+                  method: "POST",
+                  headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    from: "Uplyze <contact@uplyze.ai>", to: [prof.email], subject: "Password Reset Request",
+                    html: EMAIL_TEMPLATE("Security", "Password Reset", prof.display_name || "there",
+                      "An administrator has initiated a password reset for your account. Click below to set a new password.",
                     resetLink, "Reset Password"),
                 }),
               });
@@ -945,7 +945,7 @@ behavioral_profile, spending_pattern, engagement_level (high|medium|low|dormant)
       }
 
       if (adminAction === "send_email") {
-        const emailSubject = actionData?.subject || "Message from OZC Agency";
+        const emailSubject = actionData?.subject || "Message from Uplyze";
         const emailBody = actionData?.body || "";
         const emailCategory = actionData?.category || "general";
         const { data: prof } = await supabaseAdmin.from("profiles").select("email, display_name").eq("user_id", userId).single();
@@ -965,8 +965,8 @@ behavioral_profile, spending_pattern, engagement_level (high|medium|low|dormant)
           method: "POST",
           headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
           body: JSON.stringify({
-            from: "OZC Agency <contact@ozcagency.com>", to: [prof.email], subject: emailSubject,
-            html: EMAIL_TEMPLATE(categoryLabel[emailCategory] || "General", emailSubject, prof.display_name || "there", emailBody, "https://onlyfans-boost-collective.lovable.app", "Visit Platform"),
+            from: "Uplyze <contact@uplyze.ai>", to: [prof.email], subject: emailSubject,
+            html: EMAIL_TEMPLATE(categoryLabel[emailCategory] || "General", emailSubject, prof.display_name || "there", emailBody, "https://uplyze.ai", "Visit Platform"),
           }),
         });
         logStep("Email sent via Resend", { email: prof.email, subject: emailSubject });
@@ -1028,19 +1028,19 @@ behavioral_profile, spending_pattern, engagement_level (high|medium|low|dormant)
         const { data: w } = await supabaseAdmin.from("wallets").select("balance").eq("user_id", userId).single();
         if (prof?.email) {
           const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
-          if (RESEND_API_KEY) {
-            await fetch("https://api.resend.com/emails", {
-              method: "POST",
-              headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
-              body: JSON.stringify({
-                from: "OZC Agency <contact@ozcagency.com>", to: [prof.email],
-                subject: "Your Credits Are About to Expire",
-                html: EMAIL_TEMPLATE("Billing", "Credit Expiry Warning", prof.display_name || "there",
-                  `You have <strong style="color:#f59e0b;">${w?.balance || 0} credits</strong> remaining. Use them before they expire!`,
-                  "https://onlyfans-boost-collective.lovable.app", "Use Credits Now"),
-              }),
-            });
-          }
+            if (RESEND_API_KEY) {
+              await fetch("https://api.resend.com/emails", {
+                method: "POST",
+                headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  from: "Uplyze <contact@uplyze.ai>", to: [prof.email],
+                  subject: "Your Credits Are About to Expire",
+                  html: EMAIL_TEMPLATE("Billing", "Credit Expiry Warning", prof.display_name || "there",
+                    `You have <strong style="color:#f59e0b;">${w?.balance || 0} credits</strong> remaining. Use them before they expire!`,
+                    "https://uplyze.ai", "Use Credits Now"),
+                }),
+              });
+            }
           await supabaseAdmin.from("admin_user_notifications").insert({
             user_id: userId, title: "Credits Expiring Soon", message: `You have ${w?.balance || 0} credits remaining. Use them before they expire!`,
             notification_type: "warning", sent_by: user.id,
