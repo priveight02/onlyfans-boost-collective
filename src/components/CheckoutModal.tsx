@@ -43,7 +43,7 @@ const CheckoutModal = ({ checkoutUrl, onClose }: CheckoutModalProps) => {
   // Listen for LS postMessage events from iframe
   useEffect(() => {
     const handler = (event: MessageEvent) => {
-      // Lemon Squeezy sends events via postMessage
+      // Polar/Stripe sends events via postMessage
       if (typeof event.data === "string") {
         try {
           const parsed = JSON.parse(event.data);
@@ -167,7 +167,7 @@ const CheckoutModal = ({ checkoutUrl, onClose }: CheckoutModalProps) => {
           <div className="flex items-center justify-between px-5 py-3 border-b border-white/[0.06] flex-shrink-0">
             <div className="flex items-center gap-2">
               <ShieldCheck className="h-4 w-4 text-emerald-400" />
-              <span className="text-xs text-white/50 font-medium">Secure Checkout — Lemon Squeezy</span>
+              <span className="text-xs text-white/50 font-medium">Secure Checkout — Powered by Stripe</span>
             </div>
             <button
               onClick={handleCloseAttempt}
@@ -187,7 +187,7 @@ const CheckoutModal = ({ checkoutUrl, onClose }: CheckoutModalProps) => {
                 allow="payment *"
                 loading="eager"
                 sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-top-navigation"
-                title="Lemon Squeezy Checkout"
+                title="Polar Checkout"
                 style={{ pointerEvents: "auto" }}
               />
             </div>
