@@ -96,7 +96,7 @@ serve(async (req) => {
     log("User authenticated", { userId: user.id, email: user.email });
 
     const body = await req.json();
-    const { packageId, customCredits, useRetentionDiscount, promoCode } = body;
+    const { packageId, customCredits, useRetentionDiscount } = body;
 
     const { data: wallet } = await supabaseAdmin
       .from("wallets").select("purchase_count, retention_credits_used").eq("user_id", user.id).single();
@@ -144,10 +144,6 @@ serve(async (req) => {
         totalCents = Math.round(totalCents * 0.5);
         await supabaseAdmin.from("wallets").update({ retention_credits_used: true }).eq("user_id", user.id);
         log("Applied retention 50% on custom credits");
-      } else if (promoCode) {
-        // User-entered promo code — pass to LS directly
-        discountCode = promoCode.toUpperCase();
-        discountTier = `promo_${promoCode}`;
       } else {
         // Apply loyalty discount
         const loyaltyCode = getLoyaltyDiscountCode(currentPurchaseCount);
@@ -189,7 +185,7 @@ serve(async (req) => {
               receipt_button_text: "Back to Uplyze",
               receipt_thank_you_note: "Your credits have been added to your wallet!",
             },
-            checkout_options: { embed: true, dark: true, media: true, logo: true },
+            checkout_options: { embed: true, dark: true, media: true, logo: true, discount: false },
           },
           relationships: {
             store: { data: { type: "stores", id: storeId } },
@@ -243,12 +239,6 @@ serve(async (req) => {
       priceCents = Math.round(priceCents * 0.5);
       await supabaseAdmin.from("wallets").update({ retention_credits_used: true }).eq("user_id", user.id);
       log("Applied retention 50% discount");
-    } else if (promoCode) {
-      // User-entered promo code
-      discountCode = promoCode.toUpperCase();
-      discountTier = `promo_${promoCode}`;
-      // Price will be adjusted by LS based on the discount — keep base price
-      priceCents = pkg.price_cents; // LS handles the discount
     } else {
       const loyaltyCode = getLoyaltyDiscountCode(currentPurchaseCount);
       if (loyaltyCode) {
@@ -290,7 +280,7 @@ serve(async (req) => {
             receipt_button_text: "Back to Uplyze",
             receipt_thank_you_note: "Your credits have been added to your wallet!",
           },
-          checkout_options: { embed: true, dark: true, media: true, logo: true },
+          checkout_options: { embed: true, dark: true, media: true, logo: true, discount: false },
         },
         relationships: {
           store: { data: { type: "stores", id: storeId } },
