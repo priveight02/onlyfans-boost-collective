@@ -93,6 +93,21 @@ serve(async (req) => {
 
     /** Idempotent credit grant + XP + wallet update */
     const grantCredits = async (userId: string, credits: number, source: string, refId: string, metadata: Record<string, any> = {}): Promise<boolean> => {
+      // ANTI-ABUSE: If a downgrade was recorded in the last 10 minutes, skip credit grant
+      // This prevents spiral abuse where downgrade triggers a new order that grants credits
+      const tenMinAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+      const { data: downgradeRecords } = await supabase
+        .from("wallet_transactions")
+        .select("id, metadata")
+        .eq("user_id", userId)
+        .eq("type", "plan_change")
+        .gte("created_at", tenMinAgo);
+      const isPostDowngrade = downgradeRecords?.some((r: any) => r.metadata?.direction === "downgrade");
+      if (isPostDowngrade) {
+        log("BLOCKED credit grant — recent downgrade detected, skipping to prevent spiral abuse", { userId, credits, refId });
+        return false;
+      }
+
       const { data: existing } = await supabase
         .from("wallet_transactions").select("id").eq("reference_id", refId).eq("type", "purchase").limit(1);
       if (existing && existing.length > 0) { log("Already processed — skip", { refId }); return false; }
