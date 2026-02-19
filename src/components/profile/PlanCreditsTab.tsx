@@ -248,11 +248,16 @@ const PlanCreditsTab = ({ onSwitchTab }: { onSwitchTab?: (tab: string) => void }
       const { data, error } = await supabase.functions.invoke("create-checkout", {
         body: { planId, billingCycle: cycle, currentPlanId: activePlanId || "free", confirmed },
       });
-      if (error) throw error;
+      if (error) {
+        // Try to parse the error body for a user-friendly message
+        const errMsg = typeof error === 'object' && error?.message ? error.message : String(error);
+        toast.error(errMsg || "Failed to process plan change. If you believe this is an error, please contact an administrator.");
+        return;
+      }
 
-      // Handle blocked by rate limiter
+      // Handle blocked by rate limiter or lifetime limits
       if (data?.blocked) {
-        toast.error(data.error || "Too many plan changes. Please try again later.");
+        toast.error(data.error || "Plan change blocked. If you believe this is an error, please contact an administrator.");
         return;
       }
       if (data?.error) {

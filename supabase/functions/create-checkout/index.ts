@@ -146,28 +146,29 @@ serve(async (req) => {
       });
     }
 
-    // ═══ ANTI-ABUSE: Rate-limit plan changes to max 2 per 24 hours ═══
+    // ═══ ANTI-ABUSE: Rate-limit plan changes to max 2 per calendar month ═══
     const adminClient = createClient(Deno.env.get("SUPABASE_URL") ?? "", Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "");
-    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
     const { data: recentChanges } = await adminClient
       .from("wallet_transactions")
       .select("id")
       .eq("user_id", user.id)
       .eq("type", "plan_change")
-      .gte("created_at", oneDayAgo);
+      .gte("created_at", monthStart);
 
     const changeCount = recentChanges?.length || 0;
     if (changeCount >= 2) {
-      log("ABUSE BLOCKED — too many plan changes in 24h", { count: changeCount, userId: user.id });
+      log("ABUSE BLOCKED — too many plan changes this month", { count: changeCount, userId: user.id });
       // Send real-time notification
       await adminClient.from("admin_user_notifications").insert({
         user_id: user.id,
         title: "Plan Change Limit Reached",
-        message: "You've reached the maximum of 2 plan changes per 24 hours. Please try again later.",
+        message: "You've reached the maximum of 2 plan changes per month. If you believe this is an error, please contact an administrator.",
         notification_type: "warning",
       });
-      return new Response(JSON.stringify({ error: "You've reached the maximum of 2 plan changes per 24 hours. Please try again later.", blocked: true }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 429,
+      return new Response(JSON.stringify({ error: "You've reached the maximum of 2 plan changes per month. If you believe this is an error, please contact an administrator.", blocked: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200,
       });
     }
 
@@ -190,11 +191,11 @@ serve(async (req) => {
         await adminClient.from("admin_user_notifications").insert({
           user_id: user.id,
           title: "Downgrade Blocked",
-          message: "You can only downgrade to the Starter plan once per account. This limit has been reached.",
+          message: "You can only downgrade to the Starter plan once per account. If you believe this is an error, please contact an administrator.",
           notification_type: "warning",
         });
-        return new Response(JSON.stringify({ error: "You can only downgrade to the Starter plan once per account.", blocked: true }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 429,
+        return new Response(JSON.stringify({ error: "You can only downgrade to the Starter plan once per account. If you believe this is an error, please contact an administrator.", blocked: true }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200,
         });
       }
     }
@@ -208,11 +209,11 @@ serve(async (req) => {
         await adminClient.from("admin_user_notifications").insert({
           user_id: user.id,
           title: "Upgrade Blocked",
-          message: "You can only upgrade your plan twice per account. This limit has been reached.",
+          message: "You can only upgrade your plan twice per account. If you believe this is an error, please contact an administrator.",
           notification_type: "warning",
         });
-        return new Response(JSON.stringify({ error: "You can only upgrade your plan twice per account.", blocked: true }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 429,
+        return new Response(JSON.stringify({ error: "You can only upgrade your plan twice per account. If you believe this is an error, please contact an administrator.", blocked: true }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200,
         });
       }
     }
