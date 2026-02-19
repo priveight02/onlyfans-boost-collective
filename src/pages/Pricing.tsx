@@ -46,7 +46,7 @@ const Pricing = () => {
   const [verifying, setVerifying] = useState(false);
   const [retentionActive, setRetentionActive] = useState(false);
   const [retentionUsed, setRetentionUsed] = useState(false);
-  const [checkoutSecret, setCheckoutSecret] = useState<string | null>(null);
+  const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
   const [circulationCredits, setCirculationCredits] = useState<number | null>(null);
 
   // Declining discount: 1st repurchase=30%, 2nd=20%, 3rd=10%, then 0%
@@ -136,7 +136,7 @@ const Pricing = () => {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleCheckoutClose = (purchased: boolean) => {
-    setCheckoutSecret(null);
+    setCheckoutUrl(null);
     if (purchased) {
       refreshWallet();
     }
@@ -150,7 +150,7 @@ const Pricing = () => {
         body: { packageId: pkg.id, useRetentionDiscount: useRetention },
       });
       if (error) throw error;
-      if (data?.clientSecret) setCheckoutSecret(data.clientSecret);
+      if (data?.checkoutUrl) setCheckoutUrl(data.checkoutUrl);
       if (useRetention) {
         setRetentionActive(false);
         setRetentionUsed(true);
@@ -171,7 +171,7 @@ const Pricing = () => {
         body: { customCredits },
       });
       if (error) throw error;
-      if (data?.clientSecret) setCheckoutSecret(data.clientSecret);
+      if (data?.checkoutUrl) setCheckoutUrl(data.checkoutUrl);
     } catch (err: any) {
       toast.error(err.message || "Failed to start checkout");
     } finally {
@@ -467,7 +467,7 @@ const Pricing = () => {
       </div>
 
       <Footer />
-      <CheckoutModal clientSecret={checkoutSecret} onClose={handleCheckoutClose} />
+      <CheckoutModal checkoutUrl={checkoutUrl} onClose={handleCheckoutClose} />
     </div>
   );
 };

@@ -1,14 +1,26 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import Stripe from "https://esm.sh/stripe@18.5.0";
-import { createClient } from "npm:@supabase/supabase-js@2.57.2";
+import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const POLAR_API = "https://api.polar.sh/v1";
+
+const polarFetch = async (path: string) => {
+  const token = Deno.env.get("POLAR_ACCESS_TOKEN");
+  if (!token) throw new Error("POLAR_ACCESS_TOKEN not set");
+  return fetch(`${POLAR_API}${path}`, {
+    headers: {
+      "Authorization": `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+  });
+};
+
 const logStep = (step: string, details?: any) => {
-  console.log(`[VERIFY-CREDIT-PURCHASE] ${step}${details ? ` - ${JSON.stringify(details)}` : ''}`);
+  console.log(`[VERIFY-CREDIT-PURCHASE] ${step}${details ? ` - ${JSON.stringify(details)}` : ""}`);
 };
 
 serve(async (req) => {
@@ -19,113 +31,92 @@ serve(async (req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
     { auth: { persistSession: false } }
   );
-
   const supabaseClient = createClient(
     Deno.env.get("SUPABASE_URL") ?? "",
     Deno.env.get("SUPABASE_ANON_KEY") ?? ""
   );
 
   try {
-    const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", { apiVersion: "2025-08-27.basil" });
-
-    // Authenticate user
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("No authorization header");
-
     const token = authHeader.replace("Bearer ", "");
     const { data } = await supabaseClient.auth.getUser(token);
     const user = data.user;
     if (!user?.id) throw new Error("User not authenticated");
     logStep("User authenticated", { userId: user.id });
 
-    // ONLY match sessions by user_id in metadata — no email matching
-    const sessions = await stripe.checkout.sessions.list({ limit: 25 });
-    const userSessions = sessions.data.filter(
-      s => s.payment_status === "paid" && s.metadata?.user_id === user.id
-    );
-
-    logStep("Found paid sessions for user", { count: userSessions.length });
-
-    if (userSessions.length === 0) {
-      return new Response(JSON.stringify({ credited: false, credits_added: 0, message: "No purchases found" }), {
+    // Find Polar customer by external_id
+    const customersRes = await polarFetch(`/customers?external_id=${user.id}&limit=1`);
+    if (!customersRes.ok) {
+      return new Response(JSON.stringify({ credited: false, credits_added: 0, message: "No customer found" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    const customersData = await customersRes.json();
+    if (!customersData.items?.length) {
+      return new Response(JSON.stringify({ credited: false, credits_added: 0, message: "No customer found" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const customerId = customersData.items[0].id;
+
+    // Get recent orders for this customer
+    const ordersRes = await polarFetch(`/orders?customer_id=${customerId}&limit=25`);
+    if (!ordersRes.ok) {
+      throw new Error("Failed to fetch orders from Polar");
+    }
+    const ordersData = await ordersRes.json();
+    const orders = ordersData.items || [];
+    logStep("Found orders", { count: orders.length });
 
     let totalCredited = 0;
-    let receiptUrl: string | null = null;
 
-    for (const session of userSessions) {
-      const sessionId = session.id;
-      const credits = parseInt(session.metadata?.credits || "0");
-      const bonusCredits = parseInt(session.metadata?.bonus_credits || "0");
+    for (const order of orders) {
+      const orderId = order.id;
+      const metadata = order.metadata || {};
+      const credits = parseInt(metadata.credits || "0");
+      const bonusCredits = parseInt(metadata.bonus_credits || "0");
       const totalCredits = credits + bonusCredits;
 
       if (totalCredits <= 0) continue;
 
-      // ===== IDEMPOTENCY: Check if already processed =====
+      // IDEMPOTENCY: Check if already processed
       const { data: existing } = await supabaseAdmin
         .from("wallet_transactions")
         .select("id")
-        .eq("reference_id", sessionId)
+        .eq("reference_id", orderId)
         .eq("type", "purchase")
         .limit(1);
 
       if (existing && existing.length > 0) {
-        logStep("Already processed — skip", { sessionId });
+        logStep("Already processed — skip", { orderId });
         continue;
       }
 
-      // ===== VERIFY WITH STRIPE: session + payment intent =====
-      const verified = await stripe.checkout.sessions.retrieve(sessionId);
-      if (verified.payment_status !== "paid") {
-        logStep("Session not paid — skip", { sessionId });
-        continue;
-      }
-
-      if (verified.payment_intent) {
-        const pi = await stripe.paymentIntents.retrieve(verified.payment_intent as string);
-        if (pi.status !== "succeeded") {
-          logStep("PaymentIntent not succeeded — skip", { sessionId, status: pi.status });
-          continue;
-        }
-        // Extract receipt URL from latest charge
-        if (pi.latest_charge) {
-          try {
-            const charge = await stripe.charges.retrieve(pi.latest_charge as string);
-            if (charge.receipt_url) receiptUrl = charge.receipt_url;
-          } catch {}
-        }
-      }
-
-      // ===== CREDIT: Insert transaction FIRST (acts as lock), then update wallet =====
-      // Insert the transaction record first — if a duplicate call races here,
-      // the unique constraint on reference_id will prevent double-insert.
+      // Insert transaction record (acts as idempotency lock)
       const { error: txError } = await supabaseAdmin
         .from("wallet_transactions")
         .insert({
           user_id: user.id,
           amount: totalCredits,
           type: "purchase",
-          reference_id: sessionId,
-          description: `Purchased ${credits} credits${bonusCredits > 0 ? ` + ${bonusCredits} bonus` : ''}`,
+          reference_id: orderId,
+          description: `Purchased ${credits} credits${bonusCredits > 0 ? ` + ${bonusCredits} bonus` : ""}`,
           metadata: {
-            package_id: session.metadata?.package_id,
-            stripe_session_id: sessionId,
+            package_id: metadata.package_id,
+            polar_order_id: orderId,
             credits,
             bonus_credits: bonusCredits,
-            payment_intent: verified.payment_intent,
             verified_at: new Date().toISOString(),
           },
         });
 
       if (txError) {
-        // If insert fails (e.g. unique constraint), it's a duplicate — skip
-        logStep("Transaction insert failed (likely duplicate) — skip", { sessionId, error: txError.message });
+        logStep("Transaction insert failed (likely duplicate) — skip", { orderId, error: txError.message });
         continue;
       }
 
-      // Transaction inserted successfully — now safe to update wallet
+      // Update wallet
       await supabaseAdmin
         .from("wallets")
         .upsert({ user_id: user.id, balance: 0 }, { onConflict: "user_id", ignoreDuplicates: true });
@@ -145,7 +136,7 @@ serve(async (req) => {
         })
         .eq("user_id", user.id);
 
-      // ===== GRANT XP based on credits purchased =====
+      // Grant XP
       let xpToGrant = 0;
       if (totalCredits >= 1000) xpToGrant = 750;
       else if (totalCredits >= 500) xpToGrant = 300;
@@ -154,41 +145,30 @@ serve(async (req) => {
       else if (totalCredits >= 10) xpToGrant = 25;
 
       if (xpToGrant > 0) {
-        // Ensure social_profiles row exists
         await supabaseAdmin
           .from("social_profiles")
           .upsert({ user_id: user.id, xp: 0 }, { onConflict: "user_id", ignoreDuplicates: true });
 
         const { data: profile } = await supabaseAdmin
           .from("social_profiles")
-          .select("xp, rank_tier")
+          .select("xp")
           .eq("user_id", user.id)
           .single();
 
         const newXp = (profile?.xp || 0) + xpToGrant;
-
-        // Determine new rank tier
         const tiers = [
-          { name: "Legend", minXp: 50000 },
-          { name: "Diamond", minXp: 20000 },
-          { name: "Platinum", minXp: 10000 },
-          { name: "Gold", minXp: 5000 },
-          { name: "Silver", minXp: 2000 },
-          { name: "Bronze", minXp: 500 },
+          { name: "Legend", minXp: 50000 }, { name: "Diamond", minXp: 20000 },
+          { name: "Platinum", minXp: 10000 }, { name: "Gold", minXp: 5000 },
+          { name: "Silver", minXp: 2000 }, { name: "Bronze", minXp: 500 },
           { name: "Metal", minXp: 0 },
         ];
         const newTier = tiers.find(t => newXp >= t.minXp)?.name || "Metal";
-
-        await supabaseAdmin
-          .from("social_profiles")
-          .update({ xp: newXp, rank_tier: newTier })
-          .eq("user_id", user.id);
-
-        logStep("XP granted", { xpToGrant, newXp, newTier, totalCredits });
+        await supabaseAdmin.from("social_profiles").update({ xp: newXp, rank_tier: newTier }).eq("user_id", user.id);
+        logStep("XP granted", { xpToGrant, newXp, newTier });
       }
 
       totalCredited += totalCredits;
-      logStep("Credits added", { totalCredits, sessionId });
+      logStep("Credits added", { totalCredits, orderId });
     }
 
     const { data: updatedWallet } = await supabaseAdmin
@@ -202,7 +182,6 @@ serve(async (req) => {
       credits_added: totalCredited,
       balance: updatedWallet?.balance || 0,
       purchase_count: updatedWallet?.purchase_count || 0,
-      receipt_url: receiptUrl,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
