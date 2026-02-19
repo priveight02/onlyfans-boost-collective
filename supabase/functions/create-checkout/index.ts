@@ -147,11 +147,12 @@ serve(async (req) => {
       log("Upgrading subscription", { subId: existingSub.id, newProduct: target.productId });
       const updateRes = await polarFetch(`/subscriptions/${existingSub.id}`, {
         method: "PATCH",
-        body: JSON.stringify({ product_id: target.productId }),
+        body: JSON.stringify({ product_id: target.productId, proration_behavior: "invoice" }),
       });
       if (!updateRes.ok) throw new Error(`Upgrade failed: ${await updateRes.text()}`);
+      log("Upgrade successful — prorated invoice charged immediately");
 
-      // Grant credits
+      // Grant credits for upgrade
       const adminClient = createClient(Deno.env.get("SUPABASE_URL") ?? "", Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "");
       const credits = PLAN_CREDITS[planId] || 0;
       if (credits > 0) {
@@ -161,7 +162,7 @@ serve(async (req) => {
         }
       }
 
-      return new Response(JSON.stringify({ upgraded: true, message: `Upgraded to ${planId}. Prorated charges applied.` }), {
+      return new Response(JSON.stringify({ upgraded: true, message: `Upgraded to ${planId}. Prorated difference charged immediately.` }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -171,10 +172,10 @@ serve(async (req) => {
       log("Downgrading subscription", { subId: existingSub.id, newProduct: target.productId });
       const updateRes = await polarFetch(`/subscriptions/${existingSub.id}`, {
         method: "PATCH",
-        body: JSON.stringify({ product_id: target.productId }),
+        body: JSON.stringify({ product_id: target.productId, proration_behavior: "prorate" }),
       });
       if (!updateRes.ok) throw new Error(`Downgrade failed: ${await updateRes.text()}`);
-      return new Response(JSON.stringify({ downgraded: true, message: `Downgraded to ${planId}. Changes take effect at next renewal.` }), {
+      return new Response(JSON.stringify({ downgraded: true, message: `Downgraded to ${planId}. Credit applied to next invoice.` }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
