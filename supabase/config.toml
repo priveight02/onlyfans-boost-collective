@@ -110,6 +110,9 @@ verify_jwt = false
 [functions.polar-setup]
 verify_jwt = false
 
+[functions.lemon-setup]
+verify_jwt = false
+
 [functions.create-checkout]
 verify_jwt = false
 

@@ -6,9 +6,21 @@ import {
   CheckCircle2, Receipt, Download, ArrowRight,
   LayoutDashboard, XCircle, ExternalLink, Sparkles,
 } from "lucide-react";
-import { PolarEmbedCheckout } from "@polar-sh/checkout/embed";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+
+declare global {
+  interface Window {
+    createLemonSqueezy?: () => void;
+    LemonSqueezy?: {
+      Url: {
+        Open: (url: string) => void;
+        Close: () => void;
+      };
+      Setup: (config: { eventHandler: (event: any) => void }) => void;
+    };
+  }
+}
 
 type ModalView = "idle" | "verifying" | "success" | "canceled";
 
@@ -26,64 +38,65 @@ const CheckoutModal = ({ checkoutUrl, onClose }: CheckoutModalProps) => {
   const navigate = useNavigate();
   const [view, setView] = useState<ModalView>("idle");
   const [result, setResult] = useState<VerificationResult | null>(null);
-  const checkoutRef = useRef<any>(null);
+  const successRef = useRef(false);
+
+  // Initialize lemon.js and set up event handler
+  useEffect(() => {
+    window.createLemonSqueezy?.();
+
+    window.LemonSqueezy?.Setup({
+      eventHandler: (event: any) => {
+        if (event.event === "Checkout.Success") {
+          successRef.current = true;
+          setView("verifying");
+          verifyPurchase();
+        }
+      },
+    });
+  }, []);
 
   useEffect(() => {
     if (!checkoutUrl) return;
 
     setView("idle");
     setResult(null);
+    successRef.current = false;
 
-    const openCheckout = async () => {
+    // Re-initialize in case component re-rendered
+    window.createLemonSqueezy?.();
+
+    // Small delay to ensure lemon.js is ready
+    const timer = setTimeout(() => {
       try {
-        const checkout = await PolarEmbedCheckout.create(checkoutUrl, {
-          theme: "dark",
-        });
-        checkoutRef.current = checkout;
-
-        checkout.addEventListener("success", async (event: any) => {
-          // Prevent default redirect behavior
-          event.preventDefault();
-          setView("verifying");
-
-          try {
-            const { data, error } = await supabase.functions.invoke("verify-credit-purchase");
-            if (error) throw error;
-            if (data?.credited && data.credits_added > 0) {
-              setResult({ credits_added: data.credits_added });
-              setView("success");
-            } else {
-              setResult({ credits_added: 0 });
-              setView("success");
-            }
-          } catch (err) {
-            console.error("Verification error:", err);
-            setResult({ credits_added: 0 });
-            setView("success");
-          }
-        });
-
-        checkout.addEventListener("close", () => {
-          if (view === "idle") {
-            // User closed without completing — canceled
-            onClose(false);
-          }
-        });
+        window.LemonSqueezy?.Url.Open(checkoutUrl);
       } catch (err) {
-        console.error("Failed to open checkout:", err);
-        onClose(false);
+        console.error("Failed to open Lemon Squeezy checkout:", err);
+        // Fallback: open in new tab
+        window.open(checkoutUrl, "_blank");
       }
-    };
+    }, 150);
 
-    openCheckout();
-
-    return () => {
-      if (checkoutRef.current) {
-        try { checkoutRef.current.close(); } catch {}
-        checkoutRef.current = null;
-      }
-    };
+    return () => clearTimeout(timer);
   }, [checkoutUrl]);
+
+  const verifyPurchase = async () => {
+    try {
+      // Small delay for order to propagate
+      await new Promise((r) => setTimeout(r, 2000));
+      const { data, error } = await supabase.functions.invoke("verify-credit-purchase");
+      if (error) throw error;
+      if (data?.credited && data.credits_added > 0) {
+        setResult({ credits_added: data.credits_added });
+      } else {
+        setResult({ credits_added: 0 });
+      }
+      setView("success");
+    } catch (err) {
+      console.error("Verification error:", err);
+      setResult({ credits_added: 0 });
+      setView("success");
+    }
+  };
 
   const handleGoToCRM = () => {
     onClose(true);
@@ -94,7 +107,7 @@ const CheckoutModal = ({ checkoutUrl, onClose }: CheckoutModalProps) => {
     onClose(false);
   };
 
-  // Don't render anything during checkout — Polar handles its own overlay
+  // Don't render during checkout — Lemon Squeezy handles its own overlay
   if (view === "idle") return null;
 
   return (

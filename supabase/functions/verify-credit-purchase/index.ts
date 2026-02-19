@@ -6,35 +6,27 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const POLAR_API = "https://api.polar.sh/v1";
+const LS_API = "https://api.lemonsqueezy.com/v1";
 
-const polarFetch = async (path: string) => {
-  const token = Deno.env.get("POLAR_ACCESS_TOKEN");
-  if (!token) throw new Error("POLAR_ACCESS_TOKEN not set");
-  return fetch(`${POLAR_API}${path}`, {
+const lsFetch = async (path: string) => {
+  const key = Deno.env.get("LEMONSQUEEZY_API_KEY");
+  if (!key) throw new Error("LEMONSQUEEZY_API_KEY not set");
+  return fetch(`${LS_API}${path}`, {
     headers: {
-      "Authorization": `Bearer ${token}`,
-      "Content-Type": "application/json",
+      "Accept": "application/vnd.api+json",
+      "Content-Type": "application/vnd.api+json",
+      "Authorization": `Bearer ${key}`,
     },
   });
 };
 
-const logStep = (step: string, details?: any) => {
-  console.log(`[VERIFY-CREDIT-PURCHASE] ${step}${details ? ` - ${JSON.stringify(details)}` : ""}`);
-};
+const log = (step: string, d?: any) => console.log(`[VERIFY-CREDIT-PURCHASE] ${step}${d ? ` - ${JSON.stringify(d)}` : ""}`);
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
-  const supabaseAdmin = createClient(
-    Deno.env.get("SUPABASE_URL") ?? "",
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-    { auth: { persistSession: false } }
-  );
-  const supabaseClient = createClient(
-    Deno.env.get("SUPABASE_URL") ?? "",
-    Deno.env.get("SUPABASE_ANON_KEY") ?? ""
-  );
+  const supabaseAdmin = createClient(Deno.env.get("SUPABASE_URL") ?? "", Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "", { auth: { persistSession: false } });
+  const supabaseClient = createClient(Deno.env.get("SUPABASE_URL") ?? "", Deno.env.get("SUPABASE_ANON_KEY") ?? "");
 
   try {
     const authHeader = req.headers.get("Authorization");
@@ -42,99 +34,93 @@ serve(async (req) => {
     const token = authHeader.replace("Bearer ", "");
     const { data } = await supabaseClient.auth.getUser(token);
     const user = data.user;
-    if (!user?.id) throw new Error("User not authenticated");
-    logStep("User authenticated", { userId: user.id });
+    if (!user?.id || !user?.email) throw new Error("User not authenticated");
+    log("User authenticated", { userId: user.id });
 
-    // Find Polar customer by external_id
-    const customersRes = await polarFetch(`/customers?external_id=${user.id}&limit=1`);
-    if (!customersRes.ok) {
-      return new Response(JSON.stringify({ credited: false, credits_added: 0, message: "No customer found" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    const customersData = await customersRes.json();
-    if (!customersData.items?.length) {
-      return new Response(JSON.stringify({ credited: false, credits_added: 0, message: "No customer found" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    const customerId = customersData.items[0].id;
+    // Get store ID
+    const storesRes = await lsFetch("/stores");
+    const storesData = await storesRes.json();
+    const storeId = storesData.data?.[0]?.id;
+    if (!storeId) throw new Error("No store found");
 
-    // Get recent orders for this customer
-    const ordersRes = await polarFetch(`/orders?customer_id=${customerId}&limit=25`);
-    if (!ordersRes.ok) {
-      throw new Error("Failed to fetch orders from Polar");
-    }
+    // Fetch recent orders for this user by email
+    const ordersRes = await lsFetch(`/orders?filter[store_id]=${storeId}&filter[user_email]=${encodeURIComponent(user.email)}&page[size]=25&sort=-created_at`);
+    if (!ordersRes.ok) throw new Error("Failed to fetch orders");
     const ordersData = await ordersRes.json();
-    const orders = ordersData.items || [];
-    logStep("Found orders", { count: orders.length });
+    const orders = ordersData.data || [];
+    log("Found orders", { count: orders.length });
+
+    // Load variant → credit_packages mapping
+    const { data: allPackages } = await supabaseAdmin.from("credit_packages").select("*").eq("is_active", true);
+    const variantMap = new Map<string, any>();
+    for (const pkg of (allPackages || [])) {
+      if (pkg.stripe_price_id) variantMap.set(String(pkg.stripe_price_id), pkg);
+    }
 
     let totalCredited = 0;
 
     for (const order of orders) {
-      const orderId = order.id;
-      const metadata = order.metadata || {};
-      const credits = parseInt(metadata.credits || "0");
-      const bonusCredits = parseInt(metadata.bonus_credits || "0");
-      const totalCredits = credits + bonusCredits;
+      const orderId = String(order.id);
+      const attrs = order.attributes;
+      if (attrs.status !== "paid") continue;
 
+      // Try to get credits from checkout custom data (meta)
+      const meta = attrs.meta?.custom_data || attrs.meta?.custom || attrs.meta || {};
+      let credits = parseInt(meta.credits || "0");
+      let bonusCredits = parseInt(meta.bonus_credits || "0");
+
+      // If no meta, try variant mapping
+      if (credits <= 0) {
+        const firstItem = attrs.first_order_item;
+        if (firstItem?.variant_id) {
+          const pkg = variantMap.get(String(firstItem.variant_id));
+          if (pkg) {
+            credits = pkg.credits;
+            bonusCredits = pkg.bonus_credits;
+          }
+        }
+      }
+
+      const totalCredits = credits + bonusCredits;
       if (totalCredits <= 0) continue;
 
-      // IDEMPOTENCY: Check if already processed
+      // IDEMPOTENCY: check if already processed
       const { data: existing } = await supabaseAdmin
-        .from("wallet_transactions")
-        .select("id")
-        .eq("reference_id", orderId)
-        .eq("type", "purchase")
-        .limit(1);
-
+        .from("wallet_transactions").select("id").eq("reference_id", orderId).eq("type", "purchase").limit(1);
       if (existing && existing.length > 0) {
-        logStep("Already processed — skip", { orderId });
+        log("Already processed — skip", { orderId });
         continue;
       }
 
-      // Insert transaction record (acts as idempotency lock)
-      const { error: txError } = await supabaseAdmin
-        .from("wallet_transactions")
-        .insert({
-          user_id: user.id,
-          amount: totalCredits,
-          type: "purchase",
-          reference_id: orderId,
-          description: `Purchased ${credits} credits${bonusCredits > 0 ? ` + ${bonusCredits} bonus` : ""}`,
-          metadata: {
-            package_id: metadata.package_id,
-            polar_order_id: orderId,
-            credits,
-            bonus_credits: bonusCredits,
-            verified_at: new Date().toISOString(),
-          },
-        });
+      // Insert transaction
+      const { error: txError } = await supabaseAdmin.from("wallet_transactions").insert({
+        user_id: user.id,
+        amount: totalCredits,
+        type: "purchase",
+        reference_id: orderId,
+        description: `Purchased ${credits} credits${bonusCredits > 0 ? ` + ${bonusCredits} bonus` : ""}`,
+        metadata: {
+          package_id: meta.package_id || null,
+          ls_order_id: orderId,
+          credits,
+          bonus_credits: bonusCredits,
+          verified_at: new Date().toISOString(),
+        },
+      });
 
       if (txError) {
-        logStep("Transaction insert failed (likely duplicate) — skip", { orderId, error: txError.message });
+        log("Transaction insert failed — skip", { orderId, error: txError.message });
         continue;
       }
 
       // Update wallet
-      await supabaseAdmin
-        .from("wallets")
-        .upsert({ user_id: user.id, balance: 0 }, { onConflict: "user_id", ignoreDuplicates: true });
-
-      const { data: wallet } = await supabaseAdmin
-        .from("wallets")
-        .select("balance, total_purchased, purchase_count")
-        .eq("user_id", user.id)
-        .single();
-
-      await supabaseAdmin
-        .from("wallets")
-        .update({
-          balance: (wallet?.balance || 0) + totalCredits,
-          total_purchased: (wallet?.total_purchased || 0) + totalCredits,
-          purchase_count: (wallet?.purchase_count || 0) + 1,
-        })
-        .eq("user_id", user.id);
+      await supabaseAdmin.from("wallets").upsert({ user_id: user.id, balance: 0 }, { onConflict: "user_id", ignoreDuplicates: true });
+      const { data: walletData } = await supabaseAdmin.from("wallets").select("balance, total_purchased, purchase_count").eq("user_id", user.id).single();
+      await supabaseAdmin.from("wallets").update({
+        balance: (walletData?.balance || 0) + totalCredits,
+        total_purchased: (walletData?.total_purchased || 0) + totalCredits,
+        purchase_count: (walletData?.purchase_count || 0) + 1,
+      }).eq("user_id", user.id);
 
       // Grant XP
       let xpToGrant = 0;
@@ -145,16 +131,8 @@ serve(async (req) => {
       else if (totalCredits >= 10) xpToGrant = 25;
 
       if (xpToGrant > 0) {
-        await supabaseAdmin
-          .from("social_profiles")
-          .upsert({ user_id: user.id, xp: 0 }, { onConflict: "user_id", ignoreDuplicates: true });
-
-        const { data: profile } = await supabaseAdmin
-          .from("social_profiles")
-          .select("xp")
-          .eq("user_id", user.id)
-          .single();
-
+        await supabaseAdmin.from("social_profiles").upsert({ user_id: user.id, xp: 0 }, { onConflict: "user_id", ignoreDuplicates: true });
+        const { data: profile } = await supabaseAdmin.from("social_profiles").select("xp").eq("user_id", user.id).single();
         const newXp = (profile?.xp || 0) + xpToGrant;
         const tiers = [
           { name: "Legend", minXp: 50000 }, { name: "Diamond", minXp: 20000 },
@@ -164,32 +142,25 @@ serve(async (req) => {
         ];
         const newTier = tiers.find(t => newXp >= t.minXp)?.name || "Metal";
         await supabaseAdmin.from("social_profiles").update({ xp: newXp, rank_tier: newTier }).eq("user_id", user.id);
-        logStep("XP granted", { xpToGrant, newXp, newTier });
+        log("XP granted", { xpToGrant, newXp, newTier });
       }
 
       totalCredited += totalCredits;
-      logStep("Credits added", { totalCredits, orderId });
+      log("Credits added", { totalCredits, orderId });
     }
 
-    const { data: updatedWallet } = await supabaseAdmin
-      .from("wallets")
-      .select("balance, purchase_count")
-      .eq("user_id", user.id)
-      .single();
+    const { data: updatedWallet } = await supabaseAdmin.from("wallets").select("balance, purchase_count").eq("user_id", user.id).single();
 
     return new Response(JSON.stringify({
       credited: totalCredited > 0,
       credits_added: totalCredited,
       balance: updatedWallet?.balance || 0,
       purchase_count: updatedWallet?.purchase_count || 0,
-    }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (error) {
-    logStep("ERROR", { message: error instanceof Error ? error.message : String(error) });
+    log("ERROR", { message: error instanceof Error ? error.message : String(error) });
     return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500,
     });
   }
 });

@@ -6,17 +6,16 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const POLAR_API = "https://api.polar.sh/v1";
+const LS_API = "https://api.lemonsqueezy.com/v1";
 
-const polarFetch = async (path: string, options: RequestInit = {}) => {
-  const token = Deno.env.get("POLAR_ACCESS_TOKEN");
-  if (!token) throw new Error("POLAR_ACCESS_TOKEN not set");
-  return fetch(`${POLAR_API}${path}`, {
-    ...options,
+const lsFetch = async (path: string) => {
+  const key = Deno.env.get("LEMONSQUEEZY_API_KEY");
+  if (!key) throw new Error("LEMONSQUEEZY_API_KEY not set");
+  return fetch(`${LS_API}${path}`, {
     headers: {
-      "Authorization": `Bearer ${token}`,
-      "Content-Type": "application/json",
-      ...(options.headers || {}),
+      "Accept": "application/vnd.api+json",
+      "Content-Type": "application/vnd.api+json",
+      "Authorization": `Bearer ${key}`,
     },
   });
 };
@@ -36,37 +35,41 @@ serve(async (req) => {
     const { data: userData, error: userError } = await supabase.auth.getUser(token);
     if (userError || !userData.user?.email) throw new Error("Not authenticated");
 
-    // Find Polar customer by external_id
-    const customersRes = await polarFetch(`/customers?external_id=${userData.user.id}&limit=1`);
-    if (!customersRes.ok) throw new Error("Failed to look up customer");
-    const customersData = await customersRes.json();
-    if (!customersData.items?.length) throw new Error("No customer found. Please make a purchase first.");
+    // Get store ID
+    const storesRes = await lsFetch("/stores");
+    const storesData = await storesRes.json();
+    const storeId = storesData.data?.[0]?.id;
+    if (!storeId) throw new Error("No store found");
 
-    const customerId = customersData.items[0].id;
+    // Find active subscription by email
+    const subsRes = await lsFetch(`/subscriptions?filter[store_id]=${storeId}&filter[user_email]=${encodeURIComponent(userData.user.email)}&filter[status]=active&page[size]=1`);
+    if (!subsRes.ok) throw new Error("Failed to fetch subscriptions");
+    const subsData = await subsRes.json();
 
-    // Create customer session for portal access
-    const sessionRes = await polarFetch("/customer-sessions", {
-      method: "POST",
-      body: JSON.stringify({ customer_id: customerId }),
-    });
-
-    if (!sessionRes.ok) {
-      const errText = await sessionRes.text();
-      throw new Error(`Failed to create customer session: ${errText}`);
+    if (!subsData.data?.length) {
+      throw new Error("No active subscription found. The customer portal is available for subscribers.");
     }
 
-    const session = await sessionRes.json();
-    const portalUrl = session.customer_portal_url || session.url;
+    const subscription = subsData.data[0];
+    const portalUrl = subscription.attributes?.urls?.customer_portal;
 
-    if (!portalUrl) throw new Error("No portal URL returned");
+    if (!portalUrl) {
+      // Fallback: try update_payment_method URL
+      const fallbackUrl = subscription.attributes?.urls?.update_payment_method;
+      if (fallbackUrl) {
+        return new Response(JSON.stringify({ url: fallbackUrl }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      throw new Error("No portal URL available for this subscription");
+    }
 
     return new Response(JSON.stringify({ url: portalUrl }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
     return new Response(JSON.stringify({ error: error instanceof Error ? error.message : String(error) }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500,
     });
   }
 });
