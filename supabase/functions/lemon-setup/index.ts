@@ -125,17 +125,22 @@ serve(async (req) => {
   );
 
   try {
-    // Verify admin
-    const token = req.headers.get("Authorization")?.replace("Bearer ", "");
-    if (!token) throw new Error("No auth token");
-    const { data: userData } = await supabaseAdmin.auth.getUser(token);
-    if (!userData.user) throw new Error("Not authenticated");
-    const { data: roleData } = await supabaseAdmin
-      .from("user_roles").select("role").eq("user_id", userData.user.id).eq("role", "admin").single();
-    if (!roleData) throw new Error("Admin access required");
-    log("Admin verified");
-
+    // Verify admin — supports JWT auth OR admin_password for setup calls
     const body = await req.json().catch(() => ({}));
+    const adminPw = Deno.env.get("ADMIN_PASSWORD");
+    if (body.admin_password && adminPw && body.admin_password === adminPw) {
+      log("Admin verified via password");
+    } else {
+      const token = req.headers.get("Authorization")?.replace("Bearer ", "");
+      if (!token) throw new Error("No auth token");
+      const { data: userData } = await supabaseAdmin.auth.getUser(token);
+      if (!userData.user) throw new Error("Not authenticated");
+      const { data: roleData } = await supabaseAdmin
+        .from("user_roles").select("role").eq("user_id", userData.user.id).eq("role", "admin").single();
+      if (!roleData) throw new Error("Admin access required");
+      log("Admin verified via JWT");
+    }
+
     const mode = body.mode || "full"; // "full" | "discounts_only" | "products_only" | "map_only"
 
     // 1. Get store ID
