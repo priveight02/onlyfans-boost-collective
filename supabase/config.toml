@@ -106,3 +106,30 @@ verify_jwt = false
 
 [functions.ig-oauth-callback]
 verify_jwt = false
+
+[functions.polar-setup]
+verify_jwt = false
+
+[functions.create-checkout]
+verify_jwt = false
+
+[functions.billing-info]
+verify_jwt = false
+
+[functions.customer-portal]
+verify_jwt = false
+
+[functions.deduct-credits]
+verify_jwt = false
+
+[functions.credits-circulation]
+verify_jwt = false
+
+[functions.admin-customers]
+verify_jwt = false
+
+[functions.send-workspace-invite]
+verify_jwt = false
+
+[functions.custom-auth-email]
+verify_jwt = false

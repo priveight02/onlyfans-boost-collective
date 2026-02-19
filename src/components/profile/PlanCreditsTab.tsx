@@ -127,7 +127,7 @@ const PlanCreditsTab = ({ onSwitchTab }: { onSwitchTab?: (tab: string) => void }
   const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">("monthly");
   const plansRef = useRef<HTMLDivElement>(null);
 
-  // Subscription state from Stripe
+  // Subscription state
   const [activePlanId, setActivePlanId] = useState<string | null>(null);
   const [isAdminAssigned, setIsAdminAssigned] = useState(false);
   const [subscriptionLoading, setSubscriptionLoading] = useState(true);
@@ -177,7 +177,7 @@ const PlanCreditsTab = ({ onSwitchTab }: { onSwitchTab?: (tab: string) => void }
 
   useEffect(() => { fetchSubscription(); }, [fetchSubscription]);
 
-  // Re-check subscription when user returns to tab (e.g. after Stripe checkout)
+  // Re-check subscription when user returns to tab (e.g. after checkout)
   // Also verify credits for subscription purchases
   useEffect(() => {
     const handleVisibility = async () => {
@@ -195,7 +195,7 @@ const PlanCreditsTab = ({ onSwitchTab }: { onSwitchTab?: (tab: string) => void }
     return () => document.removeEventListener('visibilitychange', handleVisibility);
   }, [fetchSubscription, refreshWallet]);
 
-  // Also verify on URL params (when redirected back from Stripe)
+  // Also verify on URL params (when redirected back from payment)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("subscription") === "success") {

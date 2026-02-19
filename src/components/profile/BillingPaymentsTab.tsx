@@ -43,13 +43,11 @@ interface Payment {
   total?: number;
 }
 
-const PLAN_NAME_MAP: Record<string, string> = {
-  "prod_TzRgEeRDcQGUHO": "Starter (Monthly)",
-  "prod_TzRgDinqZCjhkj": "Starter (Yearly)",
-  "prod_TzRg6tvanQWkyW": "Pro (Monthly)",
-  "prod_TzRhV74aOMLdYQ": "Pro (Yearly)",
-  "prod_TzRiKIs7vwe9gD": "Business (Monthly)",
-  "prod_TzRkvTVWaGWgCp": "Business (Yearly)",
+// Plan names are resolved from Polar subscription metadata (plan_id field)
+const PLAN_NAME_FROM_ID: Record<string, string> = {
+  starter: "Starter",
+  pro: "Pro",
+  business: "Business",
 };
 
 const formatCurrency = (amount: number, currency: string) => {
@@ -209,7 +207,7 @@ const BillingPaymentsTab = () => {
                 <p className="text-white font-semibold text-sm">
                   {adminPlanOverride
                     ? `${adminPlanOverride.charAt(0).toUpperCase() + adminPlanOverride.slice(1)}`
-                    : subscription?.product_name || PLAN_NAME_MAP[subscription?.product_id as string] || "Custom Plan"}
+                    : subscription?.product_name || PLAN_NAME_FROM_ID[(subscription as any)?.plan_id] || "Custom Plan"}
                 </p>
                 {adminPlanOverride && (
                   <p className="text-amber-400/60 text-xs mt-1">Assigned by administrator</p>
@@ -266,7 +264,7 @@ const BillingPaymentsTab = () => {
               </div>
             </div>
 
-            {/* Actions — only show for Stripe-managed subscriptions, NOT admin-assigned */}
+            {/* Actions — only show for Polar-managed subscriptions, NOT admin-assigned */}
             <div className="flex items-center gap-3 pt-2">
               {subscription && !adminPlanOverride && (
                 <>
