@@ -258,7 +258,34 @@ serve(async (req) => {
         method: "PATCH",
         body: JSON.stringify({ product_id: target.productId, proration_behavior: "prorate" }),
       });
-      if (!updateRes.ok) throw new Error(`Downgrade failed: ${await updateRes.text()}`);
+      if (!updateRes.ok) {
+        const errText = await updateRes.text();
+        log("Downgrade PATCH failed", { error: errText });
+
+        // Handle already-cancelled subscription gracefully
+        if (errText.includes("AlreadyCanceledSubscription") || errText.includes("already canceled")) {
+          await adminClient.from("admin_user_notifications").insert({
+            user_id: user.id,
+            title: "Downgrade Not Possible",
+            message: "Your subscription is already cancelled or ending. No changes were made.",
+            notification_type: "warning",
+          });
+          return new Response(JSON.stringify({ error: "Your subscription is already cancelled. No changes can be made.", friendly: true }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200,
+          });
+        }
+
+        // Generic Polar error — still return 200 with error field so frontend handles it gracefully
+        await adminClient.from("admin_user_notifications").insert({
+          user_id: user.id,
+          title: "Plan Change Failed",
+          message: "Something went wrong while changing your plan. Please try again or contact support.",
+          notification_type: "urgent",
+        });
+        return new Response(JSON.stringify({ error: "Plan change failed. Please try again or contact support.", friendly: true }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200,
+        });
+      }
 
       // Log plan change for rate-limiting
       const { error: downgradeLogErr } = await adminClient.from("wallet_transactions").insert({
@@ -361,9 +388,34 @@ serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
-    log("ERROR", { message: error instanceof Error ? error.message : String(error) });
-    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500,
+    const errMsg = error instanceof Error ? error.message : String(error);
+    log("ERROR", { message: errMsg });
+
+    // Try to send a notification so user always sees something in-app
+    try {
+      const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+      const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+      if (supabaseUrl && supabaseServiceKey) {
+        const errClient = createClient(supabaseUrl, supabaseServiceKey, { auth: { persistSession: false } });
+        // Try to extract user from auth header
+        const authH = req.headers.get("Authorization");
+        if (authH) {
+          const anonC = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY") ?? "", { global: { headers: { Authorization: authH } } });
+          const { data: ud } = await anonC.auth.getUser();
+          if (ud?.user?.id) {
+            await errClient.from("admin_user_notifications").insert({
+              user_id: ud.user.id,
+              title: "Checkout Error",
+              message: "Something went wrong during checkout. Please try again or contact support.",
+              notification_type: "urgent",
+            });
+          }
+        }
+      }
+    } catch (_) { /* best effort */ }
+
+    return new Response(JSON.stringify({ error: "Something went wrong. Please try again or contact support.", friendly: true }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200,
     });
   }
 });
