@@ -1,5 +1,5 @@
 import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, ArrowRight, Clock, User, Calendar } from "lucide-react";
+import { ArrowLeft, ArrowRight, Clock, User, Calendar, Sparkles } from "lucide-react";
 import Footer from "@/components/Footer";
 
 const articles: Record<string, { title: string; date: string; readTime: string; author: string; category: string; content: string }> = {
@@ -185,50 +185,61 @@ const BlogPost = () => {
 
   return (
     <div className="min-h-screen bg-[hsl(222,35%,8%)]">
-      <article className="pt-28 pb-16 px-4 sm:px-6 lg:px-8 max-w-3xl mx-auto">
-        <Link to="/blog" className="inline-flex items-center gap-2 text-white/40 hover:text-white text-sm mb-8 transition-colors">
-          <ArrowLeft className="h-4 w-4" /> Back to Blog
+      {/* Ambient glow */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-primary/[0.06] rounded-full blur-[150px] pointer-events-none" />
+
+      <article className="relative pt-28 pb-16 px-4 sm:px-6 lg:px-8 max-w-3xl mx-auto">
+        <Link to="/blog" className="inline-flex items-center gap-2 text-white/50 hover:text-white text-sm mb-10 transition-colors group">
+          <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" /> Back to Blog
         </Link>
 
-        <div className="flex items-center gap-3 mb-4">
-          <span className="px-2.5 py-0.5 rounded-full bg-primary/20 text-primary text-xs font-medium">{article.category}</span>
-          <span className="flex items-center gap-1 text-white/40 text-xs"><Clock className="h-3 w-3" /> {article.readTime}</span>
+        {/* Category & meta */}
+        <div className="flex items-center gap-3 mb-5">
+          <span className="px-3 py-1 rounded-full bg-primary/15 border border-primary/20 text-primary text-xs font-semibold tracking-wide">{article.category}</span>
+          <span className="flex items-center gap-1.5 text-white/40 text-xs"><Clock className="h-3.5 w-3.5" /> {article.readTime}</span>
         </div>
 
-        <h1 className="text-3xl sm:text-4xl font-bold text-white tracking-tight mb-4">{article.title}</h1>
+        {/* Title */}
+        <h1 className="text-3xl sm:text-4xl lg:text-[2.75rem] font-bold text-white tracking-tight leading-tight mb-5">{article.title}</h1>
 
-        <div className="flex items-center gap-4 text-white/30 text-sm mb-10 pb-6 border-b border-white/[0.08]">
-          <span className="flex items-center gap-1"><User className="h-4 w-4" /> {article.author}</span>
-          <span className="flex items-center gap-1"><Calendar className="h-4 w-4" /> {article.date}</span>
+        {/* Author bar */}
+        <div className="flex items-center gap-5 text-white/40 text-sm mb-12 pb-8 border-b border-white/[0.06]">
+          <span className="flex items-center gap-1.5"><User className="h-4 w-4" /> {article.author}</span>
+          <span className="flex items-center gap-1.5"><Calendar className="h-4 w-4" /> {article.date}</span>
         </div>
 
-        <div className="prose prose-invert prose-sm sm:prose-base max-w-none
-          prose-headings:text-white prose-headings:font-bold
-          prose-h2:text-2xl prose-h2:mt-10 prose-h2:mb-4
-          prose-h3:text-lg prose-h3:mt-6 prose-h3:mb-2
-          prose-p:text-white/60 prose-p:leading-relaxed
-          prose-strong:text-white/90
-          prose-li:text-white/60
-          prose-ul:space-y-1
-        ">
+        {/* Article content */}
+        <div className="space-y-5">
           {article.content.split('\n').map((line, i) => {
             const trimmed = line.trim();
             if (!trimmed) return null;
-            if (trimmed.startsWith('## ')) return <h2 key={i}>{trimmed.replace('## ', '')}</h2>;
-            if (trimmed.startsWith('### ')) return <h3 key={i}>{trimmed.replace('### ', '')}</h3>;
+            if (trimmed.startsWith('## ')) return (
+              <h2 key={i} className="text-[1.65rem] font-bold text-white mt-12 mb-4 tracking-tight">{trimmed.replace('## ', '')}</h2>
+            );
+            if (trimmed.startsWith('### ')) return (
+              <h3 key={i} className="text-lg font-semibold text-white/90 mt-8 mb-3">{trimmed.replace('### ', '')}</h3>
+            );
             if (trimmed.startsWith('- **')) {
               const match = trimmed.match(/^- \*\*(.+?)\*\*:?\s*(.*)/);
-              if (match) return <li key={i}><strong>{match[1]}</strong>{match[2] ? `: ${match[2]}` : ''}</li>;
+              if (match) return (
+                <li key={i} className="text-[hsl(215,25%,76%)] leading-relaxed text-[15px] list-disc ml-5">
+                  <strong className="text-white/90 font-semibold">{match[1]}</strong>{match[2] ? `: ${match[2]}` : ''}
+                </li>
+              );
             }
-            if (trimmed.startsWith('- ')) return <li key={i}>{trimmed.replace('- ', '')}</li>;
-            if (trimmed.startsWith('**') && trimmed.endsWith('**')) return <p key={i}><strong>{trimmed.replace(/\*\*/g, '')}</strong></p>;
+            if (trimmed.startsWith('- ')) return (
+              <li key={i} className="text-[hsl(215,25%,76%)] leading-relaxed text-[15px] list-disc ml-5">{trimmed.replace('- ', '')}</li>
+            );
+            if (trimmed.startsWith('**') && trimmed.endsWith('**')) return (
+              <p key={i} className="text-white/90 font-semibold leading-relaxed text-[15px]">{trimmed.replace(/\*\*/g, '')}</p>
+            );
             // Handle inline bold
             const parts = trimmed.split(/(\*\*.+?\*\*)/g);
             return (
-              <p key={i}>
+              <p key={i} className="text-[hsl(215,25%,76%)] leading-[1.8] text-[15px]">
                 {parts.map((part, j) =>
                   part.startsWith('**') && part.endsWith('**')
-                    ? <strong key={j}>{part.replace(/\*\*/g, '')}</strong>
+                    ? <strong key={j} className="text-white/90 font-semibold">{part.replace(/\*\*/g, '')}</strong>
                     : part
                 )}
               </p>
@@ -237,12 +248,16 @@ const BlogPost = () => {
         </div>
 
         {/* CTA */}
-        <div className="mt-16 p-8 rounded-2xl bg-white/[0.04] border border-white/[0.1] text-center">
-          <h3 className="text-xl font-bold text-white mb-2">Ready to scale with AI?</h3>
-          <p className="text-white/50 text-sm mb-6">Join 500+ creators and agencies already using Uplyze.</p>
-          <Link to="/auth" className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-primary text-white font-medium hover:bg-primary/90 transition-colors">
-            Get Started Free <ArrowRight className="h-4 w-4" />
-          </Link>
+        <div className="mt-20 p-8 sm:p-10 rounded-2xl bg-white/[0.03] border border-white/[0.08] text-center relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.05] to-transparent pointer-events-none" />
+          <div className="relative">
+            <Sparkles className="h-6 w-6 text-primary/60 mx-auto mb-3" />
+            <h3 className="text-xl font-bold text-white mb-2">Ready to scale with AI?</h3>
+            <p className="text-white/50 text-sm mb-6 max-w-sm mx-auto">Join 500+ creators and agencies already using Uplyze to automate growth.</p>
+            <Link to="/auth" className="inline-flex items-center gap-2 px-7 py-3 rounded-xl bg-primary text-white font-medium hover:bg-primary/90 transition-all duration-300 hover:shadow-[0_0_30px_rgba(59,130,246,0.3)]">
+              Get Started Free <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
         </div>
       </article>
       <Footer />

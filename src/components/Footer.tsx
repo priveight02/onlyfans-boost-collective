@@ -83,6 +83,18 @@ const Footer = () => {
             </div>
 
             <div>
+              <h4 className="text-white/70 text-[11px] font-semibold uppercase tracking-[0.15em] mb-3">Resources</h4>
+              <div className="flex flex-col gap-1.5">
+                <Link to="/about" className="group text-white/45 hover:text-white text-sm transition-all duration-200 flex items-center gap-1 w-fit">
+                  About <ArrowUpRight className="h-3 w-3 opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-200" />
+                </Link>
+                <Link to="/blog" className="group text-white/45 hover:text-white text-sm transition-all duration-200 flex items-center gap-1 w-fit">
+                  Blog <ArrowUpRight className="h-3 w-3 opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-200" />
+                </Link>
+              </div>
+            </div>
+
+            <div>
               <h4 className="text-white/70 text-[11px] font-semibold uppercase tracking-[0.15em] mb-3">Contact</h4>
               <div className="flex flex-col gap-1.5">
                 <a href="mailto:contact@uplyze.ai" className="text-white/45 hover:text-white text-sm transition-colors">contact@uplyze.ai</a>
