@@ -6,24 +6,22 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const POLAR_API = "https://api.polar.sh/v1";
+const LS_API = "https://api.lemonsqueezy.com/v1";
 
-const polarFetch = async (path: string, options: RequestInit = {}) => {
-  const token = Deno.env.get("POLAR_ACCESS_TOKEN");
-  if (!token) throw new Error("POLAR_ACCESS_TOKEN not set");
-  return fetch(`${POLAR_API}${path}`, {
+const lsFetch = async (path: string, options: RequestInit = {}) => {
+  const key = Deno.env.get("LEMONSQUEEZY_API_KEY");
+  if (!key) throw new Error("LEMONSQUEEZY_API_KEY not set");
+  return fetch(`${LS_API}${path}`, {
     ...options,
     headers: {
-      "Authorization": `Bearer ${token}`,
-      "Content-Type": "application/json",
-      ...(options.headers || {}),
+      "Accept": "application/vnd.api+json",
+      "Content-Type": "application/vnd.api+json",
+      "Authorization": `Bearer ${key}`,
     },
   });
 };
 
-const logStep = (step: string, details?: any) => {
-  console.log(`[PURCHASE-CREDITS] ${step}${details ? ` - ${JSON.stringify(details)}` : ""}`);
-};
+const log = (step: string, d?: any) => console.log(`[PURCHASE-CREDITS] ${step}${d ? ` - ${JSON.stringify(d)}` : ""}`);
 
 const BASE_PRICE_PER_CREDIT_CENTS = 1.816;
 
@@ -38,47 +36,26 @@ const getVolumeDiscount = (credits: number): number => {
   return 0;
 };
 
-// Map purchase count to discount tier metadata key
-const getDiscountTier = (purchaseCount: number, useRetention: boolean): string => {
-  if (useRetention) return "retention_50";
-  if (purchaseCount === 1) return "loyalty_30";
-  if (purchaseCount === 2) return "loyalty_20";
-  if (purchaseCount === 3) return "loyalty_10";
-  return "none";
-};
-
-// Map purchase count to returning discount %
 const getReturningDiscount = (count: number): number => {
-  if (count === 1) return 30;
-  if (count === 2) return 20;
-  if (count === 3) return 10;
+  if (count >= 3) return 30;
+  if (count >= 2) return 20;
+  if (count >= 1) return 10;
   return 0;
 };
 
-// Find the correct product variant from Polar catalog
-const findProductVariant = async (basePackageKey: string, discountTier: string): Promise<any | null> => {
-  const res = await polarFetch("/products?limit=100");
-  if (!res.ok) return null;
+const getStoreId = async (): Promise<string> => {
+  const res = await lsFetch("/stores");
+  if (!res.ok) throw new Error("Failed to fetch stores");
   const data = await res.json();
-  const match = (data.items || []).find((p: any) =>
-    p.metadata?.type === "credit_package" &&
-    p.metadata?.base_package === basePackageKey &&
-    p.metadata?.discount_tier === discountTier
-  );
-  return match || null;
+  if (!data.data?.length) throw new Error("No store found");
+  return String(data.data[0].id);
 };
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
-  const supabaseClient = createClient(
-    Deno.env.get("SUPABASE_URL") ?? "",
-    Deno.env.get("SUPABASE_ANON_KEY") ?? ""
-  );
-  const supabaseAdmin = createClient(
-    Deno.env.get("SUPABASE_URL") ?? "",
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-  );
+  const supabaseClient = createClient(Deno.env.get("SUPABASE_URL") ?? "", Deno.env.get("SUPABASE_ANON_KEY") ?? "");
+  const supabaseAdmin = createClient(Deno.env.get("SUPABASE_URL") ?? "", Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "");
 
   try {
     const authHeader = req.headers.get("Authorization")!;
@@ -86,200 +63,174 @@ serve(async (req) => {
     const { data } = await supabaseClient.auth.getUser(token);
     const user = data.user;
     if (!user?.email) throw new Error("User not authenticated");
-    logStep("User authenticated", { userId: user.id, email: user.email });
+    log("User authenticated", { userId: user.id, email: user.email });
 
     const body = await req.json();
     const { packageId, customCredits, useRetentionDiscount } = body;
 
     const { data: wallet } = await supabaseAdmin
-      .from("wallets")
-      .select("purchase_count, retention_credits_used")
-      .eq("user_id", user.id)
-      .single();
+      .from("wallets").select("purchase_count, retention_credits_used").eq("user_id", user.id).single();
     const currentPurchaseCount = wallet?.purchase_count || 0;
     const retentionAlreadyUsed = wallet?.retention_credits_used || false;
 
-    if (useRetentionDiscount && retentionAlreadyUsed) {
-      throw new Error("Retention discount already used.");
-    }
+    if (useRetentionDiscount && retentionAlreadyUsed) throw new Error("Retention discount already used.");
 
     const returningDiscountPercent = getReturningDiscount(currentPurchaseCount);
     const origin = req.headers.get("origin") || "https://uplyze.ai";
+    const storeId = await getStoreId();
 
     // ═══ CUSTOM CREDITS MODE ═══
     if (customCredits && typeof customCredits === "number" && customCredits >= 500) {
-      logStep("Custom credits mode", { customCredits });
+      log("Custom credits mode", { customCredits });
 
-      // Find the Custom Credits product on Polar
-      const productsRes = await polarFetch("/products?limit=100");
+      // Find Custom Credits product variant
+      const productsRes = await lsFetch(`/products?filter[store_id]=${storeId}&page[size]=100`);
       const productsData = await productsRes.json();
-      const customProduct = (productsData.items || []).find(
-        (p: any) => p.metadata?.type === "custom_credits"
+      const customProduct = (productsData.data || []).find(
+        (p: any) => p.attributes.name.toLowerCase().includes("custom credits")
       );
-      if (!customProduct) throw new Error("Custom Credits product not found on Polar. Run polar-setup first.");
+      if (!customProduct) throw new Error("Custom Credits product not found in Lemon Squeezy. Create it in the dashboard first.");
+
+      // Get variant
+      const varRes = await lsFetch(`/variants?filter[product_id]=${customProduct.id}&page[size]=1`);
+      const varData = await varRes.json();
+      const variant = varData.data?.[0];
+      if (!variant) throw new Error("No variant found for Custom Credits product.");
 
       const volumeDiscount = getVolumeDiscount(customCredits);
       const pricePerCredit = BASE_PRICE_PER_CREDIT_CENTS * (1 - volumeDiscount);
       let totalCents = Math.round(customCredits * pricePerCredit);
 
-      // Apply returning discount on top
       if (returningDiscountPercent > 0 && !useRetentionDiscount) {
         totalCents = Math.round(totalCents * (1 - returningDiscountPercent / 100));
       }
 
-      // Apply retention discount if requested
-      let customRetentionUsed = false;
+      let retentionUsed = false;
       if (useRetentionDiscount && !retentionAlreadyUsed) {
         totalCents = Math.round(totalCents * 0.5);
-        customRetentionUsed = true;
+        retentionUsed = true;
         await supabaseAdmin.from("wallets").update({ retention_credits_used: true }).eq("user_id", user.id);
-        logStep("Applied retention 50% discount");
+        log("Applied retention 50% discount");
       }
 
-      logStep("Price calculated", { totalCents, volumeDiscount, returningDiscount: returningDiscountPercent });
+      log("Custom price calculated", { totalCents, volumeDiscount, returningDiscount: returningDiscountPercent });
 
-      const metadata: Record<string, string> = {
-        user_id: user.id,
-        package_id: "custom",
-        credits: String(customCredits),
-        bonus_credits: "0",
-        is_returning: String(returningDiscountPercent > 0),
-        volume_discount: String(Math.round(volumeDiscount * 100)),
-        retention_used: String(customRetentionUsed),
-      };
-
-      const checkoutBody: any = {
-        products: [customProduct.id],
-        prices: {
-          [customProduct.id]: [{
-            amount_type: "fixed",
-            price_amount: totalCents,
-            price_currency: "usd",
-          }],
-        },
-        customer_email: user.email,
-        external_customer_id: user.id,
-        embed_origin: origin,
-        metadata,
-      };
-
-      const checkoutRes = await polarFetch("/checkouts", {
+      const checkoutRes = await lsFetch("/checkouts", {
         method: "POST",
-        body: JSON.stringify(checkoutBody),
+        body: JSON.stringify({
+          data: {
+            type: "checkouts",
+            attributes: {
+              custom_price: totalCents,
+              checkout_data: {
+                custom: {
+                  user_id: user.id,
+                  package_id: "custom",
+                  credits: String(customCredits),
+                  bonus_credits: "0",
+                  is_returning: String(returningDiscountPercent > 0),
+                  volume_discount: String(Math.round(volumeDiscount * 100)),
+                  retention_used: String(retentionUsed),
+                },
+              },
+              product_options: {
+                redirect_url: `${origin}/pricing?success=true`,
+                receipt_button_text: "Back to Uplyze",
+                receipt_thank_you_note: "Your credits have been added to your wallet!",
+              },
+              checkout_options: { embed: true, dark: true, media: true, logo: true },
+            },
+            relationships: {
+              store: { data: { type: "stores", id: storeId } },
+              variant: { data: { type: "variants", id: String(variant.id) } },
+            },
+          },
+        }),
       });
-      if (!checkoutRes.ok) {
-        const errText = await checkoutRes.text();
-        throw new Error(`Polar checkout failed: ${errText}`);
-      }
-      const checkout = await checkoutRes.json();
-      logStep("Custom checkout created", { checkoutId: checkout.id });
 
-      return new Response(JSON.stringify({ checkoutUrl: checkout.url }), {
+      if (!checkoutRes.ok) throw new Error(`Checkout failed: ${await checkoutRes.text()}`);
+      const checkout = await checkoutRes.json();
+      const checkoutUrl = checkout.data?.attributes?.url;
+      log("Custom checkout created", { url: checkoutUrl });
+
+      return new Response(JSON.stringify({ checkoutUrl }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // ═══ PACKAGE MODE — auto-select correct discount variant ═══
+    // ═══ PACKAGE MODE ═══
     if (!packageId) throw new Error("Package ID or customCredits required");
 
     const { data: pkg, error: pkgError } = await supabaseAdmin
-      .from("credit_packages")
-      .select("*")
-      .eq("id", packageId)
-      .eq("is_active", true)
-      .single();
+      .from("credit_packages").select("*").eq("id", packageId).eq("is_active", true).single();
     if (pkgError || !pkg) throw new Error("Invalid package");
-    logStep("Package found", { name: pkg.name, credits: pkg.credits, price: pkg.price_cents });
+    log("Package found", { name: pkg.name, credits: pkg.credits, price: pkg.price_cents });
 
-    // Determine base package key from name
-    const nameLC = pkg.name.toLowerCase();
-    let baseKey = "starter";
-    if (nameLC.includes("pro")) baseKey = "pro";
-    if (nameLC.includes("studio")) baseKey = "studio";
-    if (nameLC.includes("power")) baseKey = "power";
+    // Get variant ID from credit_packages table (mapped by lemon-setup)
+    const variantId = pkg.stripe_price_id;
+    if (!variantId) throw new Error("Variant not mapped. Run lemon-setup first.");
 
-    // Determine which discount tier to use
-    const discountTier = getDiscountTier(currentPurchaseCount, useRetentionDiscount || false);
-    logStep("Discount tier selected", { baseKey, discountTier, purchaseCount: currentPurchaseCount });
+    // Calculate discounted price
+    let priceCents = pkg.price_cents;
+    let discountTier = "none";
 
-    // Find the exact pre-baked product variant on Polar
-    const variantProduct = await findProductVariant(baseKey, discountTier);
-    if (!variantProduct) {
-      // Fallback: use base product from credit_packages table
-      logStep("Variant not found, falling back to base product");
-      const polarProductId = pkg.stripe_product_id;
-      if (!polarProductId) throw new Error("Polar product ID not set. Run polar-setup first.");
-
-      const checkoutBody: any = {
-        products: [polarProductId],
-        customer_email: user.email,
-        external_customer_id: user.id,
-        embed_origin: origin,
-        metadata: {
-          user_id: user.id,
-          package_id: pkg.id,
-          credits: String(pkg.credits),
-          bonus_credits: String(pkg.bonus_credits),
-          is_returning: String(returningDiscountPercent > 0),
-          retention_used: "false",
-        },
-      };
-
-      const checkoutRes = await polarFetch("/checkouts", { method: "POST", body: JSON.stringify(checkoutBody) });
-      if (!checkoutRes.ok) throw new Error(`Polar checkout failed: ${await checkoutRes.text()}`);
-      const checkout = await checkoutRes.json();
-      return new Response(JSON.stringify({ checkoutUrl: checkout.url }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Mark retention as used if applicable
-    if (useRetentionDiscount) {
+    if (useRetentionDiscount && !retentionAlreadyUsed) {
+      priceCents = Math.round(priceCents * 0.5);
+      discountTier = "retention_50";
       await supabaseAdmin.from("wallets").update({ retention_credits_used: true }).eq("user_id", user.id);
-      logStep("Marked retention discount as used");
+      log("Applied retention 50% discount");
+    } else if (returningDiscountPercent > 0) {
+      priceCents = Math.round(priceCents * (1 - returningDiscountPercent / 100));
+      discountTier = `loyalty_${returningDiscountPercent}`;
     }
 
-    logStep("Using pre-baked variant", {
-      name: variantProduct.name,
-      id: variantProduct.id,
-      price: variantProduct.prices?.[0]?.price_amount,
-    });
+    log("Discount applied", { discountTier, originalPrice: pkg.price_cents, finalPrice: priceCents });
 
-    const checkoutBody: any = {
-      products: [variantProduct.id],
-      customer_email: user.email,
-      external_customer_id: user.id,
-      embed_origin: origin,
-      metadata: {
-        user_id: user.id,
-        package_id: pkg.id,
-        credits: String(pkg.credits),
-        bonus_credits: String(pkg.bonus_credits),
-        discount_tier: discountTier,
-        is_returning: String(returningDiscountPercent > 0),
-        retention_used: String(useRetentionDiscount || false),
-      },
-    };
-
-    const checkoutRes = await polarFetch("/checkouts", {
+    const checkoutRes = await lsFetch("/checkouts", {
       method: "POST",
-      body: JSON.stringify(checkoutBody),
+      body: JSON.stringify({
+        data: {
+          type: "checkouts",
+          attributes: {
+            custom_price: priceCents,
+            checkout_data: {
+              custom: {
+                user_id: user.id,
+                package_id: pkg.id,
+                credits: String(pkg.credits),
+                bonus_credits: String(pkg.bonus_credits),
+                discount_tier: discountTier,
+                is_returning: String(returningDiscountPercent > 0),
+                retention_used: String(useRetentionDiscount || false),
+              },
+            },
+            product_options: {
+              redirect_url: `${origin}/pricing?success=true`,
+              receipt_button_text: "Back to Uplyze",
+              receipt_thank_you_note: "Your credits have been added to your wallet!",
+            },
+            checkout_options: { embed: true, dark: true, media: true, logo: true },
+          },
+          relationships: {
+            store: { data: { type: "stores", id: storeId } },
+            variant: { data: { type: "variants", id: variantId } },
+          },
+        },
+      }),
     });
-    if (!checkoutRes.ok) {
-      const errText = await checkoutRes.text();
-      throw new Error(`Polar checkout failed: ${errText}`);
-    }
-    const checkout = await checkoutRes.json();
-    logStep("Checkout created with variant", { checkoutId: checkout.id, variant: variantProduct.name });
 
-    return new Response(JSON.stringify({ checkoutUrl: checkout.url }), {
+    if (!checkoutRes.ok) throw new Error(`Checkout failed: ${await checkoutRes.text()}`);
+    const checkout = await checkoutRes.json();
+    const checkoutUrl = checkout.data?.attributes?.url;
+    log("Checkout created", { url: checkoutUrl, discountTier });
+
+    return new Response(JSON.stringify({ checkoutUrl }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
-    logStep("ERROR", { message: error instanceof Error ? error.message : String(error) });
+    log("ERROR", { message: error instanceof Error ? error.message : String(error) });
     return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500,
     });
   }
 });
