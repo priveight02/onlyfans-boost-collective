@@ -37,34 +37,8 @@ serve(async (req) => {
     if (!user?.id || !user?.email) throw new Error("User not authenticated");
     log("User authenticated", { userId: user.id });
 
-    // STRATEGY 1: Check if webhook already processed recent orders
-    const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-    const { data: recentTx } = await supabaseAdmin
-      .from("wallet_transactions")
-      .select("amount, created_at, reference_id, description")
-      .eq("user_id", user.id)
-      .eq("type", "purchase")
-      .gte("created_at", fiveMinAgo)
-      .order("created_at", { ascending: false })
-      .limit(5);
-
-    if (recentTx && recentTx.length > 0) {
-      const totalRecent = recentTx.reduce((sum, tx) => sum + (tx.amount || 0), 0);
-      log("Found recent webhook-processed transactions", { count: recentTx.length, totalRecent });
-
-      const { data: updatedWallet } = await supabaseAdmin
-        .from("wallets").select("balance, purchase_count").eq("user_id", user.id).single();
-
-      return new Response(JSON.stringify({
-        credited: true,
-        credits_added: totalRecent,
-        balance: updatedWallet?.balance || 0,
-        purchase_count: updatedWallet?.purchase_count || 0,
-        source: "webhook",
-      }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-
-    // STRATEGY 2: Poll Polar orders directly (fallback if webhook hasn't fired yet)
+    // STRATEGY: Always poll Polar orders to catch sandbox/webhook-missed orders,
+    // then check if webhook already handled them via idempotency.
     // Find customer
     let customerId: string | null = null;
     const custRes = await polarFetch(`/customers?external_id=${encodeURIComponent(user.id)}&limit=1`);

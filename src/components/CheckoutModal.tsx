@@ -110,7 +110,7 @@ const CheckoutModal = ({ checkoutUrl, onClose }: CheckoutModalProps) => {
         if (data?.credited && data.credits_added > 0) {
           setResult({ credits_added: data.credits_added });
           setView("success");
-          toast.success(`🎉 ${data.credits_added.toLocaleString()} credits added!`, { id: "payment-verify" });
+          toast.success(`${data.credits_added.toLocaleString()} credits added to your wallet`, { id: "payment-verify" });
           return;
         }
       } catch (err) {
@@ -121,7 +121,7 @@ const CheckoutModal = ({ checkoutUrl, onClose }: CheckoutModalProps) => {
     // All retries exhausted — show success anyway (webhook will handle it)
     setResult({ credits_added: 0 });
     setView("success");
-    toast.success("Payment successful! Credits are being processed.", { id: "payment-verify" });
+    toast.success("Payment successful — credits are being processed", { id: "payment-verify" });
   };
 
   const handleCloseAttempt = () => {
