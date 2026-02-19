@@ -246,14 +246,25 @@ const PlanCreditsTab = ({ onSwitchTab }: { onSwitchTab?: (tab: string) => void }
       });
       if (error) throw error;
 
+      // Handle blocked by rate limiter
+      if (data?.blocked) {
+        toast.error(data.error || "Too many plan changes. Please try again later.");
+        return;
+      }
+      if (data?.error) {
+        toast.error(data.error);
+        return;
+      }
+
       if (data?.upgraded) {
-        toast.success(`🎉 Upgraded to ${planId.charAt(0).toUpperCase() + planId.slice(1)}! Prorated charges applied.`);
+        toast.success(`🎉 Upgraded to ${planId.charAt(0).toUpperCase() + planId.slice(1)}! ${data.creditsGranted ? 'Credits added.' : ''} Prorated charges applied.`);
         setActivePlanId(planId);
         refreshWallet();
         return;
       }
       if (data?.downgraded) {
-        toast.info(`Plan will change to ${planId.charAt(0).toUpperCase() + planId.slice(1)} at the end of your current billing period.`);
+        toast.info(`Downgraded to ${planId.charAt(0).toUpperCase() + planId.slice(1)}. Credit applied to next invoice.`);
+        setActivePlanId(planId);
         fetchSubscription();
         return;
       }
