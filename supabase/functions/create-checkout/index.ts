@@ -169,6 +169,50 @@ serve(async (req) => {
       });
     }
 
+    // ═══ LIFETIME LIMITS: Starter downgrade max 1x, upgrades max 2x per account ═══
+    if (isDowngrade && planId === "starter") {
+      const { data: starterDowngrades } = await adminClient
+        .from("wallet_transactions")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("type", "plan_change")
+        .filter("metadata->>to_plan", "eq", "starter")
+        .filter("metadata->>direction", "eq", "downgrade");
+      if (starterDowngrades && starterDowngrades.length >= 1) {
+        log("BLOCKED — lifetime starter downgrade limit reached", { userId: user.id, count: starterDowngrades.length });
+        await adminClient.from("admin_user_notifications").insert({
+          user_id: user.id,
+          title: "Downgrade Blocked",
+          message: "You can only downgrade to the Starter plan once per account. This limit has been reached.",
+          notification_type: "warning",
+        });
+        return new Response(JSON.stringify({ error: "You can only downgrade to the Starter plan once per account.", blocked: true }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 429,
+        });
+      }
+    }
+
+    if (isUpgrade) {
+      const { data: allUpgrades } = await adminClient
+        .from("wallet_transactions")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("type", "plan_change")
+        .filter("metadata->>direction", "eq", "upgrade");
+      if (allUpgrades && allUpgrades.length >= 2) {
+        log("BLOCKED — lifetime upgrade limit reached", { userId: user.id, count: allUpgrades.length });
+        await adminClient.from("admin_user_notifications").insert({
+          user_id: user.id,
+          title: "Upgrade Blocked",
+          message: "You can only upgrade your plan twice per account. This limit has been reached.",
+          notification_type: "warning",
+        });
+        return new Response(JSON.stringify({ error: "You can only upgrade your plan twice per account.", blocked: true }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 429,
+        });
+      }
+    }
+
     // UPGRADE: PATCH subscription, charge prorated difference immediately
     if (existingSub && isUpgrade) {
       log("Upgrading subscription", { subId: existingSub.id, from: detectedCurrentPlanId, to: planId });
