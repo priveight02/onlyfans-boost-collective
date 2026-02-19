@@ -144,10 +144,10 @@ serve(async (req) => {
 
     // UPGRADE: update subscription product price
     if (existingSub && isUpgrade) {
-      log("Upgrading subscription", { subId: existingSub.id, newPrice: target.priceId });
+      log("Upgrading subscription", { subId: existingSub.id, newProduct: target.productId });
       const updateRes = await polarFetch(`/subscriptions/${existingSub.id}`, {
         method: "PATCH",
-        body: JSON.stringify({ product_price_id: target.priceId }),
+        body: JSON.stringify({ product_id: target.productId }),
       });
       if (!updateRes.ok) throw new Error(`Upgrade failed: ${await updateRes.text()}`);
 
@@ -168,10 +168,10 @@ serve(async (req) => {
 
     // DOWNGRADE: update subscription
     if (existingSub && isDowngrade) {
-      log("Downgrading subscription", { subId: existingSub.id, newPrice: target.priceId });
+      log("Downgrading subscription", { subId: existingSub.id, newProduct: target.productId });
       const updateRes = await polarFetch(`/subscriptions/${existingSub.id}`, {
         method: "PATCH",
-        body: JSON.stringify({ product_price_id: target.priceId }),
+        body: JSON.stringify({ product_id: target.productId }),
       });
       if (!updateRes.ok) throw new Error(`Downgrade failed: ${await updateRes.text()}`);
       return new Response(JSON.stringify({ downgraded: true, message: `Downgraded to ${planId}. Changes take effect at next renewal.` }), {
