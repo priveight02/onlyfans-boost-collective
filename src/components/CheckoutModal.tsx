@@ -56,16 +56,13 @@ const CheckoutModal = ({ checkoutUrl, onClose }: CheckoutModalProps) => {
     const handleCheckoutEvent = (eventName: string) => {
       const lower = eventName.toLowerCase();
       if (lower.includes("success") || lower.includes("confirmed")) {
-        toast.loading("Payment received! Verifying...", { id: "payment-verify" });
         setView("verifying");
         retryCountRef.current = 0;
         verifyWithRetry();
       } else if (lower.includes("fail") || lower.includes("decline") || lower.includes("error")) {
         setView("failed");
-        toast.error("Payment was declined or failed.", { id: "payment-verify" });
       } else if (lower.includes("expire")) {
         setView("expired");
-        toast.error("Checkout session expired.", { id: "payment-verify" });
       } else if (lower.includes("close") || lower.includes("cancel")) {
         setView("canceled");
       }
@@ -88,18 +85,23 @@ const CheckoutModal = ({ checkoutUrl, onClose }: CheckoutModalProps) => {
     return () => window.removeEventListener("message", handler);
   }, []);
 
+  const [verifyStatus, setVerifyStatus] = useState<string>("Confirming payment and adding credits...");
+  const [verifyStep, setVerifyStep] = useState<number>(0);
+  const [verifyTotal, setVerifyTotal] = useState<number>(5);
+
   const verifyWithRetry = async () => {
     const MAX_RETRIES = 5;
-    const RETRY_DELAYS = [3000, 4000, 5000, 6000, 8000];
+    const RETRY_DELAYS = [2000, 2500, 3000, 3500, 4000];
+    setVerifyTotal(MAX_RETRIES);
 
     for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
       retryCountRef.current = attempt + 1;
-      toast.loading(
-        attempt > 2
-          ? "Almost there, confirming with payment provider..."
-          : `Verifying purchase (${attempt + 1}/${MAX_RETRIES})...`,
-        { id: "payment-verify" }
-      );
+      setVerifyStep(attempt + 1);
+      if (attempt === 0) setVerifyStatus("Connecting to payment provider...");
+      else if (attempt === 1) setVerifyStatus("Payment received, verifying transaction...");
+      else if (attempt === 2) setVerifyStatus("Confirming credits allocation...");
+      else if (attempt === 3) setVerifyStatus("Almost there, finalizing...");
+      else setVerifyStatus("Final confirmation with provider...");
 
       await new Promise((r) => setTimeout(r, RETRY_DELAYS[attempt]));
 
@@ -110,7 +112,6 @@ const CheckoutModal = ({ checkoutUrl, onClose }: CheckoutModalProps) => {
         if (data?.credited && data.credits_added > 0) {
           setResult({ credits_added: data.credits_added });
           setView("success");
-          toast.success(`${data.credits_added.toLocaleString()} credits added to your wallet`, { id: "payment-verify" });
           return;
         }
       } catch (err) {
@@ -121,7 +122,6 @@ const CheckoutModal = ({ checkoutUrl, onClose }: CheckoutModalProps) => {
     // All retries exhausted — show success anyway (webhook will handle it)
     setResult({ credits_added: 0 });
     setView("success");
-    toast.success("Payment successful — credits are being processed", { id: "payment-verify" });
   };
 
   const handleCloseAttempt = () => {
@@ -268,7 +268,26 @@ const CheckoutModal = ({ checkoutUrl, onClose }: CheckoutModalProps) => {
               </motion.div>
               <div className="flex flex-col items-center gap-1.5">
                 <p className="text-white/70 text-base font-semibold">Verifying your purchase</p>
-                <p className="text-white/30 text-sm">Confirming payment and adding credits...</p>
+                <motion.p
+                  key={verifyStatus}
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="text-white/30 text-sm"
+                >
+                  {verifyStatus}
+                </motion.p>
+              </div>
+              {/* Progress bar */}
+              <div className="w-48 mt-2">
+                <div className="h-1 rounded-full bg-white/[0.06] overflow-hidden">
+                  <motion.div
+                    className="h-full rounded-full bg-emerald-500/50"
+                    initial={{ width: "0%" }}
+                    animate={{ width: `${(verifyStep / verifyTotal) * 100}%` }}
+                    transition={{ duration: 0.5, ease: "easeOut" }}
+                  />
+                </div>
+                <p className="text-[10px] text-white/20 text-center mt-1.5">Step {verifyStep} of {verifyTotal}</p>
               </div>
             </div>
           )}
