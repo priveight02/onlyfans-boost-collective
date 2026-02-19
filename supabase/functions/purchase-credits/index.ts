@@ -84,11 +84,12 @@ const getVolumeDiscountPercent = (credits: number): number => {
 };
 
 // Determine discount tier based on purchase history & retention
+// Declining discount: 1st repurchase=30%, 2nd=20%, 3rd=10%, then 0%
 const getDiscountTier = (purchaseCount: number, useRetention: boolean, retentionUsed: boolean): string => {
   if (useRetention && !retentionUsed) return "50";
-  if (purchaseCount >= 3) return "30";
-  if (purchaseCount >= 2) return "20";
-  if (purchaseCount >= 1) return "10";
+  if (purchaseCount === 1) return "30";
+  if (purchaseCount === 2) return "20";
+  if (purchaseCount === 3) return "10";
   return "base";
 };
 

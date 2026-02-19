@@ -5,24 +5,13 @@ import {
   X, ShieldCheck, Loader2, Lock,
   CheckCircle2, Receipt, Download, ArrowRight,
   LayoutDashboard, XCircle, ExternalLink, Sparkles,
+  AlertTriangle,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
-declare global {
-  interface Window {
-    createLemonSqueezy?: () => void;
-    LemonSqueezy?: {
-      Url: {
-        Open: (url: string) => void;
-        Close: () => void;
-      };
-      Setup: (config: { eventHandler: (event: any) => void }) => void;
-    };
-  }
-}
-
-type ModalView = "idle" | "verifying" | "success" | "canceled";
+type ModalView = "checkout" | "confirm-close" | "verifying" | "success" | "canceled";
 
 interface VerificationResult {
   credits_added: number;
@@ -36,54 +25,47 @@ interface CheckoutModalProps {
 
 const CheckoutModal = ({ checkoutUrl, onClose }: CheckoutModalProps) => {
   const navigate = useNavigate();
-  const [view, setView] = useState<ModalView>("idle");
+  const [view, setView] = useState<ModalView>("checkout");
   const [result, setResult] = useState<VerificationResult | null>(null);
-  const successRef = useRef(false);
   const retryCountRef = useRef(0);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
-  // Initialize lemon.js and set up event handler
+  // Reset state when checkoutUrl changes
   useEffect(() => {
-    window.createLemonSqueezy?.();
-
-    window.LemonSqueezy?.Setup({
-      eventHandler: (event: any) => {
-        console.log("[CheckoutModal] LS event:", event?.event);
-        if (event.event === "Checkout.Success") {
-          successRef.current = true;
-          setView("verifying");
-          retryCountRef.current = 0;
-          verifyWithRetry();
-        }
-        if (event.event === "Checkout.Close" && !successRef.current) {
-          setView("canceled");
-        }
-      },
-    });
-  }, []);
-
-  useEffect(() => {
-    if (!checkoutUrl) return;
-
-    setView("idle");
-    setResult(null);
-    successRef.current = false;
-    retryCountRef.current = 0;
-
-    // Re-initialize in case component re-rendered
-    window.createLemonSqueezy?.();
-
-    // Small delay to ensure lemon.js is ready
-    const timer = setTimeout(() => {
-      try {
-        window.LemonSqueezy?.Url.Open(checkoutUrl);
-      } catch (err) {
-        console.error("Failed to open Lemon Squeezy checkout:", err);
-        window.open(checkoutUrl, "_blank");
-      }
-    }, 150);
-
-    return () => clearTimeout(timer);
+    if (checkoutUrl) {
+      setView("checkout");
+      setResult(null);
+      retryCountRef.current = 0;
+      toast.info("Payment checkout opened", { duration: 2000 });
+    }
   }, [checkoutUrl]);
+
+  // Listen for LS postMessage events from iframe
+  useEffect(() => {
+    const handler = (event: MessageEvent) => {
+      // Lemon Squeezy sends events via postMessage
+      if (typeof event.data === "string") {
+        try {
+          const parsed = JSON.parse(event.data);
+          if (parsed.event === "Checkout.Success") {
+            toast.loading("Payment received! Verifying...", { id: "payment-verify" });
+            setView("verifying");
+            retryCountRef.current = 0;
+            verifyWithRetry();
+          }
+        } catch {}
+      }
+      // Also handle object-style messages
+      if (event.data?.event === "Checkout.Success") {
+        toast.loading("Payment received! Verifying...", { id: "payment-verify" });
+        setView("verifying");
+        retryCountRef.current = 0;
+        verifyWithRetry();
+      }
+    };
+    window.addEventListener("message", handler);
+    return () => window.removeEventListener("message", handler);
+  }, []);
 
   const verifyWithRetry = async () => {
     const MAX_RETRIES = 5;
@@ -91,7 +73,12 @@ const CheckoutModal = ({ checkoutUrl, onClose }: CheckoutModalProps) => {
 
     for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
       retryCountRef.current = attempt + 1;
-      console.log(`[CheckoutModal] Verify attempt ${attempt + 1}/${MAX_RETRIES}`);
+      toast.loading(
+        attempt > 2
+          ? "Almost there, confirming with payment provider..."
+          : `Verifying purchase (${attempt + 1}/${MAX_RETRIES})...`,
+        { id: "payment-verify" }
+      );
 
       await new Promise((r) => setTimeout(r, RETRY_DELAYS[attempt]));
 
@@ -102,6 +89,7 @@ const CheckoutModal = ({ checkoutUrl, onClose }: CheckoutModalProps) => {
         if (data?.credited && data.credits_added > 0) {
           setResult({ credits_added: data.credits_added });
           setView("success");
+          toast.success(`🎉 ${data.credits_added.toLocaleString()} credits added!`, { id: "payment-verify" });
           return;
         }
       } catch (err) {
@@ -110,9 +98,26 @@ const CheckoutModal = ({ checkoutUrl, onClose }: CheckoutModalProps) => {
     }
 
     // All retries exhausted — show success anyway (webhook will handle it)
-    console.warn("[CheckoutModal] All verify retries exhausted, showing success (webhook will handle credits)");
     setResult({ credits_added: 0 });
     setView("success");
+    toast.success("Payment successful! Credits are being processed.", { id: "payment-verify" });
+  };
+
+  const handleCloseAttempt = () => {
+    if (view === "checkout") {
+      setView("confirm-close");
+    } else {
+      onClose(view === "success");
+    }
+  };
+
+  const handleConfirmClose = () => {
+    setView("canceled");
+    toast.info("Purchase canceled. No charges were made.", { duration: 3000 });
+  };
+
+  const handleStayOnCheckout = () => {
+    setView("checkout");
   };
 
   const handleGoToCRM = () => {
@@ -124,8 +129,7 @@ const CheckoutModal = ({ checkoutUrl, onClose }: CheckoutModalProps) => {
     onClose(false);
   };
 
-  // Don't render during checkout — Lemon Squeezy handles its own overlay
-  if (view === "idle") return null;
+  if (!checkoutUrl) return null;
 
   return (
     <AnimatePresence>
@@ -133,14 +137,15 @@ const CheckoutModal = ({ checkoutUrl, onClose }: CheckoutModalProps) => {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        transition={{ duration: 0.35 }}
-        className="fixed inset-0 z-[9999] flex items-center justify-center p-1 md:p-2"
+        transition={{ duration: 0.25 }}
+        className="fixed inset-0 z-[9999] flex items-center justify-center p-2 md:p-4"
       >
         {/* Backdrop */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           className="absolute inset-0 bg-black/85 backdrop-blur-xl"
+          onClick={handleCloseAttempt}
         />
 
         {/* Modal */}
@@ -148,14 +153,77 @@ const CheckoutModal = ({ checkoutUrl, onClose }: CheckoutModalProps) => {
           initial={{ opacity: 0, scale: 0.94, y: 24 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.94, y: 24 }}
-          transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-          className="relative w-full max-w-lg rounded-2xl overflow-hidden flex flex-col"
+          transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+          className="relative w-full max-w-2xl rounded-2xl overflow-hidden flex flex-col"
           style={{
             background: "linear-gradient(180deg, hsl(222, 35%, 10%) 0%, hsl(222, 35%, 7%) 100%)",
             boxShadow: "0 0 0 1px rgba(255,255,255,0.06), 0 32px 80px -12px rgba(0,0,0,0.7), 0 0 120px -40px rgba(147,51,234,0.15)",
+            maxHeight: "90vh",
           }}
         >
           <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-purple-500/40 to-transparent" />
+
+          {/* Header bar */}
+          <div className="flex items-center justify-between px-5 py-3 border-b border-white/[0.06]">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4 text-emerald-400" />
+              <span className="text-xs text-white/50 font-medium">Secure Checkout — Lemon Squeezy</span>
+            </div>
+            <button
+              onClick={handleCloseAttempt}
+              className="w-8 h-8 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] flex items-center justify-center text-white/40 hover:text-white/80 transition-colors"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          {/* === CHECKOUT IFRAME VIEW === */}
+          {view === "checkout" && (
+            <div className="flex-1 relative" style={{ height: "70vh" }}>
+              <iframe
+                ref={iframeRef}
+                src={checkoutUrl}
+                className="w-full h-full border-0"
+                allow="payment"
+                title="Lemon Squeezy Checkout"
+              />
+            </div>
+          )}
+
+          {/* === CONFIRM CLOSE VIEW === */}
+          {view === "confirm-close" && (
+            <div className="flex-1 flex flex-col items-center justify-center px-6 py-16">
+              <motion.div
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ type: "spring", stiffness: 200, damping: 15 }}
+                className="relative mb-8"
+              >
+                <div className="absolute -inset-6 rounded-full bg-amber-500/5 blur-2xl" />
+                <div className="relative flex items-center justify-center w-20 h-20 rounded-3xl bg-amber-500/10 border border-amber-500/20">
+                  <AlertTriangle className="h-10 w-10 text-amber-400" />
+                </div>
+              </motion.div>
+              <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="text-center mb-10">
+                <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">Leave checkout?</h2>
+                <p className="text-white/40 text-sm">Your purchase hasn't been completed yet. Are you sure you want to cancel?</p>
+              </motion.div>
+              <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="flex flex-col sm:flex-row items-center gap-3">
+                <Button
+                  onClick={handleStayOnCheckout}
+                  className="px-8 py-5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-medium transition-all"
+                >
+                  Continue checkout
+                </Button>
+                <Button
+                  onClick={handleConfirmClose}
+                  className="px-8 py-5 rounded-xl bg-white/[0.06] hover:bg-white/[0.1] text-white/60 hover:text-white border border-white/[0.08] transition-all"
+                >
+                  Yes, cancel
+                </Button>
+              </motion.div>
+            </div>
+          )}
 
           {/* === VERIFYING VIEW === */}
           {view === "verifying" && (
@@ -175,11 +243,7 @@ const CheckoutModal = ({ checkoutUrl, onClose }: CheckoutModalProps) => {
               </motion.div>
               <div className="flex flex-col items-center gap-1.5">
                 <p className="text-white/70 text-base font-semibold">Verifying your purchase</p>
-                <p className="text-white/30 text-sm">
-                  {retryCountRef.current > 2 
-                    ? "Almost there, confirming with payment provider..." 
-                    : "Confirming payment and adding credits..."}
-                </p>
+                <p className="text-white/30 text-sm">Confirming payment and adding credits...</p>
               </div>
             </div>
           )}
