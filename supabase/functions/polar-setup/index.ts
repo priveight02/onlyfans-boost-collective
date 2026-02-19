@@ -7,9 +7,10 @@ const corsHeaders = {
 };
 
 const POLAR_MODE = Deno.env.get("POLAR_MODE") || "live";
-const POLAR_API = POLAR_MODE === "sandbox" 
+const POLAR_API = (POLAR_MODE === "sandbox" || POLAR_MODE === "test")
   ? "https://sandbox-api.polar.sh/v1" 
   : "https://api.polar.sh/v1";
+console.log(`[POLAR-SETUP] Using mode: ${POLAR_MODE}, API: ${POLAR_API}`);
 const SUPABASE_STORAGE_BASE = "https://ufsnuobtvkciydftsyff.supabase.co/storage/v1/object/public/product-images";
 
 const polarFetch = async (path: string, options: RequestInit = {}) => {
