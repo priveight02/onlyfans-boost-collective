@@ -150,21 +150,21 @@ const CheckoutModal = ({ checkoutUrl, onClose }: CheckoutModalProps) => {
 
         {/* Modal */}
         <motion.div
-          initial={{ opacity: 0, scale: 0.94, y: 24 }}
+          initial={{ opacity: 0, scale: 0.97, y: 16 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.94, y: 24 }}
+          exit={{ opacity: 0, scale: 0.97, y: 16 }}
           transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
           className="relative w-full max-w-2xl rounded-2xl overflow-hidden flex flex-col"
           style={{
             background: "linear-gradient(180deg, hsl(222, 35%, 10%) 0%, hsl(222, 35%, 7%) 100%)",
             boxShadow: "0 0 0 1px rgba(255,255,255,0.06), 0 32px 80px -12px rgba(0,0,0,0.7), 0 0 120px -40px rgba(147,51,234,0.15)",
-            maxHeight: "90vh",
+            height: "95vh",
           }}
         >
           <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-purple-500/40 to-transparent" />
 
           {/* Header bar */}
-          <div className="flex items-center justify-between px-5 py-3 border-b border-white/[0.06]">
+          <div className="flex items-center justify-between px-5 py-3 border-b border-white/[0.06] flex-shrink-0">
             <div className="flex items-center gap-2">
               <ShieldCheck className="h-4 w-4 text-emerald-400" />
               <span className="text-xs text-white/50 font-medium">Secure Checkout — Lemon Squeezy</span>
@@ -179,7 +179,7 @@ const CheckoutModal = ({ checkoutUrl, onClose }: CheckoutModalProps) => {
 
           {/* === CHECKOUT IFRAME VIEW === */}
           {view === "checkout" && (
-            <div className="flex-1 relative" style={{ height: "70vh" }}>
+            <div className="flex-1 min-h-0">
               <iframe
                 ref={iframeRef}
                 src={checkoutUrl}
