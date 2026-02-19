@@ -38,20 +38,20 @@ const getVolumeDiscount = (credits: number): number => {
   return 0;
 };
 
-// Map purchase count to discount tier metadata key (ascending loyalty)
+// Map purchase count to discount tier metadata key
 const getDiscountTier = (purchaseCount: number, useRetention: boolean): string => {
   if (useRetention) return "retention_50";
-  if (purchaseCount >= 3) return "loyalty_30";
-  if (purchaseCount >= 2) return "loyalty_20";
-  if (purchaseCount >= 1) return "loyalty_10";
+  if (purchaseCount === 1) return "loyalty_30";
+  if (purchaseCount === 2) return "loyalty_20";
+  if (purchaseCount === 3) return "loyalty_10";
   return "none";
 };
 
-// Map purchase count to returning discount % (ascending loyalty)
+// Map purchase count to returning discount %
 const getReturningDiscount = (count: number): number => {
-  if (count >= 3) return 30;
-  if (count >= 2) return 20;
-  if (count >= 1) return 10;
+  if (count === 1) return 30;
+  if (count === 2) return 20;
+  if (count === 3) return 10;
   return 0;
 };
 
