@@ -19,7 +19,7 @@ interface CreditPackage {
   credits: number;
   bonus_credits: number;
   price_cents: number;
-  stripe_price_id: string; // actually stores LS variant ID
+  stripe_price_id: string; // stores Polar product reference
   is_popular: boolean;
   sort_order: number;
 }
