@@ -22,8 +22,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
 import CreditCostBadge from "./CreditCostBadge";
-import { useCreditAction } from "@/hooks/useCreditAction";
-import InsufficientCreditsModal from "@/components/InsufficientCreditsModal";
 
 // ---- Types ----
 interface Attachment {
@@ -57,10 +55,6 @@ interface VoiceParams {
   speed: number;
   reverb: number;
   effects: string[];
-  toneSpeed: number;
-  rhythm: number;
-  flow: number;
-  humor: number;
 }
 
 interface GeneratedContent {
@@ -126,7 +120,7 @@ const PREFS_KEY = "copilot_display_prefs";
 const VOICE_PARAMS_KEY = "copilot_voice_params";
 const MAX_ATTACHMENTS = 20;
 const MAX_FILE_SIZE = 20 * 1024 * 1024;
-const DEFAULT_VOICE_PARAMS: VoiceParams = { pitch: 0, speed: 1, reverb: 0, effects: [], toneSpeed: 50, rhythm: 50, flow: 50, humor: 0 };
+const DEFAULT_VOICE_PARAMS: VoiceParams = { pitch: 0, speed: 1, reverb: 0, effects: [] };
 const VOICE_EFFECTS = ["Warm", "Breathy", "Crisp", "Deep", "Whisper", "Robotic", "Echo"];
 
 const QUICK_PROMPTS = [
@@ -220,7 +214,6 @@ const AudioWaveform = ({ playing }: { playing: boolean }) => {
 
 // ============= MAIN COMPONENT =============
 const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
-  const { performAction, insufficientModal, closeInsufficientModal } = useCreditAction();
   // Core state
   const [conversations, setConversations] = useState<any[]>([]);
   const [activeConvoId, setActiveConvoId] = useState<string | null>(null);
@@ -563,8 +556,6 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
   const handleCloneVoice = async () => {
     if (!newVoiceName.trim() || voiceSamples.length === 0) { toast.error("Provide a name and at least one audio sample (1 min recommended)"); return; }
     if (newVoiceName.trim().length < 3) { toast.error("Name must be at least 3 characters"); return; }
-    const creditResult = await performAction("copilot_clone_voice", async () => true);
-    if (!creditResult) return;
     setIsCloningVoice(true);
     try {
       const formData = new FormData();
@@ -640,28 +631,14 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
     if (!audioText.trim() || isGeneratingAudio) return;
     const voice = voices.find(v => v.id === selectedVoice);
     if (!voice?.elevenlabs_voice_id) { toast.error("Select a cloned voice first. Create one from audio samples."); return; }
-
-    // Deduct credits
-    const result = await performAction("copilot_generate_tts", async () => {
-      return true;
-    });
-    if (!result) return;
-
     setIsGeneratingAudio(true);
     try {
-      // Map voice params properly to ElevenLabs voice_settings
-      const stabilityFromPitch = Math.max(0, Math.min(1, 0.5 - (voiceParams.pitch * 0.02)));
-      const similarityFromReverb = Math.max(0, Math.min(1, 0.75 + (voiceParams.reverb * 0.0025)));
-      const styleFromHumor = Math.max(0, Math.min(1, (voiceParams.humor / 100) * 0.8 + (voiceParams.flow / 100) * 0.2));
-      const speedValue = voiceParams.speed * (voiceParams.toneSpeed / 50); // toneSpeed as multiplier around 1x
-      const rhythmStability = stabilityFromPitch * (1 - (voiceParams.rhythm - 50) / 200); // rhythm modulates stability
-
       const voiceSettings: any = {
-        stability: Math.max(0, Math.min(1, rhythmStability)),
-        similarity_boost: similarityFromReverb,
-        style: Math.max(0, Math.min(1, voiceParams.effects.includes("Breathy") ? 0.7 : voiceParams.effects.includes("Deep") ? 0.3 : voiceParams.effects.includes("Warm") ? 0.6 : voiceParams.effects.includes("Crisp") ? 0.2 : voiceParams.effects.includes("Whisper") ? 0.8 : styleFromHumor)),
-        speed: Math.max(0.7, Math.min(1.2, speedValue)),
-        use_speaker_boost: !(voiceParams.effects.includes("Echo") || voiceParams.effects.includes("Robotic")),
+        stability: Math.max(0, Math.min(1, 0.5 + (voiceParams.pitch * -0.03))),
+        similarity_boost: Math.max(0, Math.min(1, 0.85 + (voiceParams.reverb * 0.0015))),
+        style: Math.max(0, Math.min(1, voiceParams.effects.includes("Breathy") ? 0.7 : voiceParams.effects.includes("Deep") ? 0.3 : voiceParams.effects.includes("Warm") ? 0.6 : voiceParams.effects.includes("Crisp") ? 0.2 : voiceParams.effects.includes("Whisper") ? 0.8 : 0.5)),
+        speed: voiceParams.speed,
+        use_speaker_boost: voiceParams.effects.includes("Echo") || voiceParams.effects.includes("Robotic") ? false : true,
       };
 
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/voice-audio?action=generate`, {
@@ -674,8 +651,7 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
       const audioUrl = data.audio_url;
       if (!audioUrl) throw new Error("No audio returned");
 
-      const isModified = JSON.stringify(voiceParams) !== JSON.stringify(DEFAULT_VOICE_PARAMS);
-      const saved = await saveGeneratedContent("audio", audioUrl, audioText, "audio", { metadata: { voice: voice.name, params: voiceParams, modified: isModified } });
+      const saved = await saveGeneratedContent("audio", audioUrl, audioText, "audio", { metadata: { voice: voice.name, params: voiceParams } });
       if (saved) setGeneratedAudios(prev => [saved, ...prev]);
       toast.success("Audio generated!"); setAudioText("");
     } catch (e: any) { toast.error(e.message || "Audio generation failed"); } finally { setIsGeneratingAudio(false); }
@@ -719,11 +695,6 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
 
   const generateImage = async () => {
     if (!imagePrompt.trim() || isGeneratingImage) return;
-
-    // Deduct 31 credits for image generation
-    const creditResult = await performAction("copilot_generate_image", async () => true);
-    if (!creditResult) return;
-
     setIsGeneratingImage(true);
     const currentRefs = [...imageRefs];
     const prompt = imagePrompt;
@@ -792,11 +763,6 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
 
   const generateVideo = async () => {
     if (!videoPrompt.trim() || isGeneratingVideo) return;
-
-    // Deduct 310 credits for video generation (10x image cost)
-    const creditResult = await performAction("copilot_generate_video", async () => true);
-    if (!creditResult) return;
-
     setIsGeneratingVideo(true);
     const prompt = videoPrompt;
     const frame = videoStartFrame;
@@ -1016,12 +982,7 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
           const isPlaying = playingAudioId === item.id;
           return (
             <div key={item.id} className="group">
-              <div className="flex items-center gap-2 mb-1.5">
-                <p className="text-[11px] text-white/50 font-medium">{voiceName}</p>
-                {item.metadata?.modified && (
-                  <span className="text-[9px] text-orange-400 font-medium">● Voice modified</span>
-                )}
-              </div>
+              <p className="text-[11px] text-white/50 mb-1.5 font-medium">{voiceName}</p>
               <div className="flex items-center gap-3 bg-white/[0.04] border border-white/[0.08] rounded-xl p-3">
                 <button onClick={() => toggleAudioPlay(item.id, item.url)}
                   className="h-10 w-10 rounded-full bg-white flex items-center justify-center shrink-0 hover:bg-white/90 transition-colors">
@@ -1195,6 +1156,23 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
     { id: "luma", label: "Luma Dream Machine", pricing: "paid", color: "text-pink-400", desc: "Cinematic video generation, image-to-video", models: [
       { id: "dream-machine", label: "Dream Machine" },
     ]},
+    { id: "seedance", label: "Seedance 2.0", pricing: "paid", color: "text-cyan-400", desc: "High quality, 4-12s, audio gen", models: [
+      { id: "seedance-2.0", label: "Seedance 2.0" },
+    ]},
+    { id: "kling", label: "Kling AI", pricing: "paid", color: "text-purple-400", desc: "V2 Master, text & image-to-video", models: [
+      { id: "kling-v2-master", label: "V2 Master" },
+      { id: "kling-v2", label: "V2" },
+      { id: "kling-v1-6", label: "V1.6 Legacy" },
+    ]},
+    { id: "huggingface", label: "HuggingFace", pricing: "free", color: "text-yellow-400", desc: "Free tier, LTX-Video & more", models: [
+      { id: "Lightricks/LTX-Video-0.9.8-13B-distilled", label: "LTX-Video 13B" },
+      { id: "tencent/HunyuanVideo", label: "HunyuanVideo" },
+    ]},
+    { id: "replicate", label: "Replicate", pricing: "free-credits", color: "text-green-400", desc: "Free credits on signup, many models", models: [
+      { id: "minimax/video-01-live", label: "MiniMax Live" },
+      { id: "tencent/hunyuan-video", label: "HunyuanVideo" },
+      { id: "wavespeedai/wan-2.1-t2v-480p", label: "Wan 2.1" },
+    ]},
   ];
 
   const renderPricingBadge = (pricing: string) => {
@@ -1275,6 +1253,30 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
           </div>
         </div>
 
+        {/* Provider-specific options */}
+        {selectedVideoProvider === "seedance" && (
+          <div className="space-y-2">
+            <div>
+              <p className="text-[10px] text-white/40 mb-1.5 font-medium">Resolution</p>
+              <div className="flex gap-2">
+                {[{ id: "480p", label: "480p", desc: "Fast" }, { id: "720p", label: "720p", desc: "Production" }].map(m => (
+                  <button key={m.id} onClick={() => setSelectedVideoResolution(m.id)}
+                    className={`px-3 py-1.5 rounded-lg text-[10px] border transition-all flex-1 ${selectedVideoResolution === m.id ? "border-accent/40 bg-accent/10 text-accent" : "border-white/10 text-white/30 hover:text-white/50"}`}>
+                    {m.label} <span className="text-[8px] text-white/20">{m.desc}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <Switch checked={videoGenerateAudio} onCheckedChange={setVideoGenerateAudio} />
+              <span className="text-[10px] text-white/50">Generate Audio</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <Switch checked={fixedLens} onCheckedChange={setFixedLens} />
+              <span className="text-[10px] text-white/50">Fixed Lens</span>
+            </label>
+          </div>
+        )}
 
         <div>
           <p className="text-[10px] text-white/40 mb-1.5 font-medium">Output Format</p>
@@ -1310,17 +1312,6 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
     if (needsFile && !stsAudioFile) { toast.error("Upload an audio file"); return; }
     if (isGeneratingElevenAudio) return;
 
-    // Determine credit action type
-    const creditActionMap: Record<string, string> = {
-      tts: "copilot_generate_tts",
-      sfx: "copilot_generate_sfx",
-      sts: "copilot_generate_sts",
-      voice_isolation: "copilot_voice_isolation",
-      voice_dubbing: "copilot_voice_dubbing",
-    };
-    const creditResult = await performAction(creditActionMap[elevenAction] || "copilot_generate_tts", async () => true);
-    if (!creditResult) return;
-
     setIsGeneratingElevenAudio(true);
     try {
       let result: any;
@@ -1329,16 +1320,12 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
         // Use cloned voice TTS
         const voice = voices.find(v => v.id === selectedVoice);
         if (!voice?.elevenlabs_voice_id) { toast.error("Select a cloned voice first"); setIsGeneratingElevenAudio(false); return; }
-        const stabilityVal = Math.max(0, Math.min(1, 0.5 - (voiceParams.pitch * 0.02) - ((voiceParams.rhythm - 50) / 200)));
-        const similarityVal = Math.max(0, Math.min(1, 0.75 + (voiceParams.reverb * 0.0025)));
-        const styleVal = Math.max(0, Math.min(1, (voiceParams.humor / 100) * 0.8 + (voiceParams.flow / 100) * 0.2));
-        const speedVal = Math.max(0.7, Math.min(1.2, voiceParams.speed * (voiceParams.toneSpeed / 50)));
         const voiceSettings: any = {
-          stability: stabilityVal,
-          similarity_boost: similarityVal,
-          style: voiceParams.effects.includes("Breathy") ? 0.7 : voiceParams.effects.includes("Deep") ? 0.3 : voiceParams.effects.includes("Warm") ? 0.6 : voiceParams.effects.includes("Crisp") ? 0.2 : voiceParams.effects.includes("Whisper") ? 0.8 : styleVal,
-          speed: speedVal,
-          use_speaker_boost: !(voiceParams.effects.includes("Echo") || voiceParams.effects.includes("Robotic")),
+          stability: Math.max(0, Math.min(1, 0.5 + (voiceParams.pitch * -0.03))),
+          similarity_boost: Math.max(0, Math.min(1, 0.85 + (voiceParams.reverb * 0.0015))),
+          style: Math.max(0, Math.min(1, voiceParams.effects.includes("Breathy") ? 0.7 : voiceParams.effects.includes("Deep") ? 0.3 : voiceParams.effects.includes("Warm") ? 0.6 : voiceParams.effects.includes("Crisp") ? 0.2 : voiceParams.effects.includes("Whisper") ? 0.8 : 0.5)),
+          speed: voiceParams.speed,
+          use_speaker_boost: voiceParams.effects.includes("Echo") || voiceParams.effects.includes("Robotic") ? false : true,
         };
         const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/voice-audio?action=generate`, {
           method: "POST",
@@ -1715,14 +1702,13 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
 
       {/* Voice Editor Dialog */}
       <Dialog open={showVoiceEditor} onOpenChange={setShowVoiceEditor}>
-        <DialogContent className="bg-[hsl(220,30%,8%)] border-white/10 text-white max-w-md max-h-[85vh] overflow-y-auto">
+        <DialogContent className="bg-[hsl(220,30%,8%)] border-white/10 text-white max-w-md">
           <DialogHeader>
             <DialogTitle className="text-white text-lg flex items-center gap-2">
               <SlidersHorizontal className="h-5 w-5 text-accent" /> Voice Parameters
             </DialogTitle>
-            <p className="text-[11px] text-white/40">Humanization & tone control</p>
           </DialogHeader>
-          <div className="space-y-4 mt-2">
+          <div className="space-y-5 mt-2">
             <div>
               <div className="flex items-center justify-between mb-2"><p className="text-sm text-white/70">Pitch</p><span className="text-sm text-accent font-mono">{voiceParams.pitch > 0 ? "+" : ""}{voiceParams.pitch} st</span></div>
               <Slider value={[voiceParams.pitch]} onValueChange={([v]) => updateVoiceParam("pitch", v)} min={-12} max={12} step={0.5} />
@@ -1735,34 +1721,6 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
               <div className="flex items-center justify-between mb-2"><p className="text-sm text-white/70">Reverb</p><span className="text-sm text-accent font-mono">{voiceParams.reverb}%</span></div>
               <Slider value={[voiceParams.reverb]} onValueChange={([v]) => updateVoiceParam("reverb", v)} min={0} max={100} step={1} />
             </div>
-
-            {/* Humanization controls */}
-            <div className="border-t border-white/[0.06] pt-4">
-              <p className="text-[10px] text-emerald-400 uppercase tracking-wider mb-3 font-semibold">Natural Humanization</p>
-              <div className="space-y-4">
-                <div>
-                  <div className="flex items-center justify-between mb-2"><p className="text-sm text-white/70">Tone Speed</p><span className="text-sm text-accent font-mono">{voiceParams.toneSpeed}%</span></div>
-                  <Slider value={[voiceParams.toneSpeed]} onValueChange={([v]) => updateVoiceParam("toneSpeed", v)} min={10} max={100} step={1} />
-                  <p className="text-[9px] text-white/20 mt-1">Accelerate or decelerate overall speech tone</p>
-                </div>
-                <div>
-                  <div className="flex items-center justify-between mb-2"><p className="text-sm text-white/70">Voice Rhythm</p><span className="text-sm text-accent font-mono">{voiceParams.rhythm}%</span></div>
-                  <Slider value={[voiceParams.rhythm]} onValueChange={([v]) => updateVoiceParam("rhythm", v)} min={0} max={100} step={1} />
-                  <p className="text-[9px] text-white/20 mt-1">Naturalness of speech cadence and pauses</p>
-                </div>
-                <div>
-                  <div className="flex items-center justify-between mb-2"><p className="text-sm text-white/70">Voice Flow</p><span className="text-sm text-accent font-mono">{voiceParams.flow}%</span></div>
-                  <Slider value={[voiceParams.flow]} onValueChange={([v]) => updateVoiceParam("flow", v)} min={0} max={100} step={1} />
-                  <p className="text-[9px] text-white/20 mt-1">Smoothness and continuity between words</p>
-                </div>
-                <div>
-                  <div className="flex items-center justify-between mb-2"><p className="text-sm text-white/70">Voice Humor</p><span className="text-sm text-accent font-mono">{voiceParams.humor}%</span></div>
-                  <Slider value={[voiceParams.humor]} onValueChange={([v]) => updateVoiceParam("humor", v)} min={0} max={100} step={1} />
-                  <p className="text-[9px] text-white/20 mt-1">Playful expressiveness and tonal variation</p>
-                </div>
-              </div>
-            </div>
-
             <div>
               <p className="text-sm text-white/70 mb-2">Effects</p>
               <div className="flex flex-wrap gap-2">
@@ -1778,21 +1736,13 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
               <Button variant="ghost" onClick={resetVoiceParams} className="flex-1 bg-white/[0.06] border border-white/10 text-white hover:text-white hover:bg-white/10 h-10">
                 <Undo2 className="h-4 w-4 mr-2" /> Revert to Default
               </Button>
-              <Button onClick={() => { setShowVoiceEditor(false); toast.success("Parameters saved & applied — regenerate to hear changes"); }} className="flex-1 bg-accent hover:bg-accent/90 text-white h-10">
+              <Button onClick={() => { setShowVoiceEditor(false); toast.success("Parameters saved & applied"); }} className="flex-1 bg-accent hover:bg-accent/90 text-white h-10">
                 Save & Apply
               </Button>
             </div>
           </div>
         </DialogContent>
       </Dialog>
-
-      {/* Insufficient Credits Modal */}
-      <InsufficientCreditsModal
-        open={insufficientModal.open}
-        onClose={closeInsufficientModal}
-        requiredCredits={insufficientModal.requiredCredits}
-        actionName={insufficientModal.actionName}
-      />
     </>
   );
 };

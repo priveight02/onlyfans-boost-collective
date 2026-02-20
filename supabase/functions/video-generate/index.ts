@@ -376,6 +376,10 @@ serve(async (req) => {
     if (action === "providers") {
       const providers = {
         runway: !!Deno.env.get("RUNWAY_API_KEY"),
+        seedance: !!Deno.env.get("SEEDANCE_API_KEY"),
+        kling: !!(Deno.env.get("KLING_ACCESS_KEY") && Deno.env.get("KLING_SECRET_KEY")),
+        huggingface: !!Deno.env.get("HUGGINGFACE_API_KEY"),
+        replicate: !!Deno.env.get("REPLICATE_API_KEY"),
         luma: !!Deno.env.get("LUMA_API_KEY"),
       };
       return new Response(JSON.stringify(providers), { headers: { ...corsHeaders, "Content-Type": "application/json" } });

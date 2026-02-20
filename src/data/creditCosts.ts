@@ -52,7 +52,9 @@ export const CRM_ACTION_COSTS: Record<string, number> = {
   generate_script: 25, // AI-heavy
 
   // ── AI Co-Pilot ──
-  copilot_query: 8,
+  copilot_query: 8,          // each chat message
+  copilot_generate_image: 15,
+  copilot_generate_video: 30,
   copilot_voice: 12,
 
   // ── Social Media ──
@@ -106,16 +108,6 @@ export const CRM_ACTION_COSTS: Record<string, number> = {
   // ── AI Generation ──
   ai_generate_ideas: 10,
   ai_analysis: 8,
-
-  // ── Copilot Generations ──
-  copilot_generate_tts: 12,
-  copilot_clone_voice: 20,
-  copilot_generate_sfx: 10,
-  copilot_generate_sts: 15,
-  copilot_voice_isolation: 10,
-  copilot_voice_dubbing: 20,
-  copilot_generate_image: 31,
-  copilot_generate_video: 310,
 
   // ── Fallback ──
   default_write: 3,
