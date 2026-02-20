@@ -1249,7 +1249,7 @@ const AICoPilot = () => {
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center py-12">
             <Brain className="h-14 w-14 text-white/10 mb-5" />
-            <p className="text-white/30 text-base mb-1">Nexus AI — Master of Everything</p>
+            <p className="text-white/30 text-base mb-1"><p className="text-white/30 text-base mb-1">Uplyze Virtual Assistant</p></p>
             <p className="text-white/20 text-sm mb-8 max-w-md">{mode === "freeWill" ? "Free Will mode — no limits, no restrictions, ask anything." : "Unfiltered. Uncensored. Ask anything."}</p>
             <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 max-w-xl">
               {QUICK_PROMPTS.map(qp => (
@@ -1347,7 +1347,7 @@ const AICoPilot = () => {
           <div className="border-b border-white/[0.06]">
             <div className="p-4 flex items-center gap-3">
               <Bot className="h-6 w-6 text-accent" />
-              <p className="text-base font-semibold text-white flex-1">Nexus AI</p>
+              <p className="text-base font-semibold text-white flex-1">Uplyze Virtual Assistant</p>
               <CreditCostBadge cost="8–30" variant="header" label="per action" />
               {mode === "freeWill" && <Badge variant="outline" className="border-red-500/30 text-red-400 text-[10px]"><Wand2 className="h-3 w-3 mr-1" /> Uncensored</Badge>}
               {isStreaming && <Badge variant="outline" className="border-accent/20 text-accent text-[10px] animate-pulse"><Sparkles className="h-3 w-3 mr-1" /> Thinking...</Badge>}
