@@ -30,10 +30,10 @@ type Msg = {
 };
 
 const QUICK_ACTIONS = [
-  { label: "Daily Plan", icon: Target, prompt: "Give me today's top 3 priority actions for maximum agency revenue." },
-  { label: "Revenue Ideas", icon: DollarSign, prompt: "What are the quickest revenue wins I can execute right now?" },
-  { label: "Script Help", icon: Zap, prompt: "Help me write a high-converting script for my top creator." },
-  { label: "Weak Points", icon: TrendingUp, prompt: "What's my agency's biggest weakness right now? Be brutal." },
+  { label: "Daily Plan", icon: Target, prompt: "Give me today's top 3 priority actions for maximum results." },
+  { label: "Quick Wins", icon: DollarSign, prompt: "What are the quickest wins I can execute right now?" },
+  { label: "Creative Help", icon: Zap, prompt: "Help me brainstorm something creative and impactful." },
+  { label: "Deep Analysis", icon: TrendingUp, prompt: "What's the biggest weakness in my current approach? Be brutal." },
 ];
 
 const MAX_ATTACHMENTS = 20;
@@ -404,7 +404,7 @@ const FloatingCopilot = ({ activeTab, contextData }: FloatingCopilotProps) => {
                   <Brain className="h-4 w-4 text-white" />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-white">Grandmaster AI</p>
+                  <p className="text-sm font-semibold text-white">Nexus AI</p>
                   <p className="text-[10px] text-white/40 flex items-center gap-1">
                     <span className="h-1.5 w-1.5 bg-emerald-400 rounded-full inline-block" />
                     Active on {activeTab || "dashboard"}
@@ -424,7 +424,7 @@ const FloatingCopilot = ({ activeTab, contextData }: FloatingCopilotProps) => {
                   <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-accent/20 to-purple-600/20 flex items-center justify-center mb-4">
                     <Bot className="h-8 w-8 text-accent/60" />
                   </div>
-                  <p className="text-white/40 text-xs mb-1">Grandmaster OFM AI</p>
+                  <p className="text-white/40 text-xs mb-1">Nexus AI</p>
                   <p className="text-white/20 text-[10px] mb-5 max-w-[260px]">Conversations auto-save and appear in the AI Copilot tab.</p>
                   <div className="grid grid-cols-2 gap-2 w-full">
                     {QUICK_ACTIONS.map(qa => (

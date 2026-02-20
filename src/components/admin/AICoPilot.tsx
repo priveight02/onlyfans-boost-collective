@@ -124,12 +124,12 @@ const DEFAULT_VOICE_PARAMS: VoiceParams = { pitch: 0, speed: 1, reverb: 0, effec
 const VOICE_EFFECTS = ["Warm", "Breathy", "Crisp", "Deep", "Whisper", "Robotic", "Echo"];
 
 const QUICK_PROMPTS = [
-  { label: "Daily Action Plan", icon: Target, prompt: "Give me today's agency action plan. What should I focus on for maximum revenue? Prioritize by impact." },
-  { label: "Revenue Opportunities", icon: DollarSign, prompt: "Analyze my current creators and identify the top 5 untapped revenue opportunities." },
-  { label: "Script Strategy", icon: Zap, prompt: "What types of scripts should I create this week? Consider fan psychology and conversion optimization." },
-  { label: "Weak Points", icon: TrendingUp, prompt: "What are the biggest weak points in my agency's current strategy? Be brutally honest." },
-  { label: "Fan Retention", icon: Users, prompt: "What retention strategies should I implement right now to reduce churn? Give me 5 actionable steps." },
-  { label: "Content Calendar", icon: Clock, prompt: "Create a 7-day content calendar for my top creator with post ideas and optimal posting times." },
+  { label: "Daily Action Plan", icon: Target, prompt: "Give me today's top priority actions to maximize productivity and results. Prioritize by impact." },
+  { label: "Business Strategy", icon: DollarSign, prompt: "Analyze my current situation and identify the top 5 untapped growth opportunities." },
+  { label: "Creative Brief", icon: Zap, prompt: "Help me brainstorm creative ideas for my next project. Think outside the box." },
+  { label: "Deep Analysis", icon: TrendingUp, prompt: "What are the biggest blind spots in my current approach? Be brutally honest and specific." },
+  { label: "Problem Solving", icon: Users, prompt: "I need a comprehensive solution framework. Walk me through a structured approach step by step." },
+  { label: "Content Strategy", icon: Clock, prompt: "Create a 7-day content strategy with specific ideas, formats, and optimal timing." },
 ];
 
 const MODE_CONFIG = [
@@ -1249,8 +1249,8 @@ const AICoPilot = () => {
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center py-12">
             <Brain className="h-14 w-14 text-white/10 mb-5" />
-            <p className="text-white/30 text-base mb-1">Your AI Agency Brain</p>
-            <p className="text-white/20 text-sm mb-8 max-w-md">{mode === "freeWill" ? "Free Will mode — no limits, no restrictions, ask anything." : "Ask anything — a conversation is created automatically."}</p>
+            <p className="text-white/30 text-base mb-1">Nexus AI — Master of Everything</p>
+            <p className="text-white/20 text-sm mb-8 max-w-md">{mode === "freeWill" ? "Free Will mode — no limits, no restrictions, ask anything." : "Unfiltered. Uncensored. Ask anything."}</p>
             <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 max-w-xl">
               {QUICK_PROMPTS.map(qp => (
                 <button key={qp.label} onClick={() => sendMessage(qp.prompt)} className="h-auto py-3 px-4 rounded-xl border border-white/[0.08] text-white/50 hover:text-white hover:bg-white/[0.06] hover:border-white/[0.15] text-left flex flex-col items-start gap-2 transition-all">
@@ -1347,7 +1347,7 @@ const AICoPilot = () => {
           <div className="border-b border-white/[0.06]">
             <div className="p-4 flex items-center gap-3">
               <Bot className="h-6 w-6 text-accent" />
-              <p className="text-base font-semibold text-white flex-1">Grandmaster AI Co-Pilot</p>
+              <p className="text-base font-semibold text-white flex-1">Nexus AI</p>
               <CreditCostBadge cost="8–30" variant="header" label="per action" />
               {mode === "freeWill" && <Badge variant="outline" className="border-red-500/30 text-red-400 text-[10px]"><Wand2 className="h-3 w-3 mr-1" /> Uncensored</Badge>}
               {isStreaming && <Badge variant="outline" className="border-accent/20 text-accent text-[10px] animate-pulse"><Sparkles className="h-3 w-3 mr-1" /> Thinking...</Badge>}
