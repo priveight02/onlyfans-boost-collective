@@ -142,17 +142,36 @@ async function replicateCreate(body: any) {
   if (!apiKey) throw new Error("REPLICATE_API_KEY not configured");
   const model = body.model_name || "minimax/video-01-live";
   const input: any = { prompt: body.prompt };
-  if (body.image_url) input.first_frame_image = body.image_url;
-  if (body.duration) input.prompt_optimizer = true;
 
-  // Use the models endpoint (owner/name) to avoid needing a version hash
+  // Model-specific input mapping
+  const i2vModels = ["minimax/video-01-live", "wavespeedai/wan-2.1-i2v-480p", "wavespeedai/wan-2.1-i2v-720p"];
+  const isI2V = i2vModels.includes(model);
+
+  if (body.image_url && isI2V) {
+    input.first_frame_image = body.image_url;
+  }
+  if (model.includes("minimax")) {
+    input.prompt_optimizer = true;
+  }
+  if (model.includes("wan-2.1") && !model.includes("i2v")) {
+    // Wan T2V specific params
+    if (body.aspect_ratio) input.aspect_ratio = body.aspect_ratio;
+  }
+  if (model.includes("hunyuan")) {
+    // HunyuanVideo is T2V only, ignore image_url
+    if (body.aspect_ratio === "9:16") { input.width = 480; input.height = 854; }
+    else if (body.aspect_ratio === "1:1") { input.width = 720; input.height = 720; }
+    else { input.width = 854; input.height = 480; }
+  }
+
+  // Use the models endpoint
   const resp = await fetch(`https://api.replicate.com/v1/models/${model}/predictions`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}`, "Prefer": "wait" },
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
     body: JSON.stringify({ input }),
   });
   const data = await resp.json();
-  if (!resp.ok) throw new Error(data.detail || `Replicate error (${resp.status})`);
+  if (!resp.ok) throw new Error(data.detail || JSON.stringify(data) || `Replicate error (${resp.status})`);
   const output = typeof data.output === "string" ? data.output : data.output?.[0] || null;
   return { task_id: data.id, status: data.status === "succeeded" ? "SUCCESS" : "IN_PROGRESS", video_url: output, provider: "replicate", poll_url: data.urls?.get };
 }
