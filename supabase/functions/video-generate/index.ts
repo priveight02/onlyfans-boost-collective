@@ -25,14 +25,12 @@ async function generateKlingJWT(accessKey: string, secretKey: string): Promise<s
 async function seedanceCreate(body: any) {
   const apiKey = Deno.env.get("SEEDANCE_API_KEY");
   if (!apiKey) throw new Error("SEEDANCE_API_KEY not configured");
-  const modelVersion = body.model_name || "seedance-2.0";
   const reqBody: any = {
     prompt: body.prompt,
     duration: String(body.duration || "8"),
     aspect_ratio: body.aspect_ratio || "16:9",
     resolution: body.resolution || "720p",
   };
-  if (modelVersion === "seedance-1.0") reqBody.model = "1.0";
   if (body.generate_audio) reqBody.generate_audio = true;
   if (body.fixed_lens) reqBody.fixed_lens = true;
   if (body.image_url) reqBody.image_urls = [body.image_url];
@@ -227,54 +225,21 @@ async function lumaPoll(taskId: string) {
 async function runwayCreate(body: any) {
   const apiKey = Deno.env.get("RUNWAY_API_KEY");
   if (!apiKey) throw new Error("RUNWAY_API_KEY not configured");
-  const model = body.model_name || "gen4_turbo";
-  const headers: any = { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}`, "X-Runway-Version": "2024-11-06" };
-
-  // Map aspect_ratio like "16:9" → "1280:720" pixel ratio for Runway
-  const ratioMap: Record<string, string> = {
-    "16:9": "1280:720", "9:16": "720:1280", "1:1": "1024:1024",
-    "4:3": "1024:768", "3:4": "768:1024", "4:5": "768:960",
-    "21:9": "1280:548",
-  };
-  const ratio = ratioMap[body.aspect_ratio] || "1280:720";
-
-  // Determine endpoint based on model and inputs
-  // gen4.5: supports both T2V and I2V via separate endpoints
-  // gen4_turbo: I2V only
-  // gen4_aleph: video-to-video (requires promptVideo)
-  // act_two: I2V or V2V
-  // veo3, veo3.1: T2V and I2V (with sound)
-  const isI2V = !!body.image_url;
-  const isV2V = !!body.video_url;
-  let endpoint: string;
-
-  if (isV2V && (model === "gen4_aleph" || model === "act_two")) {
-    endpoint = "https://api.dev.runwayml.com/v1/image_to_video"; // gen4_aleph uses same endpoint
-  } else if (isI2V || model === "gen4_turbo") {
-    endpoint = "https://api.dev.runwayml.com/v1/image_to_video";
-  } else {
-    // T2V - supported by gen4.5, veo3, veo3.1
-    endpoint = "https://api.dev.runwayml.com/v1/text_to_video";
-  }
-
   const reqBody: any = {
     promptText: body.prompt,
-    model,
+    model: body.model_name || "gen4_turbo",
     duration: body.duration || 5,
-    ratio,
+    ratio: (body.aspect_ratio || "16:9").replace(":", ":"),
   };
   if (body.image_url) reqBody.promptImage = body.image_url;
-  if (body.video_url) reqBody.promptVideo = body.video_url;
 
-  console.log("Runway create:", endpoint, JSON.stringify(reqBody));
-
-  const resp = await fetch(endpoint, {
+  const resp = await fetch("https://api.dev.runwayml.com/v1/tasks", {
     method: "POST",
-    headers,
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}`, "X-Runway-Version": "2024-11-06" },
     body: JSON.stringify(reqBody),
   });
   const data = await resp.json();
-  if (!resp.ok) throw new Error(data.error || JSON.stringify(data) || `Runway error (${resp.status})`);
+  if (!resp.ok) throw new Error(data.error || `Runway error (${resp.status})`);
   return { task_id: data.id, status: "IN_PROGRESS", provider: "runway" };
 }
 
