@@ -1,10 +1,9 @@
 import { useEffect, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell, PieChart, Pie } from "recharts";
-import { DollarSign, TrendingUp, ArrowUpRight, Plus, Download, CreditCard, Wallet, PiggyBank } from "lucide-react";
+import { DollarSign, TrendingUp, Plus, CreditCard, Wallet } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import CreditCostBadge from "./CreditCostBadge";
@@ -14,7 +13,16 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useCreditAction } from "@/hooks/useCreditAction";
 
-const COLORS = ["hsl(200,100%,50%)", "hsl(260,100%,65%)", "hsl(340,80%,55%)", "hsl(160,70%,45%)", "hsl(30,90%,55%)"];
+const COLORS = ["hsl(217,91%,60%)", "hsl(262,83%,58%)", "hsl(339,90%,51%)", "hsl(160,84%,39%)", "hsl(38,92%,50%)"];
+
+const chartTooltipStyle = {
+  background: "hsl(222 47% 10%)",
+  border: "1px solid hsl(217 91% 60% / 0.1)",
+  borderRadius: "12px",
+  color: "#fff",
+  fontSize: 12,
+  boxShadow: "0 8px 32px hsl(0 0% 0% / 0.5)",
+};
 
 const FinancialModule = () => {
   const [accounts, setAccounts] = useState<any[]>([]);
@@ -71,142 +79,128 @@ const FinancialModule = () => {
     });
   };
 
+  const kpiStats = [
+    { title: "MONTHLY REVENUE", value: `$${totalMonthly.toLocaleString()}`, color: "hsl(160,84%,39%)" },
+    { title: "LIFETIME REVENUE", value: `$${totalLifetime.toLocaleString()}`, color: "hsl(217,91%,60%)" },
+    { title: "AGENCY COMMISSION", value: `$${agencyCommission.toLocaleString()}`, color: "hsl(262,83%,58%)" },
+    { title: "CREATOR PAYOUTS", value: `$${creatorPayouts.toLocaleString()}`, color: "hsl(339,90%,51%)" },
+  ];
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
+    <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <h2 className="text-lg font-bold text-white flex items-center gap-2">
-            <DollarSign className="h-5 w-5 text-emerald-400" /> Financials
-          </h2>
-          <CreditCostBadge cost="2–5" variant="header" label="per record" />
+        <div>
+          <h2 className="crm-section-title text-lg">Financials</h2>
+          <p className="crm-section-subtitle">Revenue and commission overview</p>
         </div>
+        <CreditCostBadge cost="2-5" variant="header" label="per record" />
       </div>
-      {/* Financial KPIs */}
-      <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
-        {[
-          { title: "Monthly Revenue", value: `$${totalMonthly.toLocaleString()}`, icon: DollarSign, color: "text-emerald-400" },
-          { title: "Lifetime Revenue", value: `$${totalLifetime.toLocaleString()}`, icon: TrendingUp, color: "text-blue-400" },
-          { title: "Agency Commission", value: `$${agencyCommission.toLocaleString()}`, icon: Wallet, color: "text-purple-400" },
-          { title: "Creator Payouts", value: `$${creatorPayouts.toLocaleString()}`, icon: CreditCard, color: "text-pink-400" },
-        ].map((stat) => (
-          <Card key={stat.title} className="bg-white/5 backdrop-blur-sm border-white/10">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <stat.icon className={`h-4 w-4 ${stat.color}`} />
-                <span className="text-[10px] text-white/40">{stat.title}</span>
-              </div>
-              <p className="text-xl font-bold text-white">{stat.value}</p>
-            </CardContent>
-          </Card>
+
+      {/* KPIs */}
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+        {kpiStats.map((stat) => (
+          <div key={stat.title} className="crm-stat-card">
+            <p className="text-[10px] font-semibold tracking-widest mb-2" style={{ color: stat.color }}>{stat.title}</p>
+            <p className="text-2xl font-bold text-white tracking-tight">{stat.value}</p>
+          </div>
         ))}
       </div>
 
       {/* Charts */}
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card className="bg-white/5 backdrop-blur-sm border-white/10">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-white text-sm">Revenue by Source</CardTitle>
-          </CardHeader>
-          <CardContent className="h-[260px]">
+      <div className="grid gap-5 lg:grid-cols-2">
+        <div className="crm-panel p-5">
+          <h3 className="crm-section-title mb-4">Revenue by Source</h3>
+          <div className="h-[260px]">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
-                <Pie data={revenueByType} cx="50%" cy="50%" innerRadius={50} outerRadius={80} dataKey="value" label={({ name, value }) => `${name}: $${value.toLocaleString()}`}>
+                <Pie data={revenueByType} cx="50%" cy="50%" innerRadius={50} outerRadius={80} dataKey="value" strokeWidth={0} label={({ name, value }) => `${name}: $${value.toLocaleString()}`}>
                   {revenueByType.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                 </Pie>
-                <Tooltip contentStyle={{ background: "rgba(0,0,0,0.85)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "8px", color: "#fff", fontSize: 12 }} />
+                <Tooltip contentStyle={chartTooltipStyle} />
               </PieChart>
             </ResponsiveContainer>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
-        <Card className="bg-white/5 backdrop-blur-sm border-white/10">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-white text-sm">Profitability by Creator</CardTitle>
-          </CardHeader>
-          <CardContent className="h-[260px]">
+        <div className="crm-panel p-5">
+          <h3 className="crm-section-title mb-4">Profitability by Creator</h3>
+          <div className="h-[260px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={profitByCreator} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                <XAxis type="number" stroke="rgba(255,255,255,0.3)" tick={{ fontSize: 10 }} />
-                <YAxis type="category" dataKey="name" stroke="rgba(255,255,255,0.3)" tick={{ fontSize: 10 }} width={80} />
-                <Tooltip contentStyle={{ background: "rgba(0,0,0,0.85)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "8px", color: "#fff", fontSize: 12 }} />
-                <Bar dataKey="revenue" fill="hsl(200,100%,50%)" radius={[0, 4, 4, 0]} />
-                <Bar dataKey="commission" fill="hsl(260,100%,65%)" radius={[0, 4, 4, 0]} />
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(0 0% 100% / 0.03)" />
+                <XAxis type="number" stroke="transparent" tick={{ fontSize: 10, fill: "hsl(0 0% 100% / 0.25)" }} axisLine={false} tickLine={false} />
+                <YAxis type="category" dataKey="name" stroke="transparent" tick={{ fontSize: 10, fill: "hsl(0 0% 100% / 0.35)" }} width={80} axisLine={false} tickLine={false} />
+                <Tooltip contentStyle={chartTooltipStyle} />
+                <Bar dataKey="revenue" fill="hsl(217,91%,60%)" radius={[0, 6, 6, 0]} />
+                <Bar dataKey="commission" fill="hsl(262,83%,58%)" radius={[0, 6, 6, 0]} />
               </BarChart>
             </ResponsiveContainer>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
 
-      {/* Add Record + Records Table */}
-      <Card className="bg-white/5 backdrop-blur-sm border-white/10">
-        <CardHeader className="pb-2 flex flex-row items-center justify-between">
-          <CardTitle className="text-white text-sm">Financial Records</CardTitle>
+      {/* Records */}
+      <div className="crm-panel p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="crm-section-title">Financial Records</h3>
           <Dialog open={showAdd} onOpenChange={setShowAdd}>
             <DialogTrigger asChild>
-              <Button size="sm" className="gap-1 h-7 text-xs"><Plus className="h-3 w-3" /> Add Record</Button>
+              <Button size="sm" className="crm-btn-primary gap-1.5 h-9"><Plus className="h-3.5 w-3.5" /> Add Record</Button>
             </DialogTrigger>
-            <DialogContent className="bg-[hsl(220,50%,12%)] border-white/10 text-white">
+            <DialogContent className="crm-dialog text-white">
               <DialogHeader><DialogTitle>Add Financial Record</DialogTitle></DialogHeader>
               <div className="space-y-3">
-                <div>
-                  <Label className="text-white/70 text-xs">Account</Label>
+                <div><Label className="text-white/50 text-xs">Account</Label>
                   <Select value={newRecord.account_id} onValueChange={(v) => setNewRecord({ ...newRecord, account_id: v })}>
-                    <SelectTrigger className="bg-white/5 border-white/10 text-white"><SelectValue placeholder="Select account" /></SelectTrigger>
-                    <SelectContent className="bg-[hsl(220,50%,15%)] border-white/10">
+                    <SelectTrigger className="crm-input h-10"><SelectValue placeholder="Select account" /></SelectTrigger>
+                    <SelectContent className="bg-[hsl(222,47%,10%)] border-white/[0.06] rounded-xl">
                       {accounts.map((a) => <SelectItem key={a.id} value={a.id} className="text-white">{a.display_name || a.username}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
-                <div>
-                  <Label className="text-white/70 text-xs">Type</Label>
+                <div><Label className="text-white/50 text-xs">Type</Label>
                   <Select value={newRecord.record_type} onValueChange={(v) => setNewRecord({ ...newRecord, record_type: v })}>
-                    <SelectTrigger className="bg-white/5 border-white/10 text-white"><SelectValue /></SelectTrigger>
-                    <SelectContent className="bg-[hsl(220,50%,15%)] border-white/10">
-                      {["subscription", "ppv", "tip", "payout", "commission"].map((t) => <SelectItem key={t} value={t} className="text-white">{t.charAt(0).toUpperCase() + t.slice(1)}</SelectItem>)}
+                    <SelectTrigger className="crm-input h-10"><SelectValue /></SelectTrigger>
+                    <SelectContent className="bg-[hsl(222,47%,10%)] border-white/[0.06] rounded-xl">
+                      {["subscription", "ppv", "tip", "payout", "commission"].map((t) => <SelectItem key={t} value={t} className="text-white capitalize">{t}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
-                <div>
-                  <Label className="text-white/70 text-xs">Amount ($)</Label>
-                  <Input type="number" value={newRecord.amount} onChange={(e) => setNewRecord({ ...newRecord, amount: e.target.value })} className="bg-white/5 border-white/10 text-white" />
+                <div><Label className="text-white/50 text-xs">Amount ($)</Label>
+                  <Input type="number" value={newRecord.amount} onChange={(e) => setNewRecord({ ...newRecord, amount: e.target.value })} className="crm-input h-10" />
                 </div>
-                <div>
-                  <Label className="text-white/70 text-xs">Description</Label>
-                  <Input value={newRecord.description} onChange={(e) => setNewRecord({ ...newRecord, description: e.target.value })} className="bg-white/5 border-white/10 text-white" />
+                <div><Label className="text-white/50 text-xs">Description</Label>
+                  <Input value={newRecord.description} onChange={(e) => setNewRecord({ ...newRecord, description: e.target.value })} className="crm-input h-10" />
                 </div>
-                <Button onClick={handleAddRecord} className="w-full">Add Record</Button>
+                <Button onClick={handleAddRecord} className="w-full crm-btn-primary h-10">Add Record</Button>
               </div>
             </DialogContent>
           </Dialog>
-        </CardHeader>
-        <CardContent>
-          {records.length === 0 ? (
-            <p className="text-white/30 text-sm text-center py-6">No financial records yet</p>
-          ) : (
-            <div className="space-y-2 max-h-[300px] overflow-y-auto">
-              {records.slice(0, 20).map((r) => {
-                const acct = accounts.find((a) => a.id === r.account_id);
-                return (
-                  <div key={r.id} className="flex items-center justify-between py-2 border-b border-white/5">
-                    <div className="flex items-center gap-3">
-                      <Badge variant="outline" className="text-[9px] border-white/10 text-white/50">{r.record_type}</Badge>
-                      <div>
-                        <p className="text-xs text-white">{r.description || r.record_type}</p>
-                        <p className="text-[10px] text-white/30">{acct?.display_name || acct?.username || "Unknown"}</p>
-                      </div>
+        </div>
+        {records.length === 0 ? (
+          <p className="text-white/20 text-sm text-center py-8">No financial records yet</p>
+        ) : (
+          <div className="space-y-1 max-h-[300px] overflow-y-auto">
+            {records.slice(0, 20).map((r) => {
+              const acct = accounts.find((a) => a.id === r.account_id);
+              return (
+                <div key={r.id} className="crm-list-row">
+                  <div className="flex items-center gap-3">
+                    <span className="crm-badge border border-white/[0.06] bg-white/[0.03] text-white/40">{r.record_type}</span>
+                    <div>
+                      <p className="text-sm text-white">{r.description || r.record_type}</p>
+                      <p className="text-[11px] text-white/25">{acct?.display_name || acct?.username || "Unknown"}</p>
                     </div>
-                    <span className={`text-sm font-bold ${r.record_type === "payout" ? "text-red-400" : "text-emerald-400"}`}>
-                      {r.record_type === "payout" ? "-" : "+"}${Number(r.amount).toLocaleString()}
-                    </span>
                   </div>
-                );
-              })}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                  <span className={`text-sm font-bold ${r.record_type === "payout" ? "text-red-400" : "text-emerald-400"}`}>
+                    {r.record_type === "payout" ? "-" : "+"}${Number(r.amount).toLocaleString()}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
       <InsufficientCreditsModal open={insufficientModal.open} onClose={closeInsufficientModal} requiredCredits={insufficientModal.requiredCredits} actionName={insufficientModal.actionName} />
     </div>
   );
