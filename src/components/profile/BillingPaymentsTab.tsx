@@ -106,14 +106,22 @@ const BillingPaymentsTab = () => {
 
   const handleManageSubscription = () => {
     if (!subscription) return;
-    setRetentionStep("offer");
-    setShowRetentionDialog(true);
+    if (eligibleForRetention) {
+      setRetentionStep("offer");
+      setShowRetentionDialog(true);
+    } else {
+      handleOpenPortalDirect();
+    }
   };
 
   const handleCancelSubscription = () => {
     if (!subscription) return;
-    setRetentionStep("offer");
-    setShowRetentionDialog(true);
+    if (eligibleForRetention) {
+      setRetentionStep("offer");
+      setShowRetentionDialog(true);
+    } else {
+      handleProceedToCancel();
+    }
   };
 
   const handleAcceptRetention = async () => {
