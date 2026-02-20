@@ -263,7 +263,7 @@ const ContractsManager = () => {
           <DialogTrigger asChild>
             <Button size="sm" className="gap-1"><Plus className="h-3 w-3" /> New Contract</Button>
           </DialogTrigger>
-          <DialogContent className="bg-[hsl(220,50%,12%)] border-white/10 text-white max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="crm-dialog text-white max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader><DialogTitle>Create Contract</DialogTitle></DialogHeader>
             <div className="space-y-4">
               <div>
@@ -319,34 +319,30 @@ const ContractsManager = () => {
       {/* Stats */}
       <div className="grid gap-3 grid-cols-2 lg:grid-cols-5">
         {["draft", "sent", "signed", "expired", "cancelled"].map((status) => (
-          <Card key={status} className="bg-white/5 backdrop-blur-sm border-white/10">
-            <CardContent className="p-3 text-center">
-              <p className="text-lg font-bold text-white">{contracts.filter((c) => c.status === status).length}</p>
-              <p className="text-[10px] text-white/40 capitalize">{status}</p>
-            </CardContent>
-          </Card>
+          <div key={status} className="crm-stat-card text-center">
+            <p className="text-lg font-bold text-white">{contracts.filter((c) => c.status === status).length}</p>
+            <p className="text-[10px] text-white/30 capitalize">{status}</p>
+          </div>
         ))}
       </div>
 
       {/* Contracts List */}
       <div className="space-y-2">
         {contracts.length === 0 && (
-          <Card className="bg-white/5 border-white/10">
-            <CardContent className="p-8 text-center">
-              <FileText className="h-8 w-8 text-white/20 mx-auto mb-2" />
-              <p className="text-white/30 text-sm">No contracts yet. Create your first one!</p>
-            </CardContent>
-          </Card>
+          <div className="crm-panel p-10 text-center">
+            <FileText className="h-8 w-8 text-white/10 mx-auto mb-3" />
+            <p className="text-white/20 text-sm">No contracts yet. Create your first one!</p>
+          </div>
         )}
         {contracts.map((contract) => {
           const acct = accounts.find((a) => a.id === contract.account_id);
           const member = teamMembers.find((t) => t.id === contract.team_member_id);
           return (
-            <Card key={contract.id} className="bg-white/5 backdrop-blur-sm border-white/10 hover:bg-white/[0.08] transition-colors">
-              <CardContent className="p-4 flex items-center justify-between">
+            <div key={contract.id} className="crm-card p-4">
+              <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-white/10">
-                    <FileText className="h-4 w-4 text-white/60" />
+                  <div className="p-2 rounded-lg bg-white/[0.04] border border-white/[0.06]">
+                    <FileText className="h-4 w-4 text-white/40" />
                   </div>
                   <div>
                     <p className="text-sm font-medium text-white">{contract.title}</p>
@@ -371,8 +367,8 @@ const ContractsManager = () => {
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           );
         })}
       </div>
@@ -380,7 +376,7 @@ const ContractsManager = () => {
       {/* View/Sign Contract Dialog */}
       {viewContract && (
         <Dialog open={!!viewContract} onOpenChange={() => { setViewContract(null); setSignMode(false); }}>
-          <DialogContent className="bg-[hsl(220,50%,12%)] border-white/10 text-white max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="crm-dialog text-white max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="flex items-center justify-between">
                 <span>{viewContract.title}</span>
