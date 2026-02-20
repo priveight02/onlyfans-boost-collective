@@ -133,10 +133,10 @@ const CRM = () => {
 
   if (loading || walletLoading) {
     return (
-      <div className="min-h-screen bg-[hsl(222,47%,6%)] flex items-center justify-center">
+      <div className="min-h-screen bg-[hsl(222,47%,5%)] flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-2 border-[hsl(217,91%,60%)] border-t-transparent rounded-full animate-spin" />
-          <span className="text-sm text-white/40 font-medium">Loading platform...</span>
+          <div className="w-10 h-10 border-2 border-[hsl(217,91%,60%)]/60 border-t-transparent rounded-full animate-spin" />
+          <span className="text-sm text-white/30 font-medium">Loading platform...</span>
         </div>
       </div>
     );
@@ -144,7 +144,7 @@ const CRM = () => {
 
   if (balance < 1) {
     return (
-      <div className="dark min-h-screen bg-[hsl(222,47%,6%)] flex items-center justify-center">
+      <div className="dark min-h-screen bg-[hsl(222,47%,5%)] flex items-center justify-center">
         <div className="text-center space-y-6 max-w-md mx-auto px-6">
           <div className="w-16 h-16 rounded-2xl bg-[hsl(217,91%,60%)]/10 border border-[hsl(217,91%,60%)]/20 flex items-center justify-center mx-auto">
             <Lock className="h-7 w-7 text-[hsl(217,91%,60%)]" />
@@ -214,14 +214,15 @@ const CRM = () => {
   };
 
   return (
-    <div className="dark min-h-screen bg-[hsl(222,47%,6%)] flex">
+    <div className="dark min-h-screen bg-[hsl(222,47%,5%)] crm-bg-ambient flex">
       {/* Sidebar */}
       <aside className={cn(
-        "fixed top-0 left-0 h-screen z-40 flex flex-col border-r border-white/[0.06] bg-[hsl(222,47%,7%)] transition-all duration-300",
+        "fixed top-0 left-0 h-screen z-40 flex flex-col border-r border-white/[0.04] transition-all duration-300",
+        "bg-gradient-to-b from-[hsl(222,47%,7%)] via-[hsl(222,47%,6%)] to-[hsl(222,47%,5%)]",
         sidebarCollapsed ? "w-[68px]" : "w-[220px]"
       )}>
         {/* Logo */}
-        <div className="h-16 flex items-center px-4 border-b border-white/[0.06]">
+        <div className="h-16 flex items-center px-4 border-b border-white/[0.04]">
           {!sidebarCollapsed && (
             <span className="text-base font-bold text-white font-heading tracking-tight">Uplyze</span>
           )}
@@ -241,7 +242,7 @@ const CRM = () => {
           {navSections.map((section) => (
             <div key={section.label}>
               {!sidebarCollapsed && (
-                <p className="px-3 mb-1.5 text-[10px] font-semibold text-white/20 uppercase tracking-wider">{section.label}</p>
+                <p className="px-3 mb-1.5 text-[10px] font-semibold text-white/15 uppercase tracking-wider">{section.label}</p>
               )}
               <div className="space-y-0.5">
                 {section.items.map((item) => {
@@ -253,11 +254,11 @@ const CRM = () => {
                       onClick={() => handleTabChange(item.id)}
                       title={sidebarCollapsed ? item.label : undefined}
                       className={cn(
-                        "w-full flex items-center gap-2.5 rounded-xl text-sm font-medium transition-all duration-150",
+                        "w-full flex items-center gap-2.5 rounded-xl text-sm font-medium transition-all duration-200",
                         sidebarCollapsed ? "justify-center px-2 py-2.5" : "px-3 py-2",
                         isActive
-                          ? "bg-[hsl(217,91%,60%)]/10 text-[hsl(217,91%,60%)]"
-                          : "text-white/40 hover:text-white/70 hover:bg-white/[0.03]"
+                          ? "bg-[hsl(217,91%,60%)]/12 text-[hsl(217,91%,60%)] shadow-[0_0_20px_hsl(217,91%,60%,0.08)]"
+                          : "text-white/35 hover:text-white/70 hover:bg-white/[0.03]"
                       )}
                     >
                       <Icon className={cn("h-4 w-4 flex-shrink-0", isActive ? "text-[hsl(217,91%,60%)]" : "")} />
@@ -272,8 +273,8 @@ const CRM = () => {
 
         {/* Footer */}
         {!sidebarCollapsed && (
-          <div className="p-3 border-t border-white/[0.06]">
-            <div className="px-3 py-2 rounded-xl bg-[hsl(217,91%,60%)]/5 border border-[hsl(217,91%,60%)]/10">
+          <div className="p-3 border-t border-white/[0.04]">
+            <div className="px-3 py-2.5 rounded-xl bg-gradient-to-br from-[hsl(217,91%,60%)]/8 to-[hsl(262,83%,58%)]/5 border border-[hsl(217,91%,60%)]/10">
               <p className="text-[10px] font-medium text-white/30">Credits</p>
               <p className="text-sm font-bold text-[hsl(217,91%,60%)]">{balance.toLocaleString()}</p>
             </div>
@@ -287,7 +288,7 @@ const CRM = () => {
         sidebarCollapsed ? "ml-[68px]" : "ml-[220px]"
       )}>
         {/* Top bar */}
-        <header className="h-16 border-b border-white/[0.06] bg-[hsl(222,47%,6%)]/80 backdrop-blur-xl sticky top-0 z-30 flex items-center justify-between px-6">
+        <header className="h-16 border-b border-white/[0.04] bg-[hsl(222,47%,5%)]/85 backdrop-blur-2xl sticky top-0 z-30 flex items-center justify-between px-6">
           <div>
             <h1 className="text-base font-semibold text-white font-heading">
               {navSections.flatMap(s => s.items).find(i => i.id === activeTab)?.label || "Dashboard"}
@@ -295,11 +296,11 @@ const CRM = () => {
           </div>
           <div className="flex items-center gap-3">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/20" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/15" />
               <input
                 type="text"
-                placeholder="Search..."
-                className="h-9 w-[200px] rounded-xl bg-white/[0.04] border border-white/[0.06] pl-9 pr-3 text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-[hsl(217,91%,60%)]/30 transition-colors"
+                placeholder="Search your CRM..."
+                className="h-9 w-[240px] rounded-xl bg-white/[0.03] border border-white/[0.05] pl-9 pr-3 text-sm text-white placeholder:text-white/15 focus:outline-none focus:border-[hsl(217,91%,60%)]/25 focus:bg-white/[0.04] transition-all"
               />
             </div>
           </div>

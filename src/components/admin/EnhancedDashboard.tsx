@@ -127,7 +127,7 @@ const EnhancedDashboard = ({ isAdmin = false }: EnhancedDashboardProps) => {
   };
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6 relative z-10">
       {/* Admin Controls */}
       {isAdmin && (
         <>
@@ -189,24 +189,26 @@ const EnhancedDashboard = ({ isAdmin = false }: EnhancedDashboardProps) => {
 
       {/* ── KPI Cards ── */}
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-        {kpis.map((kpi) => (
-          <div key={kpi.label} className="crm-kpi-card group">
-            <div className="absolute -top-16 -right-16 w-40 h-40 rounded-full blur-3xl opacity-[0.08] pointer-events-none" style={{ background: kpi.color }} />
+        {kpis.map((kpi, idx) => (
+          <div key={kpi.label} className="crm-kpi-card group cursor-default" style={{ animationDelay: `${idx * 80}ms` }}>
+            {/* Ambient glow */}
+            <div className="absolute -top-20 -right-20 w-48 h-48 rounded-full blur-[60px] opacity-[0.06] pointer-events-none transition-opacity group-hover:opacity-[0.12]" style={{ background: kpi.color }} />
             <div className="flex items-start justify-between relative z-10">
-              <div className="space-y-1.5">
-                <p className="text-[11px] font-semibold tracking-widest" style={{ color: kpi.color }}>{kpi.label}</p>
+              <div className="space-y-2">
+                <p className="text-[10px] font-bold tracking-[0.15em] uppercase" style={{ color: `${kpi.color}` }}>{kpi.label}</p>
                 <p className="text-3xl font-bold text-white tracking-tight leading-none">{kpi.value}</p>
-                <div className="flex items-center gap-1.5 pt-1">
+                <div className="flex items-center gap-1.5 pt-0.5">
                   {kpi.positive ? <ArrowUpRight className="h-3.5 w-3.5 text-emerald-400" /> : <ArrowDownRight className="h-3.5 w-3.5 text-red-400" />}
                   <span className={`text-xs font-semibold ${kpi.positive ? "text-emerald-400" : "text-red-400"}`}>{kpi.change}</span>
+                  <span className="text-[10px] text-white/15 ml-1">vs last month</span>
                 </div>
               </div>
-              <div className="w-24 h-12 opacity-80 group-hover:opacity-100 transition-opacity">
+              <div className="w-24 h-14 opacity-70 group-hover:opacity-100 transition-opacity duration-500">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={kpi.sparkData}>
                     <defs>
                       <linearGradient id={`spark-${kpi.label}`} x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={kpi.color} stopOpacity={0.35} />
+                        <stop offset="0%" stopColor={kpi.color} stopOpacity={0.4} />
                         <stop offset="100%" stopColor={kpi.color} stopOpacity={0} />
                       </linearGradient>
                     </defs>
@@ -223,8 +225,11 @@ const EnhancedDashboard = ({ isAdmin = false }: EnhancedDashboardProps) => {
       <div className="grid gap-5 lg:grid-cols-5">
         {/* Revenue Chart */}
         <div className="lg:col-span-3 crm-panel p-6">
-          <div className="flex items-center justify-between mb-5">
-            <h3 className="crm-section-title">Sales Performance</h3>
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h3 className="crm-section-title text-[15px]">Sales Performance</h3>
+              <p className="text-[11px] text-white/20 mt-0.5">Revenue trends over time</p>
+            </div>
             <div className="flex items-center gap-2">
               <span className="text-[10px] px-2.5 py-1 rounded-lg bg-[hsl(217,91%,60%)]/10 text-[hsl(217,91%,60%)] font-semibold">Revenue</span>
               <span className="text-[11px] text-white/25">This month</span>
@@ -327,7 +332,7 @@ const EnhancedDashboard = ({ isAdmin = false }: EnhancedDashboardProps) => {
 
       {/* ── Bottom: Tasks + Activity ── */}
       <div className="grid gap-5 lg:grid-cols-2">
-        <div className="crm-panel p-5">
+        <div className="crm-panel p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="crm-section-title">Upcoming Tasks</h3>
             <div className="flex gap-1.5">
@@ -355,7 +360,7 @@ const EnhancedDashboard = ({ isAdmin = false }: EnhancedDashboardProps) => {
           </div>
         </div>
 
-        <div className="crm-panel p-5">
+        <div className="crm-panel p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="crm-section-title">Recent Activity</h3>
             <span className="text-[11px] text-white/25">Last 7 days</span>
