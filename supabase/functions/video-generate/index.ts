@@ -34,8 +34,7 @@ function runwayHeaders() {
   };
 }
 
-function mapAspectToRunwayRatio(aspect: string, model: string): string {
-  // Runway uses pixel ratios like "1280:720"
+function mapAspectToRunwayRatio(aspect: string, _model: string): string {
   const ratioMap: Record<string, string> = {
     "16:9": "1280:720",
     "9:16": "720:1280",
@@ -47,43 +46,31 @@ function mapAspectToRunwayRatio(aspect: string, model: string): string {
   return ratioMap[aspect] || "1280:720";
 }
 
-// ─── Runway create ───
+// ─── Runway VIDEO create ───
 async function runwayCreate(body: any) {
   const model = body.model_name || "gen4_turbo";
   const headers = runwayHeaders();
 
-  // Determine endpoint based on model
   let endpoint: string;
   let reqBody: any;
 
   if (model === "gen4_aleph") {
-    // Video to Video
     if (!body.video_url) throw new Error("gen4_aleph requires a video_url for video-to-video");
     endpoint = `${RUNWAY_BASE}/video_to_video`;
-    reqBody = {
-      model: "gen4_aleph",
-      videoUri: body.video_url,
-      promptText: body.prompt,
-    };
-    if (body.image_url) {
-      reqBody.references = [{ type: "image", uri: body.image_url }];
-    }
+    reqBody = { model: "gen4_aleph", videoUri: body.video_url, promptText: body.prompt };
+    if (body.image_url) reqBody.references = [{ type: "image", uri: body.image_url }];
   } else if (model === "act_two") {
-    // Character performance (Act Two)
     if (!body.reference_video_url) throw new Error("act_two requires a reference_video_url");
     endpoint = `${RUNWAY_BASE}/character_performance`;
     reqBody = {
       model: "act_two",
-      character: body.image_url 
-        ? { type: "image", uri: body.image_url }
-        : { type: "video", uri: body.video_url || body.image_url },
+      character: body.image_url ? { type: "image", uri: body.image_url } : { type: "video", uri: body.video_url || body.image_url },
       reference: { type: "video", uri: body.reference_video_url },
       ratio: mapAspectToRunwayRatio(body.aspect_ratio || "16:9", model),
       bodyControl: body.body_control !== false,
       expressionIntensity: body.expression_intensity || 3,
     };
   } else if (body.image_url) {
-    // Image to Video
     endpoint = `${RUNWAY_BASE}/image_to_video`;
     reqBody = {
       model,
@@ -93,40 +80,20 @@ async function runwayCreate(body: any) {
       duration: Math.min(Math.max(body.duration || 5, 2), 10),
     };
   } else {
-    // Text to Video — only certain models support this
     const t2vModels = ["gen4.5", "veo3.1", "veo3.1_fast", "veo3"];
     if (!t2vModels.includes(model)) {
-      // gen4_turbo and gen3a_turbo need an image, fallback to image_to_video without image
       endpoint = `${RUNWAY_BASE}/image_to_video`;
-      reqBody = {
-        model,
-        promptText: body.prompt,
-        ratio: mapAspectToRunwayRatio(body.aspect_ratio || "16:9", model),
-        duration: Math.min(Math.max(body.duration || 5, 2), 10),
-      };
+      reqBody = { model, promptText: body.prompt, ratio: mapAspectToRunwayRatio(body.aspect_ratio || "16:9", model), duration: Math.min(Math.max(body.duration || 5, 2), 10) };
     } else {
       endpoint = `${RUNWAY_BASE}/text_to_video`;
-      reqBody = {
-        model,
-        promptText: body.prompt,
-        ratio: mapAspectToRunwayRatio(body.aspect_ratio || "16:9", model),
-        duration: Math.min(Math.max(body.duration || 5, 2), 10),
-      };
+      reqBody = { model, promptText: body.prompt, ratio: mapAspectToRunwayRatio(body.aspect_ratio || "16:9", model), duration: Math.min(Math.max(body.duration || 5, 2), 10) };
     }
   }
 
   console.log("Runway request:", endpoint, JSON.stringify(reqBody));
-
-  const resp = await fetch(endpoint, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(reqBody),
-  });
+  const resp = await fetch(endpoint, { method: "POST", headers, body: JSON.stringify(reqBody) });
   const data = await resp.json();
-  if (!resp.ok) {
-    console.error("Runway error:", resp.status, JSON.stringify(data));
-    throw new Error(data.error || JSON.stringify(data) || `Runway error (${resp.status})`);
-  }
+  if (!resp.ok) { console.error("Runway error:", resp.status, JSON.stringify(data)); throw new Error(data.error || JSON.stringify(data) || `Runway error (${resp.status})`); }
   return { task_id: data.id, status: "IN_PROGRESS", provider: "runway", model };
 }
 
@@ -139,7 +106,42 @@ async function runwayPoll(taskId: string) {
   return { task_id: data.id, status, video_url: data.output?.[0] || null, error_message: data.failure, progress: data.progress };
 }
 
-// ─── Runway Audio actions ───
+// ─── Runway IMAGE generation ───
+async function runwayImageCreate(body: any) {
+  const headers = runwayHeaders();
+  const model = body.model_name || "gen4_image";
+
+  let endpoint: string;
+  let reqBody: any;
+
+  if (model === "gemini_2.5_flash") {
+    // Gemini image gen via Runway
+    endpoint = `${RUNWAY_BASE}/image`;
+    reqBody = {
+      model: "gemini_2.5_flash",
+      promptText: body.prompt,
+    };
+    if (body.image_url) reqBody.referenceImages = [{ uri: body.image_url }];
+  } else {
+    // gen4_image or gen4_image_turbo
+    endpoint = `${RUNWAY_BASE}/image`;
+    reqBody = {
+      model,
+      promptText: body.prompt,
+      ratio: mapAspectToRunwayRatio(body.aspect_ratio || "1:1", model),
+    };
+    if (body.resolution) reqBody.resolution = body.resolution; // "720p" or "1080p"
+    if (body.image_url) reqBody.referenceImages = [{ uri: body.image_url }];
+  }
+
+  console.log("Runway image request:", endpoint, JSON.stringify(reqBody));
+  const resp = await fetch(endpoint, { method: "POST", headers, body: JSON.stringify(reqBody) });
+  const data = await resp.json();
+  if (!resp.ok) { console.error("Runway image error:", resp.status, JSON.stringify(data)); throw new Error(data.error || JSON.stringify(data)); }
+  return { task_id: data.id, status: "IN_PROGRESS", provider: "runway", content_type: "image", model };
+}
+
+// ─── Runway AUDIO actions (TTS, STS, SFX, Voice Isolation, Dubbing) ───
 async function runwayAudioCreate(body: any) {
   const headers = runwayHeaders();
   const action = body.audio_action || "tts";
@@ -171,6 +173,19 @@ async function runwayAudioCreate(body: any) {
       duration: body.duration || 5,
       loop: body.loop || false,
     };
+  } else if (action === "voice_isolation") {
+    endpoint = `${RUNWAY_BASE}/voice_isolation`;
+    reqBody = {
+      model: "eleven_voice_isolation",
+      media: { type: body.media_type || "audio", uri: body.audio_url || body.video_url },
+    };
+  } else if (action === "voice_dubbing") {
+    endpoint = `${RUNWAY_BASE}/voice_dubbing`;
+    reqBody = {
+      model: "eleven_voice_dubbing",
+      media: { type: body.media_type || "audio", uri: body.audio_url || body.video_url },
+      targetLanguage: body.target_language || "es",
+    };
   } else {
     throw new Error(`Unknown audio_action: ${action}`);
   }
@@ -181,26 +196,15 @@ async function runwayAudioCreate(body: any) {
   return { task_id: data.id, status: "IN_PROGRESS", provider: "runway", audio_action: action };
 }
 
-// ─── Provider handlers ───
-
+// ─── Seedance ───
 async function seedanceCreate(body: any) {
   const apiKey = Deno.env.get("SEEDANCE_API_KEY");
   if (!apiKey) throw new Error("SEEDANCE_API_KEY not configured");
-  const reqBody: any = {
-    prompt: body.prompt,
-    duration: String(body.duration || "8"),
-    aspect_ratio: body.aspect_ratio || "16:9",
-    resolution: body.resolution || "720p",
-  };
+  const reqBody: any = { prompt: body.prompt, duration: String(body.duration || "8"), aspect_ratio: body.aspect_ratio || "16:9", resolution: body.resolution || "720p" };
   if (body.generate_audio) reqBody.generate_audio = true;
   if (body.fixed_lens) reqBody.fixed_lens = true;
   if (body.image_url) reqBody.image_urls = [body.image_url];
-
-  const resp = await fetch("https://seedanceapi.org/v1/generate", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify(reqBody),
-  });
+  const resp = await fetch("https://seedanceapi.org/v1/generate", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` }, body: JSON.stringify(reqBody) });
   const data = await resp.json();
   if (!resp.ok || data.code !== 200) throw new Error(data.message || `Seedance error (${resp.status})`);
   return { task_id: data.data?.task_id, status: data.data?.status, provider: "seedance" };
@@ -209,93 +213,56 @@ async function seedanceCreate(body: any) {
 async function seedancePoll(taskId: string) {
   const apiKey = Deno.env.get("SEEDANCE_API_KEY");
   if (!apiKey) throw new Error("SEEDANCE_API_KEY not configured");
-  const resp = await fetch(`https://seedanceapi.org/v1/status?task_id=${encodeURIComponent(taskId)}`, {
-    headers: { Authorization: `Bearer ${apiKey}` },
-  });
+  const resp = await fetch(`https://seedanceapi.org/v1/status?task_id=${encodeURIComponent(taskId)}`, { headers: { Authorization: `Bearer ${apiKey}` } });
   const data = await resp.json();
   if (!resp.ok || data.code !== 200) throw new Error(data.message || `Poll error`);
   const td = data.data;
-  return {
-    task_id: td?.task_id, status: td?.status,
-    video_url: td?.status === "SUCCESS" && td?.response?.length ? td.response[0] : null,
-    error_message: td?.error_message,
-  };
+  return { task_id: td?.task_id, status: td?.status, video_url: td?.status === "SUCCESS" && td?.response?.length ? td.response[0] : null, error_message: td?.error_message };
 }
 
+// ─── Kling ───
 async function klingCreate(body: any) {
-  const ak = Deno.env.get("KLING_ACCESS_KEY");
-  const sk = Deno.env.get("KLING_SECRET_KEY");
+  const ak = Deno.env.get("KLING_ACCESS_KEY"); const sk = Deno.env.get("KLING_SECRET_KEY");
   if (!ak || !sk) throw new Error("Kling API keys not configured");
   const token = await generateKlingJWT(ak, sk);
-  const endpoint = body.image_url
-    ? "https://api.klingai.com/v1/videos/image2video"
-    : "https://api.klingai.com/v1/videos/text2video";
-  const reqBody: any = {
-    prompt: body.prompt,
-    duration: String(body.duration || "5"),
-    aspect_ratio: body.aspect_ratio || "16:9",
-    model_name: body.model_name || "kling-v2-master",
-    mode: body.mode || "std",
-  };
+  const endpoint = body.image_url ? "https://api.klingai.com/v1/videos/image2video" : "https://api.klingai.com/v1/videos/text2video";
+  const reqBody: any = { prompt: body.prompt, duration: String(body.duration || "5"), aspect_ratio: body.aspect_ratio || "16:9", model_name: body.model_name || "kling-v2-master", mode: body.mode || "std" };
   if (body.image_url) reqBody.image = body.image_url;
-
-  const resp = await fetch(endpoint, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify(reqBody),
-  });
+  const resp = await fetch(endpoint, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify(reqBody) });
   const data = await resp.json();
   if (!resp.ok || data.code !== 0) throw new Error(data.message || `Kling error (${resp.status})`);
   return { task_id: data.data?.task_id, status: data.data?.task_status, provider: "kling", task_type: body.image_url ? "image2video" : "text2video" };
 }
 
 async function klingPoll(taskId: string, taskType: string) {
-  const ak = Deno.env.get("KLING_ACCESS_KEY");
-  const sk = Deno.env.get("KLING_SECRET_KEY");
+  const ak = Deno.env.get("KLING_ACCESS_KEY"); const sk = Deno.env.get("KLING_SECRET_KEY");
   if (!ak || !sk) throw new Error("Kling API keys not configured");
   const token = await generateKlingJWT(ak, sk);
-  const resp = await fetch(`https://api.klingai.com/v1/videos/${taskType || "text2video"}/${taskId}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+  const resp = await fetch(`https://api.klingai.com/v1/videos/${taskType || "text2video"}/${taskId}`, { headers: { Authorization: `Bearer ${token}` } });
   const data = await resp.json();
   if (!resp.ok || data.code !== 0) throw new Error(data.message || `Poll error`);
   const td = data.data;
-  return {
-    task_id: td?.task_id,
-    status: td?.task_status === "succeed" ? "SUCCESS" : td?.task_status === "failed" ? "FAILED" : "IN_PROGRESS",
-    video_url: td?.task_status === "succeed" && td?.task_result?.videos?.length ? td.task_result.videos[0].url : null,
-    error_message: td?.task_status_msg,
-  };
+  return { task_id: td?.task_id, status: td?.task_status === "succeed" ? "SUCCESS" : td?.task_status === "failed" ? "FAILED" : "IN_PROGRESS", video_url: td?.task_status === "succeed" && td?.task_result?.videos?.length ? td.task_result.videos[0].url : null, error_message: td?.task_status_msg };
 }
 
+// ─── HuggingFace ───
 async function huggingfaceCreate(body: any) {
   const apiKey = Deno.env.get("HUGGINGFACE_API_KEY");
   if (!apiKey) throw new Error("HUGGINGFACE_API_KEY not configured");
   const model = body.model_name || "Lightricks/LTX-Video-0.9.8-13B-distilled";
-  const resp = await fetch(`https://router.huggingface.co/fal-ai/fal-ai/${encodeURIComponent(model)}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({
-      inputs: body.prompt,
-      parameters: { num_frames: Math.min((body.duration || 4) * 8, 97), guidance_scale: 7.5 },
-    }),
-  });
+  const resp = await fetch(`https://router.huggingface.co/fal-ai/fal-ai/${encodeURIComponent(model)}`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` }, body: JSON.stringify({ inputs: body.prompt, parameters: { num_frames: Math.min((body.duration || 4) * 8, 97), guidance_scale: 7.5 } }) });
   if (resp.ok) {
     const ct = resp.headers.get("content-type") || "";
-    if (ct.includes("video") || ct.includes("octet")) {
-      const blob = await resp.arrayBuffer();
-      const b64 = btoa(String.fromCharCode(...new Uint8Array(blob)));
-      return { task_id: "hf_direct", status: "SUCCESS", video_data: b64, provider: "huggingface" };
-    }
+    if (ct.includes("video") || ct.includes("octet")) { const blob = await resp.arrayBuffer(); const b64 = btoa(String.fromCharCode(...new Uint8Array(blob))); return { task_id: "hf_direct", status: "SUCCESS", video_data: b64, provider: "huggingface" }; }
     const data = await resp.json();
     if (data.video) return { task_id: "hf_direct", status: "SUCCESS", video_url: data.video, provider: "huggingface" };
     if (data.error) throw new Error(data.error);
     return { task_id: "hf_queued", status: "IN_PROGRESS", estimated_time: data.estimated_time, provider: "huggingface" };
   }
-  const err = await resp.text();
-  throw new Error(`HuggingFace error (${resp.status}): ${err}`);
+  throw new Error(`HuggingFace error (${resp.status}): ${await resp.text()}`);
 }
 
+// ─── Replicate ───
 async function replicateCreate(body: any) {
   const apiKey = Deno.env.get("REPLICATE_API_KEY");
   if (!apiKey) throw new Error("REPLICATE_API_KEY not configured");
@@ -305,19 +272,9 @@ async function replicateCreate(body: any) {
   const isI2V = i2vModels.includes(model);
   if (body.image_url && isI2V) input.first_frame_image = body.image_url;
   if (model.includes("minimax")) input.prompt_optimizer = true;
-  if (model.includes("wan-2.1") && !model.includes("i2v")) {
-    if (body.aspect_ratio) input.aspect_ratio = body.aspect_ratio;
-  }
-  if (model.includes("hunyuan")) {
-    if (body.aspect_ratio === "9:16") { input.width = 480; input.height = 854; }
-    else if (body.aspect_ratio === "1:1") { input.width = 720; input.height = 720; }
-    else { input.width = 854; input.height = 480; }
-  }
-  const resp = await fetch(`https://api.replicate.com/v1/models/${model}/predictions`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({ input }),
-  });
+  if (model.includes("wan-2.1") && !model.includes("i2v")) { if (body.aspect_ratio) input.aspect_ratio = body.aspect_ratio; }
+  if (model.includes("hunyuan")) { if (body.aspect_ratio === "9:16") { input.width = 480; input.height = 854; } else if (body.aspect_ratio === "1:1") { input.width = 720; input.height = 720; } else { input.width = 854; input.height = 480; } }
+  const resp = await fetch(`https://api.replicate.com/v1/models/${model}/predictions`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` }, body: JSON.stringify({ input }) });
   const data = await resp.json();
   if (!resp.ok) throw new Error(data.detail || JSON.stringify(data) || `Replicate error (${resp.status})`);
   const output = typeof data.output === "string" ? data.output : data.output?.[0] || null;
@@ -327,31 +284,20 @@ async function replicateCreate(body: any) {
 async function replicatePoll(taskId: string) {
   const apiKey = Deno.env.get("REPLICATE_API_KEY");
   if (!apiKey) throw new Error("REPLICATE_API_KEY not configured");
-  const resp = await fetch(`https://api.replicate.com/v1/predictions/${taskId}`, {
-    headers: { Authorization: `Bearer ${apiKey}` },
-  });
+  const resp = await fetch(`https://api.replicate.com/v1/predictions/${taskId}`, { headers: { Authorization: `Bearer ${apiKey}` } });
   const data = await resp.json();
   if (!resp.ok) throw new Error(data.detail || `Poll error`);
   const status = data.status === "succeeded" ? "SUCCESS" : data.status === "failed" || data.status === "canceled" ? "FAILED" : "IN_PROGRESS";
   return { task_id: data.id, status, video_url: data.output?.[0] || null, error_message: data.error };
 }
 
+// ─── Luma ───
 async function lumaCreate(body: any) {
   const apiKey = Deno.env.get("LUMA_API_KEY");
   if (!apiKey) throw new Error("LUMA_API_KEY not configured");
-  const reqBody: any = {
-    prompt: body.prompt,
-    aspect_ratio: body.aspect_ratio || "16:9",
-    loop: false,
-  };
-  if (body.image_url) {
-    reqBody.keyframes = { frame0: { type: "image", url: body.image_url } };
-  }
-  const resp = await fetch("https://api.lumalabs.ai/dream-machine/v1/generations", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify(reqBody),
-  });
+  const reqBody: any = { prompt: body.prompt, aspect_ratio: body.aspect_ratio || "16:9", loop: false };
+  if (body.image_url) reqBody.keyframes = { frame0: { type: "image", url: body.image_url } };
+  const resp = await fetch("https://api.lumalabs.ai/dream-machine/v1/generations", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` }, body: JSON.stringify(reqBody) });
   const data = await resp.json();
   if (!resp.ok) throw new Error(data.detail || data.message || `Luma error (${resp.status})`);
   return { task_id: data.id, status: data.state === "completed" ? "SUCCESS" : "IN_PROGRESS", video_url: data.assets?.video || null, provider: "luma" };
@@ -360,9 +306,7 @@ async function lumaCreate(body: any) {
 async function lumaPoll(taskId: string) {
   const apiKey = Deno.env.get("LUMA_API_KEY");
   if (!apiKey) throw new Error("LUMA_API_KEY not configured");
-  const resp = await fetch(`https://api.lumalabs.ai/dream-machine/v1/generations/${taskId}`, {
-    headers: { Authorization: `Bearer ${apiKey}` },
-  });
+  const resp = await fetch(`https://api.lumalabs.ai/dream-machine/v1/generations/${taskId}`, { headers: { Authorization: `Bearer ${apiKey}` } });
   const data = await resp.json();
   if (!resp.ok) throw new Error(data.detail || `Poll error`);
   const status = data.state === "completed" ? "SUCCESS" : data.state === "failed" ? "FAILED" : "IN_PROGRESS";
@@ -378,10 +322,10 @@ serve(async (req) => {
     const action = url.searchParams.get("action");
     const provider = url.searchParams.get("provider") || "runway";
 
+    // ── Video create ──
     if (action === "create") {
       const body = await req.json();
       if (!body.prompt && !body.text) throw new Error("prompt is required");
-
       let result: any;
       switch (provider) {
         case "runway": result = await runwayCreate(body); break;
@@ -395,11 +339,11 @@ serve(async (req) => {
       return new Response(JSON.stringify(result), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
+    // ── Poll ──
     if (action === "poll") {
       const taskId = url.searchParams.get("task_id");
       const taskType = url.searchParams.get("task_type") || "text2video";
       if (!taskId) throw new Error("task_id is required");
-
       let result: any;
       switch (provider) {
         case "runway": result = await runwayPoll(taskId); break;
@@ -407,16 +351,24 @@ serve(async (req) => {
         case "kling": result = await klingPoll(taskId, taskType); break;
         case "replicate": result = await replicatePoll(taskId); break;
         case "luma": result = await lumaPoll(taskId); break;
-        case "huggingface": result = { status: "SUCCESS", error_message: "HuggingFace returns directly, no polling needed" }; break;
+        case "huggingface": result = { status: "SUCCESS", error_message: "HuggingFace returns directly" }; break;
         default: throw new Error(`Unknown provider: ${provider}`);
       }
       return new Response(JSON.stringify(result), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // ── Runway audio actions (TTS, STS, SFX) ──
+    // ── Runway audio actions (TTS, STS, SFX, Voice Isolation, Dubbing) ──
     if (action === "audio") {
       const body = await req.json();
       const result = await runwayAudioCreate(body);
+      return new Response(JSON.stringify(result), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    // ── Runway image generation ──
+    if (action === "image") {
+      const body = await req.json();
+      if (!body.prompt) throw new Error("prompt is required");
+      const result = await runwayImageCreate(body);
       return new Response(JSON.stringify(result), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
@@ -433,13 +385,9 @@ serve(async (req) => {
       return new Response(JSON.stringify(providers), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    return new Response(JSON.stringify({ error: "Unknown action. Use ?action=create|poll|audio|providers" }), {
-      status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(JSON.stringify({ error: "Unknown action. Use ?action=create|poll|audio|image|providers" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
     console.error("video-generate error:", e);
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });
