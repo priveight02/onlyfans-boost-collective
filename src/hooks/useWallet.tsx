@@ -99,9 +99,14 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     };
     document.addEventListener('visibilitychange', handleVisibility);
 
+    // Listen for AI copilot wallet-refresh events
+    const handleWalletRefresh = () => refreshWallet();
+    window.addEventListener('wallet-refresh', handleWalletRefresh);
+
     return () => {
       supabase.removeChannel(channel);
       document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('wallet-refresh', handleWalletRefresh);
     };
   }, [user, refreshWallet]);
 

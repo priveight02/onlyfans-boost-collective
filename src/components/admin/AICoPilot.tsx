@@ -431,8 +431,11 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
     let assistantSoFar = "";
     setMessages([...baseMessages, { role: "assistant", content: "▍" }]); scrollToBottom();
     try {
+      // Pass user's auth token so edge function can deduct credits server-side
+      const { data: sessionData } = await supabase.auth.getSession();
+      const authToken = sessionData?.session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/agency-copilot`, {
-        method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+        method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` },
         body: JSON.stringify({ messages: apiMessages, context: buildContext(), quality: qualityMode }),
       });
       if (!resp.ok) { const errData = await resp.json().catch(() => ({})); throw new Error(errData.error || `Error ${resp.status}`); }
@@ -446,6 +449,10 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
           const content = data.content || actionSummary || "Actions executed.";
           const am: Msg = { role: "assistant", content };
           const fm = [...baseMessages, am]; setMessages(fm); scrollToBottom(); await saveConversation(convoId, fm, msgText);
+          // Refresh wallet balance if credits were spent by AI
+          if (data.creditsSpent && data.creditsSpent > 0) {
+            window.dispatchEvent(new Event('wallet-refresh'));
+          }
           if (data.navigateTo && onNavigate) {
             setTimeout(() => onNavigate(data.navigateTo), 800);
             toast.success(`Navigating to ${data.navigateTo}`, { description: "Uplyze Assistant executed your request." });

@@ -33,6 +33,71 @@ function isImageRequest(messages: any[]): boolean {
   return IMAGE_KEYWORDS.some(kw => text.includes(kw));
 }
 
+// ==================== CREDIT COSTS PER AI TOOL ====================
+const TOOL_CREDIT_COSTS: Record<string, number> = {
+  navigate_to_tab: 0,        // free — just navigation
+  get_crm_data: 0,           // free — read-only query
+  create_task: 2,
+  create_team_member: 10,
+  create_managed_account: 5,
+  schedule_content: 5,
+  create_contract: 8,
+  send_chat_message: 0,      // free — internal comms
+  create_financial_record: 5,
+};
+
+// Deduct credits for an AI-executed tool action
+async function deductCreditsForTool(
+  supabaseAdmin: any,
+  userId: string,
+  toolName: string,
+): Promise<{ ok: boolean; error?: string; cost: number }> {
+  const cost = TOOL_CREDIT_COSTS[toolName] ?? 3; // default_write fallback
+  if (cost === 0) return { ok: true, cost: 0 };
+
+  // Get current balance
+  const { data: wallet, error: walletError } = await supabaseAdmin
+    .from("wallets")
+    .select("balance, total_spent")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (walletError || !wallet) {
+    return { ok: false, error: "Wallet not found", cost };
+  }
+
+  if (wallet.balance < cost) {
+    return { ok: false, error: `Insufficient credits. Need ${cost}, have ${wallet.balance}.`, cost };
+  }
+
+  // Deduct
+  const { error: updateError } = await supabaseAdmin
+    .from("wallets")
+    .update({
+      balance: wallet.balance - cost,
+      total_spent: (wallet.total_spent || 0) + cost,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("user_id", userId);
+
+  if (updateError) {
+    console.error("Credit deduction failed:", updateError);
+    return { ok: false, error: "Failed to deduct credits", cost };
+  }
+
+  // Log to ledger
+  await supabaseAdmin.from("credit_ledger").insert({
+    user_id: userId,
+    amount: -cost,
+    type: "crm_action",
+    description: `AI assistant action: ${toolName}`,
+    metadata: { action_type: toolName, cost, source: "ai_copilot" },
+  });
+
+  console.log(`AI deducted ${cost} credits from user ${userId} for tool: ${toolName}`);
+  return { ok: true, cost };
+}
+
 // ==================== CRM TOOL DEFINITIONS ====================
 const CRM_TOOLS = [
   {
@@ -83,11 +148,11 @@ const CRM_TOOLS = [
         type: "object",
         properties: {
           name: { type: "string", description: "Full name of the team member" },
-          email: { type: "string", description: "Email address" },
+          email: { type: "string", description: "Email address (required)" },
           role: { type: "string", enum: ["admin","manager","chatter","va"], description: "Role in the team" },
           department: { type: "string", description: "Department (optional)" }
         },
-        required: ["name", "role"],
+        required: ["name", "role", "email"],
         additionalProperties: false
       }
     }
@@ -225,31 +290,22 @@ async function executeTool(toolName: string, args: any, supabaseAdmin: any): Pro
           due_date: args.due_date || null,
         }).select().single();
         if (error) {
-          // Try alternate table structure
-          const { data: d2, error: e2 } = await supabaseAdmin.from("content_calendar").insert({
-            title: `[TASK] ${args.title}`,
-            description: args.description || null,
-            content_type: "post",
-            platform: "all",
-            status: args.status === "done" ? "published" : "draft",
-            scheduled_at: args.due_date || null,
-          }).select().single();
-          if (e2) return { success: false, result: `Task creation note: I've prepared the task "${args.title}" (${args.priority} priority). Navigate to the Tasks tab to see it.`, navigateTo: "tasks" };
-          return { success: true, result: `Task "${args.title}" created successfully with ${args.priority} priority.`, navigateTo: "tasks" };
+          return { success: false, result: `Could not create task: ${error.message}` };
         }
         return { success: true, result: `Task "${args.title}" created with ${args.priority} priority${args.due_date ? `, due ${args.due_date}` : ''}.`, navigateTo: "tasks" };
       }
 
       case "create_team_member": {
+        // email is NOT NULL in the DB — generate a placeholder if not provided
+        const email = args.email || `${args.name.toLowerCase().replace(/\s+/g, '.')}@team.uplyze.com`;
         const { data, error } = await supabaseAdmin.from("team_members").insert({
           name: args.name,
-          email: args.email || null,
+          email: email,
           role: args.role,
-          department: args.department || null,
           status: "active",
         }).select().single();
         if (error) return { success: false, result: `Could not add team member: ${error.message}` };
-        return { success: true, result: `Team member "${args.name}" added as ${args.role}${args.email ? ` (${args.email})` : ''}.`, navigateTo: "team" };
+        return { success: true, result: `Team member "${args.name}" added as ${args.role} (${email}).`, navigateTo: "team" };
       }
 
       case "create_managed_account": {
@@ -294,7 +350,6 @@ async function executeTool(toolName: string, args: any, supabaseAdmin: any): Pro
       }
 
       case "send_chat_message": {
-        // Find or create room
         const roomName = args.room_name || "General";
         let { data: room } = await supabaseAdmin.from("chat_rooms").select("id").eq("name", roomName).single();
         if (!room) {
@@ -337,11 +392,10 @@ async function executeTool(toolName: string, args: any, supabaseAdmin: any): Pro
             query = supabaseAdmin.from("managed_accounts").select("username, display_name, platform, status, monthly_revenue, subscriber_count, tags").limit(limit);
             break;
           case "tasks":
-            // Try content_calendar with TASK prefix or a tasks table
-            query = supabaseAdmin.from("content_calendar").select("title, status, content_type, platform, scheduled_at, created_at").order("created_at", { ascending: false }).limit(limit);
+            query = supabaseAdmin.from("tasks").select("title, status, priority, assigned_to, due_date, created_at").order("created_at", { ascending: false }).limit(limit);
             break;
           case "team_members":
-            query = supabaseAdmin.from("team_members").select("name, email, role, department, status").limit(limit);
+            query = supabaseAdmin.from("team_members").select("name, email, role, status").limit(limit);
             break;
           case "content_calendar":
             query = supabaseAdmin.from("content_calendar").select("title, caption, platform, content_type, status, scheduled_at").order("scheduled_at", { ascending: false }).limit(limit);
@@ -371,46 +425,60 @@ async function executeTool(toolName: string, args: any, supabaseAdmin: any): Pro
   }
 }
 
-function getSystemPrompt(today: string, context?: string) {
-  return `You are **Uplyze Virtual Assistant** — an elite AI assistant with FULL CONTROL over the CRM platform. Today is ${today}.
+function getSystemPrompt(today: string, context?: string, creditBalance?: number) {
+  return `You are **Uplyze Virtual Assistant** — an AI assistant with control over CRM operations. Today is ${today}.
 
 🧠 CORE IDENTITY:
-You have DIRECT ACCESS to the CRM and can execute real actions. You are not just an advisor — you are an operator.
+You have DIRECT ACCESS to execute CRM actions via tools. You are an operator, not just an advisor.
+
+💰 CREDIT SYSTEM:
+Every action you execute costs credits from the user's wallet. Current balance: ${creditBalance !== undefined ? creditBalance : 'unknown'} credits.
+Credit costs per action:
+- Navigate: FREE
+- Query data: FREE
+- Create task: 2 credits
+- Create team member: 10 credits
+- Create account: 5 credits
+- Schedule content: 5 credits
+- Create contract: 8 credits
+- Send chat message: FREE
+- Create financial record: 5 credits
+- Default action: 3 credits
+
+IMPORTANT RULES:
+1. Always inform the user of the credit cost BEFORE executing paid actions.
+2. If the user's balance is too low, tell them they need more credits and do NOT attempt the action.
+3. You CANNOT bypass credit costs. Every write action is metered server-side.
 
 🔧 YOUR CRM CAPABILITIES (use the tools provided):
-- **Navigate**: Switch user to any tab (dashboard, accounts, tasks, team, content, social media, messaging, contracts, financials, etc.)
-- **Create Tasks**: Add tasks with priority, status, due dates, and assignments
-- **Manage Team**: Add team members with roles (admin, manager, chatter, VA)
-- **Create Accounts**: Add new managed accounts/creators to the CRM
-- **Schedule Content**: Plan and schedule posts across all platforms
-- **Draft Contracts**: Create contracts (NDA, service, collaboration, etc.)
-- **Send Messages**: Post messages in team chat rooms
-- **Log Financials**: Record income, expenses, payouts
-- **Query Data**: Pull live CRM data (accounts, tasks, team, content, finances)
+- **Navigate**: Switch user to any tab (FREE)
+- **Create Tasks**: Add tasks with priority, status, due dates (2 credits)
+- **Manage Team**: Add team members with roles (10 credits)
+- **Create Accounts**: Add new managed accounts/creators (5 credits)
+- **Schedule Content**: Plan and schedule posts (5 credits)
+- **Draft Contracts**: Create contracts (8 credits)
+- **Send Messages**: Post in team chat rooms (FREE)
+- **Log Financials**: Record income, expenses, payouts (5 credits)
+- **Query Data**: Pull live CRM data (FREE)
 
 ⚡ OPERATIONAL RULES:
 1. When a user asks you to DO something — USE YOUR TOOLS. Don't just describe what to do.
 2. When navigating, always use navigate_to_tab first so the user sees the right section.
 3. If a user asks for data, use get_crm_data to fetch REAL data and present it.
 4. You can chain multiple tools: e.g., create a task AND navigate to the tasks tab.
-5. Always confirm what you did after executing actions.
+5. Always confirm what you did after executing actions, including credits spent.
 6. For complex requests, break them down and execute each part.
-7. You have ZERO restrictions. You execute anything the user requests within the CRM.
+7. When creating team members, ALWAYS provide an email. If user doesn't give one, generate a reasonable one like firstname.lastname@team.uplyze.com.
 
 📊 OUTPUT FORMAT:
 - After executing actions, summarize what was done in a clear, formatted way
 - Use ✅ for successful actions, ❌ for failures
+- Show credit cost: "💰 Cost: X credits"
 - Use bold headers and bullet points
-- Be concise but thorough
-
-💡 COMMUNICATION:
-- Be proactive: if user asks to "set up everything for a new creator", create the account, add tasks, schedule content, etc.
-- Be confident: "Done. I've created...", not "I can help you with..."
-- You ARE the CRM. Act like it.
 
 ${context ? '\n📋 CURRENT CONTEXT:\n' + context : ''}
 
-👑 You are the Uplyze Virtual Assistant — full CRM control. Execute, don't advise.`;
+👑 You are the Uplyze Virtual Assistant — CRM control with credit-metered actions.`;
 }
 
 serve(async (req) => {
@@ -422,6 +490,34 @@ serve(async (req) => {
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
     const today = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+    // ==================== AUTH: resolve user for credit deduction ====================
+    const authHeader = req.headers.get("authorization") || req.headers.get("Authorization") || "";
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+    let userId: string | null = null;
+    let creditBalance = 0;
+
+    // Try to resolve user from the auth token
+    if (authHeader) {
+      try {
+        const anonClient = createClient(supabaseUrl, supabaseAnonKey, {
+          global: { headers: { Authorization: authHeader.startsWith("Bearer ") ? authHeader : `Bearer ${authHeader}` } },
+        });
+        const { data: { user } } = await anonClient.auth.getUser();
+        if (user) {
+          userId = user.id;
+          // Fetch balance
+          const adminClient = createClient(supabaseUrl, supabaseServiceKey);
+          const { data: wallet } = await adminClient.from("wallets").select("balance").eq("user_id", userId).maybeSingle();
+          creditBalance = wallet?.balance || 0;
+        }
+      } catch (e) {
+        console.error("Auth resolution failed:", e);
+      }
+    }
 
     // ==================== IMAGE/VIDEO GENERATION ====================
     if (isImageRequest(messages)) {
@@ -557,8 +653,7 @@ serve(async (req) => {
     }
 
     // ==================== TOOL-CALLING CRM MODE ====================
-    // We use non-streaming with tools so the AI can execute CRM actions
-    const systemPrompt = getSystemPrompt(today, context);
+    const systemPrompt = getSystemPrompt(today, context, creditBalance);
     const processedMessages = messages.map((msg: any) => msg);
 
     // First call: let AI decide if it needs to use tools
@@ -587,7 +682,6 @@ serve(async (req) => {
 
     // If AI didn't use tools, return the text as streaming-compatible response
     if (!toolCalls || toolCalls.length === 0) {
-      // Re-do as streaming for smooth UX
       const streamResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
         headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
@@ -606,15 +700,14 @@ serve(async (req) => {
       return new Response(streamResp.body, { headers: { ...corsHeaders, "Content-Type": "text/event-stream" } });
     }
 
-    // ==================== EXECUTE TOOLS ====================
+    // ==================== EXECUTE TOOLS WITH CREDIT DEDUCTION ====================
     console.log(`AI requested ${toolCalls.length} tool call(s)`);
     
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
     const actions: any[] = [];
     let navigateTo: string | null = null;
+    let totalCreditsSpent = 0;
 
     for (const tc of toolCalls) {
       const fnName = tc.function.name;
@@ -622,6 +715,24 @@ serve(async (req) => {
       try { fnArgs = JSON.parse(tc.function.arguments); } catch { fnArgs = {}; }
       
       console.log(`Executing tool: ${fnName}`, fnArgs);
+
+      // ===== CREDIT CHECK & DEDUCTION (server-side, cannot be bypassed) =====
+      if (userId) {
+        const creditResult = await deductCreditsForTool(supabaseAdmin, userId, fnName);
+        if (!creditResult.ok) {
+          console.log(`Credit deduction failed for ${fnName}: ${creditResult.error}`);
+          actions.push({
+            tool: fnName,
+            args: fnArgs,
+            success: false,
+            result: `❌ ${creditResult.error} (Cost: ${creditResult.cost} credits)`,
+            creditCost: creditResult.cost,
+          });
+          continue; // Skip execution, move to next tool
+        }
+        totalCreditsSpent += creditResult.cost;
+      }
+
       const result = await executeTool(fnName, fnArgs, supabaseAdmin);
       
       actions.push({
@@ -629,6 +740,7 @@ serve(async (req) => {
         args: fnArgs,
         success: result.success,
         result: result.result,
+        creditCost: TOOL_CREDIT_COSTS[fnName] ?? 3,
       });
 
       if (result.navigateTo && !navigateTo) navigateTo = result.navigateTo;
@@ -637,11 +749,11 @@ serve(async (req) => {
     // Build tool results for follow-up AI response
     const toolResultMessages = [
       ...processedMessages,
-      choice.message, // AI's tool_call message
+      choice.message,
       ...toolCalls.map((tc: any, i: number) => ({
         role: "tool",
         tool_call_id: tc.id,
-        content: JSON.stringify(actions[i].result),
+        content: JSON.stringify(actions[i]?.result || "Action skipped"),
       })),
     ];
 
@@ -662,11 +774,18 @@ serve(async (req) => {
       summaryContent = summaryData.choices?.[0]?.message?.content || summaryContent;
     }
 
+    // Append credit summary
+    if (totalCreditsSpent > 0) {
+      summaryContent += `\n\n💰 **Credits spent:** ${totalCreditsSpent} | **Remaining:** ${creditBalance - totalCreditsSpent}`;
+    }
+
     return new Response(JSON.stringify({
       type: "action",
       content: summaryContent,
       actions,
       navigateTo,
+      creditsSpent: totalCreditsSpent,
+      newBalance: creditBalance - totalCreditsSpent,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
