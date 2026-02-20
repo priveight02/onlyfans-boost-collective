@@ -265,8 +265,8 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
   const [selectedVideoResolution, setSelectedVideoResolution] = useState<string>("720p");
   const [videoGenerateAudio, setVideoGenerateAudio] = useState(false);
   const [fixedLens, setFixedLens] = useState(false);
-  const [selectedVideoProvider, setSelectedVideoProvider] = useState<string>("seedance");
-  const [selectedVideoModel, setSelectedVideoModel] = useState<string>("seedance-2.0");
+  const [selectedVideoProvider, setSelectedVideoProvider] = useState<string>("runway");
+  const [selectedVideoModel, setSelectedVideoModel] = useState<string>("gen4_turbo");
   const [videoProviderStatus, setVideoProviderStatus] = useState<Record<string, boolean>>({});
   const [isGeneratingVideo, setIsGeneratingVideo] = useState(false);
   const [videoProgress, setVideoProgress] = useState(0);
@@ -772,7 +772,7 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
     };
 
     const providerLabels: Record<string, string> = {
-      seedance: "Seedance 2.0", kling: "Kling AI", huggingface: "HuggingFace", replicate: "Replicate", luma: "Luma Dream Machine", runway: "Runway ML",
+      seedance: "Seedance", kling: "Kling AI", runway: "Runway ML",
     };
 
     setVideoProgress(0);
@@ -1138,29 +1138,22 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
   );
 
   const VIDEO_PROVIDERS = [
-    { id: "seedance", label: "Seedance 2.0", pricing: "paid", color: "text-cyan-400", desc: "High quality, 4-12s, audio gen", models: [
-      { id: "seedance-2.0", label: "Seedance 2.0" },
+    { id: "runway", label: "Runway ML", pricing: "paid", color: "text-orange-400", desc: "Gen-4 & Veo, state-of-the-art quality", models: [
+      { id: "gen4.5", label: "Gen-4.5", desc: "Text/Image → Video" },
+      { id: "gen4_turbo", label: "Gen-4 Turbo", desc: "Image → Video (fastest)" },
+      { id: "gen4_aleph", label: "Gen-4 Aleph", desc: "Video → Video (edit/transform)" },
+      { id: "act_two", label: "Act Two", desc: "Motion capture (I2V/V2V)" },
+      { id: "veo3", label: "Veo 3", desc: "T2V/I2V + Audio 🔊" },
+      { id: "veo3.1", label: "Veo 3.1", desc: "T2V/I2V + Audio 🔊" },
+    ]},
+    { id: "seedance", label: "Seedance", pricing: "paid", color: "text-cyan-400", desc: "High quality, 4-12s, audio gen", models: [
+      { id: "seedance-2.0", label: "Seedance 2.0", desc: "Latest model" },
+      { id: "seedance-1.0", label: "Seedance 1.0", desc: "Legacy model" },
     ]},
     { id: "kling", label: "Kling AI", pricing: "paid", color: "text-purple-400", desc: "V2 Master, text & image-to-video", models: [
-      { id: "kling-v2-master", label: "V2 Master" },
-      { id: "kling-v2", label: "V2" },
-      { id: "kling-v1-6", label: "V1.6 Legacy" },
-    ]},
-    { id: "huggingface", label: "HuggingFace", pricing: "free", color: "text-yellow-400", desc: "Free tier, LTX-Video & more", models: [
-      { id: "Lightricks/LTX-Video-0.9.8-13B-distilled", label: "LTX-Video 13B" },
-      { id: "tencent/HunyuanVideo", label: "HunyuanVideo" },
-    ]},
-    { id: "replicate", label: "Replicate", pricing: "free-credits", color: "text-green-400", desc: "Free credits on signup, many models", models: [
-      { id: "minimax/video-01-live", label: "MiniMax Live" },
-      { id: "tencent/hunyuan-video", label: "HunyuanVideo" },
-      { id: "wavespeedai/wan-2.1-t2v-480p", label: "Wan 2.1" },
-    ]},
-    { id: "luma", label: "Luma Dream Machine", pricing: "free-tier", color: "text-pink-400", desc: "Free tier available, cinematic", models: [
-      { id: "dream-machine", label: "Dream Machine" },
-    ]},
-    { id: "runway", label: "Runway ML", pricing: "paid", color: "text-orange-400", desc: "Gen-4 Turbo, professional quality", models: [
-      { id: "gen4_turbo", label: "Gen-4 Turbo" },
-      { id: "gen3a_turbo", label: "Gen-3α Turbo" },
+      { id: "kling-v2-master", label: "V2 Master", desc: "Best quality" },
+      { id: "kling-v2", label: "V2", desc: "Balanced" },
+      { id: "kling-v1-6", label: "V1.6 Legacy", desc: "Legacy" },
     ]},
   ];
 
@@ -1208,10 +1201,11 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
           <div>
             <p className="text-[10px] text-white/40 mb-1.5 font-medium">Model</p>
             <div className="flex flex-wrap gap-1.5">
-              {activeProvider.models.map(m => (
+              {activeProvider.models.map((m: any) => (
                 <button key={m.id} onClick={() => setSelectedVideoModel(m.id)}
                   className={`px-2.5 py-1.5 rounded-lg text-[10px] border transition-all ${selectedVideoModel === m.id ? "border-accent/40 bg-accent/10 text-accent" : "border-white/10 text-white/30 hover:text-white/50"}`}>
-                  {m.label}
+                  <span className="font-medium">{m.label}</span>
+                  {m.desc && <span className="text-[8px] text-white/20 ml-1">{m.desc}</span>}
                 </button>
               ))}
             </div>
@@ -1236,7 +1230,7 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
         <div>
           <p className="text-[10px] text-white/40 mb-1">Duration: <span className="text-accent font-medium">{videoDuration}s</span></p>
           <div className="flex gap-2">
-            {(selectedVideoProvider === "seedance" ? [4, 8, 12] : selectedVideoProvider === "kling" ? [5, 10] : [4, 5, 8]).map(d => (
+            {(selectedVideoProvider === "seedance" ? [4, 8, 12] : selectedVideoProvider === "kling" ? [5, 10] : selectedVideoProvider === "runway" ? [5, 10] : [4, 5, 8]).map(d => (
               <button key={d} onClick={() => setVideoDuration(d)} className={`px-3 py-1.5 rounded-lg text-xs border transition-all ${videoDuration === d ? "border-accent/40 bg-accent/10 text-accent" : "border-white/10 text-white/30 hover:text-white/50"}`}>{d}s</button>
             ))}
           </div>
