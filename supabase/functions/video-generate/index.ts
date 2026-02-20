@@ -81,12 +81,21 @@ async function runwayCreate(body: any) {
     };
   } else {
     const t2vModels = ["gen4.5", "veo3.1", "veo3.1_fast", "veo3"];
+    const veoModels = ["veo3", "veo3.1", "veo3.1_fast"];
+    const isVeo = veoModels.includes(model);
     if (!t2vModels.includes(model)) {
       endpoint = `${RUNWAY_BASE}/image_to_video`;
       reqBody = { model, promptText: body.prompt, ratio: mapAspectToRunwayRatio(body.aspect_ratio || "16:9", model), duration: Math.min(Math.max(body.duration || 5, 2), 10) };
     } else {
       endpoint = `${RUNWAY_BASE}/text_to_video`;
-      reqBody = { model, promptText: body.prompt, ratio: mapAspectToRunwayRatio(body.aspect_ratio || "16:9", model), duration: Math.min(Math.max(body.duration || 5, 2), 10) };
+      // Veo models only support "1280:720" and "720:1280" ratios and no duration param
+      const ratio = isVeo
+        ? ((body.aspect_ratio === "9:16") ? "720:1280" : "1280:720")
+        : mapAspectToRunwayRatio(body.aspect_ratio || "16:9", model);
+      reqBody = { model, promptText: body.prompt, ratio };
+      if (!isVeo) {
+        reqBody.duration = Math.min(Math.max(body.duration || 5, 2), 10);
+      }
     }
   }
 
