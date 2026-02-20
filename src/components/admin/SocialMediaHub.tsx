@@ -196,6 +196,9 @@ const SocialMediaHub = () => {
      setTimeout(() => setIgSessionPulse(false), 3000);
    };
 
+  // Track if auto-sync has already run this session
+  const [autoSyncDone, setAutoSyncDone] = useState(false);
+
   useEffect(() => { loadAccounts(); }, []);
   useEffect(() => {
     if (selectedAccount) {
@@ -252,6 +255,64 @@ const SocialMediaHub = () => {
       }
     }
   }, [connections]);
+
+  // Auto-sync profiles on page load (once per session, silently in background)
+  useEffect(() => {
+    if (autoSyncDone || !selectedAccount || connections.length === 0) return;
+    const igConn = connections.find(c => c.platform === "instagram" && c.is_connected);
+    const ttConn = connections.find(c => c.platform === "tiktok" && c.is_connected);
+    if (!igConn && !ttConn) return;
+    
+    setAutoSyncDone(true);
+    const syncSilently = async () => {
+      try {
+        if (igConn) {
+          const { data } = await supabase.functions.invoke("instagram-api", { 
+            body: { action: "get_profile", account_id: selectedAccount } 
+          });
+          if (data?.success && data.data) {
+            setIgProfile(data.data);
+            await supabase.from("social_connections").update({
+              metadata: { 
+                profile_picture_url: data.data.profile_picture_url, 
+                name: data.data.name, 
+                followers_count: data.data.followers_count, 
+                follows_count: data.data.follows_count,
+                media_count: data.data.media_count, 
+                connected_via: "social_hub",
+                auto_synced_at: new Date().toISOString(),
+              },
+            }).eq("account_id", selectedAccount).eq("platform", "instagram");
+            await supabase.from("managed_accounts").update({
+              subscriber_count: data.data.followers_count || 0,
+              content_count: data.data.media_count || 0,
+              last_activity_at: new Date().toISOString(),
+            }).eq("id", selectedAccount);
+          }
+        }
+        if (ttConn) {
+          const { data } = await supabase.functions.invoke("tiktok-api", { 
+            body: { action: "get_user_info", account_id: selectedAccount } 
+          });
+          const ttUser = data?.data?.data?.user || data?.data?.user;
+          if (ttUser) {
+            setTtProfile(ttUser);
+            await supabase.from("social_connections").update({
+              metadata: { 
+                avatar_url: ttUser.avatar_url, 
+                display_name: ttUser.display_name, 
+                connected_via: "social_hub",
+                auto_synced_at: new Date().toISOString(),
+              },
+            }).eq("account_id", selectedAccount).eq("platform", "tiktok");
+          }
+        }
+      } catch (e) {
+        console.error("Auto-sync profiles:", e);
+      }
+    };
+    syncSilently();
+  }, [connections, selectedAccount, autoSyncDone]);
 
   // Real-time sync for auto_respond_state
   useEffect(() => {
