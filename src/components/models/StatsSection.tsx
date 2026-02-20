@@ -3,7 +3,7 @@ import { Users, DollarSign, Instagram, TrendingUp } from 'lucide-react';
 
 const StatsSection: FC = () => {
   const stats = [
-    { icon: Users, value: "500+", label: "Active Models" },
+    { icon: Users, value: "700+", label: "Active Models" },
     { icon: DollarSign, value: "$40M+", label: "Monthly Revenue" },
     { icon: Instagram, value: "50M+", label: "Combined Followers" },
     { icon: TrendingUp, value: "300%", label: "Average Growth" }

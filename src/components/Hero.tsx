@@ -154,7 +154,7 @@ const Hero = () => {
             transition={{ duration: 0.8, delay: 0.4 }}
             className="text-lg md:text-xl text-white/60 mb-12 max-w-2xl mx-auto leading-relaxed"
           >
-            Trusted by 500+ creators and agencies to automate engagement, close more sales, and scale revenue on autopilot. Your unfair advantage starts here.
+            Trusted by 700+ creators and agencies to automate engagement, close more sales, and scale revenue on autopilot. Your unfair advantage starts here.
           </motion.p>
           
           <motion.div

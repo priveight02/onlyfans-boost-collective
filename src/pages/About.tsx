@@ -42,12 +42,12 @@ const About = () => {
     <div className="min-h-screen bg-[hsl(222,35%,8%)]">
       <PageSEO
         title="About Uplyze | AI CRM for Creators & Agencies | uplyze.ai"
-        description="Learn about Uplyze, the #1 AI-powered CRM built for creators and agencies. Trusted by 500+ professionals to automate growth and 10x revenue at uplyze.ai."
+        description="Learn about Uplyze, the AI-powered CRM built for creators and agencies. Trusted by 700+ professionals to automate growth and 10x revenue at uplyze.ai."
         jsonLd={{
           "@context": "https://schema.org",
           "@type": "AboutPage",
           "name": "About Uplyze",
-          "description": "Uplyze is the #1 AI CRM for creators and agencies, helping 500+ professionals automate growth and scale revenue.",
+          "description": "Uplyze is the #1 AI CRM for creators and agencies, helping 700+ professionals automate growth and scale revenue.",
           "url": "https://uplyze.ai/about",
           "isPartOf": { "@type": "WebSite", "name": "Uplyze", "url": "https://uplyze.ai" }
         }}
@@ -97,7 +97,7 @@ const About = () => {
           </div>
           <div className="p-8 rounded-2xl bg-white/[0.03] border border-white/[0.07] space-y-6">
             <div className="flex items-baseline gap-3">
-              <span className="text-4xl font-bold bg-gradient-to-r from-primary to-blue-400 bg-clip-text text-transparent">500+</span>
+              <span className="text-4xl font-bold bg-gradient-to-r from-primary to-blue-400 bg-clip-text text-transparent">700+</span>
               <span className="text-white/50 text-sm">Creators & agencies trust Uplyze</span>
             </div>
             <div className="h-px bg-white/[0.06]" />
@@ -143,7 +143,7 @@ const About = () => {
             <Sparkles className="h-7 w-7 text-primary/60 mx-auto mb-4" />
             <h2 className="text-2xl sm:text-3xl font-bold text-white mb-3">Ready to Transform Your Business?</h2>
             <p className="text-[hsl(215,25%,65%)] text-base mb-8 max-w-md mx-auto">
-              Join 500+ creators and agencies already scaling with Uplyze. Free to start, no credit card required.
+              Join 700+ creators and agencies already scaling with Uplyze. Free to start, no credit card required.
             </p>
             <Link to="/auth" className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl bg-primary text-white font-semibold hover:bg-primary/90 transition-all duration-300 hover:shadow-[0_0_30px_rgba(59,130,246,0.3)]">
               Get Started Free <ArrowRight className="h-4 w-4" />
