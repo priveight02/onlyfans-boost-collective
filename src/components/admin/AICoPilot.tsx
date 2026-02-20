@@ -265,8 +265,8 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
   const [selectedVideoResolution, setSelectedVideoResolution] = useState<string>("720p");
   const [videoGenerateAudio, setVideoGenerateAudio] = useState(false);
   const [fixedLens, setFixedLens] = useState(false);
-  const [selectedVideoProvider, setSelectedVideoProvider] = useState<string>("seedance");
-  const [selectedVideoModel, setSelectedVideoModel] = useState<string>("seedance-2.0");
+  const [selectedVideoProvider, setSelectedVideoProvider] = useState<string>("runway");
+  const [selectedVideoModel, setSelectedVideoModel] = useState<string>("gen4_turbo");
   const [videoProviderStatus, setVideoProviderStatus] = useState<Record<string, boolean>>({});
   const [isGeneratingVideo, setIsGeneratingVideo] = useState(false);
   const [videoProgress, setVideoProgress] = useState(0);
@@ -275,6 +275,9 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
 
   // Audio generated content
   const [generatedAudios, setGeneratedAudios] = useState<GeneratedContent[]>([]);
+  const [runwayVoicePreset, setRunwayVoicePreset] = useState("Leslie");
+  const [runwayAudioAction, setRunwayAudioAction] = useState<"tts" | "sfx">("tts");
+  const [isGeneratingRunwayAudio, setIsGeneratingRunwayAudio] = useState(false);
 
   // Display prefs
   const [displayScale, setDisplayScale] = useState(1.5);
@@ -1138,6 +1141,19 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
   );
 
   const VIDEO_PROVIDERS = [
+    { id: "runway", label: "Runway ML", pricing: "paid", color: "text-orange-400", desc: "Gen-4.5, Veo 3/3.1, Aleph, Act Two — professional quality", models: [
+      { id: "gen4.5", label: "Gen-4.5" },
+      { id: "gen4_turbo", label: "Gen-4 Turbo" },
+      { id: "veo3", label: "Veo 3 🔊" },
+      { id: "veo3.1", label: "Veo 3.1 🔊" },
+      { id: "veo3.1_fast", label: "Veo 3.1 Fast 🔊" },
+      { id: "gen4_aleph", label: "Gen-4 Aleph (V2V)" },
+      { id: "act_two", label: "Act Two (Motion)" },
+      { id: "gen3a_turbo", label: "Gen-3α Turbo" },
+    ]},
+    { id: "luma", label: "Luma Dream Machine", pricing: "paid", color: "text-pink-400", desc: "Cinematic video generation, image-to-video", models: [
+      { id: "dream-machine", label: "Dream Machine" },
+    ]},
     { id: "seedance", label: "Seedance 2.0", pricing: "paid", color: "text-cyan-400", desc: "High quality, 4-12s, audio gen", models: [
       { id: "seedance-2.0", label: "Seedance 2.0" },
     ]},
@@ -1154,13 +1170,6 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
       { id: "minimax/video-01-live", label: "MiniMax Live" },
       { id: "tencent/hunyuan-video", label: "HunyuanVideo" },
       { id: "wavespeedai/wan-2.1-t2v-480p", label: "Wan 2.1" },
-    ]},
-    { id: "luma", label: "Luma Dream Machine", pricing: "free-tier", color: "text-pink-400", desc: "Free tier available, cinematic", models: [
-      { id: "dream-machine", label: "Dream Machine" },
-    ]},
-    { id: "runway", label: "Runway ML", pricing: "paid", color: "text-orange-400", desc: "Gen-4 Turbo, professional quality", models: [
-      { id: "gen4_turbo", label: "Gen-4 Turbo" },
-      { id: "gen3a_turbo", label: "Gen-3α Turbo" },
     ]},
   ];
 
@@ -1236,7 +1245,7 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
         <div>
           <p className="text-[10px] text-white/40 mb-1">Duration: <span className="text-accent font-medium">{videoDuration}s</span></p>
           <div className="flex gap-2">
-            {(selectedVideoProvider === "seedance" ? [4, 8, 12] : selectedVideoProvider === "kling" ? [5, 10] : [4, 5, 8]).map(d => (
+            {(selectedVideoProvider === "runway" ? [2, 5, 8, 10] : selectedVideoProvider === "seedance" ? [4, 8, 12] : selectedVideoProvider === "kling" ? [5, 10] : [4, 5, 8]).map(d => (
               <button key={d} onClick={() => setVideoDuration(d)} className={`px-3 py-1.5 rounded-lg text-xs border transition-all ${videoDuration === d ? "border-accent/40 bg-accent/10 text-accent" : "border-white/10 text-white/30 hover:text-white/50"}`}>{d}s</button>
             ))}
           </div>
@@ -1287,52 +1296,150 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
     </div>
   );
 
+  const RUNWAY_VOICE_PRESETS = [
+    "Maya", "Arjun", "Serene", "Bernard", "Billy", "Mark", "Clint", "Mabel",
+    "Chad", "Leslie", "Eleanor", "Elias", "Elliot", "Brodie", "Sandra", "Kirk",
+    "Kylie", "Lara", "Lisa", "Marlene", "Martin", "Miriam", "Paula", "Pip",
+    "Rusty", "Ragnar", "Maggie", "Jack", "Katie", "Noah", "James", "Rina",
+    "Ella", "Mariah", "Frank", "Claudia", "Niki", "Vincent", "Kendrick",
+    "Tom", "Wanda", "Benjamin", "Kiana", "Rachel",
+  ];
+
+
+  const generateRunwayAudio = async () => {
+    if (!audioText.trim() || isGeneratingRunwayAudio) return;
+    setIsGeneratingRunwayAudio(true);
+    try {
+      const body: any = {
+        audio_action: runwayAudioAction,
+        text: audioText,
+        voice_preset: runwayVoicePreset,
+        duration: runwayAudioAction === "sfx" ? 5 : undefined,
+      };
+      const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/video-generate?action=audio`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+        body: JSON.stringify(body),
+      });
+      if (!resp.ok) { const ed = await resp.json().catch(() => ({})); throw new Error(ed.error || `Error ${resp.status}`); }
+      const result = await resp.json();
+      if (!result.task_id) throw new Error("No task returned");
+
+      // Poll for completion
+      let audioUrl: string | null = null;
+      for (let i = 0; i < 60; i++) {
+        await new Promise(r => setTimeout(r, 3000));
+        const pollResp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/video-generate?action=poll&provider=runway&task_id=${encodeURIComponent(result.task_id)}`, {
+          headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+        });
+        if (!pollResp.ok) continue;
+        const pollData = await pollResp.json();
+        if (pollData.status === "SUCCESS" && pollData.video_url) { audioUrl = pollData.video_url; break; }
+        if (pollData.status === "FAILED") throw new Error(pollData.error_message || "Audio generation failed");
+      }
+      if (!audioUrl) throw new Error("Audio generation timed out");
+
+      const saved = await saveGeneratedContent("audio", audioUrl, audioText, "audio", {
+        metadata: { voice: runwayAudioAction === "tts" ? `Runway: ${runwayVoicePreset}` : "Runway SFX", provider: "runway", action: runwayAudioAction },
+      });
+      if (saved) setGeneratedAudios(prev => [saved, ...prev]);
+      toast.success(`Audio generated via Runway (${runwayAudioAction === "tts" ? runwayVoicePreset : "SFX"})!`);
+    } catch (e: any) { toast.error(e.message || "Runway audio failed"); } finally { setIsGeneratingRunwayAudio(false); }
+  };
+
   const renderAudioPanel = () => (
     <div className="flex flex-1 overflow-hidden">
       <div className="w-[400px] border-r border-white/[0.06] flex flex-col overflow-hidden shrink-0">
         <div className="p-4 border-b border-white/[0.06] flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <p className="text-sm font-medium text-white">My Voices</p>
-            <Badge variant="outline" className="text-[9px] border-white/10 text-white/40">{voices.length}</Badge>
+            <p className="text-sm font-medium text-white">Voice & Audio</p>
+            <Badge variant="outline" className="text-[9px] border-white/10 text-white/40">{voices.length} cloned</Badge>
           </div>
           <Button size="sm" variant="ghost" onClick={() => setShowCreateVoice(true)} className="text-[11px] text-accent hover:text-accent/80 h-7 px-2 gap-1">
-            <Plus className="h-3 w-3" /> Create a voice
+            <Plus className="h-3 w-3" /> Clone Voice
           </Button>
         </div>
+
         <ScrollArea className="flex-1">
-          <div className="p-3 space-y-1">
-            {voices.length === 0 && <p className="text-[11px] text-white/20 text-center py-8">No voices yet. Create one to get started!</p>}
-            {voices.map(v => (
-              <div key={v.id} className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all ${selectedVoice === v.id ? "bg-accent/15 border border-accent/30" : "hover:bg-white/[0.04] border border-transparent"}`}
-                onClick={() => setSelectedVoice(v.id)}>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[12px] text-white font-medium truncate">{v.name}</p>
-                </div>
-                {(v.preview_url || (v.sample_urls && v.sample_urls.length > 0)) && (
-                  <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); const a = new Audio(v.preview_url || v.sample_urls![0]); a.play().catch(() => {}); }}
-                    className="h-7 w-7 p-0 text-white/30 hover:text-white shrink-0" title="Preview"><Play className="h-3 w-3" /></Button>
-                )}
-                <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); setEditingVoiceId(v.id); setVoiceParams(loadVoiceParams(v.id)); setShowVoiceEditor(true); }}
-                  className="h-7 w-7 p-0 text-white/20 hover:text-white shrink-0"><SlidersHorizontal className="h-3 w-3" /></Button>
-                <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); deleteVoice(v.id); }}
-                  className="h-7 w-7 p-0 text-white/20 hover:text-red-400 shrink-0"><Trash className="h-3 w-3" /></Button>
+          <div className="p-3 space-y-4">
+            {/* Runway TTS / SFX section */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 mb-1">
+                <p className="text-[11px] font-semibold text-orange-400">Runway ML Audio</p>
+                <Badge className="text-[7px] bg-orange-500/20 text-orange-400 border-orange-500/30 px-1 py-0">API</Badge>
               </div>
-            ))}
+              <div className="flex gap-1.5">
+                <button onClick={() => setRunwayAudioAction("tts")}
+                  className={`px-3 py-1.5 rounded-lg text-[10px] border transition-all flex-1 ${runwayAudioAction === "tts" ? "border-orange-400/40 bg-orange-400/10 text-orange-400" : "border-white/10 text-white/30 hover:text-white/50"}`}>
+                  Text to Speech
+                </button>
+                <button onClick={() => setRunwayAudioAction("sfx")}
+                  className={`px-3 py-1.5 rounded-lg text-[10px] border transition-all flex-1 ${runwayAudioAction === "sfx" ? "border-orange-400/40 bg-orange-400/10 text-orange-400" : "border-white/10 text-white/30 hover:text-white/50"}`}>
+                  Sound Effects
+                </button>
+              </div>
+              {runwayAudioAction === "tts" && (
+                <div>
+                  <p className="text-[10px] text-white/40 mb-1">Voice Preset</p>
+                  <Select value={runwayVoicePreset} onValueChange={setRunwayVoicePreset}>
+                    <SelectTrigger className="bg-white/5 border-white/10 text-white h-8 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent className="bg-[hsl(220,40%,10%)] border-white/10 max-h-[200px]">
+                      {RUNWAY_VOICE_PRESETS.map(v => (
+                        <SelectItem key={v} value={v} className="text-white text-xs">{v}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+            </div>
+
+            {/* Separator */}
+            <div className="border-t border-white/[0.06] pt-3">
+              <div className="flex items-center gap-2 mb-2">
+                <p className="text-[11px] font-semibold text-emerald-400">ElevenLabs Cloned Voices</p>
+                <Badge className="text-[7px] bg-emerald-500/20 text-emerald-400 border-emerald-500/30 px-1 py-0">CLONE</Badge>
+              </div>
+              <div className="space-y-1">
+                {voices.length === 0 && <p className="text-[11px] text-white/20 text-center py-4">No cloned voices yet. Create one!</p>}
+                {voices.map(v => (
+                  <div key={v.id} className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all ${selectedVoice === v.id ? "bg-accent/15 border border-accent/30" : "hover:bg-white/[0.04] border border-transparent"}`}
+                    onClick={() => setSelectedVoice(v.id)}>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[12px] text-white font-medium truncate">{v.name}</p>
+                    </div>
+                    {(v.preview_url || (v.sample_urls && v.sample_urls.length > 0)) && (
+                      <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); const a = new Audio(v.preview_url || v.sample_urls![0]); a.play().catch(() => {}); }}
+                        className="h-7 w-7 p-0 text-white/30 hover:text-white shrink-0" title="Preview"><Play className="h-3 w-3" /></Button>
+                    )}
+                    <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); setEditingVoiceId(v.id); setVoiceParams(loadVoiceParams(v.id)); setShowVoiceEditor(true); }}
+                      className="h-7 w-7 p-0 text-white/20 hover:text-white shrink-0"><SlidersHorizontal className="h-3 w-3" /></Button>
+                    <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); deleteVoice(v.id); }}
+                      className="h-7 w-7 p-0 text-white/20 hover:text-red-400 shrink-0"><Trash className="h-3 w-3" /></Button>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </ScrollArea>
         <div className="border-t border-white/[0.06] p-4 space-y-3">
-          {selectedVoice && <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2"><p className="text-[10px] text-amber-300/70">Selected: {voices.find(v => v.id === selectedVoice)?.name || "—"}</p></div>}
+          {selectedVoice && <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2"><p className="text-[10px] text-amber-300/70">ElevenLabs voice: {voices.find(v => v.id === selectedVoice)?.name || "—"}</p></div>}
           <div>
-            <p className="text-xs font-medium text-white mb-2">Text to convert to audio</p>
-            <Textarea value={audioText} onChange={e => setAudioText(e.target.value)} placeholder="Enter the text you want to convert to audio..."
-              className="bg-white/5 border-white/10 text-white text-sm min-h-[120px] resize-none placeholder:text-white/20"
-              onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); generateAudio(); } }} />
+            <p className="text-xs font-medium text-white mb-2">{runwayAudioAction === "sfx" ? "Describe the sound effect" : "Text to convert to speech"}</p>
+            <Textarea value={audioText} onChange={e => setAudioText(e.target.value)} placeholder={runwayAudioAction === "sfx" ? "A thunderstorm with heavy rain..." : "Enter the text you want to convert to audio..."}
+              className="bg-white/5 border-white/10 text-white text-sm min-h-[100px] resize-none placeholder:text-white/20"
+              onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); generateRunwayAudio(); } }} />
             <p className="text-[10px] text-white/30 mt-1">{audioText.length} characters</p>
           </div>
-          <Button onClick={generateAudio} disabled={!audioText.trim() || isGeneratingAudio}
-            className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white text-sm h-10">
-            {isGeneratingAudio ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Volume2 className="h-4 w-4 mr-2" />}Generate
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={generateRunwayAudio} disabled={!audioText.trim() || isGeneratingRunwayAudio}
+              className="flex-1 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white text-sm h-9">
+              {isGeneratingRunwayAudio ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Sparkles className="h-4 w-4 mr-2" />}Runway
+            </Button>
+            <Button onClick={generateAudio} disabled={!audioText.trim() || isGeneratingAudio || !selectedVoice}
+              className="flex-1 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white text-sm h-9">
+              {isGeneratingAudio ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Volume2 className="h-4 w-4 mr-2" />}ElevenLabs
+            </Button>
+          </div>
         </div>
       </div>
       <ScrollArea className="flex-1">{renderAudioGallery()}</ScrollArea>
