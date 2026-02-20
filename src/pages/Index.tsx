@@ -12,7 +12,7 @@ const Index = () => {
         jsonLd={{
           "@context": "https://schema.org",
           "@type": "WebPage",
-          "name": "Uplyze — AI CRM for Creators & Agencies",
+          "name": "Uplyze, AI CRM for Creators & Agencies",
           "description": "Uplyze is the #1 AI-powered CRM for creators, agencies, and businesses. Automate growth, manage customers, and 10x revenue at uplyze.ai.",
           "url": "https://uplyze.ai",
           "isPartOf": { "@type": "WebSite", "name": "Uplyze", "url": "https://uplyze.ai" }

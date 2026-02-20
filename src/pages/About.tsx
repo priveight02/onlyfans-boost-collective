@@ -42,7 +42,7 @@ const About = () => {
     <div className="min-h-screen bg-[hsl(222,35%,8%)]">
       <PageSEO
         title="About Uplyze | AI CRM for Creators & Agencies | uplyze.ai"
-        description="Learn about Uplyze — the #1 AI-powered CRM built for creators and agencies. Trusted by 500+ professionals to automate growth and 10x revenue at uplyze.ai."
+        description="Learn about Uplyze, the #1 AI-powered CRM built for creators and agencies. Trusted by 500+ professionals to automate growth and 10x revenue at uplyze.ai."
         jsonLd={{
           "@context": "https://schema.org",
           "@type": "AboutPage",
@@ -62,12 +62,12 @@ const About = () => {
             <Sparkles className="h-3.5 w-3.5 text-primary/70" />
             About Uplyze
           </div>
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white tracking-tight leading-tight mb-6">
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white tracking-tight leading-[1.15] mb-6">
             The AI CRM Built for
-            <span className="block bg-gradient-to-r from-primary to-blue-400 bg-clip-text text-transparent">Creators & Agencies</span>
+            <span className="block bg-gradient-to-r from-primary to-blue-400 bg-clip-text text-transparent pb-2">Creators & Agencies</span>
           </h1>
           <p className="text-[hsl(215,25%,70%)] text-lg sm:text-xl max-w-2xl mx-auto leading-relaxed mb-10">
-            Uplyze is the intelligent platform that helps creators automate growth, manage fan relationships with AI, and scale revenue — without scaling headcount.
+            Uplyze is the intelligent platform that helps creators automate growth, manage fan relationships with AI, and scale revenue without scaling headcount.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link to="/auth" className="inline-flex items-center gap-2 px-7 py-3.5 rounded-xl bg-primary text-white font-semibold hover:bg-primary/90 transition-all duration-300 hover:shadow-[0_0_30px_rgba(59,130,246,0.3)]">

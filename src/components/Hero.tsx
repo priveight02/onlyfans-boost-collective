@@ -131,12 +131,12 @@ const Hero = () => {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.9, delay: 0.2 }}
-            className="text-5xl md:text-7xl font-bold text-white mb-6 font-heading tracking-tight leading-[1.05]"
+            className="text-5xl md:text-7xl font-bold text-white mb-6 font-heading tracking-tight leading-[1.1]"
           >
-            Uplyze — The #1 AI CRM
+            Uplyze, The #1 AI CRM
             <br />
             <motion.span
-              className="inline-block bg-clip-text text-transparent"
+              className="inline-block bg-clip-text text-transparent pb-2"
               style={{
                 backgroundImage: 'linear-gradient(135deg, #c084fc 0%, #818cf8 25%, #60a5fa 50%, #818cf8 75%, #c084fc 100%)',
                 backgroundSize: '200% auto',
