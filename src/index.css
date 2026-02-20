@@ -290,6 +290,101 @@ html {
   color-scheme: dark;
 }
 
+/* ── AI Copilot Prose Styling ── */
+.prose.prose-invert h1,
+.prose.prose-invert h2,
+.prose.prose-invert h3,
+.prose.prose-invert h4 {
+  color: hsl(217 91% 75%);
+  font-weight: 700;
+  margin-top: 1.2em;
+  margin-bottom: 0.4em;
+}
+.prose.prose-invert h1 { font-size: 1.3em; }
+.prose.prose-invert h2 { font-size: 1.15em; }
+.prose.prose-invert h3 { font-size: 1.05em; }
+.prose.prose-invert strong {
+  color: hsl(217 91% 80%);
+  font-weight: 600;
+}
+.prose.prose-invert em {
+  color: hsl(262 83% 75%);
+  font-style: italic;
+}
+.prose.prose-invert ul,
+.prose.prose-invert ol {
+  padding-left: 1.2em;
+  margin: 0.5em 0;
+}
+.prose.prose-invert li {
+  margin: 0.25em 0;
+  color: hsl(0 0% 85%);
+}
+.prose.prose-invert li::marker {
+  color: hsl(217 91% 60%);
+}
+.prose.prose-invert code:not(pre code) {
+  background: hsl(217 91% 60% / 0.12);
+  color: hsl(217 91% 80%);
+  padding: 0.15em 0.4em;
+  border-radius: 0.35em;
+  font-size: 0.88em;
+  font-weight: 500;
+}
+.prose.prose-invert pre {
+  background: hsl(222 47% 6%) !important;
+  border: 1px solid hsl(217 91% 60% / 0.1);
+  border-radius: 0.75rem;
+  padding: 1em;
+  overflow-x: auto;
+  margin: 0.75em 0;
+}
+.prose.prose-invert pre code {
+  background: none;
+  padding: 0;
+  color: hsl(160 60% 70%);
+  font-size: 0.85em;
+}
+.prose.prose-invert blockquote {
+  border-left: 3px solid hsl(262 83% 58%);
+  padding-left: 1em;
+  margin: 0.75em 0;
+  color: hsl(0 0% 75%);
+  font-style: italic;
+}
+.prose.prose-invert table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.75em 0;
+  font-size: 0.9em;
+}
+.prose.prose-invert th {
+  background: hsl(217 91% 60% / 0.1);
+  color: hsl(217 91% 80%);
+  padding: 0.5em 0.75em;
+  text-align: left;
+  font-weight: 600;
+  border-bottom: 1px solid hsl(217 91% 60% / 0.2);
+}
+.prose.prose-invert td {
+  padding: 0.4em 0.75em;
+  border-bottom: 1px solid hsl(0 0% 100% / 0.05);
+  color: hsl(0 0% 80%);
+}
+.prose.prose-invert hr {
+  border-color: hsl(217 91% 60% / 0.15);
+  margin: 1em 0;
+}
+.prose.prose-invert a {
+  color: hsl(217 91% 70%);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.prose.prose-invert p {
+  margin: 0.4em 0;
+  line-height: 1.7;
+}
+
 /* ── Badge ── */
 .crm-badge {
   display: inline-flex;
