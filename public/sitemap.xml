@@ -1,10 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
-        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9
-        http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 
-  <!-- Homepage -->
+  <!-- Homepage — absolute priority -->
   <url>
     <loc>https://uplyze.ai/</loc>
     <lastmod>2026-02-20</lastmod>
@@ -12,85 +9,62 @@
     <priority>1.0</priority>
   </url>
 
-  <!-- Core Pages -->
-  <url>
-    <loc>https://uplyze.ai/services</loc>
-    <lastmod>2026-02-20</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.95</priority>
-  </url>
-
+  <!-- Pricing — second priority -->
   <url>
     <loc>https://uplyze.ai/pricing</loc>
     <lastmod>2026-02-20</lastmod>
     <changefreq>weekly</changefreq>
-    <priority>0.95</priority>
+    <priority>0.9</priority>
+  </url>
+
+  <!-- Lower priority pages -->
+  <url>
+    <loc>https://uplyze.ai/services</loc>
+    <lastmod>2026-02-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.4</priority>
   </url>
 
   <url>
     <loc>https://uplyze.ai/about</loc>
     <lastmod>2026-02-20</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.9</priority>
+    <priority>0.3</priority>
   </url>
 
   <url>
     <loc>https://uplyze.ai/faq</loc>
     <lastmod>2026-02-20</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.85</priority>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
   </url>
 
-  <!-- Blog -->
   <url>
     <loc>https://uplyze.ai/blog</loc>
     <lastmod>2026-02-20</lastmod>
-    <changefreq>daily</changefreq>
-    <priority>0.9</priority>
+    <changefreq>weekly</changefreq>
+    <priority>0.3</priority>
   </url>
 
-  <url>
-    <loc>https://uplyze.ai/blog/what-is-uplyze</loc>
-    <lastmod>2026-02-18</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.85</priority>
-  </url>
-
-  <url>
-    <loc>https://uplyze.ai/blog/uplyze-vs-hubspot</loc>
-    <lastmod>2026-02-15</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.85</priority>
-  </url>
-
-  <url>
-    <loc>https://uplyze.ai/blog/scale-to-100k</loc>
-    <lastmod>2026-02-12</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.85</priority>
-  </url>
-
-  <!-- Auth -->
   <url>
     <loc>https://uplyze.ai/auth</loc>
     <lastmod>2026-02-20</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
+    <priority>0.2</priority>
   </url>
 
-  <!-- Legal -->
   <url>
     <loc>https://uplyze.ai/privacy</loc>
     <lastmod>2026-02-20</lastmod>
     <changefreq>yearly</changefreq>
-    <priority>0.3</priority>
+    <priority>0.1</priority>
   </url>
 
   <url>
     <loc>https://uplyze.ai/terms</loc>
     <lastmod>2026-02-20</lastmod>
     <changefreq>yearly</changefreq>
-    <priority>0.3</priority>
+    <priority>0.1</priority>
   </url>
 
 </urlset>
