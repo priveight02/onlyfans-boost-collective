@@ -275,11 +275,11 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
 
   // Audio generated content
   const [generatedAudios, setGeneratedAudios] = useState<GeneratedContent[]>([]);
-  const [runwayVoicePreset, setRunwayVoicePreset] = useState("Leslie");
-  const [runwayAudioAction, setRunwayAudioAction] = useState<"tts" | "sfx" | "sts" | "voice_isolation" | "voice_dubbing">("tts");
-  const [isGeneratingRunwayAudio, setIsGeneratingRunwayAudio] = useState(false);
-  const [stsAudioUrl, setStsAudioUrl] = useState("");
+  const [elevenAction, setElevenAction] = useState<"tts" | "sfx" | "sts" | "voice_isolation" | "voice_dubbing">("tts");
+  const [isGeneratingElevenAudio, setIsGeneratingElevenAudio] = useState(false);
+  const [stsAudioFile, setStsAudioFile] = useState<File | null>(null);
   const [dubbingLanguage, setDubbingLanguage] = useState("es");
+  const stsFileInputRef = useRef<HTMLInputElement>(null);
 
   // Display prefs
   const [displayScale, setDisplayScale] = useState(1.5);
@@ -1297,61 +1297,102 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
     </div>
   );
 
-  const RUNWAY_VOICE_PRESETS = [
-    "Maya", "Arjun", "Serene", "Bernard", "Billy", "Mark", "Clint", "Mabel",
-    "Chad", "Leslie", "Eleanor", "Elias", "Elliot", "Brodie", "Sandra", "Kirk",
-    "Kylie", "Lara", "Lisa", "Marlene", "Martin", "Miriam", "Paula", "Pip",
-    "Rusty", "Ragnar", "Maggie", "Jack", "Katie", "Noah", "James", "Rina",
-    "Ella", "Mariah", "Frank", "Claudia", "Niki", "Vincent", "Kendrick",
-    "Tom", "Wanda", "Benjamin", "Kiana", "Rachel",
+  const DUBBING_LANGUAGES = [
+    { id: "es", l: "Spanish" }, { id: "fr", l: "French" }, { id: "de", l: "German" }, { id: "it", l: "Italian" },
+    { id: "pt", l: "Portuguese" }, { id: "ja", l: "Japanese" }, { id: "ko", l: "Korean" }, { id: "zh", l: "Chinese" },
+    { id: "ar", l: "Arabic" }, { id: "hi", l: "Hindi" }, { id: "ru", l: "Russian" }, { id: "nl", l: "Dutch" },
+    { id: "pl", l: "Polish" }, { id: "sv", l: "Swedish" }, { id: "tr", l: "Turkish" },
   ];
 
-
-  const generateRunwayAudio = async () => {
-    const needsText = runwayAudioAction === "tts" || runwayAudioAction === "sfx";
-    const needsAudio = runwayAudioAction === "sts" || runwayAudioAction === "voice_isolation" || runwayAudioAction === "voice_dubbing";
+  const generateElevenLabsAudio = async () => {
+    const needsText = elevenAction === "tts" || elevenAction === "sfx";
+    const needsFile = elevenAction === "sts" || elevenAction === "voice_isolation" || elevenAction === "voice_dubbing";
     if (needsText && !audioText.trim()) return;
-    if (needsAudio && !stsAudioUrl.trim()) { toast.error("Provide an audio/video URL"); return; }
-    if (isGeneratingRunwayAudio) return;
-    setIsGeneratingRunwayAudio(true);
+    if (needsFile && !stsAudioFile) { toast.error("Upload an audio file"); return; }
+    if (isGeneratingElevenAudio) return;
+
+    setIsGeneratingElevenAudio(true);
     try {
-      const body: any = {
-        audio_action: runwayAudioAction,
-        text: audioText || undefined,
-        voice_preset: runwayVoicePreset,
-        duration: runwayAudioAction === "sfx" ? 5 : undefined,
-        audio_url: stsAudioUrl || undefined,
-        target_language: dubbingLanguage,
-      };
-      const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/video-generate?action=audio`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
-        body: JSON.stringify(body),
-      });
-      if (!resp.ok) { const ed = await resp.json().catch(() => ({})); throw new Error(ed.error || `Error ${resp.status}`); }
-      const result = await resp.json();
-      if (!result.task_id) throw new Error("No task returned");
+      let result: any;
 
-      let audioUrl: string | null = null;
-      for (let i = 0; i < 60; i++) {
-        await new Promise(r => setTimeout(r, 3000));
-        const pollResp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/video-generate?action=poll&provider=runway&task_id=${encodeURIComponent(result.task_id)}`, {
-          headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+      if (elevenAction === "tts") {
+        // Use cloned voice TTS
+        const voice = voices.find(v => v.id === selectedVoice);
+        if (!voice?.elevenlabs_voice_id) { toast.error("Select a cloned voice first"); setIsGeneratingElevenAudio(false); return; }
+        const voiceSettings: any = {
+          stability: Math.max(0, Math.min(1, 0.5 - (voiceParams.pitch * 0.02))),
+          similarity_boost: Math.max(0, Math.min(1, 0.85 + (voiceParams.reverb * 0.001))),
+          style: 0.5,
+          speed: voiceParams.speed,
+        };
+        const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/voice-audio?action=generate`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+          body: JSON.stringify({ text: audioText, voice_id: voice.elevenlabs_voice_id, voice_settings: voiceSettings }),
         });
-        if (!pollResp.ok) continue;
-        const pollData = await pollResp.json();
-        if (pollData.status === "SUCCESS" && pollData.video_url) { audioUrl = pollData.video_url; break; }
-        if (pollData.status === "FAILED") throw new Error(pollData.error_message || "Audio generation failed");
+        if (!resp.ok) { const ed = await resp.json().catch(() => ({})); throw new Error(ed.error || `Error ${resp.status}`); }
+        result = await resp.json();
+      } else if (elevenAction === "sfx") {
+        const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/voice-audio?action=sfx`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+          body: JSON.stringify({ text: audioText, duration: 5 }),
+        });
+        if (!resp.ok) { const ed = await resp.json().catch(() => ({})); throw new Error(ed.error || `Error ${resp.status}`); }
+        result = await resp.json();
+      } else if (elevenAction === "sts") {
+        const voice = voices.find(v => v.id === selectedVoice);
+        if (!voice?.elevenlabs_voice_id) { toast.error("Select a cloned voice for STS"); setIsGeneratingElevenAudio(false); return; }
+        const formData = new FormData();
+        formData.append("voice_id", voice.elevenlabs_voice_id);
+        formData.append("audio", stsAudioFile!);
+        const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/voice-audio?action=sts`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+          body: formData,
+        });
+        if (!resp.ok) { const ed = await resp.json().catch(() => ({})); throw new Error(ed.error || `Error ${resp.status}`); }
+        result = await resp.json();
+      } else if (elevenAction === "voice_isolation") {
+        const formData = new FormData();
+        formData.append("audio", stsAudioFile!);
+        const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/voice-audio?action=voice_isolation`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+          body: formData,
+        });
+        if (!resp.ok) { const ed = await resp.json().catch(() => ({})); throw new Error(ed.error || `Error ${resp.status}`); }
+        result = await resp.json();
+      } else if (elevenAction === "voice_dubbing") {
+        const formData = new FormData();
+        formData.append("audio", stsAudioFile!);
+        formData.append("target_language", dubbingLanguage);
+        const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/voice-audio?action=voice_dubbing`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+          body: formData,
+        });
+        if (!resp.ok) { const ed = await resp.json().catch(() => ({})); throw new Error(ed.error || `Error ${resp.status}`); }
+        result = await resp.json();
       }
-      if (!audioUrl) throw new Error("Audio generation timed out");
 
-      const actionLabels: Record<string, string> = { tts: `Runway TTS: ${runwayVoicePreset}`, sfx: "Runway SFX", sts: `Runway STS: ${runwayVoicePreset}`, voice_isolation: "Voice Isolation", voice_dubbing: `Dubbed → ${dubbingLanguage.toUpperCase()}` };
-      const saved = await saveGeneratedContent("audio", audioUrl, audioText || stsAudioUrl, "audio", {
-        metadata: { voice: actionLabels[runwayAudioAction] || "Runway Audio", provider: "runway", action: runwayAudioAction },
+      if (!result?.audio_url) throw new Error("No audio returned");
+
+      const actionLabels: Record<string, string> = {
+        tts: `TTS: ${voices.find(v => v.id === selectedVoice)?.name || "Voice"}`,
+        sfx: "Sound Effect",
+        sts: `STS: ${voices.find(v => v.id === selectedVoice)?.name || "Voice"}`,
+        voice_isolation: "Voice Isolation",
+        voice_dubbing: `Dubbed → ${dubbingLanguage.toUpperCase()}`,
+      };
+      const saved = await saveGeneratedContent("audio", result.audio_url, audioText || stsAudioFile?.name || "", "audio", {
+        metadata: { voice: actionLabels[elevenAction] || "ElevenLabs", provider: "elevenlabs", action: elevenAction },
       });
       if (saved) setGeneratedAudios(prev => [saved, ...prev]);
-      toast.success(`Audio generated: ${actionLabels[runwayAudioAction]}!`);
-    } catch (e: any) { toast.error(e.message || "Runway audio failed"); } finally { setIsGeneratingRunwayAudio(false); }
+      toast.success(`Audio generated: ${actionLabels[elevenAction]}!`);
+      if (needsText) setAudioText("");
+      if (needsFile) setStsAudioFile(null);
+    } catch (e: any) { toast.error(e.message || "Audio generation failed"); } finally { setIsGeneratingElevenAudio(false); }
   };
 
   const renderAudioPanel = () => (
@@ -1359,8 +1400,8 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
       <div className="w-[400px] border-r border-white/[0.06] flex flex-col overflow-hidden shrink-0">
         <div className="p-4 border-b border-white/[0.06] flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <p className="text-sm font-medium text-white">Voice & Audio</p>
-            <Badge variant="outline" className="text-[9px] border-white/10 text-white/40">{voices.length} cloned</Badge>
+            <p className="text-sm font-medium text-white">ElevenLabs Audio</p>
+            <Badge variant="outline" className="text-[9px] border-emerald-500/30 text-emerald-400">{voices.length} cloned</Badge>
           </div>
           <Button size="sm" variant="ghost" onClick={() => setShowCreateVoice(true)} className="text-[11px] text-accent hover:text-accent/80 h-7 px-2 gap-1">
             <Plus className="h-3 w-3" /> Clone Voice
@@ -1369,88 +1410,27 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
 
         <ScrollArea className="flex-1">
           <div className="p-3 space-y-4">
-            {/* Runway TTS / SFX section */}
+            {/* Action selector */}
             <div className="space-y-2">
-              <div className="flex items-center gap-2 mb-1">
-                <p className="text-[11px] font-semibold text-orange-400">Runway ML Audio</p>
-                <Badge className="text-[7px] bg-orange-500/20 text-orange-400 border-orange-500/30 px-1 py-0">API</Badge>
-              </div>
+              <p className="text-[11px] font-semibold text-emerald-400">Audio Mode</p>
               <div className="flex flex-wrap gap-1.5">
                 {(["tts", "sfx", "sts", "voice_isolation", "voice_dubbing"] as const).map(act => {
                   const labels: Record<string, string> = { tts: "Text to Speech", sfx: "Sound Effects", sts: "Speech to Speech", voice_isolation: "Voice Isolation", voice_dubbing: "Voice Dubbing" };
                   const costs: Record<string, string> = { tts: "1cr/50ch", sfx: "1cr/6s", sts: "1cr/2s", voice_isolation: "1cr/6s", voice_dubbing: "1cr/2s" };
                   return (
-                    <button key={act} onClick={() => setRunwayAudioAction(act)}
-                      className={`px-2.5 py-1.5 rounded-lg text-[10px] border transition-all ${runwayAudioAction === act ? "border-orange-400/40 bg-orange-400/10 text-orange-400" : "border-white/10 text-white/30 hover:text-white/50"}`}>
+                    <button key={act} onClick={() => setElevenAction(act)}
+                      className={`px-2.5 py-1.5 rounded-lg text-[10px] border transition-all ${elevenAction === act ? "border-emerald-400/40 bg-emerald-400/10 text-emerald-400" : "border-white/10 text-white/30 hover:text-white/50"}`}>
                       {labels[act]} <span className="text-[7px] text-white/20">{costs[act]}</span>
                     </button>
                   );
                 })}
               </div>
-              {runwayAudioAction === "tts" && (
-                <div>
-                  <p className="text-[10px] text-white/40 mb-1">Voice Preset</p>
-                  <Select value={runwayVoicePreset} onValueChange={setRunwayVoicePreset}>
-                    <SelectTrigger className="bg-white/5 border-white/10 text-white h-8 text-xs"><SelectValue /></SelectTrigger>
-                    <SelectContent className="bg-[hsl(220,40%,10%)] border-white/10 max-h-[200px]">
-                      {RUNWAY_VOICE_PRESETS.map(v => (
-                        <SelectItem key={v} value={v} className="text-white text-xs">{v}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-              {runwayAudioAction === "sts" && (
-                <div className="space-y-2">
-                  <div>
-                    <p className="text-[10px] text-white/40 mb-1">Source Audio/Video URL</p>
-                    <Input value={stsAudioUrl} onChange={e => setStsAudioUrl(e.target.value)} placeholder="https://... audio or video URL" className="bg-white/5 border-white/10 text-white text-xs h-8" />
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-white/40 mb-1">Target Voice</p>
-                    <Select value={runwayVoicePreset} onValueChange={setRunwayVoicePreset}>
-                      <SelectTrigger className="bg-white/5 border-white/10 text-white h-8 text-xs"><SelectValue /></SelectTrigger>
-                      <SelectContent className="bg-[hsl(220,40%,10%)] border-white/10 max-h-[200px]">
-                        {RUNWAY_VOICE_PRESETS.map(v => (<SelectItem key={v} value={v} className="text-white text-xs">{v}</SelectItem>))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              )}
-              {(runwayAudioAction === "voice_isolation") && (
-                <div>
-                  <p className="text-[10px] text-white/40 mb-1">Audio/Video URL to isolate voice from</p>
-                  <Input value={stsAudioUrl} onChange={e => setStsAudioUrl(e.target.value)} placeholder="https://... audio or video URL" className="bg-white/5 border-white/10 text-white text-xs h-8" />
-                </div>
-              )}
-              {runwayAudioAction === "voice_dubbing" && (
-                <div className="space-y-2">
-                  <div>
-                    <p className="text-[10px] text-white/40 mb-1">Audio/Video URL to dub</p>
-                    <Input value={stsAudioUrl} onChange={e => setStsAudioUrl(e.target.value)} placeholder="https://... audio or video URL" className="bg-white/5 border-white/10 text-white text-xs h-8" />
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-white/40 mb-1">Target Language</p>
-                    <Select value={dubbingLanguage} onValueChange={setDubbingLanguage}>
-                      <SelectTrigger className="bg-white/5 border-white/10 text-white h-8 text-xs"><SelectValue /></SelectTrigger>
-                      <SelectContent className="bg-[hsl(220,40%,10%)] border-white/10 max-h-[200px]">
-                        {[{ id: "es", l: "Spanish" }, { id: "fr", l: "French" }, { id: "de", l: "German" }, { id: "it", l: "Italian" }, { id: "pt", l: "Portuguese" }, { id: "ja", l: "Japanese" }, { id: "ko", l: "Korean" }, { id: "zh", l: "Chinese" }, { id: "ar", l: "Arabic" }, { id: "hi", l: "Hindi" }, { id: "ru", l: "Russian" }, { id: "nl", l: "Dutch" }, { id: "pl", l: "Polish" }, { id: "sv", l: "Swedish" }, { id: "tr", l: "Turkish" }].map(lang => (
-                          <SelectItem key={lang.id} value={lang.id} className="text-white text-xs">{lang.l}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              )}
             </div>
 
-            {/* Separator */}
-            <div className="border-t border-white/[0.06] pt-3">
-              <div className="flex items-center gap-2 mb-2">
-                <p className="text-[11px] font-semibold text-emerald-400">ElevenLabs Cloned Voices</p>
-                <Badge className="text-[7px] bg-emerald-500/20 text-emerald-400 border-emerald-500/30 px-1 py-0">CLONE</Badge>
-              </div>
+            {/* Cloned voices list (needed for TTS + STS) */}
+            {(elevenAction === "tts" || elevenAction === "sts") && (
               <div className="space-y-1">
+                <p className="text-[10px] text-white/40 font-medium mb-1">Select Voice</p>
                 {voices.length === 0 && <p className="text-[11px] text-white/20 text-center py-4">No cloned voices yet. Create one!</p>}
                 {voices.map(v => (
                   <div key={v.id} className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all ${selectedVoice === v.id ? "bg-accent/15 border border-accent/30" : "hover:bg-white/[0.04] border border-transparent"}`}
@@ -1469,32 +1449,70 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
                   </div>
                 ))}
               </div>
-            </div>
-          </div>
-        </ScrollArea>
-        <div className="border-t border-white/[0.06] p-4 space-y-3">
-          {selectedVoice && runwayAudioAction === "tts" && <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2"><p className="text-[10px] text-amber-300/70">ElevenLabs voice: {voices.find(v => v.id === selectedVoice)?.name || "—"}</p></div>}
-          <div>
-            <p className="text-xs font-medium text-white mb-2">
-              {runwayAudioAction === "sfx" ? "Describe the sound effect" : runwayAudioAction === "tts" ? "Text to convert to speech" : "Additional notes (optional)"}
-            </p>
-            <Textarea value={audioText} onChange={e => setAudioText(e.target.value)} placeholder={runwayAudioAction === "sfx" ? "A thunderstorm with heavy rain..." : runwayAudioAction === "tts" ? "Enter the text you want to convert to audio..." : "Optional description or notes..."}
-              className="bg-white/5 border-white/10 text-white text-sm min-h-[80px] resize-none placeholder:text-white/20"
-              onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); generateRunwayAudio(); } }} />
-            <p className="text-[10px] text-white/30 mt-1">{audioText.length} characters</p>
-          </div>
-          <div className="flex gap-2">
-            <Button onClick={generateRunwayAudio} disabled={isGeneratingRunwayAudio || ((runwayAudioAction === "tts" || runwayAudioAction === "sfx") && !audioText.trim()) || ((runwayAudioAction === "sts" || runwayAudioAction === "voice_isolation" || runwayAudioAction === "voice_dubbing") && !stsAudioUrl.trim())}
-              className="flex-1 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white text-sm h-9">
-              {isGeneratingRunwayAudio ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Sparkles className="h-4 w-4 mr-2" />}Runway
-            </Button>
-            {runwayAudioAction === "tts" && (
-              <Button onClick={generateAudio} disabled={!audioText.trim() || isGeneratingAudio || !selectedVoice}
-                className="flex-1 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white text-sm h-9">
-                {isGeneratingAudio ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Volume2 className="h-4 w-4 mr-2" />}ElevenLabs
-              </Button>
+            )}
+
+            {/* File upload for STS / Isolation / Dubbing */}
+            {(elevenAction === "sts" || elevenAction === "voice_isolation" || elevenAction === "voice_dubbing") && (
+              <div>
+                <p className="text-[10px] text-white/40 mb-1">Upload Audio File</p>
+                <div className="border-2 border-dashed border-white/10 rounded-xl p-4 flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-white/20 transition-colors"
+                  onClick={() => stsFileInputRef.current?.click()}>
+                  {stsAudioFile ? (
+                    <div className="flex items-center gap-2">
+                      <Music className="h-4 w-4 text-emerald-400" />
+                      <span className="text-[11px] text-white/60">{stsAudioFile.name}</span>
+                      <button onClick={(e) => { e.stopPropagation(); setStsAudioFile(null); }}><X className="h-3 w-3 text-white/30 hover:text-red-400" /></button>
+                    </div>
+                  ) : (
+                    <><Upload className="h-5 w-5 text-white/20" /><p className="text-[10px] text-white/30">MP3, WAV, M4A — click to upload</p></>
+                  )}
+                </div>
+                <input ref={stsFileInputRef} type="file" accept="audio/*" className="hidden"
+                  onChange={e => { const f = e.target.files?.[0]; if (f) setStsAudioFile(f); if (stsFileInputRef.current) stsFileInputRef.current.value = ""; }} />
+              </div>
+            )}
+
+            {/* Dubbing language */}
+            {elevenAction === "voice_dubbing" && (
+              <div>
+                <p className="text-[10px] text-white/40 mb-1">Target Language</p>
+                <Select value={dubbingLanguage} onValueChange={setDubbingLanguage}>
+                  <SelectTrigger className="bg-white/5 border-white/10 text-white h-8 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent className="bg-[hsl(220,40%,10%)] border-white/10 max-h-[200px]">
+                    {DUBBING_LANGUAGES.map(lang => (
+                      <SelectItem key={lang.id} value={lang.id} className="text-white text-xs">{lang.l}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             )}
           </div>
+        </ScrollArea>
+
+        <div className="border-t border-white/[0.06] p-4 space-y-3">
+          {elevenAction === "tts" && selectedVoice && (
+            <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-2">
+              <p className="text-[10px] text-emerald-300/70">Voice: {voices.find(v => v.id === selectedVoice)?.name || "—"}</p>
+            </div>
+          )}
+          {(elevenAction === "tts" || elevenAction === "sfx") && (
+            <div>
+              <p className="text-xs font-medium text-white mb-2">
+                {elevenAction === "sfx" ? "Describe the sound effect" : "Text to convert to speech"}
+              </p>
+              <Textarea value={audioText} onChange={e => setAudioText(e.target.value)}
+                placeholder={elevenAction === "sfx" ? "A thunderstorm with heavy rain..." : "Enter the text you want to convert to audio..."}
+                className="bg-white/5 border-white/10 text-white text-sm min-h-[80px] resize-none placeholder:text-white/20"
+                onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); generateElevenLabsAudio(); } }} />
+              <p className="text-[10px] text-white/30 mt-1">{audioText.length} characters</p>
+            </div>
+          )}
+          <Button onClick={generateElevenLabsAudio}
+            disabled={isGeneratingElevenAudio || ((elevenAction === "tts" || elevenAction === "sfx") && !audioText.trim()) || ((elevenAction === "sts" || elevenAction === "voice_isolation" || elevenAction === "voice_dubbing") && !stsAudioFile)}
+            className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white text-sm h-9">
+            {isGeneratingElevenAudio ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Sparkles className="h-4 w-4 mr-2" />}
+            Generate with ElevenLabs
+          </Button>
         </div>
       </div>
       <ScrollArea className="flex-1">{renderAudioGallery()}</ScrollArea>
