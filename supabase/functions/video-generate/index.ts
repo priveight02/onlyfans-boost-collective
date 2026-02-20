@@ -140,20 +140,21 @@ async function huggingfaceCreate(body: any) {
 async function replicateCreate(body: any) {
   const apiKey = Deno.env.get("REPLICATE_API_KEY");
   if (!apiKey) throw new Error("REPLICATE_API_KEY not configured");
-  // Using minimax/video-01-live (free model on Replicate) or CogVideoX
   const model = body.model_name || "minimax/video-01-live";
   const input: any = { prompt: body.prompt };
   if (body.image_url) input.first_frame_image = body.image_url;
   if (body.duration) input.prompt_optimizer = true;
 
-  const resp = await fetch("https://api.replicate.com/v1/predictions", {
+  // Use the models endpoint (owner/name) to avoid needing a version hash
+  const resp = await fetch(`https://api.replicate.com/v1/models/${model}/predictions`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({ model, input }),
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}`, "Prefer": "wait" },
+    body: JSON.stringify({ input }),
   });
   const data = await resp.json();
   if (!resp.ok) throw new Error(data.detail || `Replicate error (${resp.status})`);
-  return { task_id: data.id, status: data.status === "succeeded" ? "SUCCESS" : "IN_PROGRESS", video_url: data.output?.[0] || null, provider: "replicate", poll_url: data.urls?.get };
+  const output = typeof data.output === "string" ? data.output : data.output?.[0] || null;
+  return { task_id: data.id, status: data.status === "succeeded" ? "SUCCESS" : "IN_PROGRESS", video_url: output, provider: "replicate", poll_url: data.urls?.get };
 }
 
 async function replicatePoll(taskId: string) {
