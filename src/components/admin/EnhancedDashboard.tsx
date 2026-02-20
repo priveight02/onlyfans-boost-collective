@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar,
 } from "recharts";
-import { DollarSign, Users, BarChart3, Crown, Activity, Wrench, EyeOff, PenOff, KeyRound, ArrowUpRight, ArrowDownRight, CheckCircle2, Circle, Phone, Mail } from "lucide-react";
+import { DollarSign, Users, BarChart3, Crown, Activity, Wrench, EyeOff, PenOff, KeyRound, ArrowUpRight, ArrowDownRight, CheckCircle2, Circle, Phone, Mail, TrendingUp, Calendar } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -76,18 +76,21 @@ const EnhancedDashboard = ({ isAdmin = false }: EnhancedDashboardProps) => {
     { month: "Jun", revenue: totalRevenue },
   ];
 
-  const pipelineData = [
-    { stage: "Leads", value: 180, color: "hsl(217,91%,60%)" },
-    { stage: "Contacted", value: 120, color: "hsl(199,89%,48%)" },
-    { stage: "Qualified", value: 80, color: "hsl(262,83%,58%)" },
-    { stage: "Proposal", value: 45, color: "hsl(330,81%,60%)" },
-    { stage: "Closed", value: 28, color: "hsl(160,84%,39%)" },
+  const kpis = [
+    { label: "NEW LEADS", value: activeAccounts > 0 ? activeAccounts * 3 : 124, change: "+5%", positive: true, color: "hsl(160,84%,39%)", sparkData: spark(100) },
+    { label: "ACTIVE DEALS", value: activeTasks > 0 ? activeTasks * 2 : 78, change: "+2%", positive: true, color: "hsl(262,83%,58%)", sparkData: spark(60) },
+    { label: "TOTAL REVENUE", value: `$${totalRevenue > 0 ? totalRevenue.toLocaleString() : "58,200"}`, change: "+12%", positive: true, color: "hsl(217,91%,60%)", sparkData: spark(200) },
+    { label: "CLOSED DEALS", value: "68%", change: "+3%", positive: true, color: "hsl(339,90%,51%)", sparkData: spark(80) },
   ];
 
-  const kpis = [
-    { label: "NEW LEADS", value: activeAccounts > 0 ? activeAccounts * 3 : 124, change: "+2%", positive: true, color: "hsl(160,84%,39%)", sparkData: spark(100) },
-    { label: "ACTIVE DEALS", value: activeTasks > 0 ? activeTasks * 2 : 78, change: "+2%", positive: true, color: "hsl(262,83%,58%)", sparkData: spark(60) },
-    { label: "TOTAL REVENUE", value: `$${totalRevenue > 0 ? totalRevenue.toLocaleString() : "58,200"}`, change: "+2%", positive: true, color: "hsl(217,91%,60%)", sparkData: spark(200) },
+  const weeklyPerformance = [
+    { day: "Mon", revenue: totalRevenue * 0.12, deals: 4 },
+    { day: "Tue", revenue: totalRevenue * 0.18, deals: 6 },
+    { day: "Wed", revenue: totalRevenue * 0.15, deals: 5 },
+    { day: "Thu", revenue: totalRevenue * 0.22, deals: 8 },
+    { day: "Fri", revenue: totalRevenue * 0.2, deals: 7 },
+    { day: "Sat", revenue: totalRevenue * 0.08, deals: 2 },
+    { day: "Sun", revenue: totalRevenue * 0.05, deals: 1 },
   ];
 
   // Admin controls
@@ -185,22 +188,20 @@ const EnhancedDashboard = ({ isAdmin = false }: EnhancedDashboardProps) => {
       )}
 
       {/* ── KPI Cards ── */}
-      <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         {kpis.map((kpi) => (
           <div key={kpi.label} className="crm-kpi-card group">
-            {/* Background glow */}
             <div className="absolute -top-16 -right-16 w-40 h-40 rounded-full blur-3xl opacity-[0.08] pointer-events-none" style={{ background: kpi.color }} />
-            <div className="absolute -bottom-12 -left-12 w-28 h-28 rounded-full blur-3xl opacity-[0.04] pointer-events-none" style={{ background: kpi.color }} />
             <div className="flex items-start justify-between relative z-10">
               <div className="space-y-1.5">
-                <p className="text-[11px] font-semibold tracking-widest" style={{ color: `${kpi.color}` }}>{kpi.label}</p>
-                <p className="text-4xl font-bold text-white tracking-tight leading-none">{kpi.value}</p>
+                <p className="text-[11px] font-semibold tracking-widest" style={{ color: kpi.color }}>{kpi.label}</p>
+                <p className="text-3xl font-bold text-white tracking-tight leading-none">{kpi.value}</p>
                 <div className="flex items-center gap-1.5 pt-1">
                   {kpi.positive ? <ArrowUpRight className="h-3.5 w-3.5 text-emerald-400" /> : <ArrowDownRight className="h-3.5 w-3.5 text-red-400" />}
                   <span className={`text-xs font-semibold ${kpi.positive ? "text-emerald-400" : "text-red-400"}`}>{kpi.change}</span>
                 </div>
               </div>
-              <div className="w-28 h-14 opacity-80 group-hover:opacity-100 transition-opacity">
+              <div className="w-24 h-12 opacity-80 group-hover:opacity-100 transition-opacity">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={kpi.sparkData}>
                     <defs>
@@ -220,38 +221,16 @@ const EnhancedDashboard = ({ isAdmin = false }: EnhancedDashboardProps) => {
 
       {/* ── Main Grid ── */}
       <div className="grid gap-5 lg:grid-cols-5">
-        {/* Sales Pipeline + Chart */}
+        {/* Revenue Chart */}
         <div className="lg:col-span-3 crm-panel p-6">
           <div className="flex items-center justify-between mb-5">
-            <h3 className="crm-section-title">Sales Pipeline</h3>
-            <span className="text-[11px] text-white/25">This quarter</span>
+            <h3 className="crm-section-title">Sales Performance</h3>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] px-2.5 py-1 rounded-lg bg-[hsl(217,91%,60%)]/10 text-[hsl(217,91%,60%)] font-semibold">Revenue</span>
+              <span className="text-[11px] text-white/25">This month</span>
+            </div>
           </div>
-          <div className="space-y-1 mb-6">
-            {pipelineData.map((stage, i) => {
-              const maxWidth = 100;
-              const minWidth = 30;
-              const widthPct = maxWidth - ((maxWidth - minWidth) / (pipelineData.length - 1)) * i;
-              return (
-                <div key={stage.stage} className="flex items-center gap-4">
-                  <div className="relative overflow-hidden rounded-md transition-all hover:brightness-125 cursor-default"
-                    style={{
-                      width: `${widthPct}%`,
-                      height: "36px",
-                      background: `linear-gradient(90deg, ${stage.color}, ${stage.color}99)`,
-                      clipPath: i === pipelineData.length - 1
-                        ? "polygon(4% 0%, 96% 0%, 92% 100%, 8% 100%)"
-                        : "polygon(0% 0%, 100% 0%, 96% 100%, 4% 100%)",
-                    }}>
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <span className="text-[11px] font-semibold text-white/90 drop-shadow-sm">{stage.stage}</span>
-                    </div>
-                  </div>
-                  <span className="text-sm font-bold text-white min-w-[40px]">{stage.value}</span>
-                </div>
-              );
-            })}
-          </div>
-          <div className="h-[190px]">
+          <div className="h-[260px]">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={revenueByMonth}>
                 <defs>
@@ -260,7 +239,6 @@ const EnhancedDashboard = ({ isAdmin = false }: EnhancedDashboardProps) => {
                     <stop offset="100%" stopColor="hsl(217,91%,60%)" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(0 0% 100% / 0.03)" />
                 <XAxis dataKey="month" stroke="transparent" tick={{ fontSize: 10, fill: "hsl(0 0% 100% / 0.25)" }} axisLine={false} tickLine={false} />
                 <YAxis stroke="transparent" tick={{ fontSize: 10, fill: "hsl(0 0% 100% / 0.25)" }} axisLine={false} tickLine={false} />
                 <Tooltip contentStyle={chartTooltipStyle} />
