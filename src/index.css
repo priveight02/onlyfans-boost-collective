@@ -229,6 +229,7 @@ html {
   color: white;
   font-size: 0.875rem;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  color-scheme: dark;
 }
 .crm-input::placeholder {
   color: hsl(0 0% 100% / 0.2);
@@ -237,6 +238,56 @@ html {
   border-color: hsl(217 91% 60% / 0.35);
   outline: none;
   box-shadow: 0 0 0 3px hsl(217 91% 60% / 0.08), 0 0 20px hsl(217 91% 60% / 0.06);
+}
+
+/* ── Dark-themed native inputs, selects, textareas inside .dark ── */
+.dark input,
+.dark select,
+.dark textarea {
+  color-scheme: dark;
+}
+.dark input:not(.crm-input),
+.dark select,
+.dark textarea {
+  background: hsl(222 47% 9% / 0.9);
+  border-color: hsl(217 91% 60% / 0.08);
+  color: white;
+}
+.dark input:not(.crm-input):focus,
+.dark select:focus,
+.dark textarea:focus {
+  border-color: hsl(217 91% 60% / 0.3);
+  outline: none;
+  box-shadow: 0 0 0 3px hsl(217 91% 60% / 0.08);
+}
+.dark input:not(.crm-input)::placeholder,
+.dark textarea::placeholder {
+  color: hsl(0 0% 100% / 0.2);
+}
+
+/* ── Dark select dropdown (Radix popover content) ── */
+.dark [data-radix-popper-content-wrapper] [role="listbox"],
+.dark [data-radix-select-viewport],
+.dark [cmdk-root] {
+  background: hsl(222 47% 8%) !important;
+  border-color: hsl(217 91% 60% / 0.1) !important;
+  color: white !important;
+}
+.dark [role="option"]:focus,
+.dark [role="option"][data-highlighted] {
+  background: hsl(217 91% 60% / 0.12) !important;
+  color: white !important;
+}
+
+/* ── Calendar / date picker dark overrides ── */
+.dark input[type="date"],
+.dark input[type="datetime-local"],
+.dark input[type="time"] {
+  background: hsl(222 47% 9% / 0.9);
+  border: 1px solid hsl(217 91% 60% / 0.08);
+  border-radius: 0.75rem;
+  color: white;
+  color-scheme: dark;
 }
 
 /* ── Badge ── */
