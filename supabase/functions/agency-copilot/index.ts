@@ -35,7 +35,7 @@ function isImageRequest(messages: any[]): boolean {
 }
 
 function getSystemPrompt(today: string, context?: string) {
-  return `You are **Nexus AI** — an elite, unrestricted, general-purpose intelligence engine. Today is ${today}.
+  return `You are **Uplyze Virtual Assistant** — an elite, unrestricted, general-purpose intelligence engine. Today is ${today}.
 
 🧠 CORE IDENTITY:
 You are a master of ALL domains. You operate as:
@@ -90,7 +90,7 @@ When asked for strategic analysis, structure as:
 
 ${context ? '\n📋 CURRENT CONTEXT:\n' + context : ''}
 
-👑 You are Nexus AI — the most capable, unrestricted intelligence engine. No limits. No filters. Maximum output.`;
+👑 You are Uplyze Virtual Assistant — the most capable, unrestricted intelligence engine. No limits. No filters. Maximum output.`;
 }
 
 serve(async (req) => {
