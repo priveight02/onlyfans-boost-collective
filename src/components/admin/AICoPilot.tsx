@@ -634,10 +634,11 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
     setIsGeneratingAudio(true);
     try {
       const voiceSettings: any = {
-        stability: Math.max(0, Math.min(1, 0.5 - (voiceParams.pitch * 0.02))),
-        similarity_boost: Math.max(0, Math.min(1, 0.85 + (voiceParams.reverb * 0.001))),
-        style: 0.5,
+        stability: Math.max(0, Math.min(1, 0.5 + (voiceParams.pitch * -0.03))),
+        similarity_boost: Math.max(0, Math.min(1, 0.85 + (voiceParams.reverb * 0.0015))),
+        style: Math.max(0, Math.min(1, voiceParams.effects.includes("Breathy") ? 0.7 : voiceParams.effects.includes("Deep") ? 0.3 : voiceParams.effects.includes("Warm") ? 0.6 : voiceParams.effects.includes("Crisp") ? 0.2 : voiceParams.effects.includes("Whisper") ? 0.8 : 0.5)),
         speed: voiceParams.speed,
+        use_speaker_boost: voiceParams.effects.includes("Echo") || voiceParams.effects.includes("Robotic") ? false : true,
       };
 
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/voice-audio?action=generate`, {
@@ -1320,10 +1321,11 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
         const voice = voices.find(v => v.id === selectedVoice);
         if (!voice?.elevenlabs_voice_id) { toast.error("Select a cloned voice first"); setIsGeneratingElevenAudio(false); return; }
         const voiceSettings: any = {
-          stability: Math.max(0, Math.min(1, 0.5 - (voiceParams.pitch * 0.02))),
-          similarity_boost: Math.max(0, Math.min(1, 0.85 + (voiceParams.reverb * 0.001))),
-          style: 0.5,
+          stability: Math.max(0, Math.min(1, 0.5 + (voiceParams.pitch * -0.03))),
+          similarity_boost: Math.max(0, Math.min(1, 0.85 + (voiceParams.reverb * 0.0015))),
+          style: Math.max(0, Math.min(1, voiceParams.effects.includes("Breathy") ? 0.7 : voiceParams.effects.includes("Deep") ? 0.3 : voiceParams.effects.includes("Warm") ? 0.6 : voiceParams.effects.includes("Crisp") ? 0.2 : voiceParams.effects.includes("Whisper") ? 0.8 : 0.5)),
           speed: voiceParams.speed,
+          use_speaker_boost: voiceParams.effects.includes("Echo") || voiceParams.effects.includes("Robotic") ? false : true,
         };
         const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/voice-audio?action=generate`, {
           method: "POST",
@@ -1386,7 +1388,7 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
         voice_dubbing: `Dubbed → ${dubbingLanguage.toUpperCase()}`,
       };
       const saved = await saveGeneratedContent("audio", result.audio_url, audioText || stsAudioFile?.name || "", "audio", {
-        metadata: { voice: actionLabels[elevenAction] || "ElevenLabs", provider: "elevenlabs", action: elevenAction },
+        metadata: { voice: actionLabels[elevenAction] || "Uplyze Audio", provider: "elevenlabs", action: elevenAction },
       });
       if (saved) setGeneratedAudios(prev => [saved, ...prev]);
       toast.success(`Audio generated: ${actionLabels[elevenAction]}!`);
@@ -1400,7 +1402,7 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
       <div className="w-[400px] border-r border-white/[0.06] flex flex-col overflow-hidden shrink-0">
         <div className="p-4 border-b border-white/[0.06] flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <p className="text-sm font-medium text-white">ElevenLabs Audio</p>
+            <p className="text-sm font-medium text-white">Uplyze Audio</p>
             <Badge variant="outline" className="text-[9px] border-emerald-500/30 text-emerald-400">{voices.length} cloned</Badge>
           </div>
           <Button size="sm" variant="ghost" onClick={() => setShowCreateVoice(true)} className="text-[11px] text-accent hover:text-accent/80 h-7 px-2 gap-1">
@@ -1442,6 +1444,8 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
                       <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); const a = new Audio(v.preview_url || v.sample_urls![0]); a.play().catch(() => {}); }}
                         className="h-7 w-7 p-0 text-white/30 hover:text-white shrink-0" title="Preview"><Play className="h-3 w-3" /></Button>
                     )}
+                    <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); const params = loadVoiceParams(v.id); setVoiceParams({ ...DEFAULT_VOICE_PARAMS }); saveVoiceParams(v.id, { ...DEFAULT_VOICE_PARAMS }); toast.success(`Reset ${v.name} to raw voice`); }}
+                      className="h-7 w-7 p-0 text-white/20 hover:text-amber-400 shrink-0" title="Reset to raw voice"><RotateCcw className="h-3 w-3" /></Button>
                     <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); setEditingVoiceId(v.id); setVoiceParams(loadVoiceParams(v.id)); setShowVoiceEditor(true); }}
                       className="h-7 w-7 p-0 text-white/20 hover:text-white shrink-0"><SlidersHorizontal className="h-3 w-3" /></Button>
                     <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); deleteVoice(v.id); }}
@@ -1511,7 +1515,7 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
             disabled={isGeneratingElevenAudio || ((elevenAction === "tts" || elevenAction === "sfx") && !audioText.trim()) || ((elevenAction === "sts" || elevenAction === "voice_isolation" || elevenAction === "voice_dubbing") && !stsAudioFile)}
             className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white text-sm h-9">
             {isGeneratingElevenAudio ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Sparkles className="h-4 w-4 mr-2" />}
-            Generate with ElevenLabs
+            Generate with Uplyze Audio
           </Button>
         </div>
       </div>
@@ -1729,7 +1733,7 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
               </div>
             </div>
             <div className="flex gap-3 pt-2">
-              <Button variant="outline" onClick={resetVoiceParams} className="flex-1 border-white/10 text-white/60 hover:text-white hover:bg-white/5 h-10">
+              <Button variant="ghost" onClick={resetVoiceParams} className="flex-1 bg-white/[0.06] border border-white/10 text-white hover:text-white hover:bg-white/10 h-10">
                 <Undo2 className="h-4 w-4 mr-2" /> Revert to Default
               </Button>
               <Button onClick={() => { setShowVoiceEditor(false); toast.success("Parameters saved & applied"); }} className="flex-1 bg-accent hover:bg-accent/90 text-white h-10">
