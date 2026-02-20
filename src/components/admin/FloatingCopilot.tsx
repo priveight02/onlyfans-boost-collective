@@ -145,9 +145,12 @@ const FloatingCopilot = ({ activeTab, contextData, onNavigate }: FloatingCopilot
     scrollToBottom();
 
     try {
+      // Pass user's auth token so edge function can deduct credits server-side
+      const { data: sessionData } = await supabase.auth.getSession();
+      const authToken = sessionData?.session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/agency-copilot`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` },
         body: JSON.stringify({ messages: apiMessages, context: buildContext() }),
       });
 
@@ -164,6 +167,10 @@ const FloatingCopilot = ({ activeTab, contextData, onNavigate }: FloatingCopilot
           setMessages(final);
           scrollToBottom();
           await saveToDb(cId, final, msgText.slice(0, 50));
+          // Refresh wallet balance if credits were spent by AI
+          if (data.creditsSpent && data.creditsSpent > 0) {
+            window.dispatchEvent(new Event('wallet-refresh'));
+          }
           if (data.navigateTo && onNavigate) {
             setTimeout(() => onNavigate(data.navigateTo), 800);
             toast.success(`Navigating to ${data.navigateTo}`, { description: "Uplyze Assistant executed your request." });
