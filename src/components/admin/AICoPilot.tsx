@@ -213,7 +213,7 @@ const AudioWaveform = ({ playing }: { playing: boolean }) => {
 };
 
 // ============= MAIN COMPONENT =============
-const AICoPilot = () => {
+const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
   // Core state
   const [conversations, setConversations] = useState<any[]>([]);
   const [activeConvoId, setActiveConvoId] = useState<string | null>(null);
@@ -438,9 +438,19 @@ const AICoPilot = () => {
       if (!resp.ok) { const errData = await resp.json().catch(() => ({})); throw new Error(errData.error || `Error ${resp.status}`); }
       const ct = resp.headers.get("content-type") || "";
       if (ct.includes("application/json")) {
-        setMessages([...baseMessages, { role: "assistant", content: "🎨 Generating..." }]); scrollToBottom();
+        setMessages([...baseMessages, { role: "assistant", content: "⚡ Processing..." }]); scrollToBottom();
         const data = await resp.json();
-        if (data.type === "image") {
+        if (data.type === "action") {
+          // CRM action executed by AI
+          const actionSummary = (data.actions || []).map((a: any) => `${a.success ? "✅" : "❌"} **${a.tool}**: ${typeof a.result === 'string' ? a.result : JSON.stringify(a.result)}`).join("\n");
+          const content = data.content || actionSummary || "Actions executed.";
+          const am: Msg = { role: "assistant", content };
+          const fm = [...baseMessages, am]; setMessages(fm); scrollToBottom(); await saveConversation(convoId, fm, msgText);
+          if (data.navigateTo && onNavigate) {
+            setTimeout(() => onNavigate(data.navigateTo), 800);
+            toast.success(`Navigating to ${data.navigateTo}`, { description: "Uplyze Assistant executed your request." });
+          }
+        } else if (data.type === "image") {
           const am: Msg = { role: "assistant", content: data.content || "Here's the generated image.", images: data.images || [] };
           const fm = [...baseMessages, am]; setMessages(fm); scrollToBottom(); await saveConversation(convoId, fm, msgText);
         } else if (data.type === "audio") {
