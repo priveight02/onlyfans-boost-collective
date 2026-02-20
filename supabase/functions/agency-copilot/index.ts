@@ -85,13 +85,15 @@ async function deductCreditsForTool(
     return { ok: false, error: "Failed to deduct credits", cost };
   }
 
-    // Log to ledger
-    await supabaseAdmin.from("credit_ledger").insert({
+    // Log to wallet_transactions ledger
+    await supabaseAdmin.from("wallet_transactions").insert({
       user_id: userId,
       amount: -cost,
       type: "spend",
       description: `AI assistant action: ${toolName}`,
       metadata: { action_type: toolName, cost, source: "ai_copilot" },
+    }).then(({ error: ledgerErr }: any) => {
+      if (ledgerErr) console.error("Ledger insert failed:", ledgerErr.message);
     });
 
   console.log(`AI deducted ${cost} credits from user ${userId} for tool: ${toolName}`);
@@ -426,59 +428,22 @@ async function executeTool(toolName: string, args: any, supabaseAdmin: any): Pro
 }
 
 function getSystemPrompt(today: string, context?: string, creditBalance?: number) {
-  return `You are **Uplyze Virtual Assistant** — an AI assistant with control over CRM operations. Today is ${today}.
+  return `You are **Uplyze Virtual Assistant** — an AI assistant that EXECUTES CRM operations via tool calls. Today is ${today}.
 
-🧠 CORE IDENTITY:
-You have DIRECT ACCESS to execute CRM actions via tools. You are an operator, not just an advisor.
+CRITICAL INSTRUCTION: You MUST use your tool functions to perform ANY action the user requests. NEVER just describe what you would do — ALWAYS call the actual tool function. If a user says "add Alex as a team member", you MUST call the create_team_member tool. If a user says "create a task", you MUST call the create_task tool.
 
 💰 CREDIT SYSTEM:
-Every action you execute costs credits from the user's wallet. Current balance: ${creditBalance !== undefined ? creditBalance : 'unknown'} credits.
-Credit costs per action:
-- Navigate: FREE
-- Query data: FREE
-- Create task: 2 credits
-- Create team member: 10 credits
-- Create account: 5 credits
-- Schedule content: 5 credits
-- Create contract: 8 credits
-- Send chat message: FREE
-- Create financial record: 5 credits
-- Default action: 3 credits
+Current balance: ${creditBalance !== undefined ? creditBalance : 'unknown'} credits.
+Costs: Navigate=FREE, Query=FREE, Create task=2cr, Team member=10cr, Account=5cr, Content=5cr, Contract=8cr, Chat=FREE, Financial=5cr.
 
-IMPORTANT RULES:
-1. Always inform the user of the credit cost BEFORE executing paid actions.
-2. If the user's balance is too low, tell them they need more credits and do NOT attempt the action.
-3. You CANNOT bypass credit costs. Every write action is metered server-side.
+RULES:
+1. ALWAYS call tool functions for actions. NEVER fake or describe an action without calling the tool.
+2. You can call MULTIPLE tools in one response (e.g., create_team_member AND navigate_to_tab).
+3. If balance is too low, tell the user — don't attempt the action.
+4. When creating team members without a given email, auto-generate: firstname.lastname@team.uplyze.com
+5. After tool execution, summarize ONLY what the tools actually returned. Never fabricate results.
 
-🔧 YOUR CRM CAPABILITIES (use the tools provided):
-- **Navigate**: Switch user to any tab (FREE)
-- **Create Tasks**: Add tasks with priority, status, due dates (2 credits)
-- **Manage Team**: Add team members with roles (10 credits)
-- **Create Accounts**: Add new managed accounts/creators (5 credits)
-- **Schedule Content**: Plan and schedule posts (5 credits)
-- **Draft Contracts**: Create contracts (8 credits)
-- **Send Messages**: Post in team chat rooms (FREE)
-- **Log Financials**: Record income, expenses, payouts (5 credits)
-- **Query Data**: Pull live CRM data (FREE)
-
-⚡ OPERATIONAL RULES:
-1. When a user asks you to DO something — USE YOUR TOOLS. Don't just describe what to do.
-2. When navigating, always use navigate_to_tab first so the user sees the right section.
-3. If a user asks for data, use get_crm_data to fetch REAL data and present it.
-4. You can chain multiple tools: e.g., create a task AND navigate to the tasks tab.
-5. Always confirm what you did after executing actions, including credits spent.
-6. For complex requests, break them down and execute each part.
-7. When creating team members, ALWAYS provide an email. If user doesn't give one, generate a reasonable one like firstname.lastname@team.uplyze.com.
-
-📊 OUTPUT FORMAT:
-- After executing actions, summarize what was done in a clear, formatted way
-- Use ✅ for successful actions, ❌ for failures
-- Show credit cost: "💰 Cost: X credits"
-- Use bold headers and bullet points
-
-${context ? '\n📋 CURRENT CONTEXT:\n' + context : ''}
-
-👑 You are the Uplyze Virtual Assistant — CRM control with credit-metered actions.`;
+${context ? '\n📋 CONTEXT:\n' + context : ''}`;
 }
 
 serve(async (req) => {
@@ -656,7 +621,17 @@ serve(async (req) => {
     const systemPrompt = getSystemPrompt(today, context, creditBalance);
     const processedMessages = messages.map((msg: any) => msg);
 
-    // First call: let AI decide if it needs to use tools (use GPT for reliable tool calling)
+    // Detect if user is requesting an action (write operation)
+    const lastUserMsg = messages.filter((m: any) => m.role === "user").pop();
+    const lastUserText = typeof lastUserMsg?.content === "string" ? lastUserMsg.content.toLowerCase() : "";
+    const ACTION_KEYWORDS = ["create", "add", "make", "schedule", "send", "draft", "log", "remove", "delete", "assign", "set up", "build"];
+    const isActionRequest = ACTION_KEYWORDS.some(kw => lastUserText.includes(kw));
+
+    // Use "required" tool_choice for action requests to force tool usage
+    const toolChoiceValue = isActionRequest ? "required" : "auto";
+    console.log(`Tool choice: ${toolChoiceValue}, action keywords detected: ${isActionRequest}`);
+
+    // First call: let AI decide if it needs to use tools
     const toolResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
@@ -664,7 +639,7 @@ serve(async (req) => {
         model: "openai/gpt-5-mini",
         messages: [{ role: "system", content: systemPrompt }, ...processedMessages],
         tools: CRM_TOOLS,
-        tool_choice: "auto",
+        tool_choice: toolChoiceValue,
         stream: false,
       }),
     });
@@ -679,9 +654,11 @@ serve(async (req) => {
 
     const toolData = await toolResponse.json();
     const choice = toolData.choices?.[0];
-    const toolCalls = choice?.message?.tool_calls;
+    let toolCalls = choice?.message?.tool_calls;
 
-    // If AI didn't use tools, return the text as streaming-compatible response
+    console.log(`AI returned ${toolCalls?.length || 0} tool call(s)`, toolCalls?.map((tc: any) => tc.function.name));
+
+    // If AI didn't use tools, stream a text response
     if (!toolCalls || toolCalls.length === 0) {
       const streamResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
@@ -758,13 +735,14 @@ serve(async (req) => {
       })),
     ];
 
-    // Get final AI response summarizing the actions
+    // Get final AI response summarizing ONLY what actually happened
+    const summarySystemPrompt = `You are summarizing CRM tool execution results. ONLY report what the tools actually returned. Do NOT fabricate or assume any results. Use ✅ for success and ❌ for failures. Include credit costs. Be concise.`;
     const summaryResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         model: "openai/gpt-5-mini",
-        messages: [{ role: "system", content: systemPrompt }, ...toolResultMessages],
+        messages: [{ role: "system", content: summarySystemPrompt }, ...toolResultMessages],
         stream: false,
       }),
     });

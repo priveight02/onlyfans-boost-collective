@@ -73,10 +73,26 @@ const FloatingCopilot = ({ activeTab, contextData, onNavigate }: FloatingCopilot
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Load the most recent conversation from the shared copilot_conversations table (synced with main tab)
   useEffect(() => {
-    supabase.from("managed_accounts")
-      .select("id, username, display_name, monthly_revenue, subscriber_count, status")
-      .then(({ data }) => setAccounts(data || []));
+    const loadData = async () => {
+      const [accts, latestConvo] = await Promise.all([
+        supabase.from("managed_accounts")
+          .select("id, username, display_name, monthly_revenue, subscriber_count, status"),
+        supabase.from("copilot_conversations")
+          .select("id, messages")
+          .order("updated_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+      ]);
+      setAccounts(accts.data || []);
+      // Restore last conversation so floating widget is synced with main AI tab
+      if (latestConvo.data) {
+        setConvoId(latestConvo.data.id);
+        setMessages((latestConvo.data.messages as unknown as Msg[]) || []);
+      }
+    };
+    loadData();
     const timer = setTimeout(() => setPulseHint(false), 8000);
     const draft = loadDraftData();
     if (draft) {
