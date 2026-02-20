@@ -110,7 +110,7 @@ const Services = () => {
           className="text-center mb-14"
         >
           <h2 className="text-3xl md:text-5xl font-bold font-heading mb-4 text-white">
-            How We{" "}
+            How Uplyze{" "}
             <motion.span
               className="inline-block bg-clip-text text-transparent"
               style={{
@@ -120,11 +120,11 @@ const Services = () => {
               animate={{ backgroundPosition: ['0% center', '200% center'] }}
               transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
             >
-              Grow Your Business
+              Grows Your Business
             </motion.span>
           </h2>
           <p className="text-lg text-white/50 max-w-2xl mx-auto">
-            Whether you're a creator, agency, or brand, our AI works around the clock to expand your reach, convert leads, and drive revenue.
+            Whether you're a creator, agency, or brand, Uplyze AI works around the clock to expand your reach, convert leads, and drive revenue at uplyze.ai.
           </p>
         </motion.div>
         

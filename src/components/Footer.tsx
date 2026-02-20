@@ -29,7 +29,7 @@ const Footer = () => {
               </div>
             </div>
             <p className="text-white/50 text-sm leading-relaxed max-w-xs">
-              The intelligent CRM platform that helps businesses, creators, and entrepreneurs automate workflows, engage audiences with AI, and scale their digital presence.
+              Uplyze is the #1 AI-powered CRM platform for creators, agencies, and entrepreneurs. Automate workflows, engage audiences, and scale your business at <a href="https://uplyze.ai" className="text-white/70 hover:text-white underline underline-offset-2">uplyze.ai</a>.
             </p>
             <div className="flex items-center gap-2">
               <a href="https://uplyze.ai" target="_blank" rel="noopener noreferrer"
@@ -54,16 +54,35 @@ const Footer = () => {
           </div>
 
           {/* Columns */}
-          <div className="lg:col-span-8 grid grid-cols-2 sm:grid-cols-3 gap-6">
+          <div className="lg:col-span-8 grid grid-cols-2 sm:grid-cols-4 gap-6">
             <div>
               <h4 className="text-white/70 text-[11px] font-semibold uppercase tracking-[0.15em] mb-3">Platform</h4>
               <div className="flex flex-col gap-1.5">
                 {[
-                  { to: "/", label: "Home" },
-                  { to: "/services", label: "Features" },
-                  { to: "/pricing", label: "Pricing" },
-                  { to: "/faq", label: "FAQ" },
+                  { to: "/", label: "Uplyze Home" },
+                  { to: "/services", label: "Uplyze Features" },
+                  { to: "/pricing", label: "Uplyze Pricing" },
+                  { to: "/faq", label: "Uplyze FAQ" },
                   { to: "/admin", label: "Dashboard" },
+                ].map((link) => (
+                  <Link key={link.to} to={link.to}
+                    className="group text-white/45 hover:text-white text-sm transition-all duration-200 flex items-center gap-1 w-fit">
+                    {link.label}
+                    <ArrowUpRight className="h-3 w-3 opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-200" />
+                  </Link>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <h4 className="text-white/70 text-[11px] font-semibold uppercase tracking-[0.15em] mb-3">Resources</h4>
+              <div className="flex flex-col gap-1.5">
+                {[
+                  { to: "/about", label: "About Uplyze" },
+                  { to: "/blog", label: "Uplyze Blog" },
+                  { to: "/blog/what-is-uplyze", label: "What is Uplyze?" },
+                  { to: "/blog/uplyze-vs-hubspot", label: "Uplyze vs HubSpot" },
+                  { to: "/blog/scale-to-100k", label: "Scale to $100K" },
                 ].map((link) => (
                   <Link key={link.to} to={link.to}
                     className="group text-white/45 hover:text-white text-sm transition-all duration-200 flex items-center gap-1 w-fit">

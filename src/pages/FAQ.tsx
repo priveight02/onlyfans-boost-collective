@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import Footer from "@/components/Footer";
 import { useAuth } from "@/hooks/useAuth";
+import PageSEO from "@/components/PageSEO";
 import {
   Accordion,
   AccordionContent,
@@ -128,6 +129,21 @@ const FAQ = () => {
 
   return (
     <div className="min-h-screen bg-[hsl(222,35%,8%)]">
+      <PageSEO
+        title="Uplyze FAQ | AI CRM Questions & Answers | uplyze.ai"
+        description="Get answers about Uplyze — the AI-powered CRM for creators & agencies. Learn about features, pricing, automation, and how Uplyze helps you scale at uplyze.ai."
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          "name": "Uplyze FAQ",
+          "url": "https://uplyze.ai/faq",
+          "mainEntity": faqs.flatMap(cat => cat.questions.map(q => ({
+            "@type": "Question",
+            "name": q.question,
+            "acceptedAnswer": { "@type": "Answer", "text": q.answer }
+          })))
+        }}
+      />
       {/* Ambient glows */}
       <div className="fixed inset-0 pointer-events-none">
         <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-purple-600/8 rounded-full blur-[120px]" />
