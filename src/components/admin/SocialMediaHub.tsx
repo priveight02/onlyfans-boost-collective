@@ -44,6 +44,7 @@ const VerifiedBadge = ({ size = 12 }: { size?: number }) => (
 
 const SocialMediaHub = () => {
   const [activeSubTab, setActiveSubTab] = useState("dashboard");
+  const [platformTab, setPlatformTab] = useState("instagram");
   const [accounts, setAccounts] = useState<any[]>([]);
   const [selectedAccount, setSelectedAccount] = useState("");
   const [connections, setConnections] = useState<any[]>([]);
@@ -1190,7 +1191,7 @@ const SocialMediaHub = () => {
   const facebookConnected = connections.some(c => c.platform === "facebook" && c.is_connected);
 
   const navigateToConnect = (platform: string) => {
-    setActiveSubTab("connect");
+    setPlatformTab("connect");
   };
 
   const saveIgSessionData = async () => {
@@ -1720,7 +1721,30 @@ const SocialMediaHub = () => {
         ))}
       </div>
 
-      {/* Tabs */}
+      {/* Platform Tabs */}
+      <div className="flex gap-1 flex-wrap mb-3">
+        {[
+          { v: "instagram", icon: Instagram, l: "Instagram Automation", activeClasses: "bg-gradient-to-r from-pink-500/20 to-purple-500/20 text-foreground border-pink-500/30 shadow-[0_0_12px_-3px] shadow-pink-500/20" },
+          { v: "tiktok", icon: Music2, l: "TikTok Automation", activeClasses: "bg-gradient-to-r from-cyan-500/20 to-teal-500/20 text-foreground border-cyan-500/30 shadow-[0_0_12px_-3px] shadow-cyan-500/20" },
+          { v: "threads", icon: AtSign, l: "Threads Automation", activeClasses: "bg-gradient-to-r from-purple-500/20 to-violet-500/20 text-foreground border-purple-500/30 shadow-[0_0_12px_-3px] shadow-purple-500/20" },
+          { v: "facebook", icon: Globe, l: "Facebook Automation", activeClasses: "bg-gradient-to-r from-blue-500/20 to-indigo-500/20 text-foreground border-blue-500/30 shadow-[0_0_12px_-3px] shadow-blue-500/20" },
+          { v: "connect", icon: Plus, l: "Connect", activeClasses: "bg-muted text-foreground border-border" },
+        ].map(t => (
+          <button
+            key={t.v}
+            onClick={() => setPlatformTab(t.v)}
+            className={`flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg border font-semibold transition-all ${
+              platformTab === t.v
+                ? t.activeClasses
+                : "text-muted-foreground border-transparent hover:bg-muted/30 hover:text-foreground"
+            }`}
+          >
+            <t.icon className="h-3.5 w-3.5" /> {t.l}
+          </button>
+        ))}
+      </div>
+
+      {platformTab !== "connect" ? (
       <Tabs value={activeSubTab} onValueChange={setActiveSubTab}>
         <TabsList className="bg-muted/50 border border-border p-0.5 rounded-lg gap-0.5 flex flex-wrap w-full">
             {[
@@ -1736,7 +1760,6 @@ const SocialMediaHub = () => {
               { v: "biolink", icon: Link2, l: "Bio Links" },
               { v: "automation", icon: Zap, l: "Automation" },
               { v: "social-networks", icon: Globe, l: "Networks" },
-              { v: "connect", icon: Plus, l: "Connect" },
             ].map(t => (
               <TabsTrigger key={t.v} value={t.v} className="data-[state=active]:bg-background data-[state=active]:text-foreground text-muted-foreground rounded-md gap-1 text-xs px-2 py-1.5 whitespace-nowrap">
                 <t.icon className="h-3.5 w-3.5" />{t.l}
@@ -2170,8 +2193,9 @@ const SocialMediaHub = () => {
           <SocialNetworksTab selectedAccount={selectedAccount} onNavigateToConnect={navigateToConnect} />
         </TabsContent>
 
-        {/* ===== CONNECT ===== */}
-        <TabsContent value="connect" className="space-y-4 mt-4">
+      </Tabs>
+      ) : (
+        <div className="space-y-4">
           <Tabs defaultValue="one-click" className="space-y-4">
             <TabsList className="bg-muted/50 p-1 rounded-lg">
               <TabsTrigger value="one-click" className="text-xs gap-1.5 data-[state=active]:bg-background">
@@ -2182,9 +2206,8 @@ const SocialMediaHub = () => {
               </TabsTrigger>
             </TabsList>
 
-            {/* ===== SESSION & CREDENTIALS SUBTAB (DEFAULT) ===== */}
+            {/* ===== SESSION & CREDENTIALS SUBTAB ===== */}
             <TabsContent value="session" className="space-y-4">
-              {/* Manual Connection - FIRST */}
               <Card>
                 <CardContent className="p-4 space-y-3">
                   <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><Shield className="h-4 w-4 text-muted-foreground" />Manual Connection</h4>
@@ -2199,204 +2222,46 @@ const SocialMediaHub = () => {
                       <Input value={connectForm.platform_username} onChange={e => setConnectForm(p => ({ ...p, platform_username: e.target.value }))} placeholder={connectForm.platform === "whatsapp" ? "Phone Number" : "Username"} className="text-sm" />
                       <Input value={connectForm.platform_user_id} onChange={e => setConnectForm(p => ({ ...p, platform_user_id: e.target.value }))} placeholder={connectForm.platform === "whatsapp" ? "Phone Number ID" : connectForm.platform === "facebook" ? "User/Page ID" : "User ID"} className="text-sm" />
                       <Input value={connectForm.access_token} onChange={e => setConnectForm(p => ({ ...p, access_token: e.target.value }))} placeholder="Access Token" type="password" className="text-sm" />
-                      <Input value={connectForm.refresh_token} onChange={e => setConnectForm(p => ({ ...p, refresh_token: e.target.value }))} placeholder="Refresh Token (optional)" type="password" className="text-sm" />
-                    </>
-                  ) : connectForm.platform === "telegram" ? (
-                    <>
-                      <Input value={connectForm.platform_username} onChange={e => setConnectForm(p => ({ ...p, platform_username: e.target.value }))} placeholder="Bot Username" className="text-sm" />
-                      <Input value={connectForm.access_token} onChange={e => setConnectForm(p => ({ ...p, access_token: e.target.value }))} placeholder="Bot Token (from @BotFather)" type="password" className="text-sm" />
-                    </>
-                  ) : connectForm.platform === "discord" ? (
-                    <>
-                      <Input value={connectForm.platform_username} onChange={e => setConnectForm(p => ({ ...p, platform_username: e.target.value }))} placeholder="Bot Username" className="text-sm" />
-                      <Input value={connectForm.access_token} onChange={e => setConnectForm(p => ({ ...p, access_token: e.target.value }))} placeholder="Bot Token (from discord.com/developers)" type="password" className="text-sm" />
-                    </>
-                  ) : connectForm.platform === "signal" ? (
-                    <>
-                      <Input value={connectForm.platform_username} onChange={e => setConnectForm(p => ({ ...p, platform_username: e.target.value }))} placeholder="Phone Number (+1234...)" className="text-sm" />
-                      <Input value={connectForm.access_token} onChange={e => setConnectForm(p => ({ ...p, access_token: e.target.value }))} placeholder="Signal API URL (http://localhost:8080)" className="text-sm" />
-                    </>
-                  ) : connectForm.platform === "youtube" ? (
-                    <>
-                      <Input value={connectForm.platform_username} onChange={e => setConnectForm(p => ({ ...p, platform_username: e.target.value }))} placeholder="Channel Name" className="text-sm" />
-                      <Input value={connectForm.platform_user_id} onChange={e => setConnectForm(p => ({ ...p, platform_user_id: e.target.value }))} placeholder="Channel ID" className="text-sm" />
-                      <Input value={connectForm.access_token} onChange={e => setConnectForm(p => ({ ...p, access_token: e.target.value }))} placeholder="OAuth Access Token" type="password" className="text-sm" />
-                      <Input value={connectForm.refresh_token} onChange={e => setConnectForm(p => ({ ...p, refresh_token: e.target.value }))} placeholder="Refresh Token" type="password" className="text-sm" />
-                    </>
-                  ) : connectForm.platform === "snapchat" ? (
-                    <>
-                      <Input value={connectForm.platform_username} onChange={e => setConnectForm(p => ({ ...p, platform_username: e.target.value }))} placeholder="Organization/Account Name" className="text-sm" />
-                      <Input value={connectForm.access_token} onChange={e => setConnectForm(p => ({ ...p, access_token: e.target.value }))} placeholder="OAuth Access Token" type="password" className="text-sm" />
-                      <Input value={connectForm.refresh_token} onChange={e => setConnectForm(p => ({ ...p, refresh_token: e.target.value }))} placeholder="Refresh Token" type="password" className="text-sm" />
+                      <Button onClick={connectPlatform} disabled={loading} className="w-full"><Plus className="h-3.5 w-3.5 mr-1" />Connect {connectForm.platform}</Button>
                     </>
                   ) : (
                     <>
-                      <Input value={connectForm.platform_username} onChange={e => setConnectForm(p => ({ ...p, platform_username: e.target.value }))} placeholder="Username" className="text-sm" />
-                      <Input value={connectForm.platform_user_id} onChange={e => setConnectForm(p => ({ ...p, platform_user_id: e.target.value }))} placeholder="User ID" className="text-sm" />
+                      <Input value={connectForm.platform_username} onChange={e => setConnectForm(p => ({ ...p, platform_username: e.target.value }))} placeholder="Username / Handle" className="text-sm" />
                       <Input value={connectForm.access_token} onChange={e => setConnectForm(p => ({ ...p, access_token: e.target.value }))} placeholder="Access Token / API Key" type="password" className="text-sm" />
-                      <Input value={connectForm.refresh_token} onChange={e => setConnectForm(p => ({ ...p, refresh_token: e.target.value }))} placeholder="Refresh Token (optional)" type="password" className="text-sm" />
+                      <Button onClick={connectPlatform} disabled={loading} className="w-full"><Plus className="h-3.5 w-3.5 mr-1" />Connect {connectForm.platform}</Button>
                     </>
                   )}
-                  <Button onClick={connectPlatform} size="sm" variant="outline" className="text-foreground"><Plus className="h-3.5 w-3.5 mr-1" />Connect Manually</Button>
                 </CardContent>
               </Card>
 
-              {/* Instagram Session Cookie - SECOND */}
-              {igConnected && (
-                <Card id="ig-session-section" className={`border-pink-500/20 ring-2 ring-pink-500/10 transition-all ${igSessionPulse ? "animate-session-pulse" : ""}`}>
-                  <CardContent className="p-4 space-y-4">
-                    <div className="flex items-center justify-between">
-                      <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                        <Key className="h-4 w-4 text-pink-400" />
-                        Instagram Session
-                      </h4>
-                      <div className="flex items-center gap-2">
-                        {igSessionStatus === "valid" && igSessionId && (
-                          <Badge className="bg-emerald-500/15 text-emerald-400 border-emerald-500/30 text-[10px]">
-                            <CheckCircle2 className="h-3 w-3 mr-1" /> Session Active
-                          </Badge>
-                        )}
-                        {!igSessionId && (() => {
-                          const igConn = connections.find(c => c.platform === "instagram" && c.is_connected);
-                          const meta = (igConn?.metadata as any) || {};
-                          const connUsername = igConn?.platform_username;
-                          if (meta.ig_access_token || meta.ig_session_source === "oauth_token") {
-                            return (
-                              <Badge className="bg-blue-500/15 text-blue-400 border-blue-500/30 text-[10px]">
-                                <CheckCircle2 className="h-3 w-3 mr-1" /> Logged into Instagram @{connUsername}
-                              </Badge>
-                            );
-                          }
-                          return null;
-                        })()}
-                        {igSessionStatus === "expired" && (
-                          <Badge className="bg-destructive/15 text-destructive border-destructive/30 text-[10px]">
-                            <AlertTriangle className="h-3 w-3 mr-1" /> Expired
-                          </Badge>
-                        )}
-                        {igSessionStatus === "unknown" && !igSessionId && !connections.find(c => c.platform === "instagram" && c.is_connected && ((c.metadata as any)?.ig_access_token || (c.metadata as any)?.ig_session_source === "oauth_token")) && (
-                          <Badge className="bg-amber-500/15 text-amber-400 border-amber-500/30 text-[10px]">
-                            <AlertCircle className="h-3 w-3 mr-1" /> Not Set
-                          </Badge>
-                        )}
-                        {igSessionSavedAt && (
-                          <span className="text-[9px] text-muted-foreground">
-                            Saved: {new Date(igSessionSavedAt).toLocaleString()}
-                          </span>
-                        )}
-                      </div>
-                    </div>
+              {/* IG Session Management */}
+              <Card id="ig-session-section" className={`border-pink-500/20 transition-all ${igSessionPulse ? "ring-2 ring-pink-500/50 animate-pulse" : ""}`}>
+                <CardContent className="p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><Key className="h-4 w-4 text-pink-400" />Instagram Session Cookie</h4>
+                    <Badge className={igSessionStatus === "valid" ? "bg-green-500/15 text-green-400 text-[10px]" : igSessionStatus === "expired" ? "bg-red-500/15 text-red-400 text-[10px]" : "bg-muted text-muted-foreground text-[10px]"}>
+                      {igSessionStatus === "valid" ? "● Active" : igSessionStatus === "expired" ? "Expired" : "Not Set"}
+                    </Badge>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">Required for private API features (follower fetching, story viewing, DM sending).</p>
+                  <Input value={igSessionId} onChange={e => setIgSessionId(e.target.value)} placeholder="sessionid cookie value" type="password" className="text-sm font-mono" />
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input value={igCsrfToken} onChange={e => setIgCsrfToken(e.target.value)} placeholder="csrftoken (optional)" type="password" className="text-sm font-mono" />
+                    <Input value={igDsUserId} onChange={e => setIgDsUserId(e.target.value)} placeholder="ds_user_id (optional)" className="text-sm font-mono" />
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={saveIgSessionData} disabled={igSessionLoading || !igSessionId}>{igSessionLoading ? <RefreshCw className="h-3 w-3 animate-spin mr-1" /> : <CheckCircle2 className="h-3 w-3 mr-1" />}Save Session</Button>
+                    <Button size="sm" variant="outline" onClick={testIgSession} disabled={igSessionLoading || !igSessionId}><Zap className="h-3 w-3 mr-1" />Test</Button>
+                  </div>
+                  {igSessionSavedAt && <p className="text-[10px] text-muted-foreground">Last saved: {new Date(igSessionSavedAt).toLocaleString()}</p>}
+                </CardContent>
+              </Card>
 
-                    <p className="text-[11px] text-muted-foreground leading-relaxed">
-                      {igSessionId && igSessionStatus === "valid"
-                        ? "Session cookie is active and synced across all social media features (discover, mass comment, like, follow, DMs)."
-                        : (() => {
-                            const igConn = connections.find(c => c.platform === "instagram" && c.is_connected);
-                            const meta = (igConn?.metadata as any) || {};
-                            if (meta.ig_access_token || meta.ig_session_source === "oauth_token") {
-                              return "Logged in via Instagram OAuth (Graph API). For private API features (discover external posts, mass comment, like, follow), paste your session cookie below.";
-                            }
-                            return "A valid session cookie is required to discover posts, mass comment, like, and follow on other accounts' content. Use \"Login\" for OAuth or paste a session cookie below.";
-                          })()}
-                    </p>
-
-                    <div className="space-y-3">
-                      <div>
-                        <label className="text-[10px] font-medium text-foreground mb-1 block">Session ID <span className="text-destructive">*</span></label>
-                        <Input value={igSessionId} onChange={e => setIgSessionId(e.target.value)} placeholder="Paste your sessionid cookie value here..." className="text-xs font-mono" />
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="text-[10px] font-medium text-foreground mb-1 block">CSRF Token</label>
-                          <Input value={igCsrfToken} onChange={e => setIgCsrfToken(e.target.value)} placeholder="csrftoken cookie value" className="text-xs font-mono" />
-                        </div>
-                        <div>
-                          <label className="text-[10px] font-medium text-foreground mb-1 block">DS User ID</label>
-                          <Input value={igDsUserId} onChange={e => setIgDsUserId(e.target.value)} placeholder="ds_user_id cookie value" className="text-xs font-mono" />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <Button size="sm" onClick={openIgLoginPopup} disabled={igLoginPopupLoading} className="gap-1.5 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white border-0">
-                        {igLoginPopupLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Instagram className="h-3.5 w-3.5" />}
-                        Login
-                      </Button>
-                      <Button size="sm" onClick={saveIgSessionData} disabled={igSessionLoading || !igSessionId.trim()} className="gap-1.5">
-                        {igSessionLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
-                        Save Session
-                      </Button>
-                      <Button size="sm" variant="secondary" onClick={findSessions} disabled={findSessionsLoading || sessionAutoConnectLoading} className="gap-1.5">
-                        {findSessionsLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Search className="h-3.5 w-3.5" />}
-                        Find Sessions
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={testIgSession} disabled={igSessionLoading} className="gap-1.5 text-foreground">
-                        {igSessionLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Activity className="h-3.5 w-3.5" />}
-                        Test Session
-                      </Button>
-                    </div>
-
-                    {foundSessions.length > 0 && (
-                      <div className="space-y-2">
-                        <p className="text-[10px] font-semibold text-foreground">Found Sessions — click to connect:</p>
-                        <div className="flex flex-wrap gap-2">
-                          {foundSessions.map(s => (
-                            <button
-                              key={s.id}
-                              onClick={() => selectFoundSession(s)}
-                              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-medium border cursor-pointer transition-all hover:scale-105 active:scale-95 ${
-                                s.status === "active"
-                                  ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/25"
-                                  : s.status === "expired"
-                                  ? "bg-red-500/15 border-red-500/40 text-red-400 hover:bg-red-500/25"
-                                  : "bg-yellow-500/15 border-yellow-500/40 text-yellow-400 hover:bg-yellow-500/25"
-                              }`}
-                            >
-                              <span className={`h-1.5 w-1.5 rounded-full ${
-                                s.status === "active" ? "bg-emerald-400" : s.status === "expired" ? "bg-red-400" : "bg-yellow-400"
-                              }`} />
-                              {s.source}
-                              <Badge variant="outline" className={`text-[9px] px-1 py-0 h-4 ${
-                                s.status === "active" ? "border-emerald-500/50 text-emerald-400" : s.status === "expired" ? "border-red-500/50 text-red-400" : "border-yellow-500/50 text-yellow-400"
-                              }`}>
-                                {s.status}
-                              </Badge>
-                              {s.dsUserId && <span className="text-[9px] opacity-60">ID: …{s.dsUserId.slice(-4)}</span>}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    <Card className="bg-muted/30 border-border">
-                      <CardContent className="p-3 space-y-2">
-                        <p className="text-[10px] font-semibold text-foreground">🔐 "Login" connects via Instagram OAuth (Graph API)</p>
-                        <p className="text-[10px] text-muted-foreground">This grants access to your own posts, comments, insights, and publishing. For private API features (discover external posts, mass comment, like, follow), you need a <strong>session cookie</strong> from DevTools.</p>
-                        <div className="border-t border-border my-2" />
-                        <p className="text-[10px] font-semibold text-foreground">Manual alternative:</p>
-                        <ol className="text-[10px] text-muted-foreground space-y-1 list-decimal list-inside">
-                          <li>Open <strong>instagram.com</strong> in your browser and log in</li>
-                          <li>Open DevTools (F12) → <strong>Application</strong> tab → <strong>Cookies</strong></li>
-                          <li>Find <code className="bg-muted px-1 rounded text-foreground">sessionid</code> — copy its value</li>
-                          <li>Paste above and click <strong>Save Session</strong></li>
-                        </ol>
-                        <p className="text-[9px] text-amber-400 flex items-center gap-1">
-                          <AlertTriangle className="h-3 w-3" />
-                          Session cookies expire every few days. Re-login when you see "expired" errors.
-                        </p>
-                      </CardContent>
-                    </Card>
-                  </CardContent>
-                </Card>
-              )}
-
-
-
-
+              {/* Connected accounts list */}
               {connections.length > 0 && (
                 <Card>
                   <CardContent className="p-4">
-                    <h4 className="text-sm font-semibold text-foreground mb-3">Connected Accounts</h4>
+                    <h4 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2"><Wifi className="h-4 w-4 text-green-400" />Connected Accounts ({connections.filter(c => c.is_connected).length}/{connections.length})</h4>
                     <div className="space-y-3">
                       {connections.map(c => {
                         const meta = (c.metadata || {}) as any;
@@ -2449,15 +2314,11 @@ const SocialMediaHub = () => {
 
             {/* ===== ONE-CLICK CONNECT SUBTAB ===== */}
             <TabsContent value="one-click" className="space-y-5">
-              {/* Header */}
               <div>
                 <h3 className="text-sm font-bold text-foreground tracking-tight">Connect Platforms</h3>
                 <p className="text-[10px] text-muted-foreground mt-0.5">Tap to link your accounts instantly</p>
               </div>
-
-              {/* Platform Grid */}
               <div className="grid grid-cols-5 gap-2.5">
-                {/* Instagram cube */}
                 {(() => {
                   const isLoading = igLoginPopupLoading;
                   return (
@@ -2474,8 +2335,6 @@ const SocialMediaHub = () => {
                     </button>
                   );
                 })()}
-
-                {/* Facebook cube with real logo */}
                 {(() => {
                   const isLoading = autoConnectLoading === "facebook";
                   const needsFields = !fbAppId;
@@ -2501,7 +2360,6 @@ const SocialMediaHub = () => {
                     </div>
                   );
                 })()}
-
                 {[
                   { id: "tiktok", label: "Connect TikTok", svgIcon: <svg viewBox="0 0 24 24" className="h-8 w-8 transition-all duration-300 group-hover/cube:drop-shadow-[0_0_12px_rgba(34,211,238,0.5)]" fill="#00f2ea"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.27 6.27 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.34-6.34V8.75a8.18 8.18 0 0 0 4.76 1.52V6.84a4.84 4.84 0 0 1-1-.15z"/></svg>, hoverBorder: "hover:border-cyan-400/40", hoverBg: "hover:bg-cyan-400/5", hoverShadow: "hover:shadow-cyan-400/20", connected: ttConnected, action: automatedTikTokConnect, expandFields: [{ val: ttClientKey, set: setTtClientKey, placeholder: "Client Key", type: "text" }, { val: ttClientSecret, set: setTtClientSecret, placeholder: "Secret", type: "password" }] },
                   { id: "twitter", label: "Connect X", svgIcon: <svg viewBox="0 0 24 24" className="h-8 w-8 transition-all duration-300 group-hover/cube:drop-shadow-[0_0_12px_rgba(56,189,248,0.5)]" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>, hoverBorder: "hover:border-sky-400/40", hoverBg: "hover:bg-sky-400/5", hoverShadow: "hover:shadow-sky-400/20", connected: xConnected, action: automatedTwitterConnect, expandFields: [{ val: xClientId, set: setXClientId, placeholder: "Client ID", type: "text" }, { val: xClientSecret, set: setXClientSecret, placeholder: "Secret", type: "password" }] },
@@ -2510,23 +2368,20 @@ const SocialMediaHub = () => {
                   { id: "threads", label: "Connect Threads", svgIcon: <svg viewBox="0 0 24 24" className="h-8 w-8 transition-all duration-300 group-hover/cube:drop-shadow-[0_0_12px_rgba(192,132,252,0.5)]" fill="currentColor"><path d="M12.186 24h-.007c-3.581-.024-6.334-1.205-8.184-3.509C2.35 18.44 1.5 15.586 1.472 12.01v-.017c.03-3.579.879-6.43 2.525-8.482C5.845 1.205 8.6.024 12.18 0h.014c2.746.02 5.043.725 6.826 2.098 1.677 1.29 2.858 3.13 3.509 5.467l-2.04.569c-1.104-3.96-3.898-5.984-8.304-6.015-2.91.022-5.11.936-6.54 2.717C4.307 6.504 3.616 8.914 3.589 12c.027 3.086.718 5.496 2.057 7.164 1.43 1.783 3.631 2.698 6.54 2.717 2.623-.02 4.358-.631 5.8-2.045 1.647-1.613 1.618-3.593 1.09-4.798-.31-.71-.873-1.3-1.634-1.75-.192 1.352-.622 2.446-1.284 3.272-.886 1.102-2.14 1.704-3.73 1.79-1.202.065-2.361-.218-3.259-.801-1.063-.689-1.685-1.74-1.752-2.96-.065-1.17.408-2.256 1.33-3.058.88-.766 2.072-1.213 3.453-1.298.988-.06 1.946.009 2.854.166-.09-.478-.244-.892-.464-1.228-.355-.544-.903-.822-1.63-.826h-.032c-.568 0-1.3.174-1.92.844l-1.378-1.34c.93-.957 2.1-1.463 3.3-1.463h.058c2.816.017 3.858 2.163 4.072 3.534.118.753.144 1.58.086 2.47l-.012.174c.548.396 1.016.867 1.38 1.412.675 1.009 1.087 2.31.876 4.086-.262 2.213-1.518 4.078-3.543 5.252C17.408 23.35 14.987 24 12.186 24zm.267-7.907c-1.033.06-2.263.422-2.604 1.985.256.253.727.545 1.403.584 1.09.06 1.88-.334 2.35-1.17.267-.478.432-1.075.485-1.777a8.456 8.456 0 0 0-1.634.378z"/></svg>, hoverBorder: "hover:border-purple-400/40", hoverBg: "hover:bg-purple-400/5", hoverShadow: "hover:shadow-purple-400/20", connected: threadsConnected, action: automatedThreadsConnect, expandFields: [{ val: threadsAppId, set: setThreadsAppId, placeholder: "App ID", type: "text" }, { val: threadsAppSecret, set: setThreadsAppSecret, placeholder: "Secret", type: "password" }] },
                   { id: "whatsapp", label: "Connect WhatsApp", svgIcon: <svg viewBox="0 0 24 24" className="h-8 w-8 transition-all duration-300 group-hover/cube:drop-shadow-[0_0_12px_rgba(74,222,128,0.5)]" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z"/></svg>, hoverBorder: "hover:border-green-400/40", hoverBg: "hover:bg-green-400/5", hoverShadow: "hover:shadow-green-400/20", connected: whatsappConnected, action: automatedWhatsAppConnect, expandFields: [{ val: waPhoneNumberId, set: setWaPhoneNumberId, placeholder: "Phone ID", type: "text" }, { val: waAccessToken, set: setWaAccessToken, placeholder: "Token", type: "password" }] },
                   { id: "snapchat", label: "Connect Snapchat", svgIcon: <svg viewBox="0 0 24 24" className="h-8 w-8 transition-all duration-300 group-hover/cube:drop-shadow-[0_0_12px_rgba(250,204,21,0.5)]" fill="#FFFC00"><path d="M12.206.793c.99 0 4.347.276 5.93 3.821.529 1.193.403 3.219.299 4.847l-.003.06c-.012.18-.022.345-.032.51.075.045.203.09.401.09.3-.016.659-.12 1.033-.301.165-.088.344-.104.464-.104.182 0 .299.04.382.076a.647.647 0 0 1 .3.3c.063.132.079.291.044.451-.075.389-.477.63-.815.771a5.1 5.1 0 0 1-.362.12c-.122.036-.244.075-.387.15-.19.1-.316.278-.396.528-.079.24-.048.481.045.714a6.7 6.7 0 0 0 .316.57c.015.024.03.045.046.068.54.825 1.23 1.473 2.051 1.932.273.149.57.27.865.361.166.049.361.119.46.2a.553.553 0 0 1 .179.293c.06.285-.09.478-.235.586-.232.166-.567.26-.78.3-.346.064-.654.118-.939.328-.165.122-.32.306-.48.509a9.186 9.186 0 0 1-.371.433c-.36.4-.825.6-1.395.6-.304 0-.636-.054-.965-.161-.578-.191-1.068-.307-1.494-.36-1.694.27-3.16 1.337-3.88 1.793-.157.1-.27.168-.378.229-.387.211-.742.319-1.085.319-.349 0-.71-.111-1.104-.328a6.15 6.15 0 0 1-.331-.198c-.69-.43-2.146-1.5-3.867-1.793-.422.053-.909.169-1.482.36-.335.107-.672.161-.98.161a2.29 2.29 0 0 1-1.371-.576c-.159-.13-.291-.3-.372-.436-.284-.465-.272-.689-.479-.809a5.15 5.15 0 0 0-.938-.328c-.213-.04-.547-.134-.779-.3-.143-.107-.294-.3-.234-.587.022-.11.075-.211.179-.293.098-.08.293-.149.458-.2.293-.09.59-.21.863-.36.821-.457 1.513-1.106 2.053-1.932.016-.023.032-.045.046-.07.105-.16.21-.33.316-.569.093-.233.124-.474.046-.714-.08-.25-.206-.427-.396-.528a3.022 3.022 0 0 0-.387-.15 5.1 5.1 0 0 1-.363-.12c-.338-.14-.74-.382-.815-.77a.565.565 0 0 1 .044-.452.645.645 0 0 1 .3-.3c.084-.036.199-.076.382-.076.12 0 .299.015.463.104.376.182.735.317 1.034.3.199 0 .326-.044.401-.088l-.033-.51-.003-.06c-.104-1.63-.23-3.654.3-4.848C7.46 1.07 10.804.793 11.794.793h.412z"/></svg>, hoverBorder: "hover:border-yellow-400/40", hoverBg: "hover:bg-yellow-400/5", hoverShadow: "hover:shadow-yellow-400/20", connected: snapchatConnected, action: automatedSnapchatConnect, expandFields: [{ val: snapClientId, set: setSnapClientId, placeholder: "Client ID", type: "text" }, { val: snapClientSecret, set: setSnapClientSecret, placeholder: "Secret", type: "password" }] },
-                  { id: "youtube", label: "Connect YouTube", svgIcon: <svg viewBox="0 0 24 24" className="h-8 w-8 transition-all duration-300 group-hover/cube:drop-shadow-[0_0_12px_rgba(248,113,113,0.5)]" fill="#FF0000"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>, hoverBorder: "hover:border-red-400/40", hoverBg: "hover:bg-red-400/5", hoverShadow: "hover:shadow-red-400/20", connected: youtubeConnected, action: automatedYouTubeConnect, expandFields: [{ val: ytClientId, set: setYtClientId, placeholder: "Client ID", type: "text" }, { val: ytClientSecret, set: setYtClientSecret, placeholder: "Secret", type: "password" }] },
-                  { id: "pinterest", label: "Connect Pinterest", svgIcon: <svg viewBox="0 0 24 24" className="h-8 w-8 transition-all duration-300 group-hover/cube:drop-shadow-[0_0_12px_rgba(251,113,133,0.5)]" fill="#E60023"><path d="M12.017 0C5.396 0 .029 5.367.029 11.987c0 5.079 3.158 9.417 7.618 11.162-.105-.949-.199-2.403.041-3.439.219-.937 1.406-5.957 1.406-5.957s-.359-.72-.359-1.781c0-1.668.967-2.914 2.171-2.914 1.023 0 1.518.769 1.518 1.69 0 1.029-.655 2.568-.994 3.995-.283 1.194.599 2.169 1.777 2.169 2.133 0 3.772-2.249 3.772-5.495 0-2.873-2.064-4.882-5.012-4.882-3.414 0-5.418 2.561-5.418 5.207 0 1.031.397 2.138.893 2.738a.36.36 0 0 1 .083.345l-.333 1.36c-.053.22-.174.267-.402.161-1.499-.698-2.436-2.889-2.436-4.649 0-3.785 2.75-7.262 7.929-7.262 4.163 0 7.398 2.967 7.398 6.931 0 4.136-2.607 7.464-6.227 7.464-1.216 0-2.359-.631-2.75-1.378l-.748 2.853c-.271 1.043-1.002 2.35-1.492 3.146C9.57 23.812 10.763 24 12.017 24c6.624 0 11.99-5.367 11.99-11.988C24.007 5.367 18.641 0 12.017 0z"/></svg>, hoverBorder: "hover:border-rose-400/40", hoverBg: "hover:bg-rose-400/5", hoverShadow: "hover:shadow-rose-400/20", connected: pinterestConnected, action: automatedPinterestConnect, expandFields: [{ val: pinAppId, set: setPinAppId, placeholder: "App ID", type: "text" }, { val: pinAppSecret, set: setPinAppSecret, placeholder: "Secret", type: "password" }] },
-                  { id: "discord", label: "Connect Discord", svgIcon: <svg viewBox="0 0 24 24" className="h-8 w-8 transition-all duration-300 group-hover/cube:drop-shadow-[0_0_12px_rgba(129,140,248,0.5)]" fill="#5865F2"><path d="M20.317 4.3698a19.7913 19.7913 0 0 0-4.8851-1.5152.0741.0741 0 0 0-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 0 0-.0785-.037 19.7363 19.7363 0 0 0-4.8852 1.515.0699.0699 0 0 0-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 0 0 .0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 0 0 .0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 0 0-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 0 1-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 0 1 .0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 0 1 .0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 0 1-.0066.1276 12.2986 12.2986 0 0 1-1.873.8914.0766.0766 0 0 0-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 0 0 .0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 0 0 .0313-.0552c.5004-5.177-.838-9.674-3.5485-13.6604a.061.061 0 0 0-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189z"/></svg>, hoverBorder: "hover:border-indigo-400/40", hoverBg: "hover:bg-indigo-400/5", hoverShadow: "hover:shadow-indigo-400/20", connected: discordConnected, action: automatedDiscordConnect, expandFields: [{ val: discordBotToken, set: setDiscordBotToken, placeholder: "Bot Token", type: "password" }] },
-                  { id: "signal", label: "Connect Signal", svgIcon: <svg viewBox="0 0 24 24" className="h-8 w-8 transition-all duration-300 group-hover/cube:drop-shadow-[0_0_12px_rgba(125,211,252,0.5)]" fill="#3A76F0"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm0 3.6A8.4 8.4 0 0 1 20.4 12 8.4 8.4 0 0 1 12 20.4 8.4 8.4 0 0 1 3.6 12 8.4 8.4 0 0 1 12 3.6z"/></svg>, hoverBorder: "hover:border-sky-300/40", hoverBg: "hover:bg-sky-300/5", hoverShadow: "hover:shadow-sky-300/20", connected: signalConnected, action: automatedSignalConnect, expandFields: [{ val: signalApiUrl, set: setSignalApiUrl, placeholder: "API URL", type: "text" }, { val: signalPhoneNumber, set: setSignalPhoneNumber, placeholder: "Phone", type: "text" }] },
+                  { id: "youtube", label: "Connect YouTube", svgIcon: <svg viewBox="0 0 24 24" className="h-8 w-8 transition-all duration-300 group-hover/cube:drop-shadow-[0_0_12px_rgba(239,68,68,0.5)]" fill="#FF0000"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>, hoverBorder: "hover:border-red-400/40", hoverBg: "hover:bg-red-400/5", hoverShadow: "hover:shadow-red-400/20", connected: youtubeConnected, action: automatedYouTubeConnect, expandFields: [{ val: ytClientId, set: setYtClientId, placeholder: "Client ID", type: "text" }, { val: ytClientSecret, set: setYtClientSecret, placeholder: "Secret", type: "password" }] },
+                  { id: "pinterest", label: "Connect Pinterest", svgIcon: <svg viewBox="0 0 24 24" className="h-8 w-8 transition-all duration-300 group-hover/cube:drop-shadow-[0_0_12px_rgba(239,68,68,0.5)]" fill="#E60023"><path d="M12.017 0C5.396 0 .029 5.367.029 11.987c0 5.079 3.158 9.417 7.618 11.162-.105-.949-.199-2.403.041-3.439.219-.937 1.406-5.957 1.406-5.957s-.359-.72-.359-1.781c0-1.668.967-2.914 2.171-2.914 1.023 0 1.518.769 1.518 1.69 0 1.029-.655 2.568-.994 3.995-.283 1.194.599 2.169 1.777 2.169 2.133 0 3.772-2.249 3.772-5.495 0-2.873-2.064-4.882-5.012-4.882-3.414 0-5.418 2.561-5.418 5.207 0 1.031.397 2.138.893 2.738a.36.36 0 0 1 .083.345l-.333 1.36c-.053.22-.174.267-.402.161-1.499-.698-2.436-2.889-2.436-4.649 0-3.785 2.75-7.262 7.929-7.262 4.163 0 7.398 2.967 7.398 6.931 0 4.136-2.607 7.464-6.227 7.464-1.216 0-2.359-.631-2.75-1.378l-.748 2.853c-.271 1.043-1.002 2.35-1.492 3.146C9.57 23.812 10.763 24 12.017 24c6.624 0 11.99-5.367 11.99-11.988C24.007 5.367 18.641.001 12.017.001z"/></svg>, hoverBorder: "hover:border-red-500/40", hoverBg: "hover:bg-red-500/5", hoverShadow: "hover:shadow-red-500/20", connected: pinterestConnected, action: automatedPinterestConnect, expandFields: [{ val: pinAppId, set: setPinAppId, placeholder: "App ID", type: "text" }, { val: pinAppSecret, set: setPinAppSecret, placeholder: "Secret", type: "password" }] },
+                  { id: "discord", label: "Connect Discord", svgIcon: <svg viewBox="0 0 24 24" className="h-8 w-8 transition-all duration-300 group-hover/cube:drop-shadow-[0_0_12px_rgba(129,140,248,0.5)]" fill="#5865F2"><path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189z"/></svg>, hoverBorder: "hover:border-indigo-400/40", hoverBg: "hover:bg-indigo-400/5", hoverShadow: "hover:shadow-indigo-400/20", connected: discordConnected, action: automatedDiscordConnect, expandFields: [{ val: discordBotToken, set: setDiscordBotToken, placeholder: "Bot Token", type: "password" }] },
+                  { id: "linkedin", label: "Connect LinkedIn", svgIcon: <svg viewBox="0 0 24 24" className="h-8 w-8 transition-all duration-300 group-hover/cube:drop-shadow-[0_0_12px_rgba(59,130,246,0.5)]" fill="#0A66C2"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>, hoverBorder: "hover:border-blue-500/40", hoverBg: "hover:bg-blue-500/5", hoverShadow: "hover:shadow-blue-500/20", connected: false, action: () => toast.info("LinkedIn OAuth coming soon"), expandFields: [] },
                 ].map(p => {
                   const isLoading = autoConnectLoading === p.id;
-                  const needsFields = p.expandFields.some(f => !f.val);
+                  const needsFields = p.expandFields.length > 0 && !p.expandFields[0].val;
                   return (
                     <div key={p.id} className="group/wrap relative">
                       <button
                         onClick={() => {
-                          if (needsFields) {
-                            const el = document.getElementById(`connect-expand-${p.id}`);
-                            if (el) el.classList.toggle("hidden");
-                          } else {
-                            p.action();
-                          }
+                          if (p.expandFields.length === 0) { p.action(); return; }
+                          if (needsFields) { const el = document.getElementById(`connect-expand-${p.id}`); if (el) el.classList.toggle("hidden"); }
+                          else { p.action(); }
                         }}
                         disabled={isLoading}
                         className={`group/cube relative flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl border border-border/50 bg-card/50 backdrop-blur-sm transition-all duration-300 ${p.hoverBorder} ${p.hoverBg} hover:shadow-[0_0_24px_-5px] ${p.hoverShadow} disabled:opacity-50 disabled:pointer-events-none aspect-square w-full`}
@@ -2537,22 +2392,24 @@ const SocialMediaHub = () => {
                         </div>
                         <span className="text-[10px] font-semibold text-muted-foreground group-hover/cube:text-foreground transition-colors leading-tight text-center">{p.label}</span>
                       </button>
-                      <div id={`connect-expand-${p.id}`} className="hidden absolute z-20 top-full left-0 mt-1.5 w-56 p-3 rounded-xl border border-border bg-card shadow-xl space-y-2 animate-fade-in">
-                        {p.expandFields.map((f, i) => (
-                          <Input key={i} value={f.val} onChange={e => f.set(e.target.value)} placeholder={f.placeholder} type={f.type} className="text-xs h-7" />
-                        ))}
-                        <Button size="sm" onClick={() => { p.action(); const el = document.getElementById(`connect-expand-${p.id}`); if (el) el.classList.add("hidden"); }} disabled={isLoading} className="w-full h-7 text-[10px]">
-                          {isLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : "Connect"}
-                        </Button>
-                      </div>
+                      {p.expandFields.length > 0 && (
+                        <div id={`connect-expand-${p.id}`} className="hidden absolute z-20 top-full left-0 mt-1.5 w-56 p-3 rounded-xl border border-border bg-card shadow-xl space-y-2 animate-fade-in">
+                          {p.expandFields.map((f, i) => (
+                            <Input key={i} value={f.val} onChange={e => f.set(e.target.value)} placeholder={f.placeholder} type={f.type} className="text-xs h-7" />
+                          ))}
+                          <Button size="sm" onClick={() => { p.action(); const el = document.getElementById(`connect-expand-${p.id}`); if (el) el.classList.add("hidden"); }} disabled={isLoading} className="w-full h-7 text-[10px]">
+                            {isLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : "Connect"}
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
               </div>
             </TabsContent>
           </Tabs>
-        </TabsContent>
-      </Tabs>
+        </div>
+      )}
     </div>
   );
 };
