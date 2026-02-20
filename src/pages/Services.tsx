@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import Footer from "@/components/Footer";
 import { useAuth } from "@/hooks/useAuth";
+import PageSEO from "@/components/PageSEO";
 import { Users, HeartHandshake, Shield, Zap, Bot, BarChart3, BrainCircuit, Workflow, Mail, Globe, CheckCircle2, Instagram, MessageCircle, Rocket, Eye, Send } from "lucide-react";
 
 const featureSections = [
@@ -183,6 +184,23 @@ const Services = () => {
 
   return (
     <div className="min-h-screen bg-[hsl(222,35%,8%)] relative overflow-hidden">
+      <PageSEO
+        title="Uplyze Features | AI CRM, Automation & Social Media Tools | uplyze.ai"
+        description="Explore Uplyze features — AI CRM, workflow automation, social media management, revenue analytics, and more. See why 500+ creators choose Uplyze at uplyze.ai."
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "ItemList",
+          "name": "Uplyze Platform Features",
+          "url": "https://uplyze.ai/services",
+          "numberOfItems": featureSections.length,
+          "itemListElement": featureSections.map((s, i) => ({
+            "@type": "ListItem",
+            "position": i + 1,
+            "name": s.title,
+            "description": s.description
+          }))
+        }}
+      />
       {/* Ambient background glows */}
       <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-purple-600/10 rounded-full blur-[120px]" />
       <div className="absolute top-1/3 right-0 w-[500px] h-[500px] bg-blue-600/8 rounded-full blur-[100px]" />
@@ -196,7 +214,7 @@ const Services = () => {
             AI-Powered Business Growth Platform
           </div>
           <h1 className="text-4xl sm:text-5xl md:text-7xl font-bold text-white mb-5 leading-tight">
-            Everything You Need<br className="hidden sm:block" /> to <span className="bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">Scale Your Business</span>
+            Everything You Need to{" "}<span className="bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">Scale with Uplyze</span>
           </h1>
           <p className="text-lg md:text-xl text-white/60 max-w-2xl mx-auto mb-8">
             One platform to manage customers, automate workflows, dominate social media, and grow your revenue with the power of AI.
@@ -270,10 +288,10 @@ const Services = () => {
         <div className="absolute inset-0 bg-gradient-to-t from-purple-600/5 to-transparent" />
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
           <h2 className="text-3xl md:text-5xl font-bold text-white mb-5">
-            Ready to Start Growing?
+            Ready to Scale with Uplyze?
           </h2>
           <p className="text-lg text-white/50 mb-10 max-w-xl mx-auto">
-            Join thousands of businesses already scaling with our AI-powered platform. No credit card required.
+            Join 500+ creators and agencies already growing with Uplyze AI CRM at uplyze.ai. Free to start, no credit card required.
           </p>
           <Link to={ctaPath}>
             <Button size="lg" className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white hover:scale-105 transition-all duration-300 shadow-xl shadow-purple-500/20 text-xl px-16 py-6 rounded-xl font-bold">

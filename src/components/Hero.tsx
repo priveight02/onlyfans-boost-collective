@@ -133,7 +133,7 @@ const Hero = () => {
             transition={{ duration: 0.9, delay: 0.2 }}
             className="text-5xl md:text-7xl font-bold text-white mb-6 font-heading tracking-tight leading-[1.05]"
           >
-            The AI-Powered Platform
+            Uplyze — The #1 AI CRM
             <br />
             <motion.span
               className="inline-block bg-clip-text text-transparent"
@@ -144,7 +144,7 @@ const Hero = () => {
               animate={{ backgroundPosition: ['0% center', '200% center'] }}
               transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
             >
-              That Grows Your Business
+              for Creators & Agencies
             </motion.span>
           </motion.h1>
           
@@ -154,7 +154,7 @@ const Hero = () => {
             transition={{ duration: 0.8, delay: 0.4 }}
             className="text-lg md:text-xl text-white/60 mb-12 max-w-2xl mx-auto leading-relaxed"
           >
-            Automate your workflows, engage customers with AI, and unlock data-driven insights. Built for businesses, content creators, freelancers, and anyone ready to grow their digital presence.
+            Uplyze.ai helps 500+ creators and agencies automate growth, engage customers with AI, and 10x revenue. The all-in-one AI CRM built for digital entrepreneurs.
           </motion.p>
           
           <motion.div

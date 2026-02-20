@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { ArrowRight, Zap, Shield, Users, BarChart3, Bot, Globe, Sparkles } from "lucide-react";
 import Footer from "@/components/Footer";
 import Navigation from "@/components/Navigation";
+import PageSEO from "@/components/PageSEO";
 
 const features = [
   {
@@ -39,6 +40,18 @@ const features = [
 const About = () => {
   return (
     <div className="min-h-screen bg-[hsl(222,35%,8%)]">
+      <PageSEO
+        title="About Uplyze | AI CRM for Creators & Agencies | uplyze.ai"
+        description="Learn about Uplyze — the #1 AI-powered CRM built for creators and agencies. Trusted by 500+ professionals to automate growth and 10x revenue at uplyze.ai."
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "AboutPage",
+          "name": "About Uplyze",
+          "description": "Uplyze is the #1 AI CRM for creators and agencies, helping 500+ professionals automate growth and scale revenue.",
+          "url": "https://uplyze.ai/about",
+          "isPartOf": { "@type": "WebSite", "name": "Uplyze", "url": "https://uplyze.ai" }
+        }}
+      />
       {/* Hero */}
       <div className="relative pt-28 pb-20 px-4 sm:px-6 lg:px-8 overflow-hidden">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[500px] bg-primary/[0.06] rounded-full blur-[180px] pointer-events-none" />

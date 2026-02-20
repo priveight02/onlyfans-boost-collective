@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { ArrowRight, Clock, User, Calendar, BookOpen } from "lucide-react";
 import Footer from "@/components/Footer";
+import PageSEO from "@/components/PageSEO";
 
 const blogPosts = [
   {
@@ -35,6 +36,18 @@ const blogPosts = [
 const Blog = () => {
   return (
     <div className="min-h-screen bg-[hsl(222,35%,8%)]">
+      <PageSEO
+        title="Uplyze Blog | AI CRM Insights & Growth Strategies | uplyze.ai"
+        description="Read the Uplyze blog for AI CRM tips, creator growth strategies, and agency scaling guides. Learn how Uplyze helps you automate and 10x revenue at uplyze.ai."
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "Blog",
+          "name": "Uplyze Blog",
+          "url": "https://uplyze.ai/blog",
+          "description": "AI CRM insights, creator growth strategies, and agency scaling guides from Uplyze.",
+          "publisher": { "@type": "Organization", "name": "Uplyze", "url": "https://uplyze.ai" }
+        }}
+      />
       {/* Ambient glow */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[400px] bg-primary/[0.05] rounded-full blur-[150px] pointer-events-none" />
 

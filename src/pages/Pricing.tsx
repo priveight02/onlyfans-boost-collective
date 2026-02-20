@@ -8,6 +8,7 @@ import { Check, ArrowRight, Sparkles, BadgePercent, ShieldCheck, Zap, Gift, Glob
 import { Button } from "@/components/ui/button";
 import Footer from "@/components/Footer";
 import CheckoutModal from "@/components/CheckoutModal";
+import PageSEO from "@/components/PageSEO";
 
 interface CreditPackage {
   id: string;
@@ -203,13 +204,17 @@ const Pricing = () => {
 
   return (
     <div className="min-h-screen bg-[hsl(222,35%,8%)] text-white pt-24">
+      <PageSEO
+        title="Uplyze Pricing | Buy Credits for AI CRM Tools | uplyze.ai"
+        description="Explore Uplyze pricing — flexible credit plans for AI CRM, automation, and social media tools. Start free, scale as you grow. Buy credits at uplyze.ai."
+      />
       {/* Hero */}
       <div className="text-center px-4 mb-14">
         <h1 className="text-4xl md:text-5xl font-bold mb-3 text-white tracking-tight">
-          Buy Credits
+          Uplyze Credits — Pay As You Grow
         </h1>
         <p className="text-base text-white/40 max-w-lg mx-auto">
-          Choose a plan that fits your needs. Credits are delivered instantly and never expire.
+          Flexible credit plans for Uplyze AI CRM tools. Credits are delivered instantly and never expire.
         </p>
 
         {user && (
