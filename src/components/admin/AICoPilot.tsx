@@ -276,8 +276,10 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
   // Audio generated content
   const [generatedAudios, setGeneratedAudios] = useState<GeneratedContent[]>([]);
   const [runwayVoicePreset, setRunwayVoicePreset] = useState("Leslie");
-  const [runwayAudioAction, setRunwayAudioAction] = useState<"tts" | "sfx">("tts");
+  const [runwayAudioAction, setRunwayAudioAction] = useState<"tts" | "sfx" | "sts" | "voice_isolation" | "voice_dubbing">("tts");
   const [isGeneratingRunwayAudio, setIsGeneratingRunwayAudio] = useState(false);
+  const [stsAudioUrl, setStsAudioUrl] = useState("");
+  const [dubbingLanguage, setDubbingLanguage] = useState("es");
 
   // Display prefs
   const [displayScale, setDisplayScale] = useState(1.5);
@@ -1141,15 +1143,14 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
   );
 
   const VIDEO_PROVIDERS = [
-    { id: "runway", label: "Runway ML", pricing: "paid", color: "text-orange-400", desc: "Gen-4.5, Veo 3/3.1, Aleph, Act Two — professional quality", models: [
-      { id: "gen4.5", label: "Gen-4.5" },
-      { id: "gen4_turbo", label: "Gen-4 Turbo" },
-      { id: "veo3", label: "Veo 3 🔊" },
-      { id: "veo3.1", label: "Veo 3.1 🔊" },
-      { id: "veo3.1_fast", label: "Veo 3.1 Fast 🔊" },
-      { id: "gen4_aleph", label: "Gen-4 Aleph (V2V)" },
-      { id: "act_two", label: "Act Two (Motion)" },
-      { id: "gen3a_turbo", label: "Gen-3α Turbo" },
+    { id: "runway", label: "Runway ML", pricing: "paid", color: "text-orange-400", desc: "Gen-4.5, Gen-4 Turbo, Veo 3/3.1, Aleph, Act Two", models: [
+      { id: "gen4.5", label: "Gen-4.5 (12cr/s)", info: "Text/Image → Video" },
+      { id: "gen4_turbo", label: "Gen-4 Turbo (5cr/s)", info: "Image → Video" },
+      { id: "gen4_aleph", label: "Gen-4 Aleph (15cr/s)", info: "Video → Video" },
+      { id: "act_two", label: "Act Two (5cr/s)", info: "Motion Capture" },
+      { id: "veo3", label: "Veo 3 🔊 (40cr/s)", info: "Text/Image → Video + Audio" },
+      { id: "veo3.1", label: "Veo 3.1 🔊 (40cr/s)", info: "Text/Image → Video + Audio" },
+      { id: "veo3.1_fast", label: "Veo 3.1 Fast 🔊 (15cr/s)", info: "Text/Image → Video + Audio" },
     ]},
     { id: "luma", label: "Luma Dream Machine", pricing: "paid", color: "text-pink-400", desc: "Cinematic video generation, image-to-video", models: [
       { id: "dream-machine", label: "Dream Machine" },
@@ -1307,14 +1308,20 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
 
 
   const generateRunwayAudio = async () => {
-    if (!audioText.trim() || isGeneratingRunwayAudio) return;
+    const needsText = runwayAudioAction === "tts" || runwayAudioAction === "sfx";
+    const needsAudio = runwayAudioAction === "sts" || runwayAudioAction === "voice_isolation" || runwayAudioAction === "voice_dubbing";
+    if (needsText && !audioText.trim()) return;
+    if (needsAudio && !stsAudioUrl.trim()) { toast.error("Provide an audio/video URL"); return; }
+    if (isGeneratingRunwayAudio) return;
     setIsGeneratingRunwayAudio(true);
     try {
       const body: any = {
         audio_action: runwayAudioAction,
-        text: audioText,
+        text: audioText || undefined,
         voice_preset: runwayVoicePreset,
         duration: runwayAudioAction === "sfx" ? 5 : undefined,
+        audio_url: stsAudioUrl || undefined,
+        target_language: dubbingLanguage,
       };
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/video-generate?action=audio`, {
         method: "POST",
@@ -1325,7 +1332,6 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
       const result = await resp.json();
       if (!result.task_id) throw new Error("No task returned");
 
-      // Poll for completion
       let audioUrl: string | null = null;
       for (let i = 0; i < 60; i++) {
         await new Promise(r => setTimeout(r, 3000));
@@ -1339,11 +1345,12 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
       }
       if (!audioUrl) throw new Error("Audio generation timed out");
 
-      const saved = await saveGeneratedContent("audio", audioUrl, audioText, "audio", {
-        metadata: { voice: runwayAudioAction === "tts" ? `Runway: ${runwayVoicePreset}` : "Runway SFX", provider: "runway", action: runwayAudioAction },
+      const actionLabels: Record<string, string> = { tts: `Runway TTS: ${runwayVoicePreset}`, sfx: "Runway SFX", sts: `Runway STS: ${runwayVoicePreset}`, voice_isolation: "Voice Isolation", voice_dubbing: `Dubbed → ${dubbingLanguage.toUpperCase()}` };
+      const saved = await saveGeneratedContent("audio", audioUrl, audioText || stsAudioUrl, "audio", {
+        metadata: { voice: actionLabels[runwayAudioAction] || "Runway Audio", provider: "runway", action: runwayAudioAction },
       });
       if (saved) setGeneratedAudios(prev => [saved, ...prev]);
-      toast.success(`Audio generated via Runway (${runwayAudioAction === "tts" ? runwayVoicePreset : "SFX"})!`);
+      toast.success(`Audio generated: ${actionLabels[runwayAudioAction]}!`);
     } catch (e: any) { toast.error(e.message || "Runway audio failed"); } finally { setIsGeneratingRunwayAudio(false); }
   };
 
@@ -1368,15 +1375,17 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
                 <p className="text-[11px] font-semibold text-orange-400">Runway ML Audio</p>
                 <Badge className="text-[7px] bg-orange-500/20 text-orange-400 border-orange-500/30 px-1 py-0">API</Badge>
               </div>
-              <div className="flex gap-1.5">
-                <button onClick={() => setRunwayAudioAction("tts")}
-                  className={`px-3 py-1.5 rounded-lg text-[10px] border transition-all flex-1 ${runwayAudioAction === "tts" ? "border-orange-400/40 bg-orange-400/10 text-orange-400" : "border-white/10 text-white/30 hover:text-white/50"}`}>
-                  Text to Speech
-                </button>
-                <button onClick={() => setRunwayAudioAction("sfx")}
-                  className={`px-3 py-1.5 rounded-lg text-[10px] border transition-all flex-1 ${runwayAudioAction === "sfx" ? "border-orange-400/40 bg-orange-400/10 text-orange-400" : "border-white/10 text-white/30 hover:text-white/50"}`}>
-                  Sound Effects
-                </button>
+              <div className="flex flex-wrap gap-1.5">
+                {(["tts", "sfx", "sts", "voice_isolation", "voice_dubbing"] as const).map(act => {
+                  const labels: Record<string, string> = { tts: "Text to Speech", sfx: "Sound Effects", sts: "Speech to Speech", voice_isolation: "Voice Isolation", voice_dubbing: "Voice Dubbing" };
+                  const costs: Record<string, string> = { tts: "1cr/50ch", sfx: "1cr/6s", sts: "1cr/2s", voice_isolation: "1cr/6s", voice_dubbing: "1cr/2s" };
+                  return (
+                    <button key={act} onClick={() => setRunwayAudioAction(act)}
+                      className={`px-2.5 py-1.5 rounded-lg text-[10px] border transition-all ${runwayAudioAction === act ? "border-orange-400/40 bg-orange-400/10 text-orange-400" : "border-white/10 text-white/30 hover:text-white/50"}`}>
+                      {labels[act]} <span className="text-[7px] text-white/20">{costs[act]}</span>
+                    </button>
+                  );
+                })}
               </div>
               {runwayAudioAction === "tts" && (
                 <div>
@@ -1389,6 +1398,48 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+              )}
+              {runwayAudioAction === "sts" && (
+                <div className="space-y-2">
+                  <div>
+                    <p className="text-[10px] text-white/40 mb-1">Source Audio/Video URL</p>
+                    <Input value={stsAudioUrl} onChange={e => setStsAudioUrl(e.target.value)} placeholder="https://... audio or video URL" className="bg-white/5 border-white/10 text-white text-xs h-8" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-white/40 mb-1">Target Voice</p>
+                    <Select value={runwayVoicePreset} onValueChange={setRunwayVoicePreset}>
+                      <SelectTrigger className="bg-white/5 border-white/10 text-white h-8 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent className="bg-[hsl(220,40%,10%)] border-white/10 max-h-[200px]">
+                        {RUNWAY_VOICE_PRESETS.map(v => (<SelectItem key={v} value={v} className="text-white text-xs">{v}</SelectItem>))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              )}
+              {(runwayAudioAction === "voice_isolation") && (
+                <div>
+                  <p className="text-[10px] text-white/40 mb-1">Audio/Video URL to isolate voice from</p>
+                  <Input value={stsAudioUrl} onChange={e => setStsAudioUrl(e.target.value)} placeholder="https://... audio or video URL" className="bg-white/5 border-white/10 text-white text-xs h-8" />
+                </div>
+              )}
+              {runwayAudioAction === "voice_dubbing" && (
+                <div className="space-y-2">
+                  <div>
+                    <p className="text-[10px] text-white/40 mb-1">Audio/Video URL to dub</p>
+                    <Input value={stsAudioUrl} onChange={e => setStsAudioUrl(e.target.value)} placeholder="https://... audio or video URL" className="bg-white/5 border-white/10 text-white text-xs h-8" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-white/40 mb-1">Target Language</p>
+                    <Select value={dubbingLanguage} onValueChange={setDubbingLanguage}>
+                      <SelectTrigger className="bg-white/5 border-white/10 text-white h-8 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent className="bg-[hsl(220,40%,10%)] border-white/10 max-h-[200px]">
+                        {[{ id: "es", l: "Spanish" }, { id: "fr", l: "French" }, { id: "de", l: "German" }, { id: "it", l: "Italian" }, { id: "pt", l: "Portuguese" }, { id: "ja", l: "Japanese" }, { id: "ko", l: "Korean" }, { id: "zh", l: "Chinese" }, { id: "ar", l: "Arabic" }, { id: "hi", l: "Hindi" }, { id: "ru", l: "Russian" }, { id: "nl", l: "Dutch" }, { id: "pl", l: "Polish" }, { id: "sv", l: "Swedish" }, { id: "tr", l: "Turkish" }].map(lang => (
+                          <SelectItem key={lang.id} value={lang.id} className="text-white text-xs">{lang.l}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               )}
             </div>
@@ -1422,23 +1473,27 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
           </div>
         </ScrollArea>
         <div className="border-t border-white/[0.06] p-4 space-y-3">
-          {selectedVoice && <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2"><p className="text-[10px] text-amber-300/70">ElevenLabs voice: {voices.find(v => v.id === selectedVoice)?.name || "—"}</p></div>}
+          {selectedVoice && runwayAudioAction === "tts" && <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2"><p className="text-[10px] text-amber-300/70">ElevenLabs voice: {voices.find(v => v.id === selectedVoice)?.name || "—"}</p></div>}
           <div>
-            <p className="text-xs font-medium text-white mb-2">{runwayAudioAction === "sfx" ? "Describe the sound effect" : "Text to convert to speech"}</p>
-            <Textarea value={audioText} onChange={e => setAudioText(e.target.value)} placeholder={runwayAudioAction === "sfx" ? "A thunderstorm with heavy rain..." : "Enter the text you want to convert to audio..."}
-              className="bg-white/5 border-white/10 text-white text-sm min-h-[100px] resize-none placeholder:text-white/20"
+            <p className="text-xs font-medium text-white mb-2">
+              {runwayAudioAction === "sfx" ? "Describe the sound effect" : runwayAudioAction === "tts" ? "Text to convert to speech" : "Additional notes (optional)"}
+            </p>
+            <Textarea value={audioText} onChange={e => setAudioText(e.target.value)} placeholder={runwayAudioAction === "sfx" ? "A thunderstorm with heavy rain..." : runwayAudioAction === "tts" ? "Enter the text you want to convert to audio..." : "Optional description or notes..."}
+              className="bg-white/5 border-white/10 text-white text-sm min-h-[80px] resize-none placeholder:text-white/20"
               onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); generateRunwayAudio(); } }} />
             <p className="text-[10px] text-white/30 mt-1">{audioText.length} characters</p>
           </div>
           <div className="flex gap-2">
-            <Button onClick={generateRunwayAudio} disabled={!audioText.trim() || isGeneratingRunwayAudio}
+            <Button onClick={generateRunwayAudio} disabled={isGeneratingRunwayAudio || ((runwayAudioAction === "tts" || runwayAudioAction === "sfx") && !audioText.trim()) || ((runwayAudioAction === "sts" || runwayAudioAction === "voice_isolation" || runwayAudioAction === "voice_dubbing") && !stsAudioUrl.trim())}
               className="flex-1 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white text-sm h-9">
               {isGeneratingRunwayAudio ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Sparkles className="h-4 w-4 mr-2" />}Runway
             </Button>
-            <Button onClick={generateAudio} disabled={!audioText.trim() || isGeneratingAudio || !selectedVoice}
-              className="flex-1 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white text-sm h-9">
-              {isGeneratingAudio ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Volume2 className="h-4 w-4 mr-2" />}ElevenLabs
-            </Button>
+            {runwayAudioAction === "tts" && (
+              <Button onClick={generateAudio} disabled={!audioText.trim() || isGeneratingAudio || !selectedVoice}
+                className="flex-1 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white text-sm h-9">
+                {isGeneratingAudio ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Volume2 className="h-4 w-4 mr-2" />}ElevenLabs
+              </Button>
+            )}
           </div>
         </div>
       </div>
