@@ -187,7 +187,7 @@ const CRM = () => {
       case "content": return <ContentCommandCenter />;
       case "social": return <SocialMediaHub />;
       case "emotional": return <EmotionalHeatmap />;
-      case "copilot": return <AICoPilot />;
+      case "copilot": return <AICoPilot onNavigate={(tab: string) => setActiveTab(tab)} />;
       case "lookup": return <ProfileLookup />;
       case "audience": return <AudienceIntelligence accounts={accounts} />;
       case "reports": return <ReportingExport />;
@@ -372,7 +372,7 @@ const CRM = () => {
       </main>
 
       <CRMHelpWidget />
-      <FloatingCopilot activeTab={activeTab} />
+      <FloatingCopilot activeTab={activeTab} onNavigate={(tab: string) => setActiveTab(tab)} />
       <InsufficientCreditsModal
         open={insufficientModal.open}
         onClose={closeInsufficientModal}

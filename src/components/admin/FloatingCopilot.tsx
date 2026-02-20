@@ -50,9 +50,10 @@ const clearDraft = () => { try { localStorage.removeItem(FLOAT_DRAFT_KEY); } cat
 interface FloatingCopilotProps {
   activeTab?: string;
   contextData?: Record<string, any>;
+  onNavigate?: (tab: string) => void;
 }
 
-const FloatingCopilot = ({ activeTab, contextData }: FloatingCopilotProps) => {
+const FloatingCopilot = ({ activeTab, contextData, onNavigate }: FloatingCopilotProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
@@ -154,10 +155,20 @@ const FloatingCopilot = ({ activeTab, contextData }: FloatingCopilotProps) => {
       const contentType = resp.headers.get("content-type") || "";
 
       if (contentType.includes("application/json")) {
-        setMessages([...baseMessages, { role: "assistant", content: "🎨 Generating highest quality image..." }]);
+        setMessages([...baseMessages, { role: "assistant", content: "⚡ Processing..." }]);
         scrollToBottom();
         const data = await resp.json();
-        if (data.type === "image") {
+        if (data.type === "action") {
+          const content = data.content || "Actions executed.";
+          const final = [...baseMessages, { role: "assistant" as const, content }];
+          setMessages(final);
+          scrollToBottom();
+          await saveToDb(cId, final, msgText.slice(0, 50));
+          if (data.navigateTo && onNavigate) {
+            setTimeout(() => onNavigate(data.navigateTo), 800);
+            toast.success(`Navigating to ${data.navigateTo}`, { description: "Uplyze Assistant executed your request." });
+          }
+        } else if (data.type === "image") {
           const final = [...baseMessages, { role: "assistant" as const, content: data.content || "Generated.", images: data.images || [] }];
           setMessages(final);
           scrollToBottom();
