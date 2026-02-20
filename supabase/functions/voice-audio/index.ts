@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { encode as base64Encode } from "https://deno.land/std@0.168.0/encoding/base64.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -18,18 +19,15 @@ serve(async (req) => {
     const action = url.searchParams.get("action");
 
     // ---- ACTION: clone ----
-    // Expects multipart form: name, description, files[]
     if (action === "clone") {
       const formData = await req.formData();
       const name = formData.get("name") as string;
       const description = (formData.get("description") as string) || "Cloned voice";
 
-      // Forward files to ElevenLabs
       const elevenForm = new FormData();
       elevenForm.append("name", name);
       elevenForm.append("description", description);
 
-      // Get all files from form
       const files = formData.getAll("files");
       if (!files.length) throw new Error("No audio files provided");
 
@@ -54,7 +52,7 @@ serve(async (req) => {
       const cloneData = await cloneResp.json();
       const voiceId = cloneData.voice_id;
 
-      // Generate a preview with the cloned voice saying "Hello, how are you doing?"
+      // Generate a preview with the cloned voice
       const previewResp = await fetch(`${ELEVENLABS_BASE}/text-to-speech/${voiceId}`, {
         method: "POST",
         headers: {
@@ -65,22 +63,14 @@ serve(async (req) => {
         body: JSON.stringify({
           text: "Hello, how are you doing?",
           model_id: "eleven_multilingual_v2",
-          voice_settings: {
-            stability: 0.5,
-            similarity_boost: 0.85,
-            style: 0.5,
-            use_speaker_boost: true,
-          },
+          voice_settings: { stability: 0.5, similarity_boost: 0.85, style: 0.5, use_speaker_boost: true },
         }),
       });
 
       let previewBase64 = "";
       if (previewResp.ok) {
         const audioBuffer = await previewResp.arrayBuffer();
-        const bytes = new Uint8Array(audioBuffer);
-        let binary = "";
-        for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-        previewBase64 = btoa(binary);
+        previewBase64 = base64Encode(audioBuffer);
       }
 
       return new Response(JSON.stringify({
@@ -106,12 +96,6 @@ serve(async (req) => {
         use_speaker_boost: true,
       };
 
-      // Map custom params to ElevenLabs settings
-      if (voice_settings?.speed !== undefined && voice_settings.speed !== 1) {
-        // ElevenLabs doesn't have a direct speed param in v1, but we can note it
-        // Speed is handled via the model - we pass it as a note
-      }
-
       const ttsResp = await fetch(`${ELEVENLABS_BASE}/text-to-speech/${voice_id}`, {
         method: "POST",
         headers: {
@@ -128,19 +112,172 @@ serve(async (req) => {
 
       if (!ttsResp.ok) {
         const errText = await ttsResp.text();
-        console.error("ElevenLabs TTS error:", ttsResp.status, errText);
         throw new Error(`TTS generation failed: ${errText}`);
       }
 
       const audioBuffer = await ttsResp.arrayBuffer();
-      const bytes = new Uint8Array(audioBuffer);
-      let binary = "";
-      for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-      const base64Audio = btoa(binary);
+      const base64Audio = base64Encode(audioBuffer);
 
       return new Response(JSON.stringify({
         audio_url: `data:audio/mpeg;base64,${base64Audio}`,
       }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ---- ACTION: sfx (Sound Effects) ----
+    if (action === "sfx") {
+      const body = await req.json();
+      const { text, duration } = body;
+      if (!text) throw new Error("text is required for sound effects");
+
+      const sfxResp = await fetch(`${ELEVENLABS_BASE}/sound-generation`, {
+        method: "POST",
+        headers: {
+          "xi-api-key": ELEVENLABS_API_KEY,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          text,
+          duration_seconds: duration || 5,
+          prompt_influence: 0.3,
+        }),
+      });
+
+      if (!sfxResp.ok) {
+        const errText = await sfxResp.text();
+        throw new Error(`Sound effect generation failed: ${errText}`);
+      }
+
+      const audioBuffer = await sfxResp.arrayBuffer();
+      const base64Audio = base64Encode(audioBuffer);
+
+      return new Response(JSON.stringify({
+        audio_url: `data:audio/mpeg;base64,${base64Audio}`,
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ---- ACTION: sts (Speech to Speech) ----
+    if (action === "sts") {
+      const formData = await req.formData();
+      const voice_id = formData.get("voice_id") as string;
+      const audioFile = formData.get("audio") as File;
+
+      if (!voice_id) throw new Error("voice_id is required");
+      if (!audioFile) throw new Error("audio file is required");
+
+      const stsForm = new FormData();
+      stsForm.append("audio", audioFile, audioFile.name);
+      stsForm.append("model_id", "eleven_multilingual_sts_v2");
+
+      const stsResp = await fetch(`${ELEVENLABS_BASE}/speech-to-speech/${voice_id}`, {
+        method: "POST",
+        headers: { "xi-api-key": ELEVENLABS_API_KEY },
+        body: stsForm,
+      });
+
+      if (!stsResp.ok) {
+        const errText = await stsResp.text();
+        throw new Error(`Speech-to-Speech failed: ${errText}`);
+      }
+
+      const audioBuffer = await stsResp.arrayBuffer();
+      const base64Audio = base64Encode(audioBuffer);
+
+      return new Response(JSON.stringify({
+        audio_url: `data:audio/mpeg;base64,${base64Audio}`,
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ---- ACTION: voice_isolation ----
+    if (action === "voice_isolation") {
+      const formData = await req.formData();
+      const audioFile = formData.get("audio") as File;
+      if (!audioFile) throw new Error("audio file is required");
+
+      const isoForm = new FormData();
+      isoForm.append("audio", audioFile, audioFile.name);
+
+      const isoResp = await fetch(`${ELEVENLABS_BASE}/audio-isolation`, {
+        method: "POST",
+        headers: { "xi-api-key": ELEVENLABS_API_KEY },
+        body: isoForm,
+      });
+
+      if (!isoResp.ok) {
+        const errText = await isoResp.text();
+        throw new Error(`Voice isolation failed: ${errText}`);
+      }
+
+      const audioBuffer = await isoResp.arrayBuffer();
+      const base64Audio = base64Encode(audioBuffer);
+
+      return new Response(JSON.stringify({
+        audio_url: `data:audio/mpeg;base64,${base64Audio}`,
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ---- ACTION: voice_dubbing ----
+    if (action === "voice_dubbing") {
+      const formData = await req.formData();
+      const audioFile = formData.get("audio") as File;
+      const target_language = formData.get("target_language") as string || "es";
+
+      if (!audioFile) throw new Error("audio file is required");
+
+      const dubForm = new FormData();
+      dubForm.append("file", audioFile, audioFile.name);
+      dubForm.append("target_lang", target_language);
+
+      const dubResp = await fetch(`${ELEVENLABS_BASE}/dubbing`, {
+        method: "POST",
+        headers: { "xi-api-key": ELEVENLABS_API_KEY },
+        body: dubForm,
+      });
+
+      if (!dubResp.ok) {
+        const errText = await dubResp.text();
+        throw new Error(`Voice dubbing failed: ${errText}`);
+      }
+
+      const dubData = await dubResp.json();
+      const dubbingId = dubData.dubbing_id;
+
+      if (!dubbingId) throw new Error("No dubbing_id returned");
+
+      // Poll for dubbing completion
+      let dubbedUrl: string | null = null;
+      for (let i = 0; i < 60; i++) {
+        await new Promise(r => setTimeout(r, 5000));
+        const statusResp = await fetch(`${ELEVENLABS_BASE}/dubbing/${dubbingId}`, {
+          headers: { "xi-api-key": ELEVENLABS_API_KEY },
+        });
+        if (!statusResp.ok) continue;
+        const statusData = await statusResp.json();
+        if (statusData.status === "dubbed") {
+          // Download the dubbed audio
+          const dlResp = await fetch(`${ELEVENLABS_BASE}/dubbing/${dubbingId}/audio/${target_language}`, {
+            headers: { "xi-api-key": ELEVENLABS_API_KEY },
+          });
+          if (dlResp.ok) {
+            const audioBuffer = await dlResp.arrayBuffer();
+            const base64Audio = base64Encode(audioBuffer);
+            dubbedUrl = `data:audio/mpeg;base64,${base64Audio}`;
+          }
+          break;
+        }
+        if (statusData.status === "failed") throw new Error("Dubbing failed");
+      }
+
+      if (!dubbedUrl) throw new Error("Dubbing timed out");
+
+      return new Response(JSON.stringify({ audio_url: dubbedUrl }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -173,7 +310,7 @@ serve(async (req) => {
       });
     }
 
-    return new Response(JSON.stringify({ error: "Unknown action. Use ?action=clone|generate|list|delete" }), {
+    return new Response(JSON.stringify({ error: "Unknown action. Use ?action=clone|generate|list|delete|sfx|sts|voice_isolation|voice_dubbing" }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
