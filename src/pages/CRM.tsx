@@ -365,8 +365,8 @@ const CRM = () => {
           </div>
         </header>
 
-        {/* Page content */}
-        <div className="p-6">
+        {/* Page content — larger base text for all tabs */}
+        <div className="p-6 text-base [&_h2]:text-xl [&_h2]:font-bold [&_h3]:text-lg [&_h3]:font-semibold [&_p]:text-[14px] [&_label]:text-[13px]">
           {renderContent()}
         </div>
       </main>
