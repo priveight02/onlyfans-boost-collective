@@ -152,3 +152,72 @@ html {
 .animate-logo-shimmer {
   animation: logo-shimmer 5s ease-in-out infinite;
 }
+
+/* ─── CRM Design System ─── */
+.crm-card {
+  background: hsl(222 47% 8% / 0.8);
+  border: 1px solid hsl(0 0% 100% / 0.05);
+  border-radius: 1rem;
+  backdrop-filter: blur(12px);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.crm-card:hover {
+  border-color: hsl(0 0% 100% / 0.08);
+  box-shadow: 0 0 0 1px hsl(0 0% 100% / 0.02);
+}
+
+.crm-stat-card {
+  background: hsl(222 47% 9% / 0.6);
+  border: 1px solid hsl(0 0% 100% / 0.04);
+  border-radius: 1rem;
+  padding: 1.25rem;
+  transition: all 0.2s ease;
+}
+.crm-stat-card:hover {
+  background: hsl(222 47% 10% / 0.7);
+  border-color: hsl(0 0% 100% / 0.06);
+  transform: translateY(-1px);
+}
+
+.crm-input {
+  background: hsl(222 47% 11% / 0.6);
+  border: 1px solid hsl(0 0% 100% / 0.06);
+  border-radius: 0.75rem;
+  color: white;
+  font-size: 0.875rem;
+  transition: border-color 0.2s ease;
+}
+.crm-input::placeholder {
+  color: hsl(0 0% 100% / 0.25);
+}
+.crm-input:focus {
+  border-color: hsl(217 91% 60% / 0.4);
+  outline: none;
+  box-shadow: 0 0 0 3px hsl(217 91% 60% / 0.08);
+}
+
+.crm-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.125rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+
+/* Scrollbar for CRM sidebar */
+.scrollbar-thin {
+  scrollbar-width: thin !important;
+  scrollbar-color: hsl(0 0% 100% / 0.06) transparent !important;
+}
+.scrollbar-thin::-webkit-scrollbar {
+  width: 4px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: hsl(0 0% 100% / 0.06);
+  border-radius: 2px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: hsl(0 0% 100% / 0.12);
+}
