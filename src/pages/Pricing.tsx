@@ -211,7 +211,7 @@ const Pricing = () => {
       {/* Hero */}
       <div className="text-center px-4 mb-14">
         <h1 className="text-4xl md:text-5xl font-bold mb-3 text-white tracking-tight">
-          Uplyze Credits, Pay As You Grow
+          Uplyze Credits. Pay As You Grow
         </h1>
         <p className="text-base text-white/40 max-w-lg mx-auto">
           Flexible credit plans for Uplyze AI CRM tools. Credits are delivered instantly and never expire.
