@@ -19,12 +19,13 @@ const spark = (base: number, len = 7) =>
   Array.from({ length: len }, (_, i) => ({ v: base * (0.7 + Math.random() * 0.6) }));
 
 const chartTooltipStyle = {
-  background: "hsl(222 47% 10%)",
-  border: "1px solid hsl(217 91% 60% / 0.1)",
-  borderRadius: "12px",
+  background: "hsl(222 47% 8%)",
+  border: "1px solid hsl(217 91% 60% / 0.12)",
+  borderRadius: "10px",
   color: "#fff",
-  fontSize: 12,
-  boxShadow: "0 8px 32px hsl(0 0% 0% / 0.5)",
+  fontSize: 11,
+  boxShadow: "0 12px 40px hsl(0 0% 0% / 0.6)",
+  padding: "8px 12px",
 };
 
 const EnhancedDashboard = ({ isAdmin = false }: EnhancedDashboardProps) => {
@@ -77,20 +78,10 @@ const EnhancedDashboard = ({ isAdmin = false }: EnhancedDashboardProps) => {
   ];
 
   const kpis = [
-    { label: "NEW LEADS", value: activeAccounts > 0 ? activeAccounts * 3 : 124, change: "+5%", positive: true, color: "hsl(160,84%,39%)", sparkData: spark(100) },
-    { label: "ACTIVE DEALS", value: activeTasks > 0 ? activeTasks * 2 : 78, change: "+2%", positive: true, color: "hsl(262,83%,58%)", sparkData: spark(60) },
-    { label: "TOTAL REVENUE", value: `$${totalRevenue > 0 ? totalRevenue.toLocaleString() : "58,200"}`, change: "+12%", positive: true, color: "hsl(217,91%,60%)", sparkData: spark(200) },
-    { label: "CLOSED DEALS", value: "68%", change: "+3%", positive: true, color: "hsl(339,90%,51%)", sparkData: spark(80) },
-  ];
-
-  const weeklyPerformance = [
-    { day: "Mon", revenue: totalRevenue * 0.12, deals: 4 },
-    { day: "Tue", revenue: totalRevenue * 0.18, deals: 6 },
-    { day: "Wed", revenue: totalRevenue * 0.15, deals: 5 },
-    { day: "Thu", revenue: totalRevenue * 0.22, deals: 8 },
-    { day: "Fri", revenue: totalRevenue * 0.2, deals: 7 },
-    { day: "Sat", revenue: totalRevenue * 0.08, deals: 2 },
-    { day: "Sun", revenue: totalRevenue * 0.05, deals: 1 },
+    { label: "New Leads", value: activeAccounts > 0 ? activeAccounts * 3 : 124, change: "+5%", positive: true, color: "hsl(160,84%,39%)", gradFrom: "hsl(160 84% 39% / 0.12)", gradTo: "hsl(160 84% 39% / 0.02)", sparkData: spark(100) },
+    { label: "Active Deals", value: activeTasks > 0 ? activeTasks * 2 : 78, change: "+2%", positive: true, color: "hsl(262,83%,58%)", gradFrom: "hsl(262 83% 58% / 0.12)", gradTo: "hsl(262 83% 58% / 0.02)", sparkData: spark(60) },
+    { label: "Total Revenue", value: `$${totalRevenue > 0 ? totalRevenue.toLocaleString() : "58,200"}`, change: "+12%", positive: true, color: "hsl(217,91%,60%)", gradFrom: "hsl(217 91% 60% / 0.12)", gradTo: "hsl(217 91% 60% / 0.02)", sparkData: spark(200) },
+    { label: "Closed Deals", value: "68%", change: "+3%", positive: true, color: "hsl(339,90%,51%)", gradFrom: "hsl(339 90% 51% / 0.12)", gradTo: "hsl(339 90% 51% / 0.02)", sparkData: spark(80) },
   ];
 
   // Admin controls
@@ -126,8 +117,10 @@ const EnhancedDashboard = ({ isAdmin = false }: EnhancedDashboardProps) => {
     try { await updateMaintenanceEndTime(endIso); setEndTimeInput(endIso); toast.success("Countdown started"); } catch (err: any) { toast.error(err.message); }
   };
 
+  const dealColors = ["hsl(217,91%,60%)", "hsl(262,83%,58%)", "hsl(160,84%,39%)", "hsl(339,90%,51%)"];
+
   return (
-    <div className="space-y-6 relative z-10">
+    <div className="space-y-5 relative z-10">
       {/* Admin Controls */}
       {isAdmin && (
         <>
@@ -190,29 +183,38 @@ const EnhancedDashboard = ({ isAdmin = false }: EnhancedDashboardProps) => {
       {/* ── KPI Cards ── */}
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         {kpis.map((kpi, idx) => (
-          <div key={kpi.label} className="crm-kpi-card group cursor-default" style={{ animationDelay: `${idx * 80}ms` }}>
-            {/* Ambient glow */}
-            <div className="absolute -top-20 -right-20 w-48 h-48 rounded-full blur-[60px] opacity-[0.06] pointer-events-none transition-opacity group-hover:opacity-[0.12]" style={{ background: kpi.color }} />
+          <div
+            key={kpi.label}
+            className="relative overflow-hidden rounded-2xl p-5 group cursor-default transition-all duration-300 hover:-translate-y-0.5"
+            style={{
+              background: `linear-gradient(165deg, ${kpi.gradFrom}, ${kpi.gradTo})`,
+              border: `1px solid ${kpi.color}20`,
+              boxShadow: `0 0 0 1px ${kpi.color}08, 0 4px 24px hsl(222 47% 4% / 0.4)`,
+            }}
+          >
+            {/* Subtle corner glow */}
+            <div className="absolute -top-12 -right-12 w-32 h-32 rounded-full opacity-[0.15] blur-[40px] pointer-events-none transition-opacity group-hover:opacity-25" style={{ background: kpi.color }} />
+
             <div className="flex items-start justify-between relative z-10">
-              <div className="space-y-2">
-                <p className="text-[10px] font-bold tracking-[0.15em] uppercase" style={{ color: `${kpi.color}` }}>{kpi.label}</p>
-                <p className="text-3xl font-bold text-white tracking-tight leading-none">{kpi.value}</p>
-                <div className="flex items-center gap-1.5 pt-0.5">
-                  {kpi.positive ? <ArrowUpRight className="h-3.5 w-3.5 text-emerald-400" /> : <ArrowDownRight className="h-3.5 w-3.5 text-red-400" />}
-                  <span className={`text-xs font-semibold ${kpi.positive ? "text-emerald-400" : "text-red-400"}`}>{kpi.change}</span>
-                  <span className="text-[10px] text-white/15 ml-1">vs last month</span>
+              <div className="space-y-1.5">
+                <p className="text-[11px] font-bold tracking-[0.12em] uppercase" style={{ color: kpi.color }}>{kpi.label}</p>
+                <p className="text-[28px] font-bold text-white tracking-tight leading-none">{kpi.value}</p>
+                <div className="flex items-center gap-1.5 pt-1">
+                  {kpi.positive ? <ArrowUpRight className="h-3 w-3 text-emerald-400" /> : <ArrowDownRight className="h-3 w-3 text-red-400" />}
+                  <span className={`text-[11px] font-semibold ${kpi.positive ? "text-emerald-400" : "text-red-400"}`}>{kpi.change}</span>
+                  <span className="text-[10px] text-white/20 ml-0.5">vs last month</span>
                 </div>
               </div>
-              <div className="w-24 h-14 opacity-70 group-hover:opacity-100 transition-opacity duration-500">
+              <div className="w-20 h-12 opacity-60 group-hover:opacity-100 transition-opacity duration-500">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={kpi.sparkData}>
                     <defs>
-                      <linearGradient id={`spark-${kpi.label}`} x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={kpi.color} stopOpacity={0.4} />
+                      <linearGradient id={`spark-v3-${idx}`} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={kpi.color} stopOpacity={0.5} />
                         <stop offset="100%" stopColor={kpi.color} stopOpacity={0} />
                       </linearGradient>
                     </defs>
-                    <Area type="monotone" dataKey="v" stroke={kpi.color} strokeWidth={2} fill={`url(#spark-${kpi.label})`} dot={false} />
+                    <Area type="monotone" dataKey="v" stroke={kpi.color} strokeWidth={2} fill={`url(#spark-v3-${idx})`} dot={false} />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
@@ -222,105 +224,114 @@ const EnhancedDashboard = ({ isAdmin = false }: EnhancedDashboardProps) => {
       </div>
 
       {/* ── Main Grid ── */}
-      <div className="grid gap-5 lg:grid-cols-5">
+      <div className="grid gap-4 lg:grid-cols-5">
         {/* Revenue Chart */}
-        <div className="lg:col-span-3 crm-panel p-6">
-          <div className="flex items-center justify-between mb-6">
+        <div className="lg:col-span-3 rounded-2xl p-5 relative overflow-hidden" style={{
+          background: "linear-gradient(165deg, hsl(222 47% 9% / 0.9), hsl(222 47% 6% / 0.85))",
+          border: "1px solid hsl(217 91% 60% / 0.06)",
+          boxShadow: "0 4px 24px hsl(222 47% 4% / 0.35), inset 0 1px 0 hsl(0 0% 100% / 0.02)",
+        }}>
+          <div className="flex items-center justify-between mb-5">
             <div>
-              <h3 className="crm-section-title text-[15px]">Sales Performance</h3>
+              <h3 className="text-sm font-semibold text-white">Sales Performance</h3>
               <p className="text-[11px] text-white/20 mt-0.5">Revenue trends over time</p>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-[10px] px-2.5 py-1 rounded-lg bg-[hsl(217,91%,60%)]/10 text-[hsl(217,91%,60%)] font-semibold">Revenue</span>
-              <span className="text-[11px] text-white/25">This month</span>
+              <span className="text-[10px] px-2.5 py-1 rounded-lg font-semibold" style={{ background: "hsl(217 91% 60% / 0.12)", color: "hsl(217 91% 60%)" }}>Revenue</span>
+              <span className="text-[11px] text-white/20">This month</span>
             </div>
           </div>
-          <div className="h-[260px]">
+          <div className="h-[240px]">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={revenueByMonth}>
                 <defs>
-                  <linearGradient id="revGradV2" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="hsl(217,91%,60%)" stopOpacity={0.3} />
+                  <linearGradient id="revGradV3" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="hsl(217,91%,60%)" stopOpacity={0.25} />
                     <stop offset="100%" stopColor="hsl(217,91%,60%)" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <XAxis dataKey="month" stroke="transparent" tick={{ fontSize: 10, fill: "hsl(0 0% 100% / 0.25)" }} axisLine={false} tickLine={false} />
-                <YAxis stroke="transparent" tick={{ fontSize: 10, fill: "hsl(0 0% 100% / 0.25)" }} axisLine={false} tickLine={false} />
+                <XAxis dataKey="month" stroke="transparent" tick={{ fontSize: 10, fill: "hsl(0 0% 100% / 0.2)" }} axisLine={false} tickLine={false} />
+                <YAxis stroke="transparent" tick={{ fontSize: 10, fill: "hsl(0 0% 100% / 0.2)" }} axisLine={false} tickLine={false} />
                 <Tooltip contentStyle={chartTooltipStyle} />
-                <Area type="monotone" dataKey="revenue" stroke="hsl(217,91%,60%)" strokeWidth={2.5} fill="url(#revGradV2)" />
+                <Area type="monotone" dataKey="revenue" stroke="hsl(217,91%,60%)" strokeWidth={2} fill="url(#revGradV3)" />
               </AreaChart>
             </ResponsiveContainer>
           </div>
         </div>
 
         {/* Right column */}
-        <div className="lg:col-span-2 space-y-5">
+        <div className="lg:col-span-2 space-y-4">
           {/* Recent Deals */}
-          <div className="crm-panel p-5">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="crm-section-title">Recent Deals</h3>
-              <button className="text-[11px] text-[hsl(217,91%,60%)] hover:underline font-medium">View all</button>
+          <div className="rounded-2xl p-4 relative overflow-hidden" style={{
+            background: "linear-gradient(165deg, hsl(222 47% 9% / 0.9), hsl(222 47% 6% / 0.85))",
+            border: "1px solid hsl(217 91% 60% / 0.06)",
+            boxShadow: "0 4px 24px hsl(222 47% 4% / 0.35), inset 0 1px 0 hsl(0 0% 100% / 0.02)",
+          }}>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-white">Recent Deals</h3>
+              <button className="text-[11px] font-medium hover:underline" style={{ color: "hsl(217 91% 60%)" }}>View all</button>
             </div>
-            <div className="space-y-1.5">
+            <div className="space-y-1">
               {(topCreators.length > 0 ? topCreators.slice(0, 4) : [
                 { id: "1", display_name: "Sarah Carter", username: "sarah", monthly_revenue: 8500, status: "active" },
                 { id: "2", display_name: "Jake Nguyen", username: "jake", monthly_revenue: 12300, status: "active" },
                 { id: "3", display_name: "Mia Torres", username: "mia", monthly_revenue: 5200, status: "pending" },
                 { id: "4", display_name: "Liam Park", username: "liam", monthly_revenue: 9800, status: "active" },
-              ]).map((deal: any, i: number) => {
-                const colors = ["hsl(217,91%,60%)", "hsl(262,83%,58%)", "hsl(160,84%,39%)", "hsl(339,90%,51%)"];
-                return (
-                  <div key={deal.id} className="crm-list-row">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0"
-                        style={{ background: `linear-gradient(135deg, ${colors[i % 4]}35, ${colors[i % 4]}10)` }}>
-                        {(deal.display_name || deal.username || "?")[0].toUpperCase()}
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-white">{deal.display_name || deal.username}</p>
-                        <p className="text-[11px] text-white/25">@{deal.username}</p>
-                      </div>
+              ]).map((deal: any, i: number) => (
+                <div key={deal.id} className="flex items-center justify-between py-2 px-2 rounded-xl hover:bg-white/[0.02] transition-colors">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center text-[11px] font-bold text-white shrink-0"
+                      style={{ background: `linear-gradient(135deg, ${dealColors[i % 4]}30, ${dealColors[i % 4]}10)` }}>
+                      {(deal.display_name || deal.username || "?")[0].toUpperCase()}
                     </div>
-                    <div className="text-right">
-                      <p className="text-sm font-semibold text-white">${(deal.monthly_revenue || 0).toLocaleString()}</p>
-                      <span className={`text-[10px] font-semibold ${deal.status === "active" ? "text-emerald-400" : "text-amber-400"}`}>
-                        {deal.status === "active" ? "Won" : "Pending"}
-                      </span>
+                    <div>
+                      <p className="text-[13px] font-medium text-white/90">{deal.display_name || deal.username}</p>
+                      <p className="text-[10px] text-white/20">@{deal.username}</p>
                     </div>
                   </div>
-                );
-              })}
+                  <div className="text-right">
+                    <p className="text-[13px] font-semibold text-white">${(deal.monthly_revenue || 0).toLocaleString()}</p>
+                    <span className={`text-[10px] font-semibold ${deal.status === "active" ? "text-emerald-400" : "text-amber-400"}`}>
+                      {deal.status === "active" ? "Won" : "Pending"}
+                    </span>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
 
           {/* Top Contacts */}
-          <div className="crm-panel p-5">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="crm-section-title">Top Contacts</h3>
-              <span className="text-[11px] text-white/25">{topCreators.length || 5} people</span>
+          <div className="rounded-2xl p-4 relative overflow-hidden" style={{
+            background: "linear-gradient(165deg, hsl(222 47% 9% / 0.9), hsl(222 47% 6% / 0.85))",
+            border: "1px solid hsl(217 91% 60% / 0.06)",
+            boxShadow: "0 4px 24px hsl(222 47% 4% / 0.35), inset 0 1px 0 hsl(0 0% 100% / 0.02)",
+          }}>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-white">Top Contacts</h3>
+              <span className="text-[11px] text-white/20">{topCreators.length || 5} people</span>
             </div>
-            <div className="space-y-1.5">
+            <div className="space-y-1">
               {(topCreators.length > 0 ? topCreators.slice(0, 3) : [
                 { id: "a", display_name: "Megan Collins", username: "megan", subscriber_count: 45200 },
                 { id: "b", display_name: "James Parker", username: "james", subscriber_count: 32100 },
                 { id: "c", display_name: "Daniel Holt", username: "daniel", subscriber_count: 28700 },
               ]).map((contact: any) => (
-                <div key={contact.id} className="crm-list-row">
+                <div key={contact.id} className="flex items-center justify-between py-2 px-2 rounded-xl hover:bg-white/[0.02] transition-colors">
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[hsl(217,91%,60%)]/20 to-[hsl(262,83%,58%)]/15 flex items-center justify-center text-xs font-bold text-white shrink-0">
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center text-[11px] font-bold text-white shrink-0" style={{ background: "linear-gradient(135deg, hsl(217 91% 60% / 0.15), hsl(262 83% 58% / 0.1))" }}>
                       {(contact.display_name || contact.username || "?")[0].toUpperCase()}
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-white">{contact.display_name || contact.username}</p>
-                      <p className="text-[11px] text-white/25">{(contact.subscriber_count || 0).toLocaleString()} followers</p>
+                      <p className="text-[13px] font-medium text-white/90">{contact.display_name || contact.username}</p>
+                      <p className="text-[10px] text-white/20">{(contact.subscriber_count || 0).toLocaleString()} followers</p>
                     </div>
                   </div>
-                  <div className="flex gap-1.5">
-                    <button className="w-8 h-8 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] flex items-center justify-center transition-colors border border-white/[0.04]">
-                      <Phone className="h-3.5 w-3.5 text-white/35" />
+                  <div className="flex gap-1">
+                    <button className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors hover:bg-white/[0.06]" style={{ background: "hsl(222 47% 10% / 0.6)", border: "1px solid hsl(217 91% 60% / 0.06)" }}>
+                      <Phone className="h-3 w-3 text-white/30" />
                     </button>
-                    <button className="w-8 h-8 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] flex items-center justify-center transition-colors border border-white/[0.04]">
-                      <Mail className="h-3.5 w-3.5 text-white/35" />
+                    <button className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors hover:bg-white/[0.06]" style={{ background: "hsl(222 47% 10% / 0.6)", border: "1px solid hsl(217 91% 60% / 0.06)" }}>
+                      <Mail className="h-3 w-3 text-white/30" />
                     </button>
                   </div>
                 </div>
@@ -331,28 +342,32 @@ const EnhancedDashboard = ({ isAdmin = false }: EnhancedDashboardProps) => {
       </div>
 
       {/* ── Bottom: Tasks + Activity ── */}
-      <div className="grid gap-5 lg:grid-cols-2">
-        <div className="crm-panel p-6">
+      <div className="grid gap-4 lg:grid-cols-2">
+        <div className="rounded-2xl p-5 relative overflow-hidden" style={{
+          background: "linear-gradient(165deg, hsl(222 47% 9% / 0.9), hsl(222 47% 6% / 0.85))",
+          border: "1px solid hsl(217 91% 60% / 0.06)",
+          boxShadow: "0 4px 24px hsl(222 47% 4% / 0.35), inset 0 1px 0 hsl(0 0% 100% / 0.02)",
+        }}>
           <div className="flex items-center justify-between mb-4">
-            <h3 className="crm-section-title">Upcoming Tasks</h3>
+            <h3 className="text-sm font-semibold text-white">Upcoming Tasks</h3>
             <div className="flex gap-1.5">
-              <span className="text-[10px] px-2.5 py-1 rounded-lg bg-[hsl(217,91%,60%)]/10 text-[hsl(217,91%,60%)] font-semibold">{activeTasks} active</span>
-              <span className="text-[10px] px-2.5 py-1 rounded-lg bg-white/[0.04] text-white/30 font-medium">{tasks.length} total</span>
+              <span className="text-[10px] px-2 py-0.5 rounded-md font-semibold" style={{ background: "hsl(217 91% 60% / 0.1)", color: "hsl(217 91% 60%)" }}>{activeTasks} active</span>
+              <span className="text-[10px] px-2 py-0.5 rounded-md bg-white/[0.04] text-white/25 font-medium">{tasks.length} total</span>
             </div>
           </div>
-          <div className="space-y-1">
+          <div className="space-y-0.5">
             {tasks.length === 0 ? (
-              <p className="text-white/20 text-sm py-8 text-center">No tasks yet</p>
+              <p className="text-white/15 text-sm py-8 text-center">No tasks yet</p>
             ) : tasks.slice(0, 5).map((task: any) => (
-              <div key={task.id} className="crm-list-row">
+              <div key={task.id} className="flex items-center justify-between py-2 px-2 rounded-xl hover:bg-white/[0.02] transition-colors">
                 <div className="flex items-center gap-3">
                   <div className={`w-5 h-5 rounded-md border flex items-center justify-center shrink-0 ${task.status === "completed" ? "bg-emerald-500/15 border-emerald-500/30" : task.status === "in_progress" ? "bg-[hsl(217,91%,60%)]/15 border-[hsl(217,91%,60%)]/30" : "bg-white/[0.04] border-white/[0.06]"}`}>
                     {task.status === "completed" && <CheckCircle2 className="h-3 w-3 text-emerald-400" />}
                     {task.status === "in_progress" && <Circle className="h-3 w-3 text-[hsl(217,91%,60%)]" />}
                   </div>
-                  <p className={`text-sm font-medium truncate ${task.status === "completed" ? "text-white/30 line-through" : "text-white/80"}`}>{task.title}</p>
+                  <p className={`text-[13px] font-medium truncate ${task.status === "completed" ? "text-white/25 line-through" : "text-white/75"}`}>{task.title}</p>
                 </div>
-                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-md ${task.priority === "high" ? "bg-red-500/10 text-red-400" : task.priority === "medium" ? "bg-amber-500/10 text-amber-400" : "bg-white/[0.04] text-white/30"}`}>
+                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-md ${task.priority === "high" ? "bg-red-500/10 text-red-400" : task.priority === "medium" ? "bg-amber-500/10 text-amber-400" : "bg-white/[0.04] text-white/25"}`}>
                   {task.priority || "normal"}
                 </span>
               </div>
@@ -360,24 +375,28 @@ const EnhancedDashboard = ({ isAdmin = false }: EnhancedDashboardProps) => {
           </div>
         </div>
 
-        <div className="crm-panel p-6">
+        <div className="rounded-2xl p-5 relative overflow-hidden" style={{
+          background: "linear-gradient(165deg, hsl(222 47% 9% / 0.9), hsl(222 47% 6% / 0.85))",
+          border: "1px solid hsl(217 91% 60% / 0.06)",
+          boxShadow: "0 4px 24px hsl(222 47% 4% / 0.35), inset 0 1px 0 hsl(0 0% 100% / 0.02)",
+        }}>
           <div className="flex items-center justify-between mb-4">
-            <h3 className="crm-section-title">Recent Activity</h3>
-            <span className="text-[11px] text-white/25">Last 7 days</span>
+            <h3 className="text-sm font-semibold text-white">Recent Activity</h3>
+            <span className="text-[11px] text-white/20">Last 7 days</span>
           </div>
-          <div className="space-y-1">
+          <div className="space-y-0.5">
             {activities.length === 0 ? (
-              <p className="text-white/20 text-sm py-8 text-center">No activity yet</p>
+              <p className="text-white/15 text-sm py-8 text-center">No activity yet</p>
             ) : activities.map((act) => (
-              <div key={act.id} className="crm-list-row">
+              <div key={act.id} className="flex items-center justify-between py-2 px-2 rounded-xl hover:bg-white/[0.02] transition-colors">
                 <div className="flex items-center gap-3">
-                  <div className="w-2 h-2 rounded-full bg-[hsl(217,91%,60%)] shrink-0" />
+                  <div className="w-2 h-2 rounded-full shrink-0" style={{ background: "hsl(217 91% 60%)", boxShadow: "0 0 8px hsl(217 91% 60% / 0.4)" }} />
                   <div className="min-w-0">
-                    <p className="text-sm text-white/70 truncate">{act.description}</p>
-                    <p className="text-[11px] text-white/20">{new Date(act.created_at).toLocaleDateString()}</p>
+                    <p className="text-[13px] text-white/65 truncate">{act.description}</p>
+                    <p className="text-[10px] text-white/15">{new Date(act.created_at).toLocaleDateString()}</p>
                   </div>
                 </div>
-                <Badge variant="outline" className="text-[10px] border-white/[0.06] text-white/25 shrink-0">{act.activity_type}</Badge>
+                <Badge variant="outline" className="text-[10px] border-white/[0.06] text-white/20 shrink-0">{act.activity_type}</Badge>
               </div>
             ))}
           </div>

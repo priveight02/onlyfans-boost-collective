@@ -38,6 +38,7 @@ import {
   FileText, MessageSquare, CheckSquare, MessageCircle, Award,
   TrendingUp, Activity, Zap, Download, Brain, Calendar, Heart,
   Bot, Globe, Code2, Coins, Lock, Settings, ChevronLeft, ChevronRight,
+  Bell, HelpCircle, Sparkles,
 } from "lucide-react";
 
 const navSections = [
@@ -133,10 +134,13 @@ const CRM = () => {
 
   if (loading || walletLoading) {
     return (
-      <div className="min-h-screen bg-[hsl(222,47%,5%)] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 border-2 border-[hsl(217,91%,60%)]/60 border-t-transparent rounded-full animate-spin" />
-          <span className="text-sm text-white/30 font-medium">Loading platform...</span>
+      <div className="min-h-screen bg-[hsl(222,47%,4%)] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="relative w-12 h-12">
+            <div className="absolute inset-0 border-2 border-[hsl(217,91%,60%)]/20 rounded-full" />
+            <div className="absolute inset-0 border-2 border-[hsl(217,91%,60%)]/60 border-t-transparent rounded-full animate-spin" />
+          </div>
+          <span className="text-xs text-white/25 font-medium tracking-wider uppercase">Loading platform</span>
         </div>
       </div>
     );
@@ -144,7 +148,7 @@ const CRM = () => {
 
   if (balance < 1) {
     return (
-      <div className="dark min-h-screen bg-[hsl(222,47%,5%)] flex items-center justify-center">
+      <div className="dark min-h-screen bg-[hsl(222,47%,4%)] flex items-center justify-center">
         <div className="text-center space-y-6 max-w-md mx-auto px-6">
           <div className="w-16 h-16 rounded-2xl bg-[hsl(217,91%,60%)]/10 border border-[hsl(217,91%,60%)]/20 flex items-center justify-center mx-auto">
             <Lock className="h-7 w-7 text-[hsl(217,91%,60%)]" />
@@ -213,37 +217,51 @@ const CRM = () => {
     }
   };
 
+  const activeItem = navSections.flatMap(s => s.items).find(i => i.id === activeTab);
+
   return (
-    <div className="dark min-h-screen bg-[hsl(222,47%,5%)] crm-bg-ambient flex">
-      {/* Sidebar */}
+    <div className="dark min-h-screen flex overflow-hidden" style={{ background: "linear-gradient(180deg, hsl(222 47% 4%) 0%, hsl(225 50% 6%) 50%, hsl(222 47% 4%) 100%)" }}>
+      {/* Ambient orbs */}
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+        <div className="absolute -top-[30%] -left-[15%] w-[60%] h-[60%] rounded-full opacity-[0.03]" style={{ background: "radial-gradient(circle, hsl(217 91% 55%), transparent 70%)" }} />
+        <div className="absolute -bottom-[25%] -right-[15%] w-[50%] h-[50%] rounded-full opacity-[0.025]" style={{ background: "radial-gradient(circle, hsl(262 83% 58%), transparent 70%)" }} />
+        <div className="absolute top-[40%] left-[30%] w-[30%] h-[30%] rounded-full opacity-[0.015]" style={{ background: "radial-gradient(circle, hsl(200 100% 50%), transparent 70%)" }} />
+      </div>
+
+      {/* ═══════ SIDEBAR ═══════ */}
       <aside className={cn(
-        "fixed top-0 left-0 h-screen z-40 flex flex-col border-r border-white/[0.04] transition-all duration-300",
-        "bg-gradient-to-b from-[hsl(222,47%,7%)] via-[hsl(222,47%,6%)] to-[hsl(222,47%,5%)]",
-        sidebarCollapsed ? "w-[68px]" : "w-[220px]"
-      )}>
-        {/* Logo */}
-        <div className="h-16 flex items-center px-4 border-b border-white/[0.04]">
+        "fixed top-0 left-0 h-screen z-40 flex flex-col transition-all duration-300 ease-out",
+        sidebarCollapsed ? "w-[72px]" : "w-[240px]"
+      )} style={{
+        background: "linear-gradient(180deg, hsl(222 50% 7% / 0.97) 0%, hsl(222 50% 5% / 0.95) 100%)",
+        borderRight: "1px solid hsl(217 91% 60% / 0.06)",
+        backdropFilter: "blur(40px) saturate(1.5)",
+      }}>
+        {/* Logo area */}
+        <div className={cn("h-[64px] flex items-center border-b border-white/[0.04]", sidebarCollapsed ? "px-3 justify-center" : "px-5")}>
           {!sidebarCollapsed && (
-            <span className="text-base font-bold text-white font-heading tracking-tight">Uplyze</span>
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: "linear-gradient(135deg, hsl(217 91% 55%), hsl(262 83% 58%))" }}>
+                <Sparkles className="h-4 w-4 text-white" />
+              </div>
+              <span className="text-[15px] font-bold text-white tracking-tight">Uplyze</span>
+            </div>
           )}
-          <button
-            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            className={cn(
-              "w-7 h-7 rounded-lg flex items-center justify-center text-white/30 hover:text-white/60 hover:bg-white/[0.04] transition-colors",
-              sidebarCollapsed ? "mx-auto" : "ml-auto"
-            )}
-          >
-            {sidebarCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-          </button>
+          {sidebarCollapsed && (
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "linear-gradient(135deg, hsl(217 91% 55%), hsl(262 83% 58%))" }}>
+              <Sparkles className="h-4.5 w-4.5 text-white" />
+            </div>
+          )}
         </div>
 
-        {/* Nav */}
-        <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-4 scrollbar-thin">
+        {/* Navigation */}
+        <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-5 scrollbar-thin">
           {navSections.map((section) => (
             <div key={section.label}>
               {!sidebarCollapsed && (
-                <p className="px-3 mb-1.5 text-[10px] font-semibold text-white/15 uppercase tracking-wider">{section.label}</p>
+                <p className="px-3 mb-2 text-[10px] font-bold text-white/20 uppercase tracking-[0.18em]">{section.label}</p>
               )}
+              {sidebarCollapsed && <div className="h-px bg-white/[0.04] mx-2 mb-2" />}
               <div className="space-y-0.5">
                 {section.items.map((item) => {
                   const isActive = activeTab === item.id;
@@ -254,15 +272,26 @@ const CRM = () => {
                       onClick={() => handleTabChange(item.id)}
                       title={sidebarCollapsed ? item.label : undefined}
                       className={cn(
-                        "w-full flex items-center gap-2.5 rounded-xl text-sm font-medium transition-all duration-200",
-                        sidebarCollapsed ? "justify-center px-2 py-2.5" : "px-3 py-2",
+                        "w-full flex items-center gap-3 rounded-xl text-[13px] font-medium transition-all duration-200 relative group",
+                        sidebarCollapsed ? "justify-center px-0 py-2.5 mx-auto" : "px-3 py-[9px]",
                         isActive
-                          ? "bg-[hsl(217,91%,60%)]/12 text-[hsl(217,91%,60%)] shadow-[0_0_20px_hsl(217,91%,60%,0.08)]"
-                          : "text-white/35 hover:text-white/70 hover:bg-white/[0.03]"
+                          ? "text-white"
+                          : "text-white/35 hover:text-white/65 hover:bg-white/[0.03]"
                       )}
                     >
-                      <Icon className={cn("h-4 w-4 flex-shrink-0", isActive ? "text-[hsl(217,91%,60%)]" : "")} />
-                      {!sidebarCollapsed && <span className="truncate">{item.label}</span>}
+                      {/* Active indicator bar */}
+                      {isActive && (
+                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full" style={{ background: "linear-gradient(180deg, hsl(217 91% 60%), hsl(262 83% 58%))" }} />
+                      )}
+                      {/* Active background */}
+                      {isActive && (
+                        <div className="absolute inset-0 rounded-xl opacity-100" style={{ background: "linear-gradient(90deg, hsl(217 91% 60% / 0.1), hsl(217 91% 60% / 0.03))" }} />
+                      )}
+                      <Icon className={cn(
+                        "h-[18px] w-[18px] flex-shrink-0 relative z-10 transition-colors",
+                        isActive ? "text-[hsl(217,91%,60%)]" : "group-hover:text-white/50"
+                      )} />
+                      {!sidebarCollapsed && <span className="truncate relative z-10">{item.label}</span>}
                     </button>
                   );
                 })}
@@ -271,37 +300,67 @@ const CRM = () => {
           ))}
         </nav>
 
-        {/* Footer */}
+        {/* Collapse toggle */}
+        <div className="px-3 py-2 border-t border-white/[0.04]">
+          <button
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            className="w-full flex items-center justify-center gap-2 py-2 rounded-xl text-white/25 hover:text-white/50 hover:bg-white/[0.03] transition-all text-xs"
+          >
+            {sidebarCollapsed ? <ChevronRight className="h-4 w-4" /> : <><ChevronLeft className="h-4 w-4" /><span>Collapse</span></>}
+          </button>
+        </div>
+
+        {/* Credits footer */}
         {!sidebarCollapsed && (
-          <div className="p-3 border-t border-white/[0.04]">
-            <div className="px-3 py-2.5 rounded-xl bg-gradient-to-br from-[hsl(217,91%,60%)]/8 to-[hsl(262,83%,58%)]/5 border border-[hsl(217,91%,60%)]/10">
-              <p className="text-[10px] font-medium text-white/30">Credits</p>
-              <p className="text-sm font-bold text-[hsl(217,91%,60%)]">{balance.toLocaleString()}</p>
+          <div className="px-3 pb-4">
+            <div className="px-4 py-3 rounded-xl relative overflow-hidden" style={{ background: "linear-gradient(135deg, hsl(217 91% 55% / 0.08), hsl(262 83% 58% / 0.05))", border: "1px solid hsl(217 91% 60% / 0.08)" }}>
+              <div className="absolute -top-6 -right-6 w-16 h-16 rounded-full opacity-20" style={{ background: "radial-gradient(circle, hsl(217 91% 60%), transparent)" }} />
+              <p className="text-[10px] font-semibold text-white/30 uppercase tracking-wider">Credits</p>
+              <p className="text-lg font-bold text-white mt-0.5" style={{ textShadow: "0 0 20px hsl(217 91% 60% / 0.3)" }}>{balance.toLocaleString()}</p>
             </div>
           </div>
         )}
       </aside>
 
-      {/* Main content */}
+      {/* ═══════ MAIN CONTENT ═══════ */}
       <main className={cn(
-        "flex-1 transition-all duration-300 min-h-screen",
-        sidebarCollapsed ? "ml-[68px]" : "ml-[220px]"
+        "flex-1 transition-all duration-300 min-h-screen relative z-10",
+        sidebarCollapsed ? "ml-[72px]" : "ml-[240px]"
       )}>
         {/* Top bar */}
-        <header className="h-16 border-b border-white/[0.04] bg-[hsl(222,47%,5%)]/85 backdrop-blur-2xl sticky top-0 z-30 flex items-center justify-between px-6">
-          <div>
-            <h1 className="text-base font-semibold text-white font-heading">
-              {navSections.flatMap(s => s.items).find(i => i.id === activeTab)?.label || "Dashboard"}
+        <header className="h-[56px] sticky top-0 z-30 flex items-center justify-between px-6" style={{
+          background: "hsl(222 47% 4% / 0.7)",
+          backdropFilter: "blur(24px) saturate(1.4)",
+          borderBottom: "1px solid hsl(217 91% 60% / 0.04)",
+        }}>
+          <div className="flex items-center gap-3">
+            <h1 className="text-sm font-semibold text-white/90 tracking-tight">
+              {activeItem?.label || "Dashboard"}
             </h1>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/15" />
+          <div className="flex items-center gap-2">
+            <div className="relative group">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/15 group-focus-within:text-white/30 transition-colors" />
               <input
                 type="text"
                 placeholder="Search your CRM..."
-                className="h-9 w-[240px] rounded-xl bg-white/[0.03] border border-white/[0.05] pl-9 pr-3 text-sm text-white placeholder:text-white/15 focus:outline-none focus:border-[hsl(217,91%,60%)]/25 focus:bg-white/[0.04] transition-all"
+                className="h-8 w-[200px] focus:w-[280px] rounded-lg text-xs text-white placeholder:text-white/15 pl-9 pr-3 transition-all duration-300 outline-none"
+                style={{
+                  background: "hsl(222 47% 10% / 0.5)",
+                  border: "1px solid hsl(217 91% 60% / 0.06)",
+                }}
+                onFocus={(e) => { e.target.style.borderColor = "hsl(217 91% 60% / 0.2)"; e.target.style.background = "hsl(222 47% 12% / 0.6)"; }}
+                onBlur={(e) => { e.target.style.borderColor = "hsl(217 91% 60% / 0.06)"; e.target.style.background = "hsl(222 47% 10% / 0.5)"; }}
               />
+            </div>
+            <button className="w-8 h-8 rounded-lg flex items-center justify-center text-white/20 hover:text-white/50 hover:bg-white/[0.04] transition-all">
+              <Bell className="h-4 w-4" />
+            </button>
+            <button className="w-8 h-8 rounded-lg flex items-center justify-center text-white/20 hover:text-white/50 hover:bg-white/[0.04] transition-all">
+              <HelpCircle className="h-4 w-4" />
+            </button>
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold text-white" style={{ background: "linear-gradient(135deg, hsl(217 91% 55%), hsl(262 83% 58%))" }}>
+              {user?.email?.[0]?.toUpperCase() || "U"}
             </div>
           </div>
         </header>
