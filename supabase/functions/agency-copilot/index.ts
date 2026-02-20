@@ -85,14 +85,14 @@ async function deductCreditsForTool(
     return { ok: false, error: "Failed to deduct credits", cost };
   }
 
-  // Log to ledger
-  await supabaseAdmin.from("credit_ledger").insert({
-    user_id: userId,
-    amount: -cost,
-    type: "crm_action",
-    description: `AI assistant action: ${toolName}`,
-    metadata: { action_type: toolName, cost, source: "ai_copilot" },
-  });
+    // Log to ledger
+    await supabaseAdmin.from("credit_ledger").insert({
+      user_id: userId,
+      amount: -cost,
+      type: "spend",
+      description: `AI assistant action: ${toolName}`,
+      metadata: { action_type: toolName, cost, source: "ai_copilot" },
+    });
 
   console.log(`AI deducted ${cost} credits from user ${userId} for tool: ${toolName}`);
   return { ok: true, cost };
@@ -656,14 +656,15 @@ serve(async (req) => {
     const systemPrompt = getSystemPrompt(today, context, creditBalance);
     const processedMessages = messages.map((msg: any) => msg);
 
-    // First call: let AI decide if it needs to use tools
+    // First call: let AI decide if it needs to use tools (use GPT for reliable tool calling)
     const toolResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: "openai/gpt-5-mini",
         messages: [{ role: "system", content: systemPrompt }, ...processedMessages],
         tools: CRM_TOOLS,
+        tool_choice: "auto",
         stream: false,
       }),
     });
@@ -686,7 +687,7 @@ serve(async (req) => {
         method: "POST",
         headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "google/gemini-3-flash-preview",
+          model: "openai/gpt-5-mini",
           messages: [{ role: "system", content: systemPrompt }, ...processedMessages],
           stream: true,
         }),
@@ -762,7 +763,7 @@ serve(async (req) => {
       method: "POST",
       headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: "openai/gpt-5-mini",
         messages: [{ role: "system", content: systemPrompt }, ...toolResultMessages],
         stream: false,
       }),
