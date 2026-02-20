@@ -7,8 +7,8 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-[hsl(222,35%,8%)]">
       <PageSEO
-        title="Uplyze | #1 AI CRM for Creators & Agencies | Scale Revenue 10x"
-        description="Uplyze is the #1 AI-powered CRM trusted by 500+ creators and agencies to 10x revenue. Automate growth, manage fans, and scale your business at uplyze.ai."
+         title="Uplyze — #1 AI CRM for Creators & Agencies"
+         description="Trusted by 700+ creators and agencies to automate growth, engage customers with AI, and 10x revenue. The all-in-one AI CRM built for digital entrepreneurs at uplyze.ai."
         jsonLd={{
           "@context": "https://schema.org",
           "@type": "WebPage",

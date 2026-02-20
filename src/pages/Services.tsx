@@ -186,7 +186,7 @@ const Services = () => {
     <div className="min-h-screen bg-[hsl(222,35%,8%)] relative overflow-hidden">
       <PageSEO
         title="Uplyze Features | AI CRM, Automation & Social Media Tools | uplyze.ai"
-        description="Explore Uplyze features — AI CRM, workflow automation, social media management, revenue analytics, and more. See why 500+ creators choose Uplyze at uplyze.ai."
+        description="Explore Uplyze features — AI CRM, workflow automation, social media management, revenue analytics, and more. See why 700+ creators choose Uplyze at uplyze.ai."
         jsonLd={{
           "@context": "https://schema.org",
           "@type": "ItemList",
@@ -291,7 +291,7 @@ const Services = () => {
             Ready to Scale with Uplyze?
           </h2>
           <p className="text-lg text-white/50 mb-10 max-w-xl mx-auto">
-            Join 500+ creators and agencies already growing with Uplyze AI CRM at uplyze.ai. Free to start, no credit card required.
+            Join 700+ creators and agencies already growing with Uplyze AI CRM at uplyze.ai. Free to start, no credit card required.
           </p>
           <Link to={ctaPath}>
             <Button size="lg" className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white hover:scale-105 transition-all duration-300 shadow-xl shadow-purple-500/20 text-xl px-16 py-6 rounded-xl font-bold">

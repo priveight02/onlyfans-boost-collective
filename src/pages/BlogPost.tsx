@@ -260,7 +260,7 @@ const BlogPost = () => {
           <div className="relative">
             <Sparkles className="h-6 w-6 text-primary/60 mx-auto mb-3" />
             <h3 className="text-xl font-bold text-white mb-2">Ready to scale with AI?</h3>
-            <p className="text-white/50 text-sm mb-6 max-w-sm mx-auto">Join 500+ creators and agencies already using Uplyze to automate growth.</p>
+            <p className="text-white/50 text-sm mb-6 max-w-sm mx-auto">Join 700+ creators and agencies already using Uplyze to automate growth.</p>
             <Link to="/auth" className="inline-flex items-center gap-2 px-7 py-3 rounded-xl bg-primary text-white font-medium hover:bg-primary/90 transition-all duration-300 hover:shadow-[0_0_30px_rgba(59,130,246,0.3)]">
               Get Started Free <ArrowRight className="h-4 w-4" />
             </Link>
