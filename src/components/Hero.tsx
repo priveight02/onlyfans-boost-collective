@@ -154,7 +154,7 @@ const Hero = () => {
             transition={{ duration: 0.8, delay: 0.4 }}
             className="text-lg md:text-xl text-white/60 mb-12 max-w-2xl mx-auto leading-relaxed"
           >
-            Uplyze.ai helps 500+ creators and agencies automate growth, engage customers with AI, and 10x revenue. The all-in-one AI CRM built for digital entrepreneurs.
+            Stop leaving money on the table. Uplyze.ai is the all-in-one AI CRM that 500+ creators and agencies trust to automate growth, engage customers with AI, and 10x their revenue. Built for digital entrepreneurs who refuse to settle.
           </motion.p>
           
           <motion.div
