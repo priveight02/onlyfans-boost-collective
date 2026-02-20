@@ -1,12 +1,11 @@
 import { useEffect, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { MessageSquare, Plus, Users, Clock, TrendingUp, Filter, Search, User, Inbox } from "lucide-react";
+import { MessageSquare, Plus, Users, Clock, Search, User, Inbox } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useCreditAction } from "@/hooks/useCreditAction";
@@ -14,16 +13,16 @@ import CreditCostBadge from "./CreditCostBadge";
 import InsufficientCreditsModal from "@/components/InsufficientCreditsModal";
 
 const priorityColors: Record<string, string> = {
-  urgent: "bg-red-500/20 text-red-400",
-  high: "bg-orange-500/20 text-orange-400",
-  normal: "bg-white/10 text-white/60",
-  low: "bg-white/5 text-white/30",
+  urgent: "bg-red-500/10 text-red-400 border-red-500/20",
+  high: "bg-orange-500/10 text-orange-400 border-orange-500/20",
+  normal: "bg-white/[0.04] text-white/50 border-white/[0.06]",
+  low: "bg-white/[0.02] text-white/25 border-white/[0.04]",
 };
 
 const statusColors: Record<string, string> = {
-  open: "bg-emerald-500/20 text-emerald-400",
-  assigned: "bg-blue-500/20 text-blue-400",
-  closed: "bg-white/5 text-white/30",
+  open: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
+  assigned: "bg-[hsl(217,91%,60%)]/10 text-[hsl(217,91%,60%)] border-[hsl(217,91%,60%)]/20",
+  closed: "bg-white/[0.02] text-white/25 border-white/[0.04]",
 };
 
 const MessagingHub = () => {
@@ -38,7 +37,6 @@ const MessagingHub = () => {
 
   useEffect(() => {
     loadAll();
-    // Realtime subscription
     const channel = supabase
       .channel("threads")
       .on("postgres_changes", { event: "*", schema: "public", table: "message_threads" }, () => loadAll())
@@ -99,48 +97,43 @@ const MessagingHub = () => {
 
   const openThreads = threads.filter((t) => t.status === "open").length;
   const assignedThreads = threads.filter((t) => t.status === "assigned").length;
-  const avgResponseTime = "< 5 min"; // Placeholder
+  const avgResponseTime = "< 5 min";
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-3">
-          <h2 className="text-lg font-bold text-white flex items-center gap-2">
-            <MessageSquare className="h-5 w-5 text-accent" /> Messaging Hub
-          </h2>
-          <CreditCostBadge cost={1} variant="header" label="per message" />
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-semibold text-white font-heading">Messaging</h2>
+          <p className="text-sm text-white/30 mt-0.5">Manage subscriber conversations</p>
         </div>
+        <CreditCostBadge cost={1} variant="header" label="per message" />
       </div>
+
       {/* KPIs */}
-      <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
         {[
-          { title: "Open Threads", value: openThreads.toString(), icon: Inbox, color: "text-emerald-400" },
-          { title: "Assigned", value: assignedThreads.toString(), icon: Users, color: "text-blue-400" },
-          { title: "Active Chatters", value: chatters.filter((c) => c.status === "active").length.toString(), icon: MessageSquare, color: "text-purple-400" },
-          { title: "Avg Response", value: avgResponseTime, icon: Clock, color: "text-yellow-400" },
+          { title: "Open Threads", value: openThreads.toString(), color: "hsl(160,84%,39%)" },
+          { title: "Assigned", value: assignedThreads.toString(), color: "hsl(217,91%,60%)" },
+          { title: "Active Chatters", value: chatters.filter((c) => c.status === "active").length.toString(), color: "hsl(262,83%,58%)" },
+          { title: "Avg Response", value: avgResponseTime, color: "hsl(38,92%,50%)" },
         ].map((s) => (
-          <Card key={s.title} className="bg-white/5 backdrop-blur-sm border-white/10">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <s.icon className={`h-4 w-4 ${s.color}`} />
-                <span className="text-[10px] text-white/40">{s.title}</span>
-              </div>
-              <p className="text-xl font-bold text-white">{s.value}</p>
-            </CardContent>
-          </Card>
+          <div key={s.title} className="crm-stat-card">
+            <p className="text-xs text-white/30 mb-2">{s.title}</p>
+            <p className="text-2xl font-bold text-white tracking-tight">{s.value}</p>
+          </div>
         ))}
       </div>
 
       {/* Search & Filters */}
       <div className="flex flex-wrap gap-3">
         <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30" />
-          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search subscribers..." className="pl-9 bg-white/5 border-white/10 text-white placeholder:text-white/30" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/20" />
+          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search subscribers..." className="pl-9 crm-input h-10" />
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[130px] bg-white/5 border-white/10 text-white"><SelectValue /></SelectTrigger>
-          <SelectContent className="bg-[hsl(220,50%,15%)] border-white/10">
+          <SelectTrigger className="w-[130px] crm-input h-10"><SelectValue /></SelectTrigger>
+          <SelectContent className="bg-[hsl(222,47%,10%)] border-white/[0.06] rounded-xl">
             <SelectItem value="all" className="text-white">All Status</SelectItem>
             <SelectItem value="open" className="text-white">Open</SelectItem>
             <SelectItem value="assigned" className="text-white">Assigned</SelectItem>
@@ -149,34 +142,38 @@ const MessagingHub = () => {
         </Select>
         <Dialog open={showAdd} onOpenChange={setShowAdd}>
           <DialogTrigger asChild>
-            <Button size="sm" className="gap-1"><Plus className="h-3 w-3" /> New Thread <CreditCostBadge cost={1} /></Button>
+            <Button size="sm" className="bg-[hsl(217,91%,60%)] hover:bg-[hsl(217,91%,55%)] text-white gap-1.5 h-10 px-4 rounded-xl font-medium">
+              <Plus className="h-3.5 w-3.5" /> New Thread
+            </Button>
           </DialogTrigger>
-          <DialogContent className="bg-[hsl(220,50%,12%)] border-white/10 text-white">
-            <DialogHeader><DialogTitle>Create Thread</DialogTitle></DialogHeader>
-            <div className="space-y-3">
-              <div>
-                <Label className="text-white/70 text-xs">Account</Label>
+          <DialogContent className="bg-[hsl(222,47%,8%)] border-white/[0.06] text-white rounded-2xl">
+            <DialogHeader><DialogTitle className="font-heading">Create Thread</DialogTitle></DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <Label className="text-white/50 text-xs font-medium">Account</Label>
                 <Select value={form.account_id} onValueChange={(v) => setForm({ ...form, account_id: v })}>
-                  <SelectTrigger className="bg-white/5 border-white/10 text-white"><SelectValue placeholder="Select" /></SelectTrigger>
-                  <SelectContent className="bg-[hsl(220,50%,15%)] border-white/10">
+                  <SelectTrigger className="crm-input h-10"><SelectValue placeholder="Select" /></SelectTrigger>
+                  <SelectContent className="bg-[hsl(222,47%,10%)] border-white/[0.06] rounded-xl">
                     {accounts.map((a) => <SelectItem key={a.id} value={a.id} className="text-white">{a.display_name || a.username}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
-              <div>
-                <Label className="text-white/70 text-xs">Subscriber Name</Label>
-                <Input value={form.subscriber_name} onChange={(e) => setForm({ ...form, subscriber_name: e.target.value })} className="bg-white/5 border-white/10 text-white" />
+              <div className="space-y-1.5">
+                <Label className="text-white/50 text-xs font-medium">Subscriber Name</Label>
+                <Input value={form.subscriber_name} onChange={(e) => setForm({ ...form, subscriber_name: e.target.value })} className="crm-input h-10" />
               </div>
-              <div>
-                <Label className="text-white/70 text-xs">Priority</Label>
+              <div className="space-y-1.5">
+                <Label className="text-white/50 text-xs font-medium">Priority</Label>
                 <Select value={form.priority} onValueChange={(v) => setForm({ ...form, priority: v })}>
-                  <SelectTrigger className="bg-white/5 border-white/10 text-white"><SelectValue /></SelectTrigger>
-                  <SelectContent className="bg-[hsl(220,50%,15%)] border-white/10">
+                  <SelectTrigger className="crm-input h-10"><SelectValue /></SelectTrigger>
+                  <SelectContent className="bg-[hsl(222,47%,10%)] border-white/[0.06] rounded-xl">
                     {["urgent", "high", "normal", "low"].map((p) => <SelectItem key={p} value={p} className="text-white capitalize">{p}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
-              <Button onClick={handleAdd} className="w-full">Create <CreditCostBadge cost={1} /></Button>
+              <Button onClick={handleAdd} className="w-full bg-[hsl(217,91%,60%)] hover:bg-[hsl(217,91%,55%)] text-white h-10 rounded-xl font-medium">
+                Create Thread
+              </Button>
             </div>
           </DialogContent>
         </Dialog>
@@ -185,93 +182,85 @@ const MessagingHub = () => {
       {/* Threads List */}
       <div className="space-y-2">
         {filtered.length === 0 && (
-          <Card className="bg-white/5 border-white/10">
-            <CardContent className="p-8 text-center">
-              <MessageSquare className="h-8 w-8 text-white/20 mx-auto mb-2" />
-              <p className="text-white/30 text-sm">No threads found</p>
-            </CardContent>
-          </Card>
+          <div className="crm-card p-12 text-center">
+            <Inbox className="h-8 w-8 text-white/10 mx-auto mb-3" />
+            <p className="text-white/20 text-sm">No threads found</p>
+          </div>
         )}
         {filtered.map((thread) => {
           const acct = accounts.find((a) => a.id === thread.account_id);
           const chatter = chatters.find((c) => c.id === thread.assigned_chatter);
           return (
-            <Card key={thread.id} className="bg-white/5 backdrop-blur-sm border-white/10 hover:bg-white/[0.08] transition-colors">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
-                      <User className="h-4 w-4 text-white/40" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-white">{thread.subscriber_name || "Unknown"}</p>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <Badge className={`text-[9px] ${statusColors[thread.status]}`}>{thread.status}</Badge>
-                        <Badge className={`text-[9px] ${priorityColors[thread.priority]}`}>{thread.priority}</Badge>
-                        {acct && <span className="text-[10px] text-white/30">@{acct.username}</span>}
-                        {chatter && <span className="text-[10px] text-accent">→ {chatter.name}</span>}
-                      </div>
-                    </div>
+            <div key={thread.id} className="crm-card p-4 hover:bg-white/[0.02] transition-colors">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-white/[0.04] flex items-center justify-center">
+                    <User className="h-4 w-4 text-white/30" />
                   </div>
-                  <div className="flex items-center gap-2">
-                    {thread.status === "open" && chatters.length > 0 && (
-                      <Select onValueChange={(v) => handleAssign(thread.id, v)}>
-                        <SelectTrigger className="h-7 w-[120px] text-xs bg-white/5 border-white/10 text-white"><SelectValue placeholder="Assign" /></SelectTrigger>
-                        <SelectContent className="bg-[hsl(220,50%,15%)] border-white/10">
-                          {chatters.map((c) => <SelectItem key={c.id} value={c.id} className="text-white">{c.name}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    )}
-                    {thread.status !== "closed" && (
-                      <Button size="sm" variant="ghost" className="h-7 text-xs text-white/40" onClick={() => handleClose(thread.id)}>Close</Button>
-                    )}
+                  <div>
+                    <p className="text-sm font-medium text-white">{thread.subscriber_name || "Unknown"}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className={`crm-badge border ${statusColors[thread.status]}`}>{thread.status}</span>
+                      <span className={`crm-badge border ${priorityColors[thread.priority]}`}>{thread.priority}</span>
+                      {acct && <span className="text-[11px] text-white/20">@{acct.username}</span>}
+                      {chatter && <span className="text-[11px] text-[hsl(217,91%,60%)]">→ {chatter.name}</span>}
+                    </div>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
+                <div className="flex items-center gap-2">
+                  {thread.status === "open" && chatters.length > 0 && (
+                    <Select onValueChange={(v) => handleAssign(thread.id, v)}>
+                      <SelectTrigger className="h-8 w-[120px] text-xs crm-input"><SelectValue placeholder="Assign" /></SelectTrigger>
+                      <SelectContent className="bg-[hsl(222,47%,10%)] border-white/[0.06] rounded-xl">
+                        {chatters.map((c) => <SelectItem key={c.id} value={c.id} className="text-white">{c.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  )}
+                  {thread.status !== "closed" && (
+                    <Button size="sm" variant="ghost" className="h-8 text-xs text-white/30 hover:text-white hover:bg-white/[0.04] rounded-lg" onClick={() => handleClose(thread.id)}>Close</Button>
+                  )}
+                </div>
+              </div>
+            </div>
           );
         })}
       </div>
 
       {/* Chatter Performance */}
       {chatters.length > 0 && (
-        <Card className="bg-white/5 backdrop-blur-sm border-white/10">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-white text-sm">Chatter Performance</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-              {chatters.map((chatter) => {
-                const assigned = threads.filter((t) => t.assigned_chatter === chatter.id).length;
-                const closed = threads.filter((t) => t.assigned_chatter === chatter.id && t.status === "closed").length;
-                return (
-                  <div key={chatter.id} className="p-3 bg-white/5 rounded-lg border border-white/10">
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="w-6 h-6 rounded-full bg-accent/20 flex items-center justify-center text-accent text-[10px] font-bold">
-                        {chatter.name[0]}
-                      </div>
-                      <p className="text-sm text-white font-medium">{chatter.name}</p>
+        <div className="crm-card p-5">
+          <h3 className="text-sm font-semibold text-white mb-4">Chatter Performance</h3>
+          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+            {chatters.map((chatter) => {
+              const assigned = threads.filter((t) => t.assigned_chatter === chatter.id).length;
+              const closed = threads.filter((t) => t.assigned_chatter === chatter.id && t.status === "closed").length;
+              return (
+                <div key={chatter.id} className="p-4 rounded-xl bg-white/[0.02] border border-white/[0.04]">
+                  <div className="flex items-center gap-2.5 mb-3">
+                    <div className="w-7 h-7 rounded-lg bg-[hsl(217,91%,60%)]/10 flex items-center justify-center text-[hsl(217,91%,60%)] text-xs font-bold">
+                      {chatter.name[0]}
                     </div>
-                    <div className="grid grid-cols-3 gap-2 text-center">
-                      <div>
-                        <p className="text-sm font-bold text-white">{assigned}</p>
-                        <p className="text-[9px] text-white/30">Assigned</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-bold text-emerald-400">{closed}</p>
-                        <p className="text-[9px] text-white/30">Closed</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-bold text-white">{assigned > 0 ? Math.round((closed / assigned) * 100) : 0}%</p>
-                        <p className="text-[9px] text-white/30">Rate</p>
-                      </div>
+                    <p className="text-sm text-white font-medium">{chatter.name}</p>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 text-center">
+                    <div>
+                      <p className="text-base font-bold text-white">{assigned}</p>
+                      <p className="text-[10px] text-white/25">Assigned</p>
+                    </div>
+                    <div>
+                      <p className="text-base font-bold text-emerald-400">{closed}</p>
+                      <p className="text-[10px] text-white/25">Closed</p>
+                    </div>
+                    <div>
+                      <p className="text-base font-bold text-white">{assigned > 0 ? Math.round((closed / assigned) * 100) : 0}%</p>
+                      <p className="text-[10px] text-white/25">Rate</p>
                     </div>
                   </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       )}
       <InsufficientCreditsModal open={insufficientModal.open} onClose={closeInsufficientModal} requiredCredits={insufficientModal.requiredCredits} actionName={insufficientModal.actionName} />
     </div>

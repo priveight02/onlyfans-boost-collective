@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useWallet } from "@/hooks/useWallet";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import CRMAccountsTab from "@/components/admin/CRMAccountsTab";
 import ProfileLookup from "@/components/admin/ProfileLookup";
 import AudienceIntelligence from "@/components/admin/AudienceIntelligence";
@@ -25,21 +24,86 @@ import FloatingCopilot from "@/components/admin/FloatingCopilot";
 import SocialMediaHub from "@/components/admin/SocialMediaHub";
 import AdminAPI from "@/components/admin/AdminAPI";
 import EnhancedDashboard from "@/components/admin/EnhancedDashboard";
-
 import CRMHelpWidget from "@/components/crm/CRMHelpWidget";
 import { supabase } from "@/integrations/supabase/client";
-import {
-  LayoutDashboard, Contact, Search, BarChart3, Users, DollarSign,
-  FileText, MessageSquare, CheckSquare, MessageCircle, Award,
-  TrendingUp, Activity, Zap, Download, Brain, Calendar, Heart,
-  Bot, Globe, Code2, Coins, Lock, Settings,
-} from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import InsufficientCreditsModal from "@/components/InsufficientCreditsModal";
 import { useCreditAction } from "@/hooks/useCreditAction";
+import { cn } from "@/lib/utils";
+import {
+  LayoutDashboard, Contact, Search, BarChart3, Users, DollarSign,
+  FileText, MessageSquare, CheckSquare, MessageCircle, Award,
+  TrendingUp, Activity, Zap, Download, Brain, Calendar, Heart,
+  Bot, Globe, Code2, Coins, Lock, Settings, ChevronLeft, ChevronRight,
+} from "lucide-react";
+
+const navSections = [
+  {
+    label: "Overview",
+    items: [
+      { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+      { id: "crm", label: "Accounts", icon: Contact },
+      { id: "rankings", label: "Rankings", icon: Award },
+    ],
+  },
+  {
+    label: "Finance",
+    items: [
+      { id: "financial", label: "Financials", icon: DollarSign },
+      { id: "adv-financials", label: "Intelligence", icon: TrendingUp },
+    ],
+  },
+  {
+    label: "Communication",
+    items: [
+      { id: "messaging", label: "Messaging", icon: MessageSquare },
+      { id: "chat", label: "Intranet", icon: MessageCircle },
+    ],
+  },
+  {
+    label: "Operations",
+    items: [
+      { id: "tasks", label: "Tasks", icon: CheckSquare },
+      { id: "contracts", label: "Contracts", icon: FileText },
+      { id: "team", label: "Team", icon: Users },
+      { id: "team-perf", label: "Performance", icon: Activity },
+    ],
+  },
+  {
+    label: "AI & Automation",
+    items: [
+      { id: "automation", label: "Storyline", icon: Zap },
+      { id: "persona", label: "Persona DNA", icon: Brain },
+      { id: "copilot", label: "AI Co-Pilot", icon: Bot },
+      { id: "emotional", label: "Emotional", icon: Heart },
+    ],
+  },
+  {
+    label: "Content & Social",
+    items: [
+      { id: "content", label: "Content", icon: Calendar },
+      { id: "social", label: "Social Media", icon: Globe },
+    ],
+  },
+  {
+    label: "Analytics",
+    items: [
+      { id: "lookup", label: "Lookup", icon: Search },
+      { id: "audience", label: "Audience", icon: BarChart3 },
+      { id: "reports", label: "Reports", icon: Download },
+    ],
+  },
+  {
+    label: "System",
+    items: [
+      { id: "settings", label: "Settings", icon: Settings },
+      { id: "api", label: "API", icon: Code2 },
+    ],
+  },
+];
 
 const CRM = () => {
   const { user, loading } = useAuth();
@@ -48,6 +112,7 @@ const CRM = () => {
   const navigate = useNavigate();
   const [accounts, setAccounts] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState("dashboard");
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -68,29 +133,31 @@ const CRM = () => {
 
   if (loading || walletLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[hsl(210,100%,12%)] via-[hsl(220,100%,10%)] to-[hsl(230,100%,8%)] flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent" />
+      <div className="min-h-screen bg-[hsl(222,47%,6%)] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-2 border-[hsl(217,91%,60%)] border-t-transparent rounded-full animate-spin" />
+          <span className="text-sm text-white/40 font-medium">Loading platform...</span>
+        </div>
       </div>
     );
   }
 
   if (balance < 1) {
     return (
-      <div className="dark min-h-screen bg-gradient-to-br from-[hsl(210,100%,12%)] via-[hsl(220,100%,10%)] to-[hsl(230,100%,8%)] flex items-center justify-center">
+      <div className="dark min-h-screen bg-[hsl(222,47%,6%)] flex items-center justify-center">
         <div className="text-center space-y-6 max-w-md mx-auto px-6">
-          <div className="p-4 rounded-full bg-amber-500/10 border border-amber-500/20 w-fit mx-auto">
-            <Lock className="h-10 w-10 text-amber-400" />
+          <div className="w-16 h-16 rounded-2xl bg-[hsl(217,91%,60%)]/10 border border-[hsl(217,91%,60%)]/20 flex items-center justify-center mx-auto">
+            <Lock className="h-7 w-7 text-[hsl(217,91%,60%)]" />
           </div>
-          <h1 className="text-2xl font-bold text-white">CRM Access Locked</h1>
-          <p className="text-white/60">
-            You need at least <span className="text-amber-400 font-bold">1 credit</span> to access the CRM platform.
-            Purchase credits to unlock all features.
+          <h1 className="text-2xl font-bold text-white font-heading">Platform Locked</h1>
+          <p className="text-white/50 text-sm leading-relaxed">
+            You need at least <span className="text-[hsl(217,91%,60%)] font-semibold">1 credit</span> to access the platform. Purchase credits to unlock all features.
           </p>
           <div className="flex gap-3 justify-center">
-            <Button onClick={() => navigate("/pricing")} className="bg-accent hover:bg-accent/80 text-white gap-2">
+            <Button onClick={() => navigate("/pricing")} className="bg-[hsl(217,91%,60%)] hover:bg-[hsl(217,91%,55%)] text-white gap-2 h-10 px-6 rounded-xl font-medium">
               <Coins className="h-4 w-4" /> Buy Credits
             </Button>
-            <Button variant="ghost" onClick={() => navigate("/")} className="text-white/60 hover:text-white hover:bg-white/10">
+            <Button variant="ghost" onClick={() => navigate("/")} className="text-white/50 hover:text-white hover:bg-white/5 h-10 px-6 rounded-xl">
               Go Home
             </Button>
           </div>
@@ -99,134 +166,150 @@ const CRM = () => {
     );
   }
 
-  return (
-    <div className="dark min-h-screen bg-gradient-to-br from-[hsl(210,100%,12%)] via-[hsl(220,100%,10%)] to-[hsl(230,100%,8%)]">
-      <div className="container mx-auto px-4 sm:px-6 pt-24 pb-12 space-y-8">
-        {/* Header */}
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-white/10 backdrop-blur-sm border border-white/10">
-            <LayoutDashboard className="h-6 w-6 text-accent" />
-          </div>
+  const renderContent = () => {
+    switch (activeTab) {
+      case "dashboard": return <EnhancedDashboard />;
+      case "crm": return <CRMAccountsTab />;
+      case "rankings": return <CreatorRankingEngine accounts={accounts} />;
+      case "financial": return <FinancialModule />;
+      case "adv-financials": return <AdvancedFinancials />;
+      case "messaging": return <MessagingHub />;
+      case "tasks": return <TaskWorkflow />;
+      case "contracts": return <ContractsManager />;
+      case "team": return <TeamManagement />;
+      case "team-perf": return <TeamPerformance />;
+      case "automation": return <StorylineHub />;
+      case "persona": return <PersonaDNAEngine />;
+      case "content": return <ContentCommandCenter />;
+      case "social": return <SocialMediaHub />;
+      case "emotional": return <EmotionalHeatmap />;
+      case "copilot": return <AICoPilot />;
+      case "lookup": return <ProfileLookup />;
+      case "audience": return <AudienceIntelligence accounts={accounts} />;
+      case "reports": return <ReportingExport />;
+      case "chat": return <IntranetChat />;
+      case "api": return <AdminAPI />;
+      case "settings": return (
+        <div className="space-y-6">
           <div>
-            <h1 className="text-2xl font-bold font-heading text-white">CRM Platform</h1>
-            <p className="text-sm text-white/50">Manage your accounts, content & operations</p>
+            <h2 className="text-lg font-semibold text-white font-heading">Settings</h2>
+            <p className="text-sm text-white/40 mt-1">Manage your platform configuration</p>
           </div>
+          <Card className="crm-card">
+            <CardContent className="p-6 space-y-5">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-white/60">Organization Name</label>
+                <Input type="text" placeholder="Your Agency" className="crm-input" />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-white/60">Description</label>
+                <textarea className="w-full min-h-[100px] p-3 rounded-xl bg-[hsl(222,47%,11%)]/60 border border-white/[0.06] text-white placeholder:text-white/25 focus:border-[hsl(217,91%,60%)]/40 focus:outline-none transition-colors text-sm" placeholder="Enter description..." />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      );
+      default: return <EnhancedDashboard />;
+    }
+  };
+
+  return (
+    <div className="dark min-h-screen bg-[hsl(222,47%,6%)] flex">
+      {/* Sidebar */}
+      <aside className={cn(
+        "fixed top-0 left-0 h-screen z-40 flex flex-col border-r border-white/[0.06] bg-[hsl(222,47%,7%)] transition-all duration-300",
+        sidebarCollapsed ? "w-[68px]" : "w-[220px]"
+      )}>
+        {/* Logo */}
+        <div className="h-16 flex items-center px-4 border-b border-white/[0.06]">
+          {!sidebarCollapsed && (
+            <span className="text-base font-bold text-white font-heading tracking-tight">Uplyze</span>
+          )}
+          <button
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            className={cn(
+              "w-7 h-7 rounded-lg flex items-center justify-center text-white/30 hover:text-white/60 hover:bg-white/[0.04] transition-colors",
+              sidebarCollapsed ? "mx-auto" : "ml-auto"
+            )}
+          >
+            {sidebarCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+          </button>
         </div>
 
-        {/* Tabs */}
-        <Tabs value={activeTab} className="space-y-6" onValueChange={handleTabChange}>
-          <TabsList className="bg-white/5 backdrop-blur-sm border border-white/10 p-1 rounded-xl flex-wrap h-auto gap-1">
-            <TabsTrigger value="dashboard" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
-              <LayoutDashboard className="h-3.5 w-3.5" /> Dashboard
-            </TabsTrigger>
-            <TabsTrigger value="crm" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
-              <Contact className="h-3.5 w-3.5" /> Accounts
-            </TabsTrigger>
-            <TabsTrigger value="rankings" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
-              <Award className="h-3.5 w-3.5" /> Rankings
-            </TabsTrigger>
-            <TabsTrigger value="financial" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
-              <DollarSign className="h-3.5 w-3.5" /> Financials
-            </TabsTrigger>
-            <TabsTrigger value="adv-financials" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
-              <TrendingUp className="h-3.5 w-3.5" /> Intelligence
-            </TabsTrigger>
-            <TabsTrigger value="messaging" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
-              <MessageSquare className="h-3.5 w-3.5" /> Messaging
-            </TabsTrigger>
-            <TabsTrigger value="tasks" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
-              <CheckSquare className="h-3.5 w-3.5" /> Tasks
-            </TabsTrigger>
-            <TabsTrigger value="contracts" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
-              <FileText className="h-3.5 w-3.5" /> Contracts
-            </TabsTrigger>
-            <TabsTrigger value="team" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
-              <Users className="h-3.5 w-3.5" /> Team
-            </TabsTrigger>
-            <TabsTrigger value="team-perf" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
-              <Activity className="h-3.5 w-3.5" /> Performance
-            </TabsTrigger>
-            <TabsTrigger value="automation" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
-              <Zap className="h-3.5 w-3.5" /> Storyline
-            </TabsTrigger>
-            <TabsTrigger value="persona" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
-              <Brain className="h-3.5 w-3.5" /> Persona DNA
-            </TabsTrigger>
-            <TabsTrigger value="content" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
-              <Calendar className="h-3.5 w-3.5" /> Content
-            </TabsTrigger>
-            <TabsTrigger value="social" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
-              <Globe className="h-3.5 w-3.5" /> Social Media
-            </TabsTrigger>
-            <TabsTrigger value="emotional" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
-              <Heart className="h-3.5 w-3.5" /> Emotional
-            </TabsTrigger>
-            <TabsTrigger value="copilot" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
-              <Bot className="h-3.5 w-3.5" /> AI Co-Pilot
-            </TabsTrigger>
-            <TabsTrigger value="lookup" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
-              <Search className="h-3.5 w-3.5" /> Lookup
-            </TabsTrigger>
-            <TabsTrigger value="audience" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
-              <BarChart3 className="h-3.5 w-3.5" /> Audience
-            </TabsTrigger>
-            <TabsTrigger value="reports" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
-              <Download className="h-3.5 w-3.5" /> Reports
-            </TabsTrigger>
-            <TabsTrigger value="chat" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
-              <MessageCircle className="h-3.5 w-3.5" /> Intranet
-            </TabsTrigger>
-            <TabsTrigger value="settings" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
-              <Settings className="h-3.5 w-3.5" /> Settings
-            </TabsTrigger>
-            <TabsTrigger value="api" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
-              <Code2 className="h-3.5 w-3.5" /> API
-            </TabsTrigger>
-          </TabsList>
+        {/* Nav */}
+        <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-4 scrollbar-thin">
+          {navSections.map((section) => (
+            <div key={section.label}>
+              {!sidebarCollapsed && (
+                <p className="px-3 mb-1.5 text-[10px] font-semibold text-white/20 uppercase tracking-wider">{section.label}</p>
+              )}
+              <div className="space-y-0.5">
+                {section.items.map((item) => {
+                  const isActive = activeTab === item.id;
+                  const Icon = item.icon;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => handleTabChange(item.id)}
+                      title={sidebarCollapsed ? item.label : undefined}
+                      className={cn(
+                        "w-full flex items-center gap-2.5 rounded-xl text-sm font-medium transition-all duration-150",
+                        sidebarCollapsed ? "justify-center px-2 py-2.5" : "px-3 py-2",
+                        isActive
+                          ? "bg-[hsl(217,91%,60%)]/10 text-[hsl(217,91%,60%)]"
+                          : "text-white/40 hover:text-white/70 hover:bg-white/[0.03]"
+                      )}
+                    >
+                      <Icon className={cn("h-4 w-4 flex-shrink-0", isActive ? "text-[hsl(217,91%,60%)]" : "")} />
+                      {!sidebarCollapsed && <span className="truncate">{item.label}</span>}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </nav>
 
-          <TabsContent value="dashboard"><EnhancedDashboard /></TabsContent>
-          <TabsContent value="crm"><CRMAccountsTab /></TabsContent>
-          <TabsContent value="rankings"><CreatorRankingEngine accounts={accounts} /></TabsContent>
-          <TabsContent value="financial"><FinancialModule /></TabsContent>
-          <TabsContent value="adv-financials"><AdvancedFinancials /></TabsContent>
-          <TabsContent value="messaging"><MessagingHub /></TabsContent>
-          <TabsContent value="tasks"><TaskWorkflow /></TabsContent>
-          <TabsContent value="contracts"><ContractsManager /></TabsContent>
-          <TabsContent value="team"><TeamManagement /></TabsContent>
-          <TabsContent value="team-perf"><TeamPerformance /></TabsContent>
-          <TabsContent value="automation"><StorylineHub /></TabsContent>
-          <TabsContent value="persona"><PersonaDNAEngine /></TabsContent>
-          <TabsContent value="content"><ContentCommandCenter /></TabsContent>
-          <TabsContent value="social"><SocialMediaHub /></TabsContent>
-          <TabsContent value="emotional"><EmotionalHeatmap /></TabsContent>
-          <TabsContent value="copilot"><AICoPilot /></TabsContent>
-          <TabsContent value="lookup"><ProfileLookup /></TabsContent>
-          <TabsContent value="audience"><AudienceIntelligence accounts={accounts} /></TabsContent>
-          <TabsContent value="reports"><ReportingExport /></TabsContent>
-          <TabsContent value="chat"><IntranetChat /></TabsContent>
-          
-          <TabsContent value="settings">
-            <Card className="bg-white/5 backdrop-blur-sm border-white/10">
-              <CardHeader>
-                <CardTitle className="text-white">CRM Settings</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid gap-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-white/70">Organization Name</label>
-                    <Input type="text" placeholder="Your Agency" className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-accent" />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-white/70">Description</label>
-                    <textarea className="w-full min-h-[100px] p-3 rounded-lg bg-white/5 border border-white/10 text-white placeholder:text-white/30 focus:border-accent focus:outline-none transition-colors" placeholder="Enter description..." />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-          <TabsContent value="api"><AdminAPI /></TabsContent>
-        </Tabs>
-      </div>
+        {/* Footer */}
+        {!sidebarCollapsed && (
+          <div className="p-3 border-t border-white/[0.06]">
+            <div className="px-3 py-2 rounded-xl bg-[hsl(217,91%,60%)]/5 border border-[hsl(217,91%,60%)]/10">
+              <p className="text-[10px] font-medium text-white/30">Credits</p>
+              <p className="text-sm font-bold text-[hsl(217,91%,60%)]">{balance.toLocaleString()}</p>
+            </div>
+          </div>
+        )}
+      </aside>
+
+      {/* Main content */}
+      <main className={cn(
+        "flex-1 transition-all duration-300 min-h-screen",
+        sidebarCollapsed ? "ml-[68px]" : "ml-[220px]"
+      )}>
+        {/* Top bar */}
+        <header className="h-16 border-b border-white/[0.06] bg-[hsl(222,47%,6%)]/80 backdrop-blur-xl sticky top-0 z-30 flex items-center justify-between px-6">
+          <div>
+            <h1 className="text-base font-semibold text-white font-heading">
+              {navSections.flatMap(s => s.items).find(i => i.id === activeTab)?.label || "Dashboard"}
+            </h1>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/20" />
+              <input
+                type="text"
+                placeholder="Search..."
+                className="h-9 w-[200px] rounded-xl bg-white/[0.04] border border-white/[0.06] pl-9 pr-3 text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-[hsl(217,91%,60%)]/30 transition-colors"
+              />
+            </div>
+          </div>
+        </header>
+
+        {/* Page content */}
+        <div className="p-6">
+          {renderContent()}
+        </div>
+      </main>
 
       <CRMHelpWidget />
       <FloatingCopilot activeTab={activeTab} />

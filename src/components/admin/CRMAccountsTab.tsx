@@ -97,13 +97,15 @@ const CRMAccountsTab = () => {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-3">
-          <h2 className="text-lg font-bold text-white">Accounts</h2>
-          <CreditCostBadge cost="1–5" variant="header" label="per action" />
+    <div className="space-y-5">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-semibold text-white font-heading">Accounts</h2>
+          <p className="text-sm text-white/30 mt-0.5">Manage your creator accounts</p>
         </div>
+        <CreditCostBadge cost="1-5" variant="header" label="per action" />
       </div>
+
       <CRMAccountSearch
         onSearch={setSearch}
         onFilterStatus={setStatusFilter}
@@ -112,14 +114,17 @@ const CRMAccountsTab = () => {
       />
 
       {loading ? (
-        <div className="flex items-center justify-center py-16">
-          <Loader2 className="h-6 w-6 animate-spin text-accent" />
+        <div className="flex items-center justify-center py-20">
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-7 h-7 border-2 border-[hsl(217,91%,60%)] border-t-transparent rounded-full animate-spin" />
+            <span className="text-xs text-white/30">Loading accounts...</span>
+          </div>
         </div>
       ) : filtered.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 text-white/20">
+        <div className="flex flex-col items-center justify-center py-20 text-white/15">
           <Inbox className="h-10 w-10 mb-3" />
-          <p className="text-sm">{search ? "No accounts match your search" : "No accounts yet"}</p>
-          <p className="text-xs mt-1">Add your first account to get started</p>
+          <p className="text-sm text-white/25">{search ? "No accounts match your search" : "No accounts yet"}</p>
+          <p className="text-xs mt-1 text-white/15">Add your first account to get started</p>
         </div>
       ) : (
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -139,16 +144,15 @@ const CRMAccountsTab = () => {
 
       {/* Summary bar */}
       {!loading && accounts.length > 0 && (
-        <div className="flex items-center gap-4 text-[11px] text-white/25 pt-2 border-t border-white/[0.04]">
+        <div className="flex items-center gap-4 text-[11px] text-white/20 pt-3 border-t border-white/[0.04]">
           <span>{filtered.length} of {accounts.length} accounts</span>
-          <span>•</span>
-          <span>Total monthly: ${filtered.reduce((s, a) => s + (a.monthly_revenue || 0), 0).toLocaleString()}</span>
-          <span>•</span>
+          <span className="text-white/10">|</span>
+          <span>Monthly: ${filtered.reduce((s, a) => s + (a.monthly_revenue || 0), 0).toLocaleString()}</span>
+          <span className="text-white/10">|</span>
           <span>{filtered.filter((a) => a.status === "active").length} active</span>
         </div>
       )}
 
-      {/* Detail modal */}
       {selectedAccount && (
         <CRMAccountDetail
           account={selectedAccount}
@@ -157,7 +161,6 @@ const CRMAccountsTab = () => {
         />
       )}
 
-      {/* Add/Edit dialog */}
       <CRMAddAccountDialog
         open={showAdd}
         onClose={() => { setShowAdd(false); setEditAccount(null); }}
@@ -165,7 +168,6 @@ const CRMAccountsTab = () => {
         editAccount={editAccount}
       />
 
-      {/* OF Connect dialog */}
       {connectAccount && (
         <OFConnectDialog
           account={connectAccount}

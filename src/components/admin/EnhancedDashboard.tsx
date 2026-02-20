@@ -1,17 +1,15 @@
 import { useEffect, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from "recharts";
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { DollarSign, Users, BarChart3, Crown, Activity, Wrench, Clock, EyeOff, PenOff, KeyRound } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import { cachedFetch } from "@/lib/supabaseCache";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
 import { toast } from "sonner";
+import { cachedFetch } from "@/lib/supabaseCache";
 
-const COLORS = ["hsl(200,100%,50%)", "hsl(260,100%,65%)", "hsl(340,80%,55%)", "hsl(160,70%,45%)", "hsl(30,90%,55%)"];
+const COLORS = ["hsl(217,91%,60%)", "hsl(262,83%,58%)", "hsl(339,90%,51%)", "hsl(160,84%,39%)", "hsl(38,92%,50%)"];
 
 interface EnhancedDashboardProps {
   isAdmin?: boolean;
@@ -22,12 +20,11 @@ const EnhancedDashboard = ({ isAdmin = false }: EnhancedDashboardProps) => {
   const [tasks, setTasks] = useState<any[]>([]);
   const [teamMembers, setTeamMembers] = useState<any[]>([]);
   const [activities, setActivities] = useState<any[]>([]);
-  const [visits, setVisits] = useState<any[]>([]);
 
   useEffect(() => {
     const load = async () => {
       const cacheId = "global";
-      const [accts, tasksData, teamData, actData, visitsData] = await Promise.all([
+      const [accts, tasksData, teamData, actData] = await Promise.all([
         cachedFetch(cacheId, "managed_accounts", async () => {
           const { data } = await supabase.from("managed_accounts").select("*").order("monthly_revenue", { ascending: false });
           return data || [];
@@ -44,13 +41,11 @@ const EnhancedDashboard = ({ isAdmin = false }: EnhancedDashboardProps) => {
           const { data } = await supabase.from("account_activities").select("*").order("created_at", { ascending: false }).limit(10);
           return data || [];
         }, undefined, { ttlMs: 2 * 60 * 1000 }),
-        Promise.resolve([]),
       ]);
       setAccounts(accts);
       setTasks(tasksData);
       setTeamMembers(teamData);
       setActivities(actData);
-      setVisits(visitsData);
     };
     load();
   }, []);
@@ -79,12 +74,12 @@ const EnhancedDashboard = ({ isAdmin = false }: EnhancedDashboardProps) => {
   ];
 
   const stats = [
-    { title: "Total Monthly Revenue", value: `$${totalRevenue.toLocaleString()}`, icon: DollarSign, change: "+18.2%", positive: true },
-    { title: "Active Creators", value: activeAccounts.toString(), icon: Crown, change: `${accounts.length} total`, positive: true },
-    { title: "Total Subscribers", value: totalSubs.toLocaleString(), icon: Users, change: "+12.4%", positive: true },
-    { title: "Avg Engagement", value: `${avgEngagement}%`, icon: BarChart3, change: "+3.1%", positive: true },
-    { title: "Active Tasks", value: activeTasks.toString(), icon: Activity, change: `${tasks.length} total`, positive: true },
-    { title: "Team Members", value: activeTeam.toString(), icon: Users, change: `${teamMembers.length} total`, positive: true },
+    { title: "Monthly Revenue", value: `$${totalRevenue.toLocaleString()}`, icon: DollarSign, change: "+18.2%", color: "hsl(217,91%,60%)" },
+    { title: "Active Creators", value: activeAccounts.toString(), icon: Crown, change: `${accounts.length} total`, color: "hsl(38,92%,50%)" },
+    { title: "Total Subscribers", value: totalSubs.toLocaleString(), icon: Users, change: "+12.4%", color: "hsl(262,83%,58%)" },
+    { title: "Avg Engagement", value: `${avgEngagement}%`, icon: BarChart3, change: "+3.1%", color: "hsl(160,84%,39%)" },
+    { title: "Active Tasks", value: activeTasks.toString(), icon: Activity, change: `${tasks.length} total`, color: "hsl(339,90%,51%)" },
+    { title: "Team Members", value: activeTeam.toString(), icon: Users, change: `${teamMembers.length} total`, color: "hsl(200,98%,39%)" },
   ];
 
   const { settings, updateSetting, updateMaintenanceEndTime } = useSiteSettings();
@@ -141,19 +136,19 @@ const EnhancedDashboard = ({ isAdmin = false }: EnhancedDashboardProps) => {
     }
   };
 
-   return (
+  return (
     <div className="space-y-6">
       {/* Site Controls - Admin only */}
       {isAdmin && (
         <>
           <div className="grid gap-3 grid-cols-2 sm:grid-cols-3">
             {[
-              { key: "registrations_paused", label: "Registrations", onLabel: "Paused", offLabel: "Open", onColor: "bg-red-500/15 border-red-500/30 text-red-300", offColor: "bg-emerald-500/8 border-emerald-500/20 text-emerald-300" },
-              { key: "logins_paused", label: "Logins", onLabel: "Paused", offLabel: "Open", onColor: "bg-red-500/15 border-red-500/30 text-red-300", offColor: "bg-emerald-500/8 border-emerald-500/20 text-emerald-300" },
-              { key: "maintenance_mode", label: "Maintenance", onLabel: "Active", offLabel: "Off", onColor: "bg-amber-500/15 border-amber-500/30 text-amber-300", offColor: "bg-emerald-500/8 border-emerald-500/20 text-emerald-300", icon: Wrench },
-              { key: "hide_pricing", label: "Pricing Page", onLabel: "Hidden", offLabel: "Visible", onColor: "bg-orange-500/15 border-orange-500/30 text-orange-300", offColor: "bg-emerald-500/8 border-emerald-500/20 text-emerald-300", icon: EyeOff },
-              { key: "read_only_mode", label: "Read-Only Mode", onLabel: "Active", offLabel: "Off", onColor: "bg-violet-500/15 border-violet-500/30 text-violet-300", offColor: "bg-emerald-500/8 border-emerald-500/20 text-emerald-300", icon: PenOff },
-              { key: "force_password_reset", label: "Force Password Reset", onLabel: "Enforced", offLabel: "Off", onColor: "bg-rose-500/15 border-rose-500/30 text-rose-300", offColor: "bg-emerald-500/8 border-emerald-500/20 text-emerald-300", icon: KeyRound },
+              { key: "registrations_paused", label: "Registrations", onLabel: "Paused", offLabel: "Open", onColor: "bg-red-500/10 border-red-500/20 text-red-400", offColor: "bg-emerald-500/8 border-emerald-500/15 text-emerald-400" },
+              { key: "logins_paused", label: "Logins", onLabel: "Paused", offLabel: "Open", onColor: "bg-red-500/10 border-red-500/20 text-red-400", offColor: "bg-emerald-500/8 border-emerald-500/15 text-emerald-400" },
+              { key: "maintenance_mode", label: "Maintenance", onLabel: "Active", offLabel: "Off", onColor: "bg-amber-500/10 border-amber-500/20 text-amber-400", offColor: "bg-emerald-500/8 border-emerald-500/15 text-emerald-400", icon: Wrench },
+              { key: "hide_pricing", label: "Pricing Page", onLabel: "Hidden", offLabel: "Visible", onColor: "bg-orange-500/10 border-orange-500/20 text-orange-400", offColor: "bg-emerald-500/8 border-emerald-500/15 text-emerald-400", icon: EyeOff },
+              { key: "read_only_mode", label: "Read-Only Mode", onLabel: "Active", offLabel: "Off", onColor: "bg-violet-500/10 border-violet-500/20 text-violet-400", offColor: "bg-emerald-500/8 border-emerald-500/15 text-emerald-400", icon: PenOff },
+              { key: "force_password_reset", label: "Force Password Reset", onLabel: "Enforced", offLabel: "Off", onColor: "bg-rose-500/10 border-rose-500/20 text-rose-400", offColor: "bg-emerald-500/8 border-emerald-500/15 text-emerald-400", icon: KeyRound },
             ].map((ctrl) => {
               const isOn = settings[ctrl.key as keyof typeof settings] as boolean;
               return (
@@ -161,7 +156,7 @@ const EnhancedDashboard = ({ isAdmin = false }: EnhancedDashboardProps) => {
                   key={ctrl.key}
                   onClick={() => handleToggle(ctrl.key as any)}
                   disabled={toggling === ctrl.key}
-                  className={`flex flex-col items-start gap-1 p-4 rounded-xl border transition-all text-left ${isOn ? ctrl.onColor : ctrl.offColor} hover:bg-white/[0.08]`}
+                  className={`flex flex-col items-start gap-1 p-4 rounded-xl border transition-all text-left ${isOn ? ctrl.onColor : ctrl.offColor} hover:bg-white/[0.04]`}
                 >
                   <span className="text-sm font-semibold">{ctrl.label}</span>
                   <span className="text-xs opacity-60">{isOn ? ctrl.onLabel : ctrl.offLabel}</span>
@@ -170,23 +165,22 @@ const EnhancedDashboard = ({ isAdmin = false }: EnhancedDashboardProps) => {
             })}
           </div>
 
-          {/* Maintenance End Time */}
           {settings.maintenance_mode && (
-            <div className="p-4 rounded-xl bg-amber-500/5 border border-amber-500/20 space-y-3">
+            <div className="p-4 rounded-xl bg-amber-500/5 border border-amber-500/15 space-y-3">
               <div className="flex items-center justify-between">
-                <p className="text-sm text-amber-300 font-medium">Maintenance Countdown</p>
+                <p className="text-sm text-amber-400 font-medium">Maintenance Countdown</p>
                 <div className="flex gap-1">
                   <Button
                     size="sm" variant="ghost"
                     onClick={() => setDurationMode("datetime")}
-                    className={`h-7 text-xs px-3 ${durationMode === "datetime" ? "bg-amber-500/20 text-amber-300" : "text-white/40"}`}
+                    className={`h-7 text-xs px-3 rounded-lg ${durationMode === "datetime" ? "bg-amber-500/15 text-amber-400" : "text-white/30"}`}
                   >
                     Date & Time
                   </Button>
                   <Button
                     size="sm" variant="ghost"
                     onClick={() => setDurationMode("duration")}
-                    className={`h-7 text-xs px-3 ${durationMode === "duration" ? "bg-amber-500/20 text-amber-300" : "text-white/40"}`}
+                    className={`h-7 text-xs px-3 rounded-lg ${durationMode === "duration" ? "bg-amber-500/15 text-amber-400" : "text-white/30"}`}
                   >
                     Duration
                   </Button>
@@ -199,13 +193,13 @@ const EnhancedDashboard = ({ isAdmin = false }: EnhancedDashboardProps) => {
                     type="datetime-local"
                     value={endTimeInput ? new Date(new Date(endTimeInput).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ""}
                     onChange={(e) => setEndTimeInput(e.target.value ? new Date(e.target.value).toISOString() : "")}
-                    className="bg-white/5 border-white/10 text-white text-sm h-9 max-w-xs"
+                    className="crm-input text-sm h-9 max-w-xs"
                   />
-                  <Button onClick={handleSaveEndTime} size="sm" className="bg-amber-600 hover:bg-amber-700 text-white h-9">
+                  <Button onClick={handleSaveEndTime} size="sm" className="bg-amber-600 hover:bg-amber-700 text-white h-9 rounded-lg">
                     Save
                   </Button>
                   {endTimeInput && (
-                    <Button onClick={() => { setEndTimeInput(""); updateMaintenanceEndTime(null); toast.success("Countdown cleared"); }} size="sm" variant="ghost" className="text-white/50 hover:text-white h-9">
+                    <Button onClick={() => { setEndTimeInput(""); updateMaintenanceEndTime(null); toast.success("Countdown cleared"); }} size="sm" variant="ghost" className="text-white/40 hover:text-white h-9">
                       Clear
                     </Button>
                   )}
@@ -224,18 +218,18 @@ const EnhancedDashboard = ({ isAdmin = false }: EnhancedDashboardProps) => {
                         <Input
                           type="number" min={0} value={f.value}
                           onChange={(e) => f.set(Math.max(0, parseInt(e.target.value) || 0))}
-                          className="bg-white/5 border-white/10 text-white text-sm h-9 w-16 text-center"
+                          className="crm-input text-sm h-9 w-16 text-center"
                         />
-                        <span className="text-[10px] text-white/40">{f.label}</span>
+                        <span className="text-[10px] text-white/30">{f.label}</span>
                       </div>
                     ))}
                   </div>
                   <div className="flex gap-2">
-                    <Button onClick={handleSaveDuration} size="sm" className="bg-amber-600 hover:bg-amber-700 text-white h-9">
+                    <Button onClick={handleSaveDuration} size="sm" className="bg-amber-600 hover:bg-amber-700 text-white h-9 rounded-lg">
                       Start Countdown
                     </Button>
                     {settings.maintenance_end_time && (
-                      <Button onClick={() => { setEndTimeInput(""); updateMaintenanceEndTime(null); toast.success("Countdown cleared"); }} size="sm" variant="ghost" className="text-white/50 hover:text-white h-9">
+                      <Button onClick={() => { setEndTimeInput(""); updateMaintenanceEndTime(null); toast.success("Countdown cleared"); }} size="sm" variant="ghost" className="text-white/40 hover:text-white h-9">
                         Clear
                       </Button>
                     )}
@@ -244,7 +238,7 @@ const EnhancedDashboard = ({ isAdmin = false }: EnhancedDashboardProps) => {
               )}
 
               {settings.maintenance_end_time && (
-                <p className="text-xs text-white/30">
+                <p className="text-xs text-white/25">
                   Ends: {new Date(settings.maintenance_end_time).toLocaleString()}
                 </p>
               )}
@@ -254,147 +248,135 @@ const EnhancedDashboard = ({ isAdmin = false }: EnhancedDashboardProps) => {
       )}
 
       {/* KPI Grid */}
-      <div className="grid gap-3 grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         {stats.map((stat) => (
-          <Card key={stat.title} className="bg-white/5 backdrop-blur-sm border-white/10 hover:bg-white/[0.08] transition-colors">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between mb-2">
-                <div className="p-1.5 rounded-lg bg-accent/10">
-                  <stat.icon className="h-3.5 w-3.5 text-accent" />
-                </div>
-                <span className="text-[10px] text-emerald-400">{stat.change}</span>
+          <div key={stat.title} className="crm-stat-card group">
+            <div className="flex items-center justify-between mb-3">
+              <div
+                className="w-9 h-9 rounded-xl flex items-center justify-center"
+                style={{ background: `${stat.color}15` }}
+              >
+                <stat.icon className="h-4 w-4" style={{ color: stat.color }} />
               </div>
-              <p className="text-xl font-bold text-white">{stat.value}</p>
-              <p className="text-[10px] text-white/40 mt-0.5">{stat.title}</p>
-            </CardContent>
-          </Card>
+              <span className="text-[11px] font-medium text-emerald-400/80">{stat.change}</span>
+            </div>
+            <p className="text-2xl font-bold text-white tracking-tight">{stat.value}</p>
+            <p className="text-xs text-white/30 mt-1">{stat.title}</p>
+          </div>
         ))}
       </div>
 
       {/* Charts Row */}
-      <div className="grid gap-4 lg:grid-cols-3">
-        <Card className="bg-white/5 backdrop-blur-sm border-white/10 lg:col-span-2">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-white text-sm">Revenue Trend</CardTitle>
-          </CardHeader>
-          <CardContent className="h-[260px]">
+      <div className="grid gap-5 lg:grid-cols-3">
+        <div className="crm-card lg:col-span-2 p-5">
+          <h3 className="text-sm font-semibold text-white mb-4">Revenue Trend</h3>
+          <div className="h-[260px]">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={revenueByMonth}>
                 <defs>
                   <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="hsl(200,100%,50%)" stopOpacity={0.3} />
-                    <stop offset="100%" stopColor="hsl(200,100%,50%)" stopOpacity={0} />
+                    <stop offset="0%" stopColor="hsl(217,91%,60%)" stopOpacity={0.2} />
+                    <stop offset="100%" stopColor="hsl(217,91%,60%)" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                <XAxis dataKey="month" stroke="rgba(255,255,255,0.3)" tick={{ fontSize: 11 }} />
-                <YAxis stroke="rgba(255,255,255,0.3)" tick={{ fontSize: 11 }} />
-                <Tooltip contentStyle={{ background: "rgba(0,0,0,0.85)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "8px", color: "#fff", fontSize: 12 }} />
-                <Area type="monotone" dataKey="revenue" stroke="hsl(200,100%,50%)" strokeWidth={2} fill="url(#revGrad)" />
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(0 0% 100% / 0.04)" />
+                <XAxis dataKey="month" stroke="hsl(0 0% 100% / 0.2)" tick={{ fontSize: 11, fill: "hsl(0 0% 100% / 0.3)" }} />
+                <YAxis stroke="hsl(0 0% 100% / 0.2)" tick={{ fontSize: 11, fill: "hsl(0 0% 100% / 0.3)" }} />
+                <Tooltip
+                  contentStyle={{
+                    background: "hsl(222 47% 10%)",
+                    border: "1px solid hsl(0 0% 100% / 0.08)",
+                    borderRadius: "12px",
+                    color: "#fff",
+                    fontSize: 12,
+                    boxShadow: "0 8px 32px hsl(0 0% 0% / 0.4)"
+                  }}
+                />
+                <Area type="monotone" dataKey="revenue" stroke="hsl(217,91%,60%)" strokeWidth={2} fill="url(#revGrad)" />
               </AreaChart>
             </ResponsiveContainer>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
-        <Card className="bg-white/5 backdrop-blur-sm border-white/10">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-white text-sm">Creator Tiers</CardTitle>
-          </CardHeader>
-          <CardContent className="h-[260px] flex items-center justify-center">
+        <div className="crm-card p-5">
+          <h3 className="text-sm font-semibold text-white mb-4">Creator Tiers</h3>
+          <div className="h-[260px] flex items-center justify-center">
             {tierData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie data={tierData} cx="50%" cy="50%" innerRadius={50} outerRadius={80} dataKey="value" label={({ name, value }) => `${name}: ${value}`}>
+                  <Pie data={tierData} cx="50%" cy="50%" innerRadius={55} outerRadius={85} dataKey="value" strokeWidth={0} label={({ name, value }) => `${name}: ${value}`}>
                     {tierData.map((_, i) => (
                       <Cell key={i} fill={COLORS[i % COLORS.length]} />
                     ))}
                   </Pie>
-                  <Tooltip contentStyle={{ background: "rgba(0,0,0,0.85)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "8px", color: "#fff", fontSize: 12 }} />
+                  <Tooltip
+                    contentStyle={{
+                      background: "hsl(222 47% 10%)",
+                      border: "1px solid hsl(0 0% 100% / 0.08)",
+                      borderRadius: "12px",
+                      color: "#fff",
+                      fontSize: 12,
+                    }}
+                  />
                 </PieChart>
               </ResponsiveContainer>
             ) : (
-              <p className="text-white/30 text-sm">No data yet</p>
+              <p className="text-white/20 text-sm">No data yet</p>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
 
       {/* Top Creators & Activity */}
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card className="bg-white/5 backdrop-blur-sm border-white/10">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-white text-sm flex items-center gap-2">
-              <Crown className="h-4 w-4 text-yellow-400" /> Top Creators
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {topCreators.length === 0 && <p className="text-white/30 text-sm">No creators yet</p>}
-              {topCreators.map((creator, i) => (
-                <div key={creator.id} className="flex items-center justify-between py-2 border-b border-white/5 last:border-0">
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs font-bold text-white/30 w-5">#{i + 1}</span>
-                    <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white text-xs font-bold">
-                      {(creator.display_name || creator.username || "?")[0].toUpperCase()}
-                    </div>
-                    <div>
-                      <p className="text-sm text-white font-medium">{creator.display_name || creator.username}</p>
-                      <p className="text-[10px] text-white/40">@{creator.username}</p>
-                    </div>
+      <div className="grid gap-5 lg:grid-cols-2">
+        <div className="crm-card p-5">
+          <h3 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
+            <Crown className="h-4 w-4 text-amber-400" /> Top Creators
+          </h3>
+          <div className="space-y-1">
+            {topCreators.length === 0 && <p className="text-white/20 text-sm py-4 text-center">No creators yet</p>}
+            {topCreators.map((creator, i) => (
+              <div key={creator.id} className="flex items-center justify-between py-2.5 px-3 rounded-xl hover:bg-white/[0.03] transition-colors">
+                <div className="flex items-center gap-3">
+                  <span className="text-xs font-bold text-white/20 w-5 text-right">#{i + 1}</span>
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[hsl(217,91%,60%)]/20 to-[hsl(262,83%,58%)]/20 flex items-center justify-center text-white text-xs font-bold">
+                    {(creator.display_name || creator.username || "?")[0].toUpperCase()}
                   </div>
-                  <div className="text-right">
-                    <p className="text-sm font-bold text-white">${(creator.monthly_revenue || 0).toLocaleString()}</p>
-                    <p className="text-[10px] text-white/40">{(creator.subscriber_count || 0).toLocaleString()} subs</p>
+                  <div>
+                    <p className="text-sm text-white font-medium">{creator.display_name || creator.username}</p>
+                    <p className="text-[11px] text-white/25">@{creator.username}</p>
                   </div>
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-white/5 backdrop-blur-sm border-white/10">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-white text-sm">Recent Activity</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {activities.length === 0 && <p className="text-white/30 text-sm">No recent activity</p>}
-              {activities.slice(0, 8).map((act, i) => (
-                <div key={act.id || i} className="flex items-center justify-between py-1.5 border-b border-white/5 last:border-0">
-                  <div className="flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 rounded-full bg-accent" />
-                    <span className="text-xs text-white/60 truncate max-w-[200px]">{act.description}</span>
-                  </div>
-                  <Badge variant="outline" className="text-[9px] border-white/10 text-white/30">{act.activity_type}</Badge>
+                <div className="text-right">
+                  <p className="text-sm font-semibold text-white">${(creator.monthly_revenue || 0).toLocaleString()}</p>
+                  <p className="text-[11px] text-white/25">{(creator.subscriber_count || 0).toLocaleString()} subs</p>
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Task Overview */}
-      <Card className="bg-white/5 backdrop-blur-sm border-white/10">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-white text-sm">Task Overview</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-4 gap-4">
-            {[
-              { label: "To Do", count: tasks.filter((t) => t.status === "todo").length, color: "bg-white/20" },
-              { label: "In Progress", count: tasks.filter((t) => t.status === "in_progress").length, color: "bg-blue-500" },
-              { label: "Done", count: tasks.filter((t) => t.status === "done").length, color: "bg-emerald-500" },
-              { label: "Blocked", count: tasks.filter((t) => t.status === "blocked").length, color: "bg-red-500" },
-            ].map((s) => (
-              <div key={s.label} className="text-center">
-                <div className={`w-3 h-3 rounded-full ${s.color} mx-auto mb-1`} />
-                <p className="text-lg font-bold text-white">{s.count}</p>
-                <p className="text-[10px] text-white/40">{s.label}</p>
               </div>
             ))}
           </div>
-        </CardContent>
-      </Card>
+        </div>
+
+        <div className="crm-card p-5">
+          <h3 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
+            <Activity className="h-4 w-4 text-[hsl(217,91%,60%)]" /> Recent Activity
+          </h3>
+          <div className="space-y-1">
+            {activities.length === 0 && <p className="text-white/20 text-sm py-4 text-center">No activity yet</p>}
+            {activities.map((act) => (
+              <div key={act.id} className="flex items-center justify-between py-2.5 px-3 rounded-xl hover:bg-white/[0.03] transition-colors">
+                <div className="flex items-center gap-3">
+                  <div className="w-2 h-2 rounded-full bg-[hsl(217,91%,60%)]" />
+                  <div>
+                    <p className="text-sm text-white/80">{act.description}</p>
+                    <p className="text-[11px] text-white/20">{new Date(act.created_at).toLocaleDateString()}</p>
+                  </div>
+                </div>
+                <Badge variant="outline" className="text-[10px] border-white/[0.06] text-white/30">{act.activity_type}</Badge>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
