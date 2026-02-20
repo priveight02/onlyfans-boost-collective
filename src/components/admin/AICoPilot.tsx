@@ -262,8 +262,9 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
   const [videoStartFrame, setVideoStartFrame] = useState<Attachment | null>(null);
   const [videoDuration, setVideoDuration] = useState<number>(5);
   const [selectedVideoFormat, setSelectedVideoFormat] = useState<string>("landscape");
-  const [selectedVideoModel, setSelectedVideoModel] = useState<string>("kling-v2-master");
-  const [selectedVideoMode, setSelectedVideoMode] = useState<string>("pro");
+  const [selectedVideoResolution, setSelectedVideoResolution] = useState<string>("720p");
+  const [videoGenerateAudio, setVideoGenerateAudio] = useState(false);
+  const [fixedLens, setFixedLens] = useState(false);
   const [isGeneratingVideo, setIsGeneratingVideo] = useState(false);
   const [videoProgress, setVideoProgress] = useState(0);
   const [videoProgressLabel, setVideoProgressLabel] = useState("");
@@ -751,38 +752,39 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
     const format = VIDEO_FORMAT_PRESETS.find(f => f.id === selectedVideoFormat) || VIDEO_FORMAT_PRESETS[0];
     setVideoPrompt(""); setVideoStartFrame(null);
 
-    // Map format ratios to Kling supported ratios (16:9, 9:16, 1:1)
+    // Map format ratio to Seedance supported ratios
     const mapRatio = (ratio: string) => {
-      if (ratio === "1:1") return "1:1";
-      if (ratio === "9:16" || ratio === "3:4" || ratio === "4:5") return "9:16";
+      const supported = ["1:1", "16:9", "9:16", "4:3", "3:4", "21:9", "9:21"];
+      if (supported.includes(ratio)) return ratio;
+      if (ratio === "4:5") return "3:4";
       return "16:9";
     };
 
     setVideoProgress(0);
-    setVideoProgressLabel("Submitting to Kling AI...");
+    setVideoProgressLabel("Submitting to Seedance 2.0...");
 
     try {
-      // Step 1: Create task via Kling AI
-      const createResp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/kling-video?action=create`, {
+      // Step 1: Create task via Seedance API
+      const createResp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/seedance-video?action=create`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
         body: JSON.stringify({
           prompt,
-          duration: String(videoDuration <= 10 ? (videoDuration <= 5 ? "5" : "10") : "10"),
+          duration: String(videoDuration),
           aspect_ratio: mapRatio(format.ratio),
-          model_name: selectedVideoModel,
-          mode: selectedVideoMode,
+          resolution: selectedVideoResolution,
+          generate_audio: videoGenerateAudio,
+          fixed_lens: fixedLens,
           image_url: frame?.url || undefined,
         }),
       });
       if (!createResp.ok) { const ed = await createResp.json().catch(() => ({})); throw new Error(ed.error || `Error ${createResp.status}`); }
       const createData = await createResp.json();
       const taskId = createData.task_id;
-      if (!taskId) throw new Error("No task_id returned from Kling AI");
+      if (!taskId) throw new Error("No task_id returned from Seedance API");
 
       setVideoProgress(10);
       setVideoProgressLabel("Task submitted — rendering video...");
-      const taskType = frame ? "image2video" : "text2video";
 
       // Step 2: Poll for completion (max ~5 minutes)
       const maxPolls = 60;
@@ -790,10 +792,9 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
       let videoUrl: string | null = null;
 
       while (pollCount < maxPolls) {
-        await new Promise(r => setTimeout(r, 5000)); // Poll every 5s
+        await new Promise(r => setTimeout(r, 5000));
         pollCount++;
 
-        // Simulate progress: 10% → 90% over polls
         const progress = Math.min(10 + (pollCount / maxPolls) * 80, 90);
         setVideoProgress(progress);
 
@@ -807,22 +808,21 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
         setVideoProgressLabel(statusLabels[Math.min(Math.floor(pollCount / 12), statusLabels.length - 1)]);
 
         try {
-          const pollResp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/kling-video?action=poll&task_id=${taskId}&type=${taskType}`, {
+          const pollResp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/seedance-video?action=poll&task_id=${encodeURIComponent(taskId)}`, {
             headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
           });
           if (!pollResp.ok) continue;
           const pollData = await pollResp.json();
 
-          if (pollData.task_status === "succeed" && pollData.video_url) {
+          if (pollData.status === "SUCCESS" && pollData.video_url) {
             videoUrl = pollData.video_url;
             break;
           }
-          if (pollData.task_status === "failed") {
-            throw new Error(pollData.task_status_msg || "Video generation failed on Kling AI");
+          if (pollData.status === "FAILED") {
+            throw new Error(pollData.error_message || "Video generation failed on Seedance");
           }
         } catch (pollErr: any) {
-          if (pollErr.message?.includes("failed")) throw pollErr;
-          // Network errors during polling — just continue
+          if (pollErr.message?.includes("failed") || pollErr.message?.includes("Failed")) throw pollErr;
         }
       }
 
@@ -831,15 +831,14 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
       setVideoProgress(95);
       setVideoProgressLabel("Saving video...");
 
-      // Save to DB
       const saved = await saveGeneratedContent("video", videoUrl, prompt, "video", {
-        metadata: { duration: videoDuration, format: format.id, width: format.width, height: format.height, kling_task_id: taskId },
+        metadata: { duration: videoDuration, format: format.id, width: format.width, height: format.height, seedance_task_id: taskId, resolution: selectedVideoResolution },
       });
       if (saved) setGeneratedVideos(prev => [saved, ...prev]);
 
       setVideoProgress(100);
       setVideoProgressLabel("Complete!");
-      toast.success(`Video generated! (${format.label} — ${videoDuration}s)`);
+      toast.success(`Video generated! (${format.label} — ${videoDuration}s — ${selectedVideoResolution})`);
     } catch (e: any) { toast.error(e.message || "Video generation failed"); } finally {
       setTimeout(() => { setIsGeneratingVideo(false); setVideoProgress(0); setVideoProgressLabel(""); }, 1500);
     }
@@ -1140,43 +1139,38 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
         <div>
           <p className="text-[10px] text-white/40 mb-1">Duration: <span className="text-accent font-medium">{videoDuration}s</span></p>
           <div className="flex gap-2">
-            {[5, 10].map(d => (
+            {[4, 8, 12].map(d => (
               <button key={d} onClick={() => setVideoDuration(d)} className={`px-3 py-1.5 rounded-lg text-xs border transition-all ${videoDuration === d ? "border-accent/40 bg-accent/10 text-accent" : "border-white/10 text-white/30 hover:text-white/50"}`}>{d}s</button>
             ))}
           </div>
         </div>
 
-        {/* Model selector */}
+        {/* Resolution */}
         <div>
-          <p className="text-[10px] text-white/40 mb-1.5 font-medium">Kling Model</p>
-          <div className="flex flex-wrap gap-1.5">
+          <p className="text-[10px] text-white/40 mb-1.5 font-medium">Resolution</p>
+          <div className="flex gap-2">
             {[
-              { id: "kling-v2-master", label: "V2 Master", desc: "Best quality" },
-              { id: "kling-v2", label: "V2", desc: "Fast" },
-              { id: "kling-v1-6", label: "V1.6", desc: "Legacy" },
+              { id: "480p", label: "480p", desc: "Fast / preview" },
+              { id: "720p", label: "720p", desc: "Production" },
             ].map(m => (
-              <button key={m.id} onClick={() => setSelectedVideoModel(m.id)}
-                className={`px-2.5 py-1.5 rounded-lg text-[10px] border transition-all ${selectedVideoModel === m.id ? "border-accent/40 bg-accent/10 text-accent" : "border-white/10 text-white/30 hover:text-white/50"}`}>
-                {m.label} <span className="text-[8px] text-white/20 ml-1">{m.desc}</span>
+              <button key={m.id} onClick={() => setSelectedVideoResolution(m.id)}
+                className={`px-3 py-1.5 rounded-lg text-[10px] border transition-all flex-1 ${selectedVideoResolution === m.id ? "border-accent/40 bg-accent/10 text-accent" : "border-white/10 text-white/30 hover:text-white/50"}`}>
+                {m.label} <span className="text-[8px] text-white/20">{m.desc}</span>
               </button>
             ))}
           </div>
         </div>
 
-        {/* Render mode */}
-        <div>
-          <p className="text-[10px] text-white/40 mb-1.5 font-medium">Render Mode</p>
-          <div className="flex gap-2">
-            {[
-              { id: "pro", label: "Pro", desc: "Higher quality, slower" },
-              { id: "std", label: "Standard", desc: "Faster" },
-            ].map(m => (
-              <button key={m.id} onClick={() => setSelectedVideoMode(m.id)}
-                className={`px-3 py-1.5 rounded-lg text-[10px] border transition-all flex-1 ${selectedVideoMode === m.id ? "border-accent/40 bg-accent/10 text-accent" : "border-white/10 text-white/30 hover:text-white/50"}`}>
-                {m.label} <span className="text-[8px] text-white/20">{m.desc}</span>
-              </button>
-            ))}
-          </div>
+        {/* Options */}
+        <div className="space-y-2">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <Switch checked={videoGenerateAudio} onCheckedChange={setVideoGenerateAudio} />
+            <span className="text-[10px] text-white/50">Generate Audio</span>
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <Switch checked={fixedLens} onCheckedChange={setFixedLens} />
+            <span className="text-[10px] text-white/50">Fixed Lens (reduce motion blur)</span>
+          </label>
         </div>
 
         <div>
@@ -1185,16 +1179,8 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
         </div>
 
         <div className="mt-auto flex items-center gap-2 flex-wrap">
-          <Select value={qualityMode} onValueChange={v => setQualityMode(v as QualityMode)}>
-            <SelectTrigger className="bg-white/5 border-white/10 text-white h-9 text-xs w-[140px]"><SelectValue /></SelectTrigger>
-            <SelectContent className="bg-[hsl(220,40%,10%)] border-white/10">
-              <SelectItem value="best" className="text-white text-xs"><div className="flex items-center gap-2"><Shield className="h-3 w-3" /> Best Quality</div></SelectItem>
-              <SelectItem value="uncensored" className="text-white text-xs"><div className="flex items-center gap-2"><ShieldOff className="h-3 w-3 text-red-400" /> Uncensored</div></SelectItem>
-              <SelectItem value="high" className="text-white text-xs">High Quality</SelectItem>
-            </SelectContent>
-          </Select>
           <Button onClick={generateVideo} disabled={!videoPrompt.trim() || isGeneratingVideo} className="flex-1 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white text-sm h-9">
-            {isGeneratingVideo ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Sparkles className="h-4 w-4 mr-2" />}Generate
+            {isGeneratingVideo ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Sparkles className="h-4 w-4 mr-2" />}Generate with Seedance 2.0
           </Button>
         </div>
       </div>
