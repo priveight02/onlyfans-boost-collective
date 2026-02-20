@@ -265,6 +265,9 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
   const [selectedVideoResolution, setSelectedVideoResolution] = useState<string>("720p");
   const [videoGenerateAudio, setVideoGenerateAudio] = useState(false);
   const [fixedLens, setFixedLens] = useState(false);
+  const [selectedVideoProvider, setSelectedVideoProvider] = useState<string>("seedance");
+  const [selectedVideoModel, setSelectedVideoModel] = useState<string>("seedance-2.0");
+  const [videoProviderStatus, setVideoProviderStatus] = useState<Record<string, boolean>>({});
   const [isGeneratingVideo, setIsGeneratingVideo] = useState(false);
   const [videoProgress, setVideoProgress] = useState(0);
   const [videoProgressLabel, setVideoProgressLabel] = useState("");
@@ -320,6 +323,14 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
     setGeneratedImages((imagesData.data || []) as GeneratedContent[]);
     setGeneratedVideos((videosData.data || []) as GeneratedContent[]);
     setGeneratedAudios((audiosData.data || []) as GeneratedContent[]);
+
+    // Check which video providers have API keys configured
+    try {
+      const provResp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/video-generate?action=providers`, {
+        headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+      });
+      if (provResp.ok) setVideoProviderStatus(await provResp.json());
+    } catch {}
 
     const draft = loadDraftData();
     if (draft) {
@@ -750,9 +761,9 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
     const prompt = videoPrompt;
     const frame = videoStartFrame;
     const format = VIDEO_FORMAT_PRESETS.find(f => f.id === selectedVideoFormat) || VIDEO_FORMAT_PRESETS[0];
+    const provider = selectedVideoProvider;
     setVideoPrompt(""); setVideoStartFrame(null);
 
-    // Map format ratio to Seedance supported ratios
     const mapRatio = (ratio: string) => {
       const supported = ["1:1", "16:9", "9:16", "4:3", "3:4", "21:9", "9:21"];
       if (supported.includes(ratio)) return ratio;
@@ -760,33 +771,61 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
       return "16:9";
     };
 
+    const providerLabels: Record<string, string> = {
+      seedance: "Seedance 2.0", kling: "Kling AI", huggingface: "HuggingFace", replicate: "Replicate", luma: "Luma Dream Machine", runway: "Runway ML",
+    };
+
     setVideoProgress(0);
-    setVideoProgressLabel("Submitting to Seedance 2.0...");
+    setVideoProgressLabel(`Submitting to ${providerLabels[provider] || provider}...`);
 
     try {
-      // Step 1: Create task via Seedance API
-      const createResp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/seedance-video?action=create`, {
+      const createBody: any = {
+        prompt,
+        duration: videoDuration,
+        aspect_ratio: mapRatio(format.ratio),
+        resolution: selectedVideoResolution,
+        image_url: frame?.url || undefined,
+        model_name: selectedVideoModel,
+      };
+      // Provider-specific fields
+      if (provider === "seedance") {
+        createBody.generate_audio = videoGenerateAudio;
+        createBody.fixed_lens = fixedLens;
+      }
+      if (provider === "kling") {
+        createBody.mode = selectedVideoModel.includes("master") ? "pro" : "std";
+      }
+
+      const createResp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/video-generate?action=create&provider=${provider}`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
-        body: JSON.stringify({
-          prompt,
-          duration: String(videoDuration),
-          aspect_ratio: mapRatio(format.ratio),
-          resolution: selectedVideoResolution,
-          generate_audio: videoGenerateAudio,
-          fixed_lens: fixedLens,
-          image_url: frame?.url || undefined,
-        }),
+        body: JSON.stringify(createBody),
       });
       if (!createResp.ok) { const ed = await createResp.json().catch(() => ({})); throw new Error(ed.error || `Error ${createResp.status}`); }
       const createData = await createResp.json();
+
+      // HuggingFace may return directly
+      if (createData.status === "SUCCESS" && createData.video_url) {
+        setVideoProgress(95);
+        setVideoProgressLabel("Saving video...");
+        const saved = await saveGeneratedContent("video", createData.video_url, prompt, "video", {
+          metadata: { duration: videoDuration, format: format.id, provider, model: selectedVideoModel },
+        });
+        if (saved) setGeneratedVideos(prev => [saved, ...prev]);
+        setVideoProgress(100);
+        setVideoProgressLabel("Complete!");
+        toast.success(`Video generated via ${providerLabels[provider]}!`);
+        setTimeout(() => { setIsGeneratingVideo(false); setVideoProgress(0); setVideoProgressLabel(""); }, 1500);
+        return;
+      }
+
       const taskId = createData.task_id;
-      if (!taskId) throw new Error("No task_id returned from Seedance API");
+      if (!taskId) throw new Error(`No task_id returned from ${providerLabels[provider]}`);
 
       setVideoProgress(10);
       setVideoProgressLabel("Task submitted — rendering video...");
 
-      // Step 2: Poll for completion (max ~5 minutes)
+      const taskType = createData.task_type || (frame ? "image2video" : "text2video");
       const maxPolls = 60;
       let pollCount = 0;
       let videoUrl: string | null = null;
@@ -794,51 +833,35 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
       while (pollCount < maxPolls) {
         await new Promise(r => setTimeout(r, 5000));
         pollCount++;
-
         const progress = Math.min(10 + (pollCount / maxPolls) * 80, 90);
         setVideoProgress(progress);
-
-        const statusLabels = [
-          "Rendering video...",
-          "Processing frames...",
-          "Applying effects...",
-          "Encoding video...",
-          "Finalizing output...",
-        ];
-        setVideoProgressLabel(statusLabels[Math.min(Math.floor(pollCount / 12), statusLabels.length - 1)]);
+        const labels = ["Rendering video...", "Processing frames...", "Applying effects...", "Encoding video...", "Finalizing output..."];
+        setVideoProgressLabel(labels[Math.min(Math.floor(pollCount / 12), labels.length - 1)]);
 
         try {
-          const pollResp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/seedance-video?action=poll&task_id=${encodeURIComponent(taskId)}`, {
+          const pollResp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/video-generate?action=poll&provider=${provider}&task_id=${encodeURIComponent(taskId)}&task_type=${taskType}`, {
             headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
           });
           if (!pollResp.ok) continue;
           const pollData = await pollResp.json();
-
-          if (pollData.status === "SUCCESS" && pollData.video_url) {
-            videoUrl = pollData.video_url;
-            break;
-          }
-          if (pollData.status === "FAILED") {
-            throw new Error(pollData.error_message || "Video generation failed on Seedance");
-          }
+          if (pollData.status === "SUCCESS" && pollData.video_url) { videoUrl = pollData.video_url; break; }
+          if (pollData.status === "FAILED") throw new Error(pollData.error_message || `Video generation failed on ${providerLabels[provider]}`);
         } catch (pollErr: any) {
           if (pollErr.message?.includes("failed") || pollErr.message?.includes("Failed")) throw pollErr;
         }
       }
 
-      if (!videoUrl) throw new Error("Video generation timed out. Try a shorter duration or simpler prompt.");
+      if (!videoUrl) throw new Error("Video generation timed out.");
 
       setVideoProgress(95);
       setVideoProgressLabel("Saving video...");
-
       const saved = await saveGeneratedContent("video", videoUrl, prompt, "video", {
-        metadata: { duration: videoDuration, format: format.id, width: format.width, height: format.height, seedance_task_id: taskId, resolution: selectedVideoResolution },
+        metadata: { duration: videoDuration, format: format.id, provider, model: selectedVideoModel, task_id: taskId },
       });
       if (saved) setGeneratedVideos(prev => [saved, ...prev]);
-
       setVideoProgress(100);
       setVideoProgressLabel("Complete!");
-      toast.success(`Video generated! (${format.label} — ${videoDuration}s — ${selectedVideoResolution})`);
+      toast.success(`Video generated via ${providerLabels[provider]}! (${format.label} — ${videoDuration}s)`);
     } catch (e: any) { toast.error(e.message || "Video generation failed"); } finally {
       setTimeout(() => { setIsGeneratingVideo(false); setVideoProgress(0); setVideoProgressLabel(""); }, 1500);
     }
@@ -1114,64 +1137,135 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
     </div>
   );
 
+  const VIDEO_PROVIDERS = [
+    { id: "seedance", label: "Seedance 2.0", pricing: "paid", color: "text-cyan-400", desc: "High quality, 4-12s, audio gen", models: [
+      { id: "seedance-2.0", label: "Seedance 2.0" },
+    ]},
+    { id: "kling", label: "Kling AI", pricing: "paid", color: "text-purple-400", desc: "V2 Master, text & image-to-video", models: [
+      { id: "kling-v2-master", label: "V2 Master" },
+      { id: "kling-v2", label: "V2" },
+      { id: "kling-v1-6", label: "V1.6 Legacy" },
+    ]},
+    { id: "huggingface", label: "HuggingFace", pricing: "free", color: "text-yellow-400", desc: "Free tier, LTX-Video & more", models: [
+      { id: "Lightricks/LTX-Video-0.9.8-13B-distilled", label: "LTX-Video 13B" },
+      { id: "tencent/HunyuanVideo", label: "HunyuanVideo" },
+    ]},
+    { id: "replicate", label: "Replicate", pricing: "free-credits", color: "text-green-400", desc: "Free credits on signup, many models", models: [
+      { id: "minimax/video-01-live", label: "MiniMax Live" },
+      { id: "tencent/hunyuan-video", label: "HunyuanVideo" },
+      { id: "wavespeedai/wan-2.1-t2v-480p", label: "Wan 2.1" },
+    ]},
+    { id: "luma", label: "Luma Dream Machine", pricing: "free-tier", color: "text-pink-400", desc: "Free tier available, cinematic", models: [
+      { id: "dream-machine", label: "Dream Machine" },
+    ]},
+    { id: "runway", label: "Runway ML", pricing: "paid", color: "text-orange-400", desc: "Gen-4 Turbo, professional quality", models: [
+      { id: "gen4_turbo", label: "Gen-4 Turbo" },
+      { id: "gen3a_turbo", label: "Gen-3α Turbo" },
+    ]},
+  ];
+
+  const renderPricingBadge = (pricing: string) => {
+    if (pricing === "free") return <Badge className="text-[8px] bg-green-500/20 text-green-400 border-green-500/30 px-1.5 py-0">FREE</Badge>;
+    if (pricing === "free-credits") return <Badge className="text-[8px] bg-emerald-500/20 text-emerald-400 border-emerald-500/30 px-1.5 py-0">FREE CREDITS</Badge>;
+    if (pricing === "free-tier") return <Badge className="text-[8px] bg-blue-500/20 text-blue-400 border-blue-500/30 px-1.5 py-0">FREE TIER</Badge>;
+    return <Badge className="text-[8px] bg-amber-500/20 text-amber-400 border-amber-500/30 px-1.5 py-0">API COSTS</Badge>;
+  };
+
+  const activeProvider = VIDEO_PROVIDERS.find(p => p.id === selectedVideoProvider) || VIDEO_PROVIDERS[0];
+
   const renderVideoPanel = () => (
     <div className="flex flex-1 overflow-hidden">
-      <div className="w-[380px] border-r border-white/[0.06] p-4 flex flex-col gap-3 overflow-y-auto shrink-0">
+      <div className="w-[400px] border-r border-white/[0.06] p-4 flex flex-col gap-3 overflow-y-auto shrink-0">
+        {/* Provider selector */}
+        <div>
+          <p className="text-[10px] text-white/40 mb-1.5 font-medium">Video Provider</p>
+          <div className="space-y-1 max-h-[200px] overflow-y-auto pr-1">
+            {VIDEO_PROVIDERS.map(p => {
+              const configured = videoProviderStatus[p.id];
+              return (
+                <button key={p.id} onClick={() => {
+                  setSelectedVideoProvider(p.id);
+                  setSelectedVideoModel(p.models[0].id);
+                }}
+                  className={`w-full text-left px-3 py-2 rounded-lg border transition-all flex items-center gap-2 ${selectedVideoProvider === p.id ? "border-accent/40 bg-accent/10" : "border-white/10 hover:border-white/20 bg-white/[0.02]"}`}>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className={`text-[11px] font-medium ${selectedVideoProvider === p.id ? "text-accent" : "text-white/70"}`}>{p.label}</span>
+                      {renderPricingBadge(p.pricing)}
+                      {configured === false && <Badge className="text-[7px] bg-red-500/20 text-red-400 border-red-500/30 px-1 py-0">NO KEY</Badge>}
+                      {configured === true && <Badge className="text-[7px] bg-green-500/20 text-green-400 border-green-500/30 px-1 py-0">✓</Badge>}
+                    </div>
+                    <p className="text-[9px] text-white/30 mt-0.5">{p.desc}</p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Model selector for active provider */}
+        {activeProvider.models.length > 1 && (
+          <div>
+            <p className="text-[10px] text-white/40 mb-1.5 font-medium">Model</p>
+            <div className="flex flex-wrap gap-1.5">
+              {activeProvider.models.map(m => (
+                <button key={m.id} onClick={() => setSelectedVideoModel(m.id)}
+                  className={`px-2.5 py-1.5 rounded-lg text-[10px] border transition-all ${selectedVideoModel === m.id ? "border-accent/40 bg-accent/10 text-accent" : "border-white/10 text-white/30 hover:text-white/50"}`}>
+                  {m.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="flex items-center justify-between">
           <p className="text-sm font-semibold text-white/80">Video Prompt</p>
           <div className="flex items-center gap-2">
-            {qualityMode === "uncensored" && (
-              <Badge variant="outline" className="text-[9px] border-red-500/30 text-red-400 gap-1"><ShieldOff className="h-3 w-3" />Uncensored</Badge>
-            )}
-            <Badge variant="outline" className="text-[9px] border-accent/20 text-accent">Kling AI</Badge>
+            <Badge variant="outline" className={`text-[9px] border-white/10 ${activeProvider.color}`}>{activeProvider.label}</Badge>
           </div>
         </div>
         <Textarea value={videoPrompt} onChange={e => setVideoPrompt(e.target.value)} placeholder="Describe your video scene in detail..." className="bg-white/5 border-white/10 text-white text-sm min-h-[80px] resize-none placeholder:text-white/20" onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); generateVideo(); } }} />
         <div className="flex gap-2">
           <div className="border-2 border-dashed border-white/10 rounded-xl p-3 flex flex-col items-center justify-center gap-1 cursor-pointer hover:border-white/20 transition-colors flex-1 min-h-[70px] relative" onClick={() => videoFrameInputRef.current?.click()}>
             {videoStartFrame ? (<><img src={videoStartFrame.url} alt="" className="w-full h-full object-cover rounded-lg absolute inset-0" /><button onClick={(e) => { e.stopPropagation(); setVideoStartFrame(null); }} className="absolute top-1 right-1 h-5 w-5 rounded-full bg-black/70 flex items-center justify-center z-10"><X className="h-3 w-3 text-white" /></button></>)
-              : (<><Upload className="h-4 w-4 text-white/20" /><p className="text-[9px] text-white/30">Start Frame</p></>)}
+              : (<><Upload className="h-4 w-4 text-white/20" /><p className="text-[9px] text-white/30">Start Frame (img2vid)</p></>)}
           </div>
-          <div className="border-2 border-dashed border-white/10 rounded-xl p-3 flex flex-col items-center justify-center gap-1 flex-1 min-h-[70px] opacity-30"><Upload className="h-4 w-4 text-white/20" /><p className="text-[9px] text-white/30">End Frame</p></div>
         </div>
         <input ref={videoFrameInputRef} type="file" accept="image/*" className="hidden" onChange={handleVideoFrameUpload} />
 
         <div>
           <p className="text-[10px] text-white/40 mb-1">Duration: <span className="text-accent font-medium">{videoDuration}s</span></p>
           <div className="flex gap-2">
-            {[4, 8, 12].map(d => (
+            {(selectedVideoProvider === "seedance" ? [4, 8, 12] : selectedVideoProvider === "kling" ? [5, 10] : [4, 5, 8]).map(d => (
               <button key={d} onClick={() => setVideoDuration(d)} className={`px-3 py-1.5 rounded-lg text-xs border transition-all ${videoDuration === d ? "border-accent/40 bg-accent/10 text-accent" : "border-white/10 text-white/30 hover:text-white/50"}`}>{d}s</button>
             ))}
           </div>
         </div>
 
-        {/* Resolution */}
-        <div>
-          <p className="text-[10px] text-white/40 mb-1.5 font-medium">Resolution</p>
-          <div className="flex gap-2">
-            {[
-              { id: "480p", label: "480p", desc: "Fast / preview" },
-              { id: "720p", label: "720p", desc: "Production" },
-            ].map(m => (
-              <button key={m.id} onClick={() => setSelectedVideoResolution(m.id)}
-                className={`px-3 py-1.5 rounded-lg text-[10px] border transition-all flex-1 ${selectedVideoResolution === m.id ? "border-accent/40 bg-accent/10 text-accent" : "border-white/10 text-white/30 hover:text-white/50"}`}>
-                {m.label} <span className="text-[8px] text-white/20">{m.desc}</span>
-              </button>
-            ))}
+        {/* Provider-specific options */}
+        {selectedVideoProvider === "seedance" && (
+          <div className="space-y-2">
+            <div>
+              <p className="text-[10px] text-white/40 mb-1.5 font-medium">Resolution</p>
+              <div className="flex gap-2">
+                {[{ id: "480p", label: "480p", desc: "Fast" }, { id: "720p", label: "720p", desc: "Production" }].map(m => (
+                  <button key={m.id} onClick={() => setSelectedVideoResolution(m.id)}
+                    className={`px-3 py-1.5 rounded-lg text-[10px] border transition-all flex-1 ${selectedVideoResolution === m.id ? "border-accent/40 bg-accent/10 text-accent" : "border-white/10 text-white/30 hover:text-white/50"}`}>
+                    {m.label} <span className="text-[8px] text-white/20">{m.desc}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <Switch checked={videoGenerateAudio} onCheckedChange={setVideoGenerateAudio} />
+              <span className="text-[10px] text-white/50">Generate Audio</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <Switch checked={fixedLens} onCheckedChange={setFixedLens} />
+              <span className="text-[10px] text-white/50">Fixed Lens</span>
+            </label>
           </div>
-        </div>
-
-        {/* Options */}
-        <div className="space-y-2">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <Switch checked={videoGenerateAudio} onCheckedChange={setVideoGenerateAudio} />
-            <span className="text-[10px] text-white/50">Generate Audio</span>
-          </label>
-          <label className="flex items-center gap-2 cursor-pointer">
-            <Switch checked={fixedLens} onCheckedChange={setFixedLens} />
-            <span className="text-[10px] text-white/50">Fixed Lens (reduce motion blur)</span>
-          </label>
-        </div>
+        )}
 
         <div>
           <p className="text-[10px] text-white/40 mb-1.5 font-medium">Output Format</p>
@@ -1180,7 +1274,7 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
 
         <div className="mt-auto flex items-center gap-2 flex-wrap">
           <Button onClick={generateVideo} disabled={!videoPrompt.trim() || isGeneratingVideo} className="flex-1 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white text-sm h-9">
-            {isGeneratingVideo ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Sparkles className="h-4 w-4 mr-2" />}Generate with Seedance 2.0
+            {isGeneratingVideo ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Sparkles className="h-4 w-4 mr-2" />}Generate with {activeProvider.label}
           </Button>
         </div>
       </div>
