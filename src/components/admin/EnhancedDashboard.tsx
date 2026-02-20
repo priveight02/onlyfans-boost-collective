@@ -226,14 +226,27 @@ const EnhancedDashboard = ({ isAdmin = false }: EnhancedDashboardProps) => {
             <h3 className="crm-section-title">Sales Pipeline</h3>
             <span className="text-[11px] text-white/25">This quarter</span>
           </div>
-          <div className="flex flex-col items-center gap-2 mb-6">
+          <div className="space-y-1 mb-6">
             {pipelineData.map((stage, i) => {
-              const widthPct = 95 - i * 14;
+              const maxWidth = 100;
+              const minWidth = 30;
+              const widthPct = maxWidth - ((maxWidth - minWidth) / (pipelineData.length - 1)) * i;
               return (
-                <div key={stage.stage} className="relative flex items-center justify-between px-5 py-3 rounded-xl transition-all hover:brightness-110 cursor-default"
-                  style={{ width: `${widthPct}%`, background: `linear-gradient(135deg, ${stage.color}18, ${stage.color}08)`, borderLeft: `3px solid ${stage.color}` }}>
-                  <span className="text-xs font-medium text-white/60">{stage.stage}</span>
-                  <span className="text-sm font-bold text-white">{stage.value}</span>
+                <div key={stage.stage} className="flex items-center gap-4">
+                  <div className="relative overflow-hidden rounded-md transition-all hover:brightness-125 cursor-default"
+                    style={{
+                      width: `${widthPct}%`,
+                      height: "36px",
+                      background: `linear-gradient(90deg, ${stage.color}, ${stage.color}99)`,
+                      clipPath: i === pipelineData.length - 1
+                        ? "polygon(4% 0%, 96% 0%, 92% 100%, 8% 100%)"
+                        : "polygon(0% 0%, 100% 0%, 96% 100%, 4% 100%)",
+                    }}>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="text-[11px] font-semibold text-white/90 drop-shadow-sm">{stage.stage}</span>
+                    </div>
+                  </div>
+                  <span className="text-sm font-bold text-white min-w-[40px]">{stage.value}</span>
                 </div>
               );
             })}
