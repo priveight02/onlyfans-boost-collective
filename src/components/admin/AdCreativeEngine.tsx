@@ -17,6 +17,7 @@ import {
   CheckCircle2, Loader2, Plus, Wand2, Upload, X,
   Link2, ShoppingCart, ExternalLink, Settings2, Unplug,
   Info, Globe, Play, Pause, SquarePen, Trash2, Search,
+  Ghost, MapPin, Twitter, Linkedin, Youtube, Wifi, WifiOff,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import adVariantA from "@/assets/showcase-ad-variant-a.png";
@@ -76,6 +77,38 @@ const AdCreativeEngine = ({ subTab, onSubTabChange }: { subTab?: string; onSubTa
   const [campaignName, setCampaignName] = useState("");
   const [campaignBudget, setCampaignBudget] = useState("50");
   const [campaignObjective, setCampaignObjective] = useState("conversions");
+  const [connectedPlatforms, setConnectedPlatforms] = useState<Record<string, boolean>>({});
+
+  // Check which social accounts are already connected
+  useEffect(() => {
+    const checkConnections = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        const { data: connections } = await supabase
+          .from("social_connections")
+          .select("platform, is_connected")
+          .eq("is_connected", true);
+        if (connections) {
+          const map: Record<string, boolean> = {};
+          connections.forEach(c => { map[c.platform] = true; });
+          setConnectedPlatforms(map);
+        }
+        // Also check saved integration keys
+        const { data: saved } = await supabase
+          .from("copilot_generated_content")
+          .select("url, metadata")
+          .eq("content_type", "integration_key")
+          .eq("created_by", user.id);
+        if (saved) {
+          const savedMap: Record<string, boolean> = {};
+          saved.forEach(s => { if (s.url) savedMap[s.url] = true; });
+          setConnectedPlatforms(prev => ({ ...prev, ...savedMap }));
+        }
+      } catch {}
+    };
+    checkConnections();
+  }, [savingIntegration]);
 
   const updateIntKey = (platform: string, field: string, value: string) => {
     setIntegrationKeys(prev => ({ ...prev, [platform]: { ...prev[platform], [field]: value } }));
@@ -233,11 +266,119 @@ const AdCreativeEngine = ({ subTab, onSubTabChange }: { subTab?: string; onSubTa
       },
     },
     {
+      id: "snapchat_ads", name: "Snapchat Ads", desc: "Snap advertising", icon: Ghost,
+      color: "yellow", gradient: "hsl(50 90% 50%), hsl(45 90% 45%)",
+      features: ["Create Snap & Story ads", "Deploy creatives to Snapchat", "Audience segments", "Pixel tracking"],
+      fields: [
+        { key: "access_token", label: "Access Token", placeholder: "••••••••••••", secret: true },
+        { key: "ad_account_id", label: "Ad Account ID", placeholder: "a1b2c3d4-..." },
+      ],
+      guide: {
+        title: "How to Connect Snapchat Ads",
+        steps: [
+          { text: "Go to Snapchat Ads Manager at", link: "https://ads.snapchat.com", linkText: "ads.snapchat.com" },
+          { text: "Navigate to Snap Business at", link: "https://businesshelp.snapchat.com/s/topic/0TO0y000000IBleGAG/snap-ads", linkText: "Snapchat Business Help" },
+          { text: "Go to Business Settings → API Tokens to create an API token" },
+          { text: "Alternatively, use the Marketing API at", link: "https://developers.snap.com/api/marketing-api", linkText: "Snap Marketing API Docs" },
+          { text: "Create a Business app in the Snap Developer Portal and request Marketing API access" },
+          { text: "Generate an OAuth2 access token with ads_management scope" },
+          { text: "Find your Ad Account ID in Ads Manager → Account Settings" },
+          { text: "Paste both values above to start deploying Snap ads from Uplyze" },
+        ],
+      },
+    },
+    {
+      id: "pinterest_ads", name: "Pinterest Ads", desc: "Pinterest advertising", icon: MapPin,
+      color: "red", gradient: "hsl(0 70% 50%), hsl(350 70% 45%)",
+      features: ["Promoted Pins campaigns", "Shopping catalog ads", "Audience targeting", "Conversion tracking"],
+      fields: [
+        { key: "access_token", label: "Access Token", placeholder: "pina_••••••••••••", secret: true },
+        { key: "ad_account_id", label: "Ad Account ID", placeholder: "549••••••••" },
+      ],
+      guide: {
+        title: "How to Connect Pinterest Ads",
+        steps: [
+          { text: "Go to Pinterest Ads Manager at", link: "https://ads.pinterest.com", linkText: "ads.pinterest.com" },
+          { text: "Navigate to Pinterest for Developers at", link: "https://developers.pinterest.com", linkText: "developers.pinterest.com" },
+          { text: "Create an app → select 'Marketing API' access" },
+          { text: "Under your app settings, go to 'Generate Access Token'" },
+          { text: "Select scopes: ads:read, ads:write, catalogs:read, pins:read" },
+          { text: "Generate a long-lived token (valid 30 days, auto-refreshable)" },
+          { text: "Find your Ad Account ID in Ads Manager → Business Access → Ad accounts" },
+          { text: "API reference:", link: "https://developers.pinterest.com/docs/api/v5/", linkText: "Pinterest API v5 Docs" },
+        ],
+      },
+    },
+    {
+      id: "x_ads", name: "X (Twitter) Ads", desc: "X/Twitter advertising", icon: Twitter,
+      color: "slate", gradient: "hsl(210 10% 30%), hsl(210 10% 40%)",
+      features: ["Promoted tweets & trends", "Deploy creatives to X", "Audience insights", "Conversion tracking"],
+      fields: [
+        { key: "access_token", label: "OAuth Access Token", placeholder: "••••••••••••", secret: true },
+        { key: "ad_account_id", label: "Ad Account ID", placeholder: "18ce••••••••" },
+      ],
+      guide: {
+        title: "How to Connect X (Twitter) Ads",
+        steps: [
+          { text: "Go to X Ads Manager at", link: "https://ads.x.com", linkText: "ads.x.com" },
+          { text: "Navigate to the X Developer Portal at", link: "https://developer.x.com", linkText: "developer.x.com" },
+          { text: "Create a project & app → enable 'Ads API' access" },
+          { text: "Apply for Ads API access (requires an active ad account)" },
+          { text: "Under your app → Keys & Tokens, generate an Access Token with ads_management scope" },
+          { text: "Find your Ad Account ID in X Ads → Campaigns → Account dropdown" },
+          { text: "Ads API docs:", link: "https://developer.x.com/en/docs/twitter-ads-api", linkText: "X Ads API Documentation" },
+        ],
+      },
+    },
+    {
+      id: "linkedin_ads", name: "LinkedIn Ads", desc: "LinkedIn advertising", icon: Linkedin,
+      color: "blue", gradient: "hsl(210 80% 45%), hsl(210 80% 55%)",
+      features: ["Sponsored content & InMail", "B2B audience targeting", "Lead gen forms", "Conversion tracking"],
+      fields: [
+        { key: "access_token", label: "OAuth Access Token", placeholder: "AQX••••••••••••", secret: true },
+        { key: "ad_account_id", label: "Ad Account ID", placeholder: "508••••••••" },
+      ],
+      guide: {
+        title: "How to Connect LinkedIn Ads",
+        steps: [
+          { text: "Go to LinkedIn Campaign Manager at", link: "https://www.linkedin.com/campaignmanager", linkText: "LinkedIn Campaign Manager" },
+          { text: "Navigate to LinkedIn Developer Portal at", link: "https://developer.linkedin.com", linkText: "developer.linkedin.com" },
+          { text: "Create an app → request 'Advertising API' product access" },
+          { text: "Under your app → Auth, add redirect URL and generate OAuth2 token" },
+          { text: "Request scopes: r_ads, rw_ads, r_ads_reporting" },
+          { text: "Find your Ad Account ID in Campaign Manager → Account Settings" },
+          { text: "Marketing API docs:", link: "https://learn.microsoft.com/en-us/linkedin/marketing/", linkText: "LinkedIn Marketing API Docs" },
+        ],
+      },
+    },
+    {
+      id: "youtube_ads", name: "YouTube Ads", desc: "Video advertising", icon: Youtube,
+      color: "red", gradient: "hsl(0 80% 50%), hsl(15 80% 50%)",
+      features: ["In-stream & discovery ads", "Deploy video creatives", "Audience segments", "View tracking"],
+      fields: [
+        { key: "customer_id", label: "Google Ads Customer ID", placeholder: "123-456-7890" },
+        { key: "refresh_token", label: "OAuth Refresh Token", placeholder: "1//••••••••••••", secret: true },
+      ],
+      guide: {
+        title: "How to Connect YouTube Ads",
+        steps: [
+          { text: "YouTube Ads are managed through Google Ads" },
+          { text: "If you already connected Google Ads, use the same credentials" },
+          { text: "Go to Google Ads at", link: "https://ads.google.com", linkText: "ads.google.com" },
+          { text: "Link your YouTube channel: Tools → Linked accounts → YouTube" },
+          { text: "Use the same Customer ID and OAuth refresh token from Google Ads" },
+          { text: "Create video campaigns directly from Uplyze with your generated creatives" },
+          { text: "YouTube Ads docs:", link: "https://developers.google.com/google-ads/api/docs/start", linkText: "Google Ads API for YouTube" },
+        ],
+      },
+    },
+    {
       id: "instagram", name: "Instagram", desc: "Social sync (non-ads)", icon: Eye,
       color: "pink", gradient: "hsl(330 70% 50%), hsl(300 50% 50%)",
       features: ["Sync connected IG account", "Pull product tags from posts", "Content repurposing"],
       fields: [],
       isSocialSync: true,
+      socialPlatform: "instagram",
       guide: {
         title: "Instagram — Social Media Hub Sync",
         steps: [
@@ -254,6 +395,7 @@ const AdCreativeEngine = ({ subTab, onSubTabChange }: { subTab?: string; onSubTa
       features: ["Sync connected TikTok account", "Repurpose viral content", "Audience overlap analysis"],
       fields: [],
       isSocialSync: true,
+      socialPlatform: "tiktok",
       guide: {
         title: "TikTok — Social Media Hub Sync",
         steps: [
@@ -649,15 +791,32 @@ const AdCreativeEngine = ({ subTab, onSubTabChange }: { subTab?: string; onSubTa
               const hasFields = int.fields && int.fields.length > 0;
               const allFilled = hasFields ? int.fields.every(f => !!getIntKey(int.id, f.key)) : false;
               const isSocial = (int as any).isSocialSync;
+              const socialPlatform = (int as any).socialPlatform;
+              const isAdPlatform = int.id.includes("_ads") || int.id === "x_ads";
+              const isConnected = connectedPlatforms[int.id] || (isSocial && socialPlatform && connectedPlatforms[socialPlatform]);
               return (
-                <Card key={int.id} className={`crm-card border-white/[0.04] hover:border-${int.color}-500/20 transition-colors`}>
+                <Card key={int.id} className={`crm-card border-white/[0.04] transition-colors relative ${isConnected ? "border-emerald-500/20" : ""}`}>
+                  {/* Connection status indicator */}
+                  {isConnected && (
+                    <div className="absolute top-3 right-12 flex items-center gap-1">
+                      <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                      </span>
+                      <span className="text-[9px] text-emerald-400 font-medium">Active</span>
+                    </div>
+                  )}
                   <CardContent className="p-4 space-y-2.5">
                     <div className="flex items-center gap-3">
-                      <div className={`w-9 h-9 rounded-xl bg-${int.color}-500/10 flex items-center justify-center`}>
-                        <Icon className={`h-4.5 w-4.5 text-${int.color}-400`} />
+                      <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${int.gradient})`, opacity: 0.15 }}>
+                        <Icon className="h-4.5 w-4.5" style={{ color: int.gradient.split(",")[0].replace(")", "").trim() }} />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h3 className="text-sm font-semibold text-white">{int.name}</h3>
+                        <h3 className="text-sm font-semibold text-white flex items-center gap-1.5">
+                          {int.name}
+                          {isConnected && <Wifi className="h-3 w-3 text-emerald-400" />}
+                          {!isConnected && !isSocial && <WifiOff className="h-3 w-3 text-white/15" />}
+                        </h3>
                         <p className="text-[10px] text-white/30">{int.desc}</p>
                       </div>
                       <button onClick={() => setInfoDialog(int.id)} className="p-1.5 rounded-lg hover:bg-white/[0.06] transition-colors" title="Setup guide">
@@ -666,34 +825,53 @@ const AdCreativeEngine = ({ subTab, onSubTabChange }: { subTab?: string; onSubTa
                     </div>
                     <div className="space-y-1.5">
                       {int.features.map(f => (
-                        <div key={f} className="flex items-center gap-2 text-[10px] text-white/30"><CheckCircle2 className="h-3 w-3 text-white/15 shrink-0" />{f}</div>
+                        <div key={f} className="flex items-center gap-2 text-[10px] text-white/30"><CheckCircle2 className={`h-3 w-3 shrink-0 ${isConnected ? "text-emerald-500/50" : "text-white/15"}`} />{f}</div>
                       ))}
                     </div>
                     {hasFields ? (
                       <>
-                        <div className="space-y-1.5 pt-1">
-                          {int.fields.map(f => (
-                            <div key={f.key}>
-                              <label className="text-[10px] text-white/35 font-medium">{f.label}</label>
-                              <Input type={f.secret ? "password" : "text"} placeholder={f.placeholder} value={getIntKey(int.id, f.key)} onChange={e => updateIntKey(int.id, f.key, e.target.value)} className="mt-0.5 text-xs crm-input h-7" />
-                            </div>
-                          ))}
-                        </div>
+                        {isConnected ? (
+                          <div className="p-2.5 rounded-lg bg-emerald-500/5 border border-emerald-500/10 flex items-center gap-2">
+                            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                            <p className="text-[10px] text-emerald-400/70">Connected & Active</p>
+                          </div>
+                        ) : (
+                          <div className="space-y-1.5 pt-1">
+                            {int.fields.map(f => (
+                              <div key={f.key}>
+                                <label className="text-[10px] text-white/35 font-medium">{f.label}</label>
+                                <Input type={f.secret ? "password" : "text"} placeholder={f.placeholder} value={getIntKey(int.id, f.key)} onChange={e => updateIntKey(int.id, f.key, e.target.value)} className="mt-0.5 text-xs crm-input h-7" />
+                              </div>
+                            ))}
+                          </div>
+                        )}
                         <div className="flex gap-2">
-                          <Button className="flex-1 text-xs h-8" disabled={!allFilled || savingIntegration === int.id} onClick={() => handleSaveIntegration(int.id)} style={{ background: `linear-gradient(135deg, ${int.gradient})` }}>
-                            {savingIntegration === int.id ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Unplug className="h-3.5 w-3.5 mr-1" />}Connect
-                          </Button>
-                          {(int.id === "google_ads" || int.id === "facebook_ads" || int.id === "instagram_ads" || int.id === "tiktok_ads") && allFilled && (
-                            <Button variant="outline" className="text-xs h-8 border-white/10 text-white/50" onClick={() => { setCampaignDialog(int.id); setCampaignName(""); setCampaignBudget("50"); }}>
+                          {!isConnected && (
+                            <Button className="flex-1 text-xs h-8" disabled={!allFilled || savingIntegration === int.id} onClick={() => handleSaveIntegration(int.id)} style={{ background: `linear-gradient(135deg, ${int.gradient})` }}>
+                              {savingIntegration === int.id ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Unplug className="h-3.5 w-3.5 mr-1" />}Connect
+                            </Button>
+                          )}
+                          {isAdPlatform && (isConnected || allFilled) && (
+                            <Button variant="outline" className={`text-xs h-8 border-white/10 text-white/50 ${isConnected ? "flex-1" : ""}`} onClick={() => { setCampaignDialog(int.id); setCampaignName(""); setCampaignBudget("50"); }}>
                               <Plus className="h-3 w-3 mr-1" />Campaign
+                            </Button>
+                          )}
+                          {isConnected && (
+                            <Button variant="outline" className="text-xs h-8 border-red-500/20 text-red-400/60 hover:text-red-400 hover:bg-red-500/10" onClick={() => { setConnectedPlatforms(prev => ({ ...prev, [int.id]: false })); toast.info(`${int.name} disconnected`); }}>
+                              <X className="h-3 w-3" />
                             </Button>
                           )}
                         </div>
                       </>
                     ) : isSocial ? (
                       <div className="pt-1">
-                        <div className="p-2.5 rounded-lg bg-emerald-500/5 border border-emerald-500/10">
-                          <p className="text-[10px] text-emerald-400/70">Auto-syncs with Social Media Hub connection</p>
+                        <div className={`p-2.5 rounded-lg border ${isConnected ? "bg-emerald-500/5 border-emerald-500/10" : "bg-white/[0.02] border-white/[0.06]"}`}>
+                          <div className="flex items-center gap-2">
+                            {isConnected ? <Wifi className="h-3 w-3 text-emerald-400" /> : <WifiOff className="h-3 w-3 text-white/20" />}
+                            <p className={`text-[10px] ${isConnected ? "text-emerald-400/70" : "text-white/30"}`}>
+                              {isConnected ? "Connected via Social Media Hub" : "Not connected — connect in Social Media Hub first"}
+                            </p>
+                          </div>
                         </div>
                       </div>
                     ) : null}
@@ -708,18 +886,24 @@ const AdCreativeEngine = ({ subTab, onSubTabChange }: { subTab?: string; onSubTa
             <CardContent className="p-4">
               <div className="flex items-center gap-2 mb-3">
                 <Settings2 className="h-4 w-4 text-white/30" />
-                <span className="text-xs font-medium text-white/60">Integration Status</span>
+                <span className="text-xs font-medium text-white/60">Integration Status Overview</span>
+                <span className="ml-auto text-[10px] text-emerald-400">{INTEGRATIONS.filter(i => connectedPlatforms[i.id] || ((i as any).isSocialSync && (i as any).socialPlatform && connectedPlatforms[(i as any).socialPlatform])).length}/{INTEGRATIONS.length} active</span>
               </div>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-4 gap-2">
                 {INTEGRATIONS.map(int => {
                   const isSocial = (int as any).isSocialSync;
-                  const connected = isSocial ? true : (int.fields?.length ? int.fields.every(f => !!getIntKey(int.id, f.key)) : false);
+                  const socialPlatform = (int as any).socialPlatform;
+                  const isActive = connectedPlatforms[int.id] || (isSocial && socialPlatform && connectedPlatforms[socialPlatform]);
                   return (
-                    <div key={int.id} className="flex items-center justify-between p-2 rounded-lg bg-white/[0.02] border border-white/[0.04]">
-                      <span className="text-[11px] text-white/50">{int.name}</span>
-                      <span className={`text-[10px] ${connected ? (isSocial ? "text-blue-400" : "text-emerald-400") : "text-white/25"}`}>
-                        {isSocial ? "Auto-sync" : connected ? "Keys entered" : "Not connected"}
-                      </span>
+                    <div key={int.id} className={`flex items-center justify-between p-2 rounded-lg border ${isActive ? "bg-emerald-500/5 border-emerald-500/10" : "bg-white/[0.02] border-white/[0.04]"}`}>
+                      <span className="text-[10px] text-white/50">{int.name}</span>
+                      <div className="flex items-center gap-1">
+                        {isActive ? (
+                          <><span className="h-1.5 w-1.5 rounded-full bg-emerald-400"></span><span className="text-[9px] text-emerald-400">{isSocial ? "Synced" : "Active"}</span></>
+                        ) : (
+                          <span className="text-[9px] text-white/20">Off</span>
+                        )}
+                      </div>
                     </div>
                   );
                 })}
