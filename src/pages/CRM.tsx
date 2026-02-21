@@ -328,7 +328,7 @@ const CRM = () => {
         sidebarCollapsed ? "ml-[72px]" : "ml-[240px]"
       )}>
         {/* Top bar */}
-        <header className="h-[56px] sticky top-0 z-30 flex items-center justify-between px-6" style={{
+        <header className="h-[56px] sticky top-0 z-50 flex items-center justify-between px-6" style={{
           background: "hsl(222 47% 4% / 0.7)",
           backdropFilter: "blur(24px) saturate(1.4)",
           borderBottom: "1px solid hsl(217 91% 60% / 0.04)",
