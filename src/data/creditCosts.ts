@@ -58,6 +58,9 @@ export const CRM_ACTION_COSTS: Record<string, number> = {
   copilot_audio: 21,         // all audio generation actions
   copilot_voice_clone: 21,   // voice cloning
   copilot_voice: 12,
+  copilot_motion_transfer: 300,
+  copilot_lipsync: 200,
+  copilot_faceswap: 150,
 
   // ── Social Media ──
   connect_social_account: 0, // free but requires min 10 balance (enforced separately)

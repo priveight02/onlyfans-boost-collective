@@ -18,7 +18,7 @@ import {
   Image as ImageIcon, Video, Mic, Wand2, Volume2, Upload, Trash,
   Square, Smartphone, Monitor, Settings2, Grid, Rows, Columns,
   ZoomIn, ZoomOut, Headphones, SlidersHorizontal, Undo2,
-  Shield, ShieldOff,
+  Shield, ShieldOff, Move, ArrowRightLeft, Film,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -71,7 +71,7 @@ interface GeneratedContent {
   created_at: string;
 }
 
-type CopilotMode = "chat" | "image" | "video" | "audio" | "freeWill";
+type CopilotMode = "chat" | "image" | "video" | "audio" | "motion" | "lipsync" | "faceswap" | "freeWill";
 type QualityMode = "best" | "high" | "uncensored";
 type LayoutMode = "grid" | "horizontal" | "vertical";
 
@@ -139,6 +139,9 @@ const MODE_CONFIG = [
   { id: "image" as CopilotMode, label: "Image", icon: ImageIcon },
   { id: "video" as CopilotMode, label: "Video", icon: Video },
   { id: "audio" as CopilotMode, label: "Audio", icon: Volume2 },
+  { id: "motion" as CopilotMode, label: "Motion", icon: Move },
+  { id: "lipsync" as CopilotMode, label: "Lipsync", icon: Mic },
+  { id: "faceswap" as CopilotMode, label: "Faceswap", icon: ArrowRightLeft },
   { id: "freeWill" as CopilotMode, label: "Free Will", icon: Wand2 },
 ];
 
@@ -228,6 +231,9 @@ const getModeCreditLabel = (mode: string): string => {
     case "image": return "31";
     case "video": return "250–400";
     case "audio": return "21";
+    case "motion": return "300";
+    case "lipsync": return "200";
+    case "faceswap": return "150";
     case "chat":
     case "freeWill":
     default: return "8";
@@ -305,6 +311,48 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
   const [dubbingLanguage, setDubbingLanguage] = useState("es");
   const stsFileInputRef = useRef<HTMLInputElement>(null);
 
+  // Motion state
+  const [motionRefVideo, setMotionRefVideo] = useState<string | null>(null);
+  const [motionRefName, setMotionRefName] = useState("");
+  const [motionTargetVideo, setMotionTargetVideo] = useState<string | null>(null);
+  const [motionTargetName, setMotionTargetName] = useState("");
+  const [motionTargetImage, setMotionTargetImage] = useState<string | null>(null);
+  const [motionTargetImageName, setMotionTargetImageName] = useState("");
+  const [motionPrompt, setMotionPrompt] = useState("");
+  const [motionInputType, setMotionInputType] = useState<"video" | "image">("video");
+  const [isGeneratingMotion, setIsGeneratingMotion] = useState(false);
+  const [motionProgress, setMotionProgress] = useState(0);
+  const [motionProgressLabel, setMotionProgressLabel] = useState("");
+  const [generatedMotions, setGeneratedMotions] = useState<GeneratedContent[]>([]);
+  const motionRefInputRef = useRef<HTMLInputElement>(null);
+  const motionTargetInputRef = useRef<HTMLInputElement>(null);
+
+  // Lipsync state
+  const [lipsyncVideo, setLipsyncVideo] = useState<string | null>(null);
+  const [lipsyncVideoName, setLipsyncVideoName] = useState("");
+  const [lipsyncAudio, setLipsyncAudio] = useState<string | null>(null);
+  const [lipsyncAudioName, setLipsyncAudioName] = useState("");
+  const [lipsyncPrompt, setLipsyncPrompt] = useState("");
+  const [isGeneratingLipsync, setIsGeneratingLipsync] = useState(false);
+  const [lipsyncProgress, setLipsyncProgress] = useState(0);
+  const [lipsyncProgressLabel, setLipsyncProgressLabel] = useState("");
+  const [generatedLipsyncs, setGeneratedLipsyncs] = useState<GeneratedContent[]>([]);
+  const lipsyncVideoInputRef = useRef<HTMLInputElement>(null);
+  const lipsyncAudioInputRef = useRef<HTMLInputElement>(null);
+
+  // Faceswap state
+  const [faceswapSource, setFaceswapSource] = useState<string | null>(null);
+  const [faceswapSourceName, setFaceswapSourceName] = useState("");
+  const [faceswapTarget, setFaceswapTarget] = useState<string | null>(null);
+  const [faceswapTargetName, setFaceswapTargetName] = useState("");
+  const [faceswapCategory, setFaceswapCategory] = useState<"video" | "image">("video");
+  const [isGeneratingFaceswap, setIsGeneratingFaceswap] = useState(false);
+  const [faceswapProgress, setFaceswapProgress] = useState(0);
+  const [faceswapProgressLabel, setFaceswapProgressLabel] = useState("");
+  const [generatedFaceswaps, setGeneratedFaceswaps] = useState<GeneratedContent[]>([]);
+  const faceswapSourceInputRef = useRef<HTMLInputElement>(null);
+  const faceswapTargetInputRef = useRef<HTMLInputElement>(null);
+
   // Display prefs
   const [displayScale, setDisplayScale] = useState(1.5);
   const [displayLayout, setDisplayLayout] = useState<LayoutMode>("vertical");
@@ -332,13 +380,16 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
 
   // ---- Data loading ----
   const loadData = async () => {
-    const [convos, accts, voicesData, imagesData, videosData, audiosData] = await Promise.all([
+    const [convos, accts, voicesData, imagesData, videosData, audiosData, motionsData, lipsyncsData, faceswapsData] = await Promise.all([
       supabase.from("copilot_conversations").select("*").order("updated_at", { ascending: false }),
       supabase.from("managed_accounts").select("id, username, display_name, monthly_revenue, subscriber_count, status"),
       supabase.from("copilot_voices").select("*").eq("is_preset", false).order("name"),
       supabase.from("copilot_generated_content").select("*").eq("mode", "image").order("created_at", { ascending: false }),
       supabase.from("copilot_generated_content").select("*").eq("mode", "video").order("created_at", { ascending: false }),
       supabase.from("copilot_generated_content").select("*").eq("mode", "audio").order("created_at", { ascending: false }),
+      supabase.from("copilot_generated_content").select("*").eq("mode", "motion").order("created_at", { ascending: false }),
+      supabase.from("copilot_generated_content").select("*").eq("mode", "lipsync").order("created_at", { ascending: false }),
+      supabase.from("copilot_generated_content").select("*").eq("mode", "faceswap").order("created_at", { ascending: false }),
     ]);
     setConversations(convos.data || []);
     setAccounts(accts.data || []);
@@ -352,6 +403,9 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
     setGeneratedImages((imagesData.data || []) as GeneratedContent[]);
     setGeneratedVideos((videosData.data || []) as GeneratedContent[]);
     setGeneratedAudios((audiosData.data || []) as GeneratedContent[]);
+    setGeneratedMotions((motionsData.data || []) as GeneratedContent[]);
+    setGeneratedLipsyncs((lipsyncsData.data || []) as GeneratedContent[]);
+    setGeneratedFaceswaps((faceswapsData.data || []) as GeneratedContent[]);
 
     // Check which video providers have API keys configured
     try {
@@ -452,6 +506,9 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
     if (modeTab === "image") setGeneratedImages(prev => prev.filter(c => c.id !== id));
     else if (modeTab === "video") setGeneratedVideos(prev => prev.filter(c => c.id !== id));
     else if (modeTab === "audio") setGeneratedAudios(prev => prev.filter(c => c.id !== id));
+    else if (modeTab === "motion") setGeneratedMotions(prev => prev.filter(c => c.id !== id));
+    else if (modeTab === "lipsync") setGeneratedLipsyncs(prev => prev.filter(c => c.id !== id));
+    else if (modeTab === "faceswap") setGeneratedFaceswaps(prev => prev.filter(c => c.id !== id));
     toast.success("Deleted");
   };
 
@@ -927,6 +984,139 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
     }
   };
 
+  // ---- Cross-tab loaders ----
+  const loadVideoInTab = (url: string, name: string, tab: CopilotMode) => {
+    setMode(tab);
+    if (tab === "motion") { setMotionTargetVideo(url); setMotionTargetName(name); }
+    else if (tab === "lipsync") { setLipsyncVideo(url); setLipsyncVideoName(name); }
+    else if (tab === "faceswap") { setFaceswapTarget(url); setFaceswapTargetName(name); }
+  };
+  const loadAudioInLipsync = (url: string, name: string) => {
+    setMode("lipsync");
+    setLipsyncAudio(url); setLipsyncAudioName(name);
+  };
+
+  // ---- Motion generation ----
+  const generateMotion = async () => {
+    if (!motionRefVideo || !(motionTargetVideo || motionTargetImage) || isGeneratingMotion) return;
+    const creditResult = await performAction('copilot_motion_transfer', async () => ({ success: true }));
+    if (!creditResult) return;
+    setIsGeneratingMotion(true);
+    const stopProgress = simulateProgress(setMotionProgress, setMotionProgressLabel, 120000);
+    try {
+      const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/media-process?action=create&type=motion`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+        body: JSON.stringify({ reference_video_url: motionRefVideo, target_url: motionTargetVideo || motionTargetImage, target_type: motionTargetVideo ? "video" : "image", prompt: motionPrompt || undefined }),
+      });
+      if (!resp.ok) { const ed = await resp.json().catch(() => ({})); throw new Error(ed.error || `Error ${resp.status}`); }
+      const data = await resp.json();
+      const taskId = data.task_id;
+      if (!taskId) throw new Error("No task_id returned");
+      let videoUrl: string | null = null;
+      let pollCount = 0;
+      while (pollCount < 60) {
+        await new Promise(r => setTimeout(r, 5000)); pollCount++;
+        try {
+          const pollResp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/media-process?action=poll&task_id=${encodeURIComponent(taskId)}`, { headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` } });
+          if (!pollResp.ok) continue;
+          const pollData = await pollResp.json();
+          if (pollData.status === "SUCCESS" && pollData.video_url) { videoUrl = pollData.video_url; break; }
+          if (pollData.status === "FAILED") throw new Error(pollData.error_message || "Motion transfer failed");
+        } catch (e: any) { if (e.message?.includes("failed") || e.message?.includes("Failed")) throw e; }
+      }
+      if (!videoUrl) throw new Error("Motion transfer timed out");
+      stopProgress();
+      const saved = await saveGeneratedContent("video", videoUrl, motionPrompt || "Motion transfer", "motion", { metadata: { type: "motion" } });
+      if (saved) setGeneratedMotions(prev => [saved, ...prev]);
+      toast.success("Motion transfer complete!");
+      setMotionPrompt(""); setMotionRefVideo(null); setMotionRefName(""); setMotionTargetVideo(null); setMotionTargetName(""); setMotionTargetImage(null); setMotionTargetImageName("");
+    } catch (e: any) { stopProgress(); toast.error(e.message || "Motion transfer failed"); } finally {
+      setTimeout(() => { setIsGeneratingMotion(false); setMotionProgress(0); setMotionProgressLabel(""); }, 1500);
+    }
+  };
+
+  // ---- Lipsync generation ----
+  const generateLipsync = async () => {
+    if (!lipsyncVideo || !lipsyncAudio || isGeneratingLipsync) return;
+    const creditResult = await performAction('copilot_lipsync', async () => ({ success: true }));
+    if (!creditResult) return;
+    setIsGeneratingLipsync(true);
+    const stopProgress = simulateProgress(setLipsyncProgress, setLipsyncProgressLabel, 120000);
+    try {
+      const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/media-process?action=create&type=lipsync`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+        body: JSON.stringify({ video_url: lipsyncVideo, audio_url: lipsyncAudio, prompt: lipsyncPrompt || undefined }),
+      });
+      if (!resp.ok) { const ed = await resp.json().catch(() => ({})); throw new Error(ed.error || `Error ${resp.status}`); }
+      const data = await resp.json();
+      const taskId = data.task_id;
+      if (!taskId) throw new Error("No task_id returned");
+      let videoUrl: string | null = null;
+      let pollCount = 0;
+      while (pollCount < 60) {
+        await new Promise(r => setTimeout(r, 5000)); pollCount++;
+        try {
+          const pollResp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/media-process?action=poll&task_id=${encodeURIComponent(taskId)}`, { headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` } });
+          if (!pollResp.ok) continue;
+          const pollData = await pollResp.json();
+          if (pollData.status === "SUCCESS" && pollData.video_url) { videoUrl = pollData.video_url; break; }
+          if (pollData.status === "FAILED") throw new Error(pollData.error_message || "Lipsync failed");
+        } catch (e: any) { if (e.message?.includes("failed") || e.message?.includes("Failed")) throw e; }
+      }
+      if (!videoUrl) throw new Error("Lipsync timed out");
+      stopProgress();
+      const saved = await saveGeneratedContent("video", videoUrl, lipsyncPrompt || "Lipsync", "lipsync", { metadata: { type: "lipsync" } });
+      if (saved) setGeneratedLipsyncs(prev => [saved, ...prev]);
+      toast.success("Lipsync complete!");
+      setLipsyncPrompt(""); setLipsyncVideo(null); setLipsyncVideoName(""); setLipsyncAudio(null); setLipsyncAudioName("");
+    } catch (e: any) { stopProgress(); toast.error(e.message || "Lipsync failed"); } finally {
+      setTimeout(() => { setIsGeneratingLipsync(false); setLipsyncProgress(0); setLipsyncProgressLabel(""); }, 1500);
+    }
+  };
+
+  // ---- Faceswap generation ----
+  const generateFaceswap = async () => {
+    if (!faceswapSource || !faceswapTarget || isGeneratingFaceswap) return;
+    const creditResult = await performAction('copilot_faceswap', async () => ({ success: true }));
+    if (!creditResult) return;
+    setIsGeneratingFaceswap(true);
+    const stopProgress = simulateProgress(setFaceswapProgress, setFaceswapProgressLabel, 120000);
+    try {
+      const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/media-process?action=create&type=faceswap`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+        body: JSON.stringify({ source_face_url: faceswapSource, target_url: faceswapTarget, target_type: faceswapCategory }),
+      });
+      if (!resp.ok) { const ed = await resp.json().catch(() => ({})); throw new Error(ed.error || `Error ${resp.status}`); }
+      const data = await resp.json();
+      const taskId = data.task_id;
+      if (!taskId) throw new Error("No task_id returned");
+      let resultUrl: string | null = null;
+      let pollCount = 0;
+      while (pollCount < 60) {
+        await new Promise(r => setTimeout(r, 5000)); pollCount++;
+        try {
+          const pollResp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/media-process?action=poll&task_id=${encodeURIComponent(taskId)}`, { headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` } });
+          if (!pollResp.ok) continue;
+          const pollData = await pollResp.json();
+          if (pollData.status === "SUCCESS" && pollData.video_url) { resultUrl = pollData.video_url; break; }
+          if (pollData.status === "FAILED") throw new Error(pollData.error_message || "Faceswap failed");
+        } catch (e: any) { if (e.message?.includes("failed") || e.message?.includes("Failed")) throw e; }
+      }
+      if (!resultUrl) throw new Error("Faceswap timed out");
+      stopProgress();
+      const contentType = faceswapCategory === "image" ? "image" : "video";
+      const saved = await saveGeneratedContent(contentType, resultUrl, "Faceswap", "faceswap", { metadata: { type: "faceswap", category: faceswapCategory } });
+      if (saved) setGeneratedFaceswaps(prev => [saved, ...prev]);
+      toast.success("Faceswap complete!");
+      setFaceswapSource(null); setFaceswapSourceName(""); setFaceswapTarget(null); setFaceswapTargetName("");
+    } catch (e: any) { stopProgress(); toast.error(e.message || "Faceswap failed"); } finally {
+      setTimeout(() => { setIsGeneratingFaceswap(false); setFaceswapProgress(0); setFaceswapProgressLabel(""); }, 1500);
+    }
+  };
+
   // ---- Audio playback ----
   const toggleAudioPlay = (id: string, url: string) => {
     if (playingAudioId === id) {
@@ -1044,6 +1234,10 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
                 </button>
                 <AudioWaveform playing={isPlaying} />
                 <div className="flex items-center gap-1.5 shrink-0">
+                  <button onClick={() => loadAudioInLipsync(item.url, voiceName)}
+                    className="h-8 w-8 rounded-lg flex items-center justify-center text-white/30 hover:text-pink-400 hover:bg-white/10 transition-colors" title="Load in Lipsync">
+                    <Mic className="h-4 w-4" />
+                  </button>
                   <button onClick={() => { setEditingVoiceId(item.id); setShowVoiceEditor(true); }}
                     className="h-8 w-8 rounded-lg flex items-center justify-center text-white/30 hover:text-white hover:bg-white/10 transition-colors" title="Edit">
                     <SlidersHorizontal className="h-4 w-4" />
@@ -1102,6 +1296,13 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
               <div className="absolute top-2 right-2 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button onClick={() => { const a = document.createElement("a"); a.href = item.url; a.download = `${modeTab}_${item.id}.${modeTab === "video" ? "mp4" : "png"}`; a.target = "_blank"; a.click(); }} className="h-8 w-8 rounded-lg bg-black/60 flex items-center justify-center hover:bg-black/80"><Download className="h-4 w-4 text-white" /></button>
                 <button onClick={() => deleteGeneratedContent(item.id, modeTab)} className="h-8 w-8 rounded-lg bg-black/60 flex items-center justify-center hover:bg-red-500/60"><Trash className="h-4 w-4 text-white" /></button>
+                {modeTab === "video" && (
+                  <>
+                    <button onClick={() => loadVideoInTab(item.url, item.prompt?.slice(0, 30) || "Video", "motion")} className="h-8 w-8 rounded-lg bg-black/60 flex items-center justify-center hover:bg-violet-500/60" title="Load in Motion"><Move className="h-4 w-4 text-white" /></button>
+                    <button onClick={() => loadVideoInTab(item.url, item.prompt?.slice(0, 30) || "Video", "lipsync")} className="h-8 w-8 rounded-lg bg-black/60 flex items-center justify-center hover:bg-pink-500/60" title="Load in Lipsync"><Mic className="h-4 w-4 text-white" /></button>
+                    <button onClick={() => loadVideoInTab(item.url, item.prompt?.slice(0, 30) || "Video", "faceswap")} className="h-8 w-8 rounded-lg bg-black/60 flex items-center justify-center hover:bg-orange-500/60" title="Load in Faceswap"><ArrowRightLeft className="h-4 w-4 text-white" /></button>
+                  </>
+                )}
               </div>
               {dims && <div className="absolute top-2 left-2 bg-black/60 rounded-md px-2 py-0.5 text-[9px] text-white/70">{dims}</div>}
               <div className="p-3">
@@ -1566,6 +1767,162 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
     </div>
   );
 
+  // ============ MOTION PANEL ============
+  const renderMotionPanel = () => (
+    <div className="flex flex-1 overflow-hidden">
+      <div className="w-[400px] border-r border-white/[0.06] p-4 flex flex-col gap-3 overflow-y-auto shrink-0">
+        <p className="text-sm font-semibold text-white/80">Motion Transfer</p>
+        <p className="text-[10px] text-white/30">Copy motion from a reference video onto your character</p>
+        <Textarea value={motionPrompt} onChange={e => setMotionPrompt(e.target.value)} placeholder="Describe precisely what you want..." className="bg-white/5 border-white/10 text-white text-sm min-h-[100px] resize-none placeholder:text-white/20" />
+
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] text-white/40">Target:</span>
+          {(["video", "image"] as const).map(t => (
+            <button key={t} onClick={() => setMotionInputType(t)} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] border transition-all ${motionInputType === t ? "border-accent/40 bg-accent/10 text-accent" : "border-white/10 text-white/30 hover:text-white/50"}`}>
+              {t === "video" ? <Video className="h-3 w-3" /> : <ImageIcon className="h-3 w-3" />} {t.charAt(0).toUpperCase() + t.slice(1)}
+            </button>
+          ))}
+        </div>
+
+        {/* Motion reference */}
+        <div>
+          <div className="flex items-center justify-between mb-1"><p className="text-[10px] text-white/40 font-medium flex items-center gap-1"><Film className="h-3 w-3" /> Motion</p>{motionRefVideo && <button onClick={() => { setMotionRefVideo(null); setMotionRefName(""); }} className="text-[9px] text-red-400/60 hover:text-red-400">Clear</button>}</div>
+          <div className="border-2 border-dashed border-white/10 rounded-xl p-4 flex flex-col items-center justify-center gap-1 cursor-pointer hover:border-white/20 transition-colors min-h-[70px]" onClick={() => motionRefInputRef.current?.click()}>
+            {motionRefVideo ? <div className="flex items-center gap-2"><Video className="h-4 w-4 text-accent" /><span className="text-[11px] text-white/60 truncate max-w-[200px]">{motionRefName}</span></div>
+              : <><Video className="h-5 w-5 text-white/20" /><p className="text-[10px] text-white/30">Add motion to copy</p><p className="text-[8px] text-white/15">Video duration: 3-30 seconds</p></>}
+          </div>
+          <input ref={motionRefInputRef} type="file" accept="video/*" className="hidden" onChange={async e => { const f = e.target.files?.[0]; if (!f) return; const url = await uploadFileToStorage(f); if (url) { setMotionRefVideo(url); setMotionRefName(f.name); } if (motionRefInputRef.current) motionRefInputRef.current.value = ""; }} />
+          {generatedVideos.length > 0 && <Select onValueChange={v => { const vid = generatedVideos.find(x => x.id === v); if (vid) { setMotionRefVideo(vid.url); setMotionRefName(vid.prompt?.slice(0, 30) || "Generated video"); } }}><SelectTrigger className="bg-white/5 border-white/10 text-white h-7 text-[10px] mt-1.5"><SelectValue placeholder="Or select generated video..." /></SelectTrigger><SelectContent className="bg-[hsl(220,40%,10%)] border-white/10 max-h-[150px]">{generatedVideos.map(v => <SelectItem key={v.id} value={v.id} className="text-white text-[10px]">{v.prompt?.slice(0, 40) || "Untitled"}</SelectItem>)}</SelectContent></Select>}
+        </div>
+
+        {/* Target */}
+        <div>
+          <div className="flex items-center justify-between mb-1"><p className="text-[10px] text-white/40 font-medium flex items-center gap-1"><ImageIcon className="h-3 w-3" /> {motionInputType === "video" ? "Video" : "Image"}</p>{(motionTargetVideo || motionTargetImage) && <button onClick={() => { setMotionTargetVideo(null); setMotionTargetName(""); setMotionTargetImage(null); setMotionTargetImageName(""); }} className="text-[9px] text-red-400/60 hover:text-red-400">Clear</button>}</div>
+          <div className="border-2 border-dashed border-white/10 rounded-xl p-4 flex flex-col items-center justify-center gap-1 cursor-pointer hover:border-white/20 transition-colors min-h-[70px]" onClick={() => motionTargetInputRef.current?.click()}>
+            {(motionTargetVideo || motionTargetImage) ? <div className="flex items-center gap-2"><Plus className="h-4 w-4 text-accent" /><span className="text-[11px] text-white/60 truncate max-w-[200px]">{motionTargetName || motionTargetImageName}</span></div>
+              : <><Plus className="h-5 w-5 text-white/20" /><p className="text-[10px] text-white/30">Add your character</p><p className="text-[8px] text-white/15">{motionInputType === "video" ? "Video" : "Image"} with visible face and body</p></>}
+          </div>
+          <input ref={motionTargetInputRef} type="file" accept={motionInputType === "video" ? "video/*" : "image/*"} className="hidden" onChange={async e => { const f = e.target.files?.[0]; if (!f) return; const url = await uploadFileToStorage(f); if (url) { if (motionInputType === "video") { setMotionTargetVideo(url); setMotionTargetName(f.name); } else { setMotionTargetImage(url); setMotionTargetImageName(f.name); } } if (motionTargetInputRef.current) motionTargetInputRef.current.value = ""; }} />
+          {generatedVideos.length > 0 && motionInputType === "video" && <Select onValueChange={v => { const vid = generatedVideos.find(x => x.id === v); if (vid) { setMotionTargetVideo(vid.url); setMotionTargetName(vid.prompt?.slice(0, 30) || "Generated video"); } }}><SelectTrigger className="bg-white/5 border-white/10 text-white h-7 text-[10px] mt-1.5"><SelectValue placeholder="Or select generated video..." /></SelectTrigger><SelectContent className="bg-[hsl(220,40%,10%)] border-white/10 max-h-[150px]">{generatedVideos.map(v => <SelectItem key={v.id} value={v.id} className="text-white text-[10px]">{v.prompt?.slice(0, 40) || "Untitled"}</SelectItem>)}</SelectContent></Select>}
+          {generatedImages.length > 0 && motionInputType === "image" && <Select onValueChange={v => { const img = generatedImages.find(x => x.id === v); if (img) { setMotionTargetImage(img.url); setMotionTargetImageName(img.prompt?.slice(0, 30) || "Generated image"); } }}><SelectTrigger className="bg-white/5 border-white/10 text-white h-7 text-[10px] mt-1.5"><SelectValue placeholder="Or select generated image..." /></SelectTrigger><SelectContent className="bg-[hsl(220,40%,10%)] border-white/10 max-h-[150px]">{generatedImages.map(v => <SelectItem key={v.id} value={v.id} className="text-white text-[10px]">{v.prompt?.slice(0, 40) || "Untitled"}</SelectItem>)}</SelectContent></Select>}
+        </div>
+
+        <div className="mt-auto">
+          <Button onClick={generateMotion} disabled={!motionRefVideo || !(motionTargetVideo || motionTargetImage) || isGeneratingMotion} className="w-full bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 text-white text-sm h-9">
+            {isGeneratingMotion ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Move className="h-4 w-4 mr-2" />}Generate Motion Transfer
+          </Button>
+        </div>
+      </div>
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {renderScaleControls()}
+        <ScrollArea className="flex-1 p-4">{renderContentGallery(generatedMotions, "motion", isGeneratingMotion, motionProgress, motionProgressLabel)}</ScrollArea>
+      </div>
+    </div>
+  );
+
+  // ============ LIPSYNC PANEL ============
+  const renderLipsyncPanel = () => (
+    <div className="flex flex-1 overflow-hidden">
+      <div className="w-[400px] border-r border-white/[0.06] p-4 flex flex-col gap-3 overflow-y-auto shrink-0">
+        <p className="text-sm font-semibold text-white/80">Lipsync</p>
+        <p className="text-[10px] text-white/30">Sync lip movements to audio on any video</p>
+
+        <Textarea value={lipsyncPrompt} onChange={e => setLipsyncPrompt(e.target.value)} placeholder="Describe the scene, pose or desired behavior... (optional)" className="bg-white/5 border-white/10 text-white text-sm min-h-[80px] resize-none placeholder:text-white/20" />
+
+        {/* Image/Video upload */}
+        <div>
+          <div className="flex items-center justify-between mb-1"><p className="text-[10px] text-white/40 font-medium flex items-center gap-1"><ImageIcon className="h-3 w-3" /> Image</p><span className="text-[9px] text-white/20">Upload</span></div>
+          <div className="border-2 border-dashed border-white/10 rounded-xl p-4 flex flex-col items-center justify-center gap-1 cursor-pointer hover:border-white/20 transition-colors min-h-[70px]" onClick={() => lipsyncVideoInputRef.current?.click()}>
+            {lipsyncVideo ? <div className="flex items-center gap-2"><Video className="h-4 w-4 text-accent" /><span className="text-[11px] text-white/60 truncate max-w-[200px]">{lipsyncVideoName}</span><button onClick={(e) => { e.stopPropagation(); setLipsyncVideo(null); setLipsyncVideoName(""); }}><X className="h-3 w-3 text-white/30 hover:text-red-400" /></button></div>
+              : <><Upload className="h-5 w-5 text-white/20" /><p className="text-[10px] text-white/30">Drag your image here or click to select</p><p className="text-[8px] text-white/15">PNG, JPG, WEBP up to 10MB</p></>}
+          </div>
+          <input ref={lipsyncVideoInputRef} type="file" accept="image/*,video/*" className="hidden" onChange={async e => { const f = e.target.files?.[0]; if (!f) return; const url = await uploadFileToStorage(f); if (url) { setLipsyncVideo(url); setLipsyncVideoName(f.name); } if (lipsyncVideoInputRef.current) lipsyncVideoInputRef.current.value = ""; }} />
+          {generatedVideos.length > 0 && <Select onValueChange={v => { const vid = generatedVideos.find(x => x.id === v); if (vid) { setLipsyncVideo(vid.url); setLipsyncVideoName(vid.prompt?.slice(0, 30) || "Generated video"); } }}><SelectTrigger className="bg-white/5 border-white/10 text-white h-7 text-[10px] mt-1.5"><SelectValue placeholder="Or select generated video..." /></SelectTrigger><SelectContent className="bg-[hsl(220,40%,10%)] border-white/10 max-h-[150px]">{generatedVideos.map(v => <SelectItem key={v.id} value={v.id} className="text-white text-[10px]">{v.prompt?.slice(0, 40) || "Untitled"}</SelectItem>)}</SelectContent></Select>}
+        </div>
+
+        {/* Audio file */}
+        <div>
+          <p className="text-[10px] text-white/40 font-medium mb-1">Audio File</p>
+          <div className="border-2 border-dashed border-white/10 rounded-xl p-4 flex flex-col items-center justify-center gap-1 cursor-pointer hover:border-white/20 transition-colors min-h-[60px]" onClick={() => lipsyncAudioInputRef.current?.click()}>
+            {lipsyncAudio ? <div className="flex items-center gap-2"><Music className="h-4 w-4 text-emerald-400" /><span className="text-[11px] text-white/60 truncate max-w-[200px]">{lipsyncAudioName}</span><button onClick={(e) => { e.stopPropagation(); setLipsyncAudio(null); setLipsyncAudioName(""); }}><X className="h-3 w-3 text-white/30 hover:text-red-400" /></button></div>
+              : <><Volume2 className="h-5 w-5 text-white/20" /><p className="text-[10px] text-white/30">MP3, WAV, M4A</p></>}
+          </div>
+          <input ref={lipsyncAudioInputRef} type="file" accept="audio/*" className="hidden" onChange={async e => { const f = e.target.files?.[0]; if (!f) return; const url = await uploadFileToStorage(f); if (url) { setLipsyncAudio(url); setLipsyncAudioName(f.name); } if (lipsyncAudioInputRef.current) lipsyncAudioInputRef.current.value = ""; }} />
+          {generatedAudios.length > 0 && <Select onValueChange={v => { const aud = generatedAudios.find(x => x.id === v); if (aud) { setLipsyncAudio(aud.url); setLipsyncAudioName(aud.metadata?.voice || "Generated audio"); } }}><SelectTrigger className="bg-white/5 border-white/10 text-white h-7 text-[10px] mt-1.5"><SelectValue placeholder="Or select generated audio..." /></SelectTrigger><SelectContent className="bg-[hsl(220,40%,10%)] border-white/10 max-h-[150px]">{generatedAudios.map(a => <SelectItem key={a.id} value={a.id} className="text-white text-[10px]">{a.prompt?.slice(0, 40) || "Untitled"}</SelectItem>)}</SelectContent></Select>}
+
+          <div className="mt-2">
+            <button onClick={() => setMode("audio")} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] border border-white/10 text-white/40 hover:text-white/60 hover:border-white/20 transition-all">
+              <Mic className="h-3 w-3" /> Create a voice for my model
+            </button>
+          </div>
+        </div>
+
+        <div className="mt-auto">
+          <Button onClick={generateLipsync} disabled={!lipsyncVideo || !lipsyncAudio || isGeneratingLipsync} className="w-full bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white text-sm h-9">
+            {isGeneratingLipsync ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Mic className="h-4 w-4 mr-2" />}Select an audio file
+          </Button>
+        </div>
+      </div>
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {renderScaleControls()}
+        <ScrollArea className="flex-1 p-4">{renderContentGallery(generatedLipsyncs, "lipsync", isGeneratingLipsync, lipsyncProgress, lipsyncProgressLabel)}</ScrollArea>
+      </div>
+    </div>
+  );
+
+  // ============ FACESWAP PANEL ============
+  const renderFaceswapPanel = () => (
+    <div className="flex flex-1 overflow-hidden">
+      <div className="w-[400px] border-r border-white/[0.06] p-4 flex flex-col gap-3 overflow-y-auto shrink-0">
+        <p className="text-sm font-semibold text-white/80">Face Swap</p>
+        <p className="text-[10px] text-white/30">Swap faces between images and videos seamlessly</p>
+
+        {/* Category toggle */}
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] text-white/40">Target type:</span>
+          {(["video", "image"] as const).map(t => (
+            <button key={t} onClick={() => setFaceswapCategory(t)} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] border transition-all ${faceswapCategory === t ? "border-accent/40 bg-accent/10 text-accent" : "border-white/10 text-white/30 hover:text-white/50"}`}>
+              {t === "video" ? <Video className="h-3 w-3" /> : <ImageIcon className="h-3 w-3" />} {t.charAt(0).toUpperCase() + t.slice(1)}
+            </button>
+          ))}
+        </div>
+
+        {/* Source face */}
+        <div>
+          <div className="flex items-center justify-between mb-1"><p className="text-[10px] text-white/40 font-medium">Source Face (Image)</p>{faceswapSource && <button onClick={() => { setFaceswapSource(null); setFaceswapSourceName(""); }} className="text-[9px] text-red-400/60 hover:text-red-400">Clear</button>}</div>
+          <div className="border-2 border-dashed border-white/10 rounded-xl p-4 flex flex-col items-center justify-center gap-1 cursor-pointer hover:border-white/20 transition-colors min-h-[70px]" onClick={() => faceswapSourceInputRef.current?.click()}>
+            {faceswapSource ? <div className="flex items-center gap-2"><ImageIcon className="h-4 w-4 text-accent" /><span className="text-[11px] text-white/60 truncate max-w-[200px]">{faceswapSourceName}</span></div>
+              : <><Upload className="h-5 w-5 text-white/20" /><p className="text-[10px] text-white/30">Upload face image</p><p className="text-[8px] text-white/15">Clear front-facing photo for best results</p></>}
+          </div>
+          <input ref={faceswapSourceInputRef} type="file" accept="image/*" className="hidden" onChange={async e => { const f = e.target.files?.[0]; if (!f) return; const url = await uploadFileToStorage(f); if (url) { setFaceswapSource(url); setFaceswapSourceName(f.name); } if (faceswapSourceInputRef.current) faceswapSourceInputRef.current.value = ""; }} />
+          {generatedImages.length > 0 && <Select onValueChange={v => { const img = generatedImages.find(x => x.id === v); if (img) { setFaceswapSource(img.url); setFaceswapSourceName(img.prompt?.slice(0, 30) || "Generated image"); } }}><SelectTrigger className="bg-white/5 border-white/10 text-white h-7 text-[10px] mt-1.5"><SelectValue placeholder="Or select generated image..." /></SelectTrigger><SelectContent className="bg-[hsl(220,40%,10%)] border-white/10 max-h-[150px]">{generatedImages.map(v => <SelectItem key={v.id} value={v.id} className="text-white text-[10px]">{v.prompt?.slice(0, 40) || "Untitled"}</SelectItem>)}</SelectContent></Select>}
+        </div>
+
+        {/* Target */}
+        <div>
+          <div className="flex items-center justify-between mb-1"><p className="text-[10px] text-white/40 font-medium">Target {faceswapCategory === "video" ? "Video" : "Image"}</p>{faceswapTarget && <button onClick={() => { setFaceswapTarget(null); setFaceswapTargetName(""); }} className="text-[9px] text-red-400/60 hover:text-red-400">Clear</button>}</div>
+          <div className="border-2 border-dashed border-white/10 rounded-xl p-4 flex flex-col items-center justify-center gap-1 cursor-pointer hover:border-white/20 transition-colors min-h-[70px]" onClick={() => faceswapTargetInputRef.current?.click()}>
+            {faceswapTarget ? <div className="flex items-center gap-2">{faceswapCategory === "video" ? <Video className="h-4 w-4 text-accent" /> : <ImageIcon className="h-4 w-4 text-accent" />}<span className="text-[11px] text-white/60 truncate max-w-[200px]">{faceswapTargetName}</span></div>
+              : <><Upload className="h-5 w-5 text-white/20" /><p className="text-[10px] text-white/30">Upload target {faceswapCategory}</p></>}
+          </div>
+          <input ref={faceswapTargetInputRef} type="file" accept={faceswapCategory === "video" ? "video/*" : "image/*"} className="hidden" onChange={async e => { const f = e.target.files?.[0]; if (!f) return; const url = await uploadFileToStorage(f); if (url) { setFaceswapTarget(url); setFaceswapTargetName(f.name); } if (faceswapTargetInputRef.current) faceswapTargetInputRef.current.value = ""; }} />
+          {faceswapCategory === "video" && generatedVideos.length > 0 && <Select onValueChange={v => { const vid = generatedVideos.find(x => x.id === v); if (vid) { setFaceswapTarget(vid.url); setFaceswapTargetName(vid.prompt?.slice(0, 30) || "Generated video"); } }}><SelectTrigger className="bg-white/5 border-white/10 text-white h-7 text-[10px] mt-1.5"><SelectValue placeholder="Or select generated video..." /></SelectTrigger><SelectContent className="bg-[hsl(220,40%,10%)] border-white/10 max-h-[150px]">{generatedVideos.map(v => <SelectItem key={v.id} value={v.id} className="text-white text-[10px]">{v.prompt?.slice(0, 40) || "Untitled"}</SelectItem>)}</SelectContent></Select>}
+          {faceswapCategory === "image" && generatedImages.length > 0 && <Select onValueChange={v => { const img = generatedImages.find(x => x.id === v); if (img) { setFaceswapTarget(img.url); setFaceswapTargetName(img.prompt?.slice(0, 30) || "Generated image"); } }}><SelectTrigger className="bg-white/5 border-white/10 text-white h-7 text-[10px] mt-1.5"><SelectValue placeholder="Or select generated image..." /></SelectTrigger><SelectContent className="bg-[hsl(220,40%,10%)] border-white/10 max-h-[150px]">{generatedImages.map(v => <SelectItem key={v.id} value={v.id} className="text-white text-[10px]">{v.prompt?.slice(0, 40) || "Untitled"}</SelectItem>)}</SelectContent></Select>}
+        </div>
+
+        <div className="mt-auto">
+          <Button onClick={generateFaceswap} disabled={!faceswapSource || !faceswapTarget || isGeneratingFaceswap} className="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white text-sm h-9">
+            {isGeneratingFaceswap ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <ArrowRightLeft className="h-4 w-4 mr-2" />}Generate Face Swap
+          </Button>
+        </div>
+      </div>
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {renderScaleControls()}
+        <ScrollArea className="flex-1 p-4">{renderContentGallery(generatedFaceswaps, "faceswap", isGeneratingFaceswap, faceswapProgress, faceswapProgressLabel)}</ScrollArea>
+      </div>
+    </div>
+  );
+
   // Chat/FreeWill
   const renderChatPanel = () => (
     <>
@@ -1687,6 +2044,9 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
           {mode === "image" && renderImagePanel()}
           {mode === "video" && renderVideoPanel()}
           {mode === "audio" && renderAudioPanel()}
+          {mode === "motion" && renderMotionPanel()}
+          {mode === "lipsync" && renderLipsyncPanel()}
+          {mode === "faceswap" && renderFaceswapPanel()}
           {(mode === "chat" || mode === "freeWill") && renderChatPanel()}
         </div>
       </div>
