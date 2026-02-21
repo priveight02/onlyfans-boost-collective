@@ -79,7 +79,7 @@ const Services = () => {
   const ctaPath = user ? '/pricing' : '/auth';
 
   return (
-    <section id="services" className="py-24 relative overflow-hidden">
+    <section id="services" className="py-24 relative">
       {/* Ambient glows */}
       <motion.div
         animate={{ opacity: [0.04, 0.08, 0.04] }}

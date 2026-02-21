@@ -52,7 +52,7 @@ const SuccessIcon = () => (
 
 const ComparisonSection = () => {
   return (
-    <section className="relative py-24 overflow-hidden">
+    <section className="relative py-24">
       {/* Ambient glow */}
       <div className="absolute top-1/2 left-1/4 -translate-y-1/2 w-[600px] h-[600px] rounded-full opacity-[0.06]" style={{ background: 'radial-gradient(circle, hsl(270, 70%, 60%), transparent 70%)' }} />
       <div className="absolute top-1/2 right-1/4 -translate-y-1/2 w-[600px] h-[600px] rounded-full opacity-[0.06]" style={{ background: 'radial-gradient(circle, hsl(217, 91%, 50%), transparent 70%)' }} />
