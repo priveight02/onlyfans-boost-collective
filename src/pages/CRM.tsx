@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useWallet } from "@/hooks/useWallet";
@@ -35,6 +35,7 @@ import { Input } from "@/components/ui/input";
 import InsufficientCreditsModal from "@/components/InsufficientCreditsModal";
 import { useCreditAction } from "@/hooks/useCreditAction";
 import { cn } from "@/lib/utils";
+import PageSEO from "@/components/PageSEO";
 import {
   LayoutDashboard, Contact, Search, BarChart3, Users, DollarSign,
   FileText, MessageSquare, CheckSquare, MessageCircle, Award,
@@ -122,6 +123,20 @@ const TAB_SLUGS: Record<string, string> = {
 };
 const SLUG_TO_TAB: Record<string, string> = Object.fromEntries(Object.entries(TAB_SLUGS).map(([k, v]) => [v, k]));
 
+// Sub-tab slug mappings per main tab (internal-id → url-slug)
+const SUB_TAB_SLUGS: Record<string, Record<string, string>> = {
+  copilot: { chat: "chat", image: "image-gen-v1", video: "video-gen", audio: "audio-gen", motion: "motion-gen", lipsync: "lipsync-gen", faceswap: "faceswap-gen" },
+  social: { dashboard: "dashboard", "ai-auto": "auto-dm", "ai-mass": "mass-dm", search: "search", content: "content", engagement: "comments", messaging: "dms", "ai-tools": "ai-tools", analytics: "analytics", biolink: "bio-links", automation: "automation", "social-networks": "networks" },
+  automation: { builder: "script-builder", library: "library", optimizer: "conversion-optimizer", playbook: "psychology-playbook", analytics: "analytics", workflows: "workflows", ai: "ai-intelligence", alerts: "smart-alerts" },
+  "ad-creatives": { creatives: "creatives", generate: "ai-image-gen", copy: "copy-cta", analytics: "analytics", settings: "targeting" },
+  api: { keys: "api-keys", docs: "documentation", playground: "playground", quickstart: "quick-start", history: "key-history" },
+  lookup: { overview: "overview", revenue: "revenue", audience: "audience", fans: "fans", content: "content", engagement: "engagement", traffic: "traffic", messaging: "messaging", links: "links", chargebacks: "chargebacks", highlights: "highlights", bio: "bio-strategy", ai: "ai-analysis", raw: "raw-data" },
+};
+// Reverse: url-slug → internal-id per main tab
+const SUB_SLUG_TO_TAB: Record<string, Record<string, string>> = Object.fromEntries(
+  Object.entries(SUB_TAB_SLUGS).map(([mainTab, mapping]) => [mainTab, Object.fromEntries(Object.entries(mapping).map(([k, v]) => [v, k]))])
+);
+
 const CRM = () => {
   const { user, profile, loading, logout } = useAuth();
   const { balance, loading: walletLoading } = useWallet();
@@ -131,9 +146,16 @@ const CRM = () => {
   const [accounts, setAccounts] = useState<any[]>([]);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
-  // Derive active tab from URL
-  const pathSegment = location.pathname.replace("/platform", "").replace(/^\//, "");
-  const activeTab = SLUG_TO_TAB[pathSegment] || "dashboard";
+  // Derive active tab + sub-tab from URL
+  const pathAfterPlatform = location.pathname.replace("/platform", "").replace(/^\//, "");
+  const pathParts = pathAfterPlatform.split("/").filter(Boolean);
+  const mainSlug = pathParts[0] || "";
+  const subSlug = pathParts[1] || "";
+  const activeTab = SLUG_TO_TAB[mainSlug] || "dashboard";
+
+  // Resolve sub-tab from URL
+  const subTabMapping = SUB_SLUG_TO_TAB[activeTab];
+  const activeSubTab = subTabMapping && subSlug ? (subTabMapping[subSlug] || undefined) : undefined;
 
   useEffect(() => {
     if (!user) return;
@@ -141,9 +163,29 @@ const CRM = () => {
       .then(({ data }) => setAccounts(data || []));
   }, [user]);
 
+  // SEO metadata per route
+  const activeItem = navSections.flatMap(s => s.items).find(i => i.id === activeTab);
+  const seoMeta = useMemo(() => {
+    const base = "Uplyze AI Platform";
+    const mainLabel = activeItem?.label || "Dashboard";
+    const subLabel = activeSubTab ? activeSubTab.replace(/[-_]/g, " ").replace(/\b\w/g, c => c.toUpperCase()) : "";
+    const fullTitle = subLabel ? `${subLabel} — ${mainLabel} | ${base}` : `${mainLabel} | ${base}`;
+    const desc = subLabel
+      ? `Access ${subLabel} in ${mainLabel} on Uplyze AI — the #1 all-in-one AI platform for marketing, automation, CRM, and business growth.`
+      : `Access ${mainLabel} on Uplyze AI — the #1 all-in-one AI platform for marketing automation, AI CRM, content creation, and business scaling.`;
+    return { title: fullTitle, description: desc };
+  }, [activeTab, activeSubTab, activeItem]);
+
   const handleTabChange = (newTab: string) => {
     const slug = TAB_SLUGS[newTab] || newTab;
     navigate(`/platform/${slug}`, { replace: true });
+  };
+
+  const handleSubTabChange = (subTabId: string) => {
+    const mainSlugVal = TAB_SLUGS[activeTab] || activeTab;
+    const subSlugs = SUB_TAB_SLUGS[activeTab];
+    const subSlugVal = subSlugs?.[subTabId] || subTabId;
+    navigate(`/platform/${mainSlugVal}/${subSlugVal}`, { replace: true });
   };
 
   const handleLogout = async () => {
@@ -181,18 +223,18 @@ const CRM = () => {
       case "contracts": return <ContractsManager />;
       case "team": return <TeamManagement />;
       case "team-perf": return <TeamPerformance />;
-      case "automation": return <StorylineHub />;
+      case "automation": return <StorylineHub subTab={activeSubTab} onSubTabChange={handleSubTabChange} />;
       case "persona": return <PersonaDNAEngine />;
       case "content": return <ContentCommandCenter />;
-      case "social": return <SocialMediaHub />;
-      case "ad-creatives": return <AdCreativeEngine />;
+      case "social": return <SocialMediaHub subTab={activeSubTab} onSubTabChange={handleSubTabChange} />;
+      case "ad-creatives": return <AdCreativeEngine subTab={activeSubTab} onSubTabChange={handleSubTabChange} />;
       case "emotional": return <EmotionalHeatmap />;
-      case "copilot": return <AICoPilot onNavigate={(tab: string) => handleTabChange(tab)} />;
-      case "lookup": return <ProfileLookup />;
+      case "copilot": return <AICoPilot onNavigate={(tab: string) => handleTabChange(tab)} subTab={activeSubTab} onSubTabChange={handleSubTabChange} />;
+      case "lookup": return <ProfileLookup subTab={activeSubTab} onSubTabChange={handleSubTabChange} />;
       case "audience": return <AudienceIntelligence accounts={accounts} />;
       case "reports": return <ReportingExport />;
       case "chat": return <IntranetChat />;
-      case "api": return <AdminAPI />;
+      case "api": return <AdminAPI subTab={activeSubTab} onSubTabChange={handleSubTabChange} />;
       case "settings": return (
         <div className="space-y-6">
           <div>
@@ -217,7 +259,7 @@ const CRM = () => {
     }
   };
 
-  const activeItem = navSections.flatMap(s => s.items).find(i => i.id === activeTab);
+  // activeItem already declared above
 
   return (
     <div className="dark min-h-screen flex overflow-hidden" style={{ background: "linear-gradient(180deg, hsl(222 47% 4%) 0%, hsl(225 50% 6%) 50%, hsl(222 47% 4%) 100%)" }}>
@@ -379,6 +421,14 @@ const CRM = () => {
             </div>
           </div>
         </header>
+
+        {/* SEO */}
+        <PageSEO
+          title={seoMeta.title}
+          description={seoMeta.description}
+          ogTitle={seoMeta.title}
+          ogDescription={seoMeta.description}
+        />
 
         {/* Page content — larger base text for all tabs */}
         <div className="p-6 text-base [&_h2]:text-xl [&_h2]:font-bold [&_h3]:text-lg [&_h3]:font-semibold [&_p]:text-[14px] [&_label]:text-[13px]">

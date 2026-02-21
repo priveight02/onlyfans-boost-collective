@@ -555,7 +555,10 @@ interface ApiKeyRow {
   created_at: string;
 }
 
-const AdminAPI = () => {
+const AdminAPI = ({ subTab, onSubTabChange }: { subTab?: string; onSubTabChange?: (subTab: string) => void }) => {
+  const [apiSubTab, setApiSubTab] = useState(subTab || "keys");
+  const handleApiSubTab = (v: string) => { setApiSubTab(v); onSubTabChange?.(v); };
+  useEffect(() => { if (subTab && subTab !== apiSubTab) setApiSubTab(subTab); }, [subTab]);
   const [search, setSearch] = useState("");
   const [copied, setCopied] = useState("");
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(["Accounts"]));
@@ -851,7 +854,7 @@ const AdminAPI = () => {
         </div>
       </div>
 
-      <Tabs defaultValue="keys" className="space-y-4">
+      <Tabs value={apiSubTab} onValueChange={handleApiSubTab} className="space-y-4">
         <TabsList className="bg-white/5 border border-white/10 p-1 rounded-xl h-auto gap-1">
           <TabsTrigger value="keys" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50 rounded-lg gap-1.5 text-xs">
             <Key className="h-3.5 w-3.5" /> My API Keys

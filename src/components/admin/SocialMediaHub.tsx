@@ -42,8 +42,10 @@ const VerifiedBadge = ({ size = 12 }: { size?: number }) => (
   </svg>
 );
 
-const SocialMediaHub = () => {
-  const [activeSubTab, setActiveSubTab] = useState("dashboard");
+const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange }: { subTab?: string; onSubTabChange?: (subTab: string) => void }) => {
+  const [activeSubTab, setActiveSubTabInternal] = useState(urlSubTab || "dashboard");
+  const setActiveSubTab = (v: string) => { setActiveSubTabInternal(v); onSubTabChange?.(v); };
+  useEffect(() => { if (urlSubTab && urlSubTab !== activeSubTab) setActiveSubTabInternal(urlSubTab); }, [urlSubTab]);
   const [platformTab, setPlatformTab] = useState("instagram");
   const [accounts, setAccounts] = useState<any[]>([]);
   const [selectedAccount, setSelectedAccount] = useState("");

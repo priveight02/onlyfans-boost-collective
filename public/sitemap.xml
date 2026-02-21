@@ -277,4 +277,68 @@
     <priority>0.1</priority>
   </url>
 
+  <!-- Platform sub-routes — AI tools & features (low priority, authenticated) -->
+  <!-- Uplyze AI Assistant -->
+  <url><loc>https://uplyze.ai/platform/uplyze-assistant/chat</loc><lastmod>2026-02-21</lastmod><changefreq>monthly</changefreq><priority>0.15</priority></url>
+  <url><loc>https://uplyze.ai/platform/uplyze-assistant/image-gen-v1</loc><lastmod>2026-02-21</lastmod><changefreq>monthly</changefreq><priority>0.15</priority></url>
+  <url><loc>https://uplyze.ai/platform/uplyze-assistant/video-gen</loc><lastmod>2026-02-21</lastmod><changefreq>monthly</changefreq><priority>0.15</priority></url>
+  <url><loc>https://uplyze.ai/platform/uplyze-assistant/audio-gen</loc><lastmod>2026-02-21</lastmod><changefreq>monthly</changefreq><priority>0.15</priority></url>
+  <url><loc>https://uplyze.ai/platform/uplyze-assistant/motion-gen</loc><lastmod>2026-02-21</lastmod><changefreq>monthly</changefreq><priority>0.15</priority></url>
+  <url><loc>https://uplyze.ai/platform/uplyze-assistant/lipsync-gen</loc><lastmod>2026-02-21</lastmod><changefreq>monthly</changefreq><priority>0.15</priority></url>
+  <url><loc>https://uplyze.ai/platform/uplyze-assistant/faceswap-gen</loc><lastmod>2026-02-21</lastmod><changefreq>monthly</changefreq><priority>0.15</priority></url>
+
+  <!-- Social Media Hub -->
+  <url><loc>https://uplyze.ai/platform/social-media/dashboard</loc><lastmod>2026-02-21</lastmod><changefreq>monthly</changefreq><priority>0.12</priority></url>
+  <url><loc>https://uplyze.ai/platform/social-media/auto-dm</loc><lastmod>2026-02-21</lastmod><changefreq>monthly</changefreq><priority>0.12</priority></url>
+  <url><loc>https://uplyze.ai/platform/social-media/mass-dm</loc><lastmod>2026-02-21</lastmod><changefreq>monthly</changefreq><priority>0.12</priority></url>
+  <url><loc>https://uplyze.ai/platform/social-media/search</loc><lastmod>2026-02-21</lastmod><changefreq>monthly</changefreq><priority>0.12</priority></url>
+  <url><loc>https://uplyze.ai/platform/social-media/content</loc><lastmod>2026-02-21</lastmod><changefreq>monthly</changefreq><priority>0.12</priority></url>
+  <url><loc>https://uplyze.ai/platform/social-media/comments</loc><lastmod>2026-02-21</lastmod><changefreq>monthly</changefreq><priority>0.12</priority></url>
+  <url><loc>https://uplyze.ai/platform/social-media/dms</loc><lastmod>2026-02-21</lastmod><changefreq>monthly</changefreq><priority>0.12</priority></url>
+  <url><loc>https://uplyze.ai/platform/social-media/ai-tools</loc><lastmod>2026-02-21</lastmod><changefreq>monthly</changefreq><priority>0.12</priority></url>
+  <url><loc>https://uplyze.ai/platform/social-media/analytics</loc><lastmod>2026-02-21</lastmod><changefreq>monthly</changefreq><priority>0.12</priority></url>
+  <url><loc>https://uplyze.ai/platform/social-media/bio-links</loc><lastmod>2026-02-21</lastmod><changefreq>monthly</changefreq><priority>0.12</priority></url>
+  <url><loc>https://uplyze.ai/platform/social-media/automation</loc><lastmod>2026-02-21</lastmod><changefreq>monthly</changefreq><priority>0.12</priority></url>
+  <url><loc>https://uplyze.ai/platform/social-media/networks</loc><lastmod>2026-02-21</lastmod><changefreq>monthly</changefreq><priority>0.12</priority></url>
+
+  <!-- Storyline & Automation -->
+  <url><loc>https://uplyze.ai/platform/storyline/script-builder</loc><lastmod>2026-02-21</lastmod><changefreq>monthly</changefreq><priority>0.12</priority></url>
+  <url><loc>https://uplyze.ai/platform/storyline/library</loc><lastmod>2026-02-21</lastmod><changefreq>monthly</changefreq><priority>0.12</priority></url>
+  <url><loc>https://uplyze.ai/platform/storyline/conversion-optimizer</loc><lastmod>2026-02-21</lastmod><changefreq>monthly</changefreq><priority>0.12</priority></url>
+  <url><loc>https://uplyze.ai/platform/storyline/psychology-playbook</loc><lastmod>2026-02-21</lastmod><changefreq>monthly</changefreq><priority>0.12</priority></url>
+  <url><loc>https://uplyze.ai/platform/storyline/analytics</loc><lastmod>2026-02-21</lastmod><changefreq>monthly</changefreq><priority>0.12</priority></url>
+  <url><loc>https://uplyze.ai/platform/storyline/workflows</loc><lastmod>2026-02-21</lastmod><changefreq>monthly</changefreq><priority>0.12</priority></url>
+  <url><loc>https://uplyze.ai/platform/storyline/ai-intelligence</loc><lastmod>2026-02-21</lastmod><changefreq>monthly</changefreq><priority>0.12</priority></url>
+  <url><loc>https://uplyze.ai/platform/storyline/smart-alerts</loc><lastmod>2026-02-21</lastmod><changefreq>monthly</changefreq><priority>0.12</priority></url>
+
+  <!-- Ad Creative Engine -->
+  <url><loc>https://uplyze.ai/platform/ad-creatives/creatives</loc><lastmod>2026-02-21</lastmod><changefreq>monthly</changefreq><priority>0.12</priority></url>
+  <url><loc>https://uplyze.ai/platform/ad-creatives/ai-image-gen</loc><lastmod>2026-02-21</lastmod><changefreq>monthly</changefreq><priority>0.12</priority></url>
+  <url><loc>https://uplyze.ai/platform/ad-creatives/copy-cta</loc><lastmod>2026-02-21</lastmod><changefreq>monthly</changefreq><priority>0.12</priority></url>
+  <url><loc>https://uplyze.ai/platform/ad-creatives/analytics</loc><lastmod>2026-02-21</lastmod><changefreq>monthly</changefreq><priority>0.12</priority></url>
+  <url><loc>https://uplyze.ai/platform/ad-creatives/targeting</loc><lastmod>2026-02-21</lastmod><changefreq>monthly</changefreq><priority>0.12</priority></url>
+
+  <!-- API -->
+  <url><loc>https://uplyze.ai/platform/api/api-keys</loc><lastmod>2026-02-21</lastmod><changefreq>monthly</changefreq><priority>0.1</priority></url>
+  <url><loc>https://uplyze.ai/platform/api/documentation</loc><lastmod>2026-02-21</lastmod><changefreq>monthly</changefreq><priority>0.1</priority></url>
+  <url><loc>https://uplyze.ai/platform/api/playground</loc><lastmod>2026-02-21</lastmod><changefreq>monthly</changefreq><priority>0.1</priority></url>
+  <url><loc>https://uplyze.ai/platform/api/quick-start</loc><lastmod>2026-02-21</lastmod><changefreq>monthly</changefreq><priority>0.1</priority></url>
+  <url><loc>https://uplyze.ai/platform/api/key-history</loc><lastmod>2026-02-21</lastmod><changefreq>monthly</changefreq><priority>0.1</priority></url>
+
+  <!-- Profile Lookup -->
+  <url><loc>https://uplyze.ai/platform/lookup/overview</loc><lastmod>2026-02-21</lastmod><changefreq>monthly</changefreq><priority>0.1</priority></url>
+  <url><loc>https://uplyze.ai/platform/lookup/revenue</loc><lastmod>2026-02-21</lastmod><changefreq>monthly</changefreq><priority>0.1</priority></url>
+  <url><loc>https://uplyze.ai/platform/lookup/audience</loc><lastmod>2026-02-21</lastmod><changefreq>monthly</changefreq><priority>0.1</priority></url>
+  <url><loc>https://uplyze.ai/platform/lookup/fans</loc><lastmod>2026-02-21</lastmod><changefreq>monthly</changefreq><priority>0.1</priority></url>
+  <url><loc>https://uplyze.ai/platform/lookup/content</loc><lastmod>2026-02-21</lastmod><changefreq>monthly</changefreq><priority>0.1</priority></url>
+  <url><loc>https://uplyze.ai/platform/lookup/engagement</loc><lastmod>2026-02-21</lastmod><changefreq>monthly</changefreq><priority>0.1</priority></url>
+  <url><loc>https://uplyze.ai/platform/lookup/traffic</loc><lastmod>2026-02-21</lastmod><changefreq>monthly</changefreq><priority>0.1</priority></url>
+  <url><loc>https://uplyze.ai/platform/lookup/messaging</loc><lastmod>2026-02-21</lastmod><changefreq>monthly</changefreq><priority>0.1</priority></url>
+  <url><loc>https://uplyze.ai/platform/lookup/links</loc><lastmod>2026-02-21</lastmod><changefreq>monthly</changefreq><priority>0.1</priority></url>
+  <url><loc>https://uplyze.ai/platform/lookup/chargebacks</loc><lastmod>2026-02-21</lastmod><changefreq>monthly</changefreq><priority>0.1</priority></url>
+  <url><loc>https://uplyze.ai/platform/lookup/highlights</loc><lastmod>2026-02-21</lastmod><changefreq>monthly</changefreq><priority>0.1</priority></url>
+  <url><loc>https://uplyze.ai/platform/lookup/bio-strategy</loc><lastmod>2026-02-21</lastmod><changefreq>monthly</changefreq><priority>0.1</priority></url>
+  <url><loc>https://uplyze.ai/platform/lookup/ai-analysis</loc><lastmod>2026-02-21</lastmod><changefreq>monthly</changefreq><priority>0.1</priority></url>
+  <url><loc>https://uplyze.ai/platform/lookup/raw-data</loc><lastmod>2026-02-21</lastmod><changefreq>monthly</changefreq><priority>0.1</priority></url>
+
 </urlset>
