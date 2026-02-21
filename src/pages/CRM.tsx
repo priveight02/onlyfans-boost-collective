@@ -24,6 +24,7 @@ import FloatingCopilot from "@/components/admin/FloatingCopilot";
 import SocialMediaHub from "@/components/admin/SocialMediaHub";
 import AdminAPI from "@/components/admin/AdminAPI";
 import EnhancedDashboard from "@/components/admin/EnhancedDashboard";
+import AdCreativeEngine from "@/components/admin/AdCreativeEngine";
 import CRMHelpWidget from "@/components/crm/CRMHelpWidget";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -38,7 +39,7 @@ import {
   FileText, MessageSquare, CheckSquare, MessageCircle, Award,
   TrendingUp, Activity, Zap, Download, Brain, Calendar, Heart,
   Bot, Globe, Code2, Settings, ChevronLeft, ChevronRight,
-  Bell, HelpCircle, Sparkles,
+  Bell, HelpCircle, Sparkles, Megaphone,
 } from "lucide-react";
 
 const navSections = [
@@ -48,6 +49,15 @@ const navSections = [
       { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
       { id: "crm", label: "Accounts", icon: Contact },
       { id: "rankings", label: "Rankings", icon: Award },
+    ],
+  },
+  {
+    label: "Featured Tools",
+    items: [
+      { id: "social", label: "Social Media", icon: Globe },
+      { id: "copilot", label: "Uplyze AI Copilot", icon: Bot },
+      { id: "ad-creatives", label: "Ad Creative Engine", icon: Megaphone },
+      { id: "content", label: "Content", icon: Calendar },
     ],
   },
   {
@@ -78,15 +88,7 @@ const navSections = [
     items: [
       { id: "automation", label: "Storyline", icon: Zap },
       { id: "persona", label: "Persona DNA", icon: Brain },
-      { id: "copilot", label: "Uplyze AI Copilot", icon: Bot },
       { id: "emotional", label: "Emotional", icon: Heart },
-    ],
-  },
-  {
-    label: "Content & Social",
-    items: [
-      { id: "content", label: "Content", icon: Calendar },
-      { id: "social", label: "Social Media", icon: Globe },
     ],
   },
   {
@@ -113,7 +115,7 @@ const TAB_SLUGS: Record<string, string> = {
   messaging: "messaging", chat: "intranet",
   tasks: "tasks", contracts: "contracts", team: "team", "team-perf": "performance",
   automation: "storyline", persona: "persona-dna", copilot: "uplyze-assistant", emotional: "emotional",
-  content: "content", social: "social-media",
+  content: "content", social: "social-media", "ad-creatives": "ad-creatives",
   lookup: "lookup", audience: "audience", reports: "reports",
   settings: "settings", api: "api",
 };
@@ -173,6 +175,7 @@ const CRM = () => {
       case "persona": return <PersonaDNAEngine />;
       case "content": return <ContentCommandCenter />;
       case "social": return <SocialMediaHub />;
+      case "ad-creatives": return <AdCreativeEngine />;
       case "emotional": return <EmotionalHeatmap />;
       case "copilot": return <AICoPilot onNavigate={(tab: string) => handleTabChange(tab)} />;
       case "lookup": return <ProfileLookup />;
