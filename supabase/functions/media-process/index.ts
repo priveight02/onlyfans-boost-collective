@@ -113,10 +113,12 @@ serve(async (req) => {
           const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
           const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
           const fileName = `lipsync_tts_${Date.now()}.mp3`;
+          const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
           const uploadResp = await fetch(`${SUPABASE_URL}/storage/v1/object/copilot-media/${fileName}`, {
             method: "POST",
             headers: {
               Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+              apikey: SUPABASE_ANON_KEY,
               "Content-Type": "audio/mpeg",
             },
             body: audioBuffer,
