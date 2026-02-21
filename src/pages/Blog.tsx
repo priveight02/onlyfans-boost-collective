@@ -37,8 +37,8 @@ const Blog = () => {
   return (
     <div className="min-h-screen bg-[hsl(222,35%,8%)]">
       <PageSEO
-        title="Uplyze Blog | AI Platform Insights & Growth Strategies | uplyze.ai"
-        description="Read the Uplyze blog for AI Platform tips, creator growth strategies, and agency scaling guides. Learn how Uplyze helps you automate and 10x revenue at uplyze.ai."
+        title="Uplyze Blog | AI Tool Insights, Growth AI Strategies & Business Scaling | uplyze.ai"
+        description="Read the Uplyze blog for AI tool tips, AI platform insights, growth AI strategies, marketing automation guides, and business scaling tactics. Learn how the best AI tool helps you automate and 10x revenue at uplyze.ai."
         jsonLd={{
           "@context": "https://schema.org",
           "@type": "Blog",
