@@ -79,9 +79,7 @@ const Services = () => {
   const ctaPath = user ? '/pricing' : '/auth';
 
   return (
-    <section id="services" className="py-24 relative overflow-hidden"
-      style={{ background: 'linear-gradient(180deg, hsl(222,35%,8%) 0%, hsl(240,22%,10%) 50%, hsl(222,35%,8%) 100%)' }}
-    >
+    <section id="services" className="py-24 relative overflow-hidden">
       {/* Ambient glows */}
       <motion.div
         animate={{ opacity: [0.04, 0.08, 0.04] }}
@@ -93,13 +91,6 @@ const Services = () => {
         transition={{ duration: 10, repeat: Infinity, delay: 3 }}
         className="absolute bottom-0 left-1/3 w-[400px] h-[400px] bg-blue-600 rounded-full blur-[120px]"
       />
-      
-      {/* Top divider */}
-      <div className="absolute top-0 left-0 right-0">
-        <div className="max-w-4xl mx-auto px-8">
-          <div className="h-px bg-gradient-to-r from-transparent via-white/[0.07] to-transparent" />
-        </div>
-      </div>
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
         <motion.div 
