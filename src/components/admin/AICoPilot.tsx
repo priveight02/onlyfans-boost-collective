@@ -1459,14 +1459,14 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
 
   // ---- Content gallery for image/video (full image preview) ----
   const renderContentGallery = (items: GeneratedContent[], modeTab: string, isGenerating: boolean, progress: number, progressLabel: string) => {
-    const isVideoMode = ["video", "motion", "lipsync", "faceswap"].includes(modeTab);
+    const isVideoModeBase = ["video", "motion", "lipsync"].includes(modeTab);
     const showGenerating = isGenerating;
     const generatingCard = showGenerating ? (
       <div key="generating" className="relative rounded-xl overflow-hidden border-2 border-accent/30 bg-white/[0.03] flex flex-col items-center justify-center p-8"
         style={displayLayout !== "vertical" ? { width: `${220 * displayScale}px`, minHeight: `${170 * displayScale}px` } : { minHeight: "200px" }}>
         <ProgressRing progress={progress} size={90} label={progressLabel} />
         <p className="text-xs text-white/40 mt-3">Media generating...</p>
-        <p className="text-[10px] text-white/20 mt-1">~{isVideoMode ? "2-5 min" : "15s"} estimated</p>
+        <p className="text-[10px] text-white/20 mt-1">~{isVideoModeBase || modeTab === "faceswap" ? "2-5 min" : "15s"} estimated</p>
       </div>
     ) : null;
 
@@ -1482,12 +1482,13 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
         {sortedItems.map(item => {
           const meta = item.metadata || {};
           const dims = meta.width && meta.height ? `${meta.width}×${meta.height}` : item.aspect_ratio || "";
-          const fileExt = isVideoMode ? "mp4" : "png";
+          const isItemVideo = isVideoModeBase || (modeTab === "faceswap" && item.content_type === "video");
+          const fileExt = isItemVideo ? "mp4" : "png";
           return (
             <div key={item.id} className="relative group rounded-xl overflow-hidden border border-white/10 bg-white/[0.02]"
               style={displayLayout !== "vertical" ? { width: `${220 * displayScale}px` } : {}}>
-              {/* Render video or image based on mode */}
-              {isVideoMode ? (
+              {/* Render video or image based on content type */}
+              {isItemVideo ? (
                 <video src={item.url} controls playsInline preload="metadata" className="w-full rounded-t-xl bg-black/20" style={{ maxHeight: `${200 * displayScale}px` }} />
               ) : (
                 <img src={item.url} alt="" className="w-full object-contain rounded-t-xl cursor-pointer bg-black/20"
