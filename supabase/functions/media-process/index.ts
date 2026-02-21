@@ -172,7 +172,7 @@ serve(async (req) => {
         });
       }
 
-      // ========== FACESWAP (Replicate - yan-ops/face_swap — highest quality) ==========
+      // ========== FACESWAP (Replicate - codeplugtech/face-swap — highest quality, 314K+ runs) ==========
       if (processType === "faceswap") {
         if (!REPLICATE_API_KEY) {
           return new Response(JSON.stringify({ error: "REPLICATE_API_KEY not configured" }), {
@@ -181,7 +181,7 @@ serve(async (req) => {
         }
         const { source_face_url, target_url, target_type } = body;
 
-        // Use yan-ops/face_swap — most advanced & highest quality faceswap model
+        // Step 1: Face swap using codeplugtech/face-swap — most advanced & highest quality model
         const resp = await fetch(`${REPLICATE_BASE}/predictions`, {
           method: "POST",
           headers: {
@@ -189,11 +189,10 @@ serve(async (req) => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            version: "d5900f9ebed0db68b4d3c603764f3c09e47be05bd32e5d29a86c4277270f9e02",
+            version: "5c7d5dc6dd8bf75c1acaa8565735e7986bc5b66206b55cca93cb72c9bf15ccaa",
             input: {
-              target_image: target_url,
+              input_image: target_url,
               swap_image: source_face_url,
-              cache_days: 0,
             },
           }),
         });
@@ -206,16 +205,54 @@ serve(async (req) => {
 
         const data = await resp.json();
 
-        // If prediction already completed synchronously, return result directly
+        // Helper: trigger upscale to ensure minimum 1080p output
+        const upscaleImage = async (imageUrl: string): Promise<string> => {
+          try {
+            const upResp = await fetch(`${REPLICATE_BASE}/predictions`, {
+              method: "POST",
+              headers: {
+                Authorization: `Token ${REPLICATE_API_KEY}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                version: "f121d640bd286e1fdc67f9799164c1d5be36ff74576ee11c803ae5b665dd46aa",
+                input: {
+                  image: imageUrl,
+                  scale: 4,
+                  face_enhance: true,
+                },
+              }),
+            });
+            if (!upResp.ok) {
+              console.error("Upscale request failed, returning original");
+              return imageUrl;
+            }
+            const upData = await upResp.json();
+            // Return the upscale task_id so we can chain polling
+            return upData.id;
+          } catch (e) {
+            console.error("Upscale error (non-fatal):", e);
+            return imageUrl;
+          }
+        };
+
+        // If prediction already completed synchronously, trigger upscale
         if (data.status === "succeeded" && data.output) {
-          const output = Array.isArray(data.output) ? data.output[0] : data.output;
-          return new Response(JSON.stringify({ task_id: data.id, status: "SUCCESS", video_url: output, provider: "replicate", target_type }), {
+          const swapOutput = Array.isArray(data.output) ? data.output[0] : data.output;
+          const upscaleId = await upscaleImage(swapOutput);
+          // If upscaleId looks like a replicate prediction ID, return it for polling
+          if (upscaleId && !upscaleId.startsWith("http")) {
+            return new Response(JSON.stringify({ task_id: upscaleId, status: "PROCESSING", provider: "replicate", target_type, phase: "upscaling" }), {
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
+          return new Response(JSON.stringify({ task_id: data.id, status: "SUCCESS", video_url: swapOutput, provider: "replicate", target_type }), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
 
-        // Otherwise return task_id for polling
-        return new Response(JSON.stringify({ task_id: data.id, status: "PROCESSING", provider: "replicate", target_type }), {
+        // Store upscale intent in metadata — polling handler will chain upscale after swap completes
+        return new Response(JSON.stringify({ task_id: data.id, status: "PROCESSING", provider: "replicate", target_type, needs_upscale: true }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
@@ -237,6 +274,7 @@ serve(async (req) => {
       }
 
       // Replicate polling
+      const needsUpscale = url.searchParams.get("needs_upscale") === "true";
       if (provider === "replicate") {
         if (!REPLICATE_API_KEY) {
           return new Response(JSON.stringify({ status: "PROCESSING" }), {
@@ -257,8 +295,38 @@ serve(async (req) => {
         const data = await resp.json();
 
         if (data.status === "succeeded") {
-          // Output can be a string URL or array of URLs
           const output = Array.isArray(data.output) ? data.output[0] : data.output;
+
+          // If this was a faceswap that needs upscaling, chain the upscale
+          if (needsUpscale) {
+            try {
+              const upResp = await fetch(`${REPLICATE_BASE}/predictions`, {
+                method: "POST",
+                headers: {
+                  Authorization: `Token ${REPLICATE_API_KEY}`,
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  version: "f121d640bd286e1fdc67f9799164c1d5be36ff74576ee11c803ae5b665dd46aa",
+                  input: {
+                    image: output,
+                    scale: 4,
+                    face_enhance: true,
+                  },
+                }),
+              });
+              if (upResp.ok) {
+                const upData = await upResp.json();
+                // Return new task_id for upscale polling (no longer needs_upscale)
+                return new Response(JSON.stringify({ status: "PROCESSING", task_id: upData.id, phase: "upscaling" }), {
+                  headers: { ...corsHeaders, "Content-Type": "application/json" },
+                });
+              }
+            } catch (e) {
+              console.error("Upscale chain error (returning swap result):", e);
+            }
+          }
+
           return new Response(JSON.stringify({ status: "SUCCESS", video_url: output }), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
