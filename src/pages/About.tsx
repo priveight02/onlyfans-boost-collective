@@ -43,13 +43,21 @@ const About = () => {
       <PageSEO
         title="About Uplyze | Best AI Tool & AI Platform for Business Growth | uplyze.ai"
         description="Learn about Uplyze, the best AI tool and AI platform for business growth, marketing automation, and scaling. Trusted by 700+ businesses, creators, and agencies to automate growth and 10x revenue at uplyze.ai."
+        ogTitle="About Uplyze — The #1 AI Platform for Creators & Agencies"
+        ogDescription="Discover why 700+ businesses trust Uplyze as their all-in-one AI platform for marketing, growth, and revenue scaling."
         jsonLd={{
           "@context": "https://schema.org",
           "@type": "AboutPage",
-          "name": "About Uplyze",
-          "description": "Uplyze is the #1 AI Platform for creators and agencies, helping 700+ professionals automate growth and scale revenue.",
+          "name": "About Uplyze — The #1 AI Platform, AI Tool & All-in-One AI Suite",
+          "description": "Uplyze is the #1 AI Platform for creators, agencies, entrepreneurs, and businesses. Helping 700+ professionals automate growth, manage customers with AI CRM, and scale revenue with the best AI tool and all-in-one AI suite.",
           "url": "https://uplyze.ai/about",
-          "isPartOf": { "@type": "WebSite", "name": "Uplyze", "url": "https://uplyze.ai" }
+          "isPartOf": { "@type": "WebSite", "name": "Uplyze", "url": "https://uplyze.ai" },
+          "mainEntity": {
+            "@type": "Organization",
+            "name": "Uplyze",
+            "url": "https://uplyze.ai",
+            "description": "The #1 AI platform, AI tool, and all-in-one AI suite for marketing automation, business growth, and revenue scaling."
+          }
         }}
       />
       {/* Hero */}

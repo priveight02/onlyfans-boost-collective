@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml">
 
   <!-- Homepage — absolute priority -->
   <url>
@@ -7,6 +9,11 @@
     <lastmod>2026-02-21</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
+    <image:image>
+      <image:loc>https://uplyze.ai/og-image.png</image:loc>
+      <image:title>Uplyze — #1 AI Platform, AI Tool &amp; All-in-One AI Suite</image:title>
+      <image:caption>Uplyze AI platform for marketing automation, AI CRM, business growth, and revenue scaling</image:caption>
+    </image:image>
   </url>
 
   <!-- Pricing — second priority -->
@@ -14,7 +21,7 @@
     <loc>https://uplyze.ai/pricing</loc>
     <lastmod>2026-02-21</lastmod>
     <changefreq>weekly</changefreq>
-    <priority>0.9</priority>
+    <priority>0.95</priority>
   </url>
 
   <!-- Services — high priority for keyword pages -->
@@ -22,61 +29,31 @@
     <loc>https://uplyze.ai/services</loc>
     <lastmod>2026-02-21</lastmod>
     <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
+    <priority>0.9</priority>
   </url>
 
   <!-- Blog — high priority for content marketing -->
   <url>
     <loc>https://uplyze.ai/blog</loc>
     <lastmod>2026-02-21</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-
-  <!-- Blog posts — keyword-rich content -->
-  <url>
-    <loc>https://uplyze.ai/blog/what-is-uplyze</loc>
-    <lastmod>2026-02-18</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-
-  <url>
-    <loc>https://uplyze.ai/blog/uplyze-vs-hubspot</loc>
-    <lastmod>2026-02-15</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-
-  <url>
-    <loc>https://uplyze.ai/blog/scale-to-100k</loc>
-    <lastmod>2026-02-12</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
   </url>
 
   <!-- About -->
   <url>
     <loc>https://uplyze.ai/about</loc>
     <lastmod>2026-02-21</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
   </url>
 
   <!-- FAQ — important for featured snippets -->
   <url>
     <loc>https://uplyze.ai/faq</loc>
     <lastmod>2026-02-21</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-
-  <!-- Auth -->
-  <url>
-    <loc>https://uplyze.ai/auth</loc>
-    <lastmod>2026-02-21</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.3</priority>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
   </url>
 
   <!-- Auth -->
@@ -89,70 +66,197 @@
 
   <!-- Blog posts — keyword-rich content -->
   <url>
+    <loc>https://uplyze.ai/blog/what-is-uplyze</loc>
+    <lastmod>2026-02-18</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.75</priority>
+  </url>
+
+  <url>
+    <loc>https://uplyze.ai/blog/uplyze-vs-hubspot</loc>
+    <lastmod>2026-02-15</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.75</priority>
+  </url>
+
+  <url>
+    <loc>https://uplyze.ai/blog/scale-to-100k</loc>
+    <lastmod>2026-02-12</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.75</priority>
+  </url>
+
+  <url>
     <loc>https://uplyze.ai/blog/best-ai-tool-for-business</loc>
     <lastmod>2026-02-21</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
+    <priority>0.75</priority>
   </url>
 
   <url>
     <loc>https://uplyze.ai/blog/best-ai-marketing-platform</loc>
     <lastmod>2026-02-21</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
+    <priority>0.75</priority>
   </url>
 
   <url>
     <loc>https://uplyze.ai/blog/ai-tools-for-small-business</loc>
     <lastmod>2026-02-21</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
+    <priority>0.75</priority>
   </url>
 
   <url>
     <loc>https://uplyze.ai/blog/growth-ai-how-to-scale</loc>
     <lastmod>2026-02-21</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
+    <priority>0.75</priority>
   </url>
 
   <url>
     <loc>https://uplyze.ai/blog/ai-automation-for-agencies</loc>
     <lastmod>2026-02-21</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
+    <priority>0.75</priority>
   </url>
 
   <url>
     <loc>https://uplyze.ai/blog/best-all-in-one-ai-suite</loc>
     <lastmod>2026-02-21</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
+    <priority>0.75</priority>
   </url>
 
   <url>
     <loc>https://uplyze.ai/blog/ai-social-media-management</loc>
     <lastmod>2026-02-21</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
+    <priority>0.75</priority>
   </url>
 
   <url>
     <loc>https://uplyze.ai/blog/ai-content-creation-tools</loc>
     <lastmod>2026-02-21</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
+    <priority>0.75</priority>
   </url>
 
   <url>
     <loc>https://uplyze.ai/blog/ai-lead-generation-tool</loc>
     <lastmod>2026-02-21</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
+    <priority>0.75</priority>
   </url>
 
   <url>
     <loc>https://uplyze.ai/blog/business-scaling-with-ai</loc>
+    <lastmod>2026-02-21</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.75</priority>
+  </url>
+
+  <!-- NEW keyword-targeted blog pages -->
+  <url>
+    <loc>https://uplyze.ai/blog/ai-crm-vs-traditional-crm</loc>
+    <lastmod>2026-02-21</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.75</priority>
+  </url>
+
+  <url>
+    <loc>https://uplyze.ai/blog/best-ai-tools-2026</loc>
+    <lastmod>2026-02-21</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.75</priority>
+  </url>
+
+  <url>
+    <loc>https://uplyze.ai/blog/ai-workflow-automation-guide</loc>
+    <lastmod>2026-02-21</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.75</priority>
+  </url>
+
+  <url>
+    <loc>https://uplyze.ai/blog/ai-dm-automation-instagram</loc>
+    <lastmod>2026-02-21</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.75</priority>
+  </url>
+
+  <url>
+    <loc>https://uplyze.ai/blog/ai-revenue-optimization</loc>
+    <lastmod>2026-02-21</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.75</priority>
+  </url>
+
+  <url>
+    <loc>https://uplyze.ai/blog/how-ai-replaces-hubspot</loc>
+    <lastmod>2026-02-21</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.75</priority>
+  </url>
+
+  <url>
+    <loc>https://uplyze.ai/blog/ai-for-solopreneurs</loc>
+    <lastmod>2026-02-21</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.75</priority>
+  </url>
+
+  <url>
+    <loc>https://uplyze.ai/blog/ai-customer-engagement-strategies</loc>
+    <lastmod>2026-02-21</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.75</priority>
+  </url>
+
+  <url>
+    <loc>https://uplyze.ai/blog/ai-analytics-dashboard-guide</loc>
+    <lastmod>2026-02-21</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.75</priority>
+  </url>
+
+  <url>
+    <loc>https://uplyze.ai/blog/ai-email-marketing-automation</loc>
+    <lastmod>2026-02-21</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.75</priority>
+  </url>
+
+  <url>
+    <loc>https://uplyze.ai/blog/ai-competitor-analysis-tool</loc>
+    <lastmod>2026-02-21</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <url>
+    <loc>https://uplyze.ai/blog/ai-team-management-platform</loc>
+    <lastmod>2026-02-21</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <url>
+    <loc>https://uplyze.ai/blog/best-ai-for-freelancers</loc>
+    <lastmod>2026-02-21</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <url>
+    <loc>https://uplyze.ai/blog/ai-sales-pipeline-automation</loc>
+    <lastmod>2026-02-21</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <url>
+    <loc>https://uplyze.ai/blog/ai-influencer-marketing-tool</loc>
     <lastmod>2026-02-21</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>

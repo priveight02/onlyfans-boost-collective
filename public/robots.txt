@@ -1,5 +1,5 @@
 # Uplyze AI - Robots.txt
-# https://uplyze.ai
+# https://uplyze.ai — #1 AI Platform, AI Tool & All-in-One AI Suite
 
 User-agent: *
 Allow: /
@@ -10,6 +10,34 @@ Allow: /privacy
 Allow: /terms
 Allow: /about
 Allow: /blog
+Allow: /blog/what-is-uplyze
+Allow: /blog/uplyze-vs-hubspot
+Allow: /blog/scale-to-100k
+Allow: /blog/best-ai-tool-for-business
+Allow: /blog/best-ai-marketing-platform
+Allow: /blog/ai-tools-for-small-business
+Allow: /blog/growth-ai-how-to-scale
+Allow: /blog/ai-automation-for-agencies
+Allow: /blog/best-all-in-one-ai-suite
+Allow: /blog/ai-social-media-management
+Allow: /blog/ai-content-creation-tools
+Allow: /blog/ai-lead-generation-tool
+Allow: /blog/business-scaling-with-ai
+Allow: /blog/ai-crm-vs-traditional-crm
+Allow: /blog/best-ai-tools-2026
+Allow: /blog/ai-workflow-automation-guide
+Allow: /blog/ai-dm-automation-instagram
+Allow: /blog/ai-revenue-optimization
+Allow: /blog/how-ai-replaces-hubspot
+Allow: /blog/ai-for-solopreneurs
+Allow: /blog/ai-customer-engagement-strategies
+Allow: /blog/ai-analytics-dashboard-guide
+Allow: /blog/ai-email-marketing-automation
+Allow: /blog/ai-competitor-analysis-tool
+Allow: /blog/ai-team-management-platform
+Allow: /blog/best-ai-for-freelancers
+Allow: /blog/ai-sales-pipeline-automation
+Allow: /blog/ai-influencer-marketing-tool
 
 Disallow: /admin
 Disallow: /admin-onboarding
@@ -24,8 +52,23 @@ Disallow: /auth/reset-password
 Sitemap: https://uplyze.ai/sitemap.xml
 
 # Crawl-delay (optional, for polite crawling)
+User-agent: Googlebot
+Crawl-delay: 0
+
+User-agent: Bingbot
+Crawl-delay: 1
+
 User-agent: AhrefsBot
 Crawl-delay: 10
 
 User-agent: SemrushBot
 Crawl-delay: 10
+
+User-agent: DuckDuckBot
+Crawl-delay: 2
+
+User-agent: Baiduspider
+Crawl-delay: 5
+
+User-agent: YandexBot
+Crawl-delay: 5
