@@ -90,7 +90,7 @@ const CRMHelpWidget = () => {
         },
         body: JSON.stringify({
           messages: newMsgs.map(m => ({ role: m.role, content: m.content })),
-          context: "You are a helpful support assistant for the CRM platform. Help users with their questions about the platform, features, and troubleshooting. Be concise and friendly.",
+          context: "You are a helpful support assistant for the Uplyze platform. Help users with their questions about the platform, features, and troubleshooting. Be concise and friendly.",
         }),
       });
 

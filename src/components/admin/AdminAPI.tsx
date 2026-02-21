@@ -497,7 +497,7 @@ const API_GROUPS: EndpointGroup[] = [
   },
   {
     name: "Support Tickets",
-    description: "CRM help desk and support ticket management",
+    description: "Platform help desk and support ticket management",
     endpoints: [
       { method: "GET", path: "/v1/support-tickets", description: "List support tickets", params: [
         { name: "status", type: "string", description: "Filter by status (open, in_progress, resolved)" },

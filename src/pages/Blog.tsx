@@ -6,8 +6,8 @@ import PageSEO from "@/components/PageSEO";
 const blogPosts = [
   {
     slug: "what-is-uplyze",
-    title: "What is Uplyze? The AI CRM for Creators",
-    excerpt: "Discover how Uplyze combines artificial intelligence with CRM to help creators automate growth, manage fans, and scale revenue like never before.",
+    title: "What is Uplyze? The AI Platform for Creators",
+    excerpt: "Discover how Uplyze combines artificial intelligence with smart tools to help creators automate growth, manage fans, and scale revenue like never before.",
     date: "February 18, 2026",
     readTime: "6 min read",
     author: "Uplyze Team",
@@ -37,14 +37,14 @@ const Blog = () => {
   return (
     <div className="min-h-screen bg-[hsl(222,35%,8%)]">
       <PageSEO
-        title="Uplyze Blog | AI CRM Insights & Growth Strategies | uplyze.ai"
-        description="Read the Uplyze blog for AI CRM tips, creator growth strategies, and agency scaling guides. Learn how Uplyze helps you automate and 10x revenue at uplyze.ai."
+        title="Uplyze Blog | AI Platform Insights & Growth Strategies | uplyze.ai"
+        description="Read the Uplyze blog for AI Platform tips, creator growth strategies, and agency scaling guides. Learn how Uplyze helps you automate and 10x revenue at uplyze.ai."
         jsonLd={{
           "@context": "https://schema.org",
           "@type": "Blog",
           "name": "Uplyze Blog",
           "url": "https://uplyze.ai/blog",
-          "description": "AI CRM insights, creator growth strategies, and agency scaling guides from Uplyze.",
+          "description": "AI Platform insights, creator growth strategies, and agency scaling guides from Uplyze.",
           "publisher": { "@type": "Organization", "name": "Uplyze", "url": "https://uplyze.ai" }
         }}
       />
