@@ -521,7 +521,7 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
   };
 
   const resumeActiveTasks = useCallback(async () => {
-    const { data: tasks } = await supabase.from("active_generation_tasks" as any).select("*").eq("status", "processing");
+    const { data: tasks } = await supabase.from("active_generation_tasks" as any).select("*").in("status", ["processing", "timeout"] as any);
     if (!tasks?.length) return;
     for (const task of tasks) {
       resumeTaskPolling(task);
@@ -541,32 +541,33 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
     else if (genType === "faceswap") { setIsGeneratingFaceswap(true); setFaceswapProgress(30); setFaceswapProgressLabel("Resuming..."); }
 
     let pollCount = 0;
-    const maxPolls = 60;
+    const maxPolls = 150; // ~12.5 minutes to account for long-running tasks
     let resultUrl: string | null = null;
+    let failed = false;
 
     while (pollCount < maxPolls) {
       await new Promise(r => setTimeout(r, 5000));
       pollCount++;
       const progress = Math.min(30 + (pollCount / maxPolls) * 60, 90);
       if (genType === "video") { setVideoProgress(progress); setVideoProgressLabel("Rendering video..."); }
-      else if (genType === "motion") setMotionProgress(progress);
-      else if (genType === "lipsync") setLipsyncProgress(progress);
-      else if (genType === "faceswap") setFaceswapProgress(progress);
+      else if (genType === "motion") { setMotionProgress(progress); setMotionProgressLabel("Processing motion..."); }
+      else if (genType === "lipsync") { setLipsyncProgress(progress); setLipsyncProgressLabel("Processing lipsync..."); }
+      else if (genType === "faceswap") { setFaceswapProgress(progress); setFaceswapProgressLabel("Processing faceswap..."); }
 
       try {
         const pollResp = await fetch(pollUrl, { headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` } });
         if (!pollResp.ok) continue;
         const pollData = await pollResp.json();
         if (pollData.status === "SUCCESS" && pollData.video_url) { resultUrl = pollData.video_url; break; }
-        if (pollData.status === "FAILED") { await removeActiveTask(taskId); break; }
+        if (pollData.status === "FAILED") { failed = true; break; }
       } catch { /* continue polling */ }
     }
 
-    await removeActiveTask(taskId);
-
     if (resultUrl) {
+      // Save content FIRST, then remove active task
       const contentType = (genType === "faceswap" && metadata?.category === "image") ? "image" : "video";
       const saved = await saveGeneratedContent(contentType, resultUrl, prompt || genType, genType, { metadata: metadata || {} });
+      await removeActiveTask(taskId);
       if (saved) {
         if (genType === "video") setGeneratedVideos(prev => [saved, ...prev]);
         else if (genType === "motion") setGeneratedMotions(prev => [saved, ...prev]);
@@ -574,8 +575,16 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
         else if (genType === "faceswap") setGeneratedFaceswaps(prev => [saved, ...prev]);
         toast.success(`${genType.charAt(0).toUpperCase() + genType.slice(1)} resumed & completed!`);
       }
-    } else if (!resultUrl) {
-      toast.error(`Resumed ${genType} timed out or failed.`);
+    } else {
+      // Only remove the task if it explicitly failed; on timeout, keep it so next reload can retry
+      if (failed) {
+        await removeActiveTask(taskId);
+        toast.error(`Resumed ${genType} failed.`);
+      } else {
+        // Update status to indicate timeout but keep task for potential retry
+        await supabase.from("active_generation_tasks" as any).update({ status: "timeout" }).eq("task_id", taskId);
+        toast.error(`Resumed ${genType} is still processing. It will retry on next page load.`);
+      }
     }
 
     // Reset state
@@ -1110,7 +1119,7 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
       await saveActiveTask(taskId, provider, "motion", motionPrompt || "Motion transfer", { type: "motion" });
       let videoUrl: string | null = null;
       let pollCount = 0;
-      while (pollCount < 60) {
+      while (pollCount < 120) {
         await new Promise(r => setTimeout(r, 5000)); pollCount++;
         try {
           const pollResp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/media-process?action=poll&task_id=${encodeURIComponent(taskId)}&provider=${provider}`, { headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` } });
@@ -1153,7 +1162,7 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
       await saveActiveTask(taskId, provider, "lipsync", lipsyncPrompt || "Lipsync", { type: "lipsync" });
       let videoUrl: string | null = null;
       let pollCount = 0;
-      while (pollCount < 60) {
+      while (pollCount < 120) {
         await new Promise(r => setTimeout(r, 5000)); pollCount++;
         try {
           const pollResp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/media-process?action=poll&task_id=${encodeURIComponent(taskId)}&provider=${provider}`, { headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` } });
