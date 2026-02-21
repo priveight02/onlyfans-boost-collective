@@ -13,6 +13,7 @@ import {
   RefreshCw, Image, Palette, BarChart3, Zap, Target,
   DollarSign, Eye, MousePointerClick,
   CheckCircle2, Loader2, Plus, Wand2, Upload, X,
+  Link2, ShoppingCart, ExternalLink, Settings2, Unplug,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import adVariantA from "@/assets/showcase-ad-variant-a.png";
@@ -191,6 +192,7 @@ const AdCreativeEngine = ({ subTab, onSubTabChange }: { subTab?: string; onSubTa
           <TabsTrigger value="copy" className="text-xs data-[state=active]:bg-purple-500/10 data-[state=active]:text-purple-400"><Sparkles className="h-3.5 w-3.5 mr-1.5" />Copy & CTA</TabsTrigger>
           <TabsTrigger value="analytics" className="text-xs data-[state=active]:bg-blue-500/10 data-[state=active]:text-blue-400"><BarChart3 className="h-3.5 w-3.5 mr-1.5" />Analytics</TabsTrigger>
           <TabsTrigger value="settings" className="text-xs data-[state=active]:bg-white/10 data-[state=active]:text-white/80"><Target className="h-3.5 w-3.5 mr-1.5" />Targeting</TabsTrigger>
+          <TabsTrigger value="integrations" className="text-xs data-[state=active]:bg-cyan-500/10 data-[state=active]:text-cyan-400"><Link2 className="h-3.5 w-3.5 mr-1.5" />Integrations</TabsTrigger>
         </TabsList>
 
         {/* CREATIVES TAB */}
@@ -413,6 +415,111 @@ const AdCreativeEngine = ({ subTab, onSubTabChange }: { subTab?: string; onSubTa
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        {/* INTEGRATIONS TAB */}
+        <TabsContent value="integrations" className="mt-4">
+          <div className="grid grid-cols-3 gap-4">
+            {/* Shopify */}
+            <Card className="crm-card border-white/[0.04] hover:border-emerald-500/20 transition-colors">
+              <CardContent className="p-5 space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+                    <ShoppingCart className="h-5 w-5 text-emerald-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-white">Shopify</h3>
+                    <p className="text-[10px] text-white/30">E-commerce platform</p>
+                  </div>
+                </div>
+                <p className="text-xs text-white/40 leading-relaxed">
+                  Sync your product catalog, push ad creatives directly to Shopify store, and auto-generate ads from your product listings.
+                </p>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-[10px] text-white/30"><CheckCircle2 className="h-3 w-3 text-white/15" />Product catalog sync</div>
+                  <div className="flex items-center gap-2 text-[10px] text-white/30"><CheckCircle2 className="h-3 w-3 text-white/15" />Auto-generate ads from products</div>
+                  <div className="flex items-center gap-2 text-[10px] text-white/30"><CheckCircle2 className="h-3 w-3 text-white/15" />Push creatives to store</div>
+                </div>
+                <Button className="w-full text-xs h-9" style={{ background: "linear-gradient(135deg, hsl(145 60% 40%), hsl(160 60% 45%))" }}>
+                  <Unplug className="h-3.5 w-3.5 mr-1.5" />Connect Shopify
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* WooCommerce */}
+            <Card className="crm-card border-white/[0.04] hover:border-purple-500/20 transition-colors">
+              <CardContent className="p-5 space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center">
+                    <ShoppingCart className="h-5 w-5 text-purple-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-white">WooCommerce</h3>
+                    <p className="text-[10px] text-white/30">WordPress e-commerce</p>
+                  </div>
+                </div>
+                <p className="text-xs text-white/40 leading-relaxed">
+                  Connect your WooCommerce store to pull products, generate matching ad creatives, and track conversion performance.
+                </p>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-[10px] text-white/30"><CheckCircle2 className="h-3 w-3 text-white/15" />WooCommerce REST API sync</div>
+                  <div className="flex items-center gap-2 text-[10px] text-white/30"><CheckCircle2 className="h-3 w-3 text-white/15" />Product-to-ad pipeline</div>
+                  <div className="flex items-center gap-2 text-[10px] text-white/30"><CheckCircle2 className="h-3 w-3 text-white/15" />Conversion tracking</div>
+                </div>
+                <Button className="w-full text-xs h-9" style={{ background: "linear-gradient(135deg, hsl(270 60% 50%), hsl(290 60% 55%))" }}>
+                  <Unplug className="h-3.5 w-3.5 mr-1.5" />Connect WooCommerce
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Canva */}
+            <Card className="crm-card border-white/[0.04] hover:border-cyan-500/20 transition-colors">
+              <CardContent className="p-5 space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-cyan-500/10 flex items-center justify-center">
+                    <Palette className="h-5 w-5 text-cyan-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-white">Canva</h3>
+                    <p className="text-[10px] text-white/30">Design platform</p>
+                  </div>
+                </div>
+                <p className="text-xs text-white/40 leading-relaxed">
+                  Export ad creatives to Canva for further editing, import Canva designs as ad variants, and use Canva templates.
+                </p>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-[10px] text-white/30"><CheckCircle2 className="h-3 w-3 text-white/15" />Export to Canva workspace</div>
+                  <div className="flex items-center gap-2 text-[10px] text-white/30"><CheckCircle2 className="h-3 w-3 text-white/15" />Import Canva designs</div>
+                  <div className="flex items-center gap-2 text-[10px] text-white/30"><CheckCircle2 className="h-3 w-3 text-white/15" />Template library access</div>
+                </div>
+                <Button className="w-full text-xs h-9" style={{ background: "linear-gradient(135deg, hsl(190 70% 45%), hsl(210 70% 50%))" }}>
+                  <Unplug className="h-3.5 w-3.5 mr-1.5" />Connect Canva
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Integration status */}
+          <Card className="crm-card border-white/[0.04] mt-4">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Settings2 className="h-4 w-4 text-white/30" />
+                <span className="text-xs font-medium text-white/60">Integration Status</span>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  { name: "Shopify", status: "Not connected", color: "text-white/25" },
+                  { name: "WooCommerce", status: "Not connected", color: "text-white/25" },
+                  { name: "Canva", status: "Not connected", color: "text-white/25" },
+                ].map(i => (
+                  <div key={i.name} className="flex items-center justify-between p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.04]">
+                    <span className="text-xs text-white/50">{i.name}</span>
+                    <span className={`text-[10px] ${i.color}`}>{i.status}</span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>

@@ -1650,8 +1650,8 @@ const AICoPilot = ({ onNavigate, subTab, onSubTabChange }: { onNavigate?: (tab: 
               <SelectItem value="high" className="text-white text-xs">High Quality</SelectItem>
             </SelectContent>
           </Select>
-          <Button onClick={generateImage} disabled={!imagePrompt.trim() || isGeneratingImage} className="flex-1 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white text-sm h-9">
-            {isGeneratingImage ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Sparkles className="h-4 w-4 mr-2" />}Generate
+          <Button onClick={generateImage} disabled={!imagePrompt.trim() || isGeneratingImage} className="flex-1 text-white text-sm h-9" style={{ background: "linear-gradient(135deg, hsl(217 91% 55%), hsl(262 83% 58%))" }}>
+            {isGeneratingImage ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Sparkles className="h-4 w-4 mr-2" />}Generate Image
           </Button>
           {isGeneratingImage && (
             <Button onClick={() => cancelGeneration("image")} variant="outline" className="h-9 px-3 border-red-500/30 text-red-400 hover:bg-red-500/10 hover:text-red-300 text-sm">
@@ -1795,8 +1795,8 @@ const AICoPilot = ({ onNavigate, subTab, onSubTabChange }: { onNavigate?: (tab: 
         </div>
 
         <div className="mt-auto flex items-center gap-2 flex-wrap">
-          <Button onClick={generateVideo} disabled={!videoPrompt.trim() || isGeneratingVideo} className="flex-1 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white text-sm h-9">
-            {isGeneratingVideo ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Sparkles className="h-4 w-4 mr-2" />}Generate with {activeProvider.label}
+          <Button onClick={generateVideo} disabled={!videoPrompt.trim() || isGeneratingVideo} className="flex-1 text-white text-sm h-9" style={{ background: "linear-gradient(135deg, hsl(217 91% 55%), hsl(262 83% 58%))" }}>
+            {isGeneratingVideo ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Sparkles className="h-4 w-4 mr-2" />}Generate Video
           </Button>
           {isGeneratingVideo && (
             <Button onClick={() => cancelGeneration("video")} variant="outline" className="h-9 px-3 border-red-500/30 text-red-400 hover:bg-red-500/10 hover:text-red-300 text-sm">
@@ -2027,9 +2027,9 @@ const AICoPilot = ({ onNavigate, subTab, onSubTabChange }: { onNavigate?: (tab: 
           )}
           <Button onClick={generateElevenLabsAudio}
             disabled={isGeneratingElevenAudio || ((elevenAction === "tts" || elevenAction === "sfx") && !audioText.trim()) || ((elevenAction === "sts" || elevenAction === "voice_isolation" || elevenAction === "voice_dubbing") && !stsAudioFile)}
-            className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white text-sm h-9">
+            className="w-full text-white text-sm h-9" style={{ background: "linear-gradient(135deg, hsl(217 91% 55%), hsl(262 83% 58%))" }}>
             {isGeneratingElevenAudio ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Sparkles className="h-4 w-4 mr-2" />}
-            Generate with Uplyze Audio
+            Generate Audio
           </Button>
           {isGeneratingElevenAudio && (
             <Button onClick={() => cancelGeneration("audio")} variant="outline" className="w-full mt-2 h-9 px-3 border-red-500/30 text-red-400 hover:bg-red-500/10 hover:text-red-300 text-sm">
@@ -2097,8 +2097,8 @@ const AICoPilot = ({ onNavigate, subTab, onSubTabChange }: { onNavigate?: (tab: 
         </div>
 
         <div className="mt-auto">
-          <Button onClick={generateMotion} disabled={!motionRefVideo || !(motionTargetVideo || motionTargetImage) || isGeneratingMotion} className="w-full bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 text-white text-sm h-9">
-            {isGeneratingMotion ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Move className="h-4 w-4 mr-2" />}Generate Motion Transfer
+          <Button onClick={generateMotion} disabled={!motionRefVideo || !(motionTargetVideo || motionTargetImage) || isGeneratingMotion} className="w-full text-white text-sm h-9" style={{ background: "linear-gradient(135deg, hsl(217 91% 55%), hsl(262 83% 58%))" }}>
+            {isGeneratingMotion ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Move className="h-4 w-4 mr-2" />}Generate Motion
           </Button>
           {isGeneratingMotion && (
             <Button onClick={() => cancelGeneration("motion")} variant="outline" className="w-full mt-2 h-9 px-3 border-red-500/30 text-red-400 hover:bg-red-500/10 hover:text-red-300 text-sm">
@@ -2210,7 +2210,7 @@ const AICoPilot = ({ onNavigate, subTab, onSubTabChange }: { onNavigate?: (tab: 
         </div>
 
         <div className="mt-auto">
-          <Button onClick={generateLipsync} disabled={!lipsyncVideo || isGeneratingLipsync || (lipsyncAudioSource === "voicenote" && !lipsyncAudio) || (lipsyncAudioSource === "voice" && (!lipsyncTtsVoice || !lipsyncPrompt.trim()))} className="w-full bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white text-sm h-9">
+          <Button onClick={generateLipsync} disabled={!lipsyncVideo || isGeneratingLipsync || (lipsyncAudioSource === "voicenote" && !lipsyncAudio) || (lipsyncAudioSource === "voice" && (!lipsyncTtsVoice || !lipsyncPrompt.trim()))} className="w-full text-white text-sm h-9" style={{ background: "linear-gradient(135deg, hsl(217 91% 55%), hsl(262 83% 58%))" }}>
             {isGeneratingLipsync ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Mic className="h-4 w-4 mr-2" />}Generate Lipsync
           </Button>
           {isGeneratingLipsync && (
@@ -2282,7 +2282,7 @@ const AICoPilot = ({ onNavigate, subTab, onSubTabChange }: { onNavigate?: (tab: 
         </div>
 
         <div className="mt-auto">
-          <Button onClick={generateFaceswap} disabled={!faceswapSource || !faceswapTarget || isGeneratingFaceswap} className="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white text-sm h-9">
+          <Button onClick={generateFaceswap} disabled={!faceswapSource || !faceswapTarget || isGeneratingFaceswap} className="w-full text-white text-sm h-9" style={{ background: "linear-gradient(135deg, hsl(217 91% 55%), hsl(262 83% 58%))" }}>
             {isGeneratingFaceswap ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <ArrowRightLeft className="h-4 w-4 mr-2" />}Generate Face Swap
           </Button>
           {isGeneratingFaceswap && (
