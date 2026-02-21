@@ -94,6 +94,78 @@ export type Database = {
         }
         Relationships: []
       }
+      ad_campaigns: {
+        Row: {
+          bid_strategy: string | null
+          clicks: number | null
+          created_at: string
+          ctr: number | null
+          daily_budget: number | null
+          end_date: string | null
+          external_id: string | null
+          id: string
+          impressions: number | null
+          lifetime_budget: number | null
+          metadata: Json | null
+          name: string
+          objective: string | null
+          platform: string
+          spend: number | null
+          start_date: string | null
+          status: string
+          synced_at: string | null
+          target_audience: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          bid_strategy?: string | null
+          clicks?: number | null
+          created_at?: string
+          ctr?: number | null
+          daily_budget?: number | null
+          end_date?: string | null
+          external_id?: string | null
+          id?: string
+          impressions?: number | null
+          lifetime_budget?: number | null
+          metadata?: Json | null
+          name: string
+          objective?: string | null
+          platform: string
+          spend?: number | null
+          start_date?: string | null
+          status?: string
+          synced_at?: string | null
+          target_audience?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          bid_strategy?: string | null
+          clicks?: number | null
+          created_at?: string
+          ctr?: number | null
+          daily_budget?: number | null
+          end_date?: string | null
+          external_id?: string | null
+          id?: string
+          impressions?: number | null
+          lifetime_budget?: number | null
+          metadata?: Json | null
+          name?: string
+          objective?: string | null
+          platform?: string
+          spend?: number | null
+          start_date?: string | null
+          status?: string
+          synced_at?: string | null
+          target_audience?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       admin_login_attempts: {
         Row: {
           created_at: string
