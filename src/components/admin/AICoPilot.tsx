@@ -532,7 +532,7 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
   const cancelGeneration = async (mode: CopilotMode) => {
     cancelGenRef.current = mode;
     const taskInfo = activeTaskIds.current[mode];
-    // Server-side cancel
+    // Server-side cancel + database cleanup
     if (taskInfo) {
       const endpoint = taskInfo.endpoint === "video-generate" ? "video-generate" : "media-process";
       try {
@@ -541,8 +541,14 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
           headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
         });
       } catch (e) { console.error("Cancel request failed (non-fatal):", e); }
-      await removeActiveTask(taskInfo.taskId).catch(() => {});
+      // Delete the active task from database so it won't resume on refresh
+      try { await supabase.from("active_generation_tasks" as any).delete().eq("task_id", taskInfo.taskId); } catch {}
       delete activeTaskIds.current[mode];
+    }
+    // Also delete any active tasks for this generation type for this user (belt-and-suspenders)
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      try { await supabase.from("active_generation_tasks" as any).delete().eq("user_id", user.id).eq("generation_type", mode); } catch {}
     }
     // Reset frontend state
     if (mode === "image") { setIsGeneratingImage(false); setImageProgress(0); setImageProgressLabel(""); }
@@ -552,8 +558,8 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
     else if (mode === "lipsync") { setIsGeneratingLipsync(false); setLipsyncProgress(0); setLipsyncProgressLabel(""); }
     else if (mode === "faceswap") { setIsGeneratingFaceswap(false); setFaceswapProgress(0); setFaceswapProgressLabel(""); }
     toast.info("Generation cancelled");
-    // Reset after a tick so polling loops can read it
-    setTimeout(() => { if (cancelGenRef.current === mode) cancelGenRef.current = null; }, 500);
+    // Keep cancel flag long enough for polling loops (5s intervals) to detect it
+    setTimeout(() => { if (cancelGenRef.current === mode) cancelGenRef.current = null; }, 15000);
   };
 
   const resumeActiveTasks = useCallback(async () => {
@@ -582,8 +588,18 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
     let failed = false;
 
     while (pollCount < maxPolls) {
+      // Check if cancelled before waiting
+      if (cancelGenRef.current === genType) {
+        try { await supabase.from("active_generation_tasks" as any).delete().eq("task_id", taskId); } catch {}
+        return;
+      }
       await new Promise(r => setTimeout(r, 5000));
       pollCount++;
+      // Check again after waiting
+      if (cancelGenRef.current === genType) {
+        try { await supabase.from("active_generation_tasks" as any).delete().eq("task_id", taskId); } catch {}
+        return;
+      }
       const progress = Math.min(30 + (pollCount / maxPolls) * 60, 90);
       if (genType === "video") { setVideoProgress(progress); setVideoProgressLabel("Rendering video..."); }
       else if (genType === "motion") { setMotionProgress(progress); setMotionProgressLabel("Processing motion..."); }
@@ -595,7 +611,7 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
         if (!pollResp.ok) continue;
         const pollData = await pollResp.json();
         if (pollData.status === "SUCCESS" && pollData.video_url) { resultUrl = pollData.video_url; break; }
-        if (pollData.status === "FAILED") { failed = true; break; }
+        if (pollData.status === "FAILED" || pollData.status === "CANCELLED") { failed = true; break; }
       } catch { /* continue polling */ }
     }
 
