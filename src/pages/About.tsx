@@ -41,13 +41,13 @@ const About = () => {
   return (
     <div className="min-h-screen bg-[hsl(222,35%,8%)]">
       <PageSEO
-        title="About Uplyze | AI CRM for Creators & Agencies | uplyze.ai"
-        description="Learn about Uplyze, the AI-powered CRM built for creators and agencies. Trusted by 700+ professionals to automate growth and 10x revenue at uplyze.ai."
+        title="About Uplyze | AI Platform for Creators & Agencies | uplyze.ai"
+        description="Learn about Uplyze, the AI-powered Platform built for creators and agencies. Trusted by 700+ professionals to automate growth and 10x revenue at uplyze.ai."
         jsonLd={{
           "@context": "https://schema.org",
           "@type": "AboutPage",
           "name": "About Uplyze",
-          "description": "Uplyze is the #1 AI CRM for creators and agencies, helping 700+ professionals automate growth and scale revenue.",
+          "description": "Uplyze is the #1 AI Platform for creators and agencies, helping 700+ professionals automate growth and scale revenue.",
           "url": "https://uplyze.ai/about",
           "isPartOf": { "@type": "WebSite", "name": "Uplyze", "url": "https://uplyze.ai" }
         }}
@@ -63,7 +63,7 @@ const About = () => {
             About Uplyze
           </div>
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white tracking-tight leading-[1.15] mb-6">
-            The AI CRM Built for
+            The AI Platform Built for
             <span className="block bg-gradient-to-r from-primary to-blue-400 bg-clip-text text-transparent pb-2">Creators & Agencies</span>
           </h1>
           <p className="text-[hsl(215,25%,70%)] text-lg sm:text-xl max-w-2xl mx-auto leading-relaxed mb-10">

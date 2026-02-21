@@ -330,7 +330,7 @@ const CRM = () => {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/15 group-focus-within:text-white/30 transition-colors" />
               <input
                 type="text"
-                placeholder="Search your CRM..."
+                placeholder="Search your platform..."
                 className="h-8 w-[200px] focus:w-[280px] rounded-lg text-xs text-white placeholder:text-white/15 pl-9 pr-3 transition-all duration-300 outline-none"
                 style={{
                   background: "hsl(222 47% 10% / 0.5)",

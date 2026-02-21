@@ -1,11 +1,10 @@
-// ─── Credit costs for CRM actions ───────────────────────────────────
+// ─── Credit costs for Platform actions ──────────────────────────────
 // Based on plan tiers: Starter 215cr, Pro 1,075cr, Business 4,300cr
 // Costs are set so a Pro user can perform ~100-200 actions/month comfortably
 //
 // Special rules:
 // - connect_social_account: requires 10 credits minimum but costs 0
 // - ai_auto_responder_hourly: charged per hour while active
-// - All navigation requires ≥1 credit (enforced in CRM page)
 // ─────────────────────────────────────────────────────────────────────
 
 export const CRM_ACTION_COSTS: Record<string, number> = {

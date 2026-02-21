@@ -305,7 +305,7 @@ const BillingPaymentsTab = () => {
             </div>
             <h3 className="text-white/70 font-medium text-sm mb-1">No Active Subscription</h3>
             <p className="text-white/40 text-xs mb-4 max-w-sm mx-auto">
-              You're currently on the free tier. Upgrade to a paid plan to unlock premium features, extra credits, and advanced CRM tools.
+              You're currently on the free tier. Upgrade to a paid plan to unlock premium features, extra credits, and advanced platform tools.
             </p>
             <Button
               onClick={() => {

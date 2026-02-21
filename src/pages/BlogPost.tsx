@@ -4,24 +4,24 @@ import Footer from "@/components/Footer";
 
 const articles: Record<string, { title: string; date: string; readTime: string; author: string; category: string; content: string }> = {
   "what-is-uplyze": {
-    title: "What is Uplyze? The AI CRM for Creators",
+    title: "What is Uplyze? The AI Platform for Creators",
     date: "February 18, 2026",
     readTime: "6 min read",
     author: "Uplyze Team",
     category: "Product",
     content: `
-## The Creator Economy Needs a New Kind of CRM
+## The Creator Economy Needs a New Kind of Platform
 
-Traditional CRMs were built for B2B sales teams chasing enterprise deals. They weren't designed for creators managing thousands of fans, running DM campaigns, and optimizing content across multiple platforms.
+Traditional platforms were built for B2B sales teams chasing enterprise deals. They weren't designed for creators managing thousands of fans, running DM campaigns, and optimizing content across multiple platforms.
 
 **Uplyze changes that.**
 
-Uplyze is an AI-powered CRM built specifically for creators, influencers, and the agencies that manage them. It combines intelligent automation, fan psychology insights, and revenue optimization into one unified platform.
+Uplyze is an AI-powered platform built specifically for creators, influencers, and the agencies that manage them. It combines intelligent automation, fan psychology insights, and revenue optimization into one unified platform.
 
 ## What Makes Uplyze Different?
 
 ### 1. AI-Powered Fan Management
-Unlike traditional CRMs that track "leads," Uplyze understands your fans. Our AI analyzes conversation patterns, spending behavior, and emotional engagement to help you build deeper connections that convert.
+Unlike traditional platforms that track "leads," Uplyze understands your fans. Our AI analyzes conversation patterns, spending behavior, and emotional engagement to help you build deeper connections that convert.
 
 ### 2. Automated DM Campaigns
 Stop manually responding to hundreds of DMs. Uplyze's AI learns your voice and tone, then handles conversations at scale while maintaining authenticity. The AI adapts its approach based on each fan's behavior type.
@@ -54,7 +54,7 @@ The future of creator management is here. It's intelligent. It's automated. It's
     content: `
 ## HubSpot Is Great — Just Not for Creators
 
-HubSpot is one of the best CRMs on the market. But it was built for SaaS companies, real estate firms, and enterprise sales teams. If you're a creator or agency managing talent, HubSpot will feel like trying to fit a square peg into a round hole.
+HubSpot is one of the best platforms on the market. But it was built for SaaS companies, real estate firms, and enterprise sales teams. If you're a creator or agency managing talent, HubSpot will feel like trying to fit a square peg into a round hole.
 
 Here's a detailed comparison of why creators and agencies are choosing Uplyze over HubSpot.
 

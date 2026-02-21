@@ -326,7 +326,7 @@ const CheckoutModal = ({ checkoutUrl, onClose }: CheckoutModalProps) => {
                   <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 group-hover:bg-amber-500/15 transition-colors">
                     <LayoutDashboard className="h-5 w-5 text-amber-400" />
                   </div>
-                  <span className="text-xs text-white/50 font-medium group-hover:text-white/70 transition-colors">Enter CRM</span>
+                  <span className="text-xs text-white/50 font-medium group-hover:text-white/70 transition-colors">Enter Platform</span>
                 </button>
                 <button
                   onClick={handleBuyMore}

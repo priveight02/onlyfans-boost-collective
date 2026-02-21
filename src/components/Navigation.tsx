@@ -54,7 +54,19 @@ const Navigation = () => {
 
   return (
     <div className="w-full fixed top-0 z-50">
-      <nav className="transition-all duration-300 bg-white/5 backdrop-blur-xl border-b border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.12)]">
+      <nav
+        className="transition-all duration-500"
+        style={{
+          background: isScrolled
+            ? "linear-gradient(180deg, hsl(222 47% 5% / 0.92) 0%, hsl(222 47% 4% / 0.88) 100%)"
+            : "linear-gradient(180deg, hsl(222 47% 6% / 0.8) 0%, hsl(222 47% 4% / 0.6) 100%)",
+          backdropFilter: "blur(32px) saturate(1.6)",
+          borderBottom: "1px solid hsl(217 91% 60% / 0.06)",
+          boxShadow: isScrolled
+            ? "0 8px 40px hsl(222 47% 4% / 0.5), 0 1px 0 hsl(217 91% 60% / 0.04) inset"
+            : "0 4px 24px hsl(222 47% 4% / 0.3)",
+        }}
+      >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 pl-4 lg:pl-8">
             <div className="flex-shrink-0 w-[180px]">
@@ -64,33 +76,67 @@ const Navigation = () => {
             </div>
 
             {/* Desktop menu */}
-            <div className="hidden md:flex items-center gap-2">
-              <div className="flex items-center bg-white/5 backdrop-blur-sm border border-white/10 p-1 rounded-xl">
-                {finalMenuItems.map((item) => (
-                  <Link
-                    key={item.name}
-                    to={item.href}
-                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors duration-200 flex items-center gap-2 ${
-                      location.pathname === item.href
-                        ? 'bg-white/15 text-white font-semibold'
-                        : 'text-white/80 hover:text-white hover:bg-white/5'
-                    }`}
-                  >
-                    {item.icon && <item.icon className="h-4 w-4" />}
-                    {item.name}
-                  </Link>
-                ))}
+            <div className="hidden md:flex items-center gap-3">
+              <div
+                className="flex items-center p-1 rounded-2xl gap-0.5"
+                style={{
+                  background: "hsl(222 47% 10% / 0.5)",
+                  border: "1px solid hsl(217 91% 60% / 0.08)",
+                  boxShadow: "0 2px 12px hsl(222 47% 4% / 0.3), 0 1px 0 hsl(217 91% 60% / 0.03) inset",
+                }}
+              >
+                {finalMenuItems.map((item) => {
+                  const isActive = location.pathname === item.href;
+                  return (
+                    <Link
+                      key={item.name}
+                      to={item.href}
+                      className="relative px-3.5 py-2 rounded-xl text-[13px] font-medium transition-all duration-300 flex items-center gap-2 group"
+                      style={{
+                        color: isActive ? "white" : "hsl(215 25% 70%)",
+                        background: isActive
+                          ? "linear-gradient(135deg, hsl(217 91% 55% / 0.2), hsl(262 83% 58% / 0.12))"
+                          : "transparent",
+                        boxShadow: isActive
+                          ? "0 0 12px hsl(217 91% 60% / 0.15), 0 1px 0 hsl(217 91% 60% / 0.1) inset"
+                          : "none",
+                      }}
+                    >
+                      {/* Active glow dot */}
+                      {isActive && (
+                        <div
+                          className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-5 h-[2px] rounded-full"
+                          style={{ background: "linear-gradient(90deg, transparent, hsl(217 91% 60%), transparent)" }}
+                        />
+                      )}
+                      {item.icon && (
+                        <item.icon
+                          className="h-3.5 w-3.5 transition-colors duration-300"
+                          style={{
+                            color: isActive ? "hsl(217 91% 65%)" : undefined,
+                          }}
+                        />
+                      )}
+                      <span className="group-hover:text-white transition-colors duration-200">{item.name}</span>
+                    </Link>
+                  );
+                })}
               </div>
 
               {/* Auth buttons */}
-              <div className="flex items-center gap-1 ml-2">
+              <div className="flex items-center gap-1.5 ml-1">
                 <CreditsDisplay />
                 {user ? (
                   <>
                     <Link to="/profile">
                       <button
-                        className="w-9 h-9 rounded-full bg-white/20 border border-white/30 flex items-center justify-center text-white text-sm font-bold hover:bg-white/30 transition-colors"
+                        className="w-9 h-9 rounded-xl flex items-center justify-center text-white text-sm font-bold transition-all duration-300 hover:scale-105"
                         title={`@${profile?.username || 'profile'}`}
+                        style={{
+                          background: "linear-gradient(135deg, hsl(217 91% 55% / 0.3), hsl(262 83% 58% / 0.2))",
+                          border: "1px solid hsl(217 91% 60% / 0.15)",
+                          boxShadow: "0 0 12px hsl(217 91% 60% / 0.1)",
+                        }}
                       >
                         {userInitial}
                       </button>
@@ -98,19 +144,24 @@ const Navigation = () => {
                     <Button
                       variant="ghost"
                       onClick={handleLogout}
-                      className="transition-colors duration-200 hover:bg-white/10 text-white/60 hover:text-white rounded-lg"
+                      className="transition-all duration-200 hover:bg-white/[0.06] text-white/40 hover:text-white/80 rounded-xl h-9 w-9 p-0"
                       title="Log out"
                     >
-                      <LogOut className="h-5 w-5" />
+                      <LogOut className="h-4 w-4" />
                     </Button>
                   </>
                 ) : (
                   <Link to="/auth">
                     <Button
                       variant="ghost"
-                      className="transition-colors duration-200 hover:bg-white/10 text-white/80 hover:text-white rounded-lg gap-2"
+                      className="rounded-xl gap-2 text-[13px] font-medium transition-all duration-300 h-9 px-4"
+                      style={{
+                        color: "hsl(215 25% 80%)",
+                        background: "hsl(217 91% 55% / 0.08)",
+                        border: "1px solid hsl(217 91% 60% / 0.1)",
+                      }}
                     >
-                      <LogIn className="h-4 w-4" />
+                      <LogIn className="h-3.5 w-3.5" />
                       Login
                     </Button>
                   </Link>
@@ -122,48 +173,71 @@ const Navigation = () => {
             <div className="md:hidden flex items-center gap-2">
               {user && (
                 <Link to="/profile">
-                  <button className="w-8 h-8 rounded-full bg-white/20 border border-white/30 flex items-center justify-center text-white text-xs font-bold">
+                  <button
+                    className="w-8 h-8 rounded-xl flex items-center justify-center text-white text-xs font-bold"
+                    style={{
+                      background: "linear-gradient(135deg, hsl(217 91% 55% / 0.3), hsl(262 83% 58% / 0.2))",
+                      border: "1px solid hsl(217 91% 60% / 0.15)",
+                    }}
+                  >
                     {userInitial}
                   </button>
                 </Link>
               )}
-              <button onClick={() => setIsOpen(!isOpen)} className="text-white hover:text-white/80">
-                {isOpen ? <X size={24} /> : <Menu size={24} />}
+              <button onClick={() => setIsOpen(!isOpen)} className="text-white/70 hover:text-white transition-colors">
+                {isOpen ? <X size={22} /> : <Menu size={22} />}
               </button>
             </div>
           </div>
 
           {/* Mobile menu */}
           {isOpen && (
-            <div className="md:hidden bg-white/10 backdrop-blur-xl rounded-b-xl border-t border-white/10">
-              <div className="pt-2 pb-3 space-y-1">
-                {finalMenuItems.map((item) => (
-                  <Link
-                    key={item.name}
-                    to={item.href}
-                    onClick={() => setIsOpen(false)}
-                    className={`block w-full text-left px-3 py-2 ${
-                      location.pathname === item.href ? "text-white font-medium" : "text-white/90 hover:text-white"
-                    } flex items-center gap-2`}
-                  >
-                    {item.icon && <item.icon className="h-4 w-4" />}
-                    {item.name}
-                  </Link>
-                ))}
+            <div
+              className="md:hidden rounded-b-2xl"
+              style={{
+                background: "linear-gradient(180deg, hsl(222 47% 8% / 0.95) 0%, hsl(222 47% 6% / 0.98) 100%)",
+                borderTop: "1px solid hsl(217 91% 60% / 0.06)",
+                backdropFilter: "blur(24px)",
+              }}
+            >
+              <div className="pt-2 pb-3 space-y-0.5 px-2">
+                {finalMenuItems.map((item) => {
+                  const isActive = location.pathname === item.href;
+                  return (
+                    <Link
+                      key={item.name}
+                      to={item.href}
+                      onClick={() => setIsOpen(false)}
+                      className="block w-full text-left px-4 py-2.5 rounded-xl text-[13px] font-medium transition-all duration-200 flex items-center gap-3"
+                      style={{
+                        color: isActive ? "white" : "hsl(215 25% 70%)",
+                        background: isActive ? "hsl(217 91% 55% / 0.1)" : "transparent",
+                      }}
+                    >
+                      {item.icon && (
+                        <item.icon
+                          className="h-4 w-4"
+                          style={{ color: isActive ? "hsl(217 91% 65%)" : "hsl(215 25% 50%)" }}
+                        />
+                      )}
+                      {item.name}
+                    </Link>
+                  );
+                })}
                 {user ? (
                   <>
-                    <Link to="/profile" onClick={() => setIsOpen(false)} className="block w-full text-left px-3 py-2 text-white/90 hover:text-white flex items-center gap-2">
-                      <User className="h-4 w-4" /> My Profile (@{profile?.username || "..."})
+                    <Link to="/profile" onClick={() => setIsOpen(false)} className="block w-full text-left px-4 py-2.5 rounded-xl text-[13px] font-medium flex items-center gap-3" style={{ color: "hsl(215 25% 70%)" }}>
+                      <User className="h-4 w-4" style={{ color: "hsl(215 25% 50%)" }} /> My Profile (@{profile?.username || "..."})
                     </Link>
                     <Button variant="ghost" onClick={() => { handleLogout(); setIsOpen(false); }}
-                      className="w-full justify-start text-white/90 hover:text-white hover:bg-transparent">
-                      <LogOut className="mr-2 h-4 w-4" /> Logout
+                      className="w-full justify-start text-[13px] font-medium rounded-xl px-4" style={{ color: "hsl(215 25% 70%)" }}>
+                      <LogOut className="mr-3 h-4 w-4" style={{ color: "hsl(215 25% 50%)" }} /> Logout
                     </Button>
                   </>
                 ) : (
                   <Link to="/auth" className="block" onClick={() => setIsOpen(false)}>
-                    <Button variant="ghost" className="w-full justify-start text-white/90 hover:text-white hover:bg-transparent">
-                      <LogIn className="mr-2 h-4 w-4" /> Login
+                    <Button variant="ghost" className="w-full justify-start text-[13px] font-medium rounded-xl px-4" style={{ color: "hsl(215 25% 70%)" }}>
+                      <LogIn className="mr-3 h-4 w-4" style={{ color: "hsl(215 25% 50%)" }} /> Login
                     </Button>
                   </Link>
                 )}

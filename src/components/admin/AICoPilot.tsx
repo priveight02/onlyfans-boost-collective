@@ -541,7 +541,7 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
         setMessages([...baseMessages, { role: "assistant", content: "⚡ Processing..." }]); scrollToBottom();
         const data = await resp.json();
         if (data.type === "action") {
-          // CRM action executed by AI
+          // Platform action executed by AI
           const actionSummary = (data.actions || []).map((a: any) => `${a.success ? "✅" : "❌"} **${a.tool}**: ${typeof a.result === 'string' ? a.result : JSON.stringify(a.result)}`).join("\n");
           const content = data.content || actionSummary || "Actions executed.";
           const am: Msg = { role: "assistant", content };

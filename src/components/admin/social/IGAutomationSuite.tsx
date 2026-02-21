@@ -51,7 +51,7 @@ const SECTIONS = [
   { id: "business", icon: Briefcase, label: "Business Manager", desc: "Business accounts, pages & multi-asset management", color: "text-indigo-400", category: "Platform" },
 ];
 
-const CATEGORIES = ["AI CRM", "Growth", "Ads", "Commerce", "Platform"];
+const CATEGORIES = ["AI Platform", "Growth", "Ads", "Commerce", "Platform"];
 
 const IGAutomationSuite = ({ selectedAccount }: Props) => {
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(["leads"]));
