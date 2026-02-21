@@ -52,6 +52,48 @@ export type Database = {
           },
         ]
       }
+      active_generation_tasks: {
+        Row: {
+          created_at: string
+          generation_type: string
+          id: string
+          metadata: Json | null
+          prompt: string | null
+          provider: string
+          result_url: string | null
+          status: string
+          task_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          generation_type: string
+          id?: string
+          metadata?: Json | null
+          prompt?: string | null
+          provider: string
+          result_url?: string | null
+          status?: string
+          task_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          generation_type?: string
+          id?: string
+          metadata?: Json | null
+          prompt?: string | null
+          provider?: string
+          result_url?: string | null
+          status?: string
+          task_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       admin_login_attempts: {
         Row: {
           created_at: string

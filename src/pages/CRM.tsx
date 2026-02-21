@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useWallet } from "@/hooks/useWallet";
 import CRMAccountsTab from "@/components/admin/CRMAccountsTab";
@@ -26,6 +26,7 @@ import AdminAPI from "@/components/admin/AdminAPI";
 import EnhancedDashboard from "@/components/admin/EnhancedDashboard";
 import AdCreativeEngine from "@/components/admin/AdCreativeEngine";
 import CRMHelpWidget from "@/components/crm/CRMHelpWidget";
+import CreditsDisplay from "@/components/CreditsDisplay";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -39,7 +40,7 @@ import {
   FileText, MessageSquare, CheckSquare, MessageCircle, Award,
   TrendingUp, Activity, Zap, Download, Brain, Calendar, Heart,
   Bot, Globe, Code2, Settings, ChevronLeft, ChevronRight,
-  Bell, HelpCircle, Sparkles, Megaphone,
+  Bell, HelpCircle, Sparkles, Megaphone, LogOut,
 } from "lucide-react";
 
 const navSections = [
@@ -122,7 +123,7 @@ const TAB_SLUGS: Record<string, string> = {
 const SLUG_TO_TAB: Record<string, string> = Object.fromEntries(Object.entries(TAB_SLUGS).map(([k, v]) => [v, k]));
 
 const CRM = () => {
-  const { user, loading } = useAuth();
+  const { user, profile, loading, logout } = useAuth();
   const { balance, loading: walletLoading } = useWallet();
   const { insufficientModal, closeInsufficientModal } = useCreditAction();
   const navigate = useNavigate();
@@ -144,6 +145,15 @@ const CRM = () => {
     const slug = TAB_SLUGS[newTab] || newTab;
     navigate(`/platform/${slug}`, { replace: true });
   };
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate("/");
+    } catch {}
+  };
+
+  const userInitial = profile?.display_name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || "U";
 
   if (loading || walletLoading) {
     return (
@@ -349,8 +359,24 @@ const CRM = () => {
             <button className="w-8 h-8 rounded-lg flex items-center justify-center text-white/20 hover:text-white/50 hover:bg-white/[0.04] transition-all">
               <HelpCircle className="h-4 w-4" />
             </button>
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold text-white" style={{ background: "linear-gradient(135deg, hsl(217 91% 55%), hsl(262 83% 58%))" }}>
-              {user?.email?.[0]?.toUpperCase() || "U"}
+            <div className="border-l border-white/[0.06] pl-2 ml-1 flex items-center gap-1.5">
+              <CreditsDisplay />
+              <Link to="/profile">
+                <button
+                  className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold text-white transition-all hover:scale-105"
+                  title={`@${profile?.username || 'profile'}`}
+                  style={{ background: "linear-gradient(135deg, hsl(217 91% 55%), hsl(262 83% 58%))" }}
+                >
+                  {userInitial}
+                </button>
+              </Link>
+              <button
+                onClick={handleLogout}
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-white/20 hover:text-white/50 hover:bg-white/[0.04] transition-all"
+                title="Log out"
+              >
+                <LogOut className="h-3.5 w-3.5" />
+              </button>
             </div>
           </div>
         </header>

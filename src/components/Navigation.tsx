@@ -56,7 +56,7 @@ const Navigation = () => {
   return (
     <div className={`w-full fixed top-0 z-50 flex justify-center ${isPlatform ? 'pt-1.5 px-2' : 'pt-4 px-4'}`}>
       <nav
-        className={`transition-all duration-500 w-full ${isPlatform ? 'max-w-3xl rounded-xl' : 'max-w-4xl rounded-2xl'}`}
+        className={`transition-all duration-500 w-full ${isPlatform ? 'max-w-[320px] rounded-xl' : 'max-w-4xl rounded-2xl'}`}
         style={{
           background: isScrolled
             ? "hsl(222 47% 10% / 0.75)"
@@ -68,7 +68,7 @@ const Navigation = () => {
             : "0 4px 20px hsl(222 47% 4% / 0.25), 0 0 0 1px hsl(215 25% 50% / 0.04) inset",
         }}
       >
-        <div className={isPlatform ? "px-3" : "px-4 sm:px-5"}>
+        <div className={isPlatform ? "px-2" : "px-4 sm:px-5"}>
           <div className={`flex items-center justify-between ${isPlatform ? 'h-10' : 'h-14'}`}>
             <div className="flex-shrink-0">
               <Link to="/" className="flex items-center group transition-all duration-300 hover:scale-105">
@@ -102,49 +102,51 @@ const Navigation = () => {
                 );
               })}
 
-              {/* Auth buttons */}
-              <div className="flex items-center gap-1.5 ml-2 pl-2 border-l border-white/10">
-                <CreditsDisplay />
-                {user ? (
-                  <>
-                    <Link to="/profile">
-                      <button
-                        className="w-8 h-8 rounded-xl flex items-center justify-center text-white text-sm font-bold transition-all duration-300 hover:scale-105"
-                        title={`@${profile?.username || 'profile'}`}
+              {/* Auth buttons - hidden on platform */}
+              {!isPlatform && (
+                <div className="flex items-center gap-1.5 ml-2 pl-2 border-l border-white/10">
+                  <CreditsDisplay />
+                  {user ? (
+                    <>
+                      <Link to="/profile">
+                        <button
+                          className="w-8 h-8 rounded-xl flex items-center justify-center text-white text-sm font-bold transition-all duration-300 hover:scale-105"
+                          title={`@${profile?.username || 'profile'}`}
+                          style={{
+                            background: "linear-gradient(135deg, hsl(217 91% 55% / 0.3), hsl(262 83% 58% / 0.2))",
+                            border: "1px solid hsl(217 91% 60% / 0.15)",
+                          }}
+                        >
+                          {userInitial}
+                        </button>
+                      </Link>
+                      <Button
+                        variant="ghost"
+                        onClick={handleLogout}
+                        className="transition-all duration-200 hover:bg-white/[0.06] text-white/40 hover:text-white/80 rounded-xl h-8 w-8 p-0"
+                        title="Log out"
+                      >
+                        <LogOut className="h-3.5 w-3.5" />
+                      </Button>
+                    </>
+                  ) : (
+                    <Link to="/auth">
+                      <Button
+                        variant="ghost"
+                        className="rounded-xl gap-2 text-[13px] font-medium transition-all duration-300 h-8 px-3.5"
                         style={{
-                          background: "linear-gradient(135deg, hsl(217 91% 55% / 0.3), hsl(262 83% 58% / 0.2))",
-                          border: "1px solid hsl(217 91% 60% / 0.15)",
+                          color: "hsl(215 25% 80%)",
+                          background: "hsl(217 91% 55% / 0.08)",
+                          border: "1px solid hsl(217 91% 60% / 0.1)",
                         }}
                       >
-                        {userInitial}
-                      </button>
+                        <LogIn className="h-3.5 w-3.5" />
+                        Login
+                      </Button>
                     </Link>
-                    <Button
-                      variant="ghost"
-                      onClick={handleLogout}
-                      className="transition-all duration-200 hover:bg-white/[0.06] text-white/40 hover:text-white/80 rounded-xl h-8 w-8 p-0"
-                      title="Log out"
-                    >
-                      <LogOut className="h-3.5 w-3.5" />
-                    </Button>
-                  </>
-                ) : (
-                  <Link to="/auth">
-                    <Button
-                      variant="ghost"
-                      className="rounded-xl gap-2 text-[13px] font-medium transition-all duration-300 h-8 px-3.5"
-                      style={{
-                        color: "hsl(215 25% 80%)",
-                        background: "hsl(217 91% 55% / 0.08)",
-                        border: "1px solid hsl(217 91% 60% / 0.1)",
-                      }}
-                    >
-                      <LogIn className="h-3.5 w-3.5" />
-                      Login
-                    </Button>
-                  </Link>
-                )}
-              </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Mobile menu button */}
