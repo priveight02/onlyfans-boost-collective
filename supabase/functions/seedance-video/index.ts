@@ -27,7 +27,7 @@ serve(async (req) => {
       const requestBody: any = {
         prompt,
         duration: String(duration || "8"),
-        aspect_ratio: aspect_ratio || "16:9",
+        aspect_ratio: aspect_ratio || "9:16",
         resolution: resolution || "720p",
       };
 

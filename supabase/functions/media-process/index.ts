@@ -47,7 +47,7 @@ serve(async (req) => {
           model: "gen4_turbo",
           promptText: prompt || "Apply natural, realistic motion and movement to this character. Maintain the character's appearance exactly while adding fluid, lifelike animation.",
           promptImage: target_url,
-          ratio: "1920:1080",
+          ratio: "1080:1920",
           duration: 10,
         };
 
