@@ -12,6 +12,12 @@ serve(async (req) => {
   const action = url.searchParams.get("action");
   const processType = url.searchParams.get("type");
   const RUNWAY_API_KEY = Deno.env.get("RUNWAY_API_KEY");
+  const RUNWAY_BASE = "https://api.dev.runwayml.com/v1";
+  const RUNWAY_HEADERS = {
+    Authorization: `Bearer ${RUNWAY_API_KEY}`,
+    "Content-Type": "application/json",
+    "X-Runway-Version": "2024-11-06",
+  };
 
   if (!RUNWAY_API_KEY) {
     return new Response(JSON.stringify({ error: "RUNWAY_API_KEY not configured" }), {
@@ -28,23 +34,18 @@ serve(async (req) => {
         const runwayBody: any = {
           model: "gen4_turbo",
           promptText: prompt || "Apply the exact motion, body movement and choreography from the reference video to the target character. Maintain the character's appearance while copying all movements precisely.",
+          ratio: "1280:720",
           duration: 10,
         };
         if (target_type === "image") {
           runwayBody.promptImage = target_url;
         } else {
-          runwayBody.firstFrame_uri = target_url;
+          runwayBody.promptImage = target_url;
         }
-        // Use reference video for motion guidance
-        runwayBody.referenceImages = [reference_video_url];
 
-        const resp = await fetch("https://api.dev.runwayml.com/v1/tasks", {
+        const resp = await fetch(`${RUNWAY_BASE}/image_to_video`, {
           method: "POST",
-          headers: {
-            Authorization: `Bearer ${RUNWAY_API_KEY}`,
-            "Content-Type": "application/json",
-            "X-Runway-Version": "2024-11-06",
-          },
+          headers: RUNWAY_HEADERS,
           body: JSON.stringify(runwayBody),
         });
 
@@ -61,21 +62,18 @@ serve(async (req) => {
       }
 
       if (processType === "lipsync") {
-        const { video_url, audio_url, prompt } = body;
+        const { video_url, audio_url, prompt, duration } = body;
         const runwayBody: any = {
           model: "gen4_turbo",
           promptText: prompt || "Synchronize the character's lip movements and facial expressions to match the provided audio naturally and realistically. Keep all other body movements natural.",
-          firstFrame_uri: video_url,
-          duration: 10,
+          promptImage: video_url,
+          ratio: "1280:720",
+          duration: duration || 10,
         };
 
-        const resp = await fetch("https://api.dev.runwayml.com/v1/tasks", {
+        const resp = await fetch(`${RUNWAY_BASE}/image_to_video`, {
           method: "POST",
-          headers: {
-            Authorization: `Bearer ${RUNWAY_API_KEY}`,
-            "Content-Type": "application/json",
-            "X-Runway-Version": "2024-11-06",
-          },
+          headers: RUNWAY_HEADERS,
           body: JSON.stringify(runwayBody),
         });
 
@@ -97,22 +95,13 @@ serve(async (req) => {
           model: "gen4_turbo",
           promptText: "Replace the face in the target with the source face seamlessly. Maintain natural expressions, lighting, skin tone matching, and head movements. The result should be photorealistic and indistinguishable.",
           promptImage: source_face_url,
+          ratio: "1280:720",
           duration: 10,
         };
 
-        if (target_type === "video") {
-          runwayBody.firstFrame_uri = target_url;
-        } else {
-          runwayBody.referenceImages = [target_url];
-        }
-
-        const resp = await fetch("https://api.dev.runwayml.com/v1/tasks", {
+        const resp = await fetch(`${RUNWAY_BASE}/image_to_video`, {
           method: "POST",
-          headers: {
-            Authorization: `Bearer ${RUNWAY_API_KEY}`,
-            "Content-Type": "application/json",
-            "X-Runway-Version": "2024-11-06",
-          },
+          headers: RUNWAY_HEADERS,
           body: JSON.stringify(runwayBody),
         });
 
@@ -141,7 +130,7 @@ serve(async (req) => {
         });
       }
 
-      const resp = await fetch(`https://api.dev.runwayml.com/v1/tasks/${taskId}`, {
+      const resp = await fetch(`${RUNWAY_BASE}/tasks/${taskId}`, {
         headers: {
           Authorization: `Bearer ${RUNWAY_API_KEY}`,
           "X-Runway-Version": "2024-11-06",
