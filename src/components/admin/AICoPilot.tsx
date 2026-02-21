@@ -425,6 +425,9 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
       } else if (convos.data?.length) selectConvo(convos.data[0]);
     } else if (convos.data?.length) selectConvo(convos.data[0]);
     setDraftRestored(true);
+
+    // Resume any in-progress generation tasks
+    resumeActiveTasks();
   };
 
   const selectConvo = (convo: any) => { setActiveConvoId(convo.id); setMessages((convo.messages as unknown as Msg[]) || []); setContextAccount(convo.account_id || ""); setEditingIdx(null); };
@@ -497,6 +500,89 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
     const { data, error } = await supabase.from("copilot_generated_content").insert({ content_type: contentType, url, prompt, mode: modeTab, aspect_ratio: extra?.aspect_ratio || null, quality_mode: qualityMode, account_id: contextAccount || null, metadata: extra?.metadata || {} }).select().single();
     if (error) { console.error("Save content error:", error); return null; }
     return data as GeneratedContent;
+  };
+
+  // ---- Active generation task persistence ----
+  const saveActiveTask = async (taskId: string, provider: string, generationType: string, prompt: string, metadata?: any) => {
+    const { data: session } = await supabase.auth.getSession();
+    if (!session?.session?.user?.id) return;
+    await supabase.from("active_generation_tasks" as any).insert({
+      user_id: session.session.user.id,
+      task_id: taskId,
+      provider,
+      generation_type: generationType,
+      prompt: prompt || "",
+      metadata: metadata || {},
+    });
+  };
+
+  const removeActiveTask = async (taskId: string) => {
+    await supabase.from("active_generation_tasks" as any).delete().eq("task_id", taskId);
+  };
+
+  const resumeActiveTasks = useCallback(async () => {
+    const { data: tasks } = await supabase.from("active_generation_tasks" as any).select("*").eq("status", "processing");
+    if (!tasks?.length) return;
+    for (const task of tasks) {
+      resumeTaskPolling(task);
+    }
+  }, []);
+
+  const resumeTaskPolling = async (task: any) => {
+    const { task_id: taskId, provider, generation_type: genType, prompt, metadata } = task;
+    const pollUrl = genType === "video"
+      ? `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/video-generate?action=poll&provider=${provider}&task_id=${encodeURIComponent(taskId)}&task_type=${metadata?.task_type || "text2video"}`
+      : `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/media-process?action=poll&task_id=${encodeURIComponent(taskId)}&provider=${provider}`;
+
+    // Set generating state based on type
+    if (genType === "video") { setIsGeneratingVideo(true); setVideoProgress(30); setVideoProgressLabel("Resuming generation..."); }
+    else if (genType === "motion") { setIsGeneratingMotion(true); setMotionProgress(30); setMotionProgressLabel("Resuming..."); }
+    else if (genType === "lipsync") { setIsGeneratingLipsync(true); setLipsyncProgress(30); setLipsyncProgressLabel("Resuming..."); }
+    else if (genType === "faceswap") { setIsGeneratingFaceswap(true); setFaceswapProgress(30); setFaceswapProgressLabel("Resuming..."); }
+
+    let pollCount = 0;
+    const maxPolls = 60;
+    let resultUrl: string | null = null;
+
+    while (pollCount < maxPolls) {
+      await new Promise(r => setTimeout(r, 5000));
+      pollCount++;
+      const progress = Math.min(30 + (pollCount / maxPolls) * 60, 90);
+      if (genType === "video") { setVideoProgress(progress); setVideoProgressLabel("Rendering video..."); }
+      else if (genType === "motion") setMotionProgress(progress);
+      else if (genType === "lipsync") setLipsyncProgress(progress);
+      else if (genType === "faceswap") setFaceswapProgress(progress);
+
+      try {
+        const pollResp = await fetch(pollUrl, { headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` } });
+        if (!pollResp.ok) continue;
+        const pollData = await pollResp.json();
+        if (pollData.status === "SUCCESS" && pollData.video_url) { resultUrl = pollData.video_url; break; }
+        if (pollData.status === "FAILED") { await removeActiveTask(taskId); break; }
+      } catch { /* continue polling */ }
+    }
+
+    await removeActiveTask(taskId);
+
+    if (resultUrl) {
+      const contentType = (genType === "faceswap" && metadata?.category === "image") ? "image" : "video";
+      const saved = await saveGeneratedContent(contentType, resultUrl, prompt || genType, genType, { metadata: metadata || {} });
+      if (saved) {
+        if (genType === "video") setGeneratedVideos(prev => [saved, ...prev]);
+        else if (genType === "motion") setGeneratedMotions(prev => [saved, ...prev]);
+        else if (genType === "lipsync") setGeneratedLipsyncs(prev => [saved, ...prev]);
+        else if (genType === "faceswap") setGeneratedFaceswaps(prev => [saved, ...prev]);
+        toast.success(`${genType.charAt(0).toUpperCase() + genType.slice(1)} resumed & completed!`);
+      }
+    } else if (!resultUrl) {
+      toast.error(`Resumed ${genType} timed out or failed.`);
+    }
+
+    // Reset state
+    if (genType === "video") { setIsGeneratingVideo(false); setVideoProgress(0); setVideoProgressLabel(""); }
+    else if (genType === "motion") { setIsGeneratingMotion(false); setMotionProgress(0); setMotionProgressLabel(""); }
+    else if (genType === "lipsync") { setIsGeneratingLipsync(false); setLipsyncProgress(0); setLipsyncProgressLabel(""); }
+    else if (genType === "faceswap") { setIsGeneratingFaceswap(false); setFaceswapProgress(0); setFaceswapProgressLabel(""); }
   };
 
   const deleteGeneratedContent = async (id: string, modeTab: string) => {
@@ -894,6 +980,7 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
     setVideoProgress(0);
     setVideoProgressLabel(`Submitting to ${providerLabels[provider] || provider}...`);
 
+    let _activeTaskId: string | null = null;
     try {
       const createBody: any = {
         prompt,
@@ -936,12 +1023,16 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
       }
 
       const taskId = createData.task_id;
+      _activeTaskId = taskId;
       if (!taskId) throw new Error(`No task_id returned from ${providerLabels[provider]}`);
+
+      const taskType = createData.task_type || (frame ? "image2video" : "text2video");
+      await saveActiveTask(taskId, provider, "video", prompt, { duration: videoDuration, format: format.id, model: selectedVideoModel, task_type: taskType });
 
       setVideoProgress(10);
       setVideoProgressLabel("Task submitted — rendering video...");
 
-      const taskType = createData.task_type || (frame ? "image2video" : "text2video");
+      // taskType already declared above
       const maxPolls = 60;
       let pollCount = 0;
       let videoUrl: string | null = null;
@@ -969,6 +1060,7 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
 
       if (!videoUrl) throw new Error("Video generation timed out.");
 
+      await removeActiveTask(taskId);
       setVideoProgress(95);
       setVideoProgressLabel("Saving video...");
       const saved = await saveGeneratedContent("video", videoUrl, prompt, "video", {
@@ -978,7 +1070,7 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
       setVideoProgress(100);
       setVideoProgressLabel("Complete!");
       toast.success(`Video generated via ${providerLabels[provider]}! (${format.label} — ${videoDuration}s)`);
-    } catch (e: any) { toast.error(e.message || "Video generation failed"); } finally {
+    } catch (e: any) { if (_activeTaskId) await removeActiveTask(_activeTaskId).catch(() => {}); toast.error(e.message || "Video generation failed"); } finally {
       setTimeout(() => { setIsGeneratingVideo(false); setVideoProgress(0); setVideoProgressLabel(""); }, 1500);
     }
   };
@@ -1015,6 +1107,7 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
       const taskId = data.task_id;
       const provider = data.provider || "runway";
       if (!taskId) throw new Error("No task_id returned");
+      await saveActiveTask(taskId, provider, "motion", motionPrompt || "Motion transfer", { type: "motion" });
       let videoUrl: string | null = null;
       let pollCount = 0;
       while (pollCount < 60) {
@@ -1028,6 +1121,7 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
         } catch (e: any) { if (e.message?.includes("failed") || e.message?.includes("Failed")) throw e; }
       }
       if (!videoUrl) throw new Error("Motion transfer timed out");
+      await removeActiveTask(taskId);
       stopProgress();
       const saved = await saveGeneratedContent("video", videoUrl, motionPrompt || "Motion transfer", "motion", { metadata: { type: "motion" } });
       if (saved) setGeneratedMotions(prev => [saved, ...prev]);
@@ -1056,6 +1150,7 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
       const taskId = data.task_id;
       const provider = data.provider || "replicate";
       if (!taskId) throw new Error("No task_id returned");
+      await saveActiveTask(taskId, provider, "lipsync", lipsyncPrompt || "Lipsync", { type: "lipsync" });
       let videoUrl: string | null = null;
       let pollCount = 0;
       while (pollCount < 60) {
@@ -1069,6 +1164,7 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
         } catch (e: any) { if (e.message?.includes("failed") || e.message?.includes("Failed")) throw e; }
       }
       if (!videoUrl) throw new Error("Lipsync timed out");
+      await removeActiveTask(taskId);
       stopProgress();
       const saved = await saveGeneratedContent("video", videoUrl, lipsyncPrompt || "Lipsync", "lipsync", { metadata: { type: "lipsync" } });
       if (saved) setGeneratedLipsyncs(prev => [saved, ...prev]);
@@ -1097,6 +1193,7 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
       const taskId = data.task_id;
       const provider = data.provider || "replicate";
       if (!taskId) throw new Error("No task_id returned");
+      await saveActiveTask(taskId, provider, "faceswap", "Faceswap", { type: "faceswap", category: faceswapCategory });
       let resultUrl: string | null = null;
       let pollCount = 0;
       while (pollCount < 60) {
@@ -1110,6 +1207,7 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
         } catch (e: any) { if (e.message?.includes("failed") || e.message?.includes("Failed")) throw e; }
       }
       if (!resultUrl) throw new Error("Faceswap timed out");
+      await removeActiveTask(taskId);
       stopProgress();
       const contentType = faceswapCategory === "image" ? "image" : "video";
       const saved = await saveGeneratedContent(contentType, resultUrl, "Faceswap", "faceswap", { metadata: { type: "faceswap", category: faceswapCategory } });
