@@ -360,7 +360,6 @@ const CRM = () => {
               <HelpCircle className="h-4 w-4" />
             </button>
             <div className="border-l border-white/[0.06] pl-2 ml-1 flex items-center gap-1.5">
-              <CreditsDisplay />
               <Link to="/profile">
                 <button
                   className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold text-white transition-all hover:scale-105"
