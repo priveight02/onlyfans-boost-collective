@@ -1283,18 +1283,23 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
       const taskId = data.task_id;
       const provider = data.provider || "replicate";
       if (!taskId) throw new Error("No task_id returned");
-      await saveActiveTask(taskId, provider, "faceswap", "Faceswap", { type: "faceswap", category: faceswapCategory });
       let resultUrl: string | null = null;
-      let pollCount = 0;
-      while (pollCount < 60) {
-        await new Promise(r => setTimeout(r, 5000)); pollCount++;
-        try {
-          const pollResp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/media-process?action=poll&task_id=${encodeURIComponent(taskId)}&provider=${provider}`, { headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` } });
-          if (!pollResp.ok) continue;
-          const pollData = await pollResp.json();
-          if (pollData.status === "SUCCESS" && pollData.video_url) { resultUrl = pollData.video_url; break; }
-          if (pollData.status === "FAILED") throw new Error(pollData.error_message || "Faceswap failed");
-        } catch (e: any) { if (e instanceof Error && e.message) throw e; }
+      // Check if prediction already completed synchronously
+      if (data.status === "SUCCESS" && data.video_url) {
+        resultUrl = data.video_url;
+      } else {
+        await saveActiveTask(taskId, provider, "faceswap", "Faceswap", { type: "faceswap", category: faceswapCategory });
+        let pollCount = 0;
+        while (pollCount < 90) {
+          await new Promise(r => setTimeout(r, 2000)); pollCount++;
+          try {
+            const pollResp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/media-process?action=poll&task_id=${encodeURIComponent(taskId)}&provider=${provider}`, { headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` } });
+            if (!pollResp.ok) continue;
+            const pollData = await pollResp.json();
+            if (pollData.status === "SUCCESS" && pollData.video_url) { resultUrl = pollData.video_url; break; }
+            if (pollData.status === "FAILED") throw new Error(pollData.error_message || "Faceswap failed");
+          } catch (e: any) { if (e instanceof Error && e.message) throw e; }
+        }
       }
       if (!resultUrl) throw new Error("Faceswap timed out");
       await removeActiveTask(taskId);
