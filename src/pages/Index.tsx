@@ -1,4 +1,5 @@
 import Hero from "@/components/Hero";
+import ComparisonSection from "@/components/ComparisonSection";
 import Services from "@/components/Services";
 import Footer from "@/components/Footer";
 import PageSEO from "@/components/PageSEO";
@@ -97,6 +98,7 @@ const Index = () => {
         }}
       />
       <Hero />
+      <ComparisonSection />
       <Services />
       <Footer />
     </div>
