@@ -41,7 +41,7 @@ import {
   FileText, MessageSquare, CheckSquare, MessageCircle, Award,
   TrendingUp, Activity, Zap, Download, Brain, Calendar, Heart,
   Bot, Globe, Code2, Settings, ChevronLeft, ChevronRight,
-  Bell, HelpCircle, Sparkles, Megaphone, LogOut,
+  Bell, HelpCircle, Megaphone, LogOut, Plus,
 } from "lucide-react";
 
 const navSections = [
@@ -145,6 +145,7 @@ const CRM = () => {
   const location = useLocation();
   const [accounts, setAccounts] = useState<any[]>([]);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [showCreditsModal, setShowCreditsModal] = useState(false);
 
   // Derive active tab + sub-tab from URL
   const pathAfterPlatform = location.pathname.replace("/platform", "").replace(/^\//, "");
@@ -280,19 +281,12 @@ const CRM = () => {
         backdropFilter: "blur(40px) saturate(1.5)",
       }}>
         {/* Logo area */}
-        <div className={cn("h-[64px] flex items-center border-b border-white/[0.04]", sidebarCollapsed ? "px-3 justify-center" : "px-5")}>
+        <div className={cn("h-[64px] flex items-center justify-center border-b border-white/[0.04]", sidebarCollapsed ? "px-3" : "px-5")}>
           {!sidebarCollapsed && (
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: "linear-gradient(135deg, hsl(217 91% 55%), hsl(262 83% 58%))" }}>
-                <Sparkles className="h-4 w-4 text-white" />
-              </div>
-              <span className="text-[15px] font-bold text-white tracking-tight">Uplyze</span>
-            </div>
+            <span className="text-[28px] font-extrabold text-white tracking-tight" style={{ textShadow: "0 0 30px hsl(217 91% 60% / 0.2)" }}>Uplyze</span>
           )}
           {sidebarCollapsed && (
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "linear-gradient(135deg, hsl(217 91% 55%), hsl(262 83% 58%))" }}>
-              <Sparkles className="h-4.5 w-4.5 text-white" />
-            </div>
+            <span className="text-[22px] font-extrabold text-white">U</span>
           )}
         </div>
 
@@ -355,11 +349,18 @@ const CRM = () => {
         {/* Credits footer */}
         {!sidebarCollapsed && (
           <div className="px-3 pb-4">
-            <div className="px-4 py-3 rounded-xl relative overflow-hidden" style={{ background: "linear-gradient(135deg, hsl(217 91% 55% / 0.08), hsl(262 83% 58% / 0.05))", border: "1px solid hsl(217 91% 60% / 0.08)" }}>
+            <button
+              onClick={() => setShowCreditsModal(true)}
+              className="w-full px-4 py-3 rounded-xl relative overflow-hidden text-left cursor-pointer transition-all hover:scale-[1.02] hover:brightness-110"
+              style={{ background: "linear-gradient(135deg, hsl(217 91% 55% / 0.08), hsl(262 83% 58% / 0.05))", border: "1px solid hsl(217 91% 60% / 0.08)" }}
+            >
               <div className="absolute -top-6 -right-6 w-16 h-16 rounded-full opacity-20" style={{ background: "radial-gradient(circle, hsl(217 91% 60%), transparent)" }} />
-              <p className="text-[10px] font-semibold text-white/30 uppercase tracking-wider">Credits</p>
+              <div className="flex items-center justify-between">
+                <p className="text-[10px] font-semibold text-white/30 uppercase tracking-wider">Credits</p>
+                <Plus className="h-3.5 w-3.5 text-white/40" />
+              </div>
               <p className="text-lg font-bold text-white mt-0.5" style={{ textShadow: "0 0 20px hsl(217 91% 60% / 0.3)" }}>{balance.toLocaleString()}</p>
-            </div>
+            </button>
           </div>
         )}
       </aside>
@@ -439,10 +440,10 @@ const CRM = () => {
       <CRMHelpWidget />
       <FloatingCopilot activeTab={activeTab} onNavigate={(tab: string) => handleTabChange(tab)} />
       <InsufficientCreditsModal
-        open={insufficientModal.open}
-        onClose={closeInsufficientModal}
+        open={insufficientModal.open || showCreditsModal}
+        onClose={() => { closeInsufficientModal(); setShowCreditsModal(false); }}
         requiredCredits={insufficientModal.requiredCredits}
-        actionName={insufficientModal.actionName}
+        actionName={showCreditsModal ? "Add Credits" : insufficientModal.actionName}
       />
     </div>
   );
