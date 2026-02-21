@@ -181,14 +181,12 @@ serve(async (req) => {
         }
         const { source_face_url, target_url, target_type } = body;
 
-        // codeplugtech/face-swap only works on images
-        // For video targets, we'll still attempt but note it's image-based
+        // Create prediction synchronously (no async header) — Replicate waits up to 60s for completion
         const resp = await fetch(`${REPLICATE_BASE}/predictions`, {
           method: "POST",
           headers: {
             Authorization: `Token ${REPLICATE_API_KEY}`,
             "Content-Type": "application/json",
-            "Prefer": "respond-async",
           },
           body: JSON.stringify({
             version: "278a81e7ebb22db98bcba54de985d22cc1abeead2754eb1f2af717247be69b34",
@@ -206,6 +204,16 @@ serve(async (req) => {
         }
 
         const data = await resp.json();
+
+        // If prediction already completed synchronously, return result directly
+        if (data.status === "succeeded" && data.output) {
+          const output = Array.isArray(data.output) ? data.output[0] : data.output;
+          return new Response(JSON.stringify({ task_id: data.id, status: "SUCCESS", video_url: output, provider: "replicate", target_type }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        // Otherwise return task_id for polling
         return new Response(JSON.stringify({ task_id: data.id, status: "PROCESSING", provider: "replicate", target_type }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
