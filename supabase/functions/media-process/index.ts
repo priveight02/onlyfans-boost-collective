@@ -81,6 +81,7 @@ serve(async (req) => {
           headers: {
             Authorization: `Token ${REPLICATE_API_KEY}`,
             "Content-Type": "application/json",
+            "Prefer": "respond-async",
           },
           body: JSON.stringify({
             version: "8d65e3f4f4298520e079198b493c25adfc43c058ffec924f2aefc8010ed25eef",
@@ -119,6 +120,7 @@ serve(async (req) => {
           headers: {
             Authorization: `Token ${REPLICATE_API_KEY}`,
             "Content-Type": "application/json",
+            "Prefer": "respond-async",
           },
           body: JSON.stringify({
             version: "278a81e7ebb22db98bcba54de985d22cc1abeead2754eb1f2af717247be69b34",
