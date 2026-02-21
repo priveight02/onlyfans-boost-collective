@@ -2374,7 +2374,7 @@ const AICoPilot = ({ onNavigate, subTab, onSubTabChange }: { onNavigate?: (tab: 
     <>
       <div className="flex gap-3 h-[calc(100vh-130px)]">
         {/* Sidebar */}
-        <div className="w-52 shrink-0 flex flex-col">
+        <div className="w-36 shrink-0 flex flex-col">
           <Button size="sm" onClick={() => { setActiveConvoId(null); setMessages([]); setInput(""); setAttachments([]); clearDraft(); }}
             className="w-full bg-accent hover:bg-accent/90 text-white text-[11px] mb-2 h-7 px-2">
             <Plus className="h-3 w-3 mr-1" /> New Conversation
