@@ -39,13 +39,24 @@ const Blog = () => {
       <PageSEO
         title="Uplyze Blog | AI Tool Insights, Growth AI Strategies & Business Scaling | uplyze.ai"
         description="Read the Uplyze blog for AI tool tips, AI platform insights, growth AI strategies, marketing automation guides, and business scaling tactics. Learn how the best AI tool helps you automate and 10x revenue at uplyze.ai."
+        ogTitle="Uplyze Blog — AI Tool Tips, Growth Strategies & Business Scaling Guides"
+        ogDescription="Expert guides on AI marketing, AI CRM, growth AI, business scaling, and marketing automation from the #1 AI platform."
         jsonLd={{
           "@context": "https://schema.org",
           "@type": "Blog",
-          "name": "Uplyze Blog",
+          "name": "Uplyze Blog — AI Tool Insights, Growth AI & Business Scaling",
           "url": "https://uplyze.ai/blog",
-          "description": "AI Platform insights, creator growth strategies, and agency scaling guides from Uplyze.",
-          "publisher": { "@type": "Organization", "name": "Uplyze", "url": "https://uplyze.ai" }
+          "description": "Expert insights on AI tools, AI platforms, AI CRM, marketing automation, growth AI strategies, business scaling, and revenue optimization from the Uplyze team.",
+          "publisher": { "@type": "Organization", "name": "Uplyze", "url": "https://uplyze.ai", "logo": { "@type": "ImageObject", "url": "https://uplyze.ai/logo.png" } },
+          "blogPost": blogPosts.map(p => ({
+            "@type": "BlogPosting",
+            "headline": p.title,
+            "description": p.excerpt,
+            "datePublished": p.date,
+            "author": { "@type": "Organization", "name": "Uplyze" },
+            "publisher": { "@type": "Organization", "name": "Uplyze" },
+            "url": `https://uplyze.ai/blog/${p.slug}`
+          }))
         }}
       />
       {/* Ambient glow */}

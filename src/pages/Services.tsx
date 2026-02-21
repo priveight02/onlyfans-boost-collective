@@ -185,19 +185,23 @@ const Services = () => {
   return (
     <div className="min-h-screen bg-[hsl(222,35%,8%)] relative overflow-hidden">
       <PageSEO
-        title="Uplyze Features | Best AI Tool, AI Platform & Marketing Automation | uplyze.ai"
-        description="Explore Uplyze features — the best AI tool and AI platform for marketing automation, social media AI, content creation, lead generation, business scaling, growth AI, and more. See why 700+ businesses choose Uplyze at uplyze.ai."
+        title="Uplyze AI Features | Best AI Tool, AI Platform, AI CRM & Marketing Automation | uplyze.ai"
+        description="Explore all Uplyze AI features — the best AI tool and AI platform for marketing automation, AI CRM, social media AI, content creation, lead generation, business scaling, growth AI, DM automation, workflow automation, analytics, and more. See why 700+ businesses choose Uplyze at uplyze.ai."
+        ogTitle="Uplyze AI Features — Best AI Tool & Platform for Business Growth"
+        ogDescription="All features of the #1 AI platform: AI CRM, marketing automation, social media management, content creation, lead generation, DM automation, revenue analytics, and more."
         jsonLd={{
           "@context": "https://schema.org",
           "@type": "ItemList",
-          "name": "Uplyze Platform Features",
+          "name": "Uplyze AI Platform Features — Best AI Tool & Marketing Automation Suite",
           "url": "https://uplyze.ai/services",
+          "description": "Complete list of AI-powered features including AI CRM, marketing automation, social media management, content creation, lead generation, DM automation, workflow automation, revenue analytics, team management, and security.",
           "numberOfItems": featureSections.length,
           "itemListElement": featureSections.map((s, i) => ({
             "@type": "ListItem",
             "position": i + 1,
             "name": s.title,
-            "description": s.description
+            "description": s.description,
+            "url": "https://uplyze.ai/services"
           }))
         }}
       />

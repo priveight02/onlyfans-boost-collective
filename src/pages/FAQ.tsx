@@ -132,11 +132,14 @@ const FAQ = () => {
       <PageSEO
         title="Uplyze FAQ | Best AI Tool & AI Platform Questions & Answers | uplyze.ai"
         description="Get answers about Uplyze, the best AI tool and AI platform for marketing, business growth, and scaling. Learn about AI automation, AI CRM, growth AI, pricing, and how Uplyze helps businesses scale at uplyze.ai."
+        ogTitle="Uplyze FAQ — Answers About the #1 AI Platform & AI Tool"
+        ogDescription="Everything you need to know about Uplyze AI platform: features, pricing, AI CRM, marketing automation, security, and more."
         jsonLd={{
           "@context": "https://schema.org",
           "@type": "FAQPage",
-          "name": "Uplyze FAQ",
+          "name": "Uplyze FAQ — AI Tool & AI Platform Questions & Answers",
           "url": "https://uplyze.ai/faq",
+          "description": "Frequently asked questions about Uplyze, the best AI tool, AI platform, AI CRM, and all-in-one AI suite for business growth and marketing automation.",
           "mainEntity": faqs.flatMap(cat => cat.questions.map(q => ({
             "@type": "Question",
             "name": q.question,
