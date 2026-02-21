@@ -35,15 +35,16 @@ function runwayHeaders() {
 }
 
 function mapAspectToRunwayRatio(aspect: string, _model: string): string {
+  // Always use highest resolution ratios for maximum quality
   const ratioMap: Record<string, string> = {
-    "16:9": "1280:720",
-    "9:16": "720:1280",
-    "1:1": "960:960",
-    "4:3": "1104:832",
-    "3:4": "832:1104",
-    "21:9": "1584:672",
+    "16:9": "1920:1080",
+    "9:16": "1080:1920",
+    "1:1": "1080:1080",
+    "4:3": "1440:1080",
+    "3:4": "1080:1440",
+    "21:9": "1920:816",
   };
-  return ratioMap[aspect] || "1280:720";
+  return ratioMap[aspect] || "1920:1080";
 }
 
 // Runway only accepts specific duration values depending on the model
@@ -98,7 +99,7 @@ async function runwayCreate(body: any) {
     } else {
       endpoint = `${RUNWAY_BASE}/text_to_video`;
       const ratio = isVeo
-        ? ((body.aspect_ratio === "9:16") ? "720:1280" : "1280:720")
+        ? ((body.aspect_ratio === "9:16") ? "1080:1920" : "1920:1080")
         : mapAspectToRunwayRatio(body.aspect_ratio || "16:9", model);
       reqBody = { model, promptText: body.prompt, ratio, duration: clampRunwayDuration(body.duration, model) };
     }
@@ -144,7 +145,7 @@ async function runwayImageCreate(body: any) {
       promptText: body.prompt,
       ratio: mapAspectToRunwayRatio(body.aspect_ratio || "1:1", model),
     };
-    if (body.resolution) reqBody.resolution = body.resolution; // "720p" or "1080p"
+    if (body.resolution) reqBody.resolution = body.resolution; else reqBody.resolution = "1080p"; // "720p" or "1080p"
     if (body.image_url) reqBody.referenceImages = [{ uri: body.image_url }];
   }
 
@@ -214,7 +215,7 @@ async function runwayAudioCreate(body: any) {
 async function seedanceCreate(body: any) {
   const apiKey = Deno.env.get("SEEDANCE_API_KEY");
   if (!apiKey) throw new Error("SEEDANCE_API_KEY not configured");
-  const reqBody: any = { prompt: body.prompt, duration: String(body.duration || "8"), aspect_ratio: body.aspect_ratio || "16:9", resolution: body.resolution || "720p" };
+  const reqBody: any = { prompt: body.prompt, duration: String(body.duration || "8"), aspect_ratio: body.aspect_ratio || "16:9", resolution: "1080p" };
   if (body.generate_audio) reqBody.generate_audio = true;
   if (body.fixed_lens) reqBody.fixed_lens = true;
   if (body.image_url) reqBody.image_urls = [body.image_url];
