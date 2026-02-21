@@ -129,7 +129,10 @@ const FanTable = ({ fans, title }: { fans: any[]; title: string }) => {
   );
 };
 
-const ProfileLookup = () => {
+const ProfileLookup = ({ subTab, onSubTabChange }: { subTab?: string; onSubTabChange?: (subTab: string) => void }) => {
+  const [lookupSubTab, setLookupSubTab] = useState(subTab || "overview");
+  const handleLookupSubTab = (v: string) => { setLookupSubTab(v); onSubTabChange?.(v); };
+  useEffect(() => { if (subTab && subTab !== lookupSubTab) setLookupSubTab(subTab); }, [subTab]);
   const [username, setUsername] = useState("");
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<any>(null);
@@ -649,7 +652,7 @@ const ProfileLookup = () => {
           </div>
 
           {/* Main tabs */}
-          <Tabs defaultValue="overview" className="space-y-4">
+          <Tabs value={lookupSubTab} onValueChange={handleLookupSubTab} className="space-y-4">
             <TabsList className="bg-white/[0.06] backdrop-blur-sm border border-white/[0.1] p-1.5 rounded-xl flex-wrap h-auto gap-1">
               {[
                 { value: "overview", icon: BarChart3, label: "Overview" },

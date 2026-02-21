@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -53,14 +53,16 @@ const defaultVariants: AdVariant[] = [
   { id: "c", label: "Variant C", headline: "LIMITED DROP", copy: "Exclusive limited edition. Save 40% on our flagship wireless headphones.", cta: "Get Yours", imageUrl: adVariantC, score: 71, ctr: "3.1%", status: "draft" },
 ];
 
-const AdCreativeEngine = () => {
+const AdCreativeEngine = ({ subTab, onSubTabChange }: { subTab?: string; onSubTabChange?: (subTab: string) => void }) => {
   const [variants, setVariants] = useState<AdVariant[]>(defaultVariants);
   const [selectedVariant, setSelectedVariant] = useState<string>("a");
   const [productName, setProductName] = useState("Premium Wireless Headphones");
   const [productDescription, setProductDescription] = useState("High-end noise-cancelling wireless headphones with premium build quality and crystal clear sound.");
   const [targetAudience, setTargetAudience] = useState("Tech enthusiasts, audiophiles, professionals 25-45");
   const [generatingCopy, setGeneratingCopy] = useState(false);
-  const [activeTab, setActiveTab] = useState("creatives");
+  const [activeTab, setActiveTabInternal] = useState(subTab || "creatives");
+  const setActiveTab = (v: string) => { setActiveTabInternal(v); onSubTabChange?.(v); };
+  useEffect(() => { if (subTab && subTab !== activeTab) setActiveTabInternal(subTab); }, [subTab]);
 
   // AI Image Generation state
   const [adStyle, setAdStyle] = useState("product-hero");

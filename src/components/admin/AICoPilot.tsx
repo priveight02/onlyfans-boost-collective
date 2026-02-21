@@ -239,7 +239,7 @@ const getModeCreditLabel = (mode: string): string => {
 };
 
 // ============= MAIN COMPONENT =============
-const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
+const AICoPilot = ({ onNavigate, subTab, onSubTabChange }: { onNavigate?: (tab: string) => void; subTab?: string; onSubTabChange?: (subTab: string) => void }) => {
   // Credit system
   const { performAction, insufficientModal, closeInsufficientModal } = useCreditAction();
   // Core state
@@ -258,7 +258,13 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
   const [editAttachments, setEditAttachments] = useState<Attachment[]>([]);
-  const [mode, setMode] = useState<CopilotMode>("chat");
+  const [mode, setModeInternal] = useState<CopilotMode>((subTab as CopilotMode) || "chat");
+  const setMode = (m: CopilotMode) => {
+    setModeInternal(m);
+    onSubTabChange?.(m);
+  };
+  // Sync from URL prop
+  useEffect(() => { if (subTab && subTab !== mode) setModeInternal(subTab as CopilotMode); }, [subTab]);
   const [qualityMode, setQualityMode] = useState<QualityMode>("best");
   const [freeWillMode, setFreeWillMode] = useState(false);
 
