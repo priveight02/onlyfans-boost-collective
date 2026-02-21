@@ -101,7 +101,7 @@ serve(async (req) => {
               body: JSON.stringify({
                 text: tts_text,
                 model_id: "eleven_multilingual_v2",
-                voice_settings: { stability: 0.5, similarity_boost: 0.85, style: 0.5, speed: 1.0, use_speaker_boost: true },
+                voice_settings: { stability: 0.40, similarity_boost: 0.78, style: 0.30, speed: 1.0, use_speaker_boost: true },
               }),
             }
           );
