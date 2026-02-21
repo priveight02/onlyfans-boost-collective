@@ -168,19 +168,18 @@ serve(async (req) => {
         }
         const { source_face_url, target_url, target_type } = body;
 
-        // Use codeplugtech/face-swap — most proven model on Replicate (1.7M+ runs)
-        const resp = await fetch(`${REPLICATE_BASE}/predictions`, {
+        // Use lucataco/faceswap — official model endpoint (no version needed, always latest)
+        const resp = await fetch(`${REPLICATE_BASE}/models/lucataco/faceswap/predictions`, {
           method: "POST",
           headers: {
             Authorization: `Token ${REPLICATE_API_KEY}`,
             "Content-Type": "application/json",
+            "Prefer": "wait",
           },
           body: JSON.stringify({
-            version: "65a4cef2ad0e890e0371be96c88580b3c20e9c1c15a0e54a8b0e91fd6e1a3558",
             input: {
               target_image: target_url,
               swap_image: source_face_url,
-              disable_safety_checker: true,
             },
           }),
         });
