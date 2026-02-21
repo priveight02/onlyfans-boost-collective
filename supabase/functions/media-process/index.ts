@@ -82,7 +82,57 @@ serve(async (req) => {
             status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
-        const { video_url, audio_url, quality } = body;
+        let { video_url, audio_url, quality, tts_text, tts_voice_id } = body;
+
+        // If TTS text + voice provided, generate audio via ElevenLabs first
+        if (tts_text && tts_voice_id && !audio_url) {
+          const ELEVENLABS_API_KEY = Deno.env.get("ELEVENLABS_API_KEY");
+          if (!ELEVENLABS_API_KEY) {
+            return new Response(JSON.stringify({ error: "ELEVENLABS_API_KEY not configured" }), {
+              status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
+          const ttsResp = await fetch(
+            `https://api.elevenlabs.io/v1/text-to-speech/${tts_voice_id}?output_format=mp3_44100_128`,
+            {
+              method: "POST",
+              headers: { "xi-api-key": ELEVENLABS_API_KEY, "Content-Type": "application/json" },
+              body: JSON.stringify({
+                text: tts_text,
+                model_id: "eleven_multilingual_v2",
+                voice_settings: { stability: 0.5, similarity_boost: 0.85, style: 0.5, speed: 1.0, use_speaker_boost: true },
+              }),
+            }
+          );
+          if (!ttsResp.ok) {
+            const errText = await ttsResp.text();
+            throw new Error(`TTS generation failed: ${errText}`);
+          }
+          const audioBuffer = await ttsResp.arrayBuffer();
+          // Upload to Supabase storage
+          const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+          const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+          const fileName = `lipsync_tts_${Date.now()}.mp3`;
+          const uploadResp = await fetch(`${SUPABASE_URL}/storage/v1/object/copilot-media/${fileName}`, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+              "Content-Type": "audio/mpeg",
+            },
+            body: audioBuffer,
+          });
+          if (!uploadResp.ok) {
+            const errText = await uploadResp.text();
+            throw new Error(`Audio upload failed: ${errText}`);
+          }
+          audio_url = `${SUPABASE_URL}/storage/v1/object/public/copilot-media/${fileName}`;
+        }
+
+        if (!audio_url) {
+          return new Response(JSON.stringify({ error: "No audio provided" }), {
+            status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
 
         // Map quality to resize_factor: 1 = highest (no resize), 2 = medium, 4 = fastest/lowest
         const qualityMap: Record<string, { resize_factor: number; smooth: boolean }> = {
