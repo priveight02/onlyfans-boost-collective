@@ -399,7 +399,22 @@ serve(async (req) => {
       return new Response(JSON.stringify(providers), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    return new Response(JSON.stringify({ error: "Unknown action. Use ?action=create|poll|audio|image|providers" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    // ── Cancel ──
+    if (action === "cancel") {
+      const taskId = url.searchParams.get("task_id");
+      if (!taskId) throw new Error("task_id is required");
+      try {
+        if (provider === "runway") {
+          await fetch(`${RUNWAY_BASE}/tasks/${taskId}/cancel`, { method: "POST", headers: runwayHeaders() });
+        } else if (provider === "replicate") {
+          const rKey = Deno.env.get("REPLICATE_API_KEY");
+          if (rKey) await fetch(`https://api.replicate.com/v1/predictions/${taskId}/cancel`, { method: "POST", headers: { Authorization: `Token ${rKey}` } });
+        }
+      } catch (e) { console.error("Cancel error (non-fatal):", e); }
+      return new Response(JSON.stringify({ status: "CANCELLED" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    return new Response(JSON.stringify({ error: "Unknown action. Use ?action=create|poll|audio|image|providers|cancel" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
     console.error("video-generate error:", e);
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
