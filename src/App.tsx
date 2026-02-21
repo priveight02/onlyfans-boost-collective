@@ -30,6 +30,7 @@ import Maintenance from "./pages/Maintenance";
 import Blog from "./pages/Blog";
 import BlogPost from "./pages/BlogPost";
 import CustomerPortal from "./pages/CustomerPortal";
+import ThankYou from "./pages/ThankYou";
 
 const OWNER_EMAIL = "contact@uplyze.ai";
 
@@ -100,6 +101,7 @@ const AppContent = () => {
         <Route path="/blog" element={<Blog />} />
         <Route path="/blog/:slug" element={<BlogPost />} />
         <Route path="/customer-portal" element={<CustomerPortal />} />
+        <Route path="/thank-you" element={<ThankYou />} />
         <Route path="/maintenance" element={<Maintenance />} />
       </Routes>
     </MaintenanceGuard>
