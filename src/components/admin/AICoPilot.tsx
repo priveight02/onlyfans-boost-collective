@@ -1450,7 +1450,7 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
               <div className="p-3">
                 <p className="text-[10px] text-white/40 truncate mb-2"><span className="text-accent">Prompt:</span> {item.prompt}</p>
                 <div className="flex items-center gap-2">
-                  <button onClick={() => { const a = document.createElement("a"); a.href = item.url; a.download = `${modeTab}_${item.id}.${fileExt}`; a.target = "_blank"; a.click(); }}
+                  <button onClick={async () => { try { const resp = await fetch(item.url); const blob = await resp.blob(); const blobUrl = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = blobUrl; a.download = `${modeTab}_${item.id}.${fileExt}`; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(blobUrl); } catch { const a = document.createElement("a"); a.href = item.url; a.download = `${modeTab}_${item.id}.${fileExt}`; a.click(); } }}
                     className="flex items-center gap-1 text-[10px] text-white/70 hover:text-white bg-accent/20 hover:bg-accent/30 border border-accent/30 rounded-lg px-2.5 py-1 transition-all">
                     <Download className="h-3 w-3" /> Download
                   </button>
@@ -1998,31 +1998,31 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
           <input ref={lipsyncAudioInputRef} type="file" accept="audio/*" className="hidden" onChange={async e => { const f = e.target.files?.[0]; if (!f) return; const url = await uploadFileToStorage(f); if (url) { setLipsyncAudio(url); setLipsyncAudioName(f.name); } if (lipsyncAudioInputRef.current) lipsyncAudioInputRef.current.value = ""; }} />
           {generatedAudios.length > 0 && <Select onValueChange={v => { const aud = generatedAudios.find(x => x.id === v); if (aud) { setLipsyncAudio(aud.url); setLipsyncAudioName(aud.metadata?.voice || "Generated audio"); } }}><SelectTrigger className="bg-white/5 border-white/10 text-white h-7 text-[10px] mt-1.5"><SelectValue placeholder="Or select generated audio..." /></SelectTrigger><SelectContent className="bg-[hsl(220,40%,10%)] border-white/10 max-h-[150px]">{generatedAudios.map(a => <SelectItem key={a.id} value={a.id} className="text-white text-[10px]">{a.prompt?.slice(0, 40) || "Untitled"}</SelectItem>)}</SelectContent></Select>}
 
-          {/* Inline TTS - generate speech from voice */}
-          <div className="mt-2 border border-white/10 rounded-xl p-3 bg-white/[0.02]">
-            <p className="text-[10px] text-white/50 font-medium mb-2 flex items-center gap-1.5"><Volume2 className="h-3 w-3 text-accent" /> Quick Text-to-Speech</p>
+          {/* Voice TTS inline - select voice + type text to generate audio directly */}
+          <div className="mt-2 flex items-center gap-1.5">
+            <span className="text-[9px] text-white/30 shrink-0">or TTS:</span>
             {voices.length > 0 ? (
-              <>
-                <Select value={lipsyncTtsVoice} onValueChange={setLipsyncTtsVoice}>
-                  <SelectTrigger className="bg-white/5 border-white/10 text-white h-7 text-[10px] mb-2"><SelectValue placeholder="Select a voice..." /></SelectTrigger>
-                  <SelectContent className="bg-[hsl(220,40%,10%)] border-white/10 max-h-[150px]">
-                    {voices.map(v => <SelectItem key={v.id} value={v.id} className="text-white text-[10px]">{v.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-                <Textarea value={lipsyncTtsText} onChange={e => setLipsyncTtsText(e.target.value)}
-                  placeholder="Type what you want the voice to say..."
-                  className="bg-white/5 border-white/10 text-white text-[11px] min-h-[60px] resize-none placeholder:text-white/20 mb-2"
-                  onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); generateLipsyncTts(); } }} />
-                <Button onClick={generateLipsyncTts} disabled={!lipsyncTtsText.trim() || !lipsyncTtsVoice || isGeneratingLipsyncTts} size="sm" className="w-full h-7 text-[10px] bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white">
-                  {isGeneratingLipsyncTts ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Sparkles className="h-3 w-3 mr-1" />}Generate & Use as Audio
-                </Button>
-              </>
+              <Select value={lipsyncTtsVoice} onValueChange={setLipsyncTtsVoice}>
+                <SelectTrigger className="bg-white/5 border-white/10 text-white h-7 text-[10px] flex-1"><SelectValue placeholder="Select voice..." /></SelectTrigger>
+                <SelectContent className="bg-[hsl(220,40%,10%)] border-white/10 max-h-[150px]">
+                  {voices.map(v => <SelectItem key={v.id} value={v.id} className="text-white text-[10px]">{v.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
             ) : (
-              <button onClick={() => setMode("audio")} className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-[10px] border border-white/10 text-white/40 hover:text-white/60 hover:border-white/20 transition-all w-full justify-center">
-                <Mic className="h-3 w-3" /> Create a voice first in Audio tab
-              </button>
+              <button onClick={() => setMode("audio")} className="text-[9px] text-accent/60 hover:text-accent underline">Create a voice first</button>
             )}
           </div>
+          {lipsyncTtsVoice && voices.length > 0 && (
+            <div className="mt-1.5 flex gap-1.5">
+              <Textarea value={lipsyncTtsText} onChange={e => setLipsyncTtsText(e.target.value)}
+                placeholder="Type what the voice should say..."
+                className="bg-white/5 border-white/10 text-white text-[10px] min-h-[50px] resize-none placeholder:text-white/20 flex-1"
+                onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); generateLipsyncTts(); } }} />
+              <Button onClick={generateLipsyncTts} disabled={!lipsyncTtsText.trim() || isGeneratingLipsyncTts} size="sm" className="h-[50px] w-[50px] shrink-0 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white p-0">
+                {isGeneratingLipsyncTts ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* Auto-shorten option */}
