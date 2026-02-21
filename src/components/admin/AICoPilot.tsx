@@ -813,6 +813,48 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
     updateVoiceParam("effects", newEffects);
   };
 
+  // Build ElevenLabs voice_settings from UI voiceParams with dramatic, perceptible mappings
+  const buildVoiceSettings = (params: typeof voiceParams) => {
+    const hasBreathy = params.effects.includes("Breathy");
+    const hasDeep = params.effects.includes("Deep");
+    const hasWarm = params.effects.includes("Warm");
+    const hasCrisp = params.effects.includes("Crisp");
+    const hasWhisper = params.effects.includes("Whisper");
+    const hasEcho = params.effects.includes("Echo");
+    const hasRobotic = params.effects.includes("Robotic");
+
+    // Pitch: -10 to +10. Negative = deeper/more stable, Positive = lighter/more expressive
+    // Map pitch aggressively: pitch -10 → stability 0.95, pitch 0 → 0.40, pitch +10 → 0.05
+    let stability = 0.40 - (params.pitch * 0.035);
+    // Reverb: 0 to 100. Higher reverb = lower similarity (more ambient/diffused voice)
+    let similarity_boost = 0.85 - (params.reverb * 0.006);
+    // Style: effects-driven with strong differentiation
+    let style = 0.30;
+    if (hasWhisper) style = 0.95;
+    else if (hasBreathy) style = 0.80;
+    else if (hasWarm) style = 0.65;
+    else if (hasDeep) style = 0.15;
+    else if (hasCrisp) style = 0.05;
+    else if (hasRobotic) style = 0.0;
+    // Echo effect: push style high + drop stability for ethereal sound
+    if (hasEcho) { stability = Math.min(stability, 0.15); style = Math.max(style, 0.85); }
+    // Robotic: max stability, zero style for flat monotone
+    if (hasRobotic) { stability = 0.98; style = 0.0; similarity_boost = Math.max(similarity_boost, 0.90); }
+    // Deep: increase stability for authoritative tone
+    if (hasDeep) { stability = Math.max(stability, 0.65); }
+
+    // Speed: directly from slider (0.7 to 1.2 range from ElevenLabs)
+    const speed = Math.max(0.7, Math.min(1.2, params.speed));
+
+    return {
+      stability: Math.max(0, Math.min(1, stability)),
+      similarity_boost: Math.max(0, Math.min(1, similarity_boost)),
+      style: Math.max(0, Math.min(1, style)),
+      speed,
+      use_speaker_boost: !(hasEcho || hasRobotic),
+    };
+  };
+
   // ---- Audio generation (real ElevenLabs TTS) ----
   const generateAudio = async () => {
     if (!audioText.trim() || isGeneratingAudio) return;
@@ -823,13 +865,7 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
     if (!voice?.elevenlabs_voice_id) { toast.error("Select a cloned voice first. Create one from audio samples."); return; }
     setIsGeneratingAudio(true);
     try {
-      const voiceSettings: any = {
-        stability: Math.max(0, Math.min(1, 0.5 + (voiceParams.pitch * -0.03))),
-        similarity_boost: Math.max(0, Math.min(1, 0.85 + (voiceParams.reverb * 0.0015))),
-        style: Math.max(0, Math.min(1, voiceParams.effects.includes("Breathy") ? 0.7 : voiceParams.effects.includes("Deep") ? 0.3 : voiceParams.effects.includes("Warm") ? 0.6 : voiceParams.effects.includes("Crisp") ? 0.2 : voiceParams.effects.includes("Whisper") ? 0.8 : 0.5)),
-        speed: voiceParams.speed,
-        use_speaker_boost: voiceParams.effects.includes("Echo") || voiceParams.effects.includes("Robotic") ? false : true,
-      };
+      const voiceSettings = buildVoiceSettings(voiceParams);
 
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/voice-audio?action=generate`, {
         method: "POST",
@@ -1729,13 +1765,7 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
         // Use cloned voice TTS
         const voice = voices.find(v => v.id === selectedVoice);
         if (!voice?.elevenlabs_voice_id) { toast.error("Select a cloned voice first"); setIsGeneratingElevenAudio(false); return; }
-        const voiceSettings: any = {
-          stability: Math.max(0, Math.min(1, 0.5 + (voiceParams.pitch * -0.03))),
-          similarity_boost: Math.max(0, Math.min(1, 0.85 + (voiceParams.reverb * 0.0015))),
-          style: Math.max(0, Math.min(1, voiceParams.effects.includes("Breathy") ? 0.7 : voiceParams.effects.includes("Deep") ? 0.3 : voiceParams.effects.includes("Warm") ? 0.6 : voiceParams.effects.includes("Crisp") ? 0.2 : voiceParams.effects.includes("Whisper") ? 0.8 : 0.5)),
-          speed: voiceParams.speed,
-          use_speaker_boost: voiceParams.effects.includes("Echo") || voiceParams.effects.includes("Robotic") ? false : true,
-        };
+        const voiceSettings = buildVoiceSettings(voiceParams);
         const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/voice-audio?action=generate`, {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
