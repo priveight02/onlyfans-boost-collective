@@ -83,7 +83,7 @@ serve(async (req) => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            version: "devxpy/cog-wav2lip",
+            version: "8d65e3f4f4298520e079198b493c25adfc43c058ffec924f2aefc8010ed25eef",
             input: {
               face: video_url,
               audio: audio_url,
@@ -121,7 +121,7 @@ serve(async (req) => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            version: "codeplugtech/face-swap",
+            version: "278a81e7ebb22db98bcba54de985d22cc1abeead2754eb1f2af717247be69b34",
             input: {
               swap_image: source_face_url,
               input_image: target_url,
