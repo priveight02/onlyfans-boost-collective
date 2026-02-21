@@ -54,33 +54,27 @@ const Navigation = () => {
   const userInitial = profile?.display_name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || "U";
 
   return (
-    <div className={`fixed top-0 ${isPlatform ? 'flex items-center justify-center pointer-events-none' : 'w-full flex justify-center pt-4 px-4'}`} style={isPlatform ? { left: '260px', right: 0, height: '56px', zIndex: 40 } : { zIndex: 50 }}>
+    <div className={`w-full fixed top-0 ${isPlatform ? 'flex justify-start pt-1.5 px-2 pointer-events-none' : 'flex justify-center pt-4 px-4'}`} style={isPlatform ? { left: '260px', width: 'auto', right: 'auto', zIndex: 40 } : { zIndex: 50 }}>
       <nav
-        className={`pointer-events-auto transition-all duration-500 ease-in-out ${isPlatform ? 'rounded-xl' : 'w-full max-w-4xl rounded-2xl'}`}
+        className={`transition-all duration-500 pointer-events-auto ${isPlatform ? 'rounded-xl' : 'w-full max-w-4xl rounded-2xl'}`}
         style={{
-          background: isPlatform
-            ? "transparent"
-            : isScrolled
-              ? "hsl(222 47% 10% / 0.75)"
-              : "hsl(222 47% 12% / 0.55)",
-          backdropFilter: isPlatform ? "none" : "blur(24px) saturate(1.4)",
-          border: isPlatform ? "none" : "1px solid hsl(215 25% 40% / 0.12)",
-          boxShadow: isPlatform
-            ? "none"
-            : isScrolled
-              ? "0 8px 32px hsl(222 47% 4% / 0.4), 0 0 0 1px hsl(215 25% 50% / 0.05) inset"
-              : "0 4px 20px hsl(222 47% 4% / 0.25), 0 0 0 1px hsl(215 25% 50% / 0.04) inset",
+          background: isScrolled
+            ? "hsl(222 47% 10% / 0.75)"
+            : "hsl(222 47% 12% / 0.55)",
+          backdropFilter: "blur(24px) saturate(1.4)",
+          border: "1px solid hsl(215 25% 40% / 0.12)",
+          boxShadow: isScrolled
+            ? "0 8px 32px hsl(222 47% 4% / 0.4), 0 0 0 1px hsl(215 25% 50% / 0.05) inset"
+            : "0 4px 20px hsl(222 47% 4% / 0.25), 0 0 0 1px hsl(215 25% 50% / 0.04) inset",
         }}
       >
-        <div className={isPlatform ? "px-1" : "px-4 sm:px-5"}>
+        <div className={isPlatform ? "px-2" : "px-4 sm:px-5"}>
           <div className={`flex items-center ${isPlatform ? 'h-10 gap-0' : 'justify-between h-14'}`}>
-            {!isPlatform && (
-              <div className="flex-shrink-0">
-                <Link to="/" className="flex items-center group transition-all duration-300 hover:scale-105">
-                  <img src="/lovable-uploads/uplyze-logo.png" alt="Uplyze Logo" className="h-[55px] w-auto object-contain" />
-                </Link>
-              </div>
-            )}
+            <div className="flex-shrink-0">
+              <Link to="/" className="flex items-center group transition-all duration-300 hover:scale-105">
+                <img src="/lovable-uploads/uplyze-logo.png" alt="Uplyze Logo" className={`${isPlatform ? 'h-[38px]' : 'h-[55px]'} w-auto object-contain`} />
+              </Link>
+            </div>
 
             {/* Desktop menu */}
             <div className="hidden md:flex items-center gap-1">
