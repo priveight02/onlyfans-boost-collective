@@ -55,6 +55,7 @@ const BrandLogo = ({ platform, size = 22 }: { platform: string; size?: number })
   }
 };
 import { supabase } from "@/integrations/supabase/client";
+import CampaignManager from "./CampaignManager";
 import adVariantA from "@/assets/showcase-ad-variant-a.png";
 import adVariantB from "@/assets/showcase-ad-variant-b.png";
 import adVariantC from "@/assets/showcase-ad-variant-c.png";
@@ -670,6 +671,7 @@ const AdCreativeEngine = ({ subTab, onSubTabChange }: { subTab?: string; onSubTa
           <TabsTrigger value="analytics" className="text-xs data-[state=active]:bg-blue-500/10 data-[state=active]:text-blue-400"><BarChart3 className="h-3.5 w-3.5 mr-1.5" />Analytics</TabsTrigger>
           <TabsTrigger value="settings" className="text-xs data-[state=active]:bg-white/10 data-[state=active]:text-white/80"><Target className="h-3.5 w-3.5 mr-1.5" />Targeting</TabsTrigger>
           <TabsTrigger value="integrations" className="text-xs data-[state=active]:bg-cyan-500/10 data-[state=active]:text-cyan-400"><Link2 className="h-3.5 w-3.5 mr-1.5" />Integrations</TabsTrigger>
+          <TabsTrigger value="campaigns" className="text-xs data-[state=active]:bg-emerald-500/10 data-[state=active]:text-emerald-400"><Megaphone className="h-3.5 w-3.5 mr-1.5" />Campaign Manager</TabsTrigger>
         </TabsList>
 
         {/* CREATIVES TAB */}
@@ -1040,6 +1042,15 @@ const AdCreativeEngine = ({ subTab, onSubTabChange }: { subTab?: string; onSubTa
             </CardContent>
           </Card>
           </ScrollArea>
+        </TabsContent>
+
+        {/* CAMPAIGN MANAGER TAB */}
+        <TabsContent value="campaigns" className="mt-4">
+          <CampaignManager
+            connectedPlatforms={connectedPlatforms}
+            connectedDetails={connectedDetails}
+            integrationKeys={integrationKeys}
+          />
         </TabsContent>
       </Tabs>
 
