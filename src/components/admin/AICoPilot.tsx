@@ -1127,7 +1127,7 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
           const pollData = await pollResp.json();
           if (pollData.status === "SUCCESS" && pollData.video_url) { videoUrl = pollData.video_url; break; }
           if (pollData.status === "FAILED") throw new Error(pollData.error_message || "Motion transfer failed");
-        } catch (e: any) { if (e.message?.includes("failed") || e.message?.includes("Failed")) throw e; }
+        } catch (e: any) { if (e instanceof Error && e.message) throw e; }
       }
       if (!videoUrl) throw new Error("Motion transfer timed out");
       await removeActiveTask(taskId);
@@ -1170,7 +1170,7 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
           const pollData = await pollResp.json();
           if (pollData.status === "SUCCESS" && pollData.video_url) { videoUrl = pollData.video_url; break; }
           if (pollData.status === "FAILED") throw new Error(pollData.error_message || "Lipsync failed");
-        } catch (e: any) { if (e.message?.includes("failed") || e.message?.includes("Failed")) throw e; }
+        } catch (e: any) { if (e instanceof Error && e.message) throw e; }
       }
       if (!videoUrl) throw new Error("Lipsync timed out");
       await removeActiveTask(taskId);
@@ -1213,7 +1213,7 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
           const pollData = await pollResp.json();
           if (pollData.status === "SUCCESS" && pollData.video_url) { resultUrl = pollData.video_url; break; }
           if (pollData.status === "FAILED") throw new Error(pollData.error_message || "Faceswap failed");
-        } catch (e: any) { if (e.message?.includes("failed") || e.message?.includes("Failed")) throw e; }
+        } catch (e: any) { if (e instanceof Error && e.message) throw e; }
       }
       if (!resultUrl) throw new Error("Faceswap timed out");
       await removeActiveTask(taskId);
