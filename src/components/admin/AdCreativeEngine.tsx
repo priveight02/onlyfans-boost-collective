@@ -539,6 +539,47 @@ const AdCreativeEngine = ({ subTab, onSubTabChange }: { subTab?: string; onSubTa
   const [referenceImageName, setReferenceImageName] = useState("");
   const refImageInputRef = useRef<HTMLInputElement>(null);
 
+  // Video creative generation state
+  const [creativeMode, setCreativeMode] = useState<"image" | "video">("image");
+  const [generatingVideo, setGeneratingVideo] = useState(false);
+  const [videoPrompt, setVideoPrompt] = useState("");
+
+  const handleGenerateAdVideo = async () => {
+    if (generatingVideo) return;
+    setGeneratingVideo(true);
+    try {
+      const style = AD_STYLES.find(s => s.id === adStyle);
+      // Build video prompt via AI director
+      const { data: aiData, error: aiError } = await supabase.functions.invoke("agency-copilot", {
+        body: {
+          messages: [
+            { role: "system", content: "You are an expert video ad creative director. Generate a detailed prompt for creating a short ad video. Describe scene progression, product movement, lighting transitions, text overlay moments, and mood. Return ONLY the prompt text, under 100 words." },
+            { role: "user", content: `Create a video ad prompt:\nProduct: ${productName}\nDescription: ${productDescription}\nAudience: ${targetAudience}\nStyle: ${style?.label} — ${style?.desc}\n${videoPrompt ? `Direction: ${videoPrompt}` : ""}\n\nDescribe: opening shot, product reveal, key benefit moment, CTA moment, visual mood.` },
+          ],
+        },
+      });
+      if (aiError) throw aiError;
+      const generatedPrompt = (typeof aiData === "string" ? aiData : aiData?.text || aiData?.choices?.[0]?.message?.content || "").replace(/^["']|["']$/g, "").trim();
+
+      // Generate video via video-generate edge function
+      const { data: vidData, error: vidError } = await supabase.functions.invoke("video-generate", {
+        body: { prompt: generatedPrompt, duration: 5, aspect_ratio: adFormat === "9:16" ? "9:16" : adFormat === "16:9" ? "16:9" : "16:9" },
+      });
+      if (vidError) throw vidError;
+      const videoUrl = vidData?.url || vidData?.video_url || vidData?.result_url;
+      if (videoUrl) {
+        setGeneratedAdImages(prev => [{ url: videoUrl, prompt: generatedPrompt }, ...prev]);
+        // Save to copilot_generated_content
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          await supabase.from("copilot_generated_content").insert({ content_type: "video", url: videoUrl, prompt: generatedPrompt, created_by: user.id });
+        }
+        toast.success("Video ad creative generated!");
+      } else { throw new Error("No video URL returned"); }
+    } catch (err: any) { console.error(err); toast.error(err.message || "Failed to generate video"); }
+    finally { setGeneratingVideo(false); }
+  };
+
   const selected = variants.find((v) => v.id === selectedVariant) || variants[0];
 
   const uploadFileToStorage = async (file: File): Promise<string | null> => {
@@ -626,9 +667,9 @@ const AdCreativeEngine = ({ subTab, onSubTabChange }: { subTab?: string; onSubTa
         <div>
           <h2 className="text-xl font-bold text-white flex items-center gap-2">
             <Megaphone className="h-5 w-5 text-orange-400" />
-            Ad Creative Engine
+            Creative Maker
           </h2>
-          <p className="text-sm text-white/40 mt-1">AI-powered ad creatives, image generation, copy & campaign optimization</p>
+          <p className="text-sm text-white/40 mt-1">AI-powered ad creatives, image & video generation, copy & campaign optimization</p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={handleGenerateCopy} disabled={generatingCopy} className="border-orange-500/20 text-orange-400 hover:bg-orange-500/10 text-xs">
@@ -666,7 +707,7 @@ const AdCreativeEngine = ({ subTab, onSubTabChange }: { subTab?: string; onSubTa
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="bg-white/[0.03] border border-white/[0.06]">
           <TabsTrigger value="creatives" className="text-xs data-[state=active]:bg-orange-500/10 data-[state=active]:text-orange-400"><Palette className="h-3.5 w-3.5 mr-1.5" />Creatives</TabsTrigger>
-          <TabsTrigger value="generate" className="text-xs data-[state=active]:bg-emerald-500/10 data-[state=active]:text-emerald-400"><Image className="h-3.5 w-3.5 mr-1.5" />AI Image Gen</TabsTrigger>
+          <TabsTrigger value="generate" className="text-xs data-[state=active]:bg-emerald-500/10 data-[state=active]:text-emerald-400"><Image className="h-3.5 w-3.5 mr-1.5" />Creative Maker</TabsTrigger>
           <TabsTrigger value="copy" className="text-xs data-[state=active]:bg-purple-500/10 data-[state=active]:text-purple-400"><Sparkles className="h-3.5 w-3.5 mr-1.5" />Copy & CTA</TabsTrigger>
           <TabsTrigger value="analytics" className="text-xs data-[state=active]:bg-blue-500/10 data-[state=active]:text-blue-400"><BarChart3 className="h-3.5 w-3.5 mr-1.5" />Analytics</TabsTrigger>
           <TabsTrigger value="settings" className="text-xs data-[state=active]:bg-white/10 data-[state=active]:text-white/80"><Target className="h-3.5 w-3.5 mr-1.5" />Targeting</TabsTrigger>
@@ -741,10 +782,19 @@ const AdCreativeEngine = ({ subTab, onSubTabChange }: { subTab?: string; onSubTa
 
         {/* AI IMAGE GENERATION TAB */}
         <TabsContent value="generate" className="mt-4">
+          {/* Mode toggle: Image vs Video */}
+          <div className="flex items-center gap-2 mb-4">
+            <button onClick={() => setCreativeMode("image")} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${creativeMode === "image" ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400" : "border-white/[0.06] text-white/30 hover:text-white/50"}`}>
+              <Image className="h-3.5 w-3.5" /> Image Creative
+            </button>
+            <button onClick={() => setCreativeMode("video")} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${creativeMode === "video" ? "border-purple-500/30 bg-purple-500/10 text-purple-400" : "border-white/[0.06] text-white/30 hover:text-white/50"}`}>
+              <Play className="h-3.5 w-3.5" /> Video Creative
+            </button>
+          </div>
           <div className="grid grid-cols-12 gap-4">
             <div className="col-span-4 space-y-4">
               <Card className="crm-card border-white/[0.04]">
-                <CardHeader className="pb-2"><CardTitle className="text-sm text-white/80 flex items-center gap-2"><Wand2 className="w-3.5 h-3.5 text-emerald-400" />Generate Ad Creative</CardTitle></CardHeader>
+                <CardHeader className="pb-2"><CardTitle className="text-sm text-white/80 flex items-center gap-2"><Wand2 className="w-3.5 h-3.5 text-emerald-400" />Generate {creativeMode === "video" ? "Video" : "Image"} Creative</CardTitle></CardHeader>
                 <CardContent className="space-y-3">
                   <div>
                     <label className="text-[11px] text-white/35 font-medium">Ad Style</label>
@@ -776,12 +826,19 @@ const AdCreativeEngine = ({ subTab, onSubTabChange }: { subTab?: string; onSubTa
                   </div>
                   <div>
                     <label className="text-[11px] text-white/35 font-medium">Additional Direction (optional)</label>
-                    <Textarea value={adImagePrompt} onChange={(e) => setAdImagePrompt(e.target.value)} placeholder="e.g. Dark moody lighting, gold accents, floating product..." className="mt-1 text-xs crm-input min-h-[70px]" />
+                    <Textarea value={creativeMode === "video" ? videoPrompt : adImagePrompt} onChange={(e) => creativeMode === "video" ? setVideoPrompt(e.target.value) : setAdImagePrompt(e.target.value)} placeholder={creativeMode === "video" ? "e.g. Smooth product rotation, cinematic reveal, lens flare..." : "e.g. Dark moody lighting, gold accents, floating product..."} className="mt-1 text-xs crm-input min-h-[70px]" />
                   </div>
-                  <Button onClick={handleGenerateAdImage} disabled={generatingImage} className="w-full text-xs" style={{ background: "linear-gradient(135deg, hsl(145 70% 40%), hsl(170 70% 45%))" }}>
-                    {generatingImage ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5 mr-1.5" />}
-                    Generate Ad Creative
-                  </Button>
+                  {creativeMode === "video" ? (
+                    <Button onClick={handleGenerateAdVideo} disabled={generatingVideo} className="w-full text-xs" style={{ background: "linear-gradient(135deg, hsl(262 83% 50%), hsl(280 80% 55%))" }}>
+                      {generatingVideo ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Play className="h-3.5 w-3.5 mr-1.5" />}
+                      Generate Video Creative
+                    </Button>
+                  ) : (
+                    <Button onClick={handleGenerateAdImage} disabled={generatingImage} className="w-full text-xs" style={{ background: "linear-gradient(135deg, hsl(145 70% 40%), hsl(170 70% 45%))" }}>
+                      {generatingImage ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5 mr-1.5" />}
+                      Generate Image Creative
+                    </Button>
+                  )}
                 </CardContent>
               </Card>
             </div>
@@ -1050,6 +1107,7 @@ const AdCreativeEngine = ({ subTab, onSubTabChange }: { subTab?: string; onSubTa
             connectedPlatforms={connectedPlatforms}
             connectedDetails={connectedDetails}
             integrationKeys={integrationKeys}
+            generatedCreatives={generatedAdImages}
           />
         </TabsContent>
       </Tabs>
