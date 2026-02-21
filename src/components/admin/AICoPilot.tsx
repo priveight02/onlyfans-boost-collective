@@ -1373,13 +1373,14 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
 
   // ---- Content gallery for image/video (full image preview) ----
   const renderContentGallery = (items: GeneratedContent[], modeTab: string, isGenerating: boolean, progress: number, progressLabel: string) => {
+    const isVideoMode = ["video", "motion", "lipsync", "faceswap"].includes(modeTab);
     const showGenerating = isGenerating;
     const generatingCard = showGenerating ? (
       <div key="generating" className="relative rounded-xl overflow-hidden border-2 border-accent/30 bg-white/[0.03] flex flex-col items-center justify-center p-8"
         style={displayLayout !== "vertical" ? { width: `${220 * displayScale}px`, minHeight: `${170 * displayScale}px` } : { minHeight: "200px" }}>
         <ProgressRing progress={progress} size={90} label={progressLabel} />
         <p className="text-xs text-white/40 mt-3">Media generating...</p>
-        <p className="text-[10px] text-white/20 mt-1">~{modeTab === "video" ? "2-5 min" : "15s"} estimated</p>
+        <p className="text-[10px] text-white/20 mt-1">~{isVideoMode ? "2-5 min" : "15s"} estimated</p>
       </div>
     ) : null;
 
@@ -1394,18 +1395,19 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
         {items.map(item => {
           const meta = item.metadata || {};
           const dims = meta.width && meta.height ? `${meta.width}×${meta.height}` : item.aspect_ratio || "";
+          const fileExt = isVideoMode ? "mp4" : "png";
           return (
             <div key={item.id} className="relative group rounded-xl overflow-hidden border border-white/10 bg-white/[0.02]"
               style={displayLayout !== "vertical" ? { width: `${220 * displayScale}px` } : {}}>
               {/* Render video or image based on mode */}
-              {modeTab === "video" ? (
-                <video src={item.url} controls className="w-full rounded-t-xl bg-black/20" />
+              {isVideoMode ? (
+                <video src={item.url} controls playsInline preload="metadata" className="w-full rounded-t-xl bg-black/20" style={{ maxHeight: `${200 * displayScale}px` }} />
               ) : (
                 <img src={item.url} alt="" className="w-full object-contain rounded-t-xl cursor-pointer bg-black/20"
                   onClick={() => setImageFullPreview(item.url)} />
               )}
+              {/* Overlay actions */}
               <div className="absolute top-2 right-2 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button onClick={() => { const a = document.createElement("a"); a.href = item.url; a.download = `${modeTab}_${item.id}.${modeTab === "video" ? "mp4" : "png"}`; a.target = "_blank"; a.click(); }} className="h-8 w-8 rounded-lg bg-black/60 flex items-center justify-center hover:bg-black/80"><Download className="h-4 w-4 text-white" /></button>
                 <button onClick={() => deleteGeneratedContent(item.id, modeTab)} className="h-8 w-8 rounded-lg bg-black/60 flex items-center justify-center hover:bg-red-500/60"><Trash className="h-4 w-4 text-white" /></button>
                 {modeTab === "video" && (
                   <>
@@ -1417,11 +1419,17 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
               </div>
               {dims && <div className="absolute top-2 left-2 bg-black/60 rounded-md px-2 py-0.5 text-[9px] text-white/70">{dims}</div>}
               <div className="p-3">
-                <p className="text-[10px] text-white/40 truncate"><span className="text-accent">Prompt:</span> {item.prompt}</p>
-                <button onClick={() => modeTab === "image" ? setImagePrompt(item.prompt || "") : setVideoPrompt(item.prompt || "")}
-                  className="flex items-center gap-1 text-[10px] text-white/30 hover:text-white border border-white/10 rounded px-2 py-0.5 mt-2">
-                  <RotateCcw className="h-2.5 w-2.5" /> Reuse
-                </button>
+                <p className="text-[10px] text-white/40 truncate mb-2"><span className="text-accent">Prompt:</span> {item.prompt}</p>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => { const a = document.createElement("a"); a.href = item.url; a.download = `${modeTab}_${item.id}.${fileExt}`; a.target = "_blank"; a.click(); }}
+                    className="flex items-center gap-1 text-[10px] text-white/70 hover:text-white bg-accent/20 hover:bg-accent/30 border border-accent/30 rounded-lg px-2.5 py-1 transition-all">
+                    <Download className="h-3 w-3" /> Download
+                  </button>
+                  <button onClick={() => modeTab === "image" ? setImagePrompt(item.prompt || "") : setVideoPrompt(item.prompt || "")}
+                    className="flex items-center gap-1 text-[10px] text-white/30 hover:text-white border border-white/10 rounded-lg px-2 py-1">
+                    <RotateCcw className="h-2.5 w-2.5" /> Reuse
+                  </button>
+                </div>
               </div>
             </div>
           );
