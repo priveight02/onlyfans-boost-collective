@@ -94,7 +94,7 @@ const Hero = () => {
   }, []);
 
   return (
-    <div className="relative flex items-center overflow-hidden min-h-screen pt-16">
+    <div className="relative flex items-center overflow-hidden min-h-screen pt-16" style={{ background: 'hsl(222, 35%, 8%)' }}>
       {/* GPU-accelerated animated canvas background */}
       <canvas
         ref={canvasRef}
