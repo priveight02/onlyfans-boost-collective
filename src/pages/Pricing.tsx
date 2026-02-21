@@ -455,7 +455,7 @@ const Pricing = () => {
             <div className="flex flex-col items-center gap-2">
               <ShieldCheck className="h-5 w-5 text-white/30" />
               <h4 className="text-sm font-medium text-white/70">Secure Payments</h4>
-              <p className="text-xs text-white/30">256-bit SSL encryption</p>
+              <p className="text-xs text-white/30">256-bit SSL · One-time payment</p>
             </div>
             <div className="flex flex-col items-center gap-2">
               <Zap className="h-5 w-5 text-white/30" />
