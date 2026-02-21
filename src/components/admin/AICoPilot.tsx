@@ -1828,14 +1828,14 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
 
         <Textarea value={lipsyncPrompt} onChange={e => setLipsyncPrompt(e.target.value)} placeholder="Describe the scene, pose or desired behavior... (optional)" className="bg-white/5 border-white/10 text-white text-sm min-h-[80px] resize-none placeholder:text-white/20" />
 
-        {/* Image/Video upload */}
+        {/* Video upload */}
         <div>
-          <div className="flex items-center justify-between mb-1"><p className="text-[10px] text-white/40 font-medium flex items-center gap-1"><ImageIcon className="h-3 w-3" /> Image</p><span className="text-[9px] text-white/20">Upload</span></div>
+          <div className="flex items-center justify-between mb-1"><p className="text-[10px] text-white/40 font-medium flex items-center gap-1"><Video className="h-3 w-3" /> Video</p><span className="text-[9px] text-white/20">Upload</span></div>
           <div className="border-2 border-dashed border-white/10 rounded-xl p-4 flex flex-col items-center justify-center gap-1 cursor-pointer hover:border-white/20 transition-colors min-h-[70px]" onClick={() => lipsyncVideoInputRef.current?.click()}>
             {lipsyncVideo ? <div className="flex items-center gap-2"><Video className="h-4 w-4 text-accent" /><span className="text-[11px] text-white/60 truncate max-w-[200px]">{lipsyncVideoName}</span><button onClick={(e) => { e.stopPropagation(); setLipsyncVideo(null); setLipsyncVideoName(""); }}><X className="h-3 w-3 text-white/30 hover:text-red-400" /></button></div>
-              : <><Upload className="h-5 w-5 text-white/20" /><p className="text-[10px] text-white/30">Drag your image here or click to select</p><p className="text-[8px] text-white/15">PNG, JPG, WEBP up to 10MB</p></>}
+              : <><Upload className="h-5 w-5 text-white/20" /><p className="text-[10px] text-white/30">Drag your video here or click to select</p><p className="text-[8px] text-white/15">MP4, MOV, WEBM up to 50MB</p></>}
           </div>
-          <input ref={lipsyncVideoInputRef} type="file" accept="image/*,video/*" className="hidden" onChange={async e => { const f = e.target.files?.[0]; if (!f) return; const url = await uploadFileToStorage(f); if (url) { setLipsyncVideo(url); setLipsyncVideoName(f.name); } if (lipsyncVideoInputRef.current) lipsyncVideoInputRef.current.value = ""; }} />
+          <input ref={lipsyncVideoInputRef} type="file" accept="video/*" className="hidden" onChange={async e => { const f = e.target.files?.[0]; if (!f) return; const url = await uploadFileToStorage(f); if (url) { setLipsyncVideo(url); setLipsyncVideoName(f.name); } if (lipsyncVideoInputRef.current) lipsyncVideoInputRef.current.value = ""; }} />
           {generatedVideos.length > 0 && <Select onValueChange={v => { const vid = generatedVideos.find(x => x.id === v); if (vid) { setLipsyncVideo(vid.url); setLipsyncVideoName(vid.prompt?.slice(0, 30) || "Generated video"); } }}><SelectTrigger className="bg-white/5 border-white/10 text-white h-7 text-[10px] mt-1.5"><SelectValue placeholder="Or select generated video..." /></SelectTrigger><SelectContent className="bg-[hsl(220,40%,10%)] border-white/10 max-h-[150px]">{generatedVideos.map(v => <SelectItem key={v.id} value={v.id} className="text-white text-[10px]">{v.prompt?.slice(0, 40) || "Untitled"}</SelectItem>)}</SelectContent></Select>}
         </div>
 
@@ -1856,9 +1856,15 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
           </div>
         </div>
 
+        {/* Auto-shorten option */}
+        <div className="flex items-center gap-2 px-1">
+          <Switch defaultChecked={true} />
+          <span className="text-[10px] text-white/40">Auto-shorten video to match audio length</span>
+        </div>
+
         <div className="mt-auto">
           <Button onClick={generateLipsync} disabled={!lipsyncVideo || !lipsyncAudio || isGeneratingLipsync} className="w-full bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white text-sm h-9">
-            {isGeneratingLipsync ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Mic className="h-4 w-4 mr-2" />}Select an audio file
+            {isGeneratingLipsync ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Mic className="h-4 w-4 mr-2" />}Generate Lipsync
           </Button>
         </div>
       </div>
