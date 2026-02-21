@@ -1176,16 +1176,28 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
 
   // ---- Lipsync generation ----
   const generateLipsync = async () => {
-    if (!lipsyncVideo || !lipsyncAudio || isGeneratingLipsync) return;
+    const useVoiceMode = lipsyncAudioSource === "voice" && lipsyncTtsVoice && lipsyncPrompt.trim();
+    if (!lipsyncVideo || isGeneratingLipsync) return;
+    // In voice mode we don't need pre-existing audio; in voicenote mode we do
+    if (!useVoiceMode && !lipsyncAudio) return;
     const creditResult = await performAction('copilot_lipsync', async () => ({ success: true }));
     if (!creditResult) return;
     setIsGeneratingLipsync(true);
     const stopProgress = simulateProgress(setLipsyncProgress, setLipsyncProgressLabel, 120000);
     try {
+      const voice = voices.find(v => v.id === lipsyncTtsVoice);
+      const payload: any = { video_url: lipsyncVideo, quality: lipsyncQuality };
+      if (useVoiceMode && voice?.elevenlabs_voice_id) {
+        // Send TTS text + voice to edge function — it will generate audio server-side
+        payload.tts_text = lipsyncPrompt;
+        payload.tts_voice_id = voice.elevenlabs_voice_id;
+      } else {
+        payload.audio_url = lipsyncAudio;
+      }
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/media-process?action=create&type=lipsync`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
-        body: JSON.stringify({ video_url: lipsyncVideo, audio_url: lipsyncAudio, quality: lipsyncQuality }),
+        body: JSON.stringify(payload),
       });
       if (!resp.ok) { const ed = await resp.json().catch(() => ({})); throw new Error(ed.error || `Error ${resp.status}`); }
       const data = await resp.json();
@@ -2046,11 +2058,9 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
         {/* Main TTS text input — always visible, used by both audio sources */}
         <Textarea value={lipsyncPrompt} onChange={e => setLipsyncPrompt(e.target.value)} placeholder="Type what the voice should say / describe the scene... (optional)" className="bg-white/5 border-white/10 text-white text-sm min-h-[80px] resize-none placeholder:text-white/20" />
 
-        {/* Generate TTS button for "Use Created Voice" mode */}
+        {/* Voice mode hint */}
         {lipsyncAudioSource === "voice" && lipsyncTtsVoice && voices.length > 0 && (
-          <Button onClick={generateLipsyncTts} disabled={!lipsyncPrompt.trim() || isGeneratingLipsyncTts} size="sm" className="w-full h-8 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white text-[11px]">
-            {isGeneratingLipsyncTts ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <Sparkles className="h-3.5 w-3.5 mr-1.5" />}Generate Voice Audio
-          </Button>
+          <p className="text-[9px] text-white/30 italic">Voice audio will be generated automatically when you click Generate Lipsync</p>
         )}
 
         {/* Video upload */}
@@ -2085,7 +2095,7 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
         </div>
 
         <div className="mt-auto">
-          <Button onClick={generateLipsync} disabled={!lipsyncVideo || !lipsyncAudio || isGeneratingLipsync} className="w-full bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white text-sm h-9">
+          <Button onClick={generateLipsync} disabled={!lipsyncVideo || isGeneratingLipsync || (lipsyncAudioSource === "voicenote" && !lipsyncAudio) || (lipsyncAudioSource === "voice" && (!lipsyncTtsVoice || !lipsyncPrompt.trim()))} className="w-full bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white text-sm h-9">
             {isGeneratingLipsync ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Mic className="h-4 w-4 mr-2" />}Generate Lipsync
           </Button>
         </div>
