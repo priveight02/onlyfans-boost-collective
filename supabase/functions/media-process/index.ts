@@ -42,19 +42,12 @@ serve(async (req) => {
           });
         }
 
-        // Map quality to resolution
-        const ratioMap: Record<string, string> = {
-          highest: "1920:1080",
-          high: "1280:720",
-          medium: "854:480",
-          low: "640:360",
-        };
-
+        // Always force maximum quality — 1920x1080
         const runwayBody: any = {
           model: "gen4_turbo",
           promptText: prompt || "Apply natural, realistic motion and movement to this character. Maintain the character's appearance exactly while adding fluid, lifelike animation.",
           promptImage: target_url,
-          ratio: ratioMap[quality || "high"] || "1280:720",
+          ratio: "1920:1080",
           duration: 10,
         };
 
@@ -133,14 +126,8 @@ serve(async (req) => {
           });
         }
 
-        // Map quality to resize_factor: 1 = highest (no resize), 2 = medium, 4 = fastest/lowest
-        const qualityMap: Record<string, { resize_factor: number; smooth: boolean }> = {
-          highest: { resize_factor: 1, smooth: true },
-          high: { resize_factor: 1, smooth: true },
-          medium: { resize_factor: 2, smooth: true },
-          low: { resize_factor: 4, smooth: false },
-        };
-        const qSettings = qualityMap[quality || "high"] || qualityMap.high;
+        // Always force maximum quality — no resize, smooth enabled
+        const qSettings = { resize_factor: 1, smooth: true };
 
         const resp = await fetch(`${REPLICATE_BASE}/predictions`, {
           method: "POST",
@@ -172,7 +159,7 @@ serve(async (req) => {
         });
       }
 
-      // ========== FACESWAP (Replicate - codeplugtech/face-swap — highest quality, 314K+ runs) ==========
+      // ========== FACESWAP (Replicate - omniedgeio/face-swap — InsightFace-based, photorealistic) ==========
       if (processType === "faceswap") {
         if (!REPLICATE_API_KEY) {
           return new Response(JSON.stringify({ error: "REPLICATE_API_KEY not configured" }), {
@@ -181,18 +168,18 @@ serve(async (req) => {
         }
         const { source_face_url, target_url, target_type } = body;
 
-        // Step 1: Face swap using codeplugtech/face-swap — most advanced & highest quality model
-        const resp = await fetch(`${REPLICATE_BASE}/predictions`, {
+        // Use omniedgeio/face-swap — InsightFace + inswapper_128 for most realistic, undetectable results
+        const resp = await fetch(`${REPLICATE_BASE}/models/omniedgeio/face-swap/predictions`, {
           method: "POST",
           headers: {
             Authorization: `Token ${REPLICATE_API_KEY}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            version: "5c7d5dc6dd8bf75c1acaa8565735e7986bc5b66206b55cca93cb72c9bf15ccaa",
             input: {
-              input_image: target_url,
+              target_image: target_url,
               swap_image: source_face_url,
+              disable_safety_checker: true,
             },
           }),
         });
