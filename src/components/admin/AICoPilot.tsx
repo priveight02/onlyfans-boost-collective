@@ -214,6 +214,26 @@ const AudioWaveform = ({ playing }: { playing: boolean }) => {
   );
 };
 
+// ─── Credit cost helpers ───
+const getVideoCreditCost = (duration: number): number => {
+  // 250 base (4s), +50 per extra 2s bracket
+  if (duration <= 4) return 250;
+  if (duration <= 6) return 300;
+  if (duration <= 8) return 350;
+  return 400; // 10s
+};
+
+const getModeCreditLabel = (mode: string): string => {
+  switch (mode) {
+    case "image": return "31";
+    case "video": return "250–400";
+    case "audio": return "21";
+    case "chat":
+    case "freeWill":
+    default: return "8";
+  }
+};
+
 // ============= MAIN COMPONENT =============
 const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
   // Credit system
@@ -560,6 +580,11 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
   const handleCloneVoice = async () => {
     if (!newVoiceName.trim() || voiceSamples.length === 0) { toast.error("Provide a name and at least one audio sample (1 min recommended)"); return; }
     if (newVoiceName.trim().length < 3) { toast.error("Name must be at least 3 characters"); return; }
+    // Max 4 voices limit
+    if (voices.length >= 4) { toast.error("Maximum 4 voices allowed. Delete an existing voice to create a new one."); return; }
+    // Deduct 21 credits for voice cloning
+    const creditResult = await performAction('copilot_voice_clone', async () => ({ success: true }));
+    if (!creditResult) return;
     setIsCloningVoice(true);
     try {
       const formData = new FormData();
@@ -633,6 +658,9 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
   // ---- Audio generation (real ElevenLabs TTS) ----
   const generateAudio = async () => {
     if (!audioText.trim() || isGeneratingAudio) return;
+    // Deduct 21 credits for audio generation
+    const creditResult = await performAction('copilot_audio', async () => ({ success: true }));
+    if (!creditResult) return;
     const voice = voices.find(v => v.id === selectedVoice);
     if (!voice?.elevenlabs_voice_id) { toast.error("Select a cloned voice first. Create one from audio samples."); return; }
     setIsGeneratingAudio(true);
@@ -772,11 +800,23 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
 
   const generateVideo = async () => {
     if (!videoPrompt.trim() || isGeneratingVideo) return;
-    // Deduct 250 credits server-side before generating
-    const creditResult = await performAction('copilot_generate_video', async () => {
-      return { success: true };
+    // Video cost scales with duration: 250 base (4s), +50 per extra 2s
+    const videoCreditCost = getVideoCreditCost(videoDuration);
+    // Deduct credits server-side via direct call with dynamic cost
+    const { data: session } = await supabase.auth.getSession();
+    const { data: deductResult, error: deductError } = await supabase.functions.invoke('deduct-credits', {
+      body: { action_type: 'copilot_generate_video', cost: videoCreditCost },
+      headers: { Authorization: `Bearer ${session?.session?.access_token}` },
     });
-    if (!creditResult) return; // Insufficient credits or error
+    if (deductError || !deductResult?.success) {
+      const msg = deductResult?.error || deductError?.message || 'Failed to deduct credits';
+      if (msg.includes('Insufficient')) {
+        toast.error(`Insufficient credits. Need ${videoCreditCost}, check your balance.`);
+      } else {
+        toast.error('Credit deduction failed: ' + msg);
+      }
+      return;
+    }
     setIsGeneratingVideo(true);
     const prompt = videoPrompt;
     const frame = videoStartFrame;
@@ -1311,6 +1351,10 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
     if (needsFile && !stsAudioFile) { toast.error("Upload an audio file"); return; }
     if (isGeneratingElevenAudio) return;
 
+    // Deduct 21 credits for any audio generation action
+    const creditResult = await performAction('copilot_audio', async () => ({ success: true }));
+    if (!creditResult) return;
+
     setIsGeneratingElevenAudio(true);
     try {
       let result: any;
@@ -1628,7 +1672,7 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
             <div className="p-4 flex items-center gap-3">
               <Bot className="h-6 w-6 text-accent" />
               <p className="text-base font-semibold text-white flex-1">Uplyze Virtual Assistant</p>
-              <CreditCostBadge cost="8–30" variant="header" label="per action" />
+              <CreditCostBadge cost={getModeCreditLabel(mode)} variant="header" label="per action" />
               {mode === "freeWill" && <Badge variant="outline" className="border-red-500/30 text-red-400 text-[10px]"><Wand2 className="h-3 w-3 mr-1" /> Uncensored</Badge>}
               {isStreaming && <Badge variant="outline" className="border-accent/20 text-accent text-[10px] animate-pulse"><Sparkles className="h-3 w-3 mr-1" /> Thinking...</Badge>}
             </div>
