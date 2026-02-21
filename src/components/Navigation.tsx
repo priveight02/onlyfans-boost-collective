@@ -54,10 +54,22 @@ const Navigation = () => {
   const userInitial = profile?.display_name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || "U";
 
   return (
-    <div className={`w-full fixed top-0 ${isPlatform ? 'flex justify-start pt-1.5 px-2 pointer-events-none' : 'flex justify-center pt-4 px-4'}`} style={isPlatform ? { left: '260px', width: 'auto', right: 'auto', zIndex: 40 } : { zIndex: 50 }}>
+    <div
+      className={`fixed top-0 flex ${isPlatform ? 'justify-center pt-1.5' : 'justify-center pt-4 px-4 w-full'}`}
+      style={isPlatform ? {
+        left: '260px',
+        right: '0',
+        zIndex: 40,
+        pointerEvents: 'none',
+      } : { zIndex: 50 }}
+    >
       <nav
-        className={`transition-all duration-500 pointer-events-auto ${isPlatform ? 'rounded-xl' : 'w-full max-w-4xl rounded-2xl'}`}
+        className="pointer-events-auto"
         style={{
+          transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
+          maxWidth: isPlatform ? '420px' : '56rem',
+          width: '100%',
+          borderRadius: isPlatform ? '0.75rem' : '1rem',
           background: isScrolled
             ? "hsl(222 47% 10% / 0.75)"
             : "hsl(222 47% 12% / 0.55)",
@@ -69,10 +81,27 @@ const Navigation = () => {
         }}
       >
         <div className={isPlatform ? "px-2" : "px-4 sm:px-5"}>
-          <div className={`flex items-center ${isPlatform ? 'h-10 gap-0' : 'justify-between h-14'}`}>
+          <div
+            className="flex items-center"
+            style={{
+              transition: 'height 0.5s cubic-bezier(0.4, 0, 0.2, 1), gap 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
+              height: isPlatform ? '40px' : '56px',
+              gap: isPlatform ? '0px' : '4px',
+              justifyContent: isPlatform ? 'flex-start' : 'space-between',
+            }}
+          >
             <div className="flex-shrink-0">
               <Link to="/" className="flex items-center group transition-all duration-300 hover:scale-105">
-                <img src="/lovable-uploads/uplyze-logo.png" alt="Uplyze Logo" className={`${isPlatform ? 'h-[38px]' : 'h-[55px]'} w-auto object-contain`} />
+                <img
+                  src="/lovable-uploads/uplyze-logo.png"
+                  alt="Uplyze Logo"
+                  style={{
+                    transition: 'height 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
+                    height: isPlatform ? '38px' : '55px',
+                    width: 'auto',
+                    objectFit: 'contain',
+                  }}
+                />
               </Link>
             </div>
 
