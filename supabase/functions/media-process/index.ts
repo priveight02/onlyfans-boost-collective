@@ -32,7 +32,7 @@ serve(async (req) => {
             status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
-        const { target_url, target_type, prompt } = body;
+        const { target_url, target_type, prompt, quality } = body;
         
         // Runway promptImage only accepts images, not videos
         if (target_type === "video") {
@@ -41,11 +41,19 @@ serve(async (req) => {
           });
         }
 
+        // Map quality to resolution
+        const ratioMap: Record<string, string> = {
+          highest: "1920:1080",
+          high: "1280:720",
+          medium: "854:480",
+          low: "640:360",
+        };
+
         const runwayBody: any = {
           model: "gen4_turbo",
           promptText: prompt || "Apply natural, realistic motion and movement to this character. Maintain the character's appearance exactly while adding fluid, lifelike animation.",
           promptImage: target_url,
-          ratio: "1280:720",
+          ratio: ratioMap[quality || "high"] || "1280:720",
           duration: 10,
         };
 
@@ -74,7 +82,16 @@ serve(async (req) => {
             status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
-        const { video_url, audio_url } = body;
+        const { video_url, audio_url, quality } = body;
+
+        // Map quality to resize_factor: 1 = highest (no resize), 2 = medium, 4 = fastest/lowest
+        const qualityMap: Record<string, { resize_factor: number; smooth: boolean }> = {
+          highest: { resize_factor: 1, smooth: true },
+          high: { resize_factor: 1, smooth: true },
+          medium: { resize_factor: 2, smooth: true },
+          low: { resize_factor: 4, smooth: false },
+        };
+        const qSettings = qualityMap[quality || "high"] || qualityMap.high;
 
         const resp = await fetch(`${REPLICATE_BASE}/predictions`, {
           method: "POST",
@@ -88,6 +105,8 @@ serve(async (req) => {
             input: {
               face: video_url,
               audio: audio_url,
+              resize_factor: qSettings.resize_factor,
+              smooth: qSettings.smooth,
             },
           }),
         });

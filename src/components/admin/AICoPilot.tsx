@@ -341,6 +341,10 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
   const [lipsyncTtsText, setLipsyncTtsText] = useState("");
   const [lipsyncTtsVoice, setLipsyncTtsVoice] = useState("");
   const [isGeneratingLipsyncTts, setIsGeneratingLipsyncTts] = useState(false);
+  const [lipsyncAudioSource, setLipsyncAudioSource] = useState<"voicenote" | "voice">("voicenote");
+  const [lipsyncQuality, setLipsyncQuality] = useState<string>("high");
+  const [motionQuality, setMotionQuality] = useState<string>("high");
+  const [faceswapQuality, setFaceswapQuality] = useState<string>("high");
 
   // Faceswap state
   const [faceswapSource, setFaceswapSource] = useState<string | null>(null);
@@ -1138,7 +1142,7 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/media-process?action=create&type=motion`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
-        body: JSON.stringify({ reference_video_url: motionRefVideo, target_url: targetUrl, target_type: targetType, prompt: motionPrompt || undefined }),
+        body: JSON.stringify({ reference_video_url: motionRefVideo, target_url: targetUrl, target_type: targetType, prompt: motionPrompt || undefined, quality: motionQuality }),
       });
       if (!resp.ok) { const ed = await resp.json().catch(() => ({})); throw new Error(ed.error || `Error ${resp.status}`); }
       const data = await resp.json();
@@ -1181,7 +1185,7 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/media-process?action=create&type=lipsync`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
-        body: JSON.stringify({ video_url: lipsyncVideo, audio_url: lipsyncAudio }),
+        body: JSON.stringify({ video_url: lipsyncVideo, audio_url: lipsyncAudio, quality: lipsyncQuality }),
       });
       if (!resp.ok) { const ed = await resp.json().catch(() => ({})); throw new Error(ed.error || `Error ${resp.status}`); }
       const data = await resp.json();
@@ -1382,10 +1386,10 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
                     className="h-8 w-8 rounded-lg flex items-center justify-center text-white/30 hover:text-white hover:bg-white/10 transition-colors" title="Edit">
                     <SlidersHorizontal className="h-4 w-4" />
                   </button>
-                  <a href={item.url} download={`audio_${item.id}.mp3`}
+                  <button onClick={async () => { const slug = (item.prompt || "audio").replace(/[^a-zA-Z0-9]+/g, '_').slice(0, 40).replace(/_$/, ''); try { const resp = await fetch(item.url); const blob = await resp.blob(); const blobUrl = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = blobUrl; a.download = `${slug}.mp3`; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(blobUrl); } catch { const a = document.createElement("a"); a.href = item.url; a.download = `${slug}.mp3`; a.click(); } }}
                     className="h-8 w-8 rounded-lg flex items-center justify-center text-white/30 hover:text-white hover:bg-white/10 transition-colors" title="Download .mp3">
                     <Download className="h-4 w-4" />
-                  </a>
+                  </button>
                   <button onClick={() => deleteGeneratedContent(item.id, "audio")}
                     className="h-8 w-8 rounded-lg flex items-center justify-center text-white/30 hover:text-red-400 hover:bg-white/10 transition-colors" title="Delete">
                     <Trash className="h-4 w-4" />
@@ -1450,7 +1454,7 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
               <div className="p-3">
                 <p className="text-[10px] text-white/40 truncate mb-2"><span className="text-accent">Prompt:</span> {item.prompt}</p>
                 <div className="flex items-center gap-2">
-                  <button onClick={async () => { try { const resp = await fetch(item.url); const blob = await resp.blob(); const blobUrl = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = blobUrl; a.download = `${modeTab}_${item.id}.${fileExt}`; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(blobUrl); } catch { const a = document.createElement("a"); a.href = item.url; a.download = `${modeTab}_${item.id}.${fileExt}`; a.click(); } }}
+                  <button onClick={async () => { const slug = (item.prompt || modeTab).replace(/[^a-zA-Z0-9]+/g, '_').slice(0, 40).replace(/_$/, ''); try { const resp = await fetch(item.url); const blob = await resp.blob(); const blobUrl = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = blobUrl; a.download = `${slug}.${fileExt}`; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(blobUrl); } catch { const a = document.createElement("a"); a.href = item.url; a.download = `${slug}.${fileExt}`; a.click(); } }}
                     className="flex items-center gap-1 text-[10px] text-white/70 hover:text-white bg-accent/20 hover:bg-accent/30 border border-accent/30 rounded-lg px-2.5 py-1 transition-all">
                     <Download className="h-3 w-3" /> Download
                   </button>
@@ -1955,6 +1959,20 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
           {generatedImages.length > 0 && motionInputType === "image" && <Select onValueChange={v => { const img = generatedImages.find(x => x.id === v); if (img) { setMotionTargetImage(img.url); setMotionTargetImageName(img.prompt?.slice(0, 30) || "Generated image"); } }}><SelectTrigger className="bg-white/5 border-white/10 text-white h-7 text-[10px] mt-1.5"><SelectValue placeholder="Or select generated image..." /></SelectTrigger><SelectContent className="bg-[hsl(220,40%,10%)] border-white/10 max-h-[150px]">{generatedImages.map(v => <SelectItem key={v.id} value={v.id} className="text-white text-[10px]">{v.prompt?.slice(0, 40) || "Untitled"}</SelectItem>)}</SelectContent></Select>}
         </div>
 
+        {/* Quality selector */}
+        <div>
+          <p className="text-[10px] text-white/40 mb-1.5 font-medium">Output Quality</p>
+          <div className="flex gap-1.5">
+            {[{ id: "highest", label: "Highest", desc: "1920×1080" }, { id: "high", label: "High", desc: "1280×720" }, { id: "medium", label: "Medium", desc: "854×480" }, { id: "low", label: "Low", desc: "640×360" }].map(q => (
+              <button key={q.id} onClick={() => setMotionQuality(q.id)}
+                className={`flex-1 px-2 py-1.5 rounded-lg text-[10px] border transition-all text-center ${motionQuality === q.id ? "border-accent/40 bg-accent/10 text-accent" : "border-white/10 text-white/30 hover:text-white/50"}`}>
+                <span className="block font-medium">{q.label}</span>
+                <span className="block text-[8px] text-white/20">{q.desc}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div className="mt-auto">
           <Button onClick={generateMotion} disabled={!motionRefVideo || !(motionTargetVideo || motionTargetImage) || isGeneratingMotion} className="w-full bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 text-white text-sm h-9">
             {isGeneratingMotion ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Move className="h-4 w-4 mr-2" />}Generate Motion Transfer
@@ -1988,41 +2006,80 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
           {generatedVideos.length > 0 && <Select onValueChange={v => { const vid = generatedVideos.find(x => x.id === v); if (vid) { setLipsyncVideo(vid.url); setLipsyncVideoName(vid.prompt?.slice(0, 30) || "Generated video"); } }}><SelectTrigger className="bg-white/5 border-white/10 text-white h-7 text-[10px] mt-1.5"><SelectValue placeholder="Or select generated video..." /></SelectTrigger><SelectContent className="bg-[hsl(220,40%,10%)] border-white/10 max-h-[150px]">{generatedVideos.map(v => <SelectItem key={v.id} value={v.id} className="text-white text-[10px]">{v.prompt?.slice(0, 40) || "Untitled"}</SelectItem>)}</SelectContent></Select>}
         </div>
 
-        {/* Audio file */}
+        {/* Audio source toggle */}
         <div>
-          <p className="text-[10px] text-white/40 font-medium mb-1">Audio File</p>
-          <div className="border-2 border-dashed border-white/10 rounded-xl p-4 flex flex-col items-center justify-center gap-1 cursor-pointer hover:border-white/20 transition-colors min-h-[60px]" onClick={() => lipsyncAudioInputRef.current?.click()}>
-            {lipsyncAudio ? <div className="flex items-center gap-2"><Music className="h-4 w-4 text-emerald-400" /><span className="text-[11px] text-white/60 truncate max-w-[200px]">{lipsyncAudioName}</span><button onClick={(e) => { e.stopPropagation(); setLipsyncAudio(null); setLipsyncAudioName(""); }}><X className="h-3 w-3 text-white/30 hover:text-red-400" /></button></div>
-              : <><Volume2 className="h-5 w-5 text-white/20" /><p className="text-[10px] text-white/30">MP3, WAV, M4A</p></>}
+          <p className="text-[10px] text-white/40 font-medium mb-1.5">Audio Source</p>
+          <div className="flex gap-1.5 mb-2">
+            <button onClick={() => { setLipsyncAudioSource("voicenote"); setLipsyncAudio(null); setLipsyncAudioName(""); }}
+              className={`flex-1 px-3 py-2 rounded-lg text-[10px] border transition-all text-center ${lipsyncAudioSource === "voicenote" ? "border-accent/40 bg-accent/10 text-accent" : "border-white/10 text-white/30 hover:text-white/50"}`}>
+              <Music className="h-3 w-3 mx-auto mb-0.5" />
+              <span className="block font-medium">Use Voice Note</span>
+              <span className="block text-[8px] text-white/20">Select from generated audios</span>
+            </button>
+            <button onClick={() => { setLipsyncAudioSource("voice"); setLipsyncAudio(null); setLipsyncAudioName(""); }}
+              className={`flex-1 px-3 py-2 rounded-lg text-[10px] border transition-all text-center ${lipsyncAudioSource === "voice" ? "border-accent/40 bg-accent/10 text-accent" : "border-white/10 text-white/30 hover:text-white/50"}`}>
+              <Mic className="h-3 w-3 mx-auto mb-0.5" />
+              <span className="block font-medium">Use Created Voice</span>
+              <span className="block text-[8px] text-white/20">TTS with your cloned voice</span>
+            </button>
           </div>
-          <input ref={lipsyncAudioInputRef} type="file" accept="audio/*" className="hidden" onChange={async e => { const f = e.target.files?.[0]; if (!f) return; const url = await uploadFileToStorage(f); if (url) { setLipsyncAudio(url); setLipsyncAudioName(f.name); } if (lipsyncAudioInputRef.current) lipsyncAudioInputRef.current.value = ""; }} />
-          {generatedAudios.length > 0 && <Select onValueChange={v => { const aud = generatedAudios.find(x => x.id === v); if (aud) { setLipsyncAudio(aud.url); setLipsyncAudioName(aud.metadata?.voice || "Generated audio"); } }}><SelectTrigger className="bg-white/5 border-white/10 text-white h-7 text-[10px] mt-1.5"><SelectValue placeholder="Or select generated audio..." /></SelectTrigger><SelectContent className="bg-[hsl(220,40%,10%)] border-white/10 max-h-[150px]">{generatedAudios.map(a => <SelectItem key={a.id} value={a.id} className="text-white text-[10px]">{a.prompt?.slice(0, 40) || "Untitled"}</SelectItem>)}</SelectContent></Select>}
 
-          {/* Voice TTS inline - select voice + type text to generate audio directly */}
-          <div className="mt-2 flex items-center gap-1.5">
-            <span className="text-[9px] text-white/30 shrink-0">or TTS:</span>
-            {voices.length > 0 ? (
-              <Select value={lipsyncTtsVoice} onValueChange={setLipsyncTtsVoice}>
-                <SelectTrigger className="bg-white/5 border-white/10 text-white h-7 text-[10px] flex-1"><SelectValue placeholder="Select voice..." /></SelectTrigger>
-                <SelectContent className="bg-[hsl(220,40%,10%)] border-white/10 max-h-[150px]">
-                  {voices.map(v => <SelectItem key={v.id} value={v.id} className="text-white text-[10px]">{v.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            ) : (
-              <button onClick={() => setMode("audio")} className="text-[9px] text-accent/60 hover:text-accent underline">Create a voice first</button>
-            )}
-          </div>
-          {lipsyncTtsVoice && voices.length > 0 && (
-            <div className="mt-1.5 flex gap-1.5">
-              <Textarea value={lipsyncTtsText} onChange={e => setLipsyncTtsText(e.target.value)}
-                placeholder="Type what the voice should say..."
-                className="bg-white/5 border-white/10 text-white text-[10px] min-h-[50px] resize-none placeholder:text-white/20 flex-1"
-                onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); generateLipsyncTts(); } }} />
-              <Button onClick={generateLipsyncTts} disabled={!lipsyncTtsText.trim() || isGeneratingLipsyncTts} size="sm" className="h-[50px] w-[50px] shrink-0 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white p-0">
-                {isGeneratingLipsyncTts ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-              </Button>
-            </div>
+          {lipsyncAudioSource === "voicenote" ? (
+            <>
+              {/* Upload or select generated audio */}
+              <div className="border-2 border-dashed border-white/10 rounded-xl p-3 flex flex-col items-center justify-center gap-1 cursor-pointer hover:border-white/20 transition-colors min-h-[50px]" onClick={() => lipsyncAudioInputRef.current?.click()}>
+                {lipsyncAudio ? <div className="flex items-center gap-2"><Music className="h-4 w-4 text-emerald-400" /><span className="text-[11px] text-white/60 truncate max-w-[200px]">{lipsyncAudioName}</span><button onClick={(e) => { e.stopPropagation(); setLipsyncAudio(null); setLipsyncAudioName(""); }}><X className="h-3 w-3 text-white/30 hover:text-red-400" /></button></div>
+                  : <><Volume2 className="h-4 w-4 text-white/20" /><p className="text-[9px] text-white/30">MP3, WAV, M4A — upload or select below</p></>}
+              </div>
+              <input ref={lipsyncAudioInputRef} type="file" accept="audio/*" className="hidden" onChange={async e => { const f = e.target.files?.[0]; if (!f) return; const url = await uploadFileToStorage(f); if (url) { setLipsyncAudio(url); setLipsyncAudioName(f.name); } if (lipsyncAudioInputRef.current) lipsyncAudioInputRef.current.value = ""; }} />
+              {generatedAudios.length > 0 && (
+                <Select onValueChange={v => { const aud = generatedAudios.find(x => x.id === v); if (aud) { setLipsyncAudio(aud.url); setLipsyncAudioName(aud.prompt?.slice(0, 30) || aud.metadata?.voice || "Generated audio"); } }}>
+                  <SelectTrigger className="bg-white/5 border-white/10 text-white h-7 text-[10px] mt-1.5"><SelectValue placeholder="Select generated audio..." /></SelectTrigger>
+                  <SelectContent className="bg-[hsl(220,40%,10%)] border-white/10 max-h-[150px]">{generatedAudios.map(a => <SelectItem key={a.id} value={a.id} className="text-white text-[10px]">{a.prompt?.slice(0, 40) || a.metadata?.voice || "Untitled"}</SelectItem>)}</SelectContent>
+                </Select>
+              )}
+            </>
+          ) : (
+            <>
+              {/* Voice selector */}
+              {voices.length > 0 ? (
+                <Select value={lipsyncTtsVoice} onValueChange={setLipsyncTtsVoice}>
+                  <SelectTrigger className="bg-white/5 border-white/10 text-white h-8 text-[10px]"><SelectValue placeholder="Select a cloned voice..." /></SelectTrigger>
+                  <SelectContent className="bg-[hsl(220,40%,10%)] border-white/10 max-h-[150px]">
+                    {voices.map(v => <SelectItem key={v.id} value={v.id} className="text-white text-[10px]">{v.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <button onClick={() => setMode("audio")} className="text-[10px] text-accent/60 hover:text-accent underline w-full text-center py-2">Create a voice first in Audio tab</button>
+              )}
+              {lipsyncTtsVoice && voices.length > 0 && (
+                <div className="mt-1.5 flex gap-1.5">
+                  <Textarea value={lipsyncTtsText} onChange={e => setLipsyncTtsText(e.target.value)}
+                    placeholder="Type what the voice should say..."
+                    className="bg-white/5 border-white/10 text-white text-[10px] min-h-[50px] resize-none placeholder:text-white/20 flex-1"
+                    onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); generateLipsyncTts(); } }} />
+                  <Button onClick={generateLipsyncTts} disabled={!lipsyncTtsText.trim() || isGeneratingLipsyncTts} size="sm" className="h-[50px] w-[50px] shrink-0 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white p-0">
+                    {isGeneratingLipsyncTts ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                  </Button>
+                </div>
+              )}
+              {lipsyncAudio && <div className="mt-1.5 flex items-center gap-2 bg-white/[0.04] border border-white/[0.08] rounded-lg p-2"><Music className="h-3 w-3 text-emerald-400" /><span className="text-[10px] text-white/50 truncate flex-1">{lipsyncAudioName}</span><button onClick={() => { setLipsyncAudio(null); setLipsyncAudioName(""); }}><X className="h-3 w-3 text-white/30 hover:text-red-400" /></button></div>}
+            </>
           )}
+        </div>
+
+        {/* Quality selector */}
+        <div>
+          <p className="text-[10px] text-white/40 mb-1.5 font-medium">Output Quality</p>
+          <div className="flex gap-1.5">
+            {[{ id: "highest", label: "Highest", desc: "Full res" }, { id: "high", label: "High", desc: "Default" }, { id: "medium", label: "Medium", desc: "Faster" }, { id: "low", label: "Low", desc: "Fastest" }].map(q => (
+              <button key={q.id} onClick={() => setLipsyncQuality(q.id)}
+                className={`flex-1 px-2 py-1.5 rounded-lg text-[10px] border transition-all text-center ${lipsyncQuality === q.id ? "border-accent/40 bg-accent/10 text-accent" : "border-white/10 text-white/30 hover:text-white/50"}`}>
+                <span className="block font-medium">{q.label}</span>
+                <span className="block text-[8px] text-white/20">{q.desc}</span>
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Auto-shorten option */}
@@ -2082,6 +2139,20 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
           <input ref={faceswapTargetInputRef} type="file" accept={faceswapCategory === "video" ? "video/*" : "image/*"} className="hidden" onChange={async e => { const f = e.target.files?.[0]; if (!f) return; const url = await uploadFileToStorage(f); if (url) { setFaceswapTarget(url); setFaceswapTargetName(f.name); } if (faceswapTargetInputRef.current) faceswapTargetInputRef.current.value = ""; }} />
           {faceswapCategory === "video" && generatedVideos.length > 0 && <Select onValueChange={v => { const vid = generatedVideos.find(x => x.id === v); if (vid) { setFaceswapTarget(vid.url); setFaceswapTargetName(vid.prompt?.slice(0, 30) || "Generated video"); } }}><SelectTrigger className="bg-white/5 border-white/10 text-white h-7 text-[10px] mt-1.5"><SelectValue placeholder="Or select generated video..." /></SelectTrigger><SelectContent className="bg-[hsl(220,40%,10%)] border-white/10 max-h-[150px]">{generatedVideos.map(v => <SelectItem key={v.id} value={v.id} className="text-white text-[10px]">{v.prompt?.slice(0, 40) || "Untitled"}</SelectItem>)}</SelectContent></Select>}
           {faceswapCategory === "image" && generatedImages.length > 0 && <Select onValueChange={v => { const img = generatedImages.find(x => x.id === v); if (img) { setFaceswapTarget(img.url); setFaceswapTargetName(img.prompt?.slice(0, 30) || "Generated image"); } }}><SelectTrigger className="bg-white/5 border-white/10 text-white h-7 text-[10px] mt-1.5"><SelectValue placeholder="Or select generated image..." /></SelectTrigger><SelectContent className="bg-[hsl(220,40%,10%)] border-white/10 max-h-[150px]">{generatedImages.map(v => <SelectItem key={v.id} value={v.id} className="text-white text-[10px]">{v.prompt?.slice(0, 40) || "Untitled"}</SelectItem>)}</SelectContent></Select>}
+        </div>
+
+        {/* Quality selector */}
+        <div>
+          <p className="text-[10px] text-white/40 mb-1.5 font-medium">Output Quality</p>
+          <div className="flex gap-1.5">
+            {[{ id: "highest", label: "Highest", desc: "Best detail" }, { id: "high", label: "High", desc: "Default" }, { id: "medium", label: "Medium", desc: "Faster" }, { id: "low", label: "Low", desc: "Fastest" }].map(q => (
+              <button key={q.id} onClick={() => setFaceswapQuality(q.id)}
+                className={`flex-1 px-2 py-1.5 rounded-lg text-[10px] border transition-all text-center ${faceswapQuality === q.id ? "border-accent/40 bg-accent/10 text-accent" : "border-white/10 text-white/30 hover:text-white/50"}`}>
+                <span className="block font-medium">{q.label}</span>
+                <span className="block text-[8px] text-white/20">{q.desc}</span>
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className="mt-auto">
