@@ -27,6 +27,8 @@ serve(async (req) => {
       const elevenForm = new FormData();
       elevenForm.append("name", name);
       elevenForm.append("description", description);
+      // Use highest quality cloning model for most natural human voice reproduction
+      elevenForm.append("remove_background_noise", "true");
 
       const files = formData.getAll("files");
       if (!files.length) throw new Error("No audio files provided");
@@ -61,9 +63,9 @@ serve(async (req) => {
           "Accept": "audio/mpeg",
         },
         body: JSON.stringify({
-          text: "Hello, how are you doing?",
+          text: "Hello, how are you doing? I just wanted to check in and see how everything's going on your end.",
           model_id: "eleven_multilingual_v2",
-          voice_settings: { stability: 0.40, similarity_boost: 0.78, style: 0.30, use_speaker_boost: true },
+          voice_settings: { stability: 0.35, similarity_boost: 0.82, style: 0.40, use_speaker_boost: true, speed: 1.0 },
         }),
       });
 
@@ -90,10 +92,10 @@ serve(async (req) => {
       if (!voice_id) throw new Error("voice_id is required");
 
       const settings = {
-        stability: voice_settings?.stability ?? 0.40,
-        similarity_boost: voice_settings?.similarity_boost ?? 0.78,
-        style: voice_settings?.style ?? 0.30,
-        use_speaker_boost: true,
+        stability: voice_settings?.stability ?? 0.35,
+        similarity_boost: voice_settings?.similarity_boost ?? 0.82,
+        style: voice_settings?.style ?? 0.40,
+        use_speaker_boost: voice_settings?.use_speaker_boost ?? true,
         speed: voice_settings?.speed ?? 1.0,
       };
 
