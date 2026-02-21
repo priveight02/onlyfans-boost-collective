@@ -1,10 +1,10 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { useEffect, useState, useRef, useCallback } from "react";
 import {
-  MessageSquare, Users, Zap, Send, Bot, CheckCircle2, Sparkles, Calendar,
+  MessageSquare, Users, Zap, Send, CheckCircle2, Sparkles, Calendar,
   Image, UserPlus, PenTool, Instagram, Hash, Play, ChevronRight,
   Globe, Shield, Brain, Wand2, Megaphone, Eye, Star, Palette,
-  Volume2, Type, Headphones, Film, Settings
+  Volume2, Type, Headphones, Film, Settings, ArrowRight, BarChart3, TrendingUp
 } from "lucide-react";
 
 // Static generated images — imported once, never re-generated
@@ -12,7 +12,9 @@ import adVariantA from "@/assets/showcase-ad-variant-a.png";
 import adVariantB from "@/assets/showcase-ad-variant-b.png";
 import adVariantC from "@/assets/showcase-ad-variant-c.png";
 import socialPost from "@/assets/showcase-social-post.png";
-import contentGen from "@/assets/showcase-content-gen.png";
+import genDinosaur from "@/assets/showcase-gen-dinosaur.png";
+import genCar from "@/assets/showcase-gen-car.png";
+import genUtopia from "@/assets/showcase-gen-utopia.png";
 
 interface CursorAction {
   x: number;
@@ -102,7 +104,7 @@ const scenes: Scene[] = [
     cursor: [
       { x: 3.5, y: 57, delay: 0, click: true, label: "Team" },
       { x: 82, y: 16, delay: 1500, click: true, label: "Add Member" },
-      { x: 62, y: 65, delay: 5000, click: true, label: "Save ✓" },
+      { x: 62, y: 65, delay: 5000, click: true, label: "Save" },
     ],
   },
 ];
@@ -115,6 +117,29 @@ const sidebarItems = [
   { icon: Megaphone, label: "Ad Engine" },
   { icon: Users, label: "Team" },
 ];
+
+/* ------------------------------------------------------------------ */
+/*  Pro SVG Icons                                                      */
+/* ------------------------------------------------------------------ */
+const UplyzeIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+    <path d="M12 2L2 7l10 5 10-5-10-5z" fill="url(#ug1)" />
+    <path d="M2 17l10 5 10-5" stroke="url(#ug2)" strokeWidth="2" fill="none" />
+    <path d="M2 12l10 5 10-5" stroke="url(#ug3)" strokeWidth="2" fill="none" />
+    <defs>
+      <linearGradient id="ug1" x1="2" y1="2" x2="22" y2="12"><stop stopColor="#a78bfa" /><stop offset="1" stopColor="#60a5fa" /></linearGradient>
+      <linearGradient id="ug2" x1="2" y1="17" x2="22" y2="22"><stop stopColor="#a78bfa" /><stop offset="1" stopColor="#60a5fa" /></linearGradient>
+      <linearGradient id="ug3" x1="2" y1="12" x2="22" y2="17"><stop stopColor="#a78bfa" /><stop offset="1" stopColor="#60a5fa" /></linearGradient>
+    </defs>
+  </svg>
+);
+
+const TaskCheckIcon = ({ className }: { className?: string }) => (
+  <svg width="12" height="12" viewBox="0 0 16 16" fill="none" className={className}>
+    <rect x="1" y="1" width="14" height="14" rx="3" fill="rgba(16,185,129,0.15)" stroke="rgba(16,185,129,0.6)" strokeWidth="1.2" />
+    <path d="M4.5 8L7 10.5L11.5 5.5" stroke="#10b981" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
 
 /* ------------------------------------------------------------------ */
 /*  Animated Cursor                                                    */
@@ -222,7 +247,7 @@ const CopilotPanel = ({ progress }: { progress: number }) => {
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center gap-2 mb-3">
-        <Brain className="w-4 h-4 text-purple-400" />
+        <UplyzeIcon />
         <span className="text-white/80 text-sm font-semibold">Uplyze AI Copilot</span>
         <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400">Free Will ON</span>
       </div>
@@ -243,15 +268,15 @@ const CopilotPanel = ({ progress }: { progress: number }) => {
         <motion.div className="flex gap-2 justify-end" animate={{ opacity: progress > 0.48 ? 1 : 0 }} transition={{ duration: 0.5 }}>
           <div className="px-3 py-2 rounded-lg rounded-tr-none text-[11px] text-white/75 max-w-[88%]" style={{ background: 'rgba(124,58,237,0.1)' }}>
             <div className="flex items-center gap-1.5 mb-1.5">
-              <Bot className="w-3 h-3 text-purple-400" />
+              <UplyzeIcon />
               <span className="text-purple-400 text-[10px] font-semibold">Uplyze AI</span>
             </div>
-            {progress > 0.52 && <p className="leading-relaxed">✅ Scanned 5 accounts — 23 underperforming posts</p>}
-            {progress > 0.58 && <p className="mt-0.5 leading-relaxed">✅ Generated 12 images + 4 video reels</p>}
-            {progress > 0.64 && <p className="mt-0.5 leading-relaxed">✅ 3 AI voiceovers produced</p>}
-            {progress > 0.70 && <p className="mt-0.5 leading-relaxed">✅ Scheduled 16 posts — optimal windows</p>}
-            {progress > 0.76 && <p className="mt-0.5 leading-relaxed">✅ DM campaign: 847 leads queued</p>}
-            {progress > 0.82 && <p className="mt-0.5 leading-relaxed text-emerald-400/90 font-medium">✅ All tasks executed — 0 manual input</p>}
+            {progress > 0.52 && <p className="leading-relaxed flex items-center gap-1.5"><TaskCheckIcon /> Scanned 5 accounts, 23 underperforming posts found</p>}
+            {progress > 0.58 && <p className="mt-1 leading-relaxed flex items-center gap-1.5"><TaskCheckIcon /> Generated 12 images + 4 video reels</p>}
+            {progress > 0.64 && <p className="mt-1 leading-relaxed flex items-center gap-1.5"><TaskCheckIcon /> 3 AI voiceovers produced</p>}
+            {progress > 0.70 && <p className="mt-1 leading-relaxed flex items-center gap-1.5"><TaskCheckIcon /> Scheduled 16 posts at optimal windows</p>}
+            {progress > 0.76 && <p className="mt-1 leading-relaxed flex items-center gap-1.5"><TaskCheckIcon /> DM campaign: 847 leads queued</p>}
+            {progress > 0.82 && <p className="mt-1 leading-relaxed text-emerald-400/90 font-medium flex items-center gap-1.5"><TaskCheckIcon /> All tasks executed, 0 manual input needed</p>}
           </div>
         </motion.div>
       </div>
@@ -269,7 +294,7 @@ const CopilotPanel = ({ progress }: { progress: number }) => {
 
 const ContentStudioPanel = ({ progress }: { progress: number }) => {
   const activeTab = progress < 0.68 ? 0 : progress < 0.88 ? 1 : 2;
-  const typedPrompt = useTypingText("Premium headphones product shoot, studio lighting, 4K", progress > 0.08 && progress < 0.34, 35);
+  const typedPrompt = useTypingText("A majestic T-Rex in a prehistoric jungle, cinematic 4K", progress > 0.08 && progress < 0.34, 35);
   const tabs = [
     { icon: Image, label: "Image Gen" },
     { icon: Film, label: "Video Gen" },
@@ -315,7 +340,7 @@ const ContentStudioPanel = ({ progress }: { progress: number }) => {
             </div>
             {progress > 0.36 && (
               <motion.div initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} className="grid grid-cols-3 gap-2">
-                {[adVariantA, adVariantB, adVariantC].map((src, i) => (
+                {[genDinosaur, genCar, genUtopia].map((src, i) => (
                   <div key={i} className="aspect-square rounded-lg overflow-hidden relative">
                     {progress < 0.48 ? (
                       <div className="w-full h-full" style={{ background: `linear-gradient(${135 + i * 25}deg, rgba(139,92,246,0.15), rgba(59,130,246,0.12))` }}>
@@ -336,7 +361,7 @@ const ContentStudioPanel = ({ progress }: { progress: number }) => {
             {progress > 0.55 && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center gap-2 text-emerald-400 text-[10px]">
                 <CheckCircle2 className="w-3 h-3" />
-                <span>3 product images generated — Ready for posts or ads</span>
+                <span>3 images generated from prompt, ready to use</span>
               </motion.div>
             )}
           </motion.div>
@@ -354,16 +379,16 @@ const ContentStudioPanel = ({ progress }: { progress: number }) => {
               </div>
               <div className="flex gap-3">
                 <div className="w-28 h-16 rounded-lg overflow-hidden relative">
-                  <img src={adVariantA} alt="Video preview" className="w-full h-full object-cover opacity-70" loading="eager" />
+                  <img src={genDinosaur} alt="Video preview" className="w-full h-full object-cover opacity-70" loading="eager" />
                   <div className="absolute inset-0 flex items-center justify-center">
                     <Play className="w-5 h-5 text-white/70" />
                   </div>
                   <motion.div className="absolute bottom-0 left-0 h-1 bg-blue-500/50 rounded" animate={{ width: ['0%', '100%'] }} transition={{ duration: 3, ease: "linear" }} />
                 </div>
                 <div className="flex-1 space-y-1">
-                  <div className="text-white/60 text-[10px] font-medium">Product showcase reel</div>
+                  <div className="text-white/60 text-[10px] font-medium">Dinosaur animation reel</div>
                   <div className="text-white/20 text-[9px]">1080×1920 • 8s</div>
-                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1 }} className="text-emerald-400 text-[9px] font-medium">✅ Video rendered</motion.div>
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1 }} className="text-emerald-400 text-[9px] font-medium flex items-center gap-1"><CheckCircle2 className="w-2.5 h-2.5" /> Video rendered</motion.div>
                 </div>
               </div>
             </div>
@@ -392,7 +417,7 @@ const ContentStudioPanel = ({ progress }: { progress: number }) => {
             </div>
             <div className="flex items-center gap-2 text-emerald-400 text-[10px]">
               <CheckCircle2 className="w-3 h-3" />
-              <span>Audio generated — 24s voiceover ready</span>
+              <span>Audio generated, 24s voiceover ready</span>
             </div>
           </motion.div>
         )}
@@ -402,7 +427,7 @@ const ContentStudioPanel = ({ progress }: { progress: number }) => {
 };
 
 const SocialPanel = ({ progress }: { progress: number }) => {
-  const typedCaption = useTypingText("✨ New drop — Premium sound, redefined.", progress > 0.2 && progress < 0.7, 45);
+  const typedCaption = useTypingText("New drop alert. Premium sound, completely redefined. Link in bio 🔥", progress > 0.2 && progress < 0.7, 40);
 
   return (
     <div className="space-y-3">
@@ -510,7 +535,7 @@ const DMPanel = ({ progress }: { progress: number }) => {
           {((activeConvo === 0 && progress > 0.35) || (activeConvo === 1 && progress > 0.8)) && (
             <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="flex justify-end">
               <div className="px-2.5 py-2 rounded-lg rounded-tr-none text-[10px] text-white/75 max-w-[80%]" style={{ background: 'rgba(124,58,237,0.1)' }}>
-                {activeConvo === 0 ? "Hey Emma! Thank you so much 💕 Yes! I have a few options — let me send you the details." : "Hey! Great timing 🔥 I have 3 monthly packages. Let me share the options!"}
+                {activeConvo === 0 ? "Hey Emma! Thank you so much 💕 Yes, I have a few options. Let me send you the details." : "Hey! Great timing 🔥 I have 3 monthly packages. Let me share the options!"}
               </div>
             </motion.div>
           )}
@@ -547,13 +572,13 @@ const AdCreativesPanel = ({ progress }: { progress: number }) => (
             className="p-2 rounded-lg"
             style={{ background: 'rgba(255,255,255,0.02)' }}
           >
-            <div className="w-full aspect-video rounded-md mb-2 overflow-hidden relative">
+            <div className="w-full aspect-square rounded-md mb-2 overflow-hidden relative flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.2)' }}>
               {progress < 0.3 ? (
                 <div className="w-full h-full bg-gradient-to-br from-orange-500/10 to-pink-500/10">
                   <motion.div className="absolute inset-0" animate={{ opacity: [0.05, 0.12, 0.05] }} transition={{ repeat: Infinity, duration: 1.2, delay: i * 0.15 }} style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent)' }} />
                 </div>
               ) : (
-                <motion.img initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4, delay: i * 0.1 }} src={v.img} alt={v.label} className="w-full h-full object-cover" loading="eager" />
+                <motion.img initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4, delay: i * 0.1 }} src={v.img} alt={v.label} className="w-full h-full object-contain" loading="eager" />
               )}
             </div>
             <div className="text-white/60 text-[10px] font-medium">{v.label}</div>
@@ -577,13 +602,13 @@ const AdCreativesPanel = ({ progress }: { progress: number }) => (
           <span className="text-white/45 text-[10px]">AI-Generated Copy</span>
           <Sparkles className="w-3 h-3 text-purple-400" />
         </div>
-        <p className="text-white/55 text-[10px] italic leading-relaxed">"Premium sound, redefined. Experience wireless freedom like never before. Shop now — limited edition 🔥"</p>
+        <p className="text-white/55 text-[10px] italic leading-relaxed">"Premium sound, redefined. Experience wireless freedom like never before. Shop now, limited edition 🔥"</p>
       </motion.div>
     )}
     {progress > 0.78 && (
       <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-2 p-2 rounded-lg bg-emerald-500/[0.04]">
         <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-        <span className="text-emerald-400 text-[10px]">Campaign launched — 12.4K audience • $150/day</span>
+        <span className="text-emerald-400 text-[10px]">Campaign launched: 12.4K audience, $150/day</span>
       </motion.div>
     )}
   </div>
@@ -629,7 +654,7 @@ const TeamPanel = ({ progress }: { progress: number }) => {
             {progress > 0.25 && progress < 0.55 && <motion.span animate={{ opacity: [1, 0] }} transition={{ repeat: Infinity, duration: 0.6 }} className="text-blue-400">|</motion.span>}
           </div>
           {progress > 0.6 && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-emerald-400 text-[9px]">✅ Role: Social Manager • Invited</motion.div>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-emerald-400 text-[9px] flex items-center gap-1.5"><TaskCheckIcon /> Role: Social Manager, Invited</motion.div>
           )}
         </motion.div>
       )}
@@ -640,7 +665,7 @@ const TeamPanel = ({ progress }: { progress: number }) => {
               <div className="w-7 h-7 rounded-full bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center text-[10px] text-white font-bold">J</div>
               <div className="flex-1">
                 <div className="text-white/70 text-[11px] font-medium">Jordan Rivera</div>
-                <div className="text-emerald-400 text-[9px]">Just added • Social Manager</div>
+                <div className="text-emerald-400 text-[9px]">Just added, Social Manager</div>
               </div>
               <CheckCircle2 className="w-4 h-4 text-emerald-400" />
             </div>
@@ -810,7 +835,7 @@ const AutopilotShowcase = () => {
             <div className="flex-1 p-4 md:p-5 relative overflow-hidden">
               <div className="flex items-center gap-3 mb-4 px-3 py-2 rounded-lg" style={{ background: 'rgba(124,58,237,0.04)' }}>
                 <div className="relative">
-                  <Bot className="w-3.5 h-3.5 text-purple-400" />
+                  <UplyzeIcon />
                   <div className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                 </div>
                 <span className="text-white/45 text-[11px] flex-1">{scene.subtitle}</span>
