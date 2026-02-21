@@ -44,7 +44,7 @@ function mapAspectToRunwayRatio(aspect: string, _model: string): string {
     "3:4": "1080:1440",
     "21:9": "1920:816",
   };
-  return ratioMap[aspect] || "1920:1080";
+  return ratioMap[aspect] || "1080:1920";
 }
 
 // Runway only accepts specific duration values depending on the model
@@ -76,7 +76,7 @@ async function runwayCreate(body: any) {
       model: "act_two",
       character: body.image_url ? { type: "image", uri: body.image_url } : { type: "video", uri: body.video_url || body.image_url },
       reference: { type: "video", uri: body.reference_video_url },
-      ratio: mapAspectToRunwayRatio(body.aspect_ratio || "16:9", model),
+      ratio: mapAspectToRunwayRatio(body.aspect_ratio || "9:16", model),
       bodyControl: body.body_control !== false,
       expressionIntensity: body.expression_intensity || 3,
     };
@@ -86,7 +86,7 @@ async function runwayCreate(body: any) {
       model,
       promptText: body.prompt,
       promptImage: body.image_url,
-      ratio: mapAspectToRunwayRatio(body.aspect_ratio || "16:9", model),
+      ratio: mapAspectToRunwayRatio(body.aspect_ratio || "9:16", model),
       duration: clampRunwayDuration(body.duration, model),
     };
   } else {
@@ -95,12 +95,12 @@ async function runwayCreate(body: any) {
     const isVeo = veoModels.includes(model);
     if (!t2vModels.includes(model)) {
       endpoint = `${RUNWAY_BASE}/image_to_video`;
-      reqBody = { model, promptText: body.prompt, ratio: mapAspectToRunwayRatio(body.aspect_ratio || "16:9", model), duration: clampRunwayDuration(body.duration, model) };
+      reqBody = { model, promptText: body.prompt, ratio: mapAspectToRunwayRatio(body.aspect_ratio || "9:16", model), duration: clampRunwayDuration(body.duration, model) };
     } else {
       endpoint = `${RUNWAY_BASE}/text_to_video`;
       const ratio = isVeo
-        ? ((body.aspect_ratio === "9:16") ? "1080:1920" : "1920:1080")
-        : mapAspectToRunwayRatio(body.aspect_ratio || "16:9", model);
+        ? ((body.aspect_ratio === "16:9") ? "1920:1080" : "1080:1920")
+        : mapAspectToRunwayRatio(body.aspect_ratio || "9:16", model);
       reqBody = { model, promptText: body.prompt, ratio, duration: clampRunwayDuration(body.duration, model) };
     }
   }
@@ -143,7 +143,7 @@ async function runwayImageCreate(body: any) {
     reqBody = {
       model,
       promptText: body.prompt,
-      ratio: mapAspectToRunwayRatio(body.aspect_ratio || "1:1", model),
+      ratio: mapAspectToRunwayRatio(body.aspect_ratio || "9:16", model),
     };
     if (body.resolution) reqBody.resolution = body.resolution; else reqBody.resolution = "1080p"; // "720p" or "1080p"
     if (body.image_url) reqBody.referenceImages = [{ uri: body.image_url }];
@@ -215,7 +215,7 @@ async function runwayAudioCreate(body: any) {
 async function seedanceCreate(body: any) {
   const apiKey = Deno.env.get("SEEDANCE_API_KEY");
   if (!apiKey) throw new Error("SEEDANCE_API_KEY not configured");
-  const reqBody: any = { prompt: body.prompt, duration: String(body.duration || "8"), aspect_ratio: body.aspect_ratio || "16:9", resolution: "1080p" };
+  const reqBody: any = { prompt: body.prompt, duration: String(body.duration || "8"), aspect_ratio: body.aspect_ratio || "9:16", resolution: "1080p" };
   if (body.generate_audio) reqBody.generate_audio = true;
   if (body.fixed_lens) reqBody.fixed_lens = true;
   if (body.image_url) reqBody.image_urls = [body.image_url];
@@ -241,7 +241,7 @@ async function klingCreate(body: any) {
   if (!ak || !sk) throw new Error("Kling API keys not configured");
   const token = await generateKlingJWT(ak, sk);
   const endpoint = body.image_url ? "https://api.klingai.com/v1/videos/image2video" : "https://api.klingai.com/v1/videos/text2video";
-  const reqBody: any = { prompt: body.prompt, duration: String(body.duration || "5"), aspect_ratio: body.aspect_ratio || "16:9", model_name: body.model_name || "kling-v2-master", mode: body.mode || "std" };
+  const reqBody: any = { prompt: body.prompt, duration: String(body.duration || "5"), aspect_ratio: body.aspect_ratio || "9:16", model_name: body.model_name || "kling-v2-master", mode: body.mode || "std" };
   if (body.image_url) reqBody.image = body.image_url;
   const resp = await fetch(endpoint, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify(reqBody) });
   const data = await resp.json();
@@ -288,7 +288,7 @@ async function replicateCreate(body: any) {
   if (body.image_url && isI2V) input.first_frame_image = body.image_url;
   if (model.includes("minimax")) input.prompt_optimizer = true;
   if (model.includes("wan-2.1") && !model.includes("i2v")) { if (body.aspect_ratio) input.aspect_ratio = body.aspect_ratio; }
-  if (model.includes("hunyuan")) { if (body.aspect_ratio === "9:16") { input.width = 480; input.height = 854; } else if (body.aspect_ratio === "1:1") { input.width = 720; input.height = 720; } else { input.width = 854; input.height = 480; } }
+  if (model.includes("hunyuan")) { const ar = body.aspect_ratio || "9:16"; if (ar === "9:16") { input.width = 480; input.height = 854; } else if (ar === "1:1") { input.width = 720; input.height = 720; } else { input.width = 854; input.height = 480; } }
   const resp = await fetch(`https://api.replicate.com/v1/models/${model}/predictions`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` }, body: JSON.stringify({ input }) });
   const data = await resp.json();
   if (!resp.ok) throw new Error(data.detail || JSON.stringify(data) || `Replicate error (${resp.status})`);
@@ -310,7 +310,7 @@ async function replicatePoll(taskId: string) {
 async function lumaCreate(body: any) {
   const apiKey = Deno.env.get("LUMA_API_KEY");
   if (!apiKey) throw new Error("LUMA_API_KEY not configured");
-  const reqBody: any = { prompt: body.prompt, aspect_ratio: body.aspect_ratio || "16:9", loop: false };
+  const reqBody: any = { prompt: body.prompt, aspect_ratio: body.aspect_ratio || "9:16", loop: false };
   if (body.image_url) reqBody.keyframes = { frame0: { type: "image", url: body.image_url } };
   const resp = await fetch("https://api.lumalabs.ai/dream-machine/v1/generations", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` }, body: JSON.stringify(reqBody) });
   const data = await resp.json();
