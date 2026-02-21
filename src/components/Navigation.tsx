@@ -54,7 +54,7 @@ const Navigation = () => {
   const userInitial = profile?.display_name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || "U";
 
   return (
-    <div className={`w-full fixed top-0 ${isPlatform ? 'flex justify-start pt-1.5 px-2 pointer-events-none' : 'flex justify-center pt-4 px-4'}`} style={isPlatform ? { left: '276px', width: 'auto', right: 'auto', zIndex: 40 } : { zIndex: 50 }}>
+    <div className={`w-full fixed top-0 ${isPlatform ? 'flex justify-start pt-1.5 px-2 pointer-events-none' : 'flex justify-center pt-4 px-4'}`} style={isPlatform ? { left: '260px', width: 'auto', right: 'auto', zIndex: 40 } : { zIndex: 50 }}>
       <nav
         className={`transition-all duration-500 pointer-events-auto ${isPlatform ? 'rounded-xl' : 'w-full max-w-4xl rounded-2xl'}`}
         style={{
