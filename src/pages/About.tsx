@@ -41,8 +41,8 @@ const About = () => {
   return (
     <div className="min-h-screen bg-[hsl(222,35%,8%)]">
       <PageSEO
-        title="About Uplyze | AI Platform for Creators & Agencies | uplyze.ai"
-        description="Learn about Uplyze, the AI-powered Platform built for creators and agencies. Trusted by 700+ professionals to automate growth and 10x revenue at uplyze.ai."
+        title="About Uplyze | Best AI Tool & AI Platform for Business Growth | uplyze.ai"
+        description="Learn about Uplyze, the best AI tool and AI platform for business growth, marketing automation, and scaling. Trusted by 700+ businesses, creators, and agencies to automate growth and 10x revenue at uplyze.ai."
         jsonLd={{
           "@context": "https://schema.org",
           "@type": "AboutPage",

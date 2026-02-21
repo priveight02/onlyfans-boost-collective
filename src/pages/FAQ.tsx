@@ -130,8 +130,8 @@ const FAQ = () => {
   return (
     <div className="min-h-screen bg-[hsl(222,35%,8%)]">
       <PageSEO
-        title="Uplyze FAQ | AI Platform Questions & Answers | uplyze.ai"
-        description="Get answers about Uplyze, the AI-powered Platform for creators & agencies. Learn about features, pricing, automation, and how Uplyze helps you scale at uplyze.ai."
+        title="Uplyze FAQ | Best AI Tool & AI Platform Questions & Answers | uplyze.ai"
+        description="Get answers about Uplyze, the best AI tool and AI platform for marketing, business growth, and scaling. Learn about AI automation, AI CRM, growth AI, pricing, and how Uplyze helps businesses scale at uplyze.ai."
         jsonLd={{
           "@context": "https://schema.org",
           "@type": "FAQPage",
