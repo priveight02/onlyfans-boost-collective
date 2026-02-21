@@ -344,7 +344,7 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
   const [faceswapSourceName, setFaceswapSourceName] = useState("");
   const [faceswapTarget, setFaceswapTarget] = useState<string | null>(null);
   const [faceswapTargetName, setFaceswapTargetName] = useState("");
-  const [faceswapCategory, setFaceswapCategory] = useState<"video" | "image">("video");
+  const [faceswapCategory, setFaceswapCategory] = useState<"video" | "image">("image");
   const [isGeneratingFaceswap, setIsGeneratingFaceswap] = useState(false);
   const [faceswapProgress, setFaceswapProgress] = useState(0);
   const [faceswapProgressLabel, setFaceswapProgressLabel] = useState("");
@@ -1003,21 +1003,24 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
     setIsGeneratingMotion(true);
     const stopProgress = simulateProgress(setMotionProgress, setMotionProgressLabel, 120000);
     try {
+      const targetUrl = motionTargetImage || motionTargetVideo;
+      const targetType = motionTargetImage ? "image" : "video";
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/media-process?action=create&type=motion`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
-        body: JSON.stringify({ reference_video_url: motionRefVideo, target_url: motionTargetVideo || motionTargetImage, target_type: motionTargetVideo ? "video" : "image", prompt: motionPrompt || undefined }),
+        body: JSON.stringify({ reference_video_url: motionRefVideo, target_url: targetUrl, target_type: targetType, prompt: motionPrompt || undefined }),
       });
       if (!resp.ok) { const ed = await resp.json().catch(() => ({})); throw new Error(ed.error || `Error ${resp.status}`); }
       const data = await resp.json();
       const taskId = data.task_id;
+      const provider = data.provider || "runway";
       if (!taskId) throw new Error("No task_id returned");
       let videoUrl: string | null = null;
       let pollCount = 0;
       while (pollCount < 60) {
         await new Promise(r => setTimeout(r, 5000)); pollCount++;
         try {
-          const pollResp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/media-process?action=poll&task_id=${encodeURIComponent(taskId)}`, { headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` } });
+          const pollResp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/media-process?action=poll&task_id=${encodeURIComponent(taskId)}&provider=${provider}`, { headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` } });
           if (!pollResp.ok) continue;
           const pollData = await pollResp.json();
           if (pollData.status === "SUCCESS" && pollData.video_url) { videoUrl = pollData.video_url; break; }
@@ -1046,18 +1049,19 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/media-process?action=create&type=lipsync`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
-        body: JSON.stringify({ video_url: lipsyncVideo, audio_url: lipsyncAudio, prompt: lipsyncPrompt || undefined }),
+        body: JSON.stringify({ video_url: lipsyncVideo, audio_url: lipsyncAudio }),
       });
       if (!resp.ok) { const ed = await resp.json().catch(() => ({})); throw new Error(ed.error || `Error ${resp.status}`); }
       const data = await resp.json();
       const taskId = data.task_id;
+      const provider = data.provider || "replicate";
       if (!taskId) throw new Error("No task_id returned");
       let videoUrl: string | null = null;
       let pollCount = 0;
       while (pollCount < 60) {
         await new Promise(r => setTimeout(r, 5000)); pollCount++;
         try {
-          const pollResp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/media-process?action=poll&task_id=${encodeURIComponent(taskId)}`, { headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` } });
+          const pollResp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/media-process?action=poll&task_id=${encodeURIComponent(taskId)}&provider=${provider}`, { headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` } });
           if (!pollResp.ok) continue;
           const pollData = await pollResp.json();
           if (pollData.status === "SUCCESS" && pollData.video_url) { videoUrl = pollData.video_url; break; }
@@ -1091,13 +1095,14 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
       if (!resp.ok) { const ed = await resp.json().catch(() => ({})); throw new Error(ed.error || `Error ${resp.status}`); }
       const data = await resp.json();
       const taskId = data.task_id;
+      const provider = data.provider || "replicate";
       if (!taskId) throw new Error("No task_id returned");
       let resultUrl: string | null = null;
       let pollCount = 0;
       while (pollCount < 60) {
         await new Promise(r => setTimeout(r, 5000)); pollCount++;
         try {
-          const pollResp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/media-process?action=poll&task_id=${encodeURIComponent(taskId)}`, { headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` } });
+          const pollResp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/media-process?action=poll&task_id=${encodeURIComponent(taskId)}&provider=${provider}`, { headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` } });
           if (!pollResp.ok) continue;
           const pollData = await pollResp.json();
           if (pollData.status === "SUCCESS" && pollData.video_url) { resultUrl = pollData.video_url; break; }
@@ -1880,7 +1885,7 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
     <div className="flex flex-1 overflow-hidden">
       <div className="w-[400px] border-r border-white/[0.06] p-4 flex flex-col gap-3 overflow-y-auto shrink-0">
         <p className="text-sm font-semibold text-white/80">Face Swap</p>
-        <p className="text-[10px] text-white/30">Swap faces between images and videos seamlessly</p>
+        <p className="text-[10px] text-white/30">Swap faces between images seamlessly using AI face detection</p>
 
         {/* Category toggle */}
         <div className="flex items-center gap-2">
