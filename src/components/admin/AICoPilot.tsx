@@ -1164,23 +1164,9 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
       { id: "kling-v2", label: "V2" },
       { id: "kling-v1-6", label: "V1.6 Legacy" },
     ]},
-    { id: "huggingface", label: "HuggingFace", pricing: "free", color: "text-yellow-400", desc: "Free tier, LTX-Video & more", models: [
-      { id: "Lightricks/LTX-Video-0.9.8-13B-distilled", label: "LTX-Video 13B" },
-      { id: "tencent/HunyuanVideo", label: "HunyuanVideo" },
-    ]},
-    { id: "replicate", label: "Replicate", pricing: "free-credits", color: "text-green-400", desc: "Free credits on signup, many models", models: [
-      { id: "minimax/video-01-live", label: "MiniMax Live" },
-      { id: "tencent/hunyuan-video", label: "HunyuanVideo" },
-      { id: "wavespeedai/wan-2.1-t2v-480p", label: "Wan 2.1" },
-    ]},
   ];
 
-  const renderPricingBadge = (pricing: string) => {
-    if (pricing === "free") return <Badge className="text-[8px] bg-green-500/20 text-green-400 border-green-500/30 px-1.5 py-0">FREE</Badge>;
-    if (pricing === "free-credits") return <Badge className="text-[8px] bg-emerald-500/20 text-emerald-400 border-emerald-500/30 px-1.5 py-0">FREE CREDITS</Badge>;
-    if (pricing === "free-tier") return <Badge className="text-[8px] bg-blue-500/20 text-blue-400 border-blue-500/30 px-1.5 py-0">FREE TIER</Badge>;
-    return <Badge className="text-[8px] bg-amber-500/20 text-amber-400 border-amber-500/30 px-1.5 py-0">API COSTS</Badge>;
-  };
+  const renderPricingBadge = (_pricing: string) => null;
 
   const activeProvider = VIDEO_PROVIDERS.find(p => p.id === selectedVideoProvider) || VIDEO_PROVIDERS[0];
 
@@ -1204,7 +1190,6 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
                       <span className={`text-[11px] font-medium ${selectedVideoProvider === p.id ? "text-accent" : "text-white/70"}`}>{p.label}</span>
                       {renderPricingBadge(p.pricing)}
                       {configured === false && <Badge className="text-[7px] bg-red-500/20 text-red-400 border-red-500/30 px-1 py-0">NO KEY</Badge>}
-                      {configured === true && <Badge className="text-[7px] bg-green-500/20 text-green-400 border-green-500/30 px-1 py-0">✓</Badge>}
                     </div>
                     <p className="text-[9px] text-white/30 mt-0.5">{p.desc}</p>
                   </div>
@@ -1595,29 +1580,29 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
     <>
       <div className="flex gap-3 h-[calc(100vh-130px)]">
         {/* Sidebar */}
-        <div className="w-72 shrink-0 flex flex-col">
+        <div className="w-52 shrink-0 flex flex-col">
           <Button size="sm" onClick={() => { setActiveConvoId(null); setMessages([]); setInput(""); setAttachments([]); clearDraft(); }}
-            className="w-full bg-accent hover:bg-accent/90 text-white text-sm mb-3 h-10">
-            <Plus className="h-4 w-4 mr-1.5" /> New Conversation
+            className="w-full bg-accent hover:bg-accent/90 text-white text-[11px] mb-2 h-7 px-2">
+            <Plus className="h-3 w-3 mr-1" /> New Conversation
           </Button>
           <ScrollArea className="flex-1">
             <div className="space-y-1">
               {conversations.map(c => (
-                <div key={c.id} className={`flex items-center gap-2 p-2.5 rounded-lg cursor-pointer transition-all text-sm group ${activeConvoId === c.id ? "bg-white/10 text-white" : "text-white/40 hover:bg-white/5 hover:text-white/60"}`} onClick={() => selectConvo(c)}>
-                  <MessageSquare className="h-4 w-4 shrink-0" />
+                <div key={c.id} className={`flex items-center gap-1.5 p-2 rounded-lg cursor-pointer transition-all text-[11px] group ${activeConvoId === c.id ? "bg-white/10 text-white" : "text-white/40 hover:bg-white/5 hover:text-white/60"}`} onClick={() => selectConvo(c)}>
+                  <MessageSquare className="h-3.5 w-3.5 shrink-0" />
                   <span className="truncate flex-1">{c.title}</span>
-                  <Button size="sm" variant="ghost" onClick={e => { e.stopPropagation(); deleteConvo(c.id); }} className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 text-red-400/50 hover:text-red-400"><Trash2 className="h-3.5 w-3.5" /></Button>
+                  <Button size="sm" variant="ghost" onClick={e => { e.stopPropagation(); deleteConvo(c.id); }} className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 text-red-400/50 hover:text-red-400"><Trash2 className="h-3 w-3" /></Button>
                 </div>
               ))}
             </div>
           </ScrollArea>
-          <div className="mt-3 pt-3 border-t border-white/[0.06]">
-            <label className="text-[10px] text-white/30 mb-1.5 block">Focus on creator</label>
+          <div className="mt-2 pt-2 border-t border-white/[0.06]">
+            <label className="text-[9px] text-white/30 mb-1 block">Focus on creator</label>
             <Select value={contextAccount} onValueChange={setContextAccount}>
-              <SelectTrigger className="bg-white/5 border-white/10 text-white h-9 text-sm"><SelectValue placeholder="All creators" /></SelectTrigger>
+              <SelectTrigger className="bg-white/5 border-white/10 text-white h-7 text-[11px]"><SelectValue placeholder="All creators" /></SelectTrigger>
               <SelectContent className="bg-[hsl(220,40%,13%)] border-white/10">
-                <SelectItem value="all" className="text-white text-sm">All creators</SelectItem>
-                {accounts.map(a => (<SelectItem key={a.id} value={a.id} className="text-white text-sm">{a.display_name || a.username}</SelectItem>))}
+                <SelectItem value="all" className="text-white text-[11px]">All creators</SelectItem>
+                {accounts.map(a => (<SelectItem key={a.id} value={a.id} className="text-white text-[11px]">{a.display_name || a.username}</SelectItem>))}
               </SelectContent>
             </Select>
           </div>
