@@ -159,7 +159,7 @@ serve(async (req) => {
         });
       }
 
-      // ========== FACESWAP (Replicate - omniedgeio/face-swap — InsightFace-based, photorealistic) ==========
+      // ========== FACESWAP (Replicate - codeplugtech/face-swap — 1.7M+ runs, proven & photorealistic) ==========
       if (processType === "faceswap") {
         if (!REPLICATE_API_KEY) {
           return new Response(JSON.stringify({ error: "REPLICATE_API_KEY not configured" }), {
@@ -168,14 +168,15 @@ serve(async (req) => {
         }
         const { source_face_url, target_url, target_type } = body;
 
-        // Use omniedgeio/face-swap — InsightFace + inswapper_128 for most realistic, undetectable results
-        const resp = await fetch(`${REPLICATE_BASE}/models/omniedgeio/face-swap/predictions`, {
+        // Use codeplugtech/face-swap — most proven model on Replicate (1.7M+ runs)
+        const resp = await fetch(`${REPLICATE_BASE}/predictions`, {
           method: "POST",
           headers: {
             Authorization: `Token ${REPLICATE_API_KEY}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
+            version: "65a4cef2ad0e890e0371be96c88580b3c20e9c1c15a0e54a8b0e91fd6e1a3558",
             input: {
               target_image: target_url,
               swap_image: source_face_url,
