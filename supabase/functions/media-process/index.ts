@@ -172,7 +172,7 @@ serve(async (req) => {
         });
       }
 
-      // ========== FACESWAP (Replicate - codeplugtech/face-swap) ==========
+      // ========== FACESWAP (Replicate - yan-ops/face_swap — highest quality) ==========
       if (processType === "faceswap") {
         if (!REPLICATE_API_KEY) {
           return new Response(JSON.stringify({ error: "REPLICATE_API_KEY not configured" }), {
@@ -181,7 +181,7 @@ serve(async (req) => {
         }
         const { source_face_url, target_url, target_type } = body;
 
-        // Create prediction synchronously (no async header) — Replicate waits up to 60s for completion
+        // Use yan-ops/face_swap — most advanced & highest quality faceswap model
         const resp = await fetch(`${REPLICATE_BASE}/predictions`, {
           method: "POST",
           headers: {
@@ -189,10 +189,11 @@ serve(async (req) => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            version: "278a81e7ebb22db98bcba54de985d22cc1abeead2754eb1f2af717247be69b34",
+            version: "d5900f9ebed0db68b4d3c603764f3c09e47be05bd32e5d29a86c4277270f9e02",
             input: {
+              target_image: target_url,
               swap_image: source_face_url,
-              input_image: target_url,
+              cache_days: 0,
             },
           }),
         });

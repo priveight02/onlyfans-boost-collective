@@ -85,8 +85,8 @@ const scenes: Scene[] = [
   },
   {
     id: "ad-creatives",
-    title: "Ad Creative Engine",
-    subtitle: "AI-powered ad copy, visuals & campaign optimization",
+    title: "Creative Maker",
+    subtitle: "AI-powered ad copy, visuals, video & campaign optimization",
     sidebarActive: 4,
     duration: 7500,
     cursor: [
@@ -555,7 +555,7 @@ const AdCreativesPanel = ({ progress }: { progress: number }) => (
   <div className="space-y-3">
     <div className="flex items-center gap-2">
       <Megaphone className="w-4 h-4 text-orange-400" />
-      <span className="text-white/80 text-sm font-semibold">Ad Creative Engine</span>
+      <span className="text-white/80 text-sm font-semibold">Creative Maker</span>
       <span className="ml-auto text-[9px] px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-400">AI Optimized</span>
     </div>
     {progress > 0.12 && (

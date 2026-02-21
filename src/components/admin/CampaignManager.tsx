@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +18,7 @@ import {
   Users, LineChart, Globe, Link2, FileText, Crosshair,
   MapPin, Sliders, Palette, LayoutGrid, ArrowRight,
   PieChart, Gauge, Maximize2, Settings2, Hash,
+  Upload, FolderOpen, Sparkles, CheckCircle2, Video,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { supabase } from "@/integrations/supabase/client";
@@ -116,6 +117,7 @@ interface CampaignManagerProps {
   connectedPlatforms: Record<string, boolean>;
   connectedDetails: Record<string, { username?: string; avatar?: string; accountId?: string }>;
   integrationKeys: Record<string, Record<string, string>>;
+  generatedCreatives?: { url: string; prompt: string }[];
 }
 
 const PLATFORM_NAMES: Record<string, string> = {
@@ -127,7 +129,7 @@ const PLATFORM_NAMES: Record<string, string> = {
 // ═══════════════════════════════════════════════
 // COMPONENT
 // ═══════════════════════════════════════════════
-const CampaignManager = ({ connectedPlatforms, connectedDetails, integrationKeys }: CampaignManagerProps) => {
+const CampaignManager = ({ connectedPlatforms, connectedDetails, integrationKeys, generatedCreatives = [] }: CampaignManagerProps) => {
   const [activePlatform, setActivePlatform] = useState("");
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(false);
@@ -166,6 +168,12 @@ const CampaignManager = ({ connectedPlatforms, connectedDetails, integrationKeys
   const [adFormOpen, setAdFormOpen] = useState(false);
   const [selectedAdSet, setSelectedAdSet] = useState<string>("");
   const [adForm, setAdForm] = useState({ name: "", headline: "", body: "", image_url: "", link_url: "", cta: "LEARN_MORE", status: "PAUSED" });
+  const adFileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingAdFile, setUploadingAdFile] = useState(false);
+  const [importCreativeOpen, setImportCreativeOpen] = useState(false);
+
+  // Saved creatives from DB (copilot_generated_content)
+  const [savedCreatives, setSavedCreatives] = useState<{ url: string; prompt: string; content_type: string; created_at: string }[]>([]);
 
   // Audiences
   const [audiences, setAudiences] = useState<any[]>([]);
@@ -176,6 +184,33 @@ const CampaignManager = ({ connectedPlatforms, connectedDetails, integrationKeys
   // Creatives library
   const [creatives, setCreatives] = useState<any[]>([]);
   const [creativesLoading, setCreativesLoading] = useState(false);
+
+  // Fetch saved creatives from DB for import
+  const fetchSavedCreatives = useCallback(async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase.from("copilot_generated_content").select("url, prompt, content_type, created_at").eq("created_by", user.id).in("content_type", ["image", "video"]).order("created_at", { ascending: false }).limit(50);
+      if (data) setSavedCreatives(data.map((d: any) => ({ url: d.url, prompt: d.prompt || "", content_type: d.content_type, created_at: d.created_at })));
+    } catch { /* silent */ }
+  }, []);
+
+  useEffect(() => { fetchSavedCreatives(); }, [fetchSavedCreatives]);
+
+  // Upload file for ad creative
+  const handleAdFileUpload = async (file: File) => {
+    setUploadingAdFile(true);
+    try {
+      const ext = file.name.split(".").pop();
+      const path = `ad-creatives/${Date.now()}.${ext}`;
+      const { error } = await supabase.storage.from("copilot-attachments").upload(path, file);
+      if (error) throw error;
+      const { data: pub } = supabase.storage.from("copilot-attachments").getPublicUrl(path);
+      setAdForm(p => ({ ...p, image_url: pub.publicUrl }));
+      toast.success("File uploaded");
+    } catch (err: any) { toast.error("Upload failed: " + err.message); }
+    finally { setUploadingAdFile(false); }
+  };
 
   const adPlatforms = ["google_ads", "facebook_ads", "instagram_ads", "tiktok_ads", "snapchat_ads", "pinterest_ads", "x_ads", "linkedin_ads", "youtube_ads"].filter(p => connectedPlatforms[p]);
 
@@ -783,7 +818,41 @@ const CampaignManager = ({ connectedPlatforms, connectedDetails, integrationKeys
               <div><label className="text-[10px] text-white/30 uppercase tracking-wider">Ad Name *</label><Input value={adForm.name} onChange={e => setAdForm(p => ({ ...p, name: e.target.value }))} placeholder="Summer Sale - Image A" className="mt-1 text-xs crm-input h-8" /></div>
               <div><label className="text-[10px] text-white/30 uppercase tracking-wider">Headline</label><Input value={adForm.headline} onChange={e => setAdForm(p => ({ ...p, headline: e.target.value }))} placeholder="Discover the difference" className="mt-1 text-xs crm-input h-8" /></div>
               <div><label className="text-[10px] text-white/30 uppercase tracking-wider">Body Text</label><Textarea value={adForm.body} onChange={e => setAdForm(p => ({ ...p, body: e.target.value }))} placeholder="Your ad copy here..." className="mt-1 text-xs crm-input min-h-[60px]" /></div>
-              <div><label className="text-[10px] text-white/30 uppercase tracking-wider">Image URL</label><Input value={adForm.image_url} onChange={e => setAdForm(p => ({ ...p, image_url: e.target.value }))} placeholder="https://..." className="mt-1 text-xs crm-input h-8" /></div>
+              
+              {/* Creative / Image Section with file upload + import */}
+              <div>
+                <label className="text-[10px] text-white/30 uppercase tracking-wider">Creative (Image/Video)</label>
+                {adForm.image_url ? (
+                  <div className="mt-1 relative rounded-lg overflow-hidden border border-white/[0.06]">
+                    {adForm.image_url.match(/\.(mp4|webm|mov)$/i) ? (
+                      <video src={adForm.image_url} className="w-full h-32 object-cover" controls playsInline />
+                    ) : (
+                      <img src={adForm.image_url} alt="" className="w-full h-32 object-cover" />
+                    )}
+                    <button onClick={() => setAdForm(p => ({ ...p, image_url: "" }))} className="absolute top-1 right-1 h-5 w-5 rounded-full bg-black/60 flex items-center justify-center text-white/60 hover:text-white">×</button>
+                  </div>
+                ) : (
+                  <div className="mt-1 grid grid-cols-3 gap-1.5">
+                    <button onClick={() => adFileInputRef.current?.click()} className="flex flex-col items-center gap-1 p-3 rounded-lg border border-dashed border-white/[0.1] hover:border-white/20 transition-colors">
+                      {uploadingAdFile ? <Loader2 className="h-4 w-4 text-white/30 animate-spin" /> : <Upload className="h-4 w-4 text-white/30" />}
+                      <span className="text-[9px] text-white/30">Upload File</span>
+                    </button>
+                    <button onClick={() => setImportCreativeOpen(true)} className="flex flex-col items-center gap-1 p-3 rounded-lg border border-dashed border-emerald-500/20 hover:border-emerald-500/30 transition-colors bg-emerald-500/[0.02]">
+                      <FolderOpen className="h-4 w-4 text-emerald-400/50" />
+                      <span className="text-[9px] text-emerald-400/50">Creative Maker</span>
+                    </button>
+                    <button onClick={() => {/* paste URL mode */}} className="flex flex-col items-center gap-1 p-3 rounded-lg border border-dashed border-white/[0.1] hover:border-white/20 transition-colors">
+                      <Link2 className="h-4 w-4 text-white/30" />
+                      <span className="text-[9px] text-white/30">Paste URL</span>
+                    </button>
+                  </div>
+                )}
+                {!adForm.image_url && (
+                  <Input value={adForm.image_url} onChange={e => setAdForm(p => ({ ...p, image_url: e.target.value }))} placeholder="Or paste image/video URL here..." className="mt-1.5 text-xs crm-input h-7" />
+                )}
+                <input ref={adFileInputRef} type="file" accept="image/*,video/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleAdFileUpload(f); if (adFileInputRef.current) adFileInputRef.current.value = ""; }} />
+              </div>
+
               <div><label className="text-[10px] text-white/30 uppercase tracking-wider">Landing Page URL</label><Input value={adForm.link_url} onChange={e => setAdForm(p => ({ ...p, link_url: e.target.value }))} placeholder="https://yoursite.com/landing" className="mt-1 text-xs crm-input h-8" /></div>
               <div><label className="text-[10px] text-white/30 uppercase tracking-wider">Call to Action</label>
                 <Select value={adForm.cta} onValueChange={v => setAdForm(p => ({ ...p, cta: v }))}>
@@ -798,6 +867,54 @@ const CampaignManager = ({ connectedPlatforms, connectedDetails, integrationKeys
                 </Button>
               </div>
             </div></ScrollArea>
+          </DialogContent>
+        </Dialog>
+
+        {/* Import Creative from Creative Maker Dialog */}
+        <Dialog open={importCreativeOpen} onOpenChange={setImportCreativeOpen}>
+          <DialogContent className="crm-dialog text-white max-w-2xl border-white/[0.08]">
+            <DialogHeader>
+              <DialogTitle className="text-base flex items-center gap-2"><Sparkles className="h-4 w-4 text-emerald-400" />Import from Creative Maker</DialogTitle>
+              <DialogDescription className="text-white/30 text-xs">Select a generated creative to use in your ad</DialogDescription>
+            </DialogHeader>
+            <ScrollArea className="max-h-[60vh]">
+              <div className="grid grid-cols-3 gap-2 pr-2">
+                {/* From in-memory generated creatives */}
+                {generatedCreatives.map((cr, i) => (
+                  <button key={`gen-${i}`} onClick={() => { setAdForm(p => ({ ...p, image_url: cr.url })); setImportCreativeOpen(false); toast.success("Creative imported"); }} className="rounded-lg overflow-hidden border border-white/[0.06] hover:border-emerald-500/30 transition-all group">
+                    <img src={cr.url} alt="" className="w-full aspect-square object-cover" />
+                    <div className="p-1.5 bg-white/[0.02]">
+                      <div className="text-[8px] text-white/30 line-clamp-1">{cr.prompt.slice(0, 60)}...</div>
+                      <Badge className="text-[7px] mt-0.5 bg-emerald-500/10 text-emerald-400 border-emerald-500/20">Session</Badge>
+                    </div>
+                  </button>
+                ))}
+                {/* From DB saved creatives */}
+                {savedCreatives.map((cr, i) => (
+                  <button key={`db-${i}`} onClick={() => { setAdForm(p => ({ ...p, image_url: cr.url })); setImportCreativeOpen(false); toast.success("Creative imported"); }} className="rounded-lg overflow-hidden border border-white/[0.06] hover:border-[hsl(217,91%,60%)]/30 transition-all group">
+                    {cr.content_type === "video" ? (
+                      <video src={cr.url} className="w-full aspect-square object-cover" playsInline preload="metadata" />
+                    ) : (
+                      <img src={cr.url} alt="" className="w-full aspect-square object-cover" />
+                    )}
+                    <div className="p-1.5 bg-white/[0.02]">
+                      <div className="text-[8px] text-white/30 line-clamp-1">{cr.prompt.slice(0, 60) || "Untitled"}</div>
+                      <div className="flex items-center gap-1 mt-0.5">
+                        <Badge className={`text-[7px] border ${cr.content_type === "video" ? "bg-purple-500/10 text-purple-400 border-purple-500/20" : "bg-blue-500/10 text-blue-400 border-blue-500/20"}`}>
+                          {cr.content_type === "video" ? <><Video className="h-2 w-2 mr-0.5" />Video</> : <>Image</>}
+                        </Badge>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+                {generatedCreatives.length === 0 && savedCreatives.length === 0 && (
+                  <div className="col-span-3 py-12 text-center">
+                    <Palette className="h-8 w-8 text-white/10 mx-auto mb-2" />
+                    <p className="text-xs text-white/25">No creatives found. Generate some in the Creative Maker tab first.</p>
+                  </div>
+                )}
+              </div>
+            </ScrollArea>
           </DialogContent>
         </Dialog>
 

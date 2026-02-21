@@ -58,7 +58,7 @@ const navSections = [
     items: [
       { id: "social", label: "Social Media", icon: Globe },
       { id: "copilot", label: "Uplyze AI Copilot", icon: Bot },
-      { id: "ad-creatives", label: "Ad Creative Engine", icon: Megaphone },
+      { id: "ad-creatives", label: "Creative Maker", icon: Megaphone },
       { id: "content", label: "Content", icon: Calendar },
     ],
   },
