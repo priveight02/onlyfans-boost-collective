@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useWallet } from "@/hooks/useWallet";
 import CRMAccountsTab from "@/components/admin/CRMAccountsTab";
@@ -37,7 +37,7 @@ import {
   LayoutDashboard, Contact, Search, BarChart3, Users, DollarSign,
   FileText, MessageSquare, CheckSquare, MessageCircle, Award,
   TrendingUp, Activity, Zap, Download, Brain, Calendar, Heart,
-  Bot, Globe, Code2, Coins, Lock, Settings, ChevronLeft, ChevronRight,
+  Bot, Globe, Code2, Settings, ChevronLeft, ChevronRight,
   Bell, HelpCircle, Sparkles,
 } from "lucide-react";
 
@@ -78,7 +78,7 @@ const navSections = [
     items: [
       { id: "automation", label: "Storyline", icon: Zap },
       { id: "persona", label: "Persona DNA", icon: Brain },
-      { id: "copilot", label: "AI Co-Pilot", icon: Bot },
+      { id: "copilot", label: "Uplyze AI Copilot", icon: Bot },
       { id: "emotional", label: "Emotional", icon: Heart },
     ],
   },
@@ -106,14 +106,31 @@ const navSections = [
   },
 ];
 
+// Tab ID ↔ URL slug mapping
+const TAB_SLUGS: Record<string, string> = {
+  dashboard: "dashboard", crm: "accounts", rankings: "rankings",
+  financial: "financials", "adv-financials": "intelligence",
+  messaging: "messaging", chat: "intranet",
+  tasks: "tasks", contracts: "contracts", team: "team", "team-perf": "performance",
+  automation: "storyline", persona: "persona-dna", copilot: "uplyze-assistant", emotional: "emotional",
+  content: "content", social: "social-media",
+  lookup: "lookup", audience: "audience", reports: "reports",
+  settings: "settings", api: "api",
+};
+const SLUG_TO_TAB: Record<string, string> = Object.fromEntries(Object.entries(TAB_SLUGS).map(([k, v]) => [v, k]));
+
 const CRM = () => {
   const { user, loading } = useAuth();
   const { balance, loading: walletLoading } = useWallet();
   const { insufficientModal, closeInsufficientModal } = useCreditAction();
   const navigate = useNavigate();
+  const location = useLocation();
   const [accounts, setAccounts] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState("dashboard");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  // Derive active tab from URL
+  const pathSegment = location.pathname.replace("/platform", "").replace(/^\//, "");
+  const activeTab = SLUG_TO_TAB[pathSegment] || "dashboard";
 
   useEffect(() => {
     if (!user) return;
@@ -122,14 +139,8 @@ const CRM = () => {
   }, [user]);
 
   const handleTabChange = (newTab: string) => {
-    if (balance < 1 && !walletLoading) {
-      toast.error("Insufficient credits", {
-        description: "You need at least 1 credit to use the CRM. Purchase credits to continue.",
-        action: { label: "Buy Credits", onClick: () => navigate("/pricing") },
-      });
-      return;
-    }
-    setActiveTab(newTab);
+    const slug = TAB_SLUGS[newTab] || newTab;
+    navigate(`/platform/${slug}`, { replace: true });
   };
 
   if (loading || walletLoading) {
@@ -141,30 +152,6 @@ const CRM = () => {
             <div className="absolute inset-0 border-2 border-[hsl(217,91%,60%)]/60 border-t-transparent rounded-full animate-spin" />
           </div>
           <span className="text-xs text-white/25 font-medium tracking-wider uppercase">Loading platform</span>
-        </div>
-      </div>
-    );
-  }
-
-  if (balance < 1) {
-    return (
-      <div className="dark min-h-screen bg-[hsl(222,47%,4%)] flex items-center justify-center">
-        <div className="text-center space-y-6 max-w-md mx-auto px-6">
-          <div className="w-16 h-16 rounded-2xl bg-[hsl(217,91%,60%)]/10 border border-[hsl(217,91%,60%)]/20 flex items-center justify-center mx-auto">
-            <Lock className="h-7 w-7 text-[hsl(217,91%,60%)]" />
-          </div>
-          <h1 className="text-2xl font-bold text-white font-heading">Platform Locked</h1>
-          <p className="text-white/50 text-sm leading-relaxed">
-            You need at least <span className="text-[hsl(217,91%,60%)] font-semibold">1 credit</span> to access the platform. Purchase credits to unlock all features.
-          </p>
-          <div className="flex gap-3 justify-center">
-            <Button onClick={() => navigate("/pricing")} className="bg-[hsl(217,91%,60%)] hover:bg-[hsl(217,91%,55%)] text-white gap-2 h-10 px-6 rounded-xl font-medium">
-              <Coins className="h-4 w-4" /> Buy Credits
-            </Button>
-            <Button variant="ghost" onClick={() => navigate("/")} className="text-white/50 hover:text-white hover:bg-white/5 h-10 px-6 rounded-xl">
-              Go Home
-            </Button>
-          </div>
         </div>
       </div>
     );
@@ -187,7 +174,7 @@ const CRM = () => {
       case "content": return <ContentCommandCenter />;
       case "social": return <SocialMediaHub />;
       case "emotional": return <EmotionalHeatmap />;
-      case "copilot": return <AICoPilot onNavigate={(tab: string) => setActiveTab(tab)} />;
+      case "copilot": return <AICoPilot onNavigate={(tab: string) => handleTabChange(tab)} />;
       case "lookup": return <ProfileLookup />;
       case "audience": return <AudienceIntelligence accounts={accounts} />;
       case "reports": return <ReportingExport />;
@@ -372,7 +359,7 @@ const CRM = () => {
       </main>
 
       <CRMHelpWidget />
-      <FloatingCopilot activeTab={activeTab} onNavigate={(tab: string) => setActiveTab(tab)} />
+      <FloatingCopilot activeTab={activeTab} onNavigate={(tab: string) => handleTabChange(tab)} />
       <InsufficientCreditsModal
         open={insufficientModal.open}
         onClose={closeInsufficientModal}

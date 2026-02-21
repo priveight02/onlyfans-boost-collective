@@ -71,7 +71,7 @@ interface GeneratedContent {
   created_at: string;
 }
 
-type CopilotMode = "chat" | "image" | "video" | "audio" | "motion" | "lipsync" | "faceswap" | "freeWill";
+type CopilotMode = "chat" | "image" | "video" | "audio" | "motion" | "lipsync" | "faceswap";
 type QualityMode = "best" | "high" | "uncensored";
 type LayoutMode = "grid" | "horizontal" | "vertical";
 
@@ -142,7 +142,6 @@ const MODE_CONFIG = [
   { id: "motion" as CopilotMode, label: "Motion", icon: Move },
   { id: "lipsync" as CopilotMode, label: "Lipsync", icon: Mic },
   { id: "faceswap" as CopilotMode, label: "Faceswap", icon: ArrowRightLeft },
-  { id: "freeWill" as CopilotMode, label: "Free Will", icon: Wand2 },
 ];
 
 // ---- Helpers ----
@@ -235,7 +234,6 @@ const getModeCreditLabel = (mode: string): string => {
     case "lipsync": return "200";
     case "faceswap": return "150";
     case "chat":
-    case "freeWill":
     default: return "8";
   }
 };
@@ -262,6 +260,7 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
   const [editAttachments, setEditAttachments] = useState<Attachment[]>([]);
   const [mode, setMode] = useState<CopilotMode>("chat");
   const [qualityMode, setQualityMode] = useState<QualityMode>("best");
+  const [freeWillMode, setFreeWillMode] = useState(false);
 
   // Voice state
   const [voices, setVoices] = useState<Voice[]>([]);
@@ -1931,7 +1930,7 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
           <div className="flex flex-col items-center justify-center h-full text-center py-12">
             <Brain className="h-14 w-14 text-white/10 mb-5" />
             <p className="text-white/30 text-base mb-1"><p className="text-white/30 text-base mb-1">Uplyze Virtual Assistant</p></p>
-            <p className="text-white/20 text-sm mb-8 max-w-md">{mode === "freeWill" ? "Free Will mode — no limits, no restrictions, ask anything." : "Unfiltered. Uncensored. Ask anything."}</p>
+            <p className="text-white/20 text-sm mb-8 max-w-md">{freeWillMode ? "Free Will mode — no limits, no restrictions, ask anything." : "Unfiltered. Uncensored. Ask anything."}</p>
             <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 max-w-xl">
               {QUICK_PROMPTS.map(qp => (
                 <button key={qp.label} onClick={() => sendMessage(qp.prompt)} className="h-auto py-3 px-4 rounded-xl border border-white/[0.08] text-white/50 hover:text-white hover:bg-white/[0.06] hover:border-white/[0.15] text-left flex flex-col items-start gap-2 transition-all">
@@ -1983,7 +1982,10 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
             {isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
           </Button>
           <Textarea value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
-            placeholder={mode === "freeWill" ? "Anything goes — fully uncensored..." : "Ask anything..."} className="bg-white/5 border-white/10 text-white text-sm min-h-[44px] max-h-[140px] resize-none placeholder:text-white/20" rows={1} />
+            placeholder={freeWillMode ? "Anything goes — fully uncensored..." : "Ask anything..."} className="bg-white/5 border-white/10 text-white text-sm min-h-[44px] max-h-[140px] resize-none placeholder:text-white/20" rows={1} />
+          <button onClick={() => setFreeWillMode(!freeWillMode)} className={`h-11 w-11 p-0 shrink-0 flex items-center justify-center rounded-md transition-all ${freeWillMode ? "bg-red-500/20 text-red-400 border border-red-500/30" : "text-white/30 hover:text-white/50 hover:bg-white/5 border border-transparent"}`} title={freeWillMode ? "Free Will ON" : "Free Will OFF"}>
+            <Wand2 className="h-4 w-4" />
+          </button>
           <Button onClick={() => sendMessage()} disabled={(!input.trim() && attachments.length === 0) || isStreaming} className="bg-accent hover:bg-accent/90 h-11 w-11 p-0 shrink-0 text-white"><Send className="h-4 w-4" /></Button>
         </div>
       </div>
@@ -2030,7 +2032,7 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
               <Bot className="h-6 w-6 text-accent" />
               <p className="text-base font-semibold text-white flex-1">Uplyze Virtual Assistant</p>
               <CreditCostBadge cost={getModeCreditLabel(mode)} variant="header" label="per action" />
-              {mode === "freeWill" && <Badge variant="outline" className="border-red-500/30 text-red-400 text-[10px]"><Wand2 className="h-3 w-3 mr-1" /> Uncensored</Badge>}
+              {mode === "chat" && freeWillMode && <Badge variant="outline" className="border-red-500/30 text-red-400 text-[10px]"><Wand2 className="h-3 w-3 mr-1" /> Free Will</Badge>}
               {isStreaming && <Badge variant="outline" className="border-accent/20 text-accent text-[10px] animate-pulse"><Sparkles className="h-3 w-3 mr-1" /> Thinking...</Badge>}
             </div>
             <div className="px-4 pb-3 flex gap-1.5 overflow-x-auto">
@@ -2047,7 +2049,7 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
           {mode === "motion" && renderMotionPanel()}
           {mode === "lipsync" && renderLipsyncPanel()}
           {mode === "faceswap" && renderFaceswapPanel()}
-          {(mode === "chat" || mode === "freeWill") && renderChatPanel()}
+          {mode === "chat" && renderChatPanel()}
         </div>
       </div>
 
