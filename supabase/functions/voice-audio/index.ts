@@ -65,7 +65,7 @@ serve(async (req) => {
         body: JSON.stringify({
           text: "Hello, how are you doing? I just wanted to check in and see how everything's going on your end.",
           model_id: "eleven_multilingual_v2",
-          voice_settings: { stability: 0.35, similarity_boost: 0.82, style: 0.40, use_speaker_boost: true, speed: 0.7 },
+          voice_settings: { stability: 0.35, similarity_boost: 0.82, style: 0.40, use_speaker_boost: true, speed: 0.85 },
         }),
       });
 
@@ -96,7 +96,7 @@ serve(async (req) => {
         similarity_boost: voice_settings?.similarity_boost ?? 0.82,
         style: voice_settings?.style ?? 0.40,
         use_speaker_boost: voice_settings?.use_speaker_boost ?? true,
-        speed: voice_settings?.speed ?? 0.7,
+        speed: voice_settings?.speed ?? 0.85,
       };
 
       const ttsResp = await fetch(`${ELEVENLABS_BASE}/text-to-speech/${voice_id}`, {
