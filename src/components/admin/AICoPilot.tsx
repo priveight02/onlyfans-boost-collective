@@ -154,8 +154,8 @@ const loadDraftData = () => {
 const clearDraft = () => { try { localStorage.removeItem(DRAFT_KEY); } catch {} };
 const savePrefs = (prefs: any) => { try { localStorage.setItem(PREFS_KEY, JSON.stringify(prefs)); } catch {} };
 const loadPrefs = (): { scale: number; layout: LayoutMode } => {
-  try { const raw = localStorage.getItem(PREFS_KEY); if (raw) return JSON.parse(raw); } catch {}
-  return { scale: 1.5, layout: "vertical" };
+  try { const raw = localStorage.getItem(PREFS_KEY); if (raw) { const p = JSON.parse(raw); return { scale: p.scale ?? 1.25, layout: p.layout ?? "vertical" }; } } catch {}
+  return { scale: 1.25, layout: "vertical" };
 };
 const saveVoiceParams = (voiceId: string, params: VoiceParams) => {
   try {
