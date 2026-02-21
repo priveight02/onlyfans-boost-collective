@@ -849,7 +849,7 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
 
   // ---- Inline TTS for Lipsync panel ----
   const generateLipsyncTts = async () => {
-    if (!lipsyncTtsText.trim() || isGeneratingLipsyncTts) return;
+    if (!lipsyncPrompt.trim() || isGeneratingLipsyncTts) return;
     const voice = voices.find(v => v.id === lipsyncTtsVoice);
     if (!voice?.elevenlabs_voice_id) { toast.error("Select a cloned voice first"); return; }
     const creditResult = await performAction('copilot_audio', async () => ({ success: true }));
@@ -859,17 +859,17 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/voice-audio?action=generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
-        body: JSON.stringify({ text: lipsyncTtsText, voice_id: voice.elevenlabs_voice_id, voice_settings: { stability: 0.5, similarity_boost: 0.85, style: 0.5, speed: 1.0, use_speaker_boost: true } }),
+        body: JSON.stringify({ text: lipsyncPrompt, voice_id: voice.elevenlabs_voice_id, voice_settings: { stability: 0.5, similarity_boost: 0.85, style: 0.5, speed: 1.0, use_speaker_boost: true } }),
       });
       if (!resp.ok) { const ed = await resp.json().catch(() => ({})); throw new Error(ed.error || `Error ${resp.status}`); }
       const data = await resp.json();
       if (!data.audio_url) throw new Error("No audio returned");
-      const saved = await saveGeneratedContent("audio", data.audio_url, lipsyncTtsText, "audio", { metadata: { voice: voice.name, provider: "elevenlabs", action: "lipsync_tts" } });
+      const saved = await saveGeneratedContent("audio", data.audio_url, lipsyncPrompt, "audio", { metadata: { voice: voice.name, provider: "elevenlabs", action: "lipsync_tts" } });
       if (saved) setGeneratedAudios(prev => [saved, ...prev]);
       setLipsyncAudio(data.audio_url);
       setLipsyncAudioName(`TTS: ${voice.name}`);
       toast.success("Audio generated & loaded!");
-      setLipsyncTtsText("");
+      // Don't clear lipsyncPrompt — it's the main shared prompt
     } catch (e: any) { toast.error(e.message || "TTS failed"); } finally { setIsGeneratingLipsyncTts(false); }
   };
 
@@ -1422,10 +1422,11 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
       return (<div className="flex flex-col items-center justify-center h-full text-center py-12"><Icon className="h-12 w-12 text-white/10 mb-4" /><p className="text-white/20 text-sm">Generated {modeTab}s appear here</p></div>);
     }
     const layout = displayLayout === "horizontal" ? "flex flex-row flex-wrap gap-4" : displayLayout === "vertical" ? "flex flex-col gap-4" : "grid grid-cols-2 gap-4";
+    const sortedItems = [...items].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     return (
       <div className={layout}>
         {generatingCard}
-        {items.map(item => {
+        {sortedItems.map(item => {
           const meta = item.metadata || {};
           const dims = meta.width && meta.height ? `${meta.width}×${meta.height}` : item.aspect_ratio || "";
           const fileExt = isVideoMode ? "mp4" : "png";
@@ -1993,20 +1994,7 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
         <p className="text-sm font-semibold text-white/80">Lipsync</p>
         <p className="text-[10px] text-white/30">Sync lip movements to audio on any video</p>
 
-        <Textarea value={lipsyncPrompt} onChange={e => setLipsyncPrompt(e.target.value)} placeholder="Describe the scene, pose or desired behavior... (optional)" className="bg-white/5 border-white/10 text-white text-sm min-h-[80px] resize-none placeholder:text-white/20" />
-
-        {/* Video upload */}
-        <div>
-          <div className="flex items-center justify-between mb-1"><p className="text-[10px] text-white/40 font-medium flex items-center gap-1"><Video className="h-3 w-3" /> Video</p><span className="text-[9px] text-white/20">Upload</span></div>
-          <div className="border-2 border-dashed border-white/10 rounded-xl p-4 flex flex-col items-center justify-center gap-1 cursor-pointer hover:border-white/20 transition-colors min-h-[70px]" onClick={() => lipsyncVideoInputRef.current?.click()}>
-            {lipsyncVideo ? <div className="flex items-center gap-2"><Video className="h-4 w-4 text-accent" /><span className="text-[11px] text-white/60 truncate max-w-[200px]">{lipsyncVideoName}</span><button onClick={(e) => { e.stopPropagation(); setLipsyncVideo(null); setLipsyncVideoName(""); }}><X className="h-3 w-3 text-white/30 hover:text-red-400" /></button></div>
-              : <><Upload className="h-5 w-5 text-white/20" /><p className="text-[10px] text-white/30">Drag your video here or click to select</p><p className="text-[8px] text-white/15">MP4, MOV, WEBM up to 50MB</p></>}
-          </div>
-          <input ref={lipsyncVideoInputRef} type="file" accept="video/*" className="hidden" onChange={async e => { const f = e.target.files?.[0]; if (!f) return; const url = await uploadFileToStorage(f); if (url) { setLipsyncVideo(url); setLipsyncVideoName(f.name); } if (lipsyncVideoInputRef.current) lipsyncVideoInputRef.current.value = ""; }} />
-          {generatedVideos.length > 0 && <Select onValueChange={v => { const vid = generatedVideos.find(x => x.id === v); if (vid) { setLipsyncVideo(vid.url); setLipsyncVideoName(vid.prompt?.slice(0, 30) || "Generated video"); } }}><SelectTrigger className="bg-white/5 border-white/10 text-white h-7 text-[10px] mt-1.5"><SelectValue placeholder="Or select generated video..." /></SelectTrigger><SelectContent className="bg-[hsl(220,40%,10%)] border-white/10 max-h-[150px]">{generatedVideos.map(v => <SelectItem key={v.id} value={v.id} className="text-white text-[10px]">{v.prompt?.slice(0, 40) || "Untitled"}</SelectItem>)}</SelectContent></Select>}
-        </div>
-
-        {/* Audio source toggle */}
+        {/* Audio source toggle — moved to top */}
         <div>
           <p className="text-[10px] text-white/40 font-medium mb-1.5">Audio Source</p>
           <div className="flex gap-1.5 mb-2">
@@ -2026,7 +2014,6 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
 
           {lipsyncAudioSource === "voicenote" ? (
             <>
-              {/* Upload or select generated audio */}
               <div className="border-2 border-dashed border-white/10 rounded-xl p-3 flex flex-col items-center justify-center gap-1 cursor-pointer hover:border-white/20 transition-colors min-h-[50px]" onClick={() => lipsyncAudioInputRef.current?.click()}>
                 {lipsyncAudio ? <div className="flex items-center gap-2"><Music className="h-4 w-4 text-emerald-400" /><span className="text-[11px] text-white/60 truncate max-w-[200px]">{lipsyncAudioName}</span><button onClick={(e) => { e.stopPropagation(); setLipsyncAudio(null); setLipsyncAudioName(""); }}><X className="h-3 w-3 text-white/30 hover:text-red-400" /></button></div>
                   : <><Volume2 className="h-4 w-4 text-white/20" /><p className="text-[9px] text-white/30">MP3, WAV, M4A — upload or select below</p></>}
@@ -2041,7 +2028,6 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
             </>
           ) : (
             <>
-              {/* Voice selector */}
               {voices.length > 0 ? (
                 <Select value={lipsyncTtsVoice} onValueChange={setLipsyncTtsVoice}>
                   <SelectTrigger className="bg-white/5 border-white/10 text-white h-8 text-[10px]"><SelectValue placeholder="Select a cloned voice..." /></SelectTrigger>
@@ -2052,20 +2038,30 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
               ) : (
                 <button onClick={() => setMode("audio")} className="text-[10px] text-accent/60 hover:text-accent underline w-full text-center py-2">Create a voice first in Audio tab</button>
               )}
-              {lipsyncTtsVoice && voices.length > 0 && (
-                <div className="mt-1.5 flex gap-1.5">
-                  <Textarea value={lipsyncTtsText} onChange={e => setLipsyncTtsText(e.target.value)}
-                    placeholder="Type what the voice should say..."
-                    className="bg-white/5 border-white/10 text-white text-[10px] min-h-[50px] resize-none placeholder:text-white/20 flex-1"
-                    onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); generateLipsyncTts(); } }} />
-                  <Button onClick={generateLipsyncTts} disabled={!lipsyncTtsText.trim() || isGeneratingLipsyncTts} size="sm" className="h-[50px] w-[50px] shrink-0 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white p-0">
-                    {isGeneratingLipsyncTts ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                  </Button>
-                </div>
-              )}
               {lipsyncAudio && <div className="mt-1.5 flex items-center gap-2 bg-white/[0.04] border border-white/[0.08] rounded-lg p-2"><Music className="h-3 w-3 text-emerald-400" /><span className="text-[10px] text-white/50 truncate flex-1">{lipsyncAudioName}</span><button onClick={() => { setLipsyncAudio(null); setLipsyncAudioName(""); }}><X className="h-3 w-3 text-white/30 hover:text-red-400" /></button></div>}
             </>
           )}
+        </div>
+
+        {/* Main TTS text input — always visible, used by both audio sources */}
+        <Textarea value={lipsyncPrompt} onChange={e => setLipsyncPrompt(e.target.value)} placeholder="Type what the voice should say / describe the scene... (optional)" className="bg-white/5 border-white/10 text-white text-sm min-h-[80px] resize-none placeholder:text-white/20" />
+
+        {/* Generate TTS button for "Use Created Voice" mode */}
+        {lipsyncAudioSource === "voice" && lipsyncTtsVoice && voices.length > 0 && (
+          <Button onClick={generateLipsyncTts} disabled={!lipsyncPrompt.trim() || isGeneratingLipsyncTts} size="sm" className="w-full h-8 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white text-[11px]">
+            {isGeneratingLipsyncTts ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <Sparkles className="h-3.5 w-3.5 mr-1.5" />}Generate Voice Audio
+          </Button>
+        )}
+
+        {/* Video upload */}
+        <div>
+          <div className="flex items-center justify-between mb-1"><p className="text-[10px] text-white/40 font-medium flex items-center gap-1"><Video className="h-3 w-3" /> Video</p><span className="text-[9px] text-white/20">Upload</span></div>
+          <div className="border-2 border-dashed border-white/10 rounded-xl p-4 flex flex-col items-center justify-center gap-1 cursor-pointer hover:border-white/20 transition-colors min-h-[70px]" onClick={() => lipsyncVideoInputRef.current?.click()}>
+            {lipsyncVideo ? <div className="flex items-center gap-2"><Video className="h-4 w-4 text-accent" /><span className="text-[11px] text-white/60 truncate max-w-[200px]">{lipsyncVideoName}</span><button onClick={(e) => { e.stopPropagation(); setLipsyncVideo(null); setLipsyncVideoName(""); }}><X className="h-3 w-3 text-white/30 hover:text-red-400" /></button></div>
+              : <><Upload className="h-5 w-5 text-white/20" /><p className="text-[10px] text-white/30">Drag your video here or click to select</p><p className="text-[8px] text-white/15">MP4, MOV, WEBM up to 50MB</p></>}
+          </div>
+          <input ref={lipsyncVideoInputRef} type="file" accept="video/*" className="hidden" onChange={async e => { const f = e.target.files?.[0]; if (!f) return; const url = await uploadFileToStorage(f); if (url) { setLipsyncVideo(url); setLipsyncVideoName(f.name); } if (lipsyncVideoInputRef.current) lipsyncVideoInputRef.current.value = ""; }} />
+          {generatedVideos.length > 0 && <Select onValueChange={v => { const vid = generatedVideos.find(x => x.id === v); if (vid) { setLipsyncVideo(vid.url); setLipsyncVideoName(vid.prompt?.slice(0, 30) || "Generated video"); } }}><SelectTrigger className="bg-white/5 border-white/10 text-white h-7 text-[10px] mt-1.5"><SelectValue placeholder="Or select generated video..." /></SelectTrigger><SelectContent className="bg-[hsl(220,40%,10%)] border-white/10 max-h-[150px]">{generatedVideos.map(v => <SelectItem key={v.id} value={v.id} className="text-white text-[10px]">{v.prompt?.slice(0, 40) || "Untitled"}</SelectItem>)}</SelectContent></Select>}
         </div>
 
         {/* Quality selector */}
