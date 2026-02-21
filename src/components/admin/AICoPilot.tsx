@@ -338,6 +338,9 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
   const [generatedLipsyncs, setGeneratedLipsyncs] = useState<GeneratedContent[]>([]);
   const lipsyncVideoInputRef = useRef<HTMLInputElement>(null);
   const lipsyncAudioInputRef = useRef<HTMLInputElement>(null);
+  const [lipsyncTtsText, setLipsyncTtsText] = useState("");
+  const [lipsyncTtsVoice, setLipsyncTtsVoice] = useState("");
+  const [isGeneratingLipsyncTts, setIsGeneratingLipsyncTts] = useState(false);
 
   // Faceswap state
   const [faceswapSource, setFaceswapSource] = useState<string | null>(null);
@@ -838,6 +841,32 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
       if (saved) setGeneratedAudios(prev => [saved, ...prev]);
       toast.success("Audio generated!"); setAudioText("");
     } catch (e: any) { toast.error(e.message || "Audio generation failed"); } finally { setIsGeneratingAudio(false); }
+  };
+
+  // ---- Inline TTS for Lipsync panel ----
+  const generateLipsyncTts = async () => {
+    if (!lipsyncTtsText.trim() || isGeneratingLipsyncTts) return;
+    const voice = voices.find(v => v.id === lipsyncTtsVoice);
+    if (!voice?.elevenlabs_voice_id) { toast.error("Select a cloned voice first"); return; }
+    const creditResult = await performAction('copilot_audio', async () => ({ success: true }));
+    if (!creditResult) return;
+    setIsGeneratingLipsyncTts(true);
+    try {
+      const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/voice-audio?action=generate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+        body: JSON.stringify({ text: lipsyncTtsText, voice_id: voice.elevenlabs_voice_id, voice_settings: { stability: 0.5, similarity_boost: 0.85, style: 0.5, speed: 1.0, use_speaker_boost: true } }),
+      });
+      if (!resp.ok) { const ed = await resp.json().catch(() => ({})); throw new Error(ed.error || `Error ${resp.status}`); }
+      const data = await resp.json();
+      if (!data.audio_url) throw new Error("No audio returned");
+      const saved = await saveGeneratedContent("audio", data.audio_url, lipsyncTtsText, "audio", { metadata: { voice: voice.name, provider: "elevenlabs", action: "lipsync_tts" } });
+      if (saved) setGeneratedAudios(prev => [saved, ...prev]);
+      setLipsyncAudio(data.audio_url);
+      setLipsyncAudioName(`TTS: ${voice.name}`);
+      toast.success("Audio generated & loaded!");
+      setLipsyncTtsText("");
+    } catch (e: any) { toast.error(e.message || "TTS failed"); } finally { setIsGeneratingLipsyncTts(false); }
   };
 
   // ---- Simulated progress for image/video generation ----
@@ -1969,10 +1998,30 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
           <input ref={lipsyncAudioInputRef} type="file" accept="audio/*" className="hidden" onChange={async e => { const f = e.target.files?.[0]; if (!f) return; const url = await uploadFileToStorage(f); if (url) { setLipsyncAudio(url); setLipsyncAudioName(f.name); } if (lipsyncAudioInputRef.current) lipsyncAudioInputRef.current.value = ""; }} />
           {generatedAudios.length > 0 && <Select onValueChange={v => { const aud = generatedAudios.find(x => x.id === v); if (aud) { setLipsyncAudio(aud.url); setLipsyncAudioName(aud.metadata?.voice || "Generated audio"); } }}><SelectTrigger className="bg-white/5 border-white/10 text-white h-7 text-[10px] mt-1.5"><SelectValue placeholder="Or select generated audio..." /></SelectTrigger><SelectContent className="bg-[hsl(220,40%,10%)] border-white/10 max-h-[150px]">{generatedAudios.map(a => <SelectItem key={a.id} value={a.id} className="text-white text-[10px]">{a.prompt?.slice(0, 40) || "Untitled"}</SelectItem>)}</SelectContent></Select>}
 
-          <div className="mt-2">
-            <button onClick={() => setMode("audio")} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] border border-white/10 text-white/40 hover:text-white/60 hover:border-white/20 transition-all">
-              <Mic className="h-3 w-3" /> Create a voice for my model
-            </button>
+          {/* Inline TTS - generate speech from voice */}
+          <div className="mt-2 border border-white/10 rounded-xl p-3 bg-white/[0.02]">
+            <p className="text-[10px] text-white/50 font-medium mb-2 flex items-center gap-1.5"><Volume2 className="h-3 w-3 text-accent" /> Quick Text-to-Speech</p>
+            {voices.length > 0 ? (
+              <>
+                <Select value={lipsyncTtsVoice} onValueChange={setLipsyncTtsVoice}>
+                  <SelectTrigger className="bg-white/5 border-white/10 text-white h-7 text-[10px] mb-2"><SelectValue placeholder="Select a voice..." /></SelectTrigger>
+                  <SelectContent className="bg-[hsl(220,40%,10%)] border-white/10 max-h-[150px]">
+                    {voices.map(v => <SelectItem key={v.id} value={v.id} className="text-white text-[10px]">{v.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <Textarea value={lipsyncTtsText} onChange={e => setLipsyncTtsText(e.target.value)}
+                  placeholder="Type what you want the voice to say..."
+                  className="bg-white/5 border-white/10 text-white text-[11px] min-h-[60px] resize-none placeholder:text-white/20 mb-2"
+                  onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); generateLipsyncTts(); } }} />
+                <Button onClick={generateLipsyncTts} disabled={!lipsyncTtsText.trim() || !lipsyncTtsVoice || isGeneratingLipsyncTts} size="sm" className="w-full h-7 text-[10px] bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white">
+                  {isGeneratingLipsyncTts ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Sparkles className="h-3 w-3 mr-1" />}Generate & Use as Audio
+                </Button>
+              </>
+            ) : (
+              <button onClick={() => setMode("audio")} className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-[10px] border border-white/10 text-white/40 hover:text-white/60 hover:border-white/20 transition-all w-full justify-center">
+                <Mic className="h-3 w-3" /> Create a voice first in Audio tab
+              </button>
+            )}
           </div>
         </div>
 
