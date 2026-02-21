@@ -9,7 +9,7 @@ const Footer = () => {
 
   return (
     <footer className="relative overflow-hidden">
-      <div className="absolute inset-0 bg-[hsl(222,35%,5%)]" />
+      <div className="absolute inset-0 bg-[hsl(222,35%,8%)]" />
       <div className="absolute bottom-0 left-1/4 w-[500px] h-[300px] bg-primary/8 rounded-full blur-[120px] pointer-events-none" />
       <div className="absolute top-0 right-1/4 w-[400px] h-[250px] bg-purple-500/6 rounded-full blur-[100px] pointer-events-none" />
 
