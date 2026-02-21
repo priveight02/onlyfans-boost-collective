@@ -314,7 +314,28 @@ serve(async (req) => {
       });
     }
 
-    return new Response(JSON.stringify({ error: "Invalid action. Use ?action=create or ?action=poll" }), {
+    // ========== CANCEL ==========
+    if (action === "cancel") {
+      const taskId = url.searchParams.get("task_id");
+      const provider = url.searchParams.get("provider") || "runway";
+      if (!taskId) {
+        return new Response(JSON.stringify({ error: "Missing task_id" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      try {
+        if (provider === "runway" && RUNWAY_API_KEY) {
+          await fetch(`${RUNWAY_BASE}/tasks/${taskId}/cancel`, { method: "POST", headers: RUNWAY_HEADERS });
+        } else if (provider === "replicate" && REPLICATE_API_KEY) {
+          await fetch(`${REPLICATE_BASE}/predictions/${taskId}/cancel`, { method: "POST", headers: { Authorization: `Token ${REPLICATE_API_KEY}` } });
+        }
+      } catch (e) { console.error("Cancel error (non-fatal):", e); }
+      return new Response(JSON.stringify({ status: "CANCELLED" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    return new Response(JSON.stringify({ error: "Invalid action. Use ?action=create, ?action=poll, or ?action=cancel" }), {
       status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {

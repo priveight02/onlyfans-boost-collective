@@ -364,6 +364,8 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
   const [displayLayout, setDisplayLayout] = useState<LayoutMode>("vertical");
 
   // Refs
+  const cancelGenRef = useRef<string | null>(null); // set to mode name to signal cancel
+  const activeTaskIds = useRef<Record<string, { taskId: string; provider: string; endpoint: string }>>({});
   const editFileInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -525,6 +527,33 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
 
   const removeActiveTask = async (taskId: string) => {
     await supabase.from("active_generation_tasks" as any).delete().eq("task_id", taskId);
+  };
+
+  const cancelGeneration = async (mode: CopilotMode) => {
+    cancelGenRef.current = mode;
+    const taskInfo = activeTaskIds.current[mode];
+    // Server-side cancel
+    if (taskInfo) {
+      const endpoint = taskInfo.endpoint === "video-generate" ? "video-generate" : "media-process";
+      try {
+        await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${endpoint}?action=cancel&task_id=${encodeURIComponent(taskInfo.taskId)}&provider=${taskInfo.provider}`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+        });
+      } catch (e) { console.error("Cancel request failed (non-fatal):", e); }
+      await removeActiveTask(taskInfo.taskId).catch(() => {});
+      delete activeTaskIds.current[mode];
+    }
+    // Reset frontend state
+    if (mode === "image") { setIsGeneratingImage(false); setImageProgress(0); setImageProgressLabel(""); }
+    else if (mode === "video") { setIsGeneratingVideo(false); setVideoProgress(0); setVideoProgressLabel(""); }
+    else if (mode === "audio") { setIsGeneratingAudio(false); setIsGeneratingElevenAudio(false); }
+    else if (mode === "motion") { setIsGeneratingMotion(false); setMotionProgress(0); setMotionProgressLabel(""); }
+    else if (mode === "lipsync") { setIsGeneratingLipsync(false); setLipsyncProgress(0); setLipsyncProgressLabel(""); }
+    else if (mode === "faceswap") { setIsGeneratingFaceswap(false); setFaceswapProgress(0); setFaceswapProgressLabel(""); }
+    toast.info("Generation cancelled");
+    // Reset after a tick so polling loops can read it
+    setTimeout(() => { if (cancelGenRef.current === mode) cancelGenRef.current = null; }, 500);
   };
 
   const resumeActiveTasks = useCallback(async () => {
@@ -1106,6 +1135,7 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
 
       const taskType = createData.task_type || (frame ? "image2video" : "text2video");
       await saveActiveTask(taskId, provider, "video", prompt, { duration: videoDuration, format: format.id, model: selectedVideoModel, task_type: taskType });
+      activeTaskIds.current.video = { taskId, provider, endpoint: "video-generate" };
 
       setVideoProgress(10);
       setVideoProgressLabel("Task submitted — rendering video...");
@@ -1116,6 +1146,7 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
       let videoUrl: string | null = null;
 
       while (pollCount < maxPolls) {
+        if (cancelGenRef.current === "video") return;
         await new Promise(r => setTimeout(r, 5000));
         pollCount++;
         const progress = Math.min(10 + (pollCount / maxPolls) * 80, 90);
@@ -1186,9 +1217,11 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
       const provider = data.provider || "runway";
       if (!taskId) throw new Error("No task_id returned");
       await saveActiveTask(taskId, provider, "motion", motionPrompt || "Motion transfer", { type: "motion" });
+      activeTaskIds.current.motion = { taskId, provider, endpoint: "media-process" };
       let videoUrl: string | null = null;
       let pollCount = 0;
       while (pollCount < 120) {
+        if (cancelGenRef.current === "motion") return;
         await new Promise(r => setTimeout(r, 5000)); pollCount++;
         try {
           const pollResp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/media-process?action=poll&task_id=${encodeURIComponent(taskId)}&provider=${provider}`, { headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` } });
@@ -1241,9 +1274,11 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
       const provider = data.provider || "replicate";
       if (!taskId) throw new Error("No task_id returned");
       await saveActiveTask(taskId, provider, "lipsync", lipsyncPrompt || "Lipsync", { type: "lipsync" });
+      activeTaskIds.current.lipsync = { taskId, provider, endpoint: "media-process" };
       let videoUrl: string | null = null;
       let pollCount = 0;
       while (pollCount < 120) {
+        if (cancelGenRef.current === "lipsync") return;
         await new Promise(r => setTimeout(r, 5000)); pollCount++;
         try {
           const pollResp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/media-process?action=poll&task_id=${encodeURIComponent(taskId)}&provider=${provider}`, { headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` } });
@@ -1289,8 +1324,10 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
         resultUrl = data.video_url;
       } else {
         await saveActiveTask(taskId, provider, "faceswap", "Faceswap", { type: "faceswap", category: faceswapCategory });
+        activeTaskIds.current.faceswap = { taskId, provider, endpoint: "media-process" };
         let pollCount = 0;
         while (pollCount < 90) {
+          if (cancelGenRef.current === "faceswap") return;
           await new Promise(r => setTimeout(r, 2000)); pollCount++;
           try {
             const pollResp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/media-process?action=poll&task_id=${encodeURIComponent(taskId)}&provider=${provider}`, { headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` } });
@@ -1594,6 +1631,11 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
           <Button onClick={generateImage} disabled={!imagePrompt.trim() || isGeneratingImage} className="flex-1 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white text-sm h-9">
             {isGeneratingImage ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Sparkles className="h-4 w-4 mr-2" />}Generate
           </Button>
+          {isGeneratingImage && (
+            <Button onClick={() => cancelGeneration("image")} variant="outline" className="h-9 px-3 border-red-500/30 text-red-400 hover:bg-red-500/10 hover:text-red-300 text-sm">
+              <X className="h-4 w-4 mr-1" />Cancel
+            </Button>
+          )}
         </div>
       </div>
       <div className="flex-1 flex flex-col overflow-hidden">
@@ -1734,6 +1776,11 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
           <Button onClick={generateVideo} disabled={!videoPrompt.trim() || isGeneratingVideo} className="flex-1 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white text-sm h-9">
             {isGeneratingVideo ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Sparkles className="h-4 w-4 mr-2" />}Generate with {activeProvider.label}
           </Button>
+          {isGeneratingVideo && (
+            <Button onClick={() => cancelGeneration("video")} variant="outline" className="h-9 px-3 border-red-500/30 text-red-400 hover:bg-red-500/10 hover:text-red-300 text-sm">
+              <X className="h-4 w-4 mr-1" />Cancel
+            </Button>
+          )}
         </div>
       </div>
       <div className="flex-1 flex flex-col overflow-hidden">
@@ -1962,6 +2009,11 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
             {isGeneratingElevenAudio ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Sparkles className="h-4 w-4 mr-2" />}
             Generate with Uplyze Audio
           </Button>
+          {isGeneratingElevenAudio && (
+            <Button onClick={() => cancelGeneration("audio")} variant="outline" className="w-full mt-2 h-9 px-3 border-red-500/30 text-red-400 hover:bg-red-500/10 hover:text-red-300 text-sm">
+              <X className="h-4 w-4 mr-1" />Cancel
+            </Button>
+          )}
         </div>
       </div>
       <ScrollArea className="flex-1">{renderAudioGallery()}</ScrollArea>
@@ -2026,6 +2078,11 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
           <Button onClick={generateMotion} disabled={!motionRefVideo || !(motionTargetVideo || motionTargetImage) || isGeneratingMotion} className="w-full bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 text-white text-sm h-9">
             {isGeneratingMotion ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Move className="h-4 w-4 mr-2" />}Generate Motion Transfer
           </Button>
+          {isGeneratingMotion && (
+            <Button onClick={() => cancelGeneration("motion")} variant="outline" className="w-full mt-2 h-9 px-3 border-red-500/30 text-red-400 hover:bg-red-500/10 hover:text-red-300 text-sm">
+              <X className="h-4 w-4 mr-1" />Cancel
+            </Button>
+          )}
         </div>
       </div>
       <div className="flex-1 flex flex-col overflow-hidden">
@@ -2134,6 +2191,11 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
           <Button onClick={generateLipsync} disabled={!lipsyncVideo || isGeneratingLipsync || (lipsyncAudioSource === "voicenote" && !lipsyncAudio) || (lipsyncAudioSource === "voice" && (!lipsyncTtsVoice || !lipsyncPrompt.trim()))} className="w-full bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white text-sm h-9">
             {isGeneratingLipsync ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Mic className="h-4 w-4 mr-2" />}Generate Lipsync
           </Button>
+          {isGeneratingLipsync && (
+            <Button onClick={() => cancelGeneration("lipsync")} variant="outline" className="w-full mt-2 h-9 px-3 border-red-500/30 text-red-400 hover:bg-red-500/10 hover:text-red-300 text-sm">
+              <X className="h-4 w-4 mr-1" />Cancel
+            </Button>
+          )}
         </div>
       </div>
       <div className="flex-1 flex flex-col overflow-hidden">
@@ -2201,6 +2263,11 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
           <Button onClick={generateFaceswap} disabled={!faceswapSource || !faceswapTarget || isGeneratingFaceswap} className="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white text-sm h-9">
             {isGeneratingFaceswap ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <ArrowRightLeft className="h-4 w-4 mr-2" />}Generate Face Swap
           </Button>
+          {isGeneratingFaceswap && (
+            <Button onClick={() => cancelGeneration("faceswap")} variant="outline" className="w-full mt-2 h-9 px-3 border-red-500/30 text-red-400 hover:bg-red-500/10 hover:text-red-300 text-sm">
+              <X className="h-4 w-4 mr-1" />Cancel
+            </Button>
+          )}
         </div>
       </div>
       <div className="flex-1 flex flex-col overflow-hidden">
