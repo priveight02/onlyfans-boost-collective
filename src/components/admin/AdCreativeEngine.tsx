@@ -7,6 +7,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import {
   Megaphone, Sparkles, Star, TrendingUp, Copy, Download,
@@ -14,6 +16,7 @@ import {
   DollarSign, Eye, MousePointerClick,
   CheckCircle2, Loader2, Plus, Wand2, Upload, X,
   Link2, ShoppingCart, ExternalLink, Settings2, Unplug,
+  Info, Globe, Play, Pause, SquarePen, Trash2, Search,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import adVariantA from "@/assets/showcase-ad-variant-a.png";
@@ -66,26 +69,209 @@ const AdCreativeEngine = ({ subTab, onSubTabChange }: { subTab?: string; onSubTa
   useEffect(() => { if (subTab && subTab !== activeTab) setActiveTabInternal(subTab); }, [subTab]);
 
   // Integration API keys state
-  const [shopifyApiKey, setShopifyApiKey] = useState("");
-  const [shopifyStoreUrl, setShopifyStoreUrl] = useState("");
-  const [wooApiKey, setWooApiKey] = useState("");
-  const [wooApiSecret, setWooApiSecret] = useState("");
-  const [wooStoreUrl, setWooStoreUrl] = useState("");
-  const [canvaApiKey, setCanvaApiKey] = useState("");
+  const [integrationKeys, setIntegrationKeys] = useState<Record<string, Record<string, string>>>({});
   const [savingIntegration, setSavingIntegration] = useState<string | null>(null);
+  const [infoDialog, setInfoDialog] = useState<string | null>(null);
+  const [campaignDialog, setCampaignDialog] = useState<string | null>(null);
+  const [campaignName, setCampaignName] = useState("");
+  const [campaignBudget, setCampaignBudget] = useState("50");
+  const [campaignObjective, setCampaignObjective] = useState("conversions");
+
+  const updateIntKey = (platform: string, field: string, value: string) => {
+    setIntegrationKeys(prev => ({ ...prev, [platform]: { ...prev[platform], [field]: value } }));
+  };
+  const getIntKey = (platform: string, field: string) => integrationKeys[platform]?.[field] || "";
+
+  // Integration platform definitions
+  const INTEGRATIONS = [
+    {
+      id: "shopify", name: "Shopify", desc: "E-commerce platform", icon: ShoppingCart,
+      color: "emerald", gradient: "hsl(145 60% 40%), hsl(160 60% 45%)",
+      features: ["Product catalog sync", "Auto-generate ads from products", "Push creatives to store"],
+      fields: [
+        { key: "store_url", label: "Store URL", placeholder: "mystore.myshopify.com" },
+        { key: "api_key", label: "Admin API Access Token", placeholder: "shpat_••••••••••••", secret: true },
+      ],
+      guide: {
+        title: "How to Connect Shopify",
+        steps: [
+          { text: "Log in to your Shopify admin at", link: "https://admin.shopify.com", linkText: "admin.shopify.com" },
+          { text: "Go to Settings → Apps and sales channels → Develop apps" },
+          { text: "Click 'Create an app' → name it 'Uplyze Integration'" },
+          { text: "Under Configuration, select these Admin API scopes: read_products, write_products, read_orders, read_inventory" },
+          { text: "Click 'Install app' → copy the Admin API access token (starts with shpat_)" },
+          { text: "Paste your store URL (e.g. mystore.myshopify.com) and the token above" },
+        ],
+      },
+    },
+    {
+      id: "woocommerce", name: "WooCommerce", desc: "WordPress e-commerce", icon: ShoppingCart,
+      color: "purple", gradient: "hsl(270 60% 50%), hsl(290 60% 55%)",
+      features: ["WooCommerce REST API sync", "Product-to-ad pipeline", "Conversion tracking"],
+      fields: [
+        { key: "store_url", label: "Store URL", placeholder: "https://mystore.com" },
+        { key: "api_key", label: "Consumer Key", placeholder: "ck_••••••••••••", secret: true },
+        { key: "api_secret", label: "Consumer Secret", placeholder: "cs_••••••••••••", secret: true },
+      ],
+      guide: {
+        title: "How to Connect WooCommerce",
+        steps: [
+          { text: "Log in to your WordPress admin dashboard" },
+          { text: "Go to WooCommerce → Settings → Advanced → REST API" },
+          { text: "Click 'Add key' → set Description to 'Uplyze Integration'" },
+          { text: "Set Permissions to 'Read/Write' and click 'Generate API key'" },
+          { text: "Copy both the Consumer Key (ck_) and Consumer Secret (cs_)" },
+          { text: "Enter your store URL and both keys above" },
+          { text: "Docs:", link: "https://woocommerce.com/document/woocommerce-rest-api/", linkText: "WooCommerce REST API Documentation" },
+        ],
+      },
+    },
+    {
+      id: "canva", name: "Canva", desc: "Design platform", icon: Palette,
+      color: "cyan", gradient: "hsl(190 70% 45%), hsl(210 70% 50%)",
+      features: ["Export to Canva workspace", "Import Canva designs", "Template library access"],
+      fields: [
+        { key: "api_key", label: "Canva Connect API Key", placeholder: "cnv_••••••••••••", secret: true },
+      ],
+      guide: {
+        title: "How to Connect Canva",
+        steps: [
+          { text: "Go to the Canva Developers Portal at", link: "https://www.canva.dev/docs/connect/", linkText: "canva.dev/docs/connect" },
+          { text: "Sign in with your Canva account and create a new integration" },
+          { text: "Set the integration name to 'Uplyze' and select 'Connect API'" },
+          { text: "Under Scopes, enable: design:content:read, design:content:write, asset:read, asset:write, brandtemplate:content:read" },
+          { text: "Generate your API key from the 'API Keys' section" },
+          { text: "Copy the API key and paste it above" },
+          { text: "Full API reference:", link: "https://www.canva.dev/docs/connect/", linkText: "Canva Connect API Docs" },
+        ],
+      },
+    },
+    {
+      id: "google_ads", name: "Google Ads", desc: "Search & display ads", icon: Globe,
+      color: "blue", gradient: "hsl(217 91% 55%), hsl(230 80% 55%)",
+      features: ["Create & manage campaigns", "Deploy creatives to Google", "Performance tracking", "Audience targeting"],
+      fields: [
+        { key: "customer_id", label: "Customer ID", placeholder: "123-456-7890" },
+        { key: "developer_token", label: "Developer Token", placeholder: "••••••••••••", secret: true },
+        { key: "refresh_token", label: "OAuth Refresh Token", placeholder: "1//••••••••••••", secret: true },
+      ],
+      guide: {
+        title: "How to Connect Google Ads",
+        steps: [
+          { text: "Sign in to Google Ads at", link: "https://ads.google.com", linkText: "ads.google.com" },
+          { text: "Find your Customer ID in the top-right corner (format: 123-456-7890)" },
+          { text: "Go to the Google Ads API Center at", link: "https://developers.google.com/google-ads/api/docs/get-started/introduction", linkText: "Google Ads API Docs" },
+          { text: "Apply for a Developer Token under Tools & Settings → API Center" },
+          { text: "Set up OAuth2 credentials in Google Cloud Console → APIs & Services → Credentials" },
+          { text: "Generate a refresh token using the OAuth2 playground or your OAuth flow" },
+          { text: "Enter Customer ID, Developer Token, and Refresh Token above" },
+        ],
+      },
+    },
+    {
+      id: "facebook_ads", name: "Facebook Ads", desc: "Meta advertising", icon: Megaphone,
+      color: "blue", gradient: "hsl(220 80% 50%), hsl(240 70% 55%)",
+      features: ["Create & manage ad campaigns", "Deploy creatives to Meta", "Audience insights", "A/B testing"],
+      fields: [
+        { key: "access_token", label: "Access Token", placeholder: "EAA••••••••••••", secret: true },
+        { key: "ad_account_id", label: "Ad Account ID", placeholder: "act_123456789" },
+      ],
+      guide: {
+        title: "How to Connect Facebook Ads",
+        steps: [
+          { text: "Go to Meta Business Suite at", link: "https://business.facebook.com", linkText: "business.facebook.com" },
+          { text: "Navigate to Meta for Developers at", link: "https://developers.facebook.com", linkText: "developers.facebook.com" },
+          { text: "Create or select your app → Add 'Marketing API' product" },
+          { text: "Go to Tools → Graph API Explorer → select your app" },
+          { text: "Add permissions: ads_management, ads_read, business_management" },
+          { text: "Generate a long-lived access token (System User recommended)" },
+          { text: "Find your Ad Account ID in Business Settings → Ad Accounts (format: act_123456789)" },
+          { text: "Paste both values above" },
+        ],
+      },
+    },
+    {
+      id: "instagram_ads", name: "Instagram Ads", desc: "IG advertising via Meta", icon: Target,
+      color: "pink", gradient: "hsl(330 80% 55%), hsl(350 80% 50%)",
+      features: ["Story & Feed ad campaigns", "Deploy creatives to IG", "Engagement tracking", "Syncs with Social Hub"],
+      fields: [
+        { key: "access_token", label: "Meta Access Token", placeholder: "EAA••••••••••••", secret: true },
+        { key: "ig_account_id", label: "Instagram Account ID", placeholder: "17841400••••••" },
+      ],
+      guide: {
+        title: "How to Connect Instagram Ads",
+        steps: [
+          { text: "Instagram Ads are managed through Meta Business Suite" },
+          { text: "If you already connected Facebook Ads, use the same access token" },
+          { text: "Go to Meta Business Suite → Instagram Accounts to find your IG Account ID" },
+          { text: "Or use Graph API: GET /me/accounts → find your page → GET /{page-id}?fields=instagram_business_account" },
+          { text: "The IG Account ID is the instagram_business_account.id value" },
+          { text: "If your Instagram is already connected in Social Media Hub, it will auto-sync" },
+          { text: "API docs:", link: "https://developers.facebook.com/docs/instagram-api/", linkText: "Instagram Graph API" },
+        ],
+      },
+    },
+    {
+      id: "tiktok_ads", name: "TikTok Ads", desc: "TikTok advertising", icon: Play,
+      color: "rose", gradient: "hsl(350 70% 50%), hsl(0 70% 55%)",
+      features: ["Create In-Feed & TopView ads", "Deploy creatives to TikTok", "Spark Ads support", "Audience targeting"],
+      fields: [
+        { key: "access_token", label: "Access Token", placeholder: "••••••••••••", secret: true },
+        { key: "advertiser_id", label: "Advertiser ID", placeholder: "69••••••••••••" },
+      ],
+      guide: {
+        title: "How to Connect TikTok Ads",
+        steps: [
+          { text: "Go to TikTok for Business at", link: "https://ads.tiktok.com", linkText: "ads.tiktok.com" },
+          { text: "Navigate to TikTok Marketing API at", link: "https://business-api.tiktok.com/portal/docs", linkText: "TikTok Business API Docs" },
+          { text: "Create a developer app and request Marketing API access" },
+          { text: "Once approved, generate an Access Token under your app settings" },
+          { text: "Find your Advertiser ID in TikTok Ads Manager → Account Info" },
+          { text: "If your TikTok is connected in Social Media Hub, content will auto-sync" },
+          { text: "Paste both values above to start deploying ads from Uplyze" },
+        ],
+      },
+    },
+    {
+      id: "instagram", name: "Instagram", desc: "Social sync (non-ads)", icon: Eye,
+      color: "pink", gradient: "hsl(330 70% 50%), hsl(300 50% 50%)",
+      features: ["Sync connected IG account", "Pull product tags from posts", "Content repurposing"],
+      fields: [],
+      isSocialSync: true,
+      guide: {
+        title: "Instagram — Social Media Hub Sync",
+        steps: [
+          { text: "This integration syncs with your Instagram account already connected in Social Media Hub" },
+          { text: "Go to Social Media Hub → Connect Instagram if not already done" },
+          { text: "Once connected, your IG posts, stories, and product tags will be available here for ad creative repurposing" },
+          { text: "No additional API keys needed — it uses your existing connection" },
+        ],
+      },
+    },
+    {
+      id: "tiktok", name: "TikTok", desc: "Social sync (non-ads)", icon: Play,
+      color: "rose", gradient: "hsl(0 0% 20%), hsl(0 0% 35%)",
+      features: ["Sync connected TikTok account", "Repurpose viral content", "Audience overlap analysis"],
+      fields: [],
+      isSocialSync: true,
+      guide: {
+        title: "TikTok — Social Media Hub Sync",
+        steps: [
+          { text: "This integration syncs with your TikTok account already connected in Social Media Hub" },
+          { text: "Go to Social Media Hub → Connect TikTok if not already done" },
+          { text: "Once connected, your TikTok videos and analytics will be available here for ad creative inspiration" },
+          { text: "No additional API keys needed — it uses your existing connection" },
+        ],
+      },
+    },
+  ];
 
   const handleSaveIntegration = async (platform: string) => {
     setSavingIntegration(platform);
     try {
-      // Store in user's profile metadata or a dedicated table
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { toast.error("Not authenticated"); return; }
-      let keys: Record<string, string> = {};
-      if (platform === "shopify") keys = { api_key: shopifyApiKey, store_url: shopifyStoreUrl };
-      else if (platform === "woocommerce") keys = { api_key: wooApiKey, api_secret: wooApiSecret, store_url: wooStoreUrl };
-      else if (platform === "canva") keys = { api_key: canvaApiKey };
-
-      // Save to copilot_generated_content as metadata placeholder (or a dedicated integrations table)
+      const keys = integrationKeys[platform] || {};
       const { error } = await supabase.from("copilot_generated_content").insert({
         content_type: "integration_key",
         url: platform,
@@ -94,7 +280,7 @@ const AdCreativeEngine = ({ subTab, onSubTabChange }: { subTab?: string; onSubTa
         created_by: user.id,
       });
       if (error) throw error;
-      toast.success(`${platform.charAt(0).toUpperCase() + platform.slice(1)} connected successfully`);
+      toast.success(`${platform} connected successfully`);
     } catch (e: any) {
       toast.error(e.message || "Failed to save integration");
     } finally {
@@ -456,86 +642,65 @@ const AdCreativeEngine = ({ subTab, onSubTabChange }: { subTab?: string; onSubTa
 
         {/* INTEGRATIONS TAB */}
         <TabsContent value="integrations" className="mt-4">
+          <ScrollArea className="h-[calc(100vh-340px)]">
           <div className="grid grid-cols-3 gap-4">
-            {/* Shopify */}
-            <Card className="crm-card border-white/[0.04] hover:border-emerald-500/20 transition-colors">
-              <CardContent className="p-5 space-y-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">
-                    <ShoppingCart className="h-5 w-5 text-emerald-400" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-semibold text-white">Shopify</h3>
-                    <p className="text-[10px] text-white/30">E-commerce platform</p>
-                  </div>
-                </div>
-                <p className="text-xs text-white/40 leading-relaxed">
-                  Sync your product catalog, push ad creatives directly to Shopify store, and auto-generate ads from your product listings.
-                </p>
-                <div className="space-y-2">
-                  <div><label className="text-[10px] text-white/35 font-medium">Store URL</label><Input placeholder="mystore.myshopify.com" value={shopifyStoreUrl} onChange={e => setShopifyStoreUrl(e.target.value)} className="mt-1 text-xs crm-input h-8" /></div>
-                  <div><label className="text-[10px] text-white/35 font-medium">API Key</label><Input type="password" placeholder="shpat_••••••••••••" value={shopifyApiKey} onChange={e => setShopifyApiKey(e.target.value)} className="mt-1 text-xs crm-input h-8" /></div>
-                </div>
-                <Button className="w-full text-xs h-9" disabled={!shopifyApiKey || !shopifyStoreUrl || savingIntegration === "shopify"} onClick={() => handleSaveIntegration("shopify")} style={{ background: "linear-gradient(135deg, hsl(145 60% 40%), hsl(160 60% 45%))" }}>
-                  {savingIntegration === "shopify" ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Unplug className="h-3.5 w-3.5 mr-1.5" />}Connect Shopify
-                </Button>
-              </CardContent>
-            </Card>
-
-            {/* WooCommerce */}
-            <Card className="crm-card border-white/[0.04] hover:border-purple-500/20 transition-colors">
-              <CardContent className="p-5 space-y-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center">
-                    <ShoppingCart className="h-5 w-5 text-purple-400" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-semibold text-white">WooCommerce</h3>
-                    <p className="text-[10px] text-white/30">WordPress e-commerce</p>
-                  </div>
-                </div>
-                <p className="text-xs text-white/40 leading-relaxed">
-                  Connect your WooCommerce store to pull products, generate matching ad creatives, and track conversion performance.
-                </p>
-                <div className="space-y-2">
-                  <div><label className="text-[10px] text-white/35 font-medium">Store URL</label><Input placeholder="https://mystore.com" value={wooStoreUrl} onChange={e => setWooStoreUrl(e.target.value)} className="mt-1 text-xs crm-input h-8" /></div>
-                  <div><label className="text-[10px] text-white/35 font-medium">Consumer Key</label><Input type="password" placeholder="ck_••••••••••••" value={wooApiKey} onChange={e => setWooApiKey(e.target.value)} className="mt-1 text-xs crm-input h-8" /></div>
-                  <div><label className="text-[10px] text-white/35 font-medium">Consumer Secret</label><Input type="password" placeholder="cs_••••••••••••" value={wooApiSecret} onChange={e => setWooApiSecret(e.target.value)} className="mt-1 text-xs crm-input h-8" /></div>
-                </div>
-                <Button className="w-full text-xs h-9" disabled={!wooApiKey || !wooStoreUrl || savingIntegration === "woocommerce"} onClick={() => handleSaveIntegration("woocommerce")} style={{ background: "linear-gradient(135deg, hsl(270 60% 50%), hsl(290 60% 55%))" }}>
-                  {savingIntegration === "woocommerce" ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Unplug className="h-3.5 w-3.5 mr-1.5" />}Connect WooCommerce
-                </Button>
-              </CardContent>
-            </Card>
-
-            {/* Canva */}
-            <Card className="crm-card border-white/[0.04] hover:border-cyan-500/20 transition-colors">
-              <CardContent className="p-5 space-y-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-cyan-500/10 flex items-center justify-center">
-                    <Palette className="h-5 w-5 text-cyan-400" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-semibold text-white">Canva</h3>
-                    <p className="text-[10px] text-white/30">Design platform</p>
-                  </div>
-                </div>
-                <p className="text-xs text-white/40 leading-relaxed">
-                  Export ad creatives to Canva for further editing, import Canva designs as ad variants, and use Canva templates.
-                </p>
-                <div className="space-y-2">
-                  <div><label className="text-[10px] text-white/35 font-medium">Canva API Key</label><Input type="password" placeholder="cnv_••••••••••••" value={canvaApiKey} onChange={e => setCanvaApiKey(e.target.value)} className="mt-1 text-xs crm-input h-8" /></div>
-                </div>
-                <div className="space-y-2 mt-1">
-                  <div className="flex items-center gap-2 text-[10px] text-white/30"><CheckCircle2 className="h-3 w-3 text-white/15" />Export to Canva workspace</div>
-                  <div className="flex items-center gap-2 text-[10px] text-white/30"><CheckCircle2 className="h-3 w-3 text-white/15" />Import Canva designs</div>
-                  <div className="flex items-center gap-2 text-[10px] text-white/30"><CheckCircle2 className="h-3 w-3 text-white/15" />Template library access</div>
-                </div>
-                <Button className="w-full text-xs h-9" disabled={!canvaApiKey || savingIntegration === "canva"} onClick={() => handleSaveIntegration("canva")} style={{ background: "linear-gradient(135deg, hsl(190 70% 45%), hsl(210 70% 50%))" }}>
-                  {savingIntegration === "canva" ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Unplug className="h-3.5 w-3.5 mr-1.5" />}Connect Canva
-                </Button>
-              </CardContent>
-            </Card>
+            {INTEGRATIONS.map(int => {
+              const Icon = int.icon;
+              const hasFields = int.fields && int.fields.length > 0;
+              const allFilled = hasFields ? int.fields.every(f => !!getIntKey(int.id, f.key)) : false;
+              const isSocial = (int as any).isSocialSync;
+              return (
+                <Card key={int.id} className={`crm-card border-white/[0.04] hover:border-${int.color}-500/20 transition-colors`}>
+                  <CardContent className="p-4 space-y-2.5">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-9 h-9 rounded-xl bg-${int.color}-500/10 flex items-center justify-center`}>
+                        <Icon className={`h-4.5 w-4.5 text-${int.color}-400`} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-sm font-semibold text-white">{int.name}</h3>
+                        <p className="text-[10px] text-white/30">{int.desc}</p>
+                      </div>
+                      <button onClick={() => setInfoDialog(int.id)} className="p-1.5 rounded-lg hover:bg-white/[0.06] transition-colors" title="Setup guide">
+                        <Info className="h-3.5 w-3.5 text-white/25 hover:text-white/60" />
+                      </button>
+                    </div>
+                    <div className="space-y-1.5">
+                      {int.features.map(f => (
+                        <div key={f} className="flex items-center gap-2 text-[10px] text-white/30"><CheckCircle2 className="h-3 w-3 text-white/15 shrink-0" />{f}</div>
+                      ))}
+                    </div>
+                    {hasFields ? (
+                      <>
+                        <div className="space-y-1.5 pt-1">
+                          {int.fields.map(f => (
+                            <div key={f.key}>
+                              <label className="text-[10px] text-white/35 font-medium">{f.label}</label>
+                              <Input type={f.secret ? "password" : "text"} placeholder={f.placeholder} value={getIntKey(int.id, f.key)} onChange={e => updateIntKey(int.id, f.key, e.target.value)} className="mt-0.5 text-xs crm-input h-7" />
+                            </div>
+                          ))}
+                        </div>
+                        <div className="flex gap-2">
+                          <Button className="flex-1 text-xs h-8" disabled={!allFilled || savingIntegration === int.id} onClick={() => handleSaveIntegration(int.id)} style={{ background: `linear-gradient(135deg, ${int.gradient})` }}>
+                            {savingIntegration === int.id ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Unplug className="h-3.5 w-3.5 mr-1" />}Connect
+                          </Button>
+                          {(int.id === "google_ads" || int.id === "facebook_ads" || int.id === "instagram_ads" || int.id === "tiktok_ads") && allFilled && (
+                            <Button variant="outline" className="text-xs h-8 border-white/10 text-white/50" onClick={() => { setCampaignDialog(int.id); setCampaignName(""); setCampaignBudget("50"); }}>
+                              <Plus className="h-3 w-3 mr-1" />Campaign
+                            </Button>
+                          )}
+                        </div>
+                      </>
+                    ) : isSocial ? (
+                      <div className="pt-1">
+                        <div className="p-2.5 rounded-lg bg-emerald-500/5 border border-emerald-500/10">
+                          <p className="text-[10px] text-emerald-400/70">Auto-syncs with Social Media Hub connection</p>
+                        </div>
+                      </div>
+                    ) : null}
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
 
           {/* Integration status */}
@@ -545,22 +710,104 @@ const AdCreativeEngine = ({ subTab, onSubTabChange }: { subTab?: string; onSubTa
                 <Settings2 className="h-4 w-4 text-white/30" />
                 <span className="text-xs font-medium text-white/60">Integration Status</span>
               </div>
-              <div className="grid grid-cols-3 gap-3">
-                {[
-                  { name: "Shopify", connected: !!shopifyApiKey && !!shopifyStoreUrl },
-                  { name: "WooCommerce", connected: !!wooApiKey && !!wooStoreUrl },
-                  { name: "Canva", connected: !!canvaApiKey },
-                ].map(i => (
-                  <div key={i.name} className="flex items-center justify-between p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.04]">
-                    <span className="text-xs text-white/50">{i.name}</span>
-                    <span className={`text-[10px] ${i.connected ? "text-emerald-400" : "text-white/25"}`}>{i.connected ? "Keys entered" : "Not connected"}</span>
-                  </div>
-                ))}
+              <div className="grid grid-cols-3 gap-2">
+                {INTEGRATIONS.map(int => {
+                  const isSocial = (int as any).isSocialSync;
+                  const connected = isSocial ? true : (int.fields?.length ? int.fields.every(f => !!getIntKey(int.id, f.key)) : false);
+                  return (
+                    <div key={int.id} className="flex items-center justify-between p-2 rounded-lg bg-white/[0.02] border border-white/[0.04]">
+                      <span className="text-[11px] text-white/50">{int.name}</span>
+                      <span className={`text-[10px] ${connected ? (isSocial ? "text-blue-400" : "text-emerald-400") : "text-white/25"}`}>
+                        {isSocial ? "Auto-sync" : connected ? "Keys entered" : "Not connected"}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             </CardContent>
           </Card>
+          </ScrollArea>
         </TabsContent>
       </Tabs>
+
+      {/* Info Dialog */}
+      <Dialog open={!!infoDialog} onOpenChange={() => setInfoDialog(null)}>
+        <DialogContent className="bg-[hsl(222,47%,8%)] border-white/[0.08] text-white max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-base flex items-center gap-2">
+              <Info className="h-4 w-4 text-accent" />
+              {INTEGRATIONS.find(i => i.id === infoDialog)?.guide?.title}
+            </DialogTitle>
+          </DialogHeader>
+          <ScrollArea className="max-h-[400px]">
+            <div className="space-y-3 pr-4">
+              {INTEGRATIONS.find(i => i.id === infoDialog)?.guide?.steps.map((step, idx) => (
+                <div key={idx} className="flex gap-3">
+                  <div className="w-5 h-5 rounded-full bg-accent/10 text-accent text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">{idx + 1}</div>
+                  <div className="text-xs text-white/60 leading-relaxed">
+                    {step.text}
+                    {step.link && (
+                      <a href={step.link} target="_blank" rel="noopener noreferrer" className="ml-1 text-accent hover:underline inline-flex items-center gap-1">
+                        {step.linkText || step.link} <ExternalLink className="h-3 w-3" />
+                      </a>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
+
+      {/* Campaign Creator Dialog */}
+      <Dialog open={!!campaignDialog} onOpenChange={() => setCampaignDialog(null)}>
+        <DialogContent className="bg-[hsl(222,47%,8%)] border-white/[0.08] text-white max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-base flex items-center gap-2">
+              <Megaphone className="h-4 w-4 text-accent" />
+              Create Campaign — {INTEGRATIONS.find(i => i.id === campaignDialog)?.name}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div><label className="text-[11px] text-white/35 font-medium">Campaign Name</label><Input value={campaignName} onChange={e => setCampaignName(e.target.value)} placeholder="Summer Sale 2026" className="mt-1 text-xs crm-input" /></div>
+            <div>
+              <label className="text-[11px] text-white/35 font-medium">Objective</label>
+              <Select value={campaignObjective} onValueChange={setCampaignObjective}>
+                <SelectTrigger className="mt-1 text-xs crm-input"><SelectValue /></SelectTrigger>
+                <SelectContent className="bg-[hsl(220,40%,10%)] border-white/10">
+                  {["conversions", "traffic", "awareness", "engagement", "leads", "app_installs", "video_views", "reach"].map(o => (
+                    <SelectItem key={o} value={o} className="text-white text-xs capitalize">{o.replace("_", " ")}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div><label className="text-[11px] text-white/35 font-medium">Daily Budget ($)</label><Input type="number" value={campaignBudget} onChange={e => setCampaignBudget(e.target.value)} className="mt-1 text-xs crm-input" /></div>
+            <div>
+              <label className="text-[11px] text-white/35 font-medium">Ad Creative</label>
+              <Select defaultValue={selectedVariant}>
+                <SelectTrigger className="mt-1 text-xs crm-input"><SelectValue /></SelectTrigger>
+                <SelectContent className="bg-[hsl(220,40%,10%)] border-white/10">
+                  {variants.map(v => <SelectItem key={v.id} value={v.id} className="text-white text-xs">{v.label} — {v.headline}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div><label className="text-[11px] text-white/35 font-medium">Start Date</label><Input type="date" className="mt-1 text-xs crm-input" /></div>
+              <div><label className="text-[11px] text-white/35 font-medium">End Date</label><Input type="date" className="mt-1 text-xs crm-input" /></div>
+            </div>
+            <div>
+              <label className="text-[11px] text-white/35 font-medium">Target Audience</label>
+              <Input value={targetAudience} onChange={e => setTargetAudience(e.target.value)} className="mt-1 text-xs crm-input" />
+            </div>
+            <div className="flex gap-2 pt-2">
+              <Button variant="outline" className="flex-1 text-xs border-white/10 text-white/50" onClick={() => setCampaignDialog(null)}>Cancel</Button>
+              <Button className="flex-1 text-xs" disabled={!campaignName} onClick={() => { toast.success(`Campaign "${campaignName}" created on ${INTEGRATIONS.find(i => i.id === campaignDialog)?.name}`); setCampaignDialog(null); }} style={{ background: "linear-gradient(135deg, hsl(217 91% 55%), hsl(262 83% 58%))" }}>
+                <Zap className="h-3.5 w-3.5 mr-1" />Launch Campaign
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
