@@ -294,7 +294,7 @@ const CopilotPanel = ({ progress }: { progress: number }) => {
 
 const ContentStudioPanel = ({ progress }: { progress: number }) => {
   const activeTab = progress < 0.68 ? 0 : progress < 0.88 ? 1 : 2;
-  const typedPrompt = useTypingText("A majestic T-Rex in a prehistoric jungle, cinematic 4K", progress > 0.08 && progress < 0.34, 35);
+  const typedPrompt = useTypingText("T-Rex in jungle, luxury sports car, and utopia landscape, cinematic 4K", progress > 0.08 && progress < 0.34, 35);
   const tabs = [
     { icon: Image, label: "Image Gen" },
     { icon: Film, label: "Video Gen" },
