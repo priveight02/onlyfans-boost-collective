@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -109,23 +110,19 @@ serve(async (req) => {
             throw new Error(`TTS generation failed: ${errText}`);
           }
           const audioBuffer = await ttsResp.arrayBuffer();
-          // Upload to Supabase storage
+          // Upload to Supabase storage using JS client
           const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
           const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
           const fileName = `lipsync_tts_${Date.now()}.mp3`;
-          const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
-          const uploadResp = await fetch(`${SUPABASE_URL}/storage/v1/object/copilot-media/${fileName}`, {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-              apikey: SUPABASE_ANON_KEY,
-              "Content-Type": "audio/mpeg",
-            },
-            body: audioBuffer,
-          });
-          if (!uploadResp.ok) {
-            const errText = await uploadResp.text();
-            throw new Error(`Audio upload failed: ${errText}`);
+          const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+          const { error: uploadError } = await supabaseAdmin.storage
+            .from("copilot-media")
+            .upload(fileName, new Uint8Array(audioBuffer), {
+              contentType: "audio/mpeg",
+              upsert: false,
+            });
+          if (uploadError) {
+            throw new Error(`Audio upload failed: ${uploadError.message}`);
           }
           audio_url = `${SUPABASE_URL}/storage/v1/object/public/copilot-media/${fileName}`;
         }
