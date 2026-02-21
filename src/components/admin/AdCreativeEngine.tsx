@@ -65,6 +65,43 @@ const AdCreativeEngine = ({ subTab, onSubTabChange }: { subTab?: string; onSubTa
   const setActiveTab = (v: string) => { setActiveTabInternal(v); onSubTabChange?.(v); };
   useEffect(() => { if (subTab && subTab !== activeTab) setActiveTabInternal(subTab); }, [subTab]);
 
+  // Integration API keys state
+  const [shopifyApiKey, setShopifyApiKey] = useState("");
+  const [shopifyStoreUrl, setShopifyStoreUrl] = useState("");
+  const [wooApiKey, setWooApiKey] = useState("");
+  const [wooApiSecret, setWooApiSecret] = useState("");
+  const [wooStoreUrl, setWooStoreUrl] = useState("");
+  const [canvaApiKey, setCanvaApiKey] = useState("");
+  const [savingIntegration, setSavingIntegration] = useState<string | null>(null);
+
+  const handleSaveIntegration = async (platform: string) => {
+    setSavingIntegration(platform);
+    try {
+      // Store in user's profile metadata or a dedicated table
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { toast.error("Not authenticated"); return; }
+      let keys: Record<string, string> = {};
+      if (platform === "shopify") keys = { api_key: shopifyApiKey, store_url: shopifyStoreUrl };
+      else if (platform === "woocommerce") keys = { api_key: wooApiKey, api_secret: wooApiSecret, store_url: wooStoreUrl };
+      else if (platform === "canva") keys = { api_key: canvaApiKey };
+
+      // Save to copilot_generated_content as metadata placeholder (or a dedicated integrations table)
+      const { error } = await supabase.from("copilot_generated_content").insert({
+        content_type: "integration_key",
+        url: platform,
+        prompt: null,
+        metadata: { platform, keys: Object.fromEntries(Object.entries(keys).map(([k, v]) => [k, v ? "••••" + v.slice(-4) : ""])) },
+        created_by: user.id,
+      });
+      if (error) throw error;
+      toast.success(`${platform.charAt(0).toUpperCase() + platform.slice(1)} connected successfully`);
+    } catch (e: any) {
+      toast.error(e.message || "Failed to save integration");
+    } finally {
+      setSavingIntegration(null);
+    }
+  };
+
   // AI Image Generation state
   const [adStyle, setAdStyle] = useState("product-hero");
   const [adFormat, setAdFormat] = useState("1:1");
@@ -422,7 +459,7 @@ const AdCreativeEngine = ({ subTab, onSubTabChange }: { subTab?: string; onSubTa
           <div className="grid grid-cols-3 gap-4">
             {/* Shopify */}
             <Card className="crm-card border-white/[0.04] hover:border-emerald-500/20 transition-colors">
-              <CardContent className="p-5 space-y-4">
+              <CardContent className="p-5 space-y-3">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">
                     <ShoppingCart className="h-5 w-5 text-emerald-400" />
@@ -436,19 +473,18 @@ const AdCreativeEngine = ({ subTab, onSubTabChange }: { subTab?: string; onSubTa
                   Sync your product catalog, push ad creatives directly to Shopify store, and auto-generate ads from your product listings.
                 </p>
                 <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-[10px] text-white/30"><CheckCircle2 className="h-3 w-3 text-white/15" />Product catalog sync</div>
-                  <div className="flex items-center gap-2 text-[10px] text-white/30"><CheckCircle2 className="h-3 w-3 text-white/15" />Auto-generate ads from products</div>
-                  <div className="flex items-center gap-2 text-[10px] text-white/30"><CheckCircle2 className="h-3 w-3 text-white/15" />Push creatives to store</div>
+                  <div><label className="text-[10px] text-white/35 font-medium">Store URL</label><Input placeholder="mystore.myshopify.com" value={shopifyStoreUrl} onChange={e => setShopifyStoreUrl(e.target.value)} className="mt-1 text-xs crm-input h-8" /></div>
+                  <div><label className="text-[10px] text-white/35 font-medium">API Key</label><Input type="password" placeholder="shpat_••••••••••••" value={shopifyApiKey} onChange={e => setShopifyApiKey(e.target.value)} className="mt-1 text-xs crm-input h-8" /></div>
                 </div>
-                <Button className="w-full text-xs h-9" style={{ background: "linear-gradient(135deg, hsl(145 60% 40%), hsl(160 60% 45%))" }}>
-                  <Unplug className="h-3.5 w-3.5 mr-1.5" />Connect Shopify
+                <Button className="w-full text-xs h-9" disabled={!shopifyApiKey || !shopifyStoreUrl || savingIntegration === "shopify"} onClick={() => handleSaveIntegration("shopify")} style={{ background: "linear-gradient(135deg, hsl(145 60% 40%), hsl(160 60% 45%))" }}>
+                  {savingIntegration === "shopify" ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Unplug className="h-3.5 w-3.5 mr-1.5" />}Connect Shopify
                 </Button>
               </CardContent>
             </Card>
 
             {/* WooCommerce */}
             <Card className="crm-card border-white/[0.04] hover:border-purple-500/20 transition-colors">
-              <CardContent className="p-5 space-y-4">
+              <CardContent className="p-5 space-y-3">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center">
                     <ShoppingCart className="h-5 w-5 text-purple-400" />
@@ -462,19 +498,19 @@ const AdCreativeEngine = ({ subTab, onSubTabChange }: { subTab?: string; onSubTa
                   Connect your WooCommerce store to pull products, generate matching ad creatives, and track conversion performance.
                 </p>
                 <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-[10px] text-white/30"><CheckCircle2 className="h-3 w-3 text-white/15" />WooCommerce REST API sync</div>
-                  <div className="flex items-center gap-2 text-[10px] text-white/30"><CheckCircle2 className="h-3 w-3 text-white/15" />Product-to-ad pipeline</div>
-                  <div className="flex items-center gap-2 text-[10px] text-white/30"><CheckCircle2 className="h-3 w-3 text-white/15" />Conversion tracking</div>
+                  <div><label className="text-[10px] text-white/35 font-medium">Store URL</label><Input placeholder="https://mystore.com" value={wooStoreUrl} onChange={e => setWooStoreUrl(e.target.value)} className="mt-1 text-xs crm-input h-8" /></div>
+                  <div><label className="text-[10px] text-white/35 font-medium">Consumer Key</label><Input type="password" placeholder="ck_••••••••••••" value={wooApiKey} onChange={e => setWooApiKey(e.target.value)} className="mt-1 text-xs crm-input h-8" /></div>
+                  <div><label className="text-[10px] text-white/35 font-medium">Consumer Secret</label><Input type="password" placeholder="cs_••••••••••••" value={wooApiSecret} onChange={e => setWooApiSecret(e.target.value)} className="mt-1 text-xs crm-input h-8" /></div>
                 </div>
-                <Button className="w-full text-xs h-9" style={{ background: "linear-gradient(135deg, hsl(270 60% 50%), hsl(290 60% 55%))" }}>
-                  <Unplug className="h-3.5 w-3.5 mr-1.5" />Connect WooCommerce
+                <Button className="w-full text-xs h-9" disabled={!wooApiKey || !wooStoreUrl || savingIntegration === "woocommerce"} onClick={() => handleSaveIntegration("woocommerce")} style={{ background: "linear-gradient(135deg, hsl(270 60% 50%), hsl(290 60% 55%))" }}>
+                  {savingIntegration === "woocommerce" ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Unplug className="h-3.5 w-3.5 mr-1.5" />}Connect WooCommerce
                 </Button>
               </CardContent>
             </Card>
 
             {/* Canva */}
             <Card className="crm-card border-white/[0.04] hover:border-cyan-500/20 transition-colors">
-              <CardContent className="p-5 space-y-4">
+              <CardContent className="p-5 space-y-3">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-cyan-500/10 flex items-center justify-center">
                     <Palette className="h-5 w-5 text-cyan-400" />
@@ -488,12 +524,15 @@ const AdCreativeEngine = ({ subTab, onSubTabChange }: { subTab?: string; onSubTa
                   Export ad creatives to Canva for further editing, import Canva designs as ad variants, and use Canva templates.
                 </p>
                 <div className="space-y-2">
+                  <div><label className="text-[10px] text-white/35 font-medium">Canva API Key</label><Input type="password" placeholder="cnv_••••••••••••" value={canvaApiKey} onChange={e => setCanvaApiKey(e.target.value)} className="mt-1 text-xs crm-input h-8" /></div>
+                </div>
+                <div className="space-y-2 mt-1">
                   <div className="flex items-center gap-2 text-[10px] text-white/30"><CheckCircle2 className="h-3 w-3 text-white/15" />Export to Canva workspace</div>
                   <div className="flex items-center gap-2 text-[10px] text-white/30"><CheckCircle2 className="h-3 w-3 text-white/15" />Import Canva designs</div>
                   <div className="flex items-center gap-2 text-[10px] text-white/30"><CheckCircle2 className="h-3 w-3 text-white/15" />Template library access</div>
                 </div>
-                <Button className="w-full text-xs h-9" style={{ background: "linear-gradient(135deg, hsl(190 70% 45%), hsl(210 70% 50%))" }}>
-                  <Unplug className="h-3.5 w-3.5 mr-1.5" />Connect Canva
+                <Button className="w-full text-xs h-9" disabled={!canvaApiKey || savingIntegration === "canva"} onClick={() => handleSaveIntegration("canva")} style={{ background: "linear-gradient(135deg, hsl(190 70% 45%), hsl(210 70% 50%))" }}>
+                  {savingIntegration === "canva" ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Unplug className="h-3.5 w-3.5 mr-1.5" />}Connect Canva
                 </Button>
               </CardContent>
             </Card>
@@ -508,13 +547,13 @@ const AdCreativeEngine = ({ subTab, onSubTabChange }: { subTab?: string; onSubTa
               </div>
               <div className="grid grid-cols-3 gap-3">
                 {[
-                  { name: "Shopify", status: "Not connected", color: "text-white/25" },
-                  { name: "WooCommerce", status: "Not connected", color: "text-white/25" },
-                  { name: "Canva", status: "Not connected", color: "text-white/25" },
+                  { name: "Shopify", connected: !!shopifyApiKey && !!shopifyStoreUrl },
+                  { name: "WooCommerce", connected: !!wooApiKey && !!wooStoreUrl },
+                  { name: "Canva", connected: !!canvaApiKey },
                 ].map(i => (
                   <div key={i.name} className="flex items-center justify-between p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.04]">
                     <span className="text-xs text-white/50">{i.name}</span>
-                    <span className={`text-[10px] ${i.color}`}>{i.status}</span>
+                    <span className={`text-[10px] ${i.connected ? "text-emerald-400" : "text-white/25"}`}>{i.connected ? "Keys entered" : "Not connected"}</span>
                   </div>
                 ))}
               </div>
