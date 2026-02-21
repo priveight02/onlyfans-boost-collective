@@ -2,10 +2,17 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useEffect, useState, useRef, useCallback } from "react";
 import {
   MessageSquare, Users, Zap, Send, Bot, CheckCircle2, Sparkles, Calendar,
-  Image, Video, UserPlus, PenTool, Instagram, Hash, Play, ChevronRight,
+  Image, UserPlus, PenTool, Instagram, Hash, Play, ChevronRight,
   Globe, Shield, Brain, Wand2, Megaphone, Eye, Star, Palette,
   Volume2, Type, Headphones, Film, Settings
 } from "lucide-react";
+
+// Static generated images — imported once, never re-generated
+import adVariantA from "@/assets/showcase-ad-variant-a.png";
+import adVariantB from "@/assets/showcase-ad-variant-b.png";
+import adVariantC from "@/assets/showcase-ad-variant-c.png";
+import socialPost from "@/assets/showcase-social-post.png";
+import contentGen from "@/assets/showcase-content-gen.png";
 
 interface CursorAction {
   x: number;
@@ -13,8 +20,6 @@ interface CursorAction {
   delay: number;
   click?: boolean;
   label?: string;
-  type?: string; // "type" for typing animation
-  typeText?: string;
 }
 
 interface Scene {
@@ -26,10 +31,6 @@ interface Scene {
   duration: number;
 }
 
-// Sidebar icon Y positions: each icon is at py-3 + index * 32px in a 52px wide bar
-// In %, roughly: icon0=22%, icon1=29%, icon2=36%, icon3=43%, icon4=50%, icon5=57%
-// Sidebar X center ≈ 3.5% of total width
-
 const scenes: Scene[] = [
   {
     id: "copilot",
@@ -39,12 +40,8 @@ const scenes: Scene[] = [
     duration: 8000,
     cursor: [
       { x: 3.5, y: 22, delay: 0, click: true, label: "AI Copilot" },
-      { x: 48, y: 85, delay: 1400, label: "Clicking input..." },
-      { x: 48, y: 85, delay: 1800, type: "type", typeText: "Scan accounts, create content, DM leads", label: "Typing..." },
-      { x: 85, y: 85, delay: 4000, click: true, label: "Send" },
-      { x: 55, y: 45, delay: 5000, label: "AI processing..." },
+      { x: 85, y: 85, delay: 3500, click: true, label: "Send" },
       { x: 60, y: 62, delay: 6500, click: true, label: "Execute all" },
-      { x: 45, y: 72, delay: 7400, label: "Done ✓" },
     ],
   },
   {
@@ -55,12 +52,8 @@ const scenes: Scene[] = [
     duration: 9000,
     cursor: [
       { x: 3.5, y: 29, delay: 0, click: true, label: "Content Studio" },
-      { x: 18, y: 18, delay: 1200, click: true, label: "Image Gen" },
-      { x: 48, y: 38, delay: 2000, type: "type", typeText: "Luxury lifestyle, golden hour, 4K", label: "Typing prompt..." },
-      { x: 80, y: 38, delay: 3800, click: true, label: "Generate" },
-      { x: 40, y: 56, delay: 5200, label: "Rendering..." },
-      { x: 33, y: 18, delay: 6200, click: true, label: "Video Gen" },
-      { x: 50, y: 50, delay: 7200, label: "Creating video..." },
+      { x: 80, y: 38, delay: 3200, click: true, label: "Generate" },
+      { x: 33, y: 18, delay: 6500, click: true, label: "Video Gen" },
       { x: 50, y: 18, delay: 8200, click: true, label: "Audio Gen" },
     ],
   },
@@ -72,11 +65,8 @@ const scenes: Scene[] = [
     duration: 7500,
     cursor: [
       { x: 3.5, y: 36, delay: 0, click: true, label: "Social Hub" },
-      { x: 18, y: 18, delay: 1200, click: true, label: "Instagram" },
       { x: 78, y: 18, delay: 2000, click: true, label: "New Post" },
-      { x: 55, y: 48, delay: 3000, type: "type", typeText: "✨ New drop coming soon...", label: "Writing caption..." },
-      { x: 70, y: 68, delay: 5000, click: true, label: "Schedule" },
-      { x: 58, y: 78, delay: 6500, click: true, label: "Confirm ✓" },
+      { x: 70, y: 68, delay: 5500, click: true, label: "Schedule" },
     ],
   },
   {
@@ -87,12 +77,8 @@ const scenes: Scene[] = [
     duration: 7500,
     cursor: [
       { x: 3.5, y: 43, delay: 0, click: true, label: "Auto-DM" },
-      { x: 16, y: 28, delay: 1400, click: true, label: "@emma_style" },
-      { x: 60, y: 50, delay: 2400, label: "AI analyzing intent..." },
-      { x: 60, y: 60, delay: 4000, label: "Reply sent ✓" },
+      { x: 16, y: 28, delay: 1800, click: true, label: "@emma_style" },
       { x: 16, y: 38, delay: 5000, click: true, label: "@jake_fitness" },
-      { x: 60, y: 50, delay: 6000, label: "AI composing..." },
-      { x: 60, y: 60, delay: 7000, label: "Reply sent ✓" },
     ],
   },
   {
@@ -103,11 +89,8 @@ const scenes: Scene[] = [
     duration: 7500,
     cursor: [
       { x: 3.5, y: 50, delay: 0, click: true, label: "Ad Engine" },
-      { x: 35, y: 25, delay: 1200, click: true, label: "New campaign" },
-      { x: 50, y: 42, delay: 2400, label: "AI generating creatives..." },
-      { x: 22, y: 58, delay: 4000, click: true, label: "Select variant A" },
-      { x: 75, y: 78, delay: 5500, click: true, label: "Launch campaign" },
-      { x: 50, y: 65, delay: 6800, label: "Campaign live ✓" },
+      { x: 22, y: 58, delay: 3500, click: true, label: "Select variant A" },
+      { x: 75, y: 78, delay: 5800, click: true, label: "Launch campaign" },
     ],
   },
   {
@@ -118,9 +101,7 @@ const scenes: Scene[] = [
     duration: 6500,
     cursor: [
       { x: 3.5, y: 57, delay: 0, click: true, label: "Team" },
-      { x: 82, y: 16, delay: 1200, click: true, label: "Add Member" },
-      { x: 50, y: 40, delay: 2200, type: "type", typeText: "Jordan Rivera", label: "Filling name..." },
-      { x: 62, y: 52, delay: 3800, click: true, label: "Assign role" },
+      { x: 82, y: 16, delay: 1500, click: true, label: "Add Member" },
       { x: 62, y: 65, delay: 5000, click: true, label: "Save ✓" },
     ],
   },
@@ -168,7 +149,7 @@ const AnimatedCursor = ({ actions, sceneKey }: { actions: CursorAction[]; sceneK
     <motion.div
       className="absolute z-50 pointer-events-none"
       animate={{ left: `${pos.x}%`, top: `${pos.y}%` }}
-      transition={{ type: "spring", stiffness: 35, damping: 20, mass: 1.5 }}
+      transition={{ type: "spring", stiffness: 30, damping: 22, mass: 1.6 }}
     >
       <motion.svg
         width="20" height="20" viewBox="0 0 24 24" fill="none"
@@ -236,7 +217,7 @@ const useTypingText = (text: string, active: boolean, speed = 45) => {
 /* ------------------------------------------------------------------ */
 
 const CopilotPanel = ({ progress }: { progress: number }) => {
-  const typedPrompt = useTypingText("Scan accounts, create content, DM leads", progress > 0.18 && progress < 0.5, 40);
+  const typedPrompt = useTypingText("Scan accounts, create content, DM leads", progress > 0.1 && progress < 0.42, 40);
 
   return (
     <div className="flex flex-col h-full">
@@ -251,26 +232,26 @@ const CopilotPanel = ({ progress }: { progress: number }) => {
         ))}
       </div>
       <div className="flex-1 space-y-2.5 overflow-hidden">
-        {progress > 0.5 && (
+        {progress > 0.42 && (
           <div className="flex gap-2">
             <div className="w-5 h-5 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex-shrink-0 mt-0.5" />
-            <div className="px-3 py-2 rounded-lg rounded-tl-none text-[11px] text-white/60 max-w-[82%]" style={{ background: 'rgba(255,255,255,0.04)' }}>
+            <div className="px-3 py-2 rounded-lg rounded-tl-none text-[11px] text-white/60" style={{ background: 'rgba(255,255,255,0.04)' }}>
               Scan accounts, create content, DM leads
             </div>
           </div>
         )}
-        <motion.div className="flex gap-2 justify-end" animate={{ opacity: progress > 0.55 ? 1 : 0 }} transition={{ duration: 0.5 }}>
+        <motion.div className="flex gap-2 justify-end" animate={{ opacity: progress > 0.48 ? 1 : 0 }} transition={{ duration: 0.5 }}>
           <div className="px-3 py-2 rounded-lg rounded-tr-none text-[11px] text-white/75 max-w-[88%]" style={{ background: 'rgba(124,58,237,0.1)' }}>
             <div className="flex items-center gap-1.5 mb-1.5">
               <Bot className="w-3 h-3 text-purple-400" />
               <span className="text-purple-400 text-[10px] font-semibold">Uplyze AI</span>
             </div>
-            {progress > 0.58 && <p className="leading-relaxed">✅ Scanned 5 accounts — 23 underperforming posts</p>}
-            {progress > 0.64 && <p className="mt-0.5 leading-relaxed">✅ Generated 12 images + 4 video reels</p>}
-            {progress > 0.70 && <p className="mt-0.5 leading-relaxed">✅ 3 AI voiceovers produced</p>}
-            {progress > 0.76 && <p className="mt-0.5 leading-relaxed">✅ Scheduled 16 posts — optimal windows</p>}
-            {progress > 0.82 && <p className="mt-0.5 leading-relaxed">✅ DM campaign: 847 leads queued</p>}
-            {progress > 0.88 && <p className="mt-0.5 leading-relaxed text-emerald-400/90 font-medium">✅ All tasks executed — 0 manual input</p>}
+            {progress > 0.52 && <p className="leading-relaxed">✅ Scanned 5 accounts — 23 underperforming posts</p>}
+            {progress > 0.58 && <p className="mt-0.5 leading-relaxed">✅ Generated 12 images + 4 video reels</p>}
+            {progress > 0.64 && <p className="mt-0.5 leading-relaxed">✅ 3 AI voiceovers produced</p>}
+            {progress > 0.70 && <p className="mt-0.5 leading-relaxed">✅ Scheduled 16 posts — optimal windows</p>}
+            {progress > 0.76 && <p className="mt-0.5 leading-relaxed">✅ DM campaign: 847 leads queued</p>}
+            {progress > 0.82 && <p className="mt-0.5 leading-relaxed text-emerald-400/90 font-medium">✅ All tasks executed — 0 manual input</p>}
           </div>
         </motion.div>
       </div>
@@ -278,7 +259,7 @@ const CopilotPanel = ({ progress }: { progress: number }) => {
         <Type className="w-3 h-3 text-white/20" />
         <span className="text-white/40 text-[11px] flex-1 font-mono">
           {typedPrompt || "Ask Uplyze AI anything..."}
-          {progress > 0.18 && progress < 0.5 && <motion.span animate={{ opacity: [1, 0] }} transition={{ repeat: Infinity, duration: 0.6 }} className="text-purple-400">|</motion.span>}
+          {progress > 0.1 && progress < 0.42 && <motion.span animate={{ opacity: [1, 0] }} transition={{ repeat: Infinity, duration: 0.6 }} className="text-purple-400">|</motion.span>}
         </span>
         <Send className="w-3.5 h-3.5 text-purple-400" />
       </div>
@@ -287,8 +268,8 @@ const CopilotPanel = ({ progress }: { progress: number }) => {
 };
 
 const ContentStudioPanel = ({ progress }: { progress: number }) => {
-  const activeTab = progress < 0.65 ? 0 : progress < 0.88 ? 1 : 2;
-  const typedPrompt = useTypingText("Luxury lifestyle, golden hour, 4K", progress > 0.15 && progress < 0.4, 35);
+  const activeTab = progress < 0.68 ? 0 : progress < 0.88 ? 1 : 2;
+  const typedPrompt = useTypingText("Premium headphones product shoot, studio lighting, 4K", progress > 0.08 && progress < 0.34, 35);
   const tabs = [
     { icon: Image, label: "Image Gen" },
     { icon: Film, label: "Video Gen" },
@@ -328,26 +309,22 @@ const ContentStudioPanel = ({ progress }: { progress: number }) => {
               </div>
               <div className="text-white/55 text-[11px] font-mono min-h-[16px]">
                 {typedPrompt && `"${typedPrompt}`}
-                {progress > 0.15 && progress < 0.4 && <motion.span animate={{ opacity: [1, 0] }} transition={{ repeat: Infinity, duration: 0.6 }} className="text-violet-400">|</motion.span>}
-                {typedPrompt && progress >= 0.4 && `"`}
+                {progress > 0.08 && progress < 0.34 && <motion.span animate={{ opacity: [1, 0] }} transition={{ repeat: Infinity, duration: 0.6 }} className="text-violet-400">|</motion.span>}
+                {typedPrompt && progress >= 0.34 && `"`}
               </div>
             </div>
-            {progress > 0.42 && (
+            {progress > 0.36 && (
               <motion.div initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} className="grid grid-cols-3 gap-2">
-                {[
-                  "https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=200&h=200&fit=crop",
-                  "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=200&h=200&fit=crop",
-                  "https://images.unsplash.com/photo-1519681393784-d120267933ba?w=200&h=200&fit=crop",
-                ].map((src, i) => (
+                {[adVariantA, adVariantB, adVariantC].map((src, i) => (
                   <div key={i} className="aspect-square rounded-lg overflow-hidden relative">
-                    {progress < 0.52 ? (
+                    {progress < 0.48 ? (
                       <div className="w-full h-full" style={{ background: `linear-gradient(${135 + i * 25}deg, rgba(139,92,246,0.15), rgba(59,130,246,0.12))` }}>
                         <motion.div className="absolute inset-0" animate={{ opacity: [0.05, 0.15, 0.05] }} transition={{ repeat: Infinity, duration: 1.2, delay: i * 0.15 }} style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent)' }} />
                       </div>
                     ) : (
-                      <motion.img initial={{ opacity: 0, scale: 1.1 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.5, delay: i * 0.1 }} src={src} alt={`Generated ${i + 1}`} className="w-full h-full object-cover" />
+                      <motion.img initial={{ opacity: 0, scale: 1.05 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.4, delay: i * 0.1 }} src={src} alt={`Generated ${i + 1}`} className="w-full h-full object-cover" loading="eager" />
                     )}
-                    {progress > 0.55 && (
+                    {progress > 0.52 && (
                       <motion.div initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: i * 0.1 + 0.2 }} className="absolute bottom-1 right-1">
                         <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 drop-shadow-lg" />
                       </motion.div>
@@ -356,10 +333,10 @@ const ContentStudioPanel = ({ progress }: { progress: number }) => {
                 ))}
               </motion.div>
             )}
-            {progress > 0.58 && (
+            {progress > 0.55 && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center gap-2 text-emerald-400 text-[10px]">
                 <CheckCircle2 className="w-3 h-3" />
-                <span>3 images generated — Ready for posts or ads</span>
+                <span>3 product images generated — Ready for posts or ads</span>
               </motion.div>
             )}
           </motion.div>
@@ -376,10 +353,10 @@ const ContentStudioPanel = ({ progress }: { progress: number }) => {
                 <span className="text-[8px] text-blue-400/50 px-1.5 py-0.5 rounded bg-blue-500/10">Runway ML</span>
               </div>
               <div className="flex gap-3">
-                <div className="w-28 h-16 rounded-lg overflow-hidden relative" style={{ background: 'linear-gradient(135deg, rgba(59,130,246,0.15), rgba(139,92,246,0.1))' }}>
-                  <img src="https://images.unsplash.com/photo-1551434678-e076c223a692?w=200&h=120&fit=crop" alt="Video preview" className="w-full h-full object-cover opacity-60" />
+                <div className="w-28 h-16 rounded-lg overflow-hidden relative">
+                  <img src={adVariantA} alt="Video preview" className="w-full h-full object-cover opacity-70" loading="eager" />
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <Play className="w-5 h-5 text-white/60" />
+                    <Play className="w-5 h-5 text-white/70" />
                   </div>
                   <motion.div className="absolute bottom-0 left-0 h-1 bg-blue-500/50 rounded" animate={{ width: ['0%', '100%'] }} transition={{ duration: 3, ease: "linear" }} />
                 </div>
@@ -425,7 +402,7 @@ const ContentStudioPanel = ({ progress }: { progress: number }) => {
 };
 
 const SocialPanel = ({ progress }: { progress: number }) => {
-  const typedCaption = useTypingText("✨ New drop coming soon...", progress > 0.3 && progress < 0.65, 45);
+  const typedCaption = useTypingText("✨ New drop — Premium sound, redefined.", progress > 0.2 && progress < 0.7, 45);
 
   return (
     <div className="space-y-3">
@@ -448,24 +425,24 @@ const SocialPanel = ({ progress }: { progress: number }) => {
           </div>
         ))}
       </div>
-      {progress > 0.2 && (
+      {progress > 0.15 && (
         <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="p-3 rounded-lg" style={{ background: 'rgba(255,255,255,0.025)' }}>
           <div className="flex items-center justify-between mb-2">
             <span className="text-white/45 text-[10px] uppercase tracking-wider font-medium">New Post</span>
             <PenTool className="w-3 h-3 text-purple-400" />
           </div>
           <div className="flex gap-3">
-            <div className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0">
-              <img src="https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=120&h=120&fit=crop" alt="Post" className="w-full h-full object-cover" />
+            <div className="w-16 h-20 rounded-lg overflow-hidden flex-shrink-0">
+              <img src={socialPost} alt="Post preview" className="w-full h-full object-cover" loading="eager" />
             </div>
             <div className="flex-1 space-y-1.5">
               <div className="text-white/50 text-[11px] font-mono min-h-[32px]">
                 {typedCaption}
-                {progress > 0.3 && progress < 0.65 && <motion.span animate={{ opacity: [1, 0] }} transition={{ repeat: Infinity, duration: 0.6 }} className="text-pink-400">|</motion.span>}
+                {progress > 0.2 && progress < 0.7 && <motion.span animate={{ opacity: [1, 0] }} transition={{ repeat: Infinity, duration: 0.6 }} className="text-pink-400">|</motion.span>}
               </div>
               <div className="flex items-center gap-1 mt-0.5">
                 <Sparkles className="w-2.5 h-2.5 text-purple-400" />
-                <span className="text-purple-400 text-[9px]">{progress > 0.65 ? "Caption ready" : "AI writing..."}</span>
+                <span className="text-purple-400 text-[9px]">{progress > 0.7 ? "Caption ready" : "AI writing..."}</span>
               </div>
             </div>
           </div>
@@ -556,27 +533,27 @@ const AdCreativesPanel = ({ progress }: { progress: number }) => (
       <span className="text-white/80 text-sm font-semibold">Ad Creative Engine</span>
       <span className="ml-auto text-[9px] px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-400">AI Optimized</span>
     </div>
-    {progress > 0.15 && (
+    {progress > 0.12 && (
       <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="grid grid-cols-3 gap-2">
         {[
-          { label: "Variant A", ctr: "4.2%", score: 92, img: "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=200&h=120&fit=crop" },
-          { label: "Variant B", ctr: "3.8%", score: 85, img: "https://images.unsplash.com/photo-1472851294608-062f824d29cc?w=200&h=120&fit=crop" },
-          { label: "Variant C", ctr: "3.1%", score: 71, img: "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=200&h=120&fit=crop" },
+          { label: "Variant A", ctr: "4.2%", score: 92, img: adVariantA },
+          { label: "Variant B", ctr: "3.8%", score: 85, img: adVariantB },
+          { label: "Variant C", ctr: "3.1%", score: 71, img: adVariantC },
         ].map((v, i) => (
           <motion.div
             key={i}
-            animate={{ boxShadow: i === 0 && progress > 0.5 ? '0 0 0 1px rgba(249,115,22,0.3)' : '0 0 0 0px transparent' }}
+            animate={{ boxShadow: i === 0 && progress > 0.45 ? '0 0 0 1px rgba(249,115,22,0.3)' : '0 0 0 0px transparent' }}
             transition={{ duration: 0.4 }}
             className="p-2 rounded-lg"
             style={{ background: 'rgba(255,255,255,0.02)' }}
           >
             <div className="w-full aspect-video rounded-md mb-2 overflow-hidden relative">
-              {progress < 0.35 ? (
-                <div className="w-full h-full bg-gradient-to-br from-orange-500/10 to-pink-500/10 flex items-center justify-center">
+              {progress < 0.3 ? (
+                <div className="w-full h-full bg-gradient-to-br from-orange-500/10 to-pink-500/10">
                   <motion.div className="absolute inset-0" animate={{ opacity: [0.05, 0.12, 0.05] }} transition={{ repeat: Infinity, duration: 1.2, delay: i * 0.15 }} style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent)' }} />
                 </div>
               ) : (
-                <motion.img initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4, delay: i * 0.1 }} src={v.img} alt={v.label} className="w-full h-full object-cover" />
+                <motion.img initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4, delay: i * 0.1 }} src={v.img} alt={v.label} className="w-full h-full object-cover" loading="eager" />
               )}
             </div>
             <div className="text-white/60 text-[10px] font-medium">{v.label}</div>
@@ -584,7 +561,7 @@ const AdCreativesPanel = ({ progress }: { progress: number }) => (
               <span className="text-white/25 text-[9px]">CTR: {v.ctr}</span>
               <span className={`text-[9px] ${v.score > 90 ? 'text-emerald-400' : 'text-white/25'}`}>{v.score}</span>
             </div>
-            {i === 0 && progress > 0.5 && (
+            {i === 0 && progress > 0.45 && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center gap-1 mt-1">
                 <Star className="w-2.5 h-2.5 text-orange-400" />
                 <span className="text-orange-400 text-[9px]">AI Pick</span>
@@ -594,16 +571,16 @@ const AdCreativesPanel = ({ progress }: { progress: number }) => (
         ))}
       </motion.div>
     )}
-    {progress > 0.6 && (
+    {progress > 0.55 && (
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-2.5 rounded-lg" style={{ background: 'rgba(255,255,255,0.02)' }}>
         <div className="flex items-center justify-between mb-1">
           <span className="text-white/45 text-[10px]">AI-Generated Copy</span>
           <Sparkles className="w-3 h-3 text-purple-400" />
         </div>
-        <p className="text-white/55 text-[10px] italic leading-relaxed">"Transform your social presence with premium content that converts. Limited spots — DM now 🔥"</p>
+        <p className="text-white/55 text-[10px] italic leading-relaxed">"Premium sound, redefined. Experience wireless freedom like never before. Shop now — limited edition 🔥"</p>
       </motion.div>
     )}
-    {progress > 0.82 && (
+    {progress > 0.78 && (
       <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-2 p-2 rounded-lg bg-emerald-500/[0.04]">
         <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
         <span className="text-emerald-400 text-[10px]">Campaign launched — 12.4K audience • $150/day</span>
@@ -613,7 +590,7 @@ const AdCreativesPanel = ({ progress }: { progress: number }) => (
 );
 
 const TeamPanel = ({ progress }: { progress: number }) => {
-  const typedName = useTypingText("Jordan Rivera", progress > 0.28 && progress < 0.55, 60);
+  const typedName = useTypingText("Jordan Rivera", progress > 0.25 && progress < 0.55, 60);
 
   return (
     <div className="space-y-3">
@@ -623,7 +600,7 @@ const TeamPanel = ({ progress }: { progress: number }) => {
           <span className="text-white/80 text-sm font-semibold">Team</span>
           <span className="text-white/25 text-[10px]">4 members</span>
         </div>
-        <motion.div animate={{ scale: progress > 0.15 ? [1, 1.05, 1] : 1 }} transition={{ duration: 0.3 }} className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] text-purple-300 bg-purple-500/[0.08]">
+        <motion.div animate={{ scale: progress > 0.18 ? [1, 1.05, 1] : 1 }} transition={{ duration: 0.3 }} className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] text-purple-300 bg-purple-500/[0.08]">
           <UserPlus className="w-3 h-3" /> Add Member
         </motion.div>
       </div>
@@ -644,12 +621,12 @@ const TeamPanel = ({ progress }: { progress: number }) => {
           </div>
         </div>
       ))}
-      {progress > 0.25 && (
+      {progress > 0.22 && (
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="p-3 rounded-lg" style={{ background: 'rgba(255,255,255,0.025)' }}>
           <div className="text-white/40 text-[10px] mb-2">New Member</div>
           <div className="text-white/55 text-[11px] font-mono min-h-[16px] mb-2">
             {typedName}
-            {progress > 0.28 && progress < 0.55 && <motion.span animate={{ opacity: [1, 0] }} transition={{ repeat: Infinity, duration: 0.6 }} className="text-blue-400">|</motion.span>}
+            {progress > 0.25 && progress < 0.55 && <motion.span animate={{ opacity: [1, 0] }} transition={{ repeat: Infinity, duration: 0.6 }} className="text-blue-400">|</motion.span>}
           </div>
           {progress > 0.6 && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-emerald-400 text-[9px]">✅ Role: Social Manager • Invited</motion.div>
@@ -753,7 +730,6 @@ const AutopilotShowcase = () => {
           </p>
         </motion.div>
 
-        {/* Scene indicator pills */}
         <div className="flex items-center justify-center gap-2 mb-8 flex-wrap">
           {scenes.map((s, i) => (
             <button
@@ -770,7 +746,6 @@ const AutopilotShowcase = () => {
           ))}
         </div>
 
-        {/* Browser Frame */}
         <motion.div
           initial={{ opacity: 0, y: 40 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -779,7 +754,6 @@ const AutopilotShowcase = () => {
           className="relative rounded-2xl overflow-hidden"
           style={{ background: 'linear-gradient(180deg, hsl(222, 30%, 12%) 0%, hsl(222, 35%, 9%) 100%)', boxShadow: '0 25px 60px -15px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04) inset' }}
         >
-          {/* Browser chrome */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.06]" style={{ background: 'hsl(222, 30%, 10%)' }}>
             <div className="flex items-center gap-1.5">
               <div className="w-2.5 h-2.5 rounded-full" style={{ background: '#ff5f57' }} />
@@ -796,11 +770,9 @@ const AutopilotShowcase = () => {
             </div>
           </div>
 
-          {/* App layout */}
           <div className="flex min-h-[420px] md:min-h-[480px] relative">
             <AnimatedCursor actions={scene.cursor} sceneKey={scene.id} />
 
-            {/* Sidebar */}
             <div className="hidden md:flex flex-col w-[52px] border-r border-white/[0.05] py-3 items-center gap-0.5" style={{ background: 'hsl(222, 30%, 9.5%)' }}>
               <div className="w-7 h-7 rounded-lg flex items-center justify-center mb-2" style={{ background: 'linear-gradient(135deg, #7c3aed, #3b82f6)' }}>
                 <Zap className="w-3.5 h-3.5 text-white" />
@@ -835,9 +807,7 @@ const AutopilotShowcase = () => {
               </div>
             </div>
 
-            {/* Main content */}
             <div className="flex-1 p-4 md:p-5 relative overflow-hidden">
-              {/* Top bar */}
               <div className="flex items-center gap-3 mb-4 px-3 py-2 rounded-lg" style={{ background: 'rgba(124,58,237,0.04)' }}>
                 <div className="relative">
                   <Bot className="w-3.5 h-3.5 text-purple-400" />
@@ -868,7 +838,6 @@ const AutopilotShowcase = () => {
             </div>
           </div>
 
-          {/* Bottom status bar */}
           <div className="flex items-center justify-between px-4 py-2 border-t border-white/[0.05]" style={{ background: 'hsl(222, 30%, 9.5%)' }}>
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-1.5">
