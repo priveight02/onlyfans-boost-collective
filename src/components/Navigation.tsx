@@ -54,9 +54,9 @@ const Navigation = () => {
   const userInitial = profile?.display_name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || "U";
 
   return (
-    <div className={`w-full fixed top-0 z-50 flex justify-center ${isPlatform ? 'pt-1.5 px-2' : 'pt-4 px-4'}`}>
+    <div className={`w-full fixed top-0 z-50 ${isPlatform ? 'flex justify-start pt-1.5 px-2' : 'flex justify-center pt-4 px-4'}`} style={isPlatform ? { left: '260px' } : undefined}>
       <nav
-        className={`transition-all duration-500 w-full ${isPlatform ? 'max-w-[320px] rounded-xl' : 'max-w-4xl rounded-2xl'}`}
+        className={`transition-all duration-500 w-full ${isPlatform ? 'max-w-[640px] rounded-xl' : 'max-w-4xl rounded-2xl'}`}
         style={{
           background: isScrolled
             ? "hsl(222 47% 10% / 0.75)"
