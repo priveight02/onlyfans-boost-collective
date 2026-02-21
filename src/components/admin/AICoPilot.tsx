@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useCreditAction } from "@/hooks/useCreditAction";
+import InsufficientCreditsModal from "@/components/InsufficientCreditsModal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -214,6 +216,8 @@ const AudioWaveform = ({ playing }: { playing: boolean }) => {
 
 // ============= MAIN COMPONENT =============
 const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
+  // Credit system
+  const { performAction, insufficientModal, closeInsufficientModal } = useCreditAction();
   // Core state
   const [conversations, setConversations] = useState<any[]>([]);
   const [activeConvoId, setActiveConvoId] = useState<string | null>(null);
@@ -695,6 +699,11 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
 
   const generateImage = async () => {
     if (!imagePrompt.trim() || isGeneratingImage) return;
+    // Deduct 31 credits server-side before generating
+    const creditResult = await performAction('copilot_generate_image', async () => {
+      return { success: true };
+    });
+    if (!creditResult) return; // Insufficient credits or error
     setIsGeneratingImage(true);
     const currentRefs = [...imageRefs];
     const prompt = imagePrompt;
@@ -763,6 +772,11 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
 
   const generateVideo = async () => {
     if (!videoPrompt.trim() || isGeneratingVideo) return;
+    // Deduct 250 credits server-side before generating
+    const creditResult = await performAction('copilot_generate_video', async () => {
+      return { success: true };
+    });
+    if (!creditResult) return; // Insufficient credits or error
     setIsGeneratingVideo(true);
     const prompt = videoPrompt;
     const frame = videoStartFrame;
@@ -1728,6 +1742,12 @@ const AICoPilot = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
           </div>
         </DialogContent>
       </Dialog>
+      <InsufficientCreditsModal
+        open={insufficientModal.open}
+        onClose={closeInsufficientModal}
+        requiredCredits={insufficientModal.requiredCredits}
+        actionName={insufficientModal.actionName}
+      />
     </>
   );
 };

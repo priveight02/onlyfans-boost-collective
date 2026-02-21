@@ -53,8 +53,8 @@ export const CRM_ACTION_COSTS: Record<string, number> = {
 
   // ── AI Co-Pilot ──
   copilot_query: 8,          // each chat message
-  copilot_generate_image: 15,
-  copilot_generate_video: 30,
+  copilot_generate_image: 31,
+  copilot_generate_video: 250,
   copilot_voice: 12,
 
   // ── Social Media ──
