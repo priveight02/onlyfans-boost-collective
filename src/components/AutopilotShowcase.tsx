@@ -6,19 +6,21 @@ import {
   Search, Bell, LayoutDashboard, Image, Mic,
   Video, FileText, UserPlus, PenTool, Clock,
   Instagram, Hash, Heart, Play, ChevronRight,
-  Globe, Shield, Brain, Target, Layers
+  Globe, Shield, Brain, Target, Layers, Wand2,
+  Music, Film, Megaphone, Eye, Star, Palette,
+  Camera, Volume2, Type, Headphones, Monitor
 } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
-/*  Scene definitions – each scene = one "screen" the cursor acts on  */
+/*  Scene definitions                                                  */
 /* ------------------------------------------------------------------ */
 
 interface CursorAction {
-  x: number; // % from left
-  y: number; // % from top
-  delay: number; // ms before moving here
+  x: number;
+  y: number;
+  delay: number;
   click?: boolean;
-  label?: string; // tooltip near cursor
+  label?: string;
 }
 
 interface Scene {
@@ -27,69 +29,88 @@ interface Scene {
   subtitle: string;
   sidebarActive: number;
   cursor: CursorAction[];
-  duration: number; // total ms
+  duration: number;
 }
 
 const scenes: Scene[] = [
   {
     id: "copilot",
     title: "AI Copilot",
-    subtitle: "Chat, strategize & execute from one command center",
+    subtitle: "Your unrestricted AI command center — chat, execute, automate",
     sidebarActive: 0,
-    duration: 5000,
+    duration: 6000,
     cursor: [
-      { x: 65, y: 75, delay: 0, label: "Typing prompt..." },
-      { x: 82, y: 75, delay: 1200, click: true, label: "Send" },
-      { x: 65, y: 45, delay: 2200, label: "Reading AI response" },
-      { x: 75, y: 55, delay: 3500, click: true, label: "Execute action" },
+      { x: 55, y: 78, delay: 0, label: "Typing prompt..." },
+      { x: 85, y: 78, delay: 1500, click: true, label: "Send" },
+      { x: 60, y: 40, delay: 2500, label: "AI processing..." },
+      { x: 65, y: 55, delay: 4000, click: true, label: "Execute all" },
+      { x: 40, y: 65, delay: 5200, click: true, label: "View results" },
     ],
   },
   {
-    id: "team",
-    title: "Team Management",
-    subtitle: "Add team members & assign roles instantly",
+    id: "content-studio",
+    title: "AI Content Studio",
+    subtitle: "Generate images, videos, audio & ad creatives from text",
     sidebarActive: 1,
-    duration: 4500,
+    duration: 7000,
     cursor: [
-      { x: 82, y: 22, delay: 0, click: true, label: "Add Member" },
-      { x: 55, y: 40, delay: 1000, label: "Filling details..." },
-      { x: 65, y: 55, delay: 2000, click: true, label: "Assign role" },
-      { x: 65, y: 70, delay: 3200, click: true, label: "Save" },
+      { x: 22, y: 32, delay: 0, click: true, label: "Image Gen" },
+      { x: 55, y: 50, delay: 800, label: "Typing prompt..." },
+      { x: 80, y: 50, delay: 2000, click: true, label: "Generate" },
+      { x: 55, y: 60, delay: 3200, label: "Rendering..." },
+      { x: 22, y: 42, delay: 4500, click: true, label: "Video Gen" },
+      { x: 55, y: 55, delay: 5200, label: "Creating video..." },
+      { x: 22, y: 52, delay: 6200, click: true, label: "Audio Gen" },
     ],
   },
   {
     id: "social",
     title: "Social Media Hub",
-    subtitle: "Create & schedule content across all platforms",
+    subtitle: "Create, schedule & publish across all platforms",
     sidebarActive: 2,
-    duration: 5000,
+    duration: 5500,
     cursor: [
       { x: 30, y: 25, delay: 0, click: true, label: "Instagram" },
       { x: 78, y: 22, delay: 800, click: true, label: "New Post" },
-      { x: 55, y: 50, delay: 1800, label: "AI generating caption..." },
+      { x: 55, y: 50, delay: 1800, label: "AI writing caption..." },
       { x: 75, y: 65, delay: 3000, click: true, label: "Schedule" },
-      { x: 60, y: 72, delay: 4000, click: true, label: "Confirm" },
+      { x: 60, y: 72, delay: 4200, click: true, label: "Confirm" },
     ],
   },
   {
     id: "dms",
     title: "AI Auto-Responder",
-    subtitle: "Answering leads 24/7 with human-like messages",
+    subtitle: "Answering leads 24/7 with human-like intelligence",
     sidebarActive: 3,
-    duration: 5000,
+    duration: 6000,
     cursor: [
-      { x: 25, y: 35, delay: 0, click: true, label: "New message" },
-      { x: 65, y: 50, delay: 800, label: "AI composing reply..." },
-      { x: 65, y: 60, delay: 2200, label: "Reply sent ✓" },
-      { x: 25, y: 45, delay: 3200, click: true, label: "Next lead" },
-      { x: 65, y: 50, delay: 4000, label: "AI composing reply..." },
+      { x: 22, y: 32, delay: 0, click: true, label: "New message" },
+      { x: 62, y: 48, delay: 800, label: "AI analyzing intent..." },
+      { x: 62, y: 58, delay: 2400, label: "Reply sent ✓" },
+      { x: 22, y: 42, delay: 3400, click: true, label: "Next lead" },
+      { x: 62, y: 48, delay: 4200, label: "AI composing..." },
+      { x: 62, y: 58, delay: 5200, label: "Reply sent ✓" },
+    ],
+  },
+  {
+    id: "ad-creatives",
+    title: "Ad Creative Engine",
+    subtitle: "AI-powered ad copy, visuals & campaign optimization",
+    sidebarActive: 4,
+    duration: 6000,
+    cursor: [
+      { x: 35, y: 30, delay: 0, click: true, label: "New campaign" },
+      { x: 55, y: 45, delay: 1000, label: "AI generating creatives..." },
+      { x: 70, y: 55, delay: 2500, click: true, label: "Select variant A" },
+      { x: 80, y: 70, delay: 3800, click: true, label: "Launch campaign" },
+      { x: 55, y: 60, delay: 5000, label: "Campaign live ✓" },
     ],
   },
   {
     id: "pipeline",
     title: "Deal Pipeline",
     subtitle: "AI scoring leads & closing deals automatically",
-    sidebarActive: 4,
+    sidebarActive: 5,
     duration: 5000,
     cursor: [
       { x: 25, y: 40, delay: 0, click: true, label: "Hot lead" },
@@ -102,8 +123,8 @@ const scenes: Scene[] = [
   {
     id: "analytics",
     title: "Revenue Analytics",
-    subtitle: "Real-time forecasting & performance tracking",
-    sidebarActive: 5,
+    subtitle: "Real-time forecasting & performance intelligence",
+    sidebarActive: 6,
     duration: 4500,
     cursor: [
       { x: 35, y: 30, delay: 0, label: "Viewing metrics" },
@@ -114,7 +135,15 @@ const scenes: Scene[] = [
   },
 ];
 
-const sidebarIcons = [Brain, Users, Globe, MessageSquare, Target, BarChart3, Layers];
+const sidebarItems = [
+  { icon: Brain, label: "AI Copilot" },
+  { icon: Wand2, label: "Content Studio" },
+  { icon: Globe, label: "Social Hub" },
+  { icon: MessageSquare, label: "Auto-DM" },
+  { icon: Megaphone, label: "Ad Engine" },
+  { icon: Target, label: "Pipeline" },
+  { icon: BarChart3, label: "Analytics" },
+];
 
 /* ------------------------------------------------------------------ */
 /*  Animated Cursor                                                   */
@@ -151,7 +180,6 @@ const AnimatedCursor = ({ actions, sceneKey }: { actions: CursorAction[]; sceneK
       animate={{ left: `${pos.x}%`, top: `${pos.y}%` }}
       transition={{ type: "spring", stiffness: 120, damping: 20, mass: 0.8 }}
     >
-      {/* Cursor SVG */}
       <motion.svg
         width="24" height="24" viewBox="0 0 24 24" fill="none"
         animate={{ scale: clicking ? 0.8 : 1 }}
@@ -160,7 +188,6 @@ const AnimatedCursor = ({ actions, sceneKey }: { actions: CursorAction[]; sceneK
       >
         <path d="M5 3L19 12L12 13L9 20L5 3Z" fill="white" stroke="white" strokeWidth="1" />
       </motion.svg>
-      {/* Click ripple */}
       <AnimatePresence>
         {clicking && (
           <motion.div
@@ -173,11 +200,10 @@ const AnimatedCursor = ({ actions, sceneKey }: { actions: CursorAction[]; sceneK
           />
         )}
       </AnimatePresence>
-      {/* Label */}
       {pos.label && (
         <motion.div
-          className="absolute left-7 top-0 whitespace-nowrap px-2 py-1 rounded text-[10px] font-medium text-white"
-          style={{ background: 'rgba(124,58,237,0.85)', backdropFilter: 'blur(4px)' }}
+          className="absolute left-7 top-0 whitespace-nowrap px-2.5 py-1 rounded-lg text-[10px] font-medium text-white"
+          style={{ background: 'rgba(124,58,237,0.9)', backdropFilter: 'blur(8px)', boxShadow: '0 4px 12px rgba(124,58,237,0.3)' }}
           initial={{ opacity: 0, x: -5 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.1 }}
@@ -197,88 +223,163 @@ const CopilotPanel = ({ progress }: { progress: number }) => (
   <div className="flex flex-col h-full">
     <div className="flex items-center gap-2 mb-4">
       <Brain className="w-4 h-4 text-purple-400" />
-      <span className="text-white/80 text-sm font-semibold">AI Copilot</span>
+      <span className="text-white/80 text-sm font-semibold">Uplyze AI Copilot</span>
       <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400">Free Will ON</span>
     </div>
     <div className="flex-1 space-y-3 overflow-hidden">
       <div className="flex gap-2">
         <div className="w-6 h-6 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex-shrink-0" />
         <div className="px-3 py-2 rounded-lg text-xs text-white/70 max-w-[80%]" style={{ background: 'rgba(255,255,255,0.06)' }}>
-          Analyze my top 5 performing posts this month and create similar content for next week
+          Analyze all my accounts, find underperforming content, generate new creatives, schedule them, and launch a DM campaign to re-engage cold leads
         </div>
       </div>
-      <motion.div className="flex gap-2 justify-end" animate={{ opacity: progress > 0.3 ? 1 : 0 }}>
+      <motion.div className="flex gap-2 justify-end" animate={{ opacity: progress > 0.25 ? 1 : 0 }}>
         <div className="px-3 py-2 rounded-lg text-xs text-white/80 max-w-[85%]" style={{ background: 'rgba(124,58,237,0.15)', border: '1px solid rgba(124,58,237,0.2)' }}>
           <div className="flex items-center gap-1 mb-1">
             <Bot className="w-3 h-3 text-purple-400" />
             <span className="text-purple-400 text-[10px] font-medium">Uplyze AI</span>
           </div>
-          {progress > 0.4 && <p>✅ Analyzed 47 posts from the last 30 days</p>}
-          {progress > 0.5 && <p className="mt-1">✅ Top themes: Behind-the-scenes, tutorials, product drops</p>}
-          {progress > 0.6 && <p className="mt-1">✅ Generated 7 content ideas with captions</p>}
-          {progress > 0.75 && <p className="mt-1">✅ Scheduled 5 posts for optimal engagement times</p>}
+          {progress > 0.3 && <p>✅ Scanned 5 accounts — 23 posts underperforming</p>}
+          {progress > 0.4 && <p className="mt-1">✅ Generated 12 image creatives + 4 video ads</p>}
+          {progress > 0.5 && <p className="mt-1">✅ Scheduled 16 posts across optimal time slots</p>}
+          {progress > 0.6 && <p className="mt-1">✅ DM campaign drafted for 847 cold leads</p>}
+          {progress > 0.7 && <p className="mt-1">✅ Audio voiceover generated for 3 reels</p>}
+          {progress > 0.8 && <p className="mt-1">✅ All tasks executed — 0 manual input needed</p>}
         </div>
       </motion.div>
-      {progress > 0.8 && (
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex gap-2">
-          {["Generate Video", "Create Ad", "Voice Script"].map((a, i) => (
+      {progress > 0.85 && (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex gap-2 flex-wrap">
+          {["Generate More", "View Analytics", "Create Ad", "Voice Script", "Schedule Tasks"].map((a, i) => (
             <div key={i} className="px-2 py-1 rounded text-[10px] text-purple-300 border border-purple-500/30 cursor-pointer" style={{ background: 'rgba(124,58,237,0.08)' }}>{a}</div>
           ))}
         </motion.div>
       )}
     </div>
     <div className="flex items-center gap-2 mt-3 px-3 py-2 rounded-lg border border-white/10" style={{ background: 'rgba(255,255,255,0.04)' }}>
-      <span className="text-white/30 text-xs flex-1">{progress > 0.2 ? "Analyze my top 5 performing posts..." : "Ask Uplyze AI anything..."}</span>
+      <span className="text-white/30 text-xs flex-1">{progress > 0.2 ? "Analyze all my accounts, find underperform..." : "Ask Uplyze AI anything..."}</span>
       <Send className="w-3.5 h-3.5 text-purple-400" />
     </div>
   </div>
 );
 
-const TeamPanel = ({ progress }: { progress: number }) => (
-  <div className="space-y-3">
-    <div className="flex items-center justify-between">
-      <div className="flex items-center gap-2">
-        <Users className="w-4 h-4 text-blue-400" />
-        <span className="text-white/80 text-sm font-semibold">Team</span>
-        <span className="text-white/40 text-xs">4 members</span>
+const ContentStudioPanel = ({ progress }: { progress: number }) => {
+  const tabs = [
+    { icon: Image, label: "Image Gen", active: progress < 0.65 },
+    { icon: Film, label: "Video Gen", active: progress >= 0.65 && progress < 0.88 },
+    { icon: Headphones, label: "Audio Gen", active: progress >= 0.88 },
+    { icon: Palette, label: "Ad Creative", active: false },
+  ];
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2 mb-1">
+        <Wand2 className="w-4 h-4 text-violet-400" />
+        <span className="text-white/80 text-sm font-semibold">AI Content Studio</span>
+        <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-violet-500/20 text-violet-400">Powered by AI</span>
       </div>
-      <motion.div animate={{ scale: progress > 0.15 ? [1, 1.1, 1] : 1 }} className="flex items-center gap-1 px-2 py-1 rounded text-[10px] text-purple-300 border border-purple-500/30" style={{ background: 'rgba(124,58,237,0.1)' }}>
-        <UserPlus className="w-3 h-3" /> Add Member
-      </motion.div>
-    </div>
-    {[
-      { name: "Alex Thompson", role: "Admin", status: "Online", color: "from-violet-500 to-purple-600" },
-      { name: "Sarah Chen", role: "Chatter", status: "Online", color: "from-blue-500 to-cyan-500" },
-      { name: "Marcus Lee", role: "Content", status: "Away", color: "from-amber-500 to-orange-500" },
-    ].map((m, i) => (
-      <div key={i} className="flex items-center gap-3 p-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.04)' }}>
-        <div className={`w-7 h-7 rounded-full bg-gradient-to-br ${m.color} flex items-center justify-center text-[10px] text-white font-bold`}>{m.name[0]}</div>
-        <div className="flex-1 min-w-0">
-          <div className="text-white/80 text-xs font-medium">{m.name}</div>
-          <div className="text-white/40 text-[10px]">{m.role}</div>
-        </div>
-        <div className="flex items-center gap-1">
-          <div className={`w-1.5 h-1.5 rounded-full ${m.status === 'Online' ? 'bg-emerald-400' : 'bg-amber-400'}`} />
-          <span className="text-white/30 text-[10px]">{m.status}</span>
-        </div>
+      {/* Tabs */}
+      <div className="flex gap-1.5">
+        {tabs.map((t, i) => (
+          <motion.div
+            key={i}
+            animate={{ borderColor: t.active ? 'rgba(139,92,246,0.5)' : 'rgba(255,255,255,0.08)' }}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[10px] transition-all"
+            style={{ background: t.active ? 'rgba(139,92,246,0.12)' : 'rgba(255,255,255,0.03)' }}
+          >
+            <t.icon className={`w-3 h-3 ${t.active ? 'text-violet-400' : 'text-white/25'}`} />
+            <span className={t.active ? 'text-violet-300' : 'text-white/35'}>{t.label}</span>
+          </motion.div>
+        ))}
       </div>
-    ))}
-    <AnimatePresence>
-      {progress > 0.5 && (
-        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="p-2 rounded-lg border border-emerald-500/20" style={{ background: 'rgba(16,185,129,0.06)' }}>
-          <div className="flex items-center gap-3">
-            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center text-[10px] text-white font-bold">J</div>
-            <div className="flex-1">
-              <div className="text-white/80 text-xs font-medium">Jordan Rivera</div>
-              <div className="text-emerald-400 text-[10px]">Just added • Social Manager</div>
+      {/* Image Generation */}
+      {progress < 0.65 && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-2">
+          <div className="p-3 rounded-lg border border-white/10" style={{ background: 'rgba(255,255,255,0.03)' }}>
+            <div className="flex items-center gap-2 mb-2">
+              <Type className="w-3 h-3 text-white/40" />
+              <span className="text-white/50 text-[10px]">Prompt</span>
             </div>
-            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+            <div className="text-white/70 text-xs">{progress > 0.12 ? '"Luxury lifestyle photo, golden hour, premium aesthetics, 4K quality"' : ''}</div>
+          </div>
+          {progress > 0.3 && (
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="grid grid-cols-3 gap-2">
+              {[1,2,3].map((_, i) => (
+                <div key={i} className="aspect-square rounded-lg overflow-hidden relative" style={{ background: `linear-gradient(${135 + i*20}deg, rgba(139,92,246,0.2), rgba(59,130,246,0.15), rgba(236,72,153,0.1))` }}>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <Camera className="w-5 h-5 text-white/20" />
+                  </div>
+                  {progress > 0.45 && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute bottom-1 right-1">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                    </motion.div>
+                  )}
+                </div>
+              ))}
+            </motion.div>
+          )}
+          {progress > 0.5 && (
+            <div className="flex items-center gap-2 text-emerald-400 text-[10px]">
+              <CheckCircle2 className="w-3 h-3" />
+              <span>3 images generated — Ready to use in posts or ads</span>
+            </div>
+          )}
+        </motion.div>
+      )}
+      {/* Video Generation */}
+      {progress >= 0.65 && progress < 0.88 && (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-2">
+          <div className="p-3 rounded-lg border border-white/10" style={{ background: 'rgba(255,255,255,0.03)' }}>
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <Film className="w-3 h-3 text-blue-400" />
+                <span className="text-white/60 text-[10px]">Video Generation</span>
+              </div>
+              <span className="text-[9px] text-blue-400/60">Runway ML</span>
+            </div>
+            <div className="flex gap-2">
+              <div className="w-24 h-14 rounded-lg flex items-center justify-center relative overflow-hidden" style={{ background: 'linear-gradient(135deg, rgba(59,130,246,0.2), rgba(139,92,246,0.15))' }}>
+                <Play className="w-4 h-4 text-white/30" />
+                <motion.div className="absolute bottom-0 left-0 h-1 bg-blue-500/50 rounded" animate={{ width: progress > 0.75 ? '100%' : '40%' }} transition={{ duration: 1 }} />
+              </div>
+              <div className="flex-1 space-y-1">
+                <div className="text-white/70 text-[10px]">Product showcase reel</div>
+                <div className="text-white/30 text-[9px]">1080x1920 • 8s • Gen-4.5</div>
+                {progress > 0.78 && <div className="text-emerald-400 text-[9px]">✅ Video rendered</div>}
+              </div>
+            </div>
           </div>
         </motion.div>
       )}
-    </AnimatePresence>
-  </div>
-);
+      {/* Audio Generation */}
+      {progress >= 0.88 && (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-2">
+          <div className="p-3 rounded-lg border border-white/10" style={{ background: 'rgba(255,255,255,0.03)' }}>
+            <div className="flex items-center gap-2 mb-2">
+              <Volume2 className="w-3 h-3 text-amber-400" />
+              <span className="text-white/60 text-[10px]">Audio Generation</span>
+              <span className="text-[9px] text-amber-400/60 ml-auto">ElevenLabs</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="flex gap-0.5 items-end h-8">
+                {[40,60,80,45,70,55,85,65,50,75,60,90,70,45,80].map((h,i) => (
+                  <motion.div key={i} className="w-1 rounded-full bg-amber-500/40" initial={{ height: 2 }} animate={{ height: h * 0.3 }} transition={{ delay: i * 0.03, duration: 0.3 }} />
+                ))}
+              </div>
+              <div className="flex-1">
+                <div className="text-white/70 text-[10px]">Voiceover for product ad</div>
+                <div className="text-white/30 text-[9px]">Premium voice • Natural tone</div>
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 text-emerald-400 text-[10px]">
+            <CheckCircle2 className="w-3 h-3" />
+            <span>Audio generated — 24s voiceover ready</span>
+          </div>
+        </motion.div>
+      )}
+    </div>
+  );
+};
 
 const SocialPanel = ({ progress }: { progress: number }) => (
   <div className="space-y-3">
@@ -330,7 +431,7 @@ const SocialPanel = ({ progress }: { progress: number }) => (
     {progress > 0.7 && (
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center gap-2 p-2 rounded-lg border border-emerald-500/20" style={{ background: 'rgba(16,185,129,0.06)' }}>
         <Calendar className="w-3.5 h-3.5 text-emerald-400" />
-        <span className="text-emerald-400 text-[10px]">Scheduled for Tomorrow, 9:00 AM — Optimal engagement time</span>
+        <span className="text-emerald-400 text-[10px]">Scheduled for Tomorrow, 9:00 AM — Optimal engagement</span>
         <CheckCircle2 className="w-3 h-3 text-emerald-400 ml-auto" />
       </motion.div>
     )}
@@ -339,7 +440,6 @@ const SocialPanel = ({ progress }: { progress: number }) => (
 
 const DMPanel = ({ progress }: { progress: number }) => (
   <div className="flex gap-3 h-full">
-    {/* Conversation list */}
     <div className="w-[35%] space-y-1.5">
       <div className="flex items-center gap-1 mb-2">
         <MessageSquare className="w-3.5 h-3.5 text-blue-400" />
@@ -348,12 +448,12 @@ const DMPanel = ({ progress }: { progress: number }) => (
       {[
         { name: "@emma_style", msg: "Hey! I saw your latest...", time: "2m", unread: true },
         { name: "@jake_fitness", msg: "What packages do you...", time: "5m", unread: true },
-        { name: "@lisa.creates", msg: "Love your content! Can...", time: "8m", unread: false },
+        { name: "@lisa.creates", msg: "Love your content!", time: "8m", unread: false },
         { name: "@mark_tech", msg: "Interested in collab", time: "12m", unread: false },
       ].map((c, i) => (
         <motion.div
           key={i}
-          animate={{ background: i === (progress > 0.6 ? 1 : 0) ? 'rgba(124,58,237,0.12)' : 'rgba(255,255,255,0.03)' }}
+          animate={{ background: i === (progress > 0.55 ? 1 : 0) ? 'rgba(124,58,237,0.12)' : 'rgba(255,255,255,0.03)' }}
           className="p-1.5 rounded-lg cursor-pointer"
         >
           <div className="flex items-center gap-1.5">
@@ -370,7 +470,6 @@ const DMPanel = ({ progress }: { progress: number }) => (
         </motion.div>
       ))}
     </div>
-    {/* Chat area */}
     <div className="flex-1 flex flex-col border-l border-white/10 pl-3">
       <div className="flex items-center gap-2 mb-3 pb-2 border-b border-white/10">
         <div className="w-5 h-5 rounded-full bg-gradient-to-br from-purple-500 to-pink-500" />
@@ -386,14 +485,70 @@ const DMPanel = ({ progress }: { progress: number }) => (
             </div>
           </motion.div>
         )}
-        {progress > 0.6 && (
+        {progress > 0.55 && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center gap-1 justify-end">
             <CheckCircle2 className="w-2.5 h-2.5 text-emerald-400" />
-            <span className="text-emerald-400 text-[9px]">AI replied in 1.2s</span>
+            <span className="text-emerald-400 text-[9px]">AI replied in 1.2s • Intent: Purchase inquiry</span>
           </motion.div>
         )}
       </div>
     </div>
+  </div>
+);
+
+const AdCreativesPanel = ({ progress }: { progress: number }) => (
+  <div className="space-y-3">
+    <div className="flex items-center gap-2">
+      <Megaphone className="w-4 h-4 text-orange-400" />
+      <span className="text-white/80 text-sm font-semibold">Ad Creative Engine</span>
+      <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-orange-500/20 text-orange-400">AI Optimized</span>
+    </div>
+    {progress > 0.15 && (
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="grid grid-cols-3 gap-2">
+        {[
+          { label: "Variant A", ctr: "4.2%", score: 92, color: "from-orange-500/20 to-pink-500/15" },
+          { label: "Variant B", ctr: "3.8%", score: 85, color: "from-blue-500/20 to-purple-500/15" },
+          { label: "Variant C", ctr: "3.1%", score: 71, color: "from-emerald-500/20 to-teal-500/15" },
+        ].map((v, i) => (
+          <motion.div
+            key={i}
+            animate={{ borderColor: i === 0 && progress > 0.45 ? 'rgba(249,115,22,0.4)' : 'rgba(255,255,255,0.08)' }}
+            className="p-2 rounded-lg border"
+            style={{ background: 'rgba(255,255,255,0.03)' }}
+          >
+            <div className={`w-full aspect-video rounded mb-2 bg-gradient-to-br ${v.color} flex items-center justify-center`}>
+              <Eye className="w-4 h-4 text-white/20" />
+            </div>
+            <div className="text-white/70 text-[10px] font-medium">{v.label}</div>
+            <div className="flex items-center justify-between mt-1">
+              <span className="text-white/40 text-[9px]">CTR: {v.ctr}</span>
+              <span className={`text-[9px] ${v.score > 90 ? 'text-emerald-400' : 'text-white/40'}`}>Score: {v.score}</span>
+            </div>
+            {i === 0 && progress > 0.45 && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center gap-1 mt-1">
+                <Star className="w-2.5 h-2.5 text-orange-400" />
+                <span className="text-orange-400 text-[9px]">AI Pick</span>
+              </motion.div>
+            )}
+          </motion.div>
+        ))}
+      </motion.div>
+    )}
+    {progress > 0.6 && (
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-2 rounded-lg border border-white/10" style={{ background: 'rgba(255,255,255,0.03)' }}>
+        <div className="flex items-center justify-between">
+          <span className="text-white/60 text-[10px]">AI-Generated Copy</span>
+          <Sparkles className="w-3 h-3 text-purple-400" />
+        </div>
+        <p className="text-white/70 text-[10px] mt-1 italic">"Transform your social presence with premium content that converts. Limited spots available — DM now 🔥"</p>
+      </motion.div>
+    )}
+    {progress > 0.8 && (
+      <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-2 p-2 rounded-lg border border-emerald-500/20" style={{ background: 'rgba(16,185,129,0.06)' }}>
+        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+        <span className="text-emerald-400 text-[10px]">Campaign launched — Targeting 12.4K audience • Budget: $150/day</span>
+      </motion.div>
+    )}
   </div>
 );
 
@@ -407,7 +562,7 @@ const PipelinePanel = ({ progress }: { progress: number }) => (
     <div className="grid grid-cols-4 gap-2">
       {[
         { stage: "New", count: 12, color: "border-blue-500/30", items: ["Lead #401", "Lead #402"] },
-        { stage: "Qualified", count: 8, color: "border-purple-500/30", items: ["Lead #389", "Lead #391"] },
+        { stage: "Qualified", count: 8, color: "border-purple-500/30", items: ["Lead #389"] },
         { stage: "Closing", count: 5, color: "border-amber-500/30", items: ["Deal #287"] },
         { stage: "Won", count: 23, color: "border-emerald-500/30", items: ["Deal #284"] },
       ].map((s, i) => (
@@ -419,10 +574,7 @@ const PipelinePanel = ({ progress }: { progress: number }) => (
           {s.items.map((item, j) => (
             <motion.div
               key={j}
-              animate={{
-                x: i === 2 && j === 0 && progress > 0.5 ? 0 : 0,
-                background: i === 2 && j === 0 && progress > 0.5 ? 'rgba(16,185,129,0.12)' : 'rgba(255,255,255,0.06)'
-              }}
+              animate={{ background: i === 2 && j === 0 && progress > 0.5 ? 'rgba(16,185,129,0.12)' : 'rgba(255,255,255,0.06)' }}
               className="px-1.5 py-1 rounded text-[9px] text-white/50 mb-1"
             >
               {item}
@@ -436,7 +588,6 @@ const PipelinePanel = ({ progress }: { progress: number }) => (
       <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-2 p-2 rounded-lg border border-emerald-500/20" style={{ background: 'rgba(16,185,129,0.06)' }}>
         <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />
         <span className="text-emerald-400 text-[10px]">Deal #287 closed — Revenue +$12,500</span>
-        <span className="text-white/30 text-[9px] ml-auto">Just now</span>
       </motion.div>
     )}
   </div>
@@ -450,9 +601,9 @@ const AnalyticsPanel = ({ progress }: { progress: number }) => (
     </div>
     <div className="grid grid-cols-3 gap-2">
       {[
-        { label: "Revenue", value: "$48,750", change: "+23%", positive: true },
-        { label: "Leads", value: "2,847", change: "+34%", positive: true },
-        { label: "Conversion", value: "12.8%", change: "+2.1%", positive: true },
+        { label: "Revenue", value: "$48,750", change: "+23%" },
+        { label: "Leads", value: "2,847", change: "+34%" },
+        { label: "Conversion", value: "12.8%", change: "+2.1%" },
       ].map((m, i) => (
         <div key={i} className="p-2 rounded-lg border border-white/10" style={{ background: 'rgba(255,255,255,0.04)' }}>
           <div className="text-white/40 text-[9px] uppercase">{m.label}</div>
@@ -461,7 +612,6 @@ const AnalyticsPanel = ({ progress }: { progress: number }) => (
         </div>
       ))}
     </div>
-    {/* Chart visualization */}
     <div className="rounded-lg border border-white/10 p-3" style={{ background: 'rgba(255,255,255,0.03)' }}>
       <div className="flex items-end gap-1 h-20">
         {[30, 45, 35, 60, 50, 75, 55, 85, 65, 90, 70, 95].map((h, i) => (
@@ -510,7 +660,6 @@ const AutopilotShowcase = () => {
     return () => observer.disconnect();
   }, []);
 
-  // Scene cycling
   useEffect(() => {
     if (!isVisible) return;
     const scene = scenes[sceneIdx];
@@ -538,9 +687,10 @@ const AutopilotShowcase = () => {
   const renderPanel = useCallback(() => {
     switch (scene.id) {
       case "copilot": return <CopilotPanel progress={progress} />;
-      case "team": return <TeamPanel progress={progress} />;
+      case "content-studio": return <ContentStudioPanel progress={progress} />;
       case "social": return <SocialPanel progress={progress} />;
       case "dms": return <DMPanel progress={progress} />;
+      case "ad-creatives": return <AdCreativesPanel progress={progress} />;
       case "pipeline": return <PipelinePanel progress={progress} />;
       case "analytics": return <AnalyticsPanel progress={progress} />;
       default: return null;
@@ -552,7 +702,6 @@ const AutopilotShowcase = () => {
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full opacity-[0.05]" style={{ background: 'radial-gradient(circle, hsl(250, 80%, 60%), transparent 70%)' }} />
 
       <div className="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -567,7 +716,7 @@ const AutopilotShowcase = () => {
             </span>
           </h2>
           <p className="text-white/50 text-lg max-w-2xl mx-auto">
-            Watch Uplyze AI manage your entire business — from answering leads to closing deals — without lifting a finger
+            Watch Uplyze AI manage your entire business — from generating content to closing deals — without lifting a finger
           </p>
         </motion.div>
 
@@ -620,16 +769,15 @@ const AutopilotShowcase = () => {
 
           {/* App layout */}
           <div className="flex min-h-[420px] md:min-h-[480px] relative">
-            {/* Animated cursor */}
             <AnimatedCursor actions={scene.cursor} sceneKey={scene.id} />
 
             {/* Sidebar */}
-            <div className="hidden md:flex flex-col w-14 border-r border-white/10 py-4 items-center gap-3" style={{ background: 'hsl(222, 30%, 11%)' }}>
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center mb-2" style={{ background: 'linear-gradient(135deg, #7c3aed, #3b82f6)' }}>
+            <div className="hidden md:flex flex-col w-14 border-r border-white/10 py-4 items-center gap-1" style={{ background: 'hsl(222, 30%, 11%)' }}>
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center mb-3" style={{ background: 'linear-gradient(135deg, #7c3aed, #3b82f6)' }}>
                 <Zap className="w-4 h-4 text-white" />
               </div>
-              <div className="w-6 h-px bg-white/10" />
-              {sidebarIcons.map((Icon, i) => (
+              <div className="w-6 h-px bg-white/10 mb-1" />
+              {sidebarItems.map((item, i) => (
                 <motion.div
                   key={i}
                   animate={{
@@ -637,25 +785,26 @@ const AutopilotShowcase = () => {
                     scale: i === scene.sidebarActive ? 1.05 : 1,
                   }}
                   transition={{ duration: 0.3 }}
-                  className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
+                  className={`w-9 h-9 rounded-lg flex items-center justify-center transition-colors relative group ${
                     i === scene.sidebarActive ? 'text-purple-400' : 'text-white/25'
                   }`}
                 >
-                  <Icon className="w-4 h-4" />
+                  <item.icon className="w-4 h-4" />
+                  {i === scene.sidebarActive && (
+                    <motion.div layoutId="sidebar-indicator" className="absolute left-0 w-0.5 h-5 rounded-r bg-purple-400" />
+                  )}
                 </motion.div>
               ))}
             </div>
 
             {/* Main content */}
             <div className="flex-1 p-5 md:p-6 relative overflow-hidden">
-              {/* Scene subtitle bar */}
               <div className="flex items-center gap-3 mb-5 px-3 py-2.5 rounded-lg border border-purple-500/20" style={{ background: 'linear-gradient(90deg, rgba(124,58,237,0.08), rgba(59,130,246,0.04))' }}>
                 <div className="relative">
                   <Bot className="w-4 h-4 text-purple-400" />
                   <div className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                 </div>
                 <span className="text-white/70 text-xs flex-1">{scene.subtitle}</span>
-                {/* Progress bar */}
                 <div className="w-20 h-1 rounded-full bg-white/10 overflow-hidden">
                   <motion.div
                     className="h-full rounded-full"
@@ -666,7 +815,6 @@ const AutopilotShowcase = () => {
                 </div>
               </div>
 
-              {/* Dynamic panel */}
               <AnimatePresence mode="wait">
                 <motion.div
                   key={scene.id}
