@@ -53,89 +53,66 @@ const Navigation = () => {
   const userInitial = profile?.display_name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || "U";
 
   return (
-    <div className="w-full fixed top-0 z-50">
+    <div className="w-full fixed top-0 z-50 flex justify-center pt-4 px-4">
       <nav
-        className="transition-all duration-500"
+        className="transition-all duration-500 w-full max-w-4xl rounded-2xl"
         style={{
           background: isScrolled
-            ? "linear-gradient(180deg, hsl(222 47% 5% / 0.92) 0%, hsl(222 47% 4% / 0.88) 100%)"
-            : "linear-gradient(180deg, hsl(222 47% 6% / 0.8) 0%, hsl(222 47% 4% / 0.6) 100%)",
-          backdropFilter: "blur(32px) saturate(1.6)",
-          borderBottom: "1px solid hsl(217 91% 60% / 0.06)",
+            ? "hsl(222 47% 10% / 0.75)"
+            : "hsl(222 47% 12% / 0.55)",
+          backdropFilter: "blur(24px) saturate(1.4)",
+          border: "1px solid hsl(215 25% 40% / 0.12)",
           boxShadow: isScrolled
-            ? "0 8px 40px hsl(222 47% 4% / 0.5), 0 1px 0 hsl(217 91% 60% / 0.04) inset"
-            : "0 4px 24px hsl(222 47% 4% / 0.3)",
+            ? "0 8px 32px hsl(222 47% 4% / 0.4), 0 0 0 1px hsl(215 25% 50% / 0.05) inset"
+            : "0 4px 20px hsl(222 47% 4% / 0.25), 0 0 0 1px hsl(215 25% 50% / 0.04) inset",
         }}
       >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16 pl-4 lg:pl-8">
-            <div className="flex-shrink-0 w-[180px]">
+        <div className="px-4 sm:px-5">
+          <div className="flex items-center justify-between h-14">
+            <div className="flex-shrink-0">
               <Link to="/" className="flex items-center group transition-all duration-300 hover:scale-105">
-                <img src="/lovable-uploads/uplyze-logo.png" alt="Uplyze Logo" className="h-[70px] w-auto object-contain" />
+                <img src="/lovable-uploads/uplyze-logo.png" alt="Uplyze Logo" className="h-[55px] w-auto object-contain" />
               </Link>
             </div>
 
             {/* Desktop menu */}
-            <div className="hidden md:flex items-center gap-3">
-              <div
-                className="flex items-center p-1 rounded-2xl gap-0.5"
-                style={{
-                  background: "hsl(222 47% 10% / 0.5)",
-                  border: "1px solid hsl(217 91% 60% / 0.08)",
-                  boxShadow: "0 2px 12px hsl(222 47% 4% / 0.3), 0 1px 0 hsl(217 91% 60% / 0.03) inset",
-                }}
-              >
-                {finalMenuItems.map((item) => {
-                  const isActive = location.pathname === item.href;
-                  return (
-                    <Link
-                      key={item.name}
-                      to={item.href}
-                      className="relative px-3.5 py-2 rounded-xl text-[13px] font-medium transition-all duration-300 flex items-center gap-2 group"
-                      style={{
-                        color: isActive ? "white" : "hsl(215 25% 70%)",
-                        background: isActive
-                          ? "linear-gradient(135deg, hsl(217 91% 55% / 0.2), hsl(262 83% 58% / 0.12))"
-                          : "transparent",
-                        boxShadow: isActive
-                          ? "0 0 12px hsl(217 91% 60% / 0.15), 0 1px 0 hsl(217 91% 60% / 0.1) inset"
-                          : "none",
-                      }}
-                    >
-                      {/* Active glow dot */}
-                      {isActive && (
-                        <div
-                          className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-5 h-[2px] rounded-full"
-                          style={{ background: "linear-gradient(90deg, transparent, hsl(217 91% 60%), transparent)" }}
-                        />
-                      )}
-                      {item.icon && (
-                        <item.icon
-                          className="h-3.5 w-3.5 transition-colors duration-300"
-                          style={{
-                            color: isActive ? "hsl(217 91% 65%)" : undefined,
-                          }}
-                        />
-                      )}
-                      <span className="group-hover:text-white transition-colors duration-200">{item.name}</span>
-                    </Link>
-                  );
-                })}
-              </div>
+            <div className="hidden md:flex items-center gap-1">
+              {finalMenuItems.map((item) => {
+                const isActive = location.pathname === item.href;
+                return (
+                  <Link
+                    key={item.name}
+                    to={item.href}
+                    className="relative px-3.5 py-2 rounded-xl text-[13px] font-medium transition-all duration-300 group"
+                    style={{
+                      color: isActive ? "white" : "hsl(215 25% 65%)",
+                    }}
+                  >
+                    {isActive && (
+                      <div
+                        className="absolute inset-0 rounded-xl"
+                        style={{
+                          background: "hsl(217 91% 55% / 0.1)",
+                        }}
+                      />
+                    )}
+                    <span className="relative group-hover:text-white transition-colors duration-200">{item.name}</span>
+                  </Link>
+                );
+              })}
 
               {/* Auth buttons */}
-              <div className="flex items-center gap-1.5 ml-1">
+              <div className="flex items-center gap-1.5 ml-2 pl-2 border-l border-white/10">
                 <CreditsDisplay />
                 {user ? (
                   <>
                     <Link to="/profile">
                       <button
-                        className="w-9 h-9 rounded-xl flex items-center justify-center text-white text-sm font-bold transition-all duration-300 hover:scale-105"
+                        className="w-8 h-8 rounded-xl flex items-center justify-center text-white text-sm font-bold transition-all duration-300 hover:scale-105"
                         title={`@${profile?.username || 'profile'}`}
                         style={{
                           background: "linear-gradient(135deg, hsl(217 91% 55% / 0.3), hsl(262 83% 58% / 0.2))",
                           border: "1px solid hsl(217 91% 60% / 0.15)",
-                          boxShadow: "0 0 12px hsl(217 91% 60% / 0.1)",
                         }}
                       >
                         {userInitial}
@@ -144,17 +121,17 @@ const Navigation = () => {
                     <Button
                       variant="ghost"
                       onClick={handleLogout}
-                      className="transition-all duration-200 hover:bg-white/[0.06] text-white/40 hover:text-white/80 rounded-xl h-9 w-9 p-0"
+                      className="transition-all duration-200 hover:bg-white/[0.06] text-white/40 hover:text-white/80 rounded-xl h-8 w-8 p-0"
                       title="Log out"
                     >
-                      <LogOut className="h-4 w-4" />
+                      <LogOut className="h-3.5 w-3.5" />
                     </Button>
                   </>
                 ) : (
                   <Link to="/auth">
                     <Button
                       variant="ghost"
-                      className="rounded-xl gap-2 text-[13px] font-medium transition-all duration-300 h-9 px-4"
+                      className="rounded-xl gap-2 text-[13px] font-medium transition-all duration-300 h-8 px-3.5"
                       style={{
                         color: "hsl(215 25% 80%)",
                         background: "hsl(217 91% 55% / 0.08)",
@@ -192,15 +169,8 @@ const Navigation = () => {
 
           {/* Mobile menu */}
           {isOpen && (
-            <div
-              className="md:hidden rounded-b-2xl"
-              style={{
-                background: "linear-gradient(180deg, hsl(222 47% 8% / 0.95) 0%, hsl(222 47% 6% / 0.98) 100%)",
-                borderTop: "1px solid hsl(217 91% 60% / 0.06)",
-                backdropFilter: "blur(24px)",
-              }}
-            >
-              <div className="pt-2 pb-3 space-y-0.5 px-2">
+            <div className="md:hidden pb-3 pt-1">
+              <div className="space-y-0.5">
                 {finalMenuItems.map((item) => {
                   const isActive = location.pathname === item.href;
                   return (
