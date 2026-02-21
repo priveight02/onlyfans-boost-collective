@@ -46,6 +46,15 @@ function mapAspectToRunwayRatio(aspect: string, _model: string): string {
   return ratioMap[aspect] || "1280:720";
 }
 
+// Runway only accepts specific duration values depending on the model
+function clampRunwayDuration(d: number | undefined, model: string): number {
+  const veoModels = ["veo3", "veo3.1", "veo3.1_fast"];
+  const validDurations = veoModels.includes(model) ? [4, 6, 8] : [4, 6, 8, 10];
+  const target = d || 8;
+  // Pick the closest valid duration
+  return validDurations.reduce((prev, curr) => Math.abs(curr - target) < Math.abs(prev - target) ? curr : prev);
+}
+
 // ─── Runway VIDEO create ───
 async function runwayCreate(body: any) {
   const model = body.model_name || "gen4_turbo";
@@ -77,7 +86,7 @@ async function runwayCreate(body: any) {
       promptText: body.prompt,
       promptImage: body.image_url,
       ratio: mapAspectToRunwayRatio(body.aspect_ratio || "16:9", model),
-      duration: Math.min(Math.max(body.duration || 5, 2), 10),
+      duration: clampRunwayDuration(body.duration, model),
     };
   } else {
     const t2vModels = ["gen4.5", "veo3.1", "veo3.1_fast", "veo3"];
@@ -85,17 +94,13 @@ async function runwayCreate(body: any) {
     const isVeo = veoModels.includes(model);
     if (!t2vModels.includes(model)) {
       endpoint = `${RUNWAY_BASE}/image_to_video`;
-      reqBody = { model, promptText: body.prompt, ratio: mapAspectToRunwayRatio(body.aspect_ratio || "16:9", model), duration: Math.min(Math.max(body.duration || 5, 2), 10) };
+      reqBody = { model, promptText: body.prompt, ratio: mapAspectToRunwayRatio(body.aspect_ratio || "16:9", model), duration: clampRunwayDuration(body.duration, model) };
     } else {
       endpoint = `${RUNWAY_BASE}/text_to_video`;
-      // Veo models only support "1280:720" and "720:1280" ratios and no duration param
       const ratio = isVeo
         ? ((body.aspect_ratio === "9:16") ? "720:1280" : "1280:720")
         : mapAspectToRunwayRatio(body.aspect_ratio || "16:9", model);
-      reqBody = { model, promptText: body.prompt, ratio };
-      if (!isVeo) {
-        reqBody.duration = Math.min(Math.max(body.duration || 5, 2), 10);
-      }
+      reqBody = { model, promptText: body.prompt, ratio, duration: clampRunwayDuration(body.duration, model) };
     }
   }
 
