@@ -899,7 +899,7 @@ const AutopilotShowcase = () => {
             </span>
           </h2>
           <p className="text-white/50 text-lg max-w-2xl mx-auto">
-            Watch Uplyze AI manage your entire business — without lifting a finger
+            See how Uplyze runs your marketing, content, and sales on full autopilot so you can focus on what matters most
           </p>
         </motion.div>
 
