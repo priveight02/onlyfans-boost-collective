@@ -154,18 +154,22 @@ const AdCreativeEngine = ({ subTab, onSubTabChange }: { subTab?: string; onSubTa
             }
           });
         }
-        // Check saved integration keys
+        // Check saved integration keys and restore actual credentials
         const { data: saved } = await supabase
           .from("copilot_generated_content")
           .select("url, metadata")
           .eq("content_type", "integration_key")
           .eq("created_by", user.id);
         if (saved) {
+          const restoredKeys: Record<string, Record<string, string>> = {};
           saved.forEach(s => {
             if (s.url) {
-              platformMap[s.url] = true;
               const meta = s.metadata as any;
+              if (meta?.connected) {
+                platformMap[s.url] = true;
+              }
               if (meta?.keys) {
+                restoredKeys[s.url] = meta.keys;
                 detailsMap[s.url] = {
                   accountId: meta.keys.ad_account_id || meta.keys.customer_id || meta.keys.advertiser_id || meta.keys.store_url,
                   username: meta.keys.store_url || meta.keys.ad_account_id,
@@ -173,6 +177,7 @@ const AdCreativeEngine = ({ subTab, onSubTabChange }: { subTab?: string; onSubTa
               }
             }
           });
+          setIntegrationKeys(prev => ({ ...prev, ...restoredKeys }));
         }
         setConnectedPlatforms(platformMap);
         setConnectedDetails(detailsMap);
@@ -513,19 +518,38 @@ const AdCreativeEngine = ({ subTab, onSubTabChange }: { subTab?: string; onSubTa
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { toast.error("Not authenticated"); return; }
       const keys = integrationKeys[platform] || {};
+      // Delete any previous record for this platform
+      await supabase.from("copilot_generated_content").delete().eq("content_type", "integration_key").eq("url", platform).eq("created_by", user.id);
+      // Save actual keys so they persist across sessions
       const { error } = await supabase.from("copilot_generated_content").insert({
         content_type: "integration_key",
         url: platform,
         prompt: null,
-        metadata: { platform, keys: Object.fromEntries(Object.entries(keys).map(([k, v]) => [k, v ? "••••" + v.slice(-4) : ""])) },
+        metadata: { platform, keys, connected: true, connected_at: new Date().toISOString() },
         created_by: user.id,
       });
       if (error) throw error;
+      setConnectedPlatforms(prev => ({ ...prev, [platform]: true }));
       toast.success(`${platform} connected successfully`);
     } catch (e: any) {
       toast.error(e.message || "Failed to save integration");
     } finally {
       setSavingIntegration(null);
+    }
+  };
+
+  // Disconnect an integration and remove from DB
+  const handleDisconnectIntegration = async (platform: string) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      await supabase.from("copilot_generated_content").delete().eq("content_type", "integration_key").eq("url", platform).eq("created_by", user.id);
+      setConnectedPlatforms(prev => ({ ...prev, [platform]: false }));
+      setConnectedDetails(prev => { const n = { ...prev }; delete n[platform]; return n; });
+      setIntegrationKeys(prev => { const n = { ...prev }; delete n[platform]; return n; });
+      toast.info(`${INTEGRATIONS.find(i => i.id === platform)?.name || platform} disconnected`);
+    } catch (e: any) {
+      toast.error("Failed to disconnect");
     }
   };
 
@@ -1045,7 +1069,7 @@ const AdCreativeEngine = ({ subTab, onSubTabChange }: { subTab?: string; onSubTa
                             </Button>
                           )}
                           {isConnected && (
-                            <Button variant="outline" className="text-xs h-8 border-red-500/20 text-red-400/60 hover:text-red-400 hover:bg-red-500/10" onClick={() => { setConnectedPlatforms(prev => ({ ...prev, [int.id]: false })); toast.info(`${int.name} disconnected`); }}>
+                            <Button variant="outline" className="text-xs h-8 border-red-500/20 text-red-400/60 hover:text-red-400 hover:bg-red-500/10" onClick={() => handleDisconnectIntegration(int.id)}>
                               <X className="h-3 w-3" />
                             </Button>
                           )}
