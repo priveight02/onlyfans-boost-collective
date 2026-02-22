@@ -17,7 +17,7 @@ import {
   CheckCircle2, Loader2, Plus, Wand2, Upload, X,
   Link2, ShoppingCart, ExternalLink, Settings2, Unplug,
   Info, Globe, Play, Pause, SquarePen, Trash2, Search,
-  Ghost, MapPin, Twitter, Linkedin, Youtube, Wifi, WifiOff,
+  Ghost, MapPin, Twitter, Linkedin, Youtube, CircleDot, CircleOff,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
@@ -1048,8 +1048,8 @@ const AdCreativeEngine = ({ subTab, onSubTabChange }: { subTab?: string; onSubTa
                       <div className="flex-1 min-w-0">
                         <h3 className="text-sm font-semibold text-white flex items-center gap-1.5">
                           {int.name}
-                          {isConnected && <Wifi className="h-3 w-3 text-emerald-400" />}
-                          {!isConnected && !isSocial && <WifiOff className="h-3 w-3 text-white/15" />}
+                          {isConnected && <CircleDot className="h-3 w-3 text-emerald-400" />}
+                          {!isConnected && !isSocial && <CircleOff className="h-3 w-3 text-white/15" />}
                         </h3>
                         <p className="text-[10px] text-white/30">{int.desc}</p>
                       </div>
@@ -1118,7 +1118,7 @@ const AdCreativeEngine = ({ subTab, onSubTabChange }: { subTab?: string; onSubTa
                       <div className="pt-1">
                         <div className={`p-2.5 rounded-lg border ${isConnected ? "bg-emerald-500/5 border-emerald-500/10" : "bg-white/[0.02] border-white/[0.06]"}`}>
                           <div className="flex items-center gap-2">
-                            {isConnected ? <Wifi className="h-3 w-3 text-emerald-400" /> : <WifiOff className="h-3 w-3 text-white/20" />}
+                            {isConnected ? <CircleDot className="h-3 w-3 text-emerald-400" /> : <CircleOff className="h-3 w-3 text-white/20" />}
                             <p className={`text-[10px] ${isConnected ? "text-emerald-400/70" : "text-white/30"}`}>
                               {isConnected ? "Connected via Social Media Hub" : "Not connected — connect in Social Media Hub first"}
                             </p>
@@ -1154,7 +1154,7 @@ const AdCreativeEngine = ({ subTab, onSubTabChange }: { subTab?: string; onSubTa
                     <p className="text-[10px] text-emerald-400/70">Connected to <span className="font-medium text-emerald-400">{(shopifyConnection as any).shop_name || (shopifyConnection as any).shop_domain}</span></p>
                   </div>
                   <Button variant="ghost" size="sm" onClick={handleDisconnectShopifyOAuth} className="text-red-400/50 hover:text-red-400 hover:bg-red-500/10 text-[10px] h-6 px-2">
-                    <WifiOff className="h-3 w-3 mr-1" />Disconnect
+                    <Unplug className="h-3 w-3 mr-1" />Disconnect
                   </Button>
                 </div>
               ) : !showShopifyAutoConnect ? (
@@ -1164,7 +1164,7 @@ const AdCreativeEngine = ({ subTab, onSubTabChange }: { subTab?: string; onSubTa
                   onClick={() => setShowShopifyAutoConnect(true)}
                   className="w-full border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/10 text-xs"
                 >
-                  <Wifi className="h-3.5 w-3.5 mr-1.5" />
+                  <Zap className="h-3.5 w-3.5 mr-1.5" />
                   Auto Connect via Uplyze App
                 </Button>
               ) : (
