@@ -168,6 +168,7 @@ serve(async (req) => {
         }
         const { source_face_url, target_url, target_type } = body;
 
+        // codeplugtech/face-swap — 1.7M+ runs, InsightFace-powered, most battle-tested on Replicate
         const resp = await fetch(`${REPLICATE_BASE}/predictions`, {
           method: "POST",
           headers: {
@@ -176,10 +177,10 @@ serve(async (req) => {
             "Prefer": "respond-async",
           },
           body: JSON.stringify({
-            version: "52edbb2b42beb4e19242f0c9ad5717211a96c63ff1f0b0320caa518b2745f4f7",
+            version: "278a81e7ebb22db98bcba54de985d22cc1abeead2754eb1f2af717247be69b34",
             input: {
-              user_image: source_face_url,
-              template_image: target_url,
+              swap_image: source_face_url,
+              input_image: target_url,
             },
           }),
         });
