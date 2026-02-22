@@ -58,7 +58,9 @@ import StoreManager from "./StoreManager";
 import {
   BrandKitPanel, AICopyToolsPanel, PerformancePredictorPanel,
   AIAudienceBuilder, CompetitorAnalyzer, AIBudgetOptimizer,
-  TemplateLibrary, ROICalculator,
+  TemplateLibrary, ROICalculator, ABTestManager, CopyHistoryPanel,
+  MultiPlatformAdapter, ConversionFunnel, AdFatigueMonitor,
+  SmartScheduler, HeadlineScorer, CreativeBrief,
 } from "./creative/CreativeFeatures";
 import adVariantA from "@/assets/showcase-ad-variant-a.png";
 import adVariantB from "@/assets/showcase-ad-variant-b.png";
@@ -786,66 +788,52 @@ const AdCreativeEngine = ({ subTab, onSubTabChange }: { subTab?: string; onSubTa
         {/* CREATIVES TAB */}
         <TabsContent value="creatives" className="mt-4">
           <div className="grid grid-cols-12 gap-4">
-            <div className="col-span-8">
-              <div className="grid grid-cols-3 gap-4">
+            <div className="col-span-5">
+              <div className="grid grid-cols-3 gap-3">
                 {variants.map((v) => (
                   <motion.div key={v.id} whileHover={{ scale: 1.01 }} onClick={() => setSelectedVariant(v.id)}
                     className={`cursor-pointer rounded-xl overflow-hidden transition-all ${selectedVariant === v.id ? "ring-2 ring-orange-500/40" : "ring-1 ring-white/[0.06]"}`}
                     style={{ background: "hsl(222 47% 8%)" }}>
                     <div className="aspect-square w-full relative overflow-hidden bg-black/30 flex items-center justify-center">
                       <img src={v.imageUrl} alt={v.label} className="w-full h-full object-contain" loading="eager" />
-                      {v.score > 90 && <div className="absolute top-2 right-2 flex items-center gap-1 px-2 py-0.5 rounded-full bg-orange-500/90 text-white text-[10px] font-bold"><Star className="w-2.5 h-2.5" /> AI Pick</div>}
-                      <Badge className={`absolute top-2 left-2 text-[9px] ${v.status === "active" ? "bg-emerald-500/20 text-emerald-400" : v.status === "paused" ? "bg-amber-500/20 text-amber-400" : "bg-white/10 text-white/50"}`}>{v.status}</Badge>
-                      {v.isGenerated && <Badge className="absolute bottom-2 left-2 text-[8px] bg-emerald-500/20 text-emerald-400 border-emerald-500/30"><Sparkles className="w-2 h-2 mr-0.5" /> AI Generated</Badge>}
+                      {v.score > 90 && <div className="absolute top-1.5 right-1.5 flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-orange-500/90 text-white text-[8px] font-bold"><Star className="w-2 h-2" /> AI Pick</div>}
+                      <Badge className={`absolute top-1.5 left-1.5 text-[8px] ${v.status === "active" ? "bg-emerald-500/20 text-emerald-400" : "bg-white/10 text-white/50"}`}>{v.status}</Badge>
                     </div>
-                    <div className="p-3 space-y-2">
+                    <div className="p-2 space-y-1">
                       <div className="flex items-center justify-between">
-                        <span className="text-white/80 text-xs font-semibold">{v.label}</span>
-                        <span className="text-white/30 text-[10px]">Score: <span className={v.score > 85 ? "text-emerald-400" : "text-white/50"}>{v.score}</span></span>
+                        <span className="text-white/80 text-[10px] font-semibold">{v.label}</span>
+                        <span className="text-[9px] text-white/30">{v.score}</span>
                       </div>
-                      <p className="text-white/40 text-[11px] line-clamp-2">{v.headline}</p>
-                      <div className="flex items-center justify-between text-[10px]">
-                        <span className="text-white/25">CTR: {v.ctr}</span>
-                        <div className="flex gap-1">
-                          <button className="p-1 rounded hover:bg-white/[0.05] text-white/25 hover:text-white/60 transition-colors"><Copy className="w-3 h-3" /></button>
-                          <button className="p-1 rounded hover:bg-white/[0.05] text-white/25 hover:text-white/60 transition-colors"><Download className="w-3 h-3" /></button>
-                        </div>
-                      </div>
+                      <p className="text-white/40 text-[9px] line-clamp-1">{v.headline}</p>
                     </div>
                   </motion.div>
                 ))}
               </div>
-            </div>
-            <div className="col-span-4 space-y-4">
-              <Card className="crm-card border-white/[0.04]">
-                <CardHeader className="pb-2"><CardTitle className="text-sm text-white/80 flex items-center gap-2"><Sparkles className="w-3.5 h-3.5 text-orange-400" />{selected.label} Details</CardTitle></CardHeader>
-                <CardContent className="space-y-3">
-                  <div><label className="text-[11px] text-white/35 font-medium">Headline</label><Input value={selected.headline} onChange={(e) => setVariants(prev => prev.map(v => v.id === selectedVariant ? { ...v, headline: e.target.value } : v))} className="mt-1 text-xs crm-input" /></div>
-                  <div><label className="text-[11px] text-white/35 font-medium">Ad Copy</label><Textarea value={selected.copy} onChange={(e) => setVariants(prev => prev.map(v => v.id === selectedVariant ? { ...v, copy: e.target.value } : v))} className="mt-1 text-xs crm-input min-h-[80px]" /></div>
-                  <div><label className="text-[11px] text-white/35 font-medium">CTA Button</label><Input value={selected.cta} onChange={(e) => setVariants(prev => prev.map(v => v.id === selectedVariant ? { ...v, cta: e.target.value } : v))} className="mt-1 text-xs crm-input" /></div>
-                  <div className="pt-2 flex gap-2">
-                    <Button size="sm" variant="outline" className="flex-1 text-[11px] border-white/[0.06] text-white/50 hover:text-white/80"><RefreshCw className="w-3 h-3 mr-1" /> Regenerate</Button>
-                    <Button size="sm" className="flex-1 text-[11px]" style={{ background: "linear-gradient(135deg, hsl(24 95% 53%), hsl(350 80% 55%))" }}><CheckCircle2 className="w-3 h-3 mr-1" /> Apply</Button>
-                  </div>
-                </CardContent>
-              </Card>
-              <PerformancePredictorPanel headline={selected.headline} copy={selected.copy} cta={selected.cta} imageUrl={selected.imageUrl} />
-              <BrandKitPanel />
-              <Card className="crm-card border-white/[0.04]">
-                <CardHeader className="pb-2"><CardTitle className="text-sm text-white/80 flex items-center gap-2"><BarChart3 className="w-3.5 h-3.5 text-blue-400" />Performance</CardTitle></CardHeader>
-                <CardContent className="space-y-3">
-                  {[
-                    { label: "AI Score", value: selected.score, color: selected.score > 85 ? "bg-emerald-500" : "bg-amber-500" },
-                    { label: "Engagement", value: 78, color: "bg-blue-500" },
-                    { label: "Conversion", value: 65, color: "bg-purple-500" },
-                  ].map((bar) => (
-                    <div key={bar.label}>
-                      <div className="flex justify-between text-[11px] mb-1"><span className="text-white/40">{bar.label}</span><span className="text-white/60">{bar.value}%</span></div>
-                      <div className="h-1.5 bg-white/[0.04] rounded-full overflow-hidden"><motion.div initial={{ width: 0 }} animate={{ width: `${bar.value}%` }} transition={{ duration: 0.8, ease: "easeOut" }} className={`h-full rounded-full ${bar.color}`} /></div>
+              <div className="mt-3">
+                <Card className="crm-card border-white/[0.04]">
+                  <CardHeader className="pb-2"><CardTitle className="text-sm text-white/80 flex items-center gap-2"><Sparkles className="w-3.5 h-3.5 text-orange-400" />{selected.label} Details</CardTitle></CardHeader>
+                  <CardContent className="space-y-2">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div><label className="text-[10px] text-white/35">Headline</label><Input value={selected.headline} onChange={(e) => setVariants(prev => prev.map(v => v.id === selectedVariant ? { ...v, headline: e.target.value } : v))} className="mt-0.5 text-xs crm-input h-7" /></div>
+                      <div><label className="text-[10px] text-white/35">CTA</label><Input value={selected.cta} onChange={(e) => setVariants(prev => prev.map(v => v.id === selectedVariant ? { ...v, cta: e.target.value } : v))} className="mt-0.5 text-xs crm-input h-7" /></div>
                     </div>
-                  ))}
-                </CardContent>
-              </Card>
+                    <div><label className="text-[10px] text-white/35">Copy</label><Textarea value={selected.copy} onChange={(e) => setVariants(prev => prev.map(v => v.id === selectedVariant ? { ...v, copy: e.target.value } : v))} className="mt-0.5 text-xs crm-input min-h-[50px]" /></div>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="outline" className="flex-1 text-[10px] h-7 border-white/[0.06]"><RefreshCw className="w-3 h-3 mr-1" />Regenerate</Button>
+                      <Button size="sm" className="flex-1 text-[10px] h-7" style={{ background: "linear-gradient(135deg, hsl(24 95% 53%), hsl(350 80% 55%))" }}><CheckCircle2 className="w-3 h-3 mr-1" />Apply</Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+            <div className="col-span-4 space-y-3">
+              <PerformancePredictorPanel headline={selected.headline} copy={selected.copy} cta={selected.cta} imageUrl={selected.imageUrl} />
+              <ABTestManager variants={variants} onSelectWinner={(id) => setSelectedVariant(id)} />
+              <AdFatigueMonitor variants={variants} />
+            </div>
+            <div className="col-span-3 space-y-3">
+              <BrandKitPanel />
+              <CreativeBrief />
             </div>
           </div>
         </TabsContent>
