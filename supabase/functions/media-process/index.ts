@@ -159,7 +159,7 @@ serve(async (req) => {
         });
       }
 
-      // ========== FACESWAP (Replicate - codeplugtech/face-swap — 1.7M+ runs, proven & photorealistic) ==========
+      // ========== FACESWAP (Replicate - mertguvencli/face-swap-with-indexes — proven, high quality) ==========
       if (processType === "faceswap") {
         if (!REPLICATE_API_KEY) {
           return new Response(JSON.stringify({ error: "REPLICATE_API_KEY not configured" }), {
@@ -168,18 +168,18 @@ serve(async (req) => {
         }
         const { source_face_url, target_url, target_type } = body;
 
-        // Use lucataco/faceswap — official model endpoint (no version needed, always latest)
-        const resp = await fetch(`${REPLICATE_BASE}/models/lucataco/faceswap/predictions`, {
+        // Use predictions endpoint with explicit version hash
+        const resp = await fetch(`${REPLICATE_BASE}/predictions`, {
           method: "POST",
           headers: {
             Authorization: `Token ${REPLICATE_API_KEY}`,
             "Content-Type": "application/json",
-            "Prefer": "wait",
           },
           body: JSON.stringify({
+            version: "518f2116425c40acb5c234031c55daf843c1357eff784370fe9489e57b65c150",
             input: {
-              target_image: target_url,
-              swap_image: source_face_url,
+              source_face_image: source_face_url,
+              destination_image: target_url,
             },
           }),
         });
