@@ -2,21 +2,21 @@ import { motion } from "framer-motion";
 import { X, Check } from "lucide-react";
 
 const withoutItems = [
-  "Manually managing DMs across 10+ platforms",
-  "Guessing which content will convert",
-  "Losing leads because you reply too late",
-  "Paying $500+/mo for 5 different tools",
-  "Scaling feels impossible without a big team",
-  "No AI insights — flying blind on strategy",
+  { text: "Manually managing DMs across ", highlight: "10+ platforms" },
+  { text: "Guessing which content will ", highlight: "convert" },
+  { text: "Losing leads because you ", highlight: "reply too late" },
+  { text: "Paying ", highlight: "$500+/mo", suffix: " for 5 different tools" },
+  { text: "Scaling feels ", highlight: "impossible", suffix: " without a big team" },
+  { text: "No AI insights, ", highlight: "flying blind", suffix: " on strategy" },
 ];
 
 const withItems = [
-  "Full AI Copilot — chat, strategize, and execute from one command center",
-  "AI auto-replies & DM automation across all platforms 24/7",
-  "AI-powered content scoring, viral prediction & script builder",
-  "AI Copilot generates videos, images, voiceovers & ad creatives instantly",
-  "AI lead scoring, deal tracking & revenue forecasting in real time",
-  "One all-in-one AI suite replacing 10+ tools — CRM, scheduling, analytics & more",
+  { text: "Full ", highlight: "AI Copilot", suffix: ", chat, strategize, and execute from one command center" },
+  { text: "", highlight: "AI auto-replies", suffix: " & DM automation across all platforms 24/7" },
+  { text: "", highlight: "AI-powered content scoring", suffix: ", viral prediction & script builder" },
+  { text: "AI Copilot generates ", highlight: "videos, images, voiceovers", suffix: " & ad creatives instantly" },
+  { text: "AI ", highlight: "lead scoring", suffix: ", deal tracking & revenue forecasting in real time" },
+  { text: "One ", highlight: "all-in-one AI suite", suffix: " replacing 10+ tools, CRM, scheduling, analytics & more" },
 ];
 
 const FailIcon = () => (
@@ -111,7 +111,9 @@ const ComparisonSection = () => {
                     <span className="mt-0.5 flex-shrink-0 w-6 h-6 rounded-md flex items-center justify-center" style={{ background: 'rgba(239,68,68,0.12)' }}>
                       <X className="w-4 h-4 text-red-400" />
                     </span>
-                    <span className="text-white/70 text-[15px] leading-relaxed">{item}</span>
+                    <span className="text-white/70 text-[15px] leading-relaxed">
+                      {item.text}<span className="text-red-400 font-medium">{item.highlight}</span>{item.suffix || ""}
+                    </span>
                   </li>
                 ))}
               </ul>
@@ -147,7 +149,9 @@ const ComparisonSection = () => {
                     <span className="mt-0.5 flex-shrink-0 w-6 h-6 rounded-md flex items-center justify-center" style={{ background: 'rgba(16,185,129,0.12)' }}>
                       <Check className="w-4 h-4 text-emerald-400" />
                     </span>
-                    <span className="text-white/70 text-[15px] leading-relaxed">{item}</span>
+                    <span className="text-white/70 text-[15px] leading-relaxed">
+                      {item.text}<span className="text-emerald-400 font-medium">{item.highlight}</span>{item.suffix || ""}
+                    </span>
                   </li>
                 ))}
               </ul>
