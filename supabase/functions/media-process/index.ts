@@ -176,7 +176,7 @@ serve(async (req) => {
             "Prefer": "respond-async",
           },
           body: JSON.stringify({
-            version: "lucataco/modelscope-facefusion",
+            version: "52edbb2b42beb4e19242f0c9ad5717211a96c63ff1f0b0320caa518b2745f4f7",
             input: {
               user_image: source_face_url,
               template_image: target_url,
