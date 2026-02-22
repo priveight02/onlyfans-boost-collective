@@ -1073,7 +1073,6 @@ export const CreativeBrief = () => {
     toast.success("Brief saved!");
   };
 
-  // Auto-save on change after initial load
   useEffect(() => {
     if (!loaded) return;
     const t = setTimeout(() => { saveFeatureData("creative_brief", brief); }, 2000);
@@ -1095,6 +1094,629 @@ export const CreativeBrief = () => {
         <div><label className="text-[9px] text-white/30">Key Message</label><Input value={brief.keyMessage} onChange={e => setBrief(p => ({ ...p, keyMessage: e.target.value }))} className="text-xs crm-input h-6 mt-0.5" placeholder="Core message..." /></div>
         <div><label className="text-[9px] text-white/30">Tone & Style</label><Input value={brief.tone} onChange={e => setBrief(p => ({ ...p, tone: e.target.value }))} className="text-xs crm-input h-6 mt-0.5" placeholder="Bold, premium, urgent..." /></div>
         <div><label className="text-[9px] text-white/30">Notes</label><Textarea value={brief.notes} onChange={e => setBrief(p => ({ ...p, notes: e.target.value }))} className="text-xs crm-input min-h-[40px] mt-0.5" placeholder="Additional notes..." /></div>
+      </CardContent>
+    </Card>
+  );
+};
+
+// ═══════════════════════════════════════════════════
+// NEW 19. COMPETITOR AD TRACKER
+// ═══════════════════════════════════════════════════
+export const CompetitorAdTracker = ({ productName }: { productName: string }) => {
+  const [analyzing, setAnalyzing] = useState(false);
+  const [competitors, setCompetitors] = useState<any[]>([]);
+
+  useEffect(() => { loadFeatureData("competitor_ads").then(d => { if (d?.competitors) setCompetitors(d.competitors); }); }, []);
+
+  const analyzeCompetitors = async () => {
+    setAnalyzing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("agency-copilot", {
+        body: { messages: [{ role: "user", content: `Analyze competitor ad strategies for: ${productName}. Return JSON array of 4 competitors with: "name", "estimated_spend" (string like "$5K-10K/mo"), "top_platform", "ad_frequency" (string), "creative_style" (string), "messaging_angle" (string), "weakness" (string you can exploit), "threat_level" (1-10). Return ONLY valid JSON array.` }] },
+      });
+      if (error) throw error;
+      const text = typeof data === "string" ? data : data?.text || data?.choices?.[0]?.message?.content || "";
+      const jsonMatch = text.match(/\[[\s\S]*\]/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        setCompetitors(parsed);
+        await saveFeatureData("competitor_ads", { competitors: parsed });
+        toast.success("Competitor ads analyzed & saved!");
+      }
+    } catch (e: any) { toast.error(e.message); }
+    finally { setAnalyzing(false); }
+  };
+
+  return (
+    <Card className="crm-card border-white/[0.04]">
+      <CardHeader className="pb-1"><CardTitle className="text-sm text-white/80 flex items-center gap-2"><Eye className="w-3.5 h-3.5 text-red-400" />Competitor Ad Tracker</CardTitle></CardHeader>
+      <CardContent className="space-y-2">
+        <Button onClick={analyzeCompetitors} disabled={analyzing} size="sm" className="w-full text-xs h-7" style={{ background: "linear-gradient(135deg, hsl(0 70% 45%), hsl(340 70% 50%))" }}>
+          {analyzing ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Search className="h-3 w-3 mr-1" />}Track Competitors
+        </Button>
+        {competitors.length > 0 && (
+          <div className="space-y-1.5 max-h-[200px] overflow-auto">
+            {competitors.map((c, i) => (
+              <div key={i} className="p-2 rounded-lg bg-white/[0.02] border border-white/[0.04]">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[10px] text-white/70 font-semibold">{c.name}</span>
+                  <div className="flex items-center gap-1">
+                    <span className="text-[8px] text-white/30">{c.estimated_spend}</span>
+                    <div className={`w-2 h-2 rounded-full ${c.threat_level > 7 ? "bg-red-500" : c.threat_level > 4 ? "bg-amber-500" : "bg-emerald-500"}`} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-1">
+                  <span className="text-[8px] text-white/30">Platform: <span className="text-white/50">{c.top_platform}</span></span>
+                  <span className="text-[8px] text-white/30">Style: <span className="text-white/50">{c.creative_style}</span></span>
+                </div>
+                <p className="text-[8px] text-emerald-400/60 mt-0.5">💡 {c.weakness}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
+// ═══════════════════════════════════════════════════
+// NEW 20. ENGAGEMENT BOOSTER
+// ═══════════════════════════════════════════════════
+export const EngagementBooster = ({ copy, headline }: { copy: string; headline: string }) => {
+  const [boosting, setBoosting] = useState(false);
+  const [suggestions, setSuggestions] = useState<any>(null);
+
+  const boost = async () => {
+    setBoosting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("agency-copilot", {
+        body: { messages: [{ role: "user", content: `Analyze and boost engagement for this ad. Headline: "${headline}", Copy: "${copy}". Return JSON: "current_engagement_score" (1-100), "improved_headline" (string), "improved_copy" (string), "emotional_hooks" (3 strings), "power_words_to_add" (5 strings), "questions_to_add" (2 strings), "scarcity_elements" (2 strings), "social_proof_ideas" (2 strings), "projected_engagement_boost" (percentage string). Return ONLY valid JSON.` }] },
+      });
+      if (error) throw error;
+      const text = typeof data === "string" ? data : data?.text || data?.choices?.[0]?.message?.content || "";
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        setSuggestions(parsed);
+        await saveFeatureData("engagement_boost", parsed);
+        toast.success("Engagement boost ready!");
+      }
+    } catch (e: any) { toast.error(e.message); }
+    finally { setBoosting(false); }
+  };
+
+  return (
+    <Card className="crm-card border-white/[0.04]">
+      <CardHeader className="pb-1"><CardTitle className="text-sm text-white/80 flex items-center gap-2"><TrendingUp className="w-3.5 h-3.5 text-emerald-400" />Engagement Booster</CardTitle></CardHeader>
+      <CardContent className="space-y-2">
+        <Button onClick={boost} disabled={boosting} size="sm" className="w-full text-xs h-7" style={{ background: "linear-gradient(135deg, hsl(150 60% 40%), hsl(180 60% 45%))" }}>
+          {boosting ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <TrendingUp className="h-3 w-3 mr-1" />}Boost Engagement
+        </Button>
+        {suggestions && (
+          <div className="space-y-2 max-h-[220px] overflow-auto">
+            <div className="flex items-center justify-between p-1.5 rounded bg-emerald-500/5 border border-emerald-500/10">
+              <span className="text-[9px] text-white/40">Projected Boost</span>
+              <span className="text-sm font-bold text-emerald-400">{suggestions.projected_engagement_boost}</span>
+            </div>
+            {suggestions.improved_headline && (
+              <div className="p-1.5 rounded bg-white/[0.03]">
+                <span className="text-[8px] text-amber-400/70 font-medium">Better Headline</span>
+                <p className="text-[10px] text-white/70 font-semibold mt-0.5">{suggestions.improved_headline}</p>
+              </div>
+            )}
+            {suggestions.power_words_to_add && (
+              <div>
+                <span className="text-[8px] text-purple-400/70 font-medium">Power Words</span>
+                <div className="flex flex-wrap gap-0.5 mt-0.5">
+                  {suggestions.power_words_to_add.map((w: string, i: number) => <span key={i} className="px-1.5 py-0.5 rounded bg-purple-500/10 text-[8px] text-purple-400">{w}</span>)}
+                </div>
+              </div>
+            )}
+            {suggestions.emotional_hooks && (
+              <div>
+                <span className="text-[8px] text-rose-400/70 font-medium">Emotional Hooks</span>
+                {suggestions.emotional_hooks.map((h: string, i: number) => <p key={i} className="text-[8px] text-white/40">• {h}</p>)}
+              </div>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
+// ═══════════════════════════════════════════════════
+// NEW 21. AD SPEND FORECASTER
+// ═══════════════════════════════════════════════════
+export const AdSpendForecaster = ({ budget }: { budget: number }) => {
+  const [forecasting, setForecasting] = useState(false);
+  const [forecast, setForecast] = useState<any>(null);
+
+  useEffect(() => { loadFeatureData("spend_forecast").then(d => { if (d) setForecast(d); }); }, []);
+
+  const runForecast = async () => {
+    setForecasting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("agency-copilot", {
+        body: { messages: [{ role: "user", content: `Forecast ad spend efficiency for budget $${budget}. Return JSON: "monthly_projections" (array of 3 months with "month", "spend", "estimated_revenue", "roas"), "break_even_day" (number), "best_allocation" (object with platform names as keys and percentage as values), "risk_factors" (3 strings), "optimization_opportunities" (3 strings), "projected_roas" (number). Return ONLY valid JSON.` }] },
+      });
+      if (error) throw error;
+      const text = typeof data === "string" ? data : data?.text || data?.choices?.[0]?.message?.content || "";
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        setForecast(parsed);
+        await saveFeatureData("spend_forecast", parsed);
+        toast.success("Forecast generated & saved!");
+      }
+    } catch (e: any) { toast.error(e.message); }
+    finally { setForecasting(false); }
+  };
+
+  return (
+    <Card className="crm-card border-white/[0.04]">
+      <CardHeader className="pb-1"><CardTitle className="text-sm text-white/80 flex items-center gap-2"><LineChart className="w-3.5 h-3.5 text-blue-400" />Spend Forecaster</CardTitle></CardHeader>
+      <CardContent className="space-y-2">
+        <Button onClick={runForecast} disabled={forecasting} size="sm" className="w-full text-xs h-7" style={{ background: "linear-gradient(135deg, hsl(220 70% 45%), hsl(250 70% 50%))" }}>
+          {forecasting ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <LineChart className="h-3 w-3 mr-1" />}Forecast
+        </Button>
+        {forecast && (
+          <div className="space-y-1.5">
+            <div className="grid grid-cols-2 gap-1.5">
+              <div className="p-1.5 rounded bg-white/[0.03] text-center"><div className="text-sm font-bold text-blue-400">{forecast.projected_roas}x</div><div className="text-[7px] text-white/20">ROAS</div></div>
+              <div className="p-1.5 rounded bg-white/[0.03] text-center"><div className="text-sm font-bold text-emerald-400">Day {forecast.break_even_day}</div><div className="text-[7px] text-white/20">Break Even</div></div>
+            </div>
+            {forecast.monthly_projections && (
+              <div className="space-y-1">
+                {forecast.monthly_projections.map((m: any, i: number) => (
+                  <div key={i} className="flex items-center justify-between p-1 rounded bg-white/[0.02] text-[8px]">
+                    <span className="text-white/40">{m.month}</span>
+                    <span className="text-white/50">${m.spend}</span>
+                    <span className="text-emerald-400">${m.estimated_revenue}</span>
+                    <span className="text-blue-400">{m.roas}x</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
+// ═══════════════════════════════════════════════════
+// NEW 22. LANDING PAGE OPTIMIZER
+// ═══════════════════════════════════════════════════
+export const LandingPageOptimizer = ({ productName, cta }: { productName: string; cta: string }) => {
+  const [analyzing, setAnalyzing] = useState(false);
+  const [optimizations, setOptimizations] = useState<any>(null);
+  const [landingUrl, setLandingUrl] = useState("");
+
+  useEffect(() => { loadFeatureData("landing_optimizer").then(d => { if (d) { setOptimizations(d.optimizations); setLandingUrl(d.url || ""); } }); }, []);
+
+  const optimize = async () => {
+    setAnalyzing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("agency-copilot", {
+        body: { messages: [{ role: "user", content: `Optimize a landing page for: ${productName}, CTA: "${cta}", URL: "${landingUrl || 'generic'}". Return JSON: "headline_suggestions" (3 strings), "above_fold_elements" (5 strings ordered by importance), "trust_signals" (4 strings), "page_speed_tips" (3 strings), "mobile_optimizations" (3 strings), "conversion_score" (1-100), "estimated_conversion_rate" (string percentage). Return ONLY valid JSON.` }] },
+      });
+      if (error) throw error;
+      const text = typeof data === "string" ? data : data?.text || data?.choices?.[0]?.message?.content || "";
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        setOptimizations(parsed);
+        await saveFeatureData("landing_optimizer", { optimizations: parsed, url: landingUrl });
+        toast.success("Landing page optimized!");
+      }
+    } catch (e: any) { toast.error(e.message); }
+    finally { setAnalyzing(false); }
+  };
+
+  return (
+    <Card className="crm-card border-white/[0.04]">
+      <CardHeader className="pb-1"><CardTitle className="text-sm text-white/80 flex items-center gap-2"><Globe className="w-3.5 h-3.5 text-teal-400" />Landing Page Optimizer</CardTitle></CardHeader>
+      <CardContent className="space-y-2">
+        <Input value={landingUrl} onChange={e => setLandingUrl(e.target.value)} className="text-xs crm-input h-7" placeholder="https://your-landing-page.com" />
+        <Button onClick={optimize} disabled={analyzing} size="sm" className="w-full text-xs h-7" style={{ background: "linear-gradient(135deg, hsl(170 60% 40%), hsl(190 60% 45%))" }}>
+          {analyzing ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Wand2 className="h-3 w-3 mr-1" />}Optimize
+        </Button>
+        {optimizations && (
+          <div className="space-y-1.5 max-h-[200px] overflow-auto">
+            <div className="flex items-center justify-between p-1.5 rounded bg-teal-500/5 border border-teal-500/10">
+              <span className="text-[9px] text-white/40">Conversion Score</span>
+              <span className="text-sm font-bold text-teal-400">{optimizations.conversion_score}/100</span>
+            </div>
+            {optimizations.above_fold_elements && (
+              <div>
+                <span className="text-[8px] text-amber-400/70 font-medium">Above Fold Priority</span>
+                {optimizations.above_fold_elements.slice(0, 4).map((e: string, i: number) => <p key={i} className="text-[8px] text-white/40">{i + 1}. {e}</p>)}
+              </div>
+            )}
+            {optimizations.trust_signals && (
+              <div>
+                <span className="text-[8px] text-emerald-400/70 font-medium">Trust Signals</span>
+                {optimizations.trust_signals.slice(0, 3).map((s: string, i: number) => <p key={i} className="text-[8px] text-white/40">✓ {s}</p>)}
+              </div>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
+// ═══════════════════════════════════════════════════
+// NEW 23. AD QUALITY CHECKER
+// ═══════════════════════════════════════════════════
+export const AdQualityChecker = ({ headline, copy, cta }: { headline: string; copy: string; cta: string }) => {
+  const [checking, setChecking] = useState(false);
+  const [quality, setQuality] = useState<any>(null);
+
+  const checkQuality = async () => {
+    setChecking(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("agency-copilot", {
+        body: { messages: [{ role: "user", content: `Run a quality audit on this ad. Headline: "${headline}", Copy: "${copy}", CTA: "${cta}". Return JSON: "overall_grade" (A-F), "scores" (object with "clarity" 1-10, "persuasion" 1-10, "relevance" 1-10, "grammar" 1-10, "emotional_appeal" 1-10, "uniqueness" 1-10), "policy_risks" (array of strings, things that might get flagged by ad platforms), "improvements" (4 specific actionable strings), "platform_compatibility" (object with "facebook", "google", "tiktok" each being "approved"/"warning"/"rejected"). Return ONLY valid JSON.` }] },
+      });
+      if (error) throw error;
+      const text = typeof data === "string" ? data : data?.text || data?.choices?.[0]?.message?.content || "";
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (jsonMatch) { setQuality(JSON.parse(jsonMatch[0])); toast.success("Quality check complete!"); }
+    } catch (e: any) { toast.error(e.message); }
+    finally { setChecking(false); }
+  };
+
+  const gradeColor = (g: string) => g === "A" ? "text-emerald-400" : g === "B" ? "text-cyan-400" : g === "C" ? "text-amber-400" : "text-red-400";
+
+  return (
+    <Card className="crm-card border-white/[0.04]">
+      <CardHeader className="pb-1"><CardTitle className="text-sm text-white/80 flex items-center gap-2"><ShieldCheck className="w-3.5 h-3.5 text-cyan-400" />Ad Quality Check</CardTitle></CardHeader>
+      <CardContent className="space-y-2">
+        <Button onClick={checkQuality} disabled={checking} size="sm" className="w-full text-xs h-7" style={{ background: "linear-gradient(135deg, hsl(190 60% 40%), hsl(210 60% 50%))" }}>
+          {checking ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <ShieldCheck className="h-3 w-3 mr-1" />}Run Quality Check
+        </Button>
+        {quality && (
+          <div className="space-y-2">
+            <div className="flex items-center justify-center p-2 rounded bg-white/[0.03]">
+              <span className={`text-3xl font-black ${gradeColor(quality.overall_grade)}`}>{quality.overall_grade}</span>
+            </div>
+            {quality.scores && (
+              <div className="grid grid-cols-3 gap-1">
+                {Object.entries(quality.scores).map(([k, v]) => (
+                  <div key={k} className="p-1 rounded bg-white/[0.02] text-center">
+                    <div className="text-[10px] font-bold text-white/70">{v as number}</div>
+                    <div className="text-[7px] text-white/25 capitalize">{k.replace("_", " ")}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {quality.platform_compatibility && (
+              <div className="flex gap-1.5">
+                {Object.entries(quality.platform_compatibility).map(([p, status]) => (
+                  <div key={p} className={`flex-1 p-1 rounded text-center text-[8px] border ${status === "approved" ? "border-emerald-500/20 text-emerald-400 bg-emerald-500/5" : status === "warning" ? "border-amber-500/20 text-amber-400 bg-amber-500/5" : "border-red-500/20 text-red-400 bg-red-500/5"}`}>
+                    <div className="capitalize font-medium">{p}</div>
+                    <div className="text-[7px] capitalize">{status as string}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {quality.improvements && (
+              <div>
+                <span className="text-[8px] text-cyan-400/70 font-medium">Improvements</span>
+                {quality.improvements.slice(0, 3).map((s: string, i: number) => <p key={i} className="text-[8px] text-white/40">→ {s}</p>)}
+              </div>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
+// ═══════════════════════════════════════════════════
+// NEW 24. SEASONAL TRENDS
+// ═══════════════════════════════════════════════════
+export const SeasonalTrends = ({ productName }: { productName: string }) => {
+  const [analyzing, setAnalyzing] = useState(false);
+  const [trends, setTrends] = useState<any>(null);
+
+  useEffect(() => { loadFeatureData("seasonal_trends").then(d => { if (d) setTrends(d); }); }, []);
+
+  const analyzeTrends = async () => {
+    setAnalyzing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("agency-copilot", {
+        body: { messages: [{ role: "user", content: `Analyze seasonal advertising trends for: ${productName}. Current month: February 2026. Return JSON: "current_season_score" (1-100), "upcoming_opportunities" (array of 3 objects with "event", "date", "relevance_score" 1-100, "suggested_angle"), "best_months" (array of 3 month names), "worst_months" (array of 2 month names), "trending_themes" (5 strings), "action_items" (3 strings for right now). Return ONLY valid JSON.` }] },
+      });
+      if (error) throw error;
+      const text = typeof data === "string" ? data : data?.text || data?.choices?.[0]?.message?.content || "";
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        setTrends(parsed);
+        await saveFeatureData("seasonal_trends", parsed);
+        toast.success("Seasonal trends analyzed!");
+      }
+    } catch (e: any) { toast.error(e.message); }
+    finally { setAnalyzing(false); }
+  };
+
+  return (
+    <Card className="crm-card border-white/[0.04]">
+      <CardHeader className="pb-1"><CardTitle className="text-sm text-white/80 flex items-center gap-2"><TrendingUp className="w-3.5 h-3.5 text-amber-400" />Seasonal Trends</CardTitle></CardHeader>
+      <CardContent className="space-y-2">
+        <Button onClick={analyzeTrends} disabled={analyzing} size="sm" className="w-full text-xs h-7" style={{ background: "linear-gradient(135deg, hsl(40 80% 45%), hsl(30 80% 50%))" }}>
+          {analyzing ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <TrendingUp className="h-3 w-3 mr-1" />}Analyze Trends
+        </Button>
+        {trends && (
+          <div className="space-y-1.5 max-h-[200px] overflow-auto">
+            <div className="p-1.5 rounded bg-amber-500/5 border border-amber-500/10 flex items-center justify-between">
+              <span className="text-[9px] text-white/40">Season Score</span>
+              <span className="text-sm font-bold text-amber-400">{trends.current_season_score}/100</span>
+            </div>
+            {trends.upcoming_opportunities && (
+              <div>
+                <span className="text-[8px] text-emerald-400/70 font-medium">Upcoming</span>
+                {trends.upcoming_opportunities.map((o: any, i: number) => (
+                  <div key={i} className="flex items-center justify-between text-[8px] text-white/40 py-0.5">
+                    <span>📅 {o.event}</span>
+                    <span className="text-emerald-400/60">{o.relevance_score}%</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {trends.trending_themes && (
+              <div className="flex flex-wrap gap-0.5">
+                {trends.trending_themes.map((t: string, i: number) => <span key={i} className="px-1.5 py-0.5 rounded bg-amber-500/10 text-[7px] text-amber-400">{t}</span>)}
+              </div>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
+// ═══════════════════════════════════════════════════
+// NEW 25. RETARGETING STRATEGY
+// ═══════════════════════════════════════════════════
+export const RetargetingStrategy = ({ productName }: { productName: string }) => {
+  const [generating, setGenerating] = useState(false);
+  const [strategy, setStrategy] = useState<any>(null);
+
+  useEffect(() => { loadFeatureData("retargeting").then(d => { if (d) setStrategy(d); }); }, []);
+
+  const generateStrategy = async () => {
+    setGenerating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("agency-copilot", {
+        body: { messages: [{ role: "user", content: `Create a retargeting strategy for: ${productName}. Return JSON: "audiences" (array of 4 objects with "name", "trigger", "delay_days" number, "message_angle", "expected_conversion" percentage string), "email_sequence" (array of 3 objects with "day" number, "subject", "angle"), "pixel_events" (4 strings to track), "lookalike_suggestions" (3 strings). Return ONLY valid JSON.` }] },
+      });
+      if (error) throw error;
+      const text = typeof data === "string" ? data : data?.text || data?.choices?.[0]?.message?.content || "";
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        setStrategy(parsed);
+        await saveFeatureData("retargeting", parsed);
+        toast.success("Retargeting strategy saved!");
+      }
+    } catch (e: any) { toast.error(e.message); }
+    finally { setGenerating(false); }
+  };
+
+  return (
+    <Card className="crm-card border-white/[0.04]">
+      <CardHeader className="pb-1"><CardTitle className="text-sm text-white/80 flex items-center gap-2"><Crosshair className="w-3.5 h-3.5 text-violet-400" />Retargeting Strategy</CardTitle></CardHeader>
+      <CardContent className="space-y-2">
+        <Button onClick={generateStrategy} disabled={generating} size="sm" className="w-full text-xs h-7" style={{ background: "linear-gradient(135deg, hsl(270 60% 50%), hsl(290 60% 55%))" }}>
+          {generating ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Crosshair className="h-3 w-3 mr-1" />}Generate Strategy
+        </Button>
+        {strategy && (
+          <div className="space-y-1.5 max-h-[220px] overflow-auto">
+            {strategy.audiences && strategy.audiences.map((a: any, i: number) => (
+              <div key={i} className="p-1.5 rounded bg-white/[0.02] border border-white/[0.04]">
+                <div className="flex items-center justify-between">
+                  <span className="text-[9px] text-white/60 font-medium">{a.name}</span>
+                  <span className="text-[8px] text-violet-400">{a.expected_conversion}</span>
+                </div>
+                <p className="text-[8px] text-white/30 mt-0.5">{a.trigger} → {a.delay_days}d delay</p>
+              </div>
+            ))}
+            {strategy.pixel_events && (
+              <div>
+                <span className="text-[8px] text-sky-400/70 font-medium">Track Events</span>
+                <div className="flex flex-wrap gap-0.5 mt-0.5">
+                  {strategy.pixel_events.map((e: string, i: number) => <span key={i} className="px-1.5 py-0.5 rounded bg-sky-500/10 text-[7px] text-sky-400">{e}</span>)}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
+// ═══════════════════════════════════════════════════
+// NEW 26. CREATIVE VARIATION GENERATOR
+// ═══════════════════════════════════════════════════
+export const CreativeVariationGen = ({ headline, copy, cta }: { headline: string; copy: string; cta: string }) => {
+  const [generating, setGenerating] = useState(false);
+  const [variations, setVariations] = useState<any[]>([]);
+
+  const generate = async () => {
+    setGenerating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("agency-copilot", {
+        body: { messages: [{ role: "user", content: `Generate 6 creative variations of this ad. Original Headline: "${headline}", Copy: "${copy}", CTA: "${cta}". Each variation should have a different angle (emotional, logical, urgency, curiosity, social proof, humor). Return JSON array with: "angle", "headline", "copy", "cta", "best_for" (platform name). Return ONLY valid JSON array.` }] },
+      });
+      if (error) throw error;
+      const text = typeof data === "string" ? data : data?.text || data?.choices?.[0]?.message?.content || "";
+      const jsonMatch = text.match(/\[[\s\S]*\]/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        setVariations(parsed);
+        await saveFeatureData("creative_variations", { variations: parsed });
+        toast.success("Variations generated!");
+      }
+    } catch (e: any) { toast.error(e.message); }
+    finally { setGenerating(false); }
+  };
+
+  return (
+    <Card className="crm-card border-white/[0.04]">
+      <CardHeader className="pb-1"><CardTitle className="text-sm text-white/80 flex items-center gap-2"><Layers className="w-3.5 h-3.5 text-cyan-400" />Variation Generator</CardTitle></CardHeader>
+      <CardContent className="space-y-2">
+        <Button onClick={generate} disabled={generating} size="sm" className="w-full text-xs h-7" style={{ background: "linear-gradient(135deg, hsl(190 70% 40%), hsl(210 70% 50%))" }}>
+          {generating ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Layers className="h-3 w-3 mr-1" />}Generate 6 Variations
+        </Button>
+        {variations.length > 0 && (
+          <div className="grid grid-cols-2 gap-1.5 max-h-[220px] overflow-auto">
+            {variations.map((v, i) => (
+              <div key={i} className="p-2 rounded-lg bg-white/[0.02] border border-white/[0.04] hover:border-cyan-500/20 cursor-pointer transition-colors" onClick={() => { navigator.clipboard.writeText(`${v.headline}\n${v.copy}\n${v.cta}`); toast.success("Variation copied!"); }}>
+                <Badge className="text-[7px] bg-cyan-500/10 text-cyan-400 mb-1">{v.angle}</Badge>
+                <p className="text-[9px] text-white/70 font-semibold line-clamp-1">{v.headline}</p>
+                <p className="text-[8px] text-white/40 line-clamp-2 mt-0.5">{v.copy}</p>
+                <div className="flex items-center justify-between mt-1">
+                  <span className="text-[7px] px-1 py-0.5 rounded bg-white/[0.04] text-white/30">{v.cta}</span>
+                  <span className="text-[7px] text-white/20">{v.best_for}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
+// ═══════════════════════════════════════════════════
+// NEW 27. AUDIENCE SENTIMENT ANALYZER
+// ═══════════════════════════════════════════════════
+export const AudienceSentiment = ({ targetAudience, productName }: { targetAudience: string; productName: string }) => {
+  const [analyzing, setAnalyzing] = useState(false);
+  const [sentiment, setSentiment] = useState<any>(null);
+
+  useEffect(() => { loadFeatureData("audience_sentiment").then(d => { if (d) setSentiment(d); }); }, []);
+
+  const analyze = async () => {
+    setAnalyzing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("agency-copilot", {
+        body: { messages: [{ role: "user", content: `Analyze audience sentiment for: ${productName}, targeting: ${targetAudience}. Return JSON: "overall_sentiment" ("positive"/"neutral"/"negative"), "sentiment_score" (1-100), "pain_points" (4 strings), "desires" (4 strings), "objections" (3 strings with counters), "messaging_do" (3 strings), "messaging_dont" (3 strings), "emotional_triggers" (4 strings). Return ONLY valid JSON.` }] },
+      });
+      if (error) throw error;
+      const text = typeof data === "string" ? data : data?.text || data?.choices?.[0]?.message?.content || "";
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        setSentiment(parsed);
+        await saveFeatureData("audience_sentiment", parsed);
+        toast.success("Sentiment analysis saved!");
+      }
+    } catch (e: any) { toast.error(e.message); }
+    finally { setAnalyzing(false); }
+  };
+
+  const sentimentColor = sentiment?.overall_sentiment === "positive" ? "text-emerald-400" : sentiment?.overall_sentiment === "negative" ? "text-red-400" : "text-amber-400";
+
+  return (
+    <Card className="crm-card border-white/[0.04]">
+      <CardHeader className="pb-1"><CardTitle className="text-sm text-white/80 flex items-center gap-2"><MessageSquare className="w-3.5 h-3.5 text-pink-400" />Audience Sentiment</CardTitle></CardHeader>
+      <CardContent className="space-y-2">
+        <Button onClick={analyze} disabled={analyzing} size="sm" className="w-full text-xs h-7" style={{ background: "linear-gradient(135deg, hsl(330 60% 45%), hsl(350 60% 50%))" }}>
+          {analyzing ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <MessageSquare className="h-3 w-3 mr-1" />}Analyze Sentiment
+        </Button>
+        {sentiment && (
+          <div className="space-y-1.5 max-h-[200px] overflow-auto">
+            <div className="flex items-center justify-between p-1.5 rounded bg-white/[0.03]">
+              <span className={`text-sm font-bold capitalize ${sentimentColor}`}>{sentiment.overall_sentiment}</span>
+              <span className="text-sm font-bold text-white/50">{sentiment.sentiment_score}/100</span>
+            </div>
+            {sentiment.pain_points && (
+              <div>
+                <span className="text-[8px] text-red-400/70 font-medium">Pain Points</span>
+                {sentiment.pain_points.slice(0, 3).map((p: string, i: number) => <p key={i} className="text-[8px] text-white/40">😤 {p}</p>)}
+              </div>
+            )}
+            {sentiment.desires && (
+              <div>
+                <span className="text-[8px] text-emerald-400/70 font-medium">Desires</span>
+                {sentiment.desires.slice(0, 3).map((d: string, i: number) => <p key={i} className="text-[8px] text-white/40">✨ {d}</p>)}
+              </div>
+            )}
+            {sentiment.emotional_triggers && (
+              <div className="flex flex-wrap gap-0.5">
+                {sentiment.emotional_triggers.map((t: string, i: number) => <span key={i} className="px-1.5 py-0.5 rounded bg-pink-500/10 text-[7px] text-pink-400">{t}</span>)}
+              </div>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
+// ═══════════════════════════════════════════════════
+// NEW 28. AD COMPLIANCE CHECKER
+// ═══════════════════════════════════════════════════
+export const AdComplianceChecker = ({ headline, copy }: { headline: string; copy: string }) => {
+  const [checking, setChecking] = useState(false);
+  const [compliance, setCompliance] = useState<any>(null);
+
+  const checkCompliance = async () => {
+    setChecking(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("agency-copilot", {
+        body: { messages: [{ role: "user", content: `Check this ad for platform policy compliance. Headline: "${headline}", Copy: "${copy}". Return JSON: "overall_status" ("pass"/"warning"/"fail"), "facebook_status" ("pass"/"warning"/"fail"), "google_status" ("pass"/"warning"/"fail"), "tiktok_status" ("pass"/"warning"/"fail"), "issues" (array of objects with "severity" "low"/"medium"/"high", "platform", "issue", "fix"), "safe_words_used" (number), "flagged_words" (array of strings). Return ONLY valid JSON.` }] },
+      });
+      if (error) throw error;
+      const text = typeof data === "string" ? data : data?.text || data?.choices?.[0]?.message?.content || "";
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (jsonMatch) { setCompliance(JSON.parse(jsonMatch[0])); toast.success("Compliance check done!"); }
+    } catch (e: any) { toast.error(e.message); }
+    finally { setChecking(false); }
+  };
+
+  const statusIcon = (s: string) => s === "pass" ? "✅" : s === "warning" ? "⚠️" : "❌";
+
+  return (
+    <Card className="crm-card border-white/[0.04]">
+      <CardHeader className="pb-1"><CardTitle className="text-sm text-white/80 flex items-center gap-2"><Shield className="w-3.5 h-3.5 text-green-400" />Compliance Check</CardTitle></CardHeader>
+      <CardContent className="space-y-2">
+        <Button onClick={checkCompliance} disabled={checking} size="sm" className="w-full text-xs h-7" style={{ background: "linear-gradient(135deg, hsl(140 50% 40%), hsl(160 50% 45%))" }}>
+          {checking ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Shield className="h-3 w-3 mr-1" />}Check Compliance
+        </Button>
+        {compliance && (
+          <div className="space-y-1.5">
+            <div className="grid grid-cols-3 gap-1">
+              {[["Facebook", compliance.facebook_status], ["Google", compliance.google_status], ["TikTok", compliance.tiktok_status]].map(([p, s]) => (
+                <div key={p as string} className={`p-1.5 rounded text-center border ${s === "pass" ? "border-emerald-500/20 bg-emerald-500/5" : s === "warning" ? "border-amber-500/20 bg-amber-500/5" : "border-red-500/20 bg-red-500/5"}`}>
+                  <div className="text-[10px]">{statusIcon(s as string)}</div>
+                  <div className="text-[8px] text-white/50">{p as string}</div>
+                </div>
+              ))}
+            </div>
+            {compliance.issues && compliance.issues.length > 0 && (
+              <div>
+                {compliance.issues.slice(0, 3).map((issue: any, i: number) => (
+                  <div key={i} className="flex items-start gap-1 text-[8px] text-white/40 py-0.5">
+                    <span className={issue.severity === "high" ? "text-red-400" : "text-amber-400"}>•</span>
+                    <span>{issue.issue} — <span className="text-emerald-400/60">{issue.fix}</span></span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {compliance.flagged_words && compliance.flagged_words.length > 0 && (
+              <div className="flex flex-wrap gap-0.5">
+                {compliance.flagged_words.map((w: string, i: number) => <span key={i} className="px-1 py-0.5 rounded bg-red-500/10 text-[7px] text-red-400 line-through">{w}</span>)}
+              </div>
+            )}
+          </div>
+        )}
       </CardContent>
     </Card>
   );
