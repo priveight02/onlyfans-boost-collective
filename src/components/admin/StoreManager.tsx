@@ -153,6 +153,7 @@ const StoreManager = ({ connectedPlatforms, integrationKeys, generatedCreatives 
     } catch (err: any) {
       console.error("Shopify OAuth error:", err);
       toast.error(err.message || "Failed to start Shopify OAuth");
+    } finally {
       setShopifyOAuthLoading(false);
     }
   };
