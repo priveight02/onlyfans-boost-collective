@@ -376,8 +376,8 @@ const CRM = () => {
           backdropFilter: "blur(24px) saturate(1.4)",
           borderBottom: "1px solid hsl(217 91% 60% / 0.04)",
         }}>
-          <div className="flex items-center gap-3">
-            <h1 className="text-sm font-semibold text-white/90 tracking-tight">
+          <div className="flex items-center gap-3 h-10">
+            <h1 className="text-sm font-semibold text-white/90 tracking-tight leading-10">
               {activeItem?.label || "Dashboard"}
             </h1>
           </div>
