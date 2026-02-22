@@ -148,29 +148,8 @@ const StoreManager = ({ connectedPlatforms, integrationKeys, generatedCreatives 
       if (data?.error) throw new Error(data.error);
       if (!data?.auth_url) throw new Error("No auth URL returned");
 
-      // Open Shopify OAuth in new window
-      window.open(data.auth_url, "_blank", "width=800,height=700,scrollbars=yes");
-      toast.success("Shopify authorization window opened. Complete the login there.");
-
-      // Poll for connection
-      const pollInterval = setInterval(async () => {
-        const { data: conn } = await supabase
-          .from("shopify_store_connections")
-          .select("*")
-          .eq("user_id", user.id)
-          .eq("is_active", true)
-          .limit(1)
-          .maybeSingle();
-        if (conn) {
-          setShopifyConnection(conn);
-          setShowShopifyConnect(false);
-          setShopifyOAuthLoading(false);
-          clearInterval(pollInterval);
-          toast.success(`Connected to ${(conn as any).shop_name || (conn as any).shop_domain}!`);
-        }
-      }, 3000);
-      // Stop polling after 5 minutes
-      setTimeout(() => { clearInterval(pollInterval); setShopifyOAuthLoading(false); }, 300000);
+      // Navigate directly to Shopify OAuth (popups get blocked by Shopify)
+      window.location.href = data.auth_url;
     } catch (err: any) {
       console.error("Shopify OAuth error:", err);
       toast.error(err.message || "Failed to start Shopify OAuth");
