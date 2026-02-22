@@ -741,44 +741,6 @@ const StoreManager = ({ connectedPlatforms, integrationKeys, generatedCreatives 
           <h3 className="text-white/60 text-base font-medium">No Store Connected</h3>
           <p className="text-white/30 text-sm">Connect Shopify, WooCommerce, or Canva in the Integrations tab to start managing your store products.</p>
           <p className="text-white/20 text-xs">Go to Integrations → Connect your store → Come back here to manage products</p>
-          
-          {/* Auto Connect Shopify OAuth */}
-          <div className="border-t border-white/[0.06] pt-4 mt-4 space-y-3">
-            <p className="text-white/40 text-xs font-medium">Or auto-connect your Shopify store via OAuth:</p>
-            {!showShopifyConnect ? (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowShopifyConnect(true)}
-                className="border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/10 text-xs"
-              >
-                <Wifi className="h-3.5 w-3.5 mr-1.5" />
-                Auto Connect Shopify
-              </Button>
-            ) : (
-              <div className="flex items-center gap-2 justify-center">
-                <Input
-                  placeholder="mystore.myshopify.com"
-                  value={shopifyShopInput}
-                  onChange={e => setShopifyShopInput(e.target.value)}
-                  onKeyDown={e => e.key === "Enter" && handleShopifyOAuth()}
-                  className="max-w-[220px] text-xs crm-input"
-                />
-                <Button
-                  size="sm"
-                  onClick={handleShopifyOAuth}
-                  disabled={shopifyOAuthLoading}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs"
-                >
-                  {shopifyOAuthLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ExternalLink className="h-3.5 w-3.5 mr-1" />}
-                  Connect
-                </Button>
-                <Button variant="ghost" size="sm" onClick={() => setShowShopifyConnect(false)} className="text-white/30 text-xs h-8 w-8 p-0">
-                  <X className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-            )}
-          </div>
         </div>
       </div>
     );
