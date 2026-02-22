@@ -383,29 +383,30 @@ const CRM = () => {
           </div>
           <div className="flex items-center gap-2">
             <div className="relative group">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/15 group-focus-within:text-white/30 transition-colors" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/15 group-focus-within:text-white/30 transition-colors" />
               <input
                 type="text"
                 placeholder="Search your platform..."
-                className="h-8 w-[200px] focus:w-[280px] rounded-lg text-xs text-white placeholder:text-white/15 pl-9 pr-3 transition-all duration-300 outline-none"
+                className="h-10 w-[200px] focus:w-[280px] rounded-xl rounded-l-none text-xs text-white placeholder:text-white/15 pl-9 pr-3 transition-all duration-300 outline-none"
                 style={{
-                  background: "hsl(222 47% 10% / 0.5)",
-                  border: "1px solid hsl(217 91% 60% / 0.06)",
+                  background: "hsl(222 47% 10% / 0.75)",
+                  border: "1px solid hsl(215 25% 40% / 0.12)",
+                  borderLeft: "none",
                 }}
                 onFocus={(e) => { e.target.style.borderColor = "hsl(217 91% 60% / 0.2)"; e.target.style.background = "hsl(222 47% 12% / 0.6)"; window.dispatchEvent(new CustomEvent('platform-search-focus', { detail: true })); }}
                 onBlur={(e) => { e.target.style.borderColor = "hsl(217 91% 60% / 0.06)"; e.target.style.background = "hsl(222 47% 10% / 0.5)"; window.dispatchEvent(new CustomEvent('platform-search-focus', { detail: false })); }}
               />
             </div>
-            <button className="w-8 h-8 rounded-lg flex items-center justify-center text-white/20 hover:text-white/50 hover:bg-white/[0.04] transition-all">
+            <button className="w-10 h-10 rounded-xl flex items-center justify-center text-white/20 hover:text-white/50 hover:bg-white/[0.04] transition-all">
               <Bell className="h-4 w-4" />
             </button>
-            <button className="w-8 h-8 rounded-lg flex items-center justify-center text-white/20 hover:text-white/50 hover:bg-white/[0.04] transition-all">
+            <button className="w-10 h-10 rounded-xl flex items-center justify-center text-white/20 hover:text-white/50 hover:bg-white/[0.04] transition-all">
               <HelpCircle className="h-4 w-4" />
             </button>
             <div className="border-l border-white/[0.06] pl-2 ml-1 flex items-center gap-1.5">
               <Link to="/profile">
                 <button
-                  className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold text-white transition-all hover:scale-105"
+                  className="w-10 h-10 rounded-xl flex items-center justify-center text-xs font-bold text-white transition-all hover:scale-105"
                   title={`@${profile?.username || 'profile'}`}
                   style={{ background: "linear-gradient(135deg, hsl(217 91% 55%), hsl(262 83% 58%))" }}
                 >
@@ -414,7 +415,7 @@ const CRM = () => {
               </Link>
               <button
                 onClick={handleLogout}
-                className="w-8 h-8 rounded-lg flex items-center justify-center text-white/20 hover:text-white/50 hover:bg-white/[0.04] transition-all"
+                className="w-10 h-10 rounded-xl flex items-center justify-center text-white/20 hover:text-white/50 hover:bg-white/[0.04] transition-all"
                 title="Log out"
               >
                 <LogOut className="h-3.5 w-3.5" />
