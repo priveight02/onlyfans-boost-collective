@@ -70,7 +70,7 @@ const Navigation = () => {
   const userInitial = profile?.display_name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || "U";
 
   return (
-    <div className={`fixed top-0 ${isPlatform ? 'flex justify-end items-start pt-[10px] pr-0 pointer-events-none' : 'w-full flex justify-center pt-4 px-4'}`} style={isPlatform ? { left: '240px', right: searchFocused ? '510px' : '430px', zIndex: 40, transition: 'right 0.3s ease' } : { zIndex: 50 }}>
+    <div className={`fixed top-0 ${isPlatform ? 'flex justify-end items-start pt-[10px] pr-2 pointer-events-none' : 'w-full flex justify-center pt-4 px-4'}`} style={isPlatform ? { left: '240px', right: searchFocused ? '510px' : '430px', zIndex: 40, transition: 'right 0.3s ease' } : { zIndex: 50 }}>
       <nav
         className={`transition-all duration-500 pointer-events-auto ${isPlatform ? 'rounded-xl' : 'w-full max-w-4xl rounded-2xl'}`}
         style={{
@@ -85,7 +85,7 @@ const Navigation = () => {
         }}
       >
         <div className={isPlatform ? "px-2" : "px-4 sm:px-5"}>
-          <div className={`flex items-center ${isPlatform ? 'h-8 gap-0' : 'justify-between h-14'}`}>
+          <div className={`flex items-center ${isPlatform ? 'h-10 gap-0' : 'justify-between h-14'}`}>
             <div className="flex-shrink-0">
               <Link to="/" className="flex items-center group transition-all duration-300 hover:scale-105">
                 <img src="/lovable-uploads/uplyze-logo.png" alt="Uplyze Logo" className={`${isPlatform ? 'h-[38px]' : 'h-[55px]'} w-auto object-contain`} />
