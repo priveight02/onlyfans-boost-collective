@@ -95,13 +95,103 @@ const StoreManager = ({ connectedPlatforms, integrationKeys, generatedCreatives 
   const editImageRef = useRef<HTMLInputElement>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
 
-  const storePlatforms = (["shopify", "woocommerce", "canva"] as const).filter(p => connectedPlatforms[p]);
+  // Shopify OAuth state
+  const [shopifyOAuthLoading, setShopifyOAuthLoading] = useState(false);
+  const [shopifyShopInput, setShopifyShopInput] = useState("");
+  const [shopifyConnection, setShopifyConnection] = useState<any>(null);
+  const [showShopifyConnect, setShowShopifyConnect] = useState(false);
+
+  const storePlatforms = (["shopify", "woocommerce", "canva"] as const).filter(p => connectedPlatforms[p] || (p === "shopify" && shopifyConnection));
 
   useEffect(() => {
     if (storePlatforms.length > 0 && !storePlatforms.includes(activePlatform)) {
       setActivePlatform(storePlatforms[0]);
     }
   }, [storePlatforms.length]);
+
+  // Check for existing Shopify OAuth connection
+  useEffect(() => {
+    const checkShopifyConnection = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase
+        .from("shopify_store_connections")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("is_active", true)
+        .limit(1)
+        .maybeSingle();
+      if (data) setShopifyConnection(data);
+    };
+    checkShopifyConnection();
+  }, []);
+
+  // Shopify OAuth: start flow
+  const handleShopifyOAuth = async () => {
+    if (!shopifyShopInput.trim()) {
+      toast.error("Enter your Shopify store name (e.g. mystore or mystore.myshopify.com)");
+      return;
+    }
+    setShopifyOAuthLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      const redirectUrl = window.location.hostname === "localhost"
+        ? window.location.origin + "/platform/ad-creatives/store-manager"
+        : "https://uplyze.ai/platform/ad-creatives/store-manager";
+
+      const { data, error } = await supabase.functions.invoke("shopify-oauth-start", {
+        body: { shop: shopifyShopInput.trim(), user_id: user.id, redirect_url: redirectUrl },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      if (!data?.auth_url) throw new Error("No auth URL returned");
+
+      // Open Shopify OAuth in new window
+      window.open(data.auth_url, "_blank", "width=800,height=700,scrollbars=yes");
+      toast.success("Shopify authorization window opened. Complete the login there.");
+
+      // Poll for connection
+      const pollInterval = setInterval(async () => {
+        const { data: conn } = await supabase
+          .from("shopify_store_connections")
+          .select("*")
+          .eq("user_id", user.id)
+          .eq("is_active", true)
+          .limit(1)
+          .maybeSingle();
+        if (conn) {
+          setShopifyConnection(conn);
+          setShowShopifyConnect(false);
+          setShopifyOAuthLoading(false);
+          clearInterval(pollInterval);
+          toast.success(`Connected to ${(conn as any).shop_name || (conn as any).shop_domain}!`);
+        }
+      }, 3000);
+      // Stop polling after 5 minutes
+      setTimeout(() => { clearInterval(pollInterval); setShopifyOAuthLoading(false); }, 300000);
+    } catch (err: any) {
+      console.error("Shopify OAuth error:", err);
+      toast.error(err.message || "Failed to start Shopify OAuth");
+      setShopifyOAuthLoading(false);
+    }
+  };
+
+  // Disconnect Shopify OAuth
+  const handleDisconnectShopify = async () => {
+    if (!shopifyConnection) return;
+    try {
+      await supabase
+        .from("shopify_store_connections")
+        .update({ is_active: false })
+        .eq("id", shopifyConnection.id);
+      setShopifyConnection(null);
+      toast.success("Shopify store disconnected");
+    } catch {
+      toast.error("Failed to disconnect");
+    }
+  };
 
   // Load products from DB (persisted across sessions)
   const loadProducts = useCallback(async () => {
@@ -174,7 +264,7 @@ const StoreManager = ({ connectedPlatforms, integrationKeys, generatedCreatives 
 
   // Import products from store
   const handleImportFromStore = async () => {
-    if (!connectedPlatforms[activePlatform]) {
+    if (!connectedPlatforms[activePlatform] && !(activePlatform === "shopify" && shopifyConnection)) {
       toast.error(`${PLATFORM_LABELS[activePlatform]} is not connected. Go to Integrations tab to connect.`);
       return;
     }
@@ -183,9 +273,17 @@ const StoreManager = ({ connectedPlatforms, integrationKeys, generatedCreatives 
       let apiProducts: StoreProduct[] = [];
 
       if (activePlatform === "shopify") {
-        const creds = integrationKeys.shopify || {};
-        const storeUrl = creds.store_url?.replace(/^https?:\/\//, "").replace(/\/$/, "");
-        const token = creds.api_key;
+        // Prefer OAuth connection, fallback to integration keys
+        let storeUrl = "";
+        let token = "";
+        if (shopifyConnection) {
+          storeUrl = (shopifyConnection as any).shop_domain;
+          token = (shopifyConnection as any).access_token;
+        } else {
+          const creds = integrationKeys.shopify || {};
+          storeUrl = creds.store_url?.replace(/^https?:\/\//, "").replace(/\/$/, "") || "";
+          token = creds.api_key || "";
+        }
         if (!storeUrl || !token) throw new Error("Missing Shopify credentials");
 
         const res = await fetch(`https://${storeUrl}/admin/api/2024-01/products.json?limit=250`, {
@@ -652,16 +750,54 @@ const StoreManager = ({ connectedPlatforms, integrationKeys, generatedCreatives 
     return matchSearch && matchStatus;
   });
 
-  const noStoreConnected = !connectedPlatforms.shopify && !connectedPlatforms.woocommerce && !connectedPlatforms.canva;
+  const noStoreConnected = !connectedPlatforms.shopify && !connectedPlatforms.woocommerce && !connectedPlatforms.canva && !shopifyConnection;
 
   if (noStoreConnected) {
     return (
       <div className="flex items-center justify-center h-96 rounded-xl border border-dashed border-white/[0.06]">
-        <div className="text-center space-y-3 max-w-md">
+        <div className="text-center space-y-4 max-w-md">
           <ShoppingCart className="h-10 w-10 text-white/10 mx-auto" />
           <h3 className="text-white/60 text-base font-medium">No Store Connected</h3>
           <p className="text-white/30 text-sm">Connect Shopify, WooCommerce, or Canva in the Integrations tab to start managing your store products.</p>
           <p className="text-white/20 text-xs">Go to Integrations → Connect your store → Come back here to manage products</p>
+          
+          {/* Auto Connect Shopify OAuth */}
+          <div className="border-t border-white/[0.06] pt-4 mt-4 space-y-3">
+            <p className="text-white/40 text-xs font-medium">Or auto-connect your Shopify store via OAuth:</p>
+            {!showShopifyConnect ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowShopifyConnect(true)}
+                className="border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/10 text-xs"
+              >
+                <Wifi className="h-3.5 w-3.5 mr-1.5" />
+                Auto Connect Shopify
+              </Button>
+            ) : (
+              <div className="flex items-center gap-2 justify-center">
+                <Input
+                  placeholder="mystore.myshopify.com"
+                  value={shopifyShopInput}
+                  onChange={e => setShopifyShopInput(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && handleShopifyOAuth()}
+                  className="max-w-[220px] text-xs crm-input"
+                />
+                <Button
+                  size="sm"
+                  onClick={handleShopifyOAuth}
+                  disabled={shopifyOAuthLoading}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs"
+                >
+                  {shopifyOAuthLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ExternalLink className="h-3.5 w-3.5 mr-1" />}
+                  Connect
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => setShowShopifyConnect(false)} className="text-white/30 text-xs h-8 w-8 p-0">
+                  <X className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     );
@@ -684,9 +820,19 @@ const StoreManager = ({ connectedPlatforms, integrationKeys, generatedCreatives 
             >
               <ShoppingCart className="h-3.5 w-3.5" />
               {PLATFORM_LABELS[p]}
-              {connectedPlatforms[p] && <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />}
+              {(connectedPlatforms[p] || (p === "shopify" && shopifyConnection)) && <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />}
             </button>
           ))}
+          {/* Shopify OAuth connection badge */}
+          {shopifyConnection && (
+            <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-emerald-500/5 border border-emerald-500/10 text-[10px] text-emerald-400/70">
+              <Wifi className="h-3 w-3" />
+              <span>{(shopifyConnection as any).shop_name || (shopifyConnection as any).shop_domain}</span>
+              <button onClick={handleDisconnectShopify} className="ml-1 text-red-400/50 hover:text-red-400 transition-colors" title="Disconnect">
+                <WifiOff className="h-3 w-3" />
+              </button>
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={handleImportFromStore} disabled={syncing} className="border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/10 text-xs">

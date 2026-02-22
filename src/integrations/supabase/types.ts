@@ -3227,6 +3227,48 @@ export type Database = {
           },
         ]
       }
+      shopify_store_connections: {
+        Row: {
+          access_token: string
+          connected_at: string
+          currency: string | null
+          id: string
+          is_active: boolean | null
+          scopes: string | null
+          shop_domain: string
+          shop_email: string | null
+          shop_name: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token: string
+          connected_at?: string
+          currency?: string | null
+          id?: string
+          is_active?: boolean | null
+          scopes?: string | null
+          shop_domain: string
+          shop_email?: string | null
+          shop_name?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_token?: string
+          connected_at?: string
+          currency?: string | null
+          id?: string
+          is_active?: boolean | null
+          scopes?: string | null
+          shop_domain?: string
+          shop_email?: string | null
+          shop_name?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       site_settings: {
         Row: {
           id: string
