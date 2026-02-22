@@ -18,6 +18,7 @@ import {
   PackageCheck, Sparkles, Filter, LayoutGrid, List, Tag,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { ProductSEOPanel, AIProductWriter } from "./creative/CreativeFeatures";
 
 // ═══════════════════════════════════════════════
 // TYPES
@@ -900,6 +901,24 @@ const StoreManager = ({ connectedPlatforms, integrationKeys, generatedCreatives 
                 </div>
               </div>
             )}
+
+            {/* AI Tools for Product */}
+            <div className="grid grid-cols-2 gap-4">
+              <ProductSEOPanel
+                title={editForm.title || ""}
+                description={(editForm.description || "").replace(/<[^>]*>/g, "")}
+                tags={editForm.tags}
+                onUpdate={(seo) => {
+                  if (seo.title) setEditForm(f => ({ ...f, title: seo.title }));
+                  if (seo.tags) setEditForm(f => ({ ...f, tags: seo.tags }));
+                }}
+              />
+              <AIProductWriter
+                title={editForm.title || ""}
+                description={(editForm.description || "").replace(/<[^>]*>/g, "")}
+                onApply={(desc) => setEditForm(f => ({ ...f, description: desc }))}
+              />
+            </div>
 
             <div className="flex gap-2 pt-2">
               <Button variant="outline" className="flex-1 text-xs border-white/10 text-white/50" onClick={() => setEditOpen(false)}>Cancel</Button>
