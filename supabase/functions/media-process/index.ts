@@ -222,23 +222,16 @@ serve(async (req) => {
           }
         };
 
-        // If prediction already completed synchronously, trigger upscale
+        // If prediction already completed synchronously, return directly (no upscale)
         if (data.status === "succeeded" && data.output) {
           const swapOutput = Array.isArray(data.output) ? data.output[0] : data.output;
-          const upscaleId = await upscaleImage(swapOutput);
-          // If upscaleId looks like a replicate prediction ID, return it for polling
-          if (upscaleId && !upscaleId.startsWith("http")) {
-            return new Response(JSON.stringify({ task_id: upscaleId, status: "PROCESSING", provider: "replicate", target_type, phase: "upscaling" }), {
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-            });
-          }
           return new Response(JSON.stringify({ task_id: data.id, status: "SUCCESS", video_url: swapOutput, provider: "replicate", target_type }), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
 
-        // Store upscale intent in metadata — polling handler will chain upscale after swap completes
-        return new Response(JSON.stringify({ task_id: data.id, status: "PROCESSING", provider: "replicate", target_type, needs_upscale: true }), {
+        // No upscale — return directly for polling
+        return new Response(JSON.stringify({ task_id: data.id, status: "PROCESSING", provider: "replicate", target_type, needs_upscale: false }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
@@ -282,36 +275,6 @@ serve(async (req) => {
 
         if (data.status === "succeeded") {
           const output = Array.isArray(data.output) ? data.output[0] : data.output;
-
-          // If this was a faceswap that needs upscaling, chain the upscale
-          if (needsUpscale) {
-            try {
-              const upResp = await fetch(`${REPLICATE_BASE}/predictions`, {
-                method: "POST",
-                headers: {
-                  Authorization: `Token ${REPLICATE_API_KEY}`,
-                  "Content-Type": "application/json",
-                },
-                  body: JSON.stringify({
-                    version: "f121d640bd286e1fdc67f9799164c1d5be36ff74576ee11c803ae5b665dd46aa",
-                    input: {
-                      image: output,
-                      scale: 2,
-                      face_enhance: true,
-                    },
-                }),
-              });
-              if (upResp.ok) {
-                const upData = await upResp.json();
-                // Return new task_id for upscale polling (no longer needs_upscale)
-                return new Response(JSON.stringify({ status: "PROCESSING", task_id: upData.id, phase: "upscaling" }), {
-                  headers: { ...corsHeaders, "Content-Type": "application/json" },
-                });
-              }
-            } catch (e) {
-              console.error("Upscale chain error (returning swap result):", e);
-            }
-          }
 
           return new Response(JSON.stringify({ status: "SUCCESS", video_url: output }), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },

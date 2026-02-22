@@ -387,11 +387,10 @@ const CRM = () => {
               <input
                 type="text"
                 placeholder="Search your platform..."
-                className="h-10 w-[200px] focus:w-[280px] rounded-xl rounded-l-none text-xs text-white placeholder:text-white/15 pl-9 pr-3 transition-all duration-300 outline-none"
+                className="h-10 w-[200px] focus:w-[280px] rounded-xl text-xs text-white placeholder:text-white/15 pl-9 pr-3 transition-all duration-300 outline-none"
                 style={{
                   background: "hsl(222 47% 10% / 0.75)",
                   border: "1px solid hsl(215 25% 40% / 0.12)",
-                  borderLeft: "none",
                 }}
                 onFocus={(e) => { e.target.style.borderColor = "hsl(217 91% 60% / 0.2)"; e.target.style.background = "hsl(222 47% 12% / 0.6)"; window.dispatchEvent(new CustomEvent('platform-search-focus', { detail: true })); }}
                 onBlur={(e) => { e.target.style.borderColor = "hsl(217 91% 60% / 0.06)"; e.target.style.background = "hsl(222 47% 10% / 0.5)"; window.dispatchEvent(new CustomEvent('platform-search-focus', { detail: false })); }}
