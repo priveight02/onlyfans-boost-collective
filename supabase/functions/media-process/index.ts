@@ -159,7 +159,7 @@ serve(async (req) => {
         });
       }
 
-      // ========== FACESWAP (Replicate - omniedgeio/face-swap — fast InsightFace, high quality) ==========
+      // ========== FACESWAP (Replicate - lucataco/modelscope-facefusion — ~3s, L40S GPU, realistic) ==========
       if (processType === "faceswap") {
         if (!REPLICATE_API_KEY) {
           return new Response(JSON.stringify({ error: "REPLICATE_API_KEY not configured" }), {
@@ -168,7 +168,7 @@ serve(async (req) => {
         }
         const { source_face_url, target_url, target_type } = body;
 
-        const resp = await fetch(`${REPLICATE_BASE}/models/omniedgeio/face-swap/predictions`, {
+        const resp = await fetch(`${REPLICATE_BASE}/models/lucataco/modelscope-facefusion/predictions`, {
           method: "POST",
           headers: {
             Authorization: `Bearer ${REPLICATE_API_KEY}`,
@@ -177,8 +177,8 @@ serve(async (req) => {
           },
           body: JSON.stringify({
             input: {
-              input_image: source_face_url,
-              swap_image: target_url,
+              user_image: source_face_url,
+              template_image: target_url,
             },
           }),
         });
