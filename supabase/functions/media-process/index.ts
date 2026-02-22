@@ -159,7 +159,7 @@ serve(async (req) => {
         });
       }
 
-      // ========== FACESWAP (Replicate - easel/advanced-face-swap — photorealistic, highest quality) ==========
+      // ========== FACESWAP (Replicate - omniedgeio/face-swap — fast InsightFace, high quality) ==========
       if (processType === "faceswap") {
         if (!REPLICATE_API_KEY) {
           return new Response(JSON.stringify({ error: "REPLICATE_API_KEY not configured" }), {
@@ -168,17 +168,17 @@ serve(async (req) => {
         }
         const { source_face_url, target_url, target_type } = body;
 
-        // Use easel/advanced-face-swap — official model endpoint (always latest, photorealistic)
-        const resp = await fetch(`${REPLICATE_BASE}/models/easel/advanced-face-swap/predictions`, {
+        const resp = await fetch(`${REPLICATE_BASE}/models/omniedgeio/face-swap/predictions`, {
           method: "POST",
           headers: {
             Authorization: `Bearer ${REPLICATE_API_KEY}`,
             "Content-Type": "application/json",
+            "Prefer": "respond-async",
           },
           body: JSON.stringify({
             input: {
-              swap_image: source_face_url,
-              target_image: target_url,
+              input_image: source_face_url,
+              swap_image: target_url,
             },
           }),
         });
@@ -191,38 +191,6 @@ serve(async (req) => {
 
         const data = await resp.json();
 
-        // Helper: trigger upscale to ensure minimum 1080p output
-        const upscaleImage = async (imageUrl: string): Promise<string> => {
-          try {
-            const upResp = await fetch(`${REPLICATE_BASE}/predictions`, {
-              method: "POST",
-              headers: {
-                Authorization: `Token ${REPLICATE_API_KEY}`,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                version: "f121d640bd286e1fdc67f9799164c1d5be36ff74576ee11c803ae5b665dd46aa",
-                input: {
-                  image: imageUrl,
-                  scale: 2,
-                  face_enhance: true,
-                },
-              }),
-            });
-            if (!upResp.ok) {
-              console.error("Upscale request failed, returning original");
-              return imageUrl;
-            }
-            const upData = await upResp.json();
-            // Return the upscale task_id so we can chain polling
-            return upData.id;
-          } catch (e) {
-            console.error("Upscale error (non-fatal):", e);
-            return imageUrl;
-          }
-        };
-
-        // If prediction already completed synchronously, return directly (no upscale)
         if (data.status === "succeeded" && data.output) {
           const swapOutput = Array.isArray(data.output) ? data.output[0] : data.output;
           return new Response(JSON.stringify({ task_id: data.id, status: "SUCCESS", video_url: swapOutput, provider: "replicate", target_type }), {
@@ -230,7 +198,6 @@ serve(async (req) => {
           });
         }
 
-        // No upscale — return directly for polling
         return new Response(JSON.stringify({ task_id: data.id, status: "PROCESSING", provider: "replicate", target_type, needs_upscale: false }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
