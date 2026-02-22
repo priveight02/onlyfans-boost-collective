@@ -148,38 +148,9 @@ const StoreManager = ({ connectedPlatforms, integrationKeys, generatedCreatives 
       if (data?.error) throw new Error(data.error);
       if (!data?.auth_url) throw new Error("No auth URL returned");
 
-      // Open in a new tab (no popup specs to avoid iframe blocking)
-      const authWindow = window.open(data.auth_url, '_blank');
-      if (!authWindow) {
-        // If popup was blocked, fallback to top-level navigation
-        if (window.top) {
-          window.top.location.href = data.auth_url;
-        } else {
-          window.location.href = data.auth_url;
-        }
-        return;
-      }
-      toast.success("Shopify authorization tab opened. Complete the login there.");
-
-      // Poll for connection completion
-      const pollInterval = setInterval(async () => {
-        const { data: conn } = await supabase
-          .from("shopify_store_connections")
-          .select("*")
-          .eq("user_id", user.id)
-          .eq("is_active", true)
-          .limit(1)
-          .maybeSingle();
-        if (conn) {
-          setShopifyConnection(conn);
-          setShowShopifyConnect(false);
-          setShopifyOAuthLoading(false);
-          clearInterval(pollInterval);
-          toast.success(`Connected to ${(conn as any).shop_name || (conn as any).shop_domain}!`);
-        }
-      }, 3000);
-      // Stop polling after 5 minutes
-      setTimeout(() => { clearInterval(pollInterval); setShopifyOAuthLoading(false); }, 300000);
+      // Navigate top-level window to bypass iframe restrictions (Shopify blocks framed/popup loads)
+      const target = window.top || window;
+      target.location.href = data.auth_url;
     } catch (err: any) {
       console.error("Shopify OAuth error:", err);
       toast.error(err.message || "Failed to start Shopify OAuth");
