@@ -1283,6 +1283,7 @@ const AdCreativeEngine = ({ subTab, onSubTabChange }: { subTab?: string; onSubTa
             connectedPlatforms={connectedPlatforms}
             integrationKeys={integrationKeys}
             generatedCreatives={generatedAdImages}
+            shopifyConnection={shopifyConnection}
           />
         </TabsContent>
       </Tabs>

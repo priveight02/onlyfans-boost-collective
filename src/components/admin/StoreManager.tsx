@@ -14,7 +14,7 @@ import {
   Image, SquarePen, Trash2, CheckCircle2, Package, ExternalLink,
   ArrowDownToLine, ArrowUpFromLine, Eye, Copy, X, Plus,
   Layers, FileText, DollarSign, BarChart3, Settings2,
-  Wifi, WifiOff, Globe, FolderDown, FolderUp, ImageDown,
+  Wifi, Globe, FolderDown, FolderUp, ImageDown,
   PackageCheck, Sparkles, Filter, LayoutGrid, List, Tag,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -52,6 +52,7 @@ interface StoreManagerProps {
   connectedPlatforms: Record<string, boolean>;
   integrationKeys: Record<string, Record<string, string>>;
   generatedCreatives?: { url: string; prompt: string }[];
+  shopifyConnection?: any;
 }
 
 const PLATFORM_LABELS: Record<string, string> = {
@@ -63,7 +64,7 @@ const PLATFORM_LABELS: Record<string, string> = {
 // ═══════════════════════════════════════════════
 // COMPONENT
 // ═══════════════════════════════════════════════
-const StoreManager = ({ connectedPlatforms, integrationKeys, generatedCreatives = [] }: StoreManagerProps) => {
+const StoreManager = ({ connectedPlatforms, integrationKeys, generatedCreatives = [], shopifyConnection }: StoreManagerProps) => {
   const [activePlatform, setActivePlatform] = useState<"shopify" | "woocommerce" | "canva">("shopify");
   const [products, setProducts] = useState<StoreProduct[]>([]);
   const [loading, setLoading] = useState(false);
@@ -95,12 +96,7 @@ const StoreManager = ({ connectedPlatforms, integrationKeys, generatedCreatives 
   const editImageRef = useRef<HTMLInputElement>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
 
-  // Shopify OAuth state
-  const [shopifyOAuthLoading, setShopifyOAuthLoading] = useState(false);
-  const [shopifyShopInput, setShopifyShopInput] = useState("");
-  const [shopifyConnection, setShopifyConnection] = useState<any>(null);
-  const [showShopifyConnect, setShowShopifyConnect] = useState(false);
-
+  // Shopify OAuth connection is now passed as prop from parent (Integrations tab)
   const storePlatforms = (["shopify", "woocommerce", "canva"] as const).filter(p => connectedPlatforms[p] || (p === "shopify" && shopifyConnection));
 
   useEffect(() => {
@@ -108,71 +104,6 @@ const StoreManager = ({ connectedPlatforms, integrationKeys, generatedCreatives 
       setActivePlatform(storePlatforms[0]);
     }
   }, [storePlatforms.length]);
-
-  // Check for existing Shopify OAuth connection
-  useEffect(() => {
-    const checkShopifyConnection = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data } = await supabase
-        .from("shopify_store_connections")
-        .select("*")
-        .eq("user_id", user.id)
-        .eq("is_active", true)
-        .limit(1)
-        .maybeSingle();
-      if (data) setShopifyConnection(data);
-    };
-    checkShopifyConnection();
-  }, []);
-
-  // Shopify OAuth: start flow
-  const handleShopifyOAuth = async () => {
-    if (!shopifyShopInput.trim()) {
-      toast.error("Enter your Shopify store name (e.g. mystore or mystore.myshopify.com)");
-      return;
-    }
-    setShopifyOAuthLoading(true);
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
-
-      const redirectUrl = window.location.hostname === "localhost"
-        ? window.location.origin + "/platform/ad-creatives/store-manager"
-        : "https://uplyze.ai/platform/ad-creatives/store-manager";
-
-      const { data, error } = await supabase.functions.invoke("shopify-oauth-start", {
-        body: { shop: shopifyShopInput.trim(), user_id: user.id, redirect_url: redirectUrl },
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      if (!data?.auth_url) throw new Error("No auth URL returned");
-
-      // Navigate top-level window to bypass iframe restrictions (Shopify blocks framed/popup loads)
-      const target = window.top || window;
-      target.location.href = data.auth_url;
-    } catch (err: any) {
-      console.error("Shopify OAuth error:", err);
-      toast.error(err.message || "Failed to start Shopify OAuth");
-    } finally {
-      setShopifyOAuthLoading(false);
-    }
-  };
-
-  // Disconnect Shopify OAuth
-  const handleDisconnectShopify = async () => {
-    if (!shopifyConnection) return;
-    try {
-      await supabase
-        .from("shopify_store_connections")
-        .update({ is_active: false })
-        .eq("id", shopifyConnection.id);
-      setShopifyConnection(null);
-      toast.success("Shopify store disconnected");
-    } catch {
-      toast.error("Failed to disconnect");
-    }
-  };
 
   // Load products from DB (persisted across sessions)
   const loadProducts = useCallback(async () => {
@@ -771,13 +702,16 @@ const StoreManager = ({ connectedPlatforms, integrationKeys, generatedCreatives 
             <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-emerald-500/5 border border-emerald-500/10 text-[10px] text-emerald-400/70">
               <Wifi className="h-3 w-3" />
               <span>{(shopifyConnection as any).shop_name || (shopifyConnection as any).shop_domain}</span>
-              <button onClick={handleDisconnectShopify} className="ml-1 text-red-400/50 hover:text-red-400 transition-colors" title="Disconnect">
-                <WifiOff className="h-3 w-3" />
-              </button>
             </div>
           )}
         </div>
         <div className="flex items-center gap-2">
+          {activePlatform === "shopify" && shopifyConnection && (
+            <Button variant="outline" size="sm" onClick={handleImportFromStore} disabled={syncing} className="border-blue-500/20 text-blue-400 hover:bg-blue-500/10 text-xs">
+              {syncing ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5 mr-1.5" />}
+              Sync from Shopify
+            </Button>
+          )}
           <Button variant="outline" size="sm" onClick={handleImportFromStore} disabled={syncing} className="border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/10 text-xs">
             {syncing ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <ArrowDownToLine className="h-3.5 w-3.5 mr-1.5" />}
             Import from {PLATFORM_LABELS[activePlatform]}
