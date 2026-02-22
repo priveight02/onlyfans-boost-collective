@@ -583,14 +583,18 @@ const AICoPilot = ({ onNavigate, subTab, onSubTabChange }: { onNavigate?: (tab: 
       ? `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/video-generate?action=poll&provider=${provider}&task_id=${encodeURIComponent(taskId)}&task_type=${metadata?.task_type || "text2video"}`
       : `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/media-process?action=poll&task_id=${encodeURIComponent(taskId)}&provider=${provider}`;
 
-    // Set generating state based on type
-    if (genType === "video") { setIsGeneratingVideo(true); setVideoProgress(30); setVideoProgressLabel("Resuming generation..."); }
-    else if (genType === "motion") { setIsGeneratingMotion(true); setMotionProgress(30); setMotionProgressLabel("Resuming..."); }
-    else if (genType === "lipsync") { setIsGeneratingLipsync(true); setLipsyncProgress(30); setLipsyncProgressLabel("Resuming..."); }
-    else if (genType === "faceswap") { setIsGeneratingFaceswap(true); setFaceswapProgress(30); setFaceswapProgressLabel("Resuming..."); }
+    // Restore progress from saved state instead of hardcoding 30%
+    const savedPollCount = metadata?.poll_count || 0;
+    const maxPolls = 150;
+    const resumeProgress = Math.min(30 + (savedPollCount / maxPolls) * 60, 90);
 
-    let pollCount = 0;
-    const maxPolls = 150; // ~12.5 minutes to account for long-running tasks
+    // Set generating state based on type with restored progress
+    if (genType === "video") { setIsGeneratingVideo(true); setVideoProgress(resumeProgress); setVideoProgressLabel("Resuming generation..."); }
+    else if (genType === "motion") { setIsGeneratingMotion(true); setMotionProgress(resumeProgress); setMotionProgressLabel("Resuming..."); }
+    else if (genType === "lipsync") { setIsGeneratingLipsync(true); setLipsyncProgress(resumeProgress); setLipsyncProgressLabel("Resuming..."); }
+    else if (genType === "faceswap") { setIsGeneratingFaceswap(true); setFaceswapProgress(resumeProgress); setFaceswapProgressLabel("Resuming..."); }
+
+    let pollCount = savedPollCount;
     let resultUrl: string | null = null;
     let failed = false;
 
@@ -612,6 +616,16 @@ const AICoPilot = ({ onNavigate, subTab, onSubTabChange }: { onNavigate?: (tab: 
       else if (genType === "motion") { setMotionProgress(progress); setMotionProgressLabel("Processing motion..."); }
       else if (genType === "lipsync") { setLipsyncProgress(progress); setLipsyncProgressLabel("Processing lipsync..."); }
       else if (genType === "faceswap") { setFaceswapProgress(progress); setFaceswapProgressLabel("Processing faceswap..."); }
+
+      // Persist poll_count to metadata every 3 polls so resume picks up actual progress
+      if (pollCount % 3 === 0) {
+        try {
+          await supabase.from("active_generation_tasks" as any).update({
+            metadata: { ...metadata, poll_count: pollCount },
+            updated_at: new Date().toISOString()
+          } as any).eq("task_id", taskId);
+        } catch {}
+      }
 
       try {
         const pollResp = await fetch(pollUrl, { headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` } });
@@ -1176,6 +1190,7 @@ const AICoPilot = ({ onNavigate, subTab, onSubTabChange }: { onNavigate?: (tab: 
         setVideoProgress(progress);
         const labels = ["Rendering video...", "Processing frames...", "Applying effects...", "Encoding video...", "Finalizing output..."];
         setVideoProgressLabel(labels[Math.min(Math.floor(pollCount / 12), labels.length - 1)]);
+        if (pollCount % 3 === 0) { try { await supabase.from("active_generation_tasks" as any).update({ metadata: { type: "video", task_type: taskType, poll_count: pollCount }, updated_at: new Date().toISOString() } as any).eq("task_id", taskId); } catch {} }
 
         try {
           const pollResp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/video-generate?action=poll&provider=${provider}&task_id=${encodeURIComponent(taskId)}&task_type=${taskType}`, {
@@ -1246,6 +1261,7 @@ const AICoPilot = ({ onNavigate, subTab, onSubTabChange }: { onNavigate?: (tab: 
       while (pollCount < 120) {
         if (cancelGenRef.current === "motion") return;
         await new Promise(r => setTimeout(r, 5000)); pollCount++;
+        if (pollCount % 3 === 0) { try { await supabase.from("active_generation_tasks" as any).update({ metadata: { type: "motion", poll_count: pollCount }, updated_at: new Date().toISOString() } as any).eq("task_id", taskId); } catch {} }
         try {
           const pollResp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/media-process?action=poll&task_id=${encodeURIComponent(taskId)}&provider=${provider}`, { headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` } });
           if (!pollResp.ok) continue;
@@ -1303,6 +1319,7 @@ const AICoPilot = ({ onNavigate, subTab, onSubTabChange }: { onNavigate?: (tab: 
       while (pollCount < 120) {
         if (cancelGenRef.current === "lipsync") return;
         await new Promise(r => setTimeout(r, 5000)); pollCount++;
+        if (pollCount % 3 === 0) { try { await supabase.from("active_generation_tasks" as any).update({ metadata: { type: "lipsync", poll_count: pollCount }, updated_at: new Date().toISOString() } as any).eq("task_id", taskId); } catch {} }
         try {
           const pollResp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/media-process?action=poll&task_id=${encodeURIComponent(taskId)}&provider=${provider}`, { headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` } });
           if (!pollResp.ok) continue;
@@ -1353,6 +1370,7 @@ const AICoPilot = ({ onNavigate, subTab, onSubTabChange }: { onNavigate?: (tab: 
         while (pollCount < 120) {
           if (cancelGenRef.current === "faceswap") return;
           await new Promise(r => setTimeout(r, 2000)); pollCount++;
+          if (pollCount % 5 === 0) { try { await supabase.from("active_generation_tasks" as any).update({ metadata: { type: "faceswap", category: faceswapCategory, poll_count: pollCount }, updated_at: new Date().toISOString() } as any).eq("task_id", currentTaskId); } catch {} }
           try {
             const upscaleParam = needsUpscale ? "&needs_upscale=true" : "";
             const pollResp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/media-process?action=poll&task_id=${encodeURIComponent(currentTaskId)}&provider=${provider}${upscaleParam}`, { headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` } });
