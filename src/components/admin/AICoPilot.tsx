@@ -18,7 +18,7 @@ import {
   Image as ImageIcon, Video, Mic, Wand2, Volume2, Upload, Trash,
   Square, Smartphone, Monitor, Settings2, Grid, Rows, Columns,
   ZoomIn, ZoomOut, Headphones, SlidersHorizontal, Undo2,
-  Shield, ShieldOff, Move, ArrowRightLeft, Film,
+  Shield, ShieldOff, Move, ArrowRightLeft, Film, ChevronLeft, ChevronRight,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -267,6 +267,7 @@ const AICoPilot = ({ onNavigate, subTab, onSubTabChange }: { onNavigate?: (tab: 
   useEffect(() => { if (subTab && subTab !== mode) setModeInternal(subTab as CopilotMode); }, [subTab]);
   const [qualityMode, setQualityMode] = useState<QualityMode>("best");
   const [freeWillMode, setFreeWillMode] = useState(false);
+  const [historySidebarCollapsed, setHistorySidebarCollapsed] = useState(false);
 
   // Voice state
   const [voices, setVoices] = useState<Voice[]>([]);
@@ -2378,36 +2379,64 @@ const AICoPilot = ({ onNavigate, subTab, onSubTabChange }: { onNavigate?: (tab: 
   );
 
   // ============ MAIN RETURN ============
+
   return (
     <>
       <div className="flex gap-3 h-[calc(100vh-130px)]">
-        {/* Sidebar */}
-        <div className="w-36 shrink-0 flex flex-col">
-          <Button size="sm" onClick={() => { setActiveConvoId(null); setMessages([]); setInput(""); setAttachments([]); clearDraft(); }}
-            className="w-full bg-accent hover:bg-accent/90 text-white text-[11px] mb-2 h-7 px-2">
-            <Plus className="h-3 w-3 mr-1" /> New Conversation
-          </Button>
-          <ScrollArea className="flex-1">
-            <div className="space-y-1">
-              {conversations.map(c => (
-                <div key={c.id} className={`flex items-center gap-1.5 p-2 rounded-lg cursor-pointer transition-all text-[11px] group ${activeConvoId === c.id ? "bg-white/10 text-white" : "text-white/40 hover:bg-white/5 hover:text-white/60"}`} onClick={() => selectConvo(c)}>
-                  <MessageSquare className="h-3.5 w-3.5 shrink-0" />
-                  <span className="truncate flex-1">{c.title}</span>
-                  <Button size="sm" variant="ghost" onClick={e => { e.stopPropagation(); deleteConvo(c.id); }} className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 text-red-400/50 hover:text-red-400"><Trash2 className="h-3 w-3" /></Button>
+        {/* Sidebar — collapsible */}
+        <div className={`shrink-0 flex flex-col transition-all duration-200 ${historySidebarCollapsed ? "w-10" : "w-36"}`}>
+          {historySidebarCollapsed ? (
+            <>
+              <button onClick={() => setHistorySidebarCollapsed(false)} className="w-10 h-7 flex items-center justify-center rounded-lg text-white/30 hover:text-white/60 hover:bg-white/5 transition-all mb-1" title="Expand history">
+                <ChevronRight className="h-4 w-4" />
+              </button>
+              <button onClick={() => { setActiveConvoId(null); setMessages([]); setInput(""); setAttachments([]); clearDraft(); }} className="w-10 h-7 flex items-center justify-center rounded-lg bg-accent/20 text-accent hover:bg-accent/30 transition-all mb-1" title="New conversation">
+                <Plus className="h-4 w-4" />
+              </button>
+              <ScrollArea className="flex-1">
+                <div className="space-y-0.5">
+                  {conversations.map(c => (
+                    <button key={c.id} onClick={() => selectConvo(c)} title={c.title} className={`w-10 h-8 flex items-center justify-center rounded-lg transition-all ${activeConvoId === c.id ? "bg-white/10 text-white" : "text-white/30 hover:bg-white/5 hover:text-white/50"}`}>
+                      <MessageSquare className="h-3.5 w-3.5" />
+                    </button>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </ScrollArea>
-          <div className="mt-2 pt-2 border-t border-white/[0.06]">
-            <label className="text-[9px] text-white/30 mb-1 block">Focus on creator</label>
-            <Select value={contextAccount} onValueChange={setContextAccount}>
-              <SelectTrigger className="bg-white/5 border-white/10 text-white h-7 text-[11px]"><SelectValue placeholder="All creators" /></SelectTrigger>
-              <SelectContent className="bg-[hsl(220,40%,13%)] border-white/10">
-                <SelectItem value="all" className="text-white text-[11px]">All creators</SelectItem>
-                {accounts.map(a => (<SelectItem key={a.id} value={a.id} className="text-white text-[11px]">{a.display_name || a.username}</SelectItem>))}
-              </SelectContent>
-            </Select>
-          </div>
+              </ScrollArea>
+            </>
+          ) : (
+            <>
+              <div className="flex items-center gap-1 mb-2">
+                <Button size="sm" onClick={() => { setActiveConvoId(null); setMessages([]); setInput(""); setAttachments([]); clearDraft(); }}
+                  className="flex-1 bg-accent hover:bg-accent/90 text-white text-[11px] h-7 px-2">
+                  <Plus className="h-3 w-3 mr-1" /> New
+                </Button>
+                <button onClick={() => setHistorySidebarCollapsed(true)} className="h-7 w-7 flex items-center justify-center rounded-lg text-white/25 hover:text-white/50 hover:bg-white/5 transition-all" title="Collapse history">
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                </button>
+              </div>
+              <ScrollArea className="flex-1">
+                <div className="space-y-1">
+                  {conversations.map(c => (
+                    <div key={c.id} className={`flex items-center gap-1.5 p-2 rounded-lg cursor-pointer transition-all text-[11px] group ${activeConvoId === c.id ? "bg-white/10 text-white" : "text-white/40 hover:bg-white/5 hover:text-white/60"}`} onClick={() => selectConvo(c)}>
+                      <MessageSquare className="h-3.5 w-3.5 shrink-0" />
+                      <span className="truncate flex-1">{c.title}</span>
+                      <Button size="sm" variant="ghost" onClick={e => { e.stopPropagation(); deleteConvo(c.id); }} className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 text-red-400/50 hover:text-red-400"><Trash2 className="h-3 w-3" /></Button>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+              <div className="mt-2 pt-2 border-t border-white/[0.06]">
+                <label className="text-[9px] text-white/30 mb-1 block">Focus on creator</label>
+                <Select value={contextAccount} onValueChange={setContextAccount}>
+                  <SelectTrigger className="bg-white/5 border-white/10 text-white h-7 text-[11px]"><SelectValue placeholder="All creators" /></SelectTrigger>
+                  <SelectContent className="bg-[hsl(220,40%,13%)] border-white/10">
+                    <SelectItem value="all" className="text-white text-[11px]">All creators</SelectItem>
+                    {accounts.map(a => (<SelectItem key={a.id} value={a.id} className="text-white text-[11px]">{a.display_name || a.username}</SelectItem>))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Main */}
