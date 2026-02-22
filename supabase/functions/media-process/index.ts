@@ -292,7 +292,7 @@ serve(async (req) => {
                 version: "42fed1c4974146d4d2414e2be2c5277c7fcf05fcc3a73abf41610695738c1d7b",
                 input: {
                   image: output,
-                  scale: 4,
+                  scale: 2,
                   face_enhance: true,
                 },
               }),

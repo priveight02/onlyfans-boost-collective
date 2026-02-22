@@ -114,9 +114,9 @@ const InsufficientCreditsModal = ({ open, onClose, requiredCredits, actionName }
                 </h2>
                 <p className="text-xs text-white/40">
                   {isPurchaseMode
-                    ? "Power up your account — credits are delivered instantly and never expire."
+                    ? "Power up your account. Credits are delivered instantly and never expire."
                     : actionName
-                      ? `"${actionName}" requires ${requiredCredits} credits — you have ${balance}.`
+                      ? `"${actionName}" requires ${requiredCredits} credits. You have ${balance}.`
                       : `You need ${requiredCredits} credits. Current balance: ${balance}.`}
                 </p>
               </div>
