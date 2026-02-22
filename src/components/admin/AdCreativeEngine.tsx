@@ -118,6 +118,67 @@ const AdCreativeEngine = ({ subTab, onSubTabChange }: { subTab?: string; onSubTa
   const [connectedDetails, setConnectedDetails] = useState<Record<string, { username?: string; avatar?: string; accountId?: string }>>({});
   const [adStats, setAdStats] = useState({ impressions: 0, clicks: 0, ctr: 0, spend: 0, impChange: "—", clickChange: "—", ctrChange: "—", spendChange: "—" });
 
+  // Shopify Auto Connect (OAuth via Uplyze App)
+  const [shopifyOAuthLoading, setShopifyOAuthLoading] = useState(false);
+  const [shopifyShopInput, setShopifyShopInput] = useState("");
+  const [shopifyConnection, setShopifyConnection] = useState<any>(null);
+  const [showShopifyAutoConnect, setShowShopifyAutoConnect] = useState(false);
+
+  // Check for existing Shopify OAuth connection
+  useEffect(() => {
+    const checkShopifyConnection = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase
+        .from("shopify_store_connections")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("is_active", true)
+        .limit(1)
+        .maybeSingle();
+      if (data) setShopifyConnection(data);
+    };
+    checkShopifyConnection();
+  }, []);
+
+  const handleShopifyOAuth = async () => {
+    if (!shopifyShopInput.trim()) {
+      toast.error("Enter your Shopify store name (e.g. mystore or mystore.myshopify.com)");
+      return;
+    }
+    setShopifyOAuthLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/shopify-oauth-start`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}` },
+        body: JSON.stringify({ shop: shopifyShopInput, user_id: user.id, redirect_url: window.location.href }),
+      });
+      const data = await res.json();
+      if (data?.error) throw new Error(data.error);
+      if (!data?.auth_url) throw new Error("No auth URL returned");
+      const target = window.top || window;
+      target.location.href = data.auth_url;
+    } catch (err: any) {
+      console.error("Shopify OAuth error:", err);
+      toast.error(err.message || "Failed to start Shopify OAuth");
+    } finally {
+      setShopifyOAuthLoading(false);
+    }
+  };
+
+  const handleDisconnectShopifyOAuth = async () => {
+    if (!shopifyConnection) return;
+    try {
+      await supabase.from("shopify_store_connections").update({ is_active: false }).eq("id", shopifyConnection.id);
+      setShopifyConnection(null);
+      toast.success("Shopify store disconnected");
+    } catch {
+      toast.error("Failed to disconnect");
+    }
+  };
+
   // Check which social accounts are already connected + fetch account details
   useEffect(() => {
     const checkConnections = async () => {
@@ -1094,6 +1155,85 @@ const AdCreativeEngine = ({ subTab, onSubTabChange }: { subTab?: string; onSubTa
               );
             })}
           </div>
+
+          {/* Auto Connect Shopify via Uplyze App */}
+          <Card className="crm-card border-emerald-500/10 mt-4">
+            <CardContent className="p-4 space-y-3">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-emerald-500/10 p-1.5">
+                  <BrandLogo platform="shopify" size={22} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-white flex items-center gap-1.5">
+                    Auto Connect Shopify
+                    <Zap className="h-3 w-3 text-amber-400" />
+                  </h3>
+                  <p className="text-[10px] text-white/30">Install the Uplyze app on your Shopify store for one-click connection</p>
+                </div>
+              </div>
+              {shopifyConnection ? (
+                <div className="p-2.5 rounded-lg bg-emerald-500/5 border border-emerald-500/10 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                    <p className="text-[10px] text-emerald-400/70">Connected to <span className="font-medium text-emerald-400">{(shopifyConnection as any).shop_name || (shopifyConnection as any).shop_domain}</span></p>
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={handleDisconnectShopifyOAuth} className="text-red-400/50 hover:text-red-400 hover:bg-red-500/10 text-[10px] h-6 px-2">
+                    <WifiOff className="h-3 w-3 mr-1" />Disconnect
+                  </Button>
+                </div>
+              ) : !showShopifyAutoConnect ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowShopifyAutoConnect(true)}
+                  className="w-full border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/10 text-xs"
+                >
+                  <Wifi className="h-3.5 w-3.5 mr-1.5" />
+                  Auto Connect via Uplyze App
+                </Button>
+              ) : (
+                <div className="space-y-2.5">
+                  <div className="p-3 rounded-lg bg-white/[0.02] border border-white/[0.06] space-y-2">
+                    <p className="text-[10px] text-white/50 font-medium">Step 1: Install the Uplyze app on your Shopify store</p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/10 text-xs"
+                      onClick={() => window.open("https://apps.shopify.com/uplyze", "_blank")}
+                    >
+                      <ExternalLink className="h-3 w-3 mr-1.5" />
+                      Install Uplyze App from Shopify App Store
+                    </Button>
+                    <p className="text-[10px] text-white/30">If you already have the app installed, enter your store domain below.</p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-white/[0.02] border border-white/[0.06] space-y-2">
+                    <p className="text-[10px] text-white/50 font-medium">Step 2: Connect your store</p>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        placeholder="mystore.myshopify.com"
+                        value={shopifyShopInput}
+                        onChange={e => setShopifyShopInput(e.target.value)}
+                        onKeyDown={e => e.key === "Enter" && handleShopifyOAuth()}
+                        className="text-xs crm-input"
+                      />
+                      <Button
+                        size="sm"
+                        onClick={handleShopifyOAuth}
+                        disabled={shopifyOAuthLoading}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs shrink-0"
+                      >
+                        {shopifyOAuthLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ExternalLink className="h-3.5 w-3.5 mr-1" />}
+                        Connect
+                      </Button>
+                    </div>
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={() => setShowShopifyAutoConnect(false)} className="text-white/30 text-xs w-full">
+                    Cancel
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
           {/* Integration status */}
           <Card className="crm-card border-white/[0.04] mt-4">
