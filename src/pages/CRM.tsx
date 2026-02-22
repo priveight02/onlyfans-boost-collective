@@ -392,8 +392,8 @@ const CRM = () => {
                   background: "hsl(222 47% 10% / 0.5)",
                   border: "1px solid hsl(217 91% 60% / 0.06)",
                 }}
-                onFocus={(e) => { e.target.style.borderColor = "hsl(217 91% 60% / 0.2)"; e.target.style.background = "hsl(222 47% 12% / 0.6)"; }}
-                onBlur={(e) => { e.target.style.borderColor = "hsl(217 91% 60% / 0.06)"; e.target.style.background = "hsl(222 47% 10% / 0.5)"; }}
+                onFocus={(e) => { e.target.style.borderColor = "hsl(217 91% 60% / 0.2)"; e.target.style.background = "hsl(222 47% 12% / 0.6)"; window.dispatchEvent(new CustomEvent('platform-search-focus', { detail: true })); }}
+                onBlur={(e) => { e.target.style.borderColor = "hsl(217 91% 60% / 0.06)"; e.target.style.background = "hsl(222 47% 10% / 0.5)"; window.dispatchEvent(new CustomEvent('platform-search-focus', { detail: false })); }}
               />
             </div>
             <button className="w-8 h-8 rounded-lg flex items-center justify-center text-white/20 hover:text-white/50 hover:bg-white/[0.04] transition-all">

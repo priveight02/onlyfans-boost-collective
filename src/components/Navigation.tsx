@@ -16,6 +16,7 @@ type MenuItem = {
 const Navigation = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [searchFocused, setSearchFocused] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const { user, profile, loading, isAdmin, logout } = useAuth();
@@ -27,6 +28,13 @@ const Navigation = () => {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  useEffect(() => {
+    if (!isPlatform) return;
+    const handler = (e: Event) => setSearchFocused((e as CustomEvent).detail);
+    window.addEventListener('platform-search-focus', handler);
+    return () => window.removeEventListener('platform-search-focus', handler);
+  }, [isPlatform]);
 
   const handleLogout = async () => {
     try {
@@ -62,7 +70,7 @@ const Navigation = () => {
   const userInitial = profile?.display_name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || "U";
 
   return (
-    <div className={`fixed top-0 ${isPlatform ? 'flex justify-end items-start pt-[10px] pr-2 pointer-events-none' : 'w-full flex justify-center pt-4 px-4'}`} style={isPlatform ? { left: '240px', right: '350px', zIndex: 40 } : { zIndex: 50 }}>
+    <div className={`fixed top-0 ${isPlatform ? 'flex justify-end items-start pt-[10px] pr-2 pointer-events-none' : 'w-full flex justify-center pt-4 px-4'}`} style={isPlatform ? { left: '240px', right: searchFocused ? '430px' : '350px', zIndex: 40, transition: 'right 0.3s ease' } : { zIndex: 50 }}>
       <nav
         className={`transition-all duration-500 pointer-events-auto ${isPlatform ? 'rounded-xl' : 'w-full max-w-4xl rounded-2xl'}`}
         style={{
