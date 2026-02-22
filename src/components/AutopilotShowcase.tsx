@@ -86,13 +86,14 @@ const scenes: Scene[] = [
   {
     id: "ad-creatives",
     title: "Creative Maker",
-    subtitle: "AI-powered ad copy, visuals, video & campaign optimization",
+    subtitle: "Ad integrations, campaign creator & AI-optimized creatives",
     sidebarActive: 4,
-    duration: 7500,
+    duration: 10000,
     cursor: [
       { x: 3.5, y: 50, delay: 0, click: true, label: "Ad Engine" },
-      { x: 22, y: 58, delay: 3500, click: true, label: "Select variant A" },
-      { x: 75, y: 78, delay: 5800, click: true, label: "Launch campaign" },
+      { x: 42, y: 18, delay: 3000, click: true, label: "Integrations" },
+      { x: 62, y: 18, delay: 6200, click: true, label: "Campaigns" },
+      { x: 75, y: 78, delay: 8500, click: true, label: "Launch" },
     ],
   },
   {
@@ -551,68 +552,155 @@ const DMPanel = ({ progress }: { progress: number }) => {
   );
 };
 
-const AdCreativesPanel = ({ progress }: { progress: number }) => (
-  <div className="space-y-3">
-    <div className="flex items-center gap-2">
-      <Megaphone className="w-4 h-4 text-orange-400" />
-      <span className="text-white/80 text-sm font-semibold">Creative Maker</span>
-      <span className="ml-auto text-[9px] px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-400">AI Optimized</span>
-    </div>
-    {progress > 0.12 && (
-      <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="grid grid-cols-3 gap-2">
+const AdCreativesPanel = ({ progress }: { progress: number }) => {
+  const activeTab = progress < 0.35 ? 0 : progress < 0.65 ? 1 : 2;
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <Megaphone className="w-4 h-4 text-orange-400" />
+        <span className="text-white/80 text-sm font-semibold">Creative Maker</span>
+        <span className="ml-auto text-[9px] px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-400">AI Optimized</span>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex gap-1.5">
         {[
-          { label: "Variant A", ctr: "4.2%", score: 92, img: adVariantA },
-          { label: "Variant B", ctr: "3.8%", score: 85, img: adVariantB },
-          { label: "Variant C", ctr: "3.1%", score: 71, img: adVariantC },
-        ].map((v, i) => (
+          { icon: Image, label: "Creatives" },
+          { icon: Settings, label: "Integrations" },
+          { icon: BarChart3, label: "Campaigns" },
+        ].map((t, i) => (
           <motion.div
             key={i}
-            animate={{ boxShadow: i === 0 && progress > 0.45 ? '0 0 0 1px rgba(249,115,22,0.3)' : '0 0 0 0px transparent' }}
+            animate={{ background: i === activeTab ? 'rgba(249,115,22,0.12)' : 'rgba(255,255,255,0.02)' }}
             transition={{ duration: 0.4 }}
-            className="p-2 rounded-lg"
-            style={{ background: 'rgba(255,255,255,0.02)' }}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] ${i === activeTab ? 'text-orange-300' : 'text-white/25'}`}
           >
-            <div className="w-full aspect-square rounded-md mb-2 overflow-hidden relative flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.2)' }}>
-              {progress < 0.3 ? (
-                <div className="w-full h-full bg-gradient-to-br from-orange-500/10 to-pink-500/10">
-                  <motion.div className="absolute inset-0" animate={{ opacity: [0.05, 0.12, 0.05] }} transition={{ repeat: Infinity, duration: 1.2, delay: i * 0.15 }} style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent)' }} />
-                </div>
-              ) : (
-                <motion.img initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4, delay: i * 0.1 }} src={v.img} alt={v.label} className="w-full h-full object-contain" loading="eager" />
-              )}
-            </div>
-            <div className="text-white/60 text-[10px] font-medium">{v.label}</div>
-            <div className="flex items-center justify-between mt-1">
-              <span className="text-white/25 text-[9px]">CTR: {v.ctr}</span>
-              <span className={`text-[9px] ${v.score > 90 ? 'text-emerald-400' : 'text-white/25'}`}>{v.score}</span>
-            </div>
-            {i === 0 && progress > 0.45 && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center gap-1 mt-1">
-                <Star className="w-2.5 h-2.5 text-orange-400" />
-                <span className="text-orange-400 text-[9px]">AI Pick</span>
-              </motion.div>
-            )}
+            <t.icon className={`w-3 h-3 ${i === activeTab ? 'text-orange-400' : 'text-white/20'}`} />
+            <span>{t.label}</span>
           </motion.div>
         ))}
-      </motion.div>
-    )}
-    {progress > 0.55 && (
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-2.5 rounded-lg" style={{ background: 'rgba(255,255,255,0.02)' }}>
-        <div className="flex items-center justify-between mb-1">
-          <span className="text-white/45 text-[10px]">AI-Generated Copy</span>
-          <Sparkles className="w-3 h-3 text-purple-400" />
-        </div>
-        <p className="text-white/55 text-[10px] italic leading-relaxed">"Premium sound, redefined. Experience wireless freedom like never before. Shop now, limited edition 🔥"</p>
-      </motion.div>
-    )}
-    {progress > 0.78 && (
-      <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-2 p-2 rounded-lg bg-emerald-500/[0.04]">
-        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-        <span className="text-emerald-400 text-[10px]">Campaign launched: 12.4K audience, $150/day</span>
-      </motion.div>
-    )}
-  </div>
-);
+      </div>
+
+      <AnimatePresence mode="wait">
+        {/* Tab 0: Creatives */}
+        {activeTab === 0 && (
+          <motion.div key="creatives" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.3 }} className="space-y-2.5">
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { label: "Variant A", ctr: "4.2%", score: 92, img: adVariantA },
+                { label: "Variant B", ctr: "3.8%", score: 85, img: adVariantB },
+                { label: "Variant C", ctr: "3.1%", score: 71, img: adVariantC },
+              ].map((v, i) => (
+                <motion.div
+                  key={i}
+                  animate={{ boxShadow: i === 0 && progress > 0.2 ? '0 0 0 1px rgba(249,115,22,0.3)' : '0 0 0 0px transparent' }}
+                  transition={{ duration: 0.4 }}
+                  className="p-2 rounded-lg"
+                  style={{ background: 'rgba(255,255,255,0.02)' }}
+                >
+                  <div className="w-full aspect-square rounded-md mb-2 overflow-hidden relative" style={{ background: 'rgba(0,0,0,0.2)' }}>
+                    <motion.img initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4, delay: i * 0.1 }} src={v.img} alt={v.label} className="w-full h-full object-contain" loading="eager" />
+                  </div>
+                  <div className="text-white/60 text-[10px] font-medium">{v.label}</div>
+                  <div className="flex items-center justify-between mt-1">
+                    <span className="text-white/25 text-[9px]">CTR: {v.ctr}</span>
+                    <span className={`text-[9px] ${v.score > 90 ? 'text-emerald-400' : 'text-white/25'}`}>{v.score}</span>
+                  </div>
+                  {i === 0 && progress > 0.2 && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center gap-1 mt-1">
+                      <Star className="w-2.5 h-2.5 text-orange-400" />
+                      <span className="text-orange-400 text-[9px]">AI Pick</span>
+                    </motion.div>
+                  )}
+                </motion.div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+
+        {/* Tab 1: Integrations */}
+        {activeTab === 1 && (
+          <motion.div key="integrations" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.3 }} className="space-y-2">
+            {[
+              { name: "Meta Ads", desc: "Facebook & Instagram Ads", color: "text-blue-400", bg: "bg-blue-500/10", status: "Connected", icon: "M" },
+              { name: "Google Ads", desc: "Search, Display & YouTube", color: "text-yellow-400", bg: "bg-yellow-500/10", status: "Connected", icon: "G" },
+              { name: "TikTok Ads", desc: "In-Feed & Spark Ads", color: "text-pink-400", bg: "bg-pink-500/10", status: "Connected", icon: "T" },
+              { name: "Shopify", desc: "Product sync & storefront", color: "text-green-400", bg: "bg-green-500/10", status: "Connected", icon: "S" },
+            ].map((int, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, x: -8 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: i * 0.08, duration: 0.3 }}
+                className="flex items-center gap-2.5 p-2 rounded-lg"
+                style={{ background: 'rgba(255,255,255,0.02)' }}
+              >
+                <div className={`w-7 h-7 rounded-lg ${int.bg} flex items-center justify-center text-[11px] font-bold ${int.color}`}>
+                  {int.icon}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-white/70 text-[11px] font-medium">{int.name}</div>
+                  <div className="text-white/25 text-[9px]">{int.desc}</div>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                  <span className="text-emerald-400 text-[9px]">{int.status}</span>
+                </div>
+              </motion.div>
+            ))}
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }} className="flex items-center gap-2 text-[10px] text-white/30 pt-1">
+              <Globe className="w-3 h-3" />
+              <span>+ Snapchat, Pinterest, LinkedIn, X and more</span>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {/* Tab 2: Campaign Creator */}
+        {activeTab === 2 && (
+          <motion.div key="campaigns" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.3 }} className="space-y-2.5">
+            <div className="p-3 rounded-lg" style={{ background: 'rgba(255,255,255,0.025)' }}>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-white/50 text-[10px] font-medium">New Campaign</span>
+                <span className="text-[8px] text-orange-400/60 px-1.5 py-0.5 rounded bg-orange-500/10">AI Assisted</span>
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-white/30 text-[9px] w-14">Objective</span>
+                  <div className="flex-1 px-2 py-1 rounded-md text-[10px] text-white/60" style={{ background: 'rgba(255,255,255,0.04)' }}>Conversions</div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-white/30 text-[9px] w-14">Budget</span>
+                  <div className="flex-1 px-2 py-1 rounded-md text-[10px] text-white/60" style={{ background: 'rgba(255,255,255,0.04)' }}>$150/day</div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-white/30 text-[9px] w-14">Audience</span>
+                  <div className="flex-1 px-2 py-1 rounded-md text-[10px] text-white/60" style={{ background: 'rgba(255,255,255,0.04)' }}>Lookalike 1% · 18-35 · US</div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-white/30 text-[9px] w-14">Platforms</span>
+                  <div className="flex gap-1">
+                    {["Meta", "Google", "TikTok"].map((p, i) => (
+                      <span key={i} className="px-1.5 py-0.5 rounded text-[8px] text-purple-300 bg-purple-500/10">{p}</span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }} className="flex items-center gap-2">
+              <TrendingUp className="w-3 h-3 text-emerald-400" />
+              <span className="text-emerald-400 text-[10px]">AI predicts 3.8x ROAS based on creative score</span>
+            </motion.div>
+            <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }} className="flex items-center gap-2 p-2 rounded-lg bg-emerald-500/[0.04]">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+              <span className="text-emerald-400 text-[10px]">Campaign launched across 3 platforms, 12.4K audience</span>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
 
 const TeamPanel = ({ progress }: { progress: number }) => {
   const typedName = useTypingText("Jordan Rivera", progress > 0.25 && progress < 0.55, 60);
