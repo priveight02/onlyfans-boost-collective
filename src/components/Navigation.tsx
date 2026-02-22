@@ -45,8 +45,16 @@ const Navigation = () => {
     { name: "FAQ", href: "/faq", icon: HelpCircle },
   ];
 
+  // On /platform pages, hide Services and FAQ from navbar
+  const platformFilteredItems: MenuItem[] = isPlatform
+    ? [
+        { name: "Home", href: "/", icon: Home },
+        ...(!siteSettings.hide_pricing || isAdmin ? [{ name: "Pricing", href: "/pricing", icon: CreditCard }] : []),
+      ]
+    : menuItems;
+
   const finalMenuItems: MenuItem[] = [
-    ...menuItems,
+    ...platformFilteredItems,
     ...(user ? [{ name: "Platform", href: "/platform", icon: LayoutDashboard }] : []),
     ...(isAdmin ? [{ name: "Admin", href: "/admin", icon: Shield }] : []),
   ];
@@ -84,7 +92,7 @@ const Navigation = () => {
                   <Link
                     key={item.name}
                     to={item.href}
-                    className="relative px-3.5 py-2 rounded-xl text-[13px] font-medium transition-all duration-300 group"
+                    className={`relative ${isPlatform ? 'px-2.5' : 'px-3.5'} py-2 rounded-xl text-[13px] font-medium transition-all duration-300 group`}
                     style={{
                       color: isActive ? "white" : "hsl(215 25% 65%)",
                     }}
