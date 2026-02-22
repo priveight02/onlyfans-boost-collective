@@ -2,21 +2,21 @@ import { motion } from "framer-motion";
 import { X, Check } from "lucide-react";
 
 const withoutItems = [
-  { text: "Manually managing DMs across ", highlight: "10+ platforms" },
-  { text: "Guessing which content will ", highlight: "convert" },
-  { text: "Losing leads because you ", highlight: "reply too late" },
+  { text: "Manually managing DMs across ", highlight: "10+ platforms", suffix: "" },
+  { text: "", highlight: "Guessing", suffix: " which content will convert" },
+  { text: "", highlight: "Losing leads", suffix: " because you reply too late" },
   { text: "Paying ", highlight: "$500+/mo", suffix: " for 5 different tools" },
   { text: "Scaling feels ", highlight: "impossible", suffix: " without a big team" },
-  { text: "No AI insights, ", highlight: "flying blind", suffix: " on strategy" },
+  { text: "", highlight: "No AI insights", suffix: ", flying blind on strategy" },
 ];
 
 const withItems = [
   { text: "Full ", highlight: "AI Copilot", suffix: ", chat, strategize, and execute from one command center" },
-  { text: "", highlight: "AI auto-replies", suffix: " & DM automation across all platforms 24/7" },
-  { text: "", highlight: "AI-powered content scoring", suffix: ", viral prediction & script builder" },
-  { text: "AI Copilot generates ", highlight: "videos, images, voiceovers", suffix: " & ad creatives instantly" },
-  { text: "AI ", highlight: "lead scoring", suffix: ", deal tracking & revenue forecasting in real time" },
-  { text: "One ", highlight: "all-in-one AI suite", suffix: " replacing 10+ tools, CRM, scheduling, analytics & more" },
+  { text: "", highlight: "Auto-replies & DM automation", suffix: " across all platforms 24/7" },
+  { text: "AI-powered ", highlight: "content scoring, viral prediction", suffix: " & script builder" },
+  { text: "Generates ", highlight: "videos, images, voiceovers & ad creatives", suffix: " instantly" },
+  { text: "AI ", highlight: "lead scoring, deal tracking & revenue forecasting", suffix: " in real time" },
+  { text: "One ", highlight: "all-in-one AI suite replacing 10+ tools", suffix: ", CRM, scheduling, analytics & more" },
 ];
 
 const FailIcon = () => (
