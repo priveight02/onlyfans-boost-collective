@@ -44,7 +44,7 @@ interface StoreProduct {
   handle?: string;
   created_at?: string;
   updated_at?: string;
-  platform: "shopify" | "woocommerce" | "canva";
+  platform: "shopify" | "canva";
   synced_at?: string;
 }
 
@@ -57,7 +57,6 @@ interface StoreManagerProps {
 
 const PLATFORM_LABELS: Record<string, string> = {
   shopify: "Shopify",
-  woocommerce: "WooCommerce",
   canva: "Canva",
 };
 
@@ -65,7 +64,7 @@ const PLATFORM_LABELS: Record<string, string> = {
 // COMPONENT
 // ═══════════════════════════════════════════════
 const StoreManager = ({ connectedPlatforms, integrationKeys, generatedCreatives = [], shopifyConnection }: StoreManagerProps) => {
-  const [activePlatform, setActivePlatform] = useState<"shopify" | "woocommerce" | "canva">("shopify");
+  const [activePlatform, setActivePlatform] = useState<"shopify" | "canva">("shopify");
   const [products, setProducts] = useState<StoreProduct[]>([]);
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -82,7 +81,7 @@ const StoreManager = ({ connectedPlatforms, integrationKeys, generatedCreatives 
 
   // Export dialog
   const [exportOpen, setExportOpen] = useState(false);
-  const [exportTarget, setExportTarget] = useState<"shopify" | "woocommerce">("shopify");
+  const [exportTarget, setExportTarget] = useState<"shopify">("shopify");
   const [exporting, setExporting] = useState(false);
   const [exportCreativeOpen, setExportCreativeOpen] = useState(false);
 
@@ -97,7 +96,7 @@ const StoreManager = ({ connectedPlatforms, integrationKeys, generatedCreatives 
   const [uploadingImage, setUploadingImage] = useState(false);
 
   // Shopify OAuth connection is now passed as prop from parent (Integrations tab)
-  const storePlatforms = (["shopify", "woocommerce", "canva"] as const).filter(p => connectedPlatforms[p] || (p === "shopify" && shopifyConnection));
+  const storePlatforms = (["shopify", "canva"] as const).filter(p => connectedPlatforms[p] || (p === "shopify" && shopifyConnection));
 
   useEffect(() => {
     if (storePlatforms.length > 0 && !storePlatforms.includes(activePlatform)) {
@@ -209,17 +208,6 @@ const StoreManager = ({ connectedPlatforms, integrationKeys, generatedCreatives 
         // Use server-side edge function to avoid CORS
         const result = await callShopifySync("list_products");
         apiProducts = (result?.products || []).map((p: any) => normalizeShopifyProduct(p));
-      } else if (activePlatform === "woocommerce") {
-        const creds = integrationKeys.woocommerce || {};
-        const storeUrl = creds.store_url?.replace(/\/$/, "");
-        const ck = creds.api_key;
-        const cs = creds.api_secret;
-        if (!storeUrl || !ck || !cs) throw new Error("Missing WooCommerce credentials");
-
-        const res = await fetch(`${storeUrl}/wp-json/wc/v3/products?per_page=100&consumer_key=${ck}&consumer_secret=${cs}`);
-        if (!res.ok) throw new Error(`WooCommerce API error: ${res.status}`);
-        const json = await res.json();
-        apiProducts = (Array.isArray(json) ? json : []).map((p: any) => normalizeWooProduct(p));
       } else if (activePlatform === "canva") {
         const creds = integrationKeys.canva || {};
         const apiKey = creds.api_key;
@@ -284,32 +272,8 @@ const StoreManager = ({ connectedPlatforms, integrationKeys, generatedCreatives 
     platform: "shopify",
   });
 
-  const normalizeWooProduct = (p: any): StoreProduct => ({
-    id: `woo-${p.id}`,
-    external_id: String(p.id),
-    title: p.name || "Untitled",
-    description: p.description || p.short_description || "",
-    price: p.price || p.regular_price || "0.00",
-    compare_at_price: p.regular_price !== p.sale_price ? p.regular_price : undefined,
-    currency: "USD",
-    sku: p.sku || "",
-    barcode: "",
-    inventory_quantity: p.stock_quantity ?? 0,
-    weight: p.weight || "",
-    weight_unit: "kg",
-    status: p.status || "publish",
-    vendor: "",
-    product_type: p.type || "",
-    tags: (p.tags || []).map((t: any) => t.name || t),
-    images: (p.images || []).map((img: any) => ({ id: String(img.id), src: img.src, alt: img.alt || "", position: img.position })),
-    variants: (p.variations || []).map((v: any) => ({
-      id: String(v.id || v), title: "", price: "", sku: "",
-    })),
-    handle: p.slug || "",
-    created_at: p.date_created,
-    updated_at: p.date_modified,
-    platform: "woocommerce",
-  });
+
+
 
   const normalizeCanvaDesign = (d: any): StoreProduct => ({
     id: `canva-${d.id}`,
@@ -352,26 +316,6 @@ const StoreManager = ({ connectedPlatforms, integrationKeys, generatedCreatives 
             },
           });
         } catch { /* silent - will still save locally */ }
-      } else if (updated.platform === "woocommerce" && connectedPlatforms.woocommerce) {
-        const creds = integrationKeys.woocommerce || {};
-        const storeUrl = creds.store_url?.replace(/\/$/, "");
-        const ck = creds.api_key;
-        const cs = creds.api_secret;
-        if (storeUrl && ck && cs) {
-          try {
-            await fetch(`${storeUrl}/wp-json/wc/v3/products/${updated.external_id}?consumer_key=${ck}&consumer_secret=${cs}`, {
-              method: "PUT",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                name: updated.title,
-                description: updated.description,
-                regular_price: updated.price,
-                sku: updated.sku,
-                status: updated.status,
-              }),
-            });
-          } catch { /* silent */ }
-        }
       }
 
       // Save to DB
@@ -460,7 +404,7 @@ const StoreManager = ({ connectedPlatforms, integrationKeys, generatedCreatives 
   };
 
   // Export product to store
-  const handleExportToStore = async (product: StoreProduct, targetPlatform: "shopify" | "woocommerce") => {
+  const handleExportToStore = async (product: StoreProduct, targetPlatform: "shopify") => {
     setExporting(true);
     try {
       if (targetPlatform === "shopify") {
@@ -478,27 +422,6 @@ const StoreManager = ({ connectedPlatforms, integrationKeys, generatedCreatives 
           },
         });
         toast.success(`"${product.title}" exported to Shopify`);
-      } else if (targetPlatform === "woocommerce") {
-        const creds = integrationKeys.woocommerce || {};
-        const storeUrl = creds.store_url?.replace(/\/$/, "");
-        const ck = creds.api_key;
-        const cs = creds.api_secret;
-        if (!storeUrl || !ck || !cs) throw new Error("WooCommerce not connected");
-
-        const res = await fetch(`${storeUrl}/wp-json/wc/v3/products?consumer_key=${ck}&consumer_secret=${cs}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name: product.title,
-            description: product.description,
-            regular_price: product.price,
-            sku: product.sku || "",
-            status: "draft",
-            images: product.images.map(img => ({ src: img.src, alt: img.alt || "" })),
-          }),
-        });
-        if (!res.ok) throw new Error(`WooCommerce API error: ${res.status}`);
-        toast.success(`"${product.title}" exported to WooCommerce`);
       }
     } catch (err: any) {
       toast.error(err.message || "Export failed");
@@ -522,25 +445,6 @@ const StoreManager = ({ connectedPlatforms, integrationKeys, generatedCreatives 
           },
         });
         toast.success("Creative exported to Shopify as draft product");
-      } else {
-        const creds = integrationKeys.woocommerce || {};
-        const storeUrl = creds.store_url?.replace(/\/$/, "");
-        const ck = creds.api_key;
-        const cs = creds.api_secret;
-        if (!storeUrl || !ck || !cs) throw new Error("WooCommerce not connected");
-
-        const res = await fetch(`${storeUrl}/wp-json/wc/v3/products?consumer_key=${ck}&consumer_secret=${cs}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name: "AI Generated Creative",
-            description: "Created with Uplyze AI Creative Maker",
-            status: "draft",
-            images: [{ src: creativeUrl }],
-          }),
-        });
-        if (!res.ok) throw new Error(`WooCommerce API error: ${res.status}`);
-        toast.success("Creative exported to WooCommerce as draft product");
       }
     } catch (err: any) {
       toast.error(err.message || "Export failed");
@@ -551,7 +455,7 @@ const StoreManager = ({ connectedPlatforms, integrationKeys, generatedCreatives 
   };
 
   // Bulk export selected products
-  const handleBulkExport = async (target: "shopify" | "woocommerce") => {
+  const handleBulkExport = async (target: "shopify") => {
     const selected = products.filter(p => selectedProducts.has(p.id));
     if (!selected.length) { toast.error("Select products first"); return; }
     setExporting(true);
@@ -632,7 +536,7 @@ const StoreManager = ({ connectedPlatforms, integrationKeys, generatedCreatives 
     return matchSearch && matchStatus;
   });
 
-  const noStoreConnected = !connectedPlatforms.shopify && !connectedPlatforms.woocommerce && !connectedPlatforms.canva && !shopifyConnection;
+  const noStoreConnected = !connectedPlatforms.shopify && !connectedPlatforms.canva && !shopifyConnection;
 
   if (noStoreConnected) {
     return (
@@ -640,7 +544,7 @@ const StoreManager = ({ connectedPlatforms, integrationKeys, generatedCreatives 
         <div className="text-center space-y-4 max-w-md">
           <ShoppingCart className="h-10 w-10 text-white/10 mx-auto" />
           <h3 className="text-white/60 text-base font-medium">No Store Connected</h3>
-          <p className="text-white/30 text-sm">Connect Shopify, WooCommerce, or Canva in the Integrations tab to start managing your store products.</p>
+          <p className="text-white/30 text-sm">Connect Shopify or Canva in the Integrations tab to start managing your store products.</p>
           <p className="text-white/20 text-xs">Go to Integrations → Connect your store → Come back here to manage products</p>
         </div>
       </div>
@@ -731,11 +635,8 @@ const StoreManager = ({ connectedPlatforms, integrationKeys, generatedCreatives 
                 <ArrowUpFromLine className="h-3 w-3 mr-1" />To Shopify
               </Button>
             )}
-            {connectedPlatforms.woocommerce && activePlatform !== "woocommerce" && (
-              <Button variant="outline" size="sm" onClick={() => handleBulkExport("woocommerce")} disabled={exporting} className="text-xs h-7 border-purple-500/20 text-purple-400">
-                <ArrowUpFromLine className="h-3 w-3 mr-1" />To WooCommerce
-              </Button>
-            )}
+
+
           </div>
         )}
         <div className="ml-auto text-[11px] text-white/25">{filteredProducts.length} product{filteredProducts.length !== 1 ? "s" : ""}</div>
@@ -1030,7 +931,7 @@ const StoreManager = ({ connectedPlatforms, integrationKeys, generatedCreatives 
                 <SelectTrigger className="mt-1 text-xs crm-input"><SelectValue /></SelectTrigger>
                 <SelectContent className="bg-[hsl(220,40%,10%)] border-white/10">
                   {connectedPlatforms.shopify && <SelectItem value="shopify" className="text-white text-xs">Shopify</SelectItem>}
-                  {connectedPlatforms.woocommerce && <SelectItem value="woocommerce" className="text-white text-xs">WooCommerce</SelectItem>}
+                  
                 </SelectContent>
               </Select>
             </div>
