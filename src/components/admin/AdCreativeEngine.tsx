@@ -61,6 +61,10 @@ import {
   TemplateLibrary, ROICalculator, ABTestManager, CopyHistoryPanel,
   MultiPlatformAdapter, ConversionFunnel, AdFatigueMonitor,
   SmartScheduler, HeadlineScorer, CreativeBrief,
+  CompetitorAdTracker, EngagementBooster, AdSpendForecaster,
+  LandingPageOptimizer, AdQualityChecker, SeasonalTrends,
+  RetargetingStrategy, CreativeVariationGen, AudienceSentiment,
+  AdComplianceChecker,
 } from "./creative/CreativeFeatures";
 import adVariantA from "@/assets/showcase-ad-variant-a.png";
 import adVariantB from "@/assets/showcase-ad-variant-b.png";
@@ -947,25 +951,25 @@ const AdCreativeEngine = ({ subTab, onSubTabChange }: { subTab?: string; onSubTa
 
         {/* COPY TAB */}
         <TabsContent value="copy" className="mt-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-4">
+          <div className="grid grid-cols-12 gap-4">
+            <div className="col-span-4 space-y-3">
               <Card className="crm-card border-white/[0.04]">
-                <CardHeader><CardTitle className="text-sm text-white/80">Product Details</CardTitle></CardHeader>
+                <CardHeader className="pb-2"><CardTitle className="text-sm text-white/80">Product Details</CardTitle></CardHeader>
                 <CardContent className="space-y-3">
                   <div><label className="text-[11px] text-white/35 font-medium">Product Name</label><Input value={productName} onChange={(e) => setProductName(e.target.value)} className="mt-1 text-xs crm-input" /></div>
-                  <div><label className="text-[11px] text-white/35 font-medium">Description</label><Textarea value={productDescription} onChange={(e) => setProductDescription(e.target.value)} className="mt-1 text-xs crm-input min-h-[100px]" /></div>
+                  <div><label className="text-[11px] text-white/35 font-medium">Description</label><Textarea value={productDescription} onChange={(e) => setProductDescription(e.target.value)} className="mt-1 text-xs crm-input min-h-[80px]" /></div>
                   <div><label className="text-[11px] text-white/35 font-medium">Target Audience</label><Input value={targetAudience} onChange={(e) => setTargetAudience(e.target.value)} className="mt-1 text-xs crm-input" /></div>
                   <Button onClick={handleGenerateCopy} disabled={generatingCopy} className="w-full text-xs" style={{ background: "linear-gradient(135deg, hsl(217 91% 55%), hsl(262 83% 58%))" }}>
-                    {generatingCopy ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Wand2 className="h-3.5 w-3.5 mr-1.5" />}Generate AI Copy for All Variants
+                    {generatingCopy ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Wand2 className="h-3.5 w-3.5 mr-1.5" />}Generate AI Copy
                   </Button>
                 </CardContent>
               </Card>
               <AICopyToolsPanel productName={productName} productDescription={productDescription} targetAudience={targetAudience} />
             </div>
-            <div className="space-y-3">
+            <div className="col-span-4 space-y-3">
               {variants.map((v) => (
                 <Card key={v.id} className="crm-card border-white/[0.04]">
-                  <CardContent className="p-4 space-y-2">
+                  <CardContent className="p-3 space-y-1.5">
                     <div className="flex items-center justify-between"><span className="text-xs font-semibold text-white/80">{v.label}</span><Badge className="text-[9px] bg-orange-500/10 text-orange-400">{v.score} pts</Badge></div>
                     <p className="text-white/70 text-sm font-bold">{v.headline}</p>
                     <p className="text-white/45 text-xs">{v.copy}</p>
@@ -973,6 +977,13 @@ const AdCreativeEngine = ({ subTab, onSubTabChange }: { subTab?: string; onSubTa
                   </CardContent>
                 </Card>
               ))}
+              <EngagementBooster copy={selected.copy} headline={selected.headline} />
+            </div>
+            <div className="col-span-4 space-y-3">
+              <HeadlineScorer onApplyBest={(h) => setVariants(prev => prev.map((v, i) => i === 0 ? { ...v, headline: h } : v))} />
+              <MultiPlatformAdapter copy={selected.copy} productName={productName} />
+              <CopyHistoryPanel onApply={(text) => setVariants(prev => prev.map((v, i) => i === 0 ? { ...v, copy: text } : v))} />
+              <AdComplianceChecker headline={selected.headline} copy={selected.copy} />
             </div>
           </div>
         </TabsContent>
@@ -980,47 +991,55 @@ const AdCreativeEngine = ({ subTab, onSubTabChange }: { subTab?: string; onSubTa
         {/* ANALYTICS TAB */}
         <TabsContent value="analytics" className="mt-4">
           <div className="grid grid-cols-12 gap-4">
-            <div className="col-span-8">
-              <div className="grid grid-cols-3 gap-4">
+            <div className="col-span-5">
+              <div className="grid grid-cols-1 gap-3">
                 {variants.map((v) => (
                   <Card key={v.id} className="crm-card border-white/[0.04]">
-                    <CardContent className="p-4 space-y-4">
-                      <div className="flex items-center justify-between"><span className="text-xs font-semibold text-white/80">{v.label}</span>{v.score > 90 && <div className="flex items-center gap-1 text-orange-400 text-[10px]"><Star className="w-3 h-3" /> Top Performer</div>}</div>
-                      <div className="aspect-[3/2] rounded-lg overflow-hidden bg-black/20"><img src={v.imageUrl} alt={v.label} className="w-full h-full object-contain" /></div>
-                      <div className="grid grid-cols-2 gap-3">
-                        {[{ l: "CTR", v: v.ctr }, { l: "AI Score", v: v.score }, { l: "Clicks", v: Math.floor(Math.random() * 2000 + 500) }, { l: "Conv.", v: `${(Math.random() * 3 + 1).toFixed(1)}%` }].map(m => (
-                          <div key={m.l} className="p-2 rounded-lg bg-white/[0.02]"><div className="text-white/30 text-[10px]">{m.l}</div><div className="text-white text-sm font-bold">{m.v}</div></div>
-                        ))}
+                    <CardContent className="p-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-16 h-16 rounded-lg overflow-hidden bg-black/20 shrink-0"><img src={v.imageUrl} alt={v.label} className="w-full h-full object-contain" /></div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between"><span className="text-xs font-semibold text-white/80">{v.label}</span>{v.score > 90 && <div className="flex items-center gap-1 text-orange-400 text-[9px]"><Star className="w-2.5 h-2.5" /> Top</div>}</div>
+                          <div className="grid grid-cols-4 gap-2 mt-1.5">
+                            {[{ l: "CTR", v: v.ctr }, { l: "Score", v: v.score }, { l: "Clicks", v: Math.floor(Math.random() * 2000 + 500) }, { l: "Conv.", v: `${(Math.random() * 3 + 1).toFixed(1)}%` }].map(m => (
+                              <div key={m.l} className="text-center"><div className="text-white text-xs font-bold">{m.v}</div><div className="text-white/25 text-[8px]">{m.l}</div></div>
+                            ))}
+                          </div>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
                 ))}
               </div>
+              <div className="mt-3"><ConversionFunnel /></div>
             </div>
-            <div className="col-span-4 space-y-4">
+            <div className="col-span-4 space-y-3">
               <CompetitorAnalyzer productName={productName} productDescription={productDescription} />
+              <CompetitorAdTracker productName={productName} />
+              <SeasonalTrends productName={productName} />
+            </div>
+            <div className="col-span-3 space-y-3">
               <ROICalculator />
+              <AdSpendForecaster budget={5000} />
+              <AdQualityChecker headline={selected.headline} copy={selected.copy} cta={selected.cta} />
             </div>
           </div>
         </TabsContent>
 
         {/* TARGETING TAB */}
         <TabsContent value="settings" className="mt-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-4">
+          <div className="grid grid-cols-12 gap-4">
+            <div className="col-span-4 space-y-3">
               <Card className="crm-card border-white/[0.04]">
-                <CardHeader><CardTitle className="text-sm text-white/80 flex items-center gap-2"><Target className="w-4 h-4 text-blue-400" />Audience Targeting</CardTitle></CardHeader>
+                <CardHeader className="pb-2"><CardTitle className="text-sm text-white/80 flex items-center gap-2"><Target className="w-4 h-4 text-blue-400" />Audience Targeting</CardTitle></CardHeader>
                 <CardContent className="space-y-3">
                   <div><label className="text-[11px] text-white/35 font-medium">Age Range</label><div className="flex gap-2 mt-1"><Input type="number" defaultValue="25" className="text-xs crm-input w-24" /><span className="text-white/25 self-center text-xs">to</span><Input type="number" defaultValue="45" className="text-xs crm-input w-24" /></div></div>
                   <div><label className="text-[11px] text-white/35 font-medium">Interests</label><div className="flex flex-wrap gap-1.5 mt-1.5">{["Technology", "Music", "Audio", "Premium", "Lifestyle"].map(tag => <span key={tag} className="px-2 py-1 rounded-md bg-white/[0.04] text-white/50 text-[10px] border border-white/[0.06]">{tag}</span>)}<button className="px-2 py-1 rounded-md bg-blue-500/10 text-blue-400 text-[10px] border border-blue-500/20 flex items-center gap-1"><Plus className="w-2.5 h-2.5" /> Add</button></div></div>
                   <div><label className="text-[11px] text-white/35 font-medium">Platforms</label><div className="flex flex-wrap gap-1.5 mt-1.5">{["Instagram", "Facebook", "TikTok"].map(p => <span key={p} className="px-2 py-1 rounded-md bg-emerald-500/10 text-emerald-400 text-[10px] border border-emerald-500/20">{p}</span>)}</div></div>
                 </CardContent>
               </Card>
-              <AIAudienceBuilder productName={productName} productDescription={productDescription} />
-            </div>
-            <div className="space-y-4">
               <Card className="crm-card border-white/[0.04]">
-                <CardHeader><CardTitle className="text-sm text-white/80 flex items-center gap-2"><DollarSign className="w-4 h-4 text-emerald-400" />Budget & Schedule</CardTitle></CardHeader>
+                <CardHeader className="pb-2"><CardTitle className="text-sm text-white/80 flex items-center gap-2"><DollarSign className="w-4 h-4 text-emerald-400" />Budget & Schedule</CardTitle></CardHeader>
                 <CardContent className="space-y-3">
                   <div><label className="text-[11px] text-white/35 font-medium">Daily Budget</label><Input type="number" defaultValue="150" className="mt-1 text-xs crm-input" /></div>
                   <div><label className="text-[11px] text-white/35 font-medium">Total Budget</label><Input type="number" defaultValue="5000" className="mt-1 text-xs crm-input" /></div>
@@ -1028,7 +1047,17 @@ const AdCreativeEngine = ({ subTab, onSubTabChange }: { subTab?: string; onSubTa
                   <Button className="w-full text-xs mt-2" style={{ background: "linear-gradient(135deg, hsl(217 91% 55%), hsl(262 83% 58%))" }}><Zap className="w-3.5 h-3.5 mr-1.5" />Save & Launch</Button>
                 </CardContent>
               </Card>
+            </div>
+            <div className="col-span-4 space-y-3">
+              <AIAudienceBuilder productName={productName} productDescription={productDescription} />
+              <AudienceSentiment targetAudience={targetAudience} productName={productName} />
+              <RetargetingStrategy productName={productName} />
+            </div>
+            <div className="col-span-4 space-y-3">
               <AIBudgetOptimizer totalBudget={5000} platforms={Object.keys(connectedPlatforms).filter(k => connectedPlatforms[k] && k.includes("_ads"))} />
+              <SmartScheduler productName={productName} />
+              <LandingPageOptimizer productName={productName} cta={selected.cta} />
+              <CreativeVariationGen headline={selected.headline} copy={selected.copy} cta={selected.cta} />
             </div>
           </div>
         </TabsContent>
