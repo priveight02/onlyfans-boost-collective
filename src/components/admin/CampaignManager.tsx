@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import {
   Megaphone, Plus, Loader2, Play, Pause, Trash2, SquarePen,
-  RefreshCw, Eye, DollarSign, TrendingUp, Wifi, WifiOff,
+  RefreshCw, Eye, DollarSign, TrendingUp, CircleDot, CircleOff,
   Search, Zap, Filter, BarChart3, Copy, ExternalLink,
   Calendar, Target, Clock, ArrowUpRight, ArrowDownRight,
   Activity, MousePointerClick, ChevronLeft, Layers, Image,
@@ -500,7 +500,7 @@ const CampaignManager = ({ connectedPlatforms, connectedDetails, integrationKeys
   if (adPlatforms.length === 0) {
     return (
       <div className="crm-card p-12 text-center space-y-4">
-        <div className="w-16 h-16 rounded-2xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-center mx-auto"><WifiOff className="h-7 w-7 text-white/15" /></div>
+        <div className="w-16 h-16 rounded-2xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-center mx-auto"><CircleOff className="h-7 w-7 text-white/15" /></div>
         <h3 className="text-base font-semibold text-white/60">No Ad Accounts Connected</h3>
         <p className="text-xs text-white/25 max-w-sm mx-auto">Connect at least one ad platform in the Integrations tab to start managing campaigns.</p>
       </div>
@@ -522,7 +522,7 @@ const CampaignManager = ({ connectedPlatforms, connectedDetails, integrationKeys
             <div className="flex items-center gap-2">
               <h2 className="text-sm font-bold text-white truncate">{selectedCampaign.name}</h2>
               <Badge className={`text-[8px] px-1.5 py-0 h-4 border ${selectedCampaign.status === "ACTIVE" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-amber-500/10 text-amber-400 border-amber-500/20"}`}>{selectedCampaign.status}</Badge>
-              {selectedCampaign.synced && <div className="flex items-center gap-1 text-[8px] text-emerald-400/50"><Wifi className="h-2.5 w-2.5" />Synced</div>}
+              {selectedCampaign.synced && <div className="flex items-center gap-1 text-[8px] text-emerald-400/50"><CircleDot className="h-2.5 w-2.5" />Synced</div>}
             </div>
             <div className="flex items-center gap-3 mt-0.5">
               {selectedCampaign.objective && <span className="text-[10px] text-white/20">{selectedCampaign.objective.replace(/_/g, " ")}</span>}
@@ -1082,7 +1082,7 @@ const CampaignManager = ({ connectedPlatforms, connectedDetails, integrationKeys
                     <div className="flex items-center gap-2">
                       <h3 className="text-xs font-semibold text-white truncate group-hover:text-white/90">{campaign.name}</h3>
                       <Badge className={`text-[7px] px-1 py-0 h-3.5 border ${campaign.status === "ACTIVE" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : campaign.status === "PAUSED" ? "bg-amber-500/10 text-amber-400 border-amber-500/20" : "bg-white/5 text-white/30 border-white/10"}`}>{campaign.status}</Badge>
-                      {campaign.synced && <div className="flex items-center gap-0.5 text-[7px] text-emerald-400/40"><Wifi className="h-2 w-2" /></div>}
+                      {campaign.synced && <div className="flex items-center gap-0.5 text-[7px] text-emerald-400/40"><CircleDot className="h-2 w-2" /></div>}
                     </div>
                     <div className="flex items-center gap-2 mt-0.5">
                       {campaign.objective && <span className="text-[9px] text-white/15">{campaign.objective.replace(/_/g, " ")}</span>}
