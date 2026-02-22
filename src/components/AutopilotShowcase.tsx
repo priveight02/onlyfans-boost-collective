@@ -86,14 +86,15 @@ const scenes: Scene[] = [
   {
     id: "ad-creatives",
     title: "Creative Maker",
-    subtitle: "Ad integrations, campaign creator & AI-optimized creatives",
+    subtitle: "AI-powered ad creatives, platform integrations & campaign launcher",
     sidebarActive: 4,
-    duration: 10000,
+    duration: 14000,
     cursor: [
       { x: 3.5, y: 50, delay: 0, click: true, label: "Ad Engine" },
-      { x: 42, y: 18, delay: 3000, click: true, label: "Integrations" },
-      { x: 62, y: 18, delay: 6200, click: true, label: "Campaigns" },
-      { x: 75, y: 78, delay: 8500, click: true, label: "Launch" },
+      { x: 22, y: 58, delay: 2800, click: true, label: "Select variant A" },
+      { x: 42, y: 18, delay: 5500, click: true, label: "Integrations" },
+      { x: 62, y: 18, delay: 9500, click: true, label: "Campaigns" },
+      { x: 75, y: 78, delay: 12500, click: true, label: "Launch" },
     ],
   },
   {
@@ -552,8 +553,43 @@ const DMPanel = ({ progress }: { progress: number }) => {
   );
 };
 
+const MetaLogo = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+    <path d="M12 2C6.477 2 2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.879V14.89h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.989C18.343 21.129 22 16.99 22 12c0-5.523-4.477-10-10-10z" fill="#1877F2"/>
+  </svg>
+);
+const GoogleLogo = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
+    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18A10.96 10.96 0 001 12c0 1.77.42 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+  </svg>
+);
+const TikTokLogo = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+    <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.27 6.27 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.75a8.18 8.18 0 004.77 1.53V6.84a4.84 4.84 0 01-1-.15z" fill="#fff"/>
+  </svg>
+);
+const ShopifyLogo = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+    <path d="M15.34 3.27s-.27-.07-.73-.07c-.47 0-1.25.13-1.87.87-.55.66-.73 1.54-.73 1.54s.83.1 1.36-.44c.54-.55.97-1.9.97-1.9zm1.66 2.41s-1.05-.46-2.13.24c-.75.48-1.11 1.23-1.11 1.23s1.2.08 1.95-.48c.75-.55 1.29-1 1.29-1zM20.5 20.5L18 7.5l-2.5-.5S14.22 5.36 13.5 5c-.36-.18-.72-.17-.72-.17l-.62 15.17 8.34 2z" fill="#95BF47"/>
+    <path d="M12.16 4.83s-.36-.01-.72.17c-.14.07-.3.18-.47.35L12.16 20l8.34 2-.36-1.5L12.16 4.83z" fill="#5E8E3E"/>
+  </svg>
+);
+const SnapchatLogo = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+    <path d="M12 2C8.14 2 5.7 4.1 5.7 8.1v1.86c-.64.1-1.2.32-1.2.72 0 .44.64.68 1.26.78-.1.54-.36 1.16-.72 1.72-.48.74-1.18 1.36-1.88 1.68-.2.08-.36.28-.36.5 0 .34.34.6.72.72.56.16 1.26.24 1.68.58.3.24.42.62.78 1.06.48.58 1.26.98 2.72.98 1.94 0 3.34-.88 3.34-.88s1.4.88 3.34.88c1.46 0 2.24-.4 2.72-.98.36-.44.48-.82.78-1.06.42-.34 1.12-.42 1.68-.58.38-.12.72-.38.72-.72 0-.22-.16-.42-.36-.5-.7-.32-1.4-.94-1.88-1.68-.36-.56-.62-1.18-.72-1.72.62-.1 1.26-.34 1.26-.78 0-.4-.56-.62-1.2-.72V8.1C18.3 4.1 15.86 2 12 2z" fill="#FFFC00"/>
+  </svg>
+);
+const PinterestLogo = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+    <path d="M12 2C6.477 2 2 6.477 2 12c0 4.236 2.636 7.855 6.356 9.312-.088-.791-.167-2.005.035-2.868.181-.78 1.172-4.97 1.172-4.97s-.299-.598-.299-1.482c0-1.388.806-2.425 1.808-2.425.853 0 1.265.64 1.265 1.408 0 .858-.546 2.14-.828 3.33-.236.995.499 1.806 1.481 1.806 1.778 0 3.144-1.874 3.144-4.58 0-2.393-1.72-4.068-4.177-4.068-2.845 0-4.515 2.134-4.515 4.34 0 .859.331 1.781.744 2.281a.3.3 0 01.069.287l-.278 1.133c-.044.183-.145.222-.335.134-1.249-.581-2.03-2.407-2.03-3.874 0-3.154 2.292-6.052 6.608-6.052 3.469 0 6.165 2.473 6.165 5.776 0 3.447-2.173 6.22-5.19 6.22-1.013 0-1.965-.527-2.291-1.148l-.623 2.378c-.226.869-.835 1.958-1.244 2.621.937.29 1.931.449 2.962.449 5.523 0 10-4.477 10-10S17.523 2 12 2z" fill="#E60023"/>
+  </svg>
+);
+
 const AdCreativesPanel = ({ progress }: { progress: number }) => {
-  const activeTab = progress < 0.35 ? 0 : progress < 0.65 ? 1 : 2;
+  const activeTab = progress < 0.38 ? 0 : progress < 0.68 ? 1 : 2;
 
   return (
     <div className="space-y-3">
@@ -583,50 +619,73 @@ const AdCreativesPanel = ({ progress }: { progress: number }) => {
       </div>
 
       <AnimatePresence mode="wait">
-        {/* Tab 0: Creatives */}
+        {/* Tab 0: Creatives (original full version) */}
         {activeTab === 0 && (
           <motion.div key="creatives" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.3 }} className="space-y-2.5">
-            <div className="grid grid-cols-3 gap-2">
-              {[
-                { label: "Variant A", ctr: "4.2%", score: 92, img: adVariantA },
-                { label: "Variant B", ctr: "3.8%", score: 85, img: adVariantB },
-                { label: "Variant C", ctr: "3.1%", score: 71, img: adVariantC },
-              ].map((v, i) => (
-                <motion.div
-                  key={i}
-                  animate={{ boxShadow: i === 0 && progress > 0.2 ? '0 0 0 1px rgba(249,115,22,0.3)' : '0 0 0 0px transparent' }}
-                  transition={{ duration: 0.4 }}
-                  className="p-2 rounded-lg"
-                  style={{ background: 'rgba(255,255,255,0.02)' }}
-                >
-                  <div className="w-full aspect-square rounded-md mb-2 overflow-hidden relative" style={{ background: 'rgba(0,0,0,0.2)' }}>
-                    <motion.img initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4, delay: i * 0.1 }} src={v.img} alt={v.label} className="w-full h-full object-contain" loading="eager" />
-                  </div>
-                  <div className="text-white/60 text-[10px] font-medium">{v.label}</div>
-                  <div className="flex items-center justify-between mt-1">
-                    <span className="text-white/25 text-[9px]">CTR: {v.ctr}</span>
-                    <span className={`text-[9px] ${v.score > 90 ? 'text-emerald-400' : 'text-white/25'}`}>{v.score}</span>
-                  </div>
-                  {i === 0 && progress > 0.2 && (
-                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center gap-1 mt-1">
-                      <Star className="w-2.5 h-2.5 text-orange-400" />
-                      <span className="text-orange-400 text-[9px]">AI Pick</span>
-                    </motion.div>
-                  )}
-                </motion.div>
-              ))}
-            </div>
+            {progress > 0.04 && (
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { label: "Variant A", ctr: "4.2%", score: 92, img: adVariantA },
+                  { label: "Variant B", ctr: "3.8%", score: 85, img: adVariantB },
+                  { label: "Variant C", ctr: "3.1%", score: 71, img: adVariantC },
+                ].map((v, i) => (
+                  <motion.div
+                    key={i}
+                    animate={{ boxShadow: i === 0 && progress > 0.18 ? '0 0 0 1px rgba(249,115,22,0.3)' : '0 0 0 0px transparent' }}
+                    transition={{ duration: 0.4 }}
+                    className="p-2 rounded-lg"
+                    style={{ background: 'rgba(255,255,255,0.02)' }}
+                  >
+                    <div className="w-full aspect-square rounded-md mb-2 overflow-hidden relative flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.2)' }}>
+                      {progress < 0.12 ? (
+                        <div className="w-full h-full bg-gradient-to-br from-orange-500/10 to-pink-500/10">
+                          <motion.div className="absolute inset-0" animate={{ opacity: [0.05, 0.12, 0.05] }} transition={{ repeat: Infinity, duration: 1.2, delay: i * 0.15 }} style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent)' }} />
+                        </div>
+                      ) : (
+                        <motion.img initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4, delay: i * 0.1 }} src={v.img} alt={v.label} className="w-full h-full object-contain" loading="eager" />
+                      )}
+                    </div>
+                    <div className="text-white/60 text-[10px] font-medium">{v.label}</div>
+                    <div className="flex items-center justify-between mt-1">
+                      <span className="text-white/25 text-[9px]">CTR: {v.ctr}</span>
+                      <span className={`text-[9px] ${v.score > 90 ? 'text-emerald-400' : 'text-white/25'}`}>{v.score}</span>
+                    </div>
+                    {i === 0 && progress > 0.18 && (
+                      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center gap-1 mt-1">
+                        <Star className="w-2.5 h-2.5 text-orange-400" />
+                        <span className="text-orange-400 text-[9px]">AI Pick</span>
+                      </motion.div>
+                    )}
+                  </motion.div>
+                ))}
+              </div>
+            )}
+            {progress > 0.22 && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-2.5 rounded-lg" style={{ background: 'rgba(255,255,255,0.02)' }}>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-white/45 text-[10px]">AI-Generated Copy</span>
+                  <Sparkles className="w-3 h-3 text-purple-400" />
+                </div>
+                <p className="text-white/55 text-[10px] italic leading-relaxed">"Premium sound, redefined. Experience wireless freedom like never before. Shop now, limited edition 🔥"</p>
+              </motion.div>
+            )}
+            {progress > 0.30 && (
+              <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-2 p-2 rounded-lg bg-emerald-500/[0.04]">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                <span className="text-emerald-400 text-[10px]">3 variants scored, Variant A selected for launch</span>
+              </motion.div>
+            )}
           </motion.div>
         )}
 
-        {/* Tab 1: Integrations */}
+        {/* Tab 1: Integrations with real SVG logos */}
         {activeTab === 1 && (
           <motion.div key="integrations" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.3 }} className="space-y-2">
             {[
-              { name: "Meta Ads", desc: "Facebook & Instagram Ads", color: "text-blue-400", bg: "bg-blue-500/10", status: "Connected", icon: "M" },
-              { name: "Google Ads", desc: "Search, Display & YouTube", color: "text-yellow-400", bg: "bg-yellow-500/10", status: "Connected", icon: "G" },
-              { name: "TikTok Ads", desc: "In-Feed & Spark Ads", color: "text-pink-400", bg: "bg-pink-500/10", status: "Connected", icon: "T" },
-              { name: "Shopify", desc: "Product sync & storefront", color: "text-green-400", bg: "bg-green-500/10", status: "Connected", icon: "S" },
+              { name: "Meta Ads", desc: "Facebook & Instagram Ads", status: "Connected", logo: <MetaLogo /> },
+              { name: "Google Ads", desc: "Search, Display & YouTube", status: "Connected", logo: <GoogleLogo /> },
+              { name: "TikTok Ads", desc: "In-Feed & Spark Ads", status: "Connected", logo: <TikTokLogo /> },
+              { name: "Shopify", desc: "Product catalog & storefront", status: "Connected", logo: <ShopifyLogo /> },
             ].map((int, i) => (
               <motion.div
                 key={i}
@@ -636,8 +695,8 @@ const AdCreativesPanel = ({ progress }: { progress: number }) => {
                 className="flex items-center gap-2.5 p-2 rounded-lg"
                 style={{ background: 'rgba(255,255,255,0.02)' }}
               >
-                <div className={`w-7 h-7 rounded-lg ${int.bg} flex items-center justify-center text-[11px] font-bold ${int.color}`}>
-                  {int.icon}
+                <div className="w-7 h-7 rounded-lg bg-white/[0.06] flex items-center justify-center">
+                  {int.logo}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="text-white/70 text-[11px] font-medium">{int.name}</div>
@@ -649,9 +708,12 @@ const AdCreativesPanel = ({ progress }: { progress: number }) => {
                 </div>
               </motion.div>
             ))}
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }} className="flex items-center gap-2 text-[10px] text-white/30 pt-1">
-              <Globe className="w-3 h-3" />
-              <span>+ Snapchat, Pinterest, LinkedIn, X and more</span>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }} className="flex items-center gap-3 pt-1">
+              <div className="flex items-center gap-1.5">
+                <SnapchatLogo />
+                <PinterestLogo />
+              </div>
+              <span className="text-[10px] text-white/30">+ LinkedIn, X, Snapchat, Pinterest & more</span>
             </motion.div>
           </motion.div>
         )}
@@ -679,10 +741,8 @@ const AdCreativesPanel = ({ progress }: { progress: number }) => {
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-white/30 text-[9px] w-14">Platforms</span>
-                  <div className="flex gap-1">
-                    {["Meta", "Google", "TikTok"].map((p, i) => (
-                      <span key={i} className="px-1.5 py-0.5 rounded text-[8px] text-purple-300 bg-purple-500/10">{p}</span>
-                    ))}
+                  <div className="flex gap-1.5">
+                    <MetaLogo /><GoogleLogo /><TikTokLogo />
                   </div>
                 </div>
               </div>
