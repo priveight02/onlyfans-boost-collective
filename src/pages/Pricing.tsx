@@ -123,7 +123,7 @@ const Pricing = () => {
       const toastId = toast.loading("Verifying your purchase...");
       supabase.functions.invoke("verify-credit-purchase").then(({ data, error }) => {
         if (error) {
-          toast.error("Verification failed. Credits will appear shortly — please refresh.", { id: toastId });
+          toast.error("Verification failed. Credits will appear shortly, please refresh.", { id: toastId });
           console.error("Verification error:", error);
         } else if (data?.credited && data.credits_added > 0) {
           toast.success(`🎉 ${data.credits_added.toLocaleString()} credits added!`, { id: toastId });
@@ -206,7 +206,7 @@ const Pricing = () => {
     <div className="min-h-screen bg-[hsl(222,35%,8%)] text-white pt-24">
       <PageSEO
         title="Uplyze Pricing | Best AI Tool & AI Platform Credits | uplyze.ai"
-        description="Explore Uplyze pricing — the best AI tool and AI platform for marketing, business growth, and scaling. Flexible credit plans for AI automation, AI CRM, social media AI, content creation, and more. Start free at uplyze.ai."
+        description="Explore Uplyze pricing, the best AI tool and AI platform for marketing, business growth, and scaling. Flexible credit plans for AI automation, AI CRM, social media AI, content creation, and more. Start free at uplyze.ai."
       />
       {/* Hero */}
       <div className="text-center px-4 mb-14">
@@ -241,7 +241,7 @@ const Pricing = () => {
             {retentionActive && (
               <div className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-pink-500/10 border border-pink-500/20">
                 <Gift className="h-3.5 w-3.5 text-pink-400" />
-                <span className="text-xs text-pink-300 font-medium">🎁 Exclusive 50% OFF available — one-time use</span>
+                <span className="text-xs text-pink-300 font-medium">🎁 Exclusive 50% OFF available, one-time use</span>
               </div>
             )}
           </div>
