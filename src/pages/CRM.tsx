@@ -351,14 +351,14 @@ const CRM = () => {
           <div className="px-3 pb-4">
             <button
               onClick={() => setShowCreditsModal(true)}
-              className="w-full px-4 py-3 rounded-xl relative overflow-hidden text-left cursor-pointer transition-all hover:scale-[1.02] hover:brightness-110"
+              className="w-full px-4 py-3 rounded-xl relative overflow-hidden text-left cursor-pointer transition-colors duration-200 group/credits [transform:translateZ(0)] [backface-visibility:hidden]"
               style={{ background: "linear-gradient(135deg, hsl(217 91% 55% / 0.08), hsl(262 83% 58% / 0.05))", border: "1px solid hsl(217 91% 60% / 0.08)" }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = "hsl(217 91% 60% / 0.18)"; e.currentTarget.style.background = "linear-gradient(135deg, hsl(217 91% 55% / 0.12), hsl(262 83% 58% / 0.08))"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = "hsl(217 91% 60% / 0.08)"; e.currentTarget.style.background = "linear-gradient(135deg, hsl(217 91% 55% / 0.08), hsl(262 83% 58% / 0.05))"; }}
             >
+              <Plus className="absolute top-2 right-2 h-3.5 w-3.5 text-white/30 group-hover/credits:text-white/50 transition-colors" />
               <div className="absolute -top-6 -right-6 w-16 h-16 rounded-full opacity-20" style={{ background: "radial-gradient(circle, hsl(217 91% 60%), transparent)" }} />
-              <div className="flex items-center justify-between">
-                <p className="text-[10px] font-semibold text-white/30 uppercase tracking-wider">Credits</p>
-                <Plus className="h-3.5 w-3.5 text-white/40" />
-              </div>
+              <p className="text-[10px] font-semibold text-white/30 uppercase tracking-wider">Credits</p>
               <p className="text-lg font-bold text-white mt-0.5" style={{ textShadow: "0 0 20px hsl(217 91% 60% / 0.3)" }}>{balance.toLocaleString()}</p>
             </button>
           </div>
