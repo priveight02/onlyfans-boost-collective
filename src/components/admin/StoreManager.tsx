@@ -175,6 +175,23 @@ const StoreManager = ({ connectedPlatforms, integrationKeys, generatedCreatives 
   };
 
   // Import products from store
+  // Helper to call shopify-sync edge function
+  const callShopifySync = async (action: string, data?: any) => {
+    const session = (await supabase.auth.getSession()).data.session;
+    if (!session) throw new Error("Not authenticated");
+    const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/shopify-sync`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ action, data }),
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || `Shopify API error: ${res.status}`);
+    return json;
+  };
+
   const handleImportFromStore = async () => {
     if (!connectedPlatforms[activePlatform] && !(activePlatform === "shopify" && shopifyConnection)) {
       toast.error(`${PLATFORM_LABELS[activePlatform]} is not connected. Go to Integrations tab to connect.`);
@@ -185,31 +202,13 @@ const StoreManager = ({ connectedPlatforms, integrationKeys, generatedCreatives 
       let apiProducts: StoreProduct[] = [];
 
       if (activePlatform === "shopify") {
-        // Prefer OAuth connection, fallback to integration keys
-        let storeUrl = "";
-        let token = "";
-        if (shopifyConnection) {
-          storeUrl = (shopifyConnection as any).shop_domain;
-          token = (shopifyConnection as any).access_token;
-        } else {
-          const creds = integrationKeys.shopify || {};
-          storeUrl = creds.store_url?.replace(/^https?:\/\//, "").replace(/\/$/, "") || "";
-          token = creds.api_key || "";
+        if (!shopifyConnection) {
+          toast.error("No Shopify OAuth connection. Connect via Integrations tab.");
+          return;
         }
-        if (!storeUrl || !token) throw new Error("Missing Shopify credentials");
-
-        const res = await fetch(`https://${storeUrl}/admin/api/2024-01/products.json?limit=250`, {
-          headers: { "X-Shopify-Access-Token": token, "Content-Type": "application/json" },
-        });
-        if (!res.ok) {
-          // Try via edge function as fallback
-          const result = await callStoreApi("shopify", "list_products");
-          const items = result?.data?.products || result?.products || [];
-          apiProducts = items.map((p: any) => normalizeShopifyProduct(p));
-        } else {
-          const json = await res.json();
-          apiProducts = (json.products || []).map((p: any) => normalizeShopifyProduct(p));
-        }
+        // Use server-side edge function to avoid CORS
+        const result = await callShopifySync("list_products");
+        apiProducts = (result?.products || []).map((p: any) => normalizeShopifyProduct(p));
       } else if (activePlatform === "woocommerce") {
         const creds = integrationKeys.woocommerce || {};
         const storeUrl = creds.store_url?.replace(/\/$/, "");
@@ -222,11 +221,9 @@ const StoreManager = ({ connectedPlatforms, integrationKeys, generatedCreatives 
         const json = await res.json();
         apiProducts = (Array.isArray(json) ? json : []).map((p: any) => normalizeWooProduct(p));
       } else if (activePlatform === "canva") {
-        // Canva designs as "products"
         const creds = integrationKeys.canva || {};
         const apiKey = creds.api_key;
         if (!apiKey) throw new Error("Missing Canva API key");
-
         try {
           const res = await fetch("https://api.canva.com/rest/v1/designs?query=product&ownership=owned", {
             headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
@@ -340,29 +337,21 @@ const StoreManager = ({ connectedPlatforms, integrationKeys, generatedCreatives 
       const updated: StoreProduct = { ...editProduct, ...editForm } as StoreProduct;
 
       // Push update to store API
-      if (updated.platform === "shopify" && connectedPlatforms.shopify) {
-        const creds = integrationKeys.shopify || {};
-        const storeUrl = creds.store_url?.replace(/^https?:\/\//, "").replace(/\/$/, "");
-        const token = creds.api_key;
-        if (storeUrl && token) {
-          try {
-            await fetch(`https://${storeUrl}/admin/api/2024-01/products/${updated.external_id}.json`, {
-              method: "PUT",
-              headers: { "X-Shopify-Access-Token": token, "Content-Type": "application/json" },
-              body: JSON.stringify({
-                product: {
-                  id: parseInt(updated.external_id),
-                  title: updated.title,
-                  body_html: updated.description,
-                  vendor: updated.vendor,
-                  product_type: updated.product_type,
-                  tags: updated.tags?.join(", "),
-                  status: updated.status,
-                },
-              }),
-            });
-          } catch { /* silent - will still save locally */ }
-        }
+      if (updated.platform === "shopify" && shopifyConnection) {
+        try {
+          await callShopifySync("update_product", {
+            product_id: updated.external_id,
+            product: {
+              id: parseInt(updated.external_id),
+              title: updated.title,
+              body_html: updated.description,
+              vendor: updated.vendor,
+              product_type: updated.product_type,
+              tags: updated.tags?.join(", "),
+              status: updated.status,
+            },
+          });
+        } catch { /* silent - will still save locally */ }
       } else if (updated.platform === "woocommerce" && connectedPlatforms.woocommerce) {
         const creds = integrationKeys.woocommerce || {};
         const storeUrl = creds.store_url?.replace(/\/$/, "");
@@ -475,28 +464,19 @@ const StoreManager = ({ connectedPlatforms, integrationKeys, generatedCreatives 
     setExporting(true);
     try {
       if (targetPlatform === "shopify") {
-        const creds = integrationKeys.shopify || {};
-        const storeUrl = creds.store_url?.replace(/^https?:\/\//, "").replace(/\/$/, "");
-        const token = creds.api_key;
-        if (!storeUrl || !token) throw new Error("Shopify not connected");
-
-        const res = await fetch(`https://${storeUrl}/admin/api/2024-01/products.json`, {
-          method: "POST",
-          headers: { "X-Shopify-Access-Token": token, "Content-Type": "application/json" },
-          body: JSON.stringify({
-            product: {
-              title: product.title,
-              body_html: product.description,
-              vendor: product.vendor || "",
-              product_type: product.product_type || "",
-              tags: product.tags?.join(", ") || "",
-              status: "draft",
-              variants: [{ price: product.price, sku: product.sku || "", inventory_quantity: product.inventory_quantity ?? 0 }],
-              images: product.images.map(img => ({ src: img.src, alt: img.alt || "" })),
-            },
-          }),
+        if (!shopifyConnection) throw new Error("Shopify not connected via OAuth");
+        await callShopifySync("create_product", {
+          product: {
+            title: product.title,
+            body_html: product.description,
+            vendor: product.vendor || "",
+            product_type: product.product_type || "",
+            tags: product.tags?.join(", ") || "",
+            status: "draft",
+            variants: [{ price: product.price, sku: product.sku || "", inventory_quantity: product.inventory_quantity ?? 0 }],
+            images: product.images.map(img => ({ src: img.src, alt: img.alt || "" })),
+          },
         });
-        if (!res.ok) throw new Error(`Shopify API error: ${res.status}`);
         toast.success(`"${product.title}" exported to Shopify`);
       } else if (targetPlatform === "woocommerce") {
         const creds = integrationKeys.woocommerce || {};
@@ -532,25 +512,15 @@ const StoreManager = ({ connectedPlatforms, integrationKeys, generatedCreatives 
     setExporting(true);
     try {
       if (exportTarget === "shopify") {
-        const creds = integrationKeys.shopify || {};
-        const storeUrl = creds.store_url?.replace(/^https?:\/\//, "").replace(/\/$/, "");
-        const token = creds.api_key;
-        if (!storeUrl || !token) throw new Error("Shopify not connected");
-
-        // Create a product with the creative as main image
-        const res = await fetch(`https://${storeUrl}/admin/api/2024-01/products.json`, {
-          method: "POST",
-          headers: { "X-Shopify-Access-Token": token, "Content-Type": "application/json" },
-          body: JSON.stringify({
-            product: {
-              title: "AI Generated Creative",
-              body_html: "Created with Uplyze AI Creative Maker",
-              status: "draft",
-              images: [{ src: creativeUrl }],
-            },
-          }),
+        if (!shopifyConnection) throw new Error("Shopify not connected via OAuth");
+        await callShopifySync("create_product", {
+          product: {
+            title: "AI Generated Creative",
+            body_html: "Created with Uplyze AI Creative Maker",
+            status: "draft",
+            images: [{ src: creativeUrl }],
+          },
         });
-        if (!res.ok) throw new Error(`Shopify API error: ${res.status}`);
         toast.success("Creative exported to Shopify as draft product");
       } else {
         const creds = integrationKeys.woocommerce || {};

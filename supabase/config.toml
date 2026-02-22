@@ -148,3 +148,6 @@ verify_jwt = false
 
 [functions.shopify-oauth-callback]
 verify_jwt = false
+
+[functions.shopify-sync]
+verify_jwt = false
