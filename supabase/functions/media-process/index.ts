@@ -204,7 +204,7 @@ serve(async (req) => {
                 version: "f121d640bd286e1fdc67f9799164c1d5be36ff74576ee11c803ae5b665dd46aa",
                 input: {
                   image: imageUrl,
-                  scale: 4,
+                  scale: 2,
                   face_enhance: true,
                 },
               }),
@@ -292,13 +292,13 @@ serve(async (req) => {
                   Authorization: `Token ${REPLICATE_API_KEY}`,
                   "Content-Type": "application/json",
                 },
-                body: JSON.stringify({
-                  version: "f121d640bd286e1fdc67f9799164c1d5be36ff74576ee11c803ae5b665dd46aa",
-                  input: {
-                    image: output,
-                    scale: 4,
-                    face_enhance: true,
-                  },
+                  body: JSON.stringify({
+                    version: "f121d640bd286e1fdc67f9799164c1d5be36ff74576ee11c803ae5b665dd46aa",
+                    input: {
+                      image: output,
+                      scale: 2,
+                      face_enhance: true,
+                    },
                 }),
               });
               if (upResp.ok) {
