@@ -1376,10 +1376,30 @@ const AICoPilot = ({ onNavigate, subTab, onSubTabChange }: { onNavigate?: (tab: 
             const pollResp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/media-process?action=poll&task_id=${encodeURIComponent(currentTaskId)}&provider=${provider}${upscaleParam}`, { headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` } });
             if (!pollResp.ok) continue;
             const pollData = await pollResp.json();
-            // If server returned a new task_id (upscale chained), switch to polling that
+            // If server returned an upscale_task_id, switch to polling that
+            if (pollData.upscale_task_id) {
+              const upscaleId = pollData.upscale_task_id;
+              // Now poll the upscale task
+              let upPoll = 0;
+              while (upPoll < 60) {
+                if (cancelGenRef.current === "faceswap") return;
+                await new Promise(r => setTimeout(r, 3000)); upPoll++;
+                setFaceswapProgressLabel("Upscaling for maximum quality...");
+                try {
+                  const upResp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/media-process?action=poll&task_id=${encodeURIComponent(currentTaskId)}&provider=replicate&upscale_task_id=${encodeURIComponent(upscaleId)}`, { headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` } });
+                  if (!upResp.ok) continue;
+                  const upData = await upResp.json();
+                  if (upData.status === "SUCCESS" && upData.video_url) { resultUrl = upData.video_url; break; }
+                  if (upData.status === "FAILED") { break; } // fallback handled server-side
+                } catch {}
+              }
+              if (resultUrl) break;
+              continue;
+            }
+            // If server returned a new task_id (chained), switch to polling that
             if (pollData.task_id && pollData.task_id !== currentTaskId) {
               currentTaskId = pollData.task_id;
-              needsUpscale = false; // upscale already started
+              needsUpscale = false;
               continue;
             }
             if (pollData.status === "SUCCESS" && pollData.video_url) { resultUrl = pollData.video_url; break; }

@@ -200,7 +200,7 @@ serve(async (req) => {
           });
         }
 
-        return new Response(JSON.stringify({ task_id: data.id, status: "PROCESSING", provider: "replicate", target_type, needs_upscale: false }), {
+        return new Response(JSON.stringify({ task_id: data.id, status: "PROCESSING", provider: "replicate", target_type, needs_upscale: true }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
@@ -223,6 +223,40 @@ serve(async (req) => {
 
       // Replicate polling
       const needsUpscale = url.searchParams.get("needs_upscale") === "true";
+      const upscaleTaskId = url.searchParams.get("upscale_task_id");
+
+      // If we're polling an upscale task, check that instead
+      if (upscaleTaskId && provider === "replicate" && REPLICATE_API_KEY) {
+        const upResp = await fetch(`${REPLICATE_BASE}/predictions/${upscaleTaskId}`, {
+          headers: { Authorization: `Token ${REPLICATE_API_KEY}` },
+        });
+        if (upResp.ok) {
+          const upData = await upResp.json();
+          if (upData.status === "succeeded") {
+            const upOutput = Array.isArray(upData.output) ? upData.output[0] : upData.output;
+            return new Response(JSON.stringify({ status: "SUCCESS", video_url: upOutput }), {
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
+          if (upData.status === "failed" || upData.status === "canceled") {
+            // Upscale failed — fall back to original faceswap output by re-polling original task
+            const origResp = await fetch(`${REPLICATE_BASE}/predictions/${taskId}`, {
+              headers: { Authorization: `Token ${REPLICATE_API_KEY}` },
+            });
+            if (origResp.ok) {
+              const origData = await origResp.json();
+              const origOutput = Array.isArray(origData.output) ? origData.output[0] : origData.output;
+              return new Response(JSON.stringify({ status: "SUCCESS", video_url: origOutput }), {
+                headers: { ...corsHeaders, "Content-Type": "application/json" },
+              });
+            }
+          }
+        }
+        return new Response(JSON.stringify({ status: "PROCESSING", progress: 95 }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       if (provider === "replicate") {
         if (!REPLICATE_API_KEY) {
           return new Response(JSON.stringify({ status: "PROCESSING" }), {
@@ -244,6 +278,32 @@ serve(async (req) => {
 
         if (data.status === "succeeded") {
           const output = Array.isArray(data.output) ? data.output[0] : data.output;
+
+          // Auto-upscale faceswap results for maximum quality
+          if (needsUpscale && output && REPLICATE_API_KEY) {
+            const upResp = await fetch(`${REPLICATE_BASE}/predictions`, {
+              method: "POST",
+              headers: {
+                Authorization: `Token ${REPLICATE_API_KEY}`,
+                "Content-Type": "application/json",
+                "Prefer": "respond-async",
+              },
+              body: JSON.stringify({
+                version: "42fed1c4974146d4d2414e2be2c5277c7fcf05fcc3a73abf41610695738c1d7b",
+                input: {
+                  image: output,
+                  scale: 4,
+                  face_enhance: true,
+                },
+              }),
+            });
+            if (upResp.ok) {
+              const upData = await upResp.json();
+              return new Response(JSON.stringify({ status: "PROCESSING", upscale_task_id: upData.id, progress: 90 }), {
+                headers: { ...corsHeaders, "Content-Type": "application/json" },
+              });
+            }
+          }
 
           return new Response(JSON.stringify({ status: "SUCCESS", video_url: output }), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
