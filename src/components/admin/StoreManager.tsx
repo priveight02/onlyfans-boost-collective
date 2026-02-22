@@ -14,7 +14,7 @@ import {
   Image, SquarePen, Trash2, CheckCircle2, Package, ExternalLink,
   ArrowDownToLine, ArrowUpFromLine, Eye, Copy, X, Plus,
   Layers, FileText, DollarSign, BarChart3, Settings2,
-  Wifi, Globe, FolderDown, FolderUp, ImageDown,
+  CircleDot, Globe, FolderDown, FolderUp, ImageDown,
   PackageCheck, Sparkles, Filter, LayoutGrid, List, Tag,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -574,7 +574,7 @@ const StoreManager = ({ connectedPlatforms, integrationKeys, generatedCreatives 
           {/* Shopify OAuth connection badge */}
           {shopifyConnection && (
             <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-emerald-500/5 border border-emerald-500/10 text-[10px] text-emerald-400/70">
-              <Wifi className="h-3 w-3" />
+              <CircleDot className="h-3 w-3" />
               <span>{(shopifyConnection as any).shop_name || (shopifyConnection as any).shop_domain}</span>
             </div>
           )}
