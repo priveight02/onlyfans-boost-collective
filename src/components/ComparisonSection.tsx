@@ -2,10 +2,10 @@ import { motion } from "framer-motion";
 import { X, Check } from "lucide-react";
 
 const withoutItems = [
-  { text: "Manually managing DMs across ", highlight: "10+ platforms", suffix: "" },
+  { text: "", highlight: "Manually managing", suffix: " DMs across 10+ platforms" },
   { text: "", highlight: "Guessing", suffix: " which content will convert" },
-  { text: "", highlight: "Losing leads", suffix: " because you reply too late" },
-  { text: "Paying ", highlight: "$500+/mo", suffix: " for 5 different tools" },
+  { text: "Losing leads because you reply ", highlight: "too late", suffix: "" },
+  { text: "", highlight: "Paying $1,500+/mo", suffix: " for 5 different tools" },
   { text: "Scaling feels ", highlight: "impossible", suffix: " without a big team" },
   { text: "", highlight: "No AI insights", suffix: ", flying blind on strategy" },
 ];
