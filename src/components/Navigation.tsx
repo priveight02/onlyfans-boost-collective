@@ -74,6 +74,7 @@ const Navigation = () => {
       <nav
         className={`transition-all duration-500 pointer-events-auto ${isPlatform ? 'rounded-xl' : 'w-full max-w-4xl rounded-2xl'}`}
         style={{
+          fontFamily: "'Montserrat', sans-serif",
           background: isScrolled
             ? "hsl(222 47% 10% / 0.75)"
             : "hsl(222 47% 12% / 0.55)",

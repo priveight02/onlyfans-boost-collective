@@ -168,14 +168,15 @@ serve(async (req) => {
         }
         const { source_face_url, target_url, target_type } = body;
 
-        const resp = await fetch(`${REPLICATE_BASE}/models/lucataco/modelscope-facefusion/predictions`, {
+        const resp = await fetch(`${REPLICATE_BASE}/predictions`, {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${REPLICATE_API_KEY}`,
+            Authorization: `Token ${REPLICATE_API_KEY}`,
             "Content-Type": "application/json",
             "Prefer": "respond-async",
           },
           body: JSON.stringify({
+            version: "lucataco/modelscope-facefusion",
             input: {
               user_image: source_face_url,
               template_image: target_url,
