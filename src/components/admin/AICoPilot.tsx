@@ -1346,7 +1346,7 @@ const AICoPilot = ({ onNavigate, subTab, onSubTabChange }: { onNavigate?: (tab: 
     const creditResult = await performAction('copilot_faceswap', async () => ({ success: true }));
     if (!creditResult) return;
     setIsGeneratingFaceswap(true);
-    const stopProgress = simulateProgress(setFaceswapProgress, setFaceswapProgressLabel, 180000);
+    const stopProgress = simulateProgress(setFaceswapProgress, setFaceswapProgressLabel, 300000);
     try {
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/media-process?action=create&type=faceswap`, {
         method: "POST",
@@ -1367,9 +1367,9 @@ const AICoPilot = ({ onNavigate, subTab, onSubTabChange }: { onNavigate?: (tab: 
         await saveActiveTask(currentTaskId, provider, "faceswap", "Faceswap", { type: "faceswap", category: faceswapCategory });
         activeTaskIds.current.faceswap = { taskId: currentTaskId, provider, endpoint: "media-process" };
         let pollCount = 0;
-        while (pollCount < 120) {
+        while (pollCount < 200) {
           if (cancelGenRef.current === "faceswap") return;
-          await new Promise(r => setTimeout(r, 2000)); pollCount++;
+          await new Promise(r => setTimeout(r, 3000)); pollCount++;
           if (pollCount % 5 === 0) { try { await supabase.from("active_generation_tasks" as any).update({ metadata: { type: "faceswap", category: faceswapCategory, poll_count: pollCount }, updated_at: new Date().toISOString() } as any).eq("task_id", currentTaskId); } catch {} }
           try {
             const upscaleParam = needsUpscale ? "&needs_upscale=true" : "";
