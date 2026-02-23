@@ -313,20 +313,31 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange }: { subTab?: string
           }
         }
         if (ttConn) {
-          const { data } = await supabase.functions.invoke("tiktok-api", { 
-            body: { action: "get_user_info", account_id: selectedAccount } 
-          });
-          const ttUser = data?.data?.data?.user || data?.data?.user;
-          if (ttUser) {
-            setTtProfile(ttUser);
-            await supabase.from("social_connections").update({
-              metadata: { 
-                avatar_url: ttUser.avatar_url, 
-                display_name: ttUser.display_name, 
-                connected_via: "social_hub",
-                auto_synced_at: new Date().toISOString(),
-              },
-            }).eq("account_id", selectedAccount).eq("platform", "tiktok");
+          try {
+            const { data } = await supabase.functions.invoke("tiktok-api", { 
+              body: { action: "get_user_info", account_id: selectedAccount } 
+            });
+            const ttUser = data?.data?.data?.user || data?.data?.user;
+            if (ttUser) {
+              setTtProfile(ttUser);
+              await supabase.from("social_connections").update({
+                metadata: { 
+                  avatar_url: ttUser.avatar_url, 
+                  display_name: ttUser.display_name,
+                  username: ttUser.username,
+                  connected_via: "social_hub",
+                  auto_synced_at: new Date().toISOString(),
+                },
+                platform_username: ttUser.username || ttUser.display_name || (ttConn as any).platform_username,
+              }).eq("account_id", selectedAccount).eq("platform", "tiktok");
+            }
+          } catch (ttErr) {
+            console.warn("TikTok auto-sync failed (sandbox?):", ttErr);
+            // Still use cached metadata from connection if available
+            const meta = (ttConn as any).metadata;
+            if (meta && (meta.avatar_url || meta.display_name)) {
+              setTtProfile({ avatar_url: meta.avatar_url, display_name: meta.display_name, username: meta.username || (ttConn as any).platform_username });
+            }
           }
         }
       } catch (e) {
@@ -1118,8 +1129,8 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange }: { subTab?: string
   const fetchProfiles = async () => {
     const igConn = connections.find(c => c.platform === "instagram" && c.is_connected);
     const ttConn = connections.find(c => c.platform === "tiktok" && c.is_connected);
-    if (igConn) { const d = await callApi("instagram-api", { action: "get_profile" }); if (d) setIgProfile(d); }
-    if (ttConn) { const d = await callApi("tiktok-api", { action: "get_user_info" }); if (d) setTtProfile(d?.data?.user || d); }
+    if (igConn) { try { const d = await callApi("instagram-api", { action: "get_profile" }); if (d) setIgProfile(d); } catch {} }
+    if (ttConn) { try { const d = await callApi("tiktok-api", { action: "get_user_info" }); if (d) setTtProfile(d?.data?.user || d); } catch (e) { console.warn("TT profile fetch failed:", e); } }
   };
 
   const fetchMedia = async () => {

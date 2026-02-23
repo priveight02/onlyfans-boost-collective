@@ -115,7 +115,12 @@ serve(async (req) => {
       // ===== USER INFO =====
       case "get_user_info": {
         const useToken = params?.access_token_override || token!;
-        result = await ttFetch("/user/info/?fields=open_id,union_id,avatar_url,avatar_url_100,avatar_large_url,display_name,bio_description,profile_deep_link,is_verified,follower_count,following_count,likes_count,video_count,username", useToken);
+        // Only request fields matching authorized scopes
+        // user.info.basic: open_id, union_id, avatar_url, avatar_url_100
+        // user.info.profile: display_name, bio_description, profile_deep_link, is_verified, username
+        // user.info.stats: follower_count, following_count, likes_count, video_count
+        const fields = params?.fields || "open_id,union_id,avatar_url,avatar_url_100,display_name,bio_description,is_verified,username,follower_count,following_count,likes_count,video_count";
+        result = await ttFetch(`/user/info/?fields=${fields}`, useToken);
         break;
       }
 
