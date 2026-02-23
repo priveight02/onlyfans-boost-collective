@@ -160,3 +160,12 @@ verify_jwt = false
 
 [functions.ig-permission-test]
 verify_jwt = false
+
+[functions.threads-permission-test]
+verify_jwt = false
+
+[functions.fb-permission-test]
+verify_jwt = false
+
+[functions.oembed-permission-test]
+verify_jwt = false
