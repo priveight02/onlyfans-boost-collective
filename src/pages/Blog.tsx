@@ -37,10 +37,10 @@ const Blog = () => {
   return (
     <div className="min-h-screen bg-[hsl(222,35%,8%)]">
       <PageSEO
-        title="Uplyze Blog | AI Tool Insights, Growth AI Strategies & Business Scaling | uplyze.ai"
-        description="Read the Uplyze blog for AI tool tips, AI platform insights, growth AI strategies, marketing automation guides, and business scaling tactics. Learn how the best AI tool helps you automate and 10x revenue at uplyze.ai."
-        ogTitle="Uplyze Blog — AI Tool Tips, Growth Strategies & Business Scaling Guides"
-        ogDescription="Expert guides on AI marketing, AI CRM, growth AI, business scaling, and marketing automation from the #1 AI platform."
+        title="Uplyze Blog | AI Growth Strategies & Tips"
+        description="Expert guides on AI marketing, automation, CRM, and revenue scaling. Learn how top creators and agencies use Uplyze to grow faster."
+        ogTitle="Uplyze Blog | AI Growth Strategies & Tips"
+        ogDescription="Expert guides on AI marketing, automation, CRM, and revenue scaling from the Uplyze team."
         jsonLd={{
           "@context": "https://schema.org",
           "@type": "Blog",
