@@ -594,59 +594,66 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange }: { subTab?: string
      if (!ttClientSecret) { toast.error("Enter your TikTok Client Secret first"); return; }
      const csrfState = Math.random().toString(36).substring(2);
      sessionStorage.setItem("tt_csrf", csrfState);
+     const ttRedirectUri = "https://uplyze.ai/tt-login";
      const scopes = "user.info.basic,user.info.profile,user.info.stats,video.list,video.publish,video.upload";
-     const authUrl = `https://www.tiktok.com/v2/auth/authorize/?client_key=${ttClientKey}&scope=${scopes}&response_type=code&redirect_uri=${encodeURIComponent(oauthRedirectUri)}&state=${csrfState}`;
+     const authUrl = `https://www.tiktok.com/v2/auth/authorize/?client_key=${ttClientKey}&scope=${scopes}&response_type=code&redirect_uri=${encodeURIComponent(ttRedirectUri)}&state=${csrfState}`;
      const authWindow = window.open(authUrl, "tiktok_oauth", "width=600,height=700,scrollbars=yes");
      setAutoConnectLoading("tiktok");
      toast.info("Authenticate with TikTok in the popup...");
 
-     const interval = setInterval(async () => {
+     const handleTTMessage = async (event: MessageEvent) => {
+       if (event.data?.type !== "TT_OAUTH_RESULT") return;
+       window.removeEventListener("message", handleTTMessage);
+       const { code, redirect_uri } = event.data.payload;
+       if (!code) { setAutoConnectLoading(null); toast.error("No auth code received"); return; }
+       toast.info("Auth code captured! Exchanging for token...");
        try {
-         if (!authWindow || authWindow.closed) { clearInterval(interval); setAutoConnectLoading(null); return; }
-         const url = authWindow.location.href;
-         if (url.includes("code=")) {
-           const urlParams = new URL(url).searchParams;
-           const code = urlParams.get("code");
-           authWindow.close(); clearInterval(interval);
-           if (!code) { setAutoConnectLoading(null); toast.error("No auth code received"); return; }
-           toast.info("Auth code captured! Exchanging for token...");
-           const { data, error } = await supabase.functions.invoke("tiktok-api", {
-             body: { action: "exchange_code", params: { code, client_key: ttClientKey, client_secret: ttClientSecret, redirect_uri: oauthRedirectUri } },
-           });
-           if (error || !data?.success) { toast.error(data?.error || error?.message || "Token exchange failed"); setAutoConnectLoading(null); return; }
-           const tokenData = data.data;
-           const accessToken = tokenData?.access_token;
-           const openId = tokenData?.open_id;
-           if (!accessToken) { toast.error("No access token in response"); setAutoConnectLoading(null); return; }
-           toast.info("Fetching TikTok profile...");
-           const profileRes = await supabase.functions.invoke("tiktok-api", {
-             body: { action: "get_user_info", account_id: selectedAccount || "temp", params: { access_token_override: accessToken } },
-           });
-           const ttUser = profileRes.data?.data?.data?.user || profileRes.data?.data?.user || {};
-           const username = ttUser.username || ttUser.display_name || "tiktok_user";
-           let accountId = selectedAccount;
-           if (!accountId) {
-             const { data: newAcct, error: err } = await supabase.from("managed_accounts").insert({
-               username, display_name: ttUser.display_name || username, platform: "tiktok", status: "active", avatar_url: ttUser.avatar_url || null,
-             }).select("id").single();
-             if (err || !newAcct) { toast.error(err?.message || "Failed to create account"); setAutoConnectLoading(null); return; }
-             accountId = newAcct.id; setSelectedAccount(accountId);
-           }
-           await supabase.from("social_connections").upsert({
-             account_id: accountId, platform: "tiktok", platform_user_id: openId || "", platform_username: username, access_token: accessToken,
-             refresh_token: tokenData?.refresh_token || null, is_connected: true, scopes: [],
-             metadata: { avatar_url: ttUser.avatar_url, display_name: ttUser.display_name, connected_via: "automated_oauth" },
-           }, { onConflict: "account_id,platform" });
-           await supabase.from("managed_accounts").update({
-             avatar_url: ttUser.avatar_url || undefined, display_name: ttUser.display_name || username, last_activity_at: new Date().toISOString(),
-           }).eq("id", accountId);
-           setTtProfile(ttUser); await loadAccounts(); await loadData(accountId);
-           toast.success(`✅ @${username} TikTok connected automatically!`);
-           setAutoConnectLoading(null);
+         const { data, error } = await supabase.functions.invoke("tiktok-api", {
+           body: { action: "exchange_code", params: { code, client_key: ttClientKey, client_secret: ttClientSecret, redirect_uri: redirect_uri || ttRedirectUri } },
+         });
+         if (error || !data?.success) { toast.error(data?.error || error?.message || "Token exchange failed"); setAutoConnectLoading(null); return; }
+         const tokenData = data.data;
+         const accessToken = tokenData?.access_token;
+         const openId = tokenData?.open_id;
+         if (!accessToken) { toast.error("No access token in response"); setAutoConnectLoading(null); return; }
+         toast.info("Fetching TikTok profile...");
+         const profileRes = await supabase.functions.invoke("tiktok-api", {
+           body: { action: "get_user_info", account_id: selectedAccount || "temp", params: { access_token_override: accessToken } },
+         });
+         const ttUser = profileRes.data?.data?.data?.user || profileRes.data?.data?.user || {};
+         const username = ttUser.username || ttUser.display_name || "tiktok_user";
+         let accountId = selectedAccount;
+         if (!accountId) {
+           const { data: newAcct, error: err } = await supabase.from("managed_accounts").insert({
+             username, display_name: ttUser.display_name || username, platform: "tiktok", status: "active", avatar_url: ttUser.avatar_url || null,
+           }).select("id").single();
+           if (err || !newAcct) { toast.error(err?.message || "Failed to create account"); setAutoConnectLoading(null); return; }
+           accountId = newAcct.id; setSelectedAccount(accountId);
          }
-       } catch { /* cross-origin polling */ }
-     }, 500);
-   };
+         await supabase.from("social_connections").upsert({
+           account_id: accountId, platform: "tiktok", platform_user_id: openId || "", platform_username: username, access_token: accessToken,
+           refresh_token: tokenData?.refresh_token || null, is_connected: true, scopes: [],
+           metadata: { avatar_url: ttUser.avatar_url, display_name: ttUser.display_name, connected_via: "automated_oauth" },
+         }, { onConflict: "account_id,platform" });
+         await supabase.from("managed_accounts").update({
+           avatar_url: ttUser.avatar_url || undefined, display_name: ttUser.display_name || username, last_activity_at: new Date().toISOString(),
+         }).eq("id", accountId);
+         setTtProfile(ttUser); await loadAccounts(); await loadData(accountId);
+         toast.success(`✅ @${username} TikTok connected automatically!`);
+       } catch (err: any) { toast.error(err.message || "TikTok connection failed"); }
+       setAutoConnectLoading(null);
+     };
+     window.addEventListener("message", handleTTMessage);
+
+     // Fallback: detect window closed without message
+     const closeCheck = setInterval(() => {
+       if (authWindow && authWindow.closed) {
+         clearInterval(closeCheck);
+         // Give a moment for postMessage to arrive
+         setTimeout(() => { if (autoConnectLoading === "tiktok") setAutoConnectLoading(null); }, 2000);
+       }
+     }, 1000);
+    };
 
    // ===== AUTOMATED TWITTER/X CONNECT =====
    const automatedTwitterConnect = () => {
