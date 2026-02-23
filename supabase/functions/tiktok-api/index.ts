@@ -35,6 +35,9 @@ async function ttFetch(endpoint: string, token: string, method = "GET", body?: a
   if (!contentType.includes("application/json")) {
     const text = await resp.text();
     console.error("TikTok non-JSON response:", resp.status, text.substring(0, 300));
+    if (resp.status === 404) {
+      throw new Error(`This TikTok API endpoint is not available (404). This feature may require approved scopes or is not available in sandbox mode.`);
+    }
     throw new Error(`TikTok API returned non-JSON (status ${resp.status}). This may indicate an expired token, rate limit, or server error.`);
   }
   const data = await resp.json();

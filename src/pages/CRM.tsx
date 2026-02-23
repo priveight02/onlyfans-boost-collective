@@ -132,6 +132,16 @@ const SUB_TAB_SLUGS: Record<string, Record<string, string>> = {
   api: { keys: "api-keys", docs: "documentation", playground: "playground", quickstart: "quick-start", history: "key-history" },
   lookup: { overview: "overview", revenue: "revenue", audience: "audience", fans: "fans", content: "content", engagement: "engagement", traffic: "traffic", messaging: "messaging", links: "links", chargebacks: "chargebacks", highlights: "highlights", bio: "bio-strategy", ai: "ai-analysis", raw: "raw-data" },
 };
+
+// Social platform slugs (instagram, tiktok, etc.)
+const SOCIAL_PLATFORMS = ["instagram", "tiktok", "threads", "facebook", "connect"];
+
+// TikTok sub-tab slugs
+const TK_SUB_TAB_SLUGS: Record<string, string> = {
+  dashboard: "dashboard", "auto-dm": "auto-dm", content: "content", comments: "comments",
+  dms: "dms", search: "search", "ai-tools": "ai-tools", analytics: "analytics", automation: "automation",
+};
+const TK_SLUG_TO_TAB: Record<string, string> = Object.fromEntries(Object.entries(TK_SUB_TAB_SLUGS).map(([k, v]) => [v, k]));
 // Reverse: url-slug → internal-id per main tab
 const SUB_SLUG_TO_TAB: Record<string, Record<string, string>> = Object.fromEntries(
   Object.entries(SUB_TAB_SLUGS).map(([mainTab, mapping]) => [mainTab, Object.fromEntries(Object.entries(mapping).map(([k, v]) => [v, k]))])
@@ -151,12 +161,40 @@ const CRM = () => {
   const pathAfterPlatform = location.pathname.replace("/platform", "").replace(/^\//, "");
   const pathParts = pathAfterPlatform.split("/").filter(Boolean);
   const mainSlug = pathParts[0] || "";
-  const subSlug = pathParts[1] || "";
   const activeTab = SLUG_TO_TAB[mainSlug] || "dashboard";
+
+  // For social tab: /platform/social-media/{platform}/{subtab}
+  // For others: /platform/{main}/{subtab}
+  let subSlug = "";
+  let socialPlatformSlug = "";
+  let socialSubSlug = "";
+  if (activeTab === "social" && pathParts.length >= 2) {
+    // Check if pathParts[1] is a platform slug
+    if (SOCIAL_PLATFORMS.includes(pathParts[1])) {
+      socialPlatformSlug = pathParts[1];
+      socialSubSlug = pathParts[2] || "";
+    } else {
+      // Legacy: /platform/social-media/{subtab} — treat as instagram platform
+      subSlug = pathParts[1];
+    }
+  } else {
+    subSlug = pathParts[1] || "";
+  }
 
   // Resolve sub-tab from URL
   const subTabMapping = SUB_SLUG_TO_TAB[activeTab];
-  const activeSubTab = subTabMapping && subSlug ? (subTabMapping[subSlug] || undefined) : undefined;
+  let activeSubTab: string | undefined;
+  if (activeTab === "social" && socialPlatformSlug) {
+    if (socialPlatformSlug === "tiktok" && socialSubSlug) {
+      activeSubTab = TK_SLUG_TO_TAB[socialSubSlug] || socialSubSlug;
+    } else if (socialSubSlug) {
+      activeSubTab = subTabMapping?.[socialSubSlug] || socialSubSlug;
+    }
+  } else {
+    activeSubTab = subTabMapping && subSlug ? (subTabMapping[subSlug] || undefined) : undefined;
+  }
+
+  const activeSocialPlatform = socialPlatformSlug || (activeTab === "social" ? "instagram" : "");
 
   useEffect(() => {
     if (!user) return;
@@ -169,13 +207,22 @@ const CRM = () => {
   const seoMeta = useMemo(() => {
     const base = "Uplyze AI Platform";
     const mainLabel = activeItem?.label || "Dashboard";
+    const platformLabel = socialPlatformSlug ? socialPlatformSlug.charAt(0).toUpperCase() + socialPlatformSlug.slice(1) : "";
     const subLabel = activeSubTab ? activeSubTab.replace(/[-_]/g, " ").replace(/\b\w/g, c => c.toUpperCase()) : "";
-    const fullTitle = subLabel ? `${subLabel} — ${mainLabel} | ${base}` : `${mainLabel} | ${base}`;
-    const desc = subLabel
+    const fullTitle = platformLabel && subLabel
+      ? `${subLabel} — ${platformLabel} | ${base}`
+      : platformLabel
+      ? `${platformLabel} Automation | ${base}`
+      : subLabel
+      ? `${subLabel} — ${mainLabel} | ${base}`
+      : `${mainLabel} | ${base}`;
+    const desc = platformLabel
+      ? `Access ${subLabel || platformLabel} automation tools on Uplyze AI — the #1 all-in-one AI platform for marketing, automation, and business growth.`
+      : subLabel
       ? `Access ${subLabel} in ${mainLabel} on Uplyze AI — the #1 all-in-one AI platform for marketing, automation, CRM, and business growth.`
       : `Access ${mainLabel} on Uplyze AI — the #1 all-in-one AI platform for marketing automation, AI CRM, content creation, and business scaling.`;
     return { title: fullTitle, description: desc };
-  }, [activeTab, activeSubTab, activeItem]);
+  }, [activeTab, activeSubTab, activeItem, socialPlatformSlug]);
 
   const handleTabChange = (newTab: string) => {
     const slug = TAB_SLUGS[newTab] || newTab;
@@ -184,9 +231,20 @@ const CRM = () => {
 
   const handleSubTabChange = (subTabId: string) => {
     const mainSlugVal = TAB_SLUGS[activeTab] || activeTab;
-    const subSlugs = SUB_TAB_SLUGS[activeTab];
-    const subSlugVal = subSlugs?.[subTabId] || subTabId;
-    navigate(`/platform/${mainSlugVal}/${subSlugVal}`, { replace: true });
+    if (activeTab === "social" && activeSocialPlatform) {
+      // For social: /platform/social-media/{platform}/{subtab}
+      const subSlugs = activeSocialPlatform === "tiktok" ? TK_SUB_TAB_SLUGS : SUB_TAB_SLUGS[activeTab];
+      const subSlugVal = subSlugs?.[subTabId] || subTabId;
+      navigate(`/platform/${mainSlugVal}/${activeSocialPlatform}/${subSlugVal}`, { replace: true });
+    } else {
+      const subSlugs = SUB_TAB_SLUGS[activeTab];
+      const subSlugVal = subSlugs?.[subTabId] || subTabId;
+      navigate(`/platform/${mainSlugVal}/${subSlugVal}`, { replace: true });
+    }
+  };
+
+  const handleSocialPlatformChange = (platform: string) => {
+    navigate(`/platform/social-media/${platform}`, { replace: true });
   };
 
   const handleLogout = async () => {
@@ -227,7 +285,7 @@ const CRM = () => {
       case "automation": return <StorylineHub subTab={activeSubTab} onSubTabChange={handleSubTabChange} />;
       case "persona": return <PersonaDNAEngine />;
       case "content": return <ContentCommandCenter />;
-      case "social": return <SocialMediaHub subTab={activeSubTab} onSubTabChange={handleSubTabChange} />;
+      case "social": return <SocialMediaHub subTab={activeSubTab} onSubTabChange={handleSubTabChange} urlPlatform={activeSocialPlatform} onPlatformChange={handleSocialPlatformChange} />;
       case "ad-creatives": return <AdCreativeEngine subTab={activeSubTab} onSubTabChange={handleSubTabChange} />;
       case "emotional": return <EmotionalHeatmap />;
       case "copilot": return <AICoPilot onNavigate={(tab: string) => handleTabChange(tab)} subTab={activeSubTab} onSubTabChange={handleSubTabChange} />;

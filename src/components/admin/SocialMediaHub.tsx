@@ -43,11 +43,13 @@ const VerifiedBadge = ({ size = 12 }: { size?: number }) => (
   </svg>
 );
 
-const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange }: { subTab?: string; onSubTabChange?: (subTab: string) => void }) => {
+const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlatformChange }: { subTab?: string; onSubTabChange?: (subTab: string) => void; urlPlatform?: string; onPlatformChange?: (platform: string) => void }) => {
   const [activeSubTab, setActiveSubTabInternal] = useState(urlSubTab || "dashboard");
   const setActiveSubTab = (v: string) => { setActiveSubTabInternal(v); onSubTabChange?.(v); };
   useEffect(() => { if (urlSubTab && urlSubTab !== activeSubTab) setActiveSubTabInternal(urlSubTab); }, [urlSubTab]);
-  const [platformTab, setPlatformTab] = useState("instagram");
+  const [platformTab, setPlatformTabInternal] = useState(urlPlatform || "instagram");
+  const setPlatformTab = (v: string) => { setPlatformTabInternal(v); onPlatformChange?.(v); };
+  useEffect(() => { if (urlPlatform && urlPlatform !== platformTab) setPlatformTabInternal(urlPlatform); }, [urlPlatform]);
   const [accounts, setAccounts] = useState<any[]>([]);
   const [selectedAccount, setSelectedAccount] = useState("");
   const [connections, setConnections] = useState<any[]>([]);
@@ -1949,7 +1951,7 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange }: { subTab?: string
       </div>
 
       {platformTab === "tiktok" ? (
-        <TKAutomationSuite selectedAccount={selectedAccount} onNavigateToConnect={navigateToTiktokConnect} />
+        <TKAutomationSuite selectedAccount={selectedAccount} onNavigateToConnect={navigateToTiktokConnect} subTab={activeSubTab} onSubTabChange={onSubTabChange} />
       ) : platformTab !== "connect" ? (
       <Tabs value={activeSubTab} onValueChange={setActiveSubTab}>
         <TabsList className="bg-muted/50 border border-border p-0.5 rounded-lg gap-0.5 flex flex-wrap w-full">
