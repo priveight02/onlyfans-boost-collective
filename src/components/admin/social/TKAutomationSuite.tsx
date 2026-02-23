@@ -24,6 +24,8 @@ import {
 interface Props {
   selectedAccount: string;
   onNavigateToConnect?: () => void;
+  subTab?: string;
+  onSubTabChange?: (subTab: string) => void;
 }
 
 const TikTokIcon = ({ className = "h-4 w-4" }: { className?: string }) => (
@@ -32,8 +34,10 @@ const TikTokIcon = ({ className = "h-4 w-4" }: { className?: string }) => (
   </svg>
 );
 
-const TKAutomationSuite = ({ selectedAccount, onNavigateToConnect }: Props) => {
-  const [activeTab, setActiveTab] = useState("dashboard");
+const TKAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSubTab, onSubTabChange }: Props) => {
+  const [activeTab, setActiveTabInternal] = useState(urlSubTab || "dashboard");
+  const setActiveTab = (v: string) => { setActiveTabInternal(v); onSubTabChange?.(v); };
+  useEffect(() => { if (urlSubTab && urlSubTab !== activeTab) setActiveTabInternal(urlSubTab); }, [urlSubTab]);
   const [loading, setLoading] = useState(false);
   const [tiktokConnected, setTiktokConnected] = useState<boolean | null>(null); // null = loading
 
