@@ -8,7 +8,7 @@ const TermsAndConditions = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-primary to-blue-900 relative overflow-hidden">
-      <PageSEO title="Terms and Conditions - Uplyze" description="Read the Uplyze terms of service. Learn about our policies on usage, billing, privacy, and account management." />
+      <PageSEO title="Terms and Conditions - Uplyze" description="The fine print, made simple. Usage, billing, and account policies for the Uplyze platform." />
       <div className="fixed inset-0 pointer-events-none">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl" />
         <div className="absolute bottom-1/3 right-1/4 w-80 h-80 bg-blue-500/15 rounded-full blur-3xl" />

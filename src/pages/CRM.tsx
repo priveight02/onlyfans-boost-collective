@@ -204,23 +204,22 @@ const CRM = () => {
 
   // SEO metadata per route
   const activeItem = navSections.flatMap(s => s.items).find(i => i.id === activeTab);
-  const seoMeta = useMemo(() => {
-    const base = "Uplyze AI Platform";
+   const seoMeta = useMemo(() => {
     const mainLabel = activeItem?.label || "Dashboard";
     const platformLabel = socialPlatformSlug ? socialPlatformSlug.charAt(0).toUpperCase() + socialPlatformSlug.slice(1) : "";
     const subLabel = activeSubTab ? activeSubTab.replace(/[-_]/g, " ").replace(/\b\w/g, c => c.toUpperCase()) : "";
     const fullTitle = platformLabel && subLabel
-      ? `${subLabel} — ${platformLabel} | ${base}`
+      ? `${subLabel} - ${platformLabel} Automation - Uplyze`
       : platformLabel
-      ? `${platformLabel} Automation | ${base}`
+      ? `${platformLabel} Automation - Uplyze`
       : subLabel
-      ? `${subLabel} — ${mainLabel} | ${base}`
-      : `${mainLabel} | ${base}`;
+      ? `${subLabel} - ${mainLabel} - Uplyze`
+      : `${mainLabel} - Uplyze`;
     const desc = platformLabel
-      ? `Access ${subLabel || platformLabel} automation tools on Uplyze AI — the #1 all-in-one AI platform for marketing, automation, and business growth.`
+      ? `Run ${subLabel || platformLabel} automation on autopilot. Built for creators, agencies, and digital businesses who want to grow faster.`
       : subLabel
-      ? `Access ${subLabel} in ${mainLabel} on Uplyze AI — the #1 all-in-one AI platform for marketing, automation, CRM, and business growth.`
-      : `Access ${mainLabel} on Uplyze AI — the #1 all-in-one AI platform for marketing automation, AI CRM, content creation, and business scaling.`;
+      ? `Use ${subLabel} inside ${mainLabel} to save time and scale. AI-powered tools built for creators, agencies, and businesses.`
+      : `Your ${mainLabel} inside Uplyze. AI tools built for creators, digital agencies, and businesses ready to scale.`;
     return { title: fullTitle, description: desc };
   }, [activeTab, activeSubTab, activeItem, socialPlatformSlug]);
 
