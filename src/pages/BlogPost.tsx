@@ -1,6 +1,7 @@
 import { useParams, Link } from "react-router-dom";
 import { ArrowLeft, ArrowRight, Clock, User, Calendar, Sparkles } from "lucide-react";
 import Footer from "@/components/Footer";
+import PageSEO from "@/components/PageSEO";
 
 const articles: Record<string, { title: string; date: string; readTime: string; author: string; category: string; content: string }> = {
   "what-is-uplyze": {
@@ -185,6 +186,10 @@ const BlogPost = () => {
 
   return (
     <div className="min-h-screen bg-[hsl(222,35%,8%)]">
+      <PageSEO
+        title={`${article.title} | Uplyze Blog`}
+        description={article.content.replace(/[#*\-\n]/g, ' ').trim().slice(0, 155) + '...'}
+      />
       {/* Ambient glow */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-primary/[0.06] rounded-full blur-[150px] pointer-events-none" />
 
