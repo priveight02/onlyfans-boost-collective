@@ -51,14 +51,24 @@ serve(async (req) => {
     let conn: any;
     let token: string;
 
+    // Return client key for frontend use (like IG's get_app_id)
+    if (action === "get_client_key") {
+      const clientKey = Deno.env.get("TIKTOK_CLIENT_KEY");
+      return new Response(JSON.stringify({ success: true, client_key: clientKey || null }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Actions that don't need a connection
     if (action === "exchange_code") {
       const { code, client_key, client_secret, redirect_uri } = params;
-      if (!code || !client_key || !client_secret) throw new Error("Missing code, client_key, or client_secret");
+      const finalClientKey = client_key || Deno.env.get("TIKTOK_CLIENT_KEY");
+      const finalClientSecret = client_secret || Deno.env.get("TIKTOK_CLIENT_SECRET");
+      if (!code || !finalClientKey || !finalClientSecret) throw new Error("Missing code, client_key, or client_secret");
       const tokenRes = await fetch("https://open.tiktokapis.com/v2/oauth/token/", {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({ client_key, client_secret, code, grant_type: "authorization_code", redirect_uri: redirect_uri || "" }).toString(),
+        body: new URLSearchParams({ client_key: finalClientKey, client_secret: finalClientSecret, code, grant_type: "authorization_code", redirect_uri: redirect_uri || "" }).toString(),
       });
       const tokenData = await tokenRes.json();
       if (tokenData.error) throw new Error(`Token exchange failed: ${tokenData.error_description}`);
