@@ -1073,39 +1073,60 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
    };
 
    // ===== AUTOMATED FACEBOOK CONNECT =====
-   const automatedFacebookConnect = () => {
-     if (!fbAppId) { toast.error("Enter your Facebook App ID first"); return; }
-     const scopes = "public_profile,email,pages_show_list,pages_read_engagement,pages_manage_posts,pages_manage_metadata,pages_read_user_content,pages_messaging,publish_video,groups_access_member_info,business_management";
-     const authUrl = `https://www.facebook.com/v24.0/dialog/oauth?client_id=${fbAppId}&redirect_uri=${encodeURIComponent(oauthRedirectUri)}&scope=${scopes}&response_type=token`;
-     const authWindow = window.open(authUrl, "fb_oauth", "width=600,height=700,scrollbars=yes");
-     setAutoConnectLoading("facebook");
-     toast.info("Authenticate with Facebook...");
-     const interval = setInterval(async () => {
+   const automatedFacebookConnect = async () => {
+     let appId = fbAppId || cachedFbAppId;
+     if (!appId) {
        try {
-         if (!authWindow || authWindow.closed) { clearInterval(interval); setAutoConnectLoading(null); return; }
-         const url = authWindow.location.href;
-         if (url.includes("access_token=")) {
-           const hash = authWindow.location.hash.substring(1);
-           const pms = new URLSearchParams(hash);
-           const token = pms.get("access_token");
-           authWindow.close(); clearInterval(interval);
-           if (!token) { setAutoConnectLoading(null); toast.error("No token"); return; }
-           const profileRes = await fetch(`https://graph.facebook.com/v24.0/me?fields=id,name,email,picture.width(200)&access_token=${token}`);
-           const profile = await profileRes.json();
-           if (profile.error) { toast.error(profile.error.message); setAutoConnectLoading(null); return; }
-           const username = profile.name || "facebook_user";
-           let accountId = selectedAccount;
-           if (!accountId) {
-             const { data: newAcct, error: err } = await supabase.from("managed_accounts").insert({ username, display_name: profile.name, platform: "facebook", status: "active", avatar_url: profile.picture?.data?.url || null }).select("id").single();
-             if (err || !newAcct) { toast.error(err?.message || "Failed"); setAutoConnectLoading(null); return; }
-             accountId = newAcct.id; setSelectedAccount(accountId);
-           }
-           await supabase.from("social_connections").upsert({ account_id: accountId, platform: "facebook", platform_user_id: profile.id || "", platform_username: username, access_token: token, is_connected: true, scopes: [], metadata: { name: profile.name, picture_url: profile.picture?.data?.url, email: profile.email, connected_via: "automated_oauth" } }, { onConflict: "account_id,platform" });
-           await loadAccounts(); await loadData(accountId);
-           toast.success(`✅ ${username} Facebook connected!`);
-           setAutoConnectLoading(null);
+         const { data } = await supabase.functions.invoke("facebook-api", { body: { action: "get_app_id" } });
+         if (data?.app_id) { appId = data.app_id; setCachedFbAppId(data.app_id); setFbAppId(data.app_id); }
+       } catch {}
+     }
+     if (!appId) { toast.error("Configure FACEBOOK_APP_ID in backend secrets"); return; }
+     const fbRedirectUri = "https://uplyze.ai/fb-login";
+     const scopes = "public_profile,email,pages_show_list,pages_read_engagement,pages_manage_posts,pages_manage_metadata,pages_read_user_content,pages_messaging,publish_video,business_management";
+     const authUrl = `https://www.facebook.com/v24.0/dialog/oauth?client_id=${appId}&redirect_uri=${encodeURIComponent(fbRedirectUri)}&scope=${scopes}&response_type=code`;
+     const w = 520, h = 620;
+     const left = Math.round(window.screenX + (window.outerWidth - w) / 2);
+     const top = Math.round(window.screenY + (window.outerHeight - h) / 2);
+     const popup = window.open(authUrl, "fb_login_popup", `width=${w},height=${h},left=${left},top=${top},toolbar=no,menubar=no,scrollbars=yes,resizable=yes`);
+     if (!popup) { toast.info("Popup blocked — opening in current tab."); window.location.href = authUrl; return; }
+     setAutoConnectLoading("facebook");
+     toast.info("Authenticate with Facebook in the popup...");
+
+     const handleFbMessage = async (event: MessageEvent) => {
+       if (event.data?.type !== "FB_OAUTH_RESULT") return;
+       window.removeEventListener("message", handleFbMessage);
+       const { code, redirect_uri } = event.data.payload;
+       if (!code) { setAutoConnectLoading(null); toast.error("No auth code received"); return; }
+       toast.info("Auth code captured! Exchanging for token...");
+       try {
+         const { data, error } = await supabase.functions.invoke("facebook-api", { body: { action: "exchange_code", params: { code, redirect_uri: redirect_uri || fbRedirectUri } } });
+         if (error || !data?.success) { toast.error(data?.error || error?.message || "Token exchange failed"); setAutoConnectLoading(null); return; }
+         const accessToken = data.data?.access_token;
+         if (!accessToken) { toast.error("No access token in response"); setAutoConnectLoading(null); return; }
+         toast.info("Fetching Facebook profile...");
+         const profileRes = await fetch(`https://graph.facebook.com/v24.0/me?fields=id,name,email,picture.width(200)&access_token=${accessToken}`);
+         const profile = await profileRes.json();
+         if (profile.error) { toast.error(profile.error.message); setAutoConnectLoading(null); return; }
+         const username = profile.name || "facebook_user";
+         let accountId = selectedAccount;
+         if (!accountId) {
+           const { data: newAcct, error: err } = await supabase.from("managed_accounts").insert({ username, display_name: profile.name, platform: "facebook", status: "active", avatar_url: profile.picture?.data?.url || null }).select("id").single();
+           if (err || !newAcct) { toast.error(err?.message || "Failed"); setAutoConnectLoading(null); return; }
+           accountId = newAcct.id; setSelectedAccount(accountId);
          }
-       } catch { /* cross-origin */ }
+         await supabase.from("social_connections").upsert({ account_id: accountId, platform: "facebook", platform_user_id: profile.id || "", platform_username: username, access_token: accessToken, is_connected: true, scopes: [], metadata: { name: profile.name, picture_url: profile.picture?.data?.url, email: profile.email, connected_via: "facebook_oauth_popup" } }, { onConflict: "account_id,platform" });
+         await supabase.from("managed_accounts").update({ avatar_url: profile.picture?.data?.url || undefined, display_name: profile.name || username, last_activity_at: new Date().toISOString() }).eq("id", accountId);
+         await loadAccounts(); await loadData(accountId);
+         toast.success(`✅ ${username} Facebook connected!`);
+       } catch (err: any) { toast.error(err.message || "Facebook connection failed"); }
+       setAutoConnectLoading(null);
+     };
+     window.addEventListener("message", handleFbMessage);
+     const check = setInterval(() => {
+       try {
+         if (popup.closed) { clearInterval(check); setAutoConnectLoading(null); window.removeEventListener("message", handleFbMessage); }
+       } catch {}
      }, 500);
    };
 
@@ -1366,20 +1387,24 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
   const [cachedIgAppId, setCachedIgAppId] = useState<string | null>(null);
   const [ttLoginPopupLoading, setTtLoginPopupLoading] = useState(false);
   const [cachedTtClientKey, setCachedTtClientKey] = useState<string | null>(null);
-  const [cachedThreadsAppId, setCachedThreadsAppId] = useState<string | null>(null);
+   const [cachedThreadsAppId, setCachedThreadsAppId] = useState<string | null>(null);
+   const [cachedFbAppId, setCachedFbAppId] = useState<string | null>(null);
 
-  // Pre-fetch Instagram App ID, TikTok Client Key, and Threads App ID from backend on mount
-  useEffect(() => {
-    supabase.functions.invoke("ig-oauth-callback", { body: { action: "get_app_id" } })
-      .then(({ data }) => { if (data?.app_id) setCachedIgAppId(data.app_id); })
-      .catch(() => {});
-    supabase.functions.invoke("tiktok-api", { body: { action: "get_client_key" } })
-      .then(({ data }) => { if (data?.client_key) setCachedTtClientKey(data.client_key); })
-      .catch(() => {});
-    supabase.functions.invoke("threads-api", { body: { action: "get_app_id" } })
-      .then(({ data }) => { if (data?.app_id) { setCachedThreadsAppId(data.app_id); setThreadsAppId(data.app_id); } })
-      .catch(() => {});
-  }, []);
+   // Pre-fetch Instagram App ID, TikTok Client Key, Threads App ID, and Facebook App ID from backend on mount
+   useEffect(() => {
+     supabase.functions.invoke("ig-oauth-callback", { body: { action: "get_app_id" } })
+       .then(({ data }) => { if (data?.app_id) setCachedIgAppId(data.app_id); })
+       .catch(() => {});
+     supabase.functions.invoke("tiktok-api", { body: { action: "get_client_key" } })
+       .then(({ data }) => { if (data?.client_key) setCachedTtClientKey(data.client_key); })
+       .catch(() => {});
+     supabase.functions.invoke("threads-api", { body: { action: "get_app_id" } })
+       .then(({ data }) => { if (data?.app_id) { setCachedThreadsAppId(data.app_id); setThreadsAppId(data.app_id); } })
+       .catch(() => {});
+     supabase.functions.invoke("facebook-api", { body: { action: "get_app_id" } })
+       .then(({ data }) => { if (data?.app_id) { setCachedFbAppId(data.app_id); setFbAppId(data.app_id); } })
+       .catch(() => {});
+   }, []);
   const [foundSessions, setFoundSessions] = useState<Array<{ id: string; source: string; sessionId: string; csrfToken?: string; dsUserId?: string; savedAt?: string; status: "active" | "expired" | "unknown" }>>([]);
 
   type FoundSession = typeof foundSessions[number];
@@ -2595,11 +2620,10 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
                 {/* 3. Facebook - available */}
                 {(() => {
                   const isLoading = autoConnectLoading === "facebook";
-                  const needsFields = !fbAppId;
                   return (
                     <div className="group/wrap relative" id="facebook-connect-card">
                       <button
-                        onClick={() => { if (needsFields) { const el = document.getElementById("connect-expand-facebook"); if (el) el.classList.toggle("hidden"); } else { automatedFacebookConnect(); } }}
+                        onClick={() => automatedFacebookConnect()}
                         disabled={isLoading}
                         className={`group/cube relative flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl border bg-card/50 backdrop-blur-sm transition-all duration-300 hover:border-blue-500/40 hover:bg-blue-500/5 hover:shadow-[0_0_24px_-5px] hover:shadow-blue-500/20 disabled:opacity-50 disabled:pointer-events-none aspect-square w-full ${highlightFacebook ? "border-blue-500/60 animate-connect-highlight" : "border-border/50"}`}
                         style={highlightFacebook ? { '--highlight-color': 'rgba(59,130,246,0.4)' } as React.CSSProperties : undefined}
@@ -2612,17 +2636,13 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
                         </div>
                         <span className="text-[10px] font-semibold text-muted-foreground group-hover/cube:text-foreground transition-colors leading-tight text-center">Connect Facebook</span>
                       </button>
-                      <div id="connect-expand-facebook" className="hidden absolute z-20 top-full left-0 mt-1.5 w-56 p-3 rounded-xl border border-border bg-card shadow-xl space-y-2 animate-fade-in">
-                        <Input value={fbAppId} onChange={e => setFbAppId(e.target.value)} placeholder="App ID" className="text-xs h-7" />
-                        <Button size="sm" onClick={() => { automatedFacebookConnect(); const el = document.getElementById("connect-expand-facebook"); if (el) el.classList.add("hidden"); }} disabled={isLoading} className="w-full h-7 text-[10px]">{isLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : "Connect"}</Button>
-                      </div>
                     </div>
                   );
                 })()}
 
                 {/* 4. Threads - available */}
                 {(() => {
-                  const p = { id: "threads", label: "Connect Threads", svgIcon: <svg viewBox="0 0 192 192" className="h-8 w-8 transition-all duration-300 group-hover/cube:drop-shadow-[0_0_12px_rgba(192,132,252,0.5)]" fill="currentColor"><path d="M141.537 88.9883C140.71 88.5919 139.87 88.2104 139.019 87.8451C137.537 60.5382 122.616 44.905 97.5619 44.745C97.4484 44.7443 97.3355 44.7443 97.222 44.745C ## 82.2364 44.745 69.7731 51.1399 62.1022 62.6747L75.7727 71.3821C81.1761 63.5292 89.268 59.6122 97.222 59.6122L97.278 59.6122C106.338 59.6665 113.17 62.4629 117.586 67.8906C120.755 71.7552 122.829 76.9676 123.793 83.4466C117.929 82.4062 111.534 81.9825 104.665 82.1792C82.4856 82.8102 68.1467 94.7389 69.0766 111.163C69.5497 119.502 73.5604 126.721 80.3757 131.552C86.1847 135.684 93.6258 137.742 101.379 137.363C111.344 136.866 119.239 132.871 124.654 125.607C128.641 120.289 131.219 113.485 132.553 104.854C137.467 107.83 141.145 111.752 143.251 116.533C146.886 124.647 147.068 138.247 136.398 148.917C127.051 158.265 115.818 162.697 97.364 162.837C76.7819 162.681 61.5251 156.296 51.2819 143.763C41.6667 131.989 36.6012 115.282 36.4329 94C36.6012 72.7178 41.6667 56.0107 51.2819 44.2365C61.5251 31.7035 76.7819 25.3185 97.364 25.1627C118.093 25.3197 133.627 31.7688 144.198 44.3827C149.359 50.5355 153.27 58.165 155.89 66.9742L170.186 63.0565C167.07 52.5024 162.307 43.4419 156.056 35.9973C142.95 20.4105 124.452 12.4483 97.406 12.2617L97.322 12.2617C70.4367 12.4471 52.17 20.4758 39.3082 36.0914C27.0166 51.012 20.7267 71.2753 20.5331 94.0419L20.5331 94.0419C20.7267 116.725 27.0166 136.988 39.3082 151.909C52.17 167.524 70.4367 175.553 97.322 175.738L97.406 175.738C119.394 175.572 133.776 169.793 145.684 157.885C161.961 141.608 161.496 121.068 156.384 109.483C152.716 101.175 146.059 94.3498 141.537 88.9883ZM100.885 123.532C90.3552 124.072 82.5765 118.403 82.1001 108.85C81.7364 101.638 86.6254 93.2956 104.962 92.7273C107.887 92.6432 110.734 92.7217 113.491 92.957C112.222 107.725 107.531 123.194 100.885 123.532Z"/></svg>, hoverBorder: "hover:border-purple-400/40", hoverBg: "hover:bg-purple-400/5", hoverShadow: "hover:shadow-purple-400/20", connected: threadsConnected, action: automatedThreadsConnect };
+                  const p = { id: "threads", label: "Connect Threads", svgIcon: <svg viewBox="0 0 192 192" className="h-8 w-8 transition-all duration-300 group-hover/cube:drop-shadow-[0_0_12px_rgba(192,132,252,0.5)]" fill="currentColor"><path d="M141.537 88.9883C140.71 88.5919 139.87 88.2104 139.019 87.8451C137.537 60.5382 122.616 44.905 97.5619 44.745C97.4484 44.7443 97.3355 44.7443 97.222 44.745C82.2364 44.745 69.7731 51.1399 62.1022 62.6747L75.7727 71.3821C81.1761 63.5292 89.268 59.6122 97.222 59.6122L97.278 59.6122C106.338 59.6665 113.17 62.4629 117.586 67.8906C120.755 71.7552 122.829 76.9676 123.793 83.4466C117.929 82.4062 111.534 81.9825 104.665 82.1792C82.4856 82.8102 68.1467 94.7389 69.0766 111.163C69.5497 119.502 73.5604 126.721 80.3757 131.552C86.1847 135.684 93.6258 137.742 101.379 137.363C111.344 136.866 119.239 132.871 124.654 125.607C128.641 120.289 131.219 113.485 132.553 104.854C137.467 107.83 141.145 111.752 143.251 116.533C146.886 124.647 147.068 138.247 136.398 148.917C127.051 158.265 115.818 162.697 97.364 162.837C76.7819 162.681 61.5251 156.296 51.2819 143.763C41.6667 131.989 36.6012 115.282 36.4329 94C36.6012 72.7178 41.6667 56.0107 51.2819 44.2365C61.5251 31.7035 76.7819 25.3185 97.364 25.1627C118.093 25.3197 133.627 31.7688 144.198 44.3827C149.359 50.5355 153.27 58.165 155.89 66.9742L170.186 63.0565C167.07 52.5024 162.307 43.4419 156.056 35.9973C142.95 20.4105 124.452 12.4483 97.406 12.2617L97.322 12.2617C70.4367 12.4471 52.17 20.4758 39.3082 36.0914C27.0166 51.012 20.7267 71.2753 20.5331 94.0419L20.5331 94.0419C20.7267 116.725 27.0166 136.988 39.3082 151.909C52.17 167.524 70.4367 175.553 97.322 175.738L97.406 175.738C119.394 175.572 133.776 169.793 145.684 157.885C161.961 141.608 161.496 121.068 156.384 109.483C152.716 101.175 146.059 94.3498 141.537 88.9883ZM100.885 123.532C90.3552 124.072 82.5765 118.403 82.1001 108.85C81.7364 101.638 86.6254 93.2956 104.962 92.7273C107.887 92.6432 110.734 92.7217 113.491 92.957C112.222 107.725 107.531 123.194 100.885 123.532Z"/></svg>, hoverBorder: "hover:border-purple-400/40", hoverBg: "hover:bg-purple-400/5", hoverShadow: "hover:shadow-purple-400/20", connected: threadsConnected, action: automatedThreadsConnect };
                   const isLoading = autoConnectLoading === p.id;
                   return (
                     <div className="group/wrap relative" id="threads-connect-card">
