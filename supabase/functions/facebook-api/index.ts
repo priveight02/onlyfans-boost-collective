@@ -35,10 +35,20 @@ serve(async (req) => {
     let result: any;
 
     switch (action) {
+      // ===== GET APP ID =====
+      case "get_app_id": {
+        const appId = Deno.env.get("FACEBOOK_APP_ID");
+        if (!appId) throw new Error("FACEBOOK_APP_ID not configured");
+        return new Response(JSON.stringify({ success: true, app_id: appId }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
       // ===== OAUTH =====
       case "exchange_code": {
-        const { code, client_id, client_secret, redirect_uri } = params;
-        const resp = await fetch(`${GRAPH_API}/oauth/access_token?client_id=${client_id}&client_secret=${client_secret}&redirect_uri=${encodeURIComponent(redirect_uri)}&code=${code}`);
+        const appId = params.client_id || Deno.env.get("FACEBOOK_APP_ID");
+        const appSecret = params.client_secret || Deno.env.get("FACEBOOK_APP_SECRET");
+        if (!appId || !appSecret) throw new Error("Facebook App ID/Secret not configured");
+        const { code, redirect_uri } = params;
+        const resp = await fetch(`${GRAPH_API}/oauth/access_token?client_id=${appId}&client_secret=${appSecret}&redirect_uri=${encodeURIComponent(redirect_uri)}&code=${code}`);
         result = await resp.json();
         if (result.error) throw new Error(result.error.message);
         return new Response(JSON.stringify({ success: true, data: result }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });

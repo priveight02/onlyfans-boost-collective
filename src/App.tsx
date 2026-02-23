@@ -28,6 +28,7 @@ import AdminOnboarding from "./pages/AdminOnboarding";
 import IGLoginPopup from "./pages/IGLoginPopup";
 import TikTokLoginPopup from "./pages/TikTokLoginPopup";
 import ThreadsLoginPopup from "./pages/ThreadsLoginPopup";
+import FacebookLoginPopup from "./pages/FacebookLoginPopup";
 import Maintenance from "./pages/Maintenance";
 import Blog from "./pages/Blog";
 import BlogPost from "./pages/BlogPost";
@@ -52,7 +53,7 @@ const MaintenanceGuard = ({ children }: { children: React.ReactNode }) => {
   if (isOwner) return <>{children}</>;
 
   // Allow maintenance page itself and ig-login popup
-  if (location.pathname === "/maintenance" || location.pathname === "/ig-login" || location.pathname === "/tt-login" || location.pathname === "/threads-login") return <>{children}</>;
+  if (location.pathname === "/maintenance" || location.pathname === "/ig-login" || location.pathname === "/tt-login" || location.pathname === "/threads-login" || location.pathname === "/fb-login") return <>{children}</>;
 
   // Redirect to maintenance if active
   if (settings.maintenance_mode) {
@@ -75,7 +76,7 @@ const MaintenanceGuard = ({ children }: { children: React.ReactNode }) => {
 const AppContent = () => {
   useVisitorTracking();
   const location = useLocation();
-  const isPopupRoute = location.pathname === "/ig-login" || location.pathname === "/tt-login" || location.pathname === "/threads-login";
+  const isPopupRoute = location.pathname === "/ig-login" || location.pathname === "/tt-login" || location.pathname === "/threads-login" || location.pathname === "/fb-login";
 
   return (
     <MaintenanceGuard>
@@ -102,6 +103,7 @@ const AppContent = () => {
         <Route path="/ig-login" element={<IGLoginPopup />} />
         <Route path="/tt-login" element={<TikTokLoginPopup />} />
         <Route path="/threads-login" element={<ThreadsLoginPopup />} />
+        <Route path="/fb-login" element={<FacebookLoginPopup />} />
         <Route path="/blog" element={<Blog />} />
         <Route path="/blog/:slug" element={<BlogPost />} />
         <Route path="/customer-portal" element={<CustomerPortal />} />
