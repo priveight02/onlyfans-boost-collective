@@ -65,13 +65,33 @@ serve(async (req) => {
       const finalClientKey = client_key || Deno.env.get("TIKTOK_CLIENT_KEY");
       const finalClientSecret = client_secret || Deno.env.get("TIKTOK_CLIENT_SECRET");
       if (!code || !finalClientKey || !finalClientSecret) throw new Error("Missing code, client_key, or client_secret");
+
+      console.log("TT exchange_code debug:", {
+        clientKeyLen: finalClientKey.length,
+        clientKeyPrefix: finalClientKey.substring(0, 6),
+        secretLen: finalClientSecret.length,
+        secretPrefix: finalClientSecret.substring(0, 4),
+        codeLen: code.length,
+        redirect_uri: redirect_uri || "(empty)",
+      });
+
+      const bodyParams = new URLSearchParams({
+        client_key: finalClientKey,
+        client_secret: finalClientSecret,
+        code,
+        grant_type: "authorization_code",
+        redirect_uri: redirect_uri || "",
+      });
+      console.log("TT token request body:", bodyParams.toString());
+
       const tokenRes = await fetch("https://open.tiktokapis.com/v2/oauth/token/", {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({ client_key: finalClientKey, client_secret: finalClientSecret, code, grant_type: "authorization_code", redirect_uri: redirect_uri || "" }).toString(),
+        body: bodyParams.toString(),
       });
       const tokenData = await tokenRes.json();
-      if (tokenData.error) throw new Error(`Token exchange failed: ${tokenData.error_description}`);
+      console.log("TT token response:", JSON.stringify(tokenData));
+      if (tokenData.error) throw new Error(`Token exchange failed: ${tokenData.error_description || tokenData.error}`);
       result = { success: true, data: tokenData.data || tokenData };
       return new Response(JSON.stringify(result), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
