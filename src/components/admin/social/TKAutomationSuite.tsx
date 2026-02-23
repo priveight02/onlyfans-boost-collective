@@ -19,7 +19,7 @@ import {
   Target, Radio, Calendar, Download, Link2, FolderOpen,
   CheckCircle2, AlertCircle, Bot, Sparkles, ArrowRight,
 } from "lucide-react";
-import LiveDMConversations from "../LiveDMConversations";
+// TikTok-native DM conversations — no Instagram dependency
 
 interface Props {
   selectedAccount: string;
@@ -34,6 +34,30 @@ const TikTokIcon = ({ className = "h-4 w-4" }: { className?: string }) => (
 const TKAutomationSuite = ({ selectedAccount }: Props) => {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [loading, setLoading] = useState(false);
+  const [tiktokConnected, setTiktokConnected] = useState<boolean | null>(null); // null = loading
+
+  // TikTok-native live DM conversations state
+  const [tkConversations, setTkConversations] = useState<any[]>([]);
+  const [tkMessages, setTkMessages] = useState<any[]>([]);
+  const [tkSelectedConvo, setTkSelectedConvo] = useState<string | null>(null);
+  const [tkDmInput, setTkDmInput] = useState("");
+  const [tkScanning, setTkScanning] = useState(false);
+  const [tkSearchQuery, setTkSearchQuery] = useState("");
+
+  // Check TikTok connection
+  useEffect(() => {
+    if (!selectedAccount) { setTiktokConnected(false); return; }
+    const check = async () => {
+      const { data } = await supabase.from("social_connections")
+        .select("id")
+        .eq("account_id", selectedAccount)
+        .eq("platform", "tiktok")
+        .eq("is_connected", true)
+        .maybeSingle();
+      setTiktokConnected(!!data);
+    };
+    check();
+  }, [selectedAccount]);
 
   // Dashboard
   const [profile, setProfile] = useState<any>(null);
@@ -400,6 +424,143 @@ const TKAutomationSuite = ({ selectedAccount }: Props) => {
     setScheduledPosts(prev => prev.filter(p => p.id !== id));
   };
 
+  // TikTok-native DM functions
+  const loadTkConversations = useCallback(async () => {
+    if (!selectedAccount) return;
+    setTkScanning(true);
+    // First try to sync from TikTok API
+    await callApi("get_conversations", { limit: 50 });
+    // Then load from local DB
+    const { data } = await supabase.from("ai_dm_conversations")
+      .select("*")
+      .eq("account_id", selectedAccount)
+      .eq("platform", "tiktok")
+      .order("last_message_at", { ascending: false })
+      .limit(100);
+    if (data) setTkConversations(data);
+    setTkScanning(false);
+  }, [selectedAccount, callApi]);
+
+  const loadTkMessages = useCallback(async (convoId: string) => {
+    setTkSelectedConvo(convoId);
+    const { data } = await supabase.from("ai_dm_messages")
+      .select("*")
+      .eq("conversation_id", convoId)
+      .eq("account_id", selectedAccount)
+      .order("created_at", { ascending: true })
+      .limit(100);
+    if (data) setTkMessages(data);
+    // Also try to fetch from TikTok API for latest
+    const convo = tkConversations.find(c => c.id === convoId);
+    if (convo?.platform_conversation_id) {
+      await callApi("get_messages", { conversation_id: convo.platform_conversation_id, limit: 50 });
+      // Reload from DB
+      const { data: fresh } = await supabase.from("ai_dm_messages")
+        .select("*")
+        .eq("conversation_id", convoId)
+        .eq("account_id", selectedAccount)
+        .order("created_at", { ascending: true })
+        .limit(100);
+      if (fresh) setTkMessages(fresh);
+    }
+  }, [selectedAccount, callApi, tkConversations]);
+
+  const sendTkDm = useCallback(async () => {
+    if (!tkDmInput.trim() || !tkSelectedConvo) return;
+    const convo = tkConversations.find(c => c.id === tkSelectedConvo);
+    if (!convo) return;
+    // Send via TikTok API
+    await callApi("send_message", { conversation_id: convo.platform_conversation_id, text: tkDmInput });
+    // Also store locally
+    await supabase.from("ai_dm_messages").insert({
+      conversation_id: tkSelectedConvo,
+      account_id: selectedAccount,
+      sender_type: "agent",
+      sender_name: "You",
+      content: tkDmInput,
+      status: "sent",
+    });
+    setTkDmInput("");
+    loadTkMessages(tkSelectedConvo);
+  }, [tkDmInput, tkSelectedConvo, selectedAccount, callApi, loadTkMessages, tkConversations]);
+
+  // Load TikTok conversations on mount + realtime
+  useEffect(() => {
+    if (!selectedAccount || !tiktokConnected) return;
+    loadTkConversations();
+    const channel = supabase
+      .channel(`tk-dm-convos-${selectedAccount}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "ai_dm_conversations", filter: `account_id=eq.${selectedAccount}` }, () => {
+        loadTkConversations();
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [selectedAccount, tiktokConnected, loadTkConversations]);
+
+  // Realtime messages for selected convo
+  useEffect(() => {
+    if (!tkSelectedConvo || !selectedAccount) return;
+    const channel = supabase
+      .channel(`tk-dm-msgs-${tkSelectedConvo}`)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "ai_dm_messages", filter: `conversation_id=eq.${tkSelectedConvo}` }, () => {
+        loadTkMessages(tkSelectedConvo);
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [tkSelectedConvo, selectedAccount, loadTkMessages]);
+
+  const filteredTkConversations = tkConversations.filter(c => {
+    if (!tkSearchQuery) return true;
+    const q = tkSearchQuery.toLowerCase();
+    return (c.participant_name || "").toLowerCase().includes(q) || (c.participant_username || "").toLowerCase().includes(q);
+  });
+
+  // "Connect TikTok" CTA component
+  const ConnectTikTokCTA = () => (
+    <div className="flex flex-col items-center justify-center py-16 gap-4">
+      <div className="relative">
+        <div className="absolute inset-0 rounded-full bg-cyan-500/20 animate-ping" />
+        <div className="absolute inset-[-8px] rounded-full bg-cyan-500/10 animate-pulse" />
+        <div className="relative h-20 w-20 rounded-full bg-muted/50 border-2 border-cyan-500/40 flex items-center justify-center">
+          <TikTokIcon className="h-10 w-10 text-cyan-400" />
+        </div>
+      </div>
+      <div className="text-center mt-2">
+        <h3 className="text-base font-bold text-foreground">Connect TikTok Account</h3>
+        <p className="text-xs text-muted-foreground mt-1 max-w-xs">
+          Connect your TikTok account to unlock DMs, auto-posting, analytics, and AI-powered automation.
+        </p>
+      </div>
+      <Button
+        size="lg"
+        className="bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white gap-2 mt-2"
+        onClick={() => {
+          // Navigate to connect tab
+          const event = new CustomEvent("switch-platform-tab", { detail: "connect" });
+          window.dispatchEvent(event);
+          toast.info("Navigate to the Connect tab to link your TikTok account");
+        }}
+      >
+        <TikTokIcon className="h-5 w-5" />
+        Connect TikTok
+        <ArrowRight className="h-4 w-4" />
+      </Button>
+    </div>
+  );
+
+  // Show connect CTA if not connected
+  if (tiktokConnected === null) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!tiktokConnected && !selectedAccount) {
+    return <ConnectTikTokCTA />;
+  }
+
   return (
     <Tabs value={activeTab} onValueChange={setActiveTab}>
       <TabsList className="bg-muted/50 border border-border p-0.5 rounded-lg gap-0.5 flex flex-wrap w-full">
@@ -431,7 +592,8 @@ const TKAutomationSuite = ({ selectedAccount }: Props) => {
           </Button>
         </div>
 
-        {!selectedAccount && <p className="text-xs text-destructive">No account selected — connect TikTok first via the Connect tab.</p>}
+        {!tiktokConnected && <ConnectTikTokCTA />}
+        {!selectedAccount && tiktokConnected && <p className="text-xs text-destructive">No account selected — connect TikTok first via the Connect tab.</p>}
 
         {profile && (
           <Card className="border-cyan-500/20">
@@ -577,22 +739,132 @@ const TKAutomationSuite = ({ selectedAccount }: Props) => {
           </CardContent>
         </Card>
 
-        {/* Live Conversations */}
+        {/* TikTok-Native Live Conversations */}
+        {!tiktokConnected ? <ConnectTikTokCTA /> : (
         <Card>
           <CardContent className="p-4">
-            <h4 className="text-sm font-semibold text-foreground flex items-center gap-2 mb-3">
-              <MessageCircle className="h-4 w-4 text-cyan-400" />Live AI Conversations
-            </h4>
-            <LiveDMConversations
-              accountId={selectedAccount}
-              autoRespondActive={autoRespondActive}
-              onToggleAutoRespond={toggleAutoRespond}
-              onNavigateToSession={() => {}}
-              igSessionId=""
-              igSessionStatus="unknown"
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <MessageCircle className="h-4 w-4 text-cyan-400" />Live TikTok Conversations
+              </h4>
+              <div className="flex items-center gap-2">
+                <Button size="sm" variant="ghost" onClick={loadTkConversations} disabled={tkScanning} className="h-7 w-7 p-0">
+                  <Download className={`h-3.5 w-3.5 ${tkScanning ? "animate-bounce" : ""}`} />
+                </Button>
+                {autoRespondActive && (
+                  <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-red-500/10 border border-red-500/20">
+                    <div className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" />
+                    <span className="text-[9px] text-red-400 font-medium">AI LIVE</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <Input
+              value={tkSearchQuery}
+              onChange={e => setTkSearchQuery(e.target.value)}
+              placeholder="Search conversations..."
+              className="text-xs h-8 mb-3"
             />
+
+            {tkScanning && tkConversations.length === 0 ? (
+              <div className="p-8 text-center text-muted-foreground">
+                <Loader2 className="h-8 w-8 mx-auto mb-3 animate-spin opacity-40" />
+                <p className="text-xs font-medium">Syncing TikTok inbox...</p>
+                <p className="text-[10px] mt-1 opacity-60">Fetching all conversations & messages</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-3 gap-2" style={{ minHeight: 400 }}>
+                {/* Conversation List */}
+                <div className="col-span-1 space-y-1 overflow-y-auto max-h-[500px] pr-1">
+                  {tkScanning && <p className="text-[10px] text-muted-foreground flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-green-400 animate-pulse" />Syncing {filteredTkConversations.length} conversations</p>}
+                  {filteredTkConversations.length > 0 ? filteredTkConversations.map(c => (
+                    <button
+                      key={c.id}
+                      onClick={() => loadTkMessages(c.id)}
+                      className={`w-full text-left p-2.5 rounded-lg text-xs transition-all ${tkSelectedConvo === c.id ? "bg-cyan-500/10 border border-cyan-500/30" : "bg-muted/30 hover:bg-muted/50 border border-transparent"}`}
+                    >
+                      <div className="flex items-center gap-2">
+                        {c.participant_avatar_url ? (
+                          <img src={c.participant_avatar_url} className="h-8 w-8 rounded-full object-cover flex-shrink-0" />
+                        ) : (
+                          <div className="h-8 w-8 rounded-full bg-cyan-500/20 flex items-center justify-center flex-shrink-0">
+                            <TikTokIcon className="h-4 w-4 text-cyan-400" />
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-foreground font-medium truncate">{c.participant_name || c.participant_username || "TikTok User"}</p>
+                          <p className="text-[10px] text-muted-foreground truncate">{c.last_message_preview || "No messages"}</p>
+                        </div>
+                        {!c.is_read && <div className="h-2 w-2 rounded-full bg-cyan-400 flex-shrink-0" />}
+                      </div>
+                      {c.ai_enabled && (
+                        <div className="flex items-center gap-1 mt-1">
+                          <Bot className="h-2.5 w-2.5 text-cyan-400" />
+                          <span className="text-[9px] text-cyan-400">AI Active</span>
+                        </div>
+                      )}
+                    </button>
+                  )) : (
+                    <div className="text-center py-8">
+                      <TikTokIcon className="h-8 w-8 mx-auto text-muted-foreground/30 mb-2" />
+                      <p className="text-[10px] text-muted-foreground">No TikTok conversations yet</p>
+                      <Button size="sm" variant="outline" onClick={loadTkConversations} className="mt-2 text-[10px] h-7">
+                        <RefreshCw className="h-3 w-3 mr-1" />Sync Inbox
+                      </Button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Message Thread */}
+                <div className="col-span-2 flex flex-col">
+                  {tkSelectedConvo ? (
+                    <>
+                      <ScrollArea className="flex-1 max-h-[420px] mb-2">
+                        <div className="space-y-1.5 p-1">
+                          {tkMessages.map(m => (
+                            <div key={m.id} className={`p-2.5 rounded-lg text-xs max-w-[85%] ${m.sender_type === "fan" || m.sender_type === "user" ? "bg-muted/30 mr-auto" : "bg-cyan-500/10 ml-auto"}`}>
+                              <div className="flex items-center gap-1.5 mb-0.5">
+                                {m.sender_type === "ai" && <Bot className="h-3 w-3 text-cyan-400" />}
+                                <span className="text-[10px] text-muted-foreground font-medium">{m.sender_name || m.sender_type}</span>
+                                <span className="text-[9px] text-muted-foreground/50">{new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                              </div>
+                              <p className="text-foreground">{m.content}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </ScrollArea>
+                      <div className="flex gap-1.5">
+                        <Input
+                          value={tkDmInput}
+                          onChange={e => setTkDmInput(e.target.value)}
+                          placeholder="Type a message..."
+                          className="text-xs flex-1"
+                          onKeyDown={e => e.key === "Enter" && sendTkDm()}
+                        />
+                        <Button size="sm" onClick={sendTkDm} disabled={loading || !tkDmInput}>
+                          <Send className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-full py-12 text-center">
+                      <div className="h-16 w-16 rounded-full bg-muted/30 border border-border/30 flex items-center justify-center mb-3">
+                        <TikTokIcon className="h-8 w-8 text-muted-foreground/30" />
+                      </div>
+                      <h3 className="text-sm font-semibold text-foreground">Your TikTok messages</h3>
+                      <p className="text-xs text-muted-foreground mt-1">Select a conversation to start chatting</p>
+                      <Button size="sm" variant="outline" onClick={loadTkConversations} disabled={tkScanning} className="mt-3 gap-1.5">
+                        <Download className="h-3.5 w-3.5" />{tkScanning ? "Syncing..." : "Sync Inbox"}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
+        )}
       </TabsContent>
 
       {/* ===== CONTENT ===== */}
