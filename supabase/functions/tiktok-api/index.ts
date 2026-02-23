@@ -31,8 +31,13 @@ async function ttFetch(endpoint: string, token: string, method = "GET", body?: a
   };
   if (body) opts.body = JSON.stringify(body);
   const resp = await fetch(url, opts);
+  const contentType = resp.headers.get("content-type") || "";
+  if (!contentType.includes("application/json")) {
+    const text = await resp.text();
+    console.error("TikTok non-JSON response:", resp.status, text.substring(0, 300));
+    throw new Error(`TikTok API returned non-JSON (status ${resp.status}). This may indicate an expired token, rate limit, or server error.`);
+  }
   const data = await resp.json();
-  // TikTok returns error.code "ok" on success — only throw on actual errors
   if (data.error?.code && data.error.code !== "ok") {
     throw new Error(`TikTok API: ${data.error.message || "Unknown error"} (${data.error.code})`);
   }
