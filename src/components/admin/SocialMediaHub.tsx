@@ -196,10 +196,7 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange }: { subTab?: string
    const navigateToSessionCard = () => {
      setActiveSubTab("connect");
      setIgSessionPulse(true);
-     setTimeout(() => {
-       const el = document.getElementById("ig-session-section");
-       if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
-     }, 200);
+      // No scrollIntoView to avoid triggering scrollbar visibility
      setTimeout(() => setIgSessionPulse(false), 3000);
    };
 
@@ -214,10 +211,7 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange }: { subTab?: string
      };
      const setter = setters[platform];
      if (setter) setter(true);
-     setTimeout(() => {
-       const el = document.getElementById(`${platform}-connect-card`);
-       if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
-     }, 200);
+      // No scrollIntoView to avoid triggering scrollbar visibility
      // 3 pulses × 1.2s = ~3.6s
      if (setter) setTimeout(() => setter(false), 4000);
    };
@@ -2431,7 +2425,8 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange }: { subTab?: string
                       id="instagram-connect-card"
                       onClick={openIgLoginPopup}
                       disabled={isLoading}
-                      className={`group/cube relative flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl border bg-card/50 backdrop-blur-sm transition-all duration-300 hover:border-pink-500/40 hover:bg-pink-500/5 hover:shadow-[0_0_24px_-5px] hover:shadow-pink-500/20 disabled:opacity-50 disabled:pointer-events-none aspect-square ${highlightInstagram ? "border-pink-500/60 shadow-[0_0_30px_-5px] shadow-pink-500/30 animate-connect-highlight" : "border-border/50"}`}
+                      className={`group/cube relative flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl border bg-card/50 backdrop-blur-sm transition-all duration-300 hover:border-pink-500/40 hover:bg-pink-500/5 hover:shadow-[0_0_24px_-5px] hover:shadow-pink-500/20 disabled:opacity-50 disabled:pointer-events-none aspect-square ${highlightInstagram ? "border-pink-500/60 animate-connect-highlight" : "border-border/50"}`}
+                      style={highlightInstagram ? { '--highlight-color': 'rgba(236,72,153,0.4)' } as React.CSSProperties : undefined}
                     >
                       {igConnected && <div className="absolute top-2 right-2 h-2 w-2 rounded-full bg-green-400 shadow-[0_0_6px] shadow-green-400/60" />}
                       <div className="relative">
@@ -2452,7 +2447,8 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange }: { subTab?: string
                       <button
                         onClick={() => { if (needsFields) { const el = document.getElementById(`connect-expand-${p.id}`); if (el) el.classList.toggle("hidden"); } else { p.action(); } }}
                         disabled={isLoading}
-                        className={`group/cube relative flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl border bg-card/50 backdrop-blur-sm transition-all duration-300 ${p.hoverBorder} ${p.hoverBg} hover:shadow-[0_0_24px_-5px] ${p.hoverShadow} disabled:opacity-50 disabled:pointer-events-none aspect-square w-full ${highlightTiktok ? "border-cyan-400/60 shadow-[0_0_30px_-5px] shadow-cyan-400/30 animate-connect-highlight" : "border-border/50"}`}
+                        className={`group/cube relative flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl border bg-card/50 backdrop-blur-sm transition-all duration-300 ${p.hoverBorder} ${p.hoverBg} hover:shadow-[0_0_24px_-5px] ${p.hoverShadow} disabled:opacity-50 disabled:pointer-events-none aspect-square w-full ${highlightTiktok ? "border-cyan-400/60 animate-connect-highlight" : "border-border/50"}`}
+                        style={highlightTiktok ? { '--highlight-color': 'rgba(34,211,238,0.4)' } as React.CSSProperties : undefined}
                       >
                         {p.connected && <div className="absolute top-2 right-2 h-2 w-2 rounded-full bg-green-400 shadow-[0_0_6px] shadow-green-400/60" />}
                         <div className="relative">{isLoading ? <Loader2 className="h-8 w-8 animate-spin opacity-60" /> : p.svgIcon}</div>
@@ -2475,7 +2471,8 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange }: { subTab?: string
                       <button
                         onClick={() => { if (needsFields) { const el = document.getElementById("connect-expand-facebook"); if (el) el.classList.toggle("hidden"); } else { automatedFacebookConnect(); } }}
                         disabled={isLoading}
-                        className={`group/cube relative flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl border bg-card/50 backdrop-blur-sm transition-all duration-300 hover:border-blue-500/40 hover:bg-blue-500/5 hover:shadow-[0_0_24px_-5px] hover:shadow-blue-500/20 disabled:opacity-50 disabled:pointer-events-none aspect-square w-full ${highlightFacebook ? "border-blue-500/60 shadow-[0_0_30px_-5px] shadow-blue-500/30 animate-connect-highlight" : "border-border/50"}`}
+                        className={`group/cube relative flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl border bg-card/50 backdrop-blur-sm transition-all duration-300 hover:border-blue-500/40 hover:bg-blue-500/5 hover:shadow-[0_0_24px_-5px] hover:shadow-blue-500/20 disabled:opacity-50 disabled:pointer-events-none aspect-square w-full ${highlightFacebook ? "border-blue-500/60 animate-connect-highlight" : "border-border/50"}`}
+                        style={highlightFacebook ? { '--highlight-color': 'rgba(59,130,246,0.4)' } as React.CSSProperties : undefined}
                       >
                         {facebookConnected && <div className="absolute top-2 right-2 h-2 w-2 rounded-full bg-green-400 shadow-[0_0_6px] shadow-green-400/60" />}
                         <div className="relative">
@@ -2503,7 +2500,8 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange }: { subTab?: string
                       <button
                         onClick={() => { if (needsFields) { const el = document.getElementById(`connect-expand-${p.id}`); if (el) el.classList.toggle("hidden"); } else { p.action(); } }}
                         disabled={isLoading}
-                        className={`group/cube relative flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl border bg-card/50 backdrop-blur-sm transition-all duration-300 ${p.hoverBorder} ${p.hoverBg} hover:shadow-[0_0_24px_-5px] ${p.hoverShadow} disabled:opacity-50 disabled:pointer-events-none aspect-square w-full ${highlightThreads ? "border-purple-400/60 shadow-[0_0_30px_-5px] shadow-purple-400/30 animate-connect-highlight" : "border-border/50"}`}
+                        className={`group/cube relative flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl border bg-card/50 backdrop-blur-sm transition-all duration-300 ${p.hoverBorder} ${p.hoverBg} hover:shadow-[0_0_24px_-5px] ${p.hoverShadow} disabled:opacity-50 disabled:pointer-events-none aspect-square w-full ${highlightThreads ? "border-purple-400/60 animate-connect-highlight" : "border-border/50"}`}
+                        style={highlightThreads ? { '--highlight-color': 'rgba(192,132,252,0.4)' } as React.CSSProperties : undefined}
                       >
                         {p.connected && <div className="absolute top-2 right-2 h-2 w-2 rounded-full bg-green-400 shadow-[0_0_6px] shadow-green-400/60" />}
                         <div className="relative">{isLoading ? <Loader2 className="h-8 w-8 animate-spin opacity-60" /> : p.svgIcon}</div>
