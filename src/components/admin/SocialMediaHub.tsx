@@ -313,31 +313,20 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange }: { subTab?: string
           }
         }
         if (ttConn) {
-          try {
-            const { data } = await supabase.functions.invoke("tiktok-api", { 
-              body: { action: "get_user_info", account_id: selectedAccount } 
-            });
-            const ttUser = data?.data?.data?.user || data?.data?.user;
-            if (ttUser) {
-              setTtProfile(ttUser);
-              await supabase.from("social_connections").update({
-                metadata: { 
-                  avatar_url: ttUser.avatar_url, 
-                  display_name: ttUser.display_name,
-                  username: ttUser.username,
-                  connected_via: "social_hub",
-                  auto_synced_at: new Date().toISOString(),
-                },
-                platform_username: ttUser.username || ttUser.display_name || (ttConn as any).platform_username,
-              }).eq("account_id", selectedAccount).eq("platform", "tiktok");
-            }
-          } catch (ttErr) {
-            console.warn("TikTok auto-sync failed (sandbox?):", ttErr);
-            // Still use cached metadata from connection if available
-            const meta = (ttConn as any).metadata;
-            if (meta && (meta.avatar_url || meta.display_name)) {
-              setTtProfile({ avatar_url: meta.avatar_url, display_name: meta.display_name, username: meta.username || (ttConn as any).platform_username });
-            }
+          const { data } = await supabase.functions.invoke("tiktok-api", { 
+            body: { action: "get_user_info", account_id: selectedAccount } 
+          });
+          const ttUser = data?.data?.data?.user || data?.data?.user;
+          if (ttUser) {
+            setTtProfile(ttUser);
+            await supabase.from("social_connections").update({
+              metadata: { 
+                avatar_url: ttUser.avatar_url, 
+                display_name: ttUser.display_name, 
+                connected_via: "social_hub",
+                auto_synced_at: new Date().toISOString(),
+              },
+            }).eq("account_id", selectedAccount).eq("platform", "tiktok");
           }
         }
       } catch (e) {
@@ -1129,8 +1118,8 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange }: { subTab?: string
   const fetchProfiles = async () => {
     const igConn = connections.find(c => c.platform === "instagram" && c.is_connected);
     const ttConn = connections.find(c => c.platform === "tiktok" && c.is_connected);
-    if (igConn) { try { const d = await callApi("instagram-api", { action: "get_profile" }); if (d) setIgProfile(d); } catch {} }
-    if (ttConn) { try { const d = await callApi("tiktok-api", { action: "get_user_info" }); if (d) setTtProfile(d?.data?.user || d); } catch (e) { console.warn("TT profile fetch failed:", e); } }
+    if (igConn) { const d = await callApi("instagram-api", { action: "get_profile" }); if (d) setIgProfile(d); }
+    if (ttConn) { const d = await callApi("tiktok-api", { action: "get_user_info" }); if (d) setTtProfile(d?.data?.user || d); }
   };
 
   const fetchMedia = async () => {
@@ -1901,31 +1890,20 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange }: { subTab?: string
             <Radio className="h-3 w-3 mr-1" />AI Auto-Responding
           </Badge>
         )}
-        {/* Mini avatars of connected accounts with platform logos */}
-        {connections.filter(c => c.is_connected).map(c => {
-          const avatarUrl = (c.metadata as any)?.profile_picture_url || (c.metadata as any)?.profile_image_url || (c.metadata as any)?.icon_img || (c.metadata as any)?.avatar_url;
-          const platformIcon = c.platform === "instagram" ? <Instagram className="h-2.5 w-2.5 text-white" /> : c.platform === "tiktok" ? <Music2 className="h-2.5 w-2.5 text-white" /> : c.platform === "twitter" ? <Twitter className="h-2.5 w-2.5 text-white" /> : c.platform === "reddit" ? <Globe className="h-2.5 w-2.5 text-white" /> : c.platform === "facebook" ? <Globe className="h-2.5 w-2.5 text-white" /> : <Phone className="h-2.5 w-2.5 text-white" />;
-          const platformBg = c.platform === "instagram" ? "bg-gradient-to-tr from-pink-500 to-purple-500" : c.platform === "tiktok" ? "bg-black" : c.platform === "twitter" ? "bg-blue-500" : c.platform === "reddit" ? "bg-orange-500" : c.platform === "facebook" ? "bg-blue-600" : "bg-blue-400";
-          return (
-            <div key={c.id} className="flex items-center gap-1.5 bg-muted/40 rounded-full px-2 py-0.5 border border-border">
-              <div className="relative">
-                {avatarUrl ? (
-                  <img src={avatarUrl} alt="" className="h-5 w-5 rounded-full object-cover" />
-                ) : (
-                  <div className="h-5 w-5 rounded-full bg-muted flex items-center justify-center">
-                    {c.platform === "instagram" ? <Instagram className="h-3 w-3 text-pink-400" /> : c.platform === "tiktok" ? <Music2 className="h-3 w-3 text-cyan-400" /> : c.platform === "twitter" ? <Twitter className="h-3 w-3 text-blue-400" /> : c.platform === "reddit" ? <Globe className="h-3 w-3 text-orange-400" /> : <Phone className="h-3 w-3 text-blue-400" />}
-                  </div>
-                )}
-                {/* Platform logo badge */}
-                <div className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full ${platformBg} flex items-center justify-center ring-1 ring-background`}>
-                  {platformIcon}
-                </div>
+        {/* Mini avatars of connected accounts */}
+        {connections.filter(c => c.is_connected).map(c => (
+          <div key={c.id} className="flex items-center gap-1.5 bg-muted/40 rounded-full px-2 py-0.5 border border-border">
+            {(c.metadata as any)?.profile_picture_url || (c.metadata as any)?.profile_image_url || (c.metadata as any)?.icon_img || (c.metadata as any)?.avatar_url ? (
+              <img src={(c.metadata as any).profile_picture_url || (c.metadata as any).profile_image_url || (c.metadata as any).icon_img || (c.metadata as any).avatar_url} alt="" className="h-5 w-5 rounded-full object-cover" />
+            ) : (
+              <div className="h-5 w-5 rounded-full bg-muted flex items-center justify-center">
+                {c.platform === "instagram" ? <Instagram className="h-3 w-3 text-pink-400" /> : c.platform === "tiktok" ? <Music2 className="h-3 w-3 text-cyan-400" /> : c.platform === "twitter" ? <Twitter className="h-3 w-3 text-blue-400" /> : c.platform === "reddit" ? <Globe className="h-3 w-3 text-orange-400" /> : <Phone className="h-3 w-3 text-blue-400" />}
               </div>
-              <span className="text-xs text-foreground font-medium">@{c.platform_username}</span>
-              <div className="h-1.5 w-1.5 rounded-full bg-green-400 animate-pulse" />
-            </div>
-          );
-        })}
+            )}
+            <span className="text-xs text-foreground font-medium">@{c.platform_username}</span>
+            <div className="h-1.5 w-1.5 rounded-full bg-green-400 animate-pulse" />
+          </div>
+        ))}
       </div>
 
       {/* Platform Tabs */}

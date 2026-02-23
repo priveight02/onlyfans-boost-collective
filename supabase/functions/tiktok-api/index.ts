@@ -31,12 +31,6 @@ async function ttFetch(endpoint: string, token: string, method = "GET", body?: a
   };
   if (body) opts.body = JSON.stringify(body);
   const resp = await fetch(url, opts);
-  const contentType = resp.headers.get("content-type") || "";
-  if (!contentType.includes("application/json")) {
-    const text = await resp.text();
-    console.error("TikTok returned non-JSON:", resp.status, contentType, text.substring(0, 300));
-    throw new Error(`TikTok API returned ${resp.status} (${contentType || "no content-type"}). This may indicate an invalid token, rate limiting, or sandbox restrictions.`);
-  }
   const data = await resp.json();
   if (data.error?.code) throw new Error(`TikTok API: ${data.error.message} (${data.error.code})`);
   return data;
@@ -104,9 +98,8 @@ serve(async (req) => {
       });
     }
 
-    // Actions that need a connection (skip if access_token_override provided for get_user_info)
-    const hasTokenOverride = action === "get_user_info" && params?.access_token_override;
-    if (action !== "exchange_code" && !hasTokenOverride) {
+    // All other actions need connection
+    if (action !== "exchange_code") {
       conn = await getConnection(supabase, account_id);
       token = conn.access_token;
     }
@@ -115,12 +108,7 @@ serve(async (req) => {
       // ===== USER INFO =====
       case "get_user_info": {
         const useToken = params?.access_token_override || token!;
-        // Only request fields matching authorized scopes
-        // user.info.basic: open_id, union_id, avatar_url, avatar_url_100
-        // user.info.profile: display_name, bio_description, profile_deep_link, is_verified, username
-        // user.info.stats: follower_count, following_count, likes_count, video_count
-        const fields = params?.fields || "open_id,union_id,avatar_url,avatar_url_100,display_name,bio_description,is_verified,username,follower_count,following_count,likes_count,video_count";
-        result = await ttFetch(`/user/info/?fields=${fields}`, useToken);
+        result = await ttFetch("/user/info/?fields=open_id,union_id,avatar_url,avatar_url_100,avatar_large_url,display_name,bio_description,profile_deep_link,is_verified,follower_count,following_count,likes_count,video_count,username", useToken);
         break;
       }
 
