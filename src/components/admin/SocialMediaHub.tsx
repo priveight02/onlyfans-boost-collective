@@ -287,10 +287,12 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
     if (autoSyncDone || !selectedAccount || connections.length === 0) return;
     const igConn = connections.find(c => c.platform === "instagram" && c.is_connected);
     const ttConn = connections.find(c => c.platform === "tiktok" && c.is_connected);
-    if (!igConn && !ttConn) return;
+    const threadsConn = connections.find(c => c.platform === "threads" && c.is_connected);
+    if (!igConn && !ttConn && !threadsConn) return;
     
     setAutoSyncDone(true);
     const syncSilently = async () => {
+      // Instagram
       try {
         if (igConn) {
           const { data } = await supabase.functions.invoke("instagram-api", { 
@@ -316,6 +318,9 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
             }).eq("id", selectedAccount);
           }
         }
+      } catch (e) { console.error("Auto-sync IG:", e); }
+      // TikTok
+      try {
         if (ttConn) {
           const { data } = await supabase.functions.invoke("tiktok-api", { 
             body: { action: "get_user_info", account_id: selectedAccount } 
@@ -333,9 +338,37 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
             }).eq("account_id", selectedAccount).eq("platform", "tiktok");
           }
         }
-      } catch (e) {
-        console.error("Auto-sync profiles:", e);
-      }
+      } catch (e) { console.error("Auto-sync TT:", e); }
+      // Threads
+      try {
+        if (threadsConn) {
+          const { data } = await supabase.functions.invoke("threads-api", { 
+            body: { action: "get_profile", account_id: selectedAccount } 
+          });
+          if (data?.success && data.data) {
+            const tp = data.data;
+            await supabase.from("social_connections").update({
+              platform_username: tp.username || threadsConn.platform_username,
+              metadata: { 
+                name: tp.name,
+                username: tp.username,
+                threads_profile_picture_url: tp.threads_profile_picture_url,
+                profile_picture_url: tp.threads_profile_picture_url,
+                threads_biography: tp.threads_biography,
+                is_verified: tp.is_verified,
+                connected_via: "social_hub",
+                auto_synced_at: new Date().toISOString(),
+              },
+            }).eq("account_id", selectedAccount).eq("platform", "threads");
+            await supabase.from("managed_accounts").update({
+              avatar_url: tp.threads_profile_picture_url || undefined,
+              display_name: tp.name || tp.username || undefined,
+              bio: tp.threads_biography || undefined,
+              last_activity_at: new Date().toISOString(),
+            }).eq("id", selectedAccount);
+          }
+        }
+      } catch (e) { console.error("Auto-sync Threads:", e); }
     };
     syncSilently();
   }, [connections, selectedAccount, autoSyncDone]);
@@ -1175,8 +1208,21 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
   const fetchProfiles = async () => {
     const igConn = connections.find(c => c.platform === "instagram" && c.is_connected);
     const ttConn = connections.find(c => c.platform === "tiktok" && c.is_connected);
+    const threadsConn = connections.find(c => c.platform === "threads" && c.is_connected);
     if (igConn) { const d = await callApi("instagram-api", { action: "get_profile" }); if (d) setIgProfile(d); }
     if (ttConn) { const d = await callApi("tiktok-api", { action: "get_user_info" }); if (d) setTtProfile(d?.data?.user || d); }
+    if (threadsConn) {
+      try {
+        const { data } = await supabase.functions.invoke("threads-api", { body: { action: "get_profile", account_id: selectedAccount } });
+        if (data?.success && data.data) {
+          const tp = data.data;
+          await supabase.from("social_connections").update({
+            platform_username: tp.username || threadsConn.platform_username,
+            metadata: { name: tp.name, username: tp.username, threads_profile_picture_url: tp.threads_profile_picture_url, profile_picture_url: tp.threads_profile_picture_url, threads_biography: tp.threads_biography, is_verified: tp.is_verified, connected_via: "social_hub", auto_synced_at: new Date().toISOString() },
+          }).eq("account_id", selectedAccount).eq("platform", "threads");
+        }
+      } catch (e) { console.error("Threads profile fetch:", e); }
+    }
   };
 
   const fetchMedia = async () => {
