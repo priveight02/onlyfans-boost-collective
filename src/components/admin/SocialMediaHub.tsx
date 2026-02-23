@@ -2196,12 +2196,8 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
         <TabsList className="bg-muted/50 border border-border p-0.5 rounded-lg gap-0.5 flex flex-wrap w-full">
             {[
               { v: "dashboard", icon: LayoutDashboard, l: "Dashboard" },
-              { v: "ai-auto", icon: Brain, l: "Auto-DM" },
-              { v: "ai-mass", icon: Megaphone, l: "Mass DM" },
-              { v: "search", icon: Search, l: "Search" },
               { v: "content", icon: Layers, l: "Content" },
               { v: "engagement", icon: MessageSquare, l: "Comments" },
-              { v: "messaging", icon: Send, l: "DMs" },
               { v: "ai-tools", icon: Wand2, l: "AI Tools" },
               { v: "analytics", icon: BarChart3, l: "Analytics" },
               { v: "biolink", icon: Link2, l: "Bio Links" },
