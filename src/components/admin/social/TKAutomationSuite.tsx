@@ -520,8 +520,8 @@ const TKAutomationSuite = ({ selectedAccount, onNavigateToConnect }: Props) => {
   const ConnectTikTokCTA = () => (
     <div className="flex flex-col items-center justify-center py-16 gap-4">
       <div className="relative">
-        <div className="absolute inset-0 rounded-full bg-cyan-500/20 animate-ping" />
-        <div className="absolute inset-[-8px] rounded-full bg-cyan-500/10 animate-pulse" />
+        <div className="absolute inset-0 rounded-full bg-cyan-500/15 animate-connect-highlight" />
+        <div className="absolute inset-[-8px] rounded-full bg-cyan-500/10 animate-connect-highlight" style={{ animationDelay: '0.3s' }} />
         <div className="relative h-20 w-20 rounded-full bg-muted/50 border-2 border-cyan-500/40 flex items-center justify-center">
           <TikTokIcon className="h-10 w-10 text-cyan-400" />
         </div>
