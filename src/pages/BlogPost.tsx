@@ -187,7 +187,7 @@ const BlogPost = () => {
   return (
     <div className="min-h-screen bg-[hsl(222,35%,8%)]">
       <PageSEO
-        title={`${article.title} | Uplyze Blog`}
+        title={`${article.title} - Uplyze Blog`}
         description={article.content.replace(/[#*\-\n]/g, ' ').trim().slice(0, 155) + '...'}
       />
       {/* Ambient glow */}

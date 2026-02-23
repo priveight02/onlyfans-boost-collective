@@ -185,14 +185,14 @@ const Services = () => {
   return (
     <div className="min-h-screen bg-[hsl(222,35%,8%)] relative overflow-hidden">
       <PageSEO
-        title="Uplyze Features | AI CRM, Automation & Analytics"
+        title="Uplyze Features - AI CRM, Automation & Analytics"
         description="Explore all Uplyze features: AI CRM, DM automation, content creation, social media management, lead generation, analytics, and more. Built for creators and agencies."
-        ogTitle="Uplyze Features | AI CRM, Automation & Analytics"
+        ogTitle="Uplyze Features - AI CRM, Automation & Analytics"
         ogDescription="AI CRM, DM automation, content creation, social media management, lead generation, and analytics. Built for creators and agencies."
         jsonLd={{
           "@context": "https://schema.org",
           "@type": "ItemList",
-          "name": "Uplyze AI Platform Features — Best AI Tool & Marketing Automation Suite",
+          "name": "Uplyze AI Platform Features - Best AI Tool & Marketing Automation Suite",
           "url": "https://uplyze.ai/services",
           "description": "Complete list of AI-powered features including AI CRM, marketing automation, social media management, content creation, lead generation, DM automation, workflow automation, revenue analytics, team management, and security.",
           "numberOfItems": featureSections.length,

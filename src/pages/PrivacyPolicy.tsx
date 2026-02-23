@@ -8,7 +8,7 @@ const PrivacyPolicy = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-primary to-blue-900 relative overflow-hidden">
-      <PageSEO title="Privacy Policy | Uplyze" description="Learn how Uplyze protects your data. Our privacy policy covers GDPR, CCPA compliance, data collection, and your rights." />
+      <PageSEO title="Privacy Policy - Uplyze" description="Learn how Uplyze protects your data. Our privacy policy covers GDPR, CCPA compliance, data collection, and your rights." />
       <div className="fixed inset-0 pointer-events-none">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl" />
         <div className="absolute bottom-1/3 right-1/4 w-80 h-80 bg-blue-500/15 rounded-full blur-3xl" />
