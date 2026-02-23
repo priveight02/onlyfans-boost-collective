@@ -62,8 +62,8 @@ serve(async (req) => {
     // Actions that don't need a connection
     if (action === "exchange_code") {
       const { code, client_key, client_secret, redirect_uri } = params;
-      const finalClientKey = client_key || Deno.env.get("TIKTOK_CLIENT_KEY");
-      const finalClientSecret = client_secret || Deno.env.get("TIKTOK_CLIENT_SECRET");
+      const finalClientKey = (client_key || Deno.env.get("TIKTOK_CLIENT_KEY") || "").trim();
+      const finalClientSecret = (client_secret || Deno.env.get("TIKTOK_CLIENT_SECRET") || "").trim();
       if (!code || !finalClientKey || !finalClientSecret) throw new Error("Missing code, client_key, or client_secret");
 
       console.log("TT exchange_code debug:", {
