@@ -7,10 +7,7 @@ import {
   Calendar, Megaphone, PieChart, Star, ChevronDown, ChevronUp,
   Hash, ShoppingBag, CalendarDays, Users, Briefcase, Zap,
   Target, TrendingUp, MessageSquare, DollarSign, Activity, Brain,
-  FlaskConical, Loader2, CheckCircle2,
 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
 import IGAutoScheduler from "./IGAutoScheduler";
 import IGAdsManager from "./IGAdsManager";
 import IGAdvancedInsights from "./IGAdvancedInsights";
@@ -58,29 +55,6 @@ const CATEGORIES = ["AI Platform", "Growth", "Ads", "Commerce", "Platform"];
 
 const IGAutomationSuite = ({ selectedAccount }: Props) => {
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(["leads"]));
-  const [testRunning, setTestRunning] = useState(false);
-  const [testResults, setTestResults] = useState<any>(null);
-
-  const runPermissionTests = async () => {
-    setTestRunning(true);
-    setTestResults(null);
-    try {
-      const { data, error } = await supabase.functions.invoke("ig-permission-test", {
-        body: { account_id: selectedAccount },
-      });
-      if (error) throw error;
-      setTestResults(data);
-      if (data?.success) {
-        toast.success(`Meta App Review: ${data.summary}`, { duration: 8000 });
-      } else {
-        toast.error(data?.error || "Test failed");
-      }
-    } catch (e: any) {
-      toast.error(e.message || "Failed to run tests");
-    } finally {
-      setTestRunning(false);
-    }
-  };
 
   const toggleSection = (id: string) => {
     setExpandedSections(prev => {
@@ -124,39 +98,10 @@ const IGAutomationSuite = ({ selectedAccount }: Props) => {
           <Badge variant="outline" className="text-[10px]">{SECTIONS.length} modules</Badge>
         </div>
         <div className="flex gap-1">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={runPermissionTests}
-            disabled={testRunning}
-            className="text-xs h-7 gap-1 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10"
-          >
-            {testRunning ? <Loader2 className="h-3 w-3 animate-spin" /> : <FlaskConical className="h-3 w-3" />}
-            {testRunning ? "Testing..." : "Run Meta App Review Tests"}
-          </Button>
           <Button size="sm" variant="ghost" onClick={expandAll} className="text-xs h-7 text-foreground">Expand All</Button>
           <Button size="sm" variant="ghost" onClick={collapseAll} className="text-xs h-7 text-foreground">Collapse All</Button>
         </div>
       </div>
-
-      {testResults?.results && (
-        <Card className="border-emerald-500/20 bg-emerald-500/5">
-          <CardContent className="p-3">
-            <div className="flex items-center gap-2 mb-2">
-              <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-              <span className="text-xs font-semibold text-foreground">{testResults.summary}</span>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-1">
-              {Object.entries(testResults.results).map(([perm, res]: [string, any]) => (
-                <div key={perm} className="flex items-center gap-1 text-[10px]">
-                  <span className={`h-1.5 w-1.5 rounded-full ${res.success || res.status === 200 ? "bg-emerald-400" : res.skipped ? "bg-yellow-400" : "bg-red-400"}`} />
-                  <span className="text-muted-foreground truncate">{perm}</span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       <ScrollArea className="h-[calc(100vh-260px)]">
         <div className="space-y-3 pr-2">

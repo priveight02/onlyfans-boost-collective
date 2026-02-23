@@ -17,7 +17,7 @@ import {
   Layers, Link2, Hash, Shield, FileText,
   MessageSquare, ArrowRight, Sparkles, Bot, CheckCircle2,
   AlertCircle, Clock, ThumbsUp, Share2, Play,
-  UserPlus, BookOpen, Camera, Mail,
+  UserPlus, BookOpen, Camera, Mail, FlaskConical,
 } from "lucide-react";
 
 const FacebookIcon = ({ className = "h-4 w-4" }: { className?: string }) => (
@@ -32,6 +32,26 @@ interface Props {
   subTab?: string;
   onSubTabChange?: (subTab: string) => void;
 }
+
+const FBTestButton = ({ accountId }: { accountId: string }) => {
+  const [running, setRunning] = useState(false);
+  const run = async () => {
+    setRunning(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("fb-permission-test", { body: { account_id: accountId } });
+      if (error) throw error;
+      if (data?.success) toast.success(`${data.summary}`, { duration: 8000 });
+      else toast.error(data?.error || "Test failed");
+    } catch (e: any) { toast.error(e.message); }
+    finally { setRunning(false); }
+  };
+  return (
+    <Button size="sm" variant="outline" onClick={run} disabled={running} className="text-xs h-7 gap-1 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10">
+      {running ? <Loader2 className="h-3 w-3 animate-spin" /> : <FlaskConical className="h-3 w-3" />}
+      {running ? "Testing..." : "FB App Review Tests"}
+    </Button>
+  );
+};
 
 const FBAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSubTab, onSubTabChange }: Props) => {
   const [activeTab, setActiveTabInternal] = useState(urlSubTab || "dashboard");
@@ -326,6 +346,7 @@ const FBAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSu
           <div className="flex gap-2 flex-wrap">
             <Button size="sm" variant="outline" onClick={fetchProfile} disabled={loading}><RefreshCw className="h-3.5 w-3.5 mr-1" />Sync Profile</Button>
             <Button size="sm" variant="outline" onClick={fetchPages} disabled={loading}><FileText className="h-3.5 w-3.5 mr-1" />Load Pages</Button>
+            <FBTestButton accountId={selectedAccount} />
           </div>
           {profile && (
             <Card className="border-blue-500/20">

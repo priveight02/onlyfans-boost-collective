@@ -17,7 +17,7 @@ import {
   Layers, Link2, AtSign, Quote, Shield, Hash,
   MessageSquare, ArrowRight, Sparkles, Bot, CheckCircle2,
   AlertCircle, Repeat2, BarChart, EyeOff, MapPin, FileText,
-  Clock, ChevronDown, Filter, User,
+  Clock, ChevronDown, Filter, User, FlaskConical,
 } from "lucide-react";
 
 const ThreadsIcon = ({ className = "h-4 w-4" }: { className?: string }) => (
@@ -32,6 +32,26 @@ interface Props {
   subTab?: string;
   onSubTabChange?: (subTab: string) => void;
 }
+
+const ThreadsTestButton = ({ accountId }: { accountId: string }) => {
+  const [running, setRunning] = useState(false);
+  const run = async () => {
+    setRunning(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("threads-permission-test", { body: { account_id: accountId } });
+      if (error) throw error;
+      if (data?.success) toast.success(`${data.summary}`, { duration: 8000 });
+      else toast.error(data?.error || "Test failed");
+    } catch (e: any) { toast.error(e.message); }
+    finally { setRunning(false); }
+  };
+  return (
+    <Button size="sm" variant="outline" onClick={run} disabled={running} className="text-xs h-7 gap-1 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10">
+      {running ? <Loader2 className="h-3 w-3 animate-spin" /> : <FlaskConical className="h-3 w-3" />}
+      {running ? "Testing..." : "Threads App Review Tests"}
+    </Button>
+  );
+};
 
 const ThreadsAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSubTab, onSubTabChange }: Props) => {
   const [activeTab, setActiveTabInternal] = useState(urlSubTab || "dashboard");
@@ -331,6 +351,7 @@ const ThreadsAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: 
           <Button size="sm" variant="outline" onClick={fetchProfile} disabled={loading} className="text-foreground"><RefreshCw className={`h-3.5 w-3.5 mr-1 ${loading ? "animate-spin" : ""}`} />Sync Profile</Button>
           <Button size="sm" variant="outline" onClick={refreshToken} disabled={loading} className="text-foreground"><Shield className="h-3.5 w-3.5 mr-1" />Refresh Token</Button>
           <Button size="sm" variant="outline" onClick={fetchPublishingLimit} disabled={loading} className="text-foreground"><Activity className="h-3.5 w-3.5 mr-1" />Check Limits</Button>
+          <ThreadsTestButton accountId={selectedAccount} />
         </div>
         {profile && (
           <Card className="border-purple-500/20"><CardContent className="p-4">

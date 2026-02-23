@@ -33,7 +33,7 @@ import {
   MessageCircle, LayoutDashboard, Compass,
   Sparkles, Bot, Brain, Wand2, AtSign, Megaphone, FolderOpen,
   PieChart, Layers, Twitter, Phone, Camera, Gamepad2, ArrowRight,
-  Key, Loader2,
+  Key, Loader2, FlaskConical,
 } from "lucide-react";
 
 const VerifiedBadge = ({ size = 12 }: { size?: number }) => (
@@ -44,6 +44,67 @@ const VerifiedBadge = ({ size = 12 }: { size?: number }) => (
     <path d="M15 20.5L18.5 24L26 16" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" fill="none" />
   </svg>
 );
+
+const PLATFORM_FUNCTION_MAP: Record<string, string> = {
+  ig: "ig-permission-test",
+  threads: "threads-permission-test",
+  facebook: "fb-permission-test",
+  oembed: "oembed-permission-test",
+};
+const PLATFORM_LABEL_MAP: Record<string, string> = {
+  ig: "IG App Review Tests",
+  threads: "Threads App Review Tests",
+  facebook: "FB App Review Tests",
+  oembed: "oEmbed Tests",
+};
+
+const MetaTestButton = ({ accountId, platform }: { accountId: string; platform: string }) => {
+  const [running, setRunning] = useState(false);
+  const [results, setResults] = useState<any>(null);
+
+  const run = async () => {
+    setRunning(true);
+    setResults(null);
+    try {
+      const { data, error } = await supabase.functions.invoke(PLATFORM_FUNCTION_MAP[platform], {
+        body: { account_id: accountId },
+      });
+      if (error) throw error;
+      setResults(data);
+      if (data?.success) toast.success(`${data.summary}`, { duration: 8000 });
+      else toast.error(data?.error || "Test failed");
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  return (
+    <div className="inline-flex flex-col gap-1">
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={run}
+        disabled={running}
+        className="text-xs h-7 gap-1 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10"
+      >
+        {running ? <Loader2 className="h-3 w-3 animate-spin" /> : <FlaskConical className="h-3 w-3" />}
+        {running ? "Testing..." : PLATFORM_LABEL_MAP[platform]}
+      </Button>
+      {results?.results && (
+        <div className="flex flex-wrap gap-1 max-w-xs">
+          {Object.entries(results.results).map(([perm, res]: [string, any]) => (
+            <span key={perm} className="flex items-center gap-0.5 text-[9px] text-muted-foreground">
+              <span className={`h-1.5 w-1.5 rounded-full ${res.success || res.status === 200 ? "bg-emerald-400" : res.skipped ? "bg-yellow-400" : "bg-red-400"}`} />
+              {perm.replace(/^(instagram_|threads_|fb_)/, "")}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlatformChange }: { subTab?: string; onSubTabChange?: (subTab: string) => void; urlPlatform?: string; onPlatformChange?: (platform: string) => void }) => {
   const [activeSubTab, setActiveSubTabInternal] = useState(urlSubTab || "dashboard");
@@ -2114,6 +2175,8 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
           <div className="flex gap-2 flex-wrap">
             <Button size="sm" variant="outline" onClick={fetchProfiles} className="text-foreground"><RefreshCw className="h-3.5 w-3.5 mr-1" />Sync Profiles</Button>
             <Button size="sm" variant="outline" onClick={fetchMedia} className="text-foreground"><Download className="h-3.5 w-3.5 mr-1" />Pull Media</Button>
+            <MetaTestButton accountId={selectedAccount} platform="ig" />
+            <MetaTestButton accountId={selectedAccount} platform="oembed" />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {igProfile && (
