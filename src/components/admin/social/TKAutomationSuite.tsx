@@ -153,11 +153,21 @@ const TKAutomationSuite = ({ selectedAccount }: Props) => {
       const { data, error } = await supabase.functions.invoke("tiktok-api", {
         body: { action, account_id: selectedAccount, params },
       });
-      if (error) throw error;
-      if (!data?.success) throw new Error(data?.error || "API call failed");
+      // Handle edge function errors (including 400s) as in-app notifications
+      if (error) {
+        // Try to parse the error body for a user-friendly message
+        const msg = typeof error === "object" && error.message ? error.message : String(error);
+        toast.info(msg || "TikTok action could not be completed", { description: "Connect your TikTok account to use this feature." });
+        return null;
+      }
+      if (!data?.success) {
+        toast.info(data?.error || "TikTok action could not be completed", { description: "Please check your TikTok connection." });
+        return null;
+      }
       return data.data;
     } catch (e: any) {
-      toast.error(e.message || "TikTok API error");
+      // Catch network or unexpected errors as info toasts, not error logs
+      toast.info(e.message || "TikTok API unavailable", { description: "Please try again or reconnect your account." });
       return null;
     } finally {
       setLoading(false);
