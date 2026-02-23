@@ -342,10 +342,10 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
       // Threads
       try {
         if (threadsConn) {
-          const { data } = await supabase.functions.invoke("threads-api", { 
+          const { data, error: fnErr } = await supabase.functions.invoke("threads-api", { 
             body: { action: "get_profile", account_id: selectedAccount } 
           });
-          if (data?.success && data.data) {
+          if (!fnErr && data?.success && data.data) {
             const tp = data.data;
             await supabase.from("social_connections").update({
               platform_username: tp.username || threadsConn.platform_username,
@@ -1224,8 +1224,8 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
     if (ttConn) { const d = await callApi("tiktok-api", { action: "get_user_info" }); if (d) setTtProfile(d?.data?.user || d); }
     if (threadsConn) {
       try {
-        const { data } = await supabase.functions.invoke("threads-api", { body: { action: "get_profile", account_id: selectedAccount } });
-        if (data?.success && data.data) {
+        const { data, error: fnErr } = await supabase.functions.invoke("threads-api", { body: { action: "get_profile", account_id: selectedAccount } });
+        if (!fnErr && data?.success && data.data) {
           const tp = data.data;
           await supabase.from("social_connections").update({
             platform_username: tp.username || threadsConn.platform_username,
