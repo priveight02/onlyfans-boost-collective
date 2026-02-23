@@ -1536,8 +1536,15 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange }: { subTab?: string
   };
 
   // Open TikTok login popup — mirrors the Instagram one-click flow
-  const openTtLoginPopup = () => {
-    const clientKey = ttClientKey || cachedTtClientKey;
+  const openTtLoginPopup = async () => {
+    let clientKey = ttClientKey || cachedTtClientKey;
+    // If not cached yet, try fetching on-demand
+    if (!clientKey) {
+      try {
+        const { data } = await supabase.functions.invoke("tiktok-api", { body: { action: "get_client_key" } });
+        if (data?.client_key) { clientKey = data.client_key; setCachedTtClientKey(data.client_key); }
+      } catch {}
+    }
     if (!clientKey) { toast.error("Configure TIKTOK_CLIENT_KEY in backend secrets or enter your Client Key"); return; }
     setTtLoginPopupLoading(true);
     const csrfState = Math.random().toString(36).substring(2);
