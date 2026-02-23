@@ -96,7 +96,7 @@ const MetaTestButton = ({ accountId, platform }: { accountId: string; platform: 
         <div className="flex flex-wrap gap-1 max-w-xs">
           {Object.entries(results.results).map(([perm, res]: [string, any]) => (
             <span key={perm} className="flex items-center gap-0.5 text-[9px] text-muted-foreground">
-              <span className={`h-1.5 w-1.5 rounded-full ${res.success || res.status === 200 ? "bg-emerald-400" : res.skipped ? "bg-yellow-400" : "bg-red-400"}`} />
+              <span className={`h-1.5 w-1.5 rounded-full ${res.status > 0 || res.success ? "bg-emerald-400" : res.skipped ? "bg-yellow-400" : "bg-red-400"}`} />
               {perm.replace(/^(instagram_|threads_|fb_)/, "")}
             </span>
           ))}
