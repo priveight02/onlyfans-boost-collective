@@ -27,6 +27,7 @@ import Pricing from "./pages/Pricing";
 import AdminOnboarding from "./pages/AdminOnboarding";
 import IGLoginPopup from "./pages/IGLoginPopup";
 import TikTokLoginPopup from "./pages/TikTokLoginPopup";
+import ThreadsLoginPopup from "./pages/ThreadsLoginPopup";
 import Maintenance from "./pages/Maintenance";
 import Blog from "./pages/Blog";
 import BlogPost from "./pages/BlogPost";
@@ -51,7 +52,7 @@ const MaintenanceGuard = ({ children }: { children: React.ReactNode }) => {
   if (isOwner) return <>{children}</>;
 
   // Allow maintenance page itself and ig-login popup
-  if (location.pathname === "/maintenance" || location.pathname === "/ig-login" || location.pathname === "/tt-login") return <>{children}</>;
+  if (location.pathname === "/maintenance" || location.pathname === "/ig-login" || location.pathname === "/tt-login" || location.pathname === "/threads-login") return <>{children}</>;
 
   // Redirect to maintenance if active
   if (settings.maintenance_mode) {
@@ -74,7 +75,7 @@ const MaintenanceGuard = ({ children }: { children: React.ReactNode }) => {
 const AppContent = () => {
   useVisitorTracking();
   const location = useLocation();
-  const isPopupRoute = location.pathname === "/ig-login" || location.pathname === "/tt-login";
+  const isPopupRoute = location.pathname === "/ig-login" || location.pathname === "/tt-login" || location.pathname === "/threads-login";
 
   return (
     <MaintenanceGuard>
@@ -100,6 +101,7 @@ const AppContent = () => {
         <Route path="/social/u/:username" element={<SocialProfile />} />
         <Route path="/ig-login" element={<IGLoginPopup />} />
         <Route path="/tt-login" element={<TikTokLoginPopup />} />
+        <Route path="/threads-login" element={<ThreadsLoginPopup />} />
         <Route path="/blog" element={<Blog />} />
         <Route path="/blog/:slug" element={<BlogPost />} />
         <Route path="/customer-portal" element={<CustomerPortal />} />
