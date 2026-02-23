@@ -45,7 +45,7 @@ const TKAutomationSuite = ({ selectedAccount, onNavigateToConnect }: Props) => {
   const [tkScanning, setTkScanning] = useState(false);
   const [tkSearchQuery, setTkSearchQuery] = useState("");
 
-  // Check TikTok connection
+  // Check TikTok connection + realtime updates
   useEffect(() => {
     if (!selectedAccount) { setTiktokConnected(false); return; }
     const check = async () => {
@@ -58,6 +58,12 @@ const TKAutomationSuite = ({ selectedAccount, onNavigateToConnect }: Props) => {
       setTiktokConnected(!!data);
     };
     check();
+    // Realtime: refresh connection status on any change
+    const channel = supabase
+      .channel(`tk-conn-status-${selectedAccount}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "social_connections", filter: `account_id=eq.${selectedAccount}` }, () => check())
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
   }, [selectedAccount]);
 
   // Dashboard
