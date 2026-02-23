@@ -5,6 +5,7 @@ import SocialAITools from "./SocialAITools";
 import LiveDMConversations from "./LiveDMConversations";
 import IGAutomationSuite from "./social/IGAutomationSuite";
 import TKAutomationSuite from "./social/TKAutomationSuite";
+import ThreadsAutomationSuite from "./social/ThreadsAutomationSuite";
 import SocialNetworksTab from "./social/SocialNetworksTab";
 import BioLinksManager from "./social/BioLinksManager";
 import AIMassDMOutreach from "./social/AIMassDMOutreach";
@@ -876,7 +877,7 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
    // ===== AUTOMATED THREADS CONNECT =====
    const automatedThreadsConnect = () => {
      if (!threadsAppId) { toast.error("Enter your Threads App ID first"); return; }
-     const scopes = "threads_basic,threads_content_publish,threads_manage_insights,threads_manage_replies,threads_read_replies";
+     const scopes = "threads_basic,threads_content_publish,threads_delete,threads_keyword_search,threads_location_tagging,threads_manage_insights,threads_manage_mentions,threads_manage_replies,threads_profile_discovery,threads_read_replies";
      const authUrl = `https://threads.net/oauth/authorize?client_id=${threadsAppId}&redirect_uri=${encodeURIComponent(oauthRedirectUri)}&scope=${scopes}&response_type=code`;
      const authWindow = window.open(authUrl, "threads_oauth", "width=600,height=700,scrollbars=yes");
      setAutoConnectLoading("threads");
@@ -1952,6 +1953,8 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
 
       {platformTab === "tiktok" ? (
         <TKAutomationSuite selectedAccount={selectedAccount} onNavigateToConnect={navigateToTiktokConnect} subTab={activeSubTab} onSubTabChange={onSubTabChange} />
+      ) : platformTab === "threads" ? (
+        <ThreadsAutomationSuite selectedAccount={selectedAccount} onNavigateToConnect={() => navigateToPlatformConnect("threads")} subTab={activeSubTab} onSubTabChange={onSubTabChange} />
       ) : platformTab !== "connect" ? (
       <Tabs value={activeSubTab} onValueChange={setActiveSubTab}>
         <TabsList className="bg-muted/50 border border-border p-0.5 rounded-lg gap-0.5 flex flex-wrap w-full">
