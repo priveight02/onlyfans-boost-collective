@@ -61,10 +61,16 @@ const PLATFORM_LABEL_MAP: Record<string, string> = {
 const MetaTestButton = ({ accountId, platform }: { accountId: string; platform: string }) => {
   const [running, setRunning] = useState(false);
   const [results, setResults] = useState<any>(null);
+  const [expanded, setExpanded] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
 
   const run = async () => {
     setRunning(true);
     setResults(null);
+    setExpanded(true);
+    setElapsed(0);
+    const t0 = Date.now();
+    const timer = setInterval(() => setElapsed(Date.now() - t0), 100);
     try {
       const { data, error } = await supabase.functions.invoke(PLATFORM_FUNCTION_MAP[platform], {
         body: { account_id: accountId },
@@ -76,9 +82,15 @@ const MetaTestButton = ({ accountId, platform }: { accountId: string; platform: 
     } catch (e: any) {
       toast.error(e.message);
     } finally {
+      clearInterval(timer);
+      setElapsed(Date.now() - t0);
       setRunning(false);
     }
   };
+
+  const entries = results?.results ? Object.entries(results.results) : [];
+  const tested = entries.filter(([, r]: [string, any]) => (r as any).status > 0 || (r as any).success).length;
+  const skipped = entries.filter(([, r]: [string, any]) => (r as any).skipped).length;
 
   return (
     <div className="inline-flex flex-col gap-1">
@@ -90,16 +102,48 @@ const MetaTestButton = ({ accountId, platform }: { accountId: string; platform: 
         className="text-xs h-7 gap-1 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10"
       >
         {running ? <Loader2 className="h-3 w-3 animate-spin" /> : <FlaskConical className="h-3 w-3" />}
-        {running ? "Testing..." : PLATFORM_LABEL_MAP[platform]}
+        {running ? `Testing... ${(elapsed / 1000).toFixed(1)}s` : PLATFORM_LABEL_MAP[platform]}
       </Button>
       {results?.results && (
-        <div className="flex flex-wrap gap-1 max-w-xs">
-          {Object.entries(results.results).map(([perm, res]: [string, any]) => (
-            <span key={perm} className="flex items-center gap-0.5 text-[9px] text-muted-foreground">
-              <span className={`h-1.5 w-1.5 rounded-full ${res.status > 0 || res.success ? "bg-emerald-400" : res.skipped ? "bg-yellow-400" : "bg-red-400"}`} />
-              {perm.replace(/^(instagram_|threads_|fb_)/, "")}
-            </span>
-          ))}
+        <div className="mt-1 rounded-lg border border-white/10 bg-black/40 p-2 max-w-md">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[10px] font-mono text-emerald-400">{results.summary}</span>
+            <div className="flex items-center gap-2">
+              <span className="text-[9px] text-muted-foreground">{(elapsed / 1000).toFixed(2)}s</span>
+              <button onClick={() => setExpanded(!expanded)} className="text-[9px] text-blue-400 hover:underline">
+                {expanded ? "collapse" : "expand"}
+              </button>
+            </div>
+          </div>
+          <div className="flex gap-2 text-[9px] mb-1.5">
+            <span className="text-emerald-400">✓ {tested} called</span>
+            {skipped > 0 && <span className="text-yellow-400">⊘ {skipped} skipped</span>}
+            <span className="text-muted-foreground">∑ {entries.length} total</span>
+          </div>
+          {expanded && (
+            <div className="space-y-0.5 max-h-64 overflow-y-auto pr-1">
+              {entries.map(([perm, res]: [string, any]) => (
+                <div key={perm} className="flex items-start gap-1.5 text-[9px] font-mono border-b border-white/5 pb-0.5">
+                  <span className={`mt-0.5 h-1.5 w-1.5 rounded-full flex-shrink-0 ${
+                    res.skipped ? "bg-yellow-400" : res.status > 0 ? "bg-emerald-400" : "bg-red-400"
+                  }`} />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1">
+                      <span className="text-white/80 truncate">{perm}</span>
+                      <span className={`flex-shrink-0 ${res.status >= 200 && res.status < 300 ? "text-emerald-400" : res.status > 0 ? "text-yellow-400" : "text-red-400"}`}>
+                        {res.skipped ? "SKIP" : res.status || "ERR"}
+                      </span>
+                    </div>
+                    {res.snippet && (
+                      <div className="text-white/30 truncate max-w-full">{res.snippet.slice(0, 120)}</div>
+                    )}
+                    {res.note && <div className="text-yellow-400/60">{res.note}</div>}
+                    {res.error && <div className="text-red-400/60">{res.error}</div>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>
