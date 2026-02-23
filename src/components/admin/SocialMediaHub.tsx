@@ -876,9 +876,10 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
 
    // ===== AUTOMATED THREADS CONNECT =====
    const automatedThreadsConnect = () => {
-     if (!threadsAppId) { toast.error("Enter your Threads App ID first"); return; }
+     const appId = threadsAppId || cachedThreadsAppId;
+     if (!appId) { toast.error("Enter your Threads App ID first, or configure THREADS_APP_ID in backend secrets"); return; }
      const scopes = "threads_basic,threads_content_publish,threads_delete,threads_keyword_search,threads_location_tagging,threads_manage_insights,threads_manage_mentions,threads_manage_replies,threads_profile_discovery,threads_read_replies";
-     const authUrl = `https://threads.net/oauth/authorize?client_id=${threadsAppId}&redirect_uri=${encodeURIComponent(oauthRedirectUri)}&scope=${scopes}&response_type=code`;
+     const authUrl = `https://threads.net/oauth/authorize?client_id=${appId}&redirect_uri=${encodeURIComponent(oauthRedirectUri)}&scope=${scopes}&response_type=code`;
      const authWindow = window.open(authUrl, "threads_oauth", "width=600,height=700,scrollbars=yes");
      setAutoConnectLoading("threads");
      toast.info("Authenticate with Threads...");
@@ -891,7 +892,7 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
            const code = urlParams.get("code");
            authWindow.close(); clearInterval(interval);
            if (!code) { setAutoConnectLoading(null); toast.error("No auth code"); return; }
-           const { data, error } = await supabase.functions.invoke("threads-api", { body: { action: "exchange_code", params: { code, client_id: threadsAppId, client_secret: threadsAppSecret, redirect_uri: oauthRedirectUri } } });
+           const { data, error } = await supabase.functions.invoke("threads-api", { body: { action: "exchange_code", params: { code, client_id: appId, client_secret: threadsAppSecret, redirect_uri: oauthRedirectUri } } });
            if (error || !data?.success) { toast.error(data?.error || error?.message || "Failed"); setAutoConnectLoading(null); return; }
            const accessToken = data.data?.access_token;
            if (!accessToken) { toast.error("No token"); setAutoConnectLoading(null); return; }
@@ -1348,14 +1349,18 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
   const [cachedIgAppId, setCachedIgAppId] = useState<string | null>(null);
   const [ttLoginPopupLoading, setTtLoginPopupLoading] = useState(false);
   const [cachedTtClientKey, setCachedTtClientKey] = useState<string | null>(null);
+  const [cachedThreadsAppId, setCachedThreadsAppId] = useState<string | null>(null);
 
-  // Pre-fetch Instagram App ID and TikTok Client Key from backend on mount
+  // Pre-fetch Instagram App ID, TikTok Client Key, and Threads App ID from backend on mount
   useEffect(() => {
     supabase.functions.invoke("ig-oauth-callback", { body: { action: "get_app_id" } })
       .then(({ data }) => { if (data?.app_id) setCachedIgAppId(data.app_id); })
       .catch(() => {});
     supabase.functions.invoke("tiktok-api", { body: { action: "get_client_key" } })
       .then(({ data }) => { if (data?.client_key) setCachedTtClientKey(data.client_key); })
+      .catch(() => {});
+    supabase.functions.invoke("threads-api", { body: { action: "get_app_id" } })
+      .then(({ data }) => { if (data?.app_id) { setCachedThreadsAppId(data.app_id); setThreadsAppId(data.app_id); } })
       .catch(() => {});
   }, []);
   const [foundSessions, setFoundSessions] = useState<Array<{ id: string; source: string; sessionId: string; csrfToken?: string; dsUserId?: string; savedAt?: string; status: "active" | "expired" | "unknown" }>>([]);
