@@ -907,18 +907,19 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
          if (error || !data?.success) { toast.error(data?.error || error?.message || "Token exchange failed"); setAutoConnectLoading(null); return; }
          const accessToken = data.data?.access_token;
          if (!accessToken) { toast.error("No access token in response"); setAutoConnectLoading(null); return; }
-         toast.info("Fetching Threads profile...");
-         const profileRes = await fetch(`https://graph.threads.net/v1.0/me?fields=id,username,name,threads_profile_picture_url&access_token=${accessToken}`);
-         const profile = await profileRes.json();
-         const username = profile.username || "threads_user";
-         let accountId = selectedAccount;
-         if (!accountId) {
-           const { data: newAcct, error: err } = await supabase.from("managed_accounts").insert({ username, display_name: profile.name || username, platform: "threads", status: "active", avatar_url: profile.threads_profile_picture_url || null }).select("id").single();
-           if (err || !newAcct) { toast.error(err?.message || "Failed to create account"); setAutoConnectLoading(null); return; }
-           accountId = newAcct.id; setSelectedAccount(accountId);
-         }
-         await supabase.from("social_connections").upsert({ account_id: accountId, platform: "threads", platform_user_id: profile.id || "", platform_username: username, access_token: accessToken, is_connected: true, scopes: [], metadata: { name: profile.name, threads_profile_picture_url: profile.threads_profile_picture_url, connected_via: "threads_oauth_popup" } }, { onConflict: "account_id,platform" });
-         await supabase.from("managed_accounts").update({ avatar_url: profile.threads_profile_picture_url || undefined, display_name: profile.name || username, last_activity_at: new Date().toISOString() }).eq("id", accountId);
+          toast.info("Fetching Threads profile...");
+          const profileRes = await fetch(`https://graph.threads.net/v1.0/me?fields=id,username,name,threads_profile_picture_url,threads_biography,is_verified&access_token=${accessToken}`);
+          const profile = await profileRes.json();
+          const username = profile.username || "threads_user";
+          const threadsProfilePic = profile.threads_profile_picture_url || null;
+          let accountId = selectedAccount;
+          if (!accountId) {
+            const { data: newAcct, error: err } = await supabase.from("managed_accounts").insert({ username, display_name: profile.name || username, platform: "threads", status: "active", avatar_url: threadsProfilePic, bio: profile.threads_biography || null }).select("id").single();
+            if (err || !newAcct) { toast.error(err?.message || "Failed to create account"); setAutoConnectLoading(null); return; }
+            accountId = newAcct.id; setSelectedAccount(accountId);
+          }
+          await supabase.from("social_connections").upsert({ account_id: accountId, platform: "threads", platform_user_id: profile.id || "", platform_username: username, access_token: accessToken, is_connected: true, scopes: [], metadata: { name: profile.name, username: profile.username, threads_profile_picture_url: threadsProfilePic, profile_picture_url: threadsProfilePic, threads_biography: profile.threads_biography, is_verified: profile.is_verified, connected_via: "threads_oauth_popup" } }, { onConflict: "account_id,platform" });
+          await supabase.from("managed_accounts").update({ avatar_url: threadsProfilePic || undefined, display_name: profile.name || username, bio: profile.threads_biography || undefined, last_activity_at: new Date().toISOString() }).eq("id", accountId);
          await loadAccounts(); await loadData(accountId);
          toast.success(`✅ @${username} Threads connected!`);
        } catch (err: any) { toast.error(err.message || "Threads connection failed"); }
@@ -1957,8 +1958,8 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
         {/* Mini avatars of connected accounts */}
         {connections.filter(c => c.is_connected).map(c => (
           <div key={c.id} className="flex items-center gap-1.5 bg-muted/40 rounded-full px-2 py-0.5 border border-border">
-            {(c.metadata as any)?.profile_picture_url || (c.metadata as any)?.profile_image_url || (c.metadata as any)?.icon_img || (c.metadata as any)?.avatar_url ? (
-              <img src={(c.metadata as any).profile_picture_url || (c.metadata as any).profile_image_url || (c.metadata as any).icon_img || (c.metadata as any).avatar_url} alt="" className="h-5 w-5 rounded-full object-cover" />
+            {(c.metadata as any)?.profile_picture_url || (c.metadata as any)?.threads_profile_picture_url || (c.metadata as any)?.profile_image_url || (c.metadata as any)?.icon_img || (c.metadata as any)?.avatar_url ? (
+              <img src={(c.metadata as any).profile_picture_url || (c.metadata as any).threads_profile_picture_url || (c.metadata as any).profile_image_url || (c.metadata as any).icon_img || (c.metadata as any).avatar_url} alt="" className="h-5 w-5 rounded-full object-cover" />
             ) : (
               <div className="h-5 w-5 rounded-full bg-muted flex items-center justify-center">
                 {c.platform === "instagram" ? <Instagram className="h-3 w-3 text-pink-400" /> : c.platform === "tiktok" ? <Music2 className="h-3 w-3 text-cyan-400" /> : c.platform === "twitter" ? <Twitter className="h-3 w-3 text-blue-400" /> : c.platform === "reddit" ? <Globe className="h-3 w-3 text-orange-400" /> : <Phone className="h-3 w-3 text-blue-400" />}
@@ -2526,7 +2527,7 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
                     <div className="space-y-3">
                       {connections.map(c => {
                         const meta = (c.metadata || {}) as any;
-                        const profilePic = meta.profile_picture_url || meta.avatar_url || meta.profile_image_url || meta.icon_img || meta.picture_url || meta.thumbnail;
+                        const profilePic = meta.profile_picture_url || meta.threads_profile_picture_url || meta.avatar_url || meta.profile_image_url || meta.icon_img || meta.picture_url || meta.thumbnail;
                         const name = meta.name || meta.display_name || meta.verified_name || meta.title || c.platform_username;
                         return (
                           <div key={c.id} className={`rounded-xl p-4 border ${c.is_connected ? "bg-green-500/5 border-green-500/20" : "bg-muted/20 border-border"}`}>
