@@ -75,12 +75,12 @@ serve(async (req) => {
 
     await Promise.all(calls);
 
-    const completed = Object.values(results).filter((r: any) => r.success || r.status === 200).length;
+    const tested = Object.values(results).filter((r: any) => r.status > 0 || r.success || r.skipped).length;
     const total = Object.keys(results).length;
 
     return new Response(JSON.stringify({
       success: true,
-      summary: `${completed}/${total} Threads permissions tested`,
+      summary: `${tested}/${total} Threads permissions tested (API calls made)`,
       results,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e: any) {
