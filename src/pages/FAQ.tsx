@@ -130,8 +130,8 @@ const FAQ = () => {
   return (
     <div className="min-h-screen bg-[hsl(222,35%,8%)]">
       <PageSEO
-        title="Uplyze FAQ - Your Questions Answered"
-        description="Find answers about Uplyze features, pricing, AI automation, CRM, security, and how we help creators and businesses grow faster."
+        title="Uplyze FAQ - Got Questions? We've Got Answers"
+        description="Everything you need to know about Uplyze. Features, pricing, AI tools, security, and how it helps creators, agencies, and businesses grow."
         ogTitle="Uplyze FAQ - Your Questions Answered"
         ogDescription="Everything you need to know about Uplyze: features, pricing, AI automation, CRM, security, and more."
         jsonLd={{

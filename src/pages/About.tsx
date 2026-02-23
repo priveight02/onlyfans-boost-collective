@@ -40,9 +40,9 @@ const features = [
 const About = () => {
   return (
     <div className="min-h-screen bg-[hsl(222,35%,8%)]">
-      <PageSEO
-        title="About Uplyze - AI-Powered Growth for Creators"
-        description="Discover why 700+ creators and agencies trust Uplyze to automate engagement, manage fans with AI, and scale revenue without scaling headcount."
+       <PageSEO
+        title="About Uplyze - The AI Platform Behind 700+ Growing Businesses"
+        description="See how creators, agencies, and businesses use Uplyze to automate growth, manage fans, and scale revenue without hiring more people."
         ogTitle="About Uplyze - AI-Powered Growth for Creators"
         ogDescription="Discover why 700+ creators and agencies trust Uplyze to automate engagement, manage fans with AI, and scale revenue."
         jsonLd={{

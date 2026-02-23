@@ -109,8 +109,8 @@ const Index = () => {
       />
       <div className="relative z-10">
          <PageSEO
-            title="Uplyze - AI Platform for Marketing & Business Growth"
-            description="Trusted by 700+ businesses to automate marketing, manage customers, and scale revenue. AI CRM, content creation, social media automation, and more."
+             title="Uplyze - AI Built for Creators, Agencies & Businesses"
+             description="Automate your marketing, close more deals, and scale faster with AI. The all-in-one platform trusted by 700+ creators, agencies, and businesses worldwide."
             ogTitle="Uplyze - AI Platform for Marketing & Business Growth"
             ogDescription="Automate marketing, manage customers, and scale revenue with Uplyze. AI CRM, content creation, social media automation, DM outreach, and analytics in one platform."
           jsonLd={{

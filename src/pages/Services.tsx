@@ -185,8 +185,8 @@ const Services = () => {
   return (
     <div className="min-h-screen bg-[hsl(222,35%,8%)] relative overflow-hidden">
       <PageSEO
-        title="Uplyze Features - AI CRM, Automation & Analytics"
-        description="Explore all Uplyze features: AI CRM, DM automation, content creation, social media management, lead generation, analytics, and more. Built for creators and agencies."
+        title="Uplyze Features - Everything You Need to Grow, in One Place"
+        description="AI CRM, DM automation, content creation, social media tools, lead gen, and analytics. One platform built for creators, agencies, and digital businesses."
         ogTitle="Uplyze Features - AI CRM, Automation & Analytics"
         ogDescription="AI CRM, DM automation, content creation, social media management, lead generation, and analytics. Built for creators and agencies."
         jsonLd={{
