@@ -31,6 +31,12 @@ async function ttFetch(endpoint: string, token: string, method = "GET", body?: a
   };
   if (body) opts.body = JSON.stringify(body);
   const resp = await fetch(url, opts);
+  const contentType = resp.headers.get("content-type") || "";
+  if (!contentType.includes("application/json")) {
+    const text = await resp.text();
+    console.error("TikTok returned non-JSON:", resp.status, contentType, text.substring(0, 300));
+    throw new Error(`TikTok API returned ${resp.status} (${contentType || "no content-type"}). This may indicate an invalid token, rate limiting, or sandbox restrictions.`);
+  }
   const data = await resp.json();
   if (data.error?.code) throw new Error(`TikTok API: ${data.error.message} (${data.error.code})`);
   return data;
