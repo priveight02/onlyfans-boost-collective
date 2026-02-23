@@ -187,6 +187,7 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange }: { subTab?: string
    const [igSessionLoading, setIgSessionLoading] = useState(false);
    const [igSessionStatus, setIgSessionStatus] = useState<"unknown" | "valid" | "expired">("unknown");
    const [igSessionPulse, setIgSessionPulse] = useState(false);
+   const [highlightTiktok, setHighlightTiktok] = useState(false);
 
    // Navigate to connect tab and pulse the session card
    const navigateToSessionCard = () => {
@@ -197,6 +198,17 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange }: { subTab?: string
        if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
      }, 200);
      setTimeout(() => setIgSessionPulse(false), 3000);
+   };
+
+   // Navigate to connect tab and highlight TikTok card
+   const navigateToTiktokConnect = () => {
+     setPlatformTab("connect");
+     setHighlightTiktok(true);
+     setTimeout(() => {
+       const el = document.getElementById("tiktok-connect-card");
+       if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+     }, 200);
+     setTimeout(() => setHighlightTiktok(false), 5000);
    };
 
   // Track if auto-sync has already run this session
@@ -1816,7 +1828,7 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange }: { subTab?: string
       </div>
 
       {platformTab === "tiktok" ? (
-        <TKAutomationSuite selectedAccount={selectedAccount} />
+        <TKAutomationSuite selectedAccount={selectedAccount} onNavigateToConnect={navigateToTiktokConnect} />
       ) : platformTab !== "connect" ? (
       <Tabs value={activeSubTab} onValueChange={setActiveSubTab}>
         <TabsList className="bg-muted/50 border border-border p-0.5 rounded-lg gap-0.5 flex flex-wrap w-full">
@@ -2416,11 +2428,11 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange }: { subTab?: string
                   const isLoading = autoConnectLoading === p.id;
                   const needsFields = p.expandFields.length > 0 && !p.expandFields[0].val;
                   return (
-                    <div className="group/wrap relative">
+                    <div className="group/wrap relative" id="tiktok-connect-card">
                       <button
                         onClick={() => { if (needsFields) { const el = document.getElementById(`connect-expand-${p.id}`); if (el) el.classList.toggle("hidden"); } else { p.action(); } }}
                         disabled={isLoading}
-                        className={`group/cube relative flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl border border-border/50 bg-card/50 backdrop-blur-sm transition-all duration-300 ${p.hoverBorder} ${p.hoverBg} hover:shadow-[0_0_24px_-5px] ${p.hoverShadow} disabled:opacity-50 disabled:pointer-events-none aspect-square w-full`}
+                        className={`group/cube relative flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl border bg-card/50 backdrop-blur-sm transition-all duration-300 ${p.hoverBorder} ${p.hoverBg} hover:shadow-[0_0_24px_-5px] ${p.hoverShadow} disabled:opacity-50 disabled:pointer-events-none aspect-square w-full ${highlightTiktok ? "border-cyan-400/60 shadow-[0_0_30px_-5px] shadow-cyan-400/30 animate-pulse" : "border-border/50"}`}
                       >
                         {p.connected && <div className="absolute top-2 right-2 h-2 w-2 rounded-full bg-green-400 shadow-[0_0_6px] shadow-green-400/60" />}
                         <div className="relative">{isLoading ? <Loader2 className="h-8 w-8 animate-spin opacity-60" /> : p.svgIcon}</div>

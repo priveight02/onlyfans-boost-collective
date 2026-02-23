@@ -23,6 +23,7 @@ import {
 
 interface Props {
   selectedAccount: string;
+  onNavigateToConnect?: () => void;
 }
 
 const TikTokIcon = ({ className = "h-4 w-4" }: { className?: string }) => (
@@ -31,7 +32,7 @@ const TikTokIcon = ({ className = "h-4 w-4" }: { className?: string }) => (
   </svg>
 );
 
-const TKAutomationSuite = ({ selectedAccount }: Props) => {
+const TKAutomationSuite = ({ selectedAccount, onNavigateToConnect }: Props) => {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [loading, setLoading] = useState(false);
   const [tiktokConnected, setTiktokConnected] = useState<boolean | null>(null); // null = loading
@@ -535,10 +536,9 @@ const TKAutomationSuite = ({ selectedAccount }: Props) => {
         size="lg"
         className="bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white gap-2 mt-2"
         onClick={() => {
-          // Navigate to connect tab
-          const event = new CustomEvent("switch-platform-tab", { detail: "connect" });
-          window.dispatchEvent(event);
-          toast.info("Navigate to the Connect tab to link your TikTok account");
+          if (onNavigateToConnect) {
+            onNavigateToConnect();
+          }
         }}
       >
         <TikTokIcon className="h-5 w-5" />
