@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { cachedFetch, invalidateNamespace } from "@/lib/supabaseCache";
+import { cachedFetch, invalidateNamespace, invalidateAccount } from "@/lib/supabaseCache";
 import SocialAITools from "./SocialAITools";
 import LiveDMConversations from "./LiveDMConversations";
 import IGAutomationSuite from "./social/IGAutomationSuite";
@@ -373,6 +373,22 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
     syncSilently();
   }, [connections, selectedAccount, autoSyncDone]);
 
+  // Real-time sync for social_connections (instant UI update on connect/disconnect)
+  useEffect(() => {
+    if (!selectedAccount) return;
+    const channel = supabase
+      .channel(`social-connections-rt-${selectedAccount}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "social_connections", filter: `account_id=eq.${selectedAccount}` }, async () => {
+        // Invalidate cache and force fresh load
+        invalidateNamespace(selectedAccount, "social_connections");
+        const { data: freshConns } = await supabase.from("social_connections").select("*").eq("account_id", selectedAccount);
+        setConnections(freshConns || []);
+        setAutoSyncDone(false);
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [selectedAccount]);
+
   // Real-time sync for auto_respond_state
   useEffect(() => {
     if (!selectedAccount) return;
@@ -560,15 +576,20 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
     const conn = connections.find(c => c.id === id);
     const platform = conn?.platform;
     
-    // For TikTok: revoke token on TikTok's side before deleting
+    // Revoke token on platform side before deleting
     if (platform === "tiktok" && conn?.access_token) {
       try {
         await supabase.functions.invoke("tiktok-api", {
           body: { action: "revoke_token", account_id: selectedAccount, params: { client_key: ttClientKey } },
         });
-      } catch (e) {
-        console.warn("Token revoke failed (continuing with disconnect):", e);
-      }
+      } catch (e) { console.warn("TikTok token revoke failed:", e); }
+    }
+    if (platform === "threads" && conn?.access_token) {
+      try {
+        await supabase.functions.invoke("threads-api", {
+          body: { action: "refresh_token", account_id: selectedAccount },
+        });
+      } catch (e) { console.warn("Threads token invalidation failed:", e); }
     }
     
     const { error } = await supabase.from("social_connections").delete().eq("id", id);
@@ -577,27 +598,25 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
     // Immediately remove from local state for instant UI update
     setConnections(prev => prev.filter(c => c.id !== id));
     
-    // Clear local profile state
+    // Clear ALL local profile state for the disconnected platform
     if (platform === "instagram") setIgProfile(null);
     if (platform === "tiktok") setTtProfile(null);
-    if (platform === "threads") setAutoSyncDone(false);
     
-    // Invalidate ALL relevant caches so stale data doesn't persist
+    // Reset sync flag so remaining platforms can re-sync
+    setAutoSyncDone(false);
+    
+    // Nuke entire account cache to prevent any stale data
     if (selectedAccount) {
-      invalidateNamespace(selectedAccount, "social_connections");
-      invalidateNamespace(selectedAccount, "social_data");
-      invalidateNamespace(selectedAccount, "social_posts");
-      invalidateNamespace(selectedAccount, "social_analytics");
-      invalidateNamespace(selectedAccount, "social_comment_replies");
-      invalidateNamespace(selectedAccount, "bio_links");
+      invalidateAccount(selectedAccount);
     }
     invalidateNamespace("global", "smh_accounts");
     
-    // Reset autoSyncDone so next load can re-sync remaining platforms
-    setAutoSyncDone(false);
-    
-    // Force full reload from DB to ensure UI is fully in sync
-    await loadData();
+    // Force fresh DB fetch (bypass cache entirely)
+    const acctId = selectedAccount;
+    if (acctId) {
+      const { data: freshConns } = await supabase.from("social_connections").select("*").eq("account_id", acctId);
+      setConnections(freshConns || []);
+    }
     
     toast.success("Disconnected & credentials wiped");
   };
@@ -964,7 +983,11 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
           }
           await supabase.from("social_connections").upsert({ account_id: accountId, platform: "threads", platform_user_id: profile.id || "", platform_username: username, access_token: accessToken, is_connected: true, scopes: [], metadata: { name: profile.name, username: profile.username, threads_profile_picture_url: threadsProfilePic, profile_picture_url: threadsProfilePic, threads_biography: profile.threads_biography, is_verified: profile.is_verified, connected_via: "threads_oauth_popup" } }, { onConflict: "account_id,platform" });
           await supabase.from("managed_accounts").update({ avatar_url: threadsProfilePic || undefined, display_name: profile.name || username, bio: profile.threads_biography || undefined, last_activity_at: new Date().toISOString() }).eq("id", accountId);
-         await loadAccounts(); await loadData(accountId);
+          // Invalidate cache so fresh data loads
+          if (accountId) invalidateAccount(accountId);
+          invalidateNamespace("global", "smh_accounts");
+          setAutoSyncDone(false);
+          await loadAccounts(); await loadData(accountId);
          toast.success(`✅ @${username} Threads connected!`);
        } catch (err: any) { toast.error(err.message || "Threads connection failed"); }
        setAutoConnectLoading(null);
