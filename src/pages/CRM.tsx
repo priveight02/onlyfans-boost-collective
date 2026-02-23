@@ -149,6 +149,14 @@ const THREADS_SUB_TAB_SLUGS: Record<string, string> = {
   mentions: "mentions", search: "search", insights: "insights", "ai-tools": "ai-tools",
 };
 const THREADS_SLUG_TO_TAB: Record<string, string> = Object.fromEntries(Object.entries(THREADS_SUB_TAB_SLUGS).map(([k, v]) => [v, k]));
+
+// Facebook sub-tab slugs
+const FB_SUB_TAB_SLUGS: Record<string, string> = {
+  dashboard: "dashboard", pages: "pages", posts: "posts", comments: "comments",
+  groups: "groups", events: "events", albums: "albums", inbox: "inbox",
+  insights: "insights", search: "search", "ai-tools": "ai-tools",
+};
+const FB_SLUG_TO_TAB: Record<string, string> = Object.fromEntries(Object.entries(FB_SUB_TAB_SLUGS).map(([k, v]) => [v, k]));
 // Reverse: url-slug → internal-id per main tab
 const SUB_SLUG_TO_TAB: Record<string, Record<string, string>> = Object.fromEntries(
   Object.entries(SUB_TAB_SLUGS).map(([mainTab, mapping]) => [mainTab, Object.fromEntries(Object.entries(mapping).map(([k, v]) => [v, k]))])
@@ -196,6 +204,8 @@ const CRM = () => {
       activeSubTab = TK_SLUG_TO_TAB[socialSubSlug] || socialSubSlug;
     } else if (socialPlatformSlug === "threads" && socialSubSlug) {
       activeSubTab = THREADS_SLUG_TO_TAB[socialSubSlug] || socialSubSlug;
+    } else if (socialPlatformSlug === "facebook" && socialSubSlug) {
+      activeSubTab = FB_SLUG_TO_TAB[socialSubSlug] || socialSubSlug;
     } else if (socialSubSlug) {
       activeSubTab = subTabMapping?.[socialSubSlug] || socialSubSlug;
     }
@@ -241,7 +251,7 @@ const CRM = () => {
     const mainSlugVal = TAB_SLUGS[activeTab] || activeTab;
     if (activeTab === "social" && activeSocialPlatform) {
       // For social: /platform/social-media/{platform}/{subtab}
-      const subSlugs = activeSocialPlatform === "tiktok" ? TK_SUB_TAB_SLUGS : activeSocialPlatform === "threads" ? THREADS_SUB_TAB_SLUGS : SUB_TAB_SLUGS[activeTab];
+      const subSlugs = activeSocialPlatform === "tiktok" ? TK_SUB_TAB_SLUGS : activeSocialPlatform === "threads" ? THREADS_SUB_TAB_SLUGS : activeSocialPlatform === "facebook" ? FB_SUB_TAB_SLUGS : SUB_TAB_SLUGS[activeTab];
       const subSlugVal = subSlugs?.[subTabId] || subTabId;
       navigate(`/platform/${mainSlugVal}/${activeSocialPlatform}/${subSlugVal}`, { replace: true });
     } else {
