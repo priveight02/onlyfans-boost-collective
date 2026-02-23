@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { cachedFetch, invalidateNamespace, invalidateAccount } from "@/lib/supabaseCache";
+import { cachedFetch, invalidateNamespace } from "@/lib/supabaseCache";
 import SocialAITools from "./SocialAITools";
 import LiveDMConversations from "./LiveDMConversations";
 import IGAutomationSuite from "./social/IGAutomationSuite";
@@ -33,7 +33,7 @@ import {
   MessageCircle, LayoutDashboard, Compass,
   Sparkles, Bot, Brain, Wand2, AtSign, Megaphone, FolderOpen,
   PieChart, Layers, Twitter, Phone, Camera, Gamepad2, ArrowRight,
-  Key, Loader2, FlaskConical,
+  Key, Loader2,
 } from "lucide-react";
 
 const VerifiedBadge = ({ size = 12 }: { size?: number }) => (
@@ -44,111 +44,6 @@ const VerifiedBadge = ({ size = 12 }: { size?: number }) => (
     <path d="M15 20.5L18.5 24L26 16" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" fill="none" />
   </svg>
 );
-
-const PLATFORM_FUNCTION_MAP: Record<string, string> = {
-  ig: "ig-permission-test",
-  threads: "threads-permission-test",
-  facebook: "fb-permission-test",
-  oembed: "oembed-permission-test",
-};
-const PLATFORM_LABEL_MAP: Record<string, string> = {
-  ig: "IG App Review Tests",
-  threads: "Threads App Review Tests",
-  facebook: "FB App Review Tests",
-  oembed: "oEmbed Tests",
-};
-
-const MetaTestButton = ({ accountId, platform }: { accountId: string; platform: string }) => {
-  const [running, setRunning] = useState(false);
-  const [results, setResults] = useState<any>(null);
-  const [expanded, setExpanded] = useState(false);
-  const [elapsed, setElapsed] = useState(0);
-
-  const run = async () => {
-    setRunning(true);
-    setResults(null);
-    setExpanded(true);
-    setElapsed(0);
-    const t0 = Date.now();
-    const timer = setInterval(() => setElapsed(Date.now() - t0), 100);
-    try {
-      const { data, error } = await supabase.functions.invoke(PLATFORM_FUNCTION_MAP[platform], {
-        body: { account_id: accountId },
-      });
-      if (error) throw error;
-      setResults(data);
-      if (data?.success) toast.success(`${data.summary}`, { duration: 8000 });
-      else toast.error(data?.error || "Test failed");
-    } catch (e: any) {
-      toast.error(e.message);
-    } finally {
-      clearInterval(timer);
-      setElapsed(Date.now() - t0);
-      setRunning(false);
-    }
-  };
-
-  const entries = results?.results ? Object.entries(results.results) : [];
-  const tested = entries.filter(([, r]: [string, any]) => (r as any).status > 0 || (r as any).success).length;
-  const skipped = entries.filter(([, r]: [string, any]) => (r as any).skipped).length;
-
-  return (
-    <div className="inline-flex flex-col gap-1">
-      <Button
-        size="sm"
-        variant="outline"
-        onClick={run}
-        disabled={running}
-        className="text-xs h-7 gap-1 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10"
-      >
-        {running ? <Loader2 className="h-3 w-3 animate-spin" /> : <FlaskConical className="h-3 w-3" />}
-        {running ? `Testing... ${(elapsed / 1000).toFixed(1)}s` : PLATFORM_LABEL_MAP[platform]}
-      </Button>
-      {results?.results && (
-        <div className="mt-1 rounded-lg border border-white/10 bg-black/40 p-2 max-w-md">
-          <div className="flex items-center justify-between mb-1.5">
-            <span className="text-[10px] font-mono text-emerald-400">{results.summary}</span>
-            <div className="flex items-center gap-2">
-              <span className="text-[9px] text-muted-foreground">{(elapsed / 1000).toFixed(2)}s</span>
-              <button onClick={() => setExpanded(!expanded)} className="text-[9px] text-blue-400 hover:underline">
-                {expanded ? "collapse" : "expand"}
-              </button>
-            </div>
-          </div>
-          <div className="flex gap-2 text-[9px] mb-1.5">
-            <span className="text-emerald-400">✓ {tested} called</span>
-            {skipped > 0 && <span className="text-yellow-400">⊘ {skipped} skipped</span>}
-            <span className="text-muted-foreground">∑ {entries.length} total</span>
-          </div>
-          {expanded && (
-            <div className="space-y-0.5 max-h-64 overflow-y-auto pr-1">
-              {entries.map(([perm, res]: [string, any]) => (
-                <div key={perm} className="flex items-start gap-1.5 text-[9px] font-mono border-b border-white/5 pb-0.5">
-                  <span className={`mt-0.5 h-1.5 w-1.5 rounded-full flex-shrink-0 ${
-                    res.skipped ? "bg-yellow-400" : res.status > 0 ? "bg-emerald-400" : "bg-red-400"
-                  }`} />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1">
-                      <span className="text-white/80 truncate">{perm}</span>
-                      <span className={`flex-shrink-0 ${res.status >= 200 && res.status < 300 ? "text-emerald-400" : res.status > 0 ? "text-yellow-400" : "text-red-400"}`}>
-                        {res.skipped ? "SKIP" : res.status || "ERR"}
-                      </span>
-                    </div>
-                    {res.snippet && (
-                      <div className="text-white/30 truncate max-w-full">{res.snippet.slice(0, 120)}</div>
-                    )}
-                    {res.note && <div className="text-yellow-400/60">{res.note}</div>}
-                    {res.error && <div className="text-red-400/60">{res.error}</div>}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-};
 
 const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlatformChange }: { subTab?: string; onSubTabChange?: (subTab: string) => void; urlPlatform?: string; onPlatformChange?: (platform: string) => void }) => {
   const [activeSubTab, setActiveSubTabInternal] = useState(urlSubTab || "dashboard");
@@ -478,22 +373,6 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
     syncSilently();
   }, [connections, selectedAccount, autoSyncDone]);
 
-  // Real-time sync for social_connections (instant UI update on connect/disconnect)
-  useEffect(() => {
-    if (!selectedAccount) return;
-    const channel = supabase
-      .channel(`social-connections-rt-${selectedAccount}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "social_connections", filter: `account_id=eq.${selectedAccount}` }, async () => {
-        // Invalidate cache and force fresh load
-        invalidateNamespace(selectedAccount, "social_connections");
-        const { data: freshConns } = await supabase.from("social_connections").select("*").eq("account_id", selectedAccount);
-        setConnections(freshConns || []);
-        setAutoSyncDone(false);
-      })
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [selectedAccount]);
-
   // Real-time sync for auto_respond_state
   useEffect(() => {
     if (!selectedAccount) return;
@@ -681,20 +560,15 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
     const conn = connections.find(c => c.id === id);
     const platform = conn?.platform;
     
-    // Revoke token on platform side before deleting
+    // For TikTok: revoke token on TikTok's side before deleting
     if (platform === "tiktok" && conn?.access_token) {
       try {
         await supabase.functions.invoke("tiktok-api", {
           body: { action: "revoke_token", account_id: selectedAccount, params: { client_key: ttClientKey } },
         });
-      } catch (e) { console.warn("TikTok token revoke failed:", e); }
-    }
-    if (platform === "threads" && conn?.access_token) {
-      try {
-        await supabase.functions.invoke("threads-api", {
-          body: { action: "refresh_token", account_id: selectedAccount },
-        });
-      } catch (e) { console.warn("Threads token invalidation failed:", e); }
+      } catch (e) {
+        console.warn("Token revoke failed (continuing with disconnect):", e);
+      }
     }
     
     const { error } = await supabase.from("social_connections").delete().eq("id", id);
@@ -703,25 +577,27 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
     // Immediately remove from local state for instant UI update
     setConnections(prev => prev.filter(c => c.id !== id));
     
-    // Clear ALL local profile state for the disconnected platform
+    // Clear local profile state
     if (platform === "instagram") setIgProfile(null);
     if (platform === "tiktok") setTtProfile(null);
+    if (platform === "threads") setAutoSyncDone(false);
     
-    // Reset sync flag so remaining platforms can re-sync
-    setAutoSyncDone(false);
-    
-    // Nuke entire account cache to prevent any stale data
+    // Invalidate ALL relevant caches so stale data doesn't persist
     if (selectedAccount) {
-      invalidateAccount(selectedAccount);
+      invalidateNamespace(selectedAccount, "social_connections");
+      invalidateNamespace(selectedAccount, "social_data");
+      invalidateNamespace(selectedAccount, "social_posts");
+      invalidateNamespace(selectedAccount, "social_analytics");
+      invalidateNamespace(selectedAccount, "social_comment_replies");
+      invalidateNamespace(selectedAccount, "bio_links");
     }
     invalidateNamespace("global", "smh_accounts");
     
-    // Force fresh DB fetch (bypass cache entirely)
-    const acctId = selectedAccount;
-    if (acctId) {
-      const { data: freshConns } = await supabase.from("social_connections").select("*").eq("account_id", acctId);
-      setConnections(freshConns || []);
-    }
+    // Reset autoSyncDone so next load can re-sync remaining platforms
+    setAutoSyncDone(false);
+    
+    // Force full reload from DB to ensure UI is fully in sync
+    await loadData();
     
     toast.success("Disconnected & credentials wiped");
   };
@@ -1088,11 +964,7 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
           }
           await supabase.from("social_connections").upsert({ account_id: accountId, platform: "threads", platform_user_id: profile.id || "", platform_username: username, access_token: accessToken, is_connected: true, scopes: [], metadata: { name: profile.name, username: profile.username, threads_profile_picture_url: threadsProfilePic, profile_picture_url: threadsProfilePic, threads_biography: profile.threads_biography, is_verified: profile.is_verified, connected_via: "threads_oauth_popup" } }, { onConflict: "account_id,platform" });
           await supabase.from("managed_accounts").update({ avatar_url: threadsProfilePic || undefined, display_name: profile.name || username, bio: profile.threads_biography || undefined, last_activity_at: new Date().toISOString() }).eq("id", accountId);
-          // Invalidate cache so fresh data loads
-          if (accountId) invalidateAccount(accountId);
-          invalidateNamespace("global", "smh_accounts");
-          setAutoSyncDone(false);
-          await loadAccounts(); await loadData(accountId);
+         await loadAccounts(); await loadData(accountId);
          toast.success(`✅ @${username} Threads connected!`);
        } catch (err: any) { toast.error(err.message || "Threads connection failed"); }
        setAutoConnectLoading(null);
@@ -2196,8 +2068,12 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
         <TabsList className="bg-muted/50 border border-border p-0.5 rounded-lg gap-0.5 flex flex-wrap w-full">
             {[
               { v: "dashboard", icon: LayoutDashboard, l: "Dashboard" },
+              { v: "ai-auto", icon: Brain, l: "Auto-DM" },
+              { v: "ai-mass", icon: Megaphone, l: "Mass DM" },
+              { v: "search", icon: Search, l: "Search" },
               { v: "content", icon: Layers, l: "Content" },
               { v: "engagement", icon: MessageSquare, l: "Comments" },
+              { v: "messaging", icon: Send, l: "DMs" },
               { v: "ai-tools", icon: Wand2, l: "AI Tools" },
               { v: "analytics", icon: BarChart3, l: "Analytics" },
               { v: "biolink", icon: Link2, l: "Bio Links" },
@@ -2215,8 +2091,6 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
           <div className="flex gap-2 flex-wrap">
             <Button size="sm" variant="outline" onClick={fetchProfiles} className="text-foreground"><RefreshCw className="h-3.5 w-3.5 mr-1" />Sync Profiles</Button>
             <Button size="sm" variant="outline" onClick={fetchMedia} className="text-foreground"><Download className="h-3.5 w-3.5 mr-1" />Pull Media</Button>
-            <MetaTestButton accountId={selectedAccount} platform="ig" />
-            <MetaTestButton accountId={selectedAccount} platform="oembed" />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {igProfile && (
