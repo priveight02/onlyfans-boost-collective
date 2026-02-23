@@ -32,7 +32,10 @@ async function ttFetch(endpoint: string, token: string, method = "GET", body?: a
   if (body) opts.body = JSON.stringify(body);
   const resp = await fetch(url, opts);
   const data = await resp.json();
-  if (data.error?.code) throw new Error(`TikTok API: ${data.error.message} (${data.error.code})`);
+  // TikTok returns error.code "ok" on success — only throw on actual errors
+  if (data.error?.code && data.error.code !== "ok") {
+    throw new Error(`TikTok API: ${data.error.message || "Unknown error"} (${data.error.code})`);
+  }
   return data;
 }
 
