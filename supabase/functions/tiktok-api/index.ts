@@ -373,21 +373,21 @@ serve(async (req) => {
 
       // ===== REVOKE TOKEN =====
       case "revoke_token": {
-        const clientKey = params.client_key;
+        const clientKey = (params?.client_key || Deno.env.get("TIKTOK_CLIENT_KEY") || "").trim();
         result = await fetch("https://open.tiktokapis.com/v2/oauth/revoke/", {
           method: "POST",
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
           body: new URLSearchParams({ client_key: clientKey, token: token! }),
         });
         result = await result.json();
-        if (!result.error) {
-          await supabase.from("social_connections").update({
-            is_connected: false,
-            access_token: null,
-            refresh_token: null,
-            updated_at: new Date().toISOString(),
-          }).eq("id", conn!.id);
-        }
+        // Always mark as disconnected in DB regardless of TikTok response
+        await supabase.from("social_connections").update({
+          is_connected: false,
+          access_token: null,
+          refresh_token: null,
+          metadata: {},
+          updated_at: new Date().toISOString(),
+        }).eq("id", conn!.id);
         break;
       }
 

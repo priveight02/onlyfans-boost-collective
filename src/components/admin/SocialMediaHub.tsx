@@ -523,6 +523,18 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange }: { subTab?: string
     const conn = connections.find(c => c.id === id);
     const platform = conn?.platform;
     
+    // For TikTok: revoke token on TikTok's side before deleting
+    if (platform === "tiktok" && conn?.access_token) {
+      try {
+        await supabase.functions.invoke("tiktok-api", {
+          body: { action: "revoke_token", account_id: selectedAccount, params: { client_key: ttClientKey } },
+          
+        });
+      } catch (e) {
+        console.warn("Token revoke failed (continuing with disconnect):", e);
+      }
+    }
+    
     const { error } = await supabase.from("social_connections").delete().eq("id", id);
     if (error) { toast.error("Failed to disconnect: " + error.message); return; }
     
@@ -536,6 +548,7 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange }: { subTab?: string
     // Invalidate cache so next loadData fetches fresh from DB
     if (selectedAccount) {
       invalidateNamespace(selectedAccount, "social_connections");
+      invalidateNamespace(selectedAccount, "social_data");
     }
     
     toast.success("Disconnected & credentials wiped");
