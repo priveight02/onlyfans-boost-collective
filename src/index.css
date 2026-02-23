@@ -141,6 +141,22 @@ html {
   animation: session-pulse 1s ease-in-out 3;
 }
 
+/* Slow gentle pulse for connect card highlighting — 3 pulses, subtle */
+@keyframes connect-highlight-pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1.02);
+  }
+}
+
+.animate-connect-highlight {
+  animation: connect-highlight-pulse 1.2s ease-in-out 3;
+}
+
 @keyframes logo-shimmer {
   0%, 80% {
     background-position: 200% 0;
