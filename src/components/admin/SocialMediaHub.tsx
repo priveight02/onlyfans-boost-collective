@@ -1330,11 +1330,16 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange }: { subTab?: string
   const [sessionAutoConnectLoading, setSessionAutoConnectLoading] = useState(false);
   const [igLoginPopupLoading, setIgLoginPopupLoading] = useState(false);
   const [cachedIgAppId, setCachedIgAppId] = useState<string | null>(null);
+  const [ttLoginPopupLoading, setTtLoginPopupLoading] = useState(false);
+  const [cachedTtClientKey, setCachedTtClientKey] = useState<string | null>(null);
 
-  // Pre-fetch Instagram App ID from backend on mount
+  // Pre-fetch Instagram App ID and TikTok Client Key from backend on mount
   useEffect(() => {
     supabase.functions.invoke("ig-oauth-callback", { body: { action: "get_app_id" } })
       .then(({ data }) => { if (data?.app_id) setCachedIgAppId(data.app_id); })
+      .catch(() => {});
+    supabase.functions.invoke("tiktok-api", { body: { action: "get_client_key" } })
+      .then(({ data }) => { if (data?.client_key) setCachedTtClientKey(data.client_key); })
       .catch(() => {});
   }, []);
   const [foundSessions, setFoundSessions] = useState<Array<{ id: string; source: string; sessionId: string; csrfToken?: string; dsUserId?: string; savedAt?: string; status: "active" | "expired" | "unknown" }>>([]);
@@ -1526,6 +1531,89 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange }: { subTab?: string
         clearInterval(check);
         setIgLoginPopupLoading(false);
         window.removeEventListener("message", handleMessage);
+      }
+    }, 500);
+  };
+
+  // Open TikTok login popup — mirrors the Instagram one-click flow
+  const openTtLoginPopup = () => {
+    const clientKey = ttClientKey || cachedTtClientKey;
+    if (!clientKey) { toast.error("Configure TIKTOK_CLIENT_KEY in backend secrets or enter your Client Key"); return; }
+    setTtLoginPopupLoading(true);
+    const csrfState = Math.random().toString(36).substring(2);
+    sessionStorage.setItem("tt_csrf", csrfState);
+    const ttRedirectUri = "https://uplyze.ai/tt-login";
+    const scopes = "user.info.basic,user.info.profile,user.info.stats,video.list,video.publish,video.upload";
+    const authUrl = `https://www.tiktok.com/v2/auth/authorize/?client_key=${clientKey}&scope=${scopes}&response_type=code&redirect_uri=${encodeURIComponent(ttRedirectUri)}&state=${csrfState}`;
+    const w = 520, h = 620;
+    const left = Math.round(window.screenX + (window.outerWidth - w) / 2);
+    const top = Math.round(window.screenY + (window.outerHeight - h) / 2);
+    const popup = window.open(authUrl, "tt_login_popup", `width=${w},height=${h},left=${left},top=${top},toolbar=no,menubar=no,scrollbars=yes,resizable=yes`);
+    if (!popup) {
+      toast.info("Popup blocked — opening in current tab.");
+      window.location.href = authUrl;
+      return;
+    }
+    setAutoConnectLoading("tiktok");
+    toast.info("Authenticate with TikTok in the popup...");
+
+    const handleTTMessage = async (event: MessageEvent) => {
+      if (event.data?.type !== "TT_OAUTH_RESULT") return;
+      window.removeEventListener("message", handleTTMessage);
+      setTtLoginPopupLoading(false);
+      const { code, redirect_uri } = event.data.payload;
+      if (!code) { setAutoConnectLoading(null); toast.error("No auth code received"); return; }
+      toast.info("Auth code captured! Exchanging for token...");
+      try {
+        const { data, error } = await supabase.functions.invoke("tiktok-api", {
+          body: { action: "exchange_code", params: { code, client_key: clientKey, client_secret: ttClientSecret || undefined, redirect_uri: redirect_uri || ttRedirectUri } },
+        });
+        if (error || !data?.success) { toast.error(data?.error || error?.message || "Token exchange failed"); setAutoConnectLoading(null); return; }
+        const tokenData = data.data;
+        const accessToken = tokenData?.access_token;
+        const openId = tokenData?.open_id;
+        if (!accessToken) { toast.error("No access token in response"); setAutoConnectLoading(null); return; }
+        toast.info("Fetching TikTok profile...");
+        const profileRes = await supabase.functions.invoke("tiktok-api", {
+          body: { action: "get_user_info", account_id: selectedAccount || "temp", params: { access_token_override: accessToken } },
+        });
+        const ttUser = profileRes.data?.data?.data?.user || profileRes.data?.data?.user || {};
+        const username = ttUser.username || ttUser.display_name || "tiktok_user";
+        let accountId = selectedAccount;
+        if (!accountId) {
+          const { data: newAcct, error: err } = await supabase.from("managed_accounts").insert({
+            username, display_name: ttUser.display_name || username, platform: "tiktok", status: "active", avatar_url: ttUser.avatar_url || null,
+          }).select("id").single();
+          if (err || !newAcct) { toast.error(err?.message || "Failed to create account"); setAutoConnectLoading(null); return; }
+          accountId = newAcct.id; setSelectedAccount(accountId);
+        }
+        await supabase.from("social_connections").upsert({
+          account_id: accountId, platform: "tiktok", platform_user_id: openId || "", platform_username: username, access_token: accessToken,
+          refresh_token: tokenData?.refresh_token || null, is_connected: true, scopes: [],
+          metadata: { avatar_url: ttUser.avatar_url, display_name: ttUser.display_name, connected_via: "tt_oauth_popup" },
+        }, { onConflict: "account_id,platform" });
+        await supabase.from("managed_accounts").update({
+          avatar_url: ttUser.avatar_url || undefined, display_name: ttUser.display_name || username, last_activity_at: new Date().toISOString(),
+        }).eq("id", accountId);
+        setTtProfile(ttUser); await loadAccounts(); await loadData(accountId);
+        toast.success(`✅ @${username} TikTok connected!`);
+      } catch (err: any) { toast.error(err.message || "TikTok connection failed"); }
+      setAutoConnectLoading(null);
+    };
+    window.addEventListener("message", handleTTMessage);
+    const check = setInterval(() => {
+      try {
+        if (popup.closed) {
+          clearInterval(check);
+          setTtLoginPopupLoading(false);
+          setAutoConnectLoading(null);
+          window.removeEventListener("message", handleTTMessage);
+        }
+      } catch {
+        clearInterval(check);
+        setTtLoginPopupLoading(false);
+        setAutoConnectLoading(null);
+        window.removeEventListener("message", handleTTMessage);
       }
     }, 500);
   };
@@ -2437,28 +2525,23 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange }: { subTab?: string
                   );
                 })()}
 
-                {/* 2. TikTok - available */}
+                {/* 2. TikTok - available (one-click like Instagram) */}
                 {(() => {
-                  const p = { id: "tiktok", label: "Connect TikTok", svgIcon: <svg viewBox="0 0 24 24" className="h-8 w-8 transition-all duration-300 group-hover/cube:drop-shadow-[0_0_12px_rgba(34,211,238,0.5)]" fill="#00f2ea"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.27 6.27 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.34-6.34V8.75a8.18 8.18 0 0 0 4.76 1.52V6.84a4.84 4.84 0 0 1-1-.15z"/></svg>, hoverBorder: "hover:border-cyan-400/40", hoverBg: "hover:bg-cyan-400/5", hoverShadow: "hover:shadow-cyan-400/20", connected: ttConnected, action: automatedTikTokConnect, expandFields: [{ val: ttClientKey, set: setTtClientKey, placeholder: "Client Key", type: "text" as const }, { val: ttClientSecret, set: setTtClientSecret, placeholder: "Secret", type: "password" as const }] };
-                  const isLoading = autoConnectLoading === p.id;
-                  const needsFields = p.expandFields.length > 0 && !p.expandFields[0].val;
+                  const isLoading = autoConnectLoading === "tiktok" || ttLoginPopupLoading;
                   return (
-                    <div className="group/wrap relative" id="tiktok-connect-card">
-                      <button
-                        onClick={() => { if (needsFields) { const el = document.getElementById(`connect-expand-${p.id}`); if (el) el.classList.toggle("hidden"); } else { p.action(); } }}
-                        disabled={isLoading}
-                        className={`group/cube relative flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl border bg-card/50 backdrop-blur-sm transition-all duration-300 ${p.hoverBorder} ${p.hoverBg} hover:shadow-[0_0_24px_-5px] ${p.hoverShadow} disabled:opacity-50 disabled:pointer-events-none aspect-square w-full ${highlightTiktok ? "border-cyan-400/60 animate-connect-highlight" : "border-border/50"}`}
-                        style={highlightTiktok ? { '--highlight-color': 'rgba(34,211,238,0.4)' } as React.CSSProperties : undefined}
-                      >
-                        {p.connected && <div className="absolute top-2 right-2 h-2 w-2 rounded-full bg-green-400 shadow-[0_0_6px] shadow-green-400/60" />}
-                        <div className="relative">{isLoading ? <Loader2 className="h-8 w-8 animate-spin opacity-60" /> : p.svgIcon}</div>
-                        <span className="text-[10px] font-semibold text-muted-foreground group-hover/cube:text-foreground transition-colors leading-tight text-center">{p.label}</span>
-                      </button>
-                      <div id={`connect-expand-${p.id}`} className="hidden absolute z-20 top-full left-0 mt-1.5 w-56 p-3 rounded-xl border border-border bg-card shadow-xl space-y-2 animate-fade-in">
-                        {p.expandFields.map((f, i) => (<Input key={i} value={f.val} onChange={e => f.set(e.target.value)} placeholder={f.placeholder} type={f.type} className="text-xs h-7" />))}
-                        <Button size="sm" onClick={() => { p.action(); const el = document.getElementById(`connect-expand-${p.id}`); if (el) el.classList.add("hidden"); }} disabled={isLoading} className="w-full h-7 text-[10px]">{isLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : "Connect"}</Button>
+                    <button
+                      id="tiktok-connect-card"
+                      onClick={openTtLoginPopup}
+                      disabled={isLoading}
+                      className={`group/cube relative flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl border bg-card/50 backdrop-blur-sm transition-all duration-300 hover:border-cyan-400/40 hover:bg-cyan-400/5 hover:shadow-[0_0_24px_-5px] hover:shadow-cyan-400/20 disabled:opacity-50 disabled:pointer-events-none aspect-square ${highlightTiktok ? "border-cyan-400/60 animate-connect-highlight" : "border-border/50"}`}
+                      style={highlightTiktok ? { '--highlight-color': 'rgba(34,211,238,0.4)' } as React.CSSProperties : undefined}
+                    >
+                      {ttConnected && <div className="absolute top-2 right-2 h-2 w-2 rounded-full bg-green-400 shadow-[0_0_6px] shadow-green-400/60" />}
+                      <div className="relative">
+                        {isLoading ? <Loader2 className="h-8 w-8 text-cyan-400 animate-spin" /> : <svg viewBox="0 0 24 24" className="h-8 w-8 transition-all duration-300 group-hover/cube:drop-shadow-[0_0_12px_rgba(34,211,238,0.5)]" fill="#00f2ea"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.27 6.27 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.34-6.34V8.75a8.18 8.18 0 0 0 4.76 1.52V6.84a4.84 4.84 0 0 1-1-.15z"/></svg>}
                       </div>
-                    </div>
+                      <span className="text-[10px] font-semibold text-muted-foreground group-hover/cube:text-foreground transition-colors leading-tight text-center">Connect TikTok</span>
+                    </button>
                   );
                 })()}
 
