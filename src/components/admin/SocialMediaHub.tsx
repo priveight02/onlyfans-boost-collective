@@ -4,6 +4,7 @@ import { cachedFetch, invalidateNamespace } from "@/lib/supabaseCache";
 import SocialAITools from "./SocialAITools";
 import LiveDMConversations from "./LiveDMConversations";
 import IGAutomationSuite from "./social/IGAutomationSuite";
+import TKAutomationSuite from "./social/TKAutomationSuite";
 import SocialNetworksTab from "./social/SocialNetworksTab";
 import BioLinksManager from "./social/BioLinksManager";
 import AIMassDMOutreach from "./social/AIMassDMOutreach";
@@ -1814,7 +1815,9 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange }: { subTab?: string
         ))}
       </div>
 
-      {platformTab !== "connect" ? (
+      {platformTab === "tiktok" ? (
+        <TKAutomationSuite selectedAccount={selectedAccount} />
+      ) : platformTab !== "connect" ? (
       <Tabs value={activeSubTab} onValueChange={setActiveSubTab}>
         <TabsList className="bg-muted/50 border border-border p-0.5 rounded-lg gap-0.5 flex flex-wrap w-full">
             {[
