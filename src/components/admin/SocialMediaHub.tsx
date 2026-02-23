@@ -1890,20 +1890,31 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange }: { subTab?: string
             <Radio className="h-3 w-3 mr-1" />AI Auto-Responding
           </Badge>
         )}
-        {/* Mini avatars of connected accounts */}
-        {connections.filter(c => c.is_connected).map(c => (
-          <div key={c.id} className="flex items-center gap-1.5 bg-muted/40 rounded-full px-2 py-0.5 border border-border">
-            {(c.metadata as any)?.profile_picture_url || (c.metadata as any)?.profile_image_url || (c.metadata as any)?.icon_img || (c.metadata as any)?.avatar_url ? (
-              <img src={(c.metadata as any).profile_picture_url || (c.metadata as any).profile_image_url || (c.metadata as any).icon_img || (c.metadata as any).avatar_url} alt="" className="h-5 w-5 rounded-full object-cover" />
-            ) : (
-              <div className="h-5 w-5 rounded-full bg-muted flex items-center justify-center">
-                {c.platform === "instagram" ? <Instagram className="h-3 w-3 text-pink-400" /> : c.platform === "tiktok" ? <Music2 className="h-3 w-3 text-cyan-400" /> : c.platform === "twitter" ? <Twitter className="h-3 w-3 text-blue-400" /> : c.platform === "reddit" ? <Globe className="h-3 w-3 text-orange-400" /> : <Phone className="h-3 w-3 text-blue-400" />}
+        {/* Mini avatars of connected accounts with platform logos */}
+        {connections.filter(c => c.is_connected).map(c => {
+          const avatarUrl = (c.metadata as any)?.profile_picture_url || (c.metadata as any)?.profile_image_url || (c.metadata as any)?.icon_img || (c.metadata as any)?.avatar_url;
+          const platformIcon = c.platform === "instagram" ? <Instagram className="h-2.5 w-2.5 text-white" /> : c.platform === "tiktok" ? <Music2 className="h-2.5 w-2.5 text-white" /> : c.platform === "twitter" ? <Twitter className="h-2.5 w-2.5 text-white" /> : c.platform === "reddit" ? <Globe className="h-2.5 w-2.5 text-white" /> : c.platform === "facebook" ? <Globe className="h-2.5 w-2.5 text-white" /> : <Phone className="h-2.5 w-2.5 text-white" />;
+          const platformBg = c.platform === "instagram" ? "bg-gradient-to-tr from-pink-500 to-purple-500" : c.platform === "tiktok" ? "bg-black" : c.platform === "twitter" ? "bg-blue-500" : c.platform === "reddit" ? "bg-orange-500" : c.platform === "facebook" ? "bg-blue-600" : "bg-blue-400";
+          return (
+            <div key={c.id} className="flex items-center gap-1.5 bg-muted/40 rounded-full px-2 py-0.5 border border-border">
+              <div className="relative">
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt="" className="h-5 w-5 rounded-full object-cover" />
+                ) : (
+                  <div className="h-5 w-5 rounded-full bg-muted flex items-center justify-center">
+                    {c.platform === "instagram" ? <Instagram className="h-3 w-3 text-pink-400" /> : c.platform === "tiktok" ? <Music2 className="h-3 w-3 text-cyan-400" /> : c.platform === "twitter" ? <Twitter className="h-3 w-3 text-blue-400" /> : c.platform === "reddit" ? <Globe className="h-3 w-3 text-orange-400" /> : <Phone className="h-3 w-3 text-blue-400" />}
+                  </div>
+                )}
+                {/* Platform logo badge */}
+                <div className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full ${platformBg} flex items-center justify-center ring-1 ring-background`}>
+                  {platformIcon}
+                </div>
               </div>
-            )}
-            <span className="text-xs text-foreground font-medium">@{c.platform_username}</span>
-            <div className="h-1.5 w-1.5 rounded-full bg-green-400 animate-pulse" />
-          </div>
-        ))}
+              <span className="text-xs text-foreground font-medium">@{c.platform_username}</span>
+              <div className="h-1.5 w-1.5 rounded-full bg-green-400 animate-pulse" />
+            </div>
+          );
+        })}
       </div>
 
       {/* Platform Tabs */}

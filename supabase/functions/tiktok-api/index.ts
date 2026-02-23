@@ -98,8 +98,9 @@ serve(async (req) => {
       });
     }
 
-    // All other actions need connection
-    if (action !== "exchange_code") {
+    // Actions that need a connection (skip if access_token_override provided for get_user_info)
+    const hasTokenOverride = action === "get_user_info" && params?.access_token_override;
+    if (action !== "exchange_code" && !hasTokenOverride) {
       conn = await getConnection(supabase, account_id);
       token = conn.access_token;
     }
