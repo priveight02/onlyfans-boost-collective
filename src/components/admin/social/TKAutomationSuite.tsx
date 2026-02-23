@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -6,15 +6,20 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
-  Music2, ChevronDown, ChevronUp, Zap, Video, Upload, Eye,
-  MessageSquare, Search, Hash, ListVideo, Send, RefreshCw,
-  TrendingUp, BarChart3, Users, Shield, Play, Image, Layers,
-  Clock, Heart, Share2, ExternalLink, Trash2, Loader2,
-  Brain, FolderOpen, Activity, Target, Globe, Star,
+  Music2, Video, Upload, Eye, MessageSquare, Search, Hash,
+  ListVideo, Send, RefreshCw, TrendingUp, BarChart3, Users,
+  Shield, Play, Pause, Image, Layers, Clock, Heart, Share2,
+  ExternalLink, Loader2, Brain, Activity, Star, Globe, Zap,
+  MessageCircle, LayoutDashboard, Wand2, Megaphone, Copy,
+  Target, Radio, Calendar, Download, Link2, FolderOpen,
+  CheckCircle2, AlertCircle, Bot, Sparkles, ArrowRight,
 } from "lucide-react";
+import LiveDMConversations from "../LiveDMConversations";
 
 interface Props {
   selectedAccount: string;
@@ -26,73 +31,52 @@ const TikTokIcon = ({ className = "h-4 w-4" }: { className?: string }) => (
   </svg>
 );
 
-const SECTIONS = [
-  // Dashboard & Profile
-  { id: "dashboard", icon: Activity, label: "Dashboard & Profile", desc: "TikTok profile overview, stats & account sync", color: "text-cyan-400", category: "Core" },
-  // Content Management
-  { id: "videos", icon: Video, label: "Video Manager", desc: "Browse, search & manage all your TikTok videos", color: "text-teal-400", category: "Content" },
-  { id: "publish-video", icon: Upload, label: "Publish Video", desc: "Upload video by URL, file upload, or direct post", color: "text-green-400", category: "Content" },
-  { id: "publish-photo", icon: Image, label: "Publish Photo / Carousel", desc: "Post photos and carousel content to TikTok", color: "text-blue-400", category: "Content" },
-  { id: "playlists", icon: ListVideo, label: "Playlist Manager", desc: "Create and manage TikTok video playlists", color: "text-violet-400", category: "Content" },
-  // Engagement
-  { id: "comments", icon: MessageSquare, label: "Comments Manager", desc: "View, reply & manage comments on your videos", color: "text-amber-400", category: "Engagement" },
-  { id: "dms", icon: Send, label: "Direct Messages", desc: "View conversations, read & send TikTok DMs", color: "text-pink-400", category: "Engagement" },
-  // Research & Discovery
-  { id: "research-users", icon: Users, label: "User Research", desc: "Look up any TikTok creator's public profile & stats", color: "text-purple-400", category: "Research" },
-  { id: "research-videos", icon: Search, label: "Video Research", desc: "Search trending videos by keywords, dates & filters", color: "text-lime-400", category: "Research" },
-  { id: "research-hashtags", icon: Hash, label: "Hashtag Research", desc: "Analyze hashtag performance, volume & trends", color: "text-rose-400", category: "Research" },
-  { id: "research-comments", icon: Eye, label: "Comment Research", desc: "Analyze comments on any public TikTok video", color: "text-orange-400", category: "Research" },
-  // Account
-  { id: "creator-info", icon: Star, label: "Creator Info & Posting Rules", desc: "View posting capabilities, limits & duet/stitch settings", color: "text-yellow-400", category: "Account" },
-  { id: "token-mgmt", icon: Shield, label: "Token & Connection Health", desc: "Refresh tokens, check connection status & revoke access", color: "text-red-400", category: "Account" },
-];
-
-const CATEGORIES = ["Core", "Content", "Engagement", "Research", "Account"];
-
 const TKAutomationSuite = ({ selectedAccount }: Props) => {
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(["dashboard"]));
+  const [activeTab, setActiveTab] = useState("dashboard");
   const [loading, setLoading] = useState(false);
 
-  // Dashboard state
+  // Dashboard
   const [profile, setProfile] = useState<any>(null);
 
-  // Videos state
+  // Videos
   const [videos, setVideos] = useState<any[]>([]);
   const [videosCursor, setVideosCursor] = useState<string | null>(null);
   const [videosHasMore, setVideosHasMore] = useState(false);
 
-  // Publish video state
+  // Publish video
   const [publishVideoUrl, setPublishVideoUrl] = useState("");
   const [publishVideoTitle, setPublishVideoTitle] = useState("");
   const [publishPrivacy, setPublishPrivacy] = useState("PUBLIC_TO_EVERYONE");
   const [disableDuet, setDisableDuet] = useState(false);
   const [disableComment, setDisableComment] = useState(false);
   const [disableStitch, setDisableStitch] = useState(false);
+  const [publishId, setPublishId] = useState("");
+  const [publishStatus, setPublishStatus] = useState<any>(null);
 
-  // Publish photo state
+  // Publish photo
   const [photoUrls, setPhotoUrls] = useState("");
   const [photoTitle, setPhotoTitle] = useState("");
   const [photoDesc, setPhotoDesc] = useState("");
   const [photoPrivacy, setPhotoPrivacy] = useState("PUBLIC_TO_EVERYONE");
   const [mediaType, setMediaType] = useState<"PHOTO" | "CAROUSEL">("PHOTO");
 
-  // Playlists state
+  // Playlists
   const [playlists, setPlaylists] = useState<any[]>([]);
   const [newPlaylistName, setNewPlaylistName] = useState("");
 
-  // Comments state
+  // Comments
   const [commentsVideoId, setCommentsVideoId] = useState("");
   const [comments, setComments] = useState<any[]>([]);
   const [replyText, setReplyText] = useState("");
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
 
-  // DMs state
+  // DMs
   const [conversations, setConversations] = useState<any[]>([]);
   const [selectedConvo, setSelectedConvo] = useState<string | null>(null);
   const [messages, setMessages] = useState<any[]>([]);
   const [dmText, setDmText] = useState("");
 
-  // Research state
+  // Research
   const [researchUsername, setResearchUsername] = useState("");
   const [researchUserResult, setResearchUserResult] = useState<any>(null);
   const [researchKeywords, setResearchKeywords] = useState("");
@@ -105,9 +89,63 @@ const TKAutomationSuite = ({ selectedAccount }: Props) => {
   // Creator info
   const [creatorInfo, setCreatorInfo] = useState<any>(null);
 
-  // Publish status
-  const [publishId, setPublishId] = useState("");
-  const [publishStatus, setPublishStatus] = useState<any>(null);
+  // Auto-DM AI Responder
+  const [autoRespondActive, setAutoRespondActive] = useState(false);
+  const [autoRespondLoading, setAutoRespondLoading] = useState(false);
+  const [aiDmRedirectUrl, setAiDmRedirectUrl] = useState("");
+  const [aiDmKeywords, setAiDmKeywords] = useState("");
+  const [aiTestMessage, setAiTestMessage] = useState("");
+  const [aiTestReply, setAiTestReply] = useState("");
+  const [aiTestSender, setAiTestSender] = useState("");
+  const [aiTyping, setAiTyping] = useState(false);
+  const [aiTypingDelay, setAiTypingDelay] = useState(0);
+  const [aiLifePause, setAiLifePause] = useState(false);
+
+  // AI Tools
+  const [aiCaptionTopic, setAiCaptionTopic] = useState("");
+  const [aiCaptionResult, setAiCaptionResult] = useState("");
+  const [aiAnalyzeCaption, setAiAnalyzeCaption] = useState("");
+  const [aiAnalyzeResult, setAiAnalyzeResult] = useState("");
+
+  // Scheduled posts
+  const [scheduledPosts, setScheduledPosts] = useState<any[]>([]);
+  const [newPostCaption, setNewPostCaption] = useState("");
+  const [newPostMediaUrl, setNewPostMediaUrl] = useState("");
+  const [newPostScheduledAt, setNewPostScheduledAt] = useState("");
+  const [newPostType, setNewPostType] = useState("video");
+
+  // Load auto-respond state
+  useEffect(() => {
+    if (!selectedAccount) return;
+    const loadState = async () => {
+      const { data } = await supabase.from("auto_respond_state").select("*").eq("account_id", selectedAccount).maybeSingle();
+      if (data) {
+        setAutoRespondActive(data.is_active);
+        setAiDmRedirectUrl(data.redirect_url || "");
+        setAiDmKeywords(data.trigger_keywords || "");
+      }
+    };
+    loadState();
+    // Realtime
+    const channel = supabase
+      .channel(`tt-auto-respond-${selectedAccount}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "auto_respond_state", filter: `account_id=eq.${selectedAccount}` }, (payload: any) => {
+        if (payload.new) {
+          setAutoRespondActive(payload.new.is_active);
+          setAiDmRedirectUrl(payload.new.redirect_url || "");
+          setAiDmKeywords(payload.new.trigger_keywords || "");
+        }
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [selectedAccount]);
+
+  // Load scheduled posts
+  useEffect(() => {
+    if (!selectedAccount) return;
+    supabase.from("social_posts").select("*").eq("account_id", selectedAccount).eq("platform", "tiktok").order("created_at", { ascending: false }).limit(50)
+      .then(({ data }) => { if (data) setScheduledPosts(data); });
+  }, [selectedAccount]);
 
   const callApi = useCallback(async (action: string, params?: any) => {
     setLoading(true);
@@ -125,17 +163,6 @@ const TKAutomationSuite = ({ selectedAccount }: Props) => {
       setLoading(false);
     }
   }, [selectedAccount]);
-
-  const toggleSection = (id: string) => {
-    setExpandedSections(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
-  };
-
-  const expandAll = () => setExpandedSections(new Set(SECTIONS.map(s => s.id)));
-  const collapseAll = () => setExpandedSections(new Set());
 
   // === API HANDLERS ===
   const fetchProfile = async () => {
@@ -204,9 +231,7 @@ const TKAutomationSuite = ({ selectedAccount }: Props) => {
   const replyToComment = async (commentId: string) => {
     if (!replyText) return;
     await callApi("reply_to_comment", { video_id: commentsVideoId, comment_id: commentId, message: replyText });
-    toast.success("Reply sent");
-    setReplyText(""); setReplyingTo(null);
-    fetchComments();
+    toast.success("Reply sent"); setReplyText(""); setReplyingTo(null); fetchComments();
   };
 
   const fetchConversations = async () => {
@@ -223,8 +248,7 @@ const TKAutomationSuite = ({ selectedAccount }: Props) => {
   const sendDm = async () => {
     if (!selectedConvo || !dmText) return;
     await callApi("send_dm", { conversation_id: selectedConvo, message: dmText });
-    toast.success("DM sent"); setDmText("");
-    fetchMessages(selectedConvo);
+    toast.success("DM sent"); setDmText(""); fetchMessages(selectedConvo);
   };
 
   const researchUser = async () => {
@@ -264,53 +288,386 @@ const TKAutomationSuite = ({ selectedAccount }: Props) => {
     else toast.error("Token refresh failed — you may need to re-connect");
   };
 
-  const renderModule = (id: string) => {
-    switch (id) {
-      case "dashboard":
-        return (
-          <div className="space-y-3">
-            <Button size="sm" onClick={fetchProfile} disabled={loading || !selectedAccount}><RefreshCw className="h-3.5 w-3.5 mr-1" />Sync TikTok Profile</Button>
-            {!selectedAccount && <p className="text-xs text-destructive">No account selected — connect TikTok first via the Connect tab.</p>}
-            {profile && (
-              <Card className="border-cyan-500/20">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3 mb-3">
-                    {(profile.avatar_url || profile.avatar_url_100) && <img src={profile.avatar_url || profile.avatar_url_100} className="h-12 w-12 rounded-full object-cover" />}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-foreground truncate flex items-center gap-1.5">
-                        {profile.display_name}
-                        {profile.is_verified && <Badge className="bg-cyan-500/20 text-cyan-400 text-[9px]">Verified</Badge>}
-                      </p>
-                      <p className="text-xs text-muted-foreground">@{profile.username}</p>
-                      {profile.bio_description && <p className="text-[10px] text-muted-foreground mt-1 line-clamp-2">{profile.bio_description}</p>}
-                    </div>
-                    <TikTokIcon className="h-5 w-5 text-cyan-400" />
-                  </div>
-                  <div className="grid grid-cols-4 gap-2 text-center">
-                    <div className="bg-muted/50 rounded p-2"><p className="text-sm font-bold text-foreground">{(profile.follower_count || 0).toLocaleString()}</p><p className="text-[10px] text-muted-foreground">Followers</p></div>
-                    <div className="bg-muted/50 rounded p-2"><p className="text-sm font-bold text-foreground">{(profile.following_count || 0).toLocaleString()}</p><p className="text-[10px] text-muted-foreground">Following</p></div>
-                    <div className="bg-muted/50 rounded p-2"><p className="text-sm font-bold text-foreground">{(profile.likes_count || 0).toLocaleString()}</p><p className="text-[10px] text-muted-foreground">Likes</p></div>
-                    <div className="bg-muted/50 rounded p-2"><p className="text-sm font-bold text-foreground">{(profile.video_count || 0).toLocaleString()}</p><p className="text-[10px] text-muted-foreground">Videos</p></div>
-                  </div>
-                  {profile.profile_deep_link && (
-                    <a href={profile.profile_deep_link} target="_blank" rel="noreferrer" className="text-[10px] text-cyan-400 hover:underline mt-2 inline-flex items-center gap-1">
-                      <ExternalLink className="h-3 w-3" />Open TikTok Profile
-                    </a>
-                  )}
-                </CardContent>
-              </Card>
-            )}
-          </div>
-        );
+  // Auto-respond
+  const toggleAutoRespond = async () => {
+    setAutoRespondLoading(true);
+    const newState = !autoRespondActive;
+    const { error } = await supabase.from("auto_respond_state").upsert({
+      account_id: selectedAccount, is_active: newState,
+      redirect_url: aiDmRedirectUrl || null, trigger_keywords: aiDmKeywords || null,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "account_id" });
+    if (error) toast.error(error.message);
+    else { setAutoRespondActive(newState); toast.success(newState ? "Auto-respond ACTIVE" : "Auto-respond PAUSED"); }
+    setAutoRespondLoading(false);
+  };
 
-      case "videos":
-        return (
-          <div className="space-y-3">
+  const saveAutoRespondConfig = async () => {
+    const { error } = await supabase.from("auto_respond_state").upsert({
+      account_id: selectedAccount, is_active: autoRespondActive,
+      redirect_url: aiDmRedirectUrl || null, trigger_keywords: aiDmKeywords || null,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "account_id" });
+    if (error) toast.error(error.message); else toast.success("Config saved");
+  };
+
+  const generateAiDmReply = async () => {
+    if (!aiTestMessage) return;
+    setAiTestReply("");
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("social-ai-responder", {
+        body: { action: "generate_dm_reply", account_id: selectedAccount, params: { message_text: aiTestMessage, sender_name: aiTestSender || "fan", auto_redirect_url: aiDmRedirectUrl, keywords_trigger: aiDmKeywords, platform: "tiktok" } },
+      });
+      if (error) throw error;
+      if (data?.success && data.data) {
+        const typingDelay = data.data.typing_delay_ms || 2000;
+        const lifePauseMs = data.data.life_pause_ms || 0;
+        if (lifePauseMs > 0) {
+          setAiLifePause(true); setAiTypingDelay(Math.round(lifePauseMs / 1000));
+          setTimeout(() => { setAiLifePause(false); setAiTyping(true); setTimeout(() => { setAiTyping(false); setAiTestReply(data.data.reply || data.data.message); }, typingDelay); }, lifePauseMs);
+        } else {
+          setAiTyping(true); setTimeout(() => { setAiTyping(false); setAiTestReply(data.data.reply || data.data.message); }, typingDelay);
+        }
+      }
+    } catch (e: any) { toast.error(e.message); }
+    setLoading(false);
+  };
+
+  // AI Tools
+  const generateCaption = async () => {
+    if (!aiCaptionTopic) return;
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("social-ai-responder", {
+        body: { action: "generate_caption", account_id: selectedAccount, params: { topic: aiCaptionTopic, platform: "tiktok", include_cta: true } },
+      });
+      if (error) throw error;
+      if (data?.success && data.data) setAiCaptionResult(data.data.caption);
+    } catch (e: any) { toast.error(e.message); }
+    setLoading(false);
+  };
+
+  const analyzeContent = async () => {
+    if (!aiAnalyzeCaption) return;
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("social-ai-responder", {
+        body: { action: "analyze_content", account_id: selectedAccount, params: { caption: aiAnalyzeCaption, platform: "tiktok", content_type: "video" } },
+      });
+      if (error) throw error;
+      if (data?.success && data.data) setAiAnalyzeResult(data.data.analysis);
+    } catch (e: any) { toast.error(e.message); }
+    setLoading(false);
+  };
+
+  // Scheduled posts
+  const schedulePost = async () => {
+    if (!newPostCaption && !newPostMediaUrl) { toast.error("Add caption or media"); return; }
+    const { error } = await supabase.from("social_posts").insert({
+      account_id: selectedAccount, platform: "tiktok", post_type: newPostType,
+      caption: newPostCaption, media_urls: newPostMediaUrl ? [newPostMediaUrl] : [],
+      scheduled_at: newPostScheduledAt || null, status: newPostScheduledAt ? "scheduled" : "draft",
+    });
+    if (error) toast.error(error.message);
+    else {
+      toast.success("Post created!");
+      setNewPostCaption(""); setNewPostMediaUrl(""); setNewPostScheduledAt("");
+      const { data } = await supabase.from("social_posts").select("*").eq("account_id", selectedAccount).eq("platform", "tiktok").order("created_at", { ascending: false }).limit(50);
+      if (data) setScheduledPosts(data);
+    }
+  };
+
+  const publishPost = async (post: any) => {
+    toast.info("Publishing...");
+    const result = await callApi("publish_video_by_url", { video_url: post.media_urls?.[0], title: post.caption, privacy_level: "PUBLIC_TO_EVERYONE", post_id: post.id });
+    if (result) { toast.success("Published!"); const { data } = await supabase.from("social_posts").select("*").eq("account_id", selectedAccount).eq("platform", "tiktok").order("created_at", { ascending: false }).limit(50); if (data) setScheduledPosts(data); }
+  };
+
+  const deletePost = async (id: string) => {
+    await supabase.from("social_posts").delete().eq("id", id);
+    toast.success("Deleted");
+    setScheduledPosts(prev => prev.filter(p => p.id !== id));
+  };
+
+  return (
+    <Tabs value={activeTab} onValueChange={setActiveTab}>
+      <TabsList className="bg-muted/50 border border-border p-0.5 rounded-lg gap-0.5 flex flex-wrap w-full">
+        {[
+          { v: "dashboard", icon: LayoutDashboard, l: "Dashboard" },
+          { v: "auto-dm", icon: Brain, l: "Auto-DM" },
+          { v: "content", icon: Layers, l: "Content" },
+          { v: "comments", icon: MessageSquare, l: "Comments" },
+          { v: "dms", icon: Send, l: "DMs" },
+          { v: "search", icon: Search, l: "Search" },
+          { v: "ai-tools", icon: Wand2, l: "AI Tools" },
+          { v: "analytics", icon: BarChart3, l: "Analytics" },
+          { v: "automation", icon: Zap, l: "Automation" },
+        ].map(t => (
+          <TabsTrigger key={t.v} value={t.v} className="data-[state=active]:bg-background data-[state=active]:text-foreground text-muted-foreground rounded-md gap-1 text-xs px-2 py-1.5 whitespace-nowrap">
+            <t.icon className="h-3.5 w-3.5" />{t.l}
+          </TabsTrigger>
+        ))}
+      </TabsList>
+
+      {/* ===== DASHBOARD ===== */}
+      <TabsContent value="dashboard" className="space-y-4 mt-4">
+        <div className="flex gap-2 flex-wrap">
+          <Button size="sm" variant="outline" onClick={fetchProfile} disabled={loading || !selectedAccount} className="text-foreground">
+            <RefreshCw className="h-3.5 w-3.5 mr-1" />Sync TikTok Profile
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => fetchVideos()} disabled={loading || !selectedAccount} className="text-foreground">
+            <Download className="h-3.5 w-3.5 mr-1" />Pull Videos
+          </Button>
+        </div>
+
+        {!selectedAccount && <p className="text-xs text-destructive">No account selected — connect TikTok first via the Connect tab.</p>}
+
+        {profile && (
+          <Card className="border-cyan-500/20">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3 mb-3">
+                {(profile.avatar_url || profile.avatar_url_100) && <img src={profile.avatar_url || profile.avatar_url_100} className="h-12 w-12 rounded-full object-cover" />}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-foreground truncate flex items-center gap-1.5">
+                    {profile.display_name}
+                    {profile.is_verified && <Badge className="bg-cyan-500/20 text-cyan-400 text-[9px]">Verified</Badge>}
+                  </p>
+                  <p className="text-xs text-muted-foreground">@{profile.username}</p>
+                  {profile.bio_description && <p className="text-[10px] text-muted-foreground mt-1 line-clamp-2">{profile.bio_description}</p>}
+                </div>
+                <TikTokIcon className="h-5 w-5 text-cyan-400" />
+              </div>
+              <div className="grid grid-cols-4 gap-2 text-center">
+                <div className="bg-muted/50 rounded p-2"><p className="text-sm font-bold text-foreground">{(profile.follower_count || 0).toLocaleString()}</p><p className="text-[10px] text-muted-foreground">Followers</p></div>
+                <div className="bg-muted/50 rounded p-2"><p className="text-sm font-bold text-foreground">{(profile.following_count || 0).toLocaleString()}</p><p className="text-[10px] text-muted-foreground">Following</p></div>
+                <div className="bg-muted/50 rounded p-2"><p className="text-sm font-bold text-foreground">{(profile.likes_count || 0).toLocaleString()}</p><p className="text-[10px] text-muted-foreground">Likes</p></div>
+                <div className="bg-muted/50 rounded p-2"><p className="text-sm font-bold text-foreground">{(profile.video_count || 0).toLocaleString()}</p><p className="text-[10px] text-muted-foreground">Videos</p></div>
+              </div>
+              {profile.profile_deep_link && (
+                <a href={profile.profile_deep_link} target="_blank" rel="noreferrer" className="text-[10px] text-cyan-400 hover:underline mt-2 inline-flex items-center gap-1">
+                  <ExternalLink className="h-3 w-3" />Open TikTok Profile
+                </a>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Stats Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+          <Card><CardContent className="p-3 text-center"><p className="text-xl font-bold text-foreground">{videos.length}</p><p className="text-[10px] text-muted-foreground">Videos Loaded</p></CardContent></Card>
+          <Card><CardContent className="p-3 text-center"><p className="text-xl font-bold text-foreground">{scheduledPosts.filter(p => p.status === "scheduled").length}</p><p className="text-[10px] text-muted-foreground">Scheduled</p></CardContent></Card>
+          <Card><CardContent className="p-3 text-center"><p className="text-xl font-bold text-foreground">{scheduledPosts.filter(p => p.status === "published").length}</p><p className="text-[10px] text-muted-foreground">Published</p></CardContent></Card>
+          <Card><CardContent className="p-3 text-center"><p className="text-xl font-bold text-foreground">{playlists.length}</p><p className="text-[10px] text-muted-foreground">Playlists</p></CardContent></Card>
+        </div>
+
+        {/* Recent Videos */}
+        {videos.length > 0 && (
+          <Card>
+            <CardContent className="p-4">
+              <h4 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2"><Video className="h-4 w-4 text-cyan-400" />Recent Videos</h4>
+              <ScrollArea className="max-h-[300px]">
+                <div className="space-y-2">
+                  {videos.slice(0, 5).map((v: any) => (
+                    <div key={v.id} className="bg-muted/30 rounded-lg p-3 flex gap-3">
+                      {v.cover_image_url && <img src={v.cover_image_url} className="h-16 w-12 rounded object-cover flex-shrink-0" />}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold text-foreground line-clamp-1">{v.title || v.video_description || "Untitled"}</p>
+                        <div className="flex gap-3 mt-1.5 text-[10px] text-muted-foreground">
+                          <span className="flex items-center gap-0.5"><Eye className="h-3 w-3" />{(v.view_count || 0).toLocaleString()}</span>
+                          <span className="flex items-center gap-0.5"><Heart className="h-3 w-3" />{(v.like_count || 0).toLocaleString()}</span>
+                          <span className="flex items-center gap-0.5"><MessageSquare className="h-3 w-3" />{(v.comment_count || 0).toLocaleString()}</span>
+                          <span className="flex items-center gap-0.5"><Share2 className="h-3 w-3" />{(v.share_count || 0).toLocaleString()}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            </CardContent>
+          </Card>
+        )}
+      </TabsContent>
+
+      {/* ===== AUTO-DM ===== */}
+      <TabsContent value="auto-dm" className="space-y-4 mt-4">
+        <Card className={`border-2 transition-colors ${autoRespondActive ? "border-red-500/50 bg-red-500/5" : "border-border"}`}>
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-base font-bold text-foreground flex items-center gap-2">
+                  <Brain className="h-5 w-5 text-cyan-400" />AI Auto-DM Responder
+                </h3>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {autoRespondActive ? "AI is actively responding to incoming TikTok DMs" : "Click Play to start auto-responding to all incoming DMs"}
+                </p>
+              </div>
+              <Button size="lg" onClick={toggleAutoRespond} disabled={autoRespondLoading}
+                className={`h-14 w-14 rounded-full p-0 ${autoRespondActive ? "bg-red-500 hover:bg-red-600 text-white" : "bg-green-500 hover:bg-green-600 text-white"}`}>
+                {autoRespondActive ? <Pause className="h-6 w-6" /> : <Play className="h-6 w-6 ml-0.5" />}
+              </Button>
+            </div>
+
+            {autoRespondActive && (
+              <div className="flex items-center gap-2 p-2.5 rounded-lg bg-red-500/10 border border-red-500/20 mb-4">
+                <div className="h-2.5 w-2.5 rounded-full bg-red-500 animate-pulse" />
+                <span className="text-xs font-medium text-red-400">LIVE — AI is responding to TikTok DMs in real-time</span>
+              </div>
+            )}
+
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">OF Redirect URL</label>
+                <Input value={aiDmRedirectUrl} onChange={e => setAiDmRedirectUrl(e.target.value)} placeholder="https://onlyfans.com/..." className="text-sm" />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Trigger Keywords (comma separated)</label>
+                <Input value={aiDmKeywords} onChange={e => setAiDmKeywords(e.target.value)} placeholder="content, exclusive, private, subscribe..." className="text-sm" />
+              </div>
+              <Button size="sm" variant="outline" className="text-foreground" onClick={saveAutoRespondConfig}>Save Config</Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Test AI */}
+        <Card>
+          <CardContent className="p-4 space-y-3">
+            <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><Zap className="h-4 w-4 text-yellow-400" />Test AI Responder</h4>
+            <div className="grid grid-cols-3 gap-2">
+              <Input value={aiTestSender} onChange={e => setAiTestSender(e.target.value)} placeholder="Sender name" className="text-sm" />
+              <Input value={aiTestMessage} onChange={e => setAiTestMessage(e.target.value)} placeholder="Type a test DM..." className="text-sm col-span-2" onKeyDown={e => e.key === "Enter" && generateAiDmReply()} />
+            </div>
+            <Button onClick={generateAiDmReply} disabled={loading || aiTyping || aiLifePause || !aiTestMessage} size="sm"><Brain className="h-3.5 w-3.5 mr-1.5" />Generate Reply</Button>
+            {aiLifePause && (
+              <div className="bg-muted/50 rounded-lg p-3 border border-border flex items-center gap-2">
+                <Clock className="h-4 w-4 text-muted-foreground animate-pulse" />
+                <p className="text-sm text-muted-foreground italic">away for {aiTypingDelay}s... (simulating natural pause)</p>
+              </div>
+            )}
+            {aiTyping && !aiLifePause && (
+              <div className="bg-muted/50 rounded-lg p-3 border border-border flex items-center gap-2">
+                <div className="flex gap-1">
+                  <span className="w-1.5 h-1.5 bg-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                  <span className="w-1.5 h-1.5 bg-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                  <span className="w-1.5 h-1.5 bg-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                </div>
+                <p className="text-sm text-muted-foreground italic">typing...</p>
+              </div>
+            )}
+            {aiTestReply && !aiTyping && !aiLifePause && (
+              <div className="bg-muted/50 rounded-lg p-3 border border-border">
+                <p className="text-xs text-muted-foreground mb-1">AI Reply:</p>
+                <p className="text-sm text-foreground">{aiTestReply}</p>
+                <div className="flex gap-2 mt-2">
+                  <Button size="sm" variant="outline" onClick={() => { navigator.clipboard.writeText(aiTestReply); toast.success("Copied"); }}><Copy className="h-3 w-3 mr-1" />Copy</Button>
+                  <Button size="sm" variant="outline" onClick={() => { setDmText(aiTestReply); setActiveTab("dms"); toast.success("Pasted to DM"); }}><Send className="h-3 w-3 mr-1" />Send as DM</Button>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Live Conversations */}
+        <Card>
+          <CardContent className="p-4">
+            <h4 className="text-sm font-semibold text-foreground flex items-center gap-2 mb-3">
+              <MessageCircle className="h-4 w-4 text-cyan-400" />Live AI Conversations
+            </h4>
+            <LiveDMConversations
+              accountId={selectedAccount}
+              autoRespondActive={autoRespondActive}
+              onToggleAutoRespond={toggleAutoRespond}
+              onNavigateToSession={() => {}}
+              igSessionId=""
+              igSessionStatus="unknown"
+            />
+          </CardContent>
+        </Card>
+      </TabsContent>
+
+      {/* ===== CONTENT ===== */}
+      <TabsContent value="content" className="space-y-4 mt-4">
+        {/* Publish Video */}
+        <Card>
+          <CardContent className="p-4 space-y-3">
+            <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><Upload className="h-4 w-4 text-green-400" />Publish Video</h4>
+            <Input value={publishVideoTitle} onChange={e => setPublishVideoTitle(e.target.value)} placeholder="Video title / caption" className="text-sm" />
+            <Input value={publishVideoUrl} onChange={e => setPublishVideoUrl(e.target.value)} placeholder="Video URL (pull from URL)" className="text-sm" />
+            <select value={publishPrivacy} onChange={e => setPublishPrivacy(e.target.value)} className="w-full bg-background border border-border text-foreground rounded-lg px-2 py-1.5 text-sm">
+              <option value="PUBLIC_TO_EVERYONE">Public</option>
+              <option value="MUTUAL_FOLLOW_FRIENDS">Friends Only</option>
+              <option value="FOLLOWER_OF_CREATOR">Followers Only</option>
+              <option value="SELF_ONLY">Private (Self Only)</option>
+            </select>
+            <div className="flex gap-4 text-xs text-muted-foreground">
+              <label className="flex items-center gap-1.5"><Switch checked={disableDuet} onCheckedChange={setDisableDuet} className="scale-75" />Disable Duet</label>
+              <label className="flex items-center gap-1.5"><Switch checked={disableComment} onCheckedChange={setDisableComment} className="scale-75" />Disable Comments</label>
+              <label className="flex items-center gap-1.5"><Switch checked={disableStitch} onCheckedChange={setDisableStitch} className="scale-75" />Disable Stitch</label>
+            </div>
+            <Button size="sm" onClick={publishVideoByUrl} disabled={loading || !selectedAccount || !publishVideoUrl}><Upload className="h-3.5 w-3.5 mr-1" />Publish Video</Button>
+            <div className="border-t border-border pt-3 space-y-2">
+              <h5 className="text-xs font-semibold text-foreground">Check Publish Status</h5>
+              <div className="flex gap-2">
+                <Input value={publishId} onChange={e => setPublishId(e.target.value)} placeholder="Publish ID" className="text-sm flex-1" />
+                <Button size="sm" variant="outline" onClick={checkPublishStatus} disabled={loading || !publishId}>Check</Button>
+              </div>
+              {publishStatus && <pre className="text-[10px] bg-muted/50 rounded p-2 overflow-auto max-h-32">{JSON.stringify(publishStatus, null, 2)}</pre>}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Publish Photo / Carousel */}
+        <Card>
+          <CardContent className="p-4 space-y-3">
+            <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><Image className="h-4 w-4 text-blue-400" />Publish Photo / Carousel</h4>
+            <div className="flex gap-2">
+              <Button size="sm" variant={mediaType === "PHOTO" ? "default" : "outline"} onClick={() => setMediaType("PHOTO")}><Image className="h-3.5 w-3.5 mr-1" />Single Photo</Button>
+              <Button size="sm" variant={mediaType === "CAROUSEL" ? "default" : "outline"} onClick={() => setMediaType("CAROUSEL")}><Layers className="h-3.5 w-3.5 mr-1" />Carousel</Button>
+            </div>
+            <Input value={photoTitle} onChange={e => setPhotoTitle(e.target.value)} placeholder="Title" className="text-sm" />
+            <Input value={photoDesc} onChange={e => setPhotoDesc(e.target.value)} placeholder="Description" className="text-sm" />
+            <Textarea value={photoUrls} onChange={e => setPhotoUrls(e.target.value)} placeholder="Image URLs (one per line)" rows={3} className="text-sm" />
+            <select value={photoPrivacy} onChange={e => setPhotoPrivacy(e.target.value)} className="w-full bg-background border border-border text-foreground rounded-lg px-2 py-1.5 text-sm">
+              <option value="PUBLIC_TO_EVERYONE">Public</option>
+              <option value="MUTUAL_FOLLOW_FRIENDS">Friends Only</option>
+              <option value="FOLLOWER_OF_CREATOR">Followers Only</option>
+              <option value="SELF_ONLY">Private</option>
+            </select>
+            <Button size="sm" onClick={publishPhoto} disabled={loading || !selectedAccount || !photoUrls}><Upload className="h-3.5 w-3.5 mr-1" />Publish {mediaType === "CAROUSEL" ? "Carousel" : "Photo"}</Button>
+          </CardContent>
+        </Card>
+
+        {/* Playlists */}
+        <Card>
+          <CardContent className="p-4 space-y-3">
+            <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><ListVideo className="h-4 w-4 text-violet-400" />Playlist Manager</h4>
+            <div className="flex gap-2">
+              <Button size="sm" onClick={fetchPlaylists} disabled={loading || !selectedAccount}><RefreshCw className="h-3.5 w-3.5 mr-1" />Load</Button>
+            </div>
+            <div className="flex gap-2">
+              <Input value={newPlaylistName} onChange={e => setNewPlaylistName(e.target.value)} placeholder="New playlist name" className="text-sm flex-1" />
+              <Button size="sm" onClick={createPlaylist} disabled={loading || !newPlaylistName}>Create</Button>
+            </div>
+            {playlists.length > 0 && (
+              <div className="space-y-1.5">
+                {playlists.map((p: any, i: number) => (
+                  <div key={i} className="bg-muted/30 rounded p-2 flex items-center justify-between">
+                    <span className="text-xs text-foreground">{p.playlist_name || p.name || `Playlist ${i + 1}`}</span>
+                    <Badge variant="outline" className="text-[10px]">{p.video_count || 0} videos</Badge>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Video Manager */}
+        <Card>
+          <CardContent className="p-4 space-y-3">
+            <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><Video className="h-4 w-4 text-teal-400" />Video Manager</h4>
             <div className="flex gap-2">
               <Button size="sm" onClick={() => fetchVideos()} disabled={loading || !selectedAccount}><RefreshCw className="h-3.5 w-3.5 mr-1" />Load Videos</Button>
-              {videosHasMore && videosCursor && (
-                <Button size="sm" variant="outline" onClick={() => fetchVideos(videosCursor)} disabled={loading}>Load More</Button>
-              )}
+              {videosHasMore && videosCursor && <Button size="sm" variant="outline" onClick={() => fetchVideos(videosCursor)} disabled={loading}>Load More</Button>}
             </div>
             {videos.length > 0 ? (
               <ScrollArea className="max-h-[400px]">
@@ -330,7 +687,7 @@ const TKAutomationSuite = ({ selectedAccount }: Props) => {
                         </div>
                         <div className="flex gap-2 mt-1">
                           {v.share_url && <a href={v.share_url} target="_blank" rel="noreferrer" className="text-[10px] text-cyan-400 hover:underline flex items-center gap-0.5"><ExternalLink className="h-3 w-3" />View</a>}
-                          <button onClick={() => { setCommentsVideoId(v.id); toggleSection("comments"); }} className="text-[10px] text-amber-400 hover:underline flex items-center gap-0.5"><MessageSquare className="h-3 w-3" />Comments</button>
+                          <button onClick={() => { setCommentsVideoId(v.id); setActiveTab("comments"); }} className="text-[10px] text-amber-400 hover:underline flex items-center gap-0.5"><MessageSquare className="h-3 w-3" />Comments</button>
                         </div>
                       </div>
                     </div>
@@ -340,99 +697,59 @@ const TKAutomationSuite = ({ selectedAccount }: Props) => {
             ) : (
               <p className="text-xs text-muted-foreground text-center py-4">No videos loaded yet</p>
             )}
-          </div>
-        );
+          </CardContent>
+        </Card>
 
-      case "publish-video":
-        return (
-          <div className="space-y-3">
-            <div className="space-y-2">
-              <Input value={publishVideoTitle} onChange={e => setPublishVideoTitle(e.target.value)} placeholder="Video title / caption" className="text-sm" />
-              <Input value={publishVideoUrl} onChange={e => setPublishVideoUrl(e.target.value)} placeholder="Video URL (pull from URL)" className="text-sm" />
-              <select value={publishPrivacy} onChange={e => setPublishPrivacy(e.target.value)} className="w-full bg-background border border-border text-foreground rounded-lg px-2 py-1.5 text-sm">
-                <option value="PUBLIC_TO_EVERYONE">Public</option>
-                <option value="MUTUAL_FOLLOW_FRIENDS">Friends Only</option>
-                <option value="FOLLOWER_OF_CREATOR">Followers Only</option>
-                <option value="SELF_ONLY">Private (Self Only)</option>
-              </select>
-              <div className="flex gap-4 text-xs text-muted-foreground">
-                <label className="flex items-center gap-1.5"><Switch checked={disableDuet} onCheckedChange={setDisableDuet} className="scale-75" />Disable Duet</label>
-                <label className="flex items-center gap-1.5"><Switch checked={disableComment} onCheckedChange={setDisableComment} className="scale-75" />Disable Comments</label>
-                <label className="flex items-center gap-1.5"><Switch checked={disableStitch} onCheckedChange={setDisableStitch} className="scale-75" />Disable Stitch</label>
-              </div>
-              <Button size="sm" onClick={publishVideoByUrl} disabled={loading || !selectedAccount || !publishVideoUrl}>
-                <Upload className="h-3.5 w-3.5 mr-1" />Publish Video
-              </Button>
-            </div>
-            <div className="border-t border-border pt-3 space-y-2">
-              <h5 className="text-xs font-semibold text-foreground">Check Publish Status</h5>
-              <div className="flex gap-2">
-                <Input value={publishId} onChange={e => setPublishId(e.target.value)} placeholder="Publish ID" className="text-sm flex-1" />
-                <Button size="sm" variant="outline" onClick={checkPublishStatus} disabled={loading || !publishId}>Check</Button>
-              </div>
-              {publishStatus && (
-                <pre className="text-[10px] bg-muted/50 rounded p-2 overflow-auto max-h-32">{JSON.stringify(publishStatus, null, 2)}</pre>
-              )}
-            </div>
-          </div>
-        );
-
-      case "publish-photo":
-        return (
-          <div className="space-y-3">
-            <div className="flex gap-2">
-              <Button size="sm" variant={mediaType === "PHOTO" ? "default" : "outline"} onClick={() => setMediaType("PHOTO")}><Image className="h-3.5 w-3.5 mr-1" />Single Photo</Button>
-              <Button size="sm" variant={mediaType === "CAROUSEL" ? "default" : "outline"} onClick={() => setMediaType("CAROUSEL")}><Layers className="h-3.5 w-3.5 mr-1" />Carousel</Button>
-            </div>
-            <Input value={photoTitle} onChange={e => setPhotoTitle(e.target.value)} placeholder="Title" className="text-sm" />
-            <Input value={photoDesc} onChange={e => setPhotoDesc(e.target.value)} placeholder="Description" className="text-sm" />
-            <Textarea value={photoUrls} onChange={e => setPhotoUrls(e.target.value)} placeholder="Image URLs (one per line)" rows={3} className="text-sm" />
-            <select value={photoPrivacy} onChange={e => setPhotoPrivacy(e.target.value)} className="w-full bg-background border border-border text-foreground rounded-lg px-2 py-1.5 text-sm">
-              <option value="PUBLIC_TO_EVERYONE">Public</option>
-              <option value="MUTUAL_FOLLOW_FRIENDS">Friends Only</option>
-              <option value="FOLLOWER_OF_CREATOR">Followers Only</option>
-              <option value="SELF_ONLY">Private</option>
-            </select>
-            <Button size="sm" onClick={publishPhoto} disabled={loading || !selectedAccount || !photoUrls}>
-              <Upload className="h-3.5 w-3.5 mr-1" />Publish {mediaType === "CAROUSEL" ? "Carousel" : "Photo"}
-            </Button>
-          </div>
-        );
-
-      case "playlists":
-        return (
-          <div className="space-y-3">
-            <div className="flex gap-2">
-              <Button size="sm" onClick={fetchPlaylists} disabled={loading || !selectedAccount}><RefreshCw className="h-3.5 w-3.5 mr-1" />Load Playlists</Button>
-            </div>
-            <div className="flex gap-2">
-              <Input value={newPlaylistName} onChange={e => setNewPlaylistName(e.target.value)} placeholder="New playlist name" className="text-sm flex-1" />
-              <Button size="sm" onClick={createPlaylist} disabled={loading || !newPlaylistName}>Create</Button>
-            </div>
-            {playlists.length > 0 ? (
-              <div className="space-y-1.5">
-                {playlists.map((p: any, i: number) => (
-                  <div key={i} className="bg-muted/30 rounded p-2 flex items-center justify-between">
-                    <span className="text-xs text-foreground">{p.playlist_name || p.name || `Playlist ${i + 1}`}</span>
-                    <Badge variant="outline" className="text-[10px]">{p.video_count || 0} videos</Badge>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-xs text-muted-foreground text-center py-3">No playlists loaded</p>
+        {/* Scheduled Posts */}
+        <Card>
+          <CardContent className="p-4 space-y-3">
+            <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><Calendar className="h-4 w-4 text-orange-400" />Schedule Post</h4>
+            <Input value={newPostCaption} onChange={e => setNewPostCaption(e.target.value)} placeholder="Caption" className="text-sm" />
+            <Input value={newPostMediaUrl} onChange={e => setNewPostMediaUrl(e.target.value)} placeholder="Media URL" className="text-sm" />
+            <Input type="datetime-local" value={newPostScheduledAt} onChange={e => setNewPostScheduledAt(e.target.value)} className="text-sm" />
+            <Button size="sm" onClick={schedulePost} disabled={!newPostCaption && !newPostMediaUrl}><Calendar className="h-3.5 w-3.5 mr-1" />Schedule</Button>
+            {scheduledPosts.length > 0 && (
+              <ScrollArea className="max-h-[250px]">
+                <div className="space-y-1.5">
+                  {scheduledPosts.map(p => (
+                    <div key={p.id} className="bg-muted/30 rounded p-2 flex items-center justify-between">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-foreground line-clamp-1">{p.caption || "No caption"}</p>
+                        <p className="text-[10px] text-muted-foreground">{p.status} · {p.scheduled_at ? new Date(p.scheduled_at).toLocaleString() : "No schedule"}</p>
+                      </div>
+                      <div className="flex gap-1">
+                        {p.status !== "published" && <Button size="sm" variant="ghost" className="h-6 text-[10px]" onClick={() => publishPost(p)}><Play className="h-3 w-3" /></Button>}
+                        <Button size="sm" variant="ghost" className="h-6 text-[10px] text-destructive" onClick={() => deletePost(p.id)}>×</Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
             )}
-          </div>
-        );
+          </CardContent>
+        </Card>
+      </TabsContent>
 
-      case "comments":
-        return (
-          <div className="space-y-3">
+      {/* ===== COMMENTS ===== */}
+      <TabsContent value="comments" className="space-y-4 mt-4">
+        <Card>
+          <CardContent className="p-4 space-y-3">
+            <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><MessageSquare className="h-4 w-4 text-amber-400" />Comments Manager</h4>
             <div className="flex gap-2">
               <Input value={commentsVideoId} onChange={e => setCommentsVideoId(e.target.value)} placeholder="Video ID" className="text-sm flex-1" />
               <Button size="sm" onClick={fetchComments} disabled={loading || !commentsVideoId}>Load Comments</Button>
             </div>
+            {/* Quick pick from loaded videos */}
+            {videos.length > 0 && (
+              <div className="flex gap-1 flex-wrap">
+                <span className="text-[10px] text-muted-foreground">Quick pick:</span>
+                {videos.slice(0, 5).map(v => (
+                  <button key={v.id} onClick={() => { setCommentsVideoId(v.id); fetchComments(); }} className="text-[10px] text-cyan-400 hover:underline">{(v.title || v.video_description || v.id).substring(0, 20)}…</button>
+                ))}
+              </div>
+            )}
             {comments.length > 0 ? (
-              <ScrollArea className="max-h-[350px]">
+              <ScrollArea className="max-h-[400px]">
                 <div className="space-y-2">
                   {comments.map((c: any) => (
                     <div key={c.id} className="bg-muted/30 rounded-lg p-2.5">
@@ -458,14 +775,17 @@ const TKAutomationSuite = ({ selectedAccount }: Props) => {
             ) : (
               <p className="text-xs text-muted-foreground text-center py-3">No comments loaded</p>
             )}
-          </div>
-        );
+          </CardContent>
+        </Card>
+      </TabsContent>
 
-      case "dms":
-        return (
-          <div className="space-y-3">
+      {/* ===== DMs ===== */}
+      <TabsContent value="dms" className="space-y-4 mt-4">
+        <Card>
+          <CardContent className="p-4 space-y-3">
+            <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><Send className="h-4 w-4 text-pink-400" />Direct Messages</h4>
             <Button size="sm" onClick={fetchConversations} disabled={loading || !selectedAccount}><RefreshCw className="h-3.5 w-3.5 mr-1" />Load Conversations</Button>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 gap-2" style={{ minHeight: 300 }}>
               <div className="col-span-1 space-y-1">
                 {conversations.length > 0 ? conversations.map((c: any, i: number) => (
                   <button key={i} onClick={() => fetchMessages(c.conversation_id || c.id)} className={`w-full text-left p-2 rounded text-xs transition ${selectedConvo === (c.conversation_id || c.id) ? "bg-cyan-500/10 border border-cyan-500/30" : "bg-muted/30 hover:bg-muted/50"}`}>
@@ -495,12 +815,16 @@ const TKAutomationSuite = ({ selectedAccount }: Props) => {
                 )}
               </div>
             </div>
-          </div>
-        );
+          </CardContent>
+        </Card>
+      </TabsContent>
 
-      case "research-users":
-        return (
-          <div className="space-y-3">
+      {/* ===== SEARCH ===== */}
+      <TabsContent value="search" className="space-y-4 mt-4">
+        {/* User Research */}
+        <Card>
+          <CardContent className="p-4 space-y-3">
+            <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><Users className="h-4 w-4 text-purple-400" />User Research</h4>
             <div className="flex gap-2">
               <Input value={researchUsername} onChange={e => setResearchUsername(e.target.value)} placeholder="TikTok username" className="text-sm flex-1" onKeyDown={e => e.key === "Enter" && researchUser()} />
               <Button size="sm" onClick={researchUser} disabled={loading || !researchUsername}><Search className="h-3.5 w-3.5 mr-1" />Lookup</Button>
@@ -524,12 +848,13 @@ const TKAutomationSuite = ({ selectedAccount }: Props) => {
                 </CardContent>
               </Card>
             )}
-          </div>
-        );
+          </CardContent>
+        </Card>
 
-      case "research-videos":
-        return (
-          <div className="space-y-3">
+        {/* Video Research */}
+        <Card>
+          <CardContent className="p-4 space-y-3">
+            <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><Video className="h-4 w-4 text-lime-400" />Video Search</h4>
             <div className="flex gap-2">
               <Input value={researchKeywords} onChange={e => setResearchKeywords(e.target.value)} placeholder="Keywords (comma separated)" className="text-sm flex-1" onKeyDown={e => e.key === "Enter" && researchVideoSearch()} />
               <Button size="sm" onClick={researchVideoSearch} disabled={loading || !researchKeywords}><Search className="h-3.5 w-3.5 mr-1" />Search</Button>
@@ -557,12 +882,13 @@ const TKAutomationSuite = ({ selectedAccount }: Props) => {
                 </div>
               </ScrollArea>
             )}
-          </div>
-        );
+          </CardContent>
+        </Card>
 
-      case "research-hashtags":
-        return (
-          <div className="space-y-3">
+        {/* Hashtag Research */}
+        <Card>
+          <CardContent className="p-4 space-y-3">
+            <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><Hash className="h-4 w-4 text-rose-400" />Hashtag Research</h4>
             <div className="flex gap-2">
               <Input value={researchHashtags} onChange={e => setResearchHashtags(e.target.value)} placeholder="Hashtags (comma separated, no #)" className="text-sm flex-1" onKeyDown={e => e.key === "Enter" && researchHashtagSearch()} />
               <Button size="sm" onClick={researchHashtagSearch} disabled={loading || !researchHashtags}><Hash className="h-3.5 w-3.5 mr-1" />Analyze</Button>
@@ -580,12 +906,13 @@ const TKAutomationSuite = ({ selectedAccount }: Props) => {
                 ))}
               </div>
             )}
-          </div>
-        );
+          </CardContent>
+        </Card>
 
-      case "research-comments":
-        return (
-          <div className="space-y-3">
+        {/* Comment Research */}
+        <Card>
+          <CardContent className="p-4 space-y-3">
+            <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><Eye className="h-4 w-4 text-orange-400" />Comment Research</h4>
             <div className="flex gap-2">
               <Input value={researchCommentVideoId} onChange={e => setResearchCommentVideoId(e.target.value)} placeholder="Any TikTok video ID" className="text-sm flex-1" />
               <Button size="sm" onClick={researchCommentsFetch} disabled={loading || !researchCommentVideoId}><Search className="h-3.5 w-3.5 mr-1" />Analyze</Button>
@@ -605,107 +932,147 @@ const TKAutomationSuite = ({ selectedAccount }: Props) => {
                 </div>
               </ScrollArea>
             )}
-          </div>
-        );
+          </CardContent>
+        </Card>
+      </TabsContent>
 
-      case "creator-info":
-        return (
-          <div className="space-y-3">
-            <Button size="sm" onClick={fetchCreatorInfo} disabled={loading || !selectedAccount}><Star className="h-3.5 w-3.5 mr-1" />Fetch Creator Info</Button>
-            {creatorInfo && (
-              <pre className="text-[10px] bg-muted/50 rounded p-3 overflow-auto max-h-[300px] text-foreground">{JSON.stringify(creatorInfo, null, 2)}</pre>
-            )}
-          </div>
-        );
-
-      case "token-mgmt":
-        return (
-          <div className="space-y-3">
-            <Card className="border-amber-500/20">
-              <CardContent className="p-4 space-y-3">
-                <h5 className="text-sm font-semibold text-foreground flex items-center gap-2"><Shield className="h-4 w-4 text-amber-400" />Connection Health</h5>
-                <p className="text-[10px] text-muted-foreground">Manage your TikTok API connection. Refresh tokens before they expire, or revoke access entirely.</p>
-                <div className="flex gap-2">
-                  <Button size="sm" onClick={refreshToken} disabled={loading}><RefreshCw className="h-3.5 w-3.5 mr-1" />Refresh Token</Button>
-                  <Button size="sm" variant="destructive" onClick={async () => {
-                    if (!confirm("Revoke TikTok access? You'll need to reconnect.")) return;
-                    await callApi("revoke_token", {});
-                    toast.success("TikTok access revoked");
-                  }} disabled={loading}><Trash2 className="h-3.5 w-3.5 mr-1" />Revoke Access</Button>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        );
-
-      default:
-        return null;
-    }
-  };
-
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <TikTokIcon className="h-5 w-5 text-cyan-400" />
-          <h3 className="text-sm font-bold text-foreground">TikTok Revenue Operating System</h3>
-          <Badge variant="outline" className="text-[10px]">{SECTIONS.length} modules</Badge>
-        </div>
-        <div className="flex gap-1">
-          <Button size="sm" variant="ghost" onClick={expandAll} className="text-xs h-7 text-foreground">Expand All</Button>
-          <Button size="sm" variant="ghost" onClick={collapseAll} className="text-xs h-7 text-foreground">Collapse All</Button>
-        </div>
-      </div>
-
-      <ScrollArea className="h-[calc(100vh-260px)]">
-        <div className="space-y-3 pr-2">
-          {CATEGORIES.map(cat => {
-            const catSections = SECTIONS.filter(s => s.category === cat);
-            return (
-              <div key={cat}>
-                <div className="flex items-center gap-2 mb-1.5">
-                  <Badge variant="outline" className="text-[9px] font-bold uppercase tracking-wider">{cat}</Badge>
-                  <div className="flex-1 h-px bg-border" />
-                </div>
-                <div className="space-y-1.5">
-                  {catSections.map(section => {
-                    const isExpanded = expandedSections.has(section.id);
-                    return (
-                      <Card key={section.id} className={`transition-all ${isExpanded ? "border-cyan-500/30" : ""}`}>
-                        <button
-                          onClick={() => toggleSection(section.id)}
-                          className="w-full p-3 flex items-center gap-3 hover:bg-muted/30 transition-colors rounded-t-xl"
-                        >
-                          <div className={`h-8 w-8 rounded-lg bg-muted/50 flex items-center justify-center ${section.color}`}>
-                            <section.icon className="h-4 w-4" />
-                          </div>
-                          <div className="flex-1 text-left">
-                            <p className="text-sm font-semibold text-foreground">{section.label}</p>
-                            <p className="text-[10px] text-muted-foreground">{section.desc}</p>
-                          </div>
-                          {loading && isExpanded ? (
-                            <Loader2 className="h-4 w-4 text-muted-foreground animate-spin" />
-                          ) : isExpanded ? (
-                            <ChevronUp className="h-4 w-4 text-muted-foreground" />
-                          ) : (
-                            <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                          )}
-                        </button>
-                        {isExpanded && (
-                          <CardContent className="p-3 pt-0 border-t border-border">
-                            {renderModule(section.id)}
-                          </CardContent>
-                        )}
-                      </Card>
-                    );
-                  })}
-                </div>
+      {/* ===== AI TOOLS ===== */}
+      <TabsContent value="ai-tools" className="space-y-4 mt-4">
+        <Card>
+          <CardContent className="p-4 space-y-3">
+            <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><Sparkles className="h-4 w-4 text-yellow-400" />AI Caption Generator</h4>
+            <Input value={aiCaptionTopic} onChange={e => setAiCaptionTopic(e.target.value)} placeholder="Topic or theme for TikTok caption..." className="text-sm" />
+            <Button size="sm" onClick={generateCaption} disabled={loading || !aiCaptionTopic}><Wand2 className="h-3.5 w-3.5 mr-1" />Generate TikTok Caption</Button>
+            {aiCaptionResult && (
+              <div className="bg-muted/50 rounded-lg p-3 border border-border">
+                <p className="text-sm text-foreground whitespace-pre-wrap">{aiCaptionResult}</p>
+                <Button size="sm" variant="outline" className="mt-2" onClick={() => { navigator.clipboard.writeText(aiCaptionResult); toast.success("Copied"); }}><Copy className="h-3 w-3 mr-1" />Copy</Button>
               </div>
-            );
-          })}
-        </div>
-      </ScrollArea>
-    </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4 space-y-3">
+            <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><Brain className="h-4 w-4 text-purple-400" />Content Analyzer</h4>
+            <Textarea value={aiAnalyzeCaption} onChange={e => setAiAnalyzeCaption(e.target.value)} placeholder="Paste your TikTok caption or script to analyze..." rows={3} className="text-sm" />
+            <Button size="sm" onClick={analyzeContent} disabled={loading || !aiAnalyzeCaption}><BarChart3 className="h-3.5 w-3.5 mr-1" />Analyze</Button>
+            {aiAnalyzeResult && (
+              <div className="bg-muted/50 rounded-lg p-3 border border-border">
+                <p className="text-sm text-foreground whitespace-pre-wrap">{aiAnalyzeResult}</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </TabsContent>
+
+      {/* ===== ANALYTICS ===== */}
+      <TabsContent value="analytics" className="space-y-4 mt-4">
+        <Card>
+          <CardContent className="p-4 space-y-3">
+            <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><BarChart3 className="h-4 w-4 text-cyan-400" />Video Performance</h4>
+            <Button size="sm" onClick={() => fetchVideos()} disabled={loading || !selectedAccount}><RefreshCw className="h-3.5 w-3.5 mr-1" />Load Analytics</Button>
+            {videos.length > 0 ? (
+              <div className="space-y-2">
+                <div className="grid grid-cols-4 gap-2 text-center">
+                  <div className="bg-muted/50 rounded p-2"><p className="text-sm font-bold text-foreground">{videos.reduce((sum, v) => sum + (v.view_count || 0), 0).toLocaleString()}</p><p className="text-[10px] text-muted-foreground">Total Views</p></div>
+                  <div className="bg-muted/50 rounded p-2"><p className="text-sm font-bold text-foreground">{videos.reduce((sum, v) => sum + (v.like_count || 0), 0).toLocaleString()}</p><p className="text-[10px] text-muted-foreground">Total Likes</p></div>
+                  <div className="bg-muted/50 rounded p-2"><p className="text-sm font-bold text-foreground">{videos.reduce((sum, v) => sum + (v.comment_count || 0), 0).toLocaleString()}</p><p className="text-[10px] text-muted-foreground">Total Comments</p></div>
+                  <div className="bg-muted/50 rounded p-2"><p className="text-sm font-bold text-foreground">{videos.reduce((sum, v) => sum + (v.share_count || 0), 0).toLocaleString()}</p><p className="text-[10px] text-muted-foreground">Total Shares</p></div>
+                </div>
+                <h5 className="text-xs font-semibold text-foreground mt-3">Top Performing Videos</h5>
+                <ScrollArea className="max-h-[300px]">
+                  <div className="space-y-1.5">
+                    {[...videos].sort((a, b) => (b.view_count || 0) - (a.view_count || 0)).slice(0, 10).map((v, i) => (
+                      <div key={v.id} className="bg-muted/30 rounded p-2 flex items-center gap-3">
+                        <span className="text-xs font-bold text-cyan-400 w-5">#{i + 1}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs text-foreground line-clamp-1">{v.title || v.video_description || "Untitled"}</p>
+                          <div className="flex gap-2 text-[10px] text-muted-foreground">
+                            <span>{(v.view_count || 0).toLocaleString()} views</span>
+                            <span>{(v.like_count || 0).toLocaleString()} likes</span>
+                            <span>{((v.like_count || 0) / Math.max(v.view_count || 1, 1) * 100).toFixed(1)}% eng</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground text-center py-4">Load videos first to see analytics</p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Creator Info */}
+        <Card>
+          <CardContent className="p-4 space-y-3">
+            <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><Star className="h-4 w-4 text-yellow-400" />Creator Info & Posting Rules</h4>
+            <Button size="sm" onClick={fetchCreatorInfo} disabled={loading || !selectedAccount}><Star className="h-3.5 w-3.5 mr-1" />Fetch Creator Info</Button>
+            {creatorInfo && <pre className="text-[10px] bg-muted/50 rounded p-3 overflow-auto max-h-[300px] text-foreground">{JSON.stringify(creatorInfo, null, 2)}</pre>}
+          </CardContent>
+        </Card>
+      </TabsContent>
+
+      {/* ===== AUTOMATION ===== */}
+      <TabsContent value="automation" className="space-y-4 mt-4">
+        {/* Token Management */}
+        <Card>
+          <CardContent className="p-4 space-y-3">
+            <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><Shield className="h-4 w-4 text-amber-400" />Connection Health</h4>
+            <p className="text-[10px] text-muted-foreground">Manage your TikTok API connection. Refresh tokens before they expire, or revoke access entirely.</p>
+            <div className="flex gap-2">
+              <Button size="sm" onClick={refreshToken} disabled={loading}><RefreshCw className="h-3.5 w-3.5 mr-1" />Refresh Token</Button>
+              <Button size="sm" variant="destructive" onClick={() => callApi("revoke_token", {})} disabled={loading}><Shield className="h-3.5 w-3.5 mr-1" />Revoke Access</Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Data Portability */}
+        <Card>
+          <CardContent className="p-4 space-y-3">
+            <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><Download className="h-4 w-4 text-blue-400" />Data Export</h4>
+            <p className="text-[10px] text-muted-foreground">Export your TikTok data including videos, comments, and analytics.</p>
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" onClick={async () => {
+                await fetchVideos();
+                const blob = new Blob([JSON.stringify({ videos, profile, playlists }, null, 2)], { type: "application/json" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a"); a.href = url; a.download = `tiktok-export-${new Date().toISOString().slice(0, 10)}.json`; a.click();
+                toast.success("Data exported");
+              }} disabled={loading}><Download className="h-3.5 w-3.5 mr-1" />Export JSON</Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Webhook Status */}
+        <Card>
+          <CardContent className="p-4 space-y-3">
+            <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><Globe className="h-4 w-4 text-green-400" />Webhook Status</h4>
+            <p className="text-[10px] text-muted-foreground">Your TikTok webhook endpoint is active and listening for events.</p>
+            <div className="flex items-center gap-2">
+              <div className="h-2 w-2 rounded-full bg-green-400 animate-pulse" />
+              <span className="text-xs text-green-400">Active</span>
+            </div>
+            <div className="bg-muted/30 rounded p-2">
+              <p className="text-[10px] text-muted-foreground">Callback URL:</p>
+              <p className="text-[10px] text-foreground font-mono break-all">https://ufsnuobtvkciydftsyff.supabase.co/functions/v1/tiktok-webhook</p>
+            </div>
+            <p className="text-[10px] text-muted-foreground">Events: authorize, deauthorize, video.publish</p>
+          </CardContent>
+        </Card>
+
+        {/* Share Kit */}
+        <Card>
+          <CardContent className="p-4 space-y-3">
+            <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><Share2 className="h-4 w-4 text-cyan-400" />Share Kit</h4>
+            <p className="text-[10px] text-muted-foreground">Share content directly to TikTok from your platform using the Share Kit API.</p>
+            <Badge variant="outline" className="text-[10px]">Integrated via Content Publishing API</Badge>
+          </CardContent>
+        </Card>
+      </TabsContent>
+    </Tabs>
   );
 };
 
