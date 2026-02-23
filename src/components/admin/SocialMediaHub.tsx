@@ -565,7 +565,6 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
       try {
         await supabase.functions.invoke("tiktok-api", {
           body: { action: "revoke_token", account_id: selectedAccount, params: { client_key: ttClientKey } },
-          
         });
       } catch (e) {
         console.warn("Token revoke failed (continuing with disconnect):", e);
@@ -581,12 +580,24 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
     // Clear local profile state
     if (platform === "instagram") setIgProfile(null);
     if (platform === "tiktok") setTtProfile(null);
+    if (platform === "threads") setAutoSyncDone(false);
     
-    // Invalidate cache so next loadData fetches fresh from DB
+    // Invalidate ALL relevant caches so stale data doesn't persist
     if (selectedAccount) {
       invalidateNamespace(selectedAccount, "social_connections");
       invalidateNamespace(selectedAccount, "social_data");
+      invalidateNamespace(selectedAccount, "social_posts");
+      invalidateNamespace(selectedAccount, "social_analytics");
+      invalidateNamespace(selectedAccount, "social_comment_replies");
+      invalidateNamespace(selectedAccount, "bio_links");
     }
+    invalidateNamespace("global", "smh_accounts");
+    
+    // Reset autoSyncDone so next load can re-sync remaining platforms
+    setAutoSyncDone(false);
+    
+    // Force full reload from DB to ensure UI is fully in sync
+    await loadData();
     
     toast.success("Disconnected & credentials wiped");
   };
