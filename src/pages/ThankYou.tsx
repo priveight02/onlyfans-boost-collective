@@ -14,7 +14,7 @@ const ThankYou = () => {
   return (
     <>
       <PageSEO
-        title="Purchase Confirmed | Uplyze"
+        title="Purchase Confirmed - Uplyze"
         description="Your credits have been added to your account. Start using Uplyze AI tools right away."
       />
       <div className="min-h-screen flex items-center justify-center bg-[hsl(222,47%,6%)] px-4 py-20">

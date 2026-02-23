@@ -130,14 +130,14 @@ const FAQ = () => {
   return (
     <div className="min-h-screen bg-[hsl(222,35%,8%)]">
       <PageSEO
-        title="Uplyze FAQ | Your Questions Answered"
+        title="Uplyze FAQ - Your Questions Answered"
         description="Find answers about Uplyze features, pricing, AI automation, CRM, security, and how we help creators and businesses grow faster."
-        ogTitle="Uplyze FAQ | Your Questions Answered"
+        ogTitle="Uplyze FAQ - Your Questions Answered"
         ogDescription="Everything you need to know about Uplyze: features, pricing, AI automation, CRM, security, and more."
         jsonLd={{
           "@context": "https://schema.org",
           "@type": "FAQPage",
-          "name": "Uplyze FAQ — AI Tool & AI Platform Questions & Answers",
+          "name": "Uplyze FAQ - AI Tool & AI Platform Questions & Answers",
           "url": "https://uplyze.ai/faq",
           "description": "Frequently asked questions about Uplyze, the best AI tool, AI platform, AI CRM, and all-in-one AI suite for business growth and marketing automation.",
           "mainEntity": faqs.flatMap(cat => cat.questions.map(q => ({

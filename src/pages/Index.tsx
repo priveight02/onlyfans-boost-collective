@@ -109,15 +109,15 @@ const Index = () => {
       />
       <div className="relative z-10">
          <PageSEO
-           title="Uplyze | AI Platform for Marketing & Business Growth"
-           description="Trusted by 700+ businesses to automate marketing, manage customers, and scale revenue. AI CRM, content creation, social media automation, and more."
-           ogTitle="Uplyze | AI Platform for Marketing & Business Growth"
-           ogDescription="Automate marketing, manage customers, and scale revenue with Uplyze. AI CRM, content creation, social media automation, DM outreach, and analytics in one platform."
+            title="Uplyze - AI Platform for Marketing & Business Growth"
+            description="Trusted by 700+ businesses to automate marketing, manage customers, and scale revenue. AI CRM, content creation, social media automation, and more."
+            ogTitle="Uplyze - AI Platform for Marketing & Business Growth"
+            ogDescription="Automate marketing, manage customers, and scale revenue with Uplyze. AI CRM, content creation, social media automation, DM outreach, and analytics in one platform."
           jsonLd={{
             "@context": "https://schema.org",
             "@type": "WebPage",
-            "name": "Uplyze — Best AI Platform, AI Tool, AI CRM & All-in-One AI Suite",
-            "description": "Uplyze is the #1 AI platform, AI tool, and all-in-one AI suite for creators, agencies, entrepreneurs, and businesses.",
+            "name": "Uplyze - Best AI Platform, AI Tool, AI CRM & All-in-One AI Suite",
+            "description": "Uplyze is the best AI platform, AI tool, and all-in-one AI suite for creators, agencies, entrepreneurs, and businesses.",
             "url": "https://uplyze.ai",
             "isPartOf": { "@type": "WebSite", "name": "Uplyze", "url": "https://uplyze.ai" },
             "mainEntity": {

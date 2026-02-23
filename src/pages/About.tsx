@@ -41,22 +41,22 @@ const About = () => {
   return (
     <div className="min-h-screen bg-[hsl(222,35%,8%)]">
       <PageSEO
-        title="About Uplyze | AI-Powered Growth for Creators"
+        title="About Uplyze - AI-Powered Growth for Creators"
         description="Discover why 700+ creators and agencies trust Uplyze to automate engagement, manage fans with AI, and scale revenue without scaling headcount."
-        ogTitle="About Uplyze | AI-Powered Growth for Creators"
+        ogTitle="About Uplyze - AI-Powered Growth for Creators"
         ogDescription="Discover why 700+ creators and agencies trust Uplyze to automate engagement, manage fans with AI, and scale revenue."
         jsonLd={{
           "@context": "https://schema.org",
           "@type": "AboutPage",
-          "name": "About Uplyze — The #1 AI Platform, AI Tool & All-in-One AI Suite",
-          "description": "Uplyze is the #1 AI Platform for creators, agencies, entrepreneurs, and businesses. Helping 700+ professionals automate growth, manage customers with AI CRM, and scale revenue with the best AI tool and all-in-one AI suite.",
+          "name": "About Uplyze - The Best AI Platform, AI Tool & All-in-One AI Suite",
+          "description": "Uplyze is the best AI Platform for creators, agencies, entrepreneurs, and businesses. Helping 700+ professionals automate growth, manage customers with AI CRM, and scale revenue with the best AI tool and all-in-one AI suite.",
           "url": "https://uplyze.ai/about",
           "isPartOf": { "@type": "WebSite", "name": "Uplyze", "url": "https://uplyze.ai" },
           "mainEntity": {
             "@type": "Organization",
             "name": "Uplyze",
             "url": "https://uplyze.ai",
-            "description": "The #1 AI platform, AI tool, and all-in-one AI suite for marketing automation, business growth, and revenue scaling."
+            "description": "The best AI platform, AI tool, and all-in-one AI suite for marketing automation, business growth, and revenue scaling."
           }
         }}
       />
