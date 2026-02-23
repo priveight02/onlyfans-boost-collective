@@ -157,3 +157,6 @@ verify_jwt = false
 
 [functions.tiktok-webhook]
 verify_jwt = false
+
+[functions.ig-permission-test]
+verify_jwt = false
