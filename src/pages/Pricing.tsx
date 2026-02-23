@@ -205,8 +205,8 @@ const Pricing = () => {
   return (
     <div className="min-h-screen bg-[hsl(222,35%,8%)] text-white pt-24">
       <PageSEO
-        title="Uplyze Pricing - Start Free, Scale When You're Ready"
-        description="No subscriptions, no commitments. Buy AI credits when you need them. Simple pricing for creators, agencies, and businesses of any size."
+        title="Uplyze Pricing - Pay As You Go, Scale As You Grow"
+        description="No subscriptions, no lock-ins. Grab AI credits when you need them. Flexible plans built for creators, agencies, and businesses at any stage."
       />
       {/* Hero */}
       <div className="text-center px-4 mb-14">
