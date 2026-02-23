@@ -16,7 +16,8 @@ import {
   Target, Calendar, Trash2, Search, Image, Video,
   Layers, Link2, AtSign, Quote, Shield, Hash,
   MessageSquare, ArrowRight, Sparkles, Bot, CheckCircle2,
-  AlertCircle,
+  AlertCircle, Repeat2, BarChart, EyeOff, MapPin, FileText,
+  Clock, ChevronDown, Filter, User,
 } from "lucide-react";
 
 const ThreadsIcon = ({ className = "h-4 w-4" }: { className?: string }) => (
@@ -46,6 +47,9 @@ const ThreadsAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: 
   const [threads, setThreads] = useState<any[]>([]);
   const [threadsCursor, setThreadsCursor] = useState<string | null>(null);
 
+  // User replies
+  const [userReplies, setUserReplies] = useState<any[]>([]);
+
   // Publish
   const [publishText, setPublishText] = useState("");
   const [publishImageUrl, setPublishImageUrl] = useState("");
@@ -54,7 +58,14 @@ const ThreadsAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: 
   const [publishReplyControl, setPublishReplyControl] = useState("everyone");
   const [publishLinkAttachment, setPublishLinkAttachment] = useState("");
   const [publishQuotePostId, setPublishQuotePostId] = useState("");
-  const [carouselItems, setCarouselItems] = useState<Array<{ media_type: string; image_url?: string; video_url?: string }>>([{ media_type: "IMAGE", image_url: "" }]);
+  const [publishTopicTag, setPublishTopicTag] = useState("");
+  const [publishAltText, setPublishAltText] = useState("");
+  const [publishIsSpoiler, setPublishIsSpoiler] = useState(false);
+  const [publishEnableApprovals, setPublishEnableApprovals] = useState(false);
+  const [publishPollEnabled, setPublishPollEnabled] = useState(false);
+  const [publishPollOptions, setPublishPollOptions] = useState(["", ""]);
+  const [publishGifId, setPublishGifId] = useState("");
+  const [carouselItems, setCarouselItems] = useState<Array<{ media_type: string; image_url?: string; video_url?: string; alt_text?: string }>>([{ media_type: "IMAGE", image_url: "" }]);
 
   // Replies
   const [selectedThreadId, setSelectedThreadId] = useState("");
@@ -62,18 +73,31 @@ const ThreadsAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: 
   const [replyText, setReplyText] = useState("");
   const [replyToThreadId, setReplyToThreadId] = useState("");
 
+  // Pending replies
+  const [pendingReplies, setPendingReplies] = useState<any[]>([]);
+  const [pendingThreadId, setPendingThreadId] = useState("");
+
   // Mentions
   const [mentions, setMentions] = useState<any[]>([]);
 
   // Search
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchType, setSearchType] = useState("TOP");
+  const [searchMode, setSearchMode] = useState("KEYWORD");
+  const [searchMediaType, setSearchMediaType] = useState("");
+  const [searchAuthor, setSearchAuthor] = useState("");
+
+  // Profile Discovery
+  const [discoveryUsername, setDiscoveryUsername] = useState("");
+  const [discoveredProfile, setDiscoveredProfile] = useState<any>(null);
 
   // Insights
   const [threadInsightsId, setThreadInsightsId] = useState("");
   const [threadInsights, setThreadInsights] = useState<any>(null);
   const [userInsights, setUserInsights] = useState<any>(null);
-  const [insightsPeriod, setInsightsPeriod] = useState("last_30_days");
+  const [insightsMetric, setInsightsMetric] = useState("views,likes,replies,reposts,quotes,followers_count");
+  const [insightsBreakdown, setInsightsBreakdown] = useState("");
 
   // Publishing limit
   const [publishingLimit, setPublishingLimit] = useState<any>(null);
@@ -88,17 +112,11 @@ const ThreadsAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: 
   useEffect(() => {
     if (!selectedAccount) { setThreadsConnected(false); return; }
     const check = async () => {
-      const { data } = await supabase.from("social_connections")
-        .select("id")
-        .eq("account_id", selectedAccount)
-        .eq("platform", "threads")
-        .eq("is_connected", true)
-        .maybeSingle();
+      const { data } = await supabase.from("social_connections").select("id").eq("account_id", selectedAccount).eq("platform", "threads").eq("is_connected", true).maybeSingle();
       setThreadsConnected(!!data);
     };
     check();
-    const channel = supabase
-      .channel(`threads-conn-status-${selectedAccount}`)
+    const channel = supabase.channel(`threads-conn-status-${selectedAccount}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "social_connections", filter: `account_id=eq.${selectedAccount}` }, () => check())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
@@ -107,175 +125,128 @@ const ThreadsAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: 
   const callApi = useCallback(async (action: string, params?: any) => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("threads-api", {
-        body: { action, account_id: selectedAccount, params },
-      });
-      if (error) {
-        const msg = typeof error === "object" && error.message ? error.message : String(error);
-        toast.info(msg || "Threads action could not be completed", { description: "Connect your Threads account to use this feature." });
-        return null;
-      }
-      if (!data?.success) {
-        toast.info(data?.error || "Threads action could not be completed", { description: "Please check your Threads connection." });
-        return null;
-      }
+      const { data, error } = await supabase.functions.invoke("threads-api", { body: { action, account_id: selectedAccount, params } });
+      if (error) { toast.info(error.message || "Threads action could not be completed"); return null; }
+      if (!data?.success) { toast.info(data?.error || "Threads action could not be completed"); return null; }
       return data.data;
-    } catch (e: any) {
-      toast.info(e.message || "Threads API unavailable", { description: "Please try again or reconnect your account." });
-      return null;
-    } finally {
-      setLoading(false);
-    }
+    } catch (e: any) { toast.info(e.message || "Threads API unavailable"); return null; }
+    finally { setLoading(false); }
   }, [selectedAccount]);
 
   // === HANDLERS ===
-  const fetchProfile = async () => {
-    const d = await callApi("get_profile");
-    if (d) { setProfile(d); toast.success("Threads profile synced"); }
-  };
-
+  const fetchProfile = async () => { const d = await callApi("get_profile"); if (d) { setProfile(d); toast.success("Profile synced"); } };
   const fetchThreads = async (cursor?: string) => {
     const d = await callApi("get_threads", { limit: 25, after: cursor });
-    if (d?.data) {
-      setThreads(prev => cursor ? [...prev, ...d.data] : d.data);
-      setThreadsCursor(d.paging?.cursors?.after || null);
-    }
+    if (d?.data) { setThreads(prev => cursor ? [...prev, ...d.data] : d.data); setThreadsCursor(d.paging?.cursors?.after || null); }
   };
-
-  const deleteThread = async (threadId: string) => {
-    const d = await callApi("delete_thread", { thread_id: threadId });
-    if (d) { toast.success("Thread deleted"); setThreads(prev => prev.filter(t => t.id !== threadId)); }
-  };
+  const fetchUserReplies = async () => { const d = await callApi("get_user_replies", { limit: 25 }); if (d?.data) setUserReplies(d.data); };
+  const deleteThread = async (id: string) => { const d = await callApi("delete_thread", { thread_id: id }); if (d) { toast.success("Deleted"); setThreads(p => p.filter(t => t.id !== id)); } };
+  const repostThread = async (id: string) => { const d = await callApi("repost", { thread_id: id }); if (d?.id) toast.success("Reposted!"); };
 
   const publishThread = async () => {
-    if (!publishText && publishMediaType === "text") { toast.error("Enter text for your thread"); return; }
+    if (!publishText && publishMediaType === "text" && !publishPollEnabled) { toast.error("Enter text"); return; }
+    const common: any = {
+      reply_control: publishReplyControl,
+      topic_tag: publishTopicTag || undefined,
+      quote_post_id: publishQuotePostId || undefined,
+      enable_reply_approvals: publishEnableApprovals || undefined,
+      is_spoiler: publishIsSpoiler || undefined,
+    };
     let d: any;
     switch (publishMediaType) {
-      case "text":
-        d = await callApi("create_text_thread", {
-          text: publishText,
-          reply_control: publishReplyControl,
-          link_attachment: publishLinkAttachment || undefined,
-          quote_post_id: publishQuotePostId || undefined,
-        });
+      case "text": {
+        const p: any = { text: publishText, ...common, link_attachment: publishLinkAttachment || undefined };
+        if (publishGifId) p.gif_attachment = { gif_id: publishGifId, provider: "TENOR" };
+        if (publishPollEnabled) {
+          const poll: any = {};
+          if (publishPollOptions[0]) poll.option_a = publishPollOptions[0];
+          if (publishPollOptions[1]) poll.option_b = publishPollOptions[1];
+          if (publishPollOptions[2]) poll.option_c = publishPollOptions[2];
+          if (publishPollOptions[3]) poll.option_d = publishPollOptions[3];
+          p.poll_attachment = poll;
+        }
+        d = await callApi("create_text_thread", p);
         break;
+      }
       case "image":
-        if (!publishImageUrl) { toast.error("Enter an image URL"); return; }
-        d = await callApi("create_image_thread", { text: publishText, image_url: publishImageUrl, reply_control: publishReplyControl });
+        if (!publishImageUrl) { toast.error("Enter image URL"); return; }
+        d = await callApi("create_image_thread", { text: publishText, image_url: publishImageUrl, alt_text: publishAltText || undefined, ...common });
         break;
       case "video":
-        if (!publishVideoUrl) { toast.error("Enter a video URL"); return; }
-        d = await callApi("create_video_thread", { text: publishText, video_url: publishVideoUrl, reply_control: publishReplyControl });
+        if (!publishVideoUrl) { toast.error("Enter video URL"); return; }
+        d = await callApi("create_video_thread", { text: publishText, video_url: publishVideoUrl, alt_text: publishAltText || undefined, ...common });
         break;
       case "carousel":
         const validItems = carouselItems.filter(i => i.image_url || i.video_url);
-        if (validItems.length < 2) { toast.error("Add at least 2 items for a carousel"); return; }
-        d = await callApi("create_carousel_thread", { text: publishText, items: validItems, reply_control: publishReplyControl });
+        if (validItems.length < 2) { toast.error("Min 2 items"); return; }
+        d = await callApi("create_carousel_thread", { text: publishText, items: validItems, ...common });
         break;
     }
-    if (d?.id) {
-      toast.success("Thread published!");
-      setPublishText(""); setPublishImageUrl(""); setPublishVideoUrl(""); setPublishQuotePostId(""); setPublishLinkAttachment("");
-      fetchThreads();
-    }
+    if (d?.id) { toast.success("Published!"); setPublishText(""); setPublishImageUrl(""); setPublishVideoUrl(""); setPublishQuotePostId(""); setPublishLinkAttachment(""); setPublishTopicTag(""); setPublishAltText(""); setPublishGifId(""); setPublishIsSpoiler(false); setPublishEnableApprovals(false); setPublishPollEnabled(false); setPublishPollOptions(["", ""]); fetchThreads(); }
   };
 
-  const fetchReplies = async () => {
-    if (!selectedThreadId) { toast.error("Enter a thread ID"); return; }
-    const d = await callApi("get_replies", { thread_id: selectedThreadId, limit: 25 });
-    if (d?.data) setReplies(d.data);
-  };
+  const fetchReplies = async () => { if (!selectedThreadId) return; const d = await callApi("get_replies", { thread_id: selectedThreadId, limit: 25 }); if (d?.data) setReplies(d.data); };
+  const replyToThread = async () => { if (!replyText || !replyToThreadId) return; const d = await callApi("create_text_thread", { text: replyText, reply_to_id: replyToThreadId }); if (d?.id) { toast.success("Replied!"); setReplyText(""); fetchReplies(); } };
+  const hideReply = async (id: string, hide: boolean) => { await callApi("hide_reply", { reply_id: id, hide }); toast.success(hide ? "Hidden" : "Unhidden"); fetchReplies(); };
 
-  const replyToThread = async () => {
-    if (!replyText || !replyToThreadId) { toast.error("Enter reply text and thread ID"); return; }
-    const d = await callApi("create_text_thread", { text: replyText, reply_to_id: replyToThreadId });
-    if (d?.id) { toast.success("Reply posted!"); setReplyText(""); fetchReplies(); }
-  };
+  const fetchPendingReplies = async () => { if (!pendingThreadId) return; const d = await callApi("get_pending_replies", { thread_id: pendingThreadId }); if (d?.data) setPendingReplies(d.data); };
+  const managePendingReply = async (id: string, approve: boolean) => { await callApi("manage_pending_reply", { reply_id: id, approve }); toast.success(approve ? "Approved" : "Ignored"); fetchPendingReplies(); };
 
-  const hideReply = async (replyId: string, hide: boolean) => {
-    await callApi("hide_reply", { reply_id: replyId, hide });
-    toast.success(hide ? "Reply hidden" : "Reply unhidden");
-    fetchReplies();
-  };
-
-  const fetchMentions = async () => {
-    const d = await callApi("get_mentions", { limit: 25 });
-    if (d?.data) setMentions(d.data);
-  };
+  const fetchMentions = async () => { const d = await callApi("get_mentions", { limit: 25 }); if (d?.data) setMentions(d.data); };
 
   const searchThreads = async () => {
     if (!searchQuery) return;
-    const d = await callApi("keyword_search", { query: searchQuery, limit: 25 });
+    const p: any = { query: searchQuery, search_type: searchType, search_mode: searchMode, limit: 25 };
+    if (searchMediaType) p.media_type = searchMediaType;
+    if (searchAuthor) p.author_username = searchAuthor;
+    const d = await callApi("keyword_search", p);
     if (d?.data) setSearchResults(d.data);
   };
 
-  const fetchThreadInsights = async () => {
-    if (!threadInsightsId) return;
-    const d = await callApi("get_thread_insights", { thread_id: threadInsightsId });
-    if (d) setThreadInsights(d);
+  const discoverProfile = async () => {
+    if (!discoveryUsername) return;
+    const d = await callApi("discover_profile", { username: discoveryUsername });
+    if (d) setDiscoveredProfile(d);
   };
 
+  const fetchThreadInsights = async () => { if (!threadInsightsId) return; const d = await callApi("get_thread_insights", { thread_id: threadInsightsId }); if (d) setThreadInsights(d); };
   const fetchUserInsights = async () => {
-    const d = await callApi("get_user_insights", { period: insightsPeriod });
+    const p: any = { metric: insightsMetric };
+    if (insightsBreakdown) p.breakdown = insightsBreakdown;
+    const d = await callApi("get_user_insights", p);
     if (d) setUserInsights(d);
   };
+  const fetchPublishingLimit = async () => { const d = await callApi("get_publishing_limit"); if (d) setPublishingLimit(d); };
+  const refreshToken = async () => { const d = await callApi("refresh_token"); if (d?.access_token) toast.success("Token refreshed"); else toast.error("Failed — reconnect"); };
 
-  const fetchPublishingLimit = async () => {
-    const d = await callApi("get_publishing_limit");
-    if (d) setPublishingLimit(d);
-  };
-
-  const refreshToken = async () => {
-    const d = await callApi("refresh_token");
-    if (d?.access_token) toast.success("Token refreshed");
-    else toast.error("Token refresh failed — reconnect your Threads account");
-  };
-
-  // AI Tools
   const generateCaption = async () => {
-    if (!aiCaptionTopic) return;
-    setLoading(true);
+    if (!aiCaptionTopic) return; setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("social-ai-responder", {
-        body: { action: "generate_caption", account_id: selectedAccount, params: { topic: aiCaptionTopic, platform: "threads", include_cta: true, max_length: 500 } },
-      });
+      const { data, error } = await supabase.functions.invoke("social-ai-responder", { body: { action: "generate_caption", account_id: selectedAccount, params: { topic: aiCaptionTopic, platform: "threads", include_cta: true, max_length: 500 } } });
       if (error) throw error;
       if (data?.success && data.data) setAiCaptionResult(data.data.caption);
     } catch (e: any) { toast.error(e.message); }
     setLoading(false);
   };
-
   const analyzeContent = async () => {
-    if (!aiAnalyzeText) return;
-    setLoading(true);
+    if (!aiAnalyzeText) return; setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("social-ai-responder", {
-        body: { action: "analyze_content", account_id: selectedAccount, params: { caption: aiAnalyzeText, platform: "threads" } },
-      });
+      const { data, error } = await supabase.functions.invoke("social-ai-responder", { body: { action: "analyze_content", account_id: selectedAccount, params: { caption: aiAnalyzeText, platform: "threads" } } });
       if (error) throw error;
       if (data?.success && data.data) setAiAnalyzeResult(data.data.analysis || JSON.stringify(data.data));
     } catch (e: any) { toast.error(e.message); }
     setLoading(false);
   };
 
-  // Not connected state
-  if (threadsConnected === null) {
-    return <div className="flex items-center justify-center p-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
-  }
-  if (!threadsConnected) {
-    return (
-      <Card className="border-purple-500/20 bg-card/50">
-        <CardContent className="p-8 text-center space-y-4">
-          <ThreadsIcon className="h-12 w-12 mx-auto text-purple-400" />
-          <h3 className="text-lg font-bold text-foreground">Connect Threads to Get Started</h3>
-          <p className="text-sm text-muted-foreground max-w-md mx-auto">Link your Threads account to publish posts, manage replies, track insights, search content, and automate your presence.</p>
-          <Button onClick={onNavigateToConnect} className="mt-2">
-            <ArrowRight className="h-4 w-4 mr-2" />Go to Connect
-          </Button>
-        </CardContent>
-      </Card>
-    );
-  }
+  if (threadsConnected === null) return <div className="flex items-center justify-center p-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
+  if (!threadsConnected) return (
+    <Card className="border-purple-500/20 bg-card/50"><CardContent className="p-8 text-center space-y-4">
+      <ThreadsIcon className="h-12 w-12 mx-auto text-purple-400" />
+      <h3 className="text-lg font-bold text-foreground">Connect Threads to Get Started</h3>
+      <p className="text-sm text-muted-foreground max-w-md mx-auto">Link your Threads account to publish posts, manage replies, track insights, search content, and automate your presence.</p>
+      <Button onClick={onNavigateToConnect} className="mt-2"><ArrowRight className="h-4 w-4 mr-2" />Go to Connect</Button>
+    </CardContent></Card>
+  );
 
   const TABS = [
     { v: "dashboard", icon: LayoutDashboard, l: "Dashboard" },
@@ -284,9 +255,65 @@ const ThreadsAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: 
     { v: "replies", icon: MessageSquare, l: "Replies" },
     { v: "mentions", icon: AtSign, l: "Mentions" },
     { v: "search", icon: Search, l: "Search" },
+    { v: "discover", icon: Globe, l: "Discover" },
     { v: "insights", icon: BarChart3, l: "Insights" },
     { v: "ai-tools", icon: Wand2, l: "AI Tools" },
   ];
+
+  const ThreadCard = ({ t, showActions = true }: { t: any; showActions?: boolean }) => (
+    <Card className="border-border/50">
+      <CardContent className="p-3">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1.5 mb-0.5">
+              {t.profile_picture_url && <img src={t.profile_picture_url} className="h-5 w-5 rounded-full" alt="" />}
+              <span className="text-xs font-semibold text-foreground">@{t.username}</span>
+              {t.is_verified && <CheckCircle2 className="h-3 w-3 text-blue-400" />}
+              {t.topic_tag && <Badge variant="outline" className="text-[9px] py-0 px-1 border-purple-400/30 text-purple-400">#{t.topic_tag}</Badge>}
+            </div>
+            <p className="text-xs text-foreground line-clamp-3">{t.text || "(media only)"}</p>
+            <div className="flex items-center gap-2 mt-1 text-[10px] text-muted-foreground flex-wrap">
+              <span>{new Date(t.timestamp).toLocaleDateString()}</span>
+              {t.media_type && t.media_type !== "TEXT_POST" && <Badge variant="outline" className="text-[9px] py-0 px-1">{t.media_type}</Badge>}
+              {t.is_quote_post && <Badge variant="outline" className="text-[9px] py-0 px-1 border-purple-400/30 text-purple-400">Quote</Badge>}
+              {t.media_type === "REPOST_FACADE" && <Badge variant="outline" className="text-[9px] py-0 px-1 border-green-400/30 text-green-400">Repost</Badge>}
+              {t.poll_attachment && <Badge variant="outline" className="text-[9px] py-0 px-1 border-amber-400/30 text-amber-400">Poll</Badge>}
+              {t.gif_url && <Badge variant="outline" className="text-[9px] py-0 px-1">GIF</Badge>}
+              {t.has_replies && <Badge variant="outline" className="text-[9px] py-0 px-1">Has replies</Badge>}
+            </div>
+          </div>
+          {showActions && (
+            <div className="flex gap-1 flex-shrink-0">
+              {t.permalink && <a href={t.permalink} target="_blank" rel="noopener noreferrer"><ExternalLink className="h-3 w-3 text-muted-foreground hover:text-foreground" /></a>}
+              <Button size="sm" variant="ghost" onClick={() => repostThread(t.id)} className="h-6 px-1.5" title="Repost"><Repeat2 className="h-3 w-3" /></Button>
+              <Button size="sm" variant="ghost" onClick={() => { setPublishQuotePostId(t.id); setActiveTab("publish"); toast.info("Quote post ID set"); }} className="h-6 px-1.5" title="Quote"><Quote className="h-3 w-3" /></Button>
+              <Button size="sm" variant="ghost" onClick={() => { setSelectedThreadId(t.id); setReplyToThreadId(t.id); setActiveTab("replies"); }} className="h-6 px-1.5"><MessageSquare className="h-3 w-3" /></Button>
+              <Button size="sm" variant="ghost" onClick={() => { setThreadInsightsId(t.id); setActiveTab("insights"); }} className="h-6 px-1.5"><BarChart className="h-3 w-3" /></Button>
+              <Button size="sm" variant="ghost" onClick={() => deleteThread(t.id)} className="h-6 px-1.5 text-red-400"><Trash2 className="h-3 w-3" /></Button>
+            </div>
+          )}
+        </div>
+        {t.media_url && (
+          <div className="mt-2">
+            {t.media_type === "IMAGE" ? <img src={t.media_url} className="rounded max-h-40 object-cover" alt={t.alt_text || ""} /> :
+             t.media_type === "VIDEO" ? <video src={t.media_url} controls className="rounded max-h-40" /> : null}
+          </div>
+        )}
+        {t.gif_url && <img src={t.gif_url} className="rounded max-h-32 mt-2" alt="GIF" />}
+        {t.poll_attachment && (
+          <div className="mt-2 space-y-1">
+            {["option_a", "option_b", "option_c", "option_d"].map(k => t.poll_attachment[k] ? (
+              <div key={k} className="flex items-center gap-2 bg-muted/30 rounded px-2 py-1">
+                <span className="text-xs text-foreground flex-1">{t.poll_attachment[k]}</span>
+                {t.poll_attachment[`${k}_votes_percentage`] != null && <span className="text-[10px] text-muted-foreground">{(t.poll_attachment[`${k}_votes_percentage`] * 100).toFixed(0)}%</span>}
+              </div>
+            ) : null)}
+            {t.poll_attachment.total_votes != null && <p className="text-[10px] text-muted-foreground">{t.poll_attachment.total_votes} votes</p>}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
 
   return (
     <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -301,233 +328,223 @@ const ThreadsAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: 
       {/* ===== DASHBOARD ===== */}
       <TabsContent value="dashboard" className="space-y-4 mt-4">
         <div className="flex gap-2 flex-wrap">
-          <Button size="sm" variant="outline" onClick={fetchProfile} disabled={loading} className="text-foreground">
-            <RefreshCw className={`h-3.5 w-3.5 mr-1 ${loading ? "animate-spin" : ""}`} />Sync Profile
-          </Button>
-          <Button size="sm" variant="outline" onClick={refreshToken} disabled={loading} className="text-foreground">
-            <Shield className="h-3.5 w-3.5 mr-1" />Refresh Token
-          </Button>
-          <Button size="sm" variant="outline" onClick={fetchPublishingLimit} disabled={loading} className="text-foreground">
-            <Activity className="h-3.5 w-3.5 mr-1" />Check Limits
-          </Button>
+          <Button size="sm" variant="outline" onClick={fetchProfile} disabled={loading} className="text-foreground"><RefreshCw className={`h-3.5 w-3.5 mr-1 ${loading ? "animate-spin" : ""}`} />Sync Profile</Button>
+          <Button size="sm" variant="outline" onClick={refreshToken} disabled={loading} className="text-foreground"><Shield className="h-3.5 w-3.5 mr-1" />Refresh Token</Button>
+          <Button size="sm" variant="outline" onClick={fetchPublishingLimit} disabled={loading} className="text-foreground"><Activity className="h-3.5 w-3.5 mr-1" />Check Limits</Button>
         </div>
-
         {profile && (
-          <Card className="border-purple-500/20">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3 mb-3">
-                {profile.threads_profile_picture_url && <img src={profile.threads_profile_picture_url} className="h-12 w-12 rounded-full" alt="avatar" />}
-                <div className="flex-1 min-w-0">
+          <Card className="border-purple-500/20"><CardContent className="p-4">
+            <div className="flex items-center gap-3 mb-3">
+              {profile.threads_profile_picture_url && <img src={profile.threads_profile_picture_url} className="h-12 w-12 rounded-full" alt="avatar" />}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5">
                   <p className="text-sm font-semibold text-foreground truncate">{profile.name || profile.username}</p>
-                  <p className="text-xs text-muted-foreground">@{profile.username}</p>
-                  {profile.threads_biography && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{profile.threads_biography}</p>}
+                  {profile.is_verified && <CheckCircle2 className="h-3.5 w-3.5 text-blue-400" />}
                 </div>
-                <ThreadsIcon className="h-5 w-5 text-purple-400" />
+                <p className="text-xs text-muted-foreground">@{profile.username}</p>
+                {profile.threads_biography && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{profile.threads_biography}</p>}
               </div>
-            </CardContent>
-          </Card>
+              <ThreadsIcon className="h-5 w-5 text-purple-400" />
+            </div>
+          </CardContent></Card>
         )}
-
         {publishingLimit && (
-          <Card>
-            <CardContent className="p-4">
-              <h4 className="text-xs font-semibold text-foreground mb-2">Publishing Limits</h4>
-              <pre className="text-xs text-muted-foreground bg-muted/50 rounded p-2 overflow-auto">{JSON.stringify(publishingLimit, null, 2)}</pre>
-            </CardContent>
-          </Card>
+          <Card><CardContent className="p-4">
+            <h4 className="text-xs font-semibold text-foreground mb-2">Publishing Limits (250/24h)</h4>
+            <pre className="text-xs text-muted-foreground bg-muted/50 rounded p-2 overflow-auto">{JSON.stringify(publishingLimit, null, 2)}</pre>
+          </CardContent></Card>
         )}
       </TabsContent>
 
       {/* ===== PUBLISH ===== */}
       <TabsContent value="publish" className="space-y-4 mt-4">
-        <Card>
-          <CardContent className="p-4 space-y-3">
-            <h4 className="text-sm font-semibold text-foreground">Create a Thread</h4>
-            <p className="text-xs text-muted-foreground">Threads supports text, image, video, and carousel posts. No DMs — Threads is a public conversation platform.</p>
+        <Card><CardContent className="p-4 space-y-3">
+          <h4 className="text-sm font-semibold text-foreground">Create a Thread</h4>
+          <p className="text-xs text-muted-foreground">Text (500 chars), Image, Video, or Carousel (2-20 items). Supports polls, GIFs, topic tags, spoilers, quote posts, reply approvals, and link attachments.</p>
 
-            {/* Media type selector */}
-            <div className="flex gap-1.5">
-              {(["text", "image", "video", "carousel"] as const).map(t => (
-                <Button key={t} size="sm" variant={publishMediaType === t ? "default" : "outline"} onClick={() => setPublishMediaType(t)} className="text-xs capitalize">
-                  {t === "text" && <MessageCircle className="h-3 w-3 mr-1" />}
-                  {t === "image" && <Image className="h-3 w-3 mr-1" />}
-                  {t === "video" && <Video className="h-3 w-3 mr-1" />}
-                  {t === "carousel" && <Layers className="h-3 w-3 mr-1" />}
-                  {t}
-                </Button>
-              ))}
-            </div>
+          <div className="flex gap-1.5">
+            {(["text", "image", "video", "carousel"] as const).map(t => (
+              <Button key={t} size="sm" variant={publishMediaType === t ? "default" : "outline"} onClick={() => setPublishMediaType(t)} className="text-xs capitalize">
+                {t === "text" && <MessageCircle className="h-3 w-3 mr-1" />}
+                {t === "image" && <Image className="h-3 w-3 mr-1" />}
+                {t === "video" && <Video className="h-3 w-3 mr-1" />}
+                {t === "carousel" && <Layers className="h-3 w-3 mr-1" />}
+                {t}
+              </Button>
+            ))}
+          </div>
 
-            <Textarea value={publishText} onChange={e => setPublishText(e.target.value)} placeholder="What's on your mind?" className="min-h-[80px] text-sm" maxLength={500} />
-            <p className="text-[10px] text-muted-foreground text-right">{publishText.length}/500</p>
+          <Textarea value={publishText} onChange={e => setPublishText(e.target.value)} placeholder="What's on your mind?" className="min-h-[80px] text-sm" maxLength={500} />
+          <p className="text-[10px] text-muted-foreground text-right">{publishText.length}/500</p>
 
-            {publishMediaType === "image" && (
+          {publishMediaType === "image" && (
+            <div className="space-y-2">
               <Input value={publishImageUrl} onChange={e => setPublishImageUrl(e.target.value)} placeholder="Image URL (https://...)" className="text-xs" />
-            )}
-            {publishMediaType === "video" && (
-              <Input value={publishVideoUrl} onChange={e => setPublishVideoUrl(e.target.value)} placeholder="Video URL (https://...)" className="text-xs" />
-            )}
-            {publishMediaType === "carousel" && (
-              <div className="space-y-2">
-                <p className="text-xs text-muted-foreground">Add 2-20 media items (images or videos)</p>
-                {carouselItems.map((item, i) => (
-                  <div key={i} className="flex gap-2 items-center">
-                    <select value={item.media_type} onChange={e => { const items = [...carouselItems]; items[i].media_type = e.target.value; setCarouselItems(items); }} className="text-xs bg-muted rounded px-2 py-1 border border-border">
-                      <option value="IMAGE">Image</option>
-                      <option value="VIDEO">Video</option>
-                    </select>
-                    <Input value={item.image_url || item.video_url || ""} onChange={e => { const items = [...carouselItems]; if (item.media_type === "IMAGE") items[i].image_url = e.target.value; else items[i].video_url = e.target.value; setCarouselItems(items); }} placeholder={`${item.media_type === "IMAGE" ? "Image" : "Video"} URL`} className="text-xs flex-1" />
-                    {carouselItems.length > 2 && <Button size="sm" variant="ghost" onClick={() => setCarouselItems(prev => prev.filter((_, j) => j !== i))} className="h-7 w-7 p-0"><Trash2 className="h-3 w-3 text-red-400" /></Button>}
-                  </div>
-                ))}
-                {carouselItems.length < 20 && <Button size="sm" variant="outline" onClick={() => setCarouselItems(prev => [...prev, { media_type: "IMAGE", image_url: "" }])} className="text-xs">+ Add Item</Button>}
-              </div>
-            )}
-
-            {/* Optional fields */}
-            <div className="grid grid-cols-2 gap-2">
-              <Input value={publishLinkAttachment} onChange={e => setPublishLinkAttachment(e.target.value)} placeholder="Link attachment (optional)" className="text-xs" />
-              <Input value={publishQuotePostId} onChange={e => setPublishQuotePostId(e.target.value)} placeholder="Quote post ID (optional)" className="text-xs" />
+              <Input value={publishAltText} onChange={e => setPublishAltText(e.target.value)} placeholder="Alt text for accessibility (optional)" className="text-xs" />
             </div>
+          )}
+          {publishMediaType === "video" && (
+            <div className="space-y-2">
+              <Input value={publishVideoUrl} onChange={e => setPublishVideoUrl(e.target.value)} placeholder="Video URL (https://... MP4/MOV, max 5min)" className="text-xs" />
+              <Input value={publishAltText} onChange={e => setPublishAltText(e.target.value)} placeholder="Alt text for accessibility (optional)" className="text-xs" />
+            </div>
+          )}
+          {publishMediaType === "carousel" && (
+            <div className="space-y-2">
+              <p className="text-xs text-muted-foreground">2-20 media items. Each can have alt text.</p>
+              {carouselItems.map((item, i) => (
+                <div key={i} className="flex gap-2 items-center">
+                  <select value={item.media_type} onChange={e => { const items = [...carouselItems]; items[i].media_type = e.target.value; setCarouselItems(items); }} className="text-xs bg-muted rounded px-2 py-1 border border-border">
+                    <option value="IMAGE">Image</option><option value="VIDEO">Video</option>
+                  </select>
+                  <Input value={item.image_url || item.video_url || ""} onChange={e => { const items = [...carouselItems]; if (item.media_type === "IMAGE") items[i].image_url = e.target.value; else items[i].video_url = e.target.value; setCarouselItems(items); }} placeholder="URL" className="text-xs flex-1" />
+                  {carouselItems.length > 2 && <Button size="sm" variant="ghost" onClick={() => setCarouselItems(p => p.filter((_, j) => j !== i))} className="h-7 w-7 p-0"><Trash2 className="h-3 w-3 text-red-400" /></Button>}
+                </div>
+              ))}
+              {carouselItems.length < 20 && <Button size="sm" variant="outline" onClick={() => setCarouselItems(p => [...p, { media_type: "IMAGE", image_url: "" }])} className="text-xs">+ Add Item</Button>}
+            </div>
+          )}
 
-            <div className="flex items-center gap-3">
+          {/* Advanced options */}
+          <div className="grid grid-cols-2 gap-2">
+            <Input value={publishTopicTag} onChange={e => setPublishTopicTag(e.target.value)} placeholder="Topic tag (optional, max 50 chars)" className="text-xs" maxLength={50} />
+            <Input value={publishLinkAttachment} onChange={e => setPublishLinkAttachment(e.target.value)} placeholder="Link attachment URL (text only)" className="text-xs" />
+            <Input value={publishQuotePostId} onChange={e => setPublishQuotePostId(e.target.value)} placeholder="Quote post ID (optional)" className="text-xs" />
+            <Input value={publishGifId} onChange={e => setPublishGifId(e.target.value)} placeholder="Tenor GIF ID (text only)" className="text-xs" />
+          </div>
+
+          <div className="flex items-center gap-4 flex-wrap">
+            <div className="flex items-center gap-2">
               <label className="text-xs text-muted-foreground">Reply control:</label>
               <select value={publishReplyControl} onChange={e => setPublishReplyControl(e.target.value)} className="text-xs bg-muted rounded px-2 py-1 border border-border">
                 <option value="everyone">Everyone</option>
-                <option value="accounts_you_follow">Accounts you follow</option>
+                <option value="accounts_you_follow">Following</option>
                 <option value="mentioned_only">Mentioned only</option>
+                <option value="parent_post_author_only">Author only</option>
+                <option value="followers_only">Followers only</option>
               </select>
             </div>
+            <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer"><Switch checked={publishIsSpoiler} onCheckedChange={setPublishIsSpoiler} className="scale-75" />Spoiler</label>
+            <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer"><Switch checked={publishEnableApprovals} onCheckedChange={setPublishEnableApprovals} className="scale-75" />Reply approvals</label>
+            {publishMediaType === "text" && <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer"><Switch checked={publishPollEnabled} onCheckedChange={setPublishPollEnabled} className="scale-75" />Poll</label>}
+          </div>
 
-            <Button onClick={publishThread} disabled={loading} className="w-full">
-              {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
-              Publish Thread
-            </Button>
-          </CardContent>
-        </Card>
+          {publishPollEnabled && publishMediaType === "text" && (
+            <div className="space-y-1.5 bg-muted/30 rounded p-3">
+              <p className="text-xs font-semibold text-foreground">Poll Options (2-4, max 25 chars each)</p>
+              {publishPollOptions.map((opt, i) => (
+                <Input key={i} value={opt} onChange={e => { const o = [...publishPollOptions]; o[i] = e.target.value; setPublishPollOptions(o); }} placeholder={`Option ${String.fromCharCode(65 + i)}`} className="text-xs" maxLength={25} />
+              ))}
+              <div className="flex gap-2">
+                {publishPollOptions.length < 4 && <Button size="sm" variant="outline" onClick={() => setPublishPollOptions(p => [...p, ""])} className="text-xs">+ Option</Button>}
+                {publishPollOptions.length > 2 && <Button size="sm" variant="ghost" onClick={() => setPublishPollOptions(p => p.slice(0, -1))} className="text-xs text-red-400">Remove</Button>}
+              </div>
+            </div>
+          )}
+
+          <Button onClick={publishThread} disabled={loading} className="w-full">
+            {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}Publish Thread
+          </Button>
+        </CardContent></Card>
       </TabsContent>
 
       {/* ===== MY THREADS ===== */}
       <TabsContent value="threads" className="space-y-4 mt-4">
         <div className="flex gap-2">
-          <Button size="sm" variant="outline" onClick={() => fetchThreads()} disabled={loading} className="text-foreground">
-            <RefreshCw className={`h-3.5 w-3.5 mr-1 ${loading ? "animate-spin" : ""}`} />Load Threads
-          </Button>
+          <Button size="sm" variant="outline" onClick={() => fetchThreads()} disabled={loading} className="text-foreground"><RefreshCw className={`h-3.5 w-3.5 mr-1 ${loading ? "animate-spin" : ""}`} />Load Threads</Button>
+          <Button size="sm" variant="outline" onClick={fetchUserReplies} disabled={loading} className="text-foreground"><MessageSquare className="h-3.5 w-3.5 mr-1" />My Replies</Button>
         </div>
         <ScrollArea className="max-h-[500px]">
           <div className="space-y-2">
-            {threads.map(t => (
-              <Card key={t.id} className="border-border/50">
-                <CardContent className="p-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs text-foreground line-clamp-3">{t.text || "(media only)"}</p>
-                      <div className="flex items-center gap-2 mt-1.5 text-[10px] text-muted-foreground">
-                        <span>@{t.username}</span>
-                        <span>·</span>
-                        <span>{new Date(t.timestamp).toLocaleDateString()}</span>
-                        {t.media_type && t.media_type !== "TEXT_POST" && <Badge variant="outline" className="text-[9px] py-0 px-1">{t.media_type}</Badge>}
-                        {t.is_quote_post && <Badge variant="outline" className="text-[9px] py-0 px-1 border-purple-400/30 text-purple-400">Quote</Badge>}
-                      </div>
-                    </div>
-                    <div className="flex gap-1">
-                      {t.permalink && <a href={t.permalink} target="_blank" rel="noopener noreferrer"><ExternalLink className="h-3 w-3 text-muted-foreground hover:text-foreground" /></a>}
-                      <Button size="sm" variant="ghost" onClick={() => { setSelectedThreadId(t.id); setReplyToThreadId(t.id); setActiveTab("replies"); }} className="h-6 px-1.5"><MessageSquare className="h-3 w-3" /></Button>
-                      <Button size="sm" variant="ghost" onClick={() => deleteThread(t.id)} className="h-6 px-1.5 text-red-400 hover:text-red-300"><Trash2 className="h-3 w-3" /></Button>
-                    </div>
-                  </div>
-                  {t.media_url && (
-                    <div className="mt-2">
-                      {t.media_type === "IMAGE" ? (
-                        <img src={t.media_url} className="rounded max-h-40 object-cover" alt="" />
-                      ) : t.media_type === "VIDEO" ? (
-                        <video src={t.media_url} controls className="rounded max-h-40" />
-                      ) : null}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
-            {threads.length === 0 && !loading && <p className="text-xs text-muted-foreground text-center py-8">No threads yet. Publish your first one!</p>}
+            {threads.map(t => <ThreadCard key={t.id} t={t} />)}
+            {threads.length === 0 && !loading && <p className="text-xs text-muted-foreground text-center py-8">No threads yet</p>}
           </div>
         </ScrollArea>
         {threadsCursor && <Button size="sm" variant="outline" onClick={() => fetchThreads(threadsCursor)} disabled={loading}>Load More</Button>}
+
+        {userReplies.length > 0 && (
+          <div className="space-y-2">
+            <h4 className="text-xs font-semibold text-foreground">Your Replies</h4>
+            {userReplies.map(r => <ThreadCard key={r.id} t={r} />)}
+          </div>
+        )}
       </TabsContent>
 
       {/* ===== REPLIES ===== */}
       <TabsContent value="replies" className="space-y-4 mt-4">
-        <Card>
-          <CardContent className="p-4 space-y-3">
-            <h4 className="text-sm font-semibold text-foreground">Manage Replies</h4>
-            <p className="text-xs text-muted-foreground">View, reply to, hide, and manage replies on your threads. Threads doesn't have DMs — conversations happen publicly through replies.</p>
-            <div className="flex gap-2">
-              <Input value={selectedThreadId} onChange={e => setSelectedThreadId(e.target.value)} placeholder="Thread ID to view replies" className="text-xs flex-1" />
-              <Button size="sm" onClick={fetchReplies} disabled={loading}>
-                {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Search className="h-3.5 w-3.5 mr-1" />}Fetch
-              </Button>
-            </div>
+        <Card><CardContent className="p-4 space-y-3">
+          <h4 className="text-sm font-semibold text-foreground">Manage Replies</h4>
+          <p className="text-xs text-muted-foreground">View, reply, hide/unhide, and manage reply approvals. Threads is public — no DMs.</p>
+          <div className="flex gap-2">
+            <Input value={selectedThreadId} onChange={e => setSelectedThreadId(e.target.value)} placeholder="Thread ID to view replies" className="text-xs flex-1" />
+            <Button size="sm" onClick={fetchReplies} disabled={loading}>{loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Search className="h-3.5 w-3.5 mr-1" />}Fetch</Button>
+          </div>
+          <div className="flex gap-2">
+            <Input value={replyToThreadId} onChange={e => setReplyToThreadId(e.target.value)} placeholder="Reply to thread ID" className="text-xs flex-1" />
+            <Input value={replyText} onChange={e => setReplyText(e.target.value)} placeholder="Your reply..." className="text-xs flex-1" />
+            <Button size="sm" onClick={replyToThread} disabled={loading || !replyText}><Send className="h-3.5 w-3.5" /></Button>
+          </div>
 
-            {/* Reply form */}
-            <div className="flex gap-2">
-              <Input value={replyToThreadId} onChange={e => setReplyToThreadId(e.target.value)} placeholder="Reply to thread ID" className="text-xs flex-1" />
-              <Input value={replyText} onChange={e => setReplyText(e.target.value)} placeholder="Your reply..." className="text-xs flex-1" />
-              <Button size="sm" onClick={replyToThread} disabled={loading || !replyText}>
-                <Send className="h-3.5 w-3.5" />
-              </Button>
-            </div>
-
-            <ScrollArea className="max-h-[400px]">
-              <div className="space-y-2">
-                {replies.map(r => (
-                  <div key={r.id} className="bg-muted/30 rounded p-2.5">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1">
+          <ScrollArea className="max-h-[300px]">
+            <div className="space-y-2">
+              {replies.map(r => (
+                <div key={r.id} className="bg-muted/30 rounded p-2.5">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-1">
                         <p className="text-xs font-semibold text-foreground">@{r.username}</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">{r.text}</p>
-                        <span className="text-[10px] text-muted-foreground">{new Date(r.timestamp).toLocaleString()}</span>
+                        {r.is_verified && <CheckCircle2 className="h-3 w-3 text-blue-400" />}
+                        {r.hide_status === "HUSHED" && <Badge variant="outline" className="text-[9px] py-0 px-1 text-amber-400">Hidden</Badge>}
                       </div>
-                      <div className="flex gap-1">
-                        <Button size="sm" variant="ghost" onClick={() => { setReplyToThreadId(r.id); }} className="h-6 px-1.5 text-xs"><Send className="h-3 w-3" /></Button>
-                        <Button size="sm" variant="ghost" onClick={() => hideReply(r.id, true)} className="h-6 px-1.5 text-xs text-amber-400"><Eye className="h-3 w-3" /></Button>
-                        {r.permalink && <a href={r.permalink} target="_blank" rel="noopener noreferrer"><ExternalLink className="h-3 w-3 text-muted-foreground" /></a>}
-                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5">{r.text}</p>
+                      <span className="text-[10px] text-muted-foreground">{new Date(r.timestamp).toLocaleString()}</span>
+                    </div>
+                    <div className="flex gap-1">
+                      <Button size="sm" variant="ghost" onClick={() => setReplyToThreadId(r.id)} className="h-6 px-1.5"><Send className="h-3 w-3" /></Button>
+                      <Button size="sm" variant="ghost" onClick={() => hideReply(r.id, r.hide_status !== "HUSHED")} className="h-6 px-1.5" title={r.hide_status === "HUSHED" ? "Unhide" : "Hide"}>
+                        {r.hide_status === "HUSHED" ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
+                      </Button>
+                      {r.permalink && <a href={r.permalink} target="_blank" rel="noopener noreferrer"><ExternalLink className="h-3 w-3 text-muted-foreground" /></a>}
                     </div>
                   </div>
-                ))}
-                {replies.length === 0 && <p className="text-xs text-muted-foreground text-center py-4">No replies found</p>}
+                </div>
+              ))}
+              {replies.length === 0 && <p className="text-xs text-muted-foreground text-center py-4">No replies found</p>}
+            </div>
+          </ScrollArea>
+
+          {/* Pending Replies */}
+          <div className="border-t border-border/50 pt-3 mt-3 space-y-2">
+            <h4 className="text-xs font-semibold text-foreground">Pending Reply Approvals</h4>
+            <div className="flex gap-2">
+              <Input value={pendingThreadId} onChange={e => setPendingThreadId(e.target.value)} placeholder="Thread ID with reply approvals" className="text-xs flex-1" />
+              <Button size="sm" onClick={fetchPendingReplies} disabled={loading}><Clock className="h-3.5 w-3.5 mr-1" />Fetch</Button>
+            </div>
+            {pendingReplies.map(r => (
+              <div key={r.id} className="bg-amber-500/5 border border-amber-500/20 rounded p-2.5">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1">
+                    <p className="text-xs font-semibold text-foreground">@{r.username}</p>
+                    <p className="text-xs text-muted-foreground">{r.text}</p>
+                    <Badge variant="outline" className="text-[9px] py-0 px-1 mt-1">{r.reply_approval_status}</Badge>
+                  </div>
+                  <div className="flex gap-1">
+                    <Button size="sm" variant="outline" onClick={() => managePendingReply(r.id, true)} className="h-6 px-2 text-xs text-green-400">Approve</Button>
+                    <Button size="sm" variant="ghost" onClick={() => managePendingReply(r.id, false)} className="h-6 px-2 text-xs text-amber-400">Ignore</Button>
+                  </div>
+                </div>
               </div>
-            </ScrollArea>
-          </CardContent>
-        </Card>
+            ))}
+          </div>
+        </CardContent></Card>
       </TabsContent>
 
       {/* ===== MENTIONS ===== */}
       <TabsContent value="mentions" className="space-y-4 mt-4">
-        <div className="flex gap-2">
-          <Button size="sm" variant="outline" onClick={fetchMentions} disabled={loading} className="text-foreground">
-            <RefreshCw className={`h-3.5 w-3.5 mr-1 ${loading ? "animate-spin" : ""}`} />Load Mentions
-          </Button>
-        </div>
-        <p className="text-xs text-muted-foreground">See where you've been mentioned across Threads. Reply directly from here.</p>
+        <Button size="sm" variant="outline" onClick={fetchMentions} disabled={loading} className="text-foreground"><RefreshCw className={`h-3.5 w-3.5 mr-1 ${loading ? "animate-spin" : ""}`} />Load Mentions</Button>
         <ScrollArea className="max-h-[500px]">
           <div className="space-y-2">
-            {mentions.map(m => (
-              <Card key={m.id} className="border-border/50">
-                <CardContent className="p-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold text-foreground">@{m.username}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{m.text}</p>
-                      <span className="text-[10px] text-muted-foreground">{new Date(m.timestamp).toLocaleString()}</span>
-                    </div>
-                    <div className="flex gap-1">
-                      <Button size="sm" variant="ghost" onClick={() => { setReplyToThreadId(m.id); setActiveTab("replies"); }} className="h-6 px-1.5"><Send className="h-3 w-3" /></Button>
-                      {m.permalink && <a href={m.permalink} target="_blank" rel="noopener noreferrer"><ExternalLink className="h-3 w-3 text-muted-foreground" /></a>}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+            {mentions.map(m => <ThreadCard key={m.id} t={m} />)}
             {mentions.length === 0 && !loading && <p className="text-xs text-muted-foreground text-center py-8">No mentions yet</p>}
           </div>
         </ScrollArea>
@@ -535,135 +552,157 @@ const ThreadsAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: 
 
       {/* ===== SEARCH ===== */}
       <TabsContent value="search" className="space-y-4 mt-4">
-        <Card>
-          <CardContent className="p-4 space-y-3">
-            <h4 className="text-sm font-semibold text-foreground">Keyword Search</h4>
-            <p className="text-xs text-muted-foreground">Search public threads by keyword. Find conversations, trends, and opportunities to engage.</p>
-            <div className="flex gap-2">
-              <Input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search threads..." className="text-xs flex-1" onKeyDown={e => e.key === "Enter" && searchThreads()} />
-              <Button size="sm" onClick={searchThreads} disabled={loading || !searchQuery}>
-                {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Search className="h-3.5 w-3.5 mr-1" />}Search
-              </Button>
-            </div>
-            <ScrollArea className="max-h-[400px]">
-              <div className="space-y-2">
-                {searchResults.map(r => (
-                  <div key={r.id} className="bg-muted/30 rounded p-2.5">
-                    <p className="text-xs font-semibold text-foreground">@{r.username}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{r.text}</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="text-[10px] text-muted-foreground">{new Date(r.timestamp).toLocaleString()}</span>
-                      <Button size="sm" variant="ghost" onClick={() => { setReplyToThreadId(r.id); setActiveTab("replies"); }} className="h-5 px-1.5 text-[10px]"><Send className="h-3 w-3 mr-0.5" />Reply</Button>
-                      {r.permalink && <a href={r.permalink} target="_blank" rel="noopener noreferrer" className="text-[10px] text-purple-400 hover:underline">View</a>}
-                    </div>
+        <Card><CardContent className="p-4 space-y-3">
+          <h4 className="text-sm font-semibold text-foreground">Keyword & Topic Search</h4>
+          <p className="text-xs text-muted-foreground">Search public threads by keyword or topic tag. 2,200 queries/24h limit.</p>
+          <div className="flex gap-2">
+            <Input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search..." className="text-xs flex-1" onKeyDown={e => e.key === "Enter" && searchThreads()} />
+            <Button size="sm" onClick={searchThreads} disabled={loading || !searchQuery}>{loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Search className="h-3.5 w-3.5 mr-1" />}Search</Button>
+          </div>
+          <div className="flex gap-2 flex-wrap">
+            <select value={searchType} onChange={e => setSearchType(e.target.value)} className="text-xs bg-muted rounded px-2 py-1 border border-border">
+              <option value="TOP">Top</option><option value="RECENT">Recent</option>
+            </select>
+            <select value={searchMode} onChange={e => setSearchMode(e.target.value)} className="text-xs bg-muted rounded px-2 py-1 border border-border">
+              <option value="KEYWORD">Keyword</option><option value="TAG">Topic Tag</option>
+            </select>
+            <select value={searchMediaType} onChange={e => setSearchMediaType(e.target.value)} className="text-xs bg-muted rounded px-2 py-1 border border-border">
+              <option value="">All media</option><option value="TEXT">Text</option><option value="IMAGE">Image</option><option value="VIDEO">Video</option>
+            </select>
+            <Input value={searchAuthor} onChange={e => setSearchAuthor(e.target.value)} placeholder="Filter by author" className="text-xs w-32" />
+          </div>
+          <ScrollArea className="max-h-[400px]">
+            <div className="space-y-2">
+              {searchResults.map(r => (
+                <div key={r.id} className="bg-muted/30 rounded p-2.5">
+                  <div className="flex items-center gap-1.5 mb-0.5">
+                    <span className="text-xs font-semibold text-foreground">@{r.username}</span>
+                    {r.is_verified && <CheckCircle2 className="h-3 w-3 text-blue-400" />}
+                    {r.topic_tag && <Badge variant="outline" className="text-[9px] py-0 px-1">#{r.topic_tag}</Badge>}
                   </div>
-                ))}
-                {searchResults.length === 0 && searchQuery && !loading && <p className="text-xs text-muted-foreground text-center py-4">No results</p>}
+                  <p className="text-xs text-muted-foreground line-clamp-2">{r.text}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-[10px] text-muted-foreground">{new Date(r.timestamp).toLocaleString()}</span>
+                    <Button size="sm" variant="ghost" onClick={() => { setReplyToThreadId(r.id); setActiveTab("replies"); }} className="h-5 px-1.5 text-[10px]"><Send className="h-3 w-3 mr-0.5" />Reply</Button>
+                    <Button size="sm" variant="ghost" onClick={() => repostThread(r.id)} className="h-5 px-1.5 text-[10px]"><Repeat2 className="h-3 w-3 mr-0.5" />Repost</Button>
+                    {r.permalink && <a href={r.permalink} target="_blank" rel="noopener noreferrer" className="text-[10px] text-purple-400 hover:underline">View</a>}
+                  </div>
+                </div>
+              ))}
+              {searchResults.length === 0 && searchQuery && !loading && <p className="text-xs text-muted-foreground text-center py-4">No results</p>}
+            </div>
+          </ScrollArea>
+        </CardContent></Card>
+      </TabsContent>
+
+      {/* ===== DISCOVER (Profile Lookup) ===== */}
+      <TabsContent value="discover" className="space-y-4 mt-4">
+        <Card><CardContent className="p-4 space-y-3">
+          <h4 className="text-sm font-semibold text-foreground">Profile Discovery</h4>
+          <p className="text-xs text-muted-foreground">Look up any public Threads profile by username. Requires 100+ followers. 1,000 lookups/24h.</p>
+          <div className="flex gap-2">
+            <Input value={discoveryUsername} onChange={e => setDiscoveryUsername(e.target.value)} placeholder="Username (exact match, no @)" className="text-xs flex-1" onKeyDown={e => e.key === "Enter" && discoverProfile()} />
+            <Button size="sm" onClick={discoverProfile} disabled={loading || !discoveryUsername}>{loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <User className="h-3.5 w-3.5 mr-1" />}Lookup</Button>
+          </div>
+          {discoveredProfile && (
+            <Card className="border-purple-500/20"><CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                {discoveredProfile.profile_picture_url && <img src={discoveredProfile.profile_picture_url} className="h-14 w-14 rounded-full" alt="" />}
+                <div className="flex-1">
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-sm font-bold text-foreground">{discoveredProfile.name}</p>
+                    {discoveredProfile.is_verified && <CheckCircle2 className="h-4 w-4 text-blue-400" />}
+                  </div>
+                  <p className="text-xs text-muted-foreground">@{discoveredProfile.username}</p>
+                  {discoveredProfile.biography && <p className="text-xs text-muted-foreground mt-1">{discoveredProfile.biography}</p>}
+                </div>
               </div>
-            </ScrollArea>
-          </CardContent>
-        </Card>
+              <div className="grid grid-cols-3 gap-2 mt-3">
+                {discoveredProfile.follower_count != null && <div className="bg-muted/30 rounded p-2 text-center"><p className="text-sm font-bold text-foreground">{discoveredProfile.follower_count.toLocaleString()}</p><p className="text-[10px] text-muted-foreground">Followers</p></div>}
+                {discoveredProfile.views_count != null && <div className="bg-muted/30 rounded p-2 text-center"><p className="text-sm font-bold text-foreground">{discoveredProfile.views_count.toLocaleString()}</p><p className="text-[10px] text-muted-foreground">Views (7d)</p></div>}
+                {discoveredProfile.likes_count != null && <div className="bg-muted/30 rounded p-2 text-center"><p className="text-sm font-bold text-foreground">{discoveredProfile.likes_count.toLocaleString()}</p><p className="text-[10px] text-muted-foreground">Likes (7d)</p></div>}
+                {discoveredProfile.reposts_count != null && <div className="bg-muted/30 rounded p-2 text-center"><p className="text-sm font-bold text-foreground">{discoveredProfile.reposts_count.toLocaleString()}</p><p className="text-[10px] text-muted-foreground">Reposts (7d)</p></div>}
+                {discoveredProfile.quotes_count != null && <div className="bg-muted/30 rounded p-2 text-center"><p className="text-sm font-bold text-foreground">{discoveredProfile.quotes_count.toLocaleString()}</p><p className="text-[10px] text-muted-foreground">Quotes (7d)</p></div>}
+              </div>
+            </CardContent></Card>
+          )}
+        </CardContent></Card>
       </TabsContent>
 
       {/* ===== INSIGHTS ===== */}
       <TabsContent value="insights" className="space-y-4 mt-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* User insights */}
-          <Card>
-            <CardContent className="p-4 space-y-3">
-              <h4 className="text-sm font-semibold text-foreground">Account Insights</h4>
-              <div className="flex gap-2">
-                <select value={insightsPeriod} onChange={e => setInsightsPeriod(e.target.value)} className="text-xs bg-muted rounded px-2 py-1 border border-border">
-                  <option value="last_7_days">Last 7 days</option>
-                  <option value="last_30_days">Last 30 days</option>
-                  <option value="last_90_days">Last 90 days</option>
-                </select>
-                <Button size="sm" onClick={fetchUserInsights} disabled={loading}>
-                  {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <BarChart3 className="h-3.5 w-3.5 mr-1" />}Fetch
-                </Button>
+          <Card><CardContent className="p-4 space-y-3">
+            <h4 className="text-sm font-semibold text-foreground">Account Insights</h4>
+            <p className="text-xs text-muted-foreground">Metrics: views, likes, replies, reposts, quotes, followers_count, follower_demographics, clicks</p>
+            <Input value={insightsMetric} onChange={e => setInsightsMetric(e.target.value)} placeholder="Metrics (comma-separated)" className="text-xs" />
+            <div className="flex gap-2">
+              <select value={insightsBreakdown} onChange={e => setInsightsBreakdown(e.target.value)} className="text-xs bg-muted rounded px-2 py-1 border border-border">
+                <option value="">No breakdown</option><option value="country">Country</option><option value="city">City</option><option value="age">Age</option><option value="gender">Gender</option>
+              </select>
+              <Button size="sm" onClick={fetchUserInsights} disabled={loading}>{loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <BarChart3 className="h-3.5 w-3.5 mr-1" />}Fetch</Button>
+            </div>
+            {userInsights && (
+              <div className="space-y-2">
+                {(userInsights.data || []).map((m: any) => (
+                  <div key={m.name} className="flex items-center justify-between bg-muted/30 rounded p-2">
+                    <span className="text-xs text-muted-foreground capitalize">{m.name?.replace(/_/g, " ")}</span>
+                    <span className="text-xs font-bold text-foreground">
+                      {m.total_value?.value != null ? m.total_value.value.toLocaleString() : Array.isArray(m.values) ? m.values.map((v: any) => v.value).join(", ") : "—"}
+                    </span>
+                  </div>
+                ))}
               </div>
-              {userInsights && (
-                <div className="space-y-2">
-                  {(userInsights.data || []).map((m: any) => (
-                    <div key={m.name} className="flex items-center justify-between bg-muted/30 rounded p-2">
-                      <span className="text-xs text-muted-foreground capitalize">{m.name?.replace(/_/g, " ")}</span>
-                      <span className="text-xs font-bold text-foreground">{Array.isArray(m.values) ? m.values[0]?.value?.toLocaleString() || "—" : "—"}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+            )}
+          </CardContent></Card>
 
-          {/* Thread insights */}
-          <Card>
-            <CardContent className="p-4 space-y-3">
-              <h4 className="text-sm font-semibold text-foreground">Thread Insights</h4>
-              <div className="flex gap-2">
-                <Input value={threadInsightsId} onChange={e => setThreadInsightsId(e.target.value)} placeholder="Thread ID" className="text-xs flex-1" />
-                <Button size="sm" onClick={fetchThreadInsights} disabled={loading || !threadInsightsId}>
-                  {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Eye className="h-3.5 w-3.5 mr-1" />}Fetch
-                </Button>
+          <Card><CardContent className="p-4 space-y-3">
+            <h4 className="text-sm font-semibold text-foreground">Thread Insights</h4>
+            <p className="text-xs text-muted-foreground">views, likes, replies, reposts, quotes, shares</p>
+            <div className="flex gap-2">
+              <Input value={threadInsightsId} onChange={e => setThreadInsightsId(e.target.value)} placeholder="Thread ID" className="text-xs flex-1" />
+              <Button size="sm" onClick={fetchThreadInsights} disabled={loading || !threadInsightsId}>{loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Eye className="h-3.5 w-3.5 mr-1" />}Fetch</Button>
+            </div>
+            {threadInsights && (
+              <div className="grid grid-cols-2 gap-2">
+                {(threadInsights.data || []).map((m: any) => (
+                  <div key={m.name} className="bg-muted/30 rounded p-2 text-center">
+                    <p className="text-sm font-bold text-foreground">{Array.isArray(m.values) ? m.values[0]?.value?.toLocaleString() || "0" : "0"}</p>
+                    <p className="text-[10px] text-muted-foreground capitalize">{m.name?.replace(/_/g, " ")}</p>
+                  </div>
+                ))}
               </div>
-              {threadInsights && (
-                <div className="grid grid-cols-2 gap-2">
-                  {(threadInsights.data || []).map((m: any) => (
-                    <div key={m.name} className="bg-muted/30 rounded p-2 text-center">
-                      <p className="text-sm font-bold text-foreground">{Array.isArray(m.values) ? m.values[0]?.value?.toLocaleString() || "0" : "0"}</p>
-                      <p className="text-[10px] text-muted-foreground capitalize">{m.name?.replace(/_/g, " ")}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+            )}
+          </CardContent></Card>
         </div>
       </TabsContent>
 
       {/* ===== AI TOOLS ===== */}
       <TabsContent value="ai-tools" className="space-y-4 mt-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Card>
-            <CardContent className="p-4 space-y-3">
-              <div className="flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-purple-400" />
-                <h4 className="text-sm font-semibold text-foreground">AI Thread Generator</h4>
-              </div>
-              <p className="text-xs text-muted-foreground">Generate engaging thread text optimized for Threads' 500-char limit and conversational tone.</p>
-              <Input value={aiCaptionTopic} onChange={e => setAiCaptionTopic(e.target.value)} placeholder="Topic or idea..." className="text-xs" />
-              <Button size="sm" onClick={generateCaption} disabled={loading || !aiCaptionTopic} className="w-full">
-                {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Wand2 className="h-3.5 w-3.5 mr-1" />}Generate
-              </Button>
-              {aiCaptionResult && (
-                <div className="bg-muted/30 rounded p-3">
-                  <p className="text-xs text-foreground whitespace-pre-wrap">{aiCaptionResult}</p>
-                  <div className="flex gap-2 mt-2">
-                    <Button size="sm" variant="ghost" onClick={() => { setPublishText(aiCaptionResult); setActiveTab("publish"); toast.success("Copied to publisher"); }} className="text-xs"><ArrowRight className="h-3 w-3 mr-1" />Use</Button>
-                    <Button size="sm" variant="ghost" onClick={() => { navigator.clipboard.writeText(aiCaptionResult); toast.success("Copied"); }} className="text-xs"><Copy className="h-3 w-3 mr-1" />Copy</Button>
-                  </div>
+          <Card><CardContent className="p-4 space-y-3">
+            <div className="flex items-center gap-2"><Sparkles className="h-4 w-4 text-purple-400" /><h4 className="text-sm font-semibold text-foreground">AI Thread Generator</h4></div>
+            <p className="text-xs text-muted-foreground">Generate thread text optimized for Threads' 500-char limit.</p>
+            <Input value={aiCaptionTopic} onChange={e => setAiCaptionTopic(e.target.value)} placeholder="Topic or idea..." className="text-xs" />
+            <Button size="sm" onClick={generateCaption} disabled={loading || !aiCaptionTopic} className="w-full">{loading ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Wand2 className="h-3.5 w-3.5 mr-1" />}Generate</Button>
+            {aiCaptionResult && (
+              <div className="bg-muted/30 rounded p-3">
+                <p className="text-xs text-foreground whitespace-pre-wrap">{aiCaptionResult}</p>
+                <div className="flex gap-2 mt-2">
+                  <Button size="sm" variant="ghost" onClick={() => { setPublishText(aiCaptionResult); setActiveTab("publish"); toast.success("Copied to publisher"); }} className="text-xs"><ArrowRight className="h-3 w-3 mr-1" />Use</Button>
+                  <Button size="sm" variant="ghost" onClick={() => { navigator.clipboard.writeText(aiCaptionResult); toast.success("Copied"); }} className="text-xs"><Copy className="h-3 w-3 mr-1" />Copy</Button>
                 </div>
-              )}
-            </CardContent>
-          </Card>
+              </div>
+            )}
+          </CardContent></Card>
 
-          <Card>
-            <CardContent className="p-4 space-y-3">
-              <div className="flex items-center gap-2">
-                <Brain className="h-4 w-4 text-purple-400" />
-                <h4 className="text-sm font-semibold text-foreground">Content Analyzer</h4>
-              </div>
-              <p className="text-xs text-muted-foreground">Analyze your thread text for engagement potential, tone, and improvements.</p>
-              <Textarea value={aiAnalyzeText} onChange={e => setAiAnalyzeText(e.target.value)} placeholder="Paste your thread text..." className="text-xs min-h-[60px]" />
-              <Button size="sm" onClick={analyzeContent} disabled={loading || !aiAnalyzeText} className="w-full">
-                {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Brain className="h-3.5 w-3.5 mr-1" />}Analyze
-              </Button>
-              {aiAnalyzeResult && (
-                <div className="bg-muted/30 rounded p-3">
-                  <p className="text-xs text-foreground whitespace-pre-wrap">{aiAnalyzeResult}</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <Card><CardContent className="p-4 space-y-3">
+            <div className="flex items-center gap-2"><Brain className="h-4 w-4 text-purple-400" /><h4 className="text-sm font-semibold text-foreground">Content Analyzer</h4></div>
+            <p className="text-xs text-muted-foreground">Analyze thread text for engagement potential.</p>
+            <Textarea value={aiAnalyzeText} onChange={e => setAiAnalyzeText(e.target.value)} placeholder="Paste your thread text..." className="text-xs min-h-[60px]" />
+            <Button size="sm" onClick={analyzeContent} disabled={loading || !aiAnalyzeText} className="w-full">{loading ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Brain className="h-3.5 w-3.5 mr-1" />}Analyze</Button>
+            {aiAnalyzeResult && <div className="bg-muted/30 rounded p-3"><p className="text-xs text-foreground whitespace-pre-wrap">{aiAnalyzeResult}</p></div>}
+          </CardContent></Card>
         </div>
       </TabsContent>
     </Tabs>
