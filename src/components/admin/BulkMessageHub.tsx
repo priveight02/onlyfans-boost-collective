@@ -806,6 +806,8 @@ const BulkMessageHub = ({ accountId, open, onOpenChange, onNavigateToSession, ig
             ai_enabled: true, is_read: false, last_message_at: new Date().toISOString(),
           }).eq("id", existing[0].id);
         } else {
+          // Get current platform_user_id for scoping
+          const { data: connData } = await supabase.from("social_connections").select("platform_user_id").eq("account_id", accountId).eq("platform", "instagram").maybeSingle();
           await supabase.from("ai_dm_conversations").insert({
             account_id: accountId,
             participant_id: r.id,
@@ -813,6 +815,7 @@ const BulkMessageHub = ({ accountId, open, onOpenChange, onNavigateToSession, ig
             participant_username: recipient?.username || r.name,
             participant_avatar_url: recipient?.profile_pic || null,
             platform: "instagram",
+            platform_user_id: connData?.platform_user_id || null,
             ai_enabled: true,
             status: "active",
             folder: "primary",
