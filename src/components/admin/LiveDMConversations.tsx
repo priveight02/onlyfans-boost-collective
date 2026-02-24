@@ -236,6 +236,7 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
   const [personas, setPersonas] = useState<any[]>([]);
   const [activePersonaId, setActivePersonaId] = useState<string | null>(null);
   const [defaultPersonaType, setDefaultPersonaType] = useState<string>("male");
+  const [dailyStats, setDailyStats] = useState<{ sent: number; limit: number; cooldownUntil: string | null } | null>(null);
   const followAIRef = useRef(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesParentRef = useRef<HTMLDivElement>(null);
@@ -800,6 +801,18 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
       });
       if (!initialScanDone) scanAllConversations(true);
     }
+  }, [accountId]);
+
+  // Load daily stats from auto_respond_state
+  useEffect(() => {
+    if (!accountId) return;
+    const loadDailyStats = async () => {
+      const { data } = await supabase.from("auto_respond_state").select("daily_sent_count, daily_limit, cooldown_until").eq("account_id", accountId).maybeSingle();
+      if (data) setDailyStats({ sent: data.daily_sent_count || 0, limit: data.daily_limit || 500, cooldownUntil: data.cooldown_until });
+    };
+    loadDailyStats();
+    const statsInterval = setInterval(loadDailyStats, 10000);
+    return () => clearInterval(statsInterval);
   }, [accountId]);
 
   // Load messages when convo selected — instant from cache
@@ -1824,8 +1837,17 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
         {/* Bottom Status Bar */}
         <div className="px-3 py-2 border-t border-border bg-muted/10 text-[10px] text-muted-foreground flex items-center justify-between">
           <span>{conversations.length} conversations</span>
-          {scanning && <span className="text-blue-400 animate-pulse">Syncing...</span>}
-          {processing && <span className="text-blue-400 animate-pulse">AI processing...</span>}
+          <div className="flex items-center gap-2">
+            {dailyStats && (
+              <span className={dailyStats.cooldownUntil && new Date(dailyStats.cooldownUntil).getTime() > Date.now() ? "text-orange-400" : "text-muted-foreground"}>
+                {dailyStats.cooldownUntil && new Date(dailyStats.cooldownUntil).getTime() > Date.now()
+                  ? `⏸ Cooldown (${dailyStats.sent}/${dailyStats.limit})`
+                  : `📤 ${dailyStats.sent}/${dailyStats.limit} today`}
+              </span>
+            )}
+            {scanning && <span className="text-blue-400 animate-pulse">Syncing...</span>}
+            {processing && <span className="text-blue-400 animate-pulse">AI processing...</span>}
+          </div>
         </div>
       </div>
 
