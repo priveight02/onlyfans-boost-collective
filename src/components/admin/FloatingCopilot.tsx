@@ -418,8 +418,8 @@ const FloatingCopilot = ({ activeTab, contextData, onNavigate }: FloatingCopilot
       <AnimatePresence>
         {!isOpen && (
           <motion.div initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0, opacity: 0 }} className="fixed bottom-6 right-6 z-[9999]">
-            <Button onClick={() => setIsOpen(true)} className={`h-14 w-14 rounded-full bg-gradient-to-br from-accent via-purple-600 to-pink-600 hover:from-accent/90 hover:via-purple-500 hover:to-pink-500 shadow-2xl shadow-accent/30 p-0 relative ${pulseHint ? "animate-pulse" : ""}`}>
-              <Bot className="h-6 w-6 text-white" />
+            <Button onClick={() => setIsOpen(true)} className={`h-12 w-12 rounded-full bg-white/[0.08] hover:bg-white/[0.15] border border-white/[0.12] hover:border-white/[0.25] shadow-2xl shadow-black/40 p-0 relative transition-all duration-300 backdrop-blur-sm ${pulseHint ? "animate-pulse" : ""}`}>
+              <Bot className="h-5 w-5 text-white/70" />
               {pulseHint && <><span className="absolute -top-1 -right-1 h-3.5 w-3.5 bg-emerald-400 rounded-full border-2 border-[hsl(220,100%,10%)] animate-ping" /><span className="absolute -top-1 -right-1 h-3.5 w-3.5 bg-emerald-400 rounded-full border-2 border-[hsl(220,100%,10%)]" /></>}
             </Button>
           </motion.div>
