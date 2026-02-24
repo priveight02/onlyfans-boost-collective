@@ -40,7 +40,7 @@ serve(async (req) => {
       });
     }
 
-    // Step 1: Exchange code for short-lived token via Instagram Business Login
+    // Step 1: Exchange code for short-lived token
     console.log("Exchanging code for short-lived token...");
     const tokenRes = await fetch("https://api.instagram.com/oauth/access_token", {
       method: "POST",
@@ -77,82 +77,122 @@ serve(async (req) => {
     const igUserId = tokenData.user_id;
     console.log(`Got short-lived token for user ID: ${igUserId}`);
 
-    // Step 2: Exchange for long-lived token (valid 60 days)
-    console.log("Exchanging for long-lived token...");
-    const longLivedRes = await fetch(
-      `https://graph.instagram.com/access_token?grant_type=ig_exchange_token&client_secret=${appSecret}&access_token=${shortLivedToken}`
-    );
-    const longLivedData = await longLivedRes.json();
-    console.log("Long-lived exchange response:", JSON.stringify(longLivedData));
+    // Step 2: Exchange for long-lived token (60 days)
+    // For v25.0 Business Login tokens, use graph.instagram.com for token exchange
+    let finalToken = shortLivedToken;
+    let expiresIn = 3600;
 
-    const finalToken = longLivedData.access_token || shortLivedToken;
-    const expiresIn = longLivedData.expires_in || 3600;
-    console.log(`Token ready, expires in ${expiresIn}s, used long-lived: ${!!longLivedData.access_token}`);
+    try {
+      console.log("Exchanging for long-lived token...");
+      const longLivedRes = await fetch(
+        `https://graph.instagram.com/access_token?grant_type=ig_exchange_token&client_secret=${appSecret}&access_token=${shortLivedToken}`
+      );
+      const longLivedData = await longLivedRes.json();
+      console.log("Long-lived exchange response:", JSON.stringify(longLivedData));
+
+      if (longLivedData.access_token) {
+        finalToken = longLivedData.access_token;
+        expiresIn = longLivedData.expires_in || 5184000;
+        console.log(`Long-lived token obtained, expires in ${expiresIn}s`);
+      } else {
+        console.warn("Long-lived token exchange failed, using short-lived token");
+      }
+    } catch (e) {
+      console.warn("Long-lived token exchange error:", e);
+    }
 
     // Step 3: Get user profile info
-    // Instagram Business Login uses different field names than Basic Display API:
-    // - "user_id" instead of "id"
-    // - "profile_pic" instead of "profile_picture_url" (for User Profile API)
-    // - "follower_count" instead of "followers_count" (for User Profile API)
-    console.log("Fetching user profile for user_id:", igUserId);
-    let profileData: any = {};
+    // v25.0 Instagram Business Login tokens are Facebook Graph API tokens
+    // Profile data MUST be fetched from graph.facebook.com, NOT graph.instagram.com
+    console.log("Fetching user profile...");
+    let username: string | null = null;
+    let name: string | null = null;
+    let profilePictureUrl: string | null = null;
+    let accountType: string | null = null;
+    let followersCount = 0;
+    let mediaCount = 0;
 
-    // Attempt 1: /me with Instagram Business Login fields (user_id, username)
+    // Primary: Use graph.facebook.com/me (v25.0 tokens are FB tokens)
     try {
-      const r1 = await fetch(`https://graph.instagram.com/v25.0/me?fields=user_id,username,name,account_type,profile_picture_url,followers_count,media_count&access_token=${finalToken}`);
-      const d1 = await r1.json();
-      console.log("Profile v25 /me (business fields):", JSON.stringify(d1));
-      if (!d1.error && (d1.username || d1.name)) profileData = d1;
-    } catch (e) { console.warn("v25 /me business fields failed:", e); }
-
-    // Attempt 2: /me with minimal fields only
-    if (!profileData.username) {
-      try {
-        const r2 = await fetch(`https://graph.instagram.com/v25.0/me?fields=user_id,username&access_token=${finalToken}`);
-        const d2 = await r2.json();
-        console.log("Profile v25 /me (minimal):", JSON.stringify(d2));
-        if (!d2.error && (d2.username || d2.user_id)) Object.assign(profileData, d2);
-      } catch (e) { console.warn("v25 /me minimal failed:", e); }
+      const fbRes = await fetch(
+        `https://graph.facebook.com/v25.0/me?fields=id,name,profile_picture&access_token=${finalToken}`
+      );
+      const fbData = await fbRes.json();
+      console.log("FB /me response:", JSON.stringify(fbData));
+      if (!fbData.error) {
+        name = fbData.name || null;
+        profilePictureUrl = fbData.profile_picture || null;
+      }
+    } catch (e) {
+      console.warn("FB /me failed:", e);
     }
 
-    // Attempt 3: User Profile API endpoint (used in messaging context) with /{user_id}
-    if (!profileData.username) {
+    // Also try Instagram-specific endpoint for username
+    try {
+      const igRes = await fetch(
+        `https://graph.instagram.com/v25.0/me?fields=user_id,username,account_type&access_token=${finalToken}`
+      );
+      const igData = await igRes.json();
+      console.log("IG /me response:", JSON.stringify(igData));
+      if (!igData.error) {
+        username = igData.username || null;
+        accountType = igData.account_type || null;
+      }
+    } catch (e) {
+      console.warn("IG /me failed:", e);
+    }
+
+    // Fallback: try /{user_id} on instagram graph
+    if (!username) {
       try {
-        const r3 = await fetch(`https://graph.instagram.com/v25.0/${igUserId}?fields=name,username,profile_pic,follower_count&access_token=${finalToken}`);
-        const d3 = await r3.json();
-        console.log("Profile v25 /{id} (user profile API):", JSON.stringify(d3));
-        if (!d3.error && (d3.username || d3.name)) {
-          profileData.username = d3.username || profileData.username;
-          profileData.name = d3.name || profileData.name;
-          profileData.profile_picture_url = d3.profile_pic || profileData.profile_picture_url;
-          profileData.followers_count = d3.follower_count || profileData.followers_count;
+        const idRes = await fetch(
+          `https://graph.instagram.com/v25.0/${igUserId}?fields=username,name,profile_picture_url,followers_count,media_count&access_token=${finalToken}`
+        );
+        const idData = await idRes.json();
+        console.log("IG /{id} response:", JSON.stringify(idData));
+        if (!idData.error) {
+          username = idData.username || username;
+          name = idData.name || name;
+          profilePictureUrl = idData.profile_picture_url || profilePictureUrl;
+          followersCount = idData.followers_count || 0;
+          mediaCount = idData.media_count || 0;
         }
-      } catch (e) { console.warn("v25 /{id} user profile failed:", e); }
+      } catch (e) {
+        console.warn("IG /{id} failed:", e);
+      }
     }
 
-    // Attempt 4: Unversioned /me with basic fields
-    if (!profileData.username) {
+    // Fallback: try facebook graph with user_id
+    if (!username && !name) {
       try {
-        const r4 = await fetch(`https://graph.instagram.com/me?fields=user_id,username,name&access_token=${finalToken}`);
-        const d4 = await r4.json();
-        console.log("Profile /me unversioned:", JSON.stringify(d4));
-        if (!d4.error && (d4.username || d4.name)) Object.assign(profileData, d4);
-      } catch (e) { console.warn("Unversioned /me failed:", e); }
+        const fb2Res = await fetch(
+          `https://graph.facebook.com/v25.0/${igUserId}?fields=id,name,username,profile_pic&access_token=${finalToken}`
+        );
+        const fb2Data = await fb2Res.json();
+        console.log("FB /{id} response:", JSON.stringify(fb2Data));
+        if (!fb2Data.error) {
+          username = fb2Data.username || username;
+          name = fb2Data.name || name;
+          profilePictureUrl = fb2Data.profile_pic || profilePictureUrl;
+        }
+      } catch (e) {
+        console.warn("FB /{id} failed:", e);
+      }
     }
 
-    console.log(`Profile fetched: @${profileData.username}, name: ${profileData.name}, type: ${profileData.account_type}`);
+    console.log(`Profile result: username=${username}, name=${name}, pic=${!!profilePictureUrl}`);
 
     return new Response(JSON.stringify({
       success: true,
       data: {
         access_token: finalToken,
-        user_id: igUserId || profileData.user_id || profileData.id,
-        username: profileData.username || profileData.name || null,
-        account_type: profileData.account_type,
-        name: profileData.name || profileData.username || null,
-        profile_picture_url: profileData.profile_picture_url || null,
-        followers_count: profileData.followers_count || 0,
-        media_count: profileData.media_count || 0,
+        user_id: igUserId,
+        username: username || name || null,
+        account_type: accountType,
+        name: name || username || null,
+        profile_picture_url: profilePictureUrl || null,
+        followers_count: followersCount,
+        media_count: mediaCount,
         expires_in: expiresIn,
       },
     }), {
