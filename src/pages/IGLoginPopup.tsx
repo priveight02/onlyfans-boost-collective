@@ -11,7 +11,7 @@ const IGLoginPopup = () => {
   const [success, setSuccess] = useState(false);
 
   // Use current origin so it works in both production and Lovable preview
-  const redirectUri = `${window.location.origin}/ig-login`;
+  const redirectUri = "https://uplyze.ai/ig-login";
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
