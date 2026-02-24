@@ -1566,34 +1566,33 @@ Analyze every character in the name and username for any gender signal at all. L
             break;
           }
           
-          const messageIds = convoData?.messages?.data?.slice(0, msgLimit) || [];
-          console.log(`Conversation ${params.conversation_id}: ${messageIds.length} message IDs`);
+          // Per docs: only the 20 most recent messages can have details fetched
+          const messageIds = (convoData?.messages?.data || []).slice(0, 20);
+          console.log(`Conversation ${params.conversation_id}: ${messageIds.length} message IDs (capped at 20)`);
           
           // Per docs: Step 2 — GET /<MESSAGE_ID>?fields=id,created_time,from,to,message&access_token=TOKEN
-          // Note: Only the 20 most recent messages can be fetched with details
-          // Only use documented fields: id, created_time, from, to, message, attachments
-          const detailedMessages = await Promise.all(
-            messageIds.map(async (msg: any) => {
-              try {
-                // Use only officially documented fields
-                const detailResp = await fetch(`${IG_GRAPH_URL}/${msg.id}?fields=id,created_time,from,to,message,attachments&access_token=${token}`);
-                const detail = await detailResp.json();
-                if (detail?.error) {
-                  // Retry with minimal fields if some field is unsupported
-                  const retryResp = await fetch(`${IG_GRAPH_URL}/${msg.id}?fields=id,created_time,from,to,message&access_token=${token}`);
-                  const retryDetail = await retryResp.json();
-                  if (retryDetail?.error) {
-                    // This message is older than the 20 most recent — per docs it can't be loaded
-                    return { id: msg.id, created_time: msg.created_time, message: null, from: null, to: null, too_old: true };
-                  }
-                  return retryDetail;
+          const detailedMessages: any[] = [];
+          for (const msg of messageIds) {
+            try {
+              const detailResp = await fetch(`${IG_GRAPH_URL}/${msg.id}?fields=id,created_time,from,to,message,attachments&access_token=${token}`);
+              const detail = await detailResp.json();
+              if (detail?.error) {
+                // Retry with minimal fields
+                const retryResp = await fetch(`${IG_GRAPH_URL}/${msg.id}?fields=id,created_time,from,to,message&access_token=${token}`);
+                const retryDetail = await retryResp.json();
+                if (retryDetail?.error) {
+                  console.log(`Skipping message ${msg.id}: ${retryDetail.error.message}`);
+                  continue; // Skip entirely — don't return broken entries
                 }
-                return detail;
-              } catch (e: any) {
-                return { id: msg.id, created_time: msg.created_time, message: null, from: null, to: null, too_old: true };
+                detailedMessages.push(retryDetail);
+              } else {
+                detailedMessages.push(detail);
               }
-            })
-          );
+            } catch (e: any) {
+              console.log(`Skipping message ${msg.id}: ${e.message}`);
+              continue; // Skip failed messages entirely
+            }
+          }
           
           result = { messages: { data: detailedMessages }, id: params.conversation_id };
         } catch (err: any) {
