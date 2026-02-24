@@ -3057,7 +3057,6 @@ Analyze every character in the name and username for any gender signal at all. L
         }
         
         // Step 2: Fetch EACH message individually to get full details including attachments
-        // Batch in groups of 10 for concurrency
         const detailedMsgs: any[] = [];
         const batchSize = 10;
         
@@ -3066,15 +3065,51 @@ Analyze every character in the name and username for any gender signal at all. L
           const results = await Promise.all(
             batch.map(async (msgRef: any) => {
               try {
-                // Fetch with ALL possible fields
                 const r = await fetch(`${IG_GRAPH_URL}/${msgRef.id}?fields=id,created_time,from,to,message,attachments,story,shares,is_unsupported&access_token=${token}`);
                 const d = await r.json();
                 if (d?.error) {
-                  // Retry minimal
                   const r2 = await fetch(`${IG_GRAPH_URL}/${msgRef.id}?fields=id,created_time,from,to,message&access_token=${token}`);
                   const d2 = await r2.json();
                   if (d2?.error) return null;
                   return d2;
+                }
+                // Normalize attachments: extract proper media URLs from IG's nested structure
+                if (d.attachments?.data) {
+                  d.attachments.data = d.attachments.data.map((att: any) => {
+                    const normalized: any = { ...att };
+                    // IG API returns media URLs in various nested fields
+                    // Priority: file_url > image_data.url > video_data.url > nested url
+                    let mediaUrl = att.file_url || null;
+                    let mediaType = (att.type || att.mime_type || "").toLowerCase();
+                    
+                    if (!mediaUrl && att.image_data) {
+                      mediaUrl = att.image_data.url || att.image_data.src || att.image_data.preview_url;
+                      if (!mediaType || mediaType === "fallback") mediaType = "image";
+                    }
+                    if (!mediaUrl && att.video_data) {
+                      mediaUrl = att.video_data.url || att.video_data.preview_url;
+                      if (!mediaType || mediaType === "fallback") mediaType = "video";
+                    }
+                    if (!mediaUrl && att.audio_data) {
+                      mediaUrl = att.audio_data.url;
+                      if (!mediaType || mediaType === "fallback") mediaType = "audio";
+                    }
+                    // Some attachments have url at top level
+                    if (!mediaUrl && att.url) mediaUrl = att.url;
+                    // Some have nested data array with url
+                    if (!mediaUrl && att.data && Array.isArray(att.data)) {
+                      for (const d of att.data) {
+                        if (d.url) { mediaUrl = d.url; break; }
+                        if (d.file_url) { mediaUrl = d.file_url; break; }
+                      }
+                    }
+                    
+                    // Set normalized fields
+                    normalized._media_url = mediaUrl || null;
+                    normalized._media_type = mediaType || "unknown";
+                    
+                    return normalized;
+                  });
                 }
                 return d;
               } catch { return null; }
@@ -3083,28 +3118,24 @@ Analyze every character in the name and username for any gender signal at all. L
           detailedMsgs.push(...results.filter(Boolean));
         }
         
-        // Log attachment structures for debugging
+        // Log raw attachment structures for debugging (first 5 unique types)
         const mediaMessages = detailedMsgs.filter((m: any) => m.attachments?.data?.length > 0);
         if (mediaMessages.length > 0) {
-          // Log up to 3 different attachment types
           const seen = new Set();
           for (const mm of mediaMessages) {
             for (const att of (mm.attachments?.data || [])) {
-              const t = att.type || att.mime_type || "unknown";
-              if (!seen.has(t)) {
+              const t = att._media_type || att.type || "unknown";
+              if (!seen.has(t) && seen.size < 5) {
                 seen.add(t);
-                console.log(`Attachment type="${t}": ${JSON.stringify(att).substring(0, 500)}`);
+                console.log(`[ATTACH] type="${t}" url=${att._media_url ? "YES" : "NO"} raw=${JSON.stringify(att).substring(0, 600)}`);
               }
-              if (seen.size >= 5) break;
             }
-            if (seen.size >= 5) break;
           }
         }
         
-        // Sort oldest first
         detailedMsgs.sort((a: any, b: any) => new Date(a.created_time).getTime() - new Date(b.created_time).getTime());
         
-        console.log(`Returned ${detailedMsgs.length} detailed messages (${mediaMessages.length} with attachments)`);
+        console.log(`Returned ${detailedMsgs.length} msgs (${mediaMessages.length} with media)`);
         result = { data: detailedMsgs, delta: !!params?.since };
         break;
       }
