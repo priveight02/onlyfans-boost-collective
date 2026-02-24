@@ -2781,6 +2781,73 @@ Analyze every character in the name and username for any gender signal at all. L
         result = await igFetch(`/debug_token?input_token=${token}`, token);
         break;
 
+      // ===== BUSINESS MESSAGING (instagram_business_manage_messages) =====
+      case "get_business_conversations": {
+        const igUserId = conn.platform_user_id || conn.metadata?.ig_user_id;
+        result = await igFetch(`/${igUserId}/conversations?fields=id,updated_time,participants,messages.limit(1){message,from,created_time}&platform=instagram&limit=${params?.limit || 20}`, token);
+        break;
+      }
+      case "get_business_messages": {
+        result = await igFetch(`/${params.conversation_id}/messages?fields=id,message,from,created_time,attachments&limit=${params?.limit || 20}`, token);
+        break;
+      }
+      case "send_business_message": {
+        const igUserId = conn.platform_user_id || conn.metadata?.ig_user_id;
+        result = await igFetch(`/${igUserId}/messages`, token, "POST", {
+          recipient: { id: params.recipient_id },
+          message: { text: params.message },
+        });
+        break;
+      }
+
+      // ===== CONVERSION EVENTS (instagram_manage_events) =====
+      case "log_conversion_event": {
+        const igUserId = conn.platform_user_id || conn.metadata?.ig_user_id;
+        const fbPageId = conn.metadata?.page_id;
+        if (!fbPageId) throw new Error("No Facebook Page linked. Connect via Business Manager.");
+        result = await fetch(`${FB_GRAPH_URL}/${fbPageId}/page_activities`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            custom_events: JSON.stringify([{
+              _eventName: params.event_name || "Purchase",
+              _valueToSum: params.value || 0,
+              fb_currency: params.currency || "USD",
+              fb_content_type: params.content_type || "product",
+              fb_content_id: params.content_id || "",
+              ...params.custom_data,
+            }]),
+            advertiser_tracking_enabled: "1",
+            access_token: token,
+          }),
+        }).then(r => r.json());
+        break;
+      }
+
+      // ===== DELETE MEDIA (instagram_manage_contents) =====
+      case "delete_media": {
+        const igUserId = conn.platform_user_id || conn.metadata?.ig_user_id;
+        result = await igFetch(`/${params.media_id}`, token, "DELETE");
+        break;
+      }
+
+      // ===== CREATOR MARKETPLACE DISCOVERY (instagram_creator_marketplace_discovery) =====
+      case "discover_ig_creators": {
+        const igUserId = conn.platform_user_id || conn.metadata?.ig_user_id;
+        // Use business_discovery to look up creator profiles by username
+        const usernames = params.usernames || [];
+        const results: any[] = [];
+        for (const username of usernames.slice(0, 10)) {
+          try {
+            const fields = "username,name,biography,profile_picture_url,followers_count,follows_count,media_count";
+            const r = await igFetch(`/${igUserId}?fields=business_discovery.username(${username}){${fields}}`, token);
+            if (r?.business_discovery) results.push(r.business_discovery);
+          } catch (e) { /* skip failed lookups */ }
+        }
+        result = { creators: results, count: results.length };
+        break;
+      }
+
       default:
         throw new Error(`Unknown action: ${action}`);
     }
