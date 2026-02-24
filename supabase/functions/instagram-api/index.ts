@@ -1624,7 +1624,6 @@ Analyze every character in the name and username for any gender signal at all. L
                   const resp = await fetch(`${IG_GRAPH_URL}/${msg.id}?fields=${workingFields}&access_token=${token}`);
                   const detail = await resp.json();
                   if (detail?.error) {
-                    // Fallback to minimal
                     const fallbackResp = await fetch(`${IG_GRAPH_URL}/${msg.id}?fields=${minFields}&access_token=${token}`);
                     const fallback = await fallbackResp.json();
                     if (fallback?.error) return null;
@@ -1637,7 +1636,61 @@ Analyze every character in the name and username for any gender signal at all. L
             detailedMessages.push(...batchResults.filter(Boolean));
           }
           
-          console.log(`Fetched ${detailedMessages.length}/${allMessageIds.length} message details`);
+          // Normalize attachment data: extract proper URLs from IG's nested structures
+          for (const msg of detailedMessages) {
+            if (msg.attachments?.data) {
+              msg.attachments.data = msg.attachments.data.map((att: any) => {
+                let mediaUrl = att.file_url || null;
+                let mediaType = (att.type || att.mime_type || "").toLowerCase();
+                
+                if (!mediaUrl && att.image_data) {
+                  mediaUrl = att.image_data.url || att.image_data.src || att.image_data.preview_url || att.image_data.max_width_url;
+                  if (!mediaType || mediaType === "fallback") mediaType = "image";
+                }
+                if (!mediaUrl && att.video_data) {
+                  mediaUrl = att.video_data.url || att.video_data.preview_url;
+                  if (!mediaType || mediaType === "fallback") mediaType = "video";
+                }
+                if (!mediaUrl && att.audio_data) {
+                  mediaUrl = att.audio_data.url;
+                  if (!mediaType || mediaType === "fallback") mediaType = "audio";
+                }
+                if (!mediaUrl && att.url) mediaUrl = att.url;
+                // Deep search for any remaining URLs
+                if (!mediaUrl) {
+                  const deepSearch = (o: any): string | null => {
+                    if (!o || typeof o !== "object") return null;
+                    if (typeof o === "string" && o.startsWith("http")) return o;
+                    for (const v of Object.values(o)) {
+                      if (typeof v === "string" && v.startsWith("http") && !v.includes("graph.facebook.com") && !v.includes("graph.instagram.com")) return v;
+                      if (typeof v === "object") { const r = deepSearch(v); if (r) return r; }
+                    }
+                    return null;
+                  };
+                  mediaUrl = deepSearch(att);
+                }
+                
+                return { ...att, _media_url: mediaUrl, _media_type: mediaType };
+              });
+            }
+          }
+          
+          // Log attachment types for debugging
+          const mediaMsgs = detailedMessages.filter((m: any) => m.attachments?.data?.length > 0);
+          if (mediaMsgs.length > 0) {
+            const seen = new Set();
+            for (const mm of mediaMsgs) {
+              for (const att of (mm.attachments?.data || [])) {
+                const t = att._media_type || "unknown";
+                if (!seen.has(t) && seen.size < 5) {
+                  seen.add(t);
+                  console.log(`[CONVO_ATTACH] type="${t}" url=${att._media_url ? att._media_url.substring(0, 80) : "NONE"} raw_keys=${Object.keys(att).join(",")}`);
+                }
+              }
+            }
+          }
+          
+          console.log(`Fetched ${detailedMessages.length}/${allMessageIds.length} message details (${mediaMsgs.length} with media)`);
           result = { messages: { data: detailedMessages }, id: params.conversation_id };
         } catch (err: any) {
           console.error("get_conversation_messages failed:", err.message);
