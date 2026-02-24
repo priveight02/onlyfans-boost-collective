@@ -92,9 +92,28 @@ serve(async (req) => {
     // Step 3: Get user profile info
     console.log("Fetching user profile...");
     const profileRes = await fetch(
-      `https://graph.instagram.com/v21.0/me?fields=user_id,username,account_type,name,profile_picture_url&access_token=${finalToken}`
+      `https://graph.instagram.com/v24.0/me?fields=user_id,username,account_type,name,profile_picture_url,followers_count,media_count&access_token=${finalToken}`
     );
     const profileData = await profileRes.json();
+    console.log("Profile response:", JSON.stringify(profileData));
+
+    // Fallback: if username is missing, try fetching via user_id directly
+    if (!profileData.username && (igUserId || profileData.user_id || profileData.id)) {
+      const uid = igUserId || profileData.user_id || profileData.id;
+      try {
+        const fallbackRes = await fetch(
+          `https://graph.instagram.com/v24.0/${uid}?fields=username,name,profile_picture_url,followers_count,media_count&access_token=${finalToken}`
+        );
+        const fallbackData = await fallbackRes.json();
+        console.log("Fallback profile response:", JSON.stringify(fallbackData));
+        if (fallbackData.username) profileData.username = fallbackData.username;
+        if (fallbackData.name && !profileData.name) profileData.name = fallbackData.name;
+        if (fallbackData.profile_picture_url && !profileData.profile_picture_url) profileData.profile_picture_url = fallbackData.profile_picture_url;
+        if (fallbackData.followers_count) profileData.followers_count = fallbackData.followers_count;
+        if (fallbackData.media_count) profileData.media_count = fallbackData.media_count;
+      } catch (e) { console.warn("Fallback profile fetch failed:", e); }
+    }
+
     console.log(`Profile fetched: @${profileData.username}, type: ${profileData.account_type}`);
 
     return new Response(JSON.stringify({
@@ -102,10 +121,12 @@ serve(async (req) => {
       data: {
         access_token: finalToken,
         user_id: igUserId || profileData.user_id || profileData.id,
-        username: profileData.username,
+        username: profileData.username || profileData.name || null,
         account_type: profileData.account_type,
-        name: profileData.name,
-        profile_picture_url: profileData.profile_picture_url,
+        name: profileData.name || profileData.username || null,
+        profile_picture_url: profileData.profile_picture_url || null,
+        followers_count: profileData.followers_count || 0,
+        media_count: profileData.media_count || 0,
         expires_in: expiresIn,
       },
     }), {

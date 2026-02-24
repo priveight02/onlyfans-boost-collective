@@ -1626,7 +1626,9 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
         window.removeEventListener("message", handleMessage);
         setIgLoginPopupLoading(false);
         const payload = event.data.payload || {};
-        const { access_token, user_id, username, expires_in, name, profile_picture_url, session_id, csrf_token, ds_user_id } = payload;
+        const { access_token, user_id, username: rawUsername, expires_in, name: rawName, profile_picture_url, session_id, csrf_token, ds_user_id, followers_count, media_count } = payload;
+        const username = rawUsername || rawName || `ig_${user_id || "user"}`;
+        const name = rawName || rawUsername || username;
         
         if (!access_token && !session_id) return;
 
@@ -2766,29 +2768,19 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
                       style={highlightInstagram ? { '--highlight-color': 'rgba(236,72,153,0.4)' } as React.CSSProperties : undefined}
                     >
                       {igConnected && <div className="absolute top-2 right-2 h-2 w-2 rounded-full bg-green-400 shadow-[0_0_6px] shadow-green-400/60" />}
-                      {/* Chain icon: green if both IG+FB linked, grey if not */}
-                      <TooltipProvider delayDuration={200}>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <div className={`absolute bottom-1.5 left-1.5 cursor-help ${igFbPageLinked ? "text-emerald-400 drop-shadow-[0_0_4px_rgba(52,211,153,0.5)]" : "text-muted-foreground/30"}`}>
-                              <Link2 className="h-3 w-3" />
-                            </div>
-                          </TooltipTrigger>
-                          <TooltipContent side="top" className="max-w-[220px] text-[10px] leading-snug">
-                            {igFbPageLinked ? (
-                              <span className="text-emerald-400 font-semibold">✓ Linked — Facebook Page connected to this Instagram account. DMs ready.</span>
-                            ) : !igConnected && !facebookConnected ? (
-                              <span><b>Not linked.</b> Steps remaining:<br/>1. Connect Instagram<br/>2. Connect Facebook (with Page access)</span>
-                            ) : igConnected && !facebookConnected ? (
-                              <span><b>Instagram connected.</b> Step remaining:<br/>→ Connect Facebook to link a Page for DM access</span>
-                            ) : !igConnected && facebookConnected ? (
-                              <span><b>Facebook connected.</b> Step remaining:<br/>→ Connect Instagram to complete the link</span>
-                            ) : (
-                              <span><b>Both connected but Page not linked to IG.</b><br/>→ Reconnect Facebook ensuring the Page is linked to this Instagram account</span>
-                            )}
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
+                      {/* Disconnect button */}
+                      {igConnected && (() => {
+                        const igConn = connections.find(c => c.platform === "instagram" && c.is_connected);
+                        return igConn ? (
+                          <button
+                            className="absolute bottom-1.5 left-1.5 text-red-400/60 hover:text-red-400 transition-colors z-10"
+                            onClick={(e) => { e.stopPropagation(); e.preventDefault(); disconnectPlatform(igConn.id); }}
+                            title="Disconnect Instagram"
+                          >
+                            <Link2 className="h-3.5 w-3.5" />
+                          </button>
+                        ) : null;
+                      })()}
                       <div className="relative">
                         {isLoading ? <Loader2 className="h-8 w-8 text-pink-400 animate-spin" /> : <Instagram className="h-8 w-8 text-pink-400 transition-all duration-300 group-hover/cube:text-pink-300 group-hover/cube:drop-shadow-[0_0_12px_rgba(236,72,153,0.5)]" />}
                       </div>
@@ -2809,6 +2801,18 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
                       style={highlightTiktok ? { '--highlight-color': 'rgba(34,211,238,0.4)' } as React.CSSProperties : undefined}
                     >
                       {ttConnected && <div className="absolute top-2 right-2 h-2 w-2 rounded-full bg-green-400 shadow-[0_0_6px] shadow-green-400/60" />}
+                      {ttConnected && (() => {
+                        const ttConn = connections.find(c => c.platform === "tiktok" && c.is_connected);
+                        return ttConn ? (
+                          <button
+                            className="absolute bottom-1.5 left-1.5 text-red-400/60 hover:text-red-400 transition-colors z-10"
+                            onClick={(e) => { e.stopPropagation(); e.preventDefault(); disconnectPlatform(ttConn.id); }}
+                            title="Disconnect TikTok"
+                          >
+                            <Link2 className="h-3.5 w-3.5" />
+                          </button>
+                        ) : null;
+                      })()}
                       <div className="relative">
                         {isLoading ? <Loader2 className="h-8 w-8 text-cyan-400 animate-spin" /> : <svg viewBox="0 0 24 24" className="h-8 w-8 transition-all duration-300 group-hover/cube:drop-shadow-[0_0_12px_rgba(34,211,238,0.5)]" fill="#00f2ea"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.27 6.27 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.34-6.34V8.75a8.18 8.18 0 0 0 4.76 1.52V6.84a4.84 4.84 0 0 1-1-.15z"/></svg>}
                       </div>
@@ -2829,28 +2833,19 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
                         style={highlightFacebook ? { '--highlight-color': 'rgba(59,130,246,0.4)' } as React.CSSProperties : undefined}
                       >
                         {facebookConnected && <div className="absolute top-2 right-2 h-2 w-2 rounded-full bg-green-400 shadow-[0_0_6px] shadow-green-400/60" />}
-                        <TooltipProvider delayDuration={200}>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <div className={`absolute bottom-1.5 left-1.5 cursor-help ${igFbPageLinked ? "text-emerald-400 drop-shadow-[0_0_4px_rgba(52,211,153,0.5)]" : "text-muted-foreground/30"}`}>
-                                <Link2 className="h-3 w-3" />
-                              </div>
-                            </TooltipTrigger>
-                            <TooltipContent side="top" className="max-w-[220px] text-[10px] leading-snug">
-                              {igFbPageLinked ? (
-                                <span className="text-emerald-400 font-semibold">✓ Linked — Facebook Page connected to this Instagram account. DMs ready.</span>
-                              ) : !igConnected && !facebookConnected ? (
-                                <span><b>Not linked.</b> Steps remaining:<br/>1. Connect Instagram<br/>2. Connect Facebook (with Page access)</span>
-                              ) : igConnected && !facebookConnected ? (
-                                <span><b>Instagram connected.</b> Step remaining:<br/>→ Connect Facebook to link a Page for DM access</span>
-                              ) : !igConnected && facebookConnected ? (
-                                <span><b>Facebook connected.</b> Step remaining:<br/>→ Connect Instagram to complete the link</span>
-                              ) : (
-                                <span><b>Both connected but Page not linked to IG.</b><br/>→ Reconnect Facebook ensuring the Page is linked to this Instagram account</span>
-                              )}
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
+                        {/* Disconnect button */}
+                        {facebookConnected && (() => {
+                          const fbConn = connections.find(c => c.platform === "facebook" && c.is_connected);
+                          return fbConn ? (
+                            <button
+                              className="absolute bottom-1.5 left-1.5 text-red-400/60 hover:text-red-400 transition-colors z-10"
+                              onClick={(e) => { e.stopPropagation(); e.preventDefault(); disconnectPlatform(fbConn.id); }}
+                              title="Disconnect Facebook"
+                            >
+                              <Link2 className="h-3.5 w-3.5" />
+                            </button>
+                          ) : null;
+                        })()}
                         <div className="relative">
                           {isLoading ? <Loader2 className="h-8 w-8 text-blue-500 animate-spin" /> : (
                             <svg viewBox="0 0 24 24" className="h-8 w-8 transition-all duration-300 group-hover/cube:drop-shadow-[0_0_12px_rgba(59,130,246,0.5)]" fill="#1877F2"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
@@ -2875,6 +2870,18 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
                         style={highlightThreads ? { '--highlight-color': 'rgba(192,132,252,0.4)' } as React.CSSProperties : undefined}
                       >
                         {p.connected && <div className="absolute top-2 right-2 h-2 w-2 rounded-full bg-green-400 shadow-[0_0_6px] shadow-green-400/60" />}
+                        {p.connected && (() => {
+                          const thConn = connections.find(c => c.platform === "threads" && c.is_connected);
+                          return thConn ? (
+                            <button
+                              className="absolute bottom-1.5 left-1.5 text-red-400/60 hover:text-red-400 transition-colors z-10"
+                              onClick={(e) => { e.stopPropagation(); e.preventDefault(); disconnectPlatform(thConn.id); }}
+                              title="Disconnect Threads"
+                            >
+                              <Link2 className="h-3.5 w-3.5" />
+                            </button>
+                          ) : null;
+                        })()}
                         <div className="relative">{isLoading ? <Loader2 className="h-8 w-8 animate-spin opacity-60" /> : p.svgIcon}</div>
                         <span className="text-[10px] font-semibold text-muted-foreground group-hover/cube:text-foreground transition-colors leading-tight text-center">{p.label}</span>
                       </button>
