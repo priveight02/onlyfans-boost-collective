@@ -492,7 +492,7 @@ Return ONLY the 4 messages separated by ||| with no numbering or labels.`,
           <div className="flex items-center justify-between mb-1.5">
             <h3 className="text-sm font-bold text-foreground flex items-center gap-1.5">
               <Megaphone className="h-4 w-4 text-orange-400" />
-              Mass DM
+              Outreach
             </h3>
             <div className="flex items-center gap-1">
               <Badge className={`text-[9px] px-1.5 ${connectionStatus === "connected" ? "bg-green-500/15 text-green-400" : connectionStatus === "error" ? "bg-red-500/15 text-red-400" : "bg-muted text-muted-foreground"}`}>
@@ -1029,7 +1029,7 @@ Return ONLY the 4 messages separated by ||| with no numbering or labels.`,
               </div>
 
               <div><label className="text-[10px] text-muted-foreground mb-0.5 block">Redirect URL</label>
-                <Input value={redirectUrl} onChange={e => setRedirectUrl(e.target.value)} placeholder="https://onlyfans.com/..." className="text-sm" /></div>
+                <Input value={redirectUrl} onChange={e => setRedirectUrl(e.target.value)} placeholder="https://instagram.com/..." className="text-sm" /></div>
 
               <div><label className="text-[10px] text-muted-foreground mb-0.5 block">Message Template</label>
                 <Textarea value={messageTemplates[0]} onChange={e => setMessageTemplates([e.target.value])} placeholder="Hey {name}! Love your content..." className="text-sm min-h-[70px]" /></div>

@@ -126,7 +126,7 @@ const SLUG_TO_TAB: Record<string, string> = Object.fromEntries(Object.entries(TA
 // Sub-tab slug mappings per main tab (internal-id → url-slug)
 const SUB_TAB_SLUGS: Record<string, Record<string, string>> = {
   copilot: { chat: "chat", image: "image-gen-v1", video: "video-gen", audio: "audio-gen", motion: "motion-gen", lipsync: "lipsync-gen", faceswap: "faceswap-gen" },
-  social: { dashboard: "dashboard", "ai-auto": "auto-dm", "ai-mass": "mass-dm", search: "search", content: "content", engagement: "comments", messaging: "dms", "ai-tools": "ai-tools", analytics: "analytics", biolink: "bio-links", automation: "automation", "social-networks": "networks" },
+  social: { dashboard: "dashboard", "ai-auto": "auto-dm", "ai-mass": "outreach", search: "search", content: "content", engagement: "comments", messaging: "dms", "ai-tools": "ai-tools", analytics: "analytics", biolink: "bio-links", automation: "automation", "social-networks": "networks" },
   automation: { builder: "script-builder", library: "library", optimizer: "conversion-optimizer", playbook: "psychology-playbook", analytics: "analytics", workflows: "workflows", ai: "ai-intelligence", alerts: "smart-alerts" },
   "ad-creatives": { creatives: "creatives", generate: "ai-image-gen", copy: "copy-cta", analytics: "analytics", settings: "targeting", integrations: "integrations", campaigns: "campaigns", store: "store-manager" },
   api: { keys: "api-keys", docs: "documentation", playground: "playground", quickstart: "quick-start", history: "key-history" },

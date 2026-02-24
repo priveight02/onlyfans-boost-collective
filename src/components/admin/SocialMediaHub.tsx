@@ -2226,7 +2226,7 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
             {[
               { v: "dashboard", icon: LayoutDashboard, l: "Dashboard" },
               { v: "ai-auto", icon: Brain, l: "Auto-DM" },
-              { v: "ai-mass", icon: Megaphone, l: "Mass DM" },
+              { v: "ai-mass", icon: Megaphone, l: "Outreach" },
               { v: "search", icon: Search, l: "Search" },
               { v: "content", icon: Layers, l: "Content" },
               { v: "engagement", icon: MessageSquare, l: "Comments" },
@@ -2371,7 +2371,7 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
           </Card>
         </TabsContent>
 
-        {/* ===== AI MASS DM ===== */}
+        {/* ===== OUTREACH ===== */}
         <TabsContent value="ai-mass" className="space-y-4 mt-4">
           <AIMassDMOutreach accountId={selectedAccount} />
         </TabsContent>
