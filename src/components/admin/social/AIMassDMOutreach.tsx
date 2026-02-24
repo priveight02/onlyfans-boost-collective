@@ -479,23 +479,23 @@ Return ONLY the 4 messages separated by ||| with no numbering or labels.`,
       case "converted": return "bg-orange-500/15 text-orange-400";
       case "sending": return "bg-blue-500/15 text-blue-400";
       case "queued": return "bg-cyan-500/15 text-cyan-400";
-      default: return "bg-muted text-muted-foreground";
+      default: return "bg-white/[0.05] text-muted-foreground";
     }
   };
 
   return (
-    <div className="flex h-[calc(100vh-340px)] min-h-[500px] max-h-[700px] rounded-xl border border-border overflow-hidden bg-background">
+    <div className="flex h-[calc(100vh-340px)] min-h-[500px] max-h-[700px] rounded-xl border border-white/[0.06] overflow-hidden bg-white/[0.02]">
       {/* ===== LEFT SIDEBAR — Campaign List ===== */}
-      <div className="w-[240px] flex-shrink-0 border-r border-border flex flex-col bg-muted/5">
+      <div className="w-[240px] flex-shrink-0 border-r border-white/[0.06] flex flex-col bg-white/[0.02]">
         {/* Header */}
-        <div className="px-3 py-2.5 border-b border-border">
+        <div className="px-3 py-2.5 border-b border-white/[0.06]">
           <div className="flex items-center justify-between mb-1.5">
             <h3 className="text-sm font-bold text-foreground flex items-center gap-1.5">
               <Megaphone className="h-4 w-4 text-orange-400" />
               Outreach
             </h3>
             <div className="flex items-center gap-1">
-              <Badge className={`text-[9px] px-1.5 ${connectionStatus === "connected" ? "bg-green-500/15 text-green-400" : connectionStatus === "error" ? "bg-red-500/15 text-red-400" : "bg-muted text-muted-foreground"}`}>
+              <Badge className={`text-[9px] px-1.5 ${connectionStatus === "connected" ? "bg-green-500/15 text-green-400" : connectionStatus === "error" ? "bg-red-500/15 text-red-400" : "bg-white/[0.05] text-muted-foreground"}`}>
                 {connectionStatus === "connected" ? <><Wifi className="h-2.5 w-2.5 mr-0.5" />Live</> : connectionStatus === "error" ? <><WifiOff className="h-2.5 w-2.5 mr-0.5" />Off</> : "..."}
               </Badge>
               <CreditCostBadge cost="2–10" variant="header" label="/msg" />
@@ -521,7 +521,7 @@ Return ONLY the 4 messages separated by ||| with no numbering or labels.`,
                 <div key={camp.id}
                   onClick={() => setSelectedCampaignId(camp.id)}
                   className={`rounded-lg p-2.5 cursor-pointer transition-all border ${
-                    isSelected ? "border-orange-500/50 bg-orange-500/10" : "border-transparent hover:border-border hover:bg-muted/30"
+                    isSelected ? "border-orange-500/50 bg-orange-500/10" : "border-transparent hover:border-white/[0.06] hover:bg-white/[0.04]"
                   }`}>
                   <div className="flex items-center justify-between mb-1">
                     <p className="text-xs font-semibold text-foreground truncate flex-1">{camp.name}</p>
@@ -549,7 +549,7 @@ Return ONLY the 4 messages separated by ||| with no numbering or labels.`,
         </ScrollArea>
 
         {/* Global stats */}
-        <div className="px-3 py-2 border-t border-border bg-muted/10">
+        <div className="px-3 py-2 border-t border-white/[0.06] bg-white/[0.03]">
           <div className="grid grid-cols-2 gap-1.5">
             {[
               { label: "Total Sent", value: stats.total_sent, color: "text-green-400" },
@@ -571,10 +571,10 @@ Return ONLY the 4 messages separated by ||| with no numbering or labels.`,
         {selectedCampaign ? (
           <>
             {/* Campaign header */}
-            <div className="px-4 py-3 border-b border-border flex items-center justify-between bg-muted/5">
+            <div className="px-4 py-3 border-b border-white/[0.06] flex items-center justify-between bg-white/[0.02]">
               <div className="flex items-center gap-3 min-w-0">
                 <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${
-                  selectedCampaign.status === "active" ? "bg-green-500/20" : selectedCampaign.status === "completed" ? "bg-blue-500/20" : "bg-muted"
+                  selectedCampaign.status === "active" ? "bg-green-500/20" : selectedCampaign.status === "completed" ? "bg-blue-500/20" : "bg-white/[0.05]"
                 }`}>
                   <Megaphone className={`h-5 w-5 ${selectedCampaign.status === "active" ? "text-green-400" : selectedCampaign.status === "completed" ? "text-blue-400" : "text-muted-foreground"}`} />
                 </div>
@@ -637,7 +637,7 @@ Return ONLY the 4 messages separated by ||| with no numbering or labels.`,
             <ScrollArea className="flex-1">
               <div className="p-4 space-y-4">
                 {/* Discovery section */}
-                <Card className="border-border/50">
+                <Card className="border-white/[0.06] bg-white/[0.03]">
                   <CardContent className="p-4 space-y-3">
                     <div className="flex items-center justify-between">
                       <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
@@ -688,7 +688,7 @@ Return ONLY the 4 messages separated by ||| with no numbering or labels.`,
 
                 {/* Discovered profiles */}
                 {discoveredProfiles.length > 0 && (
-                  <Card className="border-border/50">
+                  <Card className="border-white/[0.06] bg-white/[0.03]">
                     <CardContent className="p-4">
                       <div className="flex items-center justify-between mb-3">
                         <h4 className="text-sm font-semibold text-foreground">{discoveredProfiles.length} profiles found</h4>
@@ -710,7 +710,7 @@ Return ONLY the 4 messages separated by ||| with no numbering or labels.`,
                           return (
                             <div key={p.id} onClick={() => toggleTarget(p.id)}
                               className={`flex items-center gap-2.5 p-2 rounded-lg border cursor-pointer transition-all ${
-                                selected ? "border-orange-500/50 bg-orange-500/8" : "border-transparent hover:border-border hover:bg-muted/20"
+                                selected ? "border-orange-500/50 bg-orange-500/8" : "border-transparent hover:border-white/[0.06] hover:bg-white/[0.04]"
                               }`}>
                               <div className={`h-4 w-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
                                 selected ? "border-orange-500 bg-orange-500" : "border-muted-foreground/30"
@@ -737,7 +737,7 @@ Return ONLY the 4 messages separated by ||| with no numbering or labels.`,
                                   <p className="text-[8px] text-muted-foreground">engage</p>
                                 </div>
                                 <div className="text-right">
-                                  <div className={`h-5 w-5 rounded-full flex items-center justify-center ${p.niche_score > 70 ? "bg-green-500/20" : p.niche_score > 40 ? "bg-yellow-500/20" : "bg-muted"}`}>
+                                  <div className={`h-5 w-5 rounded-full flex items-center justify-center ${p.niche_score > 70 ? "bg-green-500/20" : p.niche_score > 40 ? "bg-yellow-500/20" : "bg-white/[0.05]"}`}>
                                     <span className="text-[8px] font-bold">{p.niche_score}</span>
                                   </div>
                                 </div>
@@ -791,7 +791,7 @@ Return ONLY the 4 messages separated by ||| with no numbering or labels.`,
                 )}
 
                 {/* AI Message Templates */}
-                <Card className="border-border/50">
+                <Card className="border-white/[0.06] bg-white/[0.03]">
                   <CardContent className="p-4 space-y-3">
                     <div className="flex items-center justify-between">
                       <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
@@ -814,13 +814,13 @@ Return ONLY the 4 messages separated by ||| with no numbering or labels.`,
                     </div>
 
                     <p className="text-[9px] text-muted-foreground">
-                      Use <code className="px-1 py-0.5 bg-muted rounded text-[9px]">{"{name}"}</code> for personalization. Multiple = random rotation. AI personalization rewrites each message per target.
+                      Use <code className="px-1 py-0.5 bg-white/[0.05] rounded text-[9px]">{"{name}"}</code> for personalization. Multiple = random rotation. AI personalization rewrites each message per target.
                     </p>
 
                     <div className="space-y-1.5">
                       {messageTemplates.map((tmpl, i) => (
                         <div key={i} className="flex gap-1.5 items-start">
-                          <Badge className="text-[8px] bg-muted text-muted-foreground mt-2 flex-shrink-0">#{i + 1}</Badge>
+                          <Badge className="text-[8px] bg-white/[0.05] text-muted-foreground mt-2 flex-shrink-0">#{i + 1}</Badge>
                           <Textarea value={tmpl} onChange={e => { const u = [...messageTemplates]; u[i] = e.target.value; setMessageTemplates(u); }}
                             placeholder="Message template..." className="text-[11px] min-h-[50px] flex-1" />
                           {messageTemplates.length > 1 && (
@@ -833,7 +833,7 @@ Return ONLY the 4 messages separated by ||| with no numbering or labels.`,
                     </div>
 
                     {/* Settings row */}
-                    <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border/50">
+                    <div className="grid grid-cols-2 gap-2 pt-2 border-t border-white/[0.06]">
                       <div className="flex items-center gap-1.5"><Switch checked={aiPersonalize} onCheckedChange={setAiPersonalize} className="scale-75" /><span className="text-[10px] text-muted-foreground">AI Personalization</span></div>
                       <div className="flex items-center gap-1.5"><Switch checked={aiWarmup} onCheckedChange={setAiWarmup} className="scale-75" /><span className="text-[10px] text-muted-foreground">Warm-up Delays</span></div>
                       <div className="flex items-center gap-1.5"><Switch checked={smartTiming} onCheckedChange={setSmartTiming} className="scale-75" /><span className="text-[10px] text-muted-foreground">Smart Timing</span></div>
@@ -868,9 +868,9 @@ Return ONLY the 4 messages separated by ||| with no numbering or labels.`,
 
       {/* ===== RIGHT PANEL — Pipeline & Activity ===== */}
       {showRightPanel && selectedCampaign && (
-        <div className="w-[220px] flex-shrink-0 border-l border-border flex flex-col bg-muted/5">
+        <div className="w-[220px] flex-shrink-0 border-l border-white/[0.06] flex flex-col bg-white/[0.02]">
           {/* Quick actions */}
-          <div className="px-3 py-2.5 border-b border-border/50">
+          <div className="px-3 py-2.5 border-b border-white/[0.06]">
             <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2">Quick Actions</p>
             <div className="space-y-1">
               <Button size="sm" variant="outline" className="w-full h-7 text-[10px] justify-start gap-2 border-green-500/20 text-green-400 hover:bg-green-500/10"
@@ -917,7 +917,7 @@ Return ONLY the 4 messages separated by ||| with no numbering or labels.`,
           </div>
 
           {/* Pipeline tracker */}
-          <div className="px-3 py-2.5 border-b border-border/50">
+          <div className="px-3 py-2.5 border-b border-white/[0.06]">
             <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2">Pipeline</p>
             {pipelineTarget && <p className="text-[9px] text-blue-400/80 mb-1.5 truncate">→ @{pipelineTarget}</p>}
             <div className="space-y-1">
@@ -985,7 +985,7 @@ Return ONLY the 4 messages separated by ||| with no numbering or labels.`,
           </ScrollArea>
 
           {/* Campaign stats */}
-          <div className="px-3 py-2 border-t border-border/50 bg-muted/10">
+          <div className="px-3 py-2 border-t border-white/[0.06] bg-white/[0.03]">
             <div className="grid grid-cols-2 gap-1.5">
               <div><p className="text-[9px] text-muted-foreground/50">Targets</p><p className="text-sm font-bold text-foreground">{currentTargets.length}</p></div>
               <div><p className="text-[9px] text-muted-foreground/50">Sent</p><p className="text-sm font-bold text-green-400">{currentTargets.filter(t => t.status === "sent").length}</p></div>
@@ -999,7 +999,7 @@ Return ONLY the 4 messages separated by ||| with no numbering or labels.`,
       {/* ===== CREATE CAMPAIGN MODAL ===== */}
       {showCreate && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowCreate(false)}>
-          <div className="bg-card text-card-foreground border border-border rounded-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto p-5 space-y-3 shadow-2xl" onClick={e => e.stopPropagation()}>
+          <div className="bg-[hsl(222,35%,8%)] text-foreground border border-white/[0.08] rounded-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto p-5 space-y-3 shadow-2xl" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-bold text-foreground flex items-center gap-2"><Rocket className="h-4 w-4 text-orange-400" />New Campaign</h3>
               <Button size="sm" variant="ghost" onClick={() => setShowCreate(false)} className="h-7 w-7 p-0"><X className="h-4 w-4" /></Button>
@@ -1047,7 +1047,7 @@ Return ONLY the 4 messages separated by ||| with no numbering or labels.`,
               </div>
             </div>
 
-            <div className="flex justify-end gap-2 pt-2 border-t border-border">
+            <div className="flex justify-end gap-2 pt-2 border-t border-white/[0.06]">
               <Button variant="outline" size="sm" onClick={() => setShowCreate(false)}>Cancel</Button>
               <Button size="sm" onClick={createCampaign} className="bg-gradient-to-r from-orange-500 to-pink-500 text-white border-0">
                 <Rocket className="h-3.5 w-3.5 mr-1" />Create

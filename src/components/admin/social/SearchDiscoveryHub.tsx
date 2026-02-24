@@ -515,11 +515,11 @@ const SearchDiscoveryHub = ({ accountId }: SearchDiscoveryHubProps) => {
   };
 
   return (
-    <div className="flex gap-0 h-[calc(100vh-280px)] min-h-[500px] border border-border rounded-xl overflow-hidden bg-card">
+    <div className="flex gap-0 h-[calc(100vh-280px)] min-h-[500px] border border-white/[0.06] rounded-xl overflow-hidden bg-white/[0.02]">
       {/* LEFT: Search Panel */}
-      <div className="w-[380px] flex-shrink-0 flex flex-col border-r border-border overflow-hidden">
+      <div className="w-[380px] flex-shrink-0 flex flex-col border-r border-white/[0.06] overflow-hidden">
         {/* Search Header */}
-        <div className="p-3 border-b border-border space-y-2 flex-shrink-0">
+        <div className="p-3 border-b border-white/[0.06] space-y-2 flex-shrink-0">
           <div className="flex items-center gap-2">
             <span className="text-sm font-semibold text-foreground">Discovery</span>
             <Badge variant="outline" className="text-[9px] ml-auto">{searchResults.length} results</Badge>
@@ -533,7 +533,7 @@ const SearchDiscoveryHub = ({ accountId }: SearchDiscoveryHubProps) => {
               { v: "similar" as const, l: "Similar" },
             ]).map(t => (
               <button key={t.v} onClick={() => setSearchMode(t.v)}
-                className={`px-2.5 py-1 rounded-md text-[10px] font-medium transition-colors ${searchMode === t.v ? "bg-foreground/10 text-foreground ring-1 ring-border" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"}`}>
+                className={`px-2.5 py-1 rounded-md text-[10px] font-medium transition-colors ${searchMode === t.v ? "bg-white/[0.08] text-foreground ring-1 ring-white/[0.12]" : "text-muted-foreground hover:text-foreground hover:bg-white/[0.04]"}`}>
                 {t.l}
               </button>
             ))}
@@ -548,7 +548,7 @@ const SearchDiscoveryHub = ({ accountId }: SearchDiscoveryHubProps) => {
               <div className="flex gap-1 flex-wrap items-center">
                 {connectedAccounts.length > 1 && (
                   <button onClick={() => { setSelectedConnection("all"); setSearchPlatform("all"); }}
-                    className={`flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium transition-colors ${selectedConnection === "all" ? "bg-foreground/10 text-foreground ring-1 ring-border" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"}`}>
+                    className={`flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium transition-colors ${selectedConnection === "all" ? "bg-white/[0.08] text-foreground ring-1 ring-white/[0.12]" : "text-muted-foreground hover:text-foreground hover:bg-white/[0.04]"}`}>
                     <Globe className="h-3 w-3" /> All
                   </button>
                 )}
@@ -558,7 +558,7 @@ const SearchDiscoveryHub = ({ accountId }: SearchDiscoveryHubProps) => {
                   return (
                     <button key={conn.platform + conn.platform_user_id}
                       onClick={() => { setSelectedConnection(conn.platform); setSearchPlatform(conn.platform as any); }}
-                      className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-medium transition-colors ${selectedConnection === conn.platform ? "bg-foreground/10 text-foreground ring-1 ring-border" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"}`}>
+                      className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-medium transition-colors ${selectedConnection === conn.platform ? "bg-white/[0.08] text-foreground ring-1 ring-white/[0.12]" : "text-muted-foreground hover:text-foreground hover:bg-white/[0.04]"}`}>
                       <Icon className={`h-3 w-3 ${isIG ? "text-pink-400" : "text-cyan-400"}`} />
                       <span>@{conn.platform_username}</span>
                       <span className="text-[8px] text-muted-foreground capitalize">({conn.platform})</span>
@@ -629,7 +629,7 @@ const SearchDiscoveryHub = ({ accountId }: SearchDiscoveryHubProps) => {
             const isAdded = userIdSet.has(String(user.id || user.pk));
             return (
               <div key={`${user.id || user.pk}-${user.username}`}
-                className={`w-full text-left px-3 py-2.5 flex items-center gap-2.5 hover:bg-muted/30 transition-colors border-b border-border/50 ${isAdded ? "bg-emerald-500/5" : ""}`}>
+                className={`w-full text-left px-3 py-2.5 flex items-center gap-2.5 hover:bg-white/[0.04] transition-colors border-b border-white/[0.06] ${isAdded ? "bg-emerald-500/5" : ""}`}>
                 <UserAvatar src={user.profile_pic_url} name={user.full_name || user.username} username={user.username} size={10} />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5">
@@ -659,7 +659,7 @@ const SearchDiscoveryHub = ({ accountId }: SearchDiscoveryHubProps) => {
 
       {/* CENTER: User List */}
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-        <div className="p-3 border-b border-border flex-shrink-0">
+        <div className="p-3 border-b border-white/[0.06] flex-shrink-0">
           <div className="flex items-center gap-2 mb-2">
             <Users className="h-4 w-4 text-foreground" />
             <span className="text-sm font-semibold text-foreground">My List</span>
@@ -682,7 +682,7 @@ const SearchDiscoveryHub = ({ accountId }: SearchDiscoveryHubProps) => {
               <Filter className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
               <Input placeholder="Filter list..." value={listFilter} onChange={e => setListFilter(e.target.value)} className="pl-7 h-7 text-[11px]" />
             </div>
-            <select value={sortMode} onChange={e => setSortMode(e.target.value as any)} className="bg-muted border border-border rounded px-2 py-1 text-[10px] h-7 text-foreground">
+            <select value={sortMode} onChange={e => setSortMode(e.target.value as any)} className="bg-white/[0.05] border border-white/[0.08] rounded px-2 py-1 text-[10px] h-7 text-foreground">
               <option value="name">A-Z</option>
               <option value="followers">Followers</option>
               <option value="recent">Recent</option>
@@ -706,9 +706,9 @@ const SearchDiscoveryHub = ({ accountId }: SearchDiscoveryHubProps) => {
           )}
           {filteredList.map(user => (
             <div key={user.id}
-              className={`flex items-center gap-2.5 px-3 py-2 border-b border-border/30 hover:bg-muted/20 transition-colors cursor-pointer ${selectedIds.has(user.id) ? "bg-purple-500/5" : ""}`}
+              className={`flex items-center gap-2.5 px-3 py-2 border-b border-white/[0.04] hover:bg-white/[0.04] transition-colors cursor-pointer ${selectedIds.has(user.id) ? "bg-purple-500/5" : ""}`}
               onClick={() => toggleSelect(user.id)}>
-              <div className={`h-4 w-4 rounded border flex-shrink-0 flex items-center justify-center transition-colors ${selectedIds.has(user.id) ? "bg-purple-500 border-purple-500" : "border-border"}`}>
+              <div className={`h-4 w-4 rounded border flex-shrink-0 flex items-center justify-center transition-colors ${selectedIds.has(user.id) ? "bg-purple-500 border-purple-500" : "border-white/[0.12]"}`}>
                 {selectedIds.has(user.id) && <CheckCheck className="h-2.5 w-2.5 text-white" />}
               </div>
               <UserAvatar src={user.profile_pic} name={user.name} username={user.username} size={8} />
@@ -734,9 +734,9 @@ const SearchDiscoveryHub = ({ accountId }: SearchDiscoveryHubProps) => {
       </div>
 
       {/* RIGHT: Actions Panel */}
-      <div className="w-[280px] flex-shrink-0 flex flex-col border-l border-border overflow-y-auto">
+      <div className="w-[280px] flex-shrink-0 flex flex-col border-l border-white/[0.06] overflow-y-auto">
         {/* Message Composer */}
-        <div className="p-3 border-b border-border space-y-2">
+        <div className="p-3 border-b border-white/[0.06] space-y-2">
           <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Bulk Message</label>
           <Textarea value={message} onChange={e => setMessage(e.target.value)}
             placeholder={personalizeMode ? "hey {name} noticed u..." : "Type message or use AI..."}
@@ -753,7 +753,7 @@ const SearchDiscoveryHub = ({ accountId }: SearchDiscoveryHubProps) => {
         </div>
 
         {/* Send Actions */}
-        <div className="p-3 border-b border-border space-y-2">
+        <div className="p-3 border-b border-white/[0.06] space-y-2">
           <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Send</label>
           <Button size="sm" onClick={sendBulkMessages} disabled={sending || selectedIds.size === 0 || !message.trim()}
             className="w-full h-8 text-[11px] gap-1.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white border-0">
@@ -769,7 +769,7 @@ const SearchDiscoveryHub = ({ accountId }: SearchDiscoveryHubProps) => {
 
         {/* Send Progress */}
         {sendProgress && (
-          <div className="p-3 border-b border-border">
+          <div className="p-3 border-b border-white/[0.06]">
             <div className="flex items-center gap-2 text-xs mb-1">
               {sending ? <Loader2 className="h-3 w-3 animate-spin text-blue-400" /> : <CheckCheck className="h-3 w-3 text-green-400" />}
               <span className={sending ? "text-blue-400" : "text-green-400"}>
@@ -782,7 +782,7 @@ const SearchDiscoveryHub = ({ accountId }: SearchDiscoveryHubProps) => {
         )}
 
         {/* Settings */}
-        <div className="p-3 border-b border-border space-y-2">
+        <div className="p-3 border-b border-white/[0.06] space-y-2">
           <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Settings</label>
           <div className="flex items-center justify-between">
             <span className="text-[10px] text-muted-foreground flex items-center gap-1"><Bot className="h-3 w-3" /> Auto AI chat</span>

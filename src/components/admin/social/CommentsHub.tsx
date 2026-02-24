@@ -871,7 +871,7 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading, onNavigateTo
     url ? (
       <img src={url} alt="" className={`${size} rounded object-cover flex-shrink-0 bg-muted`} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
     ) : (
-      <div className={`${size} rounded bg-muted/40 flex items-center justify-center flex-shrink-0`}>
+      <div className={`${size} rounded bg-white/[0.04] flex items-center justify-center flex-shrink-0`}>
         <Image className="h-4 w-4 text-muted-foreground/40" />
       </div>
     )
@@ -962,7 +962,7 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading, onNavigateTo
                   <span className="text-[9px] text-muted-foreground">Filter:</span>
                   {(["all", "positive", "negative", "questions"] as const).map(f => (
                     <button key={f} onClick={() => filterCommentsByType(f)}
-                      className={`text-[9px] px-1.5 py-0.5 rounded capitalize ${commentFilter === f ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground bg-muted/30"}`}>
+                      className={`text-[9px] px-1.5 py-0.5 rounded capitalize ${commentFilter === f ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground bg-white/[0.04]"}`}>
                       {f}
                     </button>
                   ))}
@@ -1069,19 +1069,19 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading, onNavigateTo
                       <button onClick={() => setEngagementRate(null)} className="text-muted-foreground hover:text-foreground"><X className="h-3 w-3" /></button>
                     </div>
                     <div className="grid grid-cols-2 gap-2 text-[10px]">
-                      <div className="bg-muted/30 rounded p-1.5 text-center">
+                      <div className="bg-white/[0.04] rounded p-1.5 text-center">
                         <p className="text-foreground font-bold">{engagementRate.likes}</p>
                         <p className="text-muted-foreground">Likes</p>
                       </div>
-                      <div className="bg-muted/30 rounded p-1.5 text-center">
+                      <div className="bg-white/[0.04] rounded p-1.5 text-center">
                         <p className="text-foreground font-bold">{engagementRate.comments}</p>
                         <p className="text-muted-foreground">Comments</p>
                       </div>
-                      <div className="bg-muted/30 rounded p-1.5 text-center">
+                      <div className="bg-white/[0.04] rounded p-1.5 text-center">
                         <p className="text-foreground font-bold">{engagementRate.total}</p>
                         <p className="text-muted-foreground">Total Engagement</p>
                       </div>
-                      <div className="bg-muted/30 rounded p-1.5 text-center">
+                      <div className="bg-white/[0.04] rounded p-1.5 text-center">
                         <p className="text-foreground font-bold">{engagementRate.avgLikesPerComment}</p>
                         <p className="text-muted-foreground">Avg Likes/Comment</p>
                       </div>
@@ -1107,7 +1107,7 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading, onNavigateTo
                       </div>
                     )}
                     {myPosts.map(post => (
-                      <div key={post.id} className={`w-full text-left p-2.5 rounded-lg border transition-colors ${selectedPostId === post.id ? "bg-emerald-500/10 border-emerald-500/30" : "bg-muted/20 border-border hover:bg-muted/40"}`}>
+                      <div key={post.id} className={`w-full text-left p-2.5 rounded-lg border transition-colors ${selectedPostId === post.id ? "bg-emerald-500/10 border-emerald-500/30" : "bg-white/[0.03] border-white/[0.06] hover:bg-white/[0.05]"}`}>
                         <div className="flex gap-2">
                           <PostThumbnail url={post.media_url} />
                           <div className="flex-1 min-w-0">
@@ -1119,7 +1119,7 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading, onNavigateTo
                             </div>
                           </div>
                           <button onClick={(e) => { e.stopPropagation(); openPostViewer(post); }}
-                            className="flex-shrink-0 p-1.5 rounded hover:bg-muted/50 transition-colors text-muted-foreground hover:text-foreground" title="View Post">
+                            className="flex-shrink-0 p-1.5 rounded hover:bg-white/[0.06] transition-colors text-muted-foreground hover:text-foreground" title="View Post">
                             <Eye className="h-3.5 w-3.5" />
                           </button>
                         </div>
@@ -1165,7 +1165,7 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading, onNavigateTo
 
                   {/* Individual comments */}
                   {!bulkAiReplies.length && (commentFilter !== "all" && filteredComments.length > 0 ? filteredComments : commentsList).map(comment => (
-                    <div key={comment.id} className="bg-muted/20 rounded-lg p-2.5 mb-1.5 border border-border/30">
+                    <div key={comment.id} className="bg-white/[0.03] rounded-lg p-2.5 mb-1.5 border border-white/[0.06]">
                       <div className="flex items-center justify-between mb-1">
                         <div className="flex items-center gap-2">
                           <span className="text-[11px] font-semibold text-foreground">@{comment.username}</span>
@@ -1199,7 +1199,7 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading, onNavigateTo
                         </div>
                       )}
                       {comment.replies && comment.replies.length > 0 && (
-                        <div className="mt-1.5 pl-3 border-l border-border/30 space-y-1">
+                        <div className="mt-1.5 pl-3 border-l border-white/[0.06] space-y-1">
                           {comment.replies.map((r: any) => (
                             <div key={r.id} className="text-[10px]">
                               <span className="font-semibold text-foreground">@{r.username}</span>
@@ -1243,7 +1243,7 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading, onNavigateTo
             <span className="text-[10px] text-muted-foreground">Explore:</span>
             {discoverHashtags.map(tag => (
               <button key={tag} onClick={() => setActiveDiscoverTag(tag)}
-                className={`text-[10px] px-2 py-0.5 rounded-full transition-colors ${activeDiscoverTag === tag ? "bg-primary/20 text-primary ring-1 ring-primary/30" : "text-muted-foreground hover:text-foreground bg-muted/30"}`}>
+                className={`text-[10px] px-2 py-0.5 rounded-full transition-colors ${activeDiscoverTag === tag ? "bg-primary/20 text-primary ring-1 ring-primary/30" : "text-muted-foreground hover:text-foreground bg-white/[0.04]"}`}>
                 #{tag}
               </button>
             ))}
@@ -1298,7 +1298,7 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading, onNavigateTo
                           <PostCard key={`sr-${post.id}`} post={post} toggleSelect={toggleDiscoverSelect} openViewer={() => openPostViewer(post as any)} PostThumbnail={PostThumbnail} />
                         ))}
                       </div>
-                      <div className="border-t border-border/30 mb-2" />
+                      <div className="border-t border-white/[0.06] mb-2" />
                     </div>
                   )}
 
@@ -1331,11 +1331,11 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading, onNavigateTo
                   </p>
                   <div className="flex gap-1">
                     <button onClick={() => setMassCommentMode("ai")}
-                      className={`flex-1 px-2.5 py-1.5 rounded-md text-[10px] font-medium transition-colors ${massCommentMode === "ai" ? "bg-purple-500/15 text-purple-400 ring-1 ring-purple-500/30" : "text-muted-foreground hover:text-foreground bg-muted/30"}`}>
+                      className={`flex-1 px-2.5 py-1.5 rounded-md text-[10px] font-medium transition-colors ${massCommentMode === "ai" ? "bg-purple-500/15 text-purple-400 ring-1 ring-purple-500/30" : "text-muted-foreground hover:text-foreground bg-white/[0.04]"}`}>
                       <Brain className="h-3 w-3 inline mr-1" /> AI Auto-Scan
                     </button>
                     <button onClick={() => setMassCommentMode("template")}
-                      className={`flex-1 px-2.5 py-1.5 rounded-md text-[10px] font-medium transition-colors ${massCommentMode === "template" ? "bg-blue-500/15 text-blue-400 ring-1 ring-blue-500/30" : "text-muted-foreground hover:text-foreground bg-muted/30"}`}>
+                      className={`flex-1 px-2.5 py-1.5 rounded-md text-[10px] font-medium transition-colors ${massCommentMode === "template" ? "bg-blue-500/15 text-blue-400 ring-1 ring-blue-500/30" : "text-muted-foreground hover:text-foreground bg-white/[0.04]"}`}>
                       <MessageSquare className="h-3 w-3 inline mr-1" /> Template
                     </button>
                   </div>
@@ -1367,7 +1367,7 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading, onNavigateTo
                     <div className="flex gap-1">
                       {[1000, 2000, 3000, 5000].map(ms => (
                         <button key={ms} onClick={() => setMassDelay(ms)}
-                          className={`text-[9px] px-1.5 py-0.5 rounded ${massDelay === ms ? "bg-emerald-500/20 text-emerald-400" : "text-muted-foreground hover:text-foreground bg-muted/30"}`}>
+                          className={`text-[9px] px-1.5 py-0.5 rounded ${massDelay === ms ? "bg-emerald-500/20 text-emerald-400" : "text-muted-foreground hover:text-foreground bg-white/[0.04]"}`}>
                           {ms / 1000}s
                         </button>
                       ))}
@@ -1496,7 +1496,7 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading, onNavigateTo
             <p className="text-sm text-muted-foreground leading-relaxed">
               Your session cookie {sessionStatus === "expired" ? "has expired" : "has not been set up yet"}. Go to the <strong>Connect</strong> tab to enter your session credentials.
             </p>
-            <Card className="bg-muted/30 border-border">
+            <Card className="bg-white/[0.04] border-white/[0.06]">
               <CardContent className="p-3">
                 <p className="text-[10px] text-muted-foreground">
                   <strong>How it works:</strong> Open instagram.com → DevTools (F12) → Application → Cookies → copy <code className="bg-muted px-1 rounded text-foreground">sessionid</code>, <code className="bg-muted px-1 rounded text-foreground">csrftoken</code>, and <code className="bg-muted px-1 rounded text-foreground">ds_user_id</code>.
