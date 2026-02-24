@@ -885,7 +885,7 @@ const TKAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSu
             <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><Upload className="h-4 w-4 text-green-400" />Publish Video</h4>
             <Input value={publishVideoTitle} onChange={e => setPublishVideoTitle(e.target.value)} placeholder="Video title / caption" className="text-sm" />
             <Input value={publishVideoUrl} onChange={e => setPublishVideoUrl(e.target.value)} placeholder="Video URL (pull from URL)" className="text-sm" />
-            <select value={publishPrivacy} onChange={e => setPublishPrivacy(e.target.value)} className="w-full bg-background border border-border text-foreground rounded-lg px-2 py-1.5 text-sm">
+            <select value={publishPrivacy} onChange={e => setPublishPrivacy(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] text-foreground rounded-lg px-2 py-1.5 text-sm focus:border-[hsl(217,91%,60%)]/30 outline-none">
               <option value="PUBLIC_TO_EVERYONE">Public</option>
               <option value="MUTUAL_FOLLOW_FRIENDS">Friends Only</option>
               <option value="FOLLOWER_OF_CREATOR">Followers Only</option>
@@ -919,7 +919,7 @@ const TKAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSu
             <Input value={photoTitle} onChange={e => setPhotoTitle(e.target.value)} placeholder="Title" className="text-sm" />
             <Input value={photoDesc} onChange={e => setPhotoDesc(e.target.value)} placeholder="Description" className="text-sm" />
             <Textarea value={photoUrls} onChange={e => setPhotoUrls(e.target.value)} placeholder="Image URLs (one per line)" rows={3} className="text-sm" />
-            <select value={photoPrivacy} onChange={e => setPhotoPrivacy(e.target.value)} className="w-full bg-background border border-border text-foreground rounded-lg px-2 py-1.5 text-sm">
+            <select value={photoPrivacy} onChange={e => setPhotoPrivacy(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] text-foreground rounded-lg px-2 py-1.5 text-sm focus:border-[hsl(217,91%,60%)]/30 outline-none">
               <option value="PUBLIC_TO_EVERYONE">Public</option>
               <option value="MUTUAL_FOLLOW_FRIENDS">Friends Only</option>
               <option value="FOLLOWER_OF_CREATOR">Followers Only</option>

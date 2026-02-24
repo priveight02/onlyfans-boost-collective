@@ -180,7 +180,7 @@ const IGAdsManager = ({ selectedAccount }: Props) => {
           <CardContent className="p-3">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-xs text-muted-foreground">Ad Account:</span>
-              <select value={selectedAdAccount} onChange={e => setSelectedAdAccount(e.target.value)} className="bg-background border border-border text-foreground rounded-lg px-2 py-1 text-xs flex-1">
+              <select value={selectedAdAccount} onChange={e => setSelectedAdAccount(e.target.value)} className="bg-white/[0.06] border border-white/[0.08] text-foreground rounded-lg px-2 py-1 text-xs flex-1 focus:border-[hsl(217,91%,60%)]/30 outline-none">
                 {adAccounts.map(a => (
                   <option key={a.id} value={a.id}>{a.name || a.account_id} ({a.currency})</option>
                 ))}
@@ -349,7 +349,7 @@ const IGAdsManager = ({ selectedAccount }: Props) => {
               <h4 className="text-xs font-semibold text-foreground flex items-center gap-1"><Plus className="h-3.5 w-3.5" />Create Campaign</h4>
               <Input value={newCampaign.name} onChange={e => setNewCampaign(p => ({ ...p, name: e.target.value }))} placeholder="Campaign name" className="text-sm" />
               <div className="grid grid-cols-2 gap-2">
-                <select value={newCampaign.objective} onChange={e => setNewCampaign(p => ({ ...p, objective: e.target.value }))} className="bg-background border border-border text-foreground rounded-lg px-2 py-1.5 text-xs">
+                <select value={newCampaign.objective} onChange={e => setNewCampaign(p => ({ ...p, objective: e.target.value }))} className="bg-white/[0.06] border border-white/[0.08] text-foreground rounded-lg px-2 py-1.5 text-xs focus:border-[hsl(217,91%,60%)]/30 outline-none">
                   <option value="OUTCOME_TRAFFIC">Traffic</option>
                   <option value="OUTCOME_ENGAGEMENT">Engagement</option>
                   <option value="OUTCOME_AWARENESS">Awareness</option>
@@ -369,7 +369,7 @@ const IGAdsManager = ({ selectedAccount }: Props) => {
             <CardContent className="p-3 space-y-3">
               <h4 className="text-xs font-semibold text-foreground flex items-center gap-1"><Plus className="h-3.5 w-3.5" />Create Ad Set</h4>
               <Input value={newAdSet.name} onChange={e => setNewAdSet(p => ({ ...p, name: e.target.value }))} placeholder="Ad Set name" className="text-sm" />
-              <select value={newAdSet.campaign_id} onChange={e => setNewAdSet(p => ({ ...p, campaign_id: e.target.value }))} className="w-full bg-background border border-border text-foreground rounded-lg px-2 py-1.5 text-xs">
+              <select value={newAdSet.campaign_id} onChange={e => setNewAdSet(p => ({ ...p, campaign_id: e.target.value }))} className="w-full bg-white/[0.06] border border-white/[0.08] text-foreground rounded-lg px-2 py-1.5 text-xs focus:border-[hsl(217,91%,60%)]/30 outline-none">
                 <option value="">Select campaign...</option>
                 {campaigns.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
@@ -380,7 +380,7 @@ const IGAdsManager = ({ selectedAccount }: Props) => {
               </div>
               <Input value={newAdSet.countries} onChange={e => setNewAdSet(p => ({ ...p, countries: e.target.value }))} placeholder="Countries (US,GB,CA)" className="text-xs" />
               <Input value={newAdSet.interests} onChange={e => setNewAdSet(p => ({ ...p, interests: e.target.value }))} placeholder="Interests (comma separated)" className="text-xs" />
-              <select value={newAdSet.optimization_goal} onChange={e => setNewAdSet(p => ({ ...p, optimization_goal: e.target.value }))} className="w-full bg-background border border-border text-foreground rounded-lg px-2 py-1.5 text-xs">
+              <select value={newAdSet.optimization_goal} onChange={e => setNewAdSet(p => ({ ...p, optimization_goal: e.target.value }))} className="w-full bg-white/[0.06] border border-white/[0.08] text-foreground rounded-lg px-2 py-1.5 text-xs focus:border-[hsl(217,91%,60%)]/30 outline-none">
                 <option value="LINK_CLICKS">Link Clicks</option>
                 <option value="IMPRESSIONS">Impressions</option>
                 <option value="REACH">Reach</option>
