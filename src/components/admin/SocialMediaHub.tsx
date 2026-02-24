@@ -1881,11 +1881,6 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
                 } else {
                   toast.error("Configure FACEBOOK_APP_ID in backend secrets");
                 }
-              } else {
-                // FB already connected, close the popup
-                if (popup && !popup.closed) {
-                  popup.postMessage({ type: "POPUP_CLOSE" }, "*");
-                }
               }
          } catch (e: any) {
            toast.error("Failed to save connection: " + e.message);

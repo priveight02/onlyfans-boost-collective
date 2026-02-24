@@ -106,17 +106,7 @@ const IGLoginPopup = () => {
             ds_user_id: sessionData?.ds_user_id || String(data.data.user_id),
           },
         }, "*");
-        // Don't auto-close — parent may redirect this popup to FB OAuth
-        // Parent will send POPUP_CLOSE or redirect; fallback close after 8s
-        const fallbackTimer = setTimeout(() => window.close(), 8000);
-        const onParentMsg = (ev: MessageEvent) => {
-          if (ev.data?.type === "POPUP_CLOSE") {
-            clearTimeout(fallbackTimer);
-            window.removeEventListener("message", onParentMsg);
-            window.close();
-          }
-        };
-        window.addEventListener("message", onParentMsg);
+        setTimeout(() => window.close(), 1500);
       }
     } catch (err: any) {
       setError(err.message || "Connection failed. Try again.");
