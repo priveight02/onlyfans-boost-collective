@@ -180,7 +180,7 @@ const CRM = () => {
     return found?.icon || null;
   };
 
-  // Sub-tab icon mappings
+  // Sub-tab icon mappings — precise Lucide icons per feature
   const subTabIcons: Record<string, any> = {
     "Chat": MessageCircle, "Image Gen V1": Megaphone, "Video Gen": Activity, "Audio Gen": Activity, "Motion Gen": Zap, "Lipsync Gen": Zap, "Faceswap Gen": Brain,
     "SM Dashboard": LayoutDashboard, "Auto-DM": Bot, "Outreach": MessageSquare, "Search": Search, "Content": Calendar, "Comments": MessageCircle,
@@ -199,6 +199,9 @@ const CRM = () => {
     "Mentions": Bell, "Insights": BarChart3, "Pages": FileText, "Groups": Users, "Events": Calendar,
     "Albums": FileText, "Inbox": MessageSquare,
   };
+
+  // Type badge icons for search categories
+  const typeIcons = { tab: LayoutDashboard, subtab: ChevronRight, feature: Zap };
 
   // Build searchable index of all tabs, subtabs, features
   type SearchItem = { label: string; type: "tab" | "subtab" | "feature"; path: string; breadcrumb: string[]; icon: any };
@@ -579,22 +582,23 @@ const CRM = () => {
                   <div className="px-4 pt-3 pb-2 border-b border-white/[0.04]">
                     <p className="text-[10px] text-white/25 font-medium">{filteredSearchResults.length} result{filteredSearchResults.length !== 1 ? "s" : ""} for "<span className="text-white/50">{searchQuery}</span>"</p>
                   </div>
-                  <div className="p-2 max-h-[420px] overflow-y-auto scrollbar-thin">
+                  <div className="p-1.5 max-h-[480px] overflow-y-auto scrollbar-thin">
                     {(["tab", "subtab", "feature"] as const).map(type => {
                       const group = filteredSearchResults.filter(r => r.type === type);
                       if (group.length === 0) return null;
                       const typeLabel = type === "tab" ? "TABS" : type === "subtab" ? "SUB-TABS" : "FEATURES";
-                      const iconBg = type === "tab" ? "bg-[hsl(217,91%,60%)]/10" : type === "subtab" ? "bg-[hsl(262,83%,65%)]/10" : "bg-[hsl(160,84%,50%)]/10";
-                      const iconBorder = type === "tab" ? "border-[hsl(217,91%,60%)]/15" : type === "subtab" ? "border-[hsl(262,83%,65%)]/15" : "border-[hsl(160,84%,50%)]/15";
-                      const iconText = type === "tab" ? "text-[hsl(217,91%,60%)]" : type === "subtab" ? "text-[hsl(262,83%,65%)]" : "text-[hsl(160,84%,50%)]";
-                      const labelColor = type === "tab" ? "hsl(217,91%,60%)" : type === "subtab" ? "hsl(262,83%,65%)" : "hsl(160,84%,50%)";
-                      const hoverBg = type === "tab" ? "hover:bg-[hsl(217,91%,60%)]/[0.04]" : type === "subtab" ? "hover:bg-[hsl(262,83%,65%)]/[0.04]" : "hover:bg-[hsl(160,84%,50%)]/[0.04]";
+                      const typeColorMap = { tab: { bg: "bg-blue-500/10", border: "border-blue-500/20", text: "text-blue-400", hover: "hover:bg-blue-500/[0.06]", label: "hsl(217,91%,60%)", badge: "bg-blue-500/15 text-blue-400 border-blue-500/25" }, subtab: { bg: "bg-purple-500/10", border: "border-purple-500/20", text: "text-purple-400", hover: "hover:bg-purple-500/[0.06]", label: "hsl(262,83%,65%)", badge: "bg-purple-500/15 text-purple-400 border-purple-500/25" }, feature: { bg: "bg-emerald-500/10", border: "border-emerald-500/20", text: "text-emerald-400", hover: "hover:bg-emerald-500/[0.06]", label: "hsl(160,84%,50%)", badge: "bg-emerald-500/15 text-emerald-400 border-emerald-500/25" } };
+                      const tc = typeColorMap[type];
+                      const TypeIcon = typeIcons[type];
                       return (
-                        <div key={type} className="mb-1">
-                          <div className="flex items-center gap-2 px-3 pt-3 pb-1.5">
-                            <div className="h-px flex-1" style={{ background: `linear-gradient(90deg, ${labelColor}33, transparent)` }} />
-                            <p className="text-[9px] font-bold uppercase tracking-[0.2em] flex-shrink-0" style={{ color: labelColor }}>{typeLabel}</p>
-                            <div className="h-px flex-1" style={{ background: `linear-gradient(90deg, transparent, ${labelColor}33)` }} />
+                        <div key={type} className="mb-0.5">
+                          <div className="flex items-center gap-2 px-3 pt-3 pb-1">
+                            <div className="h-px flex-1" style={{ background: `linear-gradient(90deg, ${tc.label}33, transparent)` }} />
+                            <div className={cn("flex items-center gap-1 px-2 py-0.5 rounded-full border text-[8px] font-bold uppercase tracking-[0.15em]", tc.badge)}>
+                              <TypeIcon className="h-2.5 w-2.5" />
+                              {typeLabel}
+                            </div>
+                            <div className="h-px flex-1" style={{ background: `linear-gradient(90deg, transparent, ${tc.label}33)` }} />
                           </div>
                           {group.map((item, i) => {
                             const Icon = item.icon;
@@ -602,23 +606,23 @@ const CRM = () => {
                               <button
                                 key={`${type}-${i}`}
                                 onMouseDown={(e) => { e.preventDefault(); navigate(item.path, { replace: true }); setSearchQuery(""); setSearchFocused(false); }}
-                                className={cn("w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all duration-150 group/item", hoverBg)}
+                                className={cn("w-full flex items-center gap-3 px-3 py-2 rounded-xl text-left transition-all duration-150 group/item", tc.hover)}
                               >
-                                <div className={cn("h-8 w-8 rounded-lg flex items-center justify-center flex-shrink-0 border", iconBg, iconBorder)}>
-                                  {Icon && <Icon className={cn("h-4 w-4", iconText)} strokeWidth={1.75} />}
+                                <div className={cn("h-8 w-8 rounded-[10px] flex items-center justify-center flex-shrink-0 border shadow-sm", tc.bg, tc.border)}>
+                                  {Icon && <Icon className={cn("h-[15px] w-[15px]", tc.text)} strokeWidth={1.5} />}
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                  <p className="text-[12px] font-semibold text-white/85 truncate group-hover/item:text-white transition-colors">{item.label}</p>
-                                  <div className="flex items-center gap-1 mt-0.5">
-                                    {item.breadcrumb.slice(1).map((crumb, ci) => (
-                                      <span key={ci} className="flex items-center gap-1 text-[9px] text-white/20">
-                                        {ci > 0 && <ChevronRight className="h-2 w-2 text-white/10 flex-shrink-0" />}
-                                        <span className="truncate">{crumb}</span>
+                                  <p className="text-[11.5px] font-semibold text-white/90 truncate group-hover/item:text-white transition-colors">{item.label}</p>
+                                  <div className="flex items-center gap-0.5 mt-0.5">
+                                    {item.breadcrumb.map((crumb, ci) => (
+                                      <span key={ci} className="flex items-center gap-0.5 text-[9px] text-white/25">
+                                        {ci > 0 && <span className="text-white/12">›</span>}
+                                        <span className={cn("truncate", ci === item.breadcrumb.length - 1 && tc.text + " font-medium")}>{crumb}</span>
                                       </span>
                                     ))}
                                   </div>
                                 </div>
-                                <ChevronRight className="h-3 w-3 text-white/10 group-hover/item:text-white/30 flex-shrink-0 transition-colors" />
+                                <ChevronRight className="h-3.5 w-3.5 text-white/8 group-hover/item:text-white/25 flex-shrink-0 transition-colors" />
                               </button>
                             );
                           })}
