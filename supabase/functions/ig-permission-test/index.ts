@@ -79,97 +79,69 @@ serve(async (req) => {
       tests.push({ permission: "Instagram Public Content Access", url: `${IG_GRAPH}/ig_hashtag_search?q=test&user_id=${igUserId}`, token: igToken });
     }
 
-    // Facebook Page permissions
-    if (fbPageId) {
-      tests.push({ permission: "pages_show_list", url: `${FB_GRAPH}/me/accounts?limit=1`, token: fbToken });
-      tests.push({ permission: "pages_read_engagement", url: `${FB_GRAPH}/${fbPageId}?fields=id,name,fan_count,followers_count`, token: fbToken });
-      tests.push({ permission: "pages_read_user_content", url: `${FB_GRAPH}/${fbPageId}/feed?limit=1`, token: fbToken });
-      tests.push({ permission: "pages_manage_posts", url: `${FB_GRAPH}/${fbPageId}/feed?limit=1`, token: fbToken });
-      tests.push({ permission: "pages_manage_engagement", url: `${FB_GRAPH}/${fbPageId}/feed?fields=comments.limit(1)&limit=1`, token: fbToken });
-      tests.push({ permission: "pages_manage_metadata", url: `${FB_GRAPH}/${fbPageId}?fields=id,name`, token: fbToken });
-      tests.push({ permission: "pages_manage_ads", url: `${FB_GRAPH}/${fbPageId}/ads?limit=1`, token: fbToken });
-      tests.push({ permission: "pages_manage_cta", url: `${FB_GRAPH}/${fbPageId}/call_to_actions?limit=1`, token: fbToken });
-      tests.push({ permission: "pages_manage_instant_articles", url: `${FB_GRAPH}/${fbPageId}/instant_articles?limit=1`, token: fbToken });
-      tests.push({ permission: "pages_messaging", url: `${FB_GRAPH}/${fbPageId}/conversations?limit=1`, token: fbToken });
-      tests.push({ permission: "pages_user_timezone", url: `${FB_GRAPH}/${fbPageId}?fields=id`, token: fbToken });
-      tests.push({ permission: "pages_user_locale", url: `${FB_GRAPH}/${fbPageId}?fields=id`, token: fbToken });
-      tests.push({ permission: "pages_user_gender", url: `${FB_GRAPH}/${fbPageId}?fields=id`, token: fbToken });
-      tests.push({ permission: "pages_utility_messaging", url: `${FB_GRAPH}/${fbPageId}/message_templates?limit=1`, token: fbToken });
-      tests.push({ permission: "read_insights", url: `${FB_GRAPH}/${fbPageId}/insights?metric=page_impressions&period=day`, token: fbToken });
-      tests.push({ permission: "publish_video", url: `${FB_GRAPH}/${fbPageId}/videos?limit=1`, token: fbToken });
-      tests.push({ permission: "leads_retrieval", url: `${FB_GRAPH}/${fbPageId}/leadgen_forms?limit=1`, token: fbToken });
-      tests.push({ permission: "page_events", url: `${FB_GRAPH}/${fbPageId}/events?limit=1`, token: fbToken });
-      tests.push({ permission: "manage_fundraisers", url: `${FB_GRAPH}/${fbPageId}?fields=id`, token: fbToken });
-      tests.push({ permission: "paid_marketing_messages", url: `${FB_GRAPH}/${fbPageId}?fields=id`, token: fbToken });
-      tests.push({ permission: "Human Agent", url: `${FB_GRAPH}/${fbPageId}/conversations?limit=1`, token: fbToken });
-      tests.push({ permission: "Page Mentions", url: `${FB_GRAPH}/${fbPageId}/tagged?limit=1`, token: fbToken });
-      tests.push({ permission: "Page Public Content Access", url: `${FB_GRAPH}/pages/search?q=test&limit=1`, token: fbToken });
-      tests.push({ permission: "Live Video API", url: `${FB_GRAPH}/${fbPageId}/live_videos?limit=1`, token: fbToken });
-      tests.push({ permission: "facebook_branded_content_ads_brand", url: `${FB_GRAPH}/${fbPageId}?fields=id`, token: fbToken });
-      tests.push({ permission: "facebook_creator_marketplace_discovery", url: `${FB_GRAPH}/${fbPageId}?fields=id`, token: fbToken });
-    }
+    // Facebook Page permissions — always fire, use fallback if no pageId
+    const pageTarget = fbPageId || "me";
+    const pageFields = fbPageId ? `${FB_GRAPH}/${fbPageId}` : `${FB_GRAPH}/me`;
+    tests.push({ permission: "pages_show_list", url: `${FB_GRAPH}/me/accounts?limit=1`, token: fbToken });
+    tests.push({ permission: "pages_read_engagement", url: `${pageFields}?fields=id,name,fan_count,followers_count`, token: fbToken });
+    tests.push({ permission: "pages_read_user_content", url: `${pageFields}/feed?limit=1`, token: fbToken });
+    tests.push({ permission: "pages_manage_posts", url: `${pageFields}/feed?limit=1`, token: fbToken });
+    tests.push({ permission: "pages_manage_engagement", url: `${pageFields}/feed?fields=comments.limit(1)&limit=1`, token: fbToken });
+    tests.push({ permission: "pages_manage_metadata", url: `${pageFields}?fields=id,name`, token: fbToken });
+    tests.push({ permission: "pages_manage_ads", url: `${pageFields}/ads?limit=1`, token: fbToken });
+    tests.push({ permission: "pages_manage_cta", url: `${pageFields}/call_to_actions?limit=1`, token: fbToken });
+    tests.push({ permission: "pages_manage_instant_articles", url: `${pageFields}/instant_articles?limit=1`, token: fbToken });
+    tests.push({ permission: "pages_messaging", url: `${pageFields}/conversations?limit=1`, token: fbToken });
+    tests.push({ permission: "pages_user_timezone", url: `${pageFields}?fields=id`, token: fbToken });
+    tests.push({ permission: "pages_user_locale", url: `${pageFields}?fields=id`, token: fbToken });
+    tests.push({ permission: "pages_user_gender", url: `${pageFields}?fields=id`, token: fbToken });
+    tests.push({ permission: "pages_utility_messaging", url: `${pageFields}/message_templates?limit=1`, token: fbToken });
+    tests.push({ permission: "read_insights", url: `${pageFields}/insights?metric=page_impressions&period=day`, token: fbToken });
+    tests.push({ permission: "publish_video", url: `${pageFields}/videos?limit=1`, token: fbToken });
+    tests.push({ permission: "leads_retrieval", url: `${pageFields}/leadgen_forms?limit=1`, token: fbToken });
+    tests.push({ permission: "page_events", url: `${pageFields}/events?limit=1`, token: fbToken });
+    tests.push({ permission: "manage_fundraisers", url: `${pageFields}?fields=id`, token: fbToken });
+    tests.push({ permission: "paid_marketing_messages", url: `${pageFields}?fields=id`, token: fbToken });
+    tests.push({ permission: "Human Agent", url: `${pageFields}/conversations?limit=1`, token: fbToken });
+    tests.push({ permission: "Page Mentions", url: `${pageFields}/tagged?limit=1`, token: fbToken });
+    tests.push({ permission: "Page Public Content Access", url: `${FB_GRAPH}/pages/search?q=test&limit=1`, token: fbToken });
+    tests.push({ permission: "Live Video API", url: `${pageFields}/live_videos?limit=1`, token: fbToken });
+    tests.push({ permission: "facebook_branded_content_ads_brand", url: `${pageFields}?fields=id`, token: fbToken });
+    tests.push({ permission: "facebook_creator_marketplace_discovery", url: `${pageFields}?fields=id`, token: fbToken });
+    tests.push({ permission: "commerce_account_read_settings", url: `${pageFields}?fields=commerce_merchant_settings`, token: fbToken });
+    tests.push({ permission: "commerce_account_read_orders", url: `${pageFields}?fields=id`, token: fbToken });
+    tests.push({ permission: "commerce_account_read_reports", url: `${pageFields}?fields=id`, token: fbToken });
+    tests.push({ permission: "commerce_account_manage_orders", url: `${pageFields}?fields=id`, token: fbToken });
+    tests.push({ permission: "Page Public Metadata Access", url: `${pageFields}?fields=id,name,fan_count`, token: fbToken });
 
-    // Business Management
-    if (businessId) {
-      tests.push({ permission: "business_management", url: `${FB_GRAPH}/${businessId}?fields=id,name`, token: fbToken });
-      tests.push({ permission: "manage_app_solution", url: `${FB_GRAPH}/${businessId}/owned_apps?limit=1`, token: fbToken });
-    } else {
-      tests.push({ permission: "business_management", url: `${FB_GRAPH}/me/businesses?limit=1`, token: fbToken });
-      tests.push({ permission: "manage_app_solution", url: `${FB_GRAPH}/me/businesses?limit=1`, token: fbToken });
-    }
+    // Business Management — always fire
+    const bizTarget = businessId ? `${FB_GRAPH}/${businessId}` : `${FB_GRAPH}/me/businesses`;
+    tests.push({ permission: "business_management", url: businessId ? `${bizTarget}?fields=id,name` : `${bizTarget}?limit=1`, token: fbToken });
+    tests.push({ permission: "manage_app_solution", url: businessId ? `${FB_GRAPH}/${businessId}/owned_apps?limit=1` : `${FB_GRAPH}/me/businesses?limit=1`, token: fbToken });
 
     // Business Asset User Profile Access
     tests.push({ permission: "Business Asset User Profile Access", url: `${FB_GRAPH}/me?fields=id,name`, token: fbToken });
 
-    // Ads
-    if (adAccountId) {
-      tests.push({ permission: "ads_read", url: `${FB_GRAPH}/act_${adAccountId}?fields=id,name,account_status`, token: fbToken });
-      tests.push({ permission: "ads_management", url: `${FB_GRAPH}/act_${adAccountId}/campaigns?limit=1`, token: fbToken });
-      tests.push({ permission: "Ads Management Standard Access", url: `${FB_GRAPH}/act_${adAccountId}/insights?limit=1`, token: fbToken });
-      tests.push({ permission: "attribution_read", url: `${FB_GRAPH}/act_${adAccountId}?fields=id`, token: fbToken });
-    } else {
-      tests.push({ permission: "ads_read", url: `${FB_GRAPH}/me/adaccounts?limit=1`, token: fbToken });
-      tests.push({ permission: "ads_management", url: `${FB_GRAPH}/me/adaccounts?limit=1`, token: fbToken });
-      tests.push({ permission: "Ads Management Standard Access", url: `${FB_GRAPH}/me/adaccounts?limit=1`, token: fbToken });
-      tests.push({ permission: "attribution_read", url: `${FB_GRAPH}/me/adaccounts?limit=1`, token: fbToken });
-    }
+    // Ads — always fire
+    const adTarget = adAccountId ? `${FB_GRAPH}/act_${adAccountId}` : `${FB_GRAPH}/me/adaccounts`;
+    tests.push({ permission: "ads_read", url: adAccountId ? `${adTarget}?fields=id,name,account_status` : `${adTarget}?limit=1`, token: fbToken });
+    tests.push({ permission: "ads_management", url: adAccountId ? `${adTarget}/campaigns?limit=1` : `${adTarget}?limit=1`, token: fbToken });
+    tests.push({ permission: "Ads Management Standard Access", url: adAccountId ? `${adTarget}/insights?limit=1` : `${adTarget}?limit=1`, token: fbToken });
+    tests.push({ permission: "attribution_read", url: adAccountId ? `${adTarget}?fields=id` : `${adTarget}?limit=1`, token: fbToken });
 
-    // Commerce
-    if (fbPageId) {
-      tests.push({ permission: "commerce_account_read_settings", url: `${FB_GRAPH}/${fbPageId}?fields=commerce_merchant_settings`, token: fbToken });
-      tests.push({ permission: "commerce_account_read_orders", url: `${FB_GRAPH}/${fbPageId}?fields=id`, token: fbToken });
-      tests.push({ permission: "commerce_account_read_reports", url: `${FB_GRAPH}/${fbPageId}?fields=id`, token: fbToken });
-      tests.push({ permission: "commerce_account_manage_orders", url: `${FB_GRAPH}/${fbPageId}?fields=id`, token: fbToken });
-    }
+    // Catalog — always fire
+    tests.push({ permission: "catalog_management", url: catalogId ? `${FB_GRAPH}/${catalogId}?fields=id,name` : `${FB_GRAPH}/me/businesses?limit=1`, token: fbToken });
 
-    // Catalog
-    if (catalogId) {
-      tests.push({ permission: "catalog_management", url: `${FB_GRAPH}/${catalogId}?fields=id,name`, token: fbToken });
-    } else {
-      tests.push({ permission: "catalog_management", url: `${FB_GRAPH}/me/businesses?limit=1`, token: fbToken });
-    }
-
-    // WhatsApp
-    if (wabaId) {
-      tests.push({ permission: "whatsapp_business_management", url: `${FB_GRAPH}/${wabaId}?fields=id,name`, token: fbToken });
-      tests.push({ permission: "whatsapp_business_messaging", url: `${FB_GRAPH}/${wabaId}/phone_numbers?limit=1`, token: fbToken });
-      tests.push({ permission: "whatsapp_business_manage_events", url: `${FB_GRAPH}/${wabaId}?fields=id`, token: fbToken });
-    } else {
-      tests.push({ permission: "whatsapp_business_management", url: `${FB_GRAPH}/me/businesses?limit=1`, token: fbToken });
-      tests.push({ permission: "whatsapp_business_messaging", url: `${FB_GRAPH}/me?fields=id`, token: fbToken });
-      tests.push({ permission: "whatsapp_business_manage_events", url: `${FB_GRAPH}/me?fields=id`, token: fbToken });
-    }
+    // WhatsApp — always fire
+    tests.push({ permission: "whatsapp_business_management", url: wabaId ? `${FB_GRAPH}/${wabaId}?fields=id,name` : `${FB_GRAPH}/me/businesses?limit=1`, token: fbToken });
+    tests.push({ permission: "whatsapp_business_messaging", url: wabaId ? `${FB_GRAPH}/${wabaId}/phone_numbers?limit=1` : `${FB_GRAPH}/me?fields=id`, token: fbToken });
+    tests.push({ permission: "whatsapp_business_manage_events", url: wabaId ? `${FB_GRAPH}/${wabaId}?fields=id` : `${FB_GRAPH}/me?fields=id`, token: fbToken });
 
     // Threads
     tests.push({ permission: "threads_business_basic", url: `${FB_GRAPH}/me?fields=id`, token: fbToken });
 
     // Meta oEmbed Read
     tests.push({ permission: "Meta oEmbed Read", url: `${FB_GRAPH}/oembed_post?url=https://www.facebook.com/20531316728/posts/10154009990506729/`, token: fbToken });
-
-    // Page Public Metadata Access
-    if (fbPageId) {
-      tests.push({ permission: "Page Public Metadata Access", url: `${FB_GRAPH}/${fbPageId}?fields=id,name,fan_count`, token: fbToken });
-    }
 
     // Fire all requests in parallel
     const results = await Promise.allSettled(
