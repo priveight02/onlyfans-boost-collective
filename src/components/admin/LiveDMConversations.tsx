@@ -753,16 +753,20 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
           else toast.success(`${found} conversations already up to date`);
         }
       }
+      // Mark initial scan done IMMEDIATELY so polling/AI can start concurrently
+      setInitialScanDone(true);
+      setScanning(false);
+      setAiCurrentPhase("");
+
       const freshConvos = await loadConversations();
-      // Trigger background prefetch + avatar fetch after scan
+      // Fire-and-forget: prefetch + avatar fetch run in background — don't block
       if (freshConvos && freshConvos.length > 0) {
-        prefetchAllMessages(freshConvos);
-        fetchAvatars(freshConvos);
+        prefetchAllMessages(freshConvos);  // no await — runs concurrently
+        fetchAvatars(freshConvos);          // no await — runs concurrently
       }
     } catch (e: any) {
       addLog("system", `Sync error: ${e.message}`, "error");
       if (!silent) toast.error(e.message || "Failed to scan");
-    } finally {
       setScanning(false);
       setInitialScanDone(true);
       setAiCurrentPhase("");
