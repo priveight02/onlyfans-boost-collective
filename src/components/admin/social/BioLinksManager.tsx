@@ -489,22 +489,22 @@ const BioLinksManager = ({ selectedAccount }: Props) => {
                         <div className="space-y-4">
                           {/* Stats Grid */}
                           <div className="grid grid-cols-4 gap-2">
-                            <div className="bg-muted/30 rounded-lg p-3 text-center">
+                             <div className="bg-white/[0.03] border border-white/[0.06] rounded-lg p-3 text-center">
                               <Users className="h-4 w-4 mx-auto text-blue-400 mb-1" />
                               <p className="text-lg font-bold text-foreground">{analytics.totalViews}</p>
                               <p className="text-[10px] text-muted-foreground">Page Views</p>
                             </div>
-                            <div className="bg-muted/30 rounded-lg p-3 text-center">
+                             <div className="bg-white/[0.03] border border-white/[0.06] rounded-lg p-3 text-center">
                               <MousePointerClick className="h-4 w-4 mx-auto text-green-400 mb-1" />
                               <p className="text-lg font-bold text-foreground">{analytics.totalClicks}</p>
                               <p className="text-[10px] text-muted-foreground">Link Clicks</p>
                             </div>
-                            <div className="bg-muted/30 rounded-lg p-3 text-center">
+                             <div className="bg-white/[0.03] border border-white/[0.06] rounded-lg p-3 text-center">
                               <TrendingUp className="h-4 w-4 mx-auto text-primary mb-1" />
                               <p className="text-lg font-bold text-foreground">{analytics.ctr}%</p>
                               <p className="text-[10px] text-muted-foreground">CTR</p>
                             </div>
-                            <div className="bg-muted/30 rounded-lg p-3 text-center">
+                            <div className="bg-white/[0.03] border border-white/[0.06] rounded-lg p-3 text-center">
                               <Smartphone className="h-4 w-4 mx-auto text-orange-400 mb-1" />
                               <p className="text-lg font-bold text-foreground">
                                 {analytics.totalViews + analytics.totalClicks > 0
@@ -528,7 +528,7 @@ const BioLinksManager = ({ selectedAccount }: Props) => {
                                     <div key={device} className="flex items-center gap-2">
                                       <Icon className="h-3 w-3 text-muted-foreground flex-shrink-0" />
                                       <span className="text-xs text-foreground capitalize w-16">{device}</span>
-                                      <div className="flex-1 bg-muted/50 rounded-full h-1.5">
+                                      <div className="flex-1 bg-white/[0.04] rounded-full h-1.5">
                                         <div className="bg-primary rounded-full h-1.5 transition-all" style={{ width: `${pct}%` }} />
                                       </div>
                                       <span className="text-xs text-muted-foreground w-8 text-right">{pct}%</span>
@@ -591,7 +591,7 @@ const BioLinksManager = ({ selectedAccount }: Props) => {
                                   .map(([idx, data]) => {
                                     const linkInfo = enabledLinks[Number(idx)];
                                     return (
-                                      <div key={idx} className="flex items-center justify-between bg-muted/20 rounded px-2 py-1">
+                                      <div key={idx} className="flex items-center justify-between bg-white/[0.03] border border-white/[0.06] rounded px-2 py-1">
                                         <span className="text-xs text-foreground truncate flex-1">
                                           {linkInfo?.title || data.url || `Link #${Number(idx) + 1}`}
                                         </span>

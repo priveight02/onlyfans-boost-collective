@@ -141,7 +141,7 @@ const SocialAITools = ({ selectedAccount }: SocialAIToolsProps) => {
   const renderJsonArray = (arr: any[], labelKey?: string) => {
     if (!Array.isArray(arr)) return null;
     return arr.map((item, i) => (
-      <div key={i} className="bg-muted/30 rounded p-2 text-xs text-foreground">
+      <div key={i} className="bg-white/[0.03] border border-white/[0.06] rounded p-2 text-xs text-foreground">
         {typeof item === "string" ? item : (
           <div className="space-y-0.5">
             {Object.entries(item).map(([k, v]) => (
@@ -179,7 +179,7 @@ const SocialAITools = ({ selectedAccount }: SocialAIToolsProps) => {
 
       {/* ===== ACCOUNT INSIGHTS (REAL DATA) ===== */}
       {activeAiTool === "insights" && (
-        <Card>
+        <Card className="bg-white/[0.03] border-white/[0.06]">
           <CardContent className="p-4 space-y-3">
             <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
               <BarChart3 className="h-4 w-4 text-emerald-400" />Account Intelligence <Badge variant="outline" className="text-[10px] text-emerald-400">Live Data</Badge>
@@ -193,7 +193,7 @@ const SocialAITools = ({ selectedAccount }: SocialAIToolsProps) => {
             </Button>
             {insightsResult?.insights && (
               <div className="space-y-3">
-                <div className="text-center p-4 bg-muted/30 rounded-lg">
+                <div className="text-center p-4 bg-white/[0.03] border border-white/[0.06] rounded-lg">
                   <p className="text-3xl font-bold text-foreground">{insightsResult.insights.overall_score || "?"}<span className="text-sm text-muted-foreground">/100</span></p>
                   <p className="text-xs text-muted-foreground mt-1">Overall Account Score</p>
                   {insightsResult.insights.growth_rate && <Badge variant="outline" className="mt-2 text-xs">{insightsResult.insights.growth_rate}</Badge>}
@@ -201,7 +201,7 @@ const SocialAITools = ({ selectedAccount }: SocialAIToolsProps) => {
                 {insightsResult.insights.engagement_analysis && (
                   <div className="grid grid-cols-3 gap-2">
                     {Object.entries(insightsResult.insights.engagement_analysis).map(([k, v]) => (
-                      <div key={k} className="bg-muted/30 rounded p-2 text-center">
+                      <div key={k} className="bg-white/[0.03] border border-white/[0.06] rounded p-2 text-center">
                         <p className="text-xs font-bold text-foreground">{String(v)}</p>
                         <p className="text-[10px] text-muted-foreground capitalize">{k.replace(/_/g, " ")}</p>
                       </div>
@@ -241,7 +241,7 @@ const SocialAITools = ({ selectedAccount }: SocialAIToolsProps) => {
 
       {/* ===== POST RANKER (REAL DATA) ===== */}
       {activeAiTool === "ranker" && (
-        <Card>
+        <Card className="bg-white/[0.03] border-white/[0.06]">
           <CardContent className="p-4 space-y-3">
             <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
               <TrendingUp className="h-4 w-4 text-red-400" />Post Performance Ranker <Badge variant="outline" className="text-[10px] text-red-400">Live Data</Badge>
@@ -257,7 +257,7 @@ const SocialAITools = ({ selectedAccount }: SocialAIToolsProps) => {
               <ScrollArea className="max-h-[450px]">
                 <div className="space-y-3">
                   {rankerResult.ranked?.slice(0, 10).map((p: any, i: number) => (
-                    <div key={i} className="bg-muted/30 rounded-lg p-2.5 flex gap-2">
+                    <div key={i} className="bg-white/[0.03] border border-white/[0.06] rounded-lg p-2.5 flex gap-2">
                       <div className="text-lg font-bold text-foreground w-6">#{i + 1}</div>
                       <div className="flex-1 min-w-0">
                         <p className="text-xs text-foreground truncate">{p.caption || "No caption"}</p>
@@ -294,7 +294,7 @@ const SocialAITools = ({ selectedAccount }: SocialAIToolsProps) => {
 
       {/* ===== AI CONTENT CALENDAR (REAL DATA) ===== */}
       {activeAiTool === "calendar_ai" && (
-        <Card>
+        <Card className="bg-white/[0.03] border-white/[0.06]">
           <CardContent className="p-4 space-y-3">
             <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
               <Calendar className="h-4 w-4 text-indigo-400" />AI Content Calendar <Badge variant="outline" className="text-[10px] text-indigo-400">Live Data</Badge>
@@ -319,7 +319,7 @@ const SocialAITools = ({ selectedAccount }: SocialAIToolsProps) => {
               <ScrollArea className="max-h-[500px]">
                 <div className="space-y-2">
                   {(calendarResult.calendar || []).map((day: any, i: number) => (
-                    <div key={i} className="bg-muted/30 rounded-lg p-3">
+                    <div key={i} className="bg-white/[0.03] border border-white/[0.06] rounded-lg p-3">
                       <p className="text-xs font-bold text-foreground mb-1.5">Day {day.day_number} — {day.date_label || ""}</p>
                       {(day.posts || []).map((post: any, j: number) => (
                         <div key={j} className="border-l-2 border-indigo-500/30 pl-2 mb-2">
@@ -350,7 +350,7 @@ const SocialAITools = ({ selectedAccount }: SocialAIToolsProps) => {
 
       {/* ===== REPLY STYLE GENERATOR ===== */}
       {activeAiTool === "reply_style" && (
-        <Card>
+        <Card className="bg-white/[0.03] border-white/[0.06]">
           <CardContent className="p-4 space-y-3">
             <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
               <Brain className="h-4 w-4 text-violet-400" />Reply Style Generator
@@ -365,7 +365,7 @@ const SocialAITools = ({ selectedAccount }: SocialAIToolsProps) => {
             {replyStyleResult && (
               <div className="space-y-3">
                 {replyStyleResult.tone && (
-                  <div className="bg-muted/30 rounded p-2">
+                  <div className="bg-white/[0.03] border border-white/[0.06] rounded p-2">
                     <p className="text-[10px] text-muted-foreground">Tone</p>
                     <p className="text-sm font-bold text-foreground">{replyStyleResult.tone}</p>
                   </div>
@@ -397,7 +397,7 @@ const SocialAITools = ({ selectedAccount }: SocialAIToolsProps) => {
                   <div>
                     <p className="text-xs font-medium text-foreground mb-1">Sample Replies</p>
                     {replyStyleResult.sample_replies.map((s: any, i: number) => (
-                      <div key={i} className="bg-muted/30 rounded p-2 mb-1">
+                      <div key={i} className="bg-white/[0.03] border border-white/[0.06] rounded p-2 mb-1">
                         <p className="text-[10px] text-muted-foreground">"{s.comment}"</p>
                         <p className="text-xs text-foreground mt-0.5">→ {s.reply}</p>
                       </div>
@@ -412,7 +412,7 @@ const SocialAITools = ({ selectedAccount }: SocialAIToolsProps) => {
 
       {/* ===== CAPTION GENERATOR ===== */}
       {activeAiTool === "caption" && (
-        <Card>
+        <Card className="bg-white/[0.03] border-white/[0.06]">
           <CardContent className="p-4 space-y-3">
             <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
               <Wand2 className="h-4 w-4 text-yellow-400" />AI Caption Generator
@@ -436,7 +436,7 @@ const SocialAITools = ({ selectedAccount }: SocialAIToolsProps) => {
               <Wand2 className="h-3.5 w-3.5 mr-1" />Generate
             </Button>
             {captionResult && (
-              <div className="bg-muted/50 rounded-lg p-3">
+              <div className="bg-white/[0.04] border border-white/[0.06] rounded-lg p-3">
                 <p className="text-sm text-foreground whitespace-pre-wrap">{captionResult}</p>
                 <Button size="sm" variant="outline" className="mt-2" onClick={() => copyText(captionResult)}>
                   <Copy className="h-3 w-3 mr-1" />Copy
@@ -449,7 +449,7 @@ const SocialAITools = ({ selectedAccount }: SocialAIToolsProps) => {
 
       {/* ===== HASHTAG GENERATOR ===== */}
       {activeAiTool === "hashtags" && (
-        <Card>
+        <Card className="bg-white/[0.03] border-white/[0.06]">
           <CardContent className="p-4 space-y-3">
             <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
               <Hash className="h-4 w-4 text-pink-400" />AI Hashtag Generator
@@ -519,7 +519,7 @@ const SocialAITools = ({ selectedAccount }: SocialAIToolsProps) => {
 
       {/* ===== HOOK GENERATOR ===== */}
       {activeAiTool === "hooks" && (
-        <Card>
+        <Card className="bg-white/[0.03] border-white/[0.06]">
           <CardContent className="p-4 space-y-3">
             <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
               <Zap className="h-4 w-4 text-orange-400" />Viral Hook Generator
@@ -543,7 +543,7 @@ const SocialAITools = ({ selectedAccount }: SocialAIToolsProps) => {
               <ScrollArea className="max-h-[350px]">
                 <div className="space-y-2">
                   {(Array.isArray(hookResult.hooks) ? hookResult.hooks : []).map((h: any, i: number) => (
-                    <div key={i} className="bg-muted/30 rounded-lg p-3 flex justify-between items-start gap-2">
+                    <div key={i} className="bg-white/[0.03] border border-white/[0.06] rounded-lg p-3 flex justify-between items-start gap-2">
                       <div className="flex-1 min-w-0">
                         <p className="text-sm text-foreground font-medium">{h.hook}</p>
                         <div className="flex gap-2 mt-1">
@@ -565,7 +565,7 @@ const SocialAITools = ({ selectedAccount }: SocialAIToolsProps) => {
 
       {/* ===== VIRAL SCORE ===== */}
       {activeAiTool === "viral" && (
-        <Card>
+        <Card className="bg-white/[0.03] border-white/[0.06]">
           <CardContent className="p-4 space-y-3">
             <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
               <TrendingUp className="h-4 w-4 text-red-400" />Viral Score Predictor
@@ -579,7 +579,7 @@ const SocialAITools = ({ selectedAccount }: SocialAIToolsProps) => {
             </Button>
             {viralResult && (
               <div className="space-y-3">
-                <div className="text-center p-4 bg-muted/30 rounded-lg">
+                <div className="text-center p-4 bg-white/[0.03] border border-white/[0.06] rounded-lg">
                   <p className="text-3xl font-bold text-foreground">{viralResult.viral_score || "?"}<span className="text-sm text-muted-foreground">/100</span></p>
                   <p className="text-xs text-muted-foreground mt-1">Viral Score</p>
                   {viralResult.predicted_reach && <Badge variant="outline" className="mt-2 text-xs">Predicted reach: {viralResult.predicted_reach}</Badge>}
@@ -587,7 +587,7 @@ const SocialAITools = ({ selectedAccount }: SocialAIToolsProps) => {
                 {viralResult.breakdown && (
                   <div className="grid grid-cols-2 gap-2">
                     {Object.entries(viralResult.breakdown).map(([key, val]) => (
-                      <div key={key} className="bg-muted/30 rounded p-2">
+                      <div key={key} className="bg-white/[0.03] border border-white/[0.06] rounded p-2">
                         <p className="text-[10px] text-muted-foreground capitalize">{key.replace(/_/g, " ")}</p>
                         <div className="flex items-center gap-2">
                           <Progress value={Number(val) * 10} className="h-1.5 flex-1" />
@@ -608,7 +608,7 @@ const SocialAITools = ({ selectedAccount }: SocialAIToolsProps) => {
                   </div>
                 )}
                 {viralResult.optimized_caption && (
-                  <div className="bg-muted/50 rounded-lg p-3">
+                  <div className="bg-white/[0.04] border border-white/[0.06] rounded-lg p-3">
                     <p className="text-xs font-medium text-green-400 mb-1">Optimized Version</p>
                     <p className="text-sm text-foreground">{viralResult.optimized_caption}</p>
                     <Button size="sm" variant="outline" className="mt-2" onClick={() => copyText(viralResult.optimized_caption)}>
@@ -624,7 +624,7 @@ const SocialAITools = ({ selectedAccount }: SocialAIToolsProps) => {
 
       {/* ===== CONTENT REPURPOSER ===== */}
       {activeAiTool === "repurpose" && (
-        <Card>
+        <Card className="bg-white/[0.03] border-white/[0.06]">
           <CardContent className="p-4 space-y-3">
             <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
               <RefreshCw className="h-4 w-4 text-green-400" />Content Repurposer
@@ -645,7 +645,7 @@ const SocialAITools = ({ selectedAccount }: SocialAIToolsProps) => {
               <ScrollArea className="max-h-[400px]">
                 <div className="space-y-3">
                   {Object.entries(repurposeResult).filter(([k]) => k !== "raw").map(([platform, data]: [string, any]) => (
-                    <div key={platform} className="bg-muted/30 rounded-lg p-3">
+                    <div key={platform} className="bg-white/[0.03] border border-white/[0.06] rounded-lg p-3">
                       <div className="flex items-center justify-between mb-2">
                         <Badge variant="outline" className="text-xs capitalize">{platform}</Badge>
                         <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => copyText(data.caption || String(data))}>
@@ -672,7 +672,7 @@ const SocialAITools = ({ selectedAccount }: SocialAIToolsProps) => {
 
       {/* ===== BIO OPTIMIZER ===== */}
       {activeAiTool === "bio" && (
-        <Card>
+        <Card className="bg-white/[0.03] border-white/[0.06]">
           <CardContent className="p-4 space-y-3">
             <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
               <Star className="h-4 w-4 text-purple-400" />Bio Optimizer
@@ -693,11 +693,11 @@ const SocialAITools = ({ selectedAccount }: SocialAIToolsProps) => {
               <div className="space-y-3">
                 {(bioResult.score_before || bioResult.score_after) && (
                   <div className="flex gap-3">
-                    <div className="flex-1 bg-muted/30 rounded p-2 text-center">
+                    <div className="flex-1 bg-white/[0.03] border border-white/[0.06] rounded p-2 text-center">
                       <p className="text-lg font-bold text-red-400">{bioResult.score_before || "?"}</p>
                       <p className="text-[10px] text-muted-foreground">Before</p>
                     </div>
-                    <div className="flex-1 bg-muted/30 rounded p-2 text-center">
+                    <div className="flex-1 bg-white/[0.03] border border-white/[0.06] rounded p-2 text-center">
                       <p className="text-lg font-bold text-green-400">{bioResult.score_after || "?"}</p>
                       <p className="text-[10px] text-muted-foreground">After</p>
                     </div>
@@ -717,7 +717,7 @@ const SocialAITools = ({ selectedAccount }: SocialAIToolsProps) => {
                     <p className="text-xs font-medium text-foreground mb-1">Variations</p>
                     <div className="space-y-1.5">
                       {(Array.isArray(bioResult.variations) ? bioResult.variations : []).map((v: string, i: number) => (
-                        <div key={i} className="bg-muted/30 rounded p-2 flex justify-between items-center">
+                        <div key={i} className="bg-white/[0.03] border border-white/[0.06] rounded p-2 flex justify-between items-center">
                           <p className="text-xs text-foreground flex-1">{v}</p>
                           <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => copyText(v)}><Copy className="h-3 w-3" /></Button>
                         </div>
@@ -730,7 +730,7 @@ const SocialAITools = ({ selectedAccount }: SocialAIToolsProps) => {
                     <p className="text-xs font-medium text-foreground mb-1">CTA Suggestions</p>
                     <div className="space-y-1">
                       {(Array.isArray(bioResult.cta_suggestions) ? bioResult.cta_suggestions : []).map((c: string, i: number) => (
-                        <div key={i} className="bg-muted/30 rounded p-2 flex justify-between items-center">
+                          <div key={i} className="bg-white/[0.03] border border-white/[0.06] rounded p-2 flex justify-between items-center">
                           <p className="text-xs text-foreground">{c}</p>
                           <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => copyText(c)}><Copy className="h-3 w-3" /></Button>
                         </div>
@@ -746,7 +746,7 @@ const SocialAITools = ({ selectedAccount }: SocialAIToolsProps) => {
 
       {/* ===== TREND DETECTOR ===== */}
       {activeAiTool === "trends" && (
-        <Card>
+        <Card className="bg-white/[0.03] border-white/[0.06]">
           <CardContent className="p-4 space-y-3">
             <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
               <Activity className="h-4 w-4 text-cyan-400" />AI Trend Detector
@@ -828,7 +828,7 @@ const SocialAITools = ({ selectedAccount }: SocialAIToolsProps) => {
 
       {/* ===== BEST POSTING TIME ===== */}
       {activeAiTool === "time" && (
-        <Card>
+        <Card className="bg-white/[0.03] border-white/[0.06]">
           <CardContent className="p-4 space-y-3">
             <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
               <Clock className="h-4 w-4 text-blue-400" />Best Posting Time
@@ -898,7 +898,7 @@ const SocialAITools = ({ selectedAccount }: SocialAIToolsProps) => {
 
       {/* ===== COMPETITOR ANALYSIS ===== */}
       {activeAiTool === "competitor" && (
-        <Card>
+        <Card className="bg-white/[0.03] border-white/[0.06]">
           <CardContent className="p-4 space-y-3">
             <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
               <Eye className="h-4 w-4 text-amber-400" />Competitor Analysis
@@ -968,7 +968,7 @@ const SocialAITools = ({ selectedAccount }: SocialAIToolsProps) => {
 
       {/* ===== ENGAGEMENT STRATEGY ===== */}
       {activeAiTool === "engagement" && (
-        <Card>
+        <Card className="bg-white/[0.03] border-white/[0.06]">
           <CardContent className="p-4 space-y-3">
             <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
               <Target className="h-4 w-4 text-emerald-400" />Engagement Strategy
@@ -1009,7 +1009,7 @@ const SocialAITools = ({ selectedAccount }: SocialAIToolsProps) => {
                     <div>
                       <p className="text-xs font-medium text-blue-400 mb-1">Reply Templates (Drive DMs)</p>
                       {(Array.isArray(engagementResult.reply_templates) ? engagementResult.reply_templates : []).map((t: string, i: number) => (
-                        <div key={i} className="bg-muted/30 rounded p-2 flex justify-between items-center">
+                        <div key={i} className="bg-white/[0.03] border border-white/[0.06] rounded p-2 flex justify-between items-center">
                           <p className="text-xs text-foreground flex-1">{t}</p>
                           <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => copyText(t)}><Copy className="h-3 w-3" /></Button>
                         </div>
@@ -1033,7 +1033,7 @@ const SocialAITools = ({ selectedAccount }: SocialAIToolsProps) => {
 
       {/* ===== CONTENT PLAN ===== */}
       {activeAiTool === "plan" && (
-        <Card>
+        <Card className="bg-white/[0.03] border-white/[0.06]">
           <CardContent className="p-4 space-y-3">
             <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
               <Calendar className="h-4 w-4 text-indigo-400" />AI Content Plan
@@ -1071,7 +1071,7 @@ const SocialAITools = ({ selectedAccount }: SocialAIToolsProps) => {
                   {planResult.plan && (
                     <div className="space-y-2">
                       {(Array.isArray(planResult.plan) ? planResult.plan : []).map((day: any, i: number) => (
-                        <div key={i} className="bg-muted/30 rounded-lg p-3">
+                        <div key={i} className="bg-white/[0.03] border border-white/[0.06] rounded-lg p-3">
                           <div className="flex items-center justify-between mb-1">
                             <div className="flex items-center gap-2">
                               <Badge variant="outline" className="text-[10px]">Day {day.day || i + 1}</Badge>
@@ -1104,7 +1104,7 @@ const SocialAITools = ({ selectedAccount }: SocialAIToolsProps) => {
 
       {/* ===== CONTENT ANALYZER ===== */}
       {activeAiTool === "analyze" && (
-        <Card>
+        <Card className="bg-white/[0.03] border-white/[0.06]">
           <CardContent className="p-4 space-y-3">
             <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
               <BarChart3 className="h-4 w-4 text-sky-400" />Content Analyzer
@@ -1117,7 +1117,7 @@ const SocialAITools = ({ selectedAccount }: SocialAIToolsProps) => {
               <BarChart3 className="h-3.5 w-3.5 mr-1" />Analyze
             </Button>
             {analyzeResult && (
-              <div className="bg-muted/50 rounded-lg p-3">
+              <div className="bg-white/[0.04] border border-white/[0.06] rounded-lg p-3">
                 <p className="text-sm text-foreground whitespace-pre-wrap">{analyzeResult}</p>
               </div>
             )}

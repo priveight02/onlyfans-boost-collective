@@ -1602,7 +1602,7 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading, onNavigateTo
                     )}
                     {viewerComments.map(c => (
                       <div key={c.id} className="flex gap-2">
-                        <div className="h-7 w-7 rounded-full bg-muted flex items-center justify-center text-[10px] font-bold text-foreground flex-shrink-0">
+                        <div className="h-7 w-7 rounded-full bg-white/[0.06] flex items-center justify-center text-[10px] font-bold text-foreground flex-shrink-0">
                           {c.username[0]?.toUpperCase() || "?"}
                         </div>
                         <div className="flex-1 min-w-0">
@@ -1650,7 +1650,7 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading, onNavigateTo
 
 // Extracted PostCard
 const PostCard = ({ post, toggleSelect, openViewer, PostThumbnail }: { post: DiscoverPost; toggleSelect: (id: string) => void; openViewer: () => void; PostThumbnail: any }) => (
-  <div className={`rounded-lg border p-2.5 transition-colors ${post.selected ? "bg-emerald-500/10 border-emerald-500/30" : "bg-muted/10 border-border hover:bg-muted/30"}`}>
+  <div className={`rounded-lg border p-2.5 transition-colors ${post.selected ? "bg-emerald-500/10 border-emerald-500/30" : "bg-white/[0.03] border-white/[0.06] hover:bg-white/[0.05]"}`}>
     <div className="flex gap-2">
       <button onClick={() => toggleSelect(post.id)} className="flex-shrink-0 mt-0.5">
         <div className={`h-4 w-4 rounded border flex items-center justify-center ${post.selected ? "bg-emerald-500 border-emerald-500" : "border-muted-foreground/40"}`}>
@@ -1662,7 +1662,7 @@ const PostCard = ({ post, toggleSelect, openViewer, PostThumbnail }: { post: Dis
         <div className="flex items-center justify-between mb-0.5">
           <span className="text-[10px] font-medium text-foreground">@{post.username}</span>
           <button onClick={(e) => { e.stopPropagation(); openViewer(); }}
-            className="p-1 rounded hover:bg-muted/50 text-muted-foreground hover:text-foreground" title="View Post">
+            className="p-1 rounded hover:bg-white/[0.06] text-muted-foreground hover:text-foreground" title="View Post">
             <Eye className="h-3 w-3" />
           </button>
         </div>
