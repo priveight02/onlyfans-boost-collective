@@ -584,13 +584,17 @@ const CRM = () => {
                       const group = filteredSearchResults.filter(r => r.type === type);
                       if (group.length === 0) return null;
                       const typeLabel = type === "tab" ? "TABS" : type === "subtab" ? "SUB-TABS" : "FEATURES";
-                      const typeColor = type === "tab" ? "hsl(217,91%,60%)" : type === "subtab" ? "hsl(262,83%,65%)" : "hsl(160,84%,50%)";
+                      const iconBg = type === "tab" ? "bg-[hsl(217,91%,60%)]/10" : type === "subtab" ? "bg-[hsl(262,83%,65%)]/10" : "bg-[hsl(160,84%,50%)]/10";
+                      const iconBorder = type === "tab" ? "border-[hsl(217,91%,60%)]/15" : type === "subtab" ? "border-[hsl(262,83%,65%)]/15" : "border-[hsl(160,84%,50%)]/15";
+                      const iconText = type === "tab" ? "text-[hsl(217,91%,60%)]" : type === "subtab" ? "text-[hsl(262,83%,65%)]" : "text-[hsl(160,84%,50%)]";
+                      const labelColor = type === "tab" ? "hsl(217,91%,60%)" : type === "subtab" ? "hsl(262,83%,65%)" : "hsl(160,84%,50%)";
+                      const hoverBg = type === "tab" ? "hover:bg-[hsl(217,91%,60%)]/[0.04]" : type === "subtab" ? "hover:bg-[hsl(262,83%,65%)]/[0.04]" : "hover:bg-[hsl(160,84%,50%)]/[0.04]";
                       return (
                         <div key={type} className="mb-1">
                           <div className="flex items-center gap-2 px-3 pt-3 pb-1.5">
-                            <div className="h-px flex-1" style={{ background: `linear-gradient(90deg, ${typeColor}20, transparent)` }} />
-                            <p className="text-[9px] font-bold uppercase tracking-[0.2em] flex-shrink-0" style={{ color: typeColor }}>{typeLabel}</p>
-                            <div className="h-px flex-1" style={{ background: `linear-gradient(90deg, transparent, ${typeColor}20)` }} />
+                            <div className="h-px flex-1" style={{ background: `linear-gradient(90deg, ${labelColor}33, transparent)` }} />
+                            <p className="text-[9px] font-bold uppercase tracking-[0.2em] flex-shrink-0" style={{ color: labelColor }}>{typeLabel}</p>
+                            <div className="h-px flex-1" style={{ background: `linear-gradient(90deg, transparent, ${labelColor}33)` }} />
                           </div>
                           {group.map((item, i) => {
                             const Icon = item.icon;
@@ -598,14 +602,10 @@ const CRM = () => {
                               <button
                                 key={`${type}-${i}`}
                                 onMouseDown={(e) => { e.preventDefault(); navigate(item.path, { replace: true }); setSearchQuery(""); setSearchFocused(false); }}
-                                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all duration-150 group/item"
-                                style={{ }}
-                                onMouseEnter={e => { e.currentTarget.style.background = `${typeColor}08`; }}
-                                onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
+                                className={cn("w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all duration-150 group/item", hoverBg)}
                               >
-                                <div className="h-8 w-8 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors"
-                                  style={{ background: `${typeColor}12`, border: `1px solid ${typeColor}15` }}>
-                                  {Icon && <Icon className="h-3.5 w-3.5" style={{ color: typeColor }} />}
+                                <div className={cn("h-8 w-8 rounded-lg flex items-center justify-center flex-shrink-0 border", iconBg, iconBorder)}>
+                                  {Icon && <Icon className={cn("h-4 w-4", iconText)} strokeWidth={1.75} />}
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <p className="text-[12px] font-semibold text-white/85 truncate group-hover/item:text-white transition-colors">{item.label}</p>
