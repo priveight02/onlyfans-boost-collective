@@ -359,10 +359,10 @@ const CRM = () => {
         {/* Logo area */}
         <div className={cn("h-[64px] flex items-center justify-center border-b border-white/[0.04]", sidebarCollapsed ? "px-3" : "px-5")}>
           {!sidebarCollapsed && (
-            <span className="text-[28px] font-extrabold text-white tracking-tight" style={{ textShadow: "0 0 30px hsl(217 91% 60% / 0.2)" }}>Uplyze</span>
+            <span className="text-[28px] font-extrabold text-white tracking-tight" style={{ fontFamily: "'Rajdhani', sans-serif", textShadow: "0 0 30px hsl(217 91% 60% / 0.2)" }}>Uplyze</span>
           )}
           {sidebarCollapsed && (
-            <span className="text-[22px] font-extrabold text-white">U</span>
+            <span className="text-[22px] font-extrabold text-white" style={{ fontFamily: "'Rajdhani', sans-serif" }}>U</span>
           )}
         </div>
 
