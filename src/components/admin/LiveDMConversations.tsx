@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
 import {
   MessageCircle, Bot, User, RefreshCw, Send, Loader2, Wifi,
   Download, Search, MoreVertical, Info,
@@ -15,7 +16,9 @@ import {
   Smile, Image as ImageIcon, Heart, ChevronLeft, Zap,
   Brain, Eye, Sparkles, ArrowRight, Shield, WifiOff,
   CircleDot, MessageSquare, Inbox, SendHorizonal, Lock, Unlock,
-  Play, Pause, Plus, Crown,
+  Play, Pause, Plus, Crown, Settings2, Flame, GitBranch,
+  Palette, Radar, Target, TrendingUp, Activity, DollarSign,
+  ChevronDown,
 } from "lucide-react";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
@@ -237,6 +240,24 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
   const [activePersonaId, setActivePersonaId] = useState<string | null>(null);
   const [defaultPersonaType, setDefaultPersonaType] = useState<string>("male");
   const [dailyStats, setDailyStats] = useState<{ sent: number; limit: number; cooldownUntil: string | null } | null>(null);
+  // Advanced AI Feature Toggles
+  const [reviewBeforeSend, setReviewBeforeSend] = useState(false);
+  const [convIntelligence, setConvIntelligence] = useState(false);
+  const [smartThrottling, setSmartThrottling] = useState(false);
+  const [viralPrediction, setViralPrediction] = useState(false);
+  const [engagementDM, setEngagementDM] = useState(false);
+  const [unifiedInbox, setUnifiedInbox] = useState(false);
+  const [growthCopilot, setGrowthCopilot] = useState(false);
+  const [leadHeatScoring, setLeadHeatScoring] = useState(false);
+  const [funnelBuilder, setFunnelBuilder] = useState(false);
+  const [smartFollowUp, setSmartFollowUp] = useState(false);
+  const [revenueAttribution, setRevenueAttribution] = useState(false);
+  const [personaEngine, setPersonaEngine] = useState(false);
+  const [competitorSignals, setCompetitorSignals] = useState(false);
+  const [shadowMode, setShadowModeToggle] = useState(false);
+  const [showAdvancedPanel, setShowAdvancedPanel] = useState(false);
+  // Pending review messages (review-before-send)
+  const [pendingReviewMsgs, setPendingReviewMsgs] = useState<Map<string, { content: string; convoId: string; generatedAt: string }>>(new Map());
   const followAIRef = useRef(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesParentRef = useRef<HTMLDivElement>(null);
@@ -1526,6 +1547,238 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
               })}
             </DropdownMenuContent>
            </DropdownMenu>
+          {/* Advanced AI Features Dropdown */}
+          <DropdownMenu open={showAdvancedPanel} onOpenChange={setShowAdvancedPanel}>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" variant="outline" className={`h-7 text-[10px] gap-1 border-white/10 ${(reviewBeforeSend || convIntelligence || smartThrottling || shadowMode) ? "border-cyan-500/30 text-cyan-400" : "text-white/50"}`}>
+                <Settings2 className="h-3 w-3" />
+                AI Modes
+                {[reviewBeforeSend, convIntelligence, smartThrottling, viralPrediction, engagementDM, unifiedInbox, growthCopilot, leadHeatScoring, funnelBuilder, smartFollowUp, revenueAttribution, personaEngine, competitorSignals, shadowMode].filter(Boolean).length > 0 && (
+                  <Badge className="text-[7px] h-3.5 min-w-[14px] px-1 bg-cyan-500/20 text-cyan-400 border-0 ml-0.5">
+                    {[reviewBeforeSend, convIntelligence, smartThrottling, viralPrediction, engagementDM, unifiedInbox, growthCopilot, leadHeatScoring, funnelBuilder, smartFollowUp, revenueAttribution, personaEngine, competitorSignals, shadowMode].filter(Boolean).length}
+                  </Badge>
+                )}
+                <ChevronDown className="h-2.5 w-2.5 ml-0.5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-[340px] p-0" style={{ background: "hsl(222 50% 7% / 0.98)", border: "1px solid hsl(217 91% 60% / 0.1)", backdropFilter: "blur(24px)" }}>
+              <div className="px-3 py-2 border-b border-white/[0.06]">
+                <p className="text-[10px] font-bold text-white/70 uppercase tracking-wider">Advanced AI Modes</p>
+                <p className="text-[8px] text-white/30 mt-0.5">Toggle features on/off — all disabled by default</p>
+              </div>
+              <ScrollArea className="max-h-[400px]">
+                <div className="p-2 space-y-0.5">
+                  {/* Review Before Send */}
+                  <div className="flex items-center justify-between px-2.5 py-2 rounded-lg hover:bg-white/[0.04] transition-colors">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="h-7 w-7 rounded-lg bg-orange-500/10 border border-orange-500/20 flex items-center justify-center flex-shrink-0">
+                        <Eye className="h-3.5 w-3.5 text-orange-400" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-semibold text-white/85 truncate">Review Before Send</p>
+                        <p className="text-[8px] text-white/30 truncate">Review, edit or discard AI messages before sending</p>
+                      </div>
+                    </div>
+                    <Switch checked={reviewBeforeSend} onCheckedChange={(v) => { setReviewBeforeSend(v); toast.success(v ? "Review mode ON — AI messages will wait for your approval" : "Review mode OFF — AI sends automatically"); }} className="ml-2 flex-shrink-0" />
+                  </div>
+
+                  <div className="h-px bg-white/[0.04] mx-2" />
+                  <p className="text-[8px] font-bold text-white/20 uppercase tracking-wider px-2.5 pt-1.5">Intelligence</p>
+
+                  {/* Conversation Intelligence */}
+                  <div className="flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-white/[0.04] transition-colors">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="h-7 w-7 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center flex-shrink-0">
+                        <Brain className="h-3.5 w-3.5 text-violet-400" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-semibold text-white/85 truncate">Conversation Intelligence</p>
+                        <p className="text-[8px] text-white/30 truncate">Detect intent — route leads, support, objections, hot buyers</p>
+                      </div>
+                    </div>
+                    <Switch checked={convIntelligence} onCheckedChange={(v) => { setConvIntelligence(v); toast.success(v ? "Conversation Intelligence ON" : "Conversation Intelligence OFF"); }} className="ml-2 flex-shrink-0" />
+                  </div>
+
+                  {/* Smart Throttling */}
+                  <div className="flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-white/[0.04] transition-colors">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="h-7 w-7 rounded-lg bg-orange-500/10 border border-orange-500/20 flex items-center justify-center flex-shrink-0">
+                        <Shield className="h-3.5 w-3.5 text-orange-400" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-semibold text-white/85 truncate">Smart Throttling (Anti-Ban)</p>
+                        <p className="text-[8px] text-white/30 truncate">Dynamic speed, message variation & auto-pause on risk</p>
+                      </div>
+                    </div>
+                    <Switch checked={smartThrottling} onCheckedChange={(v) => { setSmartThrottling(v); toast.success(v ? "Smart Throttling ON" : "Smart Throttling OFF"); }} className="ml-2 flex-shrink-0" />
+                  </div>
+
+                  {/* Shadow Mode */}
+                  <div className="flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-white/[0.04] transition-colors">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="h-7 w-7 rounded-lg bg-sky-500/10 border border-sky-500/20 flex items-center justify-center flex-shrink-0">
+                        <Eye className="h-3.5 w-3.5 text-sky-400" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-semibold text-white/85 truncate">Shadow Mode</p>
+                        <p className="text-[8px] text-white/30 truncate">AI drafts, human approves — for high-ticket accounts</p>
+                      </div>
+                    </div>
+                    <Switch checked={shadowMode} onCheckedChange={(v) => { setShadowModeToggle(v); toast.success(v ? "Shadow Mode ON" : "Shadow Mode OFF"); }} className="ml-2 flex-shrink-0" />
+                  </div>
+
+                  <div className="h-px bg-white/[0.04] mx-2" />
+                  <p className="text-[8px] font-bold text-white/20 uppercase tracking-wider px-2.5 pt-1.5">Growth & Outreach</p>
+
+                  {/* Viral Prediction */}
+                  <div className="flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-white/[0.04] transition-colors">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="h-7 w-7 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center flex-shrink-0">
+                        <Sparkles className="h-3.5 w-3.5 text-amber-400" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-semibold text-white/85 truncate">Viral Content Prediction</p>
+                        <p className="text-[8px] text-white/30 truncate">Score hook strength, retention & CTA before publishing</p>
+                      </div>
+                    </div>
+                    <Switch checked={viralPrediction} onCheckedChange={(v) => { setViralPrediction(v); toast.success(v ? "Viral Prediction ON" : "Viral Prediction OFF"); }} className="ml-2 flex-shrink-0" />
+                  </div>
+
+                  {/* Engagement-Triggered DMs */}
+                  <div className="flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-white/[0.04] transition-colors">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="h-7 w-7 rounded-lg bg-pink-500/10 border border-pink-500/20 flex items-center justify-center flex-shrink-0">
+                        <Heart className="h-3.5 w-3.5 text-pink-400" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-semibold text-white/85 truncate">Engagement-Triggered DMs</p>
+                        <p className="text-[8px] text-white/30 truncate">Auto-DM users who comment, watch or like posts</p>
+                      </div>
+                    </div>
+                    <Switch checked={engagementDM} onCheckedChange={(v) => { setEngagementDM(v); toast.success(v ? "Engagement DMs ON" : "Engagement DMs OFF"); }} className="ml-2 flex-shrink-0" />
+                  </div>
+
+                  {/* Unified Inbox */}
+                  <div className="flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-white/[0.04] transition-colors">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="h-7 w-7 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center flex-shrink-0">
+                        <Inbox className="h-3.5 w-3.5 text-blue-400" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-semibold text-white/85 truncate">Unified Inbox + AI Memory</p>
+                        <p className="text-[8px] text-white/30 truncate">Cross-platform inbox with conversation memory & intent</p>
+                      </div>
+                    </div>
+                    <Switch checked={unifiedInbox} onCheckedChange={(v) => { setUnifiedInbox(v); toast.success(v ? "Unified Inbox ON" : "Unified Inbox OFF"); }} className="ml-2 flex-shrink-0" />
+                  </div>
+
+                  {/* Growth Copilot */}
+                  <div className="flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-white/[0.04] transition-colors">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="h-7 w-7 rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center flex-shrink-0">
+                        <Bot className="h-3.5 w-3.5 text-cyan-400" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-semibold text-white/85 truncate">AI Growth Copilot</p>
+                        <p className="text-[8px] text-white/30 truncate">Audit strategy, recommend posting & funnel improvements</p>
+                      </div>
+                    </div>
+                    <Switch checked={growthCopilot} onCheckedChange={(v) => { setGrowthCopilot(v); toast.success(v ? "Growth Copilot ON" : "Growth Copilot OFF"); }} className="ml-2 flex-shrink-0" />
+                  </div>
+
+                  <div className="h-px bg-white/[0.04] mx-2" />
+                  <p className="text-[8px] font-bold text-white/20 uppercase tracking-wider px-2.5 pt-1.5">Sales & CRM</p>
+
+                  {/* Lead Heat Scoring */}
+                  <div className="flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-white/[0.04] transition-colors">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="h-7 w-7 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center justify-center flex-shrink-0">
+                        <Flame className="h-3.5 w-3.5 text-red-400" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-semibold text-white/85 truncate">Lead Heat Scoring</p>
+                        <p className="text-[8px] text-white/30 truncate">Visual heat indicators — cold, warm, ready to buy</p>
+                      </div>
+                    </div>
+                    <Switch checked={leadHeatScoring} onCheckedChange={(v) => { setLeadHeatScoring(v); toast.success(v ? "Lead Heat ON" : "Lead Heat OFF"); }} className="ml-2 flex-shrink-0" />
+                  </div>
+
+                  {/* AI Funnel Builder */}
+                  <div className="flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-white/[0.04] transition-colors">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="h-7 w-7 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center flex-shrink-0">
+                        <GitBranch className="h-3.5 w-3.5 text-purple-400" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-semibold text-white/85 truncate">AI Funnel Builder</p>
+                        <p className="text-[8px] text-white/30 truncate">Auto-build DM → qualification → booking → follow-up</p>
+                      </div>
+                    </div>
+                    <Switch checked={funnelBuilder} onCheckedChange={(v) => { setFunnelBuilder(v); toast.success(v ? "Funnel Builder ON" : "Funnel Builder OFF"); }} className="ml-2 flex-shrink-0" />
+                  </div>
+
+                  {/* Smart Follow-Up */}
+                  <div className="flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-white/[0.04] transition-colors">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="h-7 w-7 rounded-lg bg-teal-500/10 border border-teal-500/20 flex items-center justify-center flex-shrink-0">
+                        <Clock className="h-3.5 w-3.5 text-teal-400" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-semibold text-white/85 truncate">Smart Follow-Up Engine</p>
+                        <p className="text-[8px] text-white/30 truncate">Contextual follow-ups — no generic spam</p>
+                      </div>
+                    </div>
+                    <Switch checked={smartFollowUp} onCheckedChange={(v) => { setSmartFollowUp(v); toast.success(v ? "Smart Follow-Up ON" : "Smart Follow-Up OFF"); }} className="ml-2 flex-shrink-0" />
+                  </div>
+
+                  {/* Revenue Attribution */}
+                  <div className="flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-white/[0.04] transition-colors">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="h-7 w-7 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center flex-shrink-0">
+                        <DollarSign className="h-3.5 w-3.5 text-emerald-400" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-semibold text-white/85 truncate">Revenue Attribution</p>
+                        <p className="text-[8px] text-white/30 truncate">Track which post, video or DM led to revenue</p>
+                      </div>
+                    </div>
+                    <Switch checked={revenueAttribution} onCheckedChange={(v) => { setRevenueAttribution(v); toast.success(v ? "Revenue Attribution ON" : "Revenue Attribution OFF"); }} className="ml-2 flex-shrink-0" />
+                  </div>
+
+                  <div className="h-px bg-white/[0.04] mx-2" />
+                  <p className="text-[8px] font-bold text-white/20 uppercase tracking-wider px-2.5 pt-1.5">Advanced</p>
+
+                  {/* AI Persona Engine */}
+                  <div className="flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-white/[0.04] transition-colors">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="h-7 w-7 rounded-lg bg-rose-500/10 border border-rose-500/20 flex items-center justify-center flex-shrink-0">
+                        <Palette className="h-3.5 w-3.5 text-rose-400" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-semibold text-white/85 truncate">AI Persona Engine</p>
+                        <p className="text-[8px] text-white/30 truncate">Adapt tone per brand — luxury, sales, creator</p>
+                      </div>
+                    </div>
+                    <Switch checked={personaEngine} onCheckedChange={(v) => { setPersonaEngine(v); toast.success(v ? "Persona Engine ON" : "Persona Engine OFF"); }} className="ml-2 flex-shrink-0" />
+                  </div>
+
+                  {/* Competitor Signals */}
+                  <div className="flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-white/[0.04] transition-colors">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="h-7 w-7 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center flex-shrink-0">
+                        <Radar className="h-3.5 w-3.5 text-violet-400" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-semibold text-white/85 truncate">Competitor Signal Monitoring</p>
+                        <p className="text-[8px] text-white/30 truncate">Watch competitor patterns & counter-content ideas</p>
+                      </div>
+                    </div>
+                    <Switch checked={competitorSignals} onCheckedChange={(v) => { setCompetitorSignals(v); toast.success(v ? "Competitor Signals ON" : "Competitor Signals OFF"); }} className="ml-2 flex-shrink-0" />
+                  </div>
+                </div>
+              </ScrollArea>
+            </DropdownMenuContent>
+          </DropdownMenu>
           {/* ML Debug Mode Toggle */}
           <Button
             size="sm"
@@ -2353,42 +2606,83 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
                                    const isEmpty = !msg.content || msg.content.trim() === "";
                                    return (
                                      <div className="relative">
-                                       <div className={`rounded-2xl px-3.5 py-2 ${isDeleted ? "bg-red-500/15 border border-red-500/30" : isMe ? msg.sender_type === "ai" ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white" : "bg-primary text-primary-foreground" : "bg-muted/60 text-foreground"}`}>
-                                         {isDeleted ? (
-                                           <div className="flex items-center gap-1.5">
-                                             <Trash2 className="h-3 w-3 text-red-400 flex-shrink-0" />
-                                             <span className="text-[13px] italic text-red-400 line-through">{msg.content || "Message deleted"}</span>
-                                           </div>
-                                         ) : isEmpty ? (
-                                           <div className="flex items-center gap-1.5 opacity-70">
-                                             <span>📎</span>
-                                             <span className="text-[13px] italic">Sent media</span>
-                                           </div>
-                                         ) : isTagged ? (() => {
-                                           const tag = msg.content.slice(1, -1);
-                                           const icons: Record<string, string> = { photo: "📷", video: "🎥", reel: "🎬", audio: "🎵", "voice note": "🎤", "voice message": "🎤", sticker: "🏷️", gif: "🎞️", "shared post": "📎", "shared reel": "🎬", attachment: "📎", media: "📷" };
-                                           return (
-                                             <div className="flex items-center gap-1.5 opacity-70">
-                                               <span>{icons[tag] || "📎"}</span>
-                                               <span className="text-[13px] italic capitalize">{tag}</span>
+                                       {/* Review Before Send — Pending AI Message */}
+                                       {reviewBeforeSend && msg.sender_type === "ai" && msg.status === "pending_review" ? (
+                                         <div className="space-y-1.5">
+                                           <div className="rounded-2xl px-3.5 py-2 bg-gradient-to-r from-orange-500/20 to-amber-500/15 border border-orange-500/30 text-white">
+                                             <div className="flex items-center gap-1.5 mb-1">
+                                               <Eye className="h-3 w-3 text-orange-400" />
+                                               <span className="text-[9px] font-bold text-orange-400 uppercase tracking-wider">Pending Review</span>
                                              </div>
-                                           );
-                                         })() : (
-                                           <p className="text-[13px] leading-relaxed whitespace-pre-wrap">{msg.content}</p>
-                                         )}
-                                      </div>
-                                      {/* Free Pic Countdown Timer */}
-                                      {msg.metadata?.free_pic_pending && msg.metadata?.free_pic_deliver_at && (
-                                        <FreePicCountdown deliverAt={msg.metadata.free_pic_deliver_at} />
-                                      )}
-                                      {myReaction && <button onClick={() => removeReaction(msg.id)} className="absolute -bottom-2 -right-1 text-sm bg-muted/80 rounded-full px-1 border border-border hover:scale-110 transition-transform">{myReaction}</button>}
-                                    </div>
-                                  );
+                                             <p className="text-[13px] leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                                           </div>
+                                           <div className="flex gap-1.5 justify-end">
+                                             <Button size="sm" className="h-6 text-[9px] gap-1 bg-emerald-600 hover:bg-emerald-700 text-white" onClick={async () => {
+                                               // Approve: update status to "sent" and send via API
+                                               await supabase.from("ai_dm_messages").update({ status: "sent" }).eq("id", msg.id);
+                                               const convo = conversations.find(c => c.id === msg.conversation_id);
+                                               if (convo?.platform_conversation_id) {
+                                                 await supabase.functions.invoke("instagram-api", {
+                                                   body: { action: "send_message", account_id: accountId, params: { recipient_id: convo.participant_id, message: msg.content } },
+                                                 });
+                                               }
+                                               toast.success("Message approved & sent");
+                                             }}>
+                                               <Check className="h-2.5 w-2.5" /> Approve
+                                             </Button>
+                                             <Button size="sm" variant="outline" className="h-6 text-[9px] gap-1 border-white/10" onClick={() => {
+                                               setEditingMsgId(msg.id);
+                                               setEditText(msg.content);
+                                             }}>
+                                               <Pencil className="h-2.5 w-2.5" /> Edit
+                                             </Button>
+                                             <Button size="sm" variant="outline" className="h-6 text-[9px] gap-1 border-red-500/30 text-red-400 hover:bg-red-500/10" onClick={async () => {
+                                               await supabase.from("ai_dm_messages").delete().eq("id", msg.id);
+                                               toast.success("Message discarded");
+                                             }}>
+                                               <Trash2 className="h-2.5 w-2.5" /> Discard
+                                             </Button>
+                                           </div>
+                                         </div>
+                                       ) : (
+                                        <div className={`rounded-2xl px-3.5 py-2 ${isDeleted ? "bg-red-500/15 border border-red-500/30" : isMe ? msg.sender_type === "ai" ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white" : "bg-primary text-primary-foreground" : "bg-muted/60 text-foreground"}`}>
+                                          {isDeleted ? (
+                                            <div className="flex items-center gap-1.5">
+                                              <Trash2 className="h-3 w-3 text-red-400 flex-shrink-0" />
+                                              <span className="text-[13px] italic text-red-400 line-through">{msg.content || "Message deleted"}</span>
+                                            </div>
+                                          ) : isEmpty ? (
+                                            <div className="flex items-center gap-1.5 opacity-70">
+                                              <span>📎</span>
+                                              <span className="text-[13px] italic">Sent media</span>
+                                            </div>
+                                          ) : isTagged ? (() => {
+                                            const tag = msg.content.slice(1, -1);
+                                            const icons: Record<string, string> = { photo: "📷", video: "🎥", reel: "🎬", audio: "🎵", "voice note": "🎤", "voice message": "🎤", sticker: "🏷️", gif: "🎞️", "shared post": "📎", "shared reel": "🎬", attachment: "📎", media: "📷" };
+                                            return (
+                                              <div className="flex items-center gap-1.5 opacity-70">
+                                                <span>{icons[tag] || "📎"}</span>
+                                                <span className="text-[13px] italic capitalize">{tag}</span>
+                                              </div>
+                                            );
+                                          })() : (
+                                            <p className="text-[13px] leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                                          )}
+                                       </div>
+                                       )}
+                                       {/* Free Pic Countdown Timer */}
+                                       {msg.metadata?.free_pic_pending && msg.metadata?.free_pic_deliver_at && (
+                                         <FreePicCountdown deliverAt={msg.metadata.free_pic_deliver_at} />
+                                       )}
+                                       {myReaction && <button onClick={() => removeReaction(msg.id)} className="absolute -bottom-2 -right-1 text-sm bg-muted/80 rounded-full px-1 border border-border hover:scale-110 transition-transform">{myReaction}</button>}
+                                     </div>
+                                   );
                                 })()}
 
                                 {/* Message meta */}
                                 <div className={`flex items-center gap-1 mt-0.5 ${isMe ? "justify-end" : "justify-start"}`}>
-                                  {isMe && msg.sender_type === "ai" && <Bot className="h-2.5 w-2.5 text-blue-400" />}
+                                  {isMe && msg.sender_type === "ai" && msg.status === "pending_review" && <Badge className="text-[7px] bg-orange-500/20 text-orange-400 border-orange-500/30 px-1 py-0">REVIEW</Badge>}
+                                  {isMe && msg.sender_type === "ai" && msg.status !== "pending_review" && <Bot className="h-2.5 w-2.5 text-blue-400" />}
                                   {isMe && msg.status === "sent" && <CheckCheck className="h-2.5 w-2.5 text-blue-400" />}
                                   {isMe && msg.status === "failed" && (
                                     <span className="flex items-center gap-0.5 text-destructive">
