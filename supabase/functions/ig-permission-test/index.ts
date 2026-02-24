@@ -21,23 +21,31 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const { data: account } = await supabase
-      .from("managed_accounts")
-      .select("ig_token, ig_user_id, fb_token, fb_page_id, metadata")
-      .eq("id", accountId)
-      .single();
+    // Get all connections for this account
+    const { data: connections, error: connErr } = await supabase
+      .from("social_connections")
+      .select("platform, access_token, platform_user_id, metadata")
+      .eq("account_id", accountId)
+      .eq("is_connected", true);
 
-    if (!account) throw new Error("Account not found");
+    if (connErr || !connections || connections.length === 0) throw new Error("Account not found or no active connections");
 
-    const igToken = account.ig_token;
-    const igUserId = account.ig_user_id;
-    const fbToken = account.fb_token || igToken;
-    const fbPageId = account.fb_page_id;
-    const wabaId = (account.metadata as any)?.waba_id;
-    const adAccountId = (account.metadata as any)?.ad_account_id;
-    const businessId = (account.metadata as any)?.business_id;
-    const catalogId = (account.metadata as any)?.catalog_id;
-    const appId = Deno.env.get("META_APP_ID") || (account.metadata as any)?.app_id;
+    // Extract tokens from connections
+    const igConn = connections.find((c: any) => c.platform === "instagram");
+    const fbConn = connections.find((c: any) => c.platform === "facebook");
+    
+    const igToken = igConn?.access_token || "";
+    const igUserId = igConn?.platform_user_id || "";
+    const fbToken = fbConn?.access_token || igToken;
+    const fbPageId = (fbConn?.metadata as any)?.page_id || (igConn?.metadata as any)?.page_id || "";
+    const wabaId = (fbConn?.metadata as any)?.waba_id || "";
+    const adAccountId = (fbConn?.metadata as any)?.ad_account_id || (igConn?.metadata as any)?.ad_account_id || "";
+    const businessId = (fbConn?.metadata as any)?.business_id || (igConn?.metadata as any)?.business_id || "";
+    const catalogId = (fbConn?.metadata as any)?.catalog_id || "";
+    const appId = Deno.env.get("META_APP_ID") || (igConn?.metadata as any)?.app_id || "";
+    
+    // Use whichever token is available
+    const primaryToken = igToken || fbToken;
 
     // Build all endpoint calls - one per permission/feature
     const tests: { permission: string; url: string; token: string }[] = [];
