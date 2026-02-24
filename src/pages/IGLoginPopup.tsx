@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, Instagram, CheckCircle2, AlertTriangle } from "lucide-react";
 
-const INSTAGRAM_APP_ID = "1236053517952936";
+const INSTAGRAM_APP_ID = import.meta.env.VITE_INSTAGRAM_APP_ID || "1236053517952936";
 
 const IGLoginPopup = () => {
   const [loading, setLoading] = useState(false);
