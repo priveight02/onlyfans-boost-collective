@@ -601,6 +601,21 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
     const { error } = await supabase.from("social_connections").delete().eq("id", id);
     if (error) { toast.error("Failed to disconnect: " + error.message); return; }
     
+    // Purge all DM conversations, messages, and learnings tied to this managed account + platform
+    // This prevents stale data from a previous IG account leaking into a new connection
+    if (conn?.account_id) {
+      const acctId = conn.account_id;
+      // Get conversation IDs first for cascading delete
+      const { data: convos } = await supabase.from("ai_dm_conversations").select("id").eq("account_id", acctId).eq("platform", platform || "instagram");
+      if (convos && convos.length > 0) {
+        const convoIds = convos.map(c => c.id);
+        await supabase.from("ai_dm_messages").delete().in("conversation_id", convoIds);
+        await supabase.from("ai_dm_conversations").delete().eq("account_id", acctId).eq("platform", platform || "instagram");
+      }
+      await supabase.from("ai_conversation_learnings").delete().eq("account_id", acctId);
+      console.log(`Purged DM data for account ${acctId} / ${platform}`);
+    }
+    
     // Immediately remove from local state for instant UI update
     setConnections(prev => prev.filter(c => c.id !== id));
     
@@ -675,6 +690,17 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
               }).select("id").single();
               if (err || !newAcct) { toast.error(err?.message || "Failed to create account"); setAutoConnectLoading(null); return; }
               accountId = newAcct.id; setSelectedAccount(accountId);
+            }
+            // Check if IG account changed — purge old DM data if so
+            const { data: existingConn2 } = await supabase.from("social_connections").select("platform_user_id").eq("account_id", accountId).eq("platform", "instagram").maybeSingle();
+            if (existingConn2?.platform_user_id && existingConn2.platform_user_id !== userId) {
+              console.log(`IG account changed (legacy flow): ${existingConn2.platform_user_id} → ${userId}, purging old DMs`);
+              const { data: oldConvos } = await supabase.from("ai_dm_conversations").select("id").eq("account_id", accountId).eq("platform", "instagram");
+              if (oldConvos && oldConvos.length > 0) {
+                await supabase.from("ai_dm_messages").delete().in("conversation_id", oldConvos.map(c => c.id));
+                await supabase.from("ai_dm_conversations").delete().eq("account_id", accountId).eq("platform", "instagram");
+              }
+              await supabase.from("ai_conversation_learnings").delete().eq("account_id", accountId);
             }
             await supabase.from("social_connections").upsert({
               account_id: accountId, platform: "instagram", platform_user_id: userId, platform_username: username, access_token: token, is_connected: true, scopes: [],
@@ -1559,15 +1585,29 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
             toast.success(`Account @${username} created`);
           }
           
-          // Get existing metadata to preserve any previously saved data
-          const { data: existingConn } = await supabase
-            .from("social_connections")
-            .select("metadata")
-            .eq("account_id", accountId)
-            .eq("platform", "instagram")
-            .maybeSingle();
-          
-          const existingMeta = (existingConn?.metadata as any) || {};
+           // Get existing connection to check if IG account changed (different platform_user_id = different IG account)
+           const { data: existingConn } = await supabase
+             .from("social_connections")
+             .select("metadata, platform_user_id")
+             .eq("account_id", accountId)
+             .eq("platform", "instagram")
+             .maybeSingle();
+           
+           const existingMeta = (existingConn?.metadata as any) || {};
+           const newPlatformUserId = String(user_id || ds_user_id);
+           
+           // If connecting a DIFFERENT IG account to the same managed account, purge old DM data
+           if (existingConn?.platform_user_id && existingConn.platform_user_id !== newPlatformUserId) {
+             console.log(`IG account changed: ${existingConn.platform_user_id} → ${newPlatformUserId}, purging old DM data`);
+             const { data: oldConvos } = await supabase.from("ai_dm_conversations").select("id").eq("account_id", accountId).eq("platform", "instagram");
+             if (oldConvos && oldConvos.length > 0) {
+               const convoIds = oldConvos.map(c => c.id);
+               await supabase.from("ai_dm_messages").delete().in("conversation_id", convoIds);
+               await supabase.from("ai_dm_conversations").delete().eq("account_id", accountId).eq("platform", "instagram");
+             }
+             await supabase.from("ai_conversation_learnings").delete().eq("account_id", accountId);
+             toast.info("Previous account's DM data cleared for clean sync");
+           }
           
           const updatedMeta = {
             ...existingMeta,
