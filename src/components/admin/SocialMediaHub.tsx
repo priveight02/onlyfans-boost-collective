@@ -1203,38 +1203,72 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
           let primaryPageToken: string | null = null;
           let primaryPageId: string | null = null;
           let primaryPageName: string | null = null;
-          try {
-            const pagesRes = await fetch(`https://graph.facebook.com/v24.0/me/accounts?fields=id,name,access_token,category,fan_count,picture&limit=25&access_token=${accessToken}`);
-            const pagesData = await pagesRes.json();
-            if (pagesData.data && pagesData.data.length > 0) {
-              fbPages = pagesData.data;
-              primaryPageToken = fbPages[0].access_token;
-              primaryPageId = fbPages[0].id;
-              primaryPageName = fbPages[0].name;
-            }
-          } catch (pageErr) {
-            console.warn("Could not fetch Facebook pages:", pageErr);
-          }
+           try {
+             const pagesRes = await fetch(`https://graph.facebook.com/v24.0/me/accounts?fields=id,name,access_token,category,fan_count,picture,instagram_business_account&limit=25&access_token=${accessToken}`);
+             const pagesData = await pagesRes.json();
+             if (pagesData.data && pagesData.data.length > 0) {
+               fbPages = pagesData.data;
+               // Try to find the page linked to the currently connected IG account
+               const { data: igConn } = await supabase.from("social_connections").select("platform_user_id, platform_username").eq("account_id", selectedAccount).eq("platform", "instagram").eq("is_connected", true).maybeSingle();
+               let bestPage = fbPages[0];
+               let igLinked = false;
+               let igLinkedUsername = "";
+               if (igConn?.platform_user_id) {
+                 // Try exact IGBA match first
+                 const exactMatch = fbPages.find(p => p.instagram_business_account?.id === igConn.platform_user_id);
+                 if (exactMatch) { bestPage = exactMatch; igLinked = true; }
+                 // If no exact match, try pages with any IG account and verify by username
+                 if (!igLinked && igConn.platform_username) {
+                   for (const page of fbPages.filter(p => p.instagram_business_account?.id)) {
+                     try {
+                       const igbaResp = await fetch(`https://graph.instagram.com/v24.0/${page.instagram_business_account.id}?fields=username&access_token=${page.access_token}`);
+                       const igbaData = await igbaResp.json();
+                       if (igbaData?.username?.toLowerCase() === igConn.platform_username.toLowerCase()) {
+                         bestPage = page; igLinked = true; igLinkedUsername = igbaData.username;
+                         break;
+                       }
+                     } catch {}
+                   }
+                 }
+                 // If only one page has IG link, assume it's correct
+                 if (!igLinked) {
+                   const pagesWithIg = fbPages.filter(p => p.instagram_business_account?.id);
+                   if (pagesWithIg.length === 1) { bestPage = pagesWithIg[0]; igLinked = true; }
+                 }
+               }
+               primaryPageToken = bestPage.access_token;
+               primaryPageId = bestPage.id;
+               primaryPageName = bestPage.name;
+               // Store IG link info for chain icon verification
+               if (igLinked) {
+                 igLinkedUsername = igLinkedUsername || igConn?.platform_username || "";
+               }
+             }
+           } catch (pageErr) {
+             console.warn("Could not fetch Facebook pages:", pageErr);
+           }
 
-          const username = profile.name || "facebook_user";
-          let accountId = selectedAccount;
-          if (!accountId) {
-            const { data: newAcct, error: err } = await supabase.from("managed_accounts").insert({ username, display_name: profile.name, platform: "facebook", status: "active", avatar_url: profile.picture?.data?.url || null, user_id: user?.id }).select("id").single();
-            if (err || !newAcct) { toast.error(err?.message || "Failed"); setAutoConnectLoading(null); return; }
-            accountId = newAcct.id; setSelectedAccount(accountId);
-          }
-          const fbMetadata: any = {
-            name: profile.name,
-            picture_url: profile.picture?.data?.url,
-            email: profile.email,
-            connected_via: "facebook_oauth_popup",
-            fb_pages: fbPages.map(p => ({ id: p.id, name: p.name, category: p.category, fan_count: p.fan_count })),
-          };
-          if (primaryPageToken) {
-            fbMetadata.fb_page_token = primaryPageToken;
-            fbMetadata.fb_page_id = primaryPageId;
-            fbMetadata.fb_page_name = primaryPageName;
-          }
+           const username = profile.name || "facebook_user";
+           let accountId = selectedAccount;
+           if (!accountId) {
+             const { data: newAcct, error: err } = await supabase.from("managed_accounts").insert({ username, display_name: profile.name, platform: "facebook", status: "active", avatar_url: profile.picture?.data?.url || null, user_id: user?.id }).select("id").single();
+             if (err || !newAcct) { toast.error(err?.message || "Failed"); setAutoConnectLoading(null); return; }
+             accountId = newAcct.id; setSelectedAccount(accountId);
+           }
+           const igLinkedToPage = fbPages.some(p => p.instagram_business_account?.id);
+           const fbMetadata: any = {
+             name: profile.name,
+             picture_url: profile.picture?.data?.url,
+             email: profile.email,
+             connected_via: "facebook_oauth_popup",
+             fb_pages: fbPages.map(p => ({ id: p.id, name: p.name, category: p.category, fan_count: p.fan_count, has_ig: !!p.instagram_business_account?.id })),
+             ig_linked: igLinkedToPage,
+           };
+           if (primaryPageToken) {
+             fbMetadata.fb_page_token = primaryPageToken;
+             fbMetadata.fb_page_id = primaryPageId;
+             fbMetadata.fb_page_name = primaryPageName;
+           }
           await supabase.from("social_connections").upsert({
             account_id: accountId, platform: "facebook", platform_user_id: profile.id || "",
             platform_username: username, access_token: accessToken, is_connected: true,
@@ -1476,6 +1510,19 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
   const pinterestConnected = connections.some(c => c.platform === "pinterest" && c.is_connected);
   const discordConnected = connections.some(c => c.platform === "discord" && c.is_connected);
   const facebookConnected = connections.some(c => c.platform === "facebook" && c.is_connected);
+  // Check if FB page is actually linked to the IG account (ig_linked flag or page has instagram_business_account)
+  const igFbPageLinked = (() => {
+    if (!igConnected || !facebookConnected) return false;
+    const fbConn = connections.find(c => c.platform === "facebook" && c.is_connected);
+    const fbMeta = (fbConn?.metadata as any) || {};
+    // Check ig_linked flag set during connect
+    if (fbMeta.ig_linked) return true;
+    // Check if any stored page has has_ig flag
+    if (fbMeta.fb_pages?.some((p: any) => p.has_ig)) return true;
+    // Check if fb_page_id exists (page token stored)
+    if (fbMeta.fb_page_id && fbMeta.fb_page_token) return true;
+    return false;
+  })();
 
   const navigateToConnect = (platform: string) => {
     setPlatformTab("connect");
@@ -2773,7 +2820,7 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
                     >
                       {igConnected && <div className="absolute top-2 right-2 h-2 w-2 rounded-full bg-green-400 shadow-[0_0_6px] shadow-green-400/60" />}
                       {/* Chain icon: green if both IG+FB linked, grey if not */}
-                      <div className={`absolute bottom-1.5 left-1.5 ${igConnected && facebookConnected ? "text-emerald-400 drop-shadow-[0_0_4px_rgba(52,211,153,0.5)]" : "text-muted-foreground/30"}`}>
+                      <div className={`absolute bottom-1.5 left-1.5 ${igFbPageLinked ? "text-emerald-400 drop-shadow-[0_0_4px_rgba(52,211,153,0.5)]" : "text-muted-foreground/30"}`}>
                         <Link2 className="h-3 w-3" />
                       </div>
                       <div className="relative">
@@ -2817,7 +2864,7 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
                       >
                         {facebookConnected && <div className="absolute top-2 right-2 h-2 w-2 rounded-full bg-green-400 shadow-[0_0_6px] shadow-green-400/60" />}
                         {/* Chain icon: green if both IG+FB linked, grey if not */}
-                        <div className={`absolute bottom-1.5 left-1.5 ${igConnected && facebookConnected ? "text-emerald-400 drop-shadow-[0_0_4px_rgba(52,211,153,0.5)]" : "text-muted-foreground/30"}`}>
+                        <div className={`absolute bottom-1.5 left-1.5 ${igFbPageLinked ? "text-emerald-400 drop-shadow-[0_0_4px_rgba(52,211,153,0.5)]" : "text-muted-foreground/30"}`}>
                           <Link2 className="h-3 w-3" />
                         </div>
                         <div className="relative">

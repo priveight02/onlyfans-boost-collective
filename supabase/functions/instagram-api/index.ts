@@ -326,24 +326,40 @@ async function privateApiFetch(url: string, conn: any, params?: any, method = "G
 }
 
 async function getPageId(token: string, igUserId: string, supabaseClient?: any, accountId?: string): Promise<{ pageId: string; pageToken: string } | null> {
-  // Try with the provided token first
+  // Helper: try to match pages to the IG user
+  const matchPages = (pagesData: any[], fallbackToken: string): { pageId: string; pageToken: string } | null => {
+    if (!pagesData || pagesData.length === 0) return null;
+    // Exact match by instagram_business_account.id
+    for (const page of pagesData) {
+      if (page.instagram_business_account?.id === igUserId) {
+        console.log(`Exact IG match: Page ${page.name} (${page.id}) for IG ${igUserId}`);
+        return { pageId: page.id, pageToken: page.access_token || fallbackToken };
+      }
+    }
+    // If only one page has an instagram_business_account, use it (IGSID ≠ IGBA ID is expected)
+    const pagesWithIg = pagesData.filter((p: any) => p.instagram_business_account?.id);
+    if (pagesWithIg.length === 1) {
+      const page = pagesWithIg[0];
+      console.log(`Using only page with IG link: ${page.name} (${page.id}), IGBA=${page.instagram_business_account.id}, stored IGSID=${igUserId}`);
+      return { pageId: page.id, pageToken: page.access_token || fallbackToken };
+    }
+    // Fallback: only one page total
+    if (pagesData.length === 1) {
+      const page = pagesData[0];
+      console.log(`Using only available Page: ${page.name} (${page.id})`);
+      return { pageId: page.id, pageToken: page.access_token || fallbackToken };
+    }
+    return null;
+  };
+
+  // Try with the provided token first (works for FB user tokens, NOT for IG Business Login tokens)
   try {
     const pagesResp = await fetch(`${FB_GRAPH_URL}/me/accounts?fields=id,name,instagram_business_account,access_token&access_token=${token}`);
     const pagesData = await pagesResp.json();
     console.log("Pages response:", JSON.stringify(pagesData).substring(0, 500));
-    
     if (pagesData.data) {
-      for (const page of pagesData.data) {
-        if (page.instagram_business_account?.id === igUserId) {
-          console.log(`Found linked Page: ${page.name} (${page.id}) for IG user ${igUserId}`);
-          return { pageId: page.id, pageToken: page.access_token || token };
-        }
-      }
-      if (pagesData.data.length === 1) {
-        const page = pagesData.data[0];
-        console.log(`Using only available Page: ${page.name} (${page.id})`);
-        return { pageId: page.id, pageToken: page.access_token || token };
-      }
+      const result = matchPages(pagesData.data, token);
+      if (result) return result;
     }
   } catch (e: any) {
     console.log("getPageId error with IG token:", e.message);
@@ -354,29 +370,58 @@ async function getPageId(token: string, igUserId: string, supabaseClient?: any, 
     try {
       const { data: fbConn } = await supabaseClient
         .from("social_connections")
-        .select("access_token, platform_user_id")
+        .select("access_token, platform_user_id, metadata")
         .eq("account_id", accountId)
         .eq("platform", "facebook")
         .eq("is_connected", true)
         .single();
       
       if (fbConn?.access_token) {
+        // Priority 1: Use stored fb_page_token from metadata (set during FB OAuth connect)
+        const fbMeta = (fbConn.metadata as any) || {};
+        if (fbMeta.fb_page_token && fbMeta.fb_page_id) {
+          console.log(`Using stored FB page token for page: ${fbMeta.fb_page_name || fbMeta.fb_page_id}`);
+          return { pageId: fbMeta.fb_page_id, pageToken: fbMeta.fb_page_token };
+        }
+
+        // Priority 2: Query pages with FB user token
         console.log("Trying Facebook connection token for page discovery...");
         const fbPagesResp = await fetch(`${FB_GRAPH_URL}/me/accounts?fields=id,name,instagram_business_account,access_token&access_token=${fbConn.access_token}`);
         const fbPagesData = await fbPagesResp.json();
         console.log("FB token pages response:", JSON.stringify(fbPagesData).substring(0, 500));
         
         if (fbPagesData.data) {
-          for (const page of fbPagesData.data) {
-            if (page.instagram_business_account?.id === igUserId) {
-              console.log(`Found linked Page via FB token: ${page.name} (${page.id})`);
-              return { pageId: page.id, pageToken: page.access_token || fbConn.access_token };
-            }
-          }
-          if (fbPagesData.data.length === 1) {
-            const page = fbPagesData.data[0];
-            console.log(`Using only FB Page: ${page.name} (${page.id})`);
-            return { pageId: page.id, pageToken: page.access_token || fbConn.access_token };
+          const result = matchPages(fbPagesData.data, fbConn.access_token);
+          if (result) {
+            // Also verify by username if we have an IG connection
+            try {
+              const { data: igConn } = await supabaseClient
+                .from("social_connections")
+                .select("platform_username")
+                .eq("account_id", accountId)
+                .eq("platform", "instagram")
+                .eq("is_connected", true)
+                .single();
+              if (igConn?.platform_username) {
+                // Try to verify: query the IGBA to confirm username match
+                const pagesWithIg = fbPagesData.data.filter((p: any) => p.instagram_business_account?.id);
+                for (const page of pagesWithIg) {
+                  try {
+                    const igbaResp = await fetch(`${IG_GRAPH_URL}/${page.instagram_business_account.id}?fields=username&access_token=${page.access_token || fbConn.access_token}`);
+                    const igbaData = await igbaResp.json();
+                    if (igbaData?.username?.toLowerCase() === igConn.platform_username.toLowerCase()) {
+                      console.log(`Verified IG link by username: @${igConn.platform_username} → Page ${page.name}`);
+                      // Store for faster future lookups
+                      await supabaseClient.from("social_connections").update({
+                        metadata: { ...fbMeta, fb_page_id: page.id, fb_page_token: page.access_token, fb_page_name: page.name, ig_linked: true, ig_linked_username: igConn.platform_username }
+                      }).eq("account_id", accountId).eq("platform", "facebook").eq("is_connected", true);
+                      return { pageId: page.id, pageToken: page.access_token || fbConn.access_token };
+                    }
+                  } catch {}
+                }
+              }
+            } catch {}
+            return result;
           }
         }
       }
