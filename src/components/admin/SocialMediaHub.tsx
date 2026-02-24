@@ -1690,13 +1690,20 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
            toast.success(`✅ @${username} connected via Instagram Login — synced across all features.`);
            
            // Auto-trigger Facebook connect if not already connected (needed for IG DMs/messaging)
-           const fbAlreadyConnected = connections.some(c => c.platform === "facebook" && c.is_connected);
-           if (!fbAlreadyConnected) {
-             toast.info("📌 Connecting Facebook is required for IG messaging. Starting Facebook login automatically…", { duration: 6000 });
-             // Small delay so user sees the IG success first
+           // Query DB directly since `connections` state is stale inside this closure
+           const { data: fbCheck } = await supabase
+             .from("social_connections")
+             .select("id")
+             .eq("account_id", accountId)
+             .eq("platform", "facebook")
+             .eq("is_connected", true)
+             .maybeSingle();
+           if (!fbCheck) {
+             toast.info("📌 Facebook Page connection is required for IG messaging. Opening Facebook login…", { duration: 6000 });
+             // Small delay so user sees the IG success toast first
              setTimeout(() => {
                automatedFacebookConnect();
-             }, 1500);
+             }, 2000);
            }
          } catch (e: any) {
            toast.error("Failed to save connection: " + e.message);
