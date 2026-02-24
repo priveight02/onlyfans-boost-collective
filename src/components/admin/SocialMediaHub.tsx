@@ -2393,7 +2393,7 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
               <div className="grid grid-cols-2 gap-2">
                 <Input value={aiCaptionTopic} onChange={e => setAiCaptionTopic(e.target.value)} placeholder="Topic: fitness motivation, beach vibes..." className="text-sm" />
                 <div className="flex gap-1">
-                  <select value={aiCaptionPlatform} onChange={e => setAiCaptionPlatform(e.target.value)} className="bg-card text-card-foreground border border-border rounded-lg px-2 py-1.5 text-sm w-24">
+                  <select value={aiCaptionPlatform} onChange={e => setAiCaptionPlatform(e.target.value)} className="bg-white/[0.06] text-foreground border border-white/[0.08] rounded-lg px-2 py-1.5 text-sm w-24 focus:border-[hsl(217,91%,60%)]/30 outline-none">
                     <option value="instagram">IG</option><option value="tiktok">TT</option><option value="twitter">X</option>
                   </select>
                   <Button size="sm" onClick={generateAiCaption} disabled={apiLoading || !aiCaptionTopic} className="bg-gradient-to-r from-purple-500 to-pink-500 text-white border-0">
@@ -2420,10 +2420,10 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
                 <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><Layers className="h-4 w-4 text-blue-400" />Post Composer & Scheduler</h4>
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <select value={newPost.platform} onChange={e => setNewPost(p => ({ ...p, platform: e.target.value }))} className="bg-card text-card-foreground border border-border rounded-lg px-2 py-1.5 text-sm">
+                <select value={newPost.platform} onChange={e => setNewPost(p => ({ ...p, platform: e.target.value }))} className="bg-white/[0.06] text-foreground border border-white/[0.08] rounded-lg px-2 py-1.5 text-sm focus:border-[hsl(217,91%,60%)]/30 outline-none">
                   <option value="instagram">Instagram</option><option value="tiktok">TikTok</option><option value="twitter">X / Twitter</option><option value="reddit">Reddit</option><option value="telegram">Telegram</option>
                 </select>
-                <select value={newPost.post_type} onChange={e => setNewPost(p => ({ ...p, post_type: e.target.value }))} className="bg-card text-card-foreground border border-border rounded-lg px-2 py-1.5 text-sm">
+                <select value={newPost.post_type} onChange={e => setNewPost(p => ({ ...p, post_type: e.target.value }))} className="bg-white/[0.06] text-foreground border border-white/[0.08] rounded-lg px-2 py-1.5 text-sm focus:border-[hsl(217,91%,60%)]/30 outline-none">
                   <option value="feed">Photo</option><option value="reel">Reel</option><option value="story">Story</option><option value="carousel">Carousel</option>
                 </select>
               </div>
@@ -2656,7 +2656,7 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
                 <CardContent className="p-4 space-y-3">
                   <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><Shield className="h-4 w-4 text-muted-foreground" />Manual Connection</h4>
                   <p className="text-[10px] text-muted-foreground">Paste credentials directly if you already have them.</p>
-                  <select value={connectForm.platform} onChange={e => setConnectForm(p => ({ ...p, platform: e.target.value }))} className="w-full bg-background border border-border text-foreground rounded-lg px-2 py-1.5 text-sm">
+                  <select value={connectForm.platform} onChange={e => setConnectForm(p => ({ ...p, platform: e.target.value }))} className="w-full bg-white/[0.06] border border-white/[0.08] text-foreground rounded-lg px-2 py-1.5 text-sm focus:border-[hsl(217,91%,60%)]/30 outline-none">
                     {["instagram","facebook","tiktok","twitter","reddit","telegram","snapchat","threads","whatsapp","signal","youtube","pinterest","discord"].map(pl => (
                       <option key={pl} value={pl}>{pl.charAt(0).toUpperCase() + pl.slice(1)}</option>
                     ))}

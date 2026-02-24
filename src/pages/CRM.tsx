@@ -41,7 +41,7 @@ import {
   FileText, MessageSquare, CheckSquare, MessageCircle, Award,
   TrendingUp, Activity, Zap, Download, Brain, Calendar, Heart,
   Bot, Globe, Code2, Settings, ChevronLeft, ChevronRight,
-  Bell, HelpCircle, Megaphone, LogOut, Plus,
+  Bell, HelpCircle, Megaphone, LogOut, Plus, X,
 } from "lucide-react";
 
 const navSections = [
@@ -171,6 +171,72 @@ const CRM = () => {
   const [accounts, setAccounts] = useState<any[]>([]);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [showCreditsModal, setShowCreditsModal] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchFocused, setSearchFocused] = useState(false);
+
+  // Build searchable index of all tabs, subtabs, features
+  const searchIndex = useMemo(() => {
+    const items: { label: string; type: "tab" | "subtab" | "feature"; path: string; parent?: string }[] = [];
+    for (const section of navSections) {
+      for (const item of section.items) {
+        items.push({ label: item.label, type: "tab", path: `/platform/${TAB_SLUGS[item.id] || item.id}` });
+      }
+    }
+    const subTabLabels: Record<string, Record<string, string>> = {
+      copilot: { chat: "Chat", image: "Image Gen V1", video: "Video Gen", audio: "Audio Gen", motion: "Motion Gen", lipsync: "Lipsync Gen", faceswap: "Faceswap Gen" },
+      social: { dashboard: "SM Dashboard", "ai-auto": "Auto-DM", "ai-mass": "Outreach", search: "Search", content: "Content", engagement: "Comments", messaging: "DMs", "ai-tools": "AI Tools", analytics: "Analytics", biolink: "Bio Links", automation: "Automation", "social-networks": "Networks" },
+      automation: { builder: "Script Builder", library: "Library", optimizer: "Conversion Optimizer", playbook: "Psychology Playbook", analytics: "Analytics", workflows: "Workflows", ai: "AI Intelligence", alerts: "Smart Alerts" },
+      "ad-creatives": { creatives: "Creatives", generate: "AI Image Gen", copy: "Copy & CTA", analytics: "Ad Analytics", settings: "Targeting", integrations: "Integrations", campaigns: "Campaigns", store: "Store Manager" },
+      api: { keys: "API Keys", docs: "Documentation", playground: "Playground", quickstart: "Quick Start", history: "Key History" },
+      lookup: { overview: "Overview", revenue: "Revenue", audience: "Audience", fans: "Fans", content: "Content", engagement: "Engagement", traffic: "Traffic", messaging: "Messaging", links: "Links", chargebacks: "Chargebacks", highlights: "Highlights", bio: "Bio Strategy", ai: "AI Analysis", raw: "Raw Data" },
+    };
+    for (const [mainTab, subs] of Object.entries(subTabLabels)) {
+      const mainLabel = navSections.flatMap(s => s.items).find(i => i.id === mainTab)?.label || mainTab;
+      const mainSlugVal = TAB_SLUGS[mainTab] || mainTab;
+      for (const [subId, subLabel] of Object.entries(subs)) {
+        const subSlugVal = SUB_TAB_SLUGS[mainTab]?.[subId] || subId;
+        items.push({ label: subLabel, type: "subtab", path: `/platform/${mainSlugVal}/${subSlugVal}`, parent: mainLabel });
+      }
+    }
+    const socialPlatformSubs: Record<string, Record<string, string>> = {
+      instagram: { dashboard: "IG Dashboard", "auto-dm": "IG Auto-DM", outreach: "IG Outreach", search: "IG Search", content: "IG Content", comments: "IG Comments", dms: "IG DMs", "ai-tools": "IG AI Tools", analytics: "IG Analytics", "bio-links": "IG Bio Links", automation: "IG Automation", networks: "IG Networks" },
+      tiktok: { dashboard: "TT Dashboard", "auto-dm": "TT Auto-DM", content: "TT Content", comments: "TT Comments", dms: "TT DMs", search: "TT Search", "ai-tools": "TT AI Tools", analytics: "TT Analytics", automation: "TT Automation" },
+      threads: { dashboard: "Threads Dashboard", publish: "Threads Publish", threads: "Threads Posts", replies: "Threads Replies", mentions: "Threads Mentions", search: "Threads Search", insights: "Threads Insights", "ai-tools": "Threads AI Tools" },
+      facebook: { dashboard: "FB Dashboard", pages: "FB Pages", posts: "FB Posts", comments: "FB Comments", groups: "FB Groups", events: "FB Events", albums: "FB Albums", inbox: "FB Inbox", insights: "FB Insights", search: "FB Search", "ai-tools": "FB AI Tools" },
+    };
+    for (const [platform, subs] of Object.entries(socialPlatformSubs)) {
+      const platformLabel = platform.charAt(0).toUpperCase() + platform.slice(1);
+      for (const [slug, label] of Object.entries(subs)) {
+        items.push({ label: label, type: "feature", path: `/platform/social-media/${platform}/${slug}`, parent: `${platformLabel}` });
+      }
+    }
+    const features = [
+      { label: "AI Caption Generator", parent: "Content", path: "/platform/social-media/instagram/content" },
+      { label: "Live AI Conversations", parent: "Auto-DM", path: "/platform/social-media/instagram/auto-dm" },
+      { label: "Test AI Responder", parent: "Auto-DM", path: "/platform/social-media/instagram/auto-dm" },
+      { label: "Mass DM Outreach", parent: "Outreach", path: "/platform/social-media/instagram/outreach" },
+      { label: "Comment Manager", parent: "Comments", path: "/platform/social-media/instagram/comments" },
+      { label: "Bio Link Builder", parent: "Bio Links", path: "/platform/social-media/instagram/bio-links" },
+      { label: "Image Generator", parent: "Copilot", path: "/platform/uplyze-assistant/image-gen-v1" },
+      { label: "Video Generator", parent: "Copilot", path: "/platform/uplyze-assistant/video-gen" },
+      { label: "Audio Generator", parent: "Copilot", path: "/platform/uplyze-assistant/audio-gen" },
+      { label: "Persona DNA Engine", parent: "AI", path: "/platform/persona-dna" },
+      { label: "Emotional Heatmap", parent: "AI", path: "/platform/emotional" },
+      { label: "Ad Creative Engine", parent: "Creatives", path: "/platform/ad-creatives/creatives" },
+    ];
+    for (const f of features) {
+      items.push({ label: f.label, type: "feature", path: f.path, parent: f.parent });
+    }
+    return items;
+  }, []);
+
+  const filteredSearchResults = useMemo(() => {
+    if (!searchQuery.trim()) return [];
+    const q = searchQuery.toLowerCase();
+    return searchIndex.filter(item =>
+      item.label.toLowerCase().includes(q) || (item.parent && item.parent.toLowerCase().includes(q))
+    ).slice(0, 12);
+  }, [searchQuery, searchIndex]);
 
   // Derive active tab + sub-tab from URL
   const pathAfterPlatform = location.pathname.replace("/platform", "").replace(/^\//, "");
@@ -459,18 +525,70 @@ const CRM = () => {
           </div>
           <div className="flex items-center gap-2">
             <div className="relative group">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/15 group-focus-within:text-white/30 transition-colors" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/15 group-focus-within:text-white/30 transition-colors z-10" />
+              {searchQuery && (
+                <button onClick={() => { setSearchQuery(""); setSearchFocused(false); }} className="absolute right-3 top-1/2 -translate-y-1/2 z-10 text-white/20 hover:text-white/50">
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
               <input
                 type="text"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
                 placeholder="Search your platform..."
-                className="h-10 w-[200px] focus:w-[280px] rounded-xl text-xs text-white placeholder:text-white/15 pl-9 pr-3 transition-all duration-300 outline-none"
+                className="h-10 w-[200px] focus:w-[280px] rounded-xl text-xs text-white placeholder:text-white/15 pl-9 pr-8 transition-all duration-300 outline-none"
                 style={{
                   background: "hsl(222 47% 10% / 0.75)",
                   border: "1px solid hsl(215 25% 40% / 0.12)",
                 }}
-                onFocus={(e) => { e.target.style.borderColor = "hsl(217 91% 60% / 0.2)"; e.target.style.background = "hsl(222 47% 12% / 0.6)"; window.dispatchEvent(new CustomEvent('platform-search-focus', { detail: true })); }}
-                onBlur={(e) => { e.target.style.borderColor = "hsl(217 91% 60% / 0.06)"; e.target.style.background = "hsl(222 47% 10% / 0.5)"; window.dispatchEvent(new CustomEvent('platform-search-focus', { detail: false })); }}
+                onFocus={(e) => { setSearchFocused(true); e.target.style.borderColor = "hsl(217 91% 60% / 0.2)"; e.target.style.background = "hsl(222 47% 12% / 0.6)"; window.dispatchEvent(new CustomEvent('platform-search-focus', { detail: true })); }}
+                onBlur={(e) => { setTimeout(() => setSearchFocused(false), 200); e.target.style.borderColor = "hsl(217 91% 60% / 0.06)"; e.target.style.background = "hsl(222 47% 10% / 0.5)"; window.dispatchEvent(new CustomEvent('platform-search-focus', { detail: false })); }}
               />
+              {/* Search dropdown */}
+              {searchFocused && filteredSearchResults.length > 0 && (
+                <div className="absolute top-full mt-2 right-0 w-[320px] rounded-xl overflow-hidden z-[100] shadow-2xl"
+                  style={{ background: "hsl(222 50% 7% / 0.98)", border: "1px solid hsl(217 91% 60% / 0.12)", backdropFilter: "blur(24px) saturate(1.5)" }}>
+                  <div className="p-1.5 max-h-[360px] overflow-y-auto scrollbar-thin">
+                    {/* Group by type */}
+                    {(["tab", "subtab", "feature"] as const).map(type => {
+                      const group = filteredSearchResults.filter(r => r.type === type);
+                      if (group.length === 0) return null;
+                      const typeLabel = type === "tab" ? "Tabs" : type === "subtab" ? "Sub-tabs" : "Features";
+                      return (
+                        <div key={type}>
+                          <p className="text-[9px] font-bold text-white/20 uppercase tracking-[0.15em] px-2.5 pt-2 pb-1">{typeLabel}</p>
+                          {group.map((item, i) => (
+                            <button
+                              key={`${type}-${i}`}
+                              onMouseDown={(e) => { e.preventDefault(); navigate(item.path, { replace: true }); setSearchQuery(""); setSearchFocused(false); }}
+                              className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left hover:bg-white/[0.06] transition-colors group/item"
+                            >
+                              <div className={cn(
+                                "h-5 w-5 rounded-md flex items-center justify-center flex-shrink-0 text-[9px] font-bold",
+                                type === "tab" ? "bg-[hsl(217,91%,60%)]/15 text-[hsl(217,91%,60%)]" :
+                                type === "subtab" ? "bg-purple-500/15 text-purple-400" :
+                                "bg-emerald-500/15 text-emerald-400"
+                              )}>
+                                {type === "tab" ? "T" : type === "subtab" ? "S" : "F"}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-[11px] font-medium text-white/80 truncate group-hover/item:text-white transition-colors">{item.label}</p>
+                                {item.parent && <p className="text-[9px] text-white/25 truncate">{item.parent}</p>}
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+              {searchFocused && searchQuery.trim() && filteredSearchResults.length === 0 && (
+                <div className="absolute top-full mt-2 right-0 w-[280px] rounded-xl z-[100] shadow-2xl p-4 text-center"
+                  style={{ background: "hsl(222 50% 7% / 0.98)", border: "1px solid hsl(217 91% 60% / 0.12)", backdropFilter: "blur(24px)" }}>
+                  <p className="text-[11px] text-white/30">No results for "{searchQuery}"</p>
+                </div>
+              )}
             </div>
             <button className="w-10 h-10 rounded-xl flex items-center justify-center text-white/20 hover:text-white/50 hover:bg-white/[0.04] transition-all">
               <Bell className="h-4 w-4" />

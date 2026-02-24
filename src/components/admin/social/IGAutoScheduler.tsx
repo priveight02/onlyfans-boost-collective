@@ -198,7 +198,7 @@ const IGAutoScheduler = ({ selectedAccount }: Props) => {
         <CardContent className="p-4 space-y-3">
           <h4 className="text-xs font-semibold text-foreground flex items-center gap-1"><Plus className="h-3.5 w-3.5" />Create Post</h4>
           
-          <select value={form.post_type} onChange={e => setForm(p => ({ ...p, post_type: e.target.value }))} className="w-full bg-background border border-border text-foreground rounded-lg px-2 py-1.5 text-sm">
+          <select value={form.post_type} onChange={e => setForm(p => ({ ...p, post_type: e.target.value }))} className="w-full bg-white/[0.06] border border-white/[0.08] text-foreground rounded-lg px-2 py-1.5 text-sm focus:border-[hsl(217,91%,60%)]/30 outline-none">
             <option value="feed">📷 Photo Post</option>
             <option value="reel">🎬 Reel</option>
             <option value="story">📱 Story</option>
