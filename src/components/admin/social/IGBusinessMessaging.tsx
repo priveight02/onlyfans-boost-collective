@@ -7,10 +7,35 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
   RefreshCw, Send, User, Image, Film, Share2, BookOpen,
-  AlertCircle, Mic, Paperclip, Clock
+  AlertCircle, Mic, Paperclip, Clock, Trash2, Play
 } from "lucide-react";
 
 interface Props { selectedAccount: string; }
+
+/** Recursively extract ALL URLs from any nested object */
+const extractUrls = (obj: any): string[] => {
+  const urls: string[] = [];
+  if (!obj) return urls;
+  if (typeof obj === "string" && (obj.startsWith("http://") || obj.startsWith("https://"))) {
+    urls.push(obj);
+  } else if (Array.isArray(obj)) {
+    obj.forEach(item => urls.push(...extractUrls(item)));
+  } else if (typeof obj === "object") {
+    Object.values(obj).forEach(val => urls.push(...extractUrls(val)));
+  }
+  return [...new Set(urls)]; // dedupe
+};
+
+const guessMediaType = (url: string): "image" | "video" | "audio" | "file" => {
+  const lower = url.toLowerCase();
+  if (lower.match(/\.(mp4|mov|webm|avi)/)) return "video";
+  if (lower.match(/\.(jpg|jpeg|png|gif|webp|heic)/)) return "image";
+  if (lower.match(/\.(mp3|ogg|wav|m4a|aac|opus|amr|3gp)/)) return "audio";
+  // Instagram CDN URLs often don't have extensions — check for known patterns
+  if (lower.includes("video") || lower.includes(".mp4")) return "video";
+  if (lower.includes("audio") || lower.includes("voice")) return "audio";
+  return "image"; // Default to image for IG CDN urls without extension
+};
 
 const IGBusinessMessaging = ({ selectedAccount }: Props) => {
   const [loading, setLoading] = useState(false);
@@ -20,34 +45,53 @@ const IGBusinessMessaging = ({ selectedAccount }: Props) => {
   const [replyText, setReplyText] = useState("");
   const [recipientId, setRecipientId] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const pollRef = useRef<NodeJS.Timeout | null>(null);
+  const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const convoPollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Auto-scroll to bottom
+  // Auto-scroll to bottom on new messages
   useEffect(() => {
-    setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+    setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 150);
   }, [messages]);
 
-  // Real-time polling: refresh conversations every 15s and messages every 8s
+  // Real-time polling for active conversation messages (every 5s)
+  useEffect(() => {
+    if (!selectedConvo || !selectedAccount) return;
+    
+    const poll = () => {
+      fetchMessages(selectedConvo, true);
+      pollTimerRef.current = setTimeout(poll, 5000);
+    };
+    pollTimerRef.current = setTimeout(poll, 5000);
+    
+    return () => {
+      if (pollTimerRef.current) clearTimeout(pollTimerRef.current);
+    };
+  }, [selectedConvo, selectedAccount]);
+
+  // Real-time polling for conversation list (every 10s)
   useEffect(() => {
     if (!selectedAccount) return;
-    const interval = setInterval(() => {
+    
+    const poll = () => {
       fetchConversations(true);
-      if (selectedConvo) fetchMessages(selectedConvo, true);
-    }, 15000);
-    return () => clearInterval(interval);
-  }, [selectedAccount, selectedConvo]);
+      convoPollRef.current = setTimeout(poll, 10000);
+    };
+    convoPollRef.current = setTimeout(poll, 10000);
+    
+    return () => {
+      if (convoPollRef.current) clearTimeout(convoPollRef.current);
+    };
+  }, [selectedAccount]);
 
   const callApi = useCallback(async (action: string, params?: any) => {
-    setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke("instagram-api", {
         body: { action, account_id: selectedAccount, params }
       });
-      if (error) { toast.info(error.message); return null; }
-      if (!data?.success) { toast.info(data?.error || "Action failed"); return null; }
+      if (error) return null;
+      if (!data?.success) return null;
       return data.data;
-    } catch (e: any) { toast.info(e.message); return null; }
-    finally { setLoading(false); }
+    } catch { return null; }
   }, [selectedAccount]);
 
   const fetchConversations = async (silent = false) => {
@@ -57,56 +101,75 @@ const IGBusinessMessaging = ({ selectedAccount }: Props) => {
       setConversations(d.data);
       if (!silent) toast.success(`${d.data.length} conversations loaded`);
     }
+    if (!silent) setLoading(false);
   };
 
   const fetchMessages = async (convoId: string, silent = false) => {
-    setSelectedConvo(convoId);
-    if (!silent) setLoading(true);
+    if (!silent) {
+      setSelectedConvo(convoId);
+      setLoading(true);
+    }
     const d = await callApi("get_business_messages", { conversation_id: convoId });
     if (d?.data) {
-      setMessages(d.data);
+      setMessages(prev => {
+        // Merge: keep deleted flags from previous state
+        const prevMap = new Map(prev.map((m: any) => [m.id, m]));
+        const newMsgs = d.data.map((m: any) => ({
+          ...m,
+          _deleted: prevMap.get(m.id)?._deleted || false,
+        }));
+        // Detect deleted: messages in prev but not in new
+        const newIds = new Set(d.data.map((m: any) => m.id));
+        const deletedMsgs = prev
+          .filter((m: any) => !newIds.has(m.id))
+          .map((m: any) => ({ ...m, _deleted: true }));
+        
+        // Combine and sort
+        const combined = [...newMsgs, ...deletedMsgs];
+        combined.sort((a: any, b: any) => new Date(a.created_time).getTime() - new Date(b.created_time).getTime());
+        return combined;
+      });
       // Extract recipient
       const convo = conversations.find(c => c.id === convoId);
       const participant = convo?.participants?.data?.find((p: any) => p.id !== convo?.id);
       if (participant) setRecipientId(participant.id);
     }
+    if (!silent) setLoading(false);
   };
 
   const sendMessage = async () => {
     if (!replyText || !recipientId) { toast.error("Enter message and recipient"); return; }
+    setLoading(true);
     const d = await callApi("send_business_message", { recipient_id: recipientId, message: replyText });
     if (d) {
       toast.success("Message sent!");
       setReplyText("");
       if (selectedConvo) fetchMessages(selectedConvo, true);
     }
+    setLoading(false);
   };
 
-  // ===== Render helpers =====
-  const getAttachmentType = (att: any): string => {
-    if (att?.type) return att.type.toLowerCase();
-    const url = att?.image_data?.url || att?.video_data?.url || att?.file_url || att?.url || "";
-    if (url.match(/\.(mp4|mov|webm)/i)) return "video";
-    if (url.match(/\.(jpg|jpeg|png|gif|webp)/i)) return "image";
-    if (url.match(/\.(mp3|ogg|wav|m4a|aac|opus)/i)) return "audio";
-    return "file";
-  };
-
-  const getAttachmentUrl = (att: any): string => {
-    return att?.image_data?.url || att?.video_data?.url || att?.file_url || att?.url
-      || att?.image_data?.preview_url || att?.video_data?.preview_url || "";
-  };
-
+  // ===== Render a single message's media content =====
   const renderMessageContent = (msg: any) => {
+    if (msg._deleted) {
+      return (
+        <div className="inline-flex items-center gap-2 bg-destructive/10 border border-destructive/20 text-destructive rounded-2xl px-4 py-2">
+          <Trash2 className="h-3.5 w-3.5" />
+          <span className="text-xs font-medium italic">Message was deleted</span>
+          {msg.message && <span className="text-[10px] opacity-60 line-through ml-1">{msg.message}</span>}
+        </div>
+      );
+    }
+
     const attachments = msg.attachments?.data || [];
     const story = msg.story;
     const shares = msg.shares?.data || [];
     const hasText = !!msg.message;
-    const hasMedia = attachments.length > 0 || story || shares.length > 0;
+    const isUnsupported = msg.is_unsupported;
 
     return (
       <div className="space-y-1.5">
-        {/* Text message */}
+        {/* Text */}
         {hasText && (
           <p className="text-xs text-foreground bg-muted/40 rounded-2xl px-3 py-2 inline-block max-w-[80%] leading-relaxed">
             {msg.message}
@@ -148,71 +211,106 @@ const IGBusinessMessaging = ({ selectedAccount }: Props) => {
                 {share.name || "View Post →"}
               </a>
             )}
-            {share.description && <p className="text-[10px] text-muted-foreground mt-1">{share.description}</p>}
           </div>
         ))}
 
-        {/* Attachments */}
+        {/* Attachments — use deep URL extraction to catch ALL media */}
         {attachments.map((att: any, i: number) => {
-          const type = getAttachmentType(att);
-          const url = getAttachmentUrl(att);
+          // Get the explicit type from IG API
+          const apiType = (att.type || "").toLowerCase();
+          
+          // Deep-extract all URLs from the attachment object
+          const allUrls = extractUrls(att);
+          // Filter out non-media URLs (like API endpoints)
+          const mediaUrls = allUrls.filter(u => !u.includes("graph.facebook.com") && !u.includes("graph.instagram.com"));
+          const primaryUrl = mediaUrls[0] || "";
 
-          if (!url) return null;
-
-          // ===== PHOTO — Instagram-style pill =====
-          if (type === "image") {
+          if (!primaryUrl) {
+            // No URL found — show a generic label
             return (
-              <div key={`att-${i}`} className="space-y-1">
-                {/* IG-style "Sent A Photo" pill */}
-                <a href={url} target="_blank" rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 bg-primary/90 hover:bg-primary text-primary-foreground rounded-full px-4 py-2 transition-colors cursor-pointer">
-                  <Paperclip className="h-3.5 w-3.5" />
-                  <span className="text-xs font-medium">Sent A Photo</span>
-                </a>
-                {/* Actual image preview below */}
-                <img src={url} alt="Photo" className="max-w-[200px] rounded-xl shadow-sm" loading="lazy" />
+              <div key={`att-${i}`} className="inline-flex items-center gap-2 bg-muted/30 text-muted-foreground rounded-full px-4 py-2">
+                <Paperclip className="h-3.5 w-3.5" />
+                <span className="text-xs">{apiType || "attachment"}</span>
+              </div>
+            );
+          }
+
+          // Determine type: prefer API type, fallback to URL guessing
+          let mediaType: "image" | "video" | "audio" | "file" = "image";
+          if (apiType === "audio" || apiType.includes("audio") || apiType.includes("voice")) {
+            mediaType = "audio";
+          } else if (apiType === "video" || apiType.includes("video") || apiType === "animated_image_share") {
+            mediaType = "video";
+          } else if (apiType === "image" || apiType.includes("image") || apiType === "photo") {
+            mediaType = "image";
+          } else {
+            mediaType = guessMediaType(primaryUrl);
+          }
+
+          // ===== AUDIO / VOICE NOTE =====
+          if (mediaType === "audio") {
+            return (
+              <div key={`att-${i}`} className="space-y-1.5">
+                <div className="inline-flex items-center gap-2 bg-primary/90 text-primary-foreground rounded-full px-4 py-2.5 shadow-sm">
+                  <Mic className="h-4 w-4" />
+                  <span className="text-xs font-semibold">Voice Note</span>
+                </div>
+                <div className="bg-muted/30 rounded-xl p-2 max-w-[280px]">
+                  <audio src={primaryUrl} controls preload="metadata" className="w-full h-10" controlsList="nodownload" />
+                </div>
               </div>
             );
           }
 
           // ===== VIDEO =====
-          if (type === "video") {
+          if (mediaType === "video") {
             return (
-              <div key={`att-${i}`} className="space-y-1">
+              <div key={`att-${i}`} className="space-y-1.5">
                 <div className="inline-flex items-center gap-2 bg-primary/90 text-primary-foreground rounded-full px-4 py-2">
                   <Film className="h-3.5 w-3.5" />
                   <span className="text-xs font-medium">Sent A Video</span>
                 </div>
-                <video src={url} controls playsInline preload="metadata" className="max-w-[240px] rounded-xl shadow-sm" />
+                <video src={primaryUrl} controls playsInline preload="metadata"
+                  className="max-w-[240px] rounded-xl shadow-sm" />
               </div>
             );
           }
 
-          // ===== AUDIO / VOICE NOTE =====
-          if (type === "audio") {
+          // ===== IMAGE — IG-style pill =====
+          if (mediaType === "image") {
             return (
-              <div key={`att-${i}`} className="space-y-1">
-                <div className="inline-flex items-center gap-2 bg-primary/90 text-primary-foreground rounded-full px-4 py-2">
-                  <Mic className="h-3.5 w-3.5" />
-                  <span className="text-xs font-medium">Voice Note</span>
-                </div>
-                <audio src={url} controls preload="metadata" className="max-w-[240px] h-10" />
+              <div key={`att-${i}`} className="space-y-1.5">
+                <a href={primaryUrl} target="_blank" rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 bg-primary/90 hover:bg-primary text-primary-foreground rounded-full px-4 py-2 transition-colors cursor-pointer shadow-sm">
+                  <Paperclip className="h-3.5 w-3.5" />
+                  <span className="text-xs font-medium">Sent A Photo</span>
+                </a>
+                <img src={primaryUrl} alt="Photo" className="max-w-[200px] rounded-xl shadow-sm" loading="lazy"
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
               </div>
             );
           }
 
           // ===== Generic file =====
           return (
-            <a key={`att-${i}`} href={url} target="_blank" rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 bg-muted/50 hover:bg-muted text-foreground rounded-full px-4 py-2 transition-colors">
+            <a key={`att-${i}`} href={primaryUrl} target="_blank" rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 bg-muted/50 hover:bg-muted text-foreground rounded-full px-4 py-2 transition-colors shadow-sm">
               <Paperclip className="h-3.5 w-3.5" />
               <span className="text-xs font-medium">{att.name || "Attachment"}</span>
             </a>
           );
         })}
 
-        {/* Fallback for messages with no text and no recognized media */}
-        {!hasText && !hasMedia && (
+        {/* Unsupported message type */}
+        {isUnsupported && !hasText && attachments.length === 0 && !story && shares.length === 0 && (
+          <div className="inline-flex items-center gap-2 bg-muted/30 text-muted-foreground rounded-full px-4 py-2">
+            <AlertCircle className="h-3.5 w-3.5" />
+            <span className="text-xs italic">Unsupported message type</span>
+          </div>
+        )}
+
+        {/* Fallback for completely empty messages */}
+        {!hasText && !isUnsupported && attachments.length === 0 && !story && shares.length === 0 && (
           <div className="inline-flex items-center gap-2 bg-muted/30 text-muted-foreground rounded-full px-4 py-2">
             <Paperclip className="h-3.5 w-3.5" />
             <span className="text-xs">Media message</span>
@@ -232,13 +330,13 @@ const IGBusinessMessaging = ({ selectedAccount }: Props) => {
         <Badge variant="outline" className="text-[10px]">instagram_business_manage_messages</Badge>
         {loading && <span className="text-[10px] text-muted-foreground animate-pulse">Syncing…</span>}
         <Badge variant="secondary" className="text-[9px] ml-auto">
-          <Clock className="h-3 w-3 mr-1" />Auto-refresh 15s
+          <Clock className="h-3 w-3 mr-1" />Live sync
         </Badge>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3" style={{ minHeight: 480 }}>
         {/* Conversation list */}
-        <ScrollArea className="md:col-span-1 border border-border/50 rounded-xl" style={{ maxHeight: 560 }}>
+        <ScrollArea className="md:col-span-1 border border-border/50 rounded-xl" style={{ maxHeight: 580 }}>
           <div className="p-2 space-y-1">
             {conversations.map(c => {
               const lastMsg = c.messages?.data?.[0];
@@ -277,11 +375,11 @@ const IGBusinessMessaging = ({ selectedAccount }: Props) => {
         </ScrollArea>
 
         {/* Messages */}
-        <div className="md:col-span-2 border border-border/50 rounded-xl flex flex-col" style={{ maxHeight: 560 }}>
+        <div className="md:col-span-2 border border-border/50 rounded-xl flex flex-col" style={{ maxHeight: 580 }}>
           <ScrollArea className="flex-1 p-3">
             <div className="space-y-3">
               {messages.map(m => (
-                <div key={m.id} className="group">
+                <div key={m.id} className={`group ${m._deleted ? "opacity-60" : ""}`}>
                   <div className="flex items-center gap-1.5 mb-1">
                     <span className="text-[11px] font-semibold text-foreground">
                       {m.from?.name || m.from?.username || "User"}
@@ -289,6 +387,9 @@ const IGBusinessMessaging = ({ selectedAccount }: Props) => {
                     <span className="text-[10px] text-muted-foreground">
                       {new Date(m.created_time).toLocaleString()}
                     </span>
+                    {m._deleted && (
+                      <Badge variant="destructive" className="text-[8px] h-4 px-1.5">DELETED</Badge>
+                    )}
                   </div>
                   {renderMessageContent(m)}
                 </div>
