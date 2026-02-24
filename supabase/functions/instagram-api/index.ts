@@ -420,6 +420,10 @@ serve(async (req) => {
 
     // ===== INSTAGRAM WEBHOOK EVENT HANDLER =====
     // Meta sends webhook events as POST with { object: "instagram", entry: [...] }
+    // Events are PUSH-ONLY — Meta triggers them, no polling. We only log meaningful events
+    // and skip noisy low-value events (messaging_seen, standby) to conserve DB writes.
+    const LOW_VALUE_EVENTS = new Set(["messaging_seen", "standby", "message_echo"]);
+
     if (parsedBody?.object === "instagram" && Array.isArray(parsedBody?.entry)) {
       const supabaseWh = createClient(
         Deno.env.get("SUPABASE_URL")!,
@@ -437,13 +441,16 @@ serve(async (req) => {
             const value = change.value;
             console.log(`[IG Webhook] field=${field}, ig_user=${igUserId}`);
 
-            await supabaseWh.from("audit_logs").insert({
-              action: `ig_webhook_${field}`,
-              entity_type: "instagram",
-              entity_id: igUserId || null,
-              actor_type: "system",
-              metadata: { field, value, timestamp, received_at: new Date().toISOString() },
-            });
+            // Only log meaningful events to DB — skip noisy ones
+            if (!LOW_VALUE_EVENTS.has(field)) {
+              await supabaseWh.from("audit_logs").insert({
+                action: `ig_webhook_${field}`,
+                entity_type: "instagram",
+                entity_id: igUserId || null,
+                actor_type: "system",
+                metadata: { field, value, timestamp, received_at: new Date().toISOString() },
+              });
+            }
 
             switch (field) {
               case "comments":
@@ -453,7 +460,7 @@ serve(async (req) => {
                 console.log(`[IG Webhook] Live comment from ${value?.from?.username}: "${value?.text?.substring(0, 100)}"`);
                 break;
               default:
-                console.log(`[IG Webhook] Unhandled change field: ${field}`, JSON.stringify(value).substring(0, 300));
+                break; // Console log above is sufficient for unhandled fields
             }
           }
         }
@@ -492,20 +499,23 @@ serve(async (req) => {
               console.log(`[IG Webhook] Standby message from ${senderId}`);
             }
 
-            await supabaseWh.from("audit_logs").insert({
-              action: `ig_webhook_${eventType}`,
-              entity_type: "instagram",
-              entity_id: senderId || igUserId || null,
-              actor_type: "system",
-              metadata: {
-                event_type: eventType,
-                sender_id: senderId,
-                recipient_id: recipientId,
-                payload: msgEvent,
-                timestamp,
-                received_at: new Date().toISOString(),
-              },
-            });
+            // Skip DB writes for noisy low-value events (seen, standby, echoes)
+            if (!LOW_VALUE_EVENTS.has(eventType)) {
+              await supabaseWh.from("audit_logs").insert({
+                action: `ig_webhook_${eventType}`,
+                entity_type: "instagram",
+                entity_id: senderId || igUserId || null,
+                actor_type: "system",
+                metadata: {
+                  event_type: eventType,
+                  sender_id: senderId,
+                  recipient_id: recipientId,
+                  payload: msgEvent,
+                  timestamp,
+                  received_at: new Date().toISOString(),
+                },
+              });
+            }
           }
         }
       }
