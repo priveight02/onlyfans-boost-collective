@@ -89,29 +89,35 @@ serve(async (req) => {
     const expiresIn = longLivedData.expires_in || 3600;
     console.log(`Long-lived token obtained, expires in ${expiresIn}s`);
 
-    // Step 3: Get user profile info
-    console.log("Fetching user profile...");
-    const profileRes = await fetch(
-      `https://graph.instagram.com/v24.0/me?fields=user_id,username,account_type,name,profile_picture_url,followers_count,media_count&access_token=${finalToken}`
-    );
-    const profileData = await profileRes.json();
-    console.log("Profile response:", JSON.stringify(profileData));
+    // Step 3: Get user profile info using the user_id directly
+    console.log("Fetching user profile for user_id:", igUserId);
+    const profileFields = "user_id,username,account_type,name,profile_picture_url,followers_count,media_count";
+    let profileData: any = {};
+    
+    // Try fetching via user_id endpoint first (most reliable)
+    try {
+      const profileRes = await fetch(
+        `https://graph.instagram.com/v21.0/${igUserId}?fields=${profileFields}&access_token=${finalToken}`
+      );
+      profileData = await profileRes.json();
+      console.log("Profile response (v21 user_id):", JSON.stringify(profileData));
+    } catch (e) { console.warn("Profile fetch v21 user_id failed:", e); }
 
-    // Fallback: if username is missing, try fetching via user_id directly
-    if (!profileData.username && (igUserId || profileData.user_id || profileData.id)) {
-      const uid = igUserId || profileData.user_id || profileData.id;
+    // Fallback: try /me endpoint with v21
+    if (!profileData.username && !profileData.name) {
       try {
-        const fallbackRes = await fetch(
-          `https://graph.instagram.com/v24.0/${uid}?fields=username,name,profile_picture_url,followers_count,media_count&access_token=${finalToken}`
+        const meRes = await fetch(
+          `https://graph.instagram.com/v21.0/me?fields=${profileFields}&access_token=${finalToken}`
         );
-        const fallbackData = await fallbackRes.json();
-        console.log("Fallback profile response:", JSON.stringify(fallbackData));
-        if (fallbackData.username) profileData.username = fallbackData.username;
-        if (fallbackData.name && !profileData.name) profileData.name = fallbackData.name;
-        if (fallbackData.profile_picture_url && !profileData.profile_picture_url) profileData.profile_picture_url = fallbackData.profile_picture_url;
-        if (fallbackData.followers_count) profileData.followers_count = fallbackData.followers_count;
-        if (fallbackData.media_count) profileData.media_count = fallbackData.media_count;
-      } catch (e) { console.warn("Fallback profile fetch failed:", e); }
+        const meData = await meRes.json();
+        console.log("Profile response (v21 /me):", JSON.stringify(meData));
+        if (meData.username) profileData.username = meData.username;
+        if (meData.name) profileData.name = meData.name;
+        if (meData.profile_picture_url) profileData.profile_picture_url = meData.profile_picture_url;
+        if (meData.followers_count) profileData.followers_count = meData.followers_count;
+        if (meData.media_count) profileData.media_count = meData.media_count;
+        if (meData.account_type) profileData.account_type = meData.account_type;
+      } catch (e) { console.warn("Fallback /me fetch failed:", e); }
     }
 
     console.log(`Profile fetched: @${profileData.username}, type: ${profileData.account_type}`);
