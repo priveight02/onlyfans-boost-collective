@@ -1699,12 +1699,15 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
              .eq("is_connected", true)
              .maybeSingle();
            if (!fbCheck) {
-             toast.info("📌 Facebook Page connection is required for IG messaging. Opening Facebook login…", { duration: 6000 });
-             // Small delay so user sees the IG success toast first
-             setTimeout(() => {
-               automatedFacebookConnect();
-             }, 2000);
-           }
+              // Show persistent action toast — user must click to open popup (browsers block non-user-initiated window.open)
+              toast("📌 Facebook Page connection required for IG messaging", {
+                duration: 30000,
+                action: {
+                  label: "Connect Facebook Now",
+                  onClick: () => automatedFacebookConnect(),
+                },
+              });
+            }
          } catch (e: any) {
            toast.error("Failed to save connection: " + e.message);
          }
