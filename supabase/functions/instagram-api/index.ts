@@ -427,8 +427,6 @@ serve(async (req) => {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
     }
 
     // ===== NORMAL API REQUEST HANDLER =====
@@ -1268,16 +1266,24 @@ Analyze every character in the name and username for any gender signal at all. L
           return allData;
         };
         
-        const endpoints = [
-          `${IG_GRAPH_URL}/me/conversations?platform=instagram&limit=${limit}&fields=${richFields}&access_token=${token}`,
-          `${IG_GRAPH_URL}/${realUserId}/conversations?platform=instagram&limit=${limit}&fields=${richFields}&access_token=${token}`,
+        // Try IG Graph, then FB Graph, then Page-based endpoints
+        const pageInfo = await getPageId(token, realUserId);
+        const endpoints: { url: string; tkn: string }[] = [
+          { url: `${IG_GRAPH_URL}/me/conversations?platform=instagram&limit=${limit}&fields=${richFields}`, tkn: token },
+          { url: `${IG_GRAPH_URL}/${realUserId}/conversations?platform=instagram&limit=${limit}&fields=${richFields}`, tkn: token },
+          { url: `${FB_GRAPH_URL}/${realUserId}/conversations?platform=instagram&limit=${limit}&fields=${richFields}`, tkn: token },
         ];
+        if (pageInfo) {
+          endpoints.push(
+            { url: `${FB_GRAPH_URL}/${pageInfo.pageId}/conversations?platform=instagram&limit=${limit}&fields=${richFields}`, tkn: pageInfo.pageToken },
+          );
+        }
         
         let allConvos: any[] = [];
         for (const ep of endpoints) {
-          let url = ep;
+          let url = `${ep.url}&access_token=${ep.tkn}`;
           if (folder) url += `&folder=${folder}`;
-          console.log("Trying:", url.split("access_token")[0]);
+          console.log("Trying:", ep.url.split("?")[0]);
           allConvos = await fetchWithPagination(url);
           if (allConvos.length > 0) break;
           
@@ -1317,7 +1323,7 @@ Analyze every character in the name and username for any gender signal at all. L
             try {
               const resp = await fetch(currentUrl);
               const json = await resp.json();
-              if (json?.error) { console.log(`Error page ${page}:`, json.error.message); break; }
+              if (json?.error) { console.log(`Error page ${page}: ${json.error.message} (code: ${json.error.code}, type: ${json.error.type})`); break; }
               if (json?.data?.length > 0) allData.push(...json.data);
               currentUrl = json?.paging?.next || null;
               if (!json?.data?.length && !json?.paging?.next) break;
@@ -1326,14 +1332,24 @@ Analyze every character in the name and username for any gender signal at all. L
           return allData;
         };
         
+        // Try IG Graph, FB Graph, and Page-based endpoints for each folder
+        const pageInfo2 = await getPageId(token, realUserId);
         const fetchFolder = async (folderName: string): Promise<any[]> => {
-          for (const base of [`${IG_GRAPH_URL}/me`, `${IG_GRAPH_URL}/${realUserId}`]) {
-            let url = `${base}/conversations?platform=instagram&limit=${allLimit}&fields=${richFields}&access_token=${token}&folder=${folderName}`;
+          const bases: { base: string; tkn: string }[] = [
+            { base: `${IG_GRAPH_URL}/me`, tkn: token },
+            { base: `${IG_GRAPH_URL}/${realUserId}`, tkn: token },
+            { base: `${FB_GRAPH_URL}/${realUserId}`, tkn: token },
+          ];
+          if (pageInfo2) {
+            bases.push({ base: `${FB_GRAPH_URL}/${pageInfo2.pageId}`, tkn: pageInfo2.pageToken });
+          }
+          for (const { base, tkn } of bases) {
+            let url = `${base}/conversations?platform=instagram&limit=${allLimit}&fields=${richFields}&access_token=${tkn}&folder=${folderName}`;
             
             let convos = await fetchWithPagination(url);
             if (convos.length > 0) return convos;
             
-            let simpleUrl = `${base}/conversations?platform=instagram&limit=${allLimit}&fields=id,updated_time,participants&access_token=${token}&folder=${folderName}`;
+            let simpleUrl = `${base}/conversations?platform=instagram&limit=${allLimit}&fields=id,updated_time,participants&access_token=${tkn}&folder=${folderName}`;
             convos = await fetchWithPagination(simpleUrl);
             if (convos.length > 0) return convos;
           }
