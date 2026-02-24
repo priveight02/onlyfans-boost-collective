@@ -6,8 +6,8 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const IG_GRAPH_URL = "https://graph.instagram.com/v24.0";
-const FB_GRAPH_URL = "https://graph.facebook.com/v24.0";
+const IG_GRAPH_URL = "https://graph.instagram.com/v25.0";
+const FB_GRAPH_URL = "https://graph.facebook.com/v25.0";
 
 // ===== GENDER DETECTION ENGINE =====
 // Comprehensive name-based gender classifier using statistical name databases
@@ -1313,21 +1313,10 @@ Analyze every character in the name and username for any gender signal at all. L
         break;
 
       // ===== CONVERSATIONS (DM Inbox) =====
+      // Following official docs: https://developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login/conversations-api/
       case "get_conversations": {
         const limit = params?.limit || 20;
         const folder = params?.folder || "";
-        const richFields = `id,participants,messages.limit(${params?.messages_limit || 5}){id,message,from,to,created_time,attachments,shares,story,sticker},updated_time`;
-        
-        let realUserId = igUserId;
-        try {
-          const meResp = await fetch(`${IG_GRAPH_URL}/me?fields=id&access_token=${token}`);
-          const meData = await meResp.json();
-          if (meData?.id && meData.id !== igUserId) {
-            console.log(`ID mismatch: stored=${igUserId}, real=${meData.id} — using real ID`);
-            realUserId = meData.id;
-            await supabase.from("social_connections").update({ platform_user_id: realUserId }).eq("account_id", account_id).eq("platform", "instagram");
-          }
-        } catch {}
         
         const fetchWithPagination = async (url: string, maxPages = 10): Promise<any[]> => {
           const allData: any[] = [];
@@ -1348,48 +1337,64 @@ Analyze every character in the name and username for any gender signal at all. L
           return allData;
         };
         
-        // IG Graph API does NOT use platform=instagram (that's for FB Graph API only)
-        const endpoints = [
-          `${IG_GRAPH_URL}/me/conversations?limit=${limit}&fields=${richFields}&access_token=${token}`,
-          `${IG_GRAPH_URL}/${realUserId}/conversations?limit=${limit}&fields=${richFields}&access_token=${token}`,
-          // Also try WITH platform=instagram as fallback (some API versions may need it)
-          `${IG_GRAPH_URL}/me/conversations?platform=instagram&limit=${limit}&fields=${richFields}&access_token=${token}`,
-        ];
-        
+        // Per official docs: GET /me/conversations?platform=instagram&access_token=<TOKEN>
+        // Returns: { data: [{ id, updated_time }] }
         let allConvos: any[] = [];
-        for (const ep of endpoints) {
-          let url = ep;
-          if (folder) url += `&folder=${folder}`;
-          console.log("Trying:", url.split("access_token")[0]);
-          allConvos = await fetchWithPagination(url);
-          if (allConvos.length > 0) break;
-          
-          const simpleUrl = url.replace(richFields, "id,updated_time,participants");
-          console.log("Retrying simple fields...");
-          allConvos = await fetchWithPagination(simpleUrl);
-          if (allConvos.length > 0) break;
-        }
         
-        // Fallback: try via Facebook Page token (required for IG Business Login tokens)
-        if (allConvos.length === 0) {
-          console.log("IG token failed for conversations, trying FB Page token approach...");
-          const pageInfo = await getPageId(token, igUserId, supabase, account_id);
-          if (pageInfo) {
-            const pageEndpoints = [
-              `${FB_GRAPH_URL}/${pageInfo.pageId}/conversations?platform=instagram&limit=${limit}&fields=${richFields}&access_token=${pageInfo.pageToken}`,
-              `${FB_GRAPH_URL}/me/conversations?platform=instagram&limit=${limit}&fields=${richFields}&access_token=${pageInfo.pageToken}`,
-            ];
-            for (const ep of pageEndpoints) {
-              let url = ep;
-              if (folder) url += `&folder=${folder}`;
-              console.log("Trying FB Page:", url.split("access_token")[0]);
-              allConvos = await fetchWithPagination(url);
-              if (allConvos.length > 0) break;
-              const simpleUrl = url.replace(richFields, "id,updated_time,participants");
-              allConvos = await fetchWithPagination(simpleUrl);
-              if (allConvos.length > 0) break;
+        // Step 1: Fetch conversation list using IG User token (IGAAR)
+        const convoUrl = `${IG_GRAPH_URL}/me/conversations?platform=instagram&limit=${limit}${folder ? `&folder=${folder}` : ""}&access_token=${token}`;
+        console.log("Fetching conversations:", convoUrl.split("access_token")[0]);
+        allConvos = await fetchWithPagination(convoUrl);
+        
+        // Step 2: If we got conversations, enrich each with messages (per docs: GET /<CONVERSATION_ID>?fields=messages)
+        if (allConvos.length > 0) {
+          console.log(`Got ${allConvos.length} conversations, enriching with messages...`);
+          const enriched = await Promise.all(allConvos.map(async (convo: any) => {
+            try {
+              // Get message IDs: GET /<CONVERSATION_ID>?fields=messages&access_token=TOKEN
+              const msgResp = await fetch(`${IG_GRAPH_URL}/${convo.id}?fields=messages&access_token=${token}`);
+              const msgData = await msgResp.json();
+              const messageIds = msgData?.messages?.data?.slice(0, 5) || [];
+              
+              // Get message details for the most recent messages
+              // Per docs: GET /<MESSAGE_ID>?fields=id,created_time,from,to,message&access_token=TOKEN
+              const detailedMessages = await Promise.all(
+                messageIds.slice(0, 3).map(async (msg: any) => {
+                  try {
+                    const detailResp = await fetch(`${IG_GRAPH_URL}/${msg.id}?fields=id,created_time,from,to,message&access_token=${token}`);
+                    const detail = await detailResp.json();
+                    if (detail?.error) return msg;
+                    return detail;
+                  } catch { return msg; }
+                })
+              );
+              
+              // Get participants from the first message's from/to
+              const participants: any[] = [];
+              for (const dm of detailedMessages) {
+                if (dm?.from) {
+                  const exists = participants.find((p: any) => p.id === dm.from.id);
+                  if (!exists) participants.push({ id: dm.from.id, username: dm.from.username, name: dm.from.name });
+                }
+                if (dm?.to?.data) {
+                  for (const to of dm.to.data) {
+                    const exists = participants.find((p: any) => p.id === to.id);
+                    if (!exists) participants.push({ id: to.id, username: to.username, name: to.name });
+                  }
+                }
+              }
+              
+              return {
+                ...convo,
+                participants: { data: participants },
+                messages: { data: detailedMessages },
+              };
+            } catch (e: any) {
+              console.log(`Failed to enrich convo ${convo.id}:`, e.message);
+              return convo;
             }
-          }
+          }));
+          allConvos = enriched;
         }
         
         console.log(`Total conversations fetched: ${allConvos.length}`);
@@ -1399,19 +1404,6 @@ Analyze every character in the name and username for any gender signal at all. L
 
       case "get_all_conversations": {
         const allLimit = params?.limit || 50;
-        const msgLimit = params?.messages_limit || 10;
-        const richFields = `id,participants,messages.limit(${msgLimit}){id,message,from,to,created_time,attachments,shares,story,sticker},updated_time`;
-        
-        let realUserId = igUserId;
-        try {
-          const meResp = await fetch(`${IG_GRAPH_URL}/me?fields=id&access_token=${token}`);
-          const meData = await meResp.json();
-          if (meData?.id && meData.id !== igUserId) {
-            console.log(`ID update: ${igUserId} → ${meData.id}`);
-            realUserId = meData.id;
-            await supabase.from("social_connections").update({ platform_user_id: realUserId }).eq("account_id", account_id).eq("platform", "instagram");
-          }
-        } catch {}
         
         const fetchWithPagination = async (startUrl: string, maxPages = 10): Promise<any[]> => {
           const allData: any[] = [];
@@ -1431,31 +1423,10 @@ Analyze every character in the name and username for any gender signal at all. L
           return allData;
         };
         
-        // Try FB Page token approach if IG token fails
-        const pageInfoAll = await getPageId(token, igUserId, supabase, account_id);
-        
+        // Per docs: GET /me/conversations?platform=instagram with folder param
         const fetchFolder = async (folderName: string): Promise<any[]> => {
-          // Try IG Graph first (WITHOUT platform=instagram — that param is for FB Graph only)
-          for (const base of [`${IG_GRAPH_URL}/me`, `${IG_GRAPH_URL}/${realUserId}`]) {
-            let url = `${base}/conversations?limit=${allLimit}&fields=${richFields}&access_token=${token}&folder=${folderName}`;
-            let convos = await fetchWithPagination(url);
-            if (convos.length > 0) return convos;
-            let simpleUrl = `${base}/conversations?limit=${allLimit}&fields=id,updated_time,participants&access_token=${token}&folder=${folderName}`;
-            convos = await fetchWithPagination(simpleUrl);
-            if (convos.length > 0) return convos;
-          }
-          // Fallback: FB Page token approach (WITH platform=instagram — required for FB Graph)
-          if (pageInfoAll) {
-            for (const base of [`${FB_GRAPH_URL}/${pageInfoAll.pageId}`, `${FB_GRAPH_URL}/me`]) {
-              let url = `${base}/conversations?platform=instagram&limit=${allLimit}&fields=${richFields}&access_token=${pageInfoAll.pageToken}&folder=${folderName}`;
-              let convos = await fetchWithPagination(url);
-              if (convos.length > 0) return convos;
-              let simpleUrl = `${base}/conversations?platform=instagram&limit=${allLimit}&fields=id,updated_time,participants&access_token=${pageInfoAll.pageToken}&folder=${folderName}`;
-              convos = await fetchWithPagination(simpleUrl);
-              if (convos.length > 0) return convos;
-            }
-          }
-          return [];
+          const url = `${IG_GRAPH_URL}/me/conversations?platform=instagram&limit=${allLimit}&folder=${folderName}&access_token=${token}`;
+          return await fetchWithPagination(url);
         };
         
         const [primary, general, requests] = await Promise.all([
@@ -1465,7 +1436,7 @@ Analyze every character in the name and username for any gender signal at all. L
         ]);
         
         const total = primary.length + general.length + requests.length;
-        console.log(`Found ${total} conversations total (pageToken available: ${!!pageInfoAll})`);
+        console.log(`Found ${total} conversations total`);
         
         result = { primary, general, requests, total };
         break;
@@ -1582,41 +1553,44 @@ Analyze every character in the name and username for any gender signal at all. L
       case "get_conversation_messages": {
         if (!params?.conversation_id) throw new Error("conversation_id required");
         const msgLimit = params?.limit || 20;
-        const msgFields = `messages.limit(${msgLimit}){id,message,from,to,created_time,attachments,shares,story,sticker}`;
         
-        // Try IG token first
-        let msgSuccess = false;
+        // Per docs: Step 1 — GET /<CONVERSATION_ID>?fields=messages&access_token=TOKEN
+        // Returns: { messages: { data: [{ id, created_time }] } }
         try {
-          result = await igFetch(`/${params.conversation_id}?fields=${msgFields}`, token);
-          if (result?.messages?.data?.length > 0 || (result?.messages && !result?.error)) msgSuccess = true;
-        } catch (convErr: any) {
-          console.log("get_conversation_messages IG token failed:", convErr.message);
-        }
-        
-        // Fallback: try FB Page token (required for IG Business Login tokens)
-        if (!msgSuccess) {
-          try {
-            const pageInfoMsg = await getPageId(token, igUserId, supabase, account_id);
-            if (pageInfoMsg) {
-              console.log("Retrying conversation messages with FB Page token...");
-              // Try with FB Graph URL using page token
-              const fbMsgUrl = `${FB_GRAPH_URL}/${params.conversation_id}?fields=${msgFields}&access_token=${pageInfoMsg.pageToken}`;
-              const fbMsgResp = await fetch(fbMsgUrl);
-              const fbMsgData = await fbMsgResp.json();
-              if (fbMsgData?.error) {
-                console.log("FB Page token also failed:", fbMsgData.error.message);
-                result = { error_fallback: true, message: fbMsgData.error.message, conversation_id: params.conversation_id, data: { messages: { data: [] } } };
-              } else {
-                result = fbMsgData;
-                msgSuccess = true;
-              }
-            } else {
-              result = { error_fallback: true, message: "No FB Page token available. Link a Facebook Page for full DM access.", conversation_id: params.conversation_id, data: { messages: { data: [] } } };
-            }
-          } catch (fbErr: any) {
-            console.error("get_conversation_messages FB fallback error:", fbErr.message);
-            result = { error_fallback: true, message: fbErr.message, conversation_id: params.conversation_id, data: { messages: { data: [] } } };
+          const convoResp = await fetch(`${IG_GRAPH_URL}/${params.conversation_id}?fields=messages&access_token=${token}`);
+          const convoData = await convoResp.json();
+          
+          if (convoData?.error) {
+            console.log("get_conversation_messages error:", convoData.error.message);
+            result = { messages: { data: [] }, error_message: convoData.error.message };
+            break;
           }
+          
+          const messageIds = convoData?.messages?.data?.slice(0, msgLimit) || [];
+          console.log(`Conversation ${params.conversation_id}: ${messageIds.length} message IDs`);
+          
+          // Per docs: Step 2 — GET /<MESSAGE_ID>?fields=id,created_time,from,to,message&access_token=TOKEN
+          // Note: Only the 20 most recent messages can be fetched with details
+          const detailedMessages = await Promise.all(
+            messageIds.map(async (msg: any) => {
+              try {
+                const detailResp = await fetch(`${IG_GRAPH_URL}/${msg.id}?fields=id,created_time,from,to,message,attachments,shares,story,sticker&access_token=${token}`);
+                const detail = await detailResp.json();
+                if (detail?.error) {
+                  console.log(`Message ${msg.id} error:`, detail.error.message);
+                  return { id: msg.id, created_time: msg.created_time, message: "(unable to load)", error: true };
+                }
+                return detail;
+              } catch (e: any) {
+                return { id: msg.id, created_time: msg.created_time, message: "(unable to load)", error: true };
+              }
+            })
+          );
+          
+          result = { messages: { data: detailedMessages }, id: params.conversation_id };
+        } catch (err: any) {
+          console.error("get_conversation_messages failed:", err.message);
+          result = { messages: { data: [] }, error_message: err.message };
         }
         break;
       }
