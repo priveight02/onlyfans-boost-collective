@@ -1902,6 +1902,10 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
              // Popup was already closed, fall back to opening new one
              setTimeout(() => automatedFacebookConnect(), 300);
            }
+           // If FB already connected or no app ID, close the popup since we're done
+           if (fbAlreadyConnected || !fbAppIdForChain) {
+             try { if (popup && !popup.closed) popup.close(); } catch {}
+           }
         } catch (e: any) {
            toast.error("Failed to save connection: " + e.message);
         }
