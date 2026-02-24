@@ -8,6 +8,7 @@ import { UserPost, toggleLike, toggleSave, deletePost } from '@/hooks/useSocial'
 import { useAuth } from '@/hooks/useAuth';
 import { UserRankBadge } from './UserRankBadge';
 import CommentSection from './CommentSection';
+import PlatformBadge from './PlatformBadge';
 import { formatDistanceToNow } from 'date-fns';
 
 interface PostCardProps {
@@ -52,10 +53,13 @@ export default function PostCard({ post, onRefetch }: PostCardProps) {
       {/* Header */}
       <div className="flex items-center justify-between p-4">
         <Link to={`/social/u/${profile?.username}`} className="flex items-center gap-3">
-          <Avatar className="h-10 w-10 border-2 border-primary/30">
-            <AvatarImage src={profile?.avatar_url || ''} />
-            <AvatarFallback className="bg-primary/20 text-primary text-sm font-bold">{initial}</AvatarFallback>
-          </Avatar>
+          <div className="relative">
+            <Avatar className="h-10 w-10 border-2 border-primary/30">
+              <AvatarImage src={profile?.avatar_url || ''} />
+              <AvatarFallback className="bg-primary/20 text-primary text-sm font-bold">{initial}</AvatarFallback>
+            </Avatar>
+            <PlatformBadge userId={post.user_id} size={16} />
+          </div>
           <div>
             <div className="flex items-center gap-2">
               <span className="font-semibold text-foreground text-sm">{profile?.display_name || 'User'}</span>

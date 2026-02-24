@@ -8,6 +8,7 @@ import PostCard from '@/components/social/PostCard';
 import CreatePostDialog from '@/components/social/CreatePostDialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Loader2, Grid3X3, Lock } from 'lucide-react';
+import PlatformBadge from '@/components/social/PlatformBadge';
 
 export default function SocialProfile() {
   const { username } = useParams<{ username: string }>();
@@ -41,10 +42,13 @@ export default function SocialProfile() {
       {/* Profile info */}
       <div className="max-w-4xl mx-auto px-4">
         <div className="relative -mt-16 flex flex-col sm:flex-row items-start sm:items-end gap-4 mb-6">
-          <Avatar className="h-32 w-32 border-4 border-background">
-            <AvatarImage src={profile.avatar_url || ''} />
-            <AvatarFallback className="bg-primary/20 text-primary text-4xl font-bold">{initial}</AvatarFallback>
-          </Avatar>
+          <div className="relative">
+            <Avatar className="h-32 w-32 border-4 border-background">
+              <AvatarImage src={profile.avatar_url || ''} />
+              <AvatarFallback className="bg-primary/20 text-primary text-4xl font-bold">{initial}</AvatarFallback>
+            </Avatar>
+            <PlatformBadge userId={profile.user_id} size={28} />
+          </div>
           <div className="flex-1">
             <div className="flex items-center gap-3 flex-wrap">
               <h1 className="text-2xl font-bold text-foreground">{profile.display_name}</h1>
