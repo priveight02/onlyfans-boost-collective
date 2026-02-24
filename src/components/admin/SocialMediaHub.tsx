@@ -2051,14 +2051,21 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
         )}
         {/* Mini avatars of connected accounts */}
         {connections.filter(c => c.is_connected).map(c => (
-          <div key={c.id} className="flex items-center gap-1.5 bg-muted/40 rounded-full px-2 py-0.5 border border-border">
-            {(c.metadata as any)?.profile_picture_url || (c.metadata as any)?.threads_profile_picture_url || (c.metadata as any)?.profile_image_url || (c.metadata as any)?.icon_img || (c.metadata as any)?.avatar_url ? (
-              <img src={(c.metadata as any).profile_picture_url || (c.metadata as any).threads_profile_picture_url || (c.metadata as any).profile_image_url || (c.metadata as any).icon_img || (c.metadata as any).avatar_url} alt="" className="h-5 w-5 rounded-full object-cover" />
-            ) : (
-              <div className="h-5 w-5 rounded-full bg-muted flex items-center justify-center">
-                {c.platform === "instagram" ? <Instagram className="h-3 w-3 text-pink-400" /> : c.platform === "tiktok" ? <Music2 className="h-3 w-3 text-cyan-400" /> : c.platform === "twitter" ? <Twitter className="h-3 w-3 text-blue-400" /> : c.platform === "reddit" ? <Globe className="h-3 w-3 text-orange-400" /> : <Phone className="h-3 w-3 text-blue-400" />}
-              </div>
-            )}
+          <div key={c.id} className="flex items-center gap-1.5 bg-muted/40 rounded-full pl-1 pr-2 py-0.5 border border-border">
+            <div className="relative">
+              {(c.metadata as any)?.profile_picture_url || (c.metadata as any)?.threads_profile_picture_url || (c.metadata as any)?.profile_image_url || (c.metadata as any)?.icon_img || (c.metadata as any)?.avatar_url ? (
+                <img src={(c.metadata as any).profile_picture_url || (c.metadata as any).threads_profile_picture_url || (c.metadata as any).profile_image_url || (c.metadata as any).icon_img || (c.metadata as any).avatar_url} alt="" className="h-6 w-6 rounded-full object-cover" />
+              ) : (
+                <div className="h-6 w-6 rounded-full bg-muted flex items-center justify-center">
+                  {c.platform === "instagram" ? <Instagram className="h-3 w-3 text-pink-400" /> : c.platform === "tiktok" ? <Music2 className="h-3 w-3 text-cyan-400" /> : c.platform === "twitter" ? <Twitter className="h-3 w-3 text-blue-400" /> : c.platform === "reddit" ? <Globe className="h-3 w-3 text-orange-400" /> : <Phone className="h-3 w-3 text-blue-400" />}
+                </div>
+              )}
+              {c.platform === "instagram" && <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/e/e7/Instagram_logo_2016.svg/132px-Instagram_logo_2016.svg.png" alt="IG" className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-background border border-border/50 p-[1px] object-contain" />}
+              {c.platform === "tiktok" && <img src="https://upload.wikimedia.org/wikipedia/en/thumb/a/a9/TikTok_logo.svg/100px-TikTok_logo.svg.png" alt="TT" className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-background border border-border/50 p-[1px] object-contain" />}
+              {c.platform === "threads" && <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/0/01/Threads_%28app%29.svg/100px-Threads_%28app%29.svg.png" alt="TH" className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-background border border-border/50 p-[1px] object-contain" />}
+              {c.platform === "facebook" && <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/0/05/Facebook_Logo_%282019%29.png/100px-Facebook_Logo_%282019%29.png" alt="FB" className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-background border border-border/50 p-[1px] object-contain" />}
+              {c.platform === "twitter" && <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/6/6f/Logo_of_Twitter.svg/100px-Logo_of_Twitter.svg.png" alt="TW" className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-background border border-border/50 p-[1px] object-contain" />}
+            </div>
             <span className="text-xs text-foreground font-medium">@{c.platform_username}</span>
             <div className="h-1.5 w-1.5 rounded-full bg-green-400 animate-pulse" />
           </div>
