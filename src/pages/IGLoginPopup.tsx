@@ -9,8 +9,8 @@ const IGLoginPopup = () => {
   const [error, setError] = useState("");
   const [errorCode, setErrorCode] = useState<number | null>(null);
   const [success, setSuccess] = useState(false);
-  const [phase, setPhase] = useState<"ig" | "fb_redirect" | "done">("ig");
 
+  // Use current origin so it works in both production and Lovable preview
   const redirectUri = `${window.location.origin}/ig-login`;
 
   useEffect(() => {
@@ -40,6 +40,7 @@ const IGLoginPopup = () => {
 
       if (fnError) {
         setError(fnError.message || "Failed to reach server");
+        setErrorCode(null);
         setLoading(false);
         return;
       }
@@ -61,9 +62,6 @@ const IGLoginPopup = () => {
         expires_in: data.data.expires_in,
         name: data.data.name,
         profile_picture_url: data.data.profile_picture_url,
-        token_source: data.data.token_source,
-        page_token: data.data.page_token,
-        page_id: data.data.page_id,
       };
 
       // Try to extract session cookies from the browser
@@ -73,13 +71,16 @@ const IGLoginPopup = () => {
         const sessionIdMatch = allCookies.match(/sessionid=([^;]+)/);
         const csrfMatch = allCookies.match(/csrftoken=([^;]+)/);
         const dsUserMatch = allCookies.match(/ds_user_id=([^;]+)/);
+        
         if (sessionIdMatch) {
           const sessionId = sessionIdMatch[1];
           const csrfToken = csrfMatch ? csrfMatch[1] : "";
           const dsUserId = dsUserMatch ? dsUserMatch[1] : String(data.data.user_id);
+          
           const { data: sessionResult } = await supabase.functions.invoke("ig-session-login", {
             body: { mode: "validate_session", session_id: sessionId },
           });
+          
           if (sessionResult?.success) {
             sessionData = {
               session_id: sessionId,
@@ -94,7 +95,6 @@ const IGLoginPopup = () => {
 
       setSuccess(true);
 
-      // Post IG result to opener
       if (window.opener) {
         window.opener.postMessage({
           type: "IG_SESSION_RESULT",
@@ -106,33 +106,8 @@ const IGLoginPopup = () => {
             ds_user_id: sessionData?.ds_user_id || String(data.data.user_id),
           },
         }, "*");
-      }
-
-      // If we already have a page token (e.g. from FB business login), just close
-      if (oauthPayload.page_token) {
-        setPhase("done");
         setTimeout(() => window.close(), 1500);
-        return;
       }
-
-      // Otherwise, redirect THIS popup to Facebook OAuth to get page token
-      setPhase("fb_redirect");
-      
-      // Fetch the Facebook App ID from backend (it's different from Instagram App ID)
-      let fbClientId = INSTAGRAM_APP_ID; // fallback
-      try {
-        const { data: fbAppData } = await supabase.functions.invoke("facebook-api", {
-          body: { action: "get_app_id" },
-        });
-        if (fbAppData?.app_id) fbClientId = fbAppData.app_id;
-      } catch {}
-      
-      setTimeout(() => {
-        const fbRedirectUri = "https://uplyze.ai/fb-login";
-        const fbScopes = "pages_show_list,pages_read_engagement,pages_manage_metadata,pages_messaging,instagram_basic,instagram_manage_messages,public_profile";
-        const fbAuthUrl = `https://www.facebook.com/v24.0/dialog/oauth?client_id=${fbClientId}&redirect_uri=${encodeURIComponent(fbRedirectUri)}&scope=${fbScopes}&response_type=code&state=ig_page_link`;
-        window.location.href = fbAuthUrl;
-      }, 1500);
     } catch (err: any) {
       setError(err.message || "Connection failed. Try again.");
     } finally {
@@ -147,19 +122,10 @@ const IGLoginPopup = () => {
           <Instagram className="h-8 w-8 text-white" />
         </div>
 
-        {success && phase === "fb_redirect" ? (
-          <div className="space-y-3 py-4">
-            <CheckCircle2 className="h-12 w-12 text-emerald-400 mx-auto" />
-            <p className="text-lg font-semibold text-white">Instagram Connected!</p>
-            <div className="flex items-center justify-center gap-2 mt-3">
-              <Loader2 className="h-4 w-4 text-blue-400 animate-spin" />
-              <p className="text-sm text-blue-300">Redirecting to Facebook for messaging access...</p>
-            </div>
-          </div>
-        ) : success && phase === "done" ? (
+        {success ? (
           <div className="space-y-3 py-4">
             <CheckCircle2 className="h-16 w-16 text-emerald-400 mx-auto animate-bounce" />
-            <p className="text-lg font-semibold text-white">Fully Connected!</p>
+            <p className="text-lg font-semibold text-white">Connected!</p>
             <p className="text-sm text-white/60">This window will close automatically.</p>
           </div>
         ) : error ? (
@@ -178,9 +144,13 @@ const IGLoginPopup = () => {
             </div>
             <button
               onClick={() => {
-                const scopes = "instagram_business_basic,instagram_business_content_publish,instagram_business_manage_comments,instagram_business_manage_messages,instagram_business_manage_insights";
-                const authUrl = `https://api.instagram.com/oauth/authorize?client_id=${INSTAGRAM_APP_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scopes}&response_type=code&enable_fb_login=1`;
-                window.location.href = authUrl;
+                const scope = "instagram_business_basic,instagram_business_content_publish,instagram_business_manage_comments,instagram_business_manage_messages,instagram_business_manage_insights";
+                const authUrl = `https://www.instagram.com/oauth/authorize?force_reauth=true&client_id=${INSTAGRAM_APP_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent(scope)}`;
+                if (window.top && window.top !== window) {
+                  window.top.location.href = authUrl;
+                } else {
+                  window.location.href = authUrl;
+                }
               }}
               className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-medium h-11 rounded-lg transition-all"
             >

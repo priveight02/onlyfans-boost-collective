@@ -1175,7 +1175,6 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
 
      const handleFbMessage = async (event: MessageEvent) => {
        if (event.data?.type !== "FB_OAUTH_RESULT") return;
-       if (event.data.payload?.source === "ig_page_link") return; // Skip IG→FB page link messages
        window.removeEventListener("message", handleFbMessage);
        const { code, redirect_uri } = event.data.payload;
        if (!code) { setAutoConnectLoading(null); toast.error("No auth code received"); return; }
@@ -1512,9 +1511,8 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
     setIgLoginPopupLoading(true);
     const publishedOrigin = "https://uplyze.ai";
     const redirectUri = `${publishedOrigin}/ig-login`;
-    // Standard Instagram OAuth flow
-    const scopes = "instagram_business_basic,instagram_business_content_publish,instagram_business_manage_comments,instagram_business_manage_messages,instagram_business_manage_insights";
-    const authUrl = `https://api.instagram.com/oauth/authorize?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scopes}&response_type=code&enable_fb_login=1`;
+    const scope = "instagram_business_basic,instagram_business_content_publish,instagram_business_manage_comments,instagram_business_manage_messages,instagram_business_manage_insights";
+    const authUrl = `https://www.instagram.com/oauth/authorize?force_reauth=true&client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent(scope)}`;
     
     // Open as a centered popup window
     const w = 520, h = 620;
@@ -1532,7 +1530,7 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
         window.removeEventListener("message", handleMessage);
         setIgLoginPopupLoading(false);
         const payload = event.data.payload || {};
-        const { access_token, user_id, username, expires_in, name, profile_picture_url, session_id, csrf_token, ds_user_id, token_source, page_token, page_id } = payload;
+        const { access_token, user_id, username, expires_in, name, profile_picture_url, session_id, csrf_token, ds_user_id } = payload;
         
         if (!access_token && !session_id) return;
         
@@ -1584,13 +1582,6 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
               ig_profile_pic: profile_picture_url,
               ig_token_expires_at: tokenExpiresAt,
               ig_oauth_connected_at: savedAt,
-              ig_token_source: token_source,
-            }),
-            // Page token for conversations/messaging API
-            ...(page_token && {
-              fb_page_token: page_token,
-              fb_page_id: page_id,
-              fb_page_token_saved_at: savedAt,
             }),
             // Session data (for private API features)
             ...(session_id && {
@@ -1681,65 +1672,6 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
           await loadData(accountId);
           
           toast.success(`✅ @${username} connected via Instagram Login — synced across all features.`);
-          
-          // If no page token yet, the popup will auto-redirect to FB OAuth
-          // Listen for FB_OAUTH_RESULT from the same popup window
-          if (!page_token) {
-            toast.info("📄 Connecting Facebook Page for messaging access...", { duration: 4000 });
-            
-            let fbPageHandled = false;
-            const handleFbPageMessage = async (evt: MessageEvent) => {
-              if (evt.data?.type !== "FB_OAUTH_RESULT") return;
-              if (evt.data.payload?.source !== "ig_page_link") return; // Only handle IG→FB page link flow
-              if (fbPageHandled) return; // Prevent duplicate handling
-              fbPageHandled = true;
-              window.removeEventListener("message", handleFbPageMessage);
-              const fbCode = evt.data.payload?.code;
-              const fbRedir = evt.data.payload?.redirect_uri;
-              if (!fbCode) { toast.error("No Facebook auth code received"); return; }
-              
-              try {
-                toast.info("Exchanging Facebook token & fetching pages...");
-                const { data: fbData, error: fbErr } = await supabase.functions.invoke("ig-oauth-callback", {
-                  body: { code: fbCode, redirect_uri: fbRedir, source: "facebook" },
-                });
-                
-                if (fbErr || !fbData?.success) {
-                  console.log("FB page token exchange result:", fbData);
-                  toast.error("Facebook page token exchange failed. You can retry from the Connect tab.");
-                  return;
-                }
-                
-                const pageTokenResult = fbData.data?.page_token;
-                const pageIdResult = fbData.data?.page_id;
-                
-                if (pageTokenResult && pageIdResult) {
-                  const { data: connData } = await supabase
-                    .from("social_connections")
-                    .select("metadata")
-                    .eq("account_id", accountId)
-                    .eq("platform", "instagram")
-                    .maybeSingle();
-                  const prevMeta = (connData?.metadata as any) || {};
-                  await supabase.from("social_connections").update({
-                    metadata: {
-                      ...prevMeta,
-                      fb_page_token: pageTokenResult,
-                      fb_page_id: pageIdResult,
-                      fb_page_token_saved_at: new Date().toISOString(),
-                    },
-                  }).eq("account_id", accountId).eq("platform", "instagram");
-                  
-                  toast.success("✅ Facebook Page linked! Messaging is now fully enabled.");
-                } else {
-                  toast.warning("No Facebook Page with linked Instagram account found. Create a Facebook Page and link your IG account to it, then reconnect.");
-                }
-              } catch (fbE: any) {
-                toast.error("Failed to get page token: " + fbE.message);
-              }
-            };
-            window.addEventListener("message", handleFbPageMessage);
-          }
         } catch (e: any) {
           toast.error("Failed to save connection: " + e.message);
         }
