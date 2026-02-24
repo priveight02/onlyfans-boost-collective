@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { cachedFetch, invalidateNamespace, invalidateAccount } from "@/lib/supabaseCache";
 import SocialAITools from "./SocialAITools";
 import LiveDMConversations from "./LiveDMConversations";
@@ -46,6 +47,7 @@ const VerifiedBadge = ({ size = 12 }: { size?: number }) => (
 );
 
 const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlatformChange }: { subTab?: string; onSubTabChange?: (subTab: string) => void; urlPlatform?: string; onPlatformChange?: (platform: string) => void }) => {
+  const { user } = useAuth();
   const [activeSubTab, setActiveSubTabInternal] = useState(urlSubTab || "dashboard");
   const setActiveSubTab = (v: string) => { setActiveSubTabInternal(v); onSubTabChange?.(v); };
   useEffect(() => { if (urlSubTab && urlSubTab !== activeSubTab) setActiveSubTabInternal(urlSubTab); }, [urlSubTab]);
@@ -406,8 +408,10 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
   }, [selectedAccount]);
 
   const loadAccounts = async () => {
-    const data = await cachedFetch("global", "smh_accounts", async () => {
-      const { data } = await supabase.from("managed_accounts").select("id, username, display_name, avatar_url").order("created_at", { ascending: false });
+    const uid = user?.id;
+    if (!uid) return;
+    const data = await cachedFetch("global", `smh_accounts_${uid}`, async () => {
+      const { data } = await supabase.from("managed_accounts").select("id, username, display_name, avatar_url").eq("user_id", uid).order("created_at", { ascending: false });
       return data || [];
     }, undefined, { ttlMs: 5 * 60 * 1000 });
     setAccounts(data);
@@ -528,6 +532,7 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
         display_name: connectForm.platform_username,
         platform: connectForm.platform,
         status: "active",
+        user_id: user?.id,
       }).select("id").single();
       if (createErr || !newAccount) { toast.error(createErr?.message || "Failed to create account"); return; }
       accountId = newAccount.id;
@@ -541,7 +546,8 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
       platform_username: connectForm.platform_username, access_token: connectForm.access_token,
       refresh_token: connectForm.refresh_token || null, is_connected: true, scopes: [],
       metadata: { connected_via: "social_hub", connected_at_readable: new Date().toLocaleString() },
-    }, { onConflict: "account_id,platform" });
+      user_id: user?.id,
+    }, { onConflict: "account_id,platform,user_id" });
     if (error) { toast.error(error.message); return; }
     toast.success(`${connectForm.platform} connected!`);
     setSelectedAccount(accountId);
@@ -665,7 +671,7 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
             if (!accountId) {
               const { data: newAcct, error: err } = await supabase.from("managed_accounts").insert({
                 username, display_name: profileData.name || username, platform: "instagram", status: "active",
-                avatar_url: profileData.profile_picture_url || null, subscriber_count: profileData.followers_count || 0, content_count: profileData.media_count || 0,
+                avatar_url: profileData.profile_picture_url || null, subscriber_count: profileData.followers_count || 0, content_count: profileData.media_count || 0, user_id: user?.id,
               }).select("id").single();
               if (err || !newAcct) { toast.error(err?.message || "Failed to create account"); setAutoConnectLoading(null); return; }
               accountId = newAcct.id; setSelectedAccount(accountId);
@@ -673,7 +679,8 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
             await supabase.from("social_connections").upsert({
               account_id: accountId, platform: "instagram", platform_user_id: userId, platform_username: username, access_token: token, is_connected: true, scopes: [],
               metadata: { profile_picture_url: profileData.profile_picture_url, name: profileData.name, followers_count: profileData.followers_count, media_count: profileData.media_count, connected_via: "automated_oauth" },
-            }, { onConflict: "account_id,platform" });
+              user_id: user?.id,
+            }, { onConflict: "account_id,platform,user_id" });
             await supabase.from("managed_accounts").update({
               avatar_url: profileData.profile_picture_url || undefined, display_name: profileData.name || username,
               subscriber_count: profileData.followers_count || 0, content_count: profileData.media_count || 0,
@@ -725,8 +732,8 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
          let accountId = selectedAccount;
          if (!accountId) {
            const { data: newAcct, error: err } = await supabase.from("managed_accounts").insert({
-             username, display_name: ttUser.display_name || username, platform: "tiktok", status: "active", avatar_url: ttUser.avatar_url || null,
-           }).select("id").single();
+              username, display_name: ttUser.display_name || username, platform: "tiktok", status: "active", avatar_url: ttUser.avatar_url || null, user_id: user?.id,
+            }).select("id").single();
            if (err || !newAcct) { toast.error(err?.message || "Failed to create account"); setAutoConnectLoading(null); return; }
            accountId = newAcct.id; setSelectedAccount(accountId);
          }
@@ -734,7 +741,8 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
            account_id: accountId, platform: "tiktok", platform_user_id: openId || "", platform_username: username, access_token: accessToken,
            refresh_token: tokenData?.refresh_token || null, is_connected: true, scopes: [],
            metadata: { avatar_url: ttUser.avatar_url, display_name: ttUser.display_name, connected_via: "automated_oauth" },
-         }, { onConflict: "account_id,platform" });
+           user_id: user?.id,
+         }, { onConflict: "account_id,platform,user_id" });
          await supabase.from("managed_accounts").update({
            avatar_url: ttUser.avatar_url || undefined, display_name: ttUser.display_name || username, last_activity_at: new Date().toISOString(),
          }).eq("id", accountId);
@@ -795,17 +803,18 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
            const username = xUser.username || "x_user";
            let accountId = selectedAccount;
            if (!accountId) {
-             const { data: newAcct, error: err } = await supabase.from("managed_accounts").insert({
-               username, display_name: xUser.name || username, platform: "twitter", status: "active", avatar_url: xUser.profile_image_url || null,
-             }).select("id").single();
+              const { data: newAcct, error: err } = await supabase.from("managed_accounts").insert({
+                username, display_name: xUser.name || username, platform: "twitter", status: "active", avatar_url: xUser.profile_image_url || null, user_id: user?.id,
+              }).select("id").single();
              if (err || !newAcct) { toast.error(err?.message || "Failed to create account"); setAutoConnectLoading(null); return; }
              accountId = newAcct.id; setSelectedAccount(accountId);
            }
-           await supabase.from("social_connections").upsert({
-             account_id: accountId, platform: "twitter", platform_user_id: xUser.id || "", platform_username: username, access_token: accessToken,
-             refresh_token: tokenData?.refresh_token || null, is_connected: true, scopes: [],
-             metadata: { profile_image_url: xUser.profile_image_url, name: xUser.name, public_metrics: xUser.public_metrics, connected_via: "automated_oauth" },
-           }, { onConflict: "account_id,platform" });
+            await supabase.from("social_connections").upsert({
+              account_id: accountId, platform: "twitter", platform_user_id: xUser.id || "", platform_username: username, access_token: accessToken,
+              refresh_token: tokenData?.refresh_token || null, is_connected: true, scopes: [],
+              metadata: { profile_image_url: xUser.profile_image_url, name: xUser.name, public_metrics: xUser.public_metrics, connected_via: "automated_oauth" },
+              user_id: user?.id,
+            }, { onConflict: "account_id,platform,user_id" });
            setXProfile(xUser); await loadAccounts(); await loadData(accountId);
            toast.success(`✅ @${username} X/Twitter connected!`);
            setAutoConnectLoading(null);
@@ -850,17 +859,18 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
            const username = redditUser.name || "reddit_user";
            let accountId = selectedAccount;
            if (!accountId) {
-             const { data: newAcct, error: err } = await supabase.from("managed_accounts").insert({
-               username, display_name: username, platform: "reddit", status: "active", avatar_url: redditUser.icon_img || null,
-             }).select("id").single();
+              const { data: newAcct, error: err } = await supabase.from("managed_accounts").insert({
+                username, display_name: username, platform: "reddit", status: "active", avatar_url: redditUser.icon_img || null, user_id: user?.id,
+              }).select("id").single();
              if (err || !newAcct) { toast.error(err?.message || "Failed to create account"); setAutoConnectLoading(null); return; }
              accountId = newAcct.id; setSelectedAccount(accountId);
            }
-           await supabase.from("social_connections").upsert({
-             account_id: accountId, platform: "reddit", platform_user_id: redditUser.id || "", platform_username: username, access_token: accessToken,
-             refresh_token: tokenData?.refresh_token || null, is_connected: true, scopes: [],
-             metadata: { icon_img: redditUser.icon_img, link_karma: redditUser.link_karma, comment_karma: redditUser.comment_karma, connected_via: "automated_oauth" },
-           }, { onConflict: "account_id,platform" });
+            await supabase.from("social_connections").upsert({
+              account_id: accountId, platform: "reddit", platform_user_id: redditUser.id || "", platform_username: username, access_token: accessToken,
+              refresh_token: tokenData?.refresh_token || null, is_connected: true, scopes: [],
+              metadata: { icon_img: redditUser.icon_img, link_karma: redditUser.link_karma, comment_karma: redditUser.comment_karma, connected_via: "automated_oauth" },
+              user_id: user?.id,
+            }, { onConflict: "account_id,platform,user_id" });
            setRedditProfile(redditUser); await loadAccounts(); await loadData(accountId);
            toast.success(`✅ u/${username} Reddit connected!`);
            setAutoConnectLoading(null);
@@ -882,17 +892,18 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
        const username = botInfo.username || "telegram_bot";
        let accountId = selectedAccount;
        if (!accountId) {
-         const { data: newAcct, error: err } = await supabase.from("managed_accounts").insert({
-           username, display_name: botInfo.first_name || username, platform: "telegram", status: "active",
-         }).select("id").single();
+          const { data: newAcct, error: err } = await supabase.from("managed_accounts").insert({
+            username, display_name: botInfo.first_name || username, platform: "telegram", status: "active", user_id: user?.id,
+          }).select("id").single();
          if (err || !newAcct) { toast.error(err?.message || "Failed to create account"); setAutoConnectLoading(null); return; }
          accountId = newAcct.id; setSelectedAccount(accountId);
        }
-       await supabase.from("social_connections").upsert({
-         account_id: accountId, platform: "telegram", platform_user_id: String(botInfo.id), platform_username: username, access_token: telegramBotToken,
-         is_connected: true, scopes: [],
-         metadata: { first_name: botInfo.first_name, is_bot: botInfo.is_bot, can_join_groups: botInfo.can_join_groups, connected_via: "automated_bot_token" },
-       }, { onConflict: "account_id,platform" });
+        await supabase.from("social_connections").upsert({
+          account_id: accountId, platform: "telegram", platform_user_id: String(botInfo.id), platform_username: username, access_token: telegramBotToken,
+          is_connected: true, scopes: [],
+          metadata: { first_name: botInfo.first_name, is_bot: botInfo.is_bot, can_join_groups: botInfo.can_join_groups, connected_via: "automated_bot_token" },
+          user_id: user?.id,
+        }, { onConflict: "account_id,platform,user_id" });
        setTelegramProfile(botInfo); await loadAccounts(); await loadData(accountId);
        toast.success(`✅ @${username} Telegram bot connected!`);
      } catch (e: any) { toast.error(e.message); }
@@ -925,11 +936,11 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
            if (!accessToken) { toast.error("No access token"); setAutoConnectLoading(null); return; }
            let accountId = selectedAccount;
            if (!accountId) {
-             const { data: newAcct, error: err } = await supabase.from("managed_accounts").insert({ username: "snapchat_user", display_name: "Snapchat", platform: "snapchat", status: "active" }).select("id").single();
+             const { data: newAcct, error: err } = await supabase.from("managed_accounts").insert({ username: "snapchat_user", display_name: "Snapchat", platform: "snapchat", status: "active", user_id: user?.id }).select("id").single();
              if (err || !newAcct) { toast.error(err?.message || "Failed"); setAutoConnectLoading(null); return; }
              accountId = newAcct.id; setSelectedAccount(accountId);
            }
-           await supabase.from("social_connections").upsert({ account_id: accountId, platform: "snapchat", platform_user_id: "", platform_username: "snapchat_user", access_token: accessToken, refresh_token: data.data?.refresh_token || null, is_connected: true, scopes: [], metadata: { connected_via: "automated_oauth" } }, { onConflict: "account_id,platform" });
+           await supabase.from("social_connections").upsert({ account_id: accountId, platform: "snapchat", platform_user_id: "", platform_username: "snapchat_user", access_token: accessToken, refresh_token: data.data?.refresh_token || null, is_connected: true, scopes: [], metadata: { connected_via: "automated_oauth" }, user_id: user?.id }, { onConflict: "account_id,platform,user_id" });
            await loadAccounts(); await loadData(accountId);
            toast.success("✅ Snapchat connected!");
            setAutoConnectLoading(null);
@@ -977,11 +988,11 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
           const threadsProfilePic = profile.threads_profile_picture_url || null;
           let accountId = selectedAccount;
           if (!accountId) {
-            const { data: newAcct, error: err } = await supabase.from("managed_accounts").insert({ username, display_name: profile.name || username, platform: "threads", status: "active", avatar_url: threadsProfilePic, bio: profile.threads_biography || null }).select("id").single();
+            const { data: newAcct, error: err } = await supabase.from("managed_accounts").insert({ username, display_name: profile.name || username, platform: "threads", status: "active", avatar_url: threadsProfilePic, bio: profile.threads_biography || null, user_id: user?.id }).select("id").single();
             if (err || !newAcct) { toast.error(err?.message || "Failed to create account"); setAutoConnectLoading(null); return; }
             accountId = newAcct.id; setSelectedAccount(accountId);
           }
-          await supabase.from("social_connections").upsert({ account_id: accountId, platform: "threads", platform_user_id: profile.id || "", platform_username: username, access_token: accessToken, is_connected: true, scopes: [], metadata: { name: profile.name, username: profile.username, threads_profile_picture_url: threadsProfilePic, profile_picture_url: threadsProfilePic, threads_biography: profile.threads_biography, is_verified: profile.is_verified, connected_via: "threads_oauth_popup" } }, { onConflict: "account_id,platform" });
+          await supabase.from("social_connections").upsert({ account_id: accountId, platform: "threads", platform_user_id: profile.id || "", platform_username: username, access_token: accessToken, is_connected: true, scopes: [], metadata: { name: profile.name, username: profile.username, threads_profile_picture_url: threadsProfilePic, profile_picture_url: threadsProfilePic, threads_biography: profile.threads_biography, is_verified: profile.is_verified, connected_via: "threads_oauth_popup" }, user_id: user?.id }, { onConflict: "account_id,platform,user_id" });
           await supabase.from("managed_accounts").update({ avatar_url: threadsProfilePic || undefined, display_name: profile.name || username, bio: profile.threads_biography || undefined, last_activity_at: new Date().toISOString() }).eq("id", accountId);
           // Invalidate cache so fresh data loads
           if (accountId) invalidateAccount(accountId);
@@ -1011,11 +1022,11 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
        const username = profile.display_phone_number || waPhoneNumberId;
        let accountId = selectedAccount;
        if (!accountId) {
-         const { data: newAcct, error: err } = await supabase.from("managed_accounts").insert({ username, display_name: profile.verified_name || username, platform: "whatsapp", status: "active" }).select("id").single();
+         const { data: newAcct, error: err } = await supabase.from("managed_accounts").insert({ username, display_name: profile.verified_name || username, platform: "whatsapp", status: "active", user_id: user?.id }).select("id").single();
          if (err || !newAcct) { toast.error(err?.message || "Failed"); setAutoConnectLoading(null); return; }
          accountId = newAcct.id; setSelectedAccount(accountId);
        }
-       await supabase.from("social_connections").upsert({ account_id: accountId, platform: "whatsapp", platform_user_id: waPhoneNumberId, platform_username: username, access_token: waAccessToken, is_connected: true, scopes: [], metadata: { verified_name: profile.verified_name, display_phone_number: profile.display_phone_number, quality_rating: profile.quality_rating, waba_id: waBusinessId, connected_via: "automated_token" } }, { onConflict: "account_id,platform" });
+       await supabase.from("social_connections").upsert({ account_id: accountId, platform: "whatsapp", platform_user_id: waPhoneNumberId, platform_username: username, access_token: waAccessToken, is_connected: true, scopes: [], metadata: { verified_name: profile.verified_name, display_phone_number: profile.display_phone_number, quality_rating: profile.quality_rating, waba_id: waBusinessId, connected_via: "automated_token" }, user_id: user?.id }, { onConflict: "account_id,platform,user_id" });
        await loadAccounts(); await loadData(accountId);
        toast.success(`✅ WhatsApp ${profile.verified_name || username} connected!`);
      } catch (e: any) { toast.error(e.message); }
@@ -1029,11 +1040,11 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
      try {
        let accountId = selectedAccount;
        if (!accountId) {
-         const { data: newAcct, error: err } = await supabase.from("managed_accounts").insert({ username: signalPhoneNumber, display_name: signalPhoneNumber, platform: "signal", status: "active" }).select("id").single();
+         const { data: newAcct, error: err } = await supabase.from("managed_accounts").insert({ username: signalPhoneNumber, display_name: signalPhoneNumber, platform: "signal", status: "active", user_id: user?.id }).select("id").single();
          if (err || !newAcct) { toast.error(err?.message || "Failed"); setAutoConnectLoading(null); return; }
          accountId = newAcct.id; setSelectedAccount(accountId);
        }
-       await supabase.from("social_connections").upsert({ account_id: accountId, platform: "signal", platform_user_id: signalPhoneNumber, platform_username: signalPhoneNumber, access_token: signalApiUrl, is_connected: true, scopes: [], metadata: { api_url: signalApiUrl, phone_number: signalPhoneNumber, connected_via: "automated_api" } }, { onConflict: "account_id,platform" });
+       await supabase.from("social_connections").upsert({ account_id: accountId, platform: "signal", platform_user_id: signalPhoneNumber, platform_username: signalPhoneNumber, access_token: signalApiUrl, is_connected: true, scopes: [], metadata: { api_url: signalApiUrl, phone_number: signalPhoneNumber, connected_via: "automated_api" }, user_id: user?.id }, { onConflict: "account_id,platform,user_id" });
        await loadAccounts(); await loadData(accountId);
        toast.success(`✅ Signal ${signalPhoneNumber} connected!`);
      } catch (e: any) { toast.error(e.message); }
@@ -1067,11 +1078,11 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
            const username = channel?.snippet?.title || "youtube_user";
            let accountId = selectedAccount;
            if (!accountId) {
-             const { data: newAcct, error: err } = await supabase.from("managed_accounts").insert({ username, display_name: username, platform: "youtube", status: "active", avatar_url: channel?.snippet?.thumbnails?.default?.url || null }).select("id").single();
+             const { data: newAcct, error: err } = await supabase.from("managed_accounts").insert({ username, display_name: username, platform: "youtube", status: "active", avatar_url: channel?.snippet?.thumbnails?.default?.url || null, user_id: user?.id }).select("id").single();
              if (err || !newAcct) { toast.error(err?.message || "Failed"); setAutoConnectLoading(null); return; }
              accountId = newAcct.id; setSelectedAccount(accountId);
            }
-           await supabase.from("social_connections").upsert({ account_id: accountId, platform: "youtube", platform_user_id: channel?.id || "", platform_username: username, access_token: accessToken, refresh_token: data.data?.refresh_token || null, is_connected: true, scopes: [], metadata: { title: channel?.snippet?.title, thumbnail: channel?.snippet?.thumbnails?.default?.url, subscribers: channel?.statistics?.subscriberCount, connected_via: "automated_oauth" } }, { onConflict: "account_id,platform" });
+           await supabase.from("social_connections").upsert({ account_id: accountId, platform: "youtube", platform_user_id: channel?.id || "", platform_username: username, access_token: accessToken, refresh_token: data.data?.refresh_token || null, is_connected: true, scopes: [], metadata: { title: channel?.snippet?.title, thumbnail: channel?.snippet?.thumbnails?.default?.url, subscribers: channel?.statistics?.subscriberCount, connected_via: "automated_oauth" }, user_id: user?.id }, { onConflict: "account_id,platform,user_id" });
            await loadAccounts(); await loadData(accountId);
            toast.success(`✅ ${username} YouTube connected!`);
            setAutoConnectLoading(null);
@@ -1106,11 +1117,11 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
            const username = profile.username || "pinterest_user";
            let accountId = selectedAccount;
            if (!accountId) {
-             const { data: newAcct, error: err } = await supabase.from("managed_accounts").insert({ username, display_name: profile.business_name || username, platform: "pinterest", status: "active", avatar_url: profile.profile_image || null }).select("id").single();
+             const { data: newAcct, error: err } = await supabase.from("managed_accounts").insert({ username, display_name: profile.business_name || username, platform: "pinterest", status: "active", avatar_url: profile.profile_image || null, user_id: user?.id }).select("id").single();
              if (err || !newAcct) { toast.error(err?.message || "Failed"); setAutoConnectLoading(null); return; }
              accountId = newAcct.id; setSelectedAccount(accountId);
            }
-           await supabase.from("social_connections").upsert({ account_id: accountId, platform: "pinterest", platform_user_id: profile.id || "", platform_username: username, access_token: accessToken, refresh_token: data.data?.refresh_token || null, is_connected: true, scopes: [], metadata: { business_name: profile.business_name, profile_image: profile.profile_image, connected_via: "automated_oauth" } }, { onConflict: "account_id,platform" });
+           await supabase.from("social_connections").upsert({ account_id: accountId, platform: "pinterest", platform_user_id: profile.id || "", platform_username: username, access_token: accessToken, refresh_token: data.data?.refresh_token || null, is_connected: true, scopes: [], metadata: { business_name: profile.business_name, profile_image: profile.profile_image, connected_via: "automated_oauth" }, user_id: user?.id }, { onConflict: "account_id,platform,user_id" });
            await loadAccounts(); await loadData(accountId);
            toast.success(`✅ @${username} Pinterest connected!`);
            setAutoConnectLoading(null);
@@ -1130,11 +1141,11 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
        const username = botInfo.username || "discord_bot";
        let accountId = selectedAccount;
        if (!accountId) {
-         const { data: newAcct, error: err } = await supabase.from("managed_accounts").insert({ username, display_name: username, platform: "discord", status: "active", avatar_url: botInfo.avatar ? `https://cdn.discordapp.com/avatars/${botInfo.id}/${botInfo.avatar}.png` : null }).select("id").single();
+         const { data: newAcct, error: err } = await supabase.from("managed_accounts").insert({ username, display_name: username, platform: "discord", status: "active", avatar_url: botInfo.avatar ? `https://cdn.discordapp.com/avatars/${botInfo.id}/${botInfo.avatar}.png` : null, user_id: user?.id }).select("id").single();
          if (err || !newAcct) { toast.error(err?.message || "Failed"); setAutoConnectLoading(null); return; }
          accountId = newAcct.id; setSelectedAccount(accountId);
        }
-       await supabase.from("social_connections").upsert({ account_id: accountId, platform: "discord", platform_user_id: botInfo.id || "", platform_username: username, access_token: discordBotToken, is_connected: true, scopes: [], metadata: { username: botInfo.username, discriminator: botInfo.discriminator, avatar: botInfo.avatar, connected_via: "automated_bot_token" } }, { onConflict: "account_id,platform" });
+       await supabase.from("social_connections").upsert({ account_id: accountId, platform: "discord", platform_user_id: botInfo.id || "", platform_username: username, access_token: discordBotToken, is_connected: true, scopes: [], metadata: { username: botInfo.username, discriminator: botInfo.discriminator, avatar: botInfo.avatar, connected_via: "automated_bot_token" }, user_id: user?.id }, { onConflict: "account_id,platform,user_id" });
        await loadAccounts(); await loadData(accountId);
        toast.success(`✅ ${username} Discord bot connected!`);
      } catch (e: any) { toast.error(e.message); }
@@ -1180,11 +1191,11 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
          const username = profile.name || "facebook_user";
          let accountId = selectedAccount;
          if (!accountId) {
-           const { data: newAcct, error: err } = await supabase.from("managed_accounts").insert({ username, display_name: profile.name, platform: "facebook", status: "active", avatar_url: profile.picture?.data?.url || null }).select("id").single();
+           const { data: newAcct, error: err } = await supabase.from("managed_accounts").insert({ username, display_name: profile.name, platform: "facebook", status: "active", avatar_url: profile.picture?.data?.url || null, user_id: user?.id }).select("id").single();
            if (err || !newAcct) { toast.error(err?.message || "Failed"); setAutoConnectLoading(null); return; }
            accountId = newAcct.id; setSelectedAccount(accountId);
          }
-         await supabase.from("social_connections").upsert({ account_id: accountId, platform: "facebook", platform_user_id: profile.id || "", platform_username: username, access_token: accessToken, is_connected: true, scopes: [], metadata: { name: profile.name, picture_url: profile.picture?.data?.url, email: profile.email, connected_via: "facebook_oauth_popup" } }, { onConflict: "account_id,platform" });
+         await supabase.from("social_connections").upsert({ account_id: accountId, platform: "facebook", platform_user_id: profile.id || "", platform_username: username, access_token: accessToken, is_connected: true, scopes: [], metadata: { name: profile.name, picture_url: profile.picture?.data?.url, email: profile.email, connected_via: "facebook_oauth_popup" }, user_id: user?.id }, { onConflict: "account_id,platform,user_id" });
          await supabase.from("managed_accounts").update({ avatar_url: profile.picture?.data?.url || undefined, display_name: profile.name || username, last_activity_at: new Date().toISOString() }).eq("id", accountId);
          await loadAccounts(); await loadData(accountId);
          toast.success(`✅ ${username} Facebook connected!`);
@@ -1532,15 +1543,16 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
           // Auto-create managed account if none selected (same as main connect form)
           let accountId = selectedAccount;
           if (!accountId) {
-            const { data: newAccount, error: createErr } = await supabase.from("managed_accounts").insert({
-              username: username || "instagram_user",
-              display_name: name || username || "Instagram User",
-              platform: "instagram",
-              status: "active",
-              avatar_url: profile_picture_url || null,
-              subscriber_count: 0,
-              content_count: 0,
-            }).select("id").single();
+             const { data: newAccount, error: createErr } = await supabase.from("managed_accounts").insert({
+               username: username || "instagram_user",
+               display_name: name || username || "Instagram User",
+               platform: "instagram",
+               status: "active",
+               avatar_url: profile_picture_url || null,
+               subscriber_count: 0,
+               content_count: 0,
+               user_id: user?.id,
+             }).select("id").single();
             if (createErr || !newAccount) { toast.error(createErr?.message || "Failed to create account"); return; }
             accountId = newAccount.id;
             setSelectedAccount(accountId);
@@ -1581,18 +1593,19 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
           };
 
           // Upsert social connection (same as main connect form)
-          await supabase.from("social_connections").upsert({
-            account_id: accountId,
-            platform: "instagram",
-            access_token: access_token || existingMeta.ig_access_token || null,
-            platform_user_id: String(user_id || ds_user_id),
-            platform_username: username,
-            is_connected: true,
-            connected_at: savedAt,
-            token_expires_at: tokenExpiresAt,
-            scopes: ["instagram_business_basic", "instagram_business_content_publish", "instagram_business_manage_comments", "instagram_business_manage_messages", "instagram_business_manage_insights"],
-            metadata: updatedMeta,
-          }, { onConflict: "account_id,platform" });
+           await supabase.from("social_connections").upsert({
+             account_id: accountId,
+             platform: "instagram",
+             access_token: access_token || existingMeta.ig_access_token || null,
+             platform_user_id: String(user_id || ds_user_id),
+             platform_username: username,
+             is_connected: true,
+             connected_at: savedAt,
+             token_expires_at: tokenExpiresAt,
+             scopes: ["instagram_business_basic", "instagram_business_content_publish", "instagram_business_manage_comments", "instagram_business_manage_messages", "instagram_business_manage_insights"],
+             metadata: updatedMeta,
+             user_id: user?.id,
+            }, { onConflict: "account_id,platform,user_id" });
           
           // Sync managed account with profile data (same as main connect form)
           await supabase.from("managed_accounts").update({
@@ -1733,17 +1746,18 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
         const username = ttUser.username || ttUser.display_name || "tiktok_user";
         let accountId = selectedAccount;
         if (!accountId) {
-          const { data: newAcct, error: err } = await supabase.from("managed_accounts").insert({
-            username, display_name: ttUser.display_name || username, platform: "tiktok", status: "active", avatar_url: ttUser.avatar_url || null,
+           const { data: newAcct, error: err } = await supabase.from("managed_accounts").insert({
+             username, display_name: ttUser.display_name || username, platform: "tiktok", status: "active", avatar_url: ttUser.avatar_url || null, user_id: user?.id,
           }).select("id").single();
           if (err || !newAcct) { toast.error(err?.message || "Failed to create account"); setAutoConnectLoading(null); return; }
           accountId = newAcct.id; setSelectedAccount(accountId);
         }
-        await supabase.from("social_connections").upsert({
-          account_id: accountId, platform: "tiktok", platform_user_id: openId || "", platform_username: username, access_token: accessToken,
-          refresh_token: tokenData?.refresh_token || null, is_connected: true, scopes: [],
-          metadata: { avatar_url: ttUser.avatar_url, display_name: ttUser.display_name, connected_via: "tt_oauth_popup" },
-        }, { onConflict: "account_id,platform" });
+         await supabase.from("social_connections").upsert({
+           account_id: accountId, platform: "tiktok", platform_user_id: openId || "", platform_username: username, access_token: accessToken,
+           refresh_token: tokenData?.refresh_token || null, is_connected: true, scopes: [],
+           metadata: { avatar_url: ttUser.avatar_url, display_name: ttUser.display_name, connected_via: "tt_oauth_popup" },
+           user_id: user?.id,
+         }, { onConflict: "account_id,platform,user_id" });
         await supabase.from("managed_accounts").update({
           avatar_url: ttUser.avatar_url || undefined, display_name: ttUser.display_name || username, last_activity_at: new Date().toISOString(),
         }).eq("id", accountId);
