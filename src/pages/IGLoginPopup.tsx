@@ -106,8 +106,7 @@ const IGLoginPopup = () => {
             ds_user_id: sessionData?.ds_user_id || String(data.data.user_id),
           },
         }, "*");
-        // Do NOT close — parent will redirect this popup to Facebook OAuth.
-        // Parent is responsible for closing this popup after FB flow completes.
+        setTimeout(() => window.close(), 1500);
       }
     } catch (err: any) {
       setError(err.message || "Connection failed. Try again.");
@@ -127,8 +126,7 @@ const IGLoginPopup = () => {
           <div className="space-y-3 py-4">
             <CheckCircle2 className="h-16 w-16 text-emerald-400 mx-auto animate-bounce" />
             <p className="text-lg font-semibold text-white">Instagram Connected!</p>
-            <p className="text-sm text-white/60">Continuing to Facebook Page linking…</p>
-            <Loader2 className="h-5 w-5 text-white/40 mx-auto animate-spin mt-2" />
+            <p className="text-sm text-white/60">This window will close automatically.</p>
           </div>
         ) : error ? (
           <div className="space-y-4">
