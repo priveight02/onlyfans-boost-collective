@@ -4618,6 +4618,10 @@ export type Database = {
     }
     Functions: {
       check_email_exists: { Args: { email_input: string }; Returns: boolean }
+      increment_daily_sent: {
+        Args: { p_account_id: string }
+        Returns: undefined
+      }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
