@@ -365,6 +365,15 @@ serve(async (req) => {
         break;
       }
 
+      // ===== THREADS BUSINESS BASIC =====
+      case "get_business_threads_account": {
+        // Fetch Threads account ID associated with an IG account in a Business Portfolio
+        const username = params.username || (await threadsFetch(`/me?fields=username`, conn.access_token))?.username;
+        if (!username) throw new Error("Username required for business Threads lookup");
+        result = await threadsFetch(`/me?fields=id,username,name,threads_profile_picture_url,threads_biography,is_verified`, conn.access_token);
+        break;
+      }
+
       default:
         throw new Error(`Unknown action: ${action}`);
     }
