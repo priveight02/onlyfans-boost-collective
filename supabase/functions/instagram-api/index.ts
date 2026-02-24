@@ -1235,11 +1235,14 @@ Analyze every character in the name and username for any gender signal at all. L
         const limit = params?.limit || 20;
         const folder = params?.folder || "";
         const richFields = `id,participants,messages.limit(${params?.messages_limit || 5}){id,message,from,to,created_time,attachments,shares,story,sticker},updated_time`;
+        const simpleFields = `id,updated_time,participants`;
+        const isIgToken = token.startsWith("IGAAR") || token.startsWith("IGQV");
         
         let realUserId = igUserId;
         try {
-          const meResp = await fetch(`${IG_GRAPH_URL}/me?fields=id&access_token=${token}`);
+          const meResp = await fetch(`${IG_GRAPH_URL}/me?fields=id,user_id,username&access_token=${token}`);
           const meData = await meResp.json();
+          console.log(`/me check: id=${meData?.id}, user_id=${meData?.user_id}, username=${meData?.username}, error=${meData?.error?.message || "none"}`);
           if (meData?.id && meData.id !== igUserId) {
             console.log(`ID mismatch: stored=${igUserId}, real=${meData.id} — using real ID`);
             realUserId = meData.id;
@@ -1257,7 +1260,7 @@ Analyze every character in the name and username for any gender signal at all. L
               const resp = await fetch(currentUrl);
               const json = await resp.json();
               console.log(`Page ${page}: ${json?.data?.length || 0} items, has_next: ${!!json?.paging?.next}`);
-              if (json?.error) { console.log(`API error:`, json.error.message); break; }
+              if (json?.error) { console.log(`API error: ${json.error.message} (code: ${json.error.code}, type: ${json.error.type}, subcode: ${json.error.error_subcode || "none"})`); break; }
               if (json?.data?.length > 0) allData.push(...json.data);
               currentUrl = json?.paging?.next || null;
               if (!json?.data?.length && !json?.paging?.next) break;
@@ -1266,31 +1269,38 @@ Analyze every character in the name and username for any gender signal at all. L
           return allData;
         };
         
-        // Try IG Graph, then FB Graph, then Page-based endpoints
-        const pageInfo = await getPageId(token, realUserId);
-        const endpoints: { url: string; tkn: string }[] = [
-          { url: `${IG_GRAPH_URL}/me/conversations?platform=instagram&limit=${limit}&fields=${richFields}`, tkn: token },
-          { url: `${IG_GRAPH_URL}/${realUserId}/conversations?platform=instagram&limit=${limit}&fields=${richFields}`, tkn: token },
-          { url: `${FB_GRAPH_URL}/${realUserId}/conversations?platform=instagram&limit=${limit}&fields=${richFields}`, tkn: token },
-        ];
-        if (pageInfo) {
-          endpoints.push(
-            { url: `${FB_GRAPH_URL}/${pageInfo.pageId}/conversations?platform=instagram&limit=${limit}&fields=${richFields}`, tkn: pageInfo.pageToken },
-          );
+        // Build endpoint list based on token type
+        console.log(`Token type: ${isIgToken ? "IG OAuth" : "FB/System"}, userId: ${realUserId}`);
+        
+        const endpoints: { url: string; tkn: string; label: string }[] = [];
+        
+        // IG Graph endpoints (work with IG tokens)
+        for (const fields of [simpleFields, richFields]) {
+          endpoints.push({ url: `${IG_GRAPH_URL}/me/conversations?platform=instagram&limit=${limit}&fields=${fields}`, tkn: token, label: `IG /me (${fields === simpleFields ? "simple" : "rich"})` });
+          endpoints.push({ url: `${IG_GRAPH_URL}/${realUserId}/conversations?platform=instagram&limit=${limit}&fields=${fields}`, tkn: token, label: `IG /${realUserId} (${fields === simpleFields ? "simple" : "rich"})` });
+        }
+        
+        // FB Graph endpoints (only work with FB/system tokens)
+        if (!isIgToken) {
+          const pageInfo = await getPageId(token, realUserId);
+          endpoints.push({ url: `${FB_GRAPH_URL}/${realUserId}/conversations?platform=instagram&limit=${limit}&fields=${simpleFields}`, tkn: token, label: "FB user simple" });
+          if (pageInfo) {
+            endpoints.push({ url: `${FB_GRAPH_URL}/${pageInfo.pageId}/conversations?platform=instagram&limit=${limit}&fields=${simpleFields}`, tkn: pageInfo.pageToken, label: "FB page simple" });
+            endpoints.push({ url: `${FB_GRAPH_URL}/${pageInfo.pageId}/conversations?platform=instagram&limit=${limit}&fields=${richFields}`, tkn: pageInfo.pageToken, label: "FB page rich" });
+          }
         }
         
         let allConvos: any[] = [];
         for (const ep of endpoints) {
           let url = `${ep.url}&access_token=${ep.tkn}`;
           if (folder) url += `&folder=${folder}`;
-          console.log("Trying:", ep.url.split("?")[0]);
+          console.log(`Trying: ${ep.label}`);
           allConvos = await fetchWithPagination(url);
-          if (allConvos.length > 0) break;
-          
-          const simpleUrl = url.replace(richFields, "id,updated_time,participants");
-          console.log("Retrying simple fields...");
-          allConvos = await fetchWithPagination(simpleUrl);
-          if (allConvos.length > 0) break;
+          if (allConvos.length > 0) { console.log(`✓ Success with ${ep.label}: ${allConvos.length} convos`); break; }
+        }
+        
+        if (allConvos.length === 0) {
+          console.log("All endpoints returned 0 conversations. Possible causes: instagram_manage_messages not at Advanced Access, app in Development mode, or no DM history.");
         }
         
         console.log(`Total conversations fetched: ${allConvos.length}`);
@@ -1302,11 +1312,14 @@ Analyze every character in the name and username for any gender signal at all. L
         const allLimit = params?.limit || 50;
         const msgLimit = params?.messages_limit || 10;
         const richFields = `id,participants,messages.limit(${msgLimit}){id,message,from,to,created_time,attachments,shares,story,sticker},updated_time`;
+        const simpleFields = `id,updated_time,participants`;
+        const isIgToken = token.startsWith("IGAAR") || token.startsWith("IGQV");
         
         let realUserId = igUserId;
         try {
-          const meResp = await fetch(`${IG_GRAPH_URL}/me?fields=id&access_token=${token}`);
+          const meResp = await fetch(`${IG_GRAPH_URL}/me?fields=id,user_id,username&access_token=${token}`);
           const meData = await meResp.json();
+          console.log(`get_all /me: id=${meData?.id}, username=${meData?.username}, error=${meData?.error?.message || "none"}`);
           if (meData?.id && meData.id !== igUserId) {
             console.log(`ID update: ${igUserId} → ${meData.id}`);
             realUserId = meData.id;
@@ -1323,7 +1336,7 @@ Analyze every character in the name and username for any gender signal at all. L
             try {
               const resp = await fetch(currentUrl);
               const json = await resp.json();
-              if (json?.error) { console.log(`Error page ${page}: ${json.error.message} (code: ${json.error.code}, type: ${json.error.type})`); break; }
+              if (json?.error) { console.log(`Error page ${page}: ${json.error.message} (code: ${json.error.code}, type: ${json.error.type}, subcode: ${json.error.error_subcode || "none"})`); break; }
               if (json?.data?.length > 0) allData.push(...json.data);
               currentUrl = json?.paging?.next || null;
               if (!json?.data?.length && !json?.paging?.next) break;
@@ -1332,26 +1345,44 @@ Analyze every character in the name and username for any gender signal at all. L
           return allData;
         };
         
-        // Try IG Graph, FB Graph, and Page-based endpoints for each folder
-        const pageInfo2 = await getPageId(token, realUserId);
+        // Build bases based on token type — skip FB Graph for IG tokens
+        let pageInfo2: { pageId: string; pageToken: string } | null = null;
+        if (!isIgToken) { pageInfo2 = await getPageId(token, realUserId); }
+        console.log(`get_all: tokenType=${isIgToken ? "IG" : "FB"}, userId=${realUserId}, pageAvailable=${!!pageInfo2}`);
+        
         const fetchFolder = async (folderName: string): Promise<any[]> => {
-          const bases: { base: string; tkn: string }[] = [
-            { base: `${IG_GRAPH_URL}/me`, tkn: token },
-            { base: `${IG_GRAPH_URL}/${realUserId}`, tkn: token },
-            { base: `${FB_GRAPH_URL}/${realUserId}`, tkn: token },
-          ];
-          if (pageInfo2) {
-            bases.push({ base: `${FB_GRAPH_URL}/${pageInfo2.pageId}`, tkn: pageInfo2.pageToken });
+          const bases: { base: string; tkn: string; label: string }[] = [];
+          
+          // IG Graph endpoints first with simple fields (most compatible)
+          bases.push({ base: `${IG_GRAPH_URL}/me`, tkn: token, label: `IG /me` });
+          bases.push({ base: `${IG_GRAPH_URL}/${realUserId}`, tkn: token, label: `IG /${realUserId}` });
+          
+          // FB Graph only for non-IG tokens
+          if (!isIgToken) {
+            bases.push({ base: `${FB_GRAPH_URL}/${realUserId}`, tkn: token, label: `FB user` });
+            if (pageInfo2) {
+              bases.push({ base: `${FB_GRAPH_URL}/${pageInfo2.pageId}`, tkn: pageInfo2.pageToken, label: `FB page` });
+            }
           }
-          for (const { base, tkn } of bases) {
+          
+          for (const { base, tkn, label } of bases) {
+            // Try simple fields first (more likely to succeed)
+            console.log(`${folderName}: trying ${label} simple`);
+            let simpleUrl = `${base}/conversations?platform=instagram&limit=${allLimit}&fields=${simpleFields}&access_token=${tkn}&folder=${folderName}`;
+            let convos = await fetchWithPagination(simpleUrl);
+            if (convos.length > 0) {
+              console.log(`✓ ${folderName} ${label} simple: ${convos.length}`);
+              // Now try to get rich data
+              let richUrl = `${base}/conversations?platform=instagram&limit=${allLimit}&fields=${richFields}&access_token=${tkn}&folder=${folderName}`;
+              const richConvos = await fetchWithPagination(richUrl);
+              return richConvos.length > 0 ? richConvos : convos;
+            }
+            
+            // Try rich fields directly
+            console.log(`${folderName}: trying ${label} rich`);
             let url = `${base}/conversations?platform=instagram&limit=${allLimit}&fields=${richFields}&access_token=${tkn}&folder=${folderName}`;
-            
-            let convos = await fetchWithPagination(url);
-            if (convos.length > 0) return convos;
-            
-            let simpleUrl = `${base}/conversations?platform=instagram&limit=${allLimit}&fields=id,updated_time,participants&access_token=${tkn}&folder=${folderName}`;
-            convos = await fetchWithPagination(simpleUrl);
-            if (convos.length > 0) return convos;
+            convos = await fetchWithPagination(url);
+            if (convos.length > 0) { console.log(`✓ ${folderName} ${label} rich: ${convos.length}`); return convos; }
           }
           return [];
         };
@@ -1363,7 +1394,11 @@ Analyze every character in the name and username for any gender signal at all. L
         ]);
         
         const total = primary.length + general.length + requests.length;
-        console.log(`Found ${total} conversations total`);
+        console.log(`Found ${total} conversations total (inbox: ${primary.length}, general: ${general.length}, other: ${requests.length})`);
+        
+        if (total === 0) {
+          console.log("0 conversations across all folders. Check: 1) instagram_manage_messages at Advanced Access 2) App in Live mode 3) Account has DM history");
+        }
         
         result = { primary, general, requests, total };
         break;
