@@ -814,37 +814,45 @@ Analyze every character in the name and username for any gender signal at all. L
       }
 
       // ===== PROFILE =====
-      case "get_profile": {
-        // Instagram Business Login tokens don't support biography/website fields
-        // Try full fields first, fallback to basic fields, then return stored data if all fails
-        try {
-          result = await igFetch(`/${igUserId}?fields=id,username,name,biography,profile_picture_url,followers_count,follows_count,media_count,website`, token);
-        } catch (fullErr) {
-          console.log("Full profile fields failed, trying basic fields:", fullErr.message);
+      case "get_profile":
+      case "get_profile_basic": {
+        // Progressive field fallback — v25.0 Business Login may not support all fields
+        const fieldSets = [
+          "id,username,name,biography,profile_picture_url,followers_count,follows_count,media_count,website",
+          "id,username,name,profile_picture_url,followers_count,follows_count,media_count",
+          "id,username,name,profile_picture_url,followers_count,media_count",
+          "id,username,name,profile_picture_url",
+        ];
+        let profileErr: string | null = null;
+        for (const fields of fieldSets) {
           try {
-            result = await igFetch(`/${igUserId}?fields=id,username,name,profile_picture_url,followers_count,follows_count,media_count`, token);
-          } catch (basicErr) {
-            console.log("Basic profile also failed (token may not be propagated yet):", basicErr.message);
-            // Return stored connection data as fallback so caller doesn't get an error
-            const meta = conn.metadata as any || {};
-            result = {
-              id: igUserId,
-              username: conn.platform_username || meta.ig_name || "unknown",
-              name: meta.name || meta.ig_name || conn.platform_username,
-              profile_picture_url: meta.profile_picture_url || meta.ig_profile_pic || null,
-              followers_count: meta.followers_count || 0,
-              follows_count: 0,
-              media_count: meta.media_count || 0,
-              _source: "cached_fallback",
-            };
+            console.log(`get_profile: trying fields=[${fields}] for user ${igUserId}`);
+            result = await igFetch(`/${igUserId}?fields=${fields}`, token);
+            console.log(`get_profile: SUCCESS with fields=[${fields}]`, JSON.stringify(result));
+            break;
+          } catch (err: any) {
+            profileErr = err.message;
+            console.log(`get_profile: fields=[${fields}] FAILED:`, err.message);
           }
+        }
+        // If all API calls failed, return stored connection data
+        if (!result) {
+          console.log("get_profile: ALL field sets failed, returning cached data. Last error:", profileErr);
+          const meta = conn.metadata as any || {};
+          result = {
+            id: igUserId,
+            username: conn.platform_username || meta.ig_name || "unknown",
+            name: meta.name || meta.ig_name || conn.platform_username,
+            profile_picture_url: meta.profile_picture_url || meta.ig_profile_pic || null,
+            followers_count: meta.followers_count || 0,
+            follows_count: meta.follows_count || 0,
+            media_count: meta.media_count || 0,
+            _source: "cached_fallback",
+            _error: profileErr,
+          };
         }
         break;
       }
-
-      case "get_profile_basic":
-        result = await igFetch(`/${igUserId}?fields=id,username,name,profile_picture_url,followers_count,follows_count,media_count`, token);
-        break;
 
       // ===== MEDIA =====
       case "get_media":

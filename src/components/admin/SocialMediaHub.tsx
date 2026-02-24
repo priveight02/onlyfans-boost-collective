@@ -2261,6 +2261,13 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
                     </div>
                     <Instagram className="h-4 w-4 text-pink-400" />
                   </div>
+                  {igProfile._source === "cached_fallback" && igProfile._error && (
+                    <div className="mb-2 p-2 rounded bg-destructive/10 border border-destructive/30">
+                      <p className="text-[10px] text-destructive font-medium flex items-center gap-1"><AlertTriangle className="h-3 w-3" />Live stats unavailable — Meta API error</p>
+                      <p className="text-[9px] text-destructive/70 mt-0.5 break-all">{igProfile._error}</p>
+                      <p className="text-[9px] text-muted-foreground mt-1">Try disconnecting & reconnecting, or ensure this account is a Tester in the Meta Developer Portal if your app is in Development mode.</p>
+                    </div>
+                  )}
                   <div className="grid grid-cols-3 gap-2 text-center">
                     <div className="bg-muted/50 rounded p-2"><p className="text-sm font-bold text-foreground">{(igProfile.followers_count || 0).toLocaleString()}</p><p className="text-[10px] text-muted-foreground">Followers</p></div>
                     <div className="bg-muted/50 rounded p-2"><p className="text-sm font-bold text-foreground">{(igProfile.follows_count || 0).toLocaleString()}</p><p className="text-[10px] text-muted-foreground">Following</p></div>

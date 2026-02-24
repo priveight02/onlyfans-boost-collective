@@ -116,12 +116,13 @@ serve(async (req) => {
     let profilePictureUrl: string | null = null;
     let accountType: string | null = null;
     let followersCount = 0;
+    let followsCount = 0;
     let mediaCount = 0;
 
     // Attempt 1: /me with full fields
     try {
       const res = await fetch(
-        `https://graph.instagram.com/v25.0/me?fields=user_id,username,name,account_type,profile_picture_url,followers_count,media_count&access_token=${finalToken}`
+        `https://graph.instagram.com/v25.0/me?fields=user_id,username,name,account_type,profile_picture_url,followers_count,follows_count,media_count&access_token=${finalToken}`
       );
       const raw = await res.json();
       console.log("Profile /me response:", JSON.stringify(raw));
@@ -132,6 +133,7 @@ serve(async (req) => {
         profilePictureUrl = p.profile_picture_url || null;
         accountType = p.account_type || null;
         followersCount = p.followers_count || 0;
+        followsCount = p.follows_count || 0;
         mediaCount = p.media_count || 0;
       } else {
         errors.push(`/me full: ${JSON.stringify(raw?.error || raw)}`);
@@ -144,7 +146,7 @@ serve(async (req) => {
     if (!username && igUserId) {
       try {
         const res = await fetch(
-          `https://graph.instagram.com/v25.0/${igUserId}?fields=username,name,profile_picture_url,account_type,followers_count,media_count&access_token=${finalToken}`
+          `https://graph.instagram.com/v25.0/${igUserId}?fields=username,name,profile_picture_url,account_type,followers_count,follows_count,media_count&access_token=${finalToken}`
         );
         const raw = await res.json();
         console.log("Profile /{id} response:", JSON.stringify(raw));
@@ -155,6 +157,7 @@ serve(async (req) => {
           profilePictureUrl = p.profile_picture_url || profilePictureUrl;
           accountType = p.account_type || accountType;
           followersCount = p.followers_count || followersCount;
+          followsCount = p.follows_count || followsCount;
           mediaCount = p.media_count || mediaCount;
         } else {
           errors.push(`/${igUserId}: ${JSON.stringify(raw?.error || raw)}`);
@@ -210,6 +213,7 @@ serve(async (req) => {
         name: name || username,
         profile_picture_url: profilePictureUrl || null,
         followers_count: followersCount,
+        follows_count: followsCount,
         media_count: mediaCount,
         expires_in: expiresIn,
       },
