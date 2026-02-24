@@ -118,7 +118,7 @@ const IGLoginPopup = () => {
       // Otherwise, redirect THIS popup to Facebook OAuth to get page token
       setPhase("fb_redirect");
       setTimeout(() => {
-        const fbRedirectUri = `${window.location.origin}/fb-login`;
+        const fbRedirectUri = "https://uplyze.ai/fb-login";
         const fbScopes = "pages_show_list,pages_read_engagement,pages_manage_metadata,pages_messaging,instagram_basic,instagram_manage_messages,public_profile";
         const fbAuthUrl = `https://www.facebook.com/v24.0/dialog/oauth?client_id=${INSTAGRAM_APP_ID}&redirect_uri=${encodeURIComponent(fbRedirectUri)}&scope=${fbScopes}&response_type=code`;
         window.location.href = fbAuthUrl;
