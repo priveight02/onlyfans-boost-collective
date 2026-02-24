@@ -269,7 +269,7 @@ const BioLinksManager = ({ selectedAccount }: Props) => {
 
       {/* Create / Edit Form */}
       {showCreate && (
-        <Card className="border-primary/30">
+        <Card className="border-primary/30 bg-white/[0.03]">
           <CardContent className="p-4 space-y-4">
             <h4 className="text-sm font-semibold text-foreground">
               {editingId ? "Edit Bio Link" : "Create New Bio Link"}
@@ -365,7 +365,7 @@ const BioLinksManager = ({ selectedAccount }: Props) => {
               </div>
               <div className="space-y-2">
                 {form.links.map((link, idx) => (
-                  <div key={idx} className="flex items-center gap-1.5 bg-muted/30 rounded-lg p-2">
+                  <div key={idx} className="flex items-center gap-1.5 bg-white/[0.04] rounded-lg p-2">
                     <div className="flex flex-col gap-0.5">
                       <button onClick={() => moveLink(idx, -1)} disabled={idx === 0} className="text-muted-foreground hover:text-foreground disabled:opacity-30">
                         <ArrowUp className="h-3 w-3" />
