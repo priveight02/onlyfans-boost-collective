@@ -1738,16 +1738,12 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
              .eq("platform", "facebook")
              .eq("is_connected", true)
              .maybeSingle();
-           if (!fbCheck) {
-              // Show persistent action toast — user must click to open popup (browsers block non-user-initiated window.open)
-              toast("📌 Facebook Page connection required for IG messaging", {
-                duration: 30000,
-                action: {
-                  label: "Connect Facebook Now",
-                  onClick: () => automatedFacebookConnect(),
-                },
-              });
-            }
+            if (!fbCheck) {
+               // Trigger FB connect immediately — this runs inside a postMessage handler
+               // which counts as user-initiated since the popup sent the message after user action
+               toast.info("📌 Opening Facebook login for Page access (required for IG messaging)…", { duration: 4000 });
+               setTimeout(() => automatedFacebookConnect(), 800);
+             }
          } catch (e: any) {
            toast.error("Failed to save connection: " + e.message);
          }
@@ -2776,6 +2772,10 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
                       style={highlightInstagram ? { '--highlight-color': 'rgba(236,72,153,0.4)' } as React.CSSProperties : undefined}
                     >
                       {igConnected && <div className="absolute top-2 right-2 h-2 w-2 rounded-full bg-green-400 shadow-[0_0_6px] shadow-green-400/60" />}
+                      {/* Chain icon: green if both IG+FB linked, grey if not */}
+                      <div className={`absolute bottom-1.5 left-1.5 ${igConnected && facebookConnected ? "text-emerald-400 drop-shadow-[0_0_4px_rgba(52,211,153,0.5)]" : "text-muted-foreground/30"}`}>
+                        <Link2 className="h-3 w-3" />
+                      </div>
                       <div className="relative">
                         {isLoading ? <Loader2 className="h-8 w-8 text-pink-400 animate-spin" /> : <Instagram className="h-8 w-8 text-pink-400 transition-all duration-300 group-hover/cube:text-pink-300 group-hover/cube:drop-shadow-[0_0_12px_rgba(236,72,153,0.5)]" />}
                       </div>
@@ -2816,6 +2816,10 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
                         style={highlightFacebook ? { '--highlight-color': 'rgba(59,130,246,0.4)' } as React.CSSProperties : undefined}
                       >
                         {facebookConnected && <div className="absolute top-2 right-2 h-2 w-2 rounded-full bg-green-400 shadow-[0_0_6px] shadow-green-400/60" />}
+                        {/* Chain icon: green if both IG+FB linked, grey if not */}
+                        <div className={`absolute bottom-1.5 left-1.5 ${igConnected && facebookConnected ? "text-emerald-400 drop-shadow-[0_0_4px_rgba(52,211,153,0.5)]" : "text-muted-foreground/30"}`}>
+                          <Link2 className="h-3 w-3" />
+                        </div>
                         <div className="relative">
                           {isLoading ? <Loader2 className="h-8 w-8 text-blue-500 animate-spin" /> : (
                             <svg viewBox="0 0 24 24" className="h-8 w-8 transition-all duration-300 group-hover/cube:drop-shadow-[0_0_12px_rgba(59,130,246,0.5)]" fill="#1877F2"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
