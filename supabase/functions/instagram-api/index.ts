@@ -1600,33 +1600,80 @@ Analyze every character in the name and username for any gender signal at all. L
 
       case "get_conversation_messages": {
         if (!params?.conversation_id) throw new Error("conversation_id required");
-        const msgLimit = params?.limit || 20;
-        const msgFields = `messages.limit(${msgLimit}){id,message,from,to,created_time,attachments,shares,story,sticker}`;
+        const msgLimit = params?.limit || 50;
+        const msgEdgeFields = `id,message,from,to,created_time,attachments,shares,story,sticker`;
         
-        // Check for stored FB page token — conversations fetched via FB page need page token to read messages
-        const connMetaMsg = (conn.metadata as any) || {};
-        const storedPageTokenMsg = connMetaMsg.fb_page_token;
-        
-        // Try multiple approaches: stored page token (FB Graph), then IG token (IG Graph), then IG token (FB Graph)
         let msgResult: any = null;
-        const msgEndpoints = [];
-        if (storedPageTokenMsg) {
-          msgEndpoints.push({ tkn: storedPageTokenMsg, useFb: true, label: "Stored FB page token" });
-        }
-        msgEndpoints.push({ tkn: token, useFb: false, label: "IG token (IG Graph)" });
-        msgEndpoints.push({ tkn: token, useFb: true, label: "IG token (FB Graph)" });
         
-        for (const ep of msgEndpoints) {
+        // Build list of fetch attempts: try /messages edge, then ?fields=messages{}, on both IG and FB graph
+        const msgUrls: { url: string; label: string }[] = [];
+        
+        // Try stored/discovered page token first
+        const connMetaMsg = (conn.metadata as any) || {};
+        const storedPT = connMetaMsg.fb_page_token;
+        let discoveredPT: string | null = null;
+        try {
+          const pi = await getPageId(token, igUserId);
+          if (pi) { discoveredPT = pi.pageToken; console.log(`Discovered page for msgs: ${pi.pageId}`); }
+        } catch {}
+        
+        if (discoveredPT) {
+          msgUrls.push({ url: `${FB_GRAPH_URL}/${params.conversation_id}/messages?fields=${msgEdgeFields}&limit=${msgLimit}&access_token=${discoveredPT}`, label: "Discovered PT /messages" });
+          msgUrls.push({ url: `${FB_GRAPH_URL}/${params.conversation_id}?fields=messages.limit(${msgLimit}){${msgEdgeFields}}&access_token=${discoveredPT}`, label: "Discovered PT ?fields" });
+        }
+        if (storedPT && storedPT !== discoveredPT) {
+          msgUrls.push({ url: `${FB_GRAPH_URL}/${params.conversation_id}/messages?fields=${msgEdgeFields}&limit=${msgLimit}&access_token=${storedPT}`, label: "Stored PT /messages" });
+        }
+        // IG Graph endpoints
+        msgUrls.push({ url: `${IG_GRAPH_URL}/${params.conversation_id}/messages?fields=${msgEdgeFields}&limit=${msgLimit}&access_token=${token}`, label: "IG /messages edge" });
+        msgUrls.push({ url: `${IG_GRAPH_URL}/${params.conversation_id}?fields=messages.limit(${msgLimit}){${msgEdgeFields}}&access_token=${token}`, label: "IG ?fields" });
+        // FB Graph with IG token
+        msgUrls.push({ url: `${FB_GRAPH_URL}/${params.conversation_id}/messages?fields=${msgEdgeFields}&limit=${msgLimit}&access_token=${token}`, label: "FB /messages IG token" });
+        msgUrls.push({ url: `${FB_GRAPH_URL}/${params.conversation_id}?fields=messages.limit(${msgLimit}){${msgEdgeFields}}&access_token=${token}`, label: "FB ?fields IG token" });
+        
+        for (const ep of msgUrls) {
           try {
             console.log(`get_conversation_messages trying: ${ep.label}`);
-            msgResult = await igFetch(`/${params.conversation_id}?fields=${msgFields}`, ep.tkn, "GET", undefined, ep.useFb);
-            if (msgResult && !msgResult.error) {
-              console.log(`✓ Messages loaded via ${ep.label}`);
+            const resp = await fetch(ep.url);
+            const json = await resp.json();
+            if (json?.error) { console.log(`${ep.label} failed: ${json.error.message}`); continue; }
+            if (json?.data && Array.isArray(json.data) && json.data.length > 0) {
+              msgResult = { messages: { data: json.data } };
+              console.log(`✓ ${ep.label}: ${json.data.length} msgs`);
               break;
             }
-          } catch (convErr: any) {
-            console.log(`get_conversation_messages ${ep.label} failed: ${convErr.message}`);
-            msgResult = null;
+            if (json?.messages?.data && json.messages.data.length > 0) {
+              msgResult = json;
+              console.log(`✓ ${ep.label}: ${json.messages.data.length} msgs`);
+              break;
+            }
+            // Empty but valid response - keep trying
+            console.log(`${ep.label}: valid but 0 messages`);
+          } catch (e: any) { console.log(`${ep.label} error: ${e.message}`); }
+        }
+        
+        // Fallback: re-fetch all conversations with messages included and find the matching one
+        if (!msgResult) {
+          console.log("Direct fetches failed. Re-fetching conversations with messages...");
+          const richF = `id,messages.limit(${msgLimit}){${msgEdgeFields}}`;
+          const fallbackUrls = [
+            `${IG_GRAPH_URL}/me/conversations?platform=instagram&limit=50&fields=${richF}&access_token=${token}`,
+            `${IG_GRAPH_URL}/${igUserId}/conversations?platform=instagram&limit=50&fields=${richF}&access_token=${token}`,
+          ];
+          for (const fbUrl of fallbackUrls) {
+            try {
+              const resp = await fetch(fbUrl);
+              const json = await resp.json();
+              if (json?.error) { console.log(`Fallback error: ${json.error.message}`); continue; }
+              if (json?.data) {
+                const match = json.data.find((c: any) => c.id === params.conversation_id);
+                if (match?.messages?.data) {
+                  msgResult = { messages: match.messages };
+                  console.log(`✓ Fallback found: ${match.messages.data.length} msgs`);
+                  break;
+                }
+              }
+            } catch (e: any) { console.log(`Fallback fetch error: ${e.message}`); }
           }
         }
         
