@@ -358,8 +358,16 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
       .eq("conversation_id", convoId)
       .order("created_at", { ascending: false })
       .limit(50);
-    // Reverse to chronological order
-    const msgs = ((data || []) as Message[]).reverse();
+    // Reverse to chronological order + deduplicate by platform_message_id
+    const raw = ((data || []) as Message[]).reverse();
+    const seen = new Set<string>();
+    const msgs = raw.filter(m => {
+      if (m.platform_message_id) {
+        if (seen.has(m.platform_message_id)) return false;
+        seen.add(m.platform_message_id);
+      }
+      return true;
+    });
     messageCacheRef.current.set(convoId, msgs);
     setCache(accountId, cacheNs, msgs, undefined, 10000);
     return msgs;
@@ -999,10 +1007,15 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "ai_dm_messages", filter: `conversation_id=eq.${selectedConvo}` }, (payload) => {
         const newMsg = payload.new as Message;
         setMessages(prev => {
-          // Skip if already exists (optimistic insert)
+          // Skip if already exists by id
           if (prev.find(m => m.id === newMsg.id)) return prev;
-          // Skip if we have a temp version
-          if (prev.find(m => m.id.startsWith("temp-") && m.content === newMsg.content)) return prev;
+          // Skip if duplicate by platform_message_id
+          if (newMsg.platform_message_id && prev.find(m => m.platform_message_id === newMsg.platform_message_id)) return prev;
+          // Skip if we have a temp version with same content
+          if (prev.find(m => m.id.startsWith("temp-") && m.content === newMsg.content && m.sender_type === newMsg.sender_type)) {
+            // Replace temp with real
+            return prev.map(m => (m.id.startsWith("temp-") && m.content === newMsg.content && m.sender_type === newMsg.sender_type) ? newMsg : m);
+          }
           return [...prev, newMsg];
         });
         // Update both memory + persistent cache
