@@ -2125,18 +2125,18 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
   };
 
   return (
-    <div className="dark space-y-4 text-[13px]" style={{ '--foreground': '215 25% 82%', '--muted-foreground': '215 18% 56%', '--muted': '220 50% 16%', '--background': '220 100% 10%', '--border': '220 40% 20%', '--card': '220 80% 12%', '--card-foreground': '215 25% 82%', '--popover': '220 80% 12%', '--popover-foreground': '215 25% 82%', '--input': '220 40% 20%', '--secondary': '220 60% 18%', '--secondary-foreground': '215 25% 82%', '--accent-foreground': '215 25% 82%', color: 'hsl(215, 25%, 82%)', fontSize: '13px' } as React.CSSProperties}>
+    <div className="dark space-y-5 text-[13px]" style={{ color: 'hsl(215, 25%, 82%)', fontSize: '13px' } as React.CSSProperties}>
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <div className="flex items-center gap-3">
-            <h2 className="text-lg font-bold text-foreground">Social Media</h2>
+            <h2 className="text-xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent leading-[1.3]">Social Media</h2>
             <CreditCostBadge cost="0–10" variant="header" label="per action" />
           </div>
-          <p className="text-xs text-muted-foreground">AI Auto-DM · Multi-Platform · Full API</p>
+          <p className="text-xs text-muted-foreground mt-0.5">AI Auto-DM · Multi-Platform · Full API</p>
         </div>
         <div className="flex items-center gap-2">
-          {apiLoading && <Badge variant="outline" className="text-yellow-400 border-yellow-400/30 animate-pulse"><RefreshCw className="h-3 w-3 mr-1 animate-spin" />API</Badge>}
+          {apiLoading && <Badge variant="outline" className="text-yellow-400 border-yellow-400/30 animate-pulse backdrop-blur-sm"><RefreshCw className="h-3 w-3 mr-1 animate-spin" />API</Badge>}
         </div>
       </div>
 
@@ -2186,13 +2186,13 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
       </div>
 
       {/* Platform Tabs */}
-      <div className="flex gap-1 flex-wrap mb-3">
+      <div className="flex gap-1.5 flex-wrap mb-4">
         {[
-          { v: "instagram", icon: Instagram, l: "Instagram Automation", activeClasses: "bg-gradient-to-r from-pink-500/20 to-purple-500/20 text-foreground border-pink-500/30 shadow-[0_0_12px_-3px] shadow-pink-500/20", requiresConnection: true, connected: igConnected },
-          { v: "tiktok", icon: Music2, l: "TikTok Automation", activeClasses: "bg-gradient-to-r from-cyan-500/20 to-teal-500/20 text-foreground border-cyan-500/30 shadow-[0_0_12px_-3px] shadow-cyan-500/20", requiresConnection: true, connected: ttConnected },
-          { v: "threads", icon: AtSign, l: "Threads Automation", activeClasses: "bg-gradient-to-r from-purple-500/20 to-violet-500/20 text-foreground border-purple-500/30 shadow-[0_0_12px_-3px] shadow-purple-500/20", requiresConnection: true, connected: threadsConnected },
-          { v: "facebook", icon: Globe, l: "Facebook Automation", activeClasses: "bg-gradient-to-r from-blue-500/20 to-indigo-500/20 text-foreground border-blue-500/30 shadow-[0_0_12px_-3px] shadow-blue-500/20", requiresConnection: true, connected: facebookConnected },
-          { v: "connect", icon: Plus, l: "Connect", activeClasses: "bg-muted text-foreground border-border", requiresConnection: false, connected: true },
+          { v: "instagram", icon: Instagram, l: "Instagram Automation", activeClasses: "bg-gradient-to-r from-pink-500/15 to-purple-500/15 text-foreground border-pink-500/25 shadow-[0_0_15px_-4px] shadow-pink-500/20 backdrop-blur-sm", requiresConnection: true, connected: igConnected },
+          { v: "tiktok", icon: Music2, l: "TikTok Automation", activeClasses: "bg-gradient-to-r from-cyan-500/15 to-teal-500/15 text-foreground border-cyan-500/25 shadow-[0_0_15px_-4px] shadow-cyan-500/20 backdrop-blur-sm", requiresConnection: true, connected: ttConnected },
+          { v: "threads", icon: AtSign, l: "Threads Automation", activeClasses: "bg-gradient-to-r from-purple-500/15 to-violet-500/15 text-foreground border-purple-500/25 shadow-[0_0_15px_-4px] shadow-purple-500/20 backdrop-blur-sm", requiresConnection: true, connected: threadsConnected },
+          { v: "facebook", icon: Globe, l: "Facebook Automation", activeClasses: "bg-gradient-to-r from-blue-500/15 to-indigo-500/15 text-foreground border-blue-500/25 shadow-[0_0_15px_-4px] shadow-blue-500/20 backdrop-blur-sm", requiresConnection: true, connected: facebookConnected },
+          { v: "connect", icon: Plus, l: "Connect", activeClasses: "bg-white/[0.06] text-foreground border-white/[0.12] backdrop-blur-sm", requiresConnection: false, connected: true },
         ].map(t => (
           <button
             key={t.v}
@@ -2203,10 +2203,10 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
               }
               setPlatformTab(t.v);
             }}
-            className={`flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg border font-semibold transition-all ${
+            className={`flex items-center gap-1.5 text-xs px-3.5 py-2 rounded-xl border font-semibold transition-all duration-200 ${
               platformTab === t.v
                 ? t.activeClasses
-                : "text-muted-foreground border-transparent hover:bg-muted/30 hover:text-foreground"
+                : "text-muted-foreground border-transparent hover:bg-white/[0.04] hover:text-foreground hover:border-white/[0.06]"
             }`}
           >
             <t.icon className="h-3.5 w-3.5" /> {t.l}
@@ -2222,7 +2222,7 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
         <FBAutomationSuite selectedAccount={selectedAccount} onNavigateToConnect={() => navigateToPlatformConnect("facebook")} subTab={activeSubTab} onSubTabChange={onSubTabChange} />
       ) : platformTab !== "connect" ? (
       <Tabs value={activeSubTab} onValueChange={setActiveSubTab}>
-        <TabsList className="bg-muted/50 border border-border p-0.5 rounded-lg gap-0.5 flex flex-wrap w-full">
+        <TabsList className="bg-white/[0.03] border border-white/[0.06] p-1 rounded-xl gap-0.5 flex flex-wrap w-full backdrop-blur-sm">
             {[
               { v: "dashboard", icon: LayoutDashboard, l: "Dashboard" },
               { v: "ai-auto", icon: Brain, l: "Auto-DM" },
@@ -2237,7 +2237,7 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
               { v: "automation", icon: Zap, l: "Automation" },
               { v: "social-networks", icon: Globe, l: "Networks" },
             ].map(t => (
-              <TabsTrigger key={t.v} value={t.v} className="data-[state=active]:bg-background data-[state=active]:text-foreground text-muted-foreground rounded-md gap-1 text-xs px-2 py-1.5 whitespace-nowrap">
+              <TabsTrigger key={t.v} value={t.v} className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-[0_0_10px_-3px] data-[state=active]:shadow-primary/20 text-muted-foreground rounded-lg gap-1.5 text-xs px-2.5 py-1.5 whitespace-nowrap font-medium transition-all duration-200 hover:text-foreground/80">
                 <t.icon className="h-3.5 w-3.5" />{t.l}
               </TabsTrigger>
             ))}
@@ -2246,15 +2246,15 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
         {/* ===== DASHBOARD ===== */}
         <TabsContent value="dashboard" className="space-y-4 mt-4">
           <div className="flex gap-2 flex-wrap">
-            <Button size="sm" variant="outline" onClick={fetchProfiles} className="text-foreground"><RefreshCw className="h-3.5 w-3.5 mr-1" />Sync Profiles</Button>
-            <Button size="sm" variant="outline" onClick={fetchMedia} className="text-foreground"><Download className="h-3.5 w-3.5 mr-1" />Pull Media</Button>
+            <Button size="sm" variant="outline" onClick={fetchProfiles} className="text-foreground border-white/[0.08] hover:bg-white/[0.06] hover:border-white/[0.12]"><RefreshCw className="h-3.5 w-3.5 mr-1" />Sync Profiles</Button>
+            <Button size="sm" variant="outline" onClick={fetchMedia} className="text-foreground border-white/[0.08] hover:bg-white/[0.06] hover:border-white/[0.12]"><Download className="h-3.5 w-3.5 mr-1" />Pull Media</Button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {igProfile && (
-              <Card className="border-pink-500/20">
+              <Card className="border-pink-500/15 bg-white/[0.03] backdrop-blur-sm shadow-[0_0_20px_-8px] shadow-pink-500/10">
                 <CardContent className="p-4">
                   <div className="flex items-center gap-3 mb-3">
-                    {igProfile.profile_picture_url && <img src={igProfile.profile_picture_url} className="h-10 w-10 rounded-full" />}
+                    {igProfile.profile_picture_url && <img src={igProfile.profile_picture_url} className="h-11 w-11 rounded-full ring-2 ring-pink-500/20" />}
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-foreground truncate">{igProfile.name || igProfile.username}</p>
                       <p className="text-xs text-muted-foreground">@{igProfile.username}</p>
@@ -2269,18 +2269,18 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
                     </div>
                   )}
                   <div className="grid grid-cols-3 gap-2 text-center">
-                    <div className="bg-muted/50 rounded p-2"><p className="text-sm font-bold text-foreground">{(igProfile.followers_count || 0).toLocaleString()}</p><p className="text-[10px] text-muted-foreground">Followers</p></div>
-                    <div className="bg-muted/50 rounded p-2"><p className="text-sm font-bold text-foreground">{(igProfile.follows_count || 0).toLocaleString()}</p><p className="text-[10px] text-muted-foreground">Following</p></div>
-                    <div className="bg-muted/50 rounded p-2"><p className="text-sm font-bold text-foreground">{(igProfile.media_count || 0).toLocaleString()}</p><p className="text-[10px] text-muted-foreground">Posts</p></div>
+                    <div className="bg-white/[0.04] rounded-lg p-2.5 border border-white/[0.06]"><p className="text-sm font-bold text-foreground">{(igProfile.followers_count || 0).toLocaleString()}</p><p className="text-[10px] text-muted-foreground">Followers</p></div>
+                    <div className="bg-white/[0.04] rounded-lg p-2.5 border border-white/[0.06]"><p className="text-sm font-bold text-foreground">{(igProfile.follows_count || 0).toLocaleString()}</p><p className="text-[10px] text-muted-foreground">Following</p></div>
+                    <div className="bg-white/[0.04] rounded-lg p-2.5 border border-white/[0.06]"><p className="text-sm font-bold text-foreground">{(igProfile.media_count || 0).toLocaleString()}</p><p className="text-[10px] text-muted-foreground">Posts</p></div>
                   </div>
                 </CardContent>
               </Card>
             )}
             {ttProfile && (
-              <Card className="border-cyan-500/20">
+              <Card className="border-cyan-500/15 bg-white/[0.03] backdrop-blur-sm shadow-[0_0_20px_-8px] shadow-cyan-500/10">
                 <CardContent className="p-4">
                   <div className="flex items-center gap-3 mb-3">
-                    {ttProfile.avatar_url && <img src={ttProfile.avatar_url} className="h-10 w-10 rounded-full" />}
+                    {ttProfile.avatar_url && <img src={ttProfile.avatar_url} className="h-11 w-11 rounded-full ring-2 ring-cyan-500/20" />}
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-foreground truncate">{ttProfile.display_name}</p>
                       <p className="text-xs text-muted-foreground">@{ttProfile.username || "tiktok"}</p>
@@ -2288,20 +2288,20 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
                     <Music2 className="h-4 w-4 text-cyan-400" />
                   </div>
                   <div className="grid grid-cols-4 gap-1.5 text-center">
-                    <div className="bg-muted/50 rounded p-1.5"><p className="text-sm font-bold text-foreground">{(ttProfile.follower_count || 0).toLocaleString()}</p><p className="text-[10px] text-muted-foreground">Followers</p></div>
-                    <div className="bg-muted/50 rounded p-1.5"><p className="text-sm font-bold text-foreground">{(ttProfile.following_count || 0).toLocaleString()}</p><p className="text-[10px] text-muted-foreground">Following</p></div>
-                    <div className="bg-muted/50 rounded p-1.5"><p className="text-sm font-bold text-foreground">{(ttProfile.likes_count || 0).toLocaleString()}</p><p className="text-[10px] text-muted-foreground">Likes</p></div>
-                    <div className="bg-muted/50 rounded p-1.5"><p className="text-sm font-bold text-foreground">{(ttProfile.video_count || 0).toLocaleString()}</p><p className="text-[10px] text-muted-foreground">Videos</p></div>
+                    <div className="bg-white/[0.04] rounded-lg p-2 border border-white/[0.06]"><p className="text-sm font-bold text-foreground">{(ttProfile.follower_count || 0).toLocaleString()}</p><p className="text-[10px] text-muted-foreground">Followers</p></div>
+                    <div className="bg-white/[0.04] rounded-lg p-2 border border-white/[0.06]"><p className="text-sm font-bold text-foreground">{(ttProfile.following_count || 0).toLocaleString()}</p><p className="text-[10px] text-muted-foreground">Following</p></div>
+                    <div className="bg-white/[0.04] rounded-lg p-2 border border-white/[0.06]"><p className="text-sm font-bold text-foreground">{(ttProfile.likes_count || 0).toLocaleString()}</p><p className="text-[10px] text-muted-foreground">Likes</p></div>
+                    <div className="bg-white/[0.04] rounded-lg p-2 border border-white/[0.06]"><p className="text-sm font-bold text-foreground">{(ttProfile.video_count || 0).toLocaleString()}</p><p className="text-[10px] text-muted-foreground">Videos</p></div>
                   </div>
                 </CardContent>
               </Card>
             )}
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-            <Card><CardContent className="p-3 text-center"><p className="text-xl font-bold text-foreground">{posts.filter(p => p.status === "published").length}</p><p className="text-[10px] text-muted-foreground">Published</p></CardContent></Card>
-            <Card><CardContent className="p-3 text-center"><p className="text-xl font-bold text-foreground">{posts.filter(p => p.status === "scheduled").length}</p><p className="text-[10px] text-muted-foreground">Scheduled</p></CardContent></Card>
-            <Card><CardContent className="p-3 text-center"><p className="text-xl font-bold text-foreground">{bioLinks.length}</p><p className="text-[10px] text-muted-foreground">Bio Links</p></CardContent></Card>
-            <Card><CardContent className="p-3 text-center"><p className="text-xl font-bold text-foreground">{commentReplies.length}</p><p className="text-[10px] text-muted-foreground">Replies</p></CardContent></Card>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <Card className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm"><CardContent className="p-3.5 text-center"><p className="text-xl font-bold text-foreground">{posts.filter(p => p.status === "published").length}</p><p className="text-[10px] text-muted-foreground mt-0.5">Published</p></CardContent></Card>
+            <Card className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm"><CardContent className="p-3.5 text-center"><p className="text-xl font-bold text-foreground">{posts.filter(p => p.status === "scheduled").length}</p><p className="text-[10px] text-muted-foreground mt-0.5">Scheduled</p></CardContent></Card>
+            <Card className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm"><CardContent className="p-3.5 text-center"><p className="text-xl font-bold text-foreground">{bioLinks.length}</p><p className="text-[10px] text-muted-foreground mt-0.5">Bio Links</p></CardContent></Card>
+            <Card className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm"><CardContent className="p-3.5 text-center"><p className="text-xl font-bold text-foreground">{commentReplies.length}</p><p className="text-[10px] text-muted-foreground mt-0.5">Replies</p></CardContent></Card>
           </div>
         </TabsContent>
 
