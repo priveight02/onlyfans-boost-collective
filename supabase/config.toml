@@ -157,3 +157,6 @@ verify_jwt = false
 
 [functions.tiktok-webhook]
 verify_jwt = false
+
+[functions.create-user-admin]
+verify_jwt = false
