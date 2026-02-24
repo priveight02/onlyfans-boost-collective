@@ -1350,54 +1350,55 @@ Analyze every character in the name and username for any gender signal at all. L
         if (!isIgToken) { pageInfo2 = await getPageId(token, realUserId); }
         console.log(`get_all: tokenType=${isIgToken ? "IG" : "FB"}, userId=${realUserId}, pageAvailable=${!!pageInfo2}`);
         
-        const fetchFolder = async (folderName: string): Promise<any[]> => {
-          const bases: { base: string; tkn: string; label: string }[] = [];
-          
-          // IG Graph endpoints first with simple fields (most compatible)
-          bases.push({ base: `${IG_GRAPH_URL}/me`, tkn: token, label: `IG /me` });
-          bases.push({ base: `${IG_GRAPH_URL}/${realUserId}`, tkn: token, label: `IG /${realUserId}` });
-          
-          // FB Graph only for non-IG tokens
-          if (!isIgToken) {
-            bases.push({ base: `${FB_GRAPH_URL}/${realUserId}`, tkn: token, label: `FB user` });
+        let primary: any[] = [];
+        let general: any[] = [];
+        let requests: any[] = [];
+        let total = 0;
+        
+        // For IG OAuth tokens, folder param doesn't work — use get_conversations-style direct fetch
+        if (isIgToken) {
+          console.log("IG token detected — using direct /me/conversations (no folder param)");
+          // Use exact same approach as get_conversations which works
+          const url = `${IG_GRAPH_URL}/me/conversations?platform=instagram&limit=${allLimit}&fields=${simpleFields}&access_token=${token}`;
+          console.log("Fetching /me/conversations simple...");
+          primary = await fetchWithPagination(url);
+          total = primary.length;
+          console.log(`Direct fetch result: ${total} conversations`);
+          if (total === 0) {
+            console.log("0 conversations. Check: 1) instagram_manage_messages at Advanced Access 2) App in Live mode 3) Account has DM history");
+          }
+        } else {
+          // FB/system tokens — use folder-based queries
+          const fetchFolder = async (folderName: string): Promise<any[]> => {
+            const bases: { base: string; tkn: string; label: string }[] = [
+              { base: `${IG_GRAPH_URL}/me`, tkn: token, label: `IG /me` },
+              { base: `${IG_GRAPH_URL}/${realUserId}`, tkn: token, label: `IG /${realUserId}` },
+              { base: `${FB_GRAPH_URL}/${realUserId}`, tkn: token, label: `FB user` },
+            ];
             if (pageInfo2) {
               bases.push({ base: `${FB_GRAPH_URL}/${pageInfo2.pageId}`, tkn: pageInfo2.pageToken, label: `FB page` });
             }
-          }
-          
-          for (const { base, tkn, label } of bases) {
-            // Try simple fields first (more likely to succeed)
-            console.log(`${folderName}: trying ${label} simple`);
-            let simpleUrl = `${base}/conversations?platform=instagram&limit=${allLimit}&fields=${simpleFields}&access_token=${tkn}&folder=${folderName}`;
-            let convos = await fetchWithPagination(simpleUrl);
-            if (convos.length > 0) {
-              console.log(`✓ ${folderName} ${label} simple: ${convos.length}`);
-              // Now try to get rich data
-              let richUrl = `${base}/conversations?platform=instagram&limit=${allLimit}&fields=${richFields}&access_token=${tkn}&folder=${folderName}`;
-              const richConvos = await fetchWithPagination(richUrl);
-              return richConvos.length > 0 ? richConvos : convos;
+            for (const { base, tkn, label } of bases) {
+              console.log(`${folderName}: trying ${label} simple`);
+              let simpleUrl = `${base}/conversations?platform=instagram&limit=${allLimit}&fields=${simpleFields}&access_token=${tkn}&folder=${folderName}`;
+              let convos = await fetchWithPagination(simpleUrl);
+              if (convos.length > 0) {
+                console.log(`✓ ${folderName} ${label} simple: ${convos.length}`);
+                let richUrl = `${base}/conversations?platform=instagram&limit=${allLimit}&fields=${richFields}&access_token=${tkn}&folder=${folderName}`;
+                const richConvos = await fetchWithPagination(richUrl);
+                return richConvos.length > 0 ? richConvos : convos;
+              }
             }
-            
-            // Try rich fields directly
-            console.log(`${folderName}: trying ${label} rich`);
-            let url = `${base}/conversations?platform=instagram&limit=${allLimit}&fields=${richFields}&access_token=${tkn}&folder=${folderName}`;
-            convos = await fetchWithPagination(url);
-            if (convos.length > 0) { console.log(`✓ ${folderName} ${label} rich: ${convos.length}`); return convos; }
-          }
-          return [];
-        };
-        
-        const [primary, general, requests] = await Promise.all([
-          fetchFolder("inbox"),
-          fetchFolder("general"),
-          fetchFolder("other"),
-        ]);
-        
-        const total = primary.length + general.length + requests.length;
-        console.log(`Found ${total} conversations total (inbox: ${primary.length}, general: ${general.length}, other: ${requests.length})`);
-        
-        if (total === 0) {
-          console.log("0 conversations across all folders. Check: 1) instagram_manage_messages at Advanced Access 2) App in Live mode 3) Account has DM history");
+            return [];
+          };
+          
+          [primary, general, requests] = await Promise.all([
+            fetchFolder("inbox"),
+            fetchFolder("general"),
+            fetchFolder("other"),
+          ]);
+          total = primary.length + general.length + requests.length;
+          console.log(`Found ${total} conversations total (inbox: ${primary.length}, general: ${general.length}, other: ${requests.length})`);
         }
         
         result = { primary, general, requests, total };
