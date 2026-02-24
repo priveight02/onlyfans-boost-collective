@@ -2295,6 +2295,7 @@ export type Database = {
           tier: string | null
           total_revenue: number | null
           updated_at: string
+          user_id: string | null
           username: string
         }
         Insert: {
@@ -2326,6 +2327,7 @@ export type Database = {
           tier?: string | null
           total_revenue?: number | null
           updated_at?: string
+          user_id?: string | null
           username: string
         }
         Update: {
@@ -2357,6 +2359,7 @@ export type Database = {
           tier?: string | null
           total_revenue?: number | null
           updated_at?: string
+          user_id?: string | null
           username?: string
         }
         Relationships: [
@@ -3411,6 +3414,7 @@ export type Database = {
           scopes: string[] | null
           token_expires_at: string | null
           updated_at: string
+          user_id: string | null
         }
         Insert: {
           access_token?: string | null
@@ -3426,6 +3430,7 @@ export type Database = {
           scopes?: string[] | null
           token_expires_at?: string | null
           updated_at?: string
+          user_id?: string | null
         }
         Update: {
           access_token?: string | null
@@ -3441,6 +3446,7 @@ export type Database = {
           scopes?: string[] | null
           token_expires_at?: string | null
           updated_at?: string
+          user_id?: string | null
         }
         Relationships: [
           {
