@@ -130,7 +130,7 @@ const IGLoginPopup = () => {
       setTimeout(() => {
         const fbRedirectUri = "https://uplyze.ai/fb-login";
         const fbScopes = "pages_show_list,pages_read_engagement,pages_manage_metadata,pages_messaging,instagram_basic,instagram_manage_messages,public_profile";
-        const fbAuthUrl = `https://www.facebook.com/v24.0/dialog/oauth?client_id=${fbClientId}&redirect_uri=${encodeURIComponent(fbRedirectUri)}&scope=${fbScopes}&response_type=code`;
+        const fbAuthUrl = `https://www.facebook.com/v24.0/dialog/oauth?client_id=${fbClientId}&redirect_uri=${encodeURIComponent(fbRedirectUri)}&scope=${fbScopes}&response_type=code&state=ig_page_link`;
         window.location.href = fbAuthUrl;
       }, 1500);
     } catch (err: any) {

@@ -12,6 +12,7 @@ const FacebookLoginPopup = () => {
     const params = new URLSearchParams(window.location.search);
     const code = params.get("code");
     const errorParam = params.get("error");
+    const state = params.get("state");
 
     if (errorParam) {
       setError(params.get("error_description") || "Facebook login was denied.");
@@ -19,11 +20,11 @@ const FacebookLoginPopup = () => {
     }
 
     if (code) {
-      handleCode(code);
+      handleCode(code, state || undefined);
     }
   }, []);
 
-  const handleCode = async (code: string) => {
+  const handleCode = async (code: string, state?: string) => {
     setLoading(true);
     setError("");
     try {
@@ -31,7 +32,7 @@ const FacebookLoginPopup = () => {
       if (window.opener) {
         window.opener.postMessage({
           type: "FB_OAUTH_RESULT",
-          payload: { code, redirect_uri: redirectUri },
+          payload: { code, redirect_uri: redirectUri, source: state || "direct" },
         }, "*");
         setTimeout(() => window.close(), 1500);
       }
