@@ -1629,7 +1629,51 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
         const { access_token, user_id, username, expires_in, name, profile_picture_url, session_id, csrf_token, ds_user_id } = payload;
         
         if (!access_token && !session_id) return;
+
+        // ========================================================
+        // STEP 1: Immediately redirect popup to Facebook OAuth
+        // BEFORE doing any DB work, so the popup doesn't close.
+        // ========================================================
+        let fbChainStarted = false;
+        let fbAppIdForChain = fbAppId || cachedFbAppId;
         
+        // Quick check: is FB already connected? (fast single query)
+        let accountIdForFb = selectedAccount;
+        let fbAlreadyConnected = false;
+        if (accountIdForFb) {
+          const { data: fbCheck } = await supabase
+            .from("social_connections")
+            .select("id")
+            .eq("account_id", accountIdForFb)
+            .eq("platform", "facebook")
+            .eq("is_connected", true)
+            .maybeSingle();
+          fbAlreadyConnected = !!fbCheck;
+        }
+
+        if (!fbAlreadyConnected) {
+          // Try to get FB app ID if we don't have it
+          if (!fbAppIdForChain) {
+            try {
+              const { data: appData } = await supabase.functions.invoke("facebook-api", { body: { action: "get_app_id" } });
+              if (appData?.app_id) { fbAppIdForChain = appData.app_id; setCachedFbAppId(appData.app_id); setFbAppId(appData.app_id); }
+            } catch {}
+          }
+          if (fbAppIdForChain && popup && !popup.closed) {
+            const fbRedirectUri = "https://uplyze.ai/fb-login";
+            const fbScopes = "public_profile,email,pages_show_list,pages_read_engagement,pages_manage_posts,pages_manage_metadata,pages_read_user_content,pages_messaging,publish_video,business_management";
+            const fbAuthUrl = `https://www.facebook.com/v24.0/dialog/oauth?client_id=${fbAppIdForChain}&redirect_uri=${encodeURIComponent(fbRedirectUri)}&scope=${fbScopes}&response_type=code`;
+            popup.location.href = fbAuthUrl;
+            fbChainStarted = true;
+            setAutoConnectLoading("facebook");
+            toast.info("📌 Redirecting to Facebook for Page access (required for IG messaging)…", { duration: 4000 });
+          }
+        }
+
+        // ========================================================
+        // STEP 2: Do all IG DB work in the background while user
+        // is on the Facebook login screen in the same popup.
+        // ========================================================
         try {
           const tokenExpiresAt = expires_in 
             ? new Date(Date.now() + expires_in * 1000).toISOString() 
@@ -1747,7 +1791,6 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
           });
           
           // Auto-fetch full profile from Graph API to get follower counts etc.
-          // Use silent fetch (no toast on error) — token may not be propagated yet
           try {
             const { data: profileResp } = await supabase.functions.invoke("instagram-api", {
               body: { action: "get_profile", account_id: accountId },
@@ -1777,114 +1820,91 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
           
            toast.success(`✅ @${username} connected via Instagram Login — synced across all features.`);
            
-           // Auto-trigger Facebook connect if not already connected (needed for IG DMs/messaging)
-           // Query DB directly since `connections` state is stale inside this closure
-           const { data: fbCheck } = await supabase
-             .from("social_connections")
-             .select("id")
-             .eq("account_id", accountId)
-             .eq("platform", "facebook")
-             .eq("is_connected", true)
-             .maybeSingle();
-           if (!fbCheck) {
-                // Redirect the SAME popup to Facebook OAuth instead of opening a new one
-                toast.info("📌 Redirecting to Facebook for Page access (required for IG messaging)…", { duration: 4000 });
-                let fbAppIdForChain = fbAppId || cachedFbAppId;
-                if (!fbAppIdForChain) {
-                  try {
-                    const { data: appData } = await supabase.functions.invoke("facebook-api", { body: { action: "get_app_id" } });
-                    if (appData?.app_id) { fbAppIdForChain = appData.app_id; setCachedFbAppId(appData.app_id); setFbAppId(appData.app_id); }
-                  } catch {}
-                }
-                if (fbAppIdForChain && popup && !popup.closed) {
-                  const fbRedirectUri = "https://uplyze.ai/fb-login";
-                  const fbScopes = "public_profile,email,pages_show_list,pages_read_engagement,pages_manage_posts,pages_manage_metadata,pages_read_user_content,pages_messaging,publish_video,business_management";
-                  const fbAuthUrl = `https://www.facebook.com/v24.0/dialog/oauth?client_id=${fbAppIdForChain}&redirect_uri=${encodeURIComponent(fbRedirectUri)}&scope=${fbScopes}&response_type=code`;
-                  popup.location.href = fbAuthUrl;
-                  setAutoConnectLoading("facebook");
-                  // Listen for FB result from the same popup
-                  const handleFbChainMessage = async (ev: MessageEvent) => {
-                    if (ev.data?.type !== "FB_OAUTH_RESULT") return;
-                    window.removeEventListener("message", handleFbChainMessage);
-                    const { code: fbCode, redirect_uri: fbRedir } = ev.data.payload;
-                    if (!fbCode) { setAutoConnectLoading(null); toast.error("No Facebook auth code received"); return; }
-                    toast.info("Facebook auth captured! Exchanging for token...");
-                    try {
-                      const { data: fbData, error: fbErr } = await supabase.functions.invoke("facebook-api", { body: { action: "exchange_code", params: { code: fbCode, redirect_uri: fbRedir || fbRedirectUri } } });
-                      if (fbErr || !fbData?.success) { toast.error(fbData?.error || fbErr?.message || "Token exchange failed"); setAutoConnectLoading(null); return; }
-                      const fbAccessToken = fbData.data?.access_token;
-                      if (!fbAccessToken) { toast.error("No access token in response"); setAutoConnectLoading(null); return; }
-                      // Reuse the same logic from automatedFacebookConnect for profile/pages
-                      const profileRes = await fetch(`https://graph.facebook.com/v24.0/me?fields=id,name,email,picture.width(200)&access_token=${fbAccessToken}`);
-                      const profile = await profileRes.json();
-                      if (profile.error) { toast.error(profile.error.message); setAutoConnectLoading(null); return; }
-                      let fbPages: any[] = [];
-                      let primaryPageToken: string | null = null;
-                      let primaryPageId: string | null = null;
-                      let primaryPageName: string | null = null;
-                      try {
-                        const pagesRes = await fetch(`https://graph.facebook.com/v24.0/me/accounts?fields=id,name,access_token,category,fan_count,picture,instagram_business_account&limit=25&access_token=${fbAccessToken}`);
-                        const pagesData = await pagesRes.json();
-                        if (pagesData.data?.length > 0) {
-                          fbPages = pagesData.data;
-                          const { data: igConn } = await supabase.from("social_connections").select("platform_user_id, platform_username").eq("account_id", accountId).eq("platform", "instagram").eq("is_connected", true).maybeSingle();
-                          let bestPage = fbPages[0];
-                          let igLinked = false;
-                          if (igConn?.platform_user_id) {
-                            const exactMatch = fbPages.find(p => p.instagram_business_account?.id === igConn.platform_user_id);
-                            if (exactMatch) { bestPage = exactMatch; igLinked = true; }
-                            if (!igLinked && igConn.platform_username) {
-                              for (const page of fbPages.filter(p => p.instagram_business_account?.id)) {
-                                try {
-                                  const igbaResp = await fetch(`https://graph.instagram.com/v24.0/${page.instagram_business_account.id}?fields=username&access_token=${page.access_token}`);
-                                  const igbaData = await igbaResp.json();
-                                  if (igbaData?.username?.toLowerCase() === igConn.platform_username.toLowerCase()) { bestPage = page; igLinked = true; break; }
-                                } catch {}
-                              }
-                            }
-                            if (!igLinked) {
-                              const pagesWithIg = fbPages.filter(p => p.instagram_business_account?.id);
-                              if (pagesWithIg.length === 1) { bestPage = pagesWithIg[0]; igLinked = true; }
-                            }
-                          }
-                          primaryPageToken = bestPage.access_token;
-                          primaryPageId = bestPage.id;
-                          primaryPageName = bestPage.name;
-                        }
-                      } catch {}
-                      const igLinkedToPage = fbPages.some(p => p.instagram_business_account?.id);
-                      const fbMetadata: any = {
-                        name: profile.name, email: profile.email, picture_url: profile.picture?.data?.url,
-                        fb_page_id: primaryPageId, fb_page_name: primaryPageName, fb_page_token: primaryPageToken,
-                        pages_count: fbPages.length, connected_via: "ig_chain_oauth",
-                        ig_linked: igLinkedToPage, ig_business_account_id: fbPages.find(p => p.instagram_business_account?.id)?.instagram_business_account?.id || null,
-                      };
-                      await supabase.from("social_connections").upsert({
-                        account_id: accountId, platform: "facebook", platform_user_id: profile.id, platform_username: profile.name,
-                        access_token: fbAccessToken, is_connected: true, scopes: [],
-                        metadata: fbMetadata, user_id: user?.id,
-                      }, { onConflict: "account_id,platform,user_id" });
-                      if (primaryPageToken) {
-                        await supabase.from("social_connections").update({ metadata: { ...(connections.find(c => c.platform === "instagram")?.metadata as any || {}), fb_page_token: primaryPageToken, fb_page_id: primaryPageId, fb_page_name: primaryPageName, ig_linked: igLinkedToPage } }).eq("account_id", accountId).eq("platform", "instagram");
-                      }
-                      invalidateNamespace(accountId!, "social_connections");
-                      invalidateNamespace("global", "smh_accounts");
-                      await loadAccounts(); await loadData(accountId!);
-                      toast.success(`✅ Facebook Page "${primaryPageName || profile.name}" linked!`);
-                    } catch (e: any) { toast.error("Facebook connect failed: " + e.message); }
-                    setAutoConnectLoading(null);
-                  };
-                  window.addEventListener("message", handleFbChainMessage);
-                } else if (fbAppIdForChain) {
-                  // Popup already closed, fall back to opening new one
-                  setTimeout(() => automatedFacebookConnect(), 300);
-                } else {
-                  toast.error("Configure FACEBOOK_APP_ID in backend secrets");
-                }
-              }
-         } catch (e: any) {
+           // ========================================================
+           // STEP 3: If FB chain was started, listen for FB result.
+           // If not started (popup closed or FB already connected),
+           // fall back or close popup gracefully.
+           // ========================================================
+           if (fbChainStarted) {
+             const handleFbChainMessage = async (ev: MessageEvent) => {
+               if (ev.data?.type !== "FB_OAUTH_RESULT") return;
+               window.removeEventListener("message", handleFbChainMessage);
+               const { code: fbCode, redirect_uri: fbRedir } = ev.data.payload;
+               const fbRedirectUri = "https://uplyze.ai/fb-login";
+               if (!fbCode) { setAutoConnectLoading(null); toast.error("No Facebook auth code received"); return; }
+               toast.info("Facebook auth captured! Exchanging for token...");
+               try {
+                 const { data: fbData, error: fbErr } = await supabase.functions.invoke("facebook-api", { body: { action: "exchange_code", params: { code: fbCode, redirect_uri: fbRedir || fbRedirectUri } } });
+                 if (fbErr || !fbData?.success) { toast.error(fbData?.error || fbErr?.message || "Token exchange failed"); setAutoConnectLoading(null); return; }
+                 const fbAccessToken = fbData.data?.access_token;
+                 if (!fbAccessToken) { toast.error("No access token in response"); setAutoConnectLoading(null); return; }
+                 const profileRes = await fetch(`https://graph.facebook.com/v24.0/me?fields=id,name,email,picture.width(200)&access_token=${fbAccessToken}`);
+                 const profile = await profileRes.json();
+                 if (profile.error) { toast.error(profile.error.message); setAutoConnectLoading(null); return; }
+                 let fbPages: any[] = [];
+                 let primaryPageToken: string | null = null;
+                 let primaryPageId: string | null = null;
+                 let primaryPageName: string | null = null;
+                 try {
+                   const pagesRes = await fetch(`https://graph.facebook.com/v24.0/me/accounts?fields=id,name,access_token,category,fan_count,picture,instagram_business_account&limit=25&access_token=${fbAccessToken}`);
+                   const pagesData = await pagesRes.json();
+                   if (pagesData.data?.length > 0) {
+                     fbPages = pagesData.data;
+                     const { data: igConn } = await supabase.from("social_connections").select("platform_user_id, platform_username").eq("account_id", accountId).eq("platform", "instagram").eq("is_connected", true).maybeSingle();
+                     let bestPage = fbPages[0];
+                     let igLinked = false;
+                     if (igConn?.platform_user_id) {
+                       const exactMatch = fbPages.find(p => p.instagram_business_account?.id === igConn.platform_user_id);
+                       if (exactMatch) { bestPage = exactMatch; igLinked = true; }
+                       if (!igLinked && igConn.platform_username) {
+                         for (const page of fbPages.filter(p => p.instagram_business_account?.id)) {
+                           try {
+                             const igbaResp = await fetch(`https://graph.instagram.com/v24.0/${page.instagram_business_account.id}?fields=username&access_token=${page.access_token}`);
+                             const igbaData = await igbaResp.json();
+                             if (igbaData?.username?.toLowerCase() === igConn.platform_username.toLowerCase()) { bestPage = page; igLinked = true; break; }
+                           } catch {}
+                         }
+                       }
+                       if (!igLinked) {
+                         const pagesWithIg = fbPages.filter(p => p.instagram_business_account?.id);
+                         if (pagesWithIg.length === 1) { bestPage = pagesWithIg[0]; igLinked = true; }
+                       }
+                     }
+                     primaryPageToken = bestPage.access_token;
+                     primaryPageId = bestPage.id;
+                     primaryPageName = bestPage.name;
+                   }
+                 } catch {}
+                 const igLinkedToPage = fbPages.some(p => p.instagram_business_account?.id);
+                 const fbMetadata: any = {
+                   name: profile.name, email: profile.email, picture_url: profile.picture?.data?.url,
+                   fb_page_id: primaryPageId, fb_page_name: primaryPageName, fb_page_token: primaryPageToken,
+                   pages_count: fbPages.length, connected_via: "ig_chain_oauth",
+                   ig_linked: igLinkedToPage, ig_business_account_id: fbPages.find(p => p.instagram_business_account?.id)?.instagram_business_account?.id || null,
+                 };
+                 await supabase.from("social_connections").upsert({
+                   account_id: accountId, platform: "facebook", platform_user_id: profile.id, platform_username: profile.name,
+                   access_token: fbAccessToken, is_connected: true, scopes: [],
+                   metadata: fbMetadata, user_id: user?.id,
+                 }, { onConflict: "account_id,platform,user_id" });
+                 if (primaryPageToken) {
+                   await supabase.from("social_connections").update({ metadata: { ...(connections.find(c => c.platform === "instagram")?.metadata as any || {}), fb_page_token: primaryPageToken, fb_page_id: primaryPageId, fb_page_name: primaryPageName, ig_linked: igLinkedToPage } }).eq("account_id", accountId).eq("platform", "instagram");
+                 }
+                 invalidateNamespace(accountId!, "social_connections");
+                 invalidateNamespace("global", "smh_accounts");
+                 await loadAccounts(); await loadData(accountId!);
+                 toast.success(`✅ Facebook Page "${primaryPageName || profile.name}" linked!`);
+               } catch (e: any) { toast.error("Facebook connect failed: " + e.message); }
+               setAutoConnectLoading(null);
+             };
+             window.addEventListener("message", handleFbChainMessage);
+           } else if (!fbAlreadyConnected && fbAppIdForChain) {
+             // Popup was already closed, fall back to opening new one
+             setTimeout(() => automatedFacebookConnect(), 300);
+           }
+        } catch (e: any) {
            toast.error("Failed to save connection: " + e.message);
-         }
+        }
       }
     };
     window.addEventListener("message", handleMessage);
