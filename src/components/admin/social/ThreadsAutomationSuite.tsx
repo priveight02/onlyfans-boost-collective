@@ -257,6 +257,7 @@ const ThreadsAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: 
     { v: "search", icon: Search, l: "Search" },
     { v: "discover", icon: Globe, l: "Discover" },
     { v: "insights", icon: BarChart3, l: "Insights" },
+    { v: "business", icon: Activity, l: "Business" },
     { v: "ai-tools", icon: Wand2, l: "AI Tools" },
   ];
 
@@ -675,6 +676,40 @@ const ThreadsAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: 
             )}
           </CardContent></Card>
         </div>
+      </TabsContent>
+
+      {/* ===== BUSINESS ===== */}
+      <TabsContent value="business" className="space-y-4 mt-4">
+        <Card className="border-border/50">
+          <CardContent className="p-4 space-y-3">
+            <h4 className="text-sm font-bold text-foreground flex items-center gap-2"><Activity className="h-4 w-4 text-purple-400" />Threads Business Account Lookup</h4>
+            <p className="text-xs text-muted-foreground">Look up the Threads account associated with an Instagram Business account via <code className="text-[10px]">threads_business_basic</code> permission.</p>
+            <div className="flex gap-2">
+              <Input placeholder="Instagram username..." value={discoveryUsername} onChange={e => setDiscoveryUsername(e.target.value)} className="text-sm flex-1" />
+              <Button size="sm" onClick={async () => {
+                if (!discoveryUsername) return;
+                setLoading(true);
+                try {
+                  const { data, error } = await supabase.functions.invoke("threads-api", { body: { action: "get_business_threads_account", account_id: selectedAccount, params: { instagram_username: discoveryUsername } } });
+                  if (error) { toast.info(error.message); return; }
+                  if (!data?.success) { toast.info(data?.error || "Not found"); return; }
+                  setDiscoveredProfile(data.data);
+                  toast.success("Business Threads account found");
+                } catch (e: any) { toast.info(e.message); }
+                setLoading(false);
+              }} disabled={loading}><Search className="h-3.5 w-3.5 mr-1" />Lookup</Button>
+            </div>
+            {discoveredProfile && (
+              <Card className="border-border/50 mt-2">
+                <CardContent className="p-3">
+                  <p className="text-xs font-semibold text-foreground">@{discoveredProfile.username || discoveredProfile.id}</p>
+                  <p className="text-[10px] text-muted-foreground">Threads ID: {discoveredProfile.threads_user_id || discoveredProfile.id}</p>
+                  {discoveredProfile.threads_biography && <p className="text-xs text-muted-foreground mt-1">{discoveredProfile.threads_biography}</p>}
+                </CardContent>
+              </Card>
+            )}
+          </CardContent>
+        </Card>
       </TabsContent>
 
       {/* ===== AI TOOLS ===== */}

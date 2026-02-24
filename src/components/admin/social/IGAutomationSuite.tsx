@@ -23,6 +23,7 @@ import IGSmartComments from "./IGSmartComments";
 import IGAdOptimizer from "./IGAdOptimizer";
 import IGCompetitorIntel from "./IGCompetitorIntel";
 import IGAccountHealth from "./IGAccountHealth";
+import IGBusinessMessaging from "./IGBusinessMessaging";
 
 interface Props {
   selectedAccount: string;
@@ -49,6 +50,7 @@ const SECTIONS = [
   { id: "insights", icon: PieChart, label: "Advanced Insights", desc: "Demographics, best posting times & deep analytics", color: "text-purple-400", category: "Platform" },
   { id: "events", icon: CalendarDays, label: "Events Manager", desc: "Create & manage upcoming Instagram events", color: "text-teal-400", category: "Platform" },
   { id: "business", icon: Briefcase, label: "Business Manager", desc: "Business accounts, pages & multi-asset management", color: "text-indigo-400", category: "Platform" },
+  { id: "biz-messaging", icon: MessageSquare, label: "Business Messaging", desc: "Manage Instagram DMs via Business Messaging API", color: "text-sky-400", category: "Platform" },
 ];
 
 const CATEGORIES = ["AI Platform", "Growth", "Ads", "Commerce", "Platform"];
@@ -85,6 +87,7 @@ const IGAutomationSuite = ({ selectedAccount }: Props) => {
       case "insights": return <IGAdvancedInsights selectedAccount={selectedAccount} />;
       case "events": return <IGEventsManager selectedAccount={selectedAccount} />;
       case "business": return <IGBusinessManager selectedAccount={selectedAccount} />;
+      case "biz-messaging": return <IGBusinessMessaging selectedAccount={selectedAccount} />;
       default: return null;
     }
   };
