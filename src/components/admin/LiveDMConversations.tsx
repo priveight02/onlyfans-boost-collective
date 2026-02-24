@@ -431,21 +431,22 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
       const igMessageIds = new Set(igMessages.map((m: any) => m.id).filter(Boolean));
       let changed = false;
 
-      // BATCH: detect deleted messages (exist in DB but not on IG anymore)
-      const toDelete: string[] = [];
+      // BATCH: detect deleted messages (exist in DB but not on IG anymore) — mark as deleted, don't remove
+      const toMarkDeleted: string[] = [];
       for (const dbMsg of cached) {
         if (dbMsg.platform_message_id && !dbMsg.id.startsWith("temp-") && 
+            dbMsg.status !== "deleted" &&
             !igMessageIds.has(dbMsg.platform_message_id) && 
             !deletedPlatformIdsRef.current.has(dbMsg.platform_message_id)) {
-          toDelete.push(dbMsg.id);
+          toMarkDeleted.push(dbMsg.id);
           deletedPlatformIdsRef.current.add(dbMsg.platform_message_id);
         }
       }
-      if (toDelete.length > 0) {
-        await supabase.from("ai_dm_messages").delete().in("id", toDelete);
+      if (toMarkDeleted.length > 0) {
+        await supabase.from("ai_dm_messages").update({ status: "deleted" }).in("id", toMarkDeleted);
         persistDeletedIds();
         changed = true;
-        addLog(`@${c.participant_username}`, `${toDelete.length} msg(s) unsent/deleted on IG`, "info");
+        addLog(`@${c.participant_username}`, `${toMarkDeleted.length} msg(s) unsent/deleted on IG`, "info");
       }
 
       // BATCH: collect inserts and updates
@@ -571,28 +572,30 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
     if (prefetchingRef.current || convos.length === 0) return;
     prefetchingRef.current = true;
 
-    // Phase 1: Load last 50 messages per conversation individually (parallel, fast)
+    // Bulk load: fetch ALL messages for ALL conversations in a single query (much faster than N queries)
     const convoIds = convos.map(c => c.id);
     
-    // Fetch in parallel batches of 10 convos
-    for (let i = 0; i < convoIds.length; i += 10) {
-      const batch = convoIds.slice(i, i + 10);
-      const results = await Promise.all(
-        batch.map(async (cid) => {
-          const { data } = await supabase
-            .from("ai_dm_messages")
-            .select("*")
-            .eq("conversation_id", cid)
-            .order("created_at", { ascending: false })
-            .limit(50);
-          return { cid, msgs: ((data || []) as Message[]).reverse() };
-        })
-      );
-      for (const { cid, msgs } of results) {
-        messageCacheRef.current.set(cid, msgs);
-        const ns = `dm_msgs_${effectivePlatformUserId || "any"}_${cid}`;
-        setCache(accountId, ns, msgs, undefined, 10000);
-      }
+    const { data: allMsgsData } = await supabase
+      .from("ai_dm_messages")
+      .select("*")
+      .in("conversation_id", convoIds)
+      .order("created_at", { ascending: true })
+      .limit(1000);
+    
+    // Group messages by conversation_id
+    const msgsByConvo = new Map<string, Message[]>();
+    for (const msg of ((allMsgsData || []) as Message[])) {
+      const arr = msgsByConvo.get(msg.conversation_id) || [];
+      arr.push(msg);
+      msgsByConvo.set(msg.conversation_id, arr);
+    }
+    
+    // Populate cache — keep last 50 per convo
+    for (const cid of convoIds) {
+      const msgs = (msgsByConvo.get(cid) || []).slice(-50);
+      messageCacheRef.current.set(cid, msgs);
+      const ns = `dm_msgs_${effectivePlatformUserId || "any"}_${cid}`;
+      setCache(accountId, ns, msgs, undefined, 10000);
     }
     // Set empty arrays for convos with no messages yet
     for (const c of convos) {
@@ -1965,6 +1968,7 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
                     const idx = virtualRow.index;
                     const msg = messages[idx];
                     const isMe = msg.sender_type !== "fan";
+                    const isDeleted = msg.status === "deleted";
                     const showTime = idx === 0 ||
                       (new Date(msg.created_at).getTime() - new Date(messages[idx - 1].created_at).getTime() > 3600000);
 
@@ -2338,8 +2342,13 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
                                    const isEmpty = !msg.content || msg.content.trim() === "";
                                    return (
                                      <div className="relative">
-                                       <div className={`rounded-2xl px-3.5 py-2 ${isMe ? msg.sender_type === "ai" ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white" : "bg-primary text-primary-foreground" : "bg-muted/60 text-foreground"}`}>
-                                         {isEmpty ? (
+                                       <div className={`rounded-2xl px-3.5 py-2 ${isDeleted ? "bg-red-500/15 border border-red-500/30" : isMe ? msg.sender_type === "ai" ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white" : "bg-primary text-primary-foreground" : "bg-muted/60 text-foreground"}`}>
+                                         {isDeleted ? (
+                                           <div className="flex items-center gap-1.5">
+                                             <Trash2 className="h-3 w-3 text-red-400 flex-shrink-0" />
+                                             <span className="text-[13px] italic text-red-400 line-through">{msg.content || "Message deleted"}</span>
+                                           </div>
+                                         ) : isEmpty ? (
                                            <div className="flex items-center gap-1.5 opacity-70">
                                              <span>📎</span>
                                              <span className="text-[13px] italic">Sent media</span>
