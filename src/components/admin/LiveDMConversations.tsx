@@ -575,16 +575,23 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
     // Bulk load: fetch ALL messages for ALL conversations in a single query (much faster than N queries)
     const convoIds = convos.map(c => c.id);
     
-    const { data: allMsgsData } = await supabase
-      .from("ai_dm_messages")
-      .select("*")
-      .in("conversation_id", convoIds)
-      .order("created_at", { ascending: true })
-      .limit(1000);
+    // Fetch messages in batches to avoid the 1000-row global limit cutting off conversations
+    let allMsgsData: Message[] = [];
+    const batchSize = 20;
+    for (let i = 0; i < convoIds.length; i += batchSize) {
+      const batch = convoIds.slice(i, i + batchSize);
+      const { data } = await supabase
+        .from("ai_dm_messages")
+        .select("*")
+        .in("conversation_id", batch)
+        .order("created_at", { ascending: true })
+        .limit(1000);
+      if (data) allMsgsData = allMsgsData.concat(data as Message[]);
+    }
     
     // Group messages by conversation_id
     const msgsByConvo = new Map<string, Message[]>();
-    for (const msg of ((allMsgsData || []) as Message[])) {
+    for (const msg of allMsgsData) {
       const arr = msgsByConvo.get(msg.conversation_id) || [];
       arr.push(msg);
       msgsByConvo.set(msg.conversation_id, arr);
