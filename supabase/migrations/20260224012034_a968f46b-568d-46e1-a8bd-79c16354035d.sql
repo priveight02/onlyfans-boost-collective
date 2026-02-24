@@ -1,0 +1,1 @@
+ALTER TABLE public.managed_accounts ADD COLUMN IF NOT EXISTS default_persona_type TEXT NOT NULL DEFAULT 'male';
