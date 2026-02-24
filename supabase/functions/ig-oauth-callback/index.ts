@@ -89,38 +89,50 @@ serve(async (req) => {
     const expiresIn = longLivedData.expires_in || 3600;
     console.log(`Long-lived token obtained, expires in ${expiresIn}s`);
 
-    // Step 3: Get user profile info using the user_id directly
+    // Step 3: Get user profile info — try multiple endpoints
     console.log("Fetching user profile for user_id:", igUserId);
     const profileFields = "user_id,username,account_type,name,profile_picture_url,followers_count,media_count";
     let profileData: any = {};
-    
-    // Try fetching via user_id endpoint first (most reliable)
-    try {
-      const profileRes = await fetch(
-        `https://graph.instagram.com/v21.0/${igUserId}?fields=${profileFields}&access_token=${finalToken}`
-      );
-      profileData = await profileRes.json();
-      console.log("Profile response (v21 user_id):", JSON.stringify(profileData));
-    } catch (e) { console.warn("Profile fetch v21 user_id failed:", e); }
 
-    // Fallback: try /me endpoint with v21
-    if (!profileData.username && !profileData.name) {
+    // Attempt 1: unversioned /me (Instagram Business Login native)
+    try {
+      const r1 = await fetch(`https://graph.instagram.com/me?fields=${profileFields}&access_token=${finalToken}`);
+      const d1 = await r1.json();
+      console.log("Profile /me (unversioned):", JSON.stringify(d1));
+      if (!d1.error) profileData = d1;
+    } catch (e) { console.warn("Unversioned /me failed:", e); }
+
+    // Attempt 2: unversioned /{user_id}
+    if (!profileData.username) {
       try {
-        const meRes = await fetch(
-          `https://graph.instagram.com/v21.0/me?fields=${profileFields}&access_token=${finalToken}`
-        );
-        const meData = await meRes.json();
-        console.log("Profile response (v21 /me):", JSON.stringify(meData));
-        if (meData.username) profileData.username = meData.username;
-        if (meData.name) profileData.name = meData.name;
-        if (meData.profile_picture_url) profileData.profile_picture_url = meData.profile_picture_url;
-        if (meData.followers_count) profileData.followers_count = meData.followers_count;
-        if (meData.media_count) profileData.media_count = meData.media_count;
-        if (meData.account_type) profileData.account_type = meData.account_type;
-      } catch (e) { console.warn("Fallback /me fetch failed:", e); }
+        const r2 = await fetch(`https://graph.instagram.com/${igUserId}?fields=${profileFields}&access_token=${finalToken}`);
+        const d2 = await r2.json();
+        console.log("Profile /{id} (unversioned):", JSON.stringify(d2));
+        if (!d2.error && d2.username) Object.assign(profileData, d2);
+      } catch (e) { console.warn("Unversioned /{id} failed:", e); }
     }
 
-    console.log(`Profile fetched: @${profileData.username}, type: ${profileData.account_type}`);
+    // Attempt 3: v22.0 /me
+    if (!profileData.username) {
+      try {
+        const r3 = await fetch(`https://graph.instagram.com/v22.0/me?fields=${profileFields}&access_token=${finalToken}`);
+        const d3 = await r3.json();
+        console.log("Profile v22 /me:", JSON.stringify(d3));
+        if (!d3.error && d3.username) Object.assign(profileData, d3);
+      } catch (e) { console.warn("v22 /me failed:", e); }
+    }
+
+    // Attempt 4: facebook graph API
+    if (!profileData.username) {
+      try {
+        const r4 = await fetch(`https://graph.facebook.com/v22.0/${igUserId}?fields=${profileFields}&access_token=${finalToken}`);
+        const d4 = await r4.json();
+        console.log("Profile facebook graph:", JSON.stringify(d4));
+        if (!d4.error && (d4.username || d4.name)) Object.assign(profileData, d4);
+      } catch (e) { console.warn("Facebook graph failed:", e); }
+    }
+
+    console.log(`Profile fetched: @${profileData.username}, name: ${profileData.name}, type: ${profileData.account_type}`);
 
     return new Response(JSON.stringify({
       success: true,
