@@ -48,7 +48,9 @@ const IGLoginPopup = () => {
       if (!data?.success) {
         const errMsg = data?.error || "Failed to connect Instagram. Please try again.";
         const errType = data?.error_type ? `[${data.error_type}] ` : "";
-        setError(`${errType}${errMsg}`);
+        const errDetail = data?.error_detail ? `\n\nDetails: ${data.error_detail}` : "";
+        const rawErr = data?.raw_error ? `\n\nRaw: ${data.raw_error}` : "";
+        setError(`${errType}${errMsg}${errDetail}${rawErr}`);
         setErrorCode(data?.error_code || null);
         setLoading(false);
         return;
