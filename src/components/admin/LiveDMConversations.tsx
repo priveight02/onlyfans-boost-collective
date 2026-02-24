@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { getCached, setCache } from "@/lib/supabaseCache";
 import { toast } from "sonner";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -237,6 +238,7 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
   const [defaultPersonaType, setDefaultPersonaType] = useState<string>("male");
   const followAIRef = useRef(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesParentRef = useRef<HTMLDivElement>(null);
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -341,24 +343,25 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
 
   // Load messages for a conversation into cache (checks supabaseCache first)
   const loadMessagesToCache = useCallback(async (convoId: string, forceRefresh = false): Promise<Message[]> => {
-    // Cache key scoped by platform user ID to prevent cross-account data leaks
     const cacheNs = `dm_msgs_${effectivePlatformUserId || "any"}_${convoId}`;
-    // Check persistent cache first (10s TTL — very short to stay fresh)
     if (!forceRefresh) {
       const cached = getCached<Message[]>(accountId, cacheNs);
-      if (cached) {
+      if (cached && cached.length > 0) {
         messageCacheRef.current.set(convoId, cached);
         return cached;
       }
     }
+    // Fetch last 50 messages per conversation (most recent)
     const { data } = await supabase
       .from("ai_dm_messages")
       .select("*")
       .eq("conversation_id", convoId)
-      .order("created_at", { ascending: true });
-    const msgs = (data || []) as Message[];
+      .order("created_at", { ascending: false })
+      .limit(50);
+    // Reverse to chronological order
+    const msgs = ((data || []) as Message[]).reverse();
     messageCacheRef.current.set(convoId, msgs);
-    setCache(accountId, cacheNs, msgs, undefined, 10000); // 10s TTL
+    setCache(accountId, cacheNs, msgs, undefined, 10000);
     return msgs;
   }, [accountId, effectivePlatformUserId]);
 
@@ -559,39 +562,33 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
     if (prefetchingRef.current || convos.length === 0) return;
     prefetchingRef.current = true;
 
-    // Phase 1: Load all DB messages in one batch query (very fast)
+    // Phase 1: Load last 50 messages per conversation individually (parallel, fast)
     const convoIds = convos.map(c => c.id);
-    const batchSize = 500;
-    let allMessages: Message[] = [];
     
-    // Fetch all messages for all convos in batches
-    for (let i = 0; i < convoIds.length; i += 20) {
-      const batch = convoIds.slice(i, i + 20);
-      const { data } = await supabase
-        .from("ai_dm_messages")
-        .select("*")
-        .in("conversation_id", batch)
-        .order("created_at", { ascending: true })
-        .limit(batchSize);
-      if (data) allMessages = allMessages.concat(data as Message[]);
+    // Fetch in parallel batches of 10 convos
+    for (let i = 0; i < convoIds.length; i += 10) {
+      const batch = convoIds.slice(i, i + 10);
+      const results = await Promise.all(
+        batch.map(async (cid) => {
+          const { data } = await supabase
+            .from("ai_dm_messages")
+            .select("*")
+            .eq("conversation_id", cid)
+            .order("created_at", { ascending: false })
+            .limit(50);
+          return { cid, msgs: ((data || []) as Message[]).reverse() };
+        })
+      );
+      for (const { cid, msgs } of results) {
+        messageCacheRef.current.set(cid, msgs);
+        const ns = `dm_msgs_${effectivePlatformUserId || "any"}_${cid}`;
+        setCache(accountId, ns, msgs, undefined, 10000);
+      }
     }
-
-    // Group by conversation_id and populate cache
-    const grouped = new Map<string, Message[]>();
-    for (const msg of allMessages) {
-      const arr = grouped.get(msg.conversation_id) || [];
-      arr.push(msg);
-      grouped.set(msg.conversation_id, arr);
-    }
-    for (const [cid, msgs] of grouped) {
-      messageCacheRef.current.set(cid, msgs);
-      setCache(accountId, `dm_msgs_${cid}`, msgs, undefined, 10000);
-    }
-    // Also set empty arrays for convos with no messages yet
+    // Set empty arrays for convos with no messages yet
     for (const c of convos) {
       if (!messageCacheRef.current.has(c.id)) {
         messageCacheRef.current.set(c.id, []);
-        setCache(accountId, `dm_msgs_${c.id}`, [], undefined, 10000);
       }
     }
 
@@ -603,7 +600,8 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
       return prev;
     });
 
-    addLog("system", `Cached ${allMessages.length} messages from ${convos.length} convos`, "success");
+    const totalCached = Array.from(messageCacheRef.current.values()).reduce((s, a) => s + a.length, 0);
+    addLog("system", `Cached ${totalCached} messages from ${convos.length} convos`, "success");
 
     // Phase 2: Background IG sync for conversations with platform IDs (3 concurrent)
     const toSync = convos.filter(c => c.platform_conversation_id && !igSyncedRef.current.has(c.id));
@@ -870,6 +868,15 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
     return () => clearInterval(bgSyncInterval);
   }, [accountId, conversations, fetchIGMessages]);
 
+  // Auto-sync conversation list every 1 second for real-time inbox updates
+  useEffect(() => {
+    if (!accountId) return;
+    const convoSyncInterval = setInterval(() => {
+      loadConversations();
+    }, 1000);
+    return () => clearInterval(convoSyncInterval);
+  }, [accountId, loadConversations]);
+
   // Real-time subscriptions — MERGE changes instead of full reload
   useEffect(() => {
     if (!accountId) return;
@@ -1022,12 +1029,7 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
     return () => { supabase.removeChannel(ch2); };
   }, [selectedConvo]);
 
-  // Auto-scroll (only when lock chat view is enabled)
-  useEffect(() => {
-    if (lockChatView) {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [messages, lockChatView]);
+  // Auto-scroll handled by virtualizer effect above
 
   // Process DMs with AI tracking
   const processDMs = useCallback(async () => {
@@ -1349,6 +1351,27 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
   };
 
   const selectedConvoData = conversations.find(c => c.id === selectedConvo);
+
+  // Virtualizer for messages
+  const msgVirtualizer = useVirtualizer({
+    count: messages.length,
+    getScrollElement: () => messagesParentRef.current,
+    estimateSize: () => 80,
+    overscan: 20,
+  });
+
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    if (messages.length > 0 && messagesParentRef.current) {
+      const el = messagesParentRef.current;
+      const isNearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 200;
+      if (isNearBottom || lockChatView) {
+        requestAnimationFrame(() => {
+          el.scrollTop = el.scrollHeight;
+        });
+      }
+    }
+  }, [messages.length, lockChatView]);
 
   const formatTime = (dateStr: string | null) => {
     if (!dateStr) return "";
@@ -1870,8 +1893,8 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
               </div>
             </div>
 
-            {/* Messages Area */}
-            <ScrollArea className="flex-1 px-4 py-3" style={{ fontSize: `${msgSize}px` }}>
+            {/* Messages Area — Virtualized */}
+            <div ref={messagesParentRef} className="flex-1 overflow-auto px-4 py-3" style={{ fontSize: `${msgSize}px` }}>
               {loading ? (
                 <div className="h-full flex items-center justify-center">
                   <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
@@ -1884,13 +1907,16 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
                   </div>
                 </div>
               ) : (
-                <div className="space-y-1">
-                  {messages.map((msg, idx) => {
+                <div style={{ height: `${msgVirtualizer.getTotalSize()}px`, width: '100%', position: 'relative' }}>
+                  {msgVirtualizer.getVirtualItems().map((virtualRow) => {
+                    const idx = virtualRow.index;
+                    const msg = messages[idx];
                     const isMe = msg.sender_type !== "fan";
                     const showTime = idx === 0 ||
                       (new Date(msg.created_at).getTime() - new Date(messages[idx - 1].created_at).getTime() > 3600000);
 
                     return (
+                      <div key={msg.id} data-index={idx} ref={msgVirtualizer.measureElement} style={{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${virtualRow.start}px)` }}>
                       <div key={msg.id}>
                         {showTime && (
                           <p className="text-center text-[10px] text-muted-foreground/60 my-4 font-medium">
@@ -2365,12 +2391,12 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
                           </div>
                         </div>
                       </div>
+                      </div>
                     );
                   })}
-                  <div ref={messagesEndRef} />
                 </div>
               )}
-            </ScrollArea>
+            </div>
 
             {/* Message Input */}
             <div className="px-4 py-3 border-t border-border">
