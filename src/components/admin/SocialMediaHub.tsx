@@ -1511,9 +1511,9 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
     setIgLoginPopupLoading(true);
     const publishedOrigin = "https://uplyze.ai";
     const redirectUri = `${publishedOrigin}/ig-login`;
-    // Use Facebook Business Login with config_id for page-level token access (needed for messaging/conversations)
-    const configId = "810481348738341";
-    const authUrl = `https://www.facebook.com/dialog/oauth?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&config_id=${configId}&response_type=code&override_default_response_type=true`;
+    // Standard Instagram OAuth flow
+    const scopes = "instagram_business_basic,instagram_business_content_publish,instagram_business_manage_comments,instagram_business_manage_messages,instagram_business_manage_insights";
+    const authUrl = `https://api.instagram.com/oauth/authorize?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scopes}&response_type=code&enable_fb_login=1`;
     
     // Open as a centered popup window
     const w = 520, h = 620;
@@ -1680,6 +1680,83 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
           await loadData(accountId);
           
           toast.success(`✅ @${username} connected via Instagram Login — synced across all features.`);
+          
+          // Auto-trigger Facebook login to get Page token (needed for messaging/conversations API)
+          if (!page_token) {
+            const fbAppId = oauthAppId || cachedIgAppId;
+            if (fbAppId) {
+              toast.info("📄 Now connecting Facebook Page for messaging access...", { duration: 4000 });
+              setTimeout(() => {
+                const fbRedirectUri = "https://uplyze.ai/fb-login";
+                const fbScopes = "pages_show_list,pages_read_engagement,pages_manage_metadata,pages_messaging,instagram_basic,instagram_manage_messages,public_profile";
+                const fbAuthUrl = `https://www.facebook.com/v24.0/dialog/oauth?client_id=${fbAppId}&redirect_uri=${encodeURIComponent(fbRedirectUri)}&scope=${fbScopes}&response_type=code`;
+                const w2 = 520, h2 = 620;
+                const left2 = Math.round(window.screenX + (window.outerWidth - w2) / 2);
+                const top2 = Math.round(window.screenY + (window.outerHeight - h2) / 2);
+                const fbPopup = window.open(fbAuthUrl, "fb_page_token_popup", `width=${w2},height=${h2},left=${left2},top=${top2},toolbar=no,menubar=no,scrollbars=yes,resizable=yes`);
+                
+                if (!fbPopup) {
+                  toast.warning("Popup blocked. Please connect Facebook manually from the Connect tab to enable messaging.");
+                  return;
+                }
+                
+                const handleFbPageMessage = async (evt: MessageEvent) => {
+                  if (evt.data?.type !== "FB_OAUTH_RESULT") return;
+                  window.removeEventListener("message", handleFbPageMessage);
+                  const fbCode = evt.data.payload?.code;
+                  const fbRedir = evt.data.payload?.redirect_uri || fbRedirectUri;
+                  if (!fbCode) { toast.error("No Facebook auth code received"); return; }
+                  
+                  try {
+                    toast.info("Exchanging Facebook token & fetching pages...");
+                    // Exchange code for FB token via ig-oauth-callback (it handles FB token exchange + page discovery)
+                    const { data: fbData, error: fbErr } = await supabase.functions.invoke("ig-oauth-callback", {
+                      body: { code: fbCode, redirect_uri: fbRedir },
+                    });
+                    
+                    if (fbErr || !fbData?.success) {
+                      toast.error("Facebook page token exchange failed. You can retry from the Connect tab.");
+                      return;
+                    }
+                    
+                    const pageToken = fbData.data?.page_token;
+                    const pageId = fbData.data?.page_id;
+                    
+                    if (pageToken && pageId) {
+                      // Save page token to existing IG connection metadata
+                      const { data: connData } = await supabase
+                        .from("social_connections")
+                        .select("metadata")
+                        .eq("account_id", accountId)
+                        .eq("platform", "instagram")
+                        .maybeSingle();
+                      const prevMeta = (connData?.metadata as any) || {};
+                      await supabase.from("social_connections").update({
+                        metadata: {
+                          ...prevMeta,
+                          fb_page_token: pageToken,
+                          fb_page_id: pageId,
+                          fb_page_token_saved_at: new Date().toISOString(),
+                        },
+                      }).eq("account_id", accountId).eq("platform", "instagram");
+                      
+                      toast.success("✅ Facebook Page linked! Messaging is now fully enabled.");
+                    } else {
+                      toast.warning("No Facebook Page with linked Instagram account found. Create a Facebook Page and link your IG account to it, then reconnect.");
+                    }
+                  } catch (fbE: any) {
+                    toast.error("Failed to get page token: " + fbE.message);
+                  }
+                };
+                window.addEventListener("message", handleFbPageMessage);
+                const fbCheck = setInterval(() => {
+                  try {
+                    if (fbPopup.closed) { clearInterval(fbCheck); window.removeEventListener("message", handleFbPageMessage); }
+                  } catch { clearInterval(fbCheck); }
+                }, 500);
+              }, 1500); // Small delay so user sees IG success first
+            }
+          }
         } catch (e: any) {
           toast.error("Failed to save connection: " + e.message);
         }
