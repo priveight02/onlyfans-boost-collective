@@ -3019,57 +3019,93 @@ Analyze every character in the name and username for any gender signal at all. L
       }
       case "get_business_messages": {
         if (!params?.conversation_id) throw new Error("conversation_id required");
-        // Paginate ALL messages in the conversation
-        const allMsgs: any[] = [];
-        // Try with all fields first
-        const fieldSets = [
-          "id,message,from,to,created_time,attachments,story,shares,is_unsupported",
-          "id,message,from,to,created_time,attachments,is_unsupported",
-          "id,message,from,to,created_time,attachments",
-          "id,message,from,to,created_time",
-        ];
         
-        let workingFields = fieldSets[0];
-        let msgUrl: string | null = null;
+        // Step 1: Get message IDs from conversation
+        const convoResp = await fetch(`${IG_GRAPH_URL}/${params.conversation_id}?fields=messages&access_token=${token}`);
+        const convoData = await convoResp.json();
         
-        // Find working field set
-        for (const fields of fieldSets) {
-          const testUrl = `${IG_GRAPH_URL}/${params.conversation_id}/messages?fields=${fields}&limit=50&access_token=${token}`;
-          const testResp = await fetch(testUrl);
-          const testData = await testResp.json();
-          if (!testData?.error) {
-            workingFields = fields;
-            allMsgs.push(...(testData?.data || []));
-            msgUrl = testData?.paging?.next || null;
-            console.log(`Business messages using fields: ${fields}, first page: ${testData?.data?.length || 0} msgs`);
+        if (convoData?.error) {
+          console.log("get_business_messages convo error:", JSON.stringify(convoData.error));
+          result = { data: [], error_message: convoData.error.message };
+          break;
+        }
+        
+        // Paginate ALL message IDs
+        let allMsgIds: any[] = convoData?.messages?.data || [];
+        let nextPage = convoData?.messages?.paging?.next || null;
+        let pages = 1;
+        while (nextPage && pages < 20) {
+          const pgResp = await fetch(nextPage);
+          const pgData = await pgResp.json();
+          if (pgData?.error) break;
+          allMsgIds = allMsgIds.concat(pgData?.data || []);
+          nextPage = pgData?.paging?.next || null;
+          pages++;
+        }
+        
+        console.log(`Conversation ${params.conversation_id}: ${allMsgIds.length} total message IDs across ${pages} pages`);
+        
+        // If delta sync requested (since timestamp), only fetch newer messages
+        if (params?.since) {
+          const sinceTime = new Date(params.since).getTime();
+          allMsgIds = allMsgIds.filter((m: any) => new Date(m.created_time).getTime() > sinceTime);
+          console.log(`Delta sync: ${allMsgIds.length} new messages since ${params.since}`);
+          if (allMsgIds.length === 0) {
+            result = { data: [], delta: true };
             break;
           }
-          console.log(`Fields "${fields}" failed: ${testData?.error?.message}`);
         }
         
-        // Paginate remaining pages
-        let msgPages = 1;
-        while (msgUrl && msgPages < 20) {
-          const resp = await fetch(`${msgUrl}${msgUrl.includes('?') ? '&' : '?'}access_token=${token}`);
-          const d = await resp.json();
-          if (d?.error) break;
-          allMsgs.push(...(d?.data || []));
-          msgUrl = d?.paging?.next || null;
-          msgPages++;
+        // Step 2: Fetch EACH message individually to get full details including attachments
+        // Batch in groups of 10 for concurrency
+        const detailedMsgs: any[] = [];
+        const batchSize = 10;
+        
+        for (let i = 0; i < allMsgIds.length; i += batchSize) {
+          const batch = allMsgIds.slice(i, i + batchSize);
+          const results = await Promise.all(
+            batch.map(async (msgRef: any) => {
+              try {
+                // Fetch with ALL possible fields
+                const r = await fetch(`${IG_GRAPH_URL}/${msgRef.id}?fields=id,created_time,from,to,message,attachments,story,shares,is_unsupported&access_token=${token}`);
+                const d = await r.json();
+                if (d?.error) {
+                  // Retry minimal
+                  const r2 = await fetch(`${IG_GRAPH_URL}/${msgRef.id}?fields=id,created_time,from,to,message&access_token=${token}`);
+                  const d2 = await r2.json();
+                  if (d2?.error) return null;
+                  return d2;
+                }
+                return d;
+              } catch { return null; }
+            })
+          );
+          detailedMsgs.push(...results.filter(Boolean));
         }
         
-        console.log(`Total business messages: ${allMsgs.length} across ${msgPages} pages`);
-        
-        // Log first few attachment structures for debugging
-        const withAttachments = allMsgs.filter((m: any) => m.attachments?.data?.length > 0);
-        if (withAttachments.length > 0) {
-          console.log(`Messages with attachments: ${withAttachments.length}`);
-          console.log(`Sample attachment structure: ${JSON.stringify(withAttachments[0].attachments?.data?.[0])}`);
+        // Log attachment structures for debugging
+        const mediaMessages = detailedMsgs.filter((m: any) => m.attachments?.data?.length > 0);
+        if (mediaMessages.length > 0) {
+          // Log up to 3 different attachment types
+          const seen = new Set();
+          for (const mm of mediaMessages) {
+            for (const att of (mm.attachments?.data || [])) {
+              const t = att.type || att.mime_type || "unknown";
+              if (!seen.has(t)) {
+                seen.add(t);
+                console.log(`Attachment type="${t}": ${JSON.stringify(att).substring(0, 500)}`);
+              }
+              if (seen.size >= 5) break;
+            }
+            if (seen.size >= 5) break;
+          }
         }
         
-        // Sort oldest first for chat display
-        allMsgs.sort((a: any, b: any) => new Date(a.created_time).getTime() - new Date(b.created_time).getTime());
-        result = { data: allMsgs };
+        // Sort oldest first
+        detailedMsgs.sort((a: any, b: any) => new Date(a.created_time).getTime() - new Date(b.created_time).getTime());
+        
+        console.log(`Returned ${detailedMsgs.length} detailed messages (${mediaMessages.length} with attachments)`);
+        result = { data: detailedMsgs, delta: !!params?.since };
         break;
       }
       case "send_business_message": {
