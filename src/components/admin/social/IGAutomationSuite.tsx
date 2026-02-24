@@ -3,13 +3,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
 import {
   Calendar, Megaphone, PieChart, Star, ChevronDown, ChevronUp,
   Hash, ShoppingBag, CalendarDays, Users, Briefcase, Zap,
   Target, TrendingUp, MessageSquare, DollarSign, Activity, Brain,
-  Loader2, Send, CheckCircle2, XCircle, AlertTriangle,
 } from "lucide-react";
 import IGAutoScheduler from "./IGAutoScheduler";
 import IGAdsManager from "./IGAdsManager";
@@ -60,8 +57,6 @@ const CATEGORIES = ["AI Platform", "Growth", "Ads", "Commerce", "Platform"];
 
 const IGAutomationSuite = ({ selectedAccount }: Props) => {
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(["leads"]));
-  const [testRunning, setTestRunning] = useState(false);
-  const [testResults, setTestResults] = useState<{ permission: string; status: number; ok: boolean; snippet: string }[] | null>(null);
 
   const toggleSection = (id: string) => {
     setExpandedSections(prev => {
@@ -74,24 +69,6 @@ const IGAutomationSuite = ({ selectedAccount }: Props) => {
 
   const expandAll = () => setExpandedSections(new Set(SECTIONS.map(s => s.id)));
   const collapseAll = () => setExpandedSections(new Set());
-
-  const runPermissionTest = async () => {
-    setTestRunning(true);
-    setTestResults(null);
-    try {
-      const { data, error } = await supabase.functions.invoke("ig-permission-test", {
-        body: { accountId: selectedAccount },
-      });
-      if (error) throw error;
-      setTestResults(data.results || []);
-      const reached = (data.results || []).length;
-      toast.success(`Fired ${reached} API calls across all permissions`);
-    } catch (err: any) {
-      toast.error(err.message || "Permission test failed");
-    } finally {
-      setTestRunning(false);
-    }
-  };
 
   const renderModule = (id: string) => {
     switch (id) {
@@ -128,53 +105,6 @@ const IGAutomationSuite = ({ selectedAccount }: Props) => {
           <Button size="sm" variant="ghost" onClick={collapseAll} className="text-xs h-7 text-foreground">Collapse All</Button>
         </div>
       </div>
-
-      {/* Meta App Review - Permission Test */}
-      <Card className="border-primary/20 bg-muted/30">
-        <CardContent className="p-3 space-y-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Send className="h-4 w-4 text-primary" />
-              <span className="text-xs font-bold text-foreground">Meta App Review — Test All Permissions</span>
-              <Badge variant="outline" className="text-[9px]">60+ endpoints</Badge>
-            </div>
-            <Button
-              size="sm"
-              onClick={runPermissionTest}
-              disabled={testRunning}
-              className="h-7 text-xs gap-1"
-            >
-              {testRunning ? <Loader2 className="h-3 w-3 animate-spin" /> : <Zap className="h-3 w-3" />}
-              {testRunning ? "Firing…" : "Fire All Calls"}
-            </Button>
-          </div>
-          <p className="text-[10px] text-muted-foreground">
-            Fires one read-only API call per permission to register usage in Meta Developer Portal. Any HTTP response (200, 400, 401, 403, 429) counts as a successful hit.
-          </p>
-          {testResults && (
-            <ScrollArea className="max-h-60">
-              <div className="space-y-1 mt-1">
-                {testResults.map((r, i) => (
-                  <div key={i} className="flex items-center gap-2 text-[10px] font-mono p-1 rounded bg-background/50">
-                    {r.status >= 200 && r.status < 300 ? (
-                      <CheckCircle2 className="h-3 w-3 text-green-500 shrink-0" />
-                    ) : r.status >= 400 ? (
-                      <AlertTriangle className="h-3 w-3 text-amber-500 shrink-0" />
-                    ) : (
-                      <XCircle className="h-3 w-3 text-red-500 shrink-0" />
-                    )}
-                    <Badge variant="outline" className="text-[9px] min-w-[32px] justify-center">{r.status}</Badge>
-                    <span className="text-foreground truncate flex-1">{r.permission}</span>
-                  </div>
-                ))}
-                <div className="text-[10px] text-muted-foreground pt-1 border-t border-border">
-                  ✅ {testResults.filter(r => r.status > 0).length}/{testResults.length} endpoints reached
-                </div>
-              </div>
-            </ScrollArea>
-          )}
-        </CardContent>
-      </Card>
 
       <ScrollArea className="h-[calc(100vh-260px)]">
         <div className="space-y-3 pr-2">

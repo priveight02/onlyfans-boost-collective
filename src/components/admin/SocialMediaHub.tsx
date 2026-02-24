@@ -97,6 +97,26 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
 
   // AI Auto-Respond - Play/Pause
   const [autoRespondActive, setAutoRespondActive] = useState(false);
+
+  // Permission test
+  const [permTestRunning, setPermTestRunning] = useState(false);
+  const [permTestResults, setPermTestResults] = useState<{ permission: string; status: number; ok: boolean; snippet: string }[] | null>(null);
+  const runPermissionTest = async () => {
+    setPermTestRunning(true);
+    setPermTestResults(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("ig-permission-test", {
+        body: { accountId: selectedAccount },
+      });
+      if (error) throw error;
+      setPermTestResults(data.results || []);
+      toast.success(`Fired ${(data.results || []).length} API calls across all permissions`);
+    } catch (err: any) {
+      toast.error(err.message || "Permission test failed");
+    } finally {
+      setPermTestRunning(false);
+    }
+  };
   const [autoRespondLoading, setAutoRespondLoading] = useState(false);
   const [aiDmRedirectUrl, setAiDmRedirectUrl] = useState("");
   const [aiDmKeywords, setAiDmKeywords] = useState("");
@@ -2248,7 +2268,38 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
           <div className="flex gap-2 flex-wrap">
             <Button size="sm" variant="outline" onClick={fetchProfiles} className="text-foreground"><RefreshCw className="h-3.5 w-3.5 mr-1" />Sync Profiles</Button>
             <Button size="sm" variant="outline" onClick={fetchMedia} className="text-foreground"><Download className="h-3.5 w-3.5 mr-1" />Pull Media</Button>
+            <Button size="sm" variant="outline" onClick={runPermissionTest} disabled={permTestRunning || !selectedAccount} className="text-foreground gap-1">
+              {permTestRunning ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />}
+              {permTestRunning ? "Firing…" : "Test All Permissions"}
+            </Button>
           </div>
+          {permTestResults && (
+            <Card className="border-primary/20 bg-muted/30">
+              <CardContent className="p-3 space-y-1">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs font-bold text-foreground">Meta Permission Test Results</span>
+                  <Badge variant="outline" className="text-[9px]">✅ {permTestResults.filter(r => r.status > 0).length}/{permTestResults.length} reached</Badge>
+                </div>
+                <ScrollArea className="max-h-48">
+                  <div className="space-y-0.5">
+                    {permTestResults.map((r, i) => (
+                      <div key={i} className="flex items-center gap-2 text-[10px] font-mono p-1 rounded bg-background/50">
+                        {r.status >= 200 && r.status < 300 ? (
+                          <CheckCircle2 className="h-3 w-3 text-green-500 shrink-0" />
+                        ) : r.status >= 400 ? (
+                          <AlertTriangle className="h-3 w-3 text-amber-500 shrink-0" />
+                        ) : (
+                          <AlertCircle className="h-3 w-3 text-red-500 shrink-0" />
+                        )}
+                        <Badge variant="outline" className="text-[9px] min-w-[32px] justify-center">{r.status}</Badge>
+                        <span className="text-foreground truncate flex-1">{r.permission}</span>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </CardContent>
+            </Card>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {igProfile && (
               <Card className="border-pink-500/20">
