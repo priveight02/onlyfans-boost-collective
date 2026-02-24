@@ -24,7 +24,7 @@ serve(async (req) => {
       });
     }
 
-    const { code, redirect_uri } = body;
+    const { code, redirect_uri, source } = body;
 
     if (!code) {
       return new Response(JSON.stringify({ error: "Missing authorization code" }), {
@@ -33,15 +33,23 @@ serve(async (req) => {
       });
     }
 
-    const appId = Deno.env.get("INSTAGRAM_APP_ID");
-    const appSecret = Deno.env.get("INSTAGRAM_APP_SECRET");
+    // Use Facebook credentials when the code comes from FB OAuth, otherwise Instagram credentials
+    const isFbSource = source === "facebook";
+    const appId = isFbSource
+      ? (Deno.env.get("FACEBOOK_APP_ID") || Deno.env.get("INSTAGRAM_APP_ID"))
+      : Deno.env.get("INSTAGRAM_APP_ID");
+    const appSecret = isFbSource
+      ? (Deno.env.get("FACEBOOK_APP_SECRET") || Deno.env.get("INSTAGRAM_APP_SECRET"))
+      : Deno.env.get("INSTAGRAM_APP_SECRET");
 
     if (!appId || !appSecret) {
-      return new Response(JSON.stringify({ error: "Instagram app credentials not configured" }), {
+      return new Response(JSON.stringify({ error: `${isFbSource ? 'Facebook' : 'Instagram'} app credentials not configured` }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    
+    console.log(`Token exchange using ${isFbSource ? 'Facebook' : 'Instagram'} credentials, appId: ${appId?.substring(0, 6)}...`);
 
     // ===== STRATEGY: Try Facebook Graph token exchange first (for config_id / Business Login flow) =====
     // Then fall back to Instagram token exchange (for legacy IG OAuth flow)

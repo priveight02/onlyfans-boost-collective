@@ -1696,7 +1696,7 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
               try {
                 toast.info("Exchanging Facebook token & fetching pages...");
                 const { data: fbData, error: fbErr } = await supabase.functions.invoke("ig-oauth-callback", {
-                  body: { code: fbCode, redirect_uri: fbRedir },
+                  body: { code: fbCode, redirect_uri: fbRedir, source: "facebook" },
                 });
                 
                 if (fbErr || !fbData?.success) {
