@@ -2317,13 +2317,13 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
               </div>
               <Button onClick={generateAiDmReply} disabled={apiLoading || aiTyping || aiLifePause || !aiTestMessage} size="sm"><Brain className="h-3.5 w-3.5 mr-1.5" />Generate Reply</Button>
               {aiLifePause && (
-                <div className="bg-muted/50 rounded-lg p-3 border border-border flex items-center gap-2">
+                <div className="bg-white/[0.04] rounded-lg p-3 border border-white/[0.08] flex items-center gap-2">
                   <Clock className="h-4 w-4 text-muted-foreground animate-pulse" />
                   <p className="text-sm text-muted-foreground italic">away for {aiTypingDelay}s... (simulating natural pause)</p>
                 </div>
               )}
               {aiTyping && !aiLifePause && (
-                <div className="bg-muted/50 rounded-lg p-3 border border-border flex items-center gap-2">
+                <div className="bg-white/[0.04] rounded-lg p-3 border border-white/[0.08] flex items-center gap-2">
                   <div className="flex gap-1">
                     <span className="w-1.5 h-1.5 bg-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
                     <span className="w-1.5 h-1.5 bg-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
@@ -2333,7 +2333,7 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
                 </div>
               )}
               {aiTestReply && !aiTyping && !aiLifePause && (
-                <div className="bg-muted/50 rounded-lg p-3 border border-border">
+                <div className="bg-white/[0.04] rounded-lg p-3 border border-white/[0.08]">
                   <p className="text-xs text-muted-foreground mb-1">AI Reply:</p>
                   <p className="text-sm text-foreground">{aiTestReply}</p>
                   <div className="flex gap-2 mt-2">
@@ -2402,7 +2402,7 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
                 </div>
               </div>
               {aiCaptionResult && (
-                <div className="bg-muted/30 rounded-lg p-3 border border-border">
+                <div className="bg-white/[0.04] rounded-lg p-3 border border-white/[0.08]">
                   <p className="text-xs text-foreground whitespace-pre-wrap">{aiCaptionResult}</p>
                   <div className="flex gap-2 mt-2">
                     <Button size="sm" variant="outline" className="h-6 text-[10px]" onClick={() => { navigator.clipboard.writeText(aiCaptionResult); toast.success("Copied"); }}><Copy className="h-2.5 w-2.5 mr-0.5" />Copy</Button>
@@ -2457,13 +2457,13 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
           </Card>
 
           {/* Content Analyzer */}
-          <Card>
+          <Card className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm">
             <CardContent className="p-4 space-y-3">
               <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><TrendingUp className="h-4 w-4 text-green-400" />Content Analyzer</h4>
               <Textarea value={aiAnalyzeCaption} onChange={e => setAiAnalyzeCaption(e.target.value)} placeholder="Paste a caption to analyze performance potential..." rows={2} className="text-sm" />
               <Button size="sm" onClick={analyzeContent} disabled={apiLoading || !aiAnalyzeCaption}><Brain className="h-3.5 w-3.5 mr-1" />Analyze</Button>
               {aiAnalyzeResult && (
-                <div className="bg-muted/30 rounded-lg p-3 border border-border">
+                <div className="bg-white/[0.04] rounded-lg p-3 border border-white/[0.08]">
                   <p className="text-xs text-foreground whitespace-pre-wrap">{aiAnalyzeResult}</p>
                 </div>
               )}
@@ -2485,7 +2485,7 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
                 <ScrollArea className="max-h-[350px]">
                   <div className="space-y-2">
                     {posts.map(p => (
-                      <div key={p.id} className="bg-muted/30 rounded-lg p-3 flex justify-between items-start">
+                      <div key={p.id} className="bg-white/[0.04] rounded-lg p-3 flex justify-between items-start border border-white/[0.06]">
                         <div className="flex-1 min-w-0 mr-2">
                           <div className="flex items-center gap-1.5 mb-1">
                             {p.platform === "instagram" ? <Instagram className="h-3 w-3 text-pink-400" /> : p.platform === "tiktok" ? <Music2 className="h-3 w-3 text-cyan-400" /> : p.platform === "twitter" ? <Twitter className="h-3 w-3 text-blue-400" /> : p.platform === "reddit" ? <Globe className="h-3 w-3 text-orange-400" /> : <Phone className="h-3 w-3 text-blue-400" />}
@@ -2602,7 +2602,7 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
                 <ScrollArea className="max-h-[400px]">
                   <div className="space-y-1.5">
                     {analytics.map(a => (
-                      <div key={a.id} className="bg-muted/30 rounded-lg p-2.5 flex justify-between items-center">
+                      <div key={a.id} className="bg-white/[0.04] rounded-lg p-2.5 flex justify-between items-center border border-white/[0.06]">
                         <div className="flex items-center gap-2">
                           {a.platform === "instagram" ? <Instagram className="h-3 w-3 text-pink-400" /> : a.platform === "tiktok" ? <Music2 className="h-3 w-3 text-cyan-400" /> : <Globe className="h-3 w-3 text-blue-400" />}
                           <div>
