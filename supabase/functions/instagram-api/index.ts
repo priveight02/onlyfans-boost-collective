@@ -385,8 +385,31 @@ async function fbFetch(endpoint: string, token: string, method = "GET", body?: a
   return data;
 }
 
+const IG_WEBHOOK_VERIFY_TOKEN = "uplyze_ig_wh_v3r1fy_2025_s3cur3";
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  // Instagram Webhook verification (GET request with hub.challenge)
+  if (req.method === "GET") {
+    const url = new URL(req.url);
+    const mode = url.searchParams.get("hub.mode");
+    const token = url.searchParams.get("hub.verify_token");
+    const challenge = url.searchParams.get("hub.challenge");
+
+    if (mode === "subscribe" && token === IG_WEBHOOK_VERIFY_TOKEN && challenge) {
+      console.log("Instagram webhook verified successfully");
+      return new Response(challenge, {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "text/plain" },
+      });
+    }
+
+    if (mode || token) {
+      console.error("Webhook verification failed - token mismatch");
+      return new Response("Forbidden", { status: 403, headers: corsHeaders });
+    }
+  }
 
   try {
     const { action, account_id, params } = await req.json();
