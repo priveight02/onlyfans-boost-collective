@@ -412,7 +412,113 @@ serve(async (req) => {
   }
 
   try {
-    const { action, account_id, params } = await req.json();
+    // Clone request to peek at body for webhook detection
+    const clonedReq = req.clone();
+    const rawBody = await clonedReq.text();
+    let parsedBody: any;
+    try { parsedBody = JSON.parse(rawBody); } catch { parsedBody = {}; }
+
+    // ===== INSTAGRAM WEBHOOK EVENT HANDLER =====
+    // Meta sends webhook events as POST with { object: "instagram", entry: [...] }
+    if (parsedBody?.object === "instagram" && Array.isArray(parsedBody?.entry)) {
+      const supabaseWh = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+      );
+
+      for (const entry of parsedBody.entry) {
+        const igUserId = entry.id;
+        const timestamp = entry.time;
+
+        // --- Comments ---
+        if (entry.changes) {
+          for (const change of entry.changes) {
+            const field = change.field;
+            const value = change.value;
+            console.log(`[IG Webhook] field=${field}, ig_user=${igUserId}`);
+
+            await supabaseWh.from("audit_logs").insert({
+              action: `ig_webhook_${field}`,
+              entity_type: "instagram",
+              entity_id: igUserId || null,
+              actor_type: "system",
+              metadata: { field, value, timestamp, received_at: new Date().toISOString() },
+            });
+
+            switch (field) {
+              case "comments":
+                console.log(`[IG Webhook] New comment on media ${value?.media_id} by user ${value?.from?.username}: "${value?.text?.substring(0, 100)}"`);
+                break;
+              case "live_comments":
+                console.log(`[IG Webhook] Live comment from ${value?.from?.username}: "${value?.text?.substring(0, 100)}"`);
+                break;
+              default:
+                console.log(`[IG Webhook] Unhandled change field: ${field}`, JSON.stringify(value).substring(0, 300));
+            }
+          }
+        }
+
+        // --- Messaging events ---
+        if (entry.messaging) {
+          for (const msgEvent of entry.messaging) {
+            const senderId = msgEvent.sender?.id;
+            const recipientId = msgEvent.recipient?.id;
+            let eventType = "unknown_messaging";
+
+            if (msgEvent.message) {
+              eventType = msgEvent.message?.is_echo ? "message_echo" : "message";
+              if (msgEvent.message?.is_deleted) eventType = "message_edit_delete";
+              console.log(`[IG Webhook] ${eventType} from ${senderId}: "${msgEvent.message?.text?.substring(0, 100) || "(media)"}"`);
+            } else if (msgEvent.reaction) {
+              eventType = "message_reaction";
+              console.log(`[IG Webhook] Reaction ${msgEvent.reaction?.reaction} on mid ${msgEvent.reaction?.mid} from ${senderId}`);
+            } else if (msgEvent.postback) {
+              eventType = "messaging_postback";
+              console.log(`[IG Webhook] Postback: ${msgEvent.postback?.title} payload=${msgEvent.postback?.payload}`);
+            } else if (msgEvent.referral) {
+              eventType = "messaging_referral";
+              console.log(`[IG Webhook] Referral: source=${msgEvent.referral?.source} type=${msgEvent.referral?.type}`);
+            } else if (msgEvent.optin) {
+              eventType = "messaging_optin";
+              console.log(`[IG Webhook] Optin: type=${msgEvent.optin?.type} payload=${msgEvent.optin?.payload}`);
+            } else if (msgEvent.read) {
+              eventType = "messaging_seen";
+              console.log(`[IG Webhook] Message seen by ${senderId} at ${msgEvent.read?.watermark}`);
+            } else if (msgEvent.pass_thread_control || msgEvent.take_thread_control || msgEvent.request_thread_control) {
+              eventType = "messaging_handover";
+              console.log(`[IG Webhook] Handover event from ${senderId}`);
+            } else if (msgEvent.standby) {
+              eventType = "standby";
+              console.log(`[IG Webhook] Standby message from ${senderId}`);
+            }
+
+            await supabaseWh.from("audit_logs").insert({
+              action: `ig_webhook_${eventType}`,
+              entity_type: "instagram",
+              entity_id: senderId || igUserId || null,
+              actor_type: "system",
+              metadata: {
+                event_type: eventType,
+                sender_id: senderId,
+                recipient_id: recipientId,
+                payload: msgEvent,
+                timestamp,
+                received_at: new Date().toISOString(),
+              },
+            });
+          }
+        }
+      }
+
+      // Always return 200 to Meta to prevent webhook deactivation
+      return new Response(JSON.stringify({ success: true }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ===== NORMAL API REQUEST HANDLER =====
+    const { action, account_id, params } = parsedBody;
     
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
