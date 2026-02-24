@@ -1511,8 +1511,9 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
     setIgLoginPopupLoading(true);
     const publishedOrigin = "https://uplyze.ai";
     const redirectUri = `${publishedOrigin}/ig-login`;
-    const scope = "instagram_business_basic,instagram_business_content_publish,instagram_business_manage_comments,instagram_business_manage_messages,instagram_business_manage_insights";
-    const authUrl = `https://www.instagram.com/oauth/authorize?force_reauth=true&client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent(scope)}`;
+    // Use Facebook Business Login with config_id for page-level token access (needed for messaging/conversations)
+    const configId = "810481348738341";
+    const authUrl = `https://www.facebook.com/dialog/oauth?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&config_id=${configId}&response_type=code&override_default_response_type=true`;
     
     // Open as a centered popup window
     const w = 520, h = 620;
@@ -1530,7 +1531,7 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
         window.removeEventListener("message", handleMessage);
         setIgLoginPopupLoading(false);
         const payload = event.data.payload || {};
-        const { access_token, user_id, username, expires_in, name, profile_picture_url, session_id, csrf_token, ds_user_id } = payload;
+        const { access_token, user_id, username, expires_in, name, profile_picture_url, session_id, csrf_token, ds_user_id, token_source, page_token, page_id } = payload;
         
         if (!access_token && !session_id) return;
         
@@ -1582,6 +1583,13 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
               ig_profile_pic: profile_picture_url,
               ig_token_expires_at: tokenExpiresAt,
               ig_oauth_connected_at: savedAt,
+              ig_token_source: token_source,
+            }),
+            // Page token for conversations/messaging API
+            ...(page_token && {
+              fb_page_token: page_token,
+              fb_page_id: page_id,
+              fb_page_token_saved_at: savedAt,
             }),
             // Session data (for private API features)
             ...(session_id && {

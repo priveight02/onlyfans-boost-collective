@@ -1239,6 +1239,7 @@ Analyze every character in the name and username for any gender signal at all. L
         const isIgToken = token.startsWith("IGAAR") || token.startsWith("IGQV");
         
         let realUserId = igUserId;
+        let igBusinessId: string | null = null; // The IGID (17841...) from /me user_id field
         try {
           const meResp = await fetch(`${IG_GRAPH_URL}/me?fields=id,user_id,username&access_token=${token}`);
           const meData = await meResp.json();
@@ -1248,59 +1249,101 @@ Analyze every character in the name and username for any gender signal at all. L
             realUserId = meData.id;
             await supabase.from("social_connections").update({ platform_user_id: realUserId }).eq("account_id", account_id).eq("platform", "instagram");
           }
+          // Capture the IGID (user_id field) — this is different from the app-scoped id
+          if (meData?.user_id && meData.user_id !== meData.id) {
+            igBusinessId = meData.user_id;
+            console.log(`IGID (business account): ${igBusinessId}`);
+          }
         } catch {}
         
-        const fetchWithPagination = async (url: string, maxPages = 10): Promise<any[]> => {
-          const allData: any[] = [];
-          let currentUrl: string | null = url;
-          let page = 0;
-          while (currentUrl && page < maxPages) {
-            page++;
+        const fetchConvosFromUrl = async (url: string, maxRetries = 2): Promise<any[]> => {
+          for (let attempt = 0; attempt <= maxRetries; attempt++) {
+            if (attempt > 0) {
+              console.log(`Retry ${attempt}/${maxRetries} after 2s delay...`);
+              await new Promise(r => setTimeout(r, 2000));
+            }
             try {
-              const resp = await fetch(currentUrl);
+              const resp = await fetch(url);
               const json = await resp.json();
-              console.log(`Page ${page}: ${json?.data?.length || 0} items, has_next: ${!!json?.paging?.next}`);
-              if (json?.error) { console.log(`API error: ${json.error.message} (code: ${json.error.code}, type: ${json.error.type}, subcode: ${json.error.error_subcode || "none"})`); break; }
-              if (json?.data?.length > 0) allData.push(...json.data);
-              currentUrl = json?.paging?.next || null;
-              if (!json?.data?.length && !json?.paging?.next) break;
-            } catch (e: any) { console.log(`Page ${page} error:`, e.message); break; }
+              if (json?.error) {
+                console.log(`API error: ${json.error.message} (code: ${json.error.code}, type: ${json.error.type}, subcode: ${json.error.error_subcode || "none"})`);
+                if (json.error.code === 1) continue; // "Unknown error" — retry
+                return [];
+              }
+              if (json?.data) {
+                // Paginate
+                const allData = [...json.data];
+                let nextUrl = json?.paging?.next;
+                let page = 1;
+                while (nextUrl && page < 10) {
+                  page++;
+                  const nextResp = await fetch(nextUrl);
+                  const nextJson = await nextResp.json();
+                  if (nextJson?.data?.length > 0) allData.push(...nextJson.data);
+                  nextUrl = nextJson?.paging?.next;
+                  if (!nextJson?.data?.length) break;
+                }
+                return allData;
+              }
+              return [];
+            } catch (e: any) { console.log(`Fetch error: ${e.message}`); }
           }
-          return allData;
+          return [];
         };
         
-        // Build endpoint list based on token type
-        console.log(`Token type: ${isIgToken ? "IG OAuth" : "FB/System"}, userId: ${realUserId}`);
+        // Check for stored page token in metadata (from Facebook Business Login)
+        const connMeta = (conn.metadata as any) || {};
+        const storedPageToken = connMeta.fb_page_token;
+        const storedPageId = connMeta.fb_page_id;
+        
+        // Build endpoint list — prioritize stored page token, then try all fallbacks
+        console.log(`Token type: ${isIgToken ? "IG OAuth" : "FB/System"}, userId: ${realUserId}, igBusinessId: ${igBusinessId || "none"}, storedPageToken: ${!!storedPageToken}`);
         
         const endpoints: { url: string; tkn: string; label: string }[] = [];
         
-        // IG Graph endpoints (work with IG tokens)
-        for (const fields of [simpleFields, richFields]) {
-          endpoints.push({ url: `${IG_GRAPH_URL}/me/conversations?platform=instagram&limit=${limit}&fields=${fields}`, tkn: token, label: `IG /me (${fields === simpleFields ? "simple" : "rich"})` });
-          endpoints.push({ url: `${IG_GRAPH_URL}/${realUserId}/conversations?platform=instagram&limit=${limit}&fields=${fields}`, tkn: token, label: `IG /${realUserId} (${fields === simpleFields ? "simple" : "rich"})` });
+        // PRIORITY 1: Stored Facebook Page token (most reliable for conversations)
+        if (storedPageToken && storedPageId) {
+          endpoints.push({ url: `${FB_GRAPH_URL}/${storedPageId}/conversations?platform=instagram&limit=${limit}&fields=${simpleFields}`, tkn: storedPageToken, label: "Stored FB page simple" });
+          endpoints.push({ url: `${FB_GRAPH_URL}/${storedPageId}/conversations?platform=instagram&limit=${limit}&fields=${richFields}`, tkn: storedPageToken, label: "Stored FB page rich" });
         }
         
-        // FB Graph endpoints (only work with FB/system tokens)
-        if (!isIgToken) {
+        // PRIORITY 2: IG Graph endpoints
+        endpoints.push({ url: `${IG_GRAPH_URL}/me/conversations?platform=instagram&limit=${limit}&fields=${simpleFields}`, tkn: token, label: "IG /me simple" });
+        if (igBusinessId) {
+          endpoints.push({ url: `${IG_GRAPH_URL}/${igBusinessId}/conversations?platform=instagram&limit=${limit}&fields=${simpleFields}`, tkn: token, label: `IG /IGID simple` });
+        }
+        endpoints.push({ url: `${IG_GRAPH_URL}/${realUserId}/conversations?platform=instagram&limit=${limit}&fields=${simpleFields}`, tkn: token, label: `IG /userId simple` });
+        
+        // PRIORITY 3: FB Graph with main token
+        endpoints.push({ url: `${FB_GRAPH_URL}/me/conversations?platform=instagram&limit=${limit}&fields=${simpleFields}`, tkn: token, label: "FB /me simple" });
+        if (igBusinessId) {
+          endpoints.push({ url: `${FB_GRAPH_URL}/${igBusinessId}/conversations?platform=instagram&limit=${limit}&fields=${simpleFields}`, tkn: token, label: "FB /IGID simple" });
+        }
+        
+        // PRIORITY 4: Try to discover page token dynamically
+        if (!storedPageToken) {
           const pageInfo = await getPageId(token, realUserId);
-          endpoints.push({ url: `${FB_GRAPH_URL}/${realUserId}/conversations?platform=instagram&limit=${limit}&fields=${simpleFields}`, tkn: token, label: "FB user simple" });
           if (pageInfo) {
+            console.log(`Discovered FB Page: ${pageInfo.pageId}`);
             endpoints.push({ url: `${FB_GRAPH_URL}/${pageInfo.pageId}/conversations?platform=instagram&limit=${limit}&fields=${simpleFields}`, tkn: pageInfo.pageToken, label: "FB page simple" });
             endpoints.push({ url: `${FB_GRAPH_URL}/${pageInfo.pageId}/conversations?platform=instagram&limit=${limit}&fields=${richFields}`, tkn: pageInfo.pageToken, label: "FB page rich" });
           }
         }
+        
+        // PRIORITY 5: Rich fields as last resort
+        endpoints.push({ url: `${IG_GRAPH_URL}/me/conversations?platform=instagram&limit=${limit}&fields=${richFields}`, tkn: token, label: "IG /me rich" });
         
         let allConvos: any[] = [];
         for (const ep of endpoints) {
           let url = `${ep.url}&access_token=${ep.tkn}`;
           if (folder) url += `&folder=${folder}`;
           console.log(`Trying: ${ep.label}`);
-          allConvos = await fetchWithPagination(url);
+          allConvos = await fetchConvosFromUrl(url);
           if (allConvos.length > 0) { console.log(`✓ Success with ${ep.label}: ${allConvos.length} convos`); break; }
         }
         
         if (allConvos.length === 0) {
-          console.log("All endpoints returned 0 conversations. Possible causes: instagram_manage_messages not at Advanced Access, app in Development mode, or no DM history.");
+          console.log("All endpoints returned 0. Likely causes: 1) instagram_manage_messages needs Advanced Access 2) App must be in Live mode 3) Meta rate limiting (try again in 60s)");
         }
         
         console.log(`Total conversations fetched: ${allConvos.length}`);
@@ -1316,56 +1359,98 @@ Analyze every character in the name and username for any gender signal at all. L
         const isIgToken = token.startsWith("IGAAR") || token.startsWith("IGQV");
         
         let realUserId = igUserId;
+        let igBusinessId2: string | null = null;
         try {
           const meResp = await fetch(`${IG_GRAPH_URL}/me?fields=id,user_id,username&access_token=${token}`);
           const meData = await meResp.json();
-          console.log(`get_all /me: id=${meData?.id}, username=${meData?.username}, error=${meData?.error?.message || "none"}`);
+          console.log(`get_all /me: id=${meData?.id}, user_id=${meData?.user_id}, username=${meData?.username}, error=${meData?.error?.message || "none"}`);
           if (meData?.id && meData.id !== igUserId) {
             console.log(`ID update: ${igUserId} → ${meData.id}`);
             realUserId = meData.id;
             await supabase.from("social_connections").update({ platform_user_id: realUserId }).eq("account_id", account_id).eq("platform", "instagram");
           }
+          if (meData?.user_id && meData.user_id !== meData.id) {
+            igBusinessId2 = meData.user_id;
+            console.log(`IGID (business): ${igBusinessId2}`);
+          }
         } catch {}
         
-        const fetchWithPagination = async (startUrl: string, maxPages = 10): Promise<any[]> => {
-          const allData: any[] = [];
-          let currentUrl: string | null = startUrl;
-          let page = 0;
-          while (currentUrl && page < maxPages) {
-            page++;
+        const fetchConvosRetry = async (url: string, maxRetries = 2): Promise<any[]> => {
+          for (let attempt = 0; attempt <= maxRetries; attempt++) {
+            if (attempt > 0) {
+              console.log(`Retry ${attempt}/${maxRetries} after 2s...`);
+              await new Promise(r => setTimeout(r, 2000));
+            }
             try {
-              const resp = await fetch(currentUrl);
+              const resp = await fetch(url);
               const json = await resp.json();
-              if (json?.error) { console.log(`Error page ${page}: ${json.error.message} (code: ${json.error.code}, type: ${json.error.type}, subcode: ${json.error.error_subcode || "none"})`); break; }
-              if (json?.data?.length > 0) allData.push(...json.data);
-              currentUrl = json?.paging?.next || null;
-              if (!json?.data?.length && !json?.paging?.next) break;
-            } catch (e: any) { console.log(`Page ${page} error:`, e.message); break; }
+              if (json?.error) {
+                console.log(`Error: ${json.error.message} (code: ${json.error.code}, subcode: ${json.error.error_subcode || "none"})`);
+                if (json.error.code === 1) continue; // Unknown error — retry
+                return [];
+              }
+              const allData = [...(json?.data || [])];
+              let nextUrl = json?.paging?.next;
+              let page = 1;
+              while (nextUrl && page < 10) {
+                page++;
+                const nextResp = await fetch(nextUrl);
+                const nextJson = await nextResp.json();
+                if (nextJson?.data?.length > 0) allData.push(...nextJson.data);
+                nextUrl = nextJson?.paging?.next;
+                if (!nextJson?.data?.length) break;
+              }
+              return allData;
+            } catch (e: any) { console.log(`Fetch error: ${e.message}`); }
           }
-          return allData;
+          return [];
         };
         
-        // Build bases based on token type — skip FB Graph for IG tokens
-        let pageInfo2: { pageId: string; pageToken: string } | null = null;
-        if (!isIgToken) { pageInfo2 = await getPageId(token, realUserId); }
-        console.log(`get_all: tokenType=${isIgToken ? "IG" : "FB"}, userId=${realUserId}, pageAvailable=${!!pageInfo2}`);
+        // Check for stored page token in metadata
+        const connMeta2 = (conn.metadata as any) || {};
+        const storedPageToken2 = connMeta2.fb_page_token;
+        const storedPageId2 = connMeta2.fb_page_id;
+        
+        const pageInfo2 = storedPageToken2 ? null : await getPageId(token, realUserId);
+        console.log(`get_all: tokenType=${isIgToken ? "IG" : "FB"}, userId=${realUserId}, igBusinessId=${igBusinessId2 || "none"}, storedPageToken=${!!storedPageToken2}, pageAvailable=${!!pageInfo2}`);
         
         let primary: any[] = [];
         let general: any[] = [];
         let requests: any[] = [];
         let total = 0;
         
-        // For IG OAuth tokens, folder param doesn't work — use get_conversations-style direct fetch
         if (isIgToken) {
-          console.log("IG token detected — using direct /me/conversations (no folder param)");
-          // Use exact same approach as get_conversations which works
-          const url = `${IG_GRAPH_URL}/me/conversations?platform=instagram&limit=${allLimit}&fields=${simpleFields}&access_token=${token}`;
-          console.log("Fetching /me/conversations simple...");
-          primary = await fetchWithPagination(url);
+          console.log("IG token — multi-endpoint fallback with retries");
+          const endpoints: { url: string; tkn: string; label: string }[] = [];
+          // PRIORITY 1: Stored page token
+          if (storedPageToken2 && storedPageId2) {
+            endpoints.push({ url: `${FB_GRAPH_URL}/${storedPageId2}/conversations?platform=instagram&limit=${allLimit}&fields=${simpleFields}`, tkn: storedPageToken2, label: "Stored FB page simple" });
+            endpoints.push({ url: `${FB_GRAPH_URL}/${storedPageId2}/conversations?platform=instagram&limit=${allLimit}&fields=${richFields}`, tkn: storedPageToken2, label: "Stored FB page rich" });
+          }
+          endpoints.push({ url: `${IG_GRAPH_URL}/me/conversations?platform=instagram&limit=${allLimit}&fields=${simpleFields}`, tkn: token, label: "IG /me simple" });
+          if (igBusinessId2) {
+            endpoints.push({ url: `${IG_GRAPH_URL}/${igBusinessId2}/conversations?platform=instagram&limit=${allLimit}&fields=${simpleFields}`, tkn: token, label: "IG /IGID simple" });
+          }
+          endpoints.push({ url: `${IG_GRAPH_URL}/${realUserId}/conversations?platform=instagram&limit=${allLimit}&fields=${simpleFields}`, tkn: token, label: "IG /userId simple" });
+          endpoints.push({ url: `${FB_GRAPH_URL}/me/conversations?platform=instagram&limit=${allLimit}&fields=${simpleFields}`, tkn: token, label: "FB /me simple" });
+          if (pageInfo2) {
+            endpoints.push({ url: `${FB_GRAPH_URL}/${pageInfo2.pageId}/conversations?platform=instagram&limit=${allLimit}&fields=${simpleFields}`, tkn: pageInfo2.pageToken, label: "FB page simple" });
+          }
+          endpoints.push({ url: `${IG_GRAPH_URL}/me/conversations?platform=instagram&limit=${allLimit}&fields=${richFields}`, tkn: token, label: "IG /me rich" });
+          
+          for (const ep of endpoints) {
+            console.log(`get_all trying: ${ep.label}`);
+            const convos = await fetchConvosRetry(`${ep.url}&access_token=${ep.tkn}`);
+            if (convos.length > 0) {
+              console.log(`✓ get_all success with ${ep.label}: ${convos.length} convos`);
+              primary = convos;
+              break;
+            }
+          }
           total = primary.length;
-          console.log(`Direct fetch result: ${total} conversations`);
+          console.log(`get_all total: ${total} conversations`);
           if (total === 0) {
-            console.log("0 conversations. Check: 1) instagram_manage_messages at Advanced Access 2) App in Live mode 3) Account has DM history");
+            console.log("0 conversations. Likely: 1) instagram_manage_messages needs Advanced Access 2) App must be Live mode 3) Meta rate limiting — wait 60s");
           }
         } else {
           // FB/system tokens — use folder-based queries
