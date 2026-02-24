@@ -601,9 +601,9 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
     const { error } = await supabase.from("social_connections").delete().eq("id", id);
     if (error) { toast.error("Failed to disconnect: " + error.message); return; }
     
-    // DM data is preserved in DB (tagged by platform_user_id) — NOT deleted on disconnect
-    // It will only be loaded when the same IG account reconnects
-    console.log(`Disconnected ${platform} for account ${conn?.account_id} — DM data preserved in DB`);
+    // DM data is preserved in DB (tagged by platform_user_id per platform) — NOT deleted on disconnect
+    // It will only be loaded when the same platform account reconnects (IG, TikTok, Threads, Facebook)
+    console.log(`Disconnected ${platform} for account ${conn?.account_id} — DM data preserved in DB (platform_user_id: ${conn?.platform_user_id})`);
     
     // Immediately remove from local state for instant UI update
     setConnections(prev => prev.filter(c => c.id !== id));
@@ -2302,7 +2302,12 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
                 onNavigateToSession={navigateToSessionCard}
                 igSessionId={igSessionId}
                 igSessionStatus={igSessionStatus}
-                igPlatformUserId={connections.find(c => c.platform === "instagram")?.platform_user_id || ""}
+                igPlatformUserId={connections.find(c => c.platform === "instagram" && c.is_connected)?.platform_user_id || ""}
+                platformUserId={
+                  connections.find(c => c.platform === platformTab && c.is_connected)?.platform_user_id || 
+                  connections.find(c => c.platform === "instagram" && c.is_connected)?.platform_user_id || ""
+                }
+                platform={platformTab || "instagram"}
               />
             </CardContent>
           </Card>

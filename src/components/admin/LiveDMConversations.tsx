@@ -31,6 +31,10 @@ interface LiveDMConversationsProps {
   igSessionId?: string;
   igSessionStatus?: "unknown" | "valid" | "expired";
   igPlatformUserId?: string;
+  /** Generic platform_user_id — used for TikTok, Threads, Facebook, etc. Falls back to igPlatformUserId for backward compat */
+  platformUserId?: string;
+  /** Which platform these DMs are for (default: instagram) */
+  platform?: string;
 }
 
 interface Conversation {
@@ -188,7 +192,9 @@ const PipelineDelayCountdown = ({ delay_ms, started_at }: { delay_ms: number; st
   );
 };
 
-const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond, onNavigateToSession, igSessionId, igSessionStatus, igPlatformUserId }: LiveDMConversationsProps) => {
+const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond, onNavigateToSession, igSessionId, igSessionStatus, igPlatformUserId, platformUserId: propPlatformUserId, platform = "instagram" }: LiveDMConversationsProps) => {
+  // Resolve the effective platform user ID — prefer explicit prop, fall back to IG-specific
+  const effectivePlatformUserId = propPlatformUserId || igPlatformUserId || "";
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [selectedConvo, setSelectedConvo] = useState<string | null>(null);
@@ -301,9 +307,13 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
       .from("ai_dm_conversations")
       .select("*")
       .eq("account_id", accountId);
-    // Filter by platform_user_id to only show conversations for the currently connected IG account
-    if (igPlatformUserId) {
-      query = query.eq("platform_user_id", igPlatformUserId);
+    // Filter by platform_user_id to only show conversations for the currently connected account
+    if (effectivePlatformUserId) {
+      query = query.eq("platform_user_id", effectivePlatformUserId);
+    }
+    // Also filter by platform to isolate provider data
+    if (platform) {
+      query = query.eq("platform", platform);
     }
     const { data } = await query.order("last_message_at", { ascending: false, nullsFirst: false });
     if (data) {
@@ -327,13 +337,15 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
       });
     }
     return data as Conversation[] | null;
-  }, [accountId, igPlatformUserId]);
+  }, [accountId, effectivePlatformUserId, platform]);
 
   // Load messages for a conversation into cache (checks supabaseCache first)
   const loadMessagesToCache = useCallback(async (convoId: string, forceRefresh = false): Promise<Message[]> => {
+    // Cache key scoped by platform user ID to prevent cross-account data leaks
+    const cacheNs = `dm_msgs_${effectivePlatformUserId || "any"}_${convoId}`;
     // Check persistent cache first (10s TTL — very short to stay fresh)
     if (!forceRefresh) {
-      const cached = getCached<Message[]>(accountId, `dm_msgs_${convoId}`);
+      const cached = getCached<Message[]>(accountId, cacheNs);
       if (cached) {
         messageCacheRef.current.set(convoId, cached);
         return cached;
@@ -346,9 +358,9 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
       .order("created_at", { ascending: true });
     const msgs = (data || []) as Message[];
     messageCacheRef.current.set(convoId, msgs);
-    setCache(accountId, `dm_msgs_${convoId}`, msgs, undefined, 10000); // 10s TTL
+    setCache(accountId, cacheNs, msgs, undefined, 10000); // 10s TTL
     return msgs;
-  }, [accountId]);
+  }, [accountId, effectivePlatformUserId]);
 
   // Load messages for selected conversation (instant from cache, then refresh)
   const loadMessages = useCallback(async (convoId: string) => {
