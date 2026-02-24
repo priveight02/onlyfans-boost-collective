@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Star, RefreshCw, ExternalLink, Users, Loader2 } from "lucide-react";
 
-interface Props { selectedAccount: string; }
+interface Props { selectedAccount: string; selectedPage?: any; }
 
 const FBCreatorMarketplace = ({ selectedAccount }: Props) => {
   const [loading, setLoading] = useState(false);

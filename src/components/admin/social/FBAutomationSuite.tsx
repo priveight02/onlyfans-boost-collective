@@ -17,8 +17,16 @@ import {
   Layers, Link2, Hash, Shield, FileText,
   MessageSquare, ArrowRight, Sparkles, Bot, CheckCircle2,
   AlertCircle, Clock, ThumbsUp, Share2, Play,
-  UserPlus, BookOpen, Camera, Mail,
+  UserPlus, BookOpen, Camera, Mail, Store, DollarSign, Briefcase, MousePointer,
 } from "lucide-react";
+import FBLiveVideoManager from "./FBLiveVideoManager";
+import FBFundraisersManager from "./FBFundraisersManager";
+import FBLeadsManager from "./FBLeadsManager";
+import FBCommerceHub from "./FBCommerceHub";
+import FBCreatorMarketplace from "./FBCreatorMarketplace";
+import FBCTAManager from "./FBCTAManager";
+import FBMarketingMessages from "./FBMarketingMessages";
+import FBBusinessManager from "./FBBusinessManager";
 
 const FacebookIcon = ({ className = "h-4 w-4" }: { className?: string }) => (
   <svg viewBox="0 0 24 24" className={className} fill="currentColor">
@@ -307,6 +315,14 @@ const FBAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSu
     { v: "inbox", icon: Mail, l: "Inbox" },
     { v: "insights", icon: BarChart3, l: "Insights" },
     { v: "search", icon: Search, l: "Search" },
+    { v: "live", icon: Play, l: "Live Video" },
+    { v: "fundraisers", icon: Heart, l: "Fundraisers" },
+    { v: "leads", icon: Target, l: "Leads" },
+    { v: "commerce", icon: Store, l: "Commerce" },
+    { v: "creators", icon: Users, l: "Creators" },
+    { v: "cta", icon: MousePointer, l: "CTA" },
+    { v: "marketing", icon: Megaphone, l: "Marketing" },
+    { v: "business", icon: Briefcase, l: "Business" },
     { v: "ai-tools", icon: Wand2, l: "AI Tools" },
   ];
 
@@ -743,18 +759,58 @@ const FBAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSu
           )}
         </TabsContent>
 
+        {/* ===== LIVE VIDEO ===== */}
+        <TabsContent value="live" className="mt-4">
+          <FBLiveVideoManager selectedAccount={selectedAccount} selectedPage={selectedPage} />
+        </TabsContent>
+
+        {/* ===== FUNDRAISERS ===== */}
+        <TabsContent value="fundraisers" className="mt-4">
+          <FBFundraisersManager selectedAccount={selectedAccount} selectedPage={selectedPage} />
+        </TabsContent>
+
+        {/* ===== LEADS ===== */}
+        <TabsContent value="leads" className="mt-4">
+          <FBLeadsManager selectedAccount={selectedAccount} selectedPage={selectedPage} />
+        </TabsContent>
+
+        {/* ===== COMMERCE ===== */}
+        <TabsContent value="commerce" className="mt-4">
+          <FBCommerceHub selectedAccount={selectedAccount} selectedPage={selectedPage} />
+        </TabsContent>
+
+        {/* ===== CREATORS ===== */}
+        <TabsContent value="creators" className="mt-4">
+          <FBCreatorMarketplace selectedAccount={selectedAccount} selectedPage={selectedPage} />
+        </TabsContent>
+
+        {/* ===== CTA ===== */}
+        <TabsContent value="cta" className="mt-4">
+          <FBCTAManager selectedAccount={selectedAccount} selectedPage={selectedPage} />
+        </TabsContent>
+
+        {/* ===== MARKETING MESSAGES ===== */}
+        <TabsContent value="marketing" className="mt-4">
+          <FBMarketingMessages selectedAccount={selectedAccount} selectedPage={selectedPage} />
+        </TabsContent>
+
+        {/* ===== BUSINESS MANAGER ===== */}
+        <TabsContent value="business" className="mt-4">
+          <FBBusinessManager selectedAccount={selectedAccount} />
+        </TabsContent>
+
         {/* ===== AI TOOLS ===== */}
         <TabsContent value="ai-tools" className="space-y-4 mt-4">
           {/* Caption Generator */}
           <Card className="border-border/50">
             <CardContent className="p-4 space-y-3">
-              <h4 className="text-xs font-bold text-foreground flex items-center gap-1.5"><Sparkles className="h-3.5 w-3.5 text-blue-400" />AI Caption Generator</h4>
-              <Input placeholder="Topic or description..." value={aiCaptionTopic} onChange={e => setAiCaptionTopic(e.target.value)} className="text-sm" />
-              <Button size="sm" onClick={generateCaption} disabled={loading}><Wand2 className="h-3.5 w-3.5 mr-1" />Generate</Button>
+              <h4 className="text-xs font-bold text-foreground flex items-center gap-1.5"><Wand2 className="h-3.5 w-3.5 text-blue-400" />AI Caption Generator</h4>
+              <Input placeholder="Topic or theme..." value={aiCaptionTopic} onChange={e => setAiCaptionTopic(e.target.value)} className="text-sm" />
+              <Button size="sm" onClick={generateCaption} disabled={loading}><Sparkles className="h-3.5 w-3.5 mr-1" />Generate</Button>
               {aiCaptionResult && (
-                <div className="bg-muted/30 rounded p-3 relative">
+                <div className="bg-muted/30 rounded p-3">
                   <p className="text-xs text-foreground whitespace-pre-wrap">{aiCaptionResult}</p>
-                  <Button size="sm" variant="ghost" className="absolute top-1 right-1 h-6 w-6 p-0" onClick={() => { navigator.clipboard.writeText(aiCaptionResult); toast.success("Copied"); }}><Copy className="h-3 w-3" /></Button>
+                  <Button size="sm" variant="ghost" onClick={() => { setPostMessage(aiCaptionResult); setActiveTab("posts"); toast.success("Caption copied to posts"); }} className="mt-2 h-6 text-[10px]"><Copy className="h-3 w-3 mr-1" />Use in Post</Button>
                 </div>
               )}
             </CardContent>

@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ShoppingBag, RefreshCw, Package, DollarSign, FileText, Plus, Loader2 } from "lucide-react";
 
-interface Props { selectedAccount: string; }
+interface Props { selectedAccount: string; selectedPage?: any; }
 
 const FBCommerceHub = ({ selectedAccount }: Props) => {
   const [loading, setLoading] = useState(false);
