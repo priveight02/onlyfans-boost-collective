@@ -1552,60 +1552,92 @@ Analyze every character in the name and username for any gender signal at all. L
 
       case "get_conversation_messages": {
         if (!params?.conversation_id) throw new Error("conversation_id required");
-        const msgLimit = params?.limit || 20;
         
-        // Per docs: Step 1 — GET /<CONVERSATION_ID>?fields=messages&access_token=TOKEN
-        // Returns: { messages: { data: [{ id, created_time }] } }
         try {
-          const convoResp = await fetch(`${IG_GRAPH_URL}/${params.conversation_id}?fields=messages&access_token=${token}`);
-          const convoData = await convoResp.json();
+          // Step 1: Fetch ALL message IDs using cursor pagination
+          let allMessageIds: any[] = [];
+          let nextUrl: string | null = `${IG_GRAPH_URL}/${params.conversation_id}?fields=messages&access_token=${token}`;
+          let pageCount = 0;
+          const maxPages = 10; // Safety: max 10 pages of message IDs
           
-          if (convoData?.error) {
-            console.log("get_conversation_messages error:", convoData.error.message);
-            result = { messages: { data: [] }, error_message: convoData.error.message };
+          while (nextUrl && pageCount < maxPages) {
+            const convoResp = await fetch(nextUrl);
+            const convoData = await convoResp.json();
+            
+            if (convoData?.error) {
+              if (pageCount === 0) {
+                console.log("get_conversation_messages error:", convoData.error.message);
+                result = { messages: { data: [] }, error_message: convoData.error.message };
+                break;
+              }
+              break; // Stop pagination on error but keep what we have
+            }
+            
+            const pageMessages = convoData?.messages?.data || convoData?.data || [];
+            allMessageIds = allMessageIds.concat(pageMessages);
+            pageCount++;
+            
+            // Check for next page cursor
+            const paging = convoData?.messages?.paging || convoData?.paging;
+            nextUrl = paging?.next || null;
+            
+            console.log(`Page ${pageCount}: ${pageMessages.length} message IDs (total: ${allMessageIds.length})`);
+          }
+          
+          if (allMessageIds.length === 0) {
+            result = { messages: { data: [] }, id: params.conversation_id };
             break;
           }
           
-          // Fetch up to 50 most recent messages
-          const messageIds = (convoData?.messages?.data || []).slice(0, 50);
-          console.log(`Conversation ${params.conversation_id}: ${messageIds.length} message IDs (capped at 50)`);
+          console.log(`Total message IDs for ${params.conversation_id}: ${allMessageIds.length}`);
           
-          // Try full fields first, then progressively strip unsupported ones
+          // Step 2: Fetch details in concurrent batches of 10
           const fullFields = "id,created_time,from,to,message,attachments,story,shares";
           const mediumFields = "id,created_time,from,to,message,attachments";
           const minFields = "id,created_time,from,to,message";
           
-          const detailedMessages: any[] = [];
-          for (const msg of messageIds) {
-            try {
-              // Attempt 1: all fields including story/shares
-              let detailResp = await fetch(`${IG_GRAPH_URL}/${msg.id}?fields=${fullFields}&access_token=${token}`);
-              let detail = await detailResp.json();
-              
-              if (detail?.error) {
-                // Attempt 2: without story/shares
-                detailResp = await fetch(`${IG_GRAPH_URL}/${msg.id}?fields=${mediumFields}&access_token=${token}`);
-                detail = await detailResp.json();
+          // Determine which field set works (test with first message)
+          let workingFields = fullFields;
+          if (allMessageIds.length > 0) {
+            const testResp = await fetch(`${IG_GRAPH_URL}/${allMessageIds[0].id}?fields=${fullFields}&access_token=${token}`);
+            const testData = await testResp.json();
+            if (testData?.error) {
+              const testResp2 = await fetch(`${IG_GRAPH_URL}/${allMessageIds[0].id}?fields=${mediumFields}&access_token=${token}`);
+              const testData2 = await testResp2.json();
+              if (testData2?.error) {
+                workingFields = minFields;
+              } else {
+                workingFields = mediumFields;
               }
-              
-              if (detail?.error) {
-                // Attempt 3: minimal fields only
-                detailResp = await fetch(`${IG_GRAPH_URL}/${msg.id}?fields=${minFields}&access_token=${token}`);
-                detail = await detailResp.json();
-              }
-              
-              if (detail?.error) {
-                console.log(`Skipping message ${msg.id}: ${detail.error.message}`);
-                continue;
-              }
-              
-              detailedMessages.push(detail);
-            } catch (e: any) {
-              console.log(`Skipping message ${msg.id}: ${e.message}`);
-              continue;
             }
           }
+          console.log(`Using fields: ${workingFields}`);
           
+          const detailedMessages: any[] = [];
+          const batchSize = 10;
+          
+          for (let i = 0; i < allMessageIds.length; i += batchSize) {
+            const batch = allMessageIds.slice(i, i + batchSize);
+            const batchResults = await Promise.all(
+              batch.map(async (msg: any) => {
+                try {
+                  const resp = await fetch(`${IG_GRAPH_URL}/${msg.id}?fields=${workingFields}&access_token=${token}`);
+                  const detail = await resp.json();
+                  if (detail?.error) {
+                    // Fallback to minimal
+                    const fallbackResp = await fetch(`${IG_GRAPH_URL}/${msg.id}?fields=${minFields}&access_token=${token}`);
+                    const fallback = await fallbackResp.json();
+                    if (fallback?.error) return null;
+                    return fallback;
+                  }
+                  return detail;
+                } catch { return null; }
+              })
+            );
+            detailedMessages.push(...batchResults.filter(Boolean));
+          }
+          
+          console.log(`Fetched ${detailedMessages.length}/${allMessageIds.length} message details`);
           result = { messages: { data: detailedMessages }, id: params.conversation_id };
         } catch (err: any) {
           console.error("get_conversation_messages failed:", err.message);
