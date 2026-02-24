@@ -445,7 +445,7 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading, onNavigateTo
 
   // Session check helper - allows session cookie OR OAuth connection for Graph API features
   // Graph API covers: search users (business_discovery), explore (hashtag), user feed, own post comments
-  // Private API ONLY (requires session cookie): like external posts, follow users, mass actions, scrape followers
+  // Private API ONLY (requires session cookie): like external posts, follow users, outreach actions, scrape followers
   const requireSession = (requirePrivateApi = false): boolean => {
     if (selectedPlatform !== "instagram") return true;
     const effectiveSessionId = parentSessionId || sessionId;
@@ -465,7 +465,7 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading, onNavigateTo
     if (onNavigateToSession) {
       onNavigateToSession();
       const msg = requirePrivateApi 
-        ? "Session cookie required for this action (like, follow, mass actions). Paste your sessionid from DevTools."
+        ? "Session cookie required for this action (like, follow, outreach actions). Paste your sessionid from DevTools."
         : "Instagram login or session cookie required. Login via Instagram or paste your sessionid.";
       toast.error(msg, { duration: 4000 });
     } else {
@@ -704,7 +704,7 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading, onNavigateTo
     setSearchResults(prev => prev.map(p => ({ ...p, selected: false })));
   };
 
-  // Mass comment
+   // Outreach comment
   const startMassComment = async () => {
     const selected = allPosts.filter(p => p.selected);
     if (selected.length === 0) { toast.error("Select posts first"); return; }
@@ -817,7 +817,7 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading, onNavigateTo
     setFollowingUserId(null);
   };
 
-  // ===== MASS LIKE =====
+  // ===== OUTREACH LIKE =====
   const startMassLike = async () => {
     const selected = allPosts.filter(p => p.selected);
     if (selected.length === 0) { toast.error("Select posts first"); return; }
@@ -838,7 +838,7 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading, onNavigateTo
     toast.success(`Liked ${done} posts (${failed} failed)`);
   };
 
-  // ===== MASS FOLLOW =====
+  // ===== OUTREACH FOLLOW =====
   const startMassFollow = async () => {
     const selected = allPosts.filter(p => p.selected);
     if (selected.length === 0) { toast.error("Select posts first"); return; }
@@ -893,7 +893,7 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading, onNavigateTo
             const Icon = isIG ? Instagram : Music2;
             return (
               <button key={c.id} onClick={() => setSelectedPlatform(c.platform)}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-medium transition-colors ${selectedPlatform === c.platform ? "bg-foreground/10 text-foreground ring-1 ring-border" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"}`}>
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-medium transition-all duration-200 ${selectedPlatform === c.platform ? "bg-white/[0.08] text-foreground ring-1 ring-white/[0.12] backdrop-blur-sm" : "text-muted-foreground hover:text-foreground hover:bg-white/[0.04]"}`}>
                 <Icon className={`h-3 w-3 ${isIG ? "text-pink-400" : "text-cyan-400"}`} />
                 @{c.platform_username}
               </button>
@@ -903,12 +903,12 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading, onNavigateTo
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="bg-muted/50 border border-border p-0.5 rounded-lg gap-0.5 flex flex-wrap w-full">
-          <TabsTrigger value="my-posts" className="data-[state=active]:bg-background data-[state=active]:text-foreground text-muted-foreground rounded-md gap-1 text-xs px-2 py-1.5">
+        <TabsList className="bg-white/[0.03] border border-white/[0.06] p-1 rounded-xl gap-0.5 flex flex-wrap w-full backdrop-blur-sm">
+          <TabsTrigger value="my-posts" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-[0_0_10px_-3px] data-[state=active]:shadow-primary/20 text-muted-foreground rounded-lg gap-1.5 text-xs px-2.5 py-1.5 font-medium transition-all duration-200">
             <Image className="h-3.5 w-3.5" /> My Posts
           </TabsTrigger>
-          <TabsTrigger value="discover" className="data-[state=active]:bg-background data-[state=active]:text-foreground text-muted-foreground rounded-md gap-1 text-xs px-2 py-1.5">
-            <Compass className="h-3.5 w-3.5" /> Discover & Mass Comment
+           <TabsTrigger value="discover" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-[0_0_10px_-3px] data-[state=active]:shadow-primary/20 text-muted-foreground rounded-lg gap-1.5 text-xs px-2.5 py-1.5 font-medium transition-all duration-200">
+             <Compass className="h-3.5 w-3.5" /> Discover & Outreach
             {selectedPlatform === "instagram" && (!sessionId || sessionStatus === "expired") && <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />}
           </TabsTrigger>
         </TabsList>
@@ -1216,7 +1216,7 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading, onNavigateTo
           </div>
         </TabsContent>
 
-        {/* ===== DISCOVER & MASS COMMENT ===== */}
+        {/* ===== DISCOVER & OUTREACH ===== */}
         <TabsContent value="discover" className="space-y-3 mt-3">
           {/* Search bar */}
           <div className="flex gap-2 items-center">
@@ -1323,11 +1323,11 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading, onNavigateTo
 
             {/* Outreach Panel */}
             <div className="space-y-3">
-              {/* Mass Comment */}
+              {/* Outreach Comment */}
               <Card>
                 <CardContent className="p-3 space-y-3">
                   <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                    <MessageSquare className="h-3.5 w-3.5 text-emerald-400" /> Mass Comment
+                    <MessageSquare className="h-3.5 w-3.5 text-emerald-400" /> Outreach Comment
                   </p>
                   <div className="flex gap-1">
                     <button onClick={() => setMassCommentMode("ai")}
@@ -1398,11 +1398,11 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading, onNavigateTo
                 </CardContent>
               </Card>
 
-              {/* Mass Like */}
+              {/* Outreach Like */}
               <Card>
                 <CardContent className="p-3 space-y-2">
                   <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                    <Heart className="h-3.5 w-3.5 text-red-400" /> Mass Like
+                    <Heart className="h-3.5 w-3.5 text-red-400" /> Outreach Like
                   </p>
                   <p className="text-[10px] text-muted-foreground">Auto-like selected posts to boost your visibility and engagement.</p>
                   <Button size="sm" onClick={startMassLike} disabled={massLiking || selectedCount === 0}
@@ -1425,11 +1425,11 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading, onNavigateTo
                 </CardContent>
               </Card>
 
-              {/* Mass Follow */}
+              {/* Outreach Follow */}
               <Card>
                 <CardContent className="p-3 space-y-2">
                   <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                    <UserPlus className="h-3.5 w-3.5 text-blue-400" /> Mass Follow
+                    <UserPlus className="h-3.5 w-3.5 text-blue-400" /> Outreach Follow
                   </p>
                   <p className="text-[10px] text-muted-foreground">Follow creators from selected posts. Deduplicated by username.</p>
                   <Button size="sm" onClick={startMassFollow} disabled={massFollowing || selectedCount === 0}
