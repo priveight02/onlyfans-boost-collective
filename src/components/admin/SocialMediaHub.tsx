@@ -24,6 +24,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Progress } from "@/components/ui/progress";
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import {
   Instagram, Music2, Link2, Send, BarChart3, MessageSquare, Plus,
   Calendar, ExternalLink, RefreshCw, Trash2, Eye, TrendingUp,
@@ -2820,9 +2821,28 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
                     >
                       {igConnected && <div className="absolute top-2 right-2 h-2 w-2 rounded-full bg-green-400 shadow-[0_0_6px] shadow-green-400/60" />}
                       {/* Chain icon: green if both IG+FB linked, grey if not */}
-                      <div className={`absolute bottom-1.5 left-1.5 ${igFbPageLinked ? "text-emerald-400 drop-shadow-[0_0_4px_rgba(52,211,153,0.5)]" : "text-muted-foreground/30"}`}>
-                        <Link2 className="h-3 w-3" />
-                      </div>
+                      <TooltipProvider delayDuration={200}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className={`absolute bottom-1.5 left-1.5 cursor-help ${igFbPageLinked ? "text-emerald-400 drop-shadow-[0_0_4px_rgba(52,211,153,0.5)]" : "text-muted-foreground/30"}`}>
+                              <Link2 className="h-3 w-3" />
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="max-w-[220px] text-[10px] leading-snug">
+                            {igFbPageLinked ? (
+                              <span className="text-emerald-400 font-semibold">✓ Linked — Facebook Page connected to this Instagram account. DMs ready.</span>
+                            ) : !igConnected && !facebookConnected ? (
+                              <span><b>Not linked.</b> Steps remaining:<br/>1. Connect Instagram<br/>2. Connect Facebook (with Page access)</span>
+                            ) : igConnected && !facebookConnected ? (
+                              <span><b>Instagram connected.</b> Step remaining:<br/>→ Connect Facebook to link a Page for DM access</span>
+                            ) : !igConnected && facebookConnected ? (
+                              <span><b>Facebook connected.</b> Step remaining:<br/>→ Connect Instagram to complete the link</span>
+                            ) : (
+                              <span><b>Both connected but Page not linked to IG.</b><br/>→ Reconnect Facebook ensuring the Page is linked to this Instagram account</span>
+                            )}
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                       <div className="relative">
                         {isLoading ? <Loader2 className="h-8 w-8 text-pink-400 animate-spin" /> : <Instagram className="h-8 w-8 text-pink-400 transition-all duration-300 group-hover/cube:text-pink-300 group-hover/cube:drop-shadow-[0_0_12px_rgba(236,72,153,0.5)]" />}
                       </div>
@@ -2863,10 +2883,28 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
                         style={highlightFacebook ? { '--highlight-color': 'rgba(59,130,246,0.4)' } as React.CSSProperties : undefined}
                       >
                         {facebookConnected && <div className="absolute top-2 right-2 h-2 w-2 rounded-full bg-green-400 shadow-[0_0_6px] shadow-green-400/60" />}
-                        {/* Chain icon: green if both IG+FB linked, grey if not */}
-                        <div className={`absolute bottom-1.5 left-1.5 ${igFbPageLinked ? "text-emerald-400 drop-shadow-[0_0_4px_rgba(52,211,153,0.5)]" : "text-muted-foreground/30"}`}>
-                          <Link2 className="h-3 w-3" />
-                        </div>
+                        <TooltipProvider delayDuration={200}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className={`absolute bottom-1.5 left-1.5 cursor-help ${igFbPageLinked ? "text-emerald-400 drop-shadow-[0_0_4px_rgba(52,211,153,0.5)]" : "text-muted-foreground/30"}`}>
+                                <Link2 className="h-3 w-3" />
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="max-w-[220px] text-[10px] leading-snug">
+                              {igFbPageLinked ? (
+                                <span className="text-emerald-400 font-semibold">✓ Linked — Facebook Page connected to this Instagram account. DMs ready.</span>
+                              ) : !igConnected && !facebookConnected ? (
+                                <span><b>Not linked.</b> Steps remaining:<br/>1. Connect Instagram<br/>2. Connect Facebook (with Page access)</span>
+                              ) : igConnected && !facebookConnected ? (
+                                <span><b>Instagram connected.</b> Step remaining:<br/>→ Connect Facebook to link a Page for DM access</span>
+                              ) : !igConnected && facebookConnected ? (
+                                <span><b>Facebook connected.</b> Step remaining:<br/>→ Connect Instagram to complete the link</span>
+                              ) : (
+                                <span><b>Both connected but Page not linked to IG.</b><br/>→ Reconnect Facebook ensuring the Page is linked to this Instagram account</span>
+                              )}
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                         <div className="relative">
                           {isLoading ? <Loader2 className="h-8 w-8 text-blue-500 animate-spin" /> : (
                             <svg viewBox="0 0 24 24" className="h-8 w-8 transition-all duration-300 group-hover/cube:drop-shadow-[0_0_12px_rgba(59,130,246,0.5)]" fill="#1877F2"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
