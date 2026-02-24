@@ -93,39 +93,39 @@ const IGAutomationSuite = ({ selectedAccount }: Props) => {
   };
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Zap className="h-5 w-5 text-primary" />
           <h3 className="text-sm font-bold text-foreground">IG Revenue Operating System</h3>
-          <Badge variant="outline" className="text-[10px]">{SECTIONS.length} modules</Badge>
+          <Badge variant="outline" className="text-[10px] border-white/[0.08]">{SECTIONS.length} modules</Badge>
         </div>
         <div className="flex gap-1">
-          <Button size="sm" variant="ghost" onClick={expandAll} className="text-xs h-7 text-foreground">Expand All</Button>
-          <Button size="sm" variant="ghost" onClick={collapseAll} className="text-xs h-7 text-foreground">Collapse All</Button>
+          <Button size="sm" variant="ghost" onClick={expandAll} className="text-xs h-7 text-foreground hover:bg-white/[0.06]">Expand All</Button>
+          <Button size="sm" variant="ghost" onClick={collapseAll} className="text-xs h-7 text-foreground hover:bg-white/[0.06]">Collapse All</Button>
         </div>
       </div>
 
       <ScrollArea className="h-[calc(100vh-260px)]">
-        <div className="space-y-3 pr-2">
+        <div className="space-y-4 pr-2">
           {CATEGORIES.map(cat => {
             const catSections = SECTIONS.filter(s => s.category === cat);
             return (
               <div key={cat}>
-                <div className="flex items-center gap-2 mb-1.5">
-                  <Badge variant="outline" className="text-[9px] font-bold uppercase tracking-wider">{cat}</Badge>
-                  <div className="flex-1 h-px bg-border" />
+                <div className="flex items-center gap-2 mb-2">
+                  <Badge variant="outline" className="text-[9px] font-bold uppercase tracking-wider border-white/[0.08] bg-white/[0.02]">{cat}</Badge>
+                  <div className="flex-1 h-px bg-white/[0.06]" />
                 </div>
-                <div className="space-y-1.5">
+                <div className="space-y-2">
                   {catSections.map(section => {
                     const isExpanded = expandedSections.has(section.id);
                     return (
-                      <Card key={section.id} className={`transition-all ${isExpanded ? "border-primary/30" : ""}`}>
+                      <Card key={section.id} className={`bg-white/[0.03] border-white/[0.06] backdrop-blur-sm transition-all duration-200 ${isExpanded ? "border-primary/20 shadow-[0_0_15px_-5px] shadow-primary/10" : "hover:border-white/[0.1]"}`}>
                         <button
                           onClick={() => toggleSection(section.id)}
-                          className="w-full p-3 flex items-center gap-3 hover:bg-muted/30 transition-colors rounded-t-xl"
+                          className="w-full p-3.5 flex items-center gap-3 hover:bg-white/[0.03] transition-colors rounded-t-xl"
                         >
-                          <div className={`h-8 w-8 rounded-lg bg-muted/50 flex items-center justify-center ${section.color}`}>
+                          <div className={`h-9 w-9 rounded-xl bg-white/[0.04] border border-white/[0.06] flex items-center justify-center ${section.color}`}>
                             <section.icon className="h-4 w-4" />
                           </div>
                           <div className="flex-1 text-left">
@@ -135,7 +135,7 @@ const IGAutomationSuite = ({ selectedAccount }: Props) => {
                           {isExpanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
                         </button>
                         {isExpanded && (
-                          <CardContent className="p-3 pt-0 border-t border-border">
+                          <CardContent className="p-3.5 pt-0 border-t border-white/[0.06]">
                             {renderModule(section.id)}
                           </CardContent>
                         )}

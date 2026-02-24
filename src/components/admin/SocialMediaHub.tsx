@@ -2305,10 +2305,10 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
           </div>
         </TabsContent>
 
-        {/* ===== AI AUTO-DM (Play/Pause) ===== */}
+       {/* ===== AI AUTO-DM (Play/Pause) ===== */}
         <TabsContent value="ai-auto" className="space-y-4 mt-4">
           {/* Test AI */}
-          <Card>
+          <Card className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm">
             <CardContent className="p-4 space-y-3">
               <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><Zap className="h-4 w-4 text-yellow-400" />Test AI Responder</h4>
               <div className="grid grid-cols-3 gap-2">
@@ -2347,7 +2347,7 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
 
 
           {/* Live Conversations Panel */}
-          <Card>
+          <Card className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm">
             <CardContent className="p-4">
               <h4 className="text-sm font-semibold text-foreground flex items-center gap-2 mb-3">
                 <MessageCircle className="h-4 w-4 text-blue-400" />
@@ -2384,7 +2384,7 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
         {/* ===== CONTENT ===== */}
         <TabsContent value="content" className="space-y-4 mt-4">
           {/* AI Content Assistant */}
-          <Card className="border-purple-500/20">
+          <Card className="bg-white/[0.03] border-purple-500/10 backdrop-blur-sm">
             <CardContent className="p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><Brain className="h-4 w-4 text-purple-400" />AI Content Assistant</h4>
@@ -2414,7 +2414,7 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
           </Card>
 
           {/* Post Composer */}
-          <Card>
+          <Card className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm">
             <CardContent className="p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><Layers className="h-4 w-4 text-blue-400" />Post Composer & Scheduler</h4>
@@ -2471,7 +2471,7 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
           </Card>
 
           {/* Posts list */}
-          <Card>
+          <Card className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm">
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-3">
                 <h4 className="text-sm font-semibold text-foreground">Posts Queue ({posts.length})</h4>
@@ -2517,7 +2517,7 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
 
         {/* ===== DMs ===== */}
         <TabsContent value="messaging" className="space-y-4 mt-4">
-          <Card>
+          <Card className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm">
             <CardContent className="p-4 space-y-3">
               <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><Send className="h-4 w-4" />Send DM</h4>
               <Input value={dmRecipientId} onChange={e => setDmRecipientId(e.target.value)} placeholder="Recipient User ID / Conversation ID" className="text-sm" />
@@ -2559,7 +2559,7 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
           {/* Platform overview cards */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
             {igProfile && (
-              <Card className="border-pink-500/20">
+              <Card className="bg-white/[0.03] border-pink-500/10 backdrop-blur-sm">
                 <CardContent className="p-3">
                   <div className="flex items-center gap-1.5 mb-1"><Instagram className="h-3 w-3 text-pink-400" /><span className="text-[10px] text-muted-foreground">Instagram</span></div>
                   <p className="text-lg font-bold text-foreground">{(igProfile.followers_count || 0).toLocaleString()}</p>
@@ -2568,7 +2568,7 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
               </Card>
             )}
             {ttProfile && (
-              <Card className="border-cyan-500/20">
+              <Card className="bg-white/[0.03] border-cyan-500/10 backdrop-blur-sm">
                 <CardContent className="p-3">
                   <div className="flex items-center gap-1.5 mb-1"><Music2 className="h-3 w-3 text-cyan-400" /><span className="text-[10px] text-muted-foreground">TikTok</span></div>
                   <p className="text-lg font-bold text-foreground">{(ttProfile.follower_count || 0).toLocaleString()}</p>
@@ -2577,7 +2577,7 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
               </Card>
             )}
             {xProfile && (
-              <Card className="border-blue-500/20">
+              <Card className="bg-white/[0.03] border-blue-500/10 backdrop-blur-sm">
                 <CardContent className="p-3">
                   <div className="flex items-center gap-1.5 mb-1"><Twitter className="h-3 w-3 text-blue-400" /><span className="text-[10px] text-muted-foreground">X/Twitter</span></div>
                   <p className="text-lg font-bold text-foreground">{(xProfile.public_metrics?.followers_count || 0).toLocaleString()}</p>
@@ -2585,7 +2585,7 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
                 </CardContent>
               </Card>
             )}
-            <Card>
+            <Card className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm">
               <CardContent className="p-3">
                 <div className="flex items-center gap-1.5 mb-1"><Activity className="h-3 w-3 text-green-400" /><span className="text-[10px] text-muted-foreground">Total Activity</span></div>
                 <p className="text-lg font-bold text-foreground">{posts.length}</p>
@@ -2596,7 +2596,7 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
 
           {/* Analytics data */}
           {analytics.length > 0 ? (
-            <Card>
+            <Card className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm">
               <CardContent className="p-4">
                 <h4 className="text-sm font-semibold text-foreground mb-3">Metrics History</h4>
                 <ScrollArea className="max-h-[400px]">
@@ -2618,7 +2618,7 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
               </CardContent>
             </Card>
           ) : (
-            <Card><CardContent className="p-8 text-center"><BarChart3 className="h-10 w-10 text-muted-foreground/20 mx-auto mb-2" /><p className="text-sm text-muted-foreground">No analytics data yet</p><p className="text-xs text-muted-foreground/60 mt-1">Click the sync buttons above to pull real-time data from connected platforms</p></CardContent></Card>
+            <Card className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm"><CardContent className="p-8 text-center"><BarChart3 className="h-10 w-10 text-muted-foreground/20 mx-auto mb-2" /><p className="text-sm text-muted-foreground">No analytics data yet</p><p className="text-xs text-muted-foreground/60 mt-1">Click the sync buttons above to pull real-time data from connected platforms</p></CardContent></Card>
           )}
         </TabsContent>
 
@@ -2641,18 +2641,18 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
       ) : (
         <div className="space-y-4">
           <Tabs defaultValue="one-click" className="space-y-4">
-            <TabsList className="bg-muted/50 p-1 rounded-lg">
-              <TabsTrigger value="one-click" className="text-xs gap-1.5 data-[state=active]:bg-background">
+            <TabsList className="bg-white/[0.03] border border-white/[0.06] p-1 rounded-xl backdrop-blur-sm">
+              <TabsTrigger value="one-click" className="text-xs gap-1.5 data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-lg">
                 <Zap className="h-3.5 w-3.5" /> One-Click Connect
               </TabsTrigger>
-              <TabsTrigger value="session" className="text-xs gap-1.5 data-[state=active]:bg-background">
+              <TabsTrigger value="session" className="text-xs gap-1.5 data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-lg">
                 <Key className="h-3.5 w-3.5" /> Session & Credentials
               </TabsTrigger>
             </TabsList>
 
             {/* ===== SESSION & CREDENTIALS SUBTAB ===== */}
             <TabsContent value="session" className="space-y-4">
-              <Card>
+              <Card className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm">
                 <CardContent className="p-4 space-y-3">
                   <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><Shield className="h-4 w-4 text-muted-foreground" />Manual Connection</h4>
                   <p className="text-[10px] text-muted-foreground">Paste credentials directly if you already have them.</p>
@@ -2679,7 +2679,7 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
               </Card>
 
               {/* IG Session Management */}
-              <Card id="ig-session-section" className={`border-pink-500/20 transition-all ${igSessionPulse ? "ring-2 ring-pink-500/50 animate-pulse" : ""}`}>
+              <Card id="ig-session-section" className={`bg-white/[0.03] border-pink-500/10 backdrop-blur-sm transition-all ${igSessionPulse ? "ring-2 ring-pink-500/50 animate-pulse" : ""}`}>
                 <CardContent className="p-4 space-y-3">
                   <div className="flex items-center justify-between">
                     <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><Key className="h-4 w-4 text-pink-400" />Instagram Session Cookie</h4>
@@ -2703,7 +2703,7 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
 
               {/* Connected accounts list */}
               {connections.length > 0 && (
-                <Card>
+                <Card className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm">
                   <CardContent className="p-4">
                     <h4 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2"><Wifi className="h-4 w-4 text-green-400" />Connected Accounts ({connections.filter(c => c.is_connected).length}/{connections.length})</h4>
                     <div className="space-y-3">
