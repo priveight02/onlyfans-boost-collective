@@ -160,3 +160,6 @@ verify_jwt = false
 
 [functions.create-user-admin]
 verify_jwt = false
+
+[functions.ig-permission-test]
+verify_jwt = false
