@@ -2861,6 +2861,44 @@ Rules:
           break;
         }
 
+        // === DAILY LIMIT ENGINE (500 msgs / 24h with 12h cooldown) ===
+        const dailyLimit = autoConfig.daily_limit || 500;
+        const cooldownHours = autoConfig.cooldown_hours || 12;
+        const dailyResetAt = autoConfig.daily_reset_at ? new Date(autoConfig.daily_reset_at).getTime() : 0;
+        const cooldownUntil = autoConfig.cooldown_until ? new Date(autoConfig.cooldown_until).getTime() : 0;
+        const now = Date.now();
+
+        // Check if in cooldown
+        if (cooldownUntil > now) {
+          const remainMin = Math.round((cooldownUntil - now) / 60000);
+          console.log(`[DAILY LIMIT] Account ${account_id}: in cooldown for ${remainMin} more minutes`);
+          result = { processed: 0, total_checked: 0, message: `Daily limit reached. Cooldown: ${remainMin}min remaining` };
+          break;
+        }
+
+        // Reset daily counter if 24h passed since last reset (or if we just exited cooldown)
+        let currentDailySent = autoConfig.daily_sent_count || 0;
+        if (now - dailyResetAt > 24 * 60 * 60 * 1000 || (cooldownUntil > 0 && cooldownUntil <= now)) {
+          currentDailySent = 0;
+          await supabase.from("auto_respond_state").update({
+            daily_sent_count: 0,
+            daily_reset_at: new Date().toISOString(),
+            cooldown_until: null,
+          }).eq("account_id", account_id);
+          console.log(`[DAILY LIMIT] Account ${account_id}: daily counter reset`);
+        }
+
+        // Check if already at limit
+        if (currentDailySent >= dailyLimit) {
+          const cooldownEnd = new Date(now + cooldownHours * 60 * 60 * 1000).toISOString();
+          await supabase.from("auto_respond_state").update({
+            cooldown_until: cooldownEnd,
+          }).eq("account_id", account_id);
+          console.log(`[DAILY LIMIT] Account ${account_id}: hit ${dailyLimit} msgs, entering ${cooldownHours}h cooldown until ${cooldownEnd}`);
+          result = { processed: 0, total_checked: 0, message: `Daily limit of ${dailyLimit} reached. Cooldown activated for ${cooldownHours}h` };
+          break;
+        }
+
         // Get persona — check if account has a specific active_persona_id set
         let personaInfo2 = await getDefaultPersona(supabase, account_id);
         const { data: accountData } = await supabase
@@ -4541,6 +4579,16 @@ IF YOU DONT UNDERSTAND: say "wait wdym" or "lol what" — NEVER make up an incoh
                 ml_behavior: behavior.type,
                 phase: `${convoPhase.phase}_${convoPhase.phaseName}`,
               });
+
+              // === INCREMENT DAILY SENT COUNTER ===
+              try {
+                await supabase.rpc("increment_daily_sent", { p_account_id: account_id }).single();
+              } catch {
+                // Fallback: direct update if RPC doesn't exist yet
+                await supabase.from("auto_respond_state")
+                  .update({ daily_sent_count: (currentDailySent || 0) + processed })
+                  .eq("account_id", account_id);
+              }
             } catch (sendErr: any) {
               console.error("Failed to send DM:", sendErr);
               if (typingMsg) {

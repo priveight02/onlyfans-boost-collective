@@ -969,6 +969,11 @@ export type Database = {
       auto_respond_state: {
         Row: {
           account_id: string
+          cooldown_hours: number
+          cooldown_until: string | null
+          daily_limit: number
+          daily_reset_at: string
+          daily_sent_count: number
           id: string
           is_active: boolean
           redirect_url: string | null
@@ -978,6 +983,11 @@ export type Database = {
         }
         Insert: {
           account_id: string
+          cooldown_hours?: number
+          cooldown_until?: string | null
+          daily_limit?: number
+          daily_reset_at?: string
+          daily_sent_count?: number
           id?: string
           is_active?: boolean
           redirect_url?: string | null
@@ -987,6 +997,11 @@ export type Database = {
         }
         Update: {
           account_id?: string
+          cooldown_hours?: number
+          cooldown_until?: string | null
+          daily_limit?: number
+          daily_reset_at?: string
+          daily_sent_count?: number
           id?: string
           is_active?: boolean
           redirect_url?: string | null
