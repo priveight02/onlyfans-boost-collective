@@ -708,7 +708,7 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
               user_id: user?.id,
             }, { onConflict: "account_id,platform,user_id" });
             await supabase.from("managed_accounts").update({
-              avatar_url: profileData.profile_picture_url || undefined, display_name: profileData.name || username,
+              username, avatar_url: profileData.profile_picture_url || undefined, display_name: profileData.name || username,
               subscriber_count: profileData.followers_count || 0, content_count: profileData.media_count || 0,
               social_links: { instagram: `https://instagram.com/${username}`, ig_user_id: userId }, last_activity_at: new Date().toISOString(),
             }).eq("id", accountId);
@@ -1649,11 +1649,12 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
           
           // Sync managed account with profile data (same as main connect form)
           await supabase.from("managed_accounts").update({
-            avatar_url: profile_picture_url || undefined,
-            display_name: name || username,
-            social_links: { instagram: `https://instagram.com/${username}`, ig_user_id: String(user_id || ds_user_id) },
-            last_activity_at: savedAt,
-          }).eq("id", accountId);
+             username: username || undefined,
+             avatar_url: profile_picture_url || undefined,
+             display_name: name || username,
+             social_links: { instagram: `https://instagram.com/${username}`, ig_user_id: String(user_id || ds_user_id) },
+             last_activity_at: savedAt,
+           }).eq("id", accountId);
           
           // Update local state for session fields
           if (session_id) {
