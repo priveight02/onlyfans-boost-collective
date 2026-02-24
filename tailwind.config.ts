@@ -40,8 +40,8 @@ export default {
         },
       },
       fontFamily: {
-        sans: ["Poppins", "sans-serif"],
-        heading: ["Montserrat", "sans-serif"],
+        sans: ["Montserrat", "sans-serif"],
+        heading: ["Poppins", "sans-serif"],
       },
       keyframes: {
         "fade-in": {
