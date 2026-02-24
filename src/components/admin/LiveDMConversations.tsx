@@ -877,6 +877,16 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
     return () => clearInterval(convoSyncInterval);
   }, [accountId, loadConversations]);
 
+  // Periodic IG inbox scan every 5 seconds — discovers NEW conversations from Instagram
+  useEffect(() => {
+    if (!accountId || !initialScanDone) return;
+    const igScanInterval = setInterval(() => {
+      scanAllConversations(true); // silent=true
+    }, 5000);
+    return () => clearInterval(igScanInterval);
+  }, [accountId, initialScanDone, scanAllConversations]);
+
+
   // Real-time subscriptions — MERGE changes instead of full reload
   useEffect(() => {
     if (!accountId) return;
@@ -1069,7 +1079,15 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
     }
   }, [accountId, processing, addLog]);
 
-  // Relaunch all unread conversations — deep context scan + resume
+  // Auto-process DMs with AI every 3 seconds when auto-respond is active
+  useEffect(() => {
+    if (!accountId || !autoRespondActive) return;
+    const aiProcessInterval = setInterval(() => {
+      processDMs();
+    }, 3000);
+    return () => clearInterval(aiProcessInterval);
+  }, [accountId, autoRespondActive, processDMs]);
+
   const relaunchUnread = useCallback(async () => {
     if (relaunching) return;
     setRelaunching(true);
