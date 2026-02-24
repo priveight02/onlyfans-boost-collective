@@ -3000,11 +3000,53 @@ Analyze every character in the name and username for any gender signal at all. L
       // ===== BUSINESS MESSAGING (instagram_business_manage_messages) =====
       case "get_business_conversations": {
         const igUserId = conn.platform_user_id || conn.metadata?.ig_user_id;
-        result = await igFetch(`/${igUserId}/conversations?fields=id,updated_time,participants,messages.limit(1){message,from,created_time}&platform=instagram&limit=${params?.limit || 20}`, token);
+        // Paginate ALL conversations
+        const convos: any[] = [];
+        let convUrl: string | null = `${IG_GRAPH_URL}/${igUserId}/conversations?fields=id,updated_time,participants,messages.limit(1){message,from,created_time}&platform=instagram&limit=50`;
+        let convPages = 0;
+        while (convUrl && convPages < 5) {
+          const resp = await fetch(`${convUrl}${convUrl.includes('?') ? '&' : '?'}access_token=${token}`);
+          const d = await resp.json();
+          if (d?.error) break;
+          convos.push(...(d?.data || []));
+          convUrl = d?.paging?.next || null;
+          convPages++;
+        }
+        // Sort by updated_time descending (newest first)
+        convos.sort((a: any, b: any) => new Date(b.updated_time || 0).getTime() - new Date(a.updated_time || 0).getTime());
+        result = { data: convos };
         break;
       }
       case "get_business_messages": {
-        result = await igFetch(`/${params.conversation_id}/messages?fields=id,message,from,created_time,attachments&limit=${params?.limit || 20}`, token);
+        if (!params?.conversation_id) throw new Error("conversation_id required");
+        // Paginate ALL messages in the conversation
+        const allMsgs: any[] = [];
+        let msgUrl: string | null = `${IG_GRAPH_URL}/${params.conversation_id}/messages?fields=id,message,from,to,created_time,attachments,story,shares&limit=50`;
+        let msgPages = 0;
+        while (msgUrl && msgPages < 10) {
+          const resp = await fetch(`${msgUrl}${msgUrl.includes('?') ? '&' : '?'}access_token=${token}`);
+          const d = await resp.json();
+          if (d?.error) {
+            // Retry without story/shares
+            if (msgPages === 0) {
+              const resp2 = await fetch(`${IG_GRAPH_URL}/${params.conversation_id}/messages?fields=id,message,from,to,created_time,attachments&limit=50&access_token=${token}`);
+              const d2 = await resp2.json();
+              if (!d2?.error) {
+                allMsgs.push(...(d2?.data || []));
+                msgUrl = d2?.paging?.next || null;
+                msgPages++;
+                continue;
+              }
+            }
+            break;
+          }
+          allMsgs.push(...(d?.data || []));
+          msgUrl = d?.paging?.next || null;
+          msgPages++;
+        }
+        // Sort oldest first for chat display
+        allMsgs.sort((a: any, b: any) => new Date(a.created_time).getTime() - new Date(b.created_time).getTime());
+        result = { data: allMsgs };
         break;
       }
       case "send_business_message": {
