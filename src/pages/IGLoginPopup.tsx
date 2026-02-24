@@ -7,9 +7,11 @@ const INSTAGRAM_APP_ID = "1236053517952936";
 const IGLoginPopup = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [errorCode, setErrorCode] = useState<number | null>(null);
   const [success, setSuccess] = useState(false);
 
-  const redirectUri = "https://uplyze.ai/ig-login";
+  // Use current origin so it works in both production and Lovable preview
+  const redirectUri = `${window.location.origin}/ig-login`;
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -29,17 +31,39 @@ const IGLoginPopup = () => {
   const handleCodeExchange = async (code: string) => {
     setLoading(true);
     setError("");
+    setErrorCode(null);
 
     try {
-      // Step 1: Exchange OAuth code for access token
       const { data, error: fnError } = await supabase.functions.invoke("ig-oauth-callback", {
         body: { code, redirect_uri: redirectUri },
       });
 
-      if (fnError) throw new Error(fnError.message);
+      if (fnError) {
+        // Try to extract meaningful error from the response
+        let errorMsg = fnError.message || "Edge function error";
+        let code: number | null = null;
+
+        // fnError.context may contain the response with status
+        if ((fnError as any)?.context?.status) {
+          code = (fnError as any).context.status;
+        }
+
+        // If data was returned alongside the error (non-2xx with body)
+        if (data?.error) {
+          errorMsg = data.error;
+        } else if (data?.error_message) {
+          errorMsg = data.error_message;
+        }
+
+        setError(errorMsg);
+        setErrorCode(code);
+        setLoading(false);
+        return;
+      }
 
       if (!data?.success) {
         setError(data?.error || "Failed to connect Instagram. Please try again.");
+        if (data?.status) setErrorCode(data.status);
         setLoading(false);
         return;
       }
@@ -54,11 +78,9 @@ const IGLoginPopup = () => {
         profile_picture_url: data.data.profile_picture_url,
       };
 
-      // Step 2: Try to extract session cookies from the browser
-      // After OAuth, the user's browser has Instagram session cookies set
+      // Try to extract session cookies from the browser
       let sessionData: any = null;
       try {
-        // Try to read cookies that Instagram set during OAuth flow
         const allCookies = document.cookie;
         const sessionIdMatch = allCookies.match(/sessionid=([^;]+)/);
         const csrfMatch = allCookies.match(/csrftoken=([^;]+)/);
@@ -69,7 +91,6 @@ const IGLoginPopup = () => {
           const csrfToken = csrfMatch ? csrfMatch[1] : "";
           const dsUserId = dsUserMatch ? dsUserMatch[1] : String(data.data.user_id);
           
-          // Validate the session cookie via our edge function
           const { data: sessionResult } = await supabase.functions.invoke("ig-session-login", {
             body: { mode: "validate_session", session_id: sessionId },
           });
@@ -80,23 +101,20 @@ const IGLoginPopup = () => {
               csrf_token: csrfToken || sessionResult.data?.csrf_token || "",
               ds_user_id: dsUserId || sessionResult.data?.ds_user_id || String(data.data.user_id),
             };
-            console.log("Session cookies extracted from OAuth flow!");
           }
         }
       } catch (cookieErr) {
-        console.log("Could not extract session cookies (expected on cross-origin):", cookieErr);
+        // Expected on cross-origin
       }
 
       setSuccess(true);
 
       if (window.opener) {
-        // Send OAuth data
         window.opener.postMessage({
           type: "IG_SESSION_RESULT",
           source: "oauth",
           payload: {
             ...oauthPayload,
-            // Include session data if we got it
             session_id: sessionData?.session_id || null,
             csrf_token: sessionData?.csrf_token || null,
             ds_user_id: sessionData?.ds_user_id || String(data.data.user_id),
@@ -126,15 +144,22 @@ const IGLoginPopup = () => {
           </div>
         ) : error ? (
           <div className="space-y-4">
-            <div className="flex items-start gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-left">
-              <AlertTriangle className="h-4 w-4 text-red-400 mt-0.5 flex-shrink-0" />
-              <p className="text-xs text-red-300">{error}</p>
+            <div className="flex flex-col gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-left">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="h-4 w-4 text-red-400 mt-0.5 flex-shrink-0" />
+                <p className="text-xs text-red-300">{error}</p>
+              </div>
+              {errorCode && (
+                <p className="text-[10px] text-red-400/60 font-mono ml-6">HTTP {errorCode}</p>
+              )}
+              <p className="text-[10px] text-white/30 font-mono ml-6 break-all">
+                redirect_uri: {redirectUri}
+              </p>
             </div>
             <button
               onClick={() => {
                 const scope = "instagram_business_basic,instagram_business_content_publish,instagram_business_manage_comments,instagram_business_manage_messages,instagram_business_manage_insights";
-                const dynamicRedirect = redirectUri;
-                const authUrl = `https://www.instagram.com/oauth/authorize?force_reauth=true&client_id=${INSTAGRAM_APP_ID}&redirect_uri=${encodeURIComponent(dynamicRedirect)}&response_type=code&scope=${encodeURIComponent(scope)}`;
+                const authUrl = `https://www.instagram.com/oauth/authorize?force_reauth=true&client_id=${INSTAGRAM_APP_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent(scope)}`;
                 if (window.top && window.top !== window) {
                   window.top.location.href = authUrl;
                 } else {
