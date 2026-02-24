@@ -58,12 +58,18 @@ serve(async (req) => {
     console.log("Token exchange response status:", tokenRes.status);
 
     if (tokenData.error_type || tokenData.error_message || tokenData.error) {
+      const errMsg = tokenData.error_message || tokenData.error?.message || "Token exchange failed";
+      const errCode = tokenData.code || tokenRes.status;
       console.error("Token exchange error:", JSON.stringify(tokenData));
+      // Always return 200 so supabase.functions.invoke passes the body to `data`
       return new Response(JSON.stringify({ 
         success: false, 
-        error: tokenData.error_message || tokenData.error?.message || "Token exchange failed" 
+        error: errMsg,
+        error_code: errCode,
+        error_type: tokenData.error_type || null,
+        redirect_uri_used: redirect_uri,
       }), {
-        status: 400,
+        status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -107,8 +113,8 @@ serve(async (req) => {
     });
   } catch (err) {
     console.error("ig-oauth-callback error:", err);
-    return new Response(JSON.stringify({ error: err.message }), {
-      status: 500,
+    return new Response(JSON.stringify({ success: false, error: err.message, error_code: 500 }), {
+      status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }

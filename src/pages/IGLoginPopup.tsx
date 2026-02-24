@@ -39,31 +39,17 @@ const IGLoginPopup = () => {
       });
 
       if (fnError) {
-        // Try to extract meaningful error from the response
-        let errorMsg = fnError.message || "Edge function error";
-        let code: number | null = null;
-
-        // fnError.context may contain the response with status
-        if ((fnError as any)?.context?.status) {
-          code = (fnError as any).context.status;
-        }
-
-        // If data was returned alongside the error (non-2xx with body)
-        if (data?.error) {
-          errorMsg = data.error;
-        } else if (data?.error_message) {
-          errorMsg = data.error_message;
-        }
-
-        setError(errorMsg);
-        setErrorCode(code);
+        setError(fnError.message || "Failed to reach server");
+        setErrorCode(null);
         setLoading(false);
         return;
       }
 
       if (!data?.success) {
-        setError(data?.error || "Failed to connect Instagram. Please try again.");
-        if (data?.status) setErrorCode(data.status);
+        const errMsg = data?.error || "Failed to connect Instagram. Please try again.";
+        const errType = data?.error_type ? `[${data.error_type}] ` : "";
+        setError(`${errType}${errMsg}`);
+        setErrorCode(data?.error_code || null);
         setLoading(false);
         return;
       }
