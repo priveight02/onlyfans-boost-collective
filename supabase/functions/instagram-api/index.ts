@@ -1601,12 +1601,36 @@ Analyze every character in the name and username for any gender signal at all. L
       case "get_conversation_messages": {
         if (!params?.conversation_id) throw new Error("conversation_id required");
         const msgLimit = params?.limit || 20;
-        try {
-          result = await igFetch(`/${params.conversation_id}?fields=messages.limit(${msgLimit}){id,message,from,to,created_time,attachments,shares,story,sticker}`, token);
-        } catch (convErr: any) {
-          console.error("get_conversation_messages error:", convErr.message);
-          result = { error_fallback: true, message: convErr.message, conversation_id: params.conversation_id, data: { messages: { data: [] } } };
+        const msgFields = `messages.limit(${msgLimit}){id,message,from,to,created_time,attachments,shares,story,sticker}`;
+        
+        // Check for stored FB page token — conversations fetched via FB page need page token to read messages
+        const connMetaMsg = (conn.metadata as any) || {};
+        const storedPageTokenMsg = connMetaMsg.fb_page_token;
+        
+        // Try multiple approaches: stored page token (FB Graph), then IG token (IG Graph), then IG token (FB Graph)
+        let msgResult: any = null;
+        const msgEndpoints = [];
+        if (storedPageTokenMsg) {
+          msgEndpoints.push({ tkn: storedPageTokenMsg, useFb: true, label: "Stored FB page token" });
         }
+        msgEndpoints.push({ tkn: token, useFb: false, label: "IG token (IG Graph)" });
+        msgEndpoints.push({ tkn: token, useFb: true, label: "IG token (FB Graph)" });
+        
+        for (const ep of msgEndpoints) {
+          try {
+            console.log(`get_conversation_messages trying: ${ep.label}`);
+            msgResult = await igFetch(`/${params.conversation_id}?fields=${msgFields}`, ep.tkn, "GET", undefined, ep.useFb);
+            if (msgResult && !msgResult.error) {
+              console.log(`✓ Messages loaded via ${ep.label}`);
+              break;
+            }
+          } catch (convErr: any) {
+            console.log(`get_conversation_messages ${ep.label} failed: ${convErr.message}`);
+            msgResult = null;
+          }
+        }
+        
+        result = msgResult || { error_fallback: true, conversation_id: params.conversation_id, data: { messages: { data: [] } } };
         break;
       }
 

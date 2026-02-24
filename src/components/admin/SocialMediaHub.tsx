@@ -1175,6 +1175,7 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
 
      const handleFbMessage = async (event: MessageEvent) => {
        if (event.data?.type !== "FB_OAUTH_RESULT") return;
+       if (event.data.payload?.source === "ig_page_link") return; // Skip IG→FB page link messages
        window.removeEventListener("message", handleFbMessage);
        const { code, redirect_uri } = event.data.payload;
        if (!code) { setAutoConnectLoading(null); toast.error("No auth code received"); return; }
@@ -1686,8 +1687,12 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
           if (!page_token) {
             toast.info("📄 Connecting Facebook Page for messaging access...", { duration: 4000 });
             
+            let fbPageHandled = false;
             const handleFbPageMessage = async (evt: MessageEvent) => {
               if (evt.data?.type !== "FB_OAUTH_RESULT") return;
+              if (evt.data.payload?.source !== "ig_page_link") return; // Only handle IG→FB page link flow
+              if (fbPageHandled) return; // Prevent duplicate handling
+              fbPageHandled = true;
               window.removeEventListener("message", handleFbPageMessage);
               const fbCode = evt.data.payload?.code;
               const fbRedir = evt.data.payload?.redirect_uri;
@@ -1700,6 +1705,7 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
                 });
                 
                 if (fbErr || !fbData?.success) {
+                  console.log("FB page token exchange result:", fbData);
                   toast.error("Facebook page token exchange failed. You can retry from the Connect tab.");
                   return;
                 }
