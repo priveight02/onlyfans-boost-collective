@@ -40,7 +40,7 @@ const IGBusinessMessaging = ({ selectedAccount }: Props) => {
 
   const fetchMessages = async (convoId: string) => {
     setSelectedConvo(convoId);
-    const d = await callApi("get_business_messages", { conversation_id: convoId, limit: 50 });
+    const d = await callApi("get_business_messages", { conversation_id: convoId });
     if (d?.data) {
       // Sort oldest first so chat reads top-to-bottom
       const sorted = [...d.data].sort((a: any, b: any) => new Date(a.created_time).getTime() - new Date(b.created_time).getTime());
