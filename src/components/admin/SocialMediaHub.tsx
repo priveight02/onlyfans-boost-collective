@@ -1687,10 +1687,20 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
           await loadAccounts();
           await loadData(accountId);
           
-          toast.success(`✅ @${username} connected via Instagram Login — synced across all features.`);
-        } catch (e: any) {
-          toast.error("Failed to save connection: " + e.message);
-        }
+           toast.success(`✅ @${username} connected via Instagram Login — synced across all features.`);
+           
+           // Auto-trigger Facebook connect if not already connected (needed for IG DMs/messaging)
+           const fbAlreadyConnected = connections.some(c => c.platform === "facebook" && c.is_connected);
+           if (!fbAlreadyConnected) {
+             toast.info("📌 Connecting Facebook is required for IG messaging. Starting Facebook login automatically…", { duration: 6000 });
+             // Small delay so user sees the IG success first
+             setTimeout(() => {
+               automatedFacebookConnect();
+             }, 1500);
+           }
+         } catch (e: any) {
+           toast.error("Failed to save connection: " + e.message);
+         }
       }
     };
     window.addEventListener("message", handleMessage);
