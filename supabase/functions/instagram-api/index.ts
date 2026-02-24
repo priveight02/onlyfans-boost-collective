@@ -1348,9 +1348,12 @@ Analyze every character in the name and username for any gender signal at all. L
           return allData;
         };
         
+        // IG Graph API does NOT use platform=instagram (that's for FB Graph API only)
         const endpoints = [
+          `${IG_GRAPH_URL}/me/conversations?limit=${limit}&fields=${richFields}&access_token=${token}`,
+          `${IG_GRAPH_URL}/${realUserId}/conversations?limit=${limit}&fields=${richFields}&access_token=${token}`,
+          // Also try WITH platform=instagram as fallback (some API versions may need it)
           `${IG_GRAPH_URL}/me/conversations?platform=instagram&limit=${limit}&fields=${richFields}&access_token=${token}`,
-          `${IG_GRAPH_URL}/${realUserId}/conversations?platform=instagram&limit=${limit}&fields=${richFields}&access_token=${token}`,
         ];
         
         let allConvos: any[] = [];
@@ -1432,16 +1435,16 @@ Analyze every character in the name and username for any gender signal at all. L
         const pageInfoAll = await getPageId(token, igUserId, supabase, account_id);
         
         const fetchFolder = async (folderName: string): Promise<any[]> => {
-          // Try IG Graph first
+          // Try IG Graph first (WITHOUT platform=instagram — that param is for FB Graph only)
           for (const base of [`${IG_GRAPH_URL}/me`, `${IG_GRAPH_URL}/${realUserId}`]) {
-            let url = `${base}/conversations?platform=instagram&limit=${allLimit}&fields=${richFields}&access_token=${token}&folder=${folderName}`;
+            let url = `${base}/conversations?limit=${allLimit}&fields=${richFields}&access_token=${token}&folder=${folderName}`;
             let convos = await fetchWithPagination(url);
             if (convos.length > 0) return convos;
-            let simpleUrl = `${base}/conversations?platform=instagram&limit=${allLimit}&fields=id,updated_time,participants&access_token=${token}&folder=${folderName}`;
+            let simpleUrl = `${base}/conversations?limit=${allLimit}&fields=id,updated_time,participants&access_token=${token}&folder=${folderName}`;
             convos = await fetchWithPagination(simpleUrl);
             if (convos.length > 0) return convos;
           }
-          // Fallback: FB Page token approach
+          // Fallback: FB Page token approach (WITH platform=instagram — required for FB Graph)
           if (pageInfoAll) {
             for (const base of [`${FB_GRAPH_URL}/${pageInfoAll.pageId}`, `${FB_GRAPH_URL}/me`]) {
               let url = `${base}/conversations?platform=instagram&limit=${allLimit}&fields=${richFields}&access_token=${pageInfoAll.pageToken}&folder=${folderName}`;
@@ -1579,11 +1582,41 @@ Analyze every character in the name and username for any gender signal at all. L
       case "get_conversation_messages": {
         if (!params?.conversation_id) throw new Error("conversation_id required");
         const msgLimit = params?.limit || 20;
+        const msgFields = `messages.limit(${msgLimit}){id,message,from,to,created_time,attachments,shares,story,sticker}`;
+        
+        // Try IG token first
+        let msgSuccess = false;
         try {
-          result = await igFetch(`/${params.conversation_id}?fields=messages.limit(${msgLimit}){id,message,from,to,created_time,attachments,shares,story,sticker}`, token);
+          result = await igFetch(`/${params.conversation_id}?fields=${msgFields}`, token);
+          if (result?.messages?.data?.length > 0 || (result?.messages && !result?.error)) msgSuccess = true;
         } catch (convErr: any) {
-          console.error("get_conversation_messages error:", convErr.message);
-          result = { error_fallback: true, message: convErr.message, conversation_id: params.conversation_id, data: { messages: { data: [] } } };
+          console.log("get_conversation_messages IG token failed:", convErr.message);
+        }
+        
+        // Fallback: try FB Page token (required for IG Business Login tokens)
+        if (!msgSuccess) {
+          try {
+            const pageInfoMsg = await getPageId(token, igUserId, supabase, account_id);
+            if (pageInfoMsg) {
+              console.log("Retrying conversation messages with FB Page token...");
+              // Try with FB Graph URL using page token
+              const fbMsgUrl = `${FB_GRAPH_URL}/${params.conversation_id}?fields=${msgFields}&access_token=${pageInfoMsg.pageToken}`;
+              const fbMsgResp = await fetch(fbMsgUrl);
+              const fbMsgData = await fbMsgResp.json();
+              if (fbMsgData?.error) {
+                console.log("FB Page token also failed:", fbMsgData.error.message);
+                result = { error_fallback: true, message: fbMsgData.error.message, conversation_id: params.conversation_id, data: { messages: { data: [] } } };
+              } else {
+                result = fbMsgData;
+                msgSuccess = true;
+              }
+            } else {
+              result = { error_fallback: true, message: "No FB Page token available. Link a Facebook Page for full DM access.", conversation_id: params.conversation_id, data: { messages: { data: [] } } };
+            }
+          } catch (fbErr: any) {
+            console.error("get_conversation_messages FB fallback error:", fbErr.message);
+            result = { error_fallback: true, message: fbErr.message, conversation_id: params.conversation_id, data: { messages: { data: [] } } };
+          }
         }
         break;
       }
