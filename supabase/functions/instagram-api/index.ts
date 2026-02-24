@@ -1566,31 +1566,43 @@ Analyze every character in the name and username for any gender signal at all. L
             break;
           }
           
-          // Per docs: only the 20 most recent messages can have details fetched
-          const messageIds = (convoData?.messages?.data || []).slice(0, 20);
-          console.log(`Conversation ${params.conversation_id}: ${messageIds.length} message IDs (capped at 20)`);
+          // Fetch up to 50 most recent messages
+          const messageIds = (convoData?.messages?.data || []).slice(0, 50);
+          console.log(`Conversation ${params.conversation_id}: ${messageIds.length} message IDs (capped at 50)`);
           
-          // Per docs: Step 2 — GET /<MESSAGE_ID>?fields=id,created_time,from,to,message&access_token=TOKEN
+          // Try full fields first, then progressively strip unsupported ones
+          const fullFields = "id,created_time,from,to,message,attachments,story,shares";
+          const mediumFields = "id,created_time,from,to,message,attachments";
+          const minFields = "id,created_time,from,to,message";
+          
           const detailedMessages: any[] = [];
           for (const msg of messageIds) {
             try {
-              const detailResp = await fetch(`${IG_GRAPH_URL}/${msg.id}?fields=id,created_time,from,to,message,attachments&access_token=${token}`);
-              const detail = await detailResp.json();
+              // Attempt 1: all fields including story/shares
+              let detailResp = await fetch(`${IG_GRAPH_URL}/${msg.id}?fields=${fullFields}&access_token=${token}`);
+              let detail = await detailResp.json();
+              
               if (detail?.error) {
-                // Retry with minimal fields
-                const retryResp = await fetch(`${IG_GRAPH_URL}/${msg.id}?fields=id,created_time,from,to,message&access_token=${token}`);
-                const retryDetail = await retryResp.json();
-                if (retryDetail?.error) {
-                  console.log(`Skipping message ${msg.id}: ${retryDetail.error.message}`);
-                  continue; // Skip entirely — don't return broken entries
-                }
-                detailedMessages.push(retryDetail);
-              } else {
-                detailedMessages.push(detail);
+                // Attempt 2: without story/shares
+                detailResp = await fetch(`${IG_GRAPH_URL}/${msg.id}?fields=${mediumFields}&access_token=${token}`);
+                detail = await detailResp.json();
               }
+              
+              if (detail?.error) {
+                // Attempt 3: minimal fields only
+                detailResp = await fetch(`${IG_GRAPH_URL}/${msg.id}?fields=${minFields}&access_token=${token}`);
+                detail = await detailResp.json();
+              }
+              
+              if (detail?.error) {
+                console.log(`Skipping message ${msg.id}: ${detail.error.message}`);
+                continue;
+              }
+              
+              detailedMessages.push(detail);
             } catch (e: any) {
               console.log(`Skipping message ${msg.id}: ${e.message}`);
-              continue; // Skip failed messages entirely
+              continue;
             }
           }
           
