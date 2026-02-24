@@ -3021,29 +3021,52 @@ Analyze every character in the name and username for any gender signal at all. L
         if (!params?.conversation_id) throw new Error("conversation_id required");
         // Paginate ALL messages in the conversation
         const allMsgs: any[] = [];
-        let msgUrl: string | null = `${IG_GRAPH_URL}/${params.conversation_id}/messages?fields=id,message,from,to,created_time,attachments,story,shares&limit=50`;
-        let msgPages = 0;
-        while (msgUrl && msgPages < 10) {
-          const resp = await fetch(`${msgUrl}${msgUrl.includes('?') ? '&' : '?'}access_token=${token}`);
-          const d = await resp.json();
-          if (d?.error) {
-            // Retry without story/shares
-            if (msgPages === 0) {
-              const resp2 = await fetch(`${IG_GRAPH_URL}/${params.conversation_id}/messages?fields=id,message,from,to,created_time,attachments&limit=50&access_token=${token}`);
-              const d2 = await resp2.json();
-              if (!d2?.error) {
-                allMsgs.push(...(d2?.data || []));
-                msgUrl = d2?.paging?.next || null;
-                msgPages++;
-                continue;
-              }
-            }
+        // Try with all fields first
+        const fieldSets = [
+          "id,message,from,to,created_time,attachments,story,shares,is_unsupported",
+          "id,message,from,to,created_time,attachments,is_unsupported",
+          "id,message,from,to,created_time,attachments",
+          "id,message,from,to,created_time",
+        ];
+        
+        let workingFields = fieldSets[0];
+        let msgUrl: string | null = null;
+        
+        // Find working field set
+        for (const fields of fieldSets) {
+          const testUrl = `${IG_GRAPH_URL}/${params.conversation_id}/messages?fields=${fields}&limit=50&access_token=${token}`;
+          const testResp = await fetch(testUrl);
+          const testData = await testResp.json();
+          if (!testData?.error) {
+            workingFields = fields;
+            allMsgs.push(...(testData?.data || []));
+            msgUrl = testData?.paging?.next || null;
+            console.log(`Business messages using fields: ${fields}, first page: ${testData?.data?.length || 0} msgs`);
             break;
           }
+          console.log(`Fields "${fields}" failed: ${testData?.error?.message}`);
+        }
+        
+        // Paginate remaining pages
+        let msgPages = 1;
+        while (msgUrl && msgPages < 20) {
+          const resp = await fetch(`${msgUrl}${msgUrl.includes('?') ? '&' : '?'}access_token=${token}`);
+          const d = await resp.json();
+          if (d?.error) break;
           allMsgs.push(...(d?.data || []));
           msgUrl = d?.paging?.next || null;
           msgPages++;
         }
+        
+        console.log(`Total business messages: ${allMsgs.length} across ${msgPages} pages`);
+        
+        // Log first few attachment structures for debugging
+        const withAttachments = allMsgs.filter((m: any) => m.attachments?.data?.length > 0);
+        if (withAttachments.length > 0) {
+          console.log(`Messages with attachments: ${withAttachments.length}`);
+          console.log(`Sample attachment structure: ${JSON.stringify(withAttachments[0].attachments?.data?.[0])}`);
+        }
+        
         // Sort oldest first for chat display
         allMsgs.sort((a: any, b: any) => new Date(a.created_time).getTime() - new Date(b.created_time).getTime());
         result = { data: allMsgs };
