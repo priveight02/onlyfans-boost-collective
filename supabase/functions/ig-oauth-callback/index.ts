@@ -91,7 +91,7 @@ serve(async (req) => {
 
     // Step 3: Get user profile info — try multiple endpoints
     console.log("Fetching user profile for user_id:", igUserId);
-    const profileFields = "user_id,username,account_type,name,profile_picture_url,followers_count,media_count";
+    const profileFields = "id,username,account_type,name,profile_picture_url,followers_count,media_count";
     let profileData: any = {};
 
     // Attempt 1: unversioned /me (Instagram Business Login native)
