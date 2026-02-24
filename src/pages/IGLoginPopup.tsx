@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Loader2, Instagram, CheckCircle2, AlertTriangle } from "lucide-react";
 
 const INSTAGRAM_APP_ID = "1236053517952936";
+const META_CONFIG_ID = "810481348738341"; // Meta Business Login config with page-level permissions
 
 const IGLoginPopup = () => {
   const [loading, setLoading] = useState(false);
@@ -62,6 +63,9 @@ const IGLoginPopup = () => {
         expires_in: data.data.expires_in,
         name: data.data.name,
         profile_picture_url: data.data.profile_picture_url,
+        token_source: data.data.token_source,
+        page_token: data.data.page_token,
+        page_id: data.data.page_id,
       };
 
       // Try to extract session cookies from the browser
@@ -144,8 +148,8 @@ const IGLoginPopup = () => {
             </div>
             <button
               onClick={() => {
-                const scope = "instagram_business_basic,instagram_business_content_publish,instagram_business_manage_comments,instagram_business_manage_messages,instagram_business_manage_insights";
-                const authUrl = `https://www.instagram.com/oauth/authorize?force_reauth=true&client_id=${INSTAGRAM_APP_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent(scope)}`;
+                // Use Facebook Business Login with config_id for page-level token access (needed for messaging/conversations)
+                const authUrl = `https://www.facebook.com/dialog/oauth?client_id=${INSTAGRAM_APP_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&config_id=${META_CONFIG_ID}&response_type=code&override_default_response_type=true`;
                 if (window.top && window.top !== window) {
                   window.top.location.href = authUrl;
                 } else {
