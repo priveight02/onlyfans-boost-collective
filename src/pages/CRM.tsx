@@ -174,12 +174,39 @@ const CRM = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchFocused, setSearchFocused] = useState(false);
 
+  // Icon lookup helper
+  const getIconForId = (id: string): any => {
+    const found = navSections.flatMap(s => s.items).find(i => i.id === id);
+    return found?.icon || null;
+  };
+
+  // Sub-tab icon mappings
+  const subTabIcons: Record<string, any> = {
+    "Chat": MessageCircle, "Image Gen V1": Megaphone, "Video Gen": Activity, "Audio Gen": Activity, "Motion Gen": Zap, "Lipsync Gen": Zap, "Faceswap Gen": Brain,
+    "SM Dashboard": LayoutDashboard, "Auto-DM": Bot, "Outreach": MessageSquare, "Search": Search, "Content": Calendar, "Comments": MessageCircle,
+    "DMs": MessageSquare, "AI Tools": Brain, "Analytics": BarChart3, "Bio Links": Globe, "Automation": Zap, "Networks": Globe,
+    "Script Builder": Zap, "Library": FileText, "Conversion Optimizer": TrendingUp, "Psychology Playbook": Heart, "Workflows": Activity, "AI Intelligence": Brain, "Smart Alerts": Bell,
+    "Creatives": Megaphone, "AI Image Gen": Megaphone, "Copy & CTA": FileText, "Ad Analytics": BarChart3, "Targeting": Settings, "Integrations": Code2, "Campaigns": TrendingUp, "Store Manager": DollarSign,
+    "API Keys": Code2, "Documentation": FileText, "Playground": Code2, "Quick Start": Zap, "Key History": FileText,
+    "Overview": LayoutDashboard, "Revenue": DollarSign, "Audience": BarChart3, "Fans": Users, "Engagement": Activity, "Traffic": TrendingUp, "Messaging": MessageSquare,
+    "Links": Globe, "Chargebacks": DollarSign, "Highlights": Award, "Bio Strategy": Globe, "AI Analysis": Brain, "Raw Data": Download,
+  };
+
+  const socialFeatureIcons: Record<string, any> = {
+    "Dashboard": LayoutDashboard, "Auto-DM": Bot, "Outreach": MessageSquare, "Search": Search, "Content": Calendar,
+    "Comments": MessageCircle, "DMs": MessageSquare, "AI Tools": Brain, "Analytics": BarChart3, "Bio Links": Globe,
+    "Automation": Zap, "Networks": Globe, "Publish": Calendar, "Posts": FileText, "Replies": MessageCircle,
+    "Mentions": Bell, "Insights": BarChart3, "Pages": FileText, "Groups": Users, "Events": Calendar,
+    "Albums": FileText, "Inbox": MessageSquare,
+  };
+
   // Build searchable index of all tabs, subtabs, features
+  type SearchItem = { label: string; type: "tab" | "subtab" | "feature"; path: string; breadcrumb: string[]; icon: any };
   const searchIndex = useMemo(() => {
-    const items: { label: string; type: "tab" | "subtab" | "feature"; path: string; parent?: string }[] = [];
+    const items: SearchItem[] = [];
     for (const section of navSections) {
       for (const item of section.items) {
-        items.push({ label: item.label, type: "tab", path: `/platform/${TAB_SLUGS[item.id] || item.id}` });
+        items.push({ label: item.label, type: "tab", path: `/platform/${TAB_SLUGS[item.id] || item.id}`, breadcrumb: ["Platform", item.label], icon: item.icon });
       }
     }
     const subTabLabels: Record<string, Record<string, string>> = {
@@ -195,37 +222,37 @@ const CRM = () => {
       const mainSlugVal = TAB_SLUGS[mainTab] || mainTab;
       for (const [subId, subLabel] of Object.entries(subs)) {
         const subSlugVal = SUB_TAB_SLUGS[mainTab]?.[subId] || subId;
-        items.push({ label: subLabel, type: "subtab", path: `/platform/${mainSlugVal}/${subSlugVal}`, parent: mainLabel });
+        items.push({ label: subLabel, type: "subtab", path: `/platform/${mainSlugVal}/${subSlugVal}`, breadcrumb: ["Platform", mainLabel, subLabel], icon: subTabIcons[subLabel] || getIconForId(mainTab) || Search });
       }
     }
     const socialPlatformSubs: Record<string, Record<string, string>> = {
-      instagram: { dashboard: "IG Dashboard", "auto-dm": "IG Auto-DM", outreach: "IG Outreach", search: "IG Search", content: "IG Content", comments: "IG Comments", dms: "IG DMs", "ai-tools": "IG AI Tools", analytics: "IG Analytics", "bio-links": "IG Bio Links", automation: "IG Automation", networks: "IG Networks" },
-      tiktok: { dashboard: "TT Dashboard", "auto-dm": "TT Auto-DM", content: "TT Content", comments: "TT Comments", dms: "TT DMs", search: "TT Search", "ai-tools": "TT AI Tools", analytics: "TT Analytics", automation: "TT Automation" },
-      threads: { dashboard: "Threads Dashboard", publish: "Threads Publish", threads: "Threads Posts", replies: "Threads Replies", mentions: "Threads Mentions", search: "Threads Search", insights: "Threads Insights", "ai-tools": "Threads AI Tools" },
-      facebook: { dashboard: "FB Dashboard", pages: "FB Pages", posts: "FB Posts", comments: "FB Comments", groups: "FB Groups", events: "FB Events", albums: "FB Albums", inbox: "FB Inbox", insights: "FB Insights", search: "FB Search", "ai-tools": "FB AI Tools" },
+      instagram: { dashboard: "Dashboard", "auto-dm": "Auto-DM", outreach: "Outreach", search: "Search", content: "Content", comments: "Comments", dms: "DMs", "ai-tools": "AI Tools", analytics: "Analytics", "bio-links": "Bio Links", automation: "Automation", networks: "Networks" },
+      tiktok: { dashboard: "Dashboard", "auto-dm": "Auto-DM", content: "Content", comments: "Comments", dms: "DMs", search: "Search", "ai-tools": "AI Tools", analytics: "Analytics", automation: "Automation" },
+      threads: { dashboard: "Dashboard", publish: "Publish", threads: "Posts", replies: "Replies", mentions: "Mentions", search: "Search", insights: "Insights", "ai-tools": "AI Tools" },
+      facebook: { dashboard: "Dashboard", pages: "Pages", posts: "Posts", comments: "Comments", groups: "Groups", events: "Events", albums: "Albums", inbox: "Inbox", insights: "Insights", search: "Search", "ai-tools": "AI Tools" },
     };
     for (const [platform, subs] of Object.entries(socialPlatformSubs)) {
       const platformLabel = platform.charAt(0).toUpperCase() + platform.slice(1);
       for (const [slug, label] of Object.entries(subs)) {
-        items.push({ label: label, type: "feature", path: `/platform/social-media/${platform}/${slug}`, parent: `${platformLabel}` });
+        items.push({ label: `${platformLabel} ${label}`, type: "subtab", path: `/platform/social-media/${platform}/${slug}`, breadcrumb: ["Platform", "Social Media", platformLabel, label], icon: socialFeatureIcons[label] || Globe });
       }
     }
-    const features = [
-      { label: "AI Caption Generator", parent: "Content", path: "/platform/social-media/instagram/content" },
-      { label: "Live AI Conversations", parent: "Auto-DM", path: "/platform/social-media/instagram/auto-dm" },
-      { label: "Test AI Responder", parent: "Auto-DM", path: "/platform/social-media/instagram/auto-dm" },
-      { label: "Mass DM Outreach", parent: "Outreach", path: "/platform/social-media/instagram/outreach" },
-      { label: "Comment Manager", parent: "Comments", path: "/platform/social-media/instagram/comments" },
-      { label: "Bio Link Builder", parent: "Bio Links", path: "/platform/social-media/instagram/bio-links" },
-      { label: "Image Generator", parent: "Copilot", path: "/platform/uplyze-assistant/image-gen-v1" },
-      { label: "Video Generator", parent: "Copilot", path: "/platform/uplyze-assistant/video-gen" },
-      { label: "Audio Generator", parent: "Copilot", path: "/platform/uplyze-assistant/audio-gen" },
-      { label: "Persona DNA Engine", parent: "AI", path: "/platform/persona-dna" },
-      { label: "Emotional Heatmap", parent: "AI", path: "/platform/emotional" },
-      { label: "Ad Creative Engine", parent: "Creatives", path: "/platform/ad-creatives/creatives" },
+    const features: { label: string; breadcrumb: string[]; path: string; icon: any }[] = [
+      { label: "AI Caption Generator", breadcrumb: ["Platform", "Social Media", "Instagram", "Content"], path: "/platform/social-media/instagram/content", icon: Calendar },
+      { label: "Live AI Conversations", breadcrumb: ["Platform", "Social Media", "Instagram", "Auto-DM"], path: "/platform/social-media/instagram/auto-dm", icon: Bot },
+      { label: "Test AI Responder", breadcrumb: ["Platform", "Social Media", "Instagram", "Auto-DM"], path: "/platform/social-media/instagram/auto-dm", icon: Bot },
+      { label: "Mass DM Outreach", breadcrumb: ["Platform", "Social Media", "Instagram", "Outreach"], path: "/platform/social-media/instagram/outreach", icon: MessageSquare },
+      { label: "Comment Manager", breadcrumb: ["Platform", "Social Media", "Instagram", "Comments"], path: "/platform/social-media/instagram/comments", icon: MessageCircle },
+      { label: "Bio Link Builder", breadcrumb: ["Platform", "Social Media", "Instagram", "Bio Links"], path: "/platform/social-media/instagram/bio-links", icon: Globe },
+      { label: "Image Generator", breadcrumb: ["Platform", "Uplyze AI Copilot", "Image Gen V1"], path: "/platform/uplyze-assistant/image-gen-v1", icon: Megaphone },
+      { label: "Video Generator", breadcrumb: ["Platform", "Uplyze AI Copilot", "Video Gen"], path: "/platform/uplyze-assistant/video-gen", icon: Activity },
+      { label: "Audio Generator", breadcrumb: ["Platform", "Uplyze AI Copilot", "Audio Gen"], path: "/platform/uplyze-assistant/audio-gen", icon: Activity },
+      { label: "Persona DNA Engine", breadcrumb: ["Platform", "AI & Automation", "Persona DNA"], path: "/platform/persona-dna", icon: Brain },
+      { label: "Emotional Heatmap", breadcrumb: ["Platform", "AI & Automation", "Emotional"], path: "/platform/emotional", icon: Heart },
+      { label: "Ad Creative Engine", breadcrumb: ["Platform", "Creative Maker", "Creatives"], path: "/platform/ad-creatives/creatives", icon: Megaphone },
     ];
     for (const f of features) {
-      items.push({ label: f.label, type: "feature", path: f.path, parent: f.parent });
+      items.push({ label: f.label, type: "feature", path: f.path, breadcrumb: f.breadcrumb, icon: f.icon });
     }
     return items;
   }, []);
@@ -234,8 +261,8 @@ const CRM = () => {
     if (!searchQuery.trim()) return [];
     const q = searchQuery.toLowerCase();
     return searchIndex.filter(item =>
-      item.label.toLowerCase().includes(q) || (item.parent && item.parent.toLowerCase().includes(q))
-    ).slice(0, 12);
+      item.label.toLowerCase().includes(q) || item.breadcrumb.some(b => b.toLowerCase().includes(q))
+    ).slice(0, 15);
   }, [searchQuery, searchIndex]);
 
   // Derive active tab + sub-tab from URL
@@ -546,37 +573,55 @@ const CRM = () => {
               />
               {/* Search dropdown */}
               {searchFocused && filteredSearchResults.length > 0 && (
-                <div className="absolute top-full mt-2 right-0 w-[320px] rounded-xl overflow-hidden z-[100] shadow-2xl"
-                  style={{ background: "hsl(222 50% 7% / 0.98)", border: "1px solid hsl(217 91% 60% / 0.12)", backdropFilter: "blur(24px) saturate(1.5)" }}>
-                  <div className="p-1.5 max-h-[360px] overflow-y-auto scrollbar-thin">
-                    {/* Group by type */}
+                <div className="absolute top-full mt-2 right-0 w-[380px] rounded-2xl overflow-hidden z-[100]"
+                  style={{ background: "linear-gradient(180deg, hsl(222 50% 8% / 0.98), hsl(222 50% 6% / 0.99))", border: "1px solid hsl(217 91% 60% / 0.1)", backdropFilter: "blur(40px) saturate(1.8)", boxShadow: "0 25px 60px -15px hsl(222 50% 3% / 0.8), 0 0 0 1px hsl(217 91% 60% / 0.05) inset" }}>
+                  {/* Search header */}
+                  <div className="px-4 pt-3 pb-2 border-b border-white/[0.04]">
+                    <p className="text-[10px] text-white/25 font-medium">{filteredSearchResults.length} result{filteredSearchResults.length !== 1 ? "s" : ""} for "<span className="text-white/50">{searchQuery}</span>"</p>
+                  </div>
+                  <div className="p-2 max-h-[420px] overflow-y-auto scrollbar-thin">
                     {(["tab", "subtab", "feature"] as const).map(type => {
                       const group = filteredSearchResults.filter(r => r.type === type);
                       if (group.length === 0) return null;
-                      const typeLabel = type === "tab" ? "Tabs" : type === "subtab" ? "Sub-tabs" : "Features";
+                      const typeLabel = type === "tab" ? "TABS" : type === "subtab" ? "SUB-TABS" : "FEATURES";
+                      const typeColor = type === "tab" ? "hsl(217,91%,60%)" : type === "subtab" ? "hsl(262,83%,65%)" : "hsl(160,84%,50%)";
                       return (
-                        <div key={type}>
-                          <p className="text-[9px] font-bold text-white/20 uppercase tracking-[0.15em] px-2.5 pt-2 pb-1">{typeLabel}</p>
-                          {group.map((item, i) => (
-                            <button
-                              key={`${type}-${i}`}
-                              onMouseDown={(e) => { e.preventDefault(); navigate(item.path, { replace: true }); setSearchQuery(""); setSearchFocused(false); }}
-                              className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left hover:bg-white/[0.06] transition-colors group/item"
-                            >
-                              <div className={cn(
-                                "h-5 w-5 rounded-md flex items-center justify-center flex-shrink-0 text-[9px] font-bold",
-                                type === "tab" ? "bg-[hsl(217,91%,60%)]/15 text-[hsl(217,91%,60%)]" :
-                                type === "subtab" ? "bg-purple-500/15 text-purple-400" :
-                                "bg-emerald-500/15 text-emerald-400"
-                              )}>
-                                {type === "tab" ? "T" : type === "subtab" ? "S" : "F"}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-[11px] font-medium text-white/80 truncate group-hover/item:text-white transition-colors">{item.label}</p>
-                                {item.parent && <p className="text-[9px] text-white/25 truncate">{item.parent}</p>}
-                              </div>
-                            </button>
-                          ))}
+                        <div key={type} className="mb-1">
+                          <div className="flex items-center gap-2 px-3 pt-3 pb-1.5">
+                            <div className="h-px flex-1" style={{ background: `linear-gradient(90deg, ${typeColor}20, transparent)` }} />
+                            <p className="text-[9px] font-bold uppercase tracking-[0.2em] flex-shrink-0" style={{ color: typeColor }}>{typeLabel}</p>
+                            <div className="h-px flex-1" style={{ background: `linear-gradient(90deg, transparent, ${typeColor}20)` }} />
+                          </div>
+                          {group.map((item, i) => {
+                            const Icon = item.icon;
+                            return (
+                              <button
+                                key={`${type}-${i}`}
+                                onMouseDown={(e) => { e.preventDefault(); navigate(item.path, { replace: true }); setSearchQuery(""); setSearchFocused(false); }}
+                                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all duration-150 group/item"
+                                style={{ }}
+                                onMouseEnter={e => { e.currentTarget.style.background = `${typeColor}08`; }}
+                                onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
+                              >
+                                <div className="h-8 w-8 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors"
+                                  style={{ background: `${typeColor}12`, border: `1px solid ${typeColor}15` }}>
+                                  {Icon && <Icon className="h-3.5 w-3.5" style={{ color: typeColor }} />}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-[12px] font-semibold text-white/85 truncate group-hover/item:text-white transition-colors">{item.label}</p>
+                                  <div className="flex items-center gap-1 mt-0.5">
+                                    {item.breadcrumb.slice(1).map((crumb, ci) => (
+                                      <span key={ci} className="flex items-center gap-1 text-[9px] text-white/20">
+                                        {ci > 0 && <ChevronRight className="h-2 w-2 text-white/10 flex-shrink-0" />}
+                                        <span className="truncate">{crumb}</span>
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
+                                <ChevronRight className="h-3 w-3 text-white/10 group-hover/item:text-white/30 flex-shrink-0 transition-colors" />
+                              </button>
+                            );
+                          })}
                         </div>
                       );
                     })}
