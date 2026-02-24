@@ -1621,6 +1621,8 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
       return;
     }
     // Listen for the postMessage result from the popup
+    // Flag to prevent popup.closed check from cleaning up during FB chain
+    let fbChainActive = false;
     const handleMessage = async (event: MessageEvent) => {
       if (event.data?.type === "IG_SESSION_RESULT") {
         window.removeEventListener("message", handleMessage);
@@ -1665,6 +1667,7 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
             const fbAuthUrl = `https://www.facebook.com/v24.0/dialog/oauth?client_id=${fbAppIdForChain}&redirect_uri=${encodeURIComponent(fbRedirectUri)}&scope=${fbScopes}&response_type=code`;
             popup.location.href = fbAuthUrl;
             fbChainStarted = true;
+            fbChainActive = true; // Prevent popup.closed check from killing listeners
             setAutoConnectLoading("facebook");
             toast.info("📌 Redirecting to Facebook for Page access (required for IG messaging)…", { duration: 4000 });
           }
@@ -1912,19 +1915,19 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
       }
     };
     window.addEventListener("message", handleMessage);
+    // Only clean up if popup is truly closed AND we haven't started the FB chain.
+    // Cross-origin navigations (to facebook.com) can throw or falsely report closed.
     const check = setInterval(() => {
       try {
-        if (popup.closed) {
+        if (popup.closed && !fbChainActive) {
           clearInterval(check);
           setIgLoginPopupLoading(false);
           window.removeEventListener("message", handleMessage);
         }
       } catch {
-        clearInterval(check);
-        setIgLoginPopupLoading(false);
-        window.removeEventListener("message", handleMessage);
+        // Cross-origin — popup navigated to facebook.com, do NOT clean up
       }
-    }, 500);
+    }, 1000);
   };
 
   // Open TikTok login popup — mirrors the Instagram one-click flow
