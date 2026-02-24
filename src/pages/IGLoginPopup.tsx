@@ -117,12 +117,22 @@ const IGLoginPopup = () => {
 
       // Otherwise, redirect THIS popup to Facebook OAuth to get page token
       setPhase("fb_redirect");
+      
+      // Fetch the Facebook App ID from backend (it's different from Instagram App ID)
+      let fbClientId = INSTAGRAM_APP_ID; // fallback
+      try {
+        const { data: fbAppData } = await supabase.functions.invoke("facebook-api", {
+          body: { action: "get_app_id" },
+        });
+        if (fbAppData?.app_id) fbClientId = fbAppData.app_id;
+      } catch {}
+      
       setTimeout(() => {
         const fbRedirectUri = "https://uplyze.ai/fb-login";
         const fbScopes = "pages_show_list,pages_read_engagement,pages_manage_metadata,pages_messaging,instagram_basic,instagram_manage_messages,public_profile";
-        const fbAuthUrl = `https://www.facebook.com/v24.0/dialog/oauth?client_id=${INSTAGRAM_APP_ID}&redirect_uri=${encodeURIComponent(fbRedirectUri)}&scope=${fbScopes}&response_type=code`;
+        const fbAuthUrl = `https://www.facebook.com/v24.0/dialog/oauth?client_id=${fbClientId}&redirect_uri=${encodeURIComponent(fbRedirectUri)}&scope=${fbScopes}&response_type=code`;
         window.location.href = fbAuthUrl;
-      }, 2000);
+      }, 1500);
     } catch (err: any) {
       setError(err.message || "Connection failed. Try again.");
     } finally {
