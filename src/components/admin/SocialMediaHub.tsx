@@ -1193,23 +1193,63 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
          if (error || !data?.success) { toast.error(data?.error || error?.message || "Token exchange failed"); setAutoConnectLoading(null); return; }
          const accessToken = data.data?.access_token;
          if (!accessToken) { toast.error("No access token in response"); setAutoConnectLoading(null); return; }
-         toast.info("Fetching Facebook profile...");
-         const profileRes = await fetch(`https://graph.facebook.com/v24.0/me?fields=id,name,email,picture.width(200)&access_token=${accessToken}`);
-         const profile = await profileRes.json();
-         if (profile.error) { toast.error(profile.error.message); setAutoConnectLoading(null); return; }
-         const username = profile.name || "facebook_user";
-         let accountId = selectedAccount;
-         if (!accountId) {
-           const { data: newAcct, error: err } = await supabase.from("managed_accounts").insert({ username, display_name: profile.name, platform: "facebook", status: "active", avatar_url: profile.picture?.data?.url || null, user_id: user?.id }).select("id").single();
-           if (err || !newAcct) { toast.error(err?.message || "Failed"); setAutoConnectLoading(null); return; }
-           accountId = newAcct.id; setSelectedAccount(accountId);
-         }
-         await supabase.from("social_connections").upsert({ account_id: accountId, platform: "facebook", platform_user_id: profile.id || "", platform_username: username, access_token: accessToken, is_connected: true, scopes: [], metadata: { name: profile.name, picture_url: profile.picture?.data?.url, email: profile.email, connected_via: "facebook_oauth_popup" }, user_id: user?.id }, { onConflict: "account_id,platform,user_id" });
-         await supabase.from("managed_accounts").update({ avatar_url: profile.picture?.data?.url || undefined, display_name: profile.name || username, last_activity_at: new Date().toISOString() }).eq("id", accountId);
-         await loadAccounts(); await loadData(accountId);
-         toast.success(`✅ ${username} Facebook connected!`);
-       } catch (err: any) { toast.error(err.message || "Facebook connection failed"); }
-       setAutoConnectLoading(null);
+          toast.info("Fetching Facebook profile & pages...");
+          const profileRes = await fetch(`https://graph.facebook.com/v24.0/me?fields=id,name,email,picture.width(200)&access_token=${accessToken}`);
+          const profile = await profileRes.json();
+          if (profile.error) { toast.error(profile.error.message); setAutoConnectLoading(null); return; }
+
+          // Fetch Facebook Pages to get page access tokens (needed for IG messaging)
+          let fbPages: any[] = [];
+          let primaryPageToken: string | null = null;
+          let primaryPageId: string | null = null;
+          let primaryPageName: string | null = null;
+          try {
+            const pagesRes = await fetch(`https://graph.facebook.com/v24.0/me/accounts?fields=id,name,access_token,category,fan_count,picture&limit=25&access_token=${accessToken}`);
+            const pagesData = await pagesRes.json();
+            if (pagesData.data && pagesData.data.length > 0) {
+              fbPages = pagesData.data;
+              primaryPageToken = fbPages[0].access_token;
+              primaryPageId = fbPages[0].id;
+              primaryPageName = fbPages[0].name;
+            }
+          } catch (pageErr) {
+            console.warn("Could not fetch Facebook pages:", pageErr);
+          }
+
+          const username = profile.name || "facebook_user";
+          let accountId = selectedAccount;
+          if (!accountId) {
+            const { data: newAcct, error: err } = await supabase.from("managed_accounts").insert({ username, display_name: profile.name, platform: "facebook", status: "active", avatar_url: profile.picture?.data?.url || null, user_id: user?.id }).select("id").single();
+            if (err || !newAcct) { toast.error(err?.message || "Failed"); setAutoConnectLoading(null); return; }
+            accountId = newAcct.id; setSelectedAccount(accountId);
+          }
+          const fbMetadata: any = {
+            name: profile.name,
+            picture_url: profile.picture?.data?.url,
+            email: profile.email,
+            connected_via: "facebook_oauth_popup",
+            fb_pages: fbPages.map(p => ({ id: p.id, name: p.name, category: p.category, fan_count: p.fan_count })),
+          };
+          if (primaryPageToken) {
+            fbMetadata.fb_page_token = primaryPageToken;
+            fbMetadata.fb_page_id = primaryPageId;
+            fbMetadata.fb_page_name = primaryPageName;
+          }
+          await supabase.from("social_connections").upsert({
+            account_id: accountId, platform: "facebook", platform_user_id: profile.id || "",
+            platform_username: username, access_token: accessToken, is_connected: true,
+            scopes: ["public_profile","email","pages_show_list","pages_read_engagement","pages_manage_posts","pages_manage_metadata","pages_read_user_content","pages_messaging","publish_video","business_management"],
+            metadata: fbMetadata, user_id: user?.id,
+          }, { onConflict: "account_id,platform,user_id" });
+          await supabase.from("managed_accounts").update({ avatar_url: profile.picture?.data?.url || undefined, display_name: profile.name || username, last_activity_at: new Date().toISOString() }).eq("id", accountId);
+
+          // Invalidate caches so fresh data loads in UI
+          invalidateNamespace(accountId, "social_connections");
+          invalidateNamespace("global", "smh_accounts");
+          await loadAccounts(); await loadData(accountId);
+          toast.success(`✅ ${username} Facebook connected!${primaryPageName ? ` Page: ${primaryPageName}` : ""}`);
+        } catch (err: any) { toast.error(err.message || "Facebook connection failed"); }
+        setAutoConnectLoading(null);
      };
      window.addEventListener("message", handleFbMessage);
      const check = setInterval(() => {
