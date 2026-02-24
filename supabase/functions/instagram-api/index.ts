@@ -325,7 +325,8 @@ async function privateApiFetch(url: string, conn: any, params?: any, method = "G
   return { data, authMethod: auth.authMethod };
 }
 
-async function getPageId(token: string, igUserId: string): Promise<{ pageId: string; pageToken: string } | null> {
+async function getPageId(token: string, igUserId: string, supabaseClient?: any, accountId?: string): Promise<{ pageId: string; pageToken: string } | null> {
+  // Try with the provided token first
   try {
     const pagesResp = await fetch(`${FB_GRAPH_URL}/me/accounts?fields=id,name,instagram_business_account,access_token&access_token=${token}`);
     const pagesData = await pagesResp.json();
@@ -344,12 +345,48 @@ async function getPageId(token: string, igUserId: string): Promise<{ pageId: str
         return { pageId: page.id, pageToken: page.access_token || token };
       }
     }
-    console.log("No linked Facebook Page found for IG user:", igUserId);
-    return null;
   } catch (e: any) {
-    console.log("getPageId error:", e.message);
-    return null;
+    console.log("getPageId error with IG token:", e.message);
   }
+
+  // Fallback: try with the Facebook connection token for the same account
+  if (supabaseClient && accountId) {
+    try {
+      const { data: fbConn } = await supabaseClient
+        .from("social_connections")
+        .select("access_token, platform_user_id")
+        .eq("account_id", accountId)
+        .eq("platform", "facebook")
+        .eq("is_connected", true)
+        .single();
+      
+      if (fbConn?.access_token) {
+        console.log("Trying Facebook connection token for page discovery...");
+        const fbPagesResp = await fetch(`${FB_GRAPH_URL}/me/accounts?fields=id,name,instagram_business_account,access_token&access_token=${fbConn.access_token}`);
+        const fbPagesData = await fbPagesResp.json();
+        console.log("FB token pages response:", JSON.stringify(fbPagesData).substring(0, 500));
+        
+        if (fbPagesData.data) {
+          for (const page of fbPagesData.data) {
+            if (page.instagram_business_account?.id === igUserId) {
+              console.log(`Found linked Page via FB token: ${page.name} (${page.id})`);
+              return { pageId: page.id, pageToken: page.access_token || fbConn.access_token };
+            }
+          }
+          if (fbPagesData.data.length === 1) {
+            const page = fbPagesData.data[0];
+            console.log(`Using only FB Page: ${page.name} (${page.id})`);
+            return { pageId: page.id, pageToken: page.access_token || fbConn.access_token };
+          }
+        }
+      }
+    } catch (e: any) {
+      console.log("getPageId FB fallback error:", e.message);
+    }
+  }
+
+  console.log("No linked Facebook Page found for IG user:", igUserId);
+  return null;
 }
 
 async function igFetch(endpoint: string, token: string, method = "GET", body?: any, useFbGraph = false) {
@@ -425,8 +462,6 @@ serve(async (req) => {
       // Return 200 immediately — no DB writes, no processing
       return new Response(JSON.stringify({ success: true }), {
         status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -1287,6 +1322,28 @@ Analyze every character in the name and username for any gender signal at all. L
           if (allConvos.length > 0) break;
         }
         
+        // Fallback: try via Facebook Page token (required for IG Business Login tokens)
+        if (allConvos.length === 0) {
+          console.log("IG token failed for conversations, trying FB Page token approach...");
+          const pageInfo = await getPageId(token, igUserId, supabase, account_id);
+          if (pageInfo) {
+            const pageEndpoints = [
+              `${FB_GRAPH_URL}/${pageInfo.pageId}/conversations?platform=instagram&limit=${limit}&fields=${richFields}&access_token=${pageInfo.pageToken}`,
+              `${FB_GRAPH_URL}/me/conversations?platform=instagram&limit=${limit}&fields=${richFields}&access_token=${pageInfo.pageToken}`,
+            ];
+            for (const ep of pageEndpoints) {
+              let url = ep;
+              if (folder) url += `&folder=${folder}`;
+              console.log("Trying FB Page:", url.split("access_token")[0]);
+              allConvos = await fetchWithPagination(url);
+              if (allConvos.length > 0) break;
+              const simpleUrl = url.replace(richFields, "id,updated_time,participants");
+              allConvos = await fetchWithPagination(simpleUrl);
+              if (allConvos.length > 0) break;
+            }
+          }
+        }
+        
         console.log(`Total conversations fetched: ${allConvos.length}`);
         result = { data: allConvos, paging: null };
         break;
@@ -1326,16 +1383,29 @@ Analyze every character in the name and username for any gender signal at all. L
           return allData;
         };
         
+        // Try FB Page token approach if IG token fails
+        const pageInfoAll = await getPageId(token, igUserId, supabase, account_id);
+        
         const fetchFolder = async (folderName: string): Promise<any[]> => {
+          // Try IG Graph first
           for (const base of [`${IG_GRAPH_URL}/me`, `${IG_GRAPH_URL}/${realUserId}`]) {
             let url = `${base}/conversations?platform=instagram&limit=${allLimit}&fields=${richFields}&access_token=${token}&folder=${folderName}`;
-            
             let convos = await fetchWithPagination(url);
             if (convos.length > 0) return convos;
-            
             let simpleUrl = `${base}/conversations?platform=instagram&limit=${allLimit}&fields=id,updated_time,participants&access_token=${token}&folder=${folderName}`;
             convos = await fetchWithPagination(simpleUrl);
             if (convos.length > 0) return convos;
+          }
+          // Fallback: FB Page token approach
+          if (pageInfoAll) {
+            for (const base of [`${FB_GRAPH_URL}/${pageInfoAll.pageId}`, `${FB_GRAPH_URL}/me`]) {
+              let url = `${base}/conversations?platform=instagram&limit=${allLimit}&fields=${richFields}&access_token=${pageInfoAll.pageToken}&folder=${folderName}`;
+              let convos = await fetchWithPagination(url);
+              if (convos.length > 0) return convos;
+              let simpleUrl = `${base}/conversations?platform=instagram&limit=${allLimit}&fields=id,updated_time,participants&access_token=${pageInfoAll.pageToken}&folder=${folderName}`;
+              convos = await fetchWithPagination(simpleUrl);
+              if (convos.length > 0) return convos;
+            }
           }
           return [];
         };
@@ -1347,7 +1417,7 @@ Analyze every character in the name and username for any gender signal at all. L
         ]);
         
         const total = primary.length + general.length + requests.length;
-        console.log(`Found ${total} conversations total`);
+        console.log(`Found ${total} conversations total (pageToken available: ${!!pageInfoAll})`);
         
         result = { primary, general, requests, total };
         break;
