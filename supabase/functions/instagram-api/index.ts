@@ -1554,13 +1554,14 @@ Analyze every character in the name and username for any gender signal at all. L
         if (!params?.conversation_id) throw new Error("conversation_id required");
         
         try {
-          // Step 1: Fetch ALL message IDs using cursor pagination
+          const requestedLimit = params?.limit || 50;
+          // Step 1: Fetch message IDs using cursor pagination (limited to requested amount)
           let allMessageIds: any[] = [];
-          let nextUrl: string | null = `${IG_GRAPH_URL}/${params.conversation_id}?fields=messages&access_token=${token}`;
+          let nextUrl: string | null = `${IG_GRAPH_URL}/${params.conversation_id}?fields=messages.limit(${Math.min(requestedLimit, 50)})&access_token=${token}`;
           let pageCount = 0;
-          const maxPages = 10; // Safety: max 10 pages of message IDs
+          const maxPages = Math.ceil(requestedLimit / 25); // Only fetch enough pages
           
-          while (nextUrl && pageCount < maxPages) {
+          while (nextUrl && pageCount < maxPages && allMessageIds.length < requestedLimit) {
             const convoResp = await fetch(nextUrl);
             const convoData = await convoResp.json();
             
@@ -1570,7 +1571,7 @@ Analyze every character in the name and username for any gender signal at all. L
                 result = { messages: { data: [] }, error_message: convoData.error.message };
                 break;
               }
-              break; // Stop pagination on error but keep what we have
+              break;
             }
             
             const pageMessages = convoData?.messages?.data || convoData?.data || [];
@@ -1579,17 +1580,20 @@ Analyze every character in the name and username for any gender signal at all. L
             
             // Check for next page cursor
             const paging = convoData?.messages?.paging || convoData?.paging;
-            nextUrl = paging?.next || null;
+            nextUrl = (allMessageIds.length < requestedLimit) ? (paging?.next || null) : null;
             
             console.log(`Page ${pageCount}: ${pageMessages.length} message IDs (total: ${allMessageIds.length})`);
           }
+          
+          // Trim to requested limit
+          allMessageIds = allMessageIds.slice(0, requestedLimit);
           
           if (allMessageIds.length === 0) {
             result = { messages: { data: [] }, id: params.conversation_id };
             break;
           }
           
-          console.log(`Total message IDs for ${params.conversation_id}: ${allMessageIds.length}`);
+          console.log(`Total message IDs for ${params.conversation_id}: ${allMessageIds.length} (limit: ${requestedLimit})`);
           
           // Step 2: Fetch details in concurrent batches of 10
           const fullFields = "id,created_time,from,to,message,attachments,story,shares";
