@@ -89,14 +89,23 @@ const PersonaCreatorDialog = ({ accountId, open, onOpenChange }: PersonaCreatorD
   const [newTrait, setNewTrait] = useState("");
   const [loading, setLoading] = useState(false);
   const [activePersonaId, setActivePersonaId] = useState<string | null>(null);
+  const [defaultPersonaType, setDefaultPersonaType] = useState<string>("male");
 
   useEffect(() => {
     if (open) { loadPersonas(); loadActivePersona(); setStep(0); setPersona({ ...defaultPersona }); }
   }, [open, accountId]);
 
   const loadActivePersona = async () => {
-    const { data } = await supabase.from("managed_accounts").select("active_persona_id").eq("id", accountId).single();
+    const { data } = await supabase.from("managed_accounts").select("active_persona_id, default_persona_type").eq("id", accountId).single();
     setActivePersonaId((data as any)?.active_persona_id || null);
+    setDefaultPersonaType((data as any)?.default_persona_type || "male");
+  };
+
+  const switchDefaultType = async (type: "male" | "female") => {
+    await supabase.from("managed_accounts").update({ active_persona_id: null, default_persona_type: type } as any).eq("id", accountId);
+    setActivePersonaId(null);
+    setDefaultPersonaType(type);
+    toast.success(`Switched to ${type} default persona`);
   };
 
   const activatePersona = async (personaId: string | null) => {
@@ -185,49 +194,64 @@ const PersonaCreatorDialog = ({ accountId, open, onOpenChange }: PersonaCreatorD
         <div className="flex-1 flex overflow-hidden min-h-0">
           {/* LEFT SIDEBAR — Personas + Step Nav */}
           <div className="w-[280px] flex-shrink-0 border-r border-white/[0.06] flex flex-col overflow-hidden">
-            {/* Default Persona Card */}
+            {/* Default Personas Card */}
             <div className="p-3 border-b border-white/[0.06] flex-shrink-0">
-              <p className="text-[9px] text-white/30 mb-2 tracking-widest uppercase font-medium">Default Persona</p>
-              <div className="p-2.5 rounded-xl bg-gradient-to-br from-purple-500/15 via-blue-500/10 to-pink-500/5 border border-purple-400/25 relative backdrop-blur-sm">
-                <div className="absolute top-1.5 right-1.5 flex gap-1">
-                  <span className="text-[6px] font-bold tracking-wider uppercase bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-1 py-0.5 rounded-full">DEFAULT</span>
-                  <span className="text-[6px] font-bold tracking-wider uppercase bg-blue-500/20 text-blue-400 border border-blue-500/30 px-1 py-0.5 rounded-full">ACTIVE</span>
+              <p className="text-[9px] text-white/30 mb-2 tracking-widest uppercase font-medium">Default Personas</p>
+              {/* Male Default */}
+              <button onClick={() => switchDefaultType("male")} className="w-full mb-2">
+                <div className={`p-2.5 rounded-xl relative backdrop-blur-sm transition-all ${
+                  !activePersonaId && defaultPersonaType === "male"
+                    ? "bg-gradient-to-br from-blue-500/15 via-cyan-500/10 to-emerald-500/5 border border-blue-400/25"
+                    : "bg-white/[0.03] border border-white/[0.08] hover:border-white/15"
+                }`}>
+                  <div className="absolute top-1.5 right-1.5 flex gap-1">
+                    <span className="text-[6px] font-bold tracking-wider uppercase bg-blue-500/20 text-blue-400 border border-blue-500/30 px-1 py-0.5 rounded-full">DEFAULT</span>
+                    {!activePersonaId && defaultPersonaType === "male" && <span className="text-[6px] font-bold tracking-wider uppercase bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-1 py-0.5 rounded-full">ACTIVE</span>}
+                  </div>
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <Crown className="h-3 w-3 text-blue-400" />
+                    <span className="text-[11px] font-semibold text-white">♂ Male (Default)</span>
+                  </div>
+                  <div className="space-y-0 text-[8px] text-white/50 leading-[1.5] text-left">
+                    <p>• Young businessman, late 20s — professional, friendly, direct</p>
+                    <p>• No emojis, no fluff, concise answers</p>
+                    <p>• Business-oriented, answers product questions directly</p>
+                    <p>• No small talk or seductive phases</p>
+                    <p>• Transparent about products/services</p>
+                    <p>• Clean redirect to bio link for details</p>
+                  </div>
                 </div>
-                <div className="flex items-center gap-1.5 mb-1.5">
-                  <Crown className="h-3 w-3 text-amber-400" />
-                  <span className="text-[11px] font-semibold text-white">Default Persona</span>
+              </button>
+              {/* Female Default */}
+              <button onClick={() => switchDefaultType("female")} className="w-full">
+                <div className={`p-2.5 rounded-xl relative backdrop-blur-sm transition-all ${
+                  !activePersonaId && defaultPersonaType === "female"
+                    ? "bg-gradient-to-br from-purple-500/15 via-pink-500/10 to-rose-500/5 border border-purple-400/25"
+                    : "bg-white/[0.03] border border-white/[0.08] hover:border-white/15"
+                }`}>
+                  <div className="absolute top-1.5 right-1.5 flex gap-1">
+                    <span className="text-[6px] font-bold tracking-wider uppercase bg-pink-500/20 text-pink-400 border border-pink-500/30 px-1 py-0.5 rounded-full">DEFAULT</span>
+                    {!activePersonaId && defaultPersonaType === "female" && <span className="text-[6px] font-bold tracking-wider uppercase bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-1 py-0.5 rounded-full">ACTIVE</span>}
+                  </div>
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <Crown className="h-3 w-3 text-pink-400" />
+                    <span className="text-[11px] font-semibold text-white">♀ Female (Default)</span>
+                  </div>
+                  <div className="space-y-0 text-[8px] text-white/50 leading-[1.5] text-left">
+                    <p>• Young woman, early 20s — chill, warm, subtly seductive</p>
+                    <p>• No emojis, no apostrophes, minimal punctuation</p>
+                    <p>• Messages 3-5 words, quick fire replies</p>
+                    <p>• Subtle psychological redirection to bio link</p>
+                    <p>• Closes convo after successful redirect</p>
+                  </div>
                 </div>
-                <div className="space-y-0 text-[8px] text-white/50 leading-[1.5]">
-                  <p>• Young woman, early 20s — chill, warm, subtly seductive</p>
-                  <p>• No emojis, no apostrophes, minimal punctuation</p>
-                  <p>• Max 1-2 abbreviations (u, rn, tho, w)</p>
-                  <p>• Messages 3-5 words, quick fire replies</p>
-                  <p>• Never says "ngl" or "tbh"</p>
-                  <p>• Natural pauses after 3-4 messages</p>
-                  <p>• Subtle psychological redirection to bio link</p>
-                  <p>• Closes convo after successful redirect</p>
-                  <p>• Consistent voice throughout conversation</p>
-                </div>
-              </div>
+              </button>
             </div>
 
             {/* Persona List — select & apply */}
             <div className="p-3 border-b border-white/[0.06] flex-shrink-0 max-h-[220px] overflow-y-auto">
-              <p className="text-[9px] text-white/30 mb-2 tracking-widest uppercase font-medium">Persona List</p>
+              <p className="text-[9px] text-white/30 mb-2 tracking-widest uppercase font-medium">Custom Personas</p>
               <div className="space-y-1.5">
-                {/* Default persona option */}
-                <button
-                  onClick={() => activatePersona(null)}
-                  className={`w-full p-2 rounded-lg text-left transition-all ${
-                    !activePersonaId ? "bg-gradient-to-r from-emerald-500/15 to-blue-500/10 border border-emerald-400/30" : "bg-white/[0.03] border border-white/[0.08] hover:border-white/15"
-                  }`}
-                >
-                  <div className="flex items-center gap-1.5">
-                    <Crown className="h-3 w-3 text-amber-400" />
-                    <span className="text-[10px] font-medium text-white/70">Default Persona</span>
-                    {!activePersonaId && <span className="text-[6px] font-bold tracking-wider uppercase bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-1 py-0.5 rounded-full ml-auto">ACTIVE</span>}
-                  </div>
-                </button>
                 {personas.map(p => {
                   const pName = p.brand_identity?.match(/^\[(.*?)\]/)?.[1] || p.tone;
                   const isActive = activePersonaId === p.id;
@@ -250,6 +274,7 @@ const PersonaCreatorDialog = ({ accountId, open, onOpenChange }: PersonaCreatorD
                     </div>
                   );
                 })}
+                {personas.length === 0 && <p className="text-[9px] text-white/25 italic">No custom personas yet</p>}
               </div>
             </div>
 

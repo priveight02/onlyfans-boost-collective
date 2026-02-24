@@ -227,6 +227,7 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
   const [pipelineFan, setPipelineFan] = useState<string>("");
   const [personas, setPersonas] = useState<any[]>([]);
   const [activePersonaId, setActivePersonaId] = useState<string | null>(null);
+  const [defaultPersonaType, setDefaultPersonaType] = useState<string>("male");
   const followAIRef = useRef(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -746,14 +747,22 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
   const loadPersonas = useCallback(async () => {
     const { data } = await supabase.from("persona_profiles").select("*").eq("account_id", accountId).order("created_at");
     setPersonas(data || []);
-    const { data: acc } = await supabase.from("managed_accounts").select("active_persona_id").eq("id", accountId).single();
+    const { data: acc } = await supabase.from("managed_accounts").select("active_persona_id, default_persona_type").eq("id", accountId).single();
     setActivePersonaId((acc as any)?.active_persona_id || null);
+    setDefaultPersonaType((acc as any)?.default_persona_type || "male");
   }, [accountId]);
 
   const switchPersona = useCallback(async (personaId: string | null) => {
     await supabase.from("managed_accounts").update({ active_persona_id: personaId } as any).eq("id", accountId);
     setActivePersonaId(personaId);
     toast.success(personaId ? "Persona switched — AI will use this persona" : "Switched to default persona");
+  }, [accountId]);
+
+  const switchDefaultType = useCallback(async (type: "male" | "female") => {
+    await supabase.from("managed_accounts").update({ active_persona_id: null, default_persona_type: type } as any).eq("id", accountId);
+    setActivePersonaId(null);
+    setDefaultPersonaType(type);
+    toast.success(`Switched to ${type} default persona`);
   }, [accountId]);
 
   useEffect(() => {
@@ -1385,21 +1394,28 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
           {/* Persona Selector */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button size="sm" variant="outline" className="h-7 text-[10px] gap-1 border-purple-500/30 text-purple-300 hover:bg-purple-500/10 max-w-[140px]">
+              <Button size="sm" variant="outline" className="h-7 text-[10px] gap-1 border-purple-500/30 text-purple-300 hover:bg-purple-500/10 max-w-[160px]">
                 <User className="h-3 w-3 flex-shrink-0" />
                 <span className="truncate">
                   {activePersonaId
                     ? (personas.find(p => p.id === activePersonaId)?.brand_identity?.match(/^\[(.*?)\]/)?.[1] || "Custom")
-                    : "Default"}
+                    : `${defaultPersonaType === "male" ? "♂ Male" : "♀ Female"} (Default)`}
                 </span>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem onClick={() => switchPersona(null)} className="text-xs gap-2">
-                <Crown className="h-3 w-3 text-amber-400" />
-                Default Persona
-                {!activePersonaId && <Check className="h-3 w-3 ml-auto text-emerald-400" />}
+            <DropdownMenuContent align="end" className="w-52">
+              <p className="px-2 py-1 text-[9px] text-muted-foreground uppercase tracking-wider font-medium">Default Personas</p>
+              <DropdownMenuItem onClick={() => switchDefaultType("male")} className="text-xs gap-2">
+                <Crown className="h-3 w-3 text-blue-400" />
+                Male (Default)
+                {!activePersonaId && defaultPersonaType === "male" && <Check className="h-3 w-3 ml-auto text-emerald-400" />}
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => switchDefaultType("female")} className="text-xs gap-2">
+                <Crown className="h-3 w-3 text-pink-400" />
+                Female (Default)
+                {!activePersonaId && defaultPersonaType === "female" && <Check className="h-3 w-3 ml-auto text-emerald-400" />}
+              </DropdownMenuItem>
+              {personas.length > 0 && <p className="px-2 py-1 text-[9px] text-muted-foreground uppercase tracking-wider font-medium mt-1">Custom Personas</p>}
               {personas.map(p => {
                 const pName = p.brand_identity?.match(/^\[(.*?)\]/)?.[1] || p.tone;
                 return (

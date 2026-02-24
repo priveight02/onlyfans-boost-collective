@@ -2274,6 +2274,7 @@ export type Database = {
           contact_phone: string | null
           content_count: number | null
           created_at: string
+          default_persona_type: string
           display_name: string | null
           engagement_rate: number | null
           id: string
@@ -2306,6 +2307,7 @@ export type Database = {
           contact_phone?: string | null
           content_count?: number | null
           created_at?: string
+          default_persona_type?: string
           display_name?: string | null
           engagement_rate?: number | null
           id?: string
@@ -2338,6 +2340,7 @@ export type Database = {
           contact_phone?: string | null
           content_count?: number | null
           created_at?: string
+          default_persona_type?: string
           display_name?: string | null
           engagement_rate?: number | null
           id?: string
