@@ -30,6 +30,7 @@ interface LiveDMConversationsProps {
   onNavigateToSession?: () => void;
   igSessionId?: string;
   igSessionStatus?: "unknown" | "valid" | "expired";
+  igPlatformUserId?: string;
 }
 
 interface Conversation {
@@ -187,7 +188,7 @@ const PipelineDelayCountdown = ({ delay_ms, started_at }: { delay_ms: number; st
   );
 };
 
-const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond, onNavigateToSession, igSessionId, igSessionStatus }: LiveDMConversationsProps) => {
+const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond, onNavigateToSession, igSessionId, igSessionStatus, igPlatformUserId }: LiveDMConversationsProps) => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [selectedConvo, setSelectedConvo] = useState<string | null>(null);
@@ -296,11 +297,15 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
   // Load conversations from DB — MERGE instead of replace to avoid re-renders
   const loadConversations = useCallback(async () => {
     if (!accountId) return;
-    const { data } = await supabase
+    let query = supabase
       .from("ai_dm_conversations")
       .select("*")
-      .eq("account_id", accountId)
-      .order("last_message_at", { ascending: false, nullsFirst: false });
+      .eq("account_id", accountId);
+    // Filter by platform_user_id to only show conversations for the currently connected IG account
+    if (igPlatformUserId) {
+      query = query.eq("platform_user_id", igPlatformUserId);
+    }
+    const { data } = await query.order("last_message_at", { ascending: false, nullsFirst: false });
     if (data) {
       setConversations(prev => {
         // If first load or structure changed significantly, replace
@@ -322,7 +327,7 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
       });
     }
     return data as Conversation[] | null;
-  }, [accountId]);
+  }, [accountId, igPlatformUserId]);
 
   // Load messages for a conversation into cache (checks supabaseCache first)
   const loadMessagesToCache = useCallback(async (convoId: string, forceRefresh = false): Promise<Message[]> => {

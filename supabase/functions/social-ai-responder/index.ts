@@ -2554,6 +2554,7 @@ Rules:
                 account_id,
                 platform: "instagram",
                 platform_conversation_id: convo.id,
+                platform_user_id: igConnScan.platform_user_id,
                 participant_id: fan.id,
                 participant_username: fan.username || fan.name || fan.id,
                 participant_name: fan.name || fan.username || "Unknown",
@@ -2776,6 +2777,7 @@ Rules:
                 account_id,
                 platform: "instagram",
                 platform_conversation_id: sc.id,
+                platform_user_id: igConnQuick.platform_user_id,
                 participant_id: fan.id,
                 participant_username: fan.username || fan.name || fan.id,
                 participant_name: fan.name || fan.username || "Unknown",
@@ -2918,6 +2920,7 @@ Follow these persona settings strictly. They override any conflicting defaults a
           .from("ai_dm_conversations")
           .select("*")
           .eq("account_id", account_id)
+          .eq("platform_user_id", igConn2.platform_user_id)
           .eq("ai_enabled", true)
           .eq("status", "active");
 

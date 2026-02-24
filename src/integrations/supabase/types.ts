@@ -382,6 +382,7 @@ export type Database = {
           id: string
           message_sent: string
           outcome: string
+          platform_user_id: string | null
           redirect_success: boolean | null
           strategy_type: string
         }
@@ -397,6 +398,7 @@ export type Database = {
           id?: string
           message_sent: string
           outcome?: string
+          platform_user_id?: string | null
           redirect_success?: boolean | null
           strategy_type?: string
         }
@@ -412,6 +414,7 @@ export type Database = {
           id?: string
           message_sent?: string
           outcome?: string
+          platform_user_id?: string | null
           redirect_success?: boolean | null
           strategy_type?: string
         }
@@ -436,6 +439,7 @@ export type Database = {
           participant_username: string | null
           platform: string
           platform_conversation_id: string | null
+          platform_user_id: string | null
           redirect_sent: boolean | null
           status: string
           updated_at: string
@@ -458,6 +462,7 @@ export type Database = {
           participant_username?: string | null
           platform?: string
           platform_conversation_id?: string | null
+          platform_user_id?: string | null
           redirect_sent?: boolean | null
           status?: string
           updated_at?: string
@@ -480,6 +485,7 @@ export type Database = {
           participant_username?: string | null
           platform?: string
           platform_conversation_id?: string | null
+          platform_user_id?: string | null
           redirect_sent?: boolean | null
           status?: string
           updated_at?: string
@@ -505,6 +511,7 @@ export type Database = {
           life_pause_ms: number | null
           metadata: Json | null
           platform_message_id: string | null
+          platform_user_id: string | null
           sender_name: string | null
           sender_type: string
           status: string
@@ -520,6 +527,7 @@ export type Database = {
           life_pause_ms?: number | null
           metadata?: Json | null
           platform_message_id?: string | null
+          platform_user_id?: string | null
           sender_name?: string | null
           sender_type: string
           status?: string
@@ -535,6 +543,7 @@ export type Database = {
           life_pause_ms?: number | null
           metadata?: Json | null
           platform_message_id?: string | null
+          platform_user_id?: string | null
           sender_name?: string | null
           sender_type?: string
           status?: string
