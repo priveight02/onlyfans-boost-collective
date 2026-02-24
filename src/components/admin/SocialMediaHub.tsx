@@ -2298,51 +2298,6 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
 
         {/* ===== AI AUTO-DM (Play/Pause) ===== */}
         <TabsContent value="ai-auto" className="space-y-4 mt-4">
-          {/* Main Play/Pause Control */}
-          <Card className={`border-2 transition-colors ${autoRespondActive ? "border-red-500/50 bg-red-500/5" : "border-border"}`}>
-            <CardContent className="p-5">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h3 className="text-base font-bold text-foreground flex items-center gap-2">
-                    <Brain className="h-5 w-5 text-purple-400" />
-                    AI Auto-DM Responder
-                  </h3>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {autoRespondActive ? "AI is actively responding to incoming DMs as a young woman with no emojis, casual texting style" : "Click Play to start auto-responding to all incoming DMs"}
-                  </p>
-                </div>
-                <Button
-                  size="lg"
-                  onClick={toggleAutoRespond}
-                  disabled={autoRespondLoading}
-                  className={`h-14 w-14 rounded-full p-0 ${autoRespondActive ? "bg-red-500 hover:bg-red-600 text-white" : "bg-green-500 hover:bg-green-600 text-white"}`}
-                >
-                  {autoRespondActive ? <Pause className="h-6 w-6" /> : <Play className="h-6 w-6 ml-0.5" />}
-                </Button>
-              </div>
-
-              {autoRespondActive && (
-                <div className="flex items-center gap-2 p-2.5 rounded-lg bg-red-500/10 border border-red-500/20 mb-4">
-                  <div className="h-2.5 w-2.5 rounded-full bg-red-500 animate-pulse" />
-                  <span className="text-xs font-medium text-red-400">LIVE — AI is responding to DMs in real-time</span>
-                </div>
-              )}
-
-              <div className="space-y-3">
-                <div>
-                  <label className="text-xs text-muted-foreground mb-1 block">OF Redirect URL</label>
-                  <Input value={aiDmRedirectUrl} onChange={e => setAiDmRedirectUrl(e.target.value)} placeholder="https://onlyfans.com/..." className="text-sm" />
-                </div>
-                <div>
-                  <label className="text-xs text-muted-foreground mb-1 block">Trigger Keywords (comma separated)</label>
-                  <Input value={aiDmKeywords} onChange={e => setAiDmKeywords(e.target.value)} placeholder="content, exclusive, private, subscribe..." className="text-sm" />
-                </div>
-                <Button size="sm" variant="outline" className="text-foreground" onClick={saveAutoRespondConfig}>Save Config</Button>
-              </div>
-            </CardContent>
-          </Card>
-
-
           {/* Test AI */}
           <Card>
             <CardContent className="p-4 space-y-3">
