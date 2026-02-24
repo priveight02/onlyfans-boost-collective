@@ -1571,18 +1571,26 @@ Analyze every character in the name and username for any gender signal at all. L
           
           // Per docs: Step 2 — GET /<MESSAGE_ID>?fields=id,created_time,from,to,message&access_token=TOKEN
           // Note: Only the 20 most recent messages can be fetched with details
+          // Only use documented fields: id, created_time, from, to, message, attachments
           const detailedMessages = await Promise.all(
             messageIds.map(async (msg: any) => {
               try {
-                const detailResp = await fetch(`${IG_GRAPH_URL}/${msg.id}?fields=id,created_time,from,to,message,attachments,shares,story,sticker&access_token=${token}`);
+                // Use only officially documented fields
+                const detailResp = await fetch(`${IG_GRAPH_URL}/${msg.id}?fields=id,created_time,from,to,message,attachments&access_token=${token}`);
                 const detail = await detailResp.json();
                 if (detail?.error) {
-                  console.log(`Message ${msg.id} error:`, detail.error.message);
-                  return { id: msg.id, created_time: msg.created_time, message: "(unable to load)", error: true };
+                  // Retry with minimal fields if some field is unsupported
+                  const retryResp = await fetch(`${IG_GRAPH_URL}/${msg.id}?fields=id,created_time,from,to,message&access_token=${token}`);
+                  const retryDetail = await retryResp.json();
+                  if (retryDetail?.error) {
+                    // This message is older than the 20 most recent — per docs it can't be loaded
+                    return { id: msg.id, created_time: msg.created_time, message: null, from: null, to: null, too_old: true };
+                  }
+                  return retryDetail;
                 }
                 return detail;
               } catch (e: any) {
-                return { id: msg.id, created_time: msg.created_time, message: "(unable to load)", error: true };
+                return { id: msg.id, created_time: msg.created_time, message: null, from: null, to: null, too_old: true };
               }
             })
           );
