@@ -452,10 +452,10 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
         let contentText = msgText;
         if (!contentText && hasAtt) {
           const attArr = Array.isArray(rawAtt) ? rawAtt : [rawAtt];
-          const attType = attArr[0]?.mime_type || attArr[0]?.type || "";
-          if (attType.includes("video")) contentText = "[video]";
-          else if (attType.includes("image") || attType.includes("photo")) contentText = "[photo]";
-          else if (attType.includes("audio")) contentText = "[audio]";
+          const attType = (attArr[0]?._media_type || attArr[0]?.mime_type || attArr[0]?.type || "").toLowerCase();
+          if (attType.includes("video") || attType === "animated_image_share" || attType === "ig_reel" || attType === "reel") contentText = "[video]";
+          else if (attType.includes("image") || attType === "photo") contentText = "[photo]";
+          else if (attType.includes("audio") || attType === "voice") contentText = "[voice note]";
           else if (igMsg.sticker) contentText = "[sticker]";
           else if (igMsg.shares) contentText = "[shared post]";
           else if (igMsg.story) contentText = "[story reply]";
@@ -1952,45 +1952,90 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
                                   const storyData = msg.metadata?.story;
                                   const myReaction = msg.metadata?.my_reaction;
 
-                                  // Render media attachments
-                                  const renderMedia = () => {
-                                    if (!hasMedia) return null;
-                                    return (
-                                      <div className="space-y-1 mb-0.5">
-                                        {attachments.map((att: any, i: number) => {
-                                          const url = att.file_url || att.image_data?.url || att.video_data?.url 
-                                            || att.url || att.payload?.url || att.preview_url;
-                                          const mimeType = (att.mime_type || att.type || "").toLowerCase();
-                                          const attType = (att.type || "").toLowerCase();
-                                          
-                                          if (!url) return null;
+                                   // Extract best URL from an IG attachment (handles all nested formats)
+                                   const getAttUrl = (att: any): string => {
+                                     // Normalized by edge function
+                                     if (att._media_url) return att._media_url;
+                                     // Direct fields
+                                     if (att.file_url) return att.file_url;
+                                     if (att.image_data?.url) return att.image_data.url;
+                                     if (att.image_data?.src) return att.image_data.src;
+                                     if (att.image_data?.preview_url) return att.image_data.preview_url;
+                                     if (att.image_data?.max_width_url) return att.image_data.max_width_url;
+                                     if (att.video_data?.url) return att.video_data.url;
+                                     if (att.video_data?.preview_url) return att.video_data.preview_url;
+                                     if (att.audio_data?.url) return att.audio_data.url;
+                                     if (att.url) return att.url;
+                                     if (att.payload?.url) return att.payload.url;
+                                     if (att.preview_url) return att.preview_url;
+                                     // Deep search fallback
+                                     const deepFind = (o: any): string | null => {
+                                       if (!o || typeof o !== "object") return null;
+                                       for (const v of Object.values(o)) {
+                                         if (typeof v === "string" && v.startsWith("http") && !v.includes("graph.facebook.com") && !v.includes("graph.instagram.com")) return v;
+                                         if (typeof v === "object") { const r = deepFind(v); if (r) return r; }
+                                       }
+                                       return null;
+                                     };
+                                     return deepFind(att) || "";
+                                   };
+                                   const getAttType = (att: any): string => {
+                                     if (att._media_type) return att._media_type;
+                                     const t = (att.type || att.mime_type || "").toLowerCase();
+                                     if (t.includes("audio") || t.includes("voice") || t === "audio") return "audio";
+                                     if (t.includes("video") || t === "animated_image_share" || t === "ig_reel" || t === "reel") return "video";
+                                     if (t.includes("image") || t === "photo" || t === "share" || t === "story_mention") return "image";
+                                     // Check by URL
+                                     const url = (getAttUrl(att) || "").toLowerCase();
+                                     if (url.match(/\.(mp4|mov|webm|avi)/)) return "video";
+                                     if (url.match(/\.(mp3|ogg|wav|m4a|aac|opus|amr|3gp)/)) return "audio";
+                                     if (url.includes("audio") || url.includes("voice")) return "audio";
+                                     if (url.includes("video")) return "video";
+                                     return "image";
+                                   };
 
-                                          if (mimeType.includes("video") || attType === "video" || att.video_data || attType === "reel") {
-                                            return (
-                                              <div key={i} className="relative rounded-xl overflow-hidden max-w-[260px]">
-                                                <video src={url} controls preload="metadata" playsInline className="w-full rounded-xl max-h-[300px] object-cover" poster={att.preview_url || att.image_data?.url} />
-                                              </div>
-                                            );
-                                          }
+                                   // Render media attachments
+                                   const renderMedia = () => {
+                                     if (!hasMedia) return null;
+                                     return (
+                                       <div className="space-y-1 mb-0.5">
+                                         {attachments.map((att: any, i: number) => {
+                                           const url = getAttUrl(att);
+                                           const mediaType = getAttType(att);
+                                           
+                                           if (!url) return null;
 
-                                          if (mimeType.includes("audio") || attType === "audio") {
-                                            return (
-                                              <div key={i} className="flex items-center gap-2 bg-muted/30 rounded-xl px-3 py-2 max-w-[240px]">
-                                                <div className="h-8 w-8 rounded-full bg-accent/20 flex items-center justify-center flex-shrink-0">🎵</div>
-                                                <audio src={url} controls className="w-full h-8" />
-                                              </div>
-                                            );
-                                          }
+                                           if (mediaType === "video") {
+                                             return (
+                                               <div key={i} className="relative rounded-xl overflow-hidden max-w-[260px]">
+                                                 <video src={url} controls preload="metadata" playsInline className="w-full rounded-xl max-h-[300px] object-cover" poster={att.preview_url || att.image_data?.url} />
+                                               </div>
+                                             );
+                                           }
 
-                                          if (mimeType.includes("gif") || attType === "animated_image" || url.includes(".gif")) {
-                                            return <img key={i} src={url} alt="GIF" className="max-w-[220px] rounded-xl cursor-pointer hover:opacity-90 transition-opacity" onClick={() => window.open(url, "_blank")} />;
-                                          }
+                                           if (mediaType === "audio") {
+                                             return (
+                                               <div key={i} className="flex items-center gap-2 bg-muted/30 rounded-xl px-3 py-2 max-w-[240px]">
+                                                 <div className="h-8 w-8 rounded-full bg-accent/20 flex items-center justify-center flex-shrink-0">🎙️</div>
+                                                 <audio controls preload="auto" className="w-full h-8">
+                                                   <source src={url} type="audio/mp4" />
+                                                   <source src={url} type="audio/aac" />
+                                                   <source src={url} type="audio/mpeg" />
+                                                   <source src={url} />
+                                                 </audio>
+                                               </div>
+                                             );
+                                           }
 
-                                          return <img key={i} src={url} alt="" className="max-w-[220px] rounded-xl cursor-pointer hover:opacity-90 transition-opacity" onClick={() => window.open(url, "_blank")} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />;
-                                        })}
-                                      </div>
-                                    );
-                                  };
+                                           if (url.includes(".gif") || (att.type || "").toLowerCase() === "animated_image") {
+                                             return <img key={i} src={url} alt="GIF" className="max-w-[220px] rounded-xl cursor-pointer hover:opacity-90 transition-opacity" onClick={() => window.open(url, "_blank")} />;
+                                           }
+
+                                           return <img key={i} src={url} alt="" className="max-w-[220px] rounded-xl cursor-pointer hover:opacity-90 transition-opacity" onClick={() => window.open(url, "_blank")} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />;
+                                         })}
+                                       </div>
+                                     );
+                                   };
 
                                   // Sticker
                                   if (stickerData && !hasMedia) {
@@ -2208,23 +2253,30 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
                                     );
                                   }
 
-                                  // Plain text or tagged content
-                                  const isTagged = msg.content && msg.content.startsWith("[") && msg.content.endsWith("]");
-                                  return (
-                                    <div className="relative">
-                                      <div className={`rounded-2xl px-3.5 py-2 ${isMe ? msg.sender_type === "ai" ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white" : "bg-primary text-primary-foreground" : "bg-muted/60 text-foreground"}`}>
-                                        {isTagged ? (() => {
-                                          const tag = msg.content.slice(1, -1);
-                                          const icons: Record<string, string> = { photo: "📷", video: "🎥", reel: "🎬", audio: "🎵", "voice message": "🎤", sticker: "🏷️", gif: "🎞️", "shared post": "📎", "shared reel": "🎬", attachment: "📎", media: "📷" };
-                                          return (
-                                            <div className="flex items-center gap-1.5 opacity-70">
-                                              <span>{icons[tag] || "📎"}</span>
-                                              <span className="text-[13px] italic capitalize">{tag}</span>
-                                            </div>
-                                          );
-                                        })() : (
-                                          <p className="text-[13px] leading-relaxed whitespace-pre-wrap">{msg.content}</p>
-                                        )}
+                                   // Plain text or tagged content
+                                   const isTagged = msg.content && msg.content.startsWith("[") && msg.content.endsWith("]");
+                                   // Empty content with no media = IG didn't return attachment data (voice note, photo, etc.)
+                                   const isEmpty = !msg.content || msg.content.trim() === "";
+                                   return (
+                                     <div className="relative">
+                                       <div className={`rounded-2xl px-3.5 py-2 ${isMe ? msg.sender_type === "ai" ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white" : "bg-primary text-primary-foreground" : "bg-muted/60 text-foreground"}`}>
+                                         {isEmpty ? (
+                                           <div className="flex items-center gap-1.5 opacity-70">
+                                             <span>📎</span>
+                                             <span className="text-[13px] italic">Sent media</span>
+                                           </div>
+                                         ) : isTagged ? (() => {
+                                           const tag = msg.content.slice(1, -1);
+                                           const icons: Record<string, string> = { photo: "📷", video: "🎥", reel: "🎬", audio: "🎵", "voice note": "🎤", "voice message": "🎤", sticker: "🏷️", gif: "🎞️", "shared post": "📎", "shared reel": "🎬", attachment: "📎", media: "📷" };
+                                           return (
+                                             <div className="flex items-center gap-1.5 opacity-70">
+                                               <span>{icons[tag] || "📎"}</span>
+                                               <span className="text-[13px] italic capitalize">{tag}</span>
+                                             </div>
+                                           );
+                                         })() : (
+                                           <p className="text-[13px] leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                                         )}
                                       </div>
                                       {/* Free Pic Countdown Timer */}
                                       {msg.metadata?.free_pic_pending && msg.metadata?.free_pic_deliver_at && (
