@@ -61,7 +61,6 @@ serve(async (req) => {
       const errMsg = tokenData.error_message || tokenData.error?.message || "Token exchange failed";
       const errCode = tokenData.code || tokenRes.status;
       console.error("Token exchange error:", JSON.stringify(tokenData));
-      // Always return 200 so supabase.functions.invoke passes the body to `data`
       return new Response(JSON.stringify({ 
         success: false, 
         error: errMsg,
@@ -84,52 +83,53 @@ serve(async (req) => {
       `https://graph.instagram.com/access_token?grant_type=ig_exchange_token&client_secret=${appSecret}&access_token=${shortLivedToken}`
     );
     const longLivedData = await longLivedRes.json();
+    console.log("Long-lived exchange response:", JSON.stringify(longLivedData));
 
     const finalToken = longLivedData.access_token || shortLivedToken;
     const expiresIn = longLivedData.expires_in || 3600;
-    console.log(`Long-lived token obtained, expires in ${expiresIn}s`);
+    console.log(`Token ready, expires in ${expiresIn}s, used long-lived: ${!!longLivedData.access_token}`);
 
-    // Step 3: Get user profile info — try multiple endpoints
+    // Step 3: Get user profile info — try multiple API versions and endpoints
     console.log("Fetching user profile for user_id:", igUserId);
     const profileFields = "id,username,account_type,name,profile_picture_url,followers_count,media_count";
     let profileData: any = {};
 
-    // Attempt 1: unversioned /me (Instagram Business Login native)
+    // Attempt 1: v25.0 /me (matches working instagram-api function)
     try {
-      const r1 = await fetch(`https://graph.instagram.com/me?fields=${profileFields}&access_token=${finalToken}`);
+      const r1 = await fetch(`https://graph.instagram.com/v25.0/me?fields=${profileFields}&access_token=${finalToken}`);
       const d1 = await r1.json();
-      console.log("Profile /me (unversioned):", JSON.stringify(d1));
-      if (!d1.error) profileData = d1;
-    } catch (e) { console.warn("Unversioned /me failed:", e); }
+      console.log("Profile v25 /me:", JSON.stringify(d1));
+      if (!d1.error && (d1.username || d1.name)) profileData = d1;
+    } catch (e) { console.warn("v25 /me failed:", e); }
 
-    // Attempt 2: unversioned /{user_id}
+    // Attempt 2: v25.0 /{user_id}
     if (!profileData.username) {
       try {
-        const r2 = await fetch(`https://graph.instagram.com/${igUserId}?fields=${profileFields}&access_token=${finalToken}`);
+        const r2 = await fetch(`https://graph.instagram.com/v25.0/${igUserId}?fields=${profileFields}&access_token=${finalToken}`);
         const d2 = await r2.json();
-        console.log("Profile /{id} (unversioned):", JSON.stringify(d2));
-        if (!d2.error && d2.username) Object.assign(profileData, d2);
-      } catch (e) { console.warn("Unversioned /{id} failed:", e); }
+        console.log("Profile v25 /{id}:", JSON.stringify(d2));
+        if (!d2.error && (d2.username || d2.name)) Object.assign(profileData, d2);
+      } catch (e) { console.warn("v25 /{id} failed:", e); }
     }
 
-    // Attempt 3: v22.0 /me
+    // Attempt 3: unversioned /me
     if (!profileData.username) {
       try {
-        const r3 = await fetch(`https://graph.instagram.com/v22.0/me?fields=${profileFields}&access_token=${finalToken}`);
+        const r3 = await fetch(`https://graph.instagram.com/me?fields=${profileFields}&access_token=${finalToken}`);
         const d3 = await r3.json();
-        console.log("Profile v22 /me:", JSON.stringify(d3));
-        if (!d3.error && d3.username) Object.assign(profileData, d3);
-      } catch (e) { console.warn("v22 /me failed:", e); }
+        console.log("Profile /me (unversioned):", JSON.stringify(d3));
+        if (!d3.error && (d3.username || d3.name)) Object.assign(profileData, d3);
+      } catch (e) { console.warn("Unversioned /me failed:", e); }
     }
 
-    // Attempt 4: facebook graph API
+    // Attempt 4: unversioned /{user_id}
     if (!profileData.username) {
       try {
-        const r4 = await fetch(`https://graph.facebook.com/v22.0/${igUserId}?fields=${profileFields}&access_token=${finalToken}`);
+        const r4 = await fetch(`https://graph.instagram.com/${igUserId}?fields=${profileFields}&access_token=${finalToken}`);
         const d4 = await r4.json();
-        console.log("Profile facebook graph:", JSON.stringify(d4));
+        console.log("Profile /{id} (unversioned):", JSON.stringify(d4));
         if (!d4.error && (d4.username || d4.name)) Object.assign(profileData, d4);
-      } catch (e) { console.warn("Facebook graph failed:", e); }
+      } catch (e) { console.warn("Unversioned /{id} failed:", e); }
     }
 
     console.log(`Profile fetched: @${profileData.username}, name: ${profileData.name}, type: ${profileData.account_type}`);
@@ -138,7 +138,7 @@ serve(async (req) => {
       success: true,
       data: {
         access_token: finalToken,
-        user_id: igUserId || profileData.user_id || profileData.id,
+        user_id: igUserId || profileData.id,
         username: profileData.username || profileData.name || null,
         account_type: profileData.account_type,
         name: profileData.name || profileData.username || null,
