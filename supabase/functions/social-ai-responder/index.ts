@@ -4212,9 +4212,7 @@ Follow these persona settings strictly. They override any conflicting defaults a
               .select("id")
               .single();
 
-            const emojiDir = convoPhase.phase >= 4
-              ? "\n\nEMOJI DIRECTIVE: You CAN now use cute/seductive emojis SPARINGLY in this phase. Use them to add warmth and flirtiness to redirect messages. Allowed emojis: 😘 🥰 😏 💋 🔥 😍 💕 ❤️ 🤭 😜 — max 1-2 per message, NOT every message. Use them ~30% of the time to keep it feeling special. Never spam emojis. Never use generic ones like 😂 👍 🙏. Only cute/seductive ones that fit the mood."
-              : "\n\nEMOJI DIRECTIVE: ZERO emojis. NEVER use emojis regardless of what they send. Text only. Always.";
+            const emojiDir = "\n\nEMOJI DIRECTIVE: ZERO emojis. Text only. Never output emoji characters.";
             const behaviorCtxLive = `\n\n=== PERSON BEHAVIOR: ${behavior.type.toUpperCase()} ===\n${behavior.context}`;
             const tensionCtxLive = tension.tensionContext;
 
@@ -4562,22 +4560,23 @@ ${contentSummary || "No published content yet"}
               }
             }
 
-            const systemPrompt = `${personaInfo2}${fanMemoryBlock}${contentProfileCtx}
+            const systemPrompt = `${personaInfo2}${fanMemoryBlock}${contentProfileCtx}${emojiDir}
 ${autoConfig.redirect_url ? `\nOPTIONAL LINK CONTEXT: ${autoConfig.redirect_url} (mention only when clearly relevant and natural, never force it)` : ""}
 ${autoConfig.trigger_keywords ? `if they mention any of these: ${autoConfig.trigger_keywords}, you may naturally suggest the link` : ""}
 
-FREE MODE PERSONA (IMPORTANT):
-- You are a young man in his 20s who runs digital businesses
-- Be friendly, professional, natural, and human
-- Answer any question directly and stay on the user's exact topic
-- Give practical business answers when asked (skills, offers, clients, execution)
-- Do not sound scripted, robotic, salesy, or evasive
-- Keep continuity with prior messages and avoid repeating the same line
-- No emojis, text only
+FREE MODE (KEEP IT HUMAN):
+- you are a young businessman in his 20s, casual and real
+- answer the latest fan message directly, do not dodge
+- if they ask a question, answer it in the first clause
+- avoid generic/canned lines and avoid repeating old assistant messages
+- keep replies natural, conversational, and on-topic
+- no scripted seduction, no fake urgency, no manipulation
 
 OUTPUT:
-- Send one natural DM reply
-- Output only the reply text`;
+- one message only
+- lowercase casual text
+- no emojis
+- no quotes or labels`;
 
             const aiMessages: any[] = [{ role: "system", content: systemPrompt }];
             
@@ -4753,86 +4752,22 @@ Stay on-topic, answer direct questions clearly, and avoid canned lines.` });
               }
             }
 
-            // POST-PROCESS: Strip emojis in early phases, allow cute ones in Phase 4-5
-            if (convoPhase.phase >= 4) {
-              // Phase 4-5: Only allow seductive/cute emojis, strip everything else
-              const allowedEmojis = new Set(['😘', '🥰', '😏', '💋', '🔥', '😍', '💕', '❤️', '🤭', '😜', '💗', '✨', '🫦', '😈']);
-              const allEmojiRx = /(\p{Emoji_Presentation}|\p{Extended_Pictographic})/gu;
-              reply = reply.replace(allEmojiRx, (match) => allowedEmojis.has(match) ? match : "").replace(/\s{2,}/g, " ").trim();
-              // Cap at max 2 emojis per message
-              let emojiCount = 0;
-              reply = reply.replace(allEmojiRx, (match) => {
-                if (allowedEmojis.has(match) && emojiCount < 2) { emojiCount++; return match; }
-                return allowedEmojis.has(match) ? "" : "";
-              }).replace(/\s{2,}/g, " ").trim();
-            } else {
-              // Phase 1-3: Strip ALL emojis — zero tolerance
-              const emojiRxPost = /[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{200D}\u{20E3}\u{FE0F}]/gu;
-              reply = reply.replace(emojiRxPost, "").replace(/\s{2,}/g, " ").trim();
-            }
-            
-            // === SMART MESSAGE LENGTH ENGINE ===
-            // Preserves full replies when answering questions or multiple unanswered msgs
-            // NEVER cuts mid-sentence — finds natural break points
-            const wordsArr = reply.split(/\s+/);
+            // POST-PROCESS: keep it clean and human (no emoji, no aggressive truncation)
+            const emojiRxPost = /[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{200D}\u{20E3}\u{FE0F}]/gu;
+            reply = reply.replace(emojiRxPost, "").replace(/\s{2,}/g, " ").trim();
+
+            const wordsArr = reply.split(/\s+/).filter(Boolean);
             const isAnsweringQuestion = unansweredQuestions > 0 || multipleUnanswered || isLikelyQuestionText(latestMsg?.content || "");
-            
-            // Helper: find the best cut point that doesn't break mid-thought
-            const smartTruncate = (words: string[], maxWords: number): string => {
-              if (words.length <= maxWords) return words.join(" ");
-              // Look for natural break points — sentence enders or clause breaks
-              let bestCut = maxWords;
-              // Search backwards from maxWords for a natural end
-              for (let i = Math.min(maxWords, words.length - 1); i >= Math.max(maxWords - 5, 2); i--) {
-                const word = words[i];
-                const prevJoined = words.slice(0, i + 1).join(" ");
-                // Ideal: ends with question mark or natural sentence end
-                if (prevJoined.match(/[?]$/) || word.match(/^(too|right|tho|yeah|yea|haha|lol|ok)$/i)) {
-                  bestCut = i + 1;
-                  break;
-                }
-                // Good: NOT a preposition/article/pronoun (avoids dangling words)
-                if (!word.match(/^(a|an|the|to|in|on|at|for|and|but|or|so|if|of|is|it|u|ur|my|i|im|we|he|she|they|with|from|that|this|its|can|do|was|be|not|just|like|have|has|had|would|could|should|will|what|how|who|where|when|why)$/i)) {
-                  bestCut = i + 1;
-                  break;
-                }
-              }
-              return words.slice(0, bestCut).join(" ");
-            };
-            
-            if (!isAnsweringQuestion) {
-              // Only apply random truncation for non-question casual replies
-              const roll = Math.random();
-              if (roll < 0.60) {
-                // SHORT: 3-8 words — most common for casual replies
-                const targetLen = 3 + Math.floor(Math.random() * 6);
-                if (wordsArr.length > targetLen) {
-                  reply = smartTruncate(wordsArr, targetLen);
-                }
-              } else if (roll < 0.85) {
-                // MEDIUM: 8-18 words
-                const targetLen = 8 + Math.floor(Math.random() * 11);
-                if (wordsArr.length > targetLen) {
-                  reply = smartTruncate(wordsArr, targetLen);
-                }
-              } else {
-              // LONG: up to 40 words (rare, let it breathe fully)
-              if (wordsArr.length > 40) {
-                reply = smartTruncate(wordsArr, 38);
-              }
+            const maxWords = isAnsweringQuestion ? 38 : 20;
+
+            if (wordsArr.length > maxWords) {
+              reply = wordsArr.slice(0, maxWords).join(" ");
             }
-          } else {
-              // Answering questions — generous cap at 45 words to prevent cutoff
-              if (wordsArr.length > 45) {
-                reply = smartTruncate(wordsArr, 43);
-              }
-            }
-            // Ensure minimum 2 words
+
             if (reply.split(/\s+/).length < 2 && wordsArr.length >= 2) {
-              reply = wordsArr.slice(0, 3).join(" ");
+              reply = wordsArr.slice(0, 2).join(" ");
             }
-            
-            // Remove trailing punctuation (except ?) to match casual style
+
             reply = reply.replace(/[.!,;:]+$/, "");
 
             // Light anti-repetition only — no blocking guards
@@ -4889,7 +4824,20 @@ Stay on-topic, answer direct questions clearly, and avoid canned lines.` });
 
               repetitionCheck = detectRepetitionIssue(reply, conversationContext);
               if (repetitionCheck.issue !== "none") {
-                // Keep context-aware output instead of forcing a generic canned line.
+                const latestFanTextFinal = (latestMsg?.content || "").trim();
+                const deterministic = buildDeterministicPersonaReply(
+                  latestFanTextFinal,
+                  personaInfo2,
+                  accountProfileInfo || {},
+                  recentPublishedContent || [],
+                  conversationContext,
+                );
+
+                reply = deterministic || (latestFanTextFinal.includes("?")
+                  ? "fair question im just working rn"
+                  : "got u i hear u");
+
+                reply = antiRepetitionCheck(reply, conversationContext);
               }
             }
 
