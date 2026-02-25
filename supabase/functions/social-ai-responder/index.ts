@@ -4089,7 +4089,7 @@ Only follow up when interest level was genuinely high.`;
                 // Fetch social connection profile data
                 const { data: socialConn } = await supabase
                   .from("social_connections")
-                  .select("platform, platform_username, metadata")
+                  .select("id, platform, platform_username, metadata")
                   .eq("account_id", account_id)
                   .eq("is_connected", true)
                   .order("updated_at", { ascending: false })
@@ -4135,12 +4135,38 @@ Only follow up when interest level was genuinely high.`;
                 };
 
                 const latestConnMeta = (socialConn || [])[0]?.metadata || {};
-                const connectedBio =
+                let connectedBio =
                   latestConnMeta?.bio ||
                   latestConnMeta?.biography ||
                   latestConnMeta?.description ||
                   latestConnMeta?.about ||
                   "";
+
+                // LIVE BIO FETCH: If metadata has no bio, fetch it from IG API and cache it
+                if (!connectedBio) {
+                  try {
+                    console.log("[BIO SYNC] No bio in metadata, fetching live from IG API...");
+                    const liveProfile = await callIG2("get_profile", {});
+                    const liveBio = liveProfile?.biography || liveProfile?.bio || "";
+                    if (liveBio) {
+                      connectedBio = liveBio;
+                      console.log(`[BIO SYNC] Got live bio: "${liveBio.slice(0, 80)}..."`);
+                      // Cache it in social_connections metadata for future use
+                      const connId = (socialConn || [])[0]?.id;
+                      if (connId) {
+                        const updatedMeta = { ...latestConnMeta, biography: liveBio };
+                        supabase.from("social_connections").update({ metadata: updatedMeta }).eq("id", connId).then(() => {
+                          console.log("[BIO SYNC] Cached bio in social_connections metadata");
+                        });
+                      }
+                    } else {
+                      console.log("[BIO SYNC] IG API returned no bio either");
+                    }
+                  } catch (bioFetchErr) {
+                    console.log("[BIO SYNC] Live bio fetch failed:", bioFetchErr);
+                  }
+                }
+
                 const resolvedAge =
                   (typeof latestConnMeta?.age === "number" ? latestConnMeta.age : null) ||
                   calcAgeFromBirthDate(latestConnMeta?.birthday || latestConnMeta?.birthdate || latestConnMeta?.date_of_birth) ||
@@ -4432,12 +4458,27 @@ IF YOU DONT UNDERSTAND: say "wait wdym" or "lol what" — NEVER make up an incoh
                 ]);
 
                 const meta = (socialConnFallback || [])[0]?.metadata || {};
-                const connectedBioFallback =
+                let connectedBioFallback =
                   meta?.bio ||
                   meta?.biography ||
                   meta?.description ||
                   meta?.about ||
                   "";
+
+                // LIVE BIO FETCH fallback path
+                if (!connectedBioFallback) {
+                  try {
+                    console.log("[BIO SYNC FALLBACK] No bio in metadata, fetching live...");
+                    const liveP = await callIG2("get_profile", {});
+                    connectedBioFallback = liveP?.biography || liveP?.bio || "";
+                    if (connectedBioFallback) {
+                      console.log(`[BIO SYNC FALLBACK] Got live bio: "${connectedBioFallback.slice(0, 80)}"`);
+                    }
+                  } catch (bfErr) {
+                    console.log("[BIO SYNC FALLBACK] Failed:", bfErr);
+                  }
+                }
+
                 const resolvedFallbackAge =
                   (typeof meta?.age === "number" ? meta.age : null) ||
                   parseAgeFromProfileText(
