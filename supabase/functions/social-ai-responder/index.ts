@@ -2675,6 +2675,7 @@ Rules:
         const isEngagementDM = !!aiModes.engagement_dm;
         const isUnifiedInbox = !!aiModes.unified_inbox;
         const isGrowthCopilot = !!aiModes.growth_copilot;
+        const isContentProfileSync = !!aiModes.content_profile_sync;
         console.log(`[AI MODES] Active: ${Object.entries(aiModes).filter(([,v]) => v).map(([k]) => k).join(", ") || "none"}`);
         // Lightweight pipeline: skip heavy IG re-scan, just check DB for unanswered fan messages and reply
         const igFuncUrl2 = `${Deno.env.get("SUPABASE_URL")}/functions/v1/instagram-api`;
@@ -4002,7 +4003,110 @@ Never generic "just following up". Instead: reference what you talked about.
 Only follow up when interest level was genuinely high.`;
             }
 
-            const systemPrompt = `${personaInfo2}${emojiDir}${fanMemoryBlock}${fanProfileCtx}${behaviorCtxLive}${tensionCtxLive}${learnedStrategiesCtx}${crossEngineBridge}${mediaPatterns}${freePicCtx}${mediaAnalysisCtx}${phaseDirective}${aiModesDirective}
+            // === CONTENT & PROFILE SYNC MODE ===
+            let contentProfileCtx = "";
+            if (isContentProfileSync) {
+              try {
+                // Fetch recent published content from content_calendar
+                const { data: recentContent } = await supabase
+                  .from("content_calendar")
+                  .select("title, caption, platform, content_type, hashtags, viral_score, published_at")
+                  .eq("account_id", account_id)
+                  .eq("status", "published")
+                  .order("published_at", { ascending: false })
+                  .limit(15);
+
+                // Fetch account profile info
+                const { data: accountInfo } = await supabase
+                  .from("managed_accounts")
+                  .select("username, display_name, bio, metadata")
+                  .eq("id", account_id)
+                  .single();
+
+                // Fetch social connection profile data
+                const { data: socialConn } = await supabase
+                  .from("social_connections")
+                  .select("platform_username, metadata")
+                  .eq("account_id", account_id)
+                  .eq("is_connected", true)
+                  .limit(3);
+
+                // Advanced Gender Identification AI Engine
+                // Uses name analysis, bio keywords, content patterns, and profile metadata
+                const identifyGender = (profile: any, content: any[]): string => {
+                  const signals: string[] = [];
+                  const name = (profile?.display_name || profile?.username || "").toLowerCase();
+                  const bio = (profile?.bio || "").toLowerCase();
+                  const allCaptions = content.map(c => (c.caption || "").toLowerCase()).join(" ");
+                  const allText = `${name} ${bio} ${allCaptions}`;
+
+                  // Name-based signals
+                  const femaleNames = /\b(she|her|hers|girl|woman|queen|goddess|princess|mama|mom|mrs|miss|ms|babe|lady|feminine|wifey|girlfriend|gf|sis|sister|bella|nina|lena|mia|sophia|emma|olivia|ava|isabella|charlotte|amelia|harper|aria|luna|chloe|ella|grace|lily|zoey|nora|riley|stella|violet|aurora|hazel|ivy|elena|maya|madison|penelope|layla|hannah|natalie|sarah|anna|emily|jessica|ashley|samantha|amanda|nicole|stephanie|rachel|lauren|megan|courtney|brittany|kayla|andrea|amber|danielle|christina|diana|catherine|katherine|victoria|alexandra|elizabeth|jennifer|gabriella|vanessa|maria|valentina|camila|mariana|fernanda|ana|carolina|paula|lucia|carmen|adriana|catalina|alejandra|daniela|juliana|tatiana|veronica|sandra|monica|patricia|lorena|angela|silvia|helena|clara|irene|rosa|sofia|natalia)\b/;
+                  const maleNames = /\b(he|him|his|boy|man|king|prince|papa|dad|mr|sir|bro|brother|dude|guy|boyfriend|bf|husband|hubby|masculine|alpha|jake|ethan|noah|liam|oliver|james|benjamin|lucas|henry|alexander|mason|michael|daniel|matthew|jackson|sebastian|jack|aiden|owen|ryan|tyler|nathan|adam|luke|evan|josh|dylan|connor|brandon|jordan|austin|andrew|christian|hunter|caleb|kevin|brian|chris|david|john|robert|william|thomas|charles|joseph|mark|steven|paul|george|luis|carlos|diego|jorge|miguel|pedro|rafael|alejandro|andres|sergio|pablo|ricardo|antonio|javier|manuel|francisco|fernando|alberto|hugo|marcos|ivan|adrian|oscar|mario|juan|enrique)\b/;
+
+                  if (femaleNames.test(allText)) signals.push("female");
+                  if (maleNames.test(allText)) signals.push("male");
+
+                  // Pronoun signals
+                  const sheCount = (allText.match(/\bshe\b|\bher\b|\bhers\b/g) || []).length;
+                  const heCount = (allText.match(/\bhe\b|\bhim\b|\bhis\b/g) || []).length;
+                  if (sheCount > heCount + 2) signals.push("female");
+                  if (heCount > sheCount + 2) signals.push("male");
+
+                  // Content style signals
+                  const femaleContent = /\b(makeup|beauty|skincare|nails|lashes|glam|fashion|dress|heels|lipstick|mascara|foundation|blush|contour|eyeshadow|eyeliner|brow|wig|hair|salon|spa|yoga|pilates|brunch|rose|floral|cute|adorable|gorgeous|stunning|beautiful|pretty|lovely|fabulous|slay|yass|girlboss|bossbabe|selfcare|selflove|empowerment|sisterhood|girlpower|womanhood|motherhood|pregnancy|baby shower|bride|bridal|wedding dress)\b/;
+                  const maleContent = /\b(gym|gains|bulk|shred|deadlift|bench|squat|protein|creatine|testosterone|beard|barber|fade|lineup|sneakers|kicks|jordans|gaming|esports|cod|fortnite|crypto|stocks|trading|hustle|grind|alpha|sigma|stoic|discipline|monk mode|cold shower|no fap|red pill|cars|tuning|turbo|engine|horsepower|mma|boxing|ufc|wrestling|football|basketball|soccer)\b/;
+
+                  if (femaleContent.test(allText)) signals.push("female");
+                  if (maleContent.test(allText)) signals.push("male");
+
+                  // Profile pic / metadata signals
+                  const meta = profile?.metadata || {};
+                  if (meta.gender) return meta.gender;
+
+                  // Determine majority
+                  const femaleCount = signals.filter(s => s === "female").length;
+                  const maleCount = signals.filter(s => s === "male").length;
+                  if (femaleCount > maleCount) return "female";
+                  if (maleCount > femaleCount) return "male";
+                  return "unknown";
+                };
+
+                const detectedGender = identifyGender(accountInfo, recentContent || []);
+
+                const contentSummary = (recentContent || []).slice(0, 10).map((c, i) =>
+                  `${i + 1}. [${c.platform}/${c.content_type}] "${(c.caption || c.title || "").substring(0, 120)}" (score: ${c.viral_score || 0})`
+                ).join("\n");
+
+                const profileSummary = accountInfo
+                  ? `Username: @${accountInfo.username || "unknown"}\nDisplay: ${accountInfo.display_name || "N/A"}\nBio: ${accountInfo.bio || "N/A"}`
+                  : "No profile data available";
+
+                contentProfileCtx = `\n\n=== CONTENT & PROFILE SYNC (ACTIVE) ===
+=== YOUR IDENTITY & CONTENT CONTEXT ===
+${profileSummary}
+Detected Gender: ${detectedGender.toUpperCase()}
+${detectedGender !== "unknown" ? `You ARE ${detectedGender === "female" ? "a woman" : "a man"}. Respond accordingly — use language, references, and energy that match your ${detectedGender} identity naturally.` : "Gender could not be determined — use neutral tone."}
+
+Connected platforms: ${(socialConn || []).map(s => `@${s.platform_username}`).join(", ") || "none"}
+
+=== YOUR RECENT PUBLISHED CONTENT ===
+${contentSummary || "No published content yet"}
+
+=== CONTENT SYNC RULES ===
+- You KNOW what content you post. If a fan references your posts, you understand the context.
+- Mirror the tone, vocabulary, and energy from your published content in DMs.
+- Use your bio and content themes to stay consistent with your public brand.
+- If fans ask about your content, you can reference it naturally ("yeah i just posted about that lol").
+- Your content style IS your personality — be consistent between posts and DMs.`;
+
+                console.log(`[CONTENT SYNC] Loaded ${(recentContent || []).length} posts, gender: ${detectedGender}`);
+              } catch (e) {
+                console.error("[CONTENT SYNC] Error loading profile data:", e);
+              }
+            }
+
+            const systemPrompt = `${personaInfo2}${emojiDir}${fanMemoryBlock}${fanProfileCtx}${behaviorCtxLive}${tensionCtxLive}${learnedStrategiesCtx}${crossEngineBridge}${mediaPatterns}${freePicCtx}${mediaAnalysisCtx}${phaseDirective}${aiModesDirective}${contentProfileCtx}
 ${autoConfig.redirect_url ? `\nIMPORTANT: when it makes sense, naturally guide toward this link: ${autoConfig.redirect_url}. But NEVER redirect during genuine bonding moments — wait for a natural transition. NEVER redirect when the vibe is tense or dry — fix the vibe first` : ""}
 ${autoConfig.trigger_keywords ? `if they mention any of these: ${autoConfig.trigger_keywords}, redirect them to the link` : ""}
 
