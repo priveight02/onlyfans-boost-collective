@@ -923,9 +923,22 @@ const buildDeterministicPersonaReply = (
   if (!asksName && !asksLatestPost && !asksAge && !asksJob) return null;
 
   const isMale = /businessman|entrepreneur|a man/i.test(personaPrompt || "");
-  const rawName = (accountProfile?.display_name || accountProfile?.username || "").toString().trim();
-  const firstName = rawName.split(/\s+/)[0]?.replace(/[^a-zA-Z]/g, "").toLowerCase();
-  const safeName = firstName && firstName.length >= 2 ? firstName : (isMale ? "liam" : "lena");
+
+  const nameCandidates = [
+    accountProfile?.real_name,
+    accountProfile?.display_name,
+    accountProfile?.platform_username,
+    accountProfile?.username,
+  ].filter(Boolean).map((v: any) => String(v).trim());
+
+  const safeName = nameCandidates[0]
+    ? nameCandidates[0].split(/\s+/)[0].replace(/[^a-zA-Z0-9]/g, "").toLowerCase()
+    : "";
+
+  const ageFromProfile = Number(accountProfile?.resolved_age);
+  const resolvedAge = Number.isFinite(ageFromProfile) && ageFromProfile >= 18 && ageFromProfile <= 80
+    ? Math.floor(ageFromProfile)
+    : null;
 
   const latestRaw = (recentContent?.[0]?.caption || recentContent?.[0]?.title || "").toString().toLowerCase();
   const latestTopic = latestRaw
@@ -934,17 +947,27 @@ const buildDeterministicPersonaReply = (
     .replace(/\s{2,}/g, " ")
     .trim()
     .split(" ")
-    .slice(0, 8)
+    .slice(0, 10)
     .join(" ");
+
   const latestPostLine = latestTopic
     ? `my latest post was about ${latestTopic}`
-    : (isMale ? "my latest post was a business growth tip" : "my latest post was a lifestyle update");
+    : "i havent posted anything recently";
 
   const answerParts: string[] = [];
-  if (asksName) answerParts.push(`im ${safeName}`);
+  if (asksName) {
+    answerParts.push(safeName ? `im ${safeName}` : "im the account owner");
+  }
   if (asksLatestPost) answerParts.push(latestPostLine);
-  if (asksAge) answerParts.push(isMale ? "im 28" : "im 23");
-  if (asksJob) answerParts.push(isMale ? "i run online businesses and consulting" : "i create content and run digital projects");
+  if (asksAge) {
+    answerParts.push(resolvedAge ? `im ${resolvedAge}` : "i dont share my age publicly");
+  }
+  if (asksJob) {
+    const bio = String(accountProfile?.bio || "").trim();
+    const notes = String(accountProfile?.notes || "").trim();
+    const jobSource = bio || notes;
+    answerParts.push(jobSource ? `i ${jobSource.slice(0, 80).toLowerCase()}` : (isMale ? "i run this page and business" : "i run this page and create content"));
+  }
 
   return answerParts.join(" and ").trim() || null;
 };
@@ -4024,23 +4047,81 @@ Only follow up when interest level was genuinely high.`;
                   .order("published_at", { ascending: false })
                   .limit(15);
 
-                // Fetch account profile info
+                // Fetch account profile info (managed_accounts has no metadata column)
                 const { data: accountInfo } = await supabase
                   .from("managed_accounts")
-                  .select("username, display_name, bio, metadata")
+                  .select("username, display_name, bio, notes, platform")
                   .eq("id", account_id)
                   .single();
-
-                recentPublishedContent = recentContent || [];
-                accountProfileInfo = accountInfo || null;
 
                 // Fetch social connection profile data
                 const { data: socialConn } = await supabase
                   .from("social_connections")
-                  .select("platform_username, metadata")
+                  .select("platform, platform_username, metadata")
                   .eq("account_id", account_id)
                   .eq("is_connected", true)
+                  .order("updated_at", { ascending: false })
                   .limit(3);
+
+                // Pull latest real posts from connected IG when calendar has no published rows
+                let resolvedRecentContent = recentContent || [];
+                if (!resolvedRecentContent.length) {
+                  try {
+                    const igMedia = await callIG2("get_media", { limit: 15 });
+                    const mediaRows = Array.isArray(igMedia?.data)
+                      ? igMedia.data
+                      : Array.isArray(igMedia)
+                        ? igMedia
+                        : [];
+                    resolvedRecentContent = mediaRows.map((m: any) => ({
+                      title: "",
+                      caption: m?.caption || "",
+                      platform: "instagram",
+                      content_type: m?.media_type || "media",
+                      hashtags: null,
+                      viral_score: null,
+                      published_at: m?.timestamp || null,
+                    }));
+                  } catch (igMediaErr) {
+                    console.log("[CONTENT SYNC] get_media fallback failed:", igMediaErr);
+                  }
+                }
+
+                const parseAgeFromText = (value?: string | null): number | null => {
+                  const t = (value || "").toLowerCase();
+                  if (!t) return null;
+                  const ageMatch = t.match(/\b(?:im|i am|age|aged)\s*(\d{2})\b|\b(\d{2})\s*(?:years old|yo)\b/i);
+                  const raw = ageMatch?.[1] || ageMatch?.[2];
+                  const age = raw ? Number(raw) : NaN;
+                  return Number.isFinite(age) && age >= 18 && age <= 80 ? age : null;
+                };
+
+                const calcAgeFromBirthDate = (value?: string | null): number | null => {
+                  if (!value) return null;
+                  const d = new Date(value);
+                  if (Number.isNaN(d.getTime())) return null;
+                  const now = new Date();
+                  let age = now.getFullYear() - d.getFullYear();
+                  const m = now.getMonth() - d.getMonth();
+                  if (m < 0 || (m === 0 && now.getDate() < d.getDate())) age -= 1;
+                  return age >= 18 && age <= 80 ? age : null;
+                };
+
+                const latestConnMeta = (socialConn || [])[0]?.metadata || {};
+                const resolvedAge =
+                  (typeof latestConnMeta?.age === "number" ? latestConnMeta.age : null) ||
+                  calcAgeFromBirthDate(latestConnMeta?.birthday || latestConnMeta?.birthdate || latestConnMeta?.date_of_birth) ||
+                  parseAgeFromText(accountInfo?.bio) ||
+                  parseAgeFromText(accountInfo?.notes) ||
+                  null;
+
+                recentPublishedContent = resolvedRecentContent;
+                accountProfileInfo = {
+                  ...(accountInfo || {}),
+                  platform_username: (socialConn || [])[0]?.platform_username || null,
+                  real_name: latestConnMeta?.name || null,
+                  resolved_age: resolvedAge,
+                };
 
                 // Advanced Gender Identification AI Engine
                 // Uses name analysis, bio keywords, content patterns, and profile metadata
@@ -4303,6 +4384,7 @@ IF YOU DONT UNDERSTAND: say "wait wdym" or "lol what" — NEVER make up an incoh
             );
 
             let reply = "";
+            let aiModelUsed = "deterministic-guard";
             if (directQuestionReply) {
               reply = directQuestionReply;
               console.log(`[Q-GUARD] Direct answer override used for @${dbConvo.participant_username}`);
@@ -4329,6 +4411,7 @@ IF YOU DONT UNDERSTAND: say "wait wdym" or "lol what" — NEVER make up an incoh
               }
 
               const aiResult = await aiResponse.json();
+              aiModelUsed = aiResult?.model || "google/gemini-3-flash-preview";
               reply = (aiResult.choices?.[0]?.message?.content || "").replace(/\[.*?\]/g, "").replace(/^["']|["']$/g, "").trim();
 
               // NEVER leave empty — retry once, then fallback to persona-consistent response
@@ -4347,6 +4430,7 @@ IF YOU DONT UNDERSTAND: say "wait wdym" or "lol what" — NEVER make up an incoh
                   });
                   if (retryResp.ok) {
                     const retryResult = await retryResp.json();
+                    aiModelUsed = retryResult?.model || "google/gemini-2.5-flash";
                     reply = (retryResult.choices?.[0]?.message?.content || "").replace(/\[.*?\]/g, "").replace(/^["']|["']$/g, "").trim();
                   }
                 } catch {}
@@ -4621,7 +4705,7 @@ IF YOU DONT UNDERSTAND: say "wait wdym" or "lol what" — NEVER make up an incoh
                 await supabase.from("ai_dm_messages").update({
                   content: reply,
                   status: "pending_review",
-                  ai_model: aiResult.model,
+                  ai_model: aiModelUsed,
                   typing_delay_ms: Math.round(typingDelay),
                   metadata: {
                     pipeline_phase: "pending_review",
@@ -4745,7 +4829,7 @@ IF YOU DONT UNDERSTAND: say "wait wdym" or "lol what" — NEVER make up an incoh
                 content: reply,
                 status: "sent",
                 platform_message_id: sendResult?.message_id || null,
-                ai_model: aiResult.model,
+                ai_model: aiModelUsed,
                 typing_delay_ms: Math.round(typingDelay),
               };
               // Store reply-to metadata so the UI can render it
