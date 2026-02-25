@@ -853,9 +853,7 @@ const antiRepetitionCheck = (reply: string, conversationHistory: any[]): string 
     .find(m => m?.role === "fan" || m?.role === "user");
 
   const latestFanText = (latestFanMsg?.text || latestFanMsg?.content || "").toLowerCase().trim();
-  const latestIsQuestion =
-    latestFanText.includes("?") ||
-    /^(who|what|whats|where|when|why|how|do|does|did|is|are|can|could|would|will)\b/.test(latestFanText);
+  const latestIsQuestion = isLikelyQuestionText(latestFanText);
 
   // CRITICAL: Never mutate answers to direct questions into generic/random chatter
   if (latestIsQuestion) return reply;
@@ -898,6 +896,57 @@ const antiRepetitionCheck = (reply: string, conversationHistory: any[]): string 
   }
 
   return reply;
+};
+
+const QUESTION_PREFIX_RX = /^(who|what|whats|what's|where|when|why|how|do|does|did|is|are|can|could|would|will|tell me|name|age)\b/i;
+const QUESTION_INTENT_RX = /(who are you|whats your name|what is your name|latest post|last post|recent post|how old|what do you do|do for a living|where are you from)/i;
+const isLikelyQuestionText = (text?: string): boolean => {
+  const t = (text || "").toLowerCase().trim();
+  if (!t) return false;
+  return t.includes("?") || QUESTION_PREFIX_RX.test(t) || QUESTION_INTENT_RX.test(t);
+};
+
+const buildDeterministicPersonaReply = (
+  latestFanText: string,
+  personaPrompt: string,
+  accountProfile: any,
+  recentContent: any[]
+): string | null => {
+  const text = (latestFanText || "").toLowerCase().trim();
+  if (!isLikelyQuestionText(text)) return null;
+
+  const asksName = /(who are you|whats your name|what is your name|your name|ur name|name\b)/i.test(text);
+  const asksLatestPost = /(latest|last|recent)\s+(post|upload|content)|what did you post|whats your latest/i.test(text);
+  const asksAge = /(how old|your age|ur age|age\b)/i.test(text);
+  const asksJob = /(what do you do|do for a living|what is your job|whats your job|work\b)/i.test(text);
+
+  if (!asksName && !asksLatestPost && !asksAge && !asksJob) return null;
+
+  const isMale = /businessman|entrepreneur|a man/i.test(personaPrompt || "");
+  const rawName = (accountProfile?.display_name || accountProfile?.username || "").toString().trim();
+  const firstName = rawName.split(/\s+/)[0]?.replace(/[^a-zA-Z]/g, "").toLowerCase();
+  const safeName = firstName && firstName.length >= 2 ? firstName : (isMale ? "liam" : "lena");
+
+  const latestRaw = (recentContent?.[0]?.caption || recentContent?.[0]?.title || "").toString().toLowerCase();
+  const latestTopic = latestRaw
+    .replace(/https?:\/\/\S+/g, "")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s{2,}/g, " ")
+    .trim()
+    .split(" ")
+    .slice(0, 8)
+    .join(" ");
+  const latestPostLine = latestTopic
+    ? `my latest post was about ${latestTopic}`
+    : (isMale ? "my latest post was a business growth tip" : "my latest post was a lifestyle update");
+
+  const answerParts: string[] = [];
+  if (asksName) answerParts.push(`im ${safeName}`);
+  if (asksLatestPost) answerParts.push(latestPostLine);
+  if (asksAge) answerParts.push(isMale ? "im 28" : "im 23");
+  if (asksJob) answerParts.push(isMale ? "i run online businesses and consulting" : "i create content and run digital projects");
+
+  return answerParts.join(" and ").trim() || null;
 };
 
 // === UPGRADED FAN MEMORY ENGINE ===
@@ -3962,6 +4011,8 @@ Only follow up when interest level was genuinely high.`;
 
             // === CONTENT & PROFILE SYNC MODE ===
             let contentProfileCtx = "";
+            let recentPublishedContent: any[] = [];
+            let accountProfileInfo: any = null;
             if (isContentProfileSync) {
               try {
                 // Fetch recent published content from content_calendar
@@ -3979,6 +4030,9 @@ Only follow up when interest level was genuinely high.`;
                   .select("username, display_name, bio, metadata")
                   .eq("id", account_id)
                   .single();
+
+                recentPublishedContent = recentContent || [];
+                accountProfileInfo = accountInfo || null;
 
                 // Fetch social connection profile data
                 const { data: socialConn } = await supabase
@@ -4183,7 +4237,7 @@ FINAL REMINDER — MESSAGE LENGTH (MOST IMPORTANT RULE):
               unansweredFanMsgs.unshift(m);
             }
             const multipleUnanswered = unansweredFanMsgs.length >= 2;
-            const unansweredQuestions = unansweredFanMsgs.filter(m => (m.content || "").includes("?")).length;
+            const unansweredQuestions = unansweredFanMsgs.filter(m => isLikelyQuestionText(m.content || "")).length;
             
             // CRITICAL: Inject a focus directive so AI answers the LATEST messages, not old ones
             if (unansweredFanMsgs.length > 0) {
@@ -4241,52 +4295,70 @@ IF YOU DONT UNDERSTAND: say "wait wdym" or "lol what" — NEVER make up an incoh
               supabase.from("ai_dm_messages").update({ metadata: { pipeline_phase: "generate", pipeline_started_at: new Date().toISOString(), fan_username: dbConvo.participant_username } }).eq("id", typingMsg.id).then();
             }
 
-            const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-              method: "POST",
-              headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-              body: JSON.stringify({
-                model: "google/gemini-3-flash-preview",
-                messages: aiMessages,
-                max_tokens: dynamicMaxTokens,
-                temperature: 0.8,
-              }),
-            });
+            const directQuestionReply = buildDeterministicPersonaReply(
+              latestMsg?.content || "",
+              personaInfo2,
+              accountProfileInfo,
+              recentPublishedContent
+            );
 
-            if (!aiResponse.ok) {
-              if (typingMsg) {
-                await supabase.from("ai_dm_messages").update({ status: "failed", content: "AI generation failed" }).eq("id", typingMsg.id);
-              }
-              // RESTORE LOCK so this convo can be retried on next cycle
-              await supabase.from("ai_dm_conversations").update({ last_ai_reply_at: latestMsg?.created_at ? new Date(new Date(latestMsg.created_at).getTime() - 1000).toISOString() : null }).eq("id", dbConvo.id);
-              console.log(`[LOCK RESTORE] @${dbConvo.participant_username}: AI failed, lock restored for retry`);
-              continue;
-            }
+            let reply = "";
+            if (directQuestionReply) {
+              reply = directQuestionReply;
+              console.log(`[Q-GUARD] Direct answer override used for @${dbConvo.participant_username}`);
+            } else {
+              const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+                method: "POST",
+                headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  model: "google/gemini-3-flash-preview",
+                  messages: aiMessages,
+                  max_tokens: dynamicMaxTokens,
+                  temperature: 0.8,
+                }),
+              });
 
-            const aiResult = await aiResponse.json();
-            let reply = (aiResult.choices?.[0]?.message?.content || "").replace(/\[.*?\]/g, "").replace(/^["']|["']$/g, "").trim();
-
-            // NEVER leave empty — retry once, then fallback to persona-consistent response
-            if (!reply) {
-              console.log("Empty AI response, retrying...");
-              try {
-                const retryResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-                  method: "POST",
-                  headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    model: "google/gemini-2.5-flash",
-                    messages: aiMessages,
-                    max_tokens: 200,
-                    temperature: 0.9,
-                  }),
-                });
-                if (retryResp.ok) {
-                  const retryResult = await retryResp.json();
-                  reply = (retryResult.choices?.[0]?.message?.content || "").replace(/\[.*?\]/g, "").replace(/^["']|["']$/g, "").trim();
+              if (!aiResponse.ok) {
+                if (typingMsg) {
+                  await supabase.from("ai_dm_messages").update({ status: "failed", content: "AI generation failed" }).eq("id", typingMsg.id);
                 }
-              } catch {}
+                // RESTORE LOCK so this convo can be retried on next cycle
+                await supabase.from("ai_dm_conversations").update({ last_ai_reply_at: latestMsg?.created_at ? new Date(new Date(latestMsg.created_at).getTime() - 1000).toISOString() : null }).eq("id", dbConvo.id);
+                console.log(`[LOCK RESTORE] @${dbConvo.participant_username}: AI failed, lock restored for retry`);
+                continue;
+              }
+
+              const aiResult = await aiResponse.json();
+              reply = (aiResult.choices?.[0]?.message?.content || "").replace(/\[.*?\]/g, "").replace(/^["']|["']$/g, "").trim();
+
+              // NEVER leave empty — retry once, then fallback to persona-consistent response
               if (!reply) {
-                const fallbacks = ["hey", "hmm", "wdym", "lol", "oh really", "tell me more", "thats interesting", "wait what", "u serious", "go on", "haha ok", "mm", "oh", "yea", "sure"];
-                reply = fallbacks[Math.floor(Math.random() * fallbacks.length)];
+                console.log("Empty AI response, retrying...");
+                try {
+                  const retryResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+                    method: "POST",
+                    headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      model: "google/gemini-2.5-flash",
+                      messages: aiMessages,
+                      max_tokens: 320,
+                      temperature: 0.9,
+                    }),
+                  });
+                  if (retryResp.ok) {
+                    const retryResult = await retryResp.json();
+                    reply = (retryResult.choices?.[0]?.message?.content || "").replace(/\[.*?\]/g, "").replace(/^["']|["']$/g, "").trim();
+                  }
+                } catch {}
+                if (!reply) {
+                  const fallbackFromQuestion = buildDeterministicPersonaReply(
+                    latestMsg?.content || "",
+                    personaInfo2,
+                    accountProfileInfo,
+                    recentPublishedContent
+                  );
+                  reply = fallbackFromQuestion || "got u";
+                }
               }
             }
 
@@ -4312,7 +4384,7 @@ IF YOU DONT UNDERSTAND: say "wait wdym" or "lol what" — NEVER make up an incoh
             // Preserves full replies when answering questions or multiple unanswered msgs
             // NEVER cuts mid-sentence — finds natural break points
             const wordsArr = reply.split(/\s+/);
-            const isAnsweringQuestion = unansweredQuestions > 0 || multipleUnanswered;
+            const isAnsweringQuestion = unansweredQuestions > 0 || multipleUnanswered || isLikelyQuestionText(latestMsg?.content || "");
             
             // Helper: find the best cut point that doesn't break mid-thought
             const smartTruncate = (words: string[], maxWords: number): string => {
