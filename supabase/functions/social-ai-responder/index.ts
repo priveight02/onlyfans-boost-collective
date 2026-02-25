@@ -879,9 +879,17 @@ const detectRepetitionIssue = (
 
   for (const prev of previousAssistant) {
     if (replyNorm === prev) return { issue: "repeat_assistant", matched: prev };
-    if (replyNorm.split(" ").length >= 5 && tokenJaccard(replyNorm, prev) >= 0.78) {
+    if (replyNorm.split(" ").length >= 4 && (replyNorm.includes(prev) || prev.includes(replyNorm))) {
       return { issue: "repeat_assistant", matched: prev };
     }
+    if (replyNorm.split(" ").length >= 5 && tokenJaccard(replyNorm, prev) >= 0.72) {
+      return { issue: "repeat_assistant", matched: prev };
+    }
+  }
+
+  const lastAssistant = previousAssistant[previousAssistant.length - 1];
+  if (lastAssistant && tokenJaccard(replyNorm, lastAssistant) >= 0.62) {
+    return { issue: "repeat_assistant", matched: lastAssistant };
   }
 
   const previousFan = conversationHistory
@@ -899,10 +907,74 @@ const detectRepetitionIssue = (
 const pickFreshCandidate = (candidates: string[], conversationHistory: any[]): string => {
   const deduped = [...new Set(candidates.map((c) => c.replace(/\s+/g, " ").trim()).filter(Boolean))];
   if (deduped.length === 0) return "";
+
   for (const candidate of deduped) {
     if (detectRepetitionIssue(candidate, conversationHistory).issue === "none") return candidate;
   }
-  return deduped[0];
+
+  const assistantHistory = conversationHistory
+    .filter((m) => m?.role === "creator" || m?.role === "assistant")
+    .map((m) => normalizeForSimilarity(m?.text || m?.content || ""))
+    .filter(Boolean);
+
+  if (assistantHistory.length === 0) {
+    return deduped[Math.floor(Math.random() * deduped.length)];
+  }
+
+  let best = deduped[0];
+  let bestScore = Number.POSITIVE_INFINITY;
+  for (const candidate of deduped) {
+    const candidateNorm = normalizeForSimilarity(candidate);
+    const worstOverlap = assistantHistory.reduce(
+      (max, prev) => Math.max(max, tokenJaccard(candidateNorm, prev)),
+      0,
+    );
+    if (worstOverlap < bestScore) {
+      best = candidate;
+      bestScore = worstOverlap;
+    }
+  }
+
+  return best;
+};
+
+const buildQuestionNoRepeatVariants = (latestFanText: string, baseReply: string): string[] => {
+  const q = (latestFanText || "").toLowerCase();
+  const base = (baseReply || "").replace(/\s+/g, " ").trim();
+
+  const asksLatestPost = /(latest|last|recent)\s+(post|upload|content)|what did you post|whats your latest|when was your last post/.test(q);
+  const asksAge = /(how old|your age|ur age|\bage\b)/.test(q);
+  const asksJob = /(what do you do|do for a living|whats your job|work\b)/.test(q);
+  const asksName = /(who are you|your name|ur name|name\b)/.test(q);
+
+  if (asksLatestPost) {
+    return [
+      "still no new post yet",
+      "nothing new is up yet",
+      "same status no fresh upload rn",
+      "feed is quiet rn no recent post",
+      q.includes("when") ? "i havent posted recently so there isnt a recent date rn" : "",
+      base,
+    ].filter(Boolean);
+  }
+
+  if (asksAge) {
+    return [
+      base,
+      base.includes("private") ? "yea i keep that private" : "thats my age rn",
+      "same answer still true rn",
+    ].filter(Boolean);
+  }
+
+  if (asksJob) {
+    return [base, "thats what i do rn", "same work focus as i said"].filter(Boolean);
+  }
+
+  if (asksName) {
+    return [base, "same name as i told u", "thats what u can call me"].filter(Boolean);
+  }
+
+  return [base, `for now ${base}`, `rn ${base}`].filter(Boolean);
 };
 
 const antiRepetitionCheck = (reply: string, conversationHistory: any[]): string => {
@@ -916,8 +988,11 @@ const antiRepetitionCheck = (reply: string, conversationHistory: any[]): string 
   const latestFanText = (latestFanMsg?.text || latestFanMsg?.content || "").toLowerCase().trim();
   const latestIsQuestion = isLikelyQuestionText(latestFanText);
 
-  // Never mutate direct answers to questions
-  if (latestIsQuestion) return cleaned;
+  if (latestIsQuestion) {
+    if (detectRepetitionIssue(cleaned, conversationHistory).issue === "none") return cleaned;
+    const varied = pickFreshCandidate(buildQuestionNoRepeatVariants(latestFanText, cleaned), conversationHistory);
+    return varied || cleaned;
+  }
 
   // Extract info they already gave us
   const theirMessages = conversationHistory
@@ -1096,11 +1171,15 @@ const buildDeterministicPersonaReply = (
             `my latest post was about ${latestTopic}`,
             `last thing i posted was about ${latestTopic}`,
             `newest upload was about ${latestTopic}`,
+            `most recent post covered ${latestTopic}`,
+            `latest one was basically about ${latestTopic}`,
           ]
         : [
             "i havent posted anything recently",
             "still no new post yet",
             "havent uploaded anything new lately",
+            "nothing fresh on my feed yet",
+            "same for now no new post",
           ],
     );
   }
