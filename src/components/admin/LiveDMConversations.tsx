@@ -23,6 +23,9 @@ import {
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Popover, PopoverContent, PopoverTrigger,
+} from "@/components/ui/popover";
 import BulkMessageHub from "./BulkMessageHub";
 import PersonaCreatorDialog from "./PersonaCreatorDialog";
 import KeywordDelayManager from "./KeywordDelayManager";
@@ -1580,19 +1583,19 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
             </DropdownMenuContent>
            </DropdownMenu>
           {/* Advanced AI Features Dropdown */}
-          <DropdownMenu open={showAdvancedPanel} onOpenChange={setShowAdvancedPanel}>
-            <DropdownMenuTrigger asChild>
+          <Popover open={showAdvancedPanel} onOpenChange={setShowAdvancedPanel}>
+            <PopoverTrigger asChild>
               <Button size="sm" variant="outline" className={`h-7 text-[10px] gap-1 border-white/10 ${[reviewBeforeSend, convIntelligence, smartThrottling, shadowMode, sentimentAnalysis, spamFilter, buyerSignalDetect, objectionHandling, contextualMemory].some(Boolean) ? "border-cyan-500/30 text-cyan-400" : "text-white/50"}`}>
                 <Settings2 className="h-3 w-3" />
                 AI Modes
                 {(() => { const count = [reviewBeforeSend, convIntelligence, smartThrottling, viralPrediction, engagementDM, unifiedInbox, growthCopilot, leadHeatScoring, funnelBuilder, smartFollowUp, revenueAttribution, personaEngine, competitorSignals, shadowMode, sentimentAnalysis, autoTagging, spamFilter, buyerSignalDetect, objectionHandling, contextualMemory, multiLangSupport, abTestMessages].filter(Boolean).length; return count > 0 ? <Badge className="text-[7px] h-3.5 min-w-[14px] px-1 bg-cyan-500/20 text-cyan-400 border-0 ml-0.5">{count}</Badge> : null; })()}
                 <ChevronDown className="h-2.5 w-2.5 ml-0.5" />
               </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-[360px] p-0 overflow-hidden" style={{ background: "hsl(222 47% 6% / 0.97)", border: "1px solid hsl(217 80% 50% / 0.08)", backdropFilter: "blur(32px)", boxShadow: "0 24px 80px -12px hsl(222 60% 4% / 0.9), 0 0 0 1px hsl(217 80% 50% / 0.04)" }}>
+            </PopoverTrigger>
+            <PopoverContent align="end" side="bottom" sideOffset={6} className="w-[360px] p-0 overflow-hidden border-0" style={{ background: "hsl(222 47% 6% / 0.97)", border: "1px solid hsl(217 80% 50% / 0.08)", backdropFilter: "blur(32px)", boxShadow: "0 24px 80px -12px hsl(222 60% 4% / 0.9), 0 0 0 1px hsl(217 80% 50% / 0.04)" }}>
               <div className="px-4 py-2.5 border-b border-white/[0.05]">
                 <p className="text-[11px] font-semibold text-white/80 tracking-wide">AI Modes</p>
-                <p className="text-[9px] text-white/25 mt-0.5">All disabled by default. Toggle to activate.</p>
+                <p className="text-[9px] text-white/25 mt-0.5">Toggle features to activate intelligent automation.</p>
               </div>
               <div className="overflow-y-auto" style={{ maxHeight: "min(480px, 60vh)" }}>
                 <div className="p-2 space-y-px">
@@ -1626,20 +1629,20 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
                   ].map((item) => {
                     if (item.key.startsWith("d") && item.key.length <= 2) {
                       return (
-                        <div key={item.key} className="pt-2 pb-1 px-3">
-                          <p className="text-[8px] font-semibold text-white/15 uppercase tracking-[0.1em]">{item.label}</p>
+                        <div key={item.key} className="pt-2.5 pb-1 px-3">
+                          <p className="text-[8px] font-semibold text-white/20 uppercase tracking-[0.12em]">{item.label}</p>
                         </div>
                       );
                     }
+                    const handleToggle = (e?: React.MouseEvent) => {
+                      if (e) { e.preventDefault(); e.stopPropagation(); }
+                      const v = !item.checked;
+                      item.set!(v);
+                      toast.success(item.onMsg && v ? item.onMsg : item.offMsg && !v ? item.offMsg : `${item.label} ${v ? "enabled" : "disabled"}`);
+                    };
                     return (
-                      <div key={item.key} className={`flex items-center justify-between px-3 py-[7px] rounded-lg transition-all duration-200 cursor-pointer ${item.checked ? "bg-white/[0.06]" : "hover:bg-white/[0.03]"}`}
-                        onClick={() => {
-                          const v = !item.checked;
-                          item.set!(v);
-                          toast.success(item.onMsg && v ? item.onMsg : item.offMsg && !v ? item.offMsg : `${item.label} ${v ? "enabled" : "disabled"}`);
-                        }}
-                      >
-                        <div className="min-w-0 mr-3">
+                      <div key={item.key} className={`flex items-center justify-between px-3 py-[7px] rounded-lg transition-all duration-200 ${item.checked ? "bg-white/[0.06]" : "hover:bg-white/[0.03]"}`}>
+                        <div className="min-w-0 mr-3 cursor-default select-none">
                           <p className={`text-[11px] font-medium leading-tight transition-colors duration-150 ${item.checked ? "text-white" : "text-white/60"}`}>{item.label}</p>
                           <p className={`text-[9px] mt-0.5 leading-snug transition-colors duration-150 ${item.checked ? "text-white/70" : "text-white/40"}`}>{item.desc}</p>
                         </div>
@@ -1647,18 +1650,18 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
                           type="button"
                           role="switch"
                           aria-checked={item.checked}
-                          onClick={(e) => e.stopPropagation()}
-                          className={`relative flex-shrink-0 inline-flex h-5 w-9 items-center rounded-full transition-all duration-300 ${item.checked ? "bg-cyan-500/80 shadow-[0_0_8px_rgba(6,182,212,0.4)]" : "bg-white/[0.08] border border-white/[0.06]"}`}
+                          onClick={handleToggle}
+                          className={`relative flex-shrink-0 inline-flex h-[22px] w-[40px] items-center rounded-full transition-all duration-300 cursor-pointer outline-none ${item.checked ? "bg-cyan-500/80 shadow-[0_0_10px_rgba(6,182,212,0.35)]" : "bg-white/[0.08] border border-white/[0.08]"}`}
                         >
-                          <span className={`inline-block h-3.5 w-3.5 rounded-full transition-all duration-300 ${item.checked ? "translate-x-[18px] bg-white shadow-md" : "translate-x-[3px] bg-white/30"}`} />
+                          <span className={`inline-block h-4 w-4 rounded-full transition-all duration-300 ${item.checked ? "translate-x-[20px] bg-white shadow-[0_1px_4px_rgba(0,0,0,0.3)]" : "translate-x-[2px] bg-white/25"}`} />
                         </button>
                       </div>
                     );
                   })}
                 </div>
               </div>
-            </DropdownMenuContent>
-          </DropdownMenu>
+            </PopoverContent>
+          </Popover>
           {/* ML Debug Mode Toggle */}
           <Button
             size="sm"
