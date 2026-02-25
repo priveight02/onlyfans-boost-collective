@@ -402,7 +402,7 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
       return true;
     });
     messageCacheRef.current.set(convoId, msgs);
-    setCache(accountId, cacheNs, msgs, undefined, 10000);
+    setCache(accountId, cacheNs, msgs, undefined, 5 * 60 * 1000); // 5 min TTL
     return msgs;
   }, [accountId, effectivePlatformUserId]);
 
@@ -412,10 +412,20 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
     const cached = messageCacheRef.current.get(convoId);
     if (cached && cached.length > 0) {
       setMessages(cached);
-      // Refresh in background without blocking — use functional state check to avoid stale closure
+      // Refresh in background without blocking
       loadMessagesToCache(convoId).then(fresh => {
+        // Only update if content actually changed (prevent flicker)
+        if (fresh.length === 0) return; // never overwrite with empty
         setSelectedConvo(prev => {
-          if (prev === convoId) setMessages(fresh);
+          if (prev === convoId) {
+            const cachedNow = messageCacheRef.current.get(convoId);
+            // Compare last message IDs to detect real changes
+            const lastFresh = fresh[fresh.length - 1]?.id;
+            const lastCached = cachedNow?.[cachedNow.length - 1]?.id;
+            if (lastFresh !== lastCached || fresh.length !== (cachedNow?.length || 0)) {
+              setMessages(fresh);
+            }
+          }
           return prev;
         });
       });
@@ -556,10 +566,12 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
 
       if (changed) {
         const fresh = await loadMessagesToCache(convoId, true); // force refresh after writes
-        setSelectedConvo(prev => {
-          if (prev === convoId) setMessages(fresh);
-          return prev;
-        });
+        if (fresh.length > 0) {
+          setSelectedConvo(prev => {
+            if (prev === convoId) setMessages(fresh);
+            return prev;
+          });
+        }
       }
 
       // Update conversation preview from cache
@@ -634,7 +646,7 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
       const msgs = (msgsByConvo.get(cid) || []).slice(-50);
       messageCacheRef.current.set(cid, msgs);
       const ns = `dm_msgs_${effectivePlatformUserId || "any"}_${cid}`;
-      setCache(accountId, ns, msgs, undefined, 10000);
+      setCache(accountId, ns, msgs, undefined, 5 * 60 * 1000); // 5 min TTL
     }
     // Set empty arrays for convos with no messages yet
     for (const c of convos) {
@@ -643,10 +655,11 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
       }
     }
 
-    // Update current view if cached — use functional check to avoid stale closure
+    // Update current view if cached — only if data exists
     setSelectedConvo(prev => {
       if (prev && messageCacheRef.current.has(prev)) {
-        setMessages(messageCacheRef.current.get(prev) || []);
+        const freshMsgs = messageCacheRef.current.get(prev) || [];
+        if (freshMsgs.length > 0) setMessages(freshMsgs);
       }
       return prev;
     });
@@ -877,7 +890,7 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
     }
   }, [selectedConvo, loadMessages, fetchIGMessages]);
 
-  // FAST DB POLL: lightweight count check every 500ms, full load only when changed
+  // DB POLL: lightweight count check every 1s, full load only when count changes
   useEffect(() => {
     if (!selectedConvo) return;
     const pollState = { inFlight: false, lastCount: -1 };
@@ -885,28 +898,27 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
       if (pollState.inFlight) return;
       pollState.inFlight = true;
       try {
-        // Lightweight query: only count (minimal bandwidth)
         const { count } = await supabase
           .from("ai_dm_messages")
           .select("id", { count: "exact", head: true })
           .eq("conversation_id", selectedConvo);
         const currentCount = count || 0;
         
-        // Quick check: if count unchanged and we have cache, skip full load
         const cached = messageCacheRef.current.get(selectedConvo);
         if (cached && cached.length === currentCount && pollState.lastCount === currentCount) {
           return; // No change — skip
         }
         pollState.lastCount = currentCount;
         
-        // Something changed — do full load (force refresh to bypass cache TTL)
+        // Something changed — refresh from DB
         const fresh = await loadMessagesToCache(selectedConvo, true);
+        if (fresh.length === 0 && cached && cached.length > 0) return; // never overwrite with empty
         setSelectedConvo(prev => {
           if (prev === selectedConvo) setMessages(fresh);
           return prev;
         });
       } finally { pollState.inFlight = false; }
-    }, 200);
+    }, 1000);
     return () => clearInterval(dbPollInterval);
   }, [selectedConvo, loadMessagesToCache]);
 
