@@ -172,6 +172,33 @@ const ContentCommandCenter = () => {
   const [showPresets, setShowPresets] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
+  // ── Ultimate Content Features ──
+  const [generatingHooks, setGeneratingHooks] = useState(false);
+  const [hooks, setHooks] = useState<string[]>([]);
+  const [translating, setTranslating] = useState(false);
+  const [translateLang, setTranslateLang] = useState("");
+  const [generatingScript, setGeneratingScript] = useState(false);
+  const [videoScript, setVideoScript] = useState<any>(null);
+  const [showThreadBuilder, setShowThreadBuilder] = useState(false);
+  const [threadParts, setThreadParts] = useState<string[]>([""]);
+  const [generatingThread, setGeneratingThread] = useState(false);
+  const [showCarouselBuilder, setShowCarouselBuilder] = useState(false);
+  const [carouselSlides, setCarouselSlides] = useState<{title: string; body: string; cta: string}[]>([]);
+  const [generatingCarousel, setGeneratingCarousel] = useState(false);
+  const [showPillars, setShowPillars] = useState(false);
+  const [contentPillars, setContentPillars] = useState<any[]>([]);
+  const [generatingPillars, setGeneratingPillars] = useState(false);
+  const [showCompetitorInspire, setShowCompetitorInspire] = useState(false);
+  const [competitorIdeas, setCompetitorIdeas] = useState<any[]>([]);
+  const [generatingCompetitor, setGeneratingCompetitor] = useState(false);
+  const [competitorHandle, setCompetitorHandle] = useState("");
+  const [multiPublishing, setMultiPublishing] = useState(false);
+  const [generatingToneAnalysis, setGeneratingToneAnalysis] = useState(false);
+  const [toneAnalysis, setToneAnalysis] = useState<any>(null);
+  const [showStoryboard, setShowStoryboard] = useState(false);
+  const [storyboardScenes, setStoryboardScenes] = useState<any[]>([]);
+  const [generatingStoryboard, setGeneratingStoryboard] = useState(false);
+
   // Create form
   const [formTitle, setFormTitle] = useState("");
   const [formPlatform, setFormPlatform] = useState("");
@@ -716,6 +743,235 @@ Respond ONLY with JSON array of ISO datetime strings for the next 7 days: ["2025
     });
   };
 
+  // ════════════════════════════════════════════════════════
+  // FEATURE 11: AI Hook Generator
+  // ════════════════════════════════════════════════════════
+  const generateHooks = async () => {
+    const platform = formPlatform || "instagram";
+    await performAction('ai_generate_ideas', async () => {
+      setGeneratingHooks(true);
+      try {
+        const content = await callAI(`Generate 5 scroll-stopping hooks for a ${platformConf(platform).label} ${formType}.
+Context: "${formCaption || formTitle || "general content"}"
+Platform: ${platformConf(platform).label}
+Rules:
+- Each hook is the FIRST LINE only (max 15 words)
+- Must create curiosity gap, shock value, or emotional pull
+- Use pattern interrupts ("POV:", "Nobody talks about...", "Stop scrolling if...")
+- Platform-specific: ${platform === "tiktok" ? "TikTok hooks need to be punchy under 3 seconds" : platform === "twitter" ? "Tweet hooks must work standalone" : "Instagram hooks should pair with visuals"}
+Respond ONLY with JSON array: ["hook1", "hook2", "hook3", "hook4", "hook5"]`);
+        const jsonMatch = content.match(/\[[\s\S]*\]/);
+        if (jsonMatch) { setHooks(JSON.parse(jsonMatch[0])); toast.success("5 scroll-stopping hooks generated"); }
+      } catch (e: any) { toast.error(e.message); }
+      setGeneratingHooks(false);
+    });
+  };
+
+  // ════════════════════════════════════════════════════════
+  // FEATURE 12: Caption Translator
+  // ════════════════════════════════════════════════════════
+  const translateCaption = async (lang: string) => {
+    if (!formCaption.trim()) { toast.error("Write a caption first"); return; }
+    await performAction('ai_rewrite_caption', async () => {
+      setTranslating(true);
+      try {
+        const content = await callAI(`Translate this caption to ${lang}. Keep same tone, emojis, style. Keep hashtags in English.
+Original: "${formCaption}"
+Respond ONLY with the translated caption.`);
+        if (content.trim()) { setFormCaption(content.trim()); toast.success(`Translated to ${lang}`); }
+      } catch (e: any) { toast.error(e.message); }
+      setTranslating(false);
+    });
+  };
+
+  // ════════════════════════════════════════════════════════
+  // FEATURE 13: AI Video/Reel Script Generator
+  // ════════════════════════════════════════════════════════
+  const generateVideoScript = async () => {
+    const platform = formPlatform || "instagram";
+    await performAction('ai_generate_ideas', async () => {
+      setGeneratingScript(true);
+      try {
+        const content = await callAI(`Create a detailed video/reel script for ${platformConf(platform).label}.
+Topic: "${formCaption || formTitle || "trending content"}"
+Duration: ${platform === "tiktok" ? "15-60 seconds" : "30-90 seconds"}
+Structure: hook (first 3s text), scenes array [{timestamp, visual, narration, text_overlay, transition}], cta, music_mood, caption, hashtags array
+Respond ONLY with JSON: {"hook":"", "scenes":[{"timestamp":"0-3s", "visual":"", "narration":"", "text_overlay":"", "transition":""}], "cta":"", "music_mood":"", "caption":"", "hashtags":[]}`);
+        const jsonMatch = content.match(/\{[\s\S]*\}/);
+        if (jsonMatch) { setVideoScript(JSON.parse(jsonMatch[0])); toast.success("Video script generated"); }
+      } catch (e: any) { toast.error(e.message); }
+      setGeneratingScript(false);
+    });
+  };
+
+  // ════════════════════════════════════════════════════════
+  // FEATURE 14: Thread Builder (Twitter/Threads)
+  // ════════════════════════════════════════════════════════
+  const generateThread = async () => {
+    if (!formCaption.trim() && !formTitle.trim()) { toast.error("Add a topic first"); return; }
+    await performAction('ai_generate_ideas', async () => {
+      setGeneratingThread(true);
+      try {
+        const platform = formPlatform === "threads" ? "Threads" : "X / Twitter";
+        const maxLen = formPlatform === "threads" ? 500 : 280;
+        const content = await callAI(`Create a viral ${platform} thread (5-7 parts).
+Topic: "${formCaption || formTitle}"
+Rules: Part 1: Hook + "🧵👇". Parts 2-5: ONE insight each, max ${maxLen} chars. Part 6: Summary. Part 7: CTA.
+Respond ONLY with JSON array: ["Part 1", "Part 2", ...]`);
+        const jsonMatch = content.match(/\[[\s\S]*\]/);
+        if (jsonMatch) { const parts = JSON.parse(jsonMatch[0]); setThreadParts(parts); toast.success(`${parts.length}-part thread generated`); }
+      } catch (e: any) { toast.error(e.message); }
+      setGeneratingThread(false);
+    });
+  };
+
+  const publishThread = async () => {
+    const platform = formPlatform === "threads" ? "threads" : "twitter";
+    const conn = connForPlatform(platform);
+    if (!conn) { toast.error(`Connect ${platform} first`); return; }
+    await performAction('publish_content', async () => {
+      try {
+        for (let i = 0; i < threadParts.length; i++) {
+          const fnName = platform === "twitter" ? "twitter-api" : "threads-api";
+          const action = platform === "twitter" ? "create_tweet" : "create_text_thread";
+          await supabase.functions.invoke(fnName, { body: { action, account_id: conn.account_id, params: { text: threadParts[i] } } });
+          await supabase.from("content_calendar").insert({ title: `Thread ${i + 1}/${threadParts.length}`, caption: threadParts[i], platform, content_type: platform === "threads" ? "post" : "tweet", status: "published", published_at: new Date().toISOString(), metadata: { thread: true, part: i + 1, total: threadParts.length } });
+        }
+        toast.success(`${threadParts.length}-part thread published!`);
+        setShowThreadBuilder(false); setThreadParts([""]);
+      } catch (e: any) { toast.error(`Thread publish failed: ${e.message}`); }
+    });
+  };
+
+  // ════════════════════════════════════════════════════════
+  // FEATURE 15: AI Carousel Slide Generator
+  // ════════════════════════════════════════════════════════
+  const generateCarousel = async () => {
+    await performAction('ai_generate_ideas', async () => {
+      setGeneratingCarousel(true);
+      try {
+        const content = await callAI(`Create a viral carousel for ${platformConf(formPlatform || "instagram").label} (7-10 slides).
+Topic: "${formCaption || formTitle || "value-driven content"}"
+Slide 1: Hook (curiosity + bold claim). Slides 2-8: ONE insight per slide. Slide 9: Summary. Slide 10: CTA.
+Respond ONLY with JSON array: [{"title":"", "body":"", "cta":""}]`);
+        const jsonMatch = content.match(/\[[\s\S]*\]/);
+        if (jsonMatch) { const slides = JSON.parse(jsonMatch[0]); setCarouselSlides(slides); toast.success(`${slides.length}-slide carousel generated`); }
+      } catch (e: any) { toast.error(e.message); }
+      setGeneratingCarousel(false);
+    });
+  };
+
+  // ════════════════════════════════════════════════════════
+  // FEATURE 16: Content Pillar Strategy
+  // ════════════════════════════════════════════════════════
+  const generatePillars = async () => {
+    await performAction('ai_generate_ideas', async () => {
+      setGeneratingPillars(true);
+      try {
+        const connPlatforms = [...new Set(connections.map(c => c.platform))];
+        const content = await callAI(`Create 5 content pillars for a creator/brand.
+Platforms: ${connPlatforms.join(", ") || "instagram, tiktok"}
+Existing content: ${items.length} posts
+For each: name (2-3 words), description, percentage (sum=100), content_types array, posting_frequency, example_topics (3), platforms array, color (text-pink-400/text-blue-400/text-emerald-400/text-amber-400/text-purple-400)
+Respond ONLY with JSON array: [{"name":"", "description":"", "percentage": number, "content_types":[], "posting_frequency":"", "example_topics":[], "platforms":[], "color":""}]`);
+        const jsonMatch = content.match(/\[[\s\S]*\]/);
+        if (jsonMatch) { setContentPillars(JSON.parse(jsonMatch[0])); setShowPillars(true); toast.success("Content pillar strategy generated"); }
+      } catch (e: any) { toast.error(e.message); }
+      setGeneratingPillars(false);
+    });
+  };
+
+  // ════════════════════════════════════════════════════════
+  // FEATURE 17: Competitor-Inspired Content
+  // ════════════════════════════════════════════════════════
+  const generateCompetitorInspired = async () => {
+    const platform = formPlatform || platformFilter !== "all" ? (formPlatform || platformFilter) : "instagram";
+    await performAction('ai_generate_ideas', async () => {
+      setGeneratingCompetitor(true);
+      try {
+        const content = await callAI(`Generate 5 competitor-inspired content ideas for ${platformConf(platform).label}.
+${competitorHandle ? `Inspired by: @${competitorHandle}` : "Based on current viral patterns"}
+For each: title, strategy, caption (full), content_type, hashtags[], why_it_works, difficulty (easy/medium/hard), estimated_reach (low/medium/high/viral)
+Respond ONLY with JSON array.`);
+        const jsonMatch = content.match(/\[[\s\S]*\]/);
+        if (jsonMatch) { setCompetitorIdeas(JSON.parse(jsonMatch[0]).map((i: any) => ({ ...i, platform }))); setShowCompetitorInspire(true); toast.success("Competitor-inspired ideas ready"); }
+      } catch (e: any) { toast.error(e.message); }
+      setGeneratingCompetitor(false);
+    });
+  };
+
+  // ════════════════════════════════════════════════════════
+  // FEATURE 18: Multi-Platform Simultaneous Publish
+  // ════════════════════════════════════════════════════════
+  const multiPlatformPublish = async (item: any) => {
+    const targets = connections.map(c => c.platform).filter(p => p !== "onlyfans");
+    if (targets.length === 0) { toast.error("No platforms connected"); return; }
+    setMultiPublishing(true);
+    let successCount = 0;
+    for (const platform of targets) {
+      const conn = connForPlatform(platform);
+      if (!conn) continue;
+      try {
+        const conf = platformConf(platform);
+        const caption = [((item.caption || item.title || "").substring(0, conf.maxCaption)), ...(item.hashtags?.map((h: string) => `#${h}`) || [])].join(" ");
+        const mediaUrls: string[] = Array.isArray(item.media_urls) ? item.media_urls : [];
+        let action: string, params: any = {};
+        if (platform === "twitter") { action = "create_tweet"; params = { text: caption.substring(0, 280) }; }
+        else if (platform === "threads") { action = mediaUrls.length > 0 ? "create_image_thread" : "create_text_thread"; params = mediaUrls.length > 0 ? { image_url: mediaUrls[0], text: caption } : { text: caption }; }
+        else if (platform === "facebook") { action = mediaUrls.length > 0 ? "create_photo_post" : "create_post"; params = mediaUrls.length > 0 ? { image_url: mediaUrls[0], caption } : { message: caption }; }
+        else if (platform === "instagram") { action = mediaUrls.length > 1 ? "create_carousel" : "create_photo_post"; params = mediaUrls.length > 1 ? { items: mediaUrls.map(u => ({ image_url: u })), caption } : { image_url: mediaUrls[0], caption }; }
+        else if (platform === "tiktok") { action = "publish_photo"; params = { image_urls: mediaUrls, title: item.title, description: caption, privacy_level: "PUBLIC_TO_EVERYONE" }; }
+        else continue;
+        const fnName = platform === "twitter" ? "twitter-api" : `${platform}-api`;
+        await supabase.functions.invoke(fnName, { body: { action, account_id: conn.account_id, params } });
+        successCount++;
+      } catch (e: any) { toast.error(`${platform}: ${e.message}`); }
+    }
+    if (successCount > 0) {
+      await supabase.from("content_calendar").update({ status: "published", published_at: new Date().toISOString(), metadata: { ...(item.metadata || {}), multi_published: true, published_to: targets } }).eq("id", item.id);
+      toast.success(`Published to ${successCount} platforms!`);
+    }
+    setMultiPublishing(false); setShowDetail(null);
+  };
+
+  // ════════════════════════════════════════════════════════
+  // FEATURE 19: AI Tone Analyzer
+  // ════════════════════════════════════════════════════════
+  const analyzeTone = async () => {
+    if (!formCaption.trim()) { toast.error("Write a caption first"); return; }
+    await performAction('ai_analysis', async () => {
+      setGeneratingToneAnalysis(true);
+      try {
+        const content = await callAI(`Analyze tone and effectiveness of this ${formPlatform || "social media"} caption.
+Caption: "${formCaption}"
+Return: tone, readability (1-10), emotion, power_words (count), improvements (3 strings), cta_strength (1-10), scroll_stop_score (1-10), brand_safety (safe/edgy/risky)
+Respond ONLY with JSON.`);
+        const jsonMatch = content.match(/\{[\s\S]*\}/);
+        if (jsonMatch) { const a = JSON.parse(jsonMatch[0]); setToneAnalysis(a); toast.success(`Tone: ${a.tone} | Scroll-stop: ${a.scroll_stop_score}/10`); }
+      } catch (e: any) { toast.error(e.message); }
+      setGeneratingToneAnalysis(false);
+    });
+  };
+
+  // ════════════════════════════════════════════════════════
+  // FEATURE 20: Reel/Story Storyboard Generator
+  // ════════════════════════════════════════════════════════
+  const generateStoryboard = async () => {
+    const platform = formPlatform || "instagram";
+    await performAction('ai_generate_ideas', async () => {
+      setGeneratingStoryboard(true);
+      try {
+        const content = await callAI(`Create a ${formType === "story" ? "Story sequence (5-8 slides)" : "Reel storyboard (15-60s)"} for ${platformConf(platform).label}.
+Topic: "${formCaption || formTitle || "engaging content"}"
+For each scene: scene_number, duration, visual, text_overlay, audio, transition, engagement (interactive element), camera direction
+Respond ONLY with JSON array.`);
+        const jsonMatch = content.match(/\[[\s\S]*\]/);
+        if (jsonMatch) { const scenes = JSON.parse(jsonMatch[0]); setStoryboardScenes(scenes); setShowStoryboard(true); toast.success(`${scenes.length}-scene storyboard created`); }
+      } catch (e: any) { toast.error(e.message); }
+      setGeneratingStoryboard(false);
+    });
+  };
+
   // ─── Apply template ───
   const applyTemplate = (template: typeof CONTENT_TEMPLATES[0]) => {
     setFormPlatform(template.platform);
@@ -1086,6 +1342,20 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
             className="border-border text-muted-foreground text-xs h-8">
             <BookOpen className="h-3.5 w-3.5 mr-1" /> Series
           </Button>
+          <Button size="sm" variant="outline" onClick={() => setShowThreadBuilder(true)}
+            className="border-border text-muted-foreground text-xs h-8">
+            <Layers className="h-3.5 w-3.5 mr-1" /> Thread
+          </Button>
+          <Button size="sm" variant="outline" onClick={generatePillars} disabled={generatingPillars}
+            className="border-border text-muted-foreground text-xs h-8">
+            {generatingPillars ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Target className="h-3.5 w-3.5 mr-1" />}
+            Pillars
+          </Button>
+          <Button size="sm" variant="outline" onClick={generateCompetitorInspired} disabled={generatingCompetitor}
+            className="border-border text-muted-foreground text-xs h-8">
+            {generatingCompetitor ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Eye className="h-3.5 w-3.5 mr-1" />}
+            Inspire
+          </Button>
           <Button size="sm" variant="outline" onClick={() => setShowTemplates(true)}
             className="border-primary/20 text-primary text-xs h-8">
             <Layers className="h-3.5 w-3.5 mr-1" /> Templates
@@ -1447,7 +1717,7 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
               )}
 
               {/* Actions */}
-              <div className="flex gap-2 pt-2 border-t border-border">
+              <div className="flex gap-2 pt-2 border-t border-border flex-wrap">
                 {showDetail.status !== "published" && connForPlatform(showDetail.platform) && (
                   <Button onClick={() => publishToNetwork(showDetail)} disabled={publishing}
                     className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white text-xs h-9">
@@ -1456,6 +1726,13 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
                     {connForPlatform(showDetail.platform) && (
                       <span className="ml-1 text-[9px] opacity-70">@{connForPlatform(showDetail.platform)!.platform_username}</span>
                     )}
+                  </Button>
+                )}
+                {showDetail.status !== "published" && connections.length > 1 && (
+                  <Button onClick={() => multiPlatformPublish(showDetail)} disabled={multiPublishing}
+                    className="bg-gradient-to-r from-purple-600 to-pink-600 text-white text-xs h-9">
+                    {multiPublishing ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Globe className="h-3.5 w-3.5 mr-1" />}
+                    Publish All ({connections.length})
                   </Button>
                 )}
                 {showDetail.status !== "published" && !connForPlatform(showDetail.platform) && showDetail.platform !== "onlyfans" && (
@@ -1788,6 +2065,107 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
                 {generatingAB ? <Loader2 className="h-2.5 w-2.5 animate-spin mr-1" /> : <Scissors className="h-2.5 w-2.5 mr-1" />}
                 Generate A/B Variants
               </Button>
+              {/* NEW: Hook Generator + Translator + Tone + Video Script + Carousel + Storyboard */}
+              <div className="flex gap-1 flex-wrap">
+                <Button size="sm" variant="outline" onClick={generateHooks} disabled={generatingHooks}
+                  className="text-[9px] h-5 px-1.5 border-border text-muted-foreground flex-1">
+                  {generatingHooks ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <><Lightbulb className="h-2.5 w-2.5 mr-0.5" />Hooks</>}
+                </Button>
+                <Button size="sm" variant="outline" onClick={analyzeTone} disabled={generatingToneAnalysis || !formCaption.trim()}
+                  className="text-[9px] h-5 px-1.5 border-border text-muted-foreground flex-1">
+                  {generatingToneAnalysis ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <><BarChart3 className="h-2.5 w-2.5 mr-0.5" />Tone</>}
+                </Button>
+                <Button size="sm" variant="outline" onClick={generateVideoScript} disabled={generatingScript}
+                  className="text-[9px] h-5 px-1.5 border-border text-muted-foreground flex-1">
+                  {generatingScript ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <><Video className="h-2.5 w-2.5 mr-0.5" />Script</>}
+                </Button>
+                <Button size="sm" variant="outline" onClick={generateCarousel} disabled={generatingCarousel}
+                  className="text-[9px] h-5 px-1.5 border-border text-muted-foreground flex-1">
+                  {generatingCarousel ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <><Layers className="h-2.5 w-2.5 mr-0.5" />Carousel</>}
+                </Button>
+                <Button size="sm" variant="outline" onClick={generateStoryboard} disabled={generatingStoryboard}
+                  className="text-[9px] h-5 px-1.5 border-border text-muted-foreground flex-1">
+                  {generatingStoryboard ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <><Sparkle className="h-2.5 w-2.5 mr-0.5" />Board</>}
+                </Button>
+              </div>
+              {/* Translate row */}
+              <div className="flex gap-1 items-center flex-wrap">
+                <span className="text-[9px] text-muted-foreground"><Globe className="h-2.5 w-2.5 inline mr-0.5" />Translate:</span>
+                {["Spanish", "French", "Portuguese", "German", "Japanese", "Arabic", "Hindi", "Korean"].map(lang => (
+                  <Button key={lang} size="sm" variant="outline" onClick={() => translateCaption(lang)} disabled={translating || !formCaption.trim()}
+                    className="text-[9px] h-5 px-1.5 border-border text-muted-foreground">
+                    {translating ? <Loader2 className="h-2 w-2 animate-spin" /> : lang.slice(0, 2).toUpperCase()}
+                  </Button>
+                ))}
+              </div>
+              {/* Hooks display */}
+              {hooks.length > 0 && (
+                <div className="space-y-1 bg-muted/30 rounded-lg p-2">
+                  <p className="text-[9px] text-muted-foreground uppercase tracking-wider">🎣 Scroll-Stopping Hooks — click to prepend</p>
+                  {hooks.map((h, i) => (
+                    <button key={i} onClick={() => { setFormCaption(h + "\n\n" + formCaption); setHooks([]); toast.success("Hook applied"); }}
+                      className="w-full text-left bg-card/50 border border-border rounded-lg p-1.5 hover:border-primary/30 transition-colors text-[10px] text-foreground/80">
+                      {h}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {/* Tone Analysis display */}
+              {toneAnalysis && (
+                <div className="bg-muted/30 rounded-lg p-2 space-y-1">
+                  <p className="text-[9px] text-muted-foreground uppercase tracking-wider">📊 Tone Analysis</p>
+                  <div className="grid grid-cols-4 gap-1">
+                    <div className="text-center"><p className="text-sm font-bold text-foreground">{toneAnalysis.scroll_stop_score}/10</p><p className="text-[8px] text-muted-foreground">Scroll Stop</p></div>
+                    <div className="text-center"><p className="text-sm font-bold text-foreground">{toneAnalysis.cta_strength}/10</p><p className="text-[8px] text-muted-foreground">CTA</p></div>
+                    <div className="text-center"><p className="text-sm font-bold text-foreground">{toneAnalysis.readability}/10</p><p className="text-[8px] text-muted-foreground">Readability</p></div>
+                    <div className="text-center"><p className="text-sm font-bold text-foreground capitalize">{toneAnalysis.tone}</p><p className="text-[8px] text-muted-foreground">Tone</p></div>
+                  </div>
+                  {toneAnalysis.improvements?.length > 0 && (
+                    <div className="mt-1">{toneAnalysis.improvements.map((tip: string, i: number) => (
+                      <p key={i} className="text-[9px] text-primary/80">💡 {tip}</p>
+                    ))}</div>
+                  )}
+                  <Badge variant="outline" className={`text-[8px] ${toneAnalysis.brand_safety === "safe" ? "border-emerald-500/20 text-emerald-400" : toneAnalysis.brand_safety === "edgy" ? "border-amber-500/20 text-amber-400" : "border-destructive/20 text-destructive"}`}>
+                    {toneAnalysis.brand_safety === "safe" ? "✅" : "⚠️"} {toneAnalysis.brand_safety}
+                  </Badge>
+                </div>
+              )}
+              {/* Video Script display */}
+              {videoScript && (
+                <div className="bg-muted/30 rounded-lg p-2 space-y-1.5">
+                  <p className="text-[9px] text-muted-foreground uppercase tracking-wider">🎬 Video Script</p>
+                  <div className="bg-primary/10 rounded p-1.5"><p className="text-[10px] font-medium text-primary">Hook: {videoScript.hook}</p></div>
+                  {videoScript.scenes?.map((s: any, i: number) => (
+                    <div key={i} className="bg-card/50 border border-border rounded p-1.5">
+                      <div className="flex justify-between"><span className="text-[9px] font-bold text-foreground">{s.timestamp}</span><span className="text-[8px] text-muted-foreground">{s.transition}</span></div>
+                      <p className="text-[9px] text-foreground/70">📹 {s.visual}</p>
+                      {s.text_overlay && <p className="text-[9px] text-primary/70">📝 {s.text_overlay}</p>}
+                      {s.narration && <p className="text-[9px] text-muted-foreground">🎤 {s.narration}</p>}
+                    </div>
+                  ))}
+                  <p className="text-[9px] text-muted-foreground">🎵 Music: {videoScript.music_mood} | CTA: {videoScript.cta}</p>
+                  <Button size="sm" variant="outline" onClick={() => { setFormCaption(videoScript.caption || ""); if (videoScript.hashtags) setFormHashtags(videoScript.hashtags.join(", ")); setVideoScript(null); toast.success("Script caption applied"); }}
+                    className="text-[9px] h-5 w-full border-primary/20 text-primary">Use Script Caption</Button>
+                </div>
+              )}
+              {/* Carousel Slides display */}
+              {carouselSlides.length > 0 && (
+                <div className="bg-muted/30 rounded-lg p-2 space-y-1.5">
+                  <p className="text-[9px] text-muted-foreground uppercase tracking-wider">📱 Carousel Slides ({carouselSlides.length})</p>
+                  <div className="flex gap-1.5 overflow-x-auto pb-1">
+                    {carouselSlides.map((slide, i) => (
+                      <div key={i} className="min-w-[140px] bg-card/50 border border-border rounded-lg p-2 flex-shrink-0">
+                        <p className="text-[8px] text-primary font-bold">Slide {i + 1}</p>
+                        <p className="text-[10px] font-medium text-foreground mt-0.5">{slide.title}</p>
+                        <p className="text-[9px] text-muted-foreground mt-0.5 line-clamp-3">{slide.body}</p>
+                        <p className="text-[8px] text-primary/60 mt-0.5">{slide.cta}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <Button size="sm" variant="outline" onClick={() => { setFormCaption(carouselSlides.map((s, i) => `Slide ${i+1}: ${s.title}\n${s.body}`).join("\n\n")); setCarouselSlides([]); toast.success("Carousel content applied to caption"); }}
+                    className="text-[9px] h-5 w-full border-primary/20 text-primary">Apply to Caption</Button>
+                </div>
+              )}
               {abVariants.length > 0 && (
                 <div className="space-y-1.5 bg-muted/30 rounded-lg p-2">
                   <p className="text-[9px] text-muted-foreground uppercase tracking-wider">A/B Variants — click to use</p>
@@ -1944,6 +2322,139 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
               {uploading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
               {editingId ? "Update Content" : crossPostPlatforms.length > 0 ? `Save + Cross-post (${crossPostPlatforms.length + 1} platforms)` : "Save as Draft"}
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+      {/* ========== THREAD BUILDER DIALOG ========== */}
+      <Dialog open={showThreadBuilder} onOpenChange={setShowThreadBuilder}>
+        <DialogContent className="bg-popover border-border text-foreground max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-foreground flex items-center gap-2"><Layers className="h-4 w-4 text-primary" /> Thread Builder</DialogTitle>
+          </DialogHeader>
+          <p className="text-xs text-muted-foreground">Create multi-part threads for X/Twitter or Threads with AI assistance.</p>
+          <div className="space-y-3">
+            <Input value={formTitle} onChange={e => setFormTitle(e.target.value)} placeholder="Thread topic..." className="bg-card/50 border-border text-foreground text-xs" />
+            <Select value={formPlatform || "twitter"} onValueChange={v => setFormPlatform(v)}>
+              <SelectTrigger className="bg-card/50 border-border text-foreground text-xs h-8"><SelectValue /></SelectTrigger>
+              <SelectContent className="bg-popover border-border">
+                <SelectItem value="twitter" className="text-xs">X / Twitter</SelectItem>
+                <SelectItem value="threads" className="text-xs">Threads</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button onClick={generateThread} disabled={generatingThread} className="w-full bg-primary text-primary-foreground text-xs">
+              {generatingThread ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Sparkles className="h-3.5 w-3.5 mr-1" />}
+              AI Generate Thread
+            </Button>
+            {threadParts.length > 0 && threadParts[0] && (
+              <div className="space-y-2">
+                {threadParts.map((part, i) => (
+                  <div key={i} className="bg-card/50 border border-border rounded-lg p-2">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[9px] font-bold text-primary">Part {i + 1}/{threadParts.length}</span>
+                      <span className="text-[9px] text-muted-foreground">{part.length} chars</span>
+                    </div>
+                    <Textarea value={part} onChange={e => { const n = [...threadParts]; n[i] = e.target.value; setThreadParts(n); }}
+                      className="bg-muted/30 border-border text-foreground text-xs min-h-[60px]" />
+                  </div>
+                ))}
+                <Button onClick={publishThread} disabled={!connForPlatform(formPlatform || "twitter")}
+                  className="w-full bg-emerald-600 hover:bg-emerald-500 text-white text-xs">
+                  <Send className="h-3.5 w-3.5 mr-1" /> Publish {threadParts.length}-Part Thread
+                </Button>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ========== CONTENT PILLARS DIALOG ========== */}
+      <Dialog open={showPillars} onOpenChange={setShowPillars}>
+        <DialogContent className="bg-popover border-border text-foreground max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-foreground flex items-center gap-2"><Target className="h-4 w-4 text-primary" /> Content Pillar Strategy</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            {contentPillars.map((pillar, i) => (
+              <Card key={i} className="bg-card/50 border-border">
+                <CardContent className="p-3">
+                  <div className="flex items-center justify-between mb-1">
+                    <p className={`text-sm font-bold ${pillar.color || "text-foreground"}`}>{pillar.name}</p>
+                    <Badge variant="outline" className="text-[9px] border-primary/20 text-primary">{pillar.percentage}%</Badge>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground mb-2">{pillar.description}</p>
+                  <p className="text-[9px] text-muted-foreground mb-1">📅 {pillar.posting_frequency} | Types: {pillar.content_types?.join(", ")}</p>
+                  <div className="space-y-0.5">
+                    {pillar.example_topics?.map((topic: string, j: number) => (
+                      <button key={j} onClick={() => { setFormTitle(topic); setFormCaption(topic); setShowPillars(false); setShowCreate(true); toast.success("Topic applied"); }}
+                        className="w-full text-left text-[9px] text-primary/70 hover:text-primary transition-colors">
+                        → {topic}
+                      </button>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ========== COMPETITOR INSPIRED DIALOG ========== */}
+      <Dialog open={showCompetitorInspire} onOpenChange={setShowCompetitorInspire}>
+        <DialogContent className="bg-popover border-border text-foreground max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-foreground flex items-center gap-2"><Eye className="h-4 w-4 text-primary" /> Competitor-Inspired Ideas</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            {competitorIdeas.map((idea, i) => (
+              <Card key={i} className="bg-card/50 border-border">
+                <CardContent className="p-3">
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-sm font-medium text-foreground">{idea.title}</p>
+                    <div className="flex gap-1">
+                      <Badge variant="outline" className={`text-[9px] ${idea.estimated_reach === "viral" ? "border-pink-500/20 text-pink-400" : idea.estimated_reach === "high" ? "border-emerald-500/20 text-emerald-400" : "border-border text-muted-foreground"}`}>
+                        {idea.estimated_reach}
+                      </Badge>
+                      <Badge variant="outline" className="text-[9px] border-border text-muted-foreground">{idea.difficulty}</Badge>
+                    </div>
+                  </div>
+                  <p className="text-[9px] text-blue-400/70 mb-1">Strategy: {idea.strategy}</p>
+                  <p className="text-[10px] text-muted-foreground line-clamp-2 mb-1">{idea.caption}</p>
+                  <p className="text-[9px] text-muted-foreground/60">💡 {idea.why_it_works}</p>
+                  <Button size="sm" className="mt-1.5 text-[9px] h-5 bg-primary text-primary-foreground" onClick={() => {
+                    applyTrendIdea({ ...idea, platform: idea.platform, viral_potential: idea.estimated_reach === "viral" ? 90 : 60 });
+                  }}>
+                    <Plus className="h-2.5 w-2.5 mr-0.5" /> Save Draft
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ========== STORYBOARD DIALOG ========== */}
+      <Dialog open={showStoryboard} onOpenChange={setShowStoryboard}>
+        <DialogContent className="bg-popover border-border text-foreground max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-foreground flex items-center gap-2"><Sparkle className="h-4 w-4 text-primary" /> Storyboard</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            {storyboardScenes.map((scene, i) => (
+              <div key={i} className="bg-card/50 border border-border rounded-lg p-3">
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-xs font-bold text-primary">Scene {scene.scene_number || i + 1}</span>
+                  <span className="text-[9px] text-muted-foreground">{scene.duration}</span>
+                </div>
+                <p className="text-[10px] text-foreground/80">📹 {scene.visual}</p>
+                {scene.text_overlay && <p className="text-[10px] text-primary/70">📝 {scene.text_overlay}</p>}
+                {scene.audio && <p className="text-[9px] text-muted-foreground">🎵 {scene.audio}</p>}
+                {scene.engagement && <p className="text-[9px] text-amber-400">✨ {scene.engagement}</p>}
+                <div className="flex justify-between mt-1">
+                  <span className="text-[8px] text-muted-foreground/60">🎥 {scene.camera}</span>
+                  <span className="text-[8px] text-muted-foreground/60">→ {scene.transition}</span>
+                </div>
+              </div>
+            ))}
           </div>
         </DialogContent>
       </Dialog>
