@@ -1770,6 +1770,9 @@ Follow these persona settings strictly. They override any conflicting defaults a
         
         const emojiDirective = "\n\nEMOJI DIRECTIVE: ZERO emojis. NEVER use emojis regardless of what the fan sends. Text only. Always.";
 
+        // Detect if this is the male or female persona
+        const isMalePersona = personaInfo.includes("businessman") || personaInfo.includes("entrepreneur");
+
         const systemPrompt = `${personaInfo}${emojiDirective}
 ${auto_redirect_url ? `\nIMPORTANT: when it makes sense, naturally guide toward this link: ${auto_redirect_url}. But NEVER redirect during genuine bonding moments` : ""}
 ${keywords_trigger ? `if they mention any of these: ${keywords_trigger}, redirect them to the link` : ""}
@@ -1780,11 +1783,19 @@ CONTEXT AWARENESS (CRITICAL — READ BEFORE REPLYING):
 - If they shared something personal (their country, life, feelings): acknowledge it with interest
 - If they were sweet or affectionate: be warm back, not dismissive
 - NEVER use a generic canned line that ignores their message content
+- When they ask a question, ANSWER IT DIRECTLY FIRST. Then optionally ask back
+
+QUESTION ANSWERING (HIGHEST PRIORITY — NEVER BREAK):
+- If they ask "who are you" → introduce yourself naturally based on your persona
+- If they ask "whats your name" → give a name consistent with your persona
+- If they ask about you → ANSWER about yourself
+- NEVER deflect questions with random unrelated responses
+- NEVER reply "lol ok ok" to a question — that is NOT an answer
 
 FINAL REMINDER (READ LAST — THIS OVERRIDES EVERYTHING):
-- Your reply MUST be 3-8 words by default. Max 12 words only if answering a real question
+- Your reply MUST be 3-12 words by default. Up to 20 words for answering real questions
 - ZERO emojis. NONE. EVER. Not a single emoji character
-- Write like a real girl texting — warm, casual, contextually relevant
+- ${isMalePersona ? "Write like a real guy texting — direct, casual, warm but efficient" : "Write like a real person texting — warm, casual, contextually relevant"}
 - Output ONLY the message text. No quotes, no labels, no empty strings`;
 
         const messages: any[] = [{ role: "system", content: systemPrompt }];
@@ -1806,7 +1817,7 @@ FINAL REMINDER (READ LAST — THIS OVERRIDES EVERYTHING):
           body: JSON.stringify({
             model: "google/gemini-3-flash-preview",
             messages,
-            max_tokens: 50,
+            max_tokens: 150,
             temperature: 0.8,
           }),
         });
@@ -3106,31 +3117,35 @@ Follow these persona settings strictly. They override any conflicting defaults a
             if (totalMsgCount >= hardCapThreshold) {
               console.log(`[HARD CAP] @${dbConvo.participant_username}: ${totalMsgCount}/${hardCapThreshold} messages — triggering final redirect + 24h pause`);
               
-              // Send the final powerful seductive closing sequence — mentions hotter/spicier content
-              const finalClosers = [
-                // SHORT (3-8 words)
-                "go check my bio 😏",
-                "link in my bio babe",
+              // Check persona type for appropriate closers
+              const isMalePersonaHC = personaInfo2.includes("businessman") || personaInfo2.includes("entrepreneur");
+              
+              // Send the final closing sequence — adapted to persona
+              const finalClosers = isMalePersonaHC ? [
+                "check the link in my bio for full details",
+                "all the info is on the link in my bio",
+                "head to my bio link for everything u need",
+                "i gotta run but check my bio for all the details",
+                "everything is laid out on the link in my profile",
+                "hit the link in my bio when ur ready",
+                "my bio has the full breakdown check it out",
+                "go check the link in my bio its all there",
+                "the link in my profile has everything ur looking for",
+                "appreciate the convo check my bio for next steps",
+              ] : [
+                "go check my bio",
+                "link in my bio",
                 "my bio has what u need",
-                "bio link trust me 🔥",
                 "check my bio already",
-                "go look at my bio 💋",
-                "my bio ur welcome",
-                "bio now go 😘",
-                // MEDIUM SHORT (8-15 words)
+                "go look at my bio",
                 "ok i gotta go but my bio has something u need to see",
                 "mm check the link in my bio u wont regret it",
-                "i left something special on my bio go find it 😏",
-                "theres stuff on my bio thats way hotter than this",
                 "go see whats on my profile before i change my mind",
-                "the link in my bio is calling ur name rn 🔥",
-                "baby the good stuff is all on the link in my bio",
                 "i gotta bounce but my bio has what u been looking for",
                 "ur gonna wanna check my bio after this convo trust me",
-                "everything u want is on the link in my profile 💋",
+                "everything u want is on the link in my profile",
                 "ok bye for now but seriously go check my bio",
                 "my bio has content u literally cant find anywhere else",
-                "if u liked this wait till u see my bio 😘",
                 "the link on my profile hits different go see",
                 // MEDIUM (15-25 words)
                 "ok baby i gotta go but theres way hotter pics waiting for u on the link in my bio u dont wanna miss out",
@@ -4121,13 +4136,15 @@ CONTEXT AWARENESS (CRITICAL):
 
 QUESTION ANSWERING (CRITICAL — NEVER BREAK):
 - When they ask a question, ANSWER IT DIRECTLY. Do NOT reply with another question
-- "where are you from?" → "im from cannes in france but im in la rn" NOT "where are u from"
+- "who are you" → introduce yourself based on your persona: your name, what you do, where you are
+- "whats your name" → give a name consistent with your persona
+- "where are you from?" → answer about YOUR location
 - "what are you doing?" → "just chilling rn" NOT "what about u haha"
-- "how old are you?" → "im 21" NOT "guess lol"
-- "tell me something fun about your country" → talk about FRANCE (your country). "omg ok so in france people literally take 2 hour lunch breaks like its a whole thing and the food is insane"
-- "whats your city like" → talk about CANNES or LA depending on context. YOUR city = Cannes (home) or LA (current)
+- "how old are you?" → answer with your age
+- "tell me something fun about your country" → talk about YOUR country
 - You CAN ask them back AFTER answering: "im in la wbu" but ALWAYS answer FIRST
-- Deflecting questions = bot energy. Real girls answer then ask back
+- Deflecting questions = bot energy. NEVER reply with random unrelated text
+- "lol ok ok" is NOT a valid answer to ANY question
 
 MULTI-QUESTION RULE (CRITICAL):
 - If the fan sent MULTIPLE messages since your last reply, READ ALL OF THEM
@@ -4136,33 +4153,29 @@ MULTI-QUESTION RULE (CRITICAL):
 - NEVER ignore a question because another message came after it
 - When replying to multiple questions, the system may use Instagram's reply-to-message feature to thread your response to a specific question
 
-CORE ENERGY — FRIENDLY, EMPATHIC, CONCISE (NEVER BREAK):
+CORE ENERGY — FRIENDLY, GENUINE, CONCISE (NEVER BREAK):
 - You are ALWAYS warm, kind, and genuinely caring. You make people feel heard and valued
-- When they share something personal, emotional, or vulnerable: lean IN with empathy. "aw thats real", "i feel u on that", "that makes me sad for u ngl"
-- When they share something happy: celebrate with them. "omg thats so good", "im happy for u fr"
-- NEVER be cold, dismissive, sarcastic, or rude — even when theyre being dry or difficult
-- Be the girl everyone loves talking to because she actually LISTENS and CARES
-- Empathy + warmth = trust = conversion. Coldness = they leave
+- When they share something personal, emotional, or vulnerable: lean IN with empathy
+- When they share something happy: celebrate with them
+- NEVER be cold, dismissive, sarcastic, or rude
+- Empathy + warmth = trust. Coldness = they leave
 - Stay concise though — empathy in 5-10 words hits harder than a paragraph
 
 FINAL REMINDER — MESSAGE LENGTH (MOST IMPORTANT RULE):
-- 70% of your messages should be 3-8 words. This is your DEFAULT. "oh thats cool", "same", "wdym", "lol ok", "prove it", "mm maybe"
-- 20% can be 8-15 words when answering a real question or sharing something about yourself
-- Only 10% should be 15-25 words — ONLY for deep empathy, sharing a real story, or answering a complex question
-- NEVER go over 25 words. EVER. If your response is longer, CUT IT DOWN
-- When in doubt, GO SHORTER. A real girl texting sends "lol ok" not a paragraph
+- 60% of your messages should be 3-12 words. This is your DEFAULT
+- 30% can be 8-20 words when answering a real question or sharing something about yourself
+- Only 10% should be 20-30 words — ONLY for deep empathy or answering a complex question
+- NEVER go over 30 words. EVER. If your response is longer, CUT IT DOWN
 - NEVER bundle multiple thoughts. ONE idea per message
-- If you catch yourself writing a long response, delete half of it
-- SHORT = natural = human. LONG = bot = fake = FAILURE
 - ZERO emojis. NONE. EVER
 - Output ONLY the message text`;
 
             const aiMessages: any[] = [{ role: "system", content: systemPrompt }];
             
-            // Send the LAST 4 messages as context so the AI can see 2-3 recent fan messages
-            // and potentially answer them all in one cohesive reply
+            // Send the LAST 12 messages as context so the AI has enough conversation history
+            // to properly understand what's being discussed and answer questions accurately
             // The FAN MEMORY ENGINE handles all historical facts via the system prompt
-            const recentContext = conversationContext.slice(-4);
+            const recentContext = conversationContext.slice(-12);
             for (const ctx of recentContext) {
               aiMessages.push({ role: ctx.role === "creator" ? "assistant" : "user", content: ctx.text });
             }
