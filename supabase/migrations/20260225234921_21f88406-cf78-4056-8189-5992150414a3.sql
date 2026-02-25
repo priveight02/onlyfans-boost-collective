@@ -1,0 +1,1 @@
+ALTER TABLE public.persona_profiles ADD COLUMN IF NOT EXISTS system_prompt text;

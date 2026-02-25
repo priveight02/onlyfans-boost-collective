@@ -58,6 +58,7 @@ interface PersonaData {
   warmth: number;
   mystery: number;
   dominance: number;
+  systemPrompt: string;
 }
 
 const STEPS = [
@@ -79,6 +80,7 @@ const defaultPersona: PersonaData = {
   languageStyle: "", humor: "witty", attachmentStyle: "secure-playful",
   contentThemes: "", pricingMentality: "premium", competitorMention: "ignore",
   recoveryStyle: "playful", warmth: 70, mystery: 50, dominance: 40,
+  systemPrompt: "",
 };
 
 const PersonaCreatorDialog = ({ accountId, open, onOpenChange }: PersonaCreatorDialogProps) => {
@@ -149,6 +151,7 @@ const PersonaCreatorDialog = ({ accountId, open, onOpenChange }: PersonaCreatorD
       boundaries: persona.boundaries || null, personality_traits: persona.traits,
       communication_rules: commRules, motivation_level: 70, stress_level: 30,
       burnout_risk: 20, mood: "neutral", last_mood_update: new Date().toISOString(),
+      system_prompt: persona.systemPrompt || null,
     };
     const { error } = await supabase.from("persona_profiles").insert(payload);
     if (error) toast.error(error.message);
@@ -560,6 +563,21 @@ const PersonaCreatorDialog = ({ accountId, open, onOpenChange }: PersonaCreatorD
                         placeholder="lifestyle, fitness, behind-the-scenes, personal stories..."
                         className="bg-white/[0.04] border-white/[0.08] text-white text-xs min-h-[40px] placeholder:text-white/20 resize-none focus:border-purple-500/40" />
                     </div>
+                    <div className="p-3 rounded-xl bg-gradient-to-br from-purple-500/[0.08] to-blue-500/[0.04] border border-purple-500/20">
+                      <label className="text-[10px] text-white/50 mb-1 flex items-center gap-1.5 font-semibold">
+                        <Brain className="h-3 w-3 text-purple-400" />
+                        System Prompt <span className="text-white/20 font-normal">(Full AI override — how this persona talks, behaves, responds)</span>
+                      </label>
+                      <p className="text-[9px] text-white/25 mb-1.5">When set, this completely replaces the default AI system prompt. Define the persona's character, tone, behavior, rules, and response style here.</p>
+                      <Textarea value={persona.systemPrompt} onChange={e => update("systemPrompt", e.target.value)}
+                        placeholder={`You are a chill young entrepreneur in your 20s chatting on Instagram DMs.\n\nYour personality:\n- Friendly but professional\n- Casual texting style, no emojis\n- Answer questions directly, never dodge\n- Keep messages short (under 30 words)\n- Never use "ngl" or corporate language\n- Sound real, not like a bot\n\nRules:\n- Always answer what they ask\n- Be warm but not desperate\n- If they ask what you do, say you're in tech/digital business`}
+                        className="bg-white/[0.03] border-white/[0.08] text-white text-xs min-h-[160px] placeholder:text-white/15 resize-y focus:border-purple-500/30 font-mono leading-relaxed"
+                        maxLength={50000} />
+                      <div className="flex justify-between mt-1">
+                        <span className="text-[8px] text-purple-400/50">When active, this overrides all default persona logic</span>
+                        <span className="text-[8px] text-white/20">{persona.systemPrompt.length.toLocaleString()} chars</span>
+                      </div>
+                    </div>
                     <div className="p-3 rounded-xl bg-gradient-to-br from-cyan-500/[0.06] to-purple-500/[0.04] border border-cyan-500/15">
                       <label className="text-[10px] text-white/50 mb-1 flex items-center gap-1.5 font-semibold">
                         <FileText className="h-3 w-3 text-cyan-400" />
@@ -643,6 +661,11 @@ const PersonaCreatorDialog = ({ accountId, open, onOpenChange }: PersonaCreatorD
                         </div>
                       )}
                       {persona.brandIdentity && <p className="text-[11px] text-white/30 mt-2 italic">"{persona.brandIdentity}"</p>}
+                      {persona.systemPrompt && (
+                        <div className="mt-2 p-2 rounded-lg bg-purple-500/5 border border-purple-500/10">
+                          <p className="text-[9px] text-purple-400/60 flex items-center gap-1"><Brain className="h-2.5 w-2.5" /> Custom system prompt set — will fully override default AI behavior</p>
+                        </div>
+                      )}
                       {persona.additionalInfo && (
                         <div className="mt-2 p-2 rounded-lg bg-cyan-500/5 border border-cyan-500/10">
                           <p className="text-[9px] text-cyan-400/60 flex items-center gap-1"><FileText className="h-2.5 w-2.5" /> {persona.additionalInfo.split("\n").length} lines of additional context attached</p>
