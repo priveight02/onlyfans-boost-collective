@@ -1632,19 +1632,26 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
                       );
                     }
                     return (
-                      <div key={item.key} className={`flex items-center justify-between px-3 py-[7px] rounded-lg transition-all duration-150 cursor-default ${item.checked ? "bg-white/[0.04]" : "hover:bg-white/[0.02]"}`}>
+                      <div key={item.key} className={`flex items-center justify-between px-3 py-[7px] rounded-lg transition-all duration-200 cursor-pointer ${item.checked ? "bg-white/[0.06]" : "hover:bg-white/[0.03]"}`}
+                        onClick={() => {
+                          const v = !item.checked;
+                          item.set!(v);
+                          toast.success(item.onMsg && v ? item.onMsg : item.offMsg && !v ? item.offMsg : `${item.label} ${v ? "enabled" : "disabled"}`);
+                        }}
+                      >
                         <div className="min-w-0 mr-3">
-                          <p className={`text-[11px] font-medium leading-tight transition-colors duration-150 ${item.checked ? "text-white/90" : "text-white/50"}`}>{item.label}</p>
-                          <p className={`text-[8px] mt-0.5 leading-snug transition-colors duration-150 ${item.checked ? "text-white/30" : "text-white/18"}`}>{item.desc}</p>
+                          <p className={`text-[11px] font-medium leading-tight transition-colors duration-150 ${item.checked ? "text-white" : "text-white/60"}`}>{item.label}</p>
+                          <p className={`text-[9px] mt-0.5 leading-snug transition-colors duration-150 ${item.checked ? "text-white/70" : "text-white/40"}`}>{item.desc}</p>
                         </div>
-                        <Switch
-                          checked={item.checked}
-                          onCheckedChange={(v) => {
-                            item.set!(v);
-                            toast.success(item.onMsg && v ? item.onMsg : item.offMsg && !v ? item.offMsg : `${item.label} ${v ? "enabled" : "disabled"}`);
-                          }}
-                          className="flex-shrink-0"
-                        />
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={item.checked}
+                          onClick={(e) => e.stopPropagation()}
+                          className={`relative flex-shrink-0 inline-flex h-5 w-9 items-center rounded-full transition-all duration-300 ${item.checked ? "bg-cyan-500/80 shadow-[0_0_8px_rgba(6,182,212,0.4)]" : "bg-white/[0.08] border border-white/[0.06]"}`}
+                        >
+                          <span className={`inline-block h-3.5 w-3.5 rounded-full transition-all duration-300 ${item.checked ? "translate-x-[18px] bg-white shadow-md" : "translate-x-[3px] bg-white/30"}`} />
+                        </button>
                       </div>
                     );
                   })}
@@ -2480,7 +2487,7 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
                                    return (
                                      <div className="relative">
                                        {/* Review Before Send — Pending AI Message */}
-                                       {reviewBeforeSend && msg.sender_type === "ai" && msg.status === "pending_review" ? (
+                                       {(reviewBeforeSend || shadowMode) && msg.sender_type === "ai" && msg.status === "pending_review" ? (
                                          <div className="space-y-1.5">
                                            <div className="rounded-2xl px-3.5 py-2 bg-gradient-to-r from-orange-500/20 to-amber-500/15 border border-orange-500/30 text-white">
                                              <div className="flex items-center gap-1.5 mb-1">

@@ -2651,6 +2651,31 @@ Rules:
       }
 
       case "process_live_dm": {
+        // Extract AI modes from params
+        const aiModes = (params?.ai_modes || {}) as Record<string, boolean>;
+        const isReviewMode = !!aiModes.review_before_send;
+        const isConvIntel = !!aiModes.conversation_intelligence;
+        const isSmartThrottle = !!aiModes.smart_throttling;
+        const isShadowMode = !!aiModes.shadow_mode;
+        const isSentimentAnalysis = !!aiModes.sentiment_analysis;
+        const isSpamFilter = !!aiModes.spam_filter;
+        const isBuyerSignal = !!aiModes.buyer_signal_detection;
+        const isObjectionHandling = !!aiModes.objection_handling;
+        const isContextualMemory = !!aiModes.contextual_memory;
+        const isAutoTagging = !!aiModes.auto_tagging;
+        const isMultiLang = !!aiModes.multi_language;
+        const isAbTest = !!aiModes.ab_test_messages;
+        const isSmartFollowUp = !!aiModes.smart_follow_up;
+        const isLeadHeat = !!aiModes.lead_heat_scoring;
+        const isFunnelBuilder = !!aiModes.funnel_builder;
+        const isRevenueAttr = !!aiModes.revenue_attribution;
+        const isPersonaEngine = !!aiModes.persona_engine;
+        const isCompetitorSignals = !!aiModes.competitor_signals;
+        const isViralPrediction = !!aiModes.viral_prediction;
+        const isEngagementDM = !!aiModes.engagement_dm;
+        const isUnifiedInbox = !!aiModes.unified_inbox;
+        const isGrowthCopilot = !!aiModes.growth_copilot;
+        console.log(`[AI MODES] Active: ${Object.entries(aiModes).filter(([,v]) => v).map(([k]) => k).join(", ") || "none"}`);
         // Lightweight pipeline: skip heavy IG re-scan, just check DB for unanswered fan messages and reply
         const igFuncUrl2 = `${Deno.env.get("SUPABASE_URL")}/functions/v1/instagram-api`;
         const serviceKey2 = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -3920,7 +3945,64 @@ Follow these persona settings strictly. They override any conflicting defaults a
 
             // Generate AI reply — inject 5-phase roadmap directive
             const phaseDirective = `\n\n${convoPhase.directive}`;
-            const systemPrompt = `${personaInfo2}${emojiDir}${fanMemoryBlock}${fanProfileCtx}${behaviorCtxLive}${tensionCtxLive}${learnedStrategiesCtx}${crossEngineBridge}${mediaPatterns}${freePicCtx}${mediaAnalysisCtx}${phaseDirective}
+            // === AI MODES: Build mode-specific system prompt directives ===
+            let aiModesDirective = "";
+            if (isConvIntel) {
+              aiModesDirective += `\n\n=== CONVERSATION INTELLIGENCE MODE (ACTIVE) ===
+Analyze the fan's intent in real-time. Classify as: lead, support, objection, spam, or hot_buyer.
+- Hot buyer signals ("price?", "how much?", "link?"): fast-track to sales flow
+- Support questions: answer helpfully, build trust
+- Objections: use pre-trained persuasion — acknowledge concern, reframe value
+- Spam/low quality: keep responses minimal, don't invest effort`;
+            }
+            if (isSentimentAnalysis) {
+              aiModesDirective += `\n\n=== SENTIMENT ANALYSIS MODE (ACTIVE) ===
+Track emotional tone shifts across messages. Note: positive/negative/neutral trends.
+Adapt your energy to match — if they're excited, match it. If they're down, be empathetic.
+Flag sudden mood drops as potential churn risk.`;
+            }
+            if (isBuyerSignal) {
+              aiModesDirective += `\n\n=== BUYER SIGNAL DETECTION (ACTIVE) ===
+Watch for purchase intent keywords: "price", "cost", "how much", "link", "where can I", "subscribe", "join".
+When detected: smoothly transition to redirect. Don't be salesy — be excited to share.`;
+            }
+            if (isObjectionHandling) {
+              aiModesDirective += `\n\n=== OBJECTION HANDLING MODE (ACTIVE) ===
+Common objections and responses:
+- "too expensive" → "trust me its worth every second"
+- "I can find it free" → "u wont find what i have anywhere else tho"
+- "not sure" → "thats ok just check it out no pressure"
+- "maybe later" → "ok but it might not be there later just saying"
+Always acknowledge the objection, never dismiss. Reframe with value and scarcity.`;
+            }
+            if (isContextualMemory) {
+              aiModesDirective += `\n\n=== CONTEXTUAL MEMORY MODE (ACTIVE) ===
+You have enhanced memory. Actively reference:
+- Their name, location, timezone if mentioned
+- Previous interests and topics discussed
+- Their emotional patterns and preferences
+- Purchase history or intent signals
+Weave these naturally into conversation. "didnt u mention u were from X" feels personal and human.`;
+            }
+            if (isMultiLang) {
+              aiModesDirective += `\n\n=== MULTI-LANGUAGE MODE (ACTIVE) ===
+Detect the language the fan is writing in. If not English, respond in THEIR language.
+Maintain the same casual tone and style but translated naturally.
+If they switch languages mid-convo, follow their lead.`;
+            }
+            if (isPersonaEngine) {
+              aiModesDirective += `\n\n=== AI PERSONA ENGINE (ACTIVE) ===
+Strictly maintain brand voice consistency. Every message must sound like it comes from the same person.
+Cross-reference tone, vocabulary, and energy level with the persona settings above.`;
+            }
+            if (isSmartFollowUp) {
+              aiModesDirective += `\n\n=== SMART FOLLOW-UP ENGINE (ACTIVE) ===
+If the fan hasn't replied and interest was high: suggest a contextual follow-up.
+Never generic "just following up". Instead: reference what you talked about.
+Only follow up when interest level was genuinely high.`;
+            }
+
+            const systemPrompt = `${personaInfo2}${emojiDir}${fanMemoryBlock}${fanProfileCtx}${behaviorCtxLive}${tensionCtxLive}${learnedStrategiesCtx}${crossEngineBridge}${mediaPatterns}${freePicCtx}${mediaAnalysisCtx}${phaseDirective}${aiModesDirective}
 ${autoConfig.redirect_url ? `\nIMPORTANT: when it makes sense, naturally guide toward this link: ${autoConfig.redirect_url}. But NEVER redirect during genuine bonding moments — wait for a natural transition. NEVER redirect when the vibe is tense or dry — fix the vibe first` : ""}
 ${autoConfig.trigger_keywords ? `if they mention any of these: ${autoConfig.trigger_keywords}, redirect them to the link` : ""}
 
@@ -4385,12 +4467,108 @@ IF YOU DONT UNDERSTAND: say "wait wdym" or "lol what" — NEVER make up an incoh
               }
             }
 
-            // Wait typing delay to feel natural (0.8-3s)
-            await new Promise(r => setTimeout(r, typingDelay));
+            // === SMART THROTTLING: Dynamic delay based on platform risk detection ===
+            let throttleMultiplier = 1.0;
+            if (isSmartThrottle) {
+              // Increase delay if we've been sending a lot recently
+              const recentAiCount = (dbMessages || []).filter(m => m.sender_type === "ai" && (Date.now() - new Date(m.created_at).getTime()) < 300000).length;
+              if (recentAiCount > 5) throttleMultiplier = 2.0;
+              else if (recentAiCount > 3) throttleMultiplier = 1.5;
+              // Add jitter to avoid pattern detection
+              throttleMultiplier *= (0.8 + Math.random() * 0.4);
+              console.log(`[SMART THROTTLE] @${dbConvo.participant_username}: multiplier=${throttleMultiplier.toFixed(2)}, recent_ai=${recentAiCount}`);
+            }
+
+            // Wait typing delay to feel natural (0.8-3s) — modified by throttle
+            await new Promise(r => setTimeout(r, typingDelay * throttleMultiplier));
+
+            // === REVIEW BEFORE SEND / SHADOW MODE ===
+            if (isReviewMode || isShadowMode) {
+              // Save as pending_review instead of sending — user must approve in UI
+              console.log(`[REVIEW MODE] @${dbConvo.participant_username}: staging reply for review: "${reply.substring(0, 50)}..."`);
+              if (typingMsg) {
+                await supabase.from("ai_dm_messages").update({
+                  content: reply,
+                  status: "pending_review",
+                  ai_model: aiResult.model,
+                  typing_delay_ms: Math.round(typingDelay),
+                  metadata: {
+                    pipeline_phase: "pending_review",
+                    fan_username: dbConvo.participant_username,
+                    review_mode: isReviewMode ? "review_before_send" : "shadow_mode",
+                    generated_at: new Date().toISOString(),
+                    recipient_id: dbConvo.participant_id,
+                    behavior_type: behavior.type,
+                    sentiment: isSentimentAnalysis ? (tension.tensionLevel > 0.5 ? "negative" : "positive") : undefined,
+                    intent: isConvIntel ? (isBuyerSignal && (latestMsg?.content || "").match(/(price|cost|how much|link|subscribe)/i) ? "hot_buyer" : behavior.type) : undefined,
+                  },
+                }).eq("id", typingMsg.id);
+              }
+              await supabase.from("ai_dm_conversations").update({
+                last_ai_reply_at: new Date().toISOString(),
+                is_read: true,
+              }).eq("id", dbConvo.id);
+              processed++;
+              processedConvos.push({
+                conversation_id: dbConvo.id,
+                fan: dbConvo.participant_username,
+                fan_message: latestMsg?.content,
+                ai_reply: `[PENDING REVIEW] ${reply}`,
+                ml_behavior: behavior.type,
+              });
+              continue;
+            }
 
             // Update pipeline phase to "send" for real-time UI
             if (typingMsg) {
               supabase.from("ai_dm_messages").update({ metadata: { pipeline_phase: "send", fan_username: dbConvo.participant_username } }).eq("id", typingMsg.id).then();
+            }
+
+            // === SPAM FILTER: Skip sending if fan is classified as spam/bot ===
+            if (isSpamFilter) {
+              const fanMsgContentLower = (latestMsg?.content || "").toLowerCase();
+              const spamPatterns = /(click here|free money|earn \$|bitcoin|crypto|lottery|winner|congratulations|claim your|act now|limited time|buy followers|get rich)/i;
+              if (spamPatterns.test(fanMsgContentLower) || behavior.type === "one_word_ghost") {
+                console.log(`[SPAM FILTER] @${dbConvo.participant_username}: classified as spam/bot, skipping reply`);
+                if (typingMsg) {
+                  await supabase.from("ai_dm_messages").update({ content: "[spam filtered]", status: "filtered", metadata: { filter_reason: "spam_detected" } }).eq("id", typingMsg.id);
+                }
+                await supabase.from("ai_dm_conversations").update({ last_ai_reply_at: new Date().toISOString(), is_read: true }).eq("id", dbConvo.id);
+                continue;
+              }
+            }
+
+            // === AUTO-TAGGING: Tag conversation based on detected signals ===
+            if (isAutoTagging) {
+              const tagSignals: string[] = [];
+              const msgL = (latestMsg?.content || "").toLowerCase();
+              if (msgL.match(/(price|cost|how much|buy|purchase|subscribe)/)) tagSignals.push("buyer_intent");
+              if (msgL.match(/(help|support|issue|problem|broken|fix)/)) tagSignals.push("support");
+              if (msgL.match(/(love|amazing|beautiful|gorgeous|hot|sexy)/)) tagSignals.push("positive_sentiment");
+              if (behavior.engagementScore > 0.7) tagSignals.push("high_engagement");
+              if (tagSignals.length > 0) {
+                try {
+                  const { data: ep } = await supabase.from("fan_emotional_profiles").select("tags").eq("account_id", account_id).eq("fan_identifier", dbConvo.participant_id).single();
+                  const existing = ep?.tags || [];
+                  const merged = [...new Set([...existing, ...tagSignals])];
+                  await supabase.from("fan_emotional_profiles").upsert({ account_id, fan_identifier: dbConvo.participant_id, fan_name: dbConvo.participant_username, tags: merged }, { onConflict: "account_id,fan_identifier" });
+                  console.log(`[AUTO-TAG] @${dbConvo.participant_username}: tagged as ${tagSignals.join(", ")}`);
+                } catch {}
+              }
+            }
+
+            // === LEAD HEAT SCORING: Update engagement score ===
+            if (isLeadHeat) {
+              try {
+                const heatScore = Math.min(1, behavior.engagementScore + (isBuyerSignal && (latestMsg?.content || "").match(/(price|how much|link)/i) ? 0.3 : 0));
+                const heatLevel = heatScore >= 0.7 ? "hot" : heatScore >= 0.4 ? "warm" : "cold";
+                await supabase.from("fan_emotional_profiles").upsert({
+                  account_id, fan_identifier: dbConvo.participant_id, fan_name: dbConvo.participant_username,
+                  engagement_velocity: heatScore, churn_risk: heatScore < 0.3 ? 0.7 : 0.2,
+                  spending_motivation: heatLevel === "hot" ? "high_intent" : heatLevel === "warm" ? "curious" : "browsing",
+                }, { onConflict: "account_id,fan_identifier" });
+                console.log(`[LEAD HEAT] @${dbConvo.participant_username}: ${heatLevel} (${heatScore.toFixed(2)})`);
+              } catch {}
             }
 
             // Send the reply via IG API
