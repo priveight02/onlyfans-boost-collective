@@ -440,62 +440,44 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
       }
     }
 
-    // Fetch enough rows to recover the latest 50 UNIQUE messages even when DB contains heavy duplicates
-    const PAGE_SIZE = 250;
-    const MAX_ROWS_TO_SCAN = 5000;
-    let offset = 0;
-    const collected: Message[] = [];
+    // Simple single query — fetch latest 100 rows (enough for 50 unique after dedup)
+    const { data } = await supabase
+      .from("ai_dm_messages")
+      .select("*")
+      .eq("conversation_id", convoId)
+      .order("created_at", { ascending: false })
+      .limit(100);
 
-    while (offset < MAX_ROWS_TO_SCAN) {
-      const { data } = await supabase
-        .from("ai_dm_messages")
-        .select("*")
-        .eq("conversation_id", convoId)
-        .order("created_at", { ascending: false })
-        .order("id", { ascending: false })
-        .range(offset, offset + PAGE_SIZE - 1);
-
-      const batch = (data || []) as Message[];
-      if (batch.length === 0) break;
-
-      collected.push(...batch);
-
-      // Early stop as soon as we can build 50 unique messages
-      if (normalizeConversationMessages(collected).length >= MAX_MESSAGES_PER_CONVERSATION) break;
-      if (batch.length < PAGE_SIZE) break;
-
-      offset += PAGE_SIZE;
-    }
-
-    const msgs = normalizeConversationMessages(collected);
+    const msgs = normalizeConversationMessages((data || []) as Message[]);
     messageCacheRef.current.set(convoId, msgs);
     setCache(accountId, cacheNs, msgs, undefined, MESSAGE_CACHE_TTL_MS);
     return msgs;
   }, [accountId, effectivePlatformUserId]);
 
-  // Load messages for selected conversation (instant from cache, then refresh)
+  // Load messages for selected conversation (instant from cache, then refresh in bg)
   const loadMessages = useCallback(async (convoId: string) => {
-    // Serve from cache instantly if available
+    // Serve from cache instantly if available — NEVER clear messages during refresh
     const cached = messageCacheRef.current.get(convoId);
     if (cached && cached.length > 0) {
       const normalizedCached = normalizeConversationMessages(cached);
       setMessages(normalizedCached);
-      // Always refresh from DB in background to avoid stale/incomplete cached threads
+      // Background refresh — only update if actually different
       loadMessagesToCache(convoId, true).then(fresh => {
-        const normalizedFresh = normalizeConversationMessages(fresh);
-        setSelectedConvo(prev => {
-          if (prev === convoId && !areMessagesEqual(normalizedCached, normalizedFresh)) {
-            setMessages(normalizedFresh);
-          }
-          return prev;
-        });
-      });
+        if (fresh.length === 0) return; // never overwrite with empty
+        if (!areMessagesEqual(normalizedCached, fresh)) {
+          setMessages(prev => {
+            // Only update if we're still viewing this convo
+            if (prev.length > 0 && prev[0]?.conversation_id !== convoId) return prev;
+            return fresh;
+          });
+        }
+      }).catch(() => {}); // swallow bg errors
       return;
     }
     // No cache — load with spinner
     setLoading(true);
     const msgs = await loadMessagesToCache(convoId);
-    setMessages(normalizeConversationMessages(msgs));
+    setMessages(msgs);
     setLoading(false);
   }, [loadMessagesToCache]);
 
@@ -504,10 +486,10 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
     const c = convo || conversations.find(cv => cv.id === convoId);
     if (!c?.platform_conversation_id) return;
 
-    // Throttle: 1.5s for active convo, 4s for background convos (unless forced)
+    // Throttle: 800ms for active convo, 4s for background convos (unless forced)
     const lastSync = igSyncTimestamps.current.get(convoId) || 0;
     const isActive = convoId === selectedConvo;
-    const minInterval = isActive ? 1500 : 4000;
+    const minInterval = isActive ? 800 : 4000;
     if (!force && Date.now() - lastSync < minInterval) return;
     igSyncTimestamps.current.set(convoId, Date.now());
 
@@ -968,15 +950,11 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
       fetchIGMessages(selectedConvo);
     }
 
-    // Mark as read + track last viewed only once per open
-    const convo = conversations.find(c => c.id === selectedConvo);
-    if (convo && !convo.is_read) {
-      supabase.from("ai_dm_conversations").update({
-        is_read: true,
-        metadata: { ...(convo.metadata || {}), last_viewed_at: new Date().toISOString() },
-      }).eq("id", selectedConvo).then();
-    }
-  }, [selectedConvo, loadMessages, fetchIGMessages, conversations]);
+    // Mark as read (fire-and-forget)
+    supabase.from("ai_dm_conversations").update({
+      is_read: true,
+    }).eq("id", selectedConvo).eq("is_read", false).then();
+  }, [selectedConvo, loadMessages, fetchIGMessages]);
 
   // DB POLL: lightweight count check every 1s, full load only when count changes
   useEffect(() => {
@@ -1012,14 +990,14 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
     return () => clearInterval(dbPollInterval);
   }, [selectedConvo, loadMessagesToCache]);
 
-  // IG API sync for selected convo — every 600ms for near-instant updates
+  // IG API sync for selected convo — every 800ms for near-instant updates
   useEffect(() => {
     if (!selectedConvo) return;
     const resyncInterval = setInterval(async () => {
       if (syncInFlightRef.current) return;
       syncInFlightRef.current = true;
       try { await fetchIGMessages(selectedConvo, undefined, false); } finally { syncInFlightRef.current = false; }
-    }, 600);
+    }, 800);
     return () => clearInterval(resyncInterval);
   }, [selectedConvo, fetchIGMessages]);
 
@@ -1046,12 +1024,12 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
     return () => clearInterval(convoSyncInterval);
   }, [accountId, loadConversations]);
 
-  // Periodic IG inbox scan every 5 seconds — discovers NEW conversations from Instagram
+  // Periodic IG inbox scan every 8 seconds — discovers NEW conversations from Instagram
   useEffect(() => {
     if (!accountId || !initialScanDone) return;
     const igScanInterval = setInterval(() => {
       scanAllConversations(true); // silent=true
-    }, 5000);
+    }, 8000);
     return () => clearInterval(igScanInterval);
   }, [accountId, initialScanDone, scanAllConversations]);
 
