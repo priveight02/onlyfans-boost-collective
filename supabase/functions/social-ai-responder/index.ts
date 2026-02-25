@@ -6,9 +6,9 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// Live DM chat model policy: ultimate quality for main conversations
-const LIVE_CHAT_PRIMARY_MODEL = "openai/gpt-5.2";
-const LIVE_CHAT_RETRY_MODEL = "google/gemini-3-pro-preview";
+// Live DM chat model policy: best conversational model first
+const LIVE_CHAT_PRIMARY_MODEL = "google/gemini-3-pro-preview";
+const LIVE_CHAT_RETRY_MODEL = "openai/gpt-5.2";
 
 // === HUMAN TYPING DELAY ENGINE ===
 // Simulates realistic human typing speed with randomness
