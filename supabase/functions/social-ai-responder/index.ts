@@ -1123,8 +1123,8 @@ const buildDeterministicPersonaReply = (
   const asksName = /(who are you|whats your name|what is your name|your name|ur name|name\b)/i.test(text);
   const asksLatestPost = /(latest|last|recent)\s+(post|upload|content|title)|what did you post|whats your latest/i.test(text);
   const asksAge = /(how old|your age|ur age|\bage\b)/i.test(text);
-  const asksJob = /(what do you do|do for a living|what is your job|whats your job|work\b|business\b)/i.test(text);
-  const asksMoneyPath = /(how can i make money|make money like you|money like you|how do i make money|how to make money|how can i start|how do i start)/i.test(text);
+  const asksJob = /(what do you do|what do u do|do for a living|what is your job|whats your job|what's your job|your job\??)$/i.test(text);
+  const asksMoneyPath = /(how can i make money|make money like you|money like you|how do i make money|how to make money|how can i start|how do i start|how to start a business|start a business)/i.test(text);
   const asksPostMedia = /(what(?:'s| is)?\s+in\s+(?:the\s+)?(?:image|photo|pic|media)|describe\s+(?:the\s+)?(?:image|photo|pic|media))/i.test(text);
 
   if (!asksName && !asksLatestPost && !asksAge && !asksJob && !asksMoneyPath && !asksPostMedia) return null;
@@ -4612,11 +4612,11 @@ ${contentSummary || "No published content yet"}
 ${autoConfig.redirect_url ? `\nIMPORTANT: when it makes sense, naturally guide toward this link: ${autoConfig.redirect_url}. But NEVER redirect during genuine bonding moments — wait for a natural transition. NEVER redirect when the vibe is tense or dry — fix the vibe first` : ""}
 ${autoConfig.trigger_keywords ? `if they mention any of these: ${autoConfig.trigger_keywords}, redirect them to the link` : ""}
 
-MONEY & VALUE RULES (CRITICAL — NEVER BREAK):
-- NEVER mention money, dollars, prices, costs, fees, payment, currency, "$"
-- NEVER say "its cheap", "its nothing", "less than a coffee", "just $X" — BANNED
-- Frame value as EXCLUSIVITY and DESIRE only: "u wont find this anywhere else"
-- If they ask about price: deflect "dont worry about that rn" or "trust me its worth it"
+FRIENDLY PRO MODE (CRITICAL):
+- Answer directly, naturally, and in a friendly/pro manner
+- If they ask about money/business, give practical high-level guidance (skills, offer, clients, consistency)
+- Avoid hard-selling or forced redirects when they are asking a genuine question
+- Keep replies concise and human, but do not dodge clear questions
 
 === DYNAMIC REDIRECT ENGINE (PHASE-DRIVEN, NOT COUNT-DRIVEN) ===
 This conversation has ${(dbMessages || []).length} total messages. Current phase: ${convoPhase.phaseName}.
@@ -4851,7 +4851,7 @@ IF YOU DONT UNDERSTAND: say "wait wdym" or "lol what" — NEVER make up an incoh
               }
             }
 
-            const directQuestionReply = buildDeterministicPersonaReply(
+            const deterministicQuestionFallback = buildDeterministicPersonaReply(
               latestMsg?.content || "",
               personaInfo2,
               accountProfileInfo,
@@ -4860,66 +4860,56 @@ IF YOU DONT UNDERSTAND: say "wait wdym" or "lol what" — NEVER make up an incoh
             );
 
             let reply = "";
-            let aiModelUsed = "deterministic-guard";
-            if (directQuestionReply) {
-              reply = directQuestionReply;
-              console.log(`[Q-GUARD] Direct answer override used for @${dbConvo.participant_username}`);
-            } else {
-              const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-                method: "POST",
-                headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  model: "google/gemini-3-flash-preview",
-                  messages: aiMessages,
-                  max_tokens: dynamicMaxTokens,
-                  temperature: 0.8,
-                }),
-              });
+            let aiModelUsed = "google/gemini-3-flash-preview";
 
-              if (!aiResponse.ok) {
-                if (typingMsg) {
-                  await supabase.from("ai_dm_messages").update({ status: "failed", content: "AI generation failed" }).eq("id", typingMsg.id);
-                }
-                // RESTORE LOCK so this convo can be retried on next cycle
-                await supabase.from("ai_dm_conversations").update({ last_ai_reply_at: latestMsg?.created_at ? new Date(new Date(latestMsg.created_at).getTime() - 1000).toISOString() : null }).eq("id", dbConvo.id);
-                console.log(`[LOCK RESTORE] @${dbConvo.participant_username}: AI failed, lock restored for retry`);
-                continue;
+            const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+              method: "POST",
+              headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+              body: JSON.stringify({
+                model: "google/gemini-3-flash-preview",
+                messages: aiMessages,
+                max_tokens: dynamicMaxTokens,
+                temperature: 0.8,
+              }),
+            });
+
+            if (!aiResponse.ok) {
+              if (typingMsg) {
+                await supabase.from("ai_dm_messages").update({ status: "failed", content: "AI generation failed" }).eq("id", typingMsg.id);
               }
+              // RESTORE LOCK so this convo can be retried on next cycle
+              await supabase.from("ai_dm_conversations").update({ last_ai_reply_at: latestMsg?.created_at ? new Date(new Date(latestMsg.created_at).getTime() - 1000).toISOString() : null }).eq("id", dbConvo.id);
+              console.log(`[LOCK RESTORE] @${dbConvo.participant_username}: AI failed, lock restored for retry`);
+              continue;
+            }
 
-              const aiResult = await aiResponse.json();
-              aiModelUsed = aiResult?.model || "google/gemini-3-flash-preview";
-              reply = (aiResult.choices?.[0]?.message?.content || "").replace(/\[.*?\]/g, "").replace(/^["']|["']$/g, "").trim();
+            const aiResult = await aiResponse.json();
+            aiModelUsed = aiResult?.model || "google/gemini-3-flash-preview";
+            reply = (aiResult.choices?.[0]?.message?.content || "").replace(/\[.*?\]/g, "").replace(/^["']|["']$/g, "").trim();
 
-              // NEVER leave empty — retry once, then fallback to persona-consistent response
-              if (!reply) {
-                console.log("Empty AI response, retrying...");
-                try {
-                  const retryResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-                    method: "POST",
-                    headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                      model: "google/gemini-2.5-flash",
-                      messages: aiMessages,
-                      max_tokens: 320,
-                      temperature: 0.9,
-                    }),
-                  });
-                  if (retryResp.ok) {
-                    const retryResult = await retryResp.json();
-                    aiModelUsed = retryResult?.model || "google/gemini-2.5-flash";
-                    reply = (retryResult.choices?.[0]?.message?.content || "").replace(/\[.*?\]/g, "").replace(/^["']|["']$/g, "").trim();
-                  }
-                } catch {}
-                if (!reply) {
-                  const fallbackFromQuestion = buildDeterministicPersonaReply(
-                    latestMsg?.content || "",
-                    personaInfo2,
-                    accountProfileInfo,
-                    recentPublishedContent,
-                    conversationContext,
-                  );
-                  reply = fallbackFromQuestion || "got u";
+            // NEVER leave empty — retry once, then deterministic fallback
+            if (!reply) {
+              console.log("Empty AI response, retrying...");
+              try {
+                const retryResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+                  method: "POST",
+                  headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    model: "google/gemini-2.5-flash",
+                    messages: aiMessages,
+                    max_tokens: 320,
+                    temperature: 0.9,
+                  }),
+                });
+                if (retryResp.ok) {
+                  const retryResult = await retryResp.json();
+                  aiModelUsed = retryResult?.model || "google/gemini-2.5-flash";
+                  reply = (retryResult.choices?.[0]?.message?.content || "").replace(/\[.*?\]/g, "").replace(/^["']|["']$/g, "").trim();
                 }
+              } catch {}
+              if (!reply) {
+                reply = deterministicQuestionFallback || "got u";
+                if (deterministicQuestionFallback) aiModelUsed = "deterministic-fallback";
               }
             }
 
