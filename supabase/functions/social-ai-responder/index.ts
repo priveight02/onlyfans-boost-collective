@@ -4746,7 +4746,7 @@ Answer it directly like a real human would. Do not talk about anything else.` })
             let reply = "";
             let aiModelUsed = LIVE_CHAT_PRIMARY_MODEL;
 
-            const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+            let aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
               method: "POST",
               headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
               body: JSON.stringify({
@@ -4758,13 +4758,49 @@ Answer it directly like a real human would. Do not talk about anything else.` })
             });
 
             if (!aiResponse.ok) {
-              if (typingMsg) {
-                await supabase.from("ai_dm_messages").update({ status: "failed", content: "AI generation failed" }).eq("id", typingMsg.id);
+              const primaryErrorBody = await aiResponse.text().catch(() => "");
+              console.error(`[AI PRIMARY FAIL] @${dbConvo.participant_username} status=${aiResponse.status} body=${primaryErrorBody.slice(0, 300)}`);
+
+              // Hard fallback: if primary fails, immediately try retry model instead of failing the convo
+              const fallbackResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+                method: "POST",
+                headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  model: LIVE_CHAT_RETRY_MODEL,
+                  messages: aiMessages,
+                  max_tokens: dynamicMaxTokens,
+                  temperature: 0.7,
+                }),
+              });
+
+              if (fallbackResp.ok) {
+                aiResponse = fallbackResp;
+                aiModelUsed = LIVE_CHAT_RETRY_MODEL;
+                console.log(`[AI FALLBACK OK] @${dbConvo.participant_username}: switched to ${LIVE_CHAT_RETRY_MODEL}`);
+              } else {
+                const fallbackErrorBody = await fallbackResp.text().catch(() => "");
+                console.error(`[AI FALLBACK FAIL] @${dbConvo.participant_username} status=${fallbackResp.status} body=${fallbackErrorBody.slice(0, 300)}`);
+
+                if (typingMsg) {
+                  await supabase
+                    .from("ai_dm_messages")
+                    .update({
+                      status: "failed",
+                      content: "AI generation failed",
+                      metadata: {
+                        ...(typingMsg.metadata || {}),
+                        error: `primary:${aiResponse.status} fallback:${fallbackResp.status}`,
+                        primary_error: primaryErrorBody.slice(0, 300),
+                        fallback_error: fallbackErrorBody.slice(0, 300),
+                      },
+                    })
+                    .eq("id", typingMsg.id);
+                }
+                // RESTORE LOCK so this convo can be retried on next cycle
+                await supabase.from("ai_dm_conversations").update({ last_ai_reply_at: latestMsg?.created_at ? new Date(new Date(latestMsg.created_at).getTime() - 1000).toISOString() : null }).eq("id", dbConvo.id);
+                console.log(`[LOCK RESTORE] @${dbConvo.participant_username}: AI failed on primary+fallback, lock restored for retry`);
+                continue;
               }
-              // RESTORE LOCK so this convo can be retried on next cycle
-              await supabase.from("ai_dm_conversations").update({ last_ai_reply_at: latestMsg?.created_at ? new Date(new Date(latestMsg.created_at).getTime() - 1000).toISOString() : null }).eq("id", dbConvo.id);
-              console.log(`[LOCK RESTORE] @${dbConvo.participant_username}: AI failed, lock restored for retry`);
-              continue;
             }
 
             const aiResult = await aiResponse.json();
