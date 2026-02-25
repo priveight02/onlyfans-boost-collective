@@ -504,10 +504,10 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
     const c = convo || conversations.find(cv => cv.id === convoId);
     if (!c?.platform_conversation_id) return;
 
-    // Throttle: 1.5s for active convo, 4s for background convos (unless forced)
+    // Throttle: 500ms for active convo (near-instant), 3s for background convos (unless forced)
     const lastSync = igSyncTimestamps.current.get(convoId) || 0;
     const isActive = convoId === selectedConvo;
-    const minInterval = isActive ? 1500 : 4000;
+    const minInterval = isActive ? 500 : 3000;
     if (!force && Date.now() - lastSync < minInterval) return;
     igSyncTimestamps.current.set(convoId, Date.now());
 
