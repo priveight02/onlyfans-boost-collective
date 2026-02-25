@@ -843,65 +843,60 @@ const detectPostRedirect = (messages: any[]): { shouldStop: boolean; shouldReact
 };
 
 // === ANTI-REPETITION POST-PROCESSOR ===
-// Scans AI reply against conversation history and blocks repeated questions/statements
+// Keeps replies on-topic and NEVER swaps question answers for random filler
 const antiRepetitionCheck = (reply: string, conversationHistory: any[]): string => {
   const replyLower = reply.toLowerCase().replace(/[?!.,]/g, "").trim();
   const replyWords = replyLower.split(/\s+/);
-  
-  // Extract questions we already asked
+
+  const latestFanMsg = [...conversationHistory]
+    .reverse()
+    .find(m => m?.role === "fan" || m?.role === "user");
+
+  const latestFanText = (latestFanMsg?.text || latestFanMsg?.content || "").toLowerCase().trim();
+  const latestIsQuestion =
+    latestFanText.includes("?") ||
+    /^(who|what|whats|where|when|why|how|do|does|did|is|are|can|could|would|will)\b/.test(latestFanText);
+
+  // CRITICAL: Never mutate answers to direct questions into generic/random chatter
+  if (latestIsQuestion) return reply;
+
+  // Extract questions/statements we already asked
   const ourPrevMessages = conversationHistory
     .filter(m => m.role === "creator" || m.role === "assistant")
     .map(m => (m.text || m.content || "").toLowerCase().replace(/[?!.,]/g, "").trim());
-  
+
   // Extract info they already gave us
   const theirMessages = conversationHistory
     .filter(m => m.role === "fan" || m.role === "user")
     .map(m => (m.text || m.content || "").toLowerCase());
   const allTheirText = theirMessages.join(" ");
-  
-  // Check if we're repeating a question about location when they already answered
+
+  // If location already answered, avoid asking location again
   const locationAsked = replyLower.match(/(where (are |r )?u from|where (are |r )?u based|where u at|where is that)/);
   const locationAlreadyAnswered = allTheirText.match(/(im from |i live in |i am from |from [a-z]{3,}|my country|born in )/);
   if (locationAsked && locationAlreadyAnswered) {
-    const alternatives = [
-      "so whats it like there rn",
-      "thats cool do u like it there",
-      "wait have u always lived there",
-      "thats interesting tell me more about it",
-      "oh nice whats the vibe like there",
-    ];
-    return alternatives[Math.floor(Math.random() * alternatives.length)];
+    return "got it tell me more";
   }
-  
-  // Check for exact/near-exact repeats of our own messages
+
+  // If near-repeat is detected, keep original reply instead of replacing with random filler
   for (const prev of ourPrevMessages) {
     if (!prev || prev.length < 5) continue;
     const prevWords = prev.split(/\s+/);
     const overlap = replyWords.filter(w => prevWords.includes(w)).length;
     const similarity = overlap / Math.max(replyWords.length, 1);
     if (similarity > 0.6 && replyWords.length > 2) {
-      const pivots = [
-        "so what else is going on w u",
-        "mm what are u up to rn",
-        "ok but fr whats ur vibe today",
-        "thats interesting tho",
-        "oh wait really",
-        "lol ok ok",
-        "mm go on",
-      ];
-      return pivots[Math.floor(Math.random() * pivots.length)];
+      return reply;
     }
   }
-  
-  // Check if we're asking the same question as our last message
+
+  // Avoid random rewrite even for exact repeat; keep semantic intent intact
   if (ourPrevMessages.length > 0) {
     const lastOurs = ourPrevMessages[ourPrevMessages.length - 1];
     if (lastOurs && replyLower === lastOurs) {
-      const pivots = ["hmm go on", "wait tell me more", "thats interesting", "oh really", "mm what else"];
-      return pivots[Math.floor(Math.random() * pivots.length)];
+      return reply;
     }
   }
-  
+
   return reply;
 };
 
