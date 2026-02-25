@@ -914,16 +914,11 @@ const parseAgeFromProfileText = (...values: Array<string | null | undefined>): n
   const patterns = [
     /\b(?:age\s*[:=-]?\s*)(\d{2})\b/i,
     /\b(?:i\s*am|im|i'm|aged)\s*(\d{2})\b/i,
+    /\b[a-z][a-z\s]{2,}\s*[-–—|•·:]\s*(\d{2})\s*[-–—|•·:]\s*[a-z][a-z\s]{2,}\b/i,
     /\b(\d{2})\s*(?:years\s*old|year\s*old|yrs\s*old|y\/o|yo|yr\s*old|yrs?)\b/i,
     /\b(?:turned|turning)\s*(\d{2})\b/i,
     /\b(?:born\s+in\s+)(19\d{2}|20\d{2})\b/i,
     /\b(?:bday|birthday)\s*[:=-]?\s*(\d{2})\b/i,
-    // Hyphen/bullet/pipe delimited: "CEO - 23 - NYC", "Model | 22 | LA", "x · 25 · y"
-    /(?:^|[-–—|•·:,\n])\s*(\d{2})\s*(?:[-–—|•·:,\n]|$)/,
-    // "🔥 23" or emoji then age
-    /[\u{1F300}-\u{1FAD6}]\s*(\d{2})\b/u,
-    // Standalone 2-digit after word boundary with context: "name 23" at end of segment
-    /\b[a-zA-Z]+\s+(\d{2})\s*$/m,
   ];
 
   for (const text of candidates) {
