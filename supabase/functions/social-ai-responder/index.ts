@@ -914,21 +914,75 @@ const parseAgeFromProfileText = (...values: Array<string | null | undefined>): n
   const patterns = [
     /\b(?:age\s*[:=-]?\s*)(\d{2})\b/i,
     /\b(?:i\s*am|im|i'm|aged)\s*(\d{2})\b/i,
-    /\b(\d{2})\s*(?:years\s*old|yrs\s*old|y\/o|yo)\b/i,
-    /\b(\d{2})\s*(?:yrs|years)\b/i,
+    /\b(\d{2})\s*(?:years\s*old|year\s*old|yrs\s*old|y\/o|yo|yr\s*old|yrs?)\b/i,
+    /\b(?:turned|turning)\s*(\d{2})\b/i,
+    /\b(?:born\s+in\s+)(19\d{2}|20\d{2})\b/i,
+    /\b(?:bday|birthday)\s*[:=-]?\s*(\d{2})\b/i,
   ];
 
   for (const text of candidates) {
     for (const rx of patterns) {
       const match = text.match(rx);
-      const age = match?.[1] ? Number(match[1]) : NaN;
-      if (Number.isFinite(age) && age >= 18 && age <= 80) {
+      if (!match?.[1]) continue;
+
+      let age = Number(match[1]);
+      if (!Number.isFinite(age)) continue;
+
+      // Convert birth year -> age
+      if (age >= 1900 && age <= 2100) {
+        age = new Date().getFullYear() - age;
+      }
+
+      if (age >= 18 && age <= 80) {
         return Math.floor(age);
       }
     }
   }
 
   return null;
+};
+
+const extractBioFromMetadata = (meta: any): string => {
+  if (!meta || typeof meta !== "object") return "";
+
+  const directCandidates = [
+    meta.bio,
+    meta.biography,
+    meta.description,
+    meta.about,
+    meta.profile_bio,
+    meta.ig_bio,
+    meta.instagram_bio,
+    meta.account_bio,
+    meta.caption,
+    meta.summary,
+    meta.tagline,
+    meta.intro,
+    meta.profile?.bio,
+    meta.profile?.biography,
+    meta.profile_data?.bio,
+    meta.profile_data?.biography,
+    meta.instagram_profile?.bio,
+    meta.instagram_profile?.biography,
+    meta.user?.bio,
+    meta.user?.biography,
+    meta.data?.bio,
+    meta.data?.biography,
+  ];
+
+  const first = directCandidates
+    .map((v) => String(v || "").trim())
+    .find(Boolean);
+
+  if (first) return first;
+
+  try {
+    const raw = JSON.stringify(meta);
+    const fromRaw = raw.match(/\"(?:bio|biography|description|about|ig_bio|profile_bio)\"\s*:\s*\"([^\"]{3,})\"/i)?.[1] || "";
+    return fromRaw.replace(/\\n/g, " ").trim();
+  } catch {
+    return "";
+  }
 };
 
 const buildDeterministicPersonaReply = (
@@ -4135,26 +4189,28 @@ Only follow up when interest level was genuinely high.`;
                 };
 
                 const latestConnMeta = (socialConn || [])[0]?.metadata || {};
-                let connectedBio =
-                  latestConnMeta?.bio ||
-                  latestConnMeta?.biography ||
-                  latestConnMeta?.description ||
-                  latestConnMeta?.about ||
-                  "";
+                let connectedBio = extractBioFromMetadata(latestConnMeta);
 
                 // LIVE BIO FETCH: If metadata has no bio, fetch it from IG API and cache it
                 if (!connectedBio) {
                   try {
                     console.log("[BIO SYNC] No bio in metadata, fetching live from IG API...");
                     const liveProfile = await callIG2("get_profile", {});
-                    const liveBio = liveProfile?.biography || liveProfile?.bio || "";
+                    const liveBio =
+                      liveProfile?.biography ||
+                      liveProfile?.bio ||
+                      liveProfile?.description ||
+                      liveProfile?.about ||
+                      liveProfile?.user?.biography ||
+                      liveProfile?.user?.bio ||
+                      "";
                     if (liveBio) {
-                      connectedBio = liveBio;
-                      console.log(`[BIO SYNC] Got live bio: "${liveBio.slice(0, 80)}..."`);
+                      connectedBio = String(liveBio).trim();
+                      console.log(`[BIO SYNC] Got live bio: "${connectedBio.slice(0, 80)}..."`);
                       // Cache it in social_connections metadata for future use
                       const connId = (socialConn || [])[0]?.id;
                       if (connId) {
-                        const updatedMeta = { ...latestConnMeta, biography: liveBio };
+                        const updatedMeta = { ...latestConnMeta, biography: connectedBio };
                         supabase.from("social_connections").update({ metadata: updatedMeta }).eq("id", connId).then(() => {
                           console.log("[BIO SYNC] Cached bio in social_connections metadata");
                         });
@@ -4173,6 +4229,7 @@ Only follow up when interest level was genuinely high.`;
                   parseAgeFromText(accountInfo?.bio) ||
                   parseAgeFromText(accountInfo?.notes) ||
                   parseAgeFromText(connectedBio) ||
+                  parseAgeFromProfileText(JSON.stringify(latestConnMeta || {})) ||
                   null;
 
                 recentPublishedContent = resolvedRecentContent;
@@ -4458,20 +4515,23 @@ IF YOU DONT UNDERSTAND: say "wait wdym" or "lol what" — NEVER make up an incoh
                 ]);
 
                 const meta = (socialConnFallback || [])[0]?.metadata || {};
-                let connectedBioFallback =
-                  meta?.bio ||
-                  meta?.biography ||
-                  meta?.description ||
-                  meta?.about ||
-                  "";
+                let connectedBioFallback = extractBioFromMetadata(meta);
 
                 // LIVE BIO FETCH fallback path
                 if (!connectedBioFallback) {
                   try {
                     console.log("[BIO SYNC FALLBACK] No bio in metadata, fetching live...");
                     const liveP = await callIG2("get_profile", {});
-                    connectedBioFallback = liveP?.biography || liveP?.bio || "";
+                    connectedBioFallback =
+                      liveP?.biography ||
+                      liveP?.bio ||
+                      liveP?.description ||
+                      liveP?.about ||
+                      liveP?.user?.biography ||
+                      liveP?.user?.bio ||
+                      "";
                     if (connectedBioFallback) {
+                      connectedBioFallback = String(connectedBioFallback).trim();
                       console.log(`[BIO SYNC FALLBACK] Got live bio: "${connectedBioFallback.slice(0, 80)}"`);
                     }
                   } catch (bfErr) {
@@ -4485,6 +4545,7 @@ IF YOU DONT UNDERSTAND: say "wait wdym" or "lol what" — NEVER make up an incoh
                     accountInfoFallback?.bio,
                     accountInfoFallback?.notes,
                     connectedBioFallback,
+                    JSON.stringify(meta || {}),
                   );
 
                 accountProfileInfo = {
