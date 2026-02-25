@@ -1597,8 +1597,8 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
   return (
     <div className="flex flex-col">
       {/* Top Control Bar */}
-      <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-white/[0.06] bg-white/[0.03] backdrop-blur-sm rounded-t-lg flex-wrap">
-        <div className="flex items-center gap-3">
+      <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-white/[0.06] bg-white/[0.03] backdrop-blur-sm rounded-t-lg flex-nowrap overflow-x-auto">
+        <div className="flex items-center gap-3 flex-shrink-0">
           {/* Scale Control */}
            <div className="flex items-center gap-1.5 bg-white/[0.04] rounded-lg px-2.5 py-1.5 border border-white/[0.06]">
             <span className="text-[9px] font-medium text-white/40 uppercase tracking-wider">Scale</span>
@@ -1638,7 +1638,7 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
             <span className="text-[9px] font-mono text-purple-400 w-7 text-right">{msgSize}px</span>
           </div>
         </div>
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 flex-shrink-0">
           {/* Persona Selector */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
