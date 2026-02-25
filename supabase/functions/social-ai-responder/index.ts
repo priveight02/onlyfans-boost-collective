@@ -996,11 +996,12 @@ const buildDeterministicPersonaReply = (
   if (!isLikelyQuestionText(text)) return null;
 
   const asksName = /(who are you|whats your name|what is your name|your name|ur name|name\b)/i.test(text);
-  const asksLatestPost = /(latest|last|recent)\s+(post|upload|content)|what did you post|whats your latest/i.test(text);
-  const asksAge = /(how old|your age|ur age|age\b)/i.test(text);
+  const asksLatestPost = /(latest|last|recent)\s+(post|upload|content|title)|what did you post|whats your latest/i.test(text);
+  const asksAge = /(how old|your age|ur age|\bage\b)/i.test(text);
   const asksJob = /(what do you do|do for a living|what is your job|whats your job|work\b)/i.test(text);
+  const asksPostMedia = /(what(?:'s| is)?\s+in\s+(?:the\s+)?(?:image|photo|pic|media)|describe\s+(?:the\s+)?(?:image|photo|pic|media))/i.test(text);
 
-  if (!asksName && !asksLatestPost && !asksAge && !asksJob) return null;
+  if (!asksName && !asksLatestPost && !asksAge && !asksJob && !asksPostMedia) return null;
 
   const isMale = /businessman|entrepreneur|a man/i.test(personaPrompt || "");
 
@@ -1027,7 +1028,8 @@ const buildDeterministicPersonaReply = (
     ? Math.floor(ageFromProfile)
     : bioFallbackAge;
 
-  const latestRaw = (recentContent?.[0]?.caption || recentContent?.[0]?.title || "").toString().toLowerCase();
+  const latestItem = recentContent?.[0] || null;
+  const latestRaw = (latestItem?.caption || latestItem?.title || "").toString().toLowerCase();
   const latestTopic = latestRaw
     .replace(/https?:\/\/\S+/g, "")
     .replace(/[^a-z0-9\s]/g, " ")
@@ -1041,11 +1043,17 @@ const buildDeterministicPersonaReply = (
     ? `my latest post was about ${latestTopic}`
     : "i havent posted anything recently";
 
+  const latestMediaSummary = String(latestItem?.vision_summary || "").trim();
+  const latestMediaLine = latestMediaSummary
+    ? `in the image its ${latestMediaSummary.toLowerCase()}`
+    : (latestItem?.media_type ? `its a ${String(latestItem.media_type).toLowerCase()} post` : "i cant see a media preview rn");
+
   const answerParts: string[] = [];
   if (asksName) {
     answerParts.push(safeName ? `im ${safeName}` : "im the account owner");
   }
   if (asksLatestPost) answerParts.push(latestPostLine);
+  if (asksPostMedia) answerParts.push(latestMediaLine);
   if (asksAge) {
     answerParts.push(resolvedAge ? `im ${resolvedAge}` : "i dont share my age publicly");
   }
@@ -4150,27 +4158,94 @@ Only follow up when interest level was genuinely high.`;
                   .order("updated_at", { ascending: false })
                   .limit(3);
 
-                // Pull latest real posts from connected IG when calendar has no published rows
-                let resolvedRecentContent = recentContent || [];
-                if (!resolvedRecentContent.length) {
-                  try {
-                    const igMedia = await callIG2("get_media", { limit: 15 });
-                    const mediaRows = Array.isArray(igMedia?.data)
-                      ? igMedia.data
-                      : Array.isArray(igMedia)
-                        ? igMedia
+                const latestFanQuestionText = String(latestMsg?.content || "").toLowerCase();
+                const needsPostIntelligence = /(latest|last|recent)\s+(post|upload|content|title)|what did you post|whats your latest|what(?:'s| is)?\s+in\s+(?:the\s+)?(?:image|photo|pic|media)|describe\s+(?:the\s+)?(?:image|photo|pic|media)/i.test(latestFanQuestionText);
+
+                const fetchAllIGMedia = async (maxPosts = 250): Promise<any[]> => {
+                  const allRows: any[] = [];
+                  let nextUrl: string | null = null;
+                  let loops = 0;
+
+                  while (loops < 20 && allRows.length < maxPosts) {
+                    const page = nextUrl
+                      ? await callIG2("get_media_next_page", { next_url: nextUrl })
+                      : await callIG2("get_media", { limit: 50 });
+
+                    const rows = Array.isArray(page?.data)
+                      ? page.data
+                      : Array.isArray(page)
+                        ? page
                         : [];
-                    resolvedRecentContent = mediaRows.map((m: any) => ({
-                      title: "",
-                      caption: m?.caption || "",
-                      platform: "instagram",
-                      content_type: m?.media_type || "media",
-                      hashtags: null,
-                      viral_score: null,
-                      published_at: m?.timestamp || null,
-                    }));
+
+                    if (!rows.length) break;
+                    allRows.push(...rows);
+                    nextUrl = page?.paging?.next || null;
+                    loops += 1;
+                    if (!nextUrl) break;
+                  }
+
+                  return allRows.slice(0, maxPosts);
+                };
+
+                // Pull latest real posts from connected IG when needed for direct Q&A or when calendar has no published rows
+                let resolvedRecentContent = recentContent || [];
+                if (needsPostIntelligence || !resolvedRecentContent.length) {
+                  try {
+                    const igMediaRows = await fetchAllIGMedia(250);
+                    if (igMediaRows.length) {
+                      resolvedRecentContent = igMediaRows.map((m: any) => ({
+                        title: "",
+                        caption: m?.caption || "",
+                        platform: "instagram",
+                        content_type: m?.media_type || "media",
+                        media_type: m?.media_type || "media",
+                        media_url: m?.media_url || m?.thumbnail_url || "",
+                        thumbnail_url: m?.thumbnail_url || null,
+                        hashtags: null,
+                        viral_score: null,
+                        published_at: m?.timestamp || null,
+                        permalink: m?.permalink || null,
+                        vision_summary: null,
+                      }));
+                    }
                   } catch (igMediaErr) {
-                    console.log("[CONTENT SYNC] get_media fallback failed:", igMediaErr);
+                    console.log("[CONTENT SYNC] get_media pagination failed:", igMediaErr);
+                  }
+                }
+
+                // If user asks what's in latest post media, run vision on top post preview
+                if (needsPostIntelligence && resolvedRecentContent.length > 0) {
+                  const latestWithMedia = resolvedRecentContent.find((p: any) => !!(p?.media_url || p?.thumbnail_url));
+                  if (latestWithMedia && !latestWithMedia.vision_summary) {
+                    try {
+                      const mediaUrl = latestWithMedia.media_url || latestWithMedia.thumbnail_url;
+                      if (mediaUrl) {
+                        const visionResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+                          method: "POST",
+                          headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            model: "google/gemini-2.5-flash",
+                            messages: [
+                              { role: "system", content: "Describe this social media post image in one short sentence (max 16 words). Focus on visible subject + setting. No emojis." },
+                              { role: "user", content: [
+                                { type: "text", text: "What is visible in this post image?" },
+                                { type: "image_url", image_url: { url: mediaUrl } },
+                              ] },
+                            ],
+                            max_tokens: 80,
+                            temperature: 0.2,
+                          }),
+                        });
+
+                        if (visionResp.ok) {
+                          const visionJson = await visionResp.json();
+                          const summary = String(visionJson?.choices?.[0]?.message?.content || "").trim();
+                          if (summary) latestWithMedia.vision_summary = summary;
+                        }
+                      }
+                    } catch (postVisionErr) {
+                      console.log("[CONTENT SYNC] Latest post media analysis failed:", postVisionErr);
+                    }
                   }
                 }
 
@@ -4285,10 +4360,10 @@ Only follow up when interest level was genuinely high.`;
                   return "unknown";
                 };
 
-                const detectedGender = identifyGender(accountInfo, recentContent || []);
+                const detectedGender = identifyGender(accountInfo, resolvedRecentContent || []);
 
-                const contentSummary = (recentContent || []).slice(0, 10).map((c, i) =>
-                  `${i + 1}. [${c.platform}/${c.content_type}] "${(c.caption || c.title || "").substring(0, 120)}" (score: ${c.viral_score || 0})`
+                const contentSummary = (resolvedRecentContent || []).slice(0, 10).map((c, i) =>
+                  `${i + 1}. [${c.platform}/${c.content_type}] "${(c.caption || c.title || "").substring(0, 120)}"${c.vision_summary ? ` (image: ${String(c.vision_summary).substring(0, 70)})` : ""} (score: ${c.viral_score || 0})`
                 ).join("\n");
 
                 const profileSummary = accountInfo
@@ -4313,7 +4388,7 @@ ${contentSummary || "No published content yet"}
 - If fans ask about your content, you can reference it naturally ("yeah i just posted about that lol").
 - Your content style IS your personality — be consistent between posts and DMs.`;
 
-                console.log(`[CONTENT SYNC] Loaded ${(recentContent || []).length} posts, gender: ${detectedGender}`);
+                console.log(`[CONTENT SYNC] Loaded ${(resolvedRecentContent || []).length} posts, gender: ${detectedGender}`);
               } catch (e) {
                 console.error("[CONTENT SYNC] Error loading profile data:", e);
               }
