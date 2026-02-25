@@ -953,8 +953,10 @@ const buildQuestionNoRepeatVariants = (latestFanText: string, baseReply: string)
       "nothing new is up yet",
       "same status no fresh upload rn",
       "feed is quiet rn no recent post",
+      "no latest drop yet im due for one soon",
+      "no fresh post rn the page is quiet today",
       q.includes("when") ? "i havent posted recently so there isnt a recent date rn" : "",
-      base,
+      q.includes("when") ? "no exact recent posting date rn because i havent uploaded" : "",
     ].filter(Boolean);
   }
 

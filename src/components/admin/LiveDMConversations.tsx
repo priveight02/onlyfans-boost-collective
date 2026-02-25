@@ -546,15 +546,28 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
       }
 
       const igMessageIds = new Set(igMessages.map((m: any) => m.id).filter(Boolean));
+      const igTimestampsMs = igMessages
+        .map((m: any) => new Date(m.created_time || m.timestamp || 0).getTime())
+        .filter((t: number) => Number.isFinite(t) && t > 0);
+      const oldestFetchedMs = igTimestampsMs.length > 0 ? Math.min(...igTimestampsMs) : null;
       let changed = false;
 
-      // BATCH: detect deleted messages (exist in DB but not on IG anymore) — mark as deleted, don't remove
+      // BATCH: detect deleted messages only inside fetched window (avoid false positives on older history)
       const toMarkDeleted: string[] = [];
       for (const dbMsg of cached) {
-        if (dbMsg.platform_message_id && !dbMsg.id.startsWith("temp-") && 
-            dbMsg.status !== "deleted" &&
-            !igMessageIds.has(dbMsg.platform_message_id) && 
-            !deletedPlatformIdsRef.current.has(dbMsg.platform_message_id)) {
+        const dbMsgTs = new Date(dbMsg.created_at).getTime();
+        const isInFetchedWindow = oldestFetchedMs
+          ? Number.isFinite(dbMsgTs) && dbMsgTs >= (oldestFetchedMs - 120000) // 2 min tolerance
+          : false;
+
+        if (
+          isInFetchedWindow &&
+          dbMsg.platform_message_id &&
+          !dbMsg.id.startsWith("temp-") &&
+          dbMsg.status !== "deleted" &&
+          !igMessageIds.has(dbMsg.platform_message_id) &&
+          !deletedPlatformIdsRef.current.has(dbMsg.platform_message_id)
+        ) {
           toMarkDeleted.push(dbMsg.id);
           deletedPlatformIdsRef.current.add(dbMsg.platform_message_id);
         }
@@ -563,7 +576,7 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
         await supabase.from("ai_dm_messages").update({ status: "deleted" }).in("id", toMarkDeleted);
         persistDeletedIds();
         changed = true;
-        addLog(`@${c.participant_username}`, `${toMarkDeleted.length} msg(s) unsent/deleted on IG`, "info");
+        addLog(`@${c.participant_username}`, `${toMarkDeleted.length} recent msg(s) unsent/deleted on IG`, "info");
       }
 
       // BATCH: collect inserts and updates
