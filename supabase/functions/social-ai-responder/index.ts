@@ -4896,7 +4896,19 @@ Answer it directly like a real human would. Do not talk about anything else.` })
                 if (deterministicDirect) {
                   reply = deterministicDirect;
                 } else {
-                  reply = asksAboutJobNow ? "yea i do online business mainly digital services and products" : "im in online business rn";
+                  const jobFallbacks = [
+                    "yeah im actually in digital marketing and online business wby",
+                    "yea i run an online business mostly digital services hbu",
+                    "yeah im in tech and digital services what about you",
+                    "yea i do online business and marketing wbu whats your thing",
+                    "yeah im into digital business and services what do you do",
+                  ];
+                  const genericFallbacks = [
+                    "yeah im in online business rn what about you",
+                    "yea i run a digital business wby",
+                  ];
+                  const pool = asksAboutJobNow ? jobFallbacks : genericFallbacks;
+                  reply = pool[Math.floor(Math.random() * pool.length)];
                 }
                 console.log(`[DEFLECT GUARD] Replaced deflection with: "${reply}"`);
               }
