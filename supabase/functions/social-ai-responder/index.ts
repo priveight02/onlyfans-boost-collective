@@ -6,6 +6,10 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+// Live DM chat model policy: always use top-tier models (no flash variants)
+const LIVE_CHAT_PRIMARY_MODEL = "google/gemini-3-pro-preview";
+const LIVE_CHAT_RETRY_MODEL = "openai/gpt-5.2";
+
 // === HUMAN TYPING DELAY ENGINE ===
 // Simulates realistic human typing speed with randomness
 // When isFlowing=true (active back-and-forth within 90s), cap delay at 2s
@@ -2119,7 +2123,7 @@ FINAL REMINDER (READ LAST — THIS OVERRIDES EVERYTHING):
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            model: "google/gemini-3-flash-preview",
+            model: LIVE_CHAT_PRIMARY_MODEL,
             messages,
             max_tokens: 150,
             temperature: 0.8,
@@ -4635,13 +4639,13 @@ Answer it directly like a real human would. Do not talk about anything else.` })
             // No deterministic guard — let the AI model think freely
 
             let reply = "";
-            let aiModelUsed = "google/gemini-3-pro-preview";
+            let aiModelUsed = LIVE_CHAT_PRIMARY_MODEL;
 
             const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
               method: "POST",
               headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
               body: JSON.stringify({
-                model: "google/gemini-3-pro-preview",
+                model: LIVE_CHAT_PRIMARY_MODEL,
                 messages: aiMessages,
                 max_tokens: dynamicMaxTokens,
                 temperature: 0.7,
@@ -4659,7 +4663,7 @@ Answer it directly like a real human would. Do not talk about anything else.` })
             }
 
             const aiResult = await aiResponse.json();
-            aiModelUsed = aiResult?.model || "google/gemini-3-pro-preview";
+            aiModelUsed = aiResult?.model || LIVE_CHAT_PRIMARY_MODEL;
             reply = (aiResult.choices?.[0]?.message?.content || "").replace(/\[.*?\]/g, "").replace(/^["']|["']$/g, "").trim();
 
             // NEVER leave empty — retry once, then deterministic fallback
@@ -4670,7 +4674,7 @@ Answer it directly like a real human would. Do not talk about anything else.` })
                   method: "POST",
                   headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
                   body: JSON.stringify({
-                    model: "google/gemini-2.5-pro",
+                    model: LIVE_CHAT_RETRY_MODEL,
                     messages: aiMessages,
                     max_tokens: 320,
                     temperature: 0.75,
@@ -4678,7 +4682,7 @@ Answer it directly like a real human would. Do not talk about anything else.` })
                 });
                 if (retryResp.ok) {
                   const retryResult = await retryResp.json();
-                  aiModelUsed = retryResult?.model || "google/gemini-2.5-pro";
+                  aiModelUsed = retryResult?.model || LIVE_CHAT_RETRY_MODEL;
                   reply = (retryResult.choices?.[0]?.message?.content || "").replace(/\[.*?\]/g, "").replace(/^["']|["']$/g, "").trim();
                 }
               } catch {}
@@ -4752,7 +4756,7 @@ Answer it directly like a real human would. Do not talk about anything else.` })
                   method: "POST",
                   headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
                   body: JSON.stringify({
-                    model: "google/gemini-3-pro-preview",
+                    model: LIVE_CHAT_PRIMARY_MODEL,
                     temperature: 0.85,
                     max_tokens: 140,
                     messages: [
