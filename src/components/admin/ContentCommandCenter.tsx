@@ -7,12 +7,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
 import {
   Calendar, Plus, Sparkles, TrendingUp, Loader2,
   Trash2, Edit2, Image, Video, FileText, Clock, CheckCircle2,
   MapPin, X, Upload, Globe, Send, Eye, Hash, Zap,
   Copy, BarChart3, Wand2, CalendarDays, Layers, RefreshCw,
   Target, Flame, Star, ArrowRight, LayoutGrid, List,
+  Repeat, Brain, Palette, MousePointerClick, Timer,
+  AlertTriangle, ChevronDown, CheckSquare, Square, Search,
+  Lightbulb, Megaphone, BookOpen, Scissors, Sparkle,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -33,54 +37,99 @@ const PLATFORM_CONFIG: Record<string, {
   maxCaption: number;
   color: string;
   bestTimes: string[];
+  hashtagLimit: number;
+  mediaSpecs: string;
 }> = {
   instagram: {
     label: "Instagram", supportedTypes: ["post", "story", "reel", "collab"],
     fields: { location: true, hashtags: true, altText: true },
     publishAction: "create_photo_post", captionLabel: "Caption", maxCaption: 2200,
     color: "text-pink-400", bestTimes: ["9:00 AM", "12:00 PM", "3:00 PM", "7:00 PM"],
+    hashtagLimit: 30, mediaSpecs: "1080×1080 (post), 1080×1920 (story/reel)",
   },
   tiktok: {
     label: "TikTok", supportedTypes: ["post", "reel"],
     fields: { hashtags: true, privacy: true },
     publishAction: "publish_photo", captionLabel: "Description", maxCaption: 4000,
     color: "text-cyan-400", bestTimes: ["7:00 AM", "10:00 AM", "2:00 PM", "9:00 PM"],
+    hashtagLimit: 100, mediaSpecs: "1080×1920 (9:16 vertical)",
   },
   twitter: {
     label: "X / Twitter", supportedTypes: ["tweet", "promo"],
     fields: { pollOptions: true, hashtags: true },
     publishAction: "create_tweet", captionLabel: "Tweet text", maxCaption: 280,
     color: "text-blue-400", bestTimes: ["8:00 AM", "12:00 PM", "5:00 PM"],
+    hashtagLimit: 5, mediaSpecs: "1200×675 (16:9)",
   },
   facebook: {
     label: "Facebook", supportedTypes: ["post", "promo"],
     fields: { location: true, link: true, hashtags: true },
     publishAction: "create_post", captionLabel: "Message", maxCaption: 63206,
     color: "text-blue-500", bestTimes: ["9:00 AM", "1:00 PM", "4:00 PM"],
+    hashtagLimit: 10, mediaSpecs: "1200×630 (link), 1080×1080 (post)",
   },
   threads: {
     label: "Threads", supportedTypes: ["post"],
     fields: { hashtags: true },
     publishAction: "create_text_thread", captionLabel: "Thread text", maxCaption: 500,
     color: "text-foreground", bestTimes: ["8:00 AM", "12:00 PM", "6:00 PM"],
+    hashtagLimit: 10, mediaSpecs: "1080×1080",
   },
   onlyfans: {
     label: "OnlyFans", supportedTypes: ["post", "promo", "teaser", "behind_scenes"],
     fields: { hashtags: true },
     publishAction: "", captionLabel: "Caption", maxCaption: 5000,
     color: "text-sky-400", bestTimes: ["10:00 PM", "11:00 PM", "8:00 PM"],
+    hashtagLimit: 20, mediaSpecs: "No strict limit",
   },
 };
 
-// Content templates for quick creation
+// Expanded content templates per platform
 const CONTENT_TEMPLATES = [
   { name: "Engagement Post", platform: "instagram", type: "post", caption: "What's your favorite ___? Drop your answer below 👇", hashtags: ["engagement", "question", "community"] },
   { name: "Behind the Scenes", platform: "instagram", type: "story", caption: "A little peek behind the curtain ✨", hashtags: ["bts", "behindthescenes"] },
+  { name: "Carousel Breakdown", platform: "instagram", type: "post", caption: "Swipe through to see the full breakdown 👉\n\nSlide 1: Hook\nSlide 2-4: Value\nSlide 5: CTA", hashtags: ["carousel", "tips", "swipe"] },
   { name: "Viral Hook Reel", platform: "tiktok", type: "reel", caption: "POV: You just discovered something that changes everything...", hashtags: ["viral", "fyp", "trending"] },
+  { name: "Duet Challenge", platform: "tiktok", type: "reel", caption: "Try this challenge and tag me! Let's see your version 🎬", hashtags: ["challenge", "duet", "fyp"] },
   { name: "Thread Story", platform: "threads", type: "post", caption: "Here's something most people don't know about...", hashtags: ["thread", "storytime"] },
+  { name: "Hot Take", platform: "threads", type: "post", caption: "Unpopular opinion: ___\n\nLet me explain why 👇", hashtags: ["hottake", "opinion"] },
   { name: "Quick Tweet", platform: "twitter", type: "tweet", caption: "", hashtags: [] },
+  { name: "Poll Tweet", platform: "twitter", type: "tweet", caption: "Which one do you prefer? 🤔\n\n1️⃣ Option A\n2️⃣ Option B\n3️⃣ Option C", hashtags: ["poll"] },
   { name: "Promo Teaser", platform: "onlyfans", type: "teaser", caption: "Something special dropping soon... you don't want to miss this 🔥", hashtags: ["exclusive", "comingsoon"] },
+  { name: "PPV Preview", platform: "onlyfans", type: "promo", caption: "New exclusive content just dropped 💎\n\nDon't miss out — limited time only", hashtags: ["ppv", "exclusive", "newcontent"] },
+  { name: "FB Promo Post", platform: "facebook", type: "promo", caption: "🎉 Big announcement!\n\nWe're excited to share...\n\n👉 Link in comments", hashtags: ["announcement", "exciting"] },
+  { name: "Story Q&A", platform: "instagram", type: "story", caption: "Ask me anything! ✨ Drop your questions 👇", hashtags: ["qanda", "askme", "interactive"] },
+  { name: "Value Thread", platform: "twitter", type: "tweet", caption: "🧵 Thread: 5 things I wish I knew earlier about ___\n\n1/5:", hashtags: ["thread", "tips", "wisdom"] },
 ];
+
+// ─── Platform-specific content presets ───
+const PLATFORM_PRESETS: Record<string, { label: string; caption: string; type: string; }[]> = {
+  instagram: [
+    { label: "Photo Dump", caption: "recent photo dump 📸✨", type: "post" },
+    { label: "GRWM", caption: "Get ready with me! 💄", type: "reel" },
+    { label: "Day in My Life", caption: "A day in my life ☀️", type: "reel" },
+  ],
+  tiktok: [
+    { label: "Storytime", caption: "Storytime: ___\n\nYou won't believe what happened next...", type: "reel" },
+    { label: "Tutorial", caption: "Here's how to ___ in 60 seconds ⏱️", type: "reel" },
+    { label: "Trend Jump", caption: "Had to try this trend 😂", type: "reel" },
+  ],
+  twitter: [
+    { label: "Ratio Tweet", caption: "This is going to be controversial but...", type: "tweet" },
+    { label: "List Tweet", caption: "Things that are criminally underrated:\n\n1.\n2.\n3.\n4.\n5.", type: "tweet" },
+  ],
+  facebook: [
+    { label: "Share Story", caption: "I wanted to share something personal today...", type: "post" },
+    { label: "Event Promo", caption: "🎉 Save the date! We're hosting...", type: "promo" },
+  ],
+  threads: [
+    { label: "Conversation Starter", caption: "Let's talk about ___\n\nI'll go first:", type: "post" },
+  ],
+  onlyfans: [
+    { label: "New Drop", caption: "Just uploaded something 🔥 Check your DMs for the preview", type: "post" },
+    { label: "Exclusive BTS", caption: "Exclusive behind-the-scenes from today's shoot 📸", type: "behind_scenes" },
+  ],
+};
 
 const ContentCommandCenter = () => {
   const [items, setItems] = useState<any[]>([]);
@@ -101,6 +150,27 @@ const ContentCommandCenter = () => {
   const [showTemplates, setShowTemplates] = useState(false);
   const [engagementPredicting, setEngagementPredicting] = useState(false);
   const { performAction, insufficientModal, closeInsufficientModal } = useCreditAction();
+
+  // ── New feature states ──
+  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+  const [bulkMode, setBulkMode] = useState(false);
+  const [generatingHashtags, setGeneratingHashtags] = useState(false);
+  const [generatingAB, setGeneratingAB] = useState(false);
+  const [abVariants, setAbVariants] = useState<string[]>([]);
+  const [showRecycler, setShowRecycler] = useState(false);
+  const [showSeriesPlanner, setShowSeriesPlanner] = useState(false);
+  const [seriesTitle, setSeriesTitle] = useState("");
+  const [seriesCount, setSeriesCount] = useState(3);
+  const [generatingSeries, setGeneratingSeries] = useState(false);
+  const [showPerformance, setShowPerformance] = useState(false);
+  const [generatingFromImage, setGeneratingFromImage] = useState(false);
+  const [generatingTrends, setGeneratingTrends] = useState(false);
+  const [trendIdeas, setTrendIdeas] = useState<any[]>([]);
+  const [showTrends, setShowTrends] = useState(false);
+  const [smartScheduling, setSmartScheduling] = useState(false);
+  const [suggestedSlots, setSuggestedSlots] = useState<string[]>([]);
+  const [showPresets, setShowPresets] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Create form
   const [formTitle, setFormTitle] = useState("");
@@ -164,12 +234,19 @@ const ContentCommandCenter = () => {
       if (accountFilter !== "all" && i.account_id !== accountFilter) return false;
       if (platformFilter !== "all" && i.platform !== platformFilter) return false;
       if (statusFilter !== "all" && i.status !== statusFilter) return false;
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const match = (i.title || "").toLowerCase().includes(q) ||
+          (i.caption || "").toLowerCase().includes(q) ||
+          (i.hashtags || []).some((h: string) => h.toLowerCase().includes(q));
+        if (!match) return false;
+      }
       if (activeTab === "scheduled") return i.status === "scheduled" || i.status === "planned";
       if (activeTab === "published") return i.status === "published";
       if (activeTab === "drafts") return i.status === "draft";
       return true;
     });
-  }, [items, accountFilter, platformFilter, statusFilter, activeTab]);
+  }, [items, accountFilter, platformFilter, statusFilter, activeTab, searchQuery]);
 
   const platformConf = (p: string) => PLATFORM_CONFIG[p] || PLATFORM_CONFIG.onlyfans;
 
@@ -179,7 +256,7 @@ const ContentCommandCenter = () => {
     setFormSchedule(""); setFormLocation(""); setFormAltText(""); setFormLink("");
     setFormPrivacy("PUBLIC_TO_EVERYONE"); setFormMediaFiles([]); setFormMediaPreviews([]);
     setFormExistingMedia([]); setEditingId(null); setPredictedScore(null);
-    setCrossPostPlatforms([]);
+    setCrossPostPlatforms([]); setAbVariants([]);
   };
 
   const handleMediaSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -216,39 +293,52 @@ const ContentCommandCenter = () => {
     return urls;
   };
 
-  // AI Caption Rewrite
-  const rewriteCaption = async (style: "engaging" | "viral" | "professional" | "casual") => {
+  // ─── Helper: call AI and parse streamed response ───
+  const callAI = async (prompt: string): Promise<string> => {
+    const { data, error } = await supabase.functions.invoke("agency-copilot", {
+      body: { messages: [{ role: "user", content: prompt }] },
+    });
+    if (error) throw error;
+    const text = typeof data === "string" ? data : new TextDecoder().decode(data);
+    let content = "";
+    for (const line of text.split("\n")) {
+      if (!line.startsWith("data: ") || line.includes("[DONE]")) continue;
+      try { const p = JSON.parse(line.slice(6)); content += p.choices?.[0]?.delta?.content || ""; } catch {}
+    }
+    return content;
+  };
+
+  // ════════════════════════════════════════════════════════
+  // FEATURE 1: AI Caption Rewrite (existing — upgraded)
+  // ════════════════════════════════════════════════════════
+  const rewriteCaption = async (style: "engaging" | "viral" | "professional" | "casual" | "storytelling" | "controversial") => {
     if (!formCaption.trim()) { toast.error("Write a caption first"); return; }
     await performAction('ai_rewrite_caption', async () => {
       setRewritingCaption(true);
       try {
-        const { data, error } = await supabase.functions.invoke("agency-copilot", {
-          body: {
-            messages: [{
-              role: "user",
-              content: `Rewrite this ${formPlatform || "social media"} caption in a ${style} style. Keep the same meaning but make it ${style === "viral" ? "extremely shareable with hooks and engagement triggers" : style === "engaging" ? "more conversational with a strong CTA" : style === "professional" ? "polished and brand-safe" : "relaxed and authentic"}.
+        const styleGuide: Record<string, string> = {
+          engaging: "more conversational with a strong CTA, questions that spark replies",
+          viral: "extremely shareable with hooks, pattern interrupts, and engagement triggers",
+          professional: "polished, brand-safe, authoritative tone",
+          casual: "relaxed, authentic, like texting a friend",
+          storytelling: "narrative-driven with a beginning, middle, and end. Use suspense and emotional hooks",
+          controversial: "bold hot take that sparks debate. Polarizing but not offensive. Gets people commenting",
+        };
+        const content = await callAI(`Rewrite this ${formPlatform || "social media"} caption in a ${style} style. Make it ${styleGuide[style]}.
 
-Platform: ${formPlatform || "instagram"}
+Platform: ${formPlatform || "instagram"} (character limit: ${platformConf(formPlatform || "instagram").maxCaption})
 Content type: ${formType}
 Original caption: "${formCaption}"
 
 Rules:
-- Keep it within ${platformConf(formPlatform || "instagram").maxCaption} characters
+- Keep within ${platformConf(formPlatform || "instagram").maxCaption} characters
 - Include line breaks for readability
 - Add relevant emojis naturally
 - End with a clear CTA or engagement hook
 - Don't include hashtags (those are separate)
+- Optimize specifically for ${platformConf(formPlatform || "instagram").label} algorithm
 
-Respond ONLY with the rewritten caption text, nothing else.`
-            }],
-          },
-        });
-        const text = typeof data === "string" ? data : new TextDecoder().decode(data);
-        let content = "";
-        for (const line of text.split("\n")) {
-          if (!line.startsWith("data: ") || line.includes("[DONE]")) continue;
-          try { const p = JSON.parse(line.slice(6)); content += p.choices?.[0]?.delta?.content || ""; } catch {}
-        }
+Respond ONLY with the rewritten caption text, nothing else.`);
         if (content.trim()) {
           setFormCaption(content.trim());
           toast.success(`Caption rewritten (${style} style)`);
@@ -258,50 +348,375 @@ Respond ONLY with the rewritten caption text, nothing else.`
     });
   };
 
-  // AI Engagement Prediction
+  // ════════════════════════════════════════════════════════
+  // FEATURE 2: AI Engagement Prediction (existing — upgraded)
+  // ════════════════════════════════════════════════════════
   const predictEngagement = async () => {
     if (!formCaption.trim() && !formTitle.trim()) { toast.error("Add content first"); return; }
     await performAction('predict_engagement', async () => {
       setEngagementPredicting(true);
       try {
-        const { data, error } = await supabase.functions.invoke("agency-copilot", {
-          body: {
-            messages: [{
-              role: "user",
-              content: `Analyze this social media post and predict engagement score (0-100). Consider platform algorithm preferences, content type, caption quality, hashtag relevance, and posting time.
+        const content = await callAI(`Analyze this social media post and predict engagement score (0-100). Consider platform algorithm preferences, content type, caption quality, hashtag relevance, and posting time.
 
 Platform: ${formPlatform || "instagram"}
 Content type: ${formType}
 Title: ${formTitle}
 Caption: "${formCaption}"
-Hashtags: ${formHashtags || "none"}
+Hashtags: ${formHashtags || "none"} (limit: ${platformConf(formPlatform || "instagram").hashtagLimit})
 Has media: ${formMediaFiles.length + formExistingMedia.length > 0 ? "yes" : "no"}
 Scheduled time: ${formSchedule || "not set"}
 
-Respond with ONLY a JSON object: {"score": number, "tips": ["tip1", "tip2", "tip3"], "best_time": "HH:MM AM/PM"}`
-            }],
-          },
-        });
-        const text = typeof data === "string" ? data : new TextDecoder().decode(data);
-        let content = "";
-        for (const line of text.split("\n")) {
-          if (!line.startsWith("data: ") || line.includes("[DONE]")) continue;
-          try { const p = JSON.parse(line.slice(6)); content += p.choices?.[0]?.delta?.content || ""; } catch {}
-        }
+Score breakdown:
+- Hook strength (does it stop the scroll?)
+- CTA effectiveness
+- Hashtag optimization for ${platformConf(formPlatform || "instagram").label}
+- Media presence impact
+- Posting time optimization
+
+Respond with ONLY a JSON object: {"score": number, "tips": ["tip1", "tip2", "tip3"], "best_time": "HH:MM AM/PM", "hook_score": number, "cta_score": number, "hashtag_score": number}`);
         const jsonMatch = content.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
           const result = JSON.parse(jsonMatch[0]);
           setPredictedScore(result.score || 0);
-          if (result.tips?.length > 0) {
-            toast.success(`Score: ${result.score}/100 — ${result.tips[0]}`);
-          }
+          const tips = result.tips || [];
+          toast.success(`Score: ${result.score}/100 | Hook: ${result.hook_score || '?'} | CTA: ${result.cta_score || '?'}${tips[0] ? ` — ${tips[0]}` : ''}`);
         }
       } catch (e: any) { toast.error(e.message); }
       setEngagementPredicting(false);
     });
   };
 
-  // Apply template
+  // ════════════════════════════════════════════════════════
+  // FEATURE 3: AI Hashtag Generator (NEW)
+  // ════════════════════════════════════════════════════════
+  const generateHashtags = async () => {
+    if (!formCaption.trim() && !formTitle.trim()) { toast.error("Add content first"); return; }
+    await performAction('ai_generate_ideas', async () => {
+      setGeneratingHashtags(true);
+      try {
+        const limit = platformConf(formPlatform || "instagram").hashtagLimit;
+        const content = await callAI(`Generate the PERFECT hashtag set for this ${formPlatform || "instagram"} ${formType}.
+
+Caption: "${formCaption || formTitle}"
+Platform: ${formPlatform || "instagram"} (max ${limit} hashtags)
+
+Strategy:
+- 30% high-volume (500K+ posts) for discovery
+- 40% medium-volume (50K-500K) for competition balance
+- 30% niche/specific (under 50K) for targeted reach
+- Include trending hashtags relevant to the content
+- Platform-specific: ${formPlatform === "twitter" ? "Keep to 3-5 max for engagement" : formPlatform === "tiktok" ? "Include FYP and trending sounds hashtags" : "Mix branded + community hashtags"}
+
+Respond ONLY with comma-separated hashtags (no # prefix, no explanations): hashtag1, hashtag2, hashtag3...`);
+        if (content.trim()) {
+          const cleaned = content.replace(/#/g, "").trim();
+          setFormHashtags(cleaned);
+          const count = cleaned.split(",").filter(h => h.trim()).length;
+          toast.success(`${count} optimized hashtags generated for ${platformConf(formPlatform || "instagram").label}`);
+        }
+      } catch (e: any) { toast.error(e.message); }
+      setGeneratingHashtags(false);
+    });
+  };
+
+  // ════════════════════════════════════════════════════════
+  // FEATURE 4: A/B Caption Testing (NEW)
+  // ════════════════════════════════════════════════════════
+  const generateABVariants = async () => {
+    if (!formCaption.trim()) { toast.error("Write a caption first"); return; }
+    await performAction('ai_generate_ideas', async () => {
+      setGeneratingAB(true);
+      try {
+        const content = await callAI(`Generate 3 A/B test caption variants for this ${formPlatform || "instagram"} ${formType}.
+
+Original caption: "${formCaption}"
+Platform: ${formPlatform || "instagram"} (max ${platformConf(formPlatform || "instagram").maxCaption} chars)
+
+Each variant should use a DIFFERENT angle:
+- Variant A: Emotional / story-driven approach
+- Variant B: Direct / value-first approach  
+- Variant C: Controversial / hot-take approach
+
+All must be complete, ready-to-post captions with emojis and CTAs.
+
+Respond ONLY with JSON array: ["variant A caption", "variant B caption", "variant C caption"]`);
+        const jsonMatch = content.match(/\[[\s\S]*\]/);
+        if (jsonMatch) {
+          const variants = JSON.parse(jsonMatch[0]);
+          setAbVariants(variants);
+          toast.success("3 A/B variants generated — pick the best one!");
+        }
+      } catch (e: any) { toast.error(e.message); }
+      setGeneratingAB(false);
+    });
+  };
+
+  // ════════════════════════════════════════════════════════
+  // FEATURE 5: Bulk Actions (NEW)
+  // ════════════════════════════════════════════════════════
+  const toggleSelectItem = (id: string) => {
+    setSelectedItems(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+  const selectAll = () => {
+    if (selectedItems.size === filtered.length) setSelectedItems(new Set());
+    else setSelectedItems(new Set(filtered.map(i => i.id)));
+  };
+  const bulkDelete = async () => {
+    if (selectedItems.size === 0) return;
+    const count = selectedItems.size;
+    await performAction('delete_item', async () => {
+      const { error } = await supabase.from("content_calendar").delete().in("id", Array.from(selectedItems));
+      if (error) toast.error(error.message);
+      else { toast.success(`${count} items deleted`); setSelectedItems(new Set()); setBulkMode(false); }
+    });
+  };
+  const bulkChangeStatus = async (status: string) => {
+    if (selectedItems.size === 0) return;
+    const count = selectedItems.size;
+    await performAction('update_status', async () => {
+      const { error } = await supabase.from("content_calendar").update({
+        status, ...(status === "published" ? { published_at: new Date().toISOString() } : {}),
+      }).in("id", Array.from(selectedItems));
+      if (error) toast.error(error.message);
+      else { toast.success(`${count} items → ${status}`); setSelectedItems(new Set()); setBulkMode(false); }
+    });
+  };
+
+  // ════════════════════════════════════════════════════════
+  // FEATURE 6: Content Recycler (NEW)
+  // ════════════════════════════════════════════════════════
+  const recycleContent = async (item: any, targetPlatform: string) => {
+    const conf = platformConf(targetPlatform);
+    await performAction('ai_rewrite_caption', async () => {
+      try {
+        const content = await callAI(`Repurpose this ${item.platform} ${item.content_type} for ${conf.label}.
+
+Original caption: "${item.caption || item.title}"
+Original platform: ${item.platform}
+Target platform: ${conf.label}
+Target content type: ${conf.supportedTypes[0]}
+Target character limit: ${conf.maxCaption}
+
+Rules:
+- Completely rewrite for ${conf.label}'s audience and algorithm
+- Adjust tone, length, and format for ${conf.label}
+- Keep the core message but make it native to the platform
+- Add platform-specific engagement hooks
+
+Respond ONLY with the new caption, nothing else.`);
+        if (content.trim()) {
+          const { error } = await supabase.from("content_calendar").insert({
+            title: `${item.title} → ${conf.label}`,
+            caption: content.trim().substring(0, conf.maxCaption),
+            platform: targetPlatform,
+            content_type: conf.supportedTypes[0],
+            hashtags: item.hashtags || [],
+            media_urls: item.media_urls || null,
+            account_id: item.account_id || null,
+            status: "draft",
+            metadata: { recycled_from: item.id },
+          });
+          if (error) toast.error(error.message);
+          else toast.success(`Recycled to ${conf.label} with AI-adapted caption`);
+        }
+      } catch (e: any) { toast.error(e.message); }
+    });
+  };
+
+  // ════════════════════════════════════════════════════════
+  // FEATURE 7: AI Caption from Image (NEW)
+  // ════════════════════════════════════════════════════════
+  const generateCaptionFromImage = async () => {
+    if (formMediaPreviews.length === 0 && formExistingMedia.length === 0) {
+      toast.error("Upload an image first"); return;
+    }
+    await performAction('ai_generate_ideas', async () => {
+      setGeneratingFromImage(true);
+      try {
+        const content = await callAI(`Generate a perfect ${formPlatform || "instagram"} ${formType} caption.
+
+Platform: ${formPlatform || "instagram"} (max ${platformConf(formPlatform || "instagram").maxCaption} chars)
+Content type: ${formType}
+Context: User has uploaded ${formMediaFiles.length + formExistingMedia.length} media file(s)
+Current title: "${formTitle || "no title"}"
+Notes: "${formDesc || "none"}"
+
+Create a caption that:
+- Hooks the reader in the first line (pattern interrupt)
+- Creates curiosity about the media
+- Has natural emoji placement
+- Ends with a strong CTA
+- Is optimized for ${platformConf(formPlatform || "instagram").label}'s algorithm
+- Matches the ${formType} content type style
+
+Respond ONLY with the caption text.`);
+        if (content.trim()) {
+          setFormCaption(content.trim());
+          toast.success("AI caption generated from content context");
+        }
+      } catch (e: any) { toast.error(e.message); }
+      setGeneratingFromImage(false);
+    });
+  };
+
+  // ════════════════════════════════════════════════════════
+  // FEATURE 8: Trending Content Ideas (NEW)
+  // ════════════════════════════════════════════════════════
+  const generateTrendIdeas = async () => {
+    const targetPlatform = formPlatform || platformFilter !== "all" ? (formPlatform || platformFilter) : "instagram";
+    await performAction('ai_generate_ideas', async () => {
+      setGeneratingTrends(true);
+      try {
+        const content = await callAI(`Generate 5 trending content ideas for ${platformConf(targetPlatform).label} right now.
+
+Platform: ${platformConf(targetPlatform).label}
+Connected account: ${connForPlatform(targetPlatform)?.platform_username || "general"}
+
+For each idea:
+- title: catchy internal name
+- caption: FULL ready-to-post caption
+- content_type: ${platformConf(targetPlatform).supportedTypes.join(" or ")}
+- hashtags: ["tag1", "tag2", ...] (${platformConf(targetPlatform).hashtagLimit} max)
+- trend_source: what trend this is based on
+- urgency: "now" | "this_week" | "evergreen"
+- viral_potential: 1-100
+
+Focus on:
+- Current viral formats and trends for ${platformConf(targetPlatform).label}
+- Algorithm-friendly content structures
+- High engagement hooks
+- Seasonal/timely content
+
+Respond ONLY with JSON array: [{"title":"", "caption":"", "content_type":"", "hashtags":[], "trend_source":"", "urgency":"", "viral_potential": number}]`);
+        const jsonMatch = content.match(/\[[\s\S]*\]/);
+        if (jsonMatch) {
+          const ideas = JSON.parse(jsonMatch[0]);
+          setTrendIdeas(ideas.map((i: any) => ({ ...i, platform: targetPlatform })));
+          setShowTrends(true);
+          toast.success(`${ideas.length} trending ideas for ${platformConf(targetPlatform).label}`);
+        }
+      } catch (e: any) { toast.error(e.message); }
+      setGeneratingTrends(false);
+    });
+  };
+
+  const applyTrendIdea = async (idea: any) => {
+    await performAction('create_content', async () => {
+      const { error } = await supabase.from("content_calendar").insert({
+        title: idea.title,
+        caption: idea.caption,
+        platform: idea.platform,
+        content_type: idea.content_type || "post",
+        hashtags: idea.hashtags || [],
+        viral_score: idea.viral_potential || 0,
+        description: `Trend: ${idea.trend_source || "AI generated"} | Urgency: ${idea.urgency || "evergreen"}`,
+        status: "draft",
+        engagement_prediction: idea.viral_potential || 0,
+      });
+      if (error) toast.error(error.message);
+      else toast.success(`"${idea.title}" saved as draft`);
+    });
+  };
+
+  // ════════════════════════════════════════════════════════
+  // FEATURE 9: Content Series Planner (NEW)
+  // ════════════════════════════════════════════════════════
+  const generateSeries = async () => {
+    if (!seriesTitle.trim()) { toast.error("Enter a series topic"); return; }
+    const targetPlatform = formPlatform || platformFilter !== "all" ? (formPlatform || platformFilter) : "instagram";
+    await performAction('ai_generate_ideas', async () => {
+      setGeneratingSeries(true);
+      try {
+        const content = await callAI(`Create a ${seriesCount}-part content series for ${platformConf(targetPlatform).label}.
+
+Series topic: "${seriesTitle}"
+Platform: ${platformConf(targetPlatform).label}
+Number of posts: ${seriesCount}
+Available content types: ${platformConf(targetPlatform).supportedTypes.join(", ")}
+
+For each post in the series:
+- title: "Series Name Part X/Y"
+- caption: Full ready-to-post caption with series branding
+- content_type: appropriate type for this platform
+- hashtags: ["tag1", ...] include series-specific hashtag
+- part_number: 1, 2, 3...
+- hook: what makes this part compelling
+- schedule_offset_days: 0, 2, 4... (spacing between posts)
+
+Make it a cohesive narrative arc:
+- Part 1: Hook / problem statement
+- Middle parts: Deep value / transformation
+- Final part: Conclusion / big CTA
+
+Respond ONLY with JSON array: [{"title":"", "caption":"", "content_type":"", "hashtags":[], "part_number": number, "hook":"", "schedule_offset_days": number}]`);
+        const jsonMatch = content.match(/\[[\s\S]*\]/);
+        if (jsonMatch) {
+          const parts = JSON.parse(jsonMatch[0]);
+          for (const part of parts) {
+            const schedDate = addDays(new Date(), part.schedule_offset_days || 0);
+            await supabase.from("content_calendar").insert({
+              title: part.title,
+              caption: part.caption,
+              platform: targetPlatform,
+              content_type: part.content_type || "post",
+              hashtags: part.hashtags || [],
+              description: `Series: ${seriesTitle} | Part ${part.part_number}/${seriesCount} | ${part.hook || ""}`,
+              status: "draft",
+              scheduled_at: schedDate.toISOString(),
+              metadata: { series: seriesTitle, part: part.part_number, total_parts: seriesCount },
+            });
+          }
+          toast.success(`${parts.length}-part series "${seriesTitle}" created!`);
+          setShowSeriesPlanner(false);
+          setSeriesTitle("");
+        }
+      } catch (e: any) { toast.error(e.message); }
+      setGeneratingSeries(false);
+    });
+  };
+
+  // ════════════════════════════════════════════════════════
+  // FEATURE 10: Smart Scheduling (NEW)
+  // ════════════════════════════════════════════════════════
+  const suggestSchedule = async () => {
+    const targetPlatform = formPlatform || "instagram";
+    await performAction('ai_analysis', async () => {
+      setSmartScheduling(true);
+      try {
+        const publishedItems = items.filter(i => i.platform === targetPlatform && i.status === "published");
+        const scheduledItems = items.filter(i => i.platform === targetPlatform && (i.status === "scheduled" || i.status === "planned"));
+        const content = await callAI(`Suggest the 5 best times to schedule a ${formType} on ${platformConf(targetPlatform).label}.
+
+Platform: ${platformConf(targetPlatform).label}
+Known best times: ${platformConf(targetPlatform).bestTimes.join(", ")}
+Already published: ${publishedItems.length} posts
+Already scheduled: ${scheduledItems.map(i => i.scheduled_at ? format(new Date(i.scheduled_at), "EEE h:mm a") : "").filter(Boolean).join(", ") || "none"}
+Content type: ${formType}
+Today's date: ${format(new Date(), "EEEE, MMM d, yyyy")}
+
+Consider:
+- Avoid time conflicts with already scheduled posts
+- ${platformConf(targetPlatform).label}'s peak engagement windows
+- Day of week optimization
+- Content type timing (${formType === "reel" || formType === "story" ? "video content performs better in evenings" : "posts perform well mid-day"})
+
+Respond ONLY with JSON array of ISO datetime strings for the next 7 days: ["2025-01-01T14:00:00", ...]`);
+        const jsonMatch = content.match(/\[[\s\S]*\]/);
+        if (jsonMatch) {
+          const slots = JSON.parse(jsonMatch[0]);
+          setSuggestedSlots(slots);
+          toast.success("Smart schedule suggestions ready");
+        }
+      } catch (e: any) { toast.error(e.message); }
+      setSmartScheduling(false);
+    });
+  };
+
+  // ─── Apply template ───
   const applyTemplate = (template: typeof CONTENT_TEMPLATES[0]) => {
     setFormPlatform(template.platform);
     setFormType(template.type);
@@ -312,7 +727,16 @@ Respond with ONLY a JSON object: {"score": number, "tips": ["tip1", "tip2", "tip
     toast.success(`Template "${template.name}" applied`);
   };
 
-  // Duplicate content for cross-posting
+  // ─── Apply platform preset ───
+  const applyPreset = (preset: { label: string; caption: string; type: string }) => {
+    setFormCaption(preset.caption);
+    setFormType(preset.type);
+    if (!formTitle) setFormTitle(preset.label);
+    setShowPresets(false);
+    toast.success(`Preset "${preset.label}" applied`);
+  };
+
+  // ─── Duplicate for cross-posting ───
   const duplicateForPlatform = async (item: any, targetPlatform: string) => {
     const conf = platformConf(targetPlatform);
     const caption = (item.caption || "").substring(0, conf.maxCaption);
@@ -333,7 +757,7 @@ Respond with ONLY a JSON object: {"score": number, "tips": ["tip1", "tip2", "tip
     });
   };
 
-  // Save content as draft
+  // ─── Save content as draft ───
   const saveItem = async () => {
     if (!formTitle.trim()) { toast.error("Title required"); return; }
     if (!formPlatform) { toast.error("Select a platform"); return; }
@@ -404,7 +828,7 @@ Respond with ONLY a JSON object: {"score": number, "tips": ["tip1", "tip2", "tip
     });
   };
 
-  // Platform-specific publish
+  // ─── Platform-specific publish ───
   const publishToNetwork = async (item: any) => {
     const conn = connForPlatform(item.platform);
     if (!conn) { toast.error(`No connected ${item.platform} account. Connect in Social Media Hub first.`); return; }
@@ -519,7 +943,7 @@ Respond with ONLY a JSON object: {"score": number, "tips": ["tip1", "tip2", "tip
     setShowCreate(true);
   };
 
-  // AI Generate full random posts
+  // ─── AI Generate full random posts ───
   const generateRandomPosts = async () => {
     const connPlatforms = [...new Set(connections.map(c => c.platform))];
     const platformsList = connPlatforms.length > 0 ? connPlatforms.join(", ") : "instagram, twitter, tiktok";
@@ -527,11 +951,7 @@ Respond with ONLY a JSON object: {"score": number, "tips": ["tip1", "tip2", "tip
     await performAction('ai_generate_ideas', async () => {
       setGenerating(true);
       try {
-        const { data, error } = await supabase.functions.invoke("agency-copilot", {
-          body: {
-            messages: [{
-              role: "user",
-              content: `You are a social media content strategist. Generate 5 COMPLETE, ready-to-post content ideas for these platforms: ${platformsList}.
+        const content = await callAI(`You are a social media content strategist. Generate 5 COMPLETE, ready-to-post content ideas for these platforms: ${platformsList}.
 
 Each post must be unique, creative, and optimized for its platform. Mix content types (posts, reels, tweets, stories).
 
@@ -548,17 +968,8 @@ For each, provide:
 
 Be creative! Include trending topics, engagement hooks, questions, controversial takes.
 
-Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_type":"...", "caption":"...", "hashtags":["..."], "cta":"...", "viral_score": number, "description":"...", "best_time":"..."}]`
-            }],
-          },
-        });
-        const text = typeof data === "string" ? data : new TextDecoder().decode(data);
-        let fullContent = "";
-        for (const line of text.split("\n")) {
-          if (!line.startsWith("data: ") || line.includes("[DONE]")) continue;
-          try { const p = JSON.parse(line.slice(6)); fullContent += p.choices?.[0]?.delta?.content || ""; } catch {}
-        }
-        const arrMatch = fullContent.match(/\[[\s\S]*\]/);
+Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_type":"...", "caption":"...", "hashtags":["..."], "cta":"...", "viral_score": number, "description":"...", "best_time":"..."}]`);
+        const arrMatch = content.match(/\[[\s\S]*\]/);
         if (arrMatch) {
           const ideas = JSON.parse(arrMatch[0]);
           for (const idea of ideas) {
@@ -631,10 +1042,28 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
     return groups;
   }, [filtered]);
 
+  // ─── Performance stats per platform ───
+  const performanceStats = useMemo(() => {
+    const byPlatform: Record<string, { total: number; published: number; avgViral: number; }> = {};
+    for (const item of items) {
+      if (!byPlatform[item.platform]) byPlatform[item.platform] = { total: 0, published: 0, avgViral: 0 };
+      byPlatform[item.platform].total++;
+      if (item.status === "published") byPlatform[item.platform].published++;
+      byPlatform[item.platform].avgViral += item.viral_score || 0;
+    }
+    for (const p of Object.keys(byPlatform)) {
+      byPlatform[p].avgViral = byPlatform[p].total > 0 ? Math.round(byPlatform[p].avgViral / byPlatform[p].total) : 0;
+    }
+    return byPlatform;
+  }, [items]);
+
+  // Published content for recycler
+  const publishedContent = useMemo(() => items.filter(i => i.status === "published"), [items]);
+
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
           <div className="flex items-center gap-3">
             <h1 className="text-lg font-bold text-foreground flex items-center gap-2">
@@ -644,18 +1073,35 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
           </div>
           <p className="text-xs text-muted-foreground">Create, schedule, and publish across all platforms</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-1.5 flex-wrap">
+          <Button size="sm" variant="outline" onClick={() => setShowPerformance(true)}
+            className="border-border text-muted-foreground text-xs h-8">
+            <BarChart3 className="h-3.5 w-3.5 mr-1" /> Analytics
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => setShowRecycler(true)}
+            className="border-border text-muted-foreground text-xs h-8">
+            <Repeat className="h-3.5 w-3.5 mr-1" /> Recycle
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => setShowSeriesPlanner(true)}
+            className="border-border text-muted-foreground text-xs h-8">
+            <BookOpen className="h-3.5 w-3.5 mr-1" /> Series
+          </Button>
           <Button size="sm" variant="outline" onClick={() => setShowTemplates(true)}
             className="border-primary/20 text-primary text-xs h-8">
             <Layers className="h-3.5 w-3.5 mr-1" /> Templates
           </Button>
+          <Button size="sm" variant="outline" onClick={generateTrendIdeas} disabled={generatingTrends}
+            className="border-border text-muted-foreground text-xs h-8">
+            {generatingTrends ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <TrendingUp className="h-3.5 w-3.5 mr-1" />}
+            Trends
+          </Button>
           <Button size="sm" onClick={generateRandomPosts} disabled={generating}
             className="bg-gradient-to-r from-purple-600 to-pink-600 text-white text-xs h-8">
             {generating ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Zap className="h-3.5 w-3.5 mr-1" />}
-            AI Auto-Generate
+            AI Generate
           </Button>
           <Button size="sm" onClick={() => { resetForm(); setShowCreate(true); }} className="bg-primary text-primary-foreground text-xs h-8">
-            <Plus className="h-3.5 w-3.5 mr-1" /> Create Content
+            <Plus className="h-3.5 w-3.5 mr-1" /> Create
           </Button>
         </div>
       </div>
@@ -694,17 +1140,28 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
         </div>
       )}
 
-      {/* Tabs + Filters + View Mode */}
-      <div className="flex items-center justify-between gap-4">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1">
-          <TabsList className="bg-card/50 border border-border">
-            <TabsTrigger value="all" className="text-xs">All</TabsTrigger>
-            <TabsTrigger value="drafts" className="text-xs">Drafts</TabsTrigger>
-            <TabsTrigger value="scheduled" className="text-xs">Scheduled</TabsTrigger>
-            <TabsTrigger value="published" className="text-xs">Published</TabsTrigger>
-          </TabsList>
-        </Tabs>
+      {/* Tabs + Filters + View Mode + Search + Bulk */}
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsList className="bg-card/50 border border-border">
+              <TabsTrigger value="all" className="text-xs">All</TabsTrigger>
+              <TabsTrigger value="drafts" className="text-xs">Drafts</TabsTrigger>
+              <TabsTrigger value="scheduled" className="text-xs">Scheduled</TabsTrigger>
+              <TabsTrigger value="published" className="text-xs">Published</TabsTrigger>
+            </TabsList>
+          </Tabs>
+          <div className="relative flex-1 min-w-[120px] max-w-[200px]">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+            <Input value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+              placeholder="Search..." className="bg-card/50 border-border text-foreground text-xs h-8 pl-7" />
+          </div>
+        </div>
         <div className="flex gap-2 items-center">
+          <Button size="sm" variant={bulkMode ? "default" : "outline"} onClick={() => { setBulkMode(!bulkMode); setSelectedItems(new Set()); }}
+            className={`text-xs h-8 ${bulkMode ? "bg-primary text-primary-foreground" : "border-border text-muted-foreground"}`}>
+            <CheckSquare className="h-3.5 w-3.5 mr-1" /> Bulk
+          </Button>
           <Select value={platformFilter} onValueChange={setPlatformFilter}>
             <SelectTrigger className="bg-card/50 border-border text-foreground h-8 text-xs w-32"><SelectValue placeholder="Platform" /></SelectTrigger>
             <SelectContent className="bg-popover border-border">
@@ -725,6 +1182,23 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
         </div>
       </div>
 
+      {/* Bulk action bar */}
+      {bulkMode && selectedItems.size > 0 && (
+        <div className="flex items-center gap-2 bg-primary/10 border border-primary/20 rounded-lg p-2">
+          <span className="text-xs text-primary font-medium">{selectedItems.size} selected</span>
+          <Button size="sm" variant="outline" onClick={selectAll} className="text-xs h-6 border-border text-muted-foreground">
+            {selectedItems.size === filtered.length ? "Deselect All" : "Select All"}
+          </Button>
+          <div className="flex-1" />
+          <Button size="sm" variant="outline" onClick={() => bulkChangeStatus("scheduled")} className="text-xs h-6 border-blue-500/20 text-blue-400">Schedule</Button>
+          <Button size="sm" variant="outline" onClick={() => bulkChangeStatus("draft")} className="text-xs h-6 border-amber-500/20 text-amber-400">→ Draft</Button>
+          <Button size="sm" variant="outline" onClick={() => bulkChangeStatus("archived")} className="text-xs h-6 border-border text-muted-foreground">Archive</Button>
+          <Button size="sm" variant="outline" onClick={bulkDelete} className="text-xs h-6 border-destructive/20 text-destructive">
+            <Trash2 className="h-3 w-3 mr-1" /> Delete
+          </Button>
+        </div>
+      )}
+
       {/* Content Display */}
       {loading ? (
         <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
@@ -739,62 +1213,80 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
       ) : viewMode === "calendar" ? (
         // Calendar View
         <div className="space-y-4">
-          {Object.entries(calendarGroups).filter(([, items]) => items.length > 0).map(([group, groupItems]) => (
-            <div key={group}>
-              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                {group === "today" ? "📅 Today" : group === "tomorrow" ? "📆 Tomorrow" : group === "thisWeek" ? "📋 This Week" : group === "later" ? "🗓️ Later" : "📝 Unscheduled"}
-                <span className="ml-2 text-muted-foreground/60">({groupItems.length})</span>
-              </h3>
-              <div className="space-y-2">
-                {groupItems.map(item => (
-                  <Card key={item.id} className="bg-card/50 border-border hover:border-primary/30 transition-all cursor-pointer" onClick={() => setShowDetail(item)}>
-                    <CardContent className="p-3 flex items-center gap-3">
-                      <div className={`w-1 h-10 rounded-full ${item.status === "published" ? "bg-emerald-500" : item.status === "scheduled" ? "bg-blue-500" : "bg-amber-500"}`} />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <p className="text-sm font-medium text-foreground truncate">{item.title}</p>
-                          <Badge variant="outline" className={`text-[9px] ${statusColor(item.status)}`}>{item.status}</Badge>
-                        </div>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <Badge variant="outline" className="text-[9px] border-border gap-0.5 capitalize">
-                            {platformIcon(item.platform)} {item.platform}
+          {Object.entries(calendarGroups).map(([group, groupItems]) => {
+            if (groupItems.length === 0) return null;
+            const labels: Record<string, string> = { today: "📅 Today", tomorrow: "📆 Tomorrow", thisWeek: "🗓️ This Week", later: "📋 Later", unscheduled: "📝 Unscheduled" };
+            return (
+              <div key={group}>
+                <h3 className="text-xs font-semibold text-foreground mb-2">{labels[group] || group}</h3>
+                <div className="space-y-1.5">
+                  {groupItems.map(item => (
+                    <Card key={item.id} className="bg-card/50 border-border hover:border-primary/30 transition-all cursor-pointer"
+                      onClick={() => !bulkMode && setShowDetail(item)}>
+                      <CardContent className="p-3 flex items-center gap-3">
+                        {bulkMode && (
+                          <button onClick={(e) => { e.stopPropagation(); toggleSelectItem(item.id); }}>
+                            {selectedItems.has(item.id)
+                              ? <CheckSquare className="h-4 w-4 text-primary" />
+                              : <Square className="h-4 w-4 text-muted-foreground" />}
+                          </button>
+                        )}
+                        <Badge variant="outline" className={`${statusColor(item.status)} capitalize text-[9px]`}>{item.status}</Badge>
+                        <span className="flex-1 text-xs text-foreground truncate">{item.title}</span>
+                        <Badge variant="outline" className="text-[9px] border-border text-muted-foreground capitalize gap-0.5">
+                          {platformIcon(item.platform)} {item.platform}
+                        </Badge>
+                        {item.scheduled_at && (
+                          <span className="text-[9px] text-muted-foreground">{format(new Date(item.scheduled_at), "h:mm a")}</span>
+                        )}
+                        {item.metadata?.series && (
+                          <Badge variant="outline" className="text-[9px] border-purple-500/20 text-purple-400">
+                            <BookOpen className="h-2 w-2 mr-0.5" /> Series
                           </Badge>
-                          {item.scheduled_at && <span className="text-[10px] text-muted-foreground">{format(new Date(item.scheduled_at), "h:mm a")}</span>}
-                          {item.viral_score > 0 && <span className={`text-[10px] ${item.viral_score >= 70 ? "text-emerald-400" : "text-muted-foreground"}`}>{item.viral_score}% viral</span>}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                        )}
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       ) : (
         // Grid View
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-3 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
           {filtered.map(item => (
-            <Card key={item.id}
-              className="bg-card/50 border-border hover:border-primary/30 transition-all cursor-pointer group"
-              onClick={() => setShowDetail(item)}>
-              <CardContent className="p-4">
-                {item.media_urls && Array.isArray(item.media_urls) && item.media_urls.length > 0 && (
-                  <div className="mb-3 rounded-lg overflow-hidden relative">
-                    <img src={item.media_urls[0]} alt="" className="w-full h-28 object-cover" />
-                    {item.media_urls.length > 1 && (
-                      <Badge className="absolute top-1 right-1 bg-black/60 text-white text-[8px]">+{item.media_urls.length - 1}</Badge>
-                    )}
-                  </div>
-                )}
-                <div className="flex items-start justify-between mb-2">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-foreground truncate">{item.title}</p>
-                    {item.account_id && <p className="text-[10px] text-muted-foreground">{acctName(item.account_id)}</p>}
-                  </div>
-                  <Badge variant="outline" className={`text-[9px] shrink-0 ml-2 ${statusColor(item.status)}`}>{item.status}</Badge>
+            <Card key={item.id} className="bg-card/50 border-border hover:border-primary/30 transition-all cursor-pointer group relative"
+              onClick={() => !bulkMode && setShowDetail(item)}>
+              {bulkMode && (
+                <button onClick={(e) => { e.stopPropagation(); toggleSelectItem(item.id); }}
+                  className="absolute top-2 left-2 z-10">
+                  {selectedItems.has(item.id)
+                    ? <CheckSquare className="h-4 w-4 text-primary" />
+                    : <Square className="h-4 w-4 text-muted-foreground" />}
+                </button>
+              )}
+              {/* Media preview */}
+              {item.media_urls && Array.isArray(item.media_urls) && item.media_urls.length > 0 && (
+                <div className="h-32 overflow-hidden rounded-t-lg">
+                  {/\.(mp4|mov|avi|webm)$/i.test(item.media_urls[0]) ? (
+                    <div className="w-full h-full bg-muted/30 flex items-center justify-center">
+                      <Video className="h-6 w-6 text-muted-foreground" />
+                    </div>
+                  ) : (
+                    <img src={item.media_urls[0]} alt="" className="w-full h-full object-cover" />
+                  )}
+                  {item.media_urls.length > 1 && (
+                    <span className="absolute top-2 right-2 bg-black/70 text-white text-[9px] rounded-full px-1.5 py-0.5">
+                      +{item.media_urls.length - 1}
+                    </span>
+                  )}
                 </div>
-                <div className="flex items-center gap-1.5 mb-2 flex-wrap">
-                  <Badge variant="outline" className="text-[9px] border-border text-muted-foreground gap-0.5 capitalize">
+              )}
+              <CardContent className="p-3">
+                <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
+                  <Badge variant="outline" className={`${statusColor(item.status)} capitalize text-[9px]`}>{item.status}</Badge>
+                  <Badge variant="outline" className={`text-[9px] border-border capitalize gap-0.5 ${platformConf(item.platform).color}`}>
                     {platformIcon(item.platform)} {item.platform}
                   </Badge>
                   <Badge variant="outline" className="text-[9px] border-border text-muted-foreground capitalize">{item.content_type}</Badge>
@@ -803,7 +1295,13 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
                       <Flame className="h-2.5 w-2.5 mr-0.5" />{item.viral_score}%
                     </Badge>
                   )}
+                  {item.metadata?.series && (
+                    <Badge variant="outline" className="text-[9px] border-purple-500/20 text-purple-400">
+                      <BookOpen className="h-2 w-2 mr-0.5" /> Pt {item.metadata.part}
+                    </Badge>
+                  )}
                 </div>
+                <p className="text-xs font-medium text-foreground mb-1 line-clamp-1">{item.title}</p>
                 {item.caption && <p className="text-[10px] text-muted-foreground line-clamp-2 mb-2">{item.caption}</p>}
                 {item.hashtags?.length > 0 && (
                   <div className="flex flex-wrap gap-1 mb-1">
@@ -844,6 +1342,11 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
                 {showDetail.viral_score > 0 && (
                   <Badge variant="outline" className="border-purple-500/20 text-purple-400">
                     <Flame className="h-3 w-3 mr-0.5" />{showDetail.viral_score}% viral
+                  </Badge>
+                )}
+                {showDetail.metadata?.series && (
+                  <Badge variant="outline" className="border-purple-500/20 text-purple-400">
+                    <BookOpen className="h-3 w-3 mr-0.5" /> Series: {showDetail.metadata.series} ({showDetail.metadata.part}/{showDetail.metadata.total_parts})
                   </Badge>
                 )}
               </div>
@@ -914,13 +1417,27 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
                 </div>
               </div>
 
-              {/* Cross-post */}
+              {/* Cross-post + Recycle */}
               {showDetail.status !== "published" && (
                 <div className="bg-muted/30 rounded-lg p-2">
                   <p className="text-[9px] text-muted-foreground mb-1.5 flex items-center gap-1"><Copy className="h-3 w-3" /> Cross-post to other platforms</p>
                   <div className="flex gap-1.5 flex-wrap">
                     {availablePlatforms.filter(p => p !== showDetail.platform).map(p => (
                       <Button key={p} size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); duplicateForPlatform(showDetail, p); }}
+                        className="text-[10px] h-6 border-border text-muted-foreground capitalize">
+                        {platformIcon(p)} {p}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {showDetail.status === "published" && (
+                <div className="bg-muted/30 rounded-lg p-2">
+                  <p className="text-[9px] text-muted-foreground mb-1.5 flex items-center gap-1"><Repeat className="h-3 w-3" /> Recycle to another platform (AI-adapted)</p>
+                  <div className="flex gap-1.5 flex-wrap">
+                    {availablePlatforms.filter(p => p !== showDetail.platform).map(p => (
+                      <Button key={p} size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); recycleContent(showDetail, p); }}
                         className="text-[10px] h-6 border-border text-muted-foreground capitalize">
                         {platformIcon(p)} {p}
                       </Button>
@@ -969,7 +1486,7 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
 
       {/* ========== TEMPLATES DIALOG ========== */}
       <Dialog open={showTemplates} onOpenChange={setShowTemplates}>
-        <DialogContent className="bg-popover border-border text-foreground max-w-md">
+        <DialogContent className="bg-popover border-border text-foreground max-w-lg">
           <DialogHeader>
             <DialogTitle className="text-foreground flex items-center gap-2"><Layers className="h-4 w-4 text-primary" /> Content Templates</DialogTitle>
           </DialogHeader>
@@ -998,6 +1515,168 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
         </DialogContent>
       </Dialog>
 
+      {/* ========== TRENDS DIALOG ========== */}
+      <Dialog open={showTrends} onOpenChange={setShowTrends}>
+        <DialogContent className="bg-popover border-border text-foreground max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-foreground flex items-center gap-2"><TrendingUp className="h-4 w-4 text-primary" /> Trending Content Ideas</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2 max-h-[60vh] overflow-y-auto">
+            {trendIdeas.map((idea, i) => (
+              <Card key={i} className="bg-card/50 border-border hover:border-primary/30 transition-all">
+                <CardContent className="p-3">
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-sm font-medium text-foreground">{idea.title}</p>
+                    <div className="flex items-center gap-1.5">
+                      <Badge variant="outline" className={`text-[9px] ${idea.urgency === "now" ? "border-destructive/30 text-destructive" : idea.urgency === "this_week" ? "border-amber-500/20 text-amber-400" : "border-border text-muted-foreground"}`}>
+                        {idea.urgency === "now" ? "🔥 Now" : idea.urgency === "this_week" ? "⏰ This Week" : "♻️ Evergreen"}
+                      </Badge>
+                      <Badge variant="outline" className="text-[9px] border-purple-500/20 text-purple-400">
+                        <Flame className="h-2.5 w-2.5 mr-0.5" />{idea.viral_potential}%
+                      </Badge>
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground line-clamp-2 mb-1.5">{idea.caption}</p>
+                  {idea.trend_source && <p className="text-[9px] text-blue-400/60 mb-1.5">Trend: {idea.trend_source}</p>}
+                  <div className="flex items-center justify-between">
+                    <Badge variant="outline" className="text-[9px] border-border text-muted-foreground capitalize gap-0.5">
+                      {platformIcon(idea.platform)} {idea.platform} · {idea.content_type}
+                    </Badge>
+                    <Button size="sm" onClick={() => applyTrendIdea(idea)} className="text-[10px] h-6 bg-primary text-primary-foreground">
+                      <Plus className="h-2.5 w-2.5 mr-0.5" /> Save Draft
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ========== CONTENT RECYCLER DIALOG ========== */}
+      <Dialog open={showRecycler} onOpenChange={setShowRecycler}>
+        <DialogContent className="bg-popover border-border text-foreground max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-foreground flex items-center gap-2"><Repeat className="h-4 w-4 text-primary" /> Content Recycler</DialogTitle>
+          </DialogHeader>
+          <p className="text-xs text-muted-foreground">AI repurposes your published content for other platforms with native adaptation.</p>
+          <div className="space-y-2 max-h-[55vh] overflow-y-auto">
+            {publishedContent.length === 0 ? (
+              <p className="text-xs text-muted-foreground text-center py-8">No published content to recycle yet</p>
+            ) : publishedContent.map(item => (
+              <Card key={item.id} className="bg-card/50 border-border">
+                <CardContent className="p-3">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <Badge variant="outline" className={`text-[9px] capitalize gap-0.5 ${platformConf(item.platform).color}`}>
+                      {platformIcon(item.platform)} {item.platform}
+                    </Badge>
+                    <span className="text-xs text-foreground flex-1 truncate">{item.title}</span>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground line-clamp-1 mb-2">{item.caption}</p>
+                  <div className="flex gap-1 flex-wrap">
+                    {availablePlatforms.filter(p => p !== item.platform).map(p => (
+                      <Button key={p} size="sm" variant="outline" onClick={() => recycleContent(item, p)}
+                        className="text-[9px] h-5 border-border text-muted-foreground capitalize">
+                        → {p}
+                      </Button>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ========== SERIES PLANNER DIALOG ========== */}
+      <Dialog open={showSeriesPlanner} onOpenChange={setShowSeriesPlanner}>
+        <DialogContent className="bg-popover border-border text-foreground max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-foreground flex items-center gap-2"><BookOpen className="h-4 w-4 text-primary" /> Content Series Planner</DialogTitle>
+          </DialogHeader>
+          <p className="text-xs text-muted-foreground">AI generates a multi-part content series with scheduled cadence.</p>
+          <div className="space-y-3">
+            <Input value={seriesTitle} onChange={e => setSeriesTitle(e.target.value)}
+              placeholder="Series topic (e.g., '5 Tips for Growth')" className="bg-card/50 border-border text-foreground text-xs" />
+            <div className="flex gap-3 items-center">
+              <span className="text-xs text-muted-foreground">Parts:</span>
+              {[3, 5, 7].map(n => (
+                <Button key={n} size="sm" variant={seriesCount === n ? "default" : "outline"}
+                  onClick={() => setSeriesCount(n)}
+                  className={`text-xs h-7 ${seriesCount === n ? "bg-primary text-primary-foreground" : "border-border text-muted-foreground"}`}>
+                  {n}
+                </Button>
+              ))}
+            </div>
+            <Select value={formPlatform || "instagram"} onValueChange={v => setFormPlatform(v)}>
+              <SelectTrigger className="bg-card/50 border-border text-foreground text-xs h-8">
+                <SelectValue placeholder="Platform" />
+              </SelectTrigger>
+              <SelectContent className="bg-popover border-border">
+                {availablePlatforms.map(p => (
+                  <SelectItem key={p} value={p} className="text-xs capitalize">{p}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button onClick={generateSeries} disabled={generatingSeries || !seriesTitle.trim()}
+              className="w-full bg-primary text-primary-foreground text-xs">
+              {generatingSeries ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Sparkles className="h-3.5 w-3.5 mr-1" />}
+              Generate {seriesCount}-Part Series
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ========== PERFORMANCE ANALYTICS DIALOG ========== */}
+      <Dialog open={showPerformance} onOpenChange={setShowPerformance}>
+        <DialogContent className="bg-popover border-border text-foreground max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-foreground flex items-center gap-2"><BarChart3 className="h-4 w-4 text-primary" /> Content Analytics</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="grid grid-cols-3 gap-2">
+              <div className="bg-muted/30 rounded-lg p-3 text-center">
+                <p className="text-2xl font-bold text-foreground">{stats.total}</p>
+                <p className="text-[10px] text-muted-foreground">Total Content</p>
+              </div>
+              <div className="bg-emerald-500/10 rounded-lg p-3 text-center">
+                <p className="text-2xl font-bold text-emerald-400">{stats.published}</p>
+                <p className="text-[10px] text-muted-foreground">Published</p>
+              </div>
+              <div className="bg-purple-500/10 rounded-lg p-3 text-center">
+                <p className="text-2xl font-bold text-purple-400">{stats.avgViral}%</p>
+                <p className="text-[10px] text-muted-foreground">Avg Viral Score</p>
+              </div>
+            </div>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Per Platform</p>
+            {Object.entries(performanceStats).map(([platform, data]) => (
+              <div key={platform} className="flex items-center gap-3 bg-muted/30 rounded-lg p-2">
+                <Badge variant="outline" className={`text-[9px] capitalize gap-0.5 ${platformConf(platform).color}`}>
+                  {platformIcon(platform)} {platform}
+                </Badge>
+                <div className="flex-1 grid grid-cols-3 gap-2 text-center">
+                  <div>
+                    <p className="text-sm font-bold text-foreground">{data.total}</p>
+                    <p className="text-[9px] text-muted-foreground">Total</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-emerald-400">{data.published}</p>
+                    <p className="text-[9px] text-muted-foreground">Published</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-purple-400">{data.avgViral}%</p>
+                    <p className="text-[9px] text-muted-foreground">Viral Avg</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+            {Object.keys(performanceStats).length === 0 && (
+              <p className="text-xs text-muted-foreground text-center py-4">No content data yet</p>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* ========== CREATE/EDIT DIALOG ========== */}
       <Dialog open={showCreate} onOpenChange={v => { if (!v) resetForm(); setShowCreate(v); }}>
         <DialogContent className="bg-popover border-border text-foreground max-w-xl max-h-[85vh] overflow-y-auto">
@@ -1007,7 +1686,7 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
           <div className="space-y-3">
             {/* Platform selector */}
             <div className="grid grid-cols-3 gap-2">
-              <Select value={formPlatform} onValueChange={v => { setFormPlatform(v); setFormType(platformConf(v).supportedTypes[0] || "post"); }}>
+              <Select value={formPlatform} onValueChange={v => { setFormPlatform(v); setFormType(platformConf(v).supportedTypes[0] || "post"); setAbVariants([]); setSuggestedSlots([]); }}>
                 <SelectTrigger className="bg-card/50 border-border text-foreground text-xs h-8"><SelectValue placeholder="Platform" /></SelectTrigger>
                 <SelectContent className="bg-popover border-border">
                   {availablePlatforms.map(p => (
@@ -1034,9 +1713,9 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
               </Select>
             </div>
 
-            {/* Connected info + best times */}
+            {/* Connected info + best times + media specs */}
             {formPlatform && (
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
                 {connForPlatform(formPlatform) && (
                   <div className="flex-1 bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-2">
                     <p className="text-[10px] text-emerald-400 flex items-center gap-1">
@@ -1049,12 +1728,30 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
                     <Target className="h-2.5 w-2.5" /> Best: {platformConf(formPlatform).bestTimes.slice(0, 3).join(", ")}
                   </p>
                 </div>
+                <div className="bg-muted/30 border border-border rounded-lg p-2">
+                  <p className="text-[9px] text-muted-foreground flex items-center gap-1">
+                    <Image className="h-2.5 w-2.5" /> {platformConf(formPlatform).mediaSpecs}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Platform presets */}
+            {formPlatform && PLATFORM_PRESETS[formPlatform] && (
+              <div className="flex gap-1.5 items-center flex-wrap">
+                <span className="text-[9px] text-muted-foreground"><Palette className="h-2.5 w-2.5 inline mr-0.5" />Quick:</span>
+                {PLATFORM_PRESETS[formPlatform].map((preset, i) => (
+                  <Button key={i} size="sm" variant="outline" onClick={() => applyPreset(preset)}
+                    className="text-[9px] h-5 px-2 border-border text-muted-foreground">
+                    {preset.label}
+                  </Button>
+                ))}
               </div>
             )}
 
             <Input value={formTitle} onChange={e => setFormTitle(e.target.value)} placeholder="Content title..." className="bg-card/50 border-border text-foreground text-xs" />
 
-            {/* Caption with AI rewrite */}
+            {/* Caption with AI rewrite + A/B Testing */}
             <div className="space-y-1">
               <div className="relative">
                 <Textarea value={formCaption} onChange={e => setFormCaption(e.target.value)}
@@ -1066,17 +1763,43 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
                   </span>
                 )}
               </div>
-              {/* AI Rewrite buttons */}
-              <div className="flex gap-1.5 items-center">
-                <span className="text-[9px] text-muted-foreground"><Wand2 className="h-2.5 w-2.5 inline mr-0.5" />AI Rewrite:</span>
-                {(["engaging", "viral", "professional", "casual"] as const).map(style => (
+              {/* AI Rewrite buttons — expanded */}
+              <div className="flex gap-1 items-center flex-wrap">
+                <span className="text-[9px] text-muted-foreground"><Wand2 className="h-2.5 w-2.5 inline mr-0.5" />AI:</span>
+                {(["engaging", "viral", "professional", "casual", "storytelling", "controversial"] as const).map(style => (
                   <Button key={style} size="sm" variant="outline" disabled={rewritingCaption || !formCaption.trim()}
                     onClick={() => rewriteCaption(style)}
-                    className="text-[9px] h-5 px-2 border-border text-muted-foreground capitalize">
+                    className="text-[9px] h-5 px-1.5 border-border text-muted-foreground capitalize">
                     {rewritingCaption ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : style}
                   </Button>
                 ))}
               </div>
+              {/* AI Generate from media/context */}
+              {(formMediaFiles.length > 0 || formExistingMedia.length > 0 || formTitle) && (
+                <Button size="sm" variant="outline" onClick={generateCaptionFromImage} disabled={generatingFromImage}
+                  className="text-[9px] h-5 px-2 border-primary/20 text-primary w-full">
+                  {generatingFromImage ? <Loader2 className="h-2.5 w-2.5 animate-spin mr-1" /> : <Brain className="h-2.5 w-2.5 mr-1" />}
+                  AI Auto-Caption from Context
+                </Button>
+              )}
+              {/* A/B Testing */}
+              <Button size="sm" variant="outline" onClick={generateABVariants} disabled={generatingAB || !formCaption.trim()}
+                className="text-[9px] h-5 px-2 border-border text-muted-foreground w-full">
+                {generatingAB ? <Loader2 className="h-2.5 w-2.5 animate-spin mr-1" /> : <Scissors className="h-2.5 w-2.5 mr-1" />}
+                Generate A/B Variants
+              </Button>
+              {abVariants.length > 0 && (
+                <div className="space-y-1.5 bg-muted/30 rounded-lg p-2">
+                  <p className="text-[9px] text-muted-foreground uppercase tracking-wider">A/B Variants — click to use</p>
+                  {abVariants.map((v, i) => (
+                    <button key={i} onClick={() => { setFormCaption(v); setAbVariants([]); toast.success(`Variant ${String.fromCharCode(65 + i)} selected`); }}
+                      className="w-full text-left bg-card/50 border border-border rounded-lg p-2 hover:border-primary/30 transition-colors">
+                      <span className="text-[9px] font-bold text-primary">Variant {String.fromCharCode(65 + i)}</span>
+                      <p className="text-[10px] text-foreground/70 line-clamp-3 mt-0.5">{v}</p>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             <Textarea value={formDesc} onChange={e => setFormDesc(e.target.value)}
@@ -1137,14 +1860,56 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
               </Select>
             )}
 
+            {/* Hashtags with AI generator */}
             {curPlatConf?.fields.hashtags !== false && (
-              <Input value={formHashtags} onChange={e => setFormHashtags(e.target.value)}
-                placeholder="Hashtags (comma-separated)..." className="bg-card/50 border-border text-foreground text-xs" />
+              <div className="space-y-1">
+                <div className="relative">
+                  <Input value={formHashtags} onChange={e => setFormHashtags(e.target.value)}
+                    placeholder={`Hashtags (comma-separated, max ${curPlatConf?.hashtagLimit || 30})...`}
+                    className="bg-card/50 border-border text-foreground text-xs pr-20" />
+                  <Button size="sm" variant="outline" onClick={generateHashtags} disabled={generatingHashtags}
+                    className="absolute right-1 top-1/2 -translate-y-1/2 text-[9px] h-6 px-2 border-primary/20 text-primary">
+                    {generatingHashtags ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <><Hash className="h-2.5 w-2.5 mr-0.5" />AI</>}
+                  </Button>
+                </div>
+                {formHashtags && (
+                  <p className="text-[9px] text-muted-foreground/50">
+                    {formHashtags.split(",").filter(h => h.trim()).length} / {curPlatConf?.hashtagLimit || 30} hashtags
+                  </p>
+                )}
+              </div>
             )}
             <Input value={formCta} onChange={e => setFormCta(e.target.value)}
               placeholder="Call to action..." className="bg-card/50 border-border text-foreground text-xs" />
-            <Input type="datetime-local" value={formSchedule} onChange={e => setFormSchedule(e.target.value)}
-              className="bg-card/50 border-border text-foreground text-xs" />
+
+            {/* Schedule with Smart Scheduling */}
+            <div className="space-y-1">
+              <div className="flex gap-2">
+                <Input type="datetime-local" value={formSchedule} onChange={e => setFormSchedule(e.target.value)}
+                  className="bg-card/50 border-border text-foreground text-xs flex-1" />
+                <Button size="sm" variant="outline" onClick={suggestSchedule} disabled={smartScheduling}
+                  className="text-[9px] h-10 px-2 border-primary/20 text-primary">
+                  {smartScheduling ? <Loader2 className="h-3 w-3 animate-spin" /> : <><Timer className="h-3 w-3 mr-0.5" />Smart</>}
+                </Button>
+              </div>
+              {suggestedSlots.length > 0 && (
+                <div className="flex gap-1 flex-wrap bg-muted/30 rounded-lg p-2">
+                  <span className="text-[9px] text-muted-foreground w-full mb-0.5">AI Suggested Slots:</span>
+                  {suggestedSlots.map((slot, i) => {
+                    try {
+                      const d = new Date(slot);
+                      return (
+                        <Button key={i} size="sm" variant="outline"
+                          onClick={() => { setFormSchedule(slot.slice(0, 16)); setSuggestedSlots([]); toast.success("Schedule set"); }}
+                          className="text-[9px] h-5 px-2 border-primary/20 text-primary">
+                          {format(d, "EEE h:mm a")}
+                        </Button>
+                      );
+                    } catch { return null; }
+                  })}
+                </div>
+              )}
+            </div>
 
             {/* Cross-post to other platforms */}
             {!editingId && formPlatform && (
