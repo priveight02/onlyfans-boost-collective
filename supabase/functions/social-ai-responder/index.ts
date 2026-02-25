@@ -914,6 +914,7 @@ const parseAgeFromProfileText = (...values: Array<string | null | undefined>): n
   const patterns = [
     /\b(?:age\s*[:=-]?\s*)(\d{2})\b/i,
     /\b(?:i\s*am|im|i'm|aged)\s*(\d{2})\b/i,
+    /\b[a-z][a-z\s]{2,}\s*[-–—|•·:]\s*(\d{2})\s*[-–—|•·:]\s*[a-z][a-z\s]{2,}\b/i,
     /\b(\d{2})\s*(?:years\s*old|year\s*old|yrs\s*old|y\/o|yo|yr\s*old|yrs?)\b/i,
     /\b(?:turned|turning)\s*(\d{2})\b/i,
     /\b(?:born\s+in\s+)(19\d{2}|20\d{2})\b/i,
