@@ -1248,18 +1248,22 @@ const buildDeterministicPersonaReply = (
             `i ${jobSource.slice(0, 80).toLowerCase()}`,
             `i mainly ${jobSource.slice(0, 80).toLowerCase()}`,
             `mostly i ${jobSource.slice(0, 80).toLowerCase()}`,
+            `basically i ${jobSource.slice(0, 80).toLowerCase()}`,
+            `my thing is ${jobSource.slice(0, 60).toLowerCase()}`,
           ]
         : [
             isMale ? "i run this page and business" : "i run this page and create content",
-            isMale ? "i manage this page and business" : "i manage this page and make content",
-            isMale ? "i handle this account full time" : "i handle this account full time",
+            isMale ? "i manage online business ventures" : "i manage this page and make content",
+            isMale ? "i handle digital services and products" : "i handle this account full time",
+            isMale ? "i do online business mainly digital services" : "i create content and run this page",
+            isMale ? "entrepreneurship and digital products thats my lane" : "content creation is what i do",
           ],
     );
   }
 
   if (partOptions.length === 0) return null;
 
-  const candidateSeeds = [0, 1, 2, 3];
+  const candidateSeeds = [0, 1, 2, 3, 4, 5];
   const candidates = candidateSeeds.map((seed) =>
     partOptions
       .map((opts, idx) => opts[(seed + idx) % opts.length])
@@ -1268,7 +1272,13 @@ const buildDeterministicPersonaReply = (
       .trim(),
   );
 
-  return pickFreshCandidate(candidates, conversationHistory) || null;
+  // CRITICAL: For matched intents, ALWAYS return something.
+  // A slightly repeated on-topic answer is infinitely better than falling through
+  // to the AI model which gives completely unrelated responses.
+  const fresh = pickFreshCandidate(candidates, conversationHistory);
+  if (fresh) return fresh;
+  // If all candidates were "repetitive", just pick a random one — still on-topic
+  return candidates[Math.floor(Math.random() * candidates.length)] || candidates[0];
 };
 
 // === UPGRADED FAN MEMORY ENGINE ===
