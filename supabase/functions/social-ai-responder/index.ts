@@ -906,6 +906,31 @@ const isLikelyQuestionText = (text?: string): boolean => {
   return t.includes("?") || QUESTION_PREFIX_RX.test(t) || QUESTION_INTENT_RX.test(t);
 };
 
+const parseAgeFromProfileText = (...values: Array<string | null | undefined>): number | null => {
+  const candidates = values
+    .map((v) => String(v || "").toLowerCase())
+    .filter(Boolean);
+
+  const patterns = [
+    /\b(?:age\s*[:=-]?\s*)(\d{2})\b/i,
+    /\b(?:i\s*am|im|i'm|aged)\s*(\d{2})\b/i,
+    /\b(\d{2})\s*(?:years\s*old|yrs\s*old|y\/o|yo)\b/i,
+    /\b(\d{2})\s*(?:yrs|years)\b/i,
+  ];
+
+  for (const text of candidates) {
+    for (const rx of patterns) {
+      const match = text.match(rx);
+      const age = match?.[1] ? Number(match[1]) : NaN;
+      if (Number.isFinite(age) && age >= 18 && age <= 80) {
+        return Math.floor(age);
+      }
+    }
+  }
+
+  return null;
+};
+
 const buildDeterministicPersonaReply = (
   latestFanText: string,
   personaPrompt: string,
@@ -936,9 +961,16 @@ const buildDeterministicPersonaReply = (
     : "";
 
   const ageFromProfile = Number(accountProfile?.resolved_age);
+  const bioFallbackAge = parseAgeFromProfileText(
+    accountProfile?.bio,
+    accountProfile?.notes,
+    accountProfile?.profile_bio,
+    accountProfile?.platform_bio,
+    accountProfile?.metadata_bio,
+  );
   const resolvedAge = Number.isFinite(ageFromProfile) && ageFromProfile >= 18 && ageFromProfile <= 80
     ? Math.floor(ageFromProfile)
-    : null;
+    : bioFallbackAge;
 
   const latestRaw = (recentContent?.[0]?.caption || recentContent?.[0]?.title || "").toString().toLowerCase();
   const latestTopic = latestRaw
@@ -4088,12 +4120,7 @@ Only follow up when interest level was genuinely high.`;
                 }
 
                 const parseAgeFromText = (value?: string | null): number | null => {
-                  const t = (value || "").toLowerCase();
-                  if (!t) return null;
-                  const ageMatch = t.match(/\b(?:im|i am|age|aged)\s*(\d{2})\b|\b(\d{2})\s*(?:years old|yo)\b/i);
-                  const raw = ageMatch?.[1] || ageMatch?.[2];
-                  const age = raw ? Number(raw) : NaN;
-                  return Number.isFinite(age) && age >= 18 && age <= 80 ? age : null;
+                  return parseAgeFromProfileText(value);
                 };
 
                 const calcAgeFromBirthDate = (value?: string | null): number | null => {
@@ -4108,11 +4135,18 @@ Only follow up when interest level was genuinely high.`;
                 };
 
                 const latestConnMeta = (socialConn || [])[0]?.metadata || {};
+                const connectedBio =
+                  latestConnMeta?.bio ||
+                  latestConnMeta?.biography ||
+                  latestConnMeta?.description ||
+                  latestConnMeta?.about ||
+                  "";
                 const resolvedAge =
                   (typeof latestConnMeta?.age === "number" ? latestConnMeta.age : null) ||
                   calcAgeFromBirthDate(latestConnMeta?.birthday || latestConnMeta?.birthdate || latestConnMeta?.date_of_birth) ||
                   parseAgeFromText(accountInfo?.bio) ||
                   parseAgeFromText(accountInfo?.notes) ||
+                  parseAgeFromText(connectedBio) ||
                   null;
 
                 recentPublishedContent = resolvedRecentContent;
@@ -4120,6 +4154,9 @@ Only follow up when interest level was genuinely high.`;
                   ...(accountInfo || {}),
                   platform_username: (socialConn || [])[0]?.platform_username || null,
                   real_name: latestConnMeta?.name || null,
+                  profile_bio: connectedBio || null,
+                  platform_bio: connectedBio || null,
+                  metadata_bio: connectedBio || null,
                   resolved_age: resolvedAge,
                 };
 
@@ -4374,6 +4411,52 @@ IF YOU DONT UNDERSTAND: say "wait wdym" or "lol what" — NEVER make up an incoh
             // Update pipeline phase to "generate" for real-time UI tracking
             if (typingMsg) {
               supabase.from("ai_dm_messages").update({ metadata: { pipeline_phase: "generate", pipeline_started_at: new Date().toISOString(), fan_username: dbConvo.participant_username } }).eq("id", typingMsg.id).then();
+            }
+
+            // Safety fallback: always resolve connected account bio/age for deterministic Q&A
+            if (!accountProfileInfo) {
+              try {
+                const [{ data: accountInfoFallback }, { data: socialConnFallback }] = await Promise.all([
+                  supabase
+                    .from("managed_accounts")
+                    .select("username, display_name, bio, notes, platform")
+                    .eq("id", account_id)
+                    .single(),
+                  supabase
+                    .from("social_connections")
+                    .select("platform_username, metadata")
+                    .eq("account_id", account_id)
+                    .eq("is_connected", true)
+                    .order("updated_at", { ascending: false })
+                    .limit(1),
+                ]);
+
+                const meta = (socialConnFallback || [])[0]?.metadata || {};
+                const connectedBioFallback =
+                  meta?.bio ||
+                  meta?.biography ||
+                  meta?.description ||
+                  meta?.about ||
+                  "";
+                const resolvedFallbackAge =
+                  (typeof meta?.age === "number" ? meta.age : null) ||
+                  parseAgeFromProfileText(
+                    accountInfoFallback?.bio,
+                    accountInfoFallback?.notes,
+                    connectedBioFallback,
+                  );
+
+                accountProfileInfo = {
+                  ...(accountInfoFallback || {}),
+                  platform_username: (socialConnFallback || [])[0]?.platform_username || null,
+                  profile_bio: connectedBioFallback || null,
+                  platform_bio: connectedBioFallback || null,
+                  metadata_bio: connectedBioFallback || null,
+                  resolved_age: resolvedFallbackAge || null,
+                };
+              } catch (fallbackProfileErr) {
+                console.log("[Q-GUARD] Profile age fallback fetch failed:", fallbackProfileErr);
+              }
             }
 
             const directQuestionReply = buildDeterministicPersonaReply(
