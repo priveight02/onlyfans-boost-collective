@@ -87,6 +87,59 @@ interface AiLogEntry {
   status: "success" | "error" | "info" | "processing";
 }
 
+const MESSAGE_CACHE_TTL_MS = 5 * 60 * 1000;
+const MAX_MESSAGES_PER_CONVERSATION = 50;
+
+const messageSortTime = (value?: string | null) => {
+  if (!value) return 0;
+  const parsed = new Date(value).getTime();
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const normalizeConversationMessages = (input: Message[]): Message[] => {
+  const unique = new Map<string, Message>();
+
+  const sorted = [...input].sort((a, b) => {
+    const timeDiff = messageSortTime(a.created_at) - messageSortTime(b.created_at);
+    if (timeDiff !== 0) return timeDiff;
+    return a.id.localeCompare(b.id);
+  });
+
+  for (const msg of sorted) {
+    const key = msg.platform_message_id
+      ? `platform:${msg.platform_message_id}`
+      : `fallback:${msg.sender_type}:${msg.created_at}:${msg.content}:${msg.status}`;
+    unique.set(key, msg);
+  }
+
+  return [...unique.values()]
+    .sort((a, b) => {
+      const timeDiff = messageSortTime(a.created_at) - messageSortTime(b.created_at);
+      if (timeDiff !== 0) return timeDiff;
+      return a.id.localeCompare(b.id);
+    })
+    .slice(-MAX_MESSAGES_PER_CONVERSATION);
+};
+
+const areMessagesEqual = (a: Message[], b: Message[]) => {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    const x = a[i];
+    const y = b[i];
+    if (
+      x.id !== y.id ||
+      x.platform_message_id !== y.platform_message_id ||
+      x.created_at !== y.created_at ||
+      x.status !== y.status ||
+      x.sender_type !== y.sender_type ||
+      x.content !== y.content
+    ) {
+      return false;
+    }
+  }
+  return true;
+};
+
 const AI_PHASES = [
   { id: "detect", icon: Eye, label: "Detecting new messages" },
   { id: "analyze", icon: Brain, label: "Analyzing conversation" },
@@ -344,7 +397,7 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
       .eq("account_id", accountId);
     // Filter by platform_user_id to only show conversations for the currently connected account
     if (effectivePlatformUserId) {
-      query = query.eq("platform_user_id", effectivePlatformUserId);
+      query = query.or(`platform_user_id.eq.${effectivePlatformUserId},platform_user_id.is.null`);
     }
     // Also filter by platform to isolate provider data
     if (platform) {
@@ -380,8 +433,9 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
     if (!forceRefresh) {
       const cached = getCached<Message[]>(accountId, cacheNs);
       if (cached && cached.length > 0) {
-        messageCacheRef.current.set(convoId, cached);
-        return cached;
+        const normalizedCached = normalizeConversationMessages(cached);
+        messageCacheRef.current.set(convoId, normalizedCached);
+        return normalizedCached;
       }
     }
     // Fetch last 50 messages per conversation (most recent)
@@ -390,19 +444,11 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
       .select("*")
       .eq("conversation_id", convoId)
       .order("created_at", { ascending: false })
-      .limit(50);
-    // Reverse to chronological order + deduplicate by platform_message_id
-    const raw = ((data || []) as Message[]).reverse();
-    const seen = new Set<string>();
-    const msgs = raw.filter(m => {
-      if (m.platform_message_id) {
-        if (seen.has(m.platform_message_id)) return false;
-        seen.add(m.platform_message_id);
-      }
-      return true;
-    });
+      .limit(MAX_MESSAGES_PER_CONVERSATION);
+
+    const msgs = normalizeConversationMessages((data || []) as Message[]);
     messageCacheRef.current.set(convoId, msgs);
-    setCache(accountId, cacheNs, msgs, undefined, 5 * 60 * 1000); // 5 min TTL
+    setCache(accountId, cacheNs, msgs, undefined, MESSAGE_CACHE_TTL_MS);
     return msgs;
   }, [accountId, effectivePlatformUserId]);
 
@@ -411,20 +457,14 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
     // Serve from cache instantly if available
     const cached = messageCacheRef.current.get(convoId);
     if (cached && cached.length > 0) {
-      setMessages(cached);
+      const normalizedCached = normalizeConversationMessages(cached);
+      setMessages(normalizedCached);
       // Refresh in background without blocking
       loadMessagesToCache(convoId).then(fresh => {
-        // Only update if content actually changed (prevent flicker)
-        if (fresh.length === 0) return; // never overwrite with empty
+        const normalizedFresh = normalizeConversationMessages(fresh);
         setSelectedConvo(prev => {
-          if (prev === convoId) {
-            const cachedNow = messageCacheRef.current.get(convoId);
-            // Compare last message IDs to detect real changes
-            const lastFresh = fresh[fresh.length - 1]?.id;
-            const lastCached = cachedNow?.[cachedNow.length - 1]?.id;
-            if (lastFresh !== lastCached || fresh.length !== (cachedNow?.length || 0)) {
-              setMessages(fresh);
-            }
+          if (prev === convoId && !areMessagesEqual(normalizedCached, normalizedFresh)) {
+            setMessages(normalizedFresh);
           }
           return prev;
         });
@@ -434,7 +474,7 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
     // No cache — load with spinner
     setLoading(true);
     const msgs = await loadMessagesToCache(convoId);
-    setMessages(msgs);
+    setMessages(normalizeConversationMessages(msgs));
     setLoading(false);
   }, [loadMessagesToCache]);
 
@@ -463,11 +503,24 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
       const igMessages: any[] = data.data?.messages?.data || [];
       if (igMessages.length === 0) return;
 
-      // 1 DB call — fetch ALL existing messages for this convo (already cached most times)
+      // Build existing message map (cache first, DB fallback when cache is cold)
       const cached = messageCacheRef.current.get(convoId) || [];
       const dbByPlatformId = new Map<string, Message>();
       for (const m of cached) {
         if (m.platform_message_id) dbByPlatformId.set(m.platform_message_id, m);
+      }
+      if (dbByPlatformId.size === 0) {
+        const { data: existingRows } = await supabase
+          .from("ai_dm_messages")
+          .select("id, platform_message_id, sender_type, sender_name, content, status, ai_model, typing_delay_ms, life_pause_ms, created_at, metadata, conversation_id")
+          .eq("conversation_id", convoId)
+          .not("platform_message_id", "is", null)
+          .order("created_at", { ascending: false })
+          .limit(300);
+
+        for (const row of (existingRows || []) as Message[]) {
+          if (row.platform_message_id) dbByPlatformId.set(row.platform_message_id, row);
+        }
       }
 
       const igMessageIds = new Set(igMessages.map((m: any) => m.id).filter(Boolean));
@@ -567,8 +620,11 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
       if (changed) {
         const fresh = await loadMessagesToCache(convoId, true); // force refresh after writes
         if (fresh.length > 0) {
+          const normalizedFresh = normalizeConversationMessages(fresh);
           setSelectedConvo(prev => {
-            if (prev === convoId) setMessages(fresh);
+            if (prev === convoId) {
+              setMessages(prevMsgs => areMessagesEqual(prevMsgs, normalizedFresh) ? prevMsgs : normalizedFresh);
+            }
             return prev;
           });
         }
@@ -643,10 +699,10 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
     
     // Populate cache — keep last 50 per convo
     for (const cid of convoIds) {
-      const msgs = (msgsByConvo.get(cid) || []).slice(-50);
+      const msgs = normalizeConversationMessages(msgsByConvo.get(cid) || []);
       messageCacheRef.current.set(cid, msgs);
       const ns = `dm_msgs_${effectivePlatformUserId || "any"}_${cid}`;
-      setCache(accountId, ns, msgs, undefined, 5 * 60 * 1000); // 5 min TTL
+      setCache(accountId, ns, msgs, undefined, MESSAGE_CACHE_TTL_MS);
     }
     // Set empty arrays for convos with no messages yet
     for (const c of convos) {
@@ -655,11 +711,11 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
       }
     }
 
-    // Update current view if cached — only if data exists
+    // Update current view if cached
     setSelectedConvo(prev => {
       if (prev && messageCacheRef.current.has(prev)) {
-        const freshMsgs = messageCacheRef.current.get(prev) || [];
-        if (freshMsgs.length > 0) setMessages(freshMsgs);
+        const freshMsgs = normalizeConversationMessages(messageCacheRef.current.get(prev) || []);
+        setMessages(prevMsgs => areMessagesEqual(prevMsgs, freshMsgs) ? prevMsgs : freshMsgs);
       }
       return prev;
     });
@@ -911,10 +967,12 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
         pollState.lastCount = currentCount;
         
         // Something changed — refresh from DB
-        const fresh = await loadMessagesToCache(selectedConvo, true);
+        const fresh = normalizeConversationMessages(await loadMessagesToCache(selectedConvo, true));
         if (fresh.length === 0 && cached && cached.length > 0) return; // never overwrite with empty
         setSelectedConvo(prev => {
-          if (prev === selectedConvo) setMessages(fresh);
+          if (prev === selectedConvo) {
+            setMessages(prevMsgs => areMessagesEqual(prevMsgs, fresh) ? prevMsgs : fresh);
+          }
           return prev;
         });
       } finally { pollState.inFlight = false; }
@@ -1070,58 +1128,48 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
     return () => { supabase.removeChannel(pipelineCh); };
   }, [accountId, addLog]);
 
-  // Real-time message subscription — MERGE instead of full reload
+  // Real-time message subscription — merge, normalize, and keep latest 50
   useEffect(() => {
     if (!selectedConvo) return;
+    const cacheNs = `dm_msgs_${effectivePlatformUserId || "any"}_${selectedConvo}`;
+
+    const persistMessages = (next: Message[]) => {
+      const normalized = normalizeConversationMessages(next);
+      messageCacheRef.current.set(selectedConvo, normalized);
+      setCache(accountId, cacheNs, normalized, undefined, MESSAGE_CACHE_TTL_MS);
+      return normalized;
+    };
+
     const ch2 = supabase
       .channel(`dm-msgs-${selectedConvo}`)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "ai_dm_messages", filter: `conversation_id=eq.${selectedConvo}` }, (payload) => {
         const newMsg = payload.new as Message;
         setMessages(prev => {
-          // Skip if already exists by id
-          if (prev.find(m => m.id === newMsg.id)) return prev;
-          // Skip if duplicate by platform_message_id
-          if (newMsg.platform_message_id && prev.find(m => m.platform_message_id === newMsg.platform_message_id)) return prev;
-          // Skip if we have a temp version with same content
-          if (prev.find(m => m.id.startsWith("temp-") && m.content === newMsg.content && m.sender_type === newMsg.sender_type)) {
-            // Replace temp with real
-            return prev.map(m => (m.id.startsWith("temp-") && m.content === newMsg.content && m.sender_type === newMsg.sender_type) ? newMsg : m);
-          }
-          return [...prev, newMsg];
+          const withoutTemp = prev.filter(m => !(m.id.startsWith("temp-") && m.content === newMsg.content && m.sender_type === newMsg.sender_type));
+          if (withoutTemp.find(m => m.id === newMsg.id)) return withoutTemp;
+          const merged = persistMessages([...withoutTemp, newMsg]);
+          return areMessagesEqual(prev, merged) ? prev : merged;
         });
-        // Update both memory + persistent cache
-        const cached = messageCacheRef.current.get(selectedConvo);
-        if (cached && !cached.find(m => m.id === newMsg.id)) {
-          const updated = [...cached, newMsg];
-          messageCacheRef.current.set(selectedConvo, updated);
-          setCache(accountId, `dm_msgs_${selectedConvo}`, updated, undefined, 10000);
-        }
       })
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "ai_dm_messages", filter: `conversation_id=eq.${selectedConvo}` }, (payload) => {
         const updated = payload.new as Message;
-        setMessages(prev => prev.map(m => m.id === updated.id ? updated : m));
-        const cached = messageCacheRef.current.get(selectedConvo);
-        if (cached) {
-          const fresh = cached.map(m => m.id === updated.id ? updated : m);
-          messageCacheRef.current.set(selectedConvo, fresh);
-          setCache(accountId, `dm_msgs_${selectedConvo}`, fresh, undefined, 10000);
-        }
+        setMessages(prev => {
+          const merged = persistMessages(prev.map(m => m.id === updated.id ? updated : m));
+          return areMessagesEqual(prev, merged) ? prev : merged;
+        });
       })
       .on("postgres_changes", { event: "DELETE", schema: "public", table: "ai_dm_messages", filter: `conversation_id=eq.${selectedConvo}` }, (payload) => {
         const oldId = (payload.old as any)?.id;
-        if (oldId) {
-          setMessages(prev => prev.filter(m => m.id !== oldId));
-          const cached = messageCacheRef.current.get(selectedConvo);
-          if (cached) {
-            const fresh = cached.filter(m => m.id !== oldId);
-            messageCacheRef.current.set(selectedConvo, fresh);
-            setCache(accountId, `dm_msgs_${selectedConvo}`, fresh, undefined, 10000);
-          }
-        }
+        if (!oldId) return;
+        setMessages(prev => {
+          const merged = persistMessages(prev.filter(m => m.id !== oldId));
+          return areMessagesEqual(prev, merged) ? prev : merged;
+        });
       })
       .subscribe();
+
     return () => { supabase.removeChannel(ch2); };
-  }, [selectedConvo]);
+  }, [selectedConvo, accountId, effectivePlatformUserId]);
 
   // Auto-scroll handled by virtualizer effect above
 
