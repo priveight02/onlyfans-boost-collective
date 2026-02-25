@@ -2101,7 +2101,9 @@ QUESTION ANSWERING (HIGHEST PRIORITY — NEVER BREAK):
 - NEVER reply "lol ok ok" to a question — that is NOT an answer
 
 FINAL REMINDER (READ LAST — THIS OVERRIDES EVERYTHING):
-- Your reply MUST be 3-12 words by default. Up to 20 words for answering real questions
+- Your reply MUST be COMPLETE — never cut off mid-sentence or mid-thought
+- Default length: 5-15 words. Up to 30 words max for answering real questions or sharing something personal
+- ALWAYS finish your thought. If you started saying something, COMPLETE IT
 - ZERO emojis. NONE. EVER. Not a single emoji character
 - ${isMalePersona ? "Write like a real guy texting — direct, casual, warm but efficient" : "Write like a real person texting — warm, casual, contextually relevant"}
 - Output ONLY the message text. No quotes, no labels, no empty strings`;
@@ -2125,7 +2127,7 @@ FINAL REMINDER (READ LAST — THIS OVERRIDES EVERYTHING):
           body: JSON.stringify({
             model: LIVE_CHAT_PRIMARY_MODEL,
             messages,
-            max_tokens: 150,
+            max_tokens: 400,
             temperature: 0.8,
           }),
         });
@@ -2138,6 +2140,65 @@ FINAL REMINDER (READ LAST — THIS OVERRIDES EVERYTHING):
 
         const aiResult = await response.json();
         let reply = (aiResult.choices?.[0]?.message?.content || "").replace(/\[.*?\]/g, "").replace(/^["']|["']$/g, "").trim();
+
+        // === SELF-VERIFICATION GUARD ===
+        // Check if the reply looks cut off (ends mid-word/sentence without punctuation or feels incomplete)
+        const looksIncomplete = reply.length > 0 && (
+          reply.endsWith("...") ||
+          reply.endsWith(",") ||
+          reply.endsWith(" and") ||
+          reply.endsWith(" but") ||
+          reply.endsWith(" so") ||
+          reply.endsWith(" just") ||
+          reply.endsWith(" actually") ||
+          reply.endsWith(" like") ||
+          reply.endsWith(" the") ||
+          reply.endsWith(" a") ||
+          reply.endsWith(" to") ||
+          reply.endsWith(" in") ||
+          reply.endsWith(" is") ||
+          reply.endsWith(" was") ||
+          /\w-$/.test(reply)
+        );
+
+        if (looksIncomplete) {
+          console.log(`[VERIFY] Reply looks cut off: "${reply}" — regenerating with higher tokens`);
+          try {
+            const verifyResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${LOVABLE_API_KEY}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                model: LIVE_CHAT_PRIMARY_MODEL,
+                messages: [
+                  ...messages,
+                  { role: "assistant", content: reply },
+                  { role: "user", content: "Your last reply got cut off. Rewrite it as ONE complete thought. Keep it short and natural. Output ONLY the final message:" },
+                ],
+                max_tokens: 400,
+                temperature: 0.7,
+              }),
+            });
+            if (verifyResp.ok) {
+              const verifyResult = await verifyResp.json();
+              const fixedReply = (verifyResult.choices?.[0]?.message?.content || "").replace(/\[.*?\]/g, "").replace(/^["']|["']$/g, "").trim();
+              if (fixedReply.length > 0) {
+                console.log(`[VERIFY] Fixed reply: "${fixedReply}"`);
+                reply = fixedReply;
+              }
+            }
+          } catch (verifyErr) {
+            console.log(`[VERIFY] Repair failed, using original`);
+          }
+        }
+
+        // === QUALITY CHECK: ensure reply isn't empty or gibberish ===
+        if (!reply || reply.length < 2) {
+          reply = "whats good";
+          console.log(`[VERIFY] Empty reply detected, using fallback`);
+        }
 
         // POST-PROCESS: Strip ALL emojis — zero tolerance
         const emojiRx2 = /[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{200D}\u{20E3}\u{FE0F}]/gu;
