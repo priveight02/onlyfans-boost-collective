@@ -896,6 +896,15 @@ const detectRepetitionIssue = (
   return { issue: "none" };
 };
 
+const pickFreshCandidate = (candidates: string[], conversationHistory: any[]): string => {
+  const deduped = [...new Set(candidates.map((c) => c.replace(/\s+/g, " ").trim()).filter(Boolean))];
+  if (deduped.length === 0) return "";
+  for (const candidate of deduped) {
+    if (detectRepetitionIssue(candidate, conversationHistory).issue === "none") return candidate;
+  }
+  return deduped[0];
+};
+
 const antiRepetitionCheck = (reply: string, conversationHistory: any[]): string => {
   const cleaned = (reply || "").replace(/\s+/g, " ").trim();
   const replyLower = cleaned.toLowerCase().replace(/[?!.,]/g, "").trim();
@@ -1018,7 +1027,8 @@ const buildDeterministicPersonaReply = (
   latestFanText: string,
   personaPrompt: string,
   accountProfile: any,
-  recentContent: any[]
+  recentContent: any[],
+  conversationHistory: any[] = [],
 ): string | null => {
   const text = (latestFanText || "").toLowerCase().trim();
   if (!isLikelyQuestionText(text)) return null;
@@ -1067,32 +1077,91 @@ const buildDeterministicPersonaReply = (
     .slice(0, 10)
     .join(" ");
 
-  const latestPostLine = latestTopic
-    ? `my latest post was about ${latestTopic}`
-    : "i havent posted anything recently";
-
   const latestMediaSummary = String(latestItem?.vision_summary || "").trim();
-  const latestMediaLine = latestMediaSummary
-    ? `in the image its ${latestMediaSummary.toLowerCase()}`
-    : (latestItem?.media_type ? `its a ${String(latestItem.media_type).toLowerCase()} post` : "i cant see a media preview rn");
 
-  const answerParts: string[] = [];
+  const partOptions: string[][] = [];
+
   if (asksName) {
-    answerParts.push(safeName ? `im ${safeName}` : "im the account owner");
+    partOptions.push(
+      safeName
+        ? [`im ${safeName}`, `you can call me ${safeName}`, `${safeName}`]
+        : ["im the account owner", "its me from this account", "its the profile owner"],
+    );
   }
-  if (asksLatestPost) answerParts.push(latestPostLine);
-  if (asksPostMedia) answerParts.push(latestMediaLine);
+
+  if (asksLatestPost) {
+    partOptions.push(
+      latestTopic
+        ? [
+            `my latest post was about ${latestTopic}`,
+            `last thing i posted was about ${latestTopic}`,
+            `newest upload was about ${latestTopic}`,
+          ]
+        : [
+            "i havent posted anything recently",
+            "still no new post yet",
+            "havent uploaded anything new lately",
+          ],
+    );
+  }
+
+  if (asksPostMedia) {
+    partOptions.push(
+      latestMediaSummary
+        ? [
+            `in the image its ${latestMediaSummary.toLowerCase()}`,
+            `the image shows ${latestMediaSummary.toLowerCase()}`,
+            `it looks like ${latestMediaSummary.toLowerCase()}`,
+          ]
+        : (latestItem?.media_type
+            ? [
+                `its a ${String(latestItem.media_type).toLowerCase()} post`,
+                `looks like a ${String(latestItem.media_type).toLowerCase()} upload`,
+                `that one is a ${String(latestItem.media_type).toLowerCase()} post`,
+              ]
+            : ["i cant see a media preview rn", "no media preview loaded rn", "media details arent loaded rn"]),
+    );
+  }
+
   if (asksAge) {
-    answerParts.push(resolvedAge ? `im ${resolvedAge}` : "i dont share my age publicly");
+    partOptions.push(
+      resolvedAge
+        ? [`im ${resolvedAge}`, `${resolvedAge}`, `im ${resolvedAge} years old`]
+        : ["i dont share my age publicly", "i keep my age private", "id rather keep my age private"],
+    );
   }
+
   if (asksJob) {
     const bio = String(accountProfile?.bio || "").trim();
     const notes = String(accountProfile?.notes || "").trim();
     const jobSource = bio || notes;
-    answerParts.push(jobSource ? `i ${jobSource.slice(0, 80).toLowerCase()}` : (isMale ? "i run this page and business" : "i run this page and create content"));
+    partOptions.push(
+      jobSource
+        ? [
+            `i ${jobSource.slice(0, 80).toLowerCase()}`,
+            `i mainly ${jobSource.slice(0, 80).toLowerCase()}`,
+            `mostly i ${jobSource.slice(0, 80).toLowerCase()}`,
+          ]
+        : [
+            isMale ? "i run this page and business" : "i run this page and create content",
+            isMale ? "i manage this page and business" : "i manage this page and make content",
+            isMale ? "i handle this account full time" : "i handle this account full time",
+          ],
+    );
   }
 
-  return answerParts.join(" and ").trim() || null;
+  if (partOptions.length === 0) return null;
+
+  const candidateSeeds = [0, 1, 2, 3];
+  const candidates = candidateSeeds.map((seed) =>
+    partOptions
+      .map((opts, idx) => opts[(seed + idx) % opts.length])
+      .join(" and ")
+      .replace(/\s+/g, " ")
+      .trim(),
+  );
+
+  return pickFreshCandidate(candidates, conversationHistory) || null;
 };
 
 // === UPGRADED FAN MEMORY ENGINE ===
@@ -4669,7 +4738,8 @@ IF YOU DONT UNDERSTAND: say "wait wdym" or "lol what" — NEVER make up an incoh
               latestMsg?.content || "",
               personaInfo2,
               accountProfileInfo,
-              recentPublishedContent
+              recentPublishedContent,
+              conversationContext,
             );
 
             let reply = "";
@@ -4728,7 +4798,8 @@ IF YOU DONT UNDERSTAND: say "wait wdym" or "lol what" — NEVER make up an incoh
                     latestMsg?.content || "",
                     personaInfo2,
                     accountProfileInfo,
-                    recentPublishedContent
+                    recentPublishedContent,
+                    conversationContext,
                   );
                   reply = fallbackFromQuestion || "got u";
                 }
@@ -4875,6 +4946,7 @@ IF YOU DONT UNDERSTAND: say "wait wdym" or "lol what" — NEVER make up an incoh
                   personaInfo2,
                   accountProfileInfo,
                   recentPublishedContent,
+                  conversationContext,
                 );
                 reply = deterministicFallback || "got you tell me more";
               }
