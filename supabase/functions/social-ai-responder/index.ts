@@ -3424,12 +3424,14 @@ Follow these persona settings strictly. They override any conflicting defaults a
             }
 
             // Build conversation context from DB — select ALL fields including metadata
-            const { data: dbMessages } = await supabase
+            // Filter out failed/deleted messages so they don't pollute AI context
+            const { data: dbMessagesRaw } = await supabase
               .from("ai_dm_messages")
               .select("*")
               .eq("conversation_id", dbConvo.id)
               .order("created_at", { ascending: true })
               .limit(50);
+            const dbMessages = (dbMessagesRaw || []).filter(m => m.status !== "failed" && m.status !== "deleted");
 
             // === RANDOMIZED HARD CAP (39-45) — FINAL SEDUCTIVE REDIRECT + 24H PAUSE ===
             // If conversation was manually unpaused, only count messages AFTER the unpause timestamp
@@ -4579,10 +4581,10 @@ OUTPUT:
 
             const aiMessages: any[] = [{ role: "system", content: systemPrompt }];
             
-            // Send the LAST 12 messages as context so the AI has enough conversation history
-            // to properly understand what's being discussed and answer questions accurately
-            // The FAN MEMORY ENGINE handles all historical facts via the system prompt
-            const recentContext = conversationContext.slice(-12);
+            // Send only the LAST 2-3 messages as DIRECT context for immediate relevance
+            // The FAN MEMORY ENGINE in system prompt handles all long-term/historical facts
+            // This prevents the AI from answering old stale messages instead of the latest ones
+            const recentContext = conversationContext.slice(-3);
             for (const ctx of recentContext) {
               aiMessages.push({ role: ctx.role === "creator" ? "assistant" : "user", content: ctx.text });
             }
@@ -5433,12 +5435,13 @@ Follow these persona settings strictly. They override any conflicting defaults a
         for (const uc of (unreadConvos || [])) {
           try {
             // Load FULL conversation history (up to 50 messages for deep context)
-            const { data: fullHistory } = await supabase
+            const { data: fullHistoryRaw } = await supabase
               .from("ai_dm_messages")
               .select("*")
               .eq("conversation_id", uc.id)
               .order("created_at", { ascending: true })
               .limit(50);
+            const fullHistory = (fullHistoryRaw || []).filter(m => m.status !== "failed" && m.status !== "deleted");
 
             if (!fullHistory || fullHistory.length === 0) continue;
 
@@ -5561,7 +5564,9 @@ FINAL REMINDER:
 - Output ONLY the message text`;
 
             const aiMsgsRL: any[] = [{ role: "system", content: systemPromptRL }];
-            for (const ctx of richContext) {
+            // Only last 3 messages for direct context — fan memory handles history
+            const recentCtxRL = richContext.slice(-3);
+            for (const ctx of recentCtxRL) {
               aiMsgsRL.push({ role: ctx.role === "creator" ? "assistant" : "user", content: ctx.text });
             }
 
@@ -5736,12 +5741,13 @@ Follow these persona settings strictly.`;
         for (const tc of (todayConvos || [])) {
           try {
             // Load FULL conversation history for deep context
-            const { data: fullHist } = await supabase
+            const { data: fullHistRaw } = await supabase
               .from("ai_dm_messages")
               .select("*")
               .eq("conversation_id", tc.id)
               .order("created_at", { ascending: true })
               .limit(50);
+            const fullHist = (fullHistRaw || []).filter(m => m.status !== "failed" && m.status !== "deleted");
 
             if (!fullHist || fullHist.length === 0) continue;
 
@@ -5905,7 +5911,9 @@ FINAL REMINDER:
 - Output ONLY the message text`;
 
             const aiMsgsRAT: any[] = [{ role: "system", content: systemPromptRAT }];
-            for (const ctx of richCtx) {
+            // Only last 3 messages for direct context
+            const recentCtxRAT = richCtx.slice(-3);
+            for (const ctx of recentCtxRAT) {
               aiMsgsRAT.push({ role: ctx.role === "creator" ? "assistant" : "user", content: ctx.text });
             }
 
@@ -6024,7 +6032,8 @@ ${personaDataRS.brand_identity ? `Brand Identity: ${personaDataRS.brand_identity
         const { data: convoRS } = await supabase.from("ai_dm_conversations").select("*").eq("id", conversation_id).single();
         if (!convoRS) { result = { error: "Conversation not found" }; break; }
 
-        const { data: fullHistRS } = await supabase.from("ai_dm_messages").select("*").eq("conversation_id", conversation_id).order("created_at", { ascending: true }).limit(50);
+        const { data: fullHistRSRaw } = await supabase.from("ai_dm_messages").select("*").eq("conversation_id", conversation_id).order("created_at", { ascending: true }).limit(50);
+        const fullHistRS = (fullHistRSRaw || []).filter(m => m.status !== "failed" && m.status !== "deleted");
         if (!fullHistRS || fullHistRS.length === 0) { result = { error: "No messages in conversation" }; break; }
 
         const lastMsgRS = fullHistRS[fullHistRS.length - 1];
@@ -6124,7 +6133,9 @@ FINAL REMINDER:
 - Output ONLY the message text`;
 
         const aiMsgsRS: any[] = [{ role: "system", content: systemPromptRS }];
-        for (const ctx of richCtxRS) aiMsgsRS.push({ role: ctx.role === "creator" ? "assistant" : "user", content: ctx.text });
+        // Only last 3 messages for direct context
+        const recentCtxRS = richCtxRS.slice(-3);
+        for (const ctx of recentCtxRS) aiMsgsRS.push({ role: ctx.role === "creator" ? "assistant" : "user", content: ctx.text });
 
         const { data: typingMsgRS } = await supabase.from("ai_dm_messages").insert({
           conversation_id, account_id, sender_type: "ai", sender_name: igConnRS.platform_username || "creator", content: "...", status: "typing",
