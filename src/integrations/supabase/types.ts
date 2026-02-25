@@ -2590,6 +2590,7 @@ export type Database = {
           motivation_level: number | null
           personality_traits: Json | null
           stress_level: number | null
+          system_prompt: string | null
           tone: string
           updated_at: string
           vocabulary_style: string
@@ -2609,6 +2610,7 @@ export type Database = {
           motivation_level?: number | null
           personality_traits?: Json | null
           stress_level?: number | null
+          system_prompt?: string | null
           tone?: string
           updated_at?: string
           vocabulary_style?: string
@@ -2628,6 +2630,7 @@ export type Database = {
           motivation_level?: number | null
           personality_traits?: Json | null
           stress_level?: number | null
+          system_prompt?: string | null
           tone?: string
           updated_at?: string
           vocabulary_style?: string

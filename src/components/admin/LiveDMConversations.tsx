@@ -3126,7 +3126,7 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
       {/* Bulk Message Hub Dialog */}
       <BulkMessageHub accountId={accountId} open={bulkHubOpen} onOpenChange={setBulkHubOpen} onNavigateToSession={onNavigateToSession} igSessionId={igSessionId} igSessionStatus={igSessionStatus} />
       {/* Persona Creator Dialog */}
-      <PersonaCreatorDialog accountId={accountId} open={personaCreatorOpen} onOpenChange={setPersonaCreatorOpen} />
+      <PersonaCreatorDialog accountId={accountId} open={personaCreatorOpen} onOpenChange={(open) => { setPersonaCreatorOpen(open); if (!open) loadPersonas(); }} />
     </div>
     </div>
   );

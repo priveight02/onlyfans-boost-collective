@@ -656,17 +656,60 @@ CRITICAL RULES:
 // Backward compat alias — Male businessman is the primary default
 const DEFAULT_PERSONA = DEFAULT_PERSONA_MALE;
 
-// Helper: get the right default persona based on account settings
-const getDefaultPersona = async (supabaseClient: any, accountId: string | null): Promise<string> => {
-  if (!accountId) return DEFAULT_PERSONA_MALE;
+// Helper: get the right persona based on account settings (supports custom system_prompt override)
+const getAccountPersona = async (supabaseClient: any, accountId: string | null): Promise<{ personaInfo: string; isCustomOverride: boolean }> => {
+  if (!accountId) return { personaInfo: DEFAULT_PERSONA_MALE, isCustomOverride: false };
   const { data } = await supabaseClient
     .from("managed_accounts")
     .select("default_persona_type, active_persona_id")
     .eq("id", accountId)
     .single();
+  
+  const activePersonaId = (data as any)?.active_persona_id;
+  
+  // If a custom persona is active, check for system_prompt override
+  if (activePersonaId) {
+    const { data: persona } = await supabaseClient
+      .from("persona_profiles")
+      .select("*")
+      .eq("id", activePersonaId)
+      .single();
+    
+    if (persona?.system_prompt && persona.system_prompt.trim()) {
+      // Full system prompt override — completely replaces default persona
+      const commRules = persona.communication_rules || {};
+      let fullPrompt = persona.system_prompt.trim();
+      // Append additional_info if present in communication_rules
+      if (commRules.additional_info && commRules.additional_info.trim()) {
+        fullPrompt += `\n\n--- ADDITIONAL CONTEXT ---\n${commRules.additional_info.trim()}`;
+      }
+      return { personaInfo: fullPrompt, isCustomOverride: true };
+    }
+    
+    // Custom persona without system_prompt — use default + overlay approach
+    if (persona) {
+      const personaType = (data as any)?.default_persona_type || "male";
+      let base = personaType === "female" ? DEFAULT_PERSONA_FEMALE : DEFAULT_PERSONA_MALE;
+      base += `\n\n--- ACTIVE PERSONA OVERRIDE ---
+Tone: ${persona.tone}
+Vocabulary Style: ${persona.vocabulary_style}
+Emotional Range: ${persona.emotional_range || "default"}
+${persona.boundaries ? `Hard Boundaries: ${persona.boundaries}` : ""}
+${persona.brand_identity ? `Brand Identity: ${persona.brand_identity}` : ""}
+${persona.communication_rules ? `Communication Rules: ${JSON.stringify(persona.communication_rules)}` : ""}
+Follow these persona settings strictly. They override any conflicting defaults above.`;
+      return { personaInfo: base, isCustomOverride: false };
+    }
+  }
+  
   const personaType = (data as any)?.default_persona_type || "male";
-  // Male is the primary default; only use female if explicitly set
-  return personaType === "female" ? DEFAULT_PERSONA_FEMALE : DEFAULT_PERSONA_MALE;
+  return { personaInfo: personaType === "female" ? DEFAULT_PERSONA_FEMALE : DEFAULT_PERSONA_MALE, isCustomOverride: false };
+};
+
+// Legacy helper for backward compat
+const getDefaultPersona = async (supabaseClient: any, accountId: string | null): Promise<string> => {
+  const result = await getAccountPersona(supabaseClient, accountId);
+  return result.personaInfo;
 };
 
 // === TENSION / AWKWARDNESS DETECTION ENGINE ===
@@ -2109,24 +2152,8 @@ serve(async (req) => {
       case "generate_dm_reply": {
         const { message_text, sender_name, conversation_context, auto_redirect_url, keywords_trigger } = params;
 
-        let personaInfo = await getDefaultPersona(supabase, account_id);
-        if (account_id) {
-          const { data: persona } = await supabase
-            .from("persona_profiles")
-            .select("*")
-            .eq("account_id", account_id)
-            .single();
-          if (persona) {
-            personaInfo += `\n\n--- ACTIVE PERSONA OVERRIDE ---
-Tone: ${persona.tone}
-Vocabulary Style: ${persona.vocabulary_style}
-Emotional Range: ${persona.emotional_range || "default"}
-${persona.boundaries ? `Hard Boundaries: ${persona.boundaries}` : ""}
-${persona.brand_identity ? `Brand Identity: ${persona.brand_identity}` : ""}
-${persona.communication_rules ? `Communication Rules: ${JSON.stringify(persona.communication_rules)}` : ""}
-Follow these persona settings strictly. They override any conflicting defaults above.`;
-          }
-        }
+        const { personaInfo: personaInfoLoaded } = await getAccountPersona(supabase, account_id);
+        let personaInfo = personaInfoLoaded;
 
         // Analyze fan's emoji usage across conversation context to decide mirroring
         const fanMessages = (conversation_context || []).filter((m: any) => m.role === "fan").map((m: any) => m.text).join(" ");
@@ -3297,10 +3324,11 @@ Rules:
           console.log(`[DAILY COUNTER] Account ${account_id}: daily counter reset (stats only)`);
         }
 
-        // Force male persona for live DM responder (per requirement)
-        // Ignore account default/female persona and persona profile overrides in this path
-        const personaInfo2 = DEFAULT_PERSONA_MALE;
-        console.log(`[PERSONA LOCK] Account ${account_id}: forced male persona in live DM pipeline`);
+        // Load persona based on account settings (supports custom persona system_prompt override)
+        const personaResult = await getAccountPersona(supabase, account_id);
+        const personaInfo2 = personaResult.personaInfo;
+        const isCustomPersonaOverride = personaResult.isCustomOverride;
+        console.log(`[PERSONA] Account ${account_id}: ${isCustomPersonaOverride ? "CUSTOM system_prompt override active" : "using default persona"} in live DM pipeline`);
 
         // Get connection info
         const { data: igConn2 } = await supabase
