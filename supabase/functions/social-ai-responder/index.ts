@@ -6,9 +6,9 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// Live DM chat model policy: always use top-tier models (no flash variants)
-const LIVE_CHAT_PRIMARY_MODEL = "google/gemini-3-pro-preview";
-const LIVE_CHAT_RETRY_MODEL = "openai/gpt-5.2";
+// Live DM chat model policy: ultimate quality for main conversations
+const LIVE_CHAT_PRIMARY_MODEL = "openai/gpt-5.2";
+const LIVE_CHAT_RETRY_MODEL = "google/gemini-3-pro-preview";
 
 // === HUMAN TYPING DELAY ENGINE ===
 // Simulates realistic human typing speed with randomness
@@ -37,6 +37,25 @@ function interMessageDelay(isFlowing = false): number {
   if (isFlowing) return 80 + Math.random() * 150; // 0.08-0.23s when flowing
   // 0.2-0.7s between messages
   return 200 + Math.random() * 500;
+}
+
+const INCOMPLETE_TAIL_WORDS = new Set(["and", "but", "so", "just", "actually", "like", "the", "a", "to", "in", "is", "was"]);
+
+function looksLikeCutOffReply(text: string): boolean {
+  const normalized = text.trim().toLowerCase();
+  if (!normalized) return false;
+  if (normalized.endsWith("...") || normalized.endsWith(",") || /\w-$/.test(normalized)) return true;
+  const words = normalized.split(/\s+/).filter(Boolean);
+  const tail = words[words.length - 1] || "";
+  return INCOMPLETE_TAIL_WORDS.has(tail);
+}
+
+function trimIncompleteTail(text: string): string {
+  const words = text.trim().split(/\s+/).filter(Boolean);
+  while (words.length > 0 && INCOMPLETE_TAIL_WORDS.has(words[words.length - 1].toLowerCase())) {
+    words.pop();
+  }
+  return words.join(" ").trim();
 }
 
 // === STRATEGIC IMAGE GENERATION ENGINE ===
@@ -2127,7 +2146,7 @@ FINAL REMINDER (READ LAST — THIS OVERRIDES EVERYTHING):
           body: JSON.stringify({
             model: LIVE_CHAT_PRIMARY_MODEL,
             messages,
-            max_tokens: 400,
+            max_tokens: 700,
             temperature: 0.8,
           }),
         });
@@ -2140,26 +2159,11 @@ FINAL REMINDER (READ LAST — THIS OVERRIDES EVERYTHING):
 
         const aiResult = await response.json();
         let reply = (aiResult.choices?.[0]?.message?.content || "").replace(/\[.*?\]/g, "").replace(/^["']|["']$/g, "").trim();
+        reply = trimIncompleteTail(reply);
 
         // === SELF-VERIFICATION GUARD ===
         // Check if the reply looks cut off (ends mid-word/sentence without punctuation or feels incomplete)
-        const looksIncomplete = reply.length > 0 && (
-          reply.endsWith("...") ||
-          reply.endsWith(",") ||
-          reply.endsWith(" and") ||
-          reply.endsWith(" but") ||
-          reply.endsWith(" so") ||
-          reply.endsWith(" just") ||
-          reply.endsWith(" actually") ||
-          reply.endsWith(" like") ||
-          reply.endsWith(" the") ||
-          reply.endsWith(" a") ||
-          reply.endsWith(" to") ||
-          reply.endsWith(" in") ||
-          reply.endsWith(" is") ||
-          reply.endsWith(" was") ||
-          /\w-$/.test(reply)
-        );
+        const looksIncomplete = reply.length > 0 && looksLikeCutOffReply(reply);
 
         if (looksIncomplete) {
           console.log(`[VERIFY] Reply looks cut off: "${reply}" — regenerating with higher tokens`);
@@ -2177,7 +2181,7 @@ FINAL REMINDER (READ LAST — THIS OVERRIDES EVERYTHING):
                   { role: "assistant", content: reply },
                   { role: "user", content: "Your last reply got cut off. Rewrite it as ONE complete thought. Keep it short and natural. Output ONLY the final message:" },
                 ],
-                max_tokens: 400,
+                max_tokens: 700,
                 temperature: 0.7,
               }),
             });
@@ -4754,18 +4758,22 @@ Answer it directly like a real human would. Do not talk about anything else.` })
 
             // POST-PROCESS: keep it clean and human (no emoji, no aggressive truncation)
             const emojiRxPost = /[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{200D}\u{20E3}\u{FE0F}]/gu;
-            reply = reply.replace(emojiRxPost, "").replace(/\s{2,}/g, " ").trim();
+            reply = trimIncompleteTail(reply.replace(emojiRxPost, "").replace(/\s{2,}/g, " ").trim());
 
             const wordsArr = reply.split(/\s+/).filter(Boolean);
             const isAnsweringQuestion = unansweredQuestions > 0 || multipleUnanswered || isLikelyQuestionText(latestMsg?.content || "");
             const maxWords = isAnsweringQuestion ? 38 : 20;
 
             if (wordsArr.length > maxWords) {
-              reply = wordsArr.slice(0, maxWords).join(" ");
+              reply = trimIncompleteTail(wordsArr.slice(0, maxWords).join(" "));
             }
 
             if (reply.split(/\s+/).length < 2 && wordsArr.length >= 2) {
-              reply = wordsArr.slice(0, 2).join(" ");
+              reply = trimIncompleteTail(wordsArr.slice(0, 2).join(" "));
+            }
+
+            if (!reply) {
+              reply = "say more";
             }
 
             reply = reply.replace(/[.!,;:]+$/, "");
