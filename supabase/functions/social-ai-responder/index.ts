@@ -906,94 +906,6 @@ const isLikelyQuestionText = (text?: string): boolean => {
   return t.includes("?") || QUESTION_PREFIX_RX.test(t) || QUESTION_INTENT_RX.test(t);
 };
 
-const extractAgeFromText = (value?: string): string | null => {
-  const text = (value || "").toLowerCase();
-  if (!text) return null;
-
-  const ageContextMatch = text.match(/(?:\bage\b|\bim\b|\bi am\b|\bi'm\b|\byo\b|\byears? old\b|\bturned\b)\D{0,12}(\d{2})/i)
-    || text.match(/\b(\d{2})\s*(?:yo|y\/o|years? old)\b/i)
-    || text.match(/\b(\d{2})\b/);
-
-  const ageNum = ageContextMatch?.[1] ? Number(ageContextMatch[1]) : NaN;
-  if (!Number.isFinite(ageNum) || ageNum < 18 || ageNum > 65) return null;
-  return String(ageNum);
-};
-
-const inferSyncedAge = (accountProfile: any, recentContent: any[]): string | null => {
-  const directAge = accountProfile?.age || accountProfile?.metadata?.age || accountProfile?.metadata?.profile_age;
-  if (directAge) {
-    const directNum = Number(directAge);
-    if (Number.isFinite(directNum) && directNum >= 18 && directNum <= 65) return String(directNum);
-  }
-
-  const profileCandidates = [
-    accountProfile?.bio,
-    accountProfile?.biography,
-    accountProfile?.live_biography,
-    accountProfile?.display_name,
-    accountProfile?.name,
-    accountProfile?.headline,
-    accountProfile?.metadata?.bio,
-    accountProfile?.metadata?.description,
-  ].filter(Boolean);
-
-  for (const candidate of profileCandidates) {
-    const found = extractAgeFromText(String(candidate));
-    if (found) return found;
-  }
-
-  for (const post of (recentContent || []).slice(0, 8)) {
-    const found = extractAgeFromText(String(post?.caption || post?.title || ""));
-    if (found) return found;
-  }
-
-  return null;
-};
-
-const inferSyncedJob = (accountProfile: any, isMale: boolean): string => {
-  const explicit = [
-    accountProfile?.job_title,
-    accountProfile?.profession,
-    accountProfile?.metadata?.job,
-    accountProfile?.metadata?.profession,
-    accountProfile?.metadata?.occupation,
-    accountProfile?.headline,
-  ].find(Boolean);
-
-  if (explicit) {
-    const clean = String(explicit).replace(/\s+/g, " ").trim();
-    if (clean.length >= 3) return `i ${clean.toLowerCase()}`;
-  }
-
-  const bio = String(accountProfile?.bio || accountProfile?.biography || accountProfile?.live_biography || "").toLowerCase();
-  const bioPart = bio
-    .split(/[|•,\/\n\-]/)
-    .map((p: string) => p.trim())
-    .find((p: string) => /(owner|founder|entrepreneur|agency|ceo|coach|creator|consultant|marketer|investor|developer|designer|freelancer|model|artist)/.test(p));
-
-  if (bioPart && bioPart.length > 2) return `i ${bioPart}`;
-
-  return isMale ? "i run online businesses and consulting" : "i create content and run digital projects";
-};
-
-const inferLatestPostLine = (recentContent: any[], isMale: boolean): string => {
-  const latest = (recentContent || []).find((post) => (post?.caption || post?.title || "").toString().trim().length > 0);
-  const latestRaw = (latest?.caption || latest?.title || "").toString().toLowerCase();
-  const latestTopic = latestRaw
-    .replace(/https?:\/\/\S+/g, "")
-    .replace(/[@#][a-z0-9_]+/g, "")
-    .replace(/[^a-z0-9\s]/g, " ")
-    .replace(/\s{2,}/g, " ")
-    .trim()
-    .split(" ")
-    .slice(0, 10)
-    .join(" ");
-
-  return latestTopic
-    ? `my latest post was about ${latestTopic}`
-    : (isMale ? "my latest post was a business growth tip" : "my latest post was a lifestyle update");
-};
-
 const buildDeterministicPersonaReply = (
   latestFanText: string,
   personaPrompt: string,
@@ -1011,18 +923,28 @@ const buildDeterministicPersonaReply = (
   if (!asksName && !asksLatestPost && !asksAge && !asksJob) return null;
 
   const isMale = /businessman|entrepreneur|a man/i.test(personaPrompt || "");
-  const rawName = (accountProfile?.display_name || accountProfile?.name || accountProfile?.username || accountProfile?.platform_username || "").toString().trim();
+  const rawName = (accountProfile?.display_name || accountProfile?.username || "").toString().trim();
   const firstName = rawName.split(/\s+/)[0]?.replace(/[^a-zA-Z]/g, "").toLowerCase();
   const safeName = firstName && firstName.length >= 2 ? firstName : (isMale ? "liam" : "lena");
-  const syncedAge = inferSyncedAge(accountProfile, recentContent);
-  const latestPostLine = inferLatestPostLine(recentContent, isMale);
-  const syncedJobLine = inferSyncedJob(accountProfile, isMale);
+
+  const latestRaw = (recentContent?.[0]?.caption || recentContent?.[0]?.title || "").toString().toLowerCase();
+  const latestTopic = latestRaw
+    .replace(/https?:\/\/\S+/g, "")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s{2,}/g, " ")
+    .trim()
+    .split(" ")
+    .slice(0, 8)
+    .join(" ");
+  const latestPostLine = latestTopic
+    ? `my latest post was about ${latestTopic}`
+    : (isMale ? "my latest post was a business growth tip" : "my latest post was a lifestyle update");
 
   const answerParts: string[] = [];
   if (asksName) answerParts.push(`im ${safeName}`);
   if (asksLatestPost) answerParts.push(latestPostLine);
-  if (asksAge) answerParts.push(syncedAge ? `im ${syncedAge}` : (isMale ? "im 28" : "im 23"));
-  if (asksJob) answerParts.push(syncedJobLine);
+  if (asksAge) answerParts.push(isMale ? "im 28" : "im 23");
+  if (asksJob) answerParts.push(isMale ? "i run online businesses and consulting" : "i create content and run digital projects");
 
   return answerParts.join(" and ").trim() || null;
 };
@@ -4109,6 +4031,9 @@ Only follow up when interest level was genuinely high.`;
                   .eq("id", account_id)
                   .single();
 
+                recentPublishedContent = recentContent || [];
+                accountProfileInfo = accountInfo || null;
+
                 // Fetch social connection profile data
                 const { data: socialConn } = await supabase
                   .from("social_connections")
@@ -4116,53 +4041,6 @@ Only follow up when interest level was genuinely high.`;
                   .eq("account_id", account_id)
                   .eq("is_connected", true)
                   .limit(3);
-
-                // Live sync from Instagram API while mode is enabled (profile + latest posts)
-                let liveProfile: any = null;
-                let liveMedia: any[] = [];
-                try {
-                  liveProfile = await callIG2("get_profile", {});
-                } catch (liveProfileErr: any) {
-                  console.log(`[CONTENT SYNC] live profile fetch failed: ${liveProfileErr?.message || liveProfileErr}`);
-                }
-
-                try {
-                  const liveMediaResult = await callIG2("get_media", { limit: 15 });
-                  liveMedia = Array.isArray(liveMediaResult?.data)
-                    ? liveMediaResult.data
-                    : (Array.isArray(liveMediaResult) ? liveMediaResult : []);
-                } catch (liveMediaErr: any) {
-                  console.log(`[CONTENT SYNC] live media fetch failed: ${liveMediaErr?.message || liveMediaErr}`);
-                }
-
-                const normalizedLiveContent = liveMedia.map((m: any) => ({
-                  title: m?.caption || "",
-                  caption: m?.caption || "",
-                  platform: "instagram",
-                  content_type: (m?.media_type || "post").toLowerCase(),
-                  hashtags: null,
-                  viral_score: null,
-                  published_at: m?.timestamp || null,
-                }));
-
-                recentPublishedContent = normalizedLiveContent.length > 0 ? normalizedLiveContent : (recentContent || []);
-                accountProfileInfo = {
-                  ...(accountInfo || {}),
-                  username: liveProfile?.username || accountInfo?.username || null,
-                  display_name: accountInfo?.display_name || liveProfile?.name || liveProfile?.username || null,
-                  name: liveProfile?.name || accountInfo?.display_name || accountInfo?.username || null,
-                  bio: accountInfo?.bio || liveProfile?.biography || null,
-                  biography: liveProfile?.biography || accountInfo?.bio || null,
-                  live_biography: liveProfile?.biography || null,
-                  followers_count: liveProfile?.followers_count ?? null,
-                  follows_count: liveProfile?.follows_count ?? null,
-                  media_count: liveProfile?.media_count ?? null,
-                  metadata: {
-                    ...(accountInfo?.metadata || {}),
-                    ...(liveProfile?.website ? { website: liveProfile.website } : {}),
-                    ...(liveProfile?.account_type ? { account_type: liveProfile.account_type } : {}),
-                  },
-                };
 
                 // Advanced Gender Identification AI Engine
                 // Uses name analysis, bio keywords, content patterns, and profile metadata
@@ -4205,14 +4083,14 @@ Only follow up when interest level was genuinely high.`;
                   return "unknown";
                 };
 
-                const detectedGender = identifyGender(accountProfileInfo, recentPublishedContent || []);
+                const detectedGender = identifyGender(accountInfo, recentContent || []);
 
-                const contentSummary = (recentPublishedContent || []).slice(0, 10).map((c, i) =>
+                const contentSummary = (recentContent || []).slice(0, 10).map((c, i) =>
                   `${i + 1}. [${c.platform}/${c.content_type}] "${(c.caption || c.title || "").substring(0, 120)}" (score: ${c.viral_score || 0})`
                 ).join("\n");
 
-                const profileSummary = accountProfileInfo
-                  ? `Username: @${accountProfileInfo.username || "unknown"}\nDisplay: ${accountProfileInfo.display_name || accountProfileInfo.name || "N/A"}\nBio: ${accountProfileInfo.bio || accountProfileInfo.biography || "N/A"}`
+                const profileSummary = accountInfo
+                  ? `Username: @${accountInfo.username || "unknown"}\nDisplay: ${accountInfo.display_name || "N/A"}\nBio: ${accountInfo.bio || "N/A"}`
                   : "No profile data available";
 
                 contentProfileCtx = `\n\n=== CONTENT & PROFILE SYNC (ACTIVE) ===
@@ -4233,7 +4111,7 @@ ${contentSummary || "No published content yet"}
 - If fans ask about your content, you can reference it naturally ("yeah i just posted about that lol").
 - Your content style IS your personality — be consistent between posts and DMs.`;
 
-                console.log(`[CONTENT SYNC] Loaded ${recentPublishedContent.length} posts (live: ${normalizedLiveContent.length}), gender: ${detectedGender}`);
+                console.log(`[CONTENT SYNC] Loaded ${(recentContent || []).length} posts, gender: ${detectedGender}`);
               } catch (e) {
                 console.error("[CONTENT SYNC] Error loading profile data:", e);
               }
