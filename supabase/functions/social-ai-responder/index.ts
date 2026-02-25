@@ -944,7 +944,8 @@ const buildQuestionNoRepeatVariants = (latestFanText: string, baseReply: string)
 
   const asksLatestPost = /(latest|last|recent)\s+(post|upload|content)|what did you post|whats your latest|when was your last post/.test(q);
   const asksAge = /(how old|your age|ur age|\bage\b)/.test(q);
-  const asksJob = /(what do you do|do for a living|whats your job|work\b)/.test(q);
+  const asksJob = /(what do you do|do for a living|whats your job|what is your job|work\b|business\b)/.test(q);
+  const asksMoneyPath = /(how can i make money|make money like you|money like you|how do i make money|how to make money|how can i start|how do i start)/.test(q);
   const asksName = /(who are you|your name|ur name|name\b)/.test(q);
 
   if (asksLatestPost) {
@@ -968,8 +969,17 @@ const buildQuestionNoRepeatVariants = (latestFanText: string, baseReply: string)
     ].filter(Boolean);
   }
 
+  if (asksMoneyPath) {
+    return [
+      base,
+      "start with one skill u can sell then get first clients",
+      "pick one niche solve one problem then scale",
+      "sell a clear offer first then add products",
+    ].filter(Boolean);
+  }
+
   if (asksJob) {
-    return [base, "thats what i do rn", "same work focus as i said"].filter(Boolean);
+    return [base, "i run online business services and products", "thats my work focus rn"].filter(Boolean);
   }
 
   if (asksName) {
@@ -1113,10 +1123,11 @@ const buildDeterministicPersonaReply = (
   const asksName = /(who are you|whats your name|what is your name|your name|ur name|name\b)/i.test(text);
   const asksLatestPost = /(latest|last|recent)\s+(post|upload|content|title)|what did you post|whats your latest/i.test(text);
   const asksAge = /(how old|your age|ur age|\bage\b)/i.test(text);
-  const asksJob = /(what do you do|do for a living|what is your job|whats your job|work\b)/i.test(text);
+  const asksJob = /(what do you do|do for a living|what is your job|whats your job|work\b|business\b)/i.test(text);
+  const asksMoneyPath = /(how can i make money|make money like you|money like you|how do i make money|how to make money|how can i start|how do i start)/i.test(text);
   const asksPostMedia = /(what(?:'s| is)?\s+in\s+(?:the\s+)?(?:image|photo|pic|media)|describe\s+(?:the\s+)?(?:image|photo|pic|media))/i.test(text);
 
-  if (!asksName && !asksLatestPost && !asksAge && !asksJob && !asksPostMedia) return null;
+  if (!asksName && !asksLatestPost && !asksAge && !asksJob && !asksMoneyPath && !asksPostMedia) return null;
 
   const isMale = /businessman|entrepreneur|a man/i.test(personaPrompt || "");
 
@@ -1212,7 +1223,22 @@ const buildDeterministicPersonaReply = (
     );
   }
 
-  if (asksJob) {
+  if (asksMoneyPath) {
+    partOptions.push(
+      isMale
+        ? [
+            "i built it by selling digital services first then adding products",
+            "start with one skill u can deliver then get ur first clients",
+            "pick one niche solve one painful problem then scale",
+            "sell one clear offer first then stack products later",
+          ]
+        : [
+            "start with one clear offer and stay consistent daily",
+            "pick one skill and one niche then sell that first",
+            "get first paying clients before trying to scale",
+          ],
+    );
+  } else if (asksJob) {
     const bio = String(accountProfile?.bio || "").trim();
     const notes = String(accountProfile?.notes || "").trim();
     const jobSource = bio || notes;
@@ -4970,6 +4996,26 @@ IF YOU DONT UNDERSTAND: say "wait wdym" or "lol what" — NEVER make up an incoh
             reply = reply.replace(/[.!,;:]+$/, "");
 
             // ANTI-REPETITION POST-PROCESSING
+            const latestFanTextLower = String(latestMsg?.content || "").toLowerCase();
+            const asksMoneyBusinessNow = /(business|make money|money like you|how can i make|how do i make|how to make|income|side hustle)/i.test(latestFanTextLower);
+            if (asksMoneyBusinessNow) {
+              const replyLooksOffTopic = !/(business|money|income|client|clients|offer|service|services|digital|consult|product|products|sell|start|niche|skill|work)/i.test(reply);
+              if (replyLooksOffTopic) {
+                const intentFallback = buildDeterministicPersonaReply(
+                  latestMsg?.content || "",
+                  personaInfo2,
+                  accountProfileInfo,
+                  recentPublishedContent,
+                  conversationContext,
+                );
+                if (intentFallback) {
+                  reply = intentFallback;
+                  aiModelUsed = "intent-guard";
+                  console.log(`[INTENT-GUARD] @${dbConvo.participant_username}: replaced off-topic money/business reply`);
+                }
+              }
+            }
+
             reply = antiRepetitionCheck(reply, conversationContext);
 
             // HARD NO-REPEAT GUARD: if draft echoes older assistant text or old fan text,
