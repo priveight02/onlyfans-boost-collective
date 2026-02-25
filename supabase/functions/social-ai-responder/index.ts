@@ -2152,8 +2152,10 @@ serve(async (req) => {
       case "generate_dm_reply": {
         const { message_text, sender_name, conversation_context, auto_redirect_url, keywords_trigger } = params;
 
-        const { personaInfo: personaInfoLoaded } = await getAccountPersona(supabase, account_id);
-        let personaInfo = personaInfoLoaded;
+        const personaResult = await getAccountPersona(supabase, account_id);
+        const personaInfo = personaResult.personaInfo;
+        const isCustomOverride = personaResult.isCustomOverride;
+        console.log(`[GENERATE_REPLY][PERSONA] ${isCustomOverride ? "CUSTOM system_prompt override active" : "default persona"} for account ${account_id}`);
 
         // Analyze fan's emoji usage across conversation context to decide mirroring
         const fanMessages = (conversation_context || []).filter((m: any) => m.role === "fan").map((m: any) => m.text).join(" ");
@@ -2161,13 +2163,29 @@ serve(async (req) => {
         const fanEmojiCount = (fanMessages.match(emojiRegex) || []).length;
         const fanMsgCount = (conversation_context || []).filter((m: any) => m.role === "fan").length || 1;
         const emojiPerMsg = fanEmojiCount / fanMsgCount;
-        
-        const emojiDirective = "\n\nEMOJI DIRECTIVE: ZERO emojis. NEVER use emojis regardless of what the fan sends. Text only. Always.";
 
-        // Detect if this is the male or female persona
-        const isMalePersona = personaInfo.includes("businessman") || personaInfo.includes("entrepreneur");
+        let systemPrompt: string;
 
-        const systemPrompt = `${personaInfo}${emojiDirective}
+        if (isCustomOverride && personaInfo) {
+          // === FULL CUSTOM PERSONA OVERRIDE ===
+          // The user's system_prompt IS the entire AI personality, behavior, tone, rules.
+          // Only append minimal formatting to keep output clean — NO default persona injected.
+          systemPrompt = `${personaInfo}
+
+CRITICAL FORMATTING RULES (always apply regardless of persona):
+- Output ONLY the message text. No quotes, no labels, no brackets, no annotations.
+- NEVER repeat something you already said in the conversation.
+- Read their LAST message. Reply to EXACTLY what they said.
+- Your reply MUST be COMPLETE — never cut off mid-sentence.
+${auto_redirect_url ? `\nYou can mention this link naturally if relevant: ${auto_redirect_url}` : ""}
+${keywords_trigger ? `If they mention any of these: ${keywords_trigger}, redirect them to the link.` : ""}`;
+          console.log(`[GENERATE_REPLY] Using CUSTOM persona system_prompt override (${systemPrompt.length} chars)`);
+        } else {
+          // === DEFAULT PERSONA PATH ===
+          const emojiDirective = "\n\nEMOJI DIRECTIVE: ZERO emojis. NEVER use emojis regardless of what the fan sends. Text only. Always.";
+          const isMalePersona = personaInfo.includes("businessman") || personaInfo.includes("entrepreneur");
+
+          systemPrompt = `${personaInfo}${emojiDirective}
 ${auto_redirect_url ? `\nIMPORTANT: when it makes sense, naturally guide toward this link: ${auto_redirect_url}. But NEVER redirect during genuine bonding moments` : ""}
 ${keywords_trigger ? `if they mention any of these: ${keywords_trigger}, redirect them to the link` : ""}
 
@@ -2193,6 +2211,8 @@ FINAL REMINDER (READ LAST — THIS OVERRIDES EVERYTHING):
 - ZERO emojis. NONE. EVER. Not a single emoji character
 - ${isMalePersona ? "Write like a real guy texting — direct, casual, warm but efficient" : "Write like a real person texting — warm, casual, contextually relevant"}
 - Output ONLY the message text. No quotes, no labels, no empty strings`;
+          console.log(`[GENERATE_REPLY] Using ${isMalePersona ? "MALE" : "FEMALE"} default persona (${systemPrompt.length} chars)`);
+        }
 
         const messages: any[] = [{ role: "system", content: systemPrompt }];
 
