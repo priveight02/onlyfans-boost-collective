@@ -935,7 +935,7 @@ const buildQuestionNoRepeatVariants = (latestFanText: string, baseReply: string)
 
   const asksLatestPost = /(latest|last|recent)\s+(post|upload|content)|what did you post|whats your latest|when was your last post/.test(q);
   const asksAge = /(how old|your age|ur age|\bage\b)/.test(q);
-  const asksJob = /(what do you do|do for a living|whats your job|what is your job|work\b|business\b)/.test(q);
+  const asksJob = /(what do you do|do for a living|whats your job|what is your job|work\b|business\b|in sales|do sales|are you in sales|you do sales|your profession|what kind of work|what work do you|what u do for|what do u do)/.test(q);
   const asksMoneyPath = /(how can i make money|make money like you|money like you|how do i make money|how to make money|how can i start|how do i start)/.test(q);
   const asksName = /(who are you|your name|ur name|name\b)/.test(q);
 
@@ -1114,7 +1114,7 @@ const buildDeterministicPersonaReply = (
   const asksName = /(who are you|whats your name|what is your name|your name|ur name|name\b)/i.test(text);
   const asksLatestPost = /(latest|last|recent)\s+(post|upload|content|title)|what did you post|whats your latest/i.test(text);
   const asksAge = /(how old|your age|ur age|\bage\b)/i.test(text);
-  const asksJob = /(what do you do|what do u do|do for a living|what is your job|whats your job|what's your job|your job\??)$/i.test(text);
+  const asksJob = /(what do you do|what do u do|do for a living|what is your job|whats your job|what's your job|your job|in sales|do sales|are you in sales|you do sales|your profession|what kind of work|what work do you|what u do for|are you in .{2,15} right now)/i.test(text);
   const asksMoneyPath = /(how can i make money|make money like you|money like you|how do i make money|how to make money|how can i start|how do i start|how to start a business|start a business)/i.test(text);
   const asksPostMedia = /(what(?:'s| is)?\s+in\s+(?:the\s+)?(?:image|photo|pic|media)|describe\s+(?:the\s+)?(?:image|photo|pic|media))/i.test(text);
 
@@ -4863,9 +4863,26 @@ Answer it directly like a real human would. Do not talk about anything else.` })
             const latestFanTextNow = (latestMsg?.content || "").trim();
             const latestIsQuestionNow = isLikelyQuestionText(latestFanTextNow);
             if (latestIsQuestionNow) {
-              const looksLikeDeflection =
-                (reply.includes("?") && !/\b(im|i am|i'm|i do|i run|my|yes|no|yea|nah|from|in|at|its|it is|just|rn|work|business)\b/i.test(reply)) ||
-                /\b(hows yours|how's yours|wbu|hbu)\b/i.test(reply);
+              const fanLower = latestFanTextNow.toLowerCase();
+              // Detect topic-specific questions that need topic-relevant answers
+              const asksAboutJobNow = /(sales|job|work|business|profession|do for a living|what do you do|what do u do|are you in)/i.test(fanLower);
+              const replyLower = reply.toLowerCase();
+
+              let looksLikeDeflection = false;
+
+              if (asksAboutJobNow) {
+                // For job/sales/work questions, require job-relevant words in reply — generic filler like "just relaxing" is NOT an answer
+                const hasJobRelevantAnswer = /\b(sales|business|entrepreneur|sell|selling|digital|services|products|online|marketing|agency|freelance|consulting|run|manage|own|build|create|tech|software|saas|ecommerce|i do|i work|my thing)\b/i.test(replyLower);
+                if (!hasJobRelevantAnswer) {
+                  looksLikeDeflection = true;
+                  console.log(`[DEFLECT GUARD] Job question detected but reply has no job-relevant words: "${reply}"`);
+                }
+              } else {
+                // General question deflection check (original logic)
+                looksLikeDeflection =
+                  (replyLower.includes("?") && !/\b(im|i am|i do|i run|my|yes|no|yea|nah|from|in|at|its|it is|rn|work|business)\b/i.test(replyLower)) ||
+                  /\b(hows yours|how's yours|wbu|hbu)\b/i.test(replyLower);
+              }
 
               if (looksLikeDeflection) {
                 const deterministicDirect = buildDeterministicPersonaReply(
@@ -4879,8 +4896,9 @@ Answer it directly like a real human would. Do not talk about anything else.` })
                 if (deterministicDirect) {
                   reply = deterministicDirect;
                 } else {
-                  reply = "im in online business rn";
+                  reply = asksAboutJobNow ? "yea i do online business mainly digital services and products" : "im in online business rn";
                 }
+                console.log(`[DEFLECT GUARD] Replaced deflection with: "${reply}"`);
               }
             }
 
