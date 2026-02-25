@@ -843,10 +843,62 @@ const detectPostRedirect = (messages: any[]): { shouldStop: boolean; shouldReact
 };
 
 // === ANTI-REPETITION POST-PROCESSOR ===
-// Keeps replies on-topic and NEVER swaps question answers for random filler
+// Keeps replies on-topic, avoids stale echoes, and preserves question answers
+const normalizeForSimilarity = (text: string): string =>
+  (text || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const tokenJaccard = (a: string, b: string): number => {
+  const aSet = new Set(a.split(" ").filter(Boolean));
+  const bSet = new Set(b.split(" ").filter(Boolean));
+  if (aSet.size === 0 || bSet.size === 0) return 0;
+  const intersection = [...aSet].filter((t) => bSet.has(t)).length;
+  const union = new Set([...aSet, ...bSet]).size;
+  return union > 0 ? intersection / union : 0;
+};
+
+const detectRepetitionIssue = (
+  reply: string,
+  conversationHistory: any[],
+): { issue: "none" | "repeat_assistant" | "echo_old_fan"; matched?: string } => {
+  const replyNorm = normalizeForSimilarity(reply);
+  if (!replyNorm || replyNorm.length < 4) return { issue: "none" };
+
+  const latestFan = [...conversationHistory]
+    .reverse()
+    .find((m) => m?.role === "fan" || m?.role === "user");
+  const latestFanNorm = normalizeForSimilarity(latestFan?.text || latestFan?.content || "");
+
+  const previousAssistant = conversationHistory
+    .filter((m) => m?.role === "creator" || m?.role === "assistant")
+    .map((m) => normalizeForSimilarity(m?.text || m?.content || ""))
+    .filter((t) => t.length >= 4);
+
+  for (const prev of previousAssistant) {
+    if (replyNorm === prev) return { issue: "repeat_assistant", matched: prev };
+    if (replyNorm.split(" ").length >= 5 && tokenJaccard(replyNorm, prev) >= 0.78) {
+      return { issue: "repeat_assistant", matched: prev };
+    }
+  }
+
+  const previousFan = conversationHistory
+    .filter((m) => m?.role === "fan" || m?.role === "user")
+    .map((m) => normalizeForSimilarity(m?.text || m?.content || ""))
+    .filter((t) => t.length >= 4 && t !== latestFanNorm);
+
+  for (const prevFan of previousFan) {
+    if (replyNorm === prevFan) return { issue: "echo_old_fan", matched: prevFan };
+  }
+
+  return { issue: "none" };
+};
+
 const antiRepetitionCheck = (reply: string, conversationHistory: any[]): string => {
-  const replyLower = reply.toLowerCase().replace(/[?!.,]/g, "").trim();
-  const replyWords = replyLower.split(/\s+/);
+  const cleaned = (reply || "").replace(/\s+/g, " ").trim();
+  const replyLower = cleaned.toLowerCase().replace(/[?!.,]/g, "").trim();
 
   const latestFanMsg = [...conversationHistory]
     .reverse()
@@ -855,13 +907,8 @@ const antiRepetitionCheck = (reply: string, conversationHistory: any[]): string 
   const latestFanText = (latestFanMsg?.text || latestFanMsg?.content || "").toLowerCase().trim();
   const latestIsQuestion = isLikelyQuestionText(latestFanText);
 
-  // CRITICAL: Never mutate answers to direct questions into generic/random chatter
-  if (latestIsQuestion) return reply;
-
-  // Extract questions/statements we already asked
-  const ourPrevMessages = conversationHistory
-    .filter(m => m.role === "creator" || m.role === "assistant")
-    .map(m => (m.text || m.content || "").toLowerCase().replace(/[?!.,]/g, "").trim());
+  // Never mutate direct answers to questions
+  if (latestIsQuestion) return cleaned;
 
   // Extract info they already gave us
   const theirMessages = conversationHistory
@@ -876,26 +923,7 @@ const antiRepetitionCheck = (reply: string, conversationHistory: any[]): string 
     return "got it tell me more";
   }
 
-  // If near-repeat is detected, keep original reply instead of replacing with random filler
-  for (const prev of ourPrevMessages) {
-    if (!prev || prev.length < 5) continue;
-    const prevWords = prev.split(/\s+/);
-    const overlap = replyWords.filter(w => prevWords.includes(w)).length;
-    const similarity = overlap / Math.max(replyWords.length, 1);
-    if (similarity > 0.6 && replyWords.length > 2) {
-      return reply;
-    }
-  }
-
-  // Avoid random rewrite even for exact repeat; keep semantic intent intact
-  if (ourPrevMessages.length > 0) {
-    const lastOurs = ourPrevMessages[ourPrevMessages.length - 1];
-    if (lastOurs && replyLower === lastOurs) {
-      return reply;
-    }
-  }
-
-  return reply;
+  return cleaned;
 };
 
 const QUESTION_PREFIX_RX = /^(who|what|whats|what's|where|when|why|how|do|does|did|is|are|can|could|would|will|tell me|name|age)\b/i;
@@ -4789,8 +4817,68 @@ IF YOU DONT UNDERSTAND: say "wait wdym" or "lol what" — NEVER make up an incoh
             // Remove trailing punctuation (except ?) to match casual style
             reply = reply.replace(/[.!,;:]+$/, "");
 
-            // ANTI-REPETITION POST-PROCESSING: Block repeated questions/statements
+            // ANTI-REPETITION POST-PROCESSING
             reply = antiRepetitionCheck(reply, conversationContext);
+
+            // HARD NO-REPEAT GUARD: if draft echoes older assistant text or old fan text,
+            // regenerate once with strict focus on the latest message only.
+            let repetitionCheck = detectRepetitionIssue(reply, conversationContext);
+            if (repetitionCheck.issue !== "none") {
+              console.log(`[NO-REPEAT] @${dbConvo.participant_username}: detected ${repetitionCheck.issue}, regenerating fresh reply`);
+              try {
+                const latestFanTextForRepair = (latestMsg?.content || "").trim();
+                const recentAssistant = conversationContext
+                  .filter((m: any) => m.role === "creator")
+                  .map((m: any) => (m.text || "").trim())
+                  .filter(Boolean)
+                  .slice(-6);
+
+                const repairResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+                  method: "POST",
+                  headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    model: "google/gemini-3-flash-preview",
+                    temperature: 0.85,
+                    max_tokens: 140,
+                    messages: [
+                      {
+                        role: "system",
+                        content: "Rewrite one natural DM reply. STRICT RULES: Answer ONLY the latest fan message, never repeat or paraphrase older assistant lines, never echo old fan messages, no emojis unless explicitly requested, 1 short message only.",
+                      },
+                      {
+                        role: "user",
+                        content: `LATEST FAN MESSAGE:\n${latestFanTextForRepair}\n\nDRAFT (REJECT IF REPETITIVE):\n${reply}\n\nOLDER ASSISTANT REPLIES (DO NOT REUSE):\n${recentAssistant.join("\n- ")}`,
+                      },
+                    ],
+                  }),
+                });
+
+                if (repairResp.ok) {
+                  const repairJson = await repairResp.json();
+                  const repaired = (repairJson?.choices?.[0]?.message?.content || "")
+                    .replace(/\[.*?\]/g, "")
+                    .replace(/^['"]|['"]$/g, "")
+                    .trim();
+                  if (repaired) {
+                    reply = antiRepetitionCheck(repaired, conversationContext);
+                    aiModelUsed = repairJson?.model || aiModelUsed;
+                  }
+                }
+              } catch (repairErr) {
+                console.log("[NO-REPEAT] Repair pass failed (non-blocking):", repairErr);
+              }
+
+              repetitionCheck = detectRepetitionIssue(reply, conversationContext);
+              if (repetitionCheck.issue !== "none") {
+                const deterministicFallback = buildDeterministicPersonaReply(
+                  latestMsg?.content || "",
+                  personaInfo2,
+                  accountProfileInfo,
+                  recentPublishedContent,
+                );
+                reply = deterministicFallback || "got you tell me more";
+              }
+            }
 
             // Detect flowing conversation: if fan replied within 90s of last AI reply, convo is active
             const lastAiReplyTime = dbConvo.last_ai_reply_at ? new Date(dbConvo.last_ai_reply_at).getTime() : 0;
