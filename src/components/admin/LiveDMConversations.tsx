@@ -255,6 +255,14 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
   const [personaEngine, setPersonaEngine] = useState(false);
   const [competitorSignals, setCompetitorSignals] = useState(false);
   const [shadowMode, setShadowModeToggle] = useState(false);
+  const [sentimentAnalysis, setSentimentAnalysis] = useState(false);
+  const [autoTagging, setAutoTagging] = useState(false);
+  const [spamFilter, setSpamFilter] = useState(false);
+  const [buyerSignalDetect, setBuyerSignalDetect] = useState(false);
+  const [objectionHandling, setObjectionHandling] = useState(false);
+  const [contextualMemory, setContextualMemory] = useState(false);
+  const [multiLangSupport, setMultiLangSupport] = useState(false);
+  const [abTestMessages, setAbTestMessages] = useState(false);
   const [showAdvancedPanel, setShowAdvancedPanel] = useState(false);
   // Pending review messages (review-before-send)
   const [pendingReviewMsgs, setPendingReviewMsgs] = useState<Map<string, { content: string; convoId: string; generatedAt: string }>>(new Map());
@@ -1126,6 +1134,14 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
         revenue_attribution: revenueAttribution,
         persona_engine: personaEngine,
         competitor_signals: competitorSignals,
+        sentiment_analysis: sentimentAnalysis,
+        auto_tagging: autoTagging,
+        spam_filter: spamFilter,
+        buyer_signal_detection: buyerSignalDetect,
+        objection_handling: objectionHandling,
+        contextual_memory: contextualMemory,
+        multi_language: multiLangSupport,
+        ab_test_messages: abTestMessages,
       };
       const { data, error } = await supabase.functions.invoke("social-ai-responder", {
         body: { action: "process_live_dm", account_id: accountId, params: { ai_modes: aiModes } },
@@ -1154,7 +1170,7 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
       setAiCurrentPhase("");
       setAiCurrentConvoId(null);
     }
-  }, [accountId, processing, addLog, reviewBeforeSend, convIntelligence, smartThrottling, shadowMode, viralPrediction, engagementDM, unifiedInbox, growthCopilot, leadHeatScoring, funnelBuilder, smartFollowUp, revenueAttribution, personaEngine, competitorSignals]);
+  }, [accountId, processing, addLog, reviewBeforeSend, convIntelligence, smartThrottling, shadowMode, viralPrediction, engagementDM, unifiedInbox, growthCopilot, leadHeatScoring, funnelBuilder, smartFollowUp, revenueAttribution, personaEngine, competitorSignals, sentimentAnalysis, autoTagging, spamFilter, buyerSignalDetect, objectionHandling, contextualMemory, multiLangSupport, abTestMessages]);
 
   // Auto-process DMs with AI every 3 seconds when auto-respond is active
   useEffect(() => {
@@ -1566,63 +1582,66 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
           {/* Advanced AI Features Dropdown */}
           <DropdownMenu open={showAdvancedPanel} onOpenChange={setShowAdvancedPanel}>
             <DropdownMenuTrigger asChild>
-              <Button size="sm" variant="outline" className={`h-7 text-[10px] gap-1 border-white/10 ${(reviewBeforeSend || convIntelligence || smartThrottling || shadowMode) ? "border-cyan-500/30 text-cyan-400" : "text-white/50"}`}>
+              <Button size="sm" variant="outline" className={`h-7 text-[10px] gap-1 border-white/10 ${[reviewBeforeSend, convIntelligence, smartThrottling, shadowMode, sentimentAnalysis, spamFilter, buyerSignalDetect, objectionHandling, contextualMemory].some(Boolean) ? "border-cyan-500/30 text-cyan-400" : "text-white/50"}`}>
                 <Settings2 className="h-3 w-3" />
                 AI Modes
-                {[reviewBeforeSend, convIntelligence, smartThrottling, viralPrediction, engagementDM, unifiedInbox, growthCopilot, leadHeatScoring, funnelBuilder, smartFollowUp, revenueAttribution, personaEngine, competitorSignals, shadowMode].filter(Boolean).length > 0 && (
-                  <Badge className="text-[7px] h-3.5 min-w-[14px] px-1 bg-cyan-500/20 text-cyan-400 border-0 ml-0.5">
-                    {[reviewBeforeSend, convIntelligence, smartThrottling, viralPrediction, engagementDM, unifiedInbox, growthCopilot, leadHeatScoring, funnelBuilder, smartFollowUp, revenueAttribution, personaEngine, competitorSignals, shadowMode].filter(Boolean).length}
-                  </Badge>
-                )}
+                {(() => { const count = [reviewBeforeSend, convIntelligence, smartThrottling, viralPrediction, engagementDM, unifiedInbox, growthCopilot, leadHeatScoring, funnelBuilder, smartFollowUp, revenueAttribution, personaEngine, competitorSignals, shadowMode, sentimentAnalysis, autoTagging, spamFilter, buyerSignalDetect, objectionHandling, contextualMemory, multiLangSupport, abTestMessages].filter(Boolean).length; return count > 0 ? <Badge className="text-[7px] h-3.5 min-w-[14px] px-1 bg-cyan-500/20 text-cyan-400 border-0 ml-0.5">{count}</Badge> : null; })()}
                 <ChevronDown className="h-2.5 w-2.5 ml-0.5" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-[340px] p-0" style={{ background: "hsl(222 50% 7% / 0.98)", border: "1px solid hsl(217 91% 60% / 0.1)", backdropFilter: "blur(24px)" }}>
-              <div className="px-3 py-2 border-b border-white/[0.06]">
-                <p className="text-[10px] font-bold text-white/70 uppercase tracking-wider">Advanced AI Modes</p>
-                <p className="text-[8px] text-white/30 mt-0.5">Toggle features on/off — all disabled by default</p>
+            <DropdownMenuContent align="end" className="w-[360px] p-0 overflow-hidden" style={{ background: "hsl(222 47% 6% / 0.97)", border: "1px solid hsl(217 80% 50% / 0.08)", backdropFilter: "blur(32px)", boxShadow: "0 24px 80px -12px hsl(222 60% 4% / 0.9), 0 0 0 1px hsl(217 80% 50% / 0.04)" }}>
+              <div className="px-4 py-2.5 border-b border-white/[0.05]">
+                <p className="text-[11px] font-semibold text-white/80 tracking-wide">AI Modes</p>
+                <p className="text-[9px] text-white/25 mt-0.5">All disabled by default. Toggle to activate.</p>
               </div>
-              <ScrollArea className="max-h-[420px]">
-                <div className="p-1.5 space-y-px">
+              <div className="overflow-y-auto" style={{ maxHeight: "min(480px, 60vh)" }}>
+                <div className="p-2 space-y-px">
                   {[
-                    { key: "reviewBeforeSend", label: "Review Before Send", desc: "Review, edit or discard AI messages before sending", checked: reviewBeforeSend, set: setReviewBeforeSend, onMsg: "Review mode ON — AI messages will wait for your approval", offMsg: "Review mode OFF — AI sends automatically" },
-                    { key: "divider", label: "Intelligence" },
-                    { key: "convIntelligence", label: "Conversation Intelligence", desc: "Detect intent — route leads, support, objections, hot buyers", checked: convIntelligence, set: setConvIntelligence },
-                    { key: "smartThrottling", label: "Smart Throttling (Anti-Ban)", desc: "Dynamic speed, message variation and auto-pause on risk", checked: smartThrottling, set: setSmartThrottling },
-                    { key: "shadowMode", label: "Shadow Mode", desc: "AI drafts, human approves — for high-ticket accounts", checked: shadowMode, set: setShadowModeToggle },
-                    { key: "divider2", label: "Growth & Outreach" },
+                    { key: "reviewBeforeSend", label: "Review Before Send", desc: "Review, edit or discard AI messages before sending", checked: reviewBeforeSend, set: setReviewBeforeSend, onMsg: "Review mode ON: AI messages will wait for your approval", offMsg: "Review mode OFF: AI sends automatically" },
+                    { key: "d1", label: "Intelligence" },
+                    { key: "convIntelligence", label: "Conversation Intelligence", desc: "Detect intent and route leads, support, objections, hot buyers", checked: convIntelligence, set: setConvIntelligence },
+                    { key: "smartThrottling", label: "Smart Throttling", desc: "Dynamic speed, message variation and auto-pause on risk", checked: smartThrottling, set: setSmartThrottling },
+                    { key: "shadowMode", label: "Shadow Mode", desc: "AI drafts responses, human approves before sending", checked: shadowMode, set: setShadowModeToggle },
+                    { key: "sentimentAnalysis", label: "Sentiment Analysis", desc: "Real-time emotion detection across all conversations", checked: sentimentAnalysis, set: setSentimentAnalysis },
+                    { key: "spamFilter", label: "Spam & Bot Filter", desc: "Auto-detect and filter spam, bots and low-quality leads", checked: spamFilter, set: setSpamFilter },
+                    { key: "buyerSignalDetect", label: "Buyer Signal Detection", desc: "Detect purchase intent from keywords like price, link, how much", checked: buyerSignalDetect, set: setBuyerSignalDetect },
+                    { key: "objectionHandling", label: "Objection Handling", desc: "Pre-trained persuasion responses for common objections", checked: objectionHandling, set: setObjectionHandling },
+                    { key: "d2", label: "Growth & Outreach" },
                     { key: "viralPrediction", label: "Viral Content Prediction", desc: "Score hook strength, retention and CTA before publishing", checked: viralPrediction, set: setViralPrediction },
                     { key: "engagementDM", label: "Engagement-Triggered DMs", desc: "Auto-DM users who comment, watch or like posts", checked: engagementDM, set: setEngagementDM },
                     { key: "unifiedInbox", label: "Unified Inbox + AI Memory", desc: "Cross-platform inbox with conversation memory and intent", checked: unifiedInbox, set: setUnifiedInbox },
                     { key: "growthCopilot", label: "AI Growth Copilot", desc: "Audit strategy, recommend posting and funnel improvements", checked: growthCopilot, set: setGrowthCopilot },
-                    { key: "divider3", label: "Sales & CRM" },
-                    { key: "leadHeatScoring", label: "Lead Heat Scoring", desc: "Visual heat indicators — cold, warm, ready to buy", checked: leadHeatScoring, set: setLeadHeatScoring },
+                    { key: "abTestMessages", label: "A/B Test Messages", desc: "Test multiple message variants to optimize conversion rates", checked: abTestMessages, set: setAbTestMessages },
+                    { key: "d3", label: "Sales & CRM" },
+                    { key: "leadHeatScoring", label: "Lead Heat Scoring", desc: "Visual heat indicators for cold, warm, and ready to buy", checked: leadHeatScoring, set: setLeadHeatScoring },
                     { key: "funnelBuilder", label: "AI Funnel Builder", desc: "Auto-build DM to qualification to booking to follow-up", checked: funnelBuilder, set: setFunnelBuilder },
-                    { key: "smartFollowUp", label: "Smart Follow-Up Engine", desc: "Contextual follow-ups — no generic spam", checked: smartFollowUp, set: setSmartFollowUp },
-                    { key: "revenueAttribution", label: "Revenue Attribution", desc: "Track which post, video or DM led to revenue", checked: revenueAttribution, set: setRevenueAttribution },
-                    { key: "divider4", label: "Advanced" },
-                    { key: "personaEngine", label: "AI Persona Engine", desc: "Adapt tone per brand — luxury, sales, creator", checked: personaEngine, set: setPersonaEngine },
-                    { key: "competitorSignals", label: "Competitor Signal Monitoring", desc: "Watch competitor patterns and counter-content ideas", checked: competitorSignals, set: setCompetitorSignals },
+                    { key: "smartFollowUp", label: "Smart Follow-Up Engine", desc: "Contextual follow-ups based on interest level, not generic reminders", checked: smartFollowUp, set: setSmartFollowUp },
+                    { key: "revenueAttribution", label: "Revenue Attribution", desc: "Track which post, video or DM directly led to revenue", checked: revenueAttribution, set: setRevenueAttribution },
+                    { key: "d4", label: "Advanced" },
+                    { key: "personaEngine", label: "AI Persona Engine", desc: "Adapt tone per brand: luxury, aggressive sales, friendly creator", checked: personaEngine, set: setPersonaEngine },
+                    { key: "competitorSignals", label: "Competitor Signal Monitoring", desc: "Watch competitor posting patterns and suggest counter-content", checked: competitorSignals, set: setCompetitorSignals },
+                    { key: "contextualMemory", label: "Contextual Memory", desc: "Remember past conversations, purchases and preferences per user", checked: contextualMemory, set: setContextualMemory },
+                    { key: "autoTagging", label: "Auto-Tagging", desc: "Automatically tag conversations by topic, stage and priority", checked: autoTagging, set: setAutoTagging },
+                    { key: "multiLangSupport", label: "Multi-Language Support", desc: "Detect language and respond in the user's native language", checked: multiLangSupport, set: setMultiLangSupport },
                   ].map((item) => {
-                    if (item.key.startsWith("divider")) {
+                    if (item.key.startsWith("d") && item.key.length <= 2) {
                       return (
-                        <div key={item.key}>
-                          <div className="h-px bg-white/[0.04] mx-1.5 my-1" />
-                          <p className="text-[8px] font-bold text-white/20 uppercase tracking-[0.08em] px-2.5 pt-1 pb-0.5">{item.label}</p>
+                        <div key={item.key} className="pt-2 pb-1 px-3">
+                          <p className="text-[8px] font-semibold text-white/15 uppercase tracking-[0.1em]">{item.label}</p>
                         </div>
                       );
                     }
                     return (
-                      <div key={item.key} className="flex items-center justify-between px-2.5 py-2 rounded-md hover:bg-white/[0.03] transition-colors group cursor-default">
+                      <div key={item.key} className={`flex items-center justify-between px-3 py-[7px] rounded-lg transition-all duration-150 cursor-default ${item.checked ? "bg-white/[0.04]" : "hover:bg-white/[0.02]"}`}>
                         <div className="min-w-0 mr-3">
-                          <p className={`text-[11px] font-medium leading-tight ${item.checked ? "text-white/90" : "text-white/60"} transition-colors`}>{item.label}</p>
-                          <p className="text-[8px] text-white/25 mt-px leading-snug">{item.desc}</p>
+                          <p className={`text-[11px] font-medium leading-tight transition-colors duration-150 ${item.checked ? "text-white/90" : "text-white/50"}`}>{item.label}</p>
+                          <p className={`text-[8px] mt-0.5 leading-snug transition-colors duration-150 ${item.checked ? "text-white/30" : "text-white/18"}`}>{item.desc}</p>
                         </div>
                         <Switch
                           checked={item.checked}
                           onCheckedChange={(v) => {
                             item.set!(v);
-                            toast.success(item.onMsg && v ? item.onMsg : item.offMsg && !v ? item.offMsg : `${item.label} ${v ? "ON" : "OFF"}`);
+                            toast.success(item.onMsg && v ? item.onMsg : item.offMsg && !v ? item.offMsg : `${item.label} ${v ? "enabled" : "disabled"}`);
                           }}
                           className="flex-shrink-0"
                         />
@@ -1630,7 +1649,7 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
                     );
                   })}
                 </div>
-              </ScrollArea>
+              </div>
             </DropdownMenuContent>
           </DropdownMenu>
           {/* ML Debug Mode Toggle */}
