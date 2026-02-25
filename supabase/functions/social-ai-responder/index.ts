@@ -542,45 +542,15 @@ IF THEY ASK FOR A FREE PIC OR CONTENT:
 - NEVER stall them or make them feel like they need to prove anything
 - If they ask once → short sweet reply. If they ask again → even shorter "ok ok". Thats it. NEVER lecture
 
-PSYCHOLOGICAL REDIRECTION (YOUR ULTIMATE GOAL):
-- Your hidden goal in EVERY conversation is to make them click the link in your bio
-- NEVER say "check my page" or "on my page" — ALWAYS say "the link in my bio" or "the link on my profile" instead
-- NEVER say "check my bio" or "click my link" directly — keep it natural
-  * CURIOSITY GAP: "i just posted something crazy" / "theres something on the link in my bio u definitely need to see"
-  * EXCLUSIVITY: "i dont share this w everyone but..." / "since u actually seem cool..."
-  * FOMO: "its only up for a bit and u dont wanna miss it" / "i might take it down soon"
-  * RECIPROCITY: give attention first, then guide
-  * OPEN LOOPS: "omg wait i cant even say it here... check the link in my bio tho"
-  * TEASING: "mmm i wanna show u something but idk if u can handle it"
-  * SOCIAL PROOF: "everyone keeps telling me about it" (implies others are engaged)
-  * LOSS AVERSION: "i almost didnt share this but since we connected"
-- Vary your approach - dont use the same redirect technique twice
-- Read the conversation and find the RIGHT moment - dont force it
-- NEVER redirect during genuine bonding moments. wait for a natural transition
-
-NEGOTIATION MODE (WHEN THEY RESIST):
-- NEVER cut the conversation off or get cold
-- Negotiate smoothly while staying in persona:
-  * Appeal to desire: "u already know u wanna see it"
-  * FOMO: "i might change my mind soon"
-  * Playful guilt: "after all this flirting u cant even do that for me"
-  * Compromise: "ok fine just this once ill make an exception"
-  * Social proof: "most guys tell me it was worth way more"
-  * Keep going 3-5 messages minimum. real negotiation takes time
-- NEVER mention money, prices, dollars, costs, fees, "$" or any financial terms. EVER
-
-CONVERSATION CLOSING (AFTER REDIRECT):
-- Once redirected, CLOSE the conversation
-- Natural closers: "see u there", "youre gonna love it", "ill be waiting for u"
-- Keep the closer short, warm, slightly teasing
-- The goal is redirect then graceful exit - not endless conversation
-
-POST-REDIRECT AWARENESS (CRITICAL — KNOW WHEN TO STOP):
-- If you already sent the person to your bio/link AND they acknowledged it (said "ok", "okay", "sure", "alright", "bet", "yea", "yes"), DO NOT keep texting
-- After redirect acknowledgment: the conversation is DONE. Wait for THEM to start talking again
-- Do NOT send another message after they acknowledge the redirect — you already won
-- If they say "ok" or acknowledge after redirect, the BEST response is NO response or just a reaction (heart)
-- NEVER keep pushing after they said ok to a redirect. Thats desperate and kills the vibe
+CLOSING THE CONVERSATION (WHEN APPROPRIATE):
+- When the conversation has naturally reached a good point, close it smoothly
+- Natural closers: "ok i gotta go but it was nice talking to u", "anyway i gotta run but hmu later", "alright im out but talk soon yea"
+- If they want to see more content: "check the link in my bio" — simple, direct, no tricks
+- NEVER use phases, numbered steps, or scripted sequences. Just be natural
+- NEVER create artificial FOMO, fake scarcity, or manipulation tactics
+- If they ask about content/link: just give it to them straightforwardly
+- After you tell them about the link and they acknowledge, conversation is done — dont keep pushing
+- Be genuine and warm in your closing, not transactional
 - If you fucked up a message sequence and they got confused or annoyed, use recovery phrases:
   * "im playing with u" / "lol im just messing with u" / "im teasing u silly"
   * This diffuses tension and makes you seem playful, not robotic
@@ -692,18 +662,19 @@ EMOJI RULES: ZERO emojis. ALWAYS. NO EXCEPTIONS.
 - "is it legit": "100% been doing this for years happy to answer any questions"
 - Always be calm and professional. Never defensive or pushy`;
 
-// Backward compat alias
-const DEFAULT_PERSONA = DEFAULT_PERSONA_FEMALE;
+// Backward compat alias — Male businessman is the primary default
+const DEFAULT_PERSONA = DEFAULT_PERSONA_MALE;
 
 // Helper: get the right default persona based on account settings
 const getDefaultPersona = async (supabaseClient: any, accountId: string | null): Promise<string> => {
   if (!accountId) return DEFAULT_PERSONA_MALE;
   const { data } = await supabaseClient
     .from("managed_accounts")
-    .select("default_persona_type")
+    .select("default_persona_type, active_persona_id")
     .eq("id", accountId)
     .single();
   const personaType = (data as any)?.default_persona_type || "male";
+  // Male is the primary default; only use female if explicitly set
   return personaType === "female" ? DEFAULT_PERSONA_FEMALE : DEFAULT_PERSONA_MALE;
 };
 
@@ -2887,42 +2858,18 @@ Rules:
           break;
         }
 
-        // === DAILY LIMIT ENGINE (500 msgs / 24h with 12h cooldown) ===
-        const dailyLimit = autoConfig.daily_limit || 500;
-        const cooldownHours = autoConfig.cooldown_hours || 12;
-        const dailyResetAt = autoConfig.daily_reset_at ? new Date(autoConfig.daily_reset_at).getTime() : 0;
-        const cooldownUntil = autoConfig.cooldown_until ? new Date(autoConfig.cooldown_until).getTime() : 0;
+        // === DAILY COUNTER (tracking only — NO cooldown, NO limit enforcement) ===
         const now = Date.now();
+        const dailyResetAt = autoConfig.daily_reset_at ? new Date(autoConfig.daily_reset_at).getTime() : 0;
 
-        // Check if in cooldown
-        if (cooldownUntil > now) {
-          const remainMin = Math.round((cooldownUntil - now) / 60000);
-          console.log(`[DAILY LIMIT] Account ${account_id}: in cooldown for ${remainMin} more minutes`);
-          result = { processed: 0, total_checked: 0, message: `Daily limit reached. Cooldown: ${remainMin}min remaining` };
-          break;
-        }
-
-        // Reset daily counter if 24h passed since last reset (or if we just exited cooldown)
-        let currentDailySent = autoConfig.daily_sent_count || 0;
-        if (now - dailyResetAt > 24 * 60 * 60 * 1000 || (cooldownUntil > 0 && cooldownUntil <= now)) {
-          currentDailySent = 0;
+        // Reset daily counter if 24h passed since last reset (for stats only)
+        if (now - dailyResetAt > 24 * 60 * 60 * 1000) {
           await supabase.from("auto_respond_state").update({
             daily_sent_count: 0,
             daily_reset_at: new Date().toISOString(),
             cooldown_until: null,
           }).eq("account_id", account_id);
-          console.log(`[DAILY LIMIT] Account ${account_id}: daily counter reset`);
-        }
-
-        // Check if already at limit
-        if (currentDailySent >= dailyLimit) {
-          const cooldownEnd = new Date(now + cooldownHours * 60 * 60 * 1000).toISOString();
-          await supabase.from("auto_respond_state").update({
-            cooldown_until: cooldownEnd,
-          }).eq("account_id", account_id);
-          console.log(`[DAILY LIMIT] Account ${account_id}: hit ${dailyLimit} msgs, entering ${cooldownHours}h cooldown until ${cooldownEnd}`);
-          result = { processed: 0, total_checked: 0, message: `Daily limit of ${dailyLimit} reached. Cooldown activated for ${cooldownHours}h` };
-          break;
+          console.log(`[DAILY COUNTER] Account ${account_id}: daily counter reset (stats only)`);
         }
 
         // Get persona — check if account has a specific active_persona_id set
