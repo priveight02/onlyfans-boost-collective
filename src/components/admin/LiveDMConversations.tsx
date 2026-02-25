@@ -327,6 +327,7 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
   const messagesParentRef = useRef<HTMLDivElement>(null);
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const convoInitRef = useRef<string | null>(null);
 
   // ===== MESSAGE CACHE =====
   const messageCacheRef = useRef<Map<string, Message[]>>(new Map());
@@ -438,15 +439,35 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
         return normalizedCached;
       }
     }
-    // Fetch last 50 messages per conversation (most recent)
-    const { data } = await supabase
-      .from("ai_dm_messages")
-      .select("*")
-      .eq("conversation_id", convoId)
-      .order("created_at", { ascending: false })
-      .limit(MAX_MESSAGES_PER_CONVERSATION);
 
-    const msgs = normalizeConversationMessages((data || []) as Message[]);
+    // Fetch enough rows to recover the latest 50 UNIQUE messages even when DB contains heavy duplicates
+    const PAGE_SIZE = 250;
+    const MAX_ROWS_TO_SCAN = 5000;
+    let offset = 0;
+    const collected: Message[] = [];
+
+    while (offset < MAX_ROWS_TO_SCAN) {
+      const { data } = await supabase
+        .from("ai_dm_messages")
+        .select("*")
+        .eq("conversation_id", convoId)
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: false })
+        .range(offset, offset + PAGE_SIZE - 1);
+
+      const batch = (data || []) as Message[];
+      if (batch.length === 0) break;
+
+      collected.push(...batch);
+
+      // Early stop as soon as we can build 50 unique messages
+      if (normalizeConversationMessages(collected).length >= MAX_MESSAGES_PER_CONVERSATION) break;
+      if (batch.length < PAGE_SIZE) break;
+
+      offset += PAGE_SIZE;
+    }
+
+    const msgs = normalizeConversationMessages(collected);
     messageCacheRef.current.set(convoId, msgs);
     setCache(accountId, cacheNs, msgs, undefined, MESSAGE_CACHE_TTL_MS);
     return msgs;
@@ -459,8 +480,8 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
     if (cached && cached.length > 0) {
       const normalizedCached = normalizeConversationMessages(cached);
       setMessages(normalizedCached);
-      // Refresh in background without blocking
-      loadMessagesToCache(convoId).then(fresh => {
+      // Always refresh from DB in background to avoid stale/incomplete cached threads
+      loadMessagesToCache(convoId, true).then(fresh => {
         const normalizedFresh = normalizeConversationMessages(fresh);
         setSelectedConvo(prev => {
           if (prev === convoId && !areMessagesEqual(normalizedCached, normalizedFresh)) {
@@ -930,21 +951,32 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
     return () => clearInterval(statsInterval);
   }, [accountId]);
 
-  // Load messages when convo selected — instant from cache
+  // Load messages only once when a conversation is opened
   useEffect(() => {
-    if (selectedConvo) {
-      loadMessages(selectedConvo);
-      // If not yet synced from IG, do it now
-      if (!igSyncedRef.current.has(selectedConvo)) {
-        fetchIGMessages(selectedConvo);
-      }
-      // Mark as read + track last viewed
+    if (!selectedConvo) {
+      convoInitRef.current = null;
+      return;
+    }
+
+    if (convoInitRef.current === selectedConvo) return;
+    convoInitRef.current = selectedConvo;
+
+    loadMessages(selectedConvo);
+
+    // If not yet synced from IG, do it now
+    if (!igSyncedRef.current.has(selectedConvo)) {
+      fetchIGMessages(selectedConvo);
+    }
+
+    // Mark as read + track last viewed only once per open
+    const convo = conversations.find(c => c.id === selectedConvo);
+    if (convo && !convo.is_read) {
       supabase.from("ai_dm_conversations").update({
         is_read: true,
-        metadata: { ...(conversations.find(c => c.id === selectedConvo)?.metadata || {}), last_viewed_at: new Date().toISOString() },
+        metadata: { ...(convo.metadata || {}), last_viewed_at: new Date().toISOString() },
       }).eq("id", selectedConvo).then();
     }
-  }, [selectedConvo, loadMessages, fetchIGMessages]);
+  }, [selectedConvo, loadMessages, fetchIGMessages, conversations]);
 
   // DB POLL: lightweight count check every 1s, full load only when count changes
   useEffect(() => {
