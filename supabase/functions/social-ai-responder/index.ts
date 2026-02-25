@@ -2962,6 +2962,7 @@ Rules:
         const isUnifiedInbox = !!aiModes.unified_inbox;
         const isGrowthCopilot = !!aiModes.growth_copilot;
         const isContentProfileSync = !!aiModes.content_profile_sync;
+        const isUncensored = !!aiModes.uncensored_mode;
         console.log(`[AI MODES] Active: ${Object.entries(aiModes).filter(([,v]) => v).map(([k]) => k).join(", ") || "none"}`);
         // Lightweight pipeline: skip heavy IG re-scan, just check DB for unanswered fan messages and reply
         const igFuncUrl2 = `${Deno.env.get("SUPABASE_URL")}/functions/v1/instagram-api`;
@@ -3383,7 +3384,7 @@ Follow these persona settings strictly. They override any conflicting defaults a
 
             // === 24H PAUSE CHECK — skip conversations that hit the 30-msg hard cap ===
             const pauseMeta = (dbConvo.metadata as any) || {};
-            if (pauseMeta?.paused_until) {
+            if (!isUncensored && pauseMeta?.paused_until) {
               const pausedUntil = new Date(pauseMeta.paused_until).getTime();
               if (Date.now() < pausedUntil) {
                 console.log(`[30-MSG CAP] @${dbConvo.participant_username}: paused until ${pauseMeta.paused_until}, skipping (${Math.round((pausedUntil - Date.now()) / 60000)}min remaining)`);
@@ -3420,7 +3421,7 @@ Follow these persona settings strictly. They override any conflicting defaults a
             // Randomize the cap per conversation — feels natural, never exceeds 45
             const convoSeed = dbConvo.id.charCodeAt(0) + dbConvo.id.charCodeAt(1);
             const hardCapThreshold = 39 + (convoSeed % 7); // 39-45 range, deterministic per convo
-            if (totalMsgCount >= hardCapThreshold) {
+            if (!isUncensored && totalMsgCount >= hardCapThreshold) {
               console.log(`[HARD CAP] @${dbConvo.participant_username}: ${totalMsgCount}/${hardCapThreshold} messages — triggering final redirect + 24h pause`);
               
               // Check persona type for appropriate closers
@@ -4214,6 +4215,13 @@ Follow these persona settings strictly. They override any conflicting defaults a
             const phaseDirective = `\n\n${convoPhase.directive}`;
             // === AI MODES: Build mode-specific system prompt directives ===
             let aiModesDirective = "";
+            if (isUncensored) {
+              aiModesDirective += `\n\n=== UNCENSORED MODE (ACTIVE) ===
+- No scripted sales flow, no fake scarcity, no forced persona intro
+- Answer direct questions first, in plain human language
+- Keep it real, conversational, and context-accurate
+- Do not force redirects unless the fan explicitly asks for link/content`;
+            }
             if (isConvIntel) {
               aiModesDirective += `\n\n=== CONVERSATION INTELLIGENCE MODE (ACTIVE) ===
 Analyze the fan's intent in real-time. Classify as: lead, support, objection, spam, or hot_buyer.
@@ -4526,16 +4534,18 @@ RULES:
               }
             }
 
-            const systemPrompt = `${personaInfo2}${fanMemoryBlock}${contentProfileCtx}${emojiDir}
-${autoConfig.redirect_url ? `\nOPTIONAL LINK CONTEXT: ${autoConfig.redirect_url} (mention only when clearly relevant and natural, never force it)` : ""}
-${autoConfig.trigger_keywords ? `if they mention any of these: ${autoConfig.trigger_keywords}, you may naturally suggest the link` : ""}
+            const systemPrompt = `${isUncensored ? "" : personaInfo2}${fanMemoryBlock}${isUncensored ? "" : contentProfileCtx}${emojiDir}
+${isUncensored ? "" : (autoConfig.redirect_url ? `\nOPTIONAL LINK CONTEXT: ${autoConfig.redirect_url} (mention only when clearly relevant and natural, never force it)` : "")}
+${isUncensored ? "" : (autoConfig.trigger_keywords ? `if they mention any of these: ${autoConfig.trigger_keywords}, you may naturally suggest the link` : "")}
+${aiModesDirective}
 
 RULES:
-- reply to their latest message naturally like a real person texting
-- NEVER state your name or introduce yourself unless they ask
-- NEVER mention your job or business unless they ask
-- just be a normal chill person having a conversation
-- one short message, lowercase, no emojis, no labels`;
+- answer what they asked directly and stay on their latest message
+- if they ask multiple questions, answer all of them briefly
+- NEVER state your name or introduce yourself unless asked
+- NEVER mention your job/business unless asked
+- dont force redirects or scripted lines
+- one natural message, lowercase, no emojis, no labels`;
 
             const aiMessages: any[] = [{ role: "system", content: systemPrompt }];
             
@@ -4562,14 +4572,12 @@ RULES:
               // ONLY include the VERY LAST fan message (not old ones) to prevent answering stale questions
               const latestOnly = unansweredFanMsgs[unansweredFanMsgs.length - 1];
               const latestText = (latestOnly.content || "").substring(0, 120);
-              // If there are multiple, show them but emphasize the LAST one
-              const allTexts = unansweredFanMsgs.slice(-3).map(m => `"${(m.content || "").substring(0, 80)}"`).join(", ");
               
               aiMessages.push({ role: "system", content: `LATEST FAN MESSAGE: "${latestText}"
-${unansweredFanMsgs.length > 1 ? `(Other recent unanswered msgs: ${allTexts})` : ""}
 
-Reply ONLY to what they just said. Keep it short and natural.
-NEVER state your name. NEVER introduce yourself. NEVER repeat previous messages.` });
+Reply to the latest fan message only.
+If they asked questions, answer them directly in this reply.
+Do not introduce yourself and do not answer stale older topics.` });
             }
             
             // Find the best message to reply-to (oldest unanswered question for IG reply feature)
@@ -4827,7 +4835,7 @@ NEVER state your name. NEVER introduce yourself. NEVER repeat previous messages.
             const isAffectionate = !!msgLower.match(/(ur cute|youre cute|ur sweet|youre sweet|you make me|u make me|my girl|ma belle|mon coeur|babe|baby|princess|angel)/);
             
             // Only react on genuine drague signals — ~8% chance to keep it rare and impactful
-            const shouldReact = (isDragueSignal || isSweetCompliment || isAffectionate) && Math.random() < 0.08;
+            const shouldReact = !isUncensored && (isDragueSignal || isSweetCompliment || isAffectionate) && Math.random() < 0.08;
             
             if (shouldReact && latestMsg.platform_message_id) {
               try {

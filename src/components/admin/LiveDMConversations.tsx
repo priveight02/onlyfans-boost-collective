@@ -320,6 +320,7 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
   const [multiLangSupport, setMultiLangSupport] = useState(false);
   const [abTestMessages, setAbTestMessages] = useState(false);
   const [contentProfileSync, setContentProfileSync] = useState(true);
+  const [uncensoredMode, setUncensoredMode] = useState(false);
   const [showAdvancedPanel, setShowAdvancedPanel] = useState(false);
   // Pending review messages (review-before-send)
   const [pendingReviewMsgs, setPendingReviewMsgs] = useState<Map<string, { content: string; convoId: string; generatedAt: string }>>(new Map());
@@ -1257,6 +1258,7 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
         multi_language: multiLangSupport,
         ab_test_messages: abTestMessages,
         content_profile_sync: contentProfileSync,
+        uncensored_mode: uncensoredMode,
       };
       const { data, error } = await supabase.functions.invoke("social-ai-responder", {
         body: { action: "process_live_dm", account_id: accountId, params: { ai_modes: aiModes } },
@@ -1285,7 +1287,7 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
       setAiCurrentPhase("");
       setAiCurrentConvoId(null);
     }
-  }, [accountId, processing, addLog, reviewBeforeSend, convIntelligence, smartThrottling, shadowMode, viralPrediction, engagementDM, unifiedInbox, growthCopilot, leadHeatScoring, funnelBuilder, smartFollowUp, revenueAttribution, personaEngine, competitorSignals, sentimentAnalysis, autoTagging, spamFilter, buyerSignalDetect, objectionHandling, contextualMemory, multiLangSupport, abTestMessages]);
+  }, [accountId, processing, addLog, reviewBeforeSend, convIntelligence, smartThrottling, shadowMode, viralPrediction, engagementDM, unifiedInbox, growthCopilot, leadHeatScoring, funnelBuilder, smartFollowUp, revenueAttribution, personaEngine, competitorSignals, sentimentAnalysis, autoTagging, spamFilter, buyerSignalDetect, objectionHandling, contextualMemory, multiLangSupport, abTestMessages, contentProfileSync, uncensoredMode]);
 
   // Auto-process DMs with AI every 3 seconds when auto-respond is active
   useEffect(() => {
@@ -1700,7 +1702,7 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
               <Button size="sm" variant="outline" className={`h-7 text-[10px] gap-1 border-white/10 ${[reviewBeforeSend, convIntelligence, smartThrottling, shadowMode, sentimentAnalysis, spamFilter, buyerSignalDetect, objectionHandling, contextualMemory].some(Boolean) ? "border-cyan-500/30 text-cyan-400" : "text-white/50"}`}>
                 <Settings2 className="h-3 w-3" />
                 AI Modes
-                {(() => { const count = [reviewBeforeSend, convIntelligence, smartThrottling, viralPrediction, engagementDM, unifiedInbox, growthCopilot, leadHeatScoring, funnelBuilder, smartFollowUp, revenueAttribution, personaEngine, competitorSignals, shadowMode, sentimentAnalysis, autoTagging, spamFilter, buyerSignalDetect, objectionHandling, contextualMemory, multiLangSupport, abTestMessages, contentProfileSync].filter(Boolean).length; return count > 0 ? <Badge className="text-[7px] h-3.5 min-w-[14px] px-1 bg-cyan-500/20 text-cyan-400 border-0 ml-0.5">{count}</Badge> : null; })()}
+                {(() => { const count = [reviewBeforeSend, convIntelligence, smartThrottling, viralPrediction, engagementDM, unifiedInbox, growthCopilot, leadHeatScoring, funnelBuilder, smartFollowUp, revenueAttribution, personaEngine, competitorSignals, shadowMode, sentimentAnalysis, autoTagging, spamFilter, buyerSignalDetect, objectionHandling, contextualMemory, multiLangSupport, abTestMessages, contentProfileSync, uncensoredMode].filter(Boolean).length; return count > 0 ? <Badge className="text-[7px] h-3.5 min-w-[14px] px-1 bg-cyan-500/20 text-cyan-400 border-0 ml-0.5">{count}</Badge> : null; })()}
                 <ChevronDown className="h-2.5 w-2.5 ml-0.5" />
               </Button>
             </PopoverTrigger>
@@ -1740,6 +1742,7 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
                     { key: "multiLangSupport", label: "Multi-Language Support", desc: "Detect language and respond in the user's native language", checked: multiLangSupport, set: setMultiLangSupport },
                     { key: "d5", label: "Context & Identity" },
                     { key: "contentProfileSync", label: "Content & Profile Sync", desc: "Analyze all posts, bio and profile of connected account to enrich AI persona with real content context, style and gender identity", checked: contentProfileSync, set: setContentProfileSync, onMsg: "Content & Profile Sync ON: AI now uses your posts, bio and profile data to personalize responses", offMsg: "Content & Profile Sync OFF: AI uses generic persona only" },
+                    { key: "uncensoredMode", label: "Uncensored Mode", desc: "Disable scripted guardrails and force direct, human, uncensored conversation replies", checked: uncensoredMode, set: setUncensoredMode, onMsg: "Uncensored Mode ON: direct human-style replies", offMsg: "Uncensored Mode OFF" },
                   ].map((item) => {
                     if (item.key.startsWith("d") && item.key.length <= 2) {
                       return (
