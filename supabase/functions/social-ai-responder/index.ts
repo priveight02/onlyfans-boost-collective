@@ -4512,23 +4512,13 @@ Only follow up when interest level was genuinely high.`;
                   ? `Username: @${accountInfo.username || "unknown"}\nDisplay: ${accountInfo.display_name || "N/A"}\nBio: ${accountInfo.bio || "N/A"}`
                   : "No profile data available";
 
-                contentProfileCtx = `\n\n=== CONTENT & PROFILE SYNC (ACTIVE) ===
-=== YOUR IDENTITY & CONTENT CONTEXT ===
-${profileSummary}
-Detected Gender: ${detectedGender.toUpperCase()}
-${detectedGender !== "unknown" ? `You ARE ${detectedGender === "female" ? "a woman" : "a man"}. Respond accordingly — use language, references, and energy that match your ${detectedGender} identity naturally.` : "Gender could not be determined — use neutral tone."}
+                contentProfileCtx = `\n\n=== CONTENT CONTEXT ===
+${contentSummary ? `Recent posts:\n${contentSummary}` : "No published content yet"}
 
-Connected platforms: ${(socialConn || []).map(s => `@${s.platform_username}`).join(", ") || "none"}
-
-=== YOUR RECENT PUBLISHED CONTENT ===
-${contentSummary || "No published content yet"}
-
-=== CONTENT SYNC RULES ===
-- You KNOW what content you post. If a fan references your posts, you understand the context.
-- Mirror the tone, vocabulary, and energy from your published content in DMs.
-- Use your bio and content themes to stay consistent with your public brand.
-- If fans ask about your content, you can reference it naturally ("yeah i just posted about that lol").
-- Your content style IS your personality — be consistent between posts and DMs.`;
+RULES:
+- If someone references your posts, you understand the context
+- NEVER volunteer your name, username, or bio info unless directly asked
+- NEVER introduce yourself. Just chat naturally`;
 
                 console.log(`[CONTENT SYNC] Loaded ${(resolvedRecentContent || []).length} posts, gender: ${detectedGender}`);
               } catch (e) {
@@ -4578,9 +4568,8 @@ RULES:
               aiMessages.push({ role: "system", content: `LATEST FAN MESSAGE: "${latestText}"
 ${unansweredFanMsgs.length > 1 ? `(Other recent unanswered msgs: ${allTexts})` : ""}
 
-Reply to the latest fan message first.
-If there are multiple recent fan messages, address them briefly in one natural answer.
-Stay on-topic, answer direct questions clearly, and avoid canned lines.` });
+Reply ONLY to what they just said. Keep it short and natural.
+NEVER state your name. NEVER introduce yourself. NEVER repeat previous messages.` });
             }
             
             // Find the best message to reply-to (oldest unanswered question for IG reply feature)
@@ -4594,7 +4583,7 @@ Stay on-topic, answer direct questions clearly, and avoid canned lines.` });
 
             // Dynamic tokens — generous so AI can COMPLETE thoughts fully
             // Post-processor handles length diversity — never cut mid-thought
-            const dynamicMaxTokens = multipleUnanswered ? 500 : (unansweredQuestions > 0 ? 420 : 350);
+            const dynamicMaxTokens = multipleUnanswered ? 120 : (unansweredQuestions > 0 ? 100 : 60);
 
             // Update pipeline phase to "generate" for real-time UI tracking
             if (typingMsg) {
