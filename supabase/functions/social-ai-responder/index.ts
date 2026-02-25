@@ -3188,45 +3188,10 @@ Rules:
           console.log(`[DAILY COUNTER] Account ${account_id}: daily counter reset (stats only)`);
         }
 
-        // Get persona — check if account has a specific active_persona_id set
-        let personaInfo2 = await getDefaultPersona(supabase, account_id);
-        const { data: accountData } = await supabase
-          .from("managed_accounts")
-          .select("active_persona_id")
-          .eq("id", account_id)
-          .single();
-        
-        let persona2: any = null;
-        if (accountData?.active_persona_id) {
-          // Fetch the specifically selected persona
-          const { data: p } = await supabase
-            .from("persona_profiles")
-            .select("*")
-            .eq("id", accountData.active_persona_id)
-            .single();
-          persona2 = p;
-        }
-        if (!persona2) {
-          // Fallback: get first persona for this account
-          const { data: p } = await supabase
-            .from("persona_profiles")
-            .select("*")
-            .eq("account_id", account_id)
-            .order("created_at", { ascending: true })
-            .limit(1)
-            .single();
-          persona2 = p;
-        }
-        if (persona2) {
-          personaInfo2 += `\n\n--- ACTIVE PERSONA OVERRIDE ---
-Tone: ${persona2.tone}
-Vocabulary Style: ${persona2.vocabulary_style}
-Emotional Range: ${persona2.emotional_range || "default"}
-${persona2.boundaries ? `Hard Boundaries: ${persona2.boundaries}` : ""}
-${persona2.brand_identity ? `Brand Identity: ${persona2.brand_identity}` : ""}
-${persona2.communication_rules ? `Communication Rules: ${JSON.stringify(persona2.communication_rules)}` : ""}
-Follow these persona settings strictly. They override any conflicting defaults above.`;
-        }
+        // Force male persona for live DM responder (per requirement)
+        // Ignore account default/female persona and persona profile overrides in this path
+        const personaInfo2 = DEFAULT_PERSONA_MALE;
+        console.log(`[PERSONA LOCK] Account ${account_id}: forced male persona in live DM pipeline`);
 
         // Get connection info
         const { data: igConn2 } = await supabase
@@ -4670,16 +4635,16 @@ Answer it directly like a real human would. Do not talk about anything else.` })
             // No deterministic guard — let the AI model think freely
 
             let reply = "";
-            let aiModelUsed = "google/gemini-3-flash-preview";
+            let aiModelUsed = "google/gemini-3-pro-preview";
 
             const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
               method: "POST",
               headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
               body: JSON.stringify({
-                model: "google/gemini-3-flash-preview",
+                model: "google/gemini-3-pro-preview",
                 messages: aiMessages,
                 max_tokens: dynamicMaxTokens,
-                temperature: 0.8,
+                temperature: 0.7,
               }),
             });
 
@@ -4694,7 +4659,7 @@ Answer it directly like a real human would. Do not talk about anything else.` })
             }
 
             const aiResult = await aiResponse.json();
-            aiModelUsed = aiResult?.model || "google/gemini-3-flash-preview";
+            aiModelUsed = aiResult?.model || "google/gemini-3-pro-preview";
             reply = (aiResult.choices?.[0]?.message?.content || "").replace(/\[.*?\]/g, "").replace(/^["']|["']$/g, "").trim();
 
             // NEVER leave empty — retry once, then deterministic fallback
@@ -4705,15 +4670,15 @@ Answer it directly like a real human would. Do not talk about anything else.` })
                   method: "POST",
                   headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
                   body: JSON.stringify({
-                    model: "google/gemini-2.5-flash",
+                    model: "google/gemini-2.5-pro",
                     messages: aiMessages,
                     max_tokens: 320,
-                    temperature: 0.9,
+                    temperature: 0.75,
                   }),
                 });
                 if (retryResp.ok) {
                   const retryResult = await retryResp.json();
-                  aiModelUsed = retryResult?.model || "google/gemini-2.5-flash";
+                  aiModelUsed = retryResult?.model || "google/gemini-2.5-pro";
                   reply = (retryResult.choices?.[0]?.message?.content || "").replace(/\[.*?\]/g, "").replace(/^["']|["']$/g, "").trim();
                 }
               } catch {}
@@ -4744,6 +4709,32 @@ Answer it directly like a real human would. Do not talk about anything else.` })
 
             reply = antiRepetitionCheck(reply, conversationContext);
 
+            // HARD DIRECT-ANSWER GUARD: if latest fan message is a question,
+            // do not allow an out-of-touch pivot reply.
+            const latestFanTextNow = (latestMsg?.content || "").trim();
+            const latestIsQuestionNow = isLikelyQuestionText(latestFanTextNow);
+            if (latestIsQuestionNow) {
+              const looksLikeDeflection =
+                (reply.includes("?") && !/\b(im|i am|i'm|i do|i run|my|yes|no|yea|nah|from|in|at|its|it is|just|rn|work|business)\b/i.test(reply)) ||
+                /\b(hows yours|how's yours|wbu|hbu)\b/i.test(reply);
+
+              if (looksLikeDeflection) {
+                const deterministicDirect = buildDeterministicPersonaReply(
+                  latestFanTextNow,
+                  personaInfo2,
+                  accountProfileInfo || {},
+                  recentPublishedContent || [],
+                  conversationContext,
+                );
+
+                if (deterministicDirect) {
+                  reply = deterministicDirect;
+                } else {
+                  reply = "im in online business rn";
+                }
+              }
+            }
+
             // HARD NO-REPEAT GUARD: if draft echoes older assistant text or old fan text,
             // regenerate once with strict focus on the latest message only.
             let repetitionCheck = detectRepetitionIssue(reply, conversationContext);
@@ -4761,7 +4752,7 @@ Answer it directly like a real human would. Do not talk about anything else.` })
                   method: "POST",
                   headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
                   body: JSON.stringify({
-                    model: "google/gemini-3-flash-preview",
+                    model: "google/gemini-3-pro-preview",
                     temperature: 0.85,
                     max_tokens: 140,
                     messages: [
