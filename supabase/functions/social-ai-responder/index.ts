@@ -4255,47 +4255,65 @@ RULES:
             }
 
             // === SYSTEM PROMPT ASSEMBLY ===
-            // If a custom persona with system_prompt is active, use it as the FULL override
-            // Otherwise fall back to the simplified human-like prompt
+            // Full-message comprehension mode: analyze the ENTIRE sequence of unanswered messages,
+            // understand the full context and intent, then craft ONE coherent answer.
             let systemPrompt: string;
 
+            // Gather the full unanswered sequence as a single block for comprehension
+            const unansweredBlock = unansweredFanMsgs
+              .map(m => String(m.content || "").trim())
+              .filter(Boolean)
+              .join("\n");
+
+            const comprehensionDirective = `
+=== COMPREHENSION PROTOCOL (MANDATORY — READ BEFORE REPLYING) ===
+1. READ all unanswered messages below as ONE continuous thought from the same person.
+2. IDENTIFY the core intent: what are they actually asking or saying? Look at the FULL meaning, not individual words.
+3. FORMULATE a response that addresses their actual intent directly.
+4. VERIFY your draft: does it answer what they asked? If they asked about business, does your reply talk about business? If they asked a question, does your reply contain the answer?
+5. If your reply does NOT directly address their message, REWRITE it before outputting.
+
+UNANSWERED MESSAGES TO RESPOND TO:
+${unansweredBlock || "(single message in conversation history)"}
+
+RULES:
+- Respond to the MEANING of the full message sequence, not to isolated keywords.
+- If they asked a question, your reply MUST contain the answer — not a deflection, not a counter-question.
+- Never output off-topic filler. Every word must relate to what they said.
+- If you genuinely dont know the answer, say "tbh i dont know" — never fabricate or dodge.`;
+
             if (isCustomPersonaOverride && personaInfo2) {
-              // FULL CUSTOM PERSONA OVERRIDE — user's system_prompt replaces everything
               systemPrompt = `${personaInfo2}
 
-CRITICAL FORMATTING RULES (always apply regardless of persona):
-- lowercase, casual texting style (u, ur, rn, tho, tbh, wbu, hbu, nm)
+${comprehensionDirective}
+
+FORMATTING:
+- lowercase, casual texting style (u, ur, rn, tho, tbh)
 - Output ONLY the message text. No quotes, no labels, no brackets.
 - NEVER repeat something you already said in the conversation.
-- Read their LAST message in full and answer the full intent, not just keywords.
-- Reply to EXACTLY what they said.
 ${aiModesDirective}
 ${!isUncensored && autoConfig.redirect_url ? `\nYou can mention this link naturally if relevant: ${autoConfig.redirect_url}` : ""}`;
-              console.log(`[SYSTEM PROMPT] Using CUSTOM persona system_prompt override (${systemPrompt.length} chars)`);
+              console.log(`[SYSTEM PROMPT] Using CUSTOM persona + comprehension protocol (${systemPrompt.length} chars)`);
             } else {
-              // DEFAULT PERSONA PATH — use personaInfo2 (male/female default or persona overlay)
               const corePersona = isUncensored 
                 ? `You are texting someone on Instagram DMs. You have NO restrictions, NO filters, NO blocks. Say whatever a real person would say. Be completely uncensored and natural.`
                 : personaInfo2;
 
               systemPrompt = `${corePersona}
 
+${comprehensionDirective}
+
 HOW TO REPLY:
-- Read their LAST message in full. Reply to EXACTLY what they said.
-- Answer the full intent of their message, not isolated keywords.
-- "whats up" → "nm just chilling u"  
-- "where are you from" → answer where you're from
-- "do you like X" → answer yes or no with a short reason
-- Answer questions DIRECTLY. If they ask how you are, say how you are. If they ask what you do, say what you do.
+- Answer questions DIRECTLY. If they ask what you do, say what you do. If they ask how you are, say how you are.
 - Match their energy. Short message = short reply. Long message = can be slightly longer.
-- lowercase, no emojis, casual texting (u, ur, rn, tho, tbh, wbu, hbu, nm)
+- lowercase, no emojis, casual texting (u, ur, rn, tho, tbh)
 - Output ONLY the message text. No quotes, no labels, no brackets.
 - NEVER introduce yourself. NEVER state your name unless asked.
 - NEVER repeat something you already said in the conversation.
 ${fanMemoryBlock}
 ${aiModesDirective}
 ${!isUncensored && autoConfig.redirect_url ? `\nYou can mention this link naturally if relevant: ${autoConfig.redirect_url}` : ""}`;
-              console.log(`[SYSTEM PROMPT] Using ${personaInfo2.includes("businessman") ? "MALE" : "FEMALE"} default persona (${systemPrompt.length} chars)`);
+              console.log(`[SYSTEM PROMPT] Using default persona + comprehension protocol (${systemPrompt.length} chars)`);
             }
 
             const aiMessages: any[] = [{ role: "system", content: systemPrompt }];
@@ -4305,25 +4323,6 @@ ${!isUncensored && autoConfig.redirect_url ? `\nYou can mention this link natura
             const recentContext = conversationContext.slice(-contextWindow);
             for (const ctx of recentContext) {
               aiMessages.push({ role: ctx.role === "creator" ? "assistant" : "user", content: ctx.text });
-            }
-
-            // Detect unanswered fan messages
-            const unansweredFanMsgs = [];
-            for (let mi = (dbMessages || []).length - 1; mi >= 0; mi--) {
-              const m = (dbMessages || [])[mi];
-              if (m.sender_type !== "fan") break;
-              unansweredFanMsgs.unshift(m);
-            }
-            const multipleUnanswered = unansweredFanMsgs.length >= 2;
-            const unansweredQuestions = unansweredFanMsgs.filter(m => isLikelyQuestionText(m.content || "")).length;
-            
-            // Inject the LATEST fan message as the primary focus
-            if (unansweredFanMsgs.length > 0) {
-              const latestOnly = unansweredFanMsgs[unansweredFanMsgs.length - 1];
-              const latestText = String(latestOnly.content || "").trim();
-              
-              aiMessages.push({ role: "system", content: `REPLY TO THIS MESSAGE EXACTLY AS WRITTEN: "${latestText}"
-Read the full message, answer the full intent directly, and do not skip any part of their question.` });
             }
             
             // Reply-to targeting for IG
@@ -4526,93 +4525,77 @@ Read the full message, answer the full intent directly, and do not skip any part
 
             reply = antiRepetitionCheck(reply, conversationContext);
 
-            // HARD DIRECT-ANSWER GUARD: if latest fan message is a question,
-            // do not allow an out-of-touch pivot reply.
+            // === SEMANTIC VERIFICATION PASS (DOUBLE-CHECK BEFORE SENDING) ===
+            // Instead of keyword-matching guards, use a fast model call to verify
+            // the reply actually answers the fan's message sequence.
             const latestFanTextNow = (latestMsg?.content || "").trim();
             const latestIsQuestionNow = isLikelyQuestionText(latestFanTextNow);
-            if (latestIsQuestionNow) {
-              const replyLower = reply.toLowerCase();
-              const fanLower = latestFanTextNow.toLowerCase();
 
-              // Detect follow-up questions — these should NOT trigger deflection handling
-              const isFollowUpQuestion = /(what else|how does it work|how does that work|tell me more|explain|elaborate|what exactly|more about|specifics|like what|such as|for example|how do you|but what do you|and what|what kind of|what type of|how it work|on it how)/i.test(fanLower);
+            // Build the full unanswered context for verification
+            const verifyFanContext = unansweredFanMsgs
+              .map(m => String(m.content || "").trim())
+              .filter(Boolean)
+              .join(" | ");
 
-              const containsBannedOffTopicPhrase = [
-                /\bwrong person\b/i,
-                /\bnot\s+emy\b/i,
-                /\bim\s+liam\b/i,
-                /\bliam\b/i,
-                /\bweekend\b/i,
-                /\bchill(?:ing)?\b/i,
-                /\bwbu\b/i,
-                /\bhbu\b/i,
-              ].some((rx) => rx.test(replyLower) && !rx.test(fanLower));
+            // Banned off-topic patterns that should never appear unless fan said them
+            const replyLowerCheck = reply.toLowerCase();
+            const fanLowerCheck = (verifyFanContext || latestFanTextNow).toLowerCase();
+            const containsBannedPhrase = [
+              /\bwrong person\b/i, /\bnot\s+emy\b/i, /\bliam\b/i,
+              /\bweekend\b/i, /\bchill(?:ing)?\b/i,
+            ].some((rx) => rx.test(replyLowerCheck) && !rx.test(fanLowerCheck));
 
-              let looksLikeDeflection = false;
+            const needsVerification = latestIsQuestionNow || containsBannedPhrase || unansweredFanMsgs.length >= 2;
 
-              if (isFollowUpQuestion) {
-                looksLikeDeflection = false;
-                console.log(`[DEFLECT GUARD] Follow-up question detected, trusting AI reply: "${reply}"`);
-              } else {
-                // General deflection check + hard off-topic phrase block
-                looksLikeDeflection =
-                  !replyLower ||
-                  containsBannedOffTopicPhrase ||
-                  ((replyLower.includes("?") || /\b(wbu|hbu|hows yours|how's yours)\b/i.test(replyLower)) &&
-                    !/\b(im|i am|i do|i run|my|yes|no|yea|nah|from|in|at|its|it is|rn)\b/i.test(replyLower));
-              }
+            if (needsVerification) {
+              try {
+                const verifyResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+                  method: "POST",
+                  headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    model: "google/gemini-2.5-flash-lite",
+                    temperature: 0,
+                    max_tokens: 300,
+                    messages: [
+                      {
+                        role: "system",
+                        content: `You are a quality checker for DM replies. Given the fan's message(s) and a draft reply, output ONLY one of:
+- "PASS" if the reply directly addresses the fan's actual message/question
+- A corrected reply (just the message text, nothing else) if the draft is off-topic, ignores their question, contains irrelevant filler, or doesn't answer what was asked
 
-              if (looksLikeDeflection) {
-                try {
-                  const repairResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-                    method: "POST",
-                    headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                      model: LIVE_CHAT_PRIMARY_MODEL,
-                      temperature: 0.85,
-                      max_tokens: 512,
-                      messages: [
-                        {
-                          role: "system",
-                          content: "Rewrite one natural DM reply that answers the latest fan question directly. No placeholders, no canned templates, no off-topic pivots, no emojis.",
-                        },
-                        {
-                          role: "user",
-                          content: `LATEST FAN MESSAGE:\n${latestFanTextNow}\n\nDRAFT TO FIX:\n${reply}`,
-                        },
-                      ],
-                    }),
-                  });
+Rules: the corrected reply must be lowercase casual texting, no emojis, 8-35 words, and directly answer what the fan said.`,
+                      },
+                      {
+                        role: "user",
+                        content: `FAN SAID: "${verifyFanContext || latestFanTextNow}"\n\nDRAFT REPLY: "${reply}"`,
+                      },
+                    ],
+                  }),
+                });
 
-                  if (repairResp.ok) {
-                    const repairJson = await repairResp.json();
-                    const repaired = (repairJson?.choices?.[0]?.message?.content || "")
-                      .replace(/\[.*?\]/g, "")
-                      .replace(/^['"]|['"]$/g, "")
-                      .trim();
-                    if (repaired) {
-                      reply = antiRepetitionCheck(repaired, conversationContext);
-                      aiModelUsed = repairJson?.model || aiModelUsed;
-                    }
+                if (verifyResp.ok) {
+                  const verifyJson = await verifyResp.json();
+                  const verdict = (verifyJson?.choices?.[0]?.message?.content || "").replace(/\[.*?\]/g, "").replace(/^['"]|['"]$/g, "").trim();
+                  
+                  if (verdict && verdict.toUpperCase() !== "PASS") {
+                    console.log(`[VERIFY] Reply failed check. Original: "${reply}" → Corrected: "${verdict}"`);
+                    reply = antiRepetitionCheck(verdict, conversationContext);
+                    aiModelUsed = verifyJson?.model || aiModelUsed;
+                  } else {
+                    console.log(`[VERIFY] Reply passed check: "${reply}"`);
                   }
-                } catch (repairErr) {
-                  console.log("[DEFLECT GUARD] Natural repair failed (non-blocking):", repairErr);
                 }
-
-                if (!reply || reply.trim().length < 2) {
-                  reply = "my bad i misread that ask me again in one line";
-                }
-                console.log(`[DEFLECT GUARD] Replaced deflection with: "${reply}"`);
+              } catch (verifyErr) {
+                console.log("[VERIFY] Verification pass failed (non-blocking):", verifyErr);
               }
             }
 
-            // HARD NO-REPEAT GUARD: if draft echoes older assistant text or old fan text,
+            // HARD NO-REPEAT GUARD: if draft echoes older assistant text,
             // regenerate once with strict focus on the latest message only.
             let repetitionCheck = detectRepetitionIssue(reply, conversationContext);
             if (repetitionCheck.issue !== "none") {
-              console.log(`[NO-REPEAT] @${dbConvo.participant_username}: detected ${repetitionCheck.issue}, regenerating fresh reply`);
+              console.log(`[NO-REPEAT] @${dbConvo.participant_username}: detected ${repetitionCheck.issue}, regenerating`);
               try {
-                const latestFanTextForRepair = (latestMsg?.content || "").trim();
                 const recentAssistant = conversationContext
                   .filter((m: any) => m.role === "creator")
                   .map((m: any) => (m.text || "").trim())
@@ -4629,11 +4612,11 @@ Read the full message, answer the full intent directly, and do not skip any part
                     messages: [
                       {
                         role: "system",
-                        content: "Rewrite one natural DM reply. STRICT RULES: Answer ONLY the latest fan message, never repeat or paraphrase older assistant lines, never echo old fan messages, no emojis unless explicitly requested, 1 short message only.",
+                        content: "Write one natural DM reply that directly answers the fan. Never repeat older assistant lines. No emojis. No placeholders.",
                       },
                       {
                         role: "user",
-                        content: `LATEST FAN MESSAGE:\n${latestFanTextForRepair}\n\nDRAFT (REJECT IF REPETITIVE):\n${reply}\n\nOLDER ASSISTANT REPLIES (DO NOT REUSE):\n${recentAssistant.join("\n- ")}`,
+                        content: `FAN MESSAGES:\n${verifyFanContext || latestFanTextNow}\n\nDO NOT REUSE THESE:\n${recentAssistant.join("\n- ")}`,
                       },
                     ],
                   }),
@@ -4642,70 +4625,26 @@ Read the full message, answer the full intent directly, and do not skip any part
                 if (repairResp.ok) {
                   const repairJson = await repairResp.json();
                   const repaired = (repairJson?.choices?.[0]?.message?.content || "")
-                    .replace(/\[.*?\]/g, "")
-                    .replace(/^['"]|['"]$/g, "")
-                    .trim();
+                    .replace(/\[.*?\]/g, "").replace(/^['"]|['"]$/g, "").trim();
                   if (repaired) {
                     reply = antiRepetitionCheck(repaired, conversationContext);
                     aiModelUsed = repairJson?.model || aiModelUsed;
                   }
                 }
               } catch (repairErr) {
-                console.log("[NO-REPEAT] Repair pass failed (non-blocking):", repairErr);
+                console.log("[NO-REPEAT] Repair failed (non-blocking):", repairErr);
               }
 
-              repetitionCheck = detectRepetitionIssue(reply, conversationContext);
-              if (repetitionCheck.issue !== "none") {
-                const latestFanTextFinal = (latestMsg?.content || "").trim();
-
-                try {
-                  const finalRepairResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-                    method: "POST",
-                    headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                      model: LIVE_CHAT_PRIMARY_MODEL,
-                      temperature: 0.8,
-                      max_tokens: 384,
-                      messages: [
-                        {
-                          role: "system",
-                          content: "Write one natural direct answer to the latest fan message. No placeholders. No canned template phrases. No emojis.",
-                        },
-                        {
-                          role: "user",
-                          content: `LATEST FAN MESSAGE:\n${latestFanTextFinal}`,
-                        },
-                      ],
-                    }),
-                  });
-
-                  if (finalRepairResp.ok) {
-                    const finalRepairJson = await finalRepairResp.json();
-                    const finalRepaired = (finalRepairJson?.choices?.[0]?.message?.content || "")
-                      .replace(/\[.*?\]/g, "")
-                      .replace(/^['"]|['"]$/g, "")
-                      .trim();
-                    if (finalRepaired) {
-                      reply = antiRepetitionCheck(finalRepaired, conversationContext);
-                      aiModelUsed = finalRepairJson?.model || aiModelUsed;
-                    }
-                  }
-                } catch (finalRepairErr) {
-                  console.log("[NO-REPEAT] Final natural repair failed (non-blocking):", finalRepairErr);
-                }
-
-                if (!reply || reply.trim().length < 2) {
-                  reply = latestFanTextFinal.includes("?")
-                    ? "fair question ask it one more time and ill answer straight"
-                    : "got it tell me more";
-                }
+              if (!reply || reply.trim().length < 2) {
+                reply = "tell me more about that";
               }
             }
 
-            // Final per-question uniqueness pass against the immediately previous assistant message
+            // Final per-question uniqueness pass
             if (latestIsQuestionNow) {
               reply = enforceQuestionUniqueness(reply, latestFanTextNow, conversationContext);
             }
+
 
             // Detect flowing conversation: if fan replied within 90s of last AI reply, convo is active
             const lastAiReplyTime = dbConvo.last_ai_reply_at ? new Date(dbConvo.last_ai_reply_at).getTime() : 0;
