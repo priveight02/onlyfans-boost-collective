@@ -881,196 +881,15 @@ const extractBioFromMetadata = (meta: any): string => {
 };
 
 const buildDeterministicPersonaReply = (
-  latestFanText: string,
-  personaPrompt: string,
-  accountProfile: any,
-  recentContent: any[],
-  conversationHistory: any[] = [],
+  _latestFanText: string,
+  _personaPrompt: string,
+  _accountProfile: any,
+  _recentContent: any[],
+  _conversationHistory: any[] = [],
 ): string | null => {
-  const text = (latestFanText || "").toLowerCase().trim();
-  if (!isLikelyQuestionText(text)) return null;
-
-  // Detect if this is a FOLLOW-UP question (we already answered job/topic before)
-  const priorAssistant = conversationHistory
-    .filter(m => m.role === "creator" || m.role === "assistant")
-    .map(m => (m.text || m.content || "").toLowerCase());
-  const alreadyAnsweredJob = priorAssistant.some(t =>
-    /\b(i run|i do|i manage|i handle|business|digital|services|products|entrepreneur|online business|my thing|my lane)\b/i.test(t)
-  );
-
-  // Follow-up patterns: questions that ask for MORE detail about something already discussed
-  const isFollowUp = /(what else|how does it work|how does that work|tell me more|explain|elaborate|what exactly|more about|specifics|like what|such as|for example|how do you|but what do you|and what|what kind of|what type of|how it work|on it how)/i.test(text);
-
-  const asksName = /(who are you|whats your name|what is your name|your name|ur name|name\b)/i.test(text);
-  const asksLatestPost = /(latest|last|recent)\s+(post|upload|content|title)|what did you post|whats your latest/i.test(text);
-  const asksAge = /(how old|your age|ur age|\bage\b)/i.test(text);
-  const asksJob = /(what do you do|what do u do|do for a living|what is your job|whats your job|what's your job|your job|in sales|do sales|are you in sales|you do sales|your profession|what kind of work|what work do you|what u do for|are you in .{2,15} right now)/i.test(text);
-  const asksMoneyPath = /(how can i make money|make money like you|money like you|how do i make money|how to make money|how can i start|how do i start|how to start a business|start a business)/i.test(text);
-  const asksPostMedia = /(what(?:'s| is)?\s+in\s+(?:the\s+)?(?:image|photo|pic|media)|describe\s+(?:the\s+)?(?:image|photo|pic|media))/i.test(text);
-
-  // If it's a follow-up about a topic we already answered, let the AI model handle it naturally
-  if (isFollowUp && alreadyAnsweredJob) {
-    console.log(`[DETERMINISTIC] Skipping — follow-up question detected, letting AI model answer naturally`);
-    return null;
-  }
-  // If we already gave a job answer and they ask again, also skip to let AI elaborate
-  if (asksJob && alreadyAnsweredJob && !asksName && !asksAge && !asksLatestPost) {
-    console.log(`[DETERMINISTIC] Skipping — job already answered, letting AI elaborate`);
-    return null;
-  }
-
-  if (!asksName && !asksLatestPost && !asksAge && !asksJob && !asksMoneyPath && !asksPostMedia) return null;
-
-  const isMale = /businessman|entrepreneur|a man/i.test(personaPrompt || "");
-
-  const nameCandidates = [
-    accountProfile?.real_name,
-    accountProfile?.display_name,
-    accountProfile?.platform_username,
-    accountProfile?.username,
-  ].filter(Boolean).map((v: any) => String(v).trim());
-
-  const safeName = nameCandidates[0]
-    ? nameCandidates[0].split(/\s+/)[0].replace(/[^a-zA-Z0-9]/g, "").toLowerCase()
-    : "";
-
-  const ageFromProfile = Number(accountProfile?.resolved_age);
-  const bioFallbackAge = parseAgeFromProfileText(
-    accountProfile?.bio,
-    accountProfile?.notes,
-    accountProfile?.profile_bio,
-    accountProfile?.platform_bio,
-    accountProfile?.metadata_bio,
-  );
-  const resolvedAge = Number.isFinite(ageFromProfile) && ageFromProfile >= 18 && ageFromProfile <= 80
-    ? Math.floor(ageFromProfile)
-    : bioFallbackAge;
-
-  const latestItem = recentContent?.[0] || null;
-  const latestRaw = (latestItem?.caption || latestItem?.title || "").toString().toLowerCase();
-  const latestTopic = latestRaw
-    .replace(/https?:\/\/\S+/g, "")
-    .replace(/[^a-z0-9\s]/g, " ")
-    .replace(/\s{2,}/g, " ")
-    .trim()
-    .split(" ")
-    .slice(0, 10)
-    .join(" ");
-
-  const latestMediaSummary = String(latestItem?.vision_summary || "").trim();
-
-  const partOptions: string[][] = [];
-
-  if (asksName) {
-    partOptions.push(
-      safeName
-        ? [`im ${safeName}`, `you can call me ${safeName}`, `${safeName}`]
-        : ["im the account owner", "its me from this account", "its the profile owner"],
-    );
-  }
-
-  if (asksLatestPost) {
-    partOptions.push(
-      latestTopic
-        ? [
-            `my latest post was about ${latestTopic}`,
-            `last thing i posted was about ${latestTopic}`,
-            `newest upload was about ${latestTopic}`,
-            `most recent post covered ${latestTopic}`,
-            `latest one was basically about ${latestTopic}`,
-          ]
-        : [
-            "i havent posted anything recently",
-            "still no new post yet",
-            "havent uploaded anything new lately",
-            "nothing fresh on my feed yet",
-            "same for now no new post",
-          ],
-    );
-  }
-
-  if (asksPostMedia) {
-    partOptions.push(
-      latestMediaSummary
-        ? [
-            `in the image its ${latestMediaSummary.toLowerCase()}`,
-            `the image shows ${latestMediaSummary.toLowerCase()}`,
-            `it looks like ${latestMediaSummary.toLowerCase()}`,
-          ]
-        : (latestItem?.media_type
-            ? [
-                `its a ${String(latestItem.media_type).toLowerCase()} post`,
-                `looks like a ${String(latestItem.media_type).toLowerCase()} upload`,
-                `that one is a ${String(latestItem.media_type).toLowerCase()} post`,
-              ]
-            : ["i cant see a media preview rn", "no media preview loaded rn", "media details arent loaded rn"]),
-    );
-  }
-
-  if (asksAge) {
-    partOptions.push(
-      resolvedAge
-        ? [`im ${resolvedAge}`, `${resolvedAge}`, `im ${resolvedAge} years old`]
-        : ["i dont share my age publicly", "i keep my age private", "id rather keep my age private"],
-    );
-  }
-
-  if (asksMoneyPath) {
-    partOptions.push(
-      isMale
-        ? [
-            "i built it by selling digital services first then adding products",
-            "start with one skill u can deliver then get ur first clients",
-            "pick one niche solve one painful problem then scale",
-            "sell one clear offer first then stack products later",
-          ]
-        : [
-            "start with one clear offer and stay consistent daily",
-            "pick one skill and one niche then sell that first",
-            "get first paying clients before trying to scale",
-          ],
-    );
-  } else if (asksJob) {
-    const bio = String(accountProfile?.bio || "").trim();
-    const notes = String(accountProfile?.notes || "").trim();
-    const jobSource = bio || notes;
-    partOptions.push(
-      jobSource
-        ? [
-            `i ${jobSource.slice(0, 80).toLowerCase()}`,
-            `i mainly ${jobSource.slice(0, 80).toLowerCase()}`,
-            `mostly i ${jobSource.slice(0, 80).toLowerCase()}`,
-            `basically i ${jobSource.slice(0, 80).toLowerCase()}`,
-            `my thing is ${jobSource.slice(0, 60).toLowerCase()}`,
-          ]
-        : [
-            isMale ? "i run this page and business" : "i run this page and create content",
-            isMale ? "i manage online business ventures" : "i manage this page and make content",
-            isMale ? "i handle digital services and products" : "i handle this account full time",
-            isMale ? "i do online business mainly digital services" : "i create content and run this page",
-            isMale ? "entrepreneurship and digital products thats my lane" : "content creation is what i do",
-          ],
-    );
-  }
-
-  if (partOptions.length === 0) return null;
-
-  const candidateSeeds = [0, 1, 2, 3, 4, 5];
-  const candidates = candidateSeeds.map((seed) =>
-    partOptions
-      .map((opts, idx) => opts[(seed + idx) % opts.length])
-      .join(" and ")
-      .replace(/\s+/g, " ")
-      .trim(),
-  );
-
-  // CRITICAL: For matched intents, ALWAYS return something.
-  // A slightly repeated on-topic answer is infinitely better than falling through
-  // to the AI model which gives completely unrelated responses.
-  const fresh = pickFreshCandidate(candidates, conversationHistory);
-  if (fresh) return fresh;
-  // If all candidates were "repetitive", just pick a random one — still on-topic
-  return candidates[Math.floor(Math.random() * candidates.length)] || candidates[0];
+  // Production decision: disable hardcoded template replies.
+  // Let the model answer naturally from full conversation + profile context.
+  return null;
 };
 
 // === UPGRADED FAN MEMORY ENGINE ===
@@ -4744,18 +4563,44 @@ Read the full message, answer the full intent directly, and do not skip any part
               }
 
               if (looksLikeDeflection) {
-                const deterministicDirect = buildDeterministicPersonaReply(
-                  latestFanTextNow,
-                  personaInfo2,
-                  accountProfileInfo || {},
-                  recentPublishedContent || [],
-                  conversationContext,
-                );
+                try {
+                  const repairResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+                    method: "POST",
+                    headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      model: LIVE_CHAT_PRIMARY_MODEL,
+                      temperature: 0.85,
+                      max_tokens: 512,
+                      messages: [
+                        {
+                          role: "system",
+                          content: "Rewrite one natural DM reply that answers the latest fan question directly. No placeholders, no canned templates, no off-topic pivots, no emojis.",
+                        },
+                        {
+                          role: "user",
+                          content: `LATEST FAN MESSAGE:\n${latestFanTextNow}\n\nDRAFT TO FIX:\n${reply}`,
+                        },
+                      ],
+                    }),
+                  });
 
-                if (deterministicDirect) {
-                  reply = deterministicDirect;
-                } else if (!reply || reply.trim().length < 2) {
-                  reply = "my bad can u say that again in one line";
+                  if (repairResp.ok) {
+                    const repairJson = await repairResp.json();
+                    const repaired = (repairJson?.choices?.[0]?.message?.content || "")
+                      .replace(/\[.*?\]/g, "")
+                      .replace(/^['"]|['"]$/g, "")
+                      .trim();
+                    if (repaired) {
+                      reply = antiRepetitionCheck(repaired, conversationContext);
+                      aiModelUsed = repairJson?.model || aiModelUsed;
+                    }
+                  }
+                } catch (repairErr) {
+                  console.log("[DEFLECT GUARD] Natural repair failed (non-blocking):", repairErr);
+                }
+
+                if (!reply || reply.trim().length < 2) {
+                  reply = "my bad i misread that ask me again in one line";
                 }
                 console.log(`[DEFLECT GUARD] Replaced deflection with: "${reply}"`);
               }
@@ -4812,19 +4657,48 @@ Read the full message, answer the full intent directly, and do not skip any part
               repetitionCheck = detectRepetitionIssue(reply, conversationContext);
               if (repetitionCheck.issue !== "none") {
                 const latestFanTextFinal = (latestMsg?.content || "").trim();
-                const deterministic = buildDeterministicPersonaReply(
-                  latestFanTextFinal,
-                  personaInfo2,
-                  accountProfileInfo || {},
-                  recentPublishedContent || [],
-                  conversationContext,
-                );
 
-                reply = deterministic || (latestFanTextFinal.includes("?")
-                  ? "fair question im just working rn"
-                  : "got u i hear u");
+                try {
+                  const finalRepairResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+                    method: "POST",
+                    headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      model: LIVE_CHAT_PRIMARY_MODEL,
+                      temperature: 0.8,
+                      max_tokens: 384,
+                      messages: [
+                        {
+                          role: "system",
+                          content: "Write one natural direct answer to the latest fan message. No placeholders. No canned template phrases. No emojis.",
+                        },
+                        {
+                          role: "user",
+                          content: `LATEST FAN MESSAGE:\n${latestFanTextFinal}`,
+                        },
+                      ],
+                    }),
+                  });
 
-                reply = antiRepetitionCheck(reply, conversationContext);
+                  if (finalRepairResp.ok) {
+                    const finalRepairJson = await finalRepairResp.json();
+                    const finalRepaired = (finalRepairJson?.choices?.[0]?.message?.content || "")
+                      .replace(/\[.*?\]/g, "")
+                      .replace(/^['"]|['"]$/g, "")
+                      .trim();
+                    if (finalRepaired) {
+                      reply = antiRepetitionCheck(finalRepaired, conversationContext);
+                      aiModelUsed = finalRepairJson?.model || aiModelUsed;
+                    }
+                  }
+                } catch (finalRepairErr) {
+                  console.log("[NO-REPEAT] Final natural repair failed (non-blocking):", finalRepairErr);
+                }
+
+                if (!reply || reply.trim().length < 2) {
+                  reply = latestFanTextFinal.includes("?")
+                    ? "fair question ask it one more time and ill answer straight"
+                    : "got it tell me more";
+                }
               }
             }
 
