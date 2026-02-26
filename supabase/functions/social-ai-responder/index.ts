@@ -2554,13 +2554,20 @@ Rules:
         for (const { folder, conversations: folderConvos } of allFolderData) {
           for (const convo of folderConvos) {
             try {
-              if (seenConvoIds.has(convo.id)) continue;
+              if (seenConvoIds.has(convo.id)) {
+                console.log("SKIP duplicate convo:", convo.id);
+                continue;
+              }
               seenConvoIds.add(convo.id);
               
               const messages = convo.messages?.data || [];
               const participants = convo.participants?.data || [];
+              console.log("Processing convo:", convo.id, "participants:", participants.length, "msgs:", messages.length, "folder:", folder);
               const fan = findFanParticipant(participants, messages);
-              if (!fan) continue;
+              if (!fan) {
+                console.log("SKIP no fan for convo:", convo.id, "participants:", JSON.stringify(participants.map((p:any) => ({id:p.id,name:p.name})).slice(0,3)));
+                continue;
+              }
 
               // Determine if last message is from fan — account for Page-sent messages
               const lastMsg = messages[0];
@@ -2612,13 +2619,16 @@ Rules:
                 upsertData.ai_enabled = true;
               }
 
-              const { data: dbConvo } = await supabase
+              const { data: dbConvo, error: upsertErr } = await supabase
                 .from("ai_dm_conversations")
                 .upsert(upsertData, { onConflict: "account_id,platform_conversation_id" })
                 .select("id")
                 .single();
               
-              if (!dbConvo) continue;
+              if (upsertErr || !dbConvo) {
+                console.error("Upsert failed for convo", convo.id, "error:", upsertErr?.message || "no data returned", "code:", upsertErr?.code);
+                continue;
+              }
 
               // Helper: detect if message is from us (creator/page)
               const isMessageFromUs = (msg: any): boolean => {
