@@ -677,12 +677,52 @@ const getAccountPersona = async (supabaseClient: any, accountId: string | null):
     
     if (persona?.system_prompt && persona.system_prompt.trim()) {
       // Full system prompt override — completely replaces default persona
+      // The system_prompt IS the core personality. We enrich it with all creator-set parameters.
       const commRules = persona.communication_rules || {};
       let fullPrompt = persona.system_prompt.trim();
-      // Append additional_info if present in communication_rules
+      
+      // Inject all persona parameters so the AI has full context from the creator's settings
+      const paramBlock: string[] = [];
+      if (persona.tone) paramBlock.push(`Primary Tone: ${persona.tone}`);
+      if (commRules.secondary_tone) paramBlock.push(`Secondary Tone: ${commRules.secondary_tone}`);
+      if (persona.vocabulary_style) paramBlock.push(`Vocabulary Style: ${persona.vocabulary_style}`);
+      if (persona.emotional_range) paramBlock.push(`Emotional Range: ${persona.emotional_range}`);
+      if (commRules.age_range) paramBlock.push(`Age: ${commRules.age_range}`);
+      if (commRules.emoji_usage) paramBlock.push(`Emoji Usage: ${commRules.emoji_usage}`);
+      if (commRules.message_length) paramBlock.push(`Message Length: ${commRules.message_length}`);
+      if (commRules.response_speed) paramBlock.push(`Response Speed: ${commRules.response_speed}`);
+      if (commRules.humor) paramBlock.push(`Humor Style: ${commRules.humor}`);
+      if (commRules.language_style) paramBlock.push(`Language Style: ${commRules.language_style}`);
+      if (commRules.hook_style) paramBlock.push(`Hook Style: ${commRules.hook_style}`);
+      if (commRules.objection_handling) paramBlock.push(`Objection Handling: ${commRules.objection_handling}`);
+      if (commRules.recovery_style) paramBlock.push(`Recovery Style: ${commRules.recovery_style}`);
+      if (commRules.attachment_style) paramBlock.push(`Attachment Style: ${commRules.attachment_style}`);
+      if (typeof commRules.flirt_level === "number") paramBlock.push(`Flirt Level: ${commRules.flirt_level}/100`);
+      if (typeof commRules.warmth === "number") paramBlock.push(`Warmth: ${commRules.warmth}/100`);
+      if (typeof commRules.mystery === "number") paramBlock.push(`Mystery: ${commRules.mystery}/100`);
+      if (typeof commRules.dominance === "number") paramBlock.push(`Dominance: ${commRules.dominance}/100`);
+      if (typeof commRules.redirect_aggressiveness === "number") paramBlock.push(`Redirect Aggressiveness: ${commRules.redirect_aggressiveness}/100`);
+      if (commRules.backstory) paramBlock.push(`Backstory: ${commRules.backstory}`);
+      if (commRules.catchphrases) paramBlock.push(`Catchphrases: ${commRules.catchphrases}`);
+      if (commRules.turn_ons) paramBlock.push(`Turn Ons: ${commRules.turn_ons}`);
+      if (commRules.turn_offs) paramBlock.push(`Turn Offs: ${commRules.turn_offs}`);
+      if (commRules.interests) paramBlock.push(`Interests: ${commRules.interests}`);
+      if (commRules.content_themes) paramBlock.push(`Content Themes: ${commRules.content_themes}`);
+      if (commRules.pricing_mentality) paramBlock.push(`Pricing Mentality: ${commRules.pricing_mentality}`);
+      if (commRules.competitor_mention) paramBlock.push(`Competitor Mention: ${commRules.competitor_mention}`);
+      if (persona.boundaries) paramBlock.push(`Hard Boundaries: ${persona.boundaries}`);
+      if (persona.personality_traits?.length) paramBlock.push(`Personality Traits: ${persona.personality_traits.join(", ")}`);
+      if (persona.brand_identity) paramBlock.push(`Brand Identity: ${persona.brand_identity}`);
+      
+      if (paramBlock.length > 0) {
+        fullPrompt += `\n\n=== PERSONA PARAMETERS (follow these strictly) ===\n${paramBlock.join("\n")}`;
+      }
+      
       if (commRules.additional_info && commRules.additional_info.trim()) {
         fullPrompt += `\n\n--- ADDITIONAL CONTEXT ---\n${commRules.additional_info.trim()}`;
       }
+      
+      console.log(`[PERSONA] Custom system_prompt loaded with ${paramBlock.length} params for persona "${persona.brand_identity || persona.tone}"`);
       return { personaInfo: fullPrompt, isCustomOverride: true };
     }
     
