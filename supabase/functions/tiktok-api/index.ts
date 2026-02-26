@@ -7,7 +7,25 @@ const corsHeaders = {
 };
 
 const TT_API_URL = "https://open.tiktokapis.com/v2";
-const DEFAULT_TIKTOK_OAUTH_SCOPES = "user.info.basic,video.list,video.upload,video.publish";
+const DEFAULT_TIKTOK_OAUTH_SCOPES = [
+  // Login Kit (approved)
+  "user.info.basic",
+  "user.info.profile",
+  "user.info.stats",
+  // Content Posting API (approved)
+  "video.list",
+  "video.publish",
+  "video.upload",
+  // Data Portability API (under audit — TikTok silently ignores unapproved scopes)
+  "portability.all.single",
+  "portability.all.ongoing",
+  "portability.postsandprofile.single",
+  "portability.postsandprofile.ongoing",
+  "portability.directmessages.single",
+  "portability.directmessages.ongoing",
+  "portability.activity.single",
+  "portability.activity.ongoing",
+].join(",");
 
 function normalizeTikTokScopes(rawScopes?: string | null) {
   const normalized = (rawScopes || DEFAULT_TIKTOK_OAUTH_SCOPES)
