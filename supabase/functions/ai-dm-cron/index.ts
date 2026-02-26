@@ -40,7 +40,10 @@ serve(async (req) => {
 
     console.log(`[AI-DM-CRON] Found ${activeAccounts.length} active account(s)`);
 
-    const results: { account_id: string; status: string; processed?: number; error?: string }[] = [];
+    const results: { account_id: string; platform: string; status: string; processed?: number; error?: string }[] = [];
+
+    // Platforms that support DM auto-respond
+    const DM_PLATFORMS = ["instagram", "tiktok", "facebook"];
 
     // Process each account sequentially to avoid rate limits
     for (const account of activeAccounts) {
@@ -50,7 +53,7 @@ serve(async (req) => {
       if (account.cooldown_until && new Date(account.cooldown_until).getTime() > Date.now()) {
         const remainMin = Math.round((new Date(account.cooldown_until).getTime() - Date.now()) / 60000);
         console.log(`[AI-DM-CRON] Account ${account_id}: in cooldown (${remainMin}min remaining), skipping`);
-        results.push({ account_id, status: "cooldown", error: `${remainMin}min remaining` });
+        results.push({ account_id, platform: "all", status: "cooldown", error: `${remainMin}min remaining` });
         continue;
       }
 
@@ -58,58 +61,62 @@ serve(async (req) => {
       const dailyLimit = account.daily_limit || 500;
       if ((account.daily_sent_count || 0) >= dailyLimit) {
         console.log(`[AI-DM-CRON] Account ${account_id}: daily limit reached (${account.daily_sent_count}/${dailyLimit}), skipping`);
-        results.push({ account_id, status: "limit_reached" });
+        results.push({ account_id, platform: "all", status: "limit_reached" });
         continue;
       }
 
-      // Verify Instagram is connected
-      const { data: igConn, error: igConnErr } = await supabase
-        .from("social_connections")
-        .select("platform_user_id, is_connected")
-        .eq("account_id", account_id)
-        .eq("platform", "instagram")
-        .eq("is_connected", true)
-        .maybeSingle();
+      // Check each platform for connected accounts and process DMs
+      for (const platform of DM_PLATFORMS) {
+        const { data: conn, error: connErr } = await supabase
+          .from("social_connections")
+          .select("platform_user_id, is_connected")
+          .eq("account_id", account_id)
+          .eq("platform", platform)
+          .eq("is_connected", true)
+          .maybeSingle();
 
-      if (igConnErr) {
-        console.log(`[AI-DM-CRON] Account ${account_id}: IG connection lookup failed (${igConnErr.message}), skipping`);
-        results.push({ account_id, status: "no_ig_connection", error: igConnErr.message });
-        continue;
+        if (connErr) {
+          console.log(`[AI-DM-CRON] Account ${account_id}/${platform}: connection lookup failed (${connErr.message}), skipping`);
+          results.push({ account_id, platform, status: "conn_error", error: connErr.message });
+          continue;
+        }
+
+        if (!conn?.platform_user_id) {
+          // Not connected to this platform — skip silently
+          continue;
+        }
+
+        try {
+          console.log(`[AI-DM-CRON] Processing account ${account_id} / ${platform}...`);
+
+          // Call the social-ai-responder edge function with process_live_dm action + platform
+          const resp = await fetch(`${supabaseUrl}/functions/v1/social-ai-responder`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${serviceKey}`,
+            },
+            body: JSON.stringify({
+              action: "process_live_dm",
+              account_id,
+              params: { platform },
+            }),
+          });
+
+          const data = await resp.json();
+          const processed = data?.data?.processed || 0;
+          console.log(`[AI-DM-CRON] Account ${account_id}/${platform}: processed ${processed} conversations`);
+          results.push({ account_id, platform, status: "ok", processed });
+        } catch (err: any) {
+          console.error(`[AI-DM-CRON] Account ${account_id}/${platform} failed:`, err.message);
+          results.push({ account_id, platform, status: "error", error: err.message });
+        }
+
+        // Small delay between platform calls to prevent overwhelming the API
+        await new Promise(r => setTimeout(r, 1500));
       }
 
-      if (!igConn?.platform_user_id) {
-        console.log(`[AI-DM-CRON] Account ${account_id}: no IG connection, skipping`);
-        results.push({ account_id, status: "no_ig_connection" });
-        continue;
-      }
-
-      try {
-        console.log(`[AI-DM-CRON] Processing account ${account_id}...`);
-
-        // Call the social-ai-responder edge function with process_live_dm action
-        const resp = await fetch(`${supabaseUrl}/functions/v1/social-ai-responder`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${serviceKey}`,
-          },
-          body: JSON.stringify({
-            action: "process_live_dm",
-            account_id,
-            params: {},
-          }),
-        });
-
-        const data = await resp.json();
-        const processed = data?.data?.processed || 0;
-        console.log(`[AI-DM-CRON] Account ${account_id}: processed ${processed} conversations`);
-        results.push({ account_id, status: "ok", processed });
-      } catch (err: any) {
-        console.error(`[AI-DM-CRON] Account ${account_id} failed:`, err.message);
-        results.push({ account_id, status: "error", error: err.message });
-      }
-
-      // Small delay between accounts to prevent overwhelming the API
+      // Delay between accounts
       await new Promise(r => setTimeout(r, 2000));
     }
 
