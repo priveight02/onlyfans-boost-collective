@@ -2301,6 +2301,149 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
           </CardContent>
         </Card>
 
+        {/* Smart Auto-Publisher Dashboard */}
+        <Card className="bg-gradient-to-br from-emerald-500/5 to-cyan-500/5 border-emerald-500/15 backdrop-blur-sm">
+          <CardContent className="p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
+                <div className="h-8 w-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                  <Bot className="h-4 w-4 text-emerald-400" />
+                </div>
+                Smart Auto-Publisher
+              </h4>
+              <Switch
+                checked={scheduledPosts.filter(p => p.status === "scheduled" && p.scheduled_at).length > 0}
+                onCheckedChange={async (checked) => {
+                  if (checked) {
+                    // Trigger auto-publish for all overdue scheduled posts
+                    const overdue = scheduledPosts.filter(p => p.status === "scheduled" && p.scheduled_at && new Date(p.scheduled_at) <= new Date());
+                    if (overdue.length > 0) {
+                      for (const p of overdue) {
+                        await publishPost(p);
+                      }
+                      toast.success(`Auto-published ${overdue.length} overdue post(s)`);
+                    } else {
+                      toast.info("No overdue posts to auto-publish. Posts will publish at their scheduled time.");
+                    }
+                  }
+                }}
+              />
+            </div>
+            <p className="text-[10px] text-muted-foreground">Automatically publishes scheduled posts when their time arrives. Monitors queue and retries failed posts.</p>
+            <div className="grid grid-cols-3 gap-3">
+              {(() => {
+                const now = new Date();
+                const next24h = scheduledPosts.filter(p => p.status === "scheduled" && p.scheduled_at && new Date(p.scheduled_at) > now && new Date(p.scheduled_at) <= new Date(now.getTime() + 86400000));
+                const overdue = scheduledPosts.filter(p => p.status === "scheduled" && p.scheduled_at && new Date(p.scheduled_at) <= now);
+                const failed = scheduledPosts.filter(p => p.status === "failed");
+                return (
+                  <>
+                    <div className="bg-white/[0.04] rounded-lg p-3 text-center">
+                      <p className="text-lg font-bold text-emerald-400">{next24h.length}</p>
+                      <p className="text-[10px] text-muted-foreground">Next 24h</p>
+                    </div>
+                    <div className="bg-white/[0.04] rounded-lg p-3 text-center">
+                      <p className="text-lg font-bold text-amber-400">{overdue.length}</p>
+                      <p className="text-[10px] text-muted-foreground">Overdue</p>
+                    </div>
+                    <div className="bg-white/[0.04] rounded-lg p-3 text-center">
+                      <p className="text-lg font-bold text-red-400">{failed.length}</p>
+                      <p className="text-[10px] text-muted-foreground">Failed</p>
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+            {scheduledPosts.filter(p => p.status === "failed").length > 0 && (
+              <Button size="sm" variant="outline" className="w-full text-xs gap-1.5 border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/10" onClick={async () => {
+                const failed = scheduledPosts.filter(p => p.status === "failed");
+                for (const p of failed) { await publishPost(p); }
+                toast.success(`Retried ${failed.length} failed post(s)`);
+              }}>
+                <RotateCcw className="h-3.5 w-3.5" /> Retry All Failed ({scheduledPosts.filter(p => p.status === "failed").length})
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Content Calendar Heatmap */}
+        <Card className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm">
+          <CardContent className="p-5 space-y-3">
+            <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
+              <CalendarDays className="h-4 w-4 text-amber-400" />
+              Content Calendar Heatmap
+            </h4>
+            <p className="text-[10px] text-muted-foreground">Visualize your posting density across the next 4 weeks</p>
+            <div className="space-y-1">
+              {(() => {
+                const now = new Date();
+                const weeks: { label: string; days: { date: Date; count: number; statuses: string[] }[] }[] = [];
+                for (let w = 0; w < 4; w++) {
+                  const days: { date: Date; count: number; statuses: string[] }[] = [];
+                  for (let d = 0; d < 7; d++) {
+                    const date = new Date(now);
+                    date.setDate(now.getDate() + w * 7 + d - now.getDay());
+                    const dayStr = date.toISOString().slice(0, 10);
+                    const postsOnDay = scheduledPosts.filter(p => p.scheduled_at && p.scheduled_at.slice(0, 10) === dayStr);
+                    days.push({ date, count: postsOnDay.length, statuses: postsOnDay.map(p => p.status) });
+                  }
+                  const weekStart = days[0].date;
+                  weeks.push({ label: `${weekStart.toLocaleDateString([], { month: "short", day: "numeric" })}`, days });
+                }
+                const dayLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+                return (
+                  <div>
+                    <div className="flex gap-1 mb-1 ml-14">
+                      {dayLabels.map(d => (
+                        <div key={d} className="w-8 text-center text-[9px] text-muted-foreground">{d}</div>
+                      ))}
+                    </div>
+                    {weeks.map((week, wi) => (
+                      <div key={wi} className="flex items-center gap-1 mb-1">
+                        <span className="text-[9px] text-muted-foreground w-12 text-right pr-1">{week.label}</span>
+                        {week.days.map((day, di) => {
+                          const isToday = day.date.toISOString().slice(0, 10) === now.toISOString().slice(0, 10);
+                          const isPast = day.date < now && !isToday;
+                          const hasPublished = day.statuses.includes("published");
+                          const hasFailed = day.statuses.includes("failed");
+                          const bg = day.count === 0
+                            ? (isPast ? "bg-white/[0.02]" : "bg-white/[0.04]")
+                            : hasFailed
+                              ? "bg-red-500/30"
+                              : hasPublished
+                                ? "bg-green-500/30"
+                                : day.count >= 3
+                                  ? "bg-amber-500/50"
+                                  : day.count >= 2
+                                    ? "bg-amber-500/30"
+                                    : "bg-amber-500/15";
+                          return (
+                            <div
+                              key={di}
+                              className={`w-8 h-8 rounded-md flex items-center justify-center text-[10px] font-medium transition-all cursor-default ${bg} ${isToday ? "ring-1 ring-amber-400" : ""}`}
+                              title={`${day.date.toLocaleDateString()}: ${day.count} post(s)`}
+                            >
+                              {day.count > 0 ? <span className="text-foreground">{day.count}</span> : <span className="text-muted-foreground/30">{day.date.getDate()}</span>}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ))}
+                    <div className="flex items-center gap-3 mt-2 justify-end">
+                      <div className="flex items-center gap-1"><div className="h-2.5 w-2.5 rounded-sm bg-white/[0.04]" /><span className="text-[9px] text-muted-foreground">None</span></div>
+                      <div className="flex items-center gap-1"><div className="h-2.5 w-2.5 rounded-sm bg-amber-500/15" /><span className="text-[9px] text-muted-foreground">1</span></div>
+                      <div className="flex items-center gap-1"><div className="h-2.5 w-2.5 rounded-sm bg-amber-500/30" /><span className="text-[9px] text-muted-foreground">2</span></div>
+                      <div className="flex items-center gap-1"><div className="h-2.5 w-2.5 rounded-sm bg-amber-500/50" /><span className="text-[9px] text-muted-foreground">3+</span></div>
+                      <div className="flex items-center gap-1"><div className="h-2.5 w-2.5 rounded-sm bg-green-500/30" /><span className="text-[9px] text-muted-foreground">Published</span></div>
+                      <div className="flex items-center gap-1"><div className="h-2.5 w-2.5 rounded-sm bg-red-500/30" /><span className="text-[9px] text-muted-foreground">Failed</span></div>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Calendar Mini View */}
         {scheduledPosts.filter(p => p.scheduled_at).length > 0 && (
           <Card className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm">
