@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
+import PlatformAccountSelector from "./PlatformAccountSelector";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -41,9 +42,12 @@ interface Props {
   onSubTabChange?: (subTab: string) => void;
 }
 
-const FBAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSubTab, onSubTabChange }: Props) => {
+const FBAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect, subTab: urlSubTab, onSubTabChange }: Props) => {
   const [activeTab, setActiveTabInternal] = useState(urlSubTab || "dashboard");
   const setActiveTab = (v: string) => { setActiveTabInternal(v); onSubTabChange?.(v); };
+  const [platformAccountId, setPlatformAccountId] = useState(parentAccount);
+  useEffect(() => { setPlatformAccountId(parentAccount); }, [parentAccount]);
+  const selectedAccount = platformAccountId || parentAccount;
   useEffect(() => { if (urlSubTab && urlSubTab !== activeTab) setActiveTabInternal(urlSubTab); }, [urlSubTab]);
   const [loading, setLoading] = useState(false);
   const [fbConnected, setFbConnected] = useState<boolean | null>(null);
@@ -328,6 +332,13 @@ const FBAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSu
 
   return (
     <div className="space-y-3">
+      <PlatformAccountSelector
+        platform="facebook"
+        selectedAccountId={selectedAccount}
+        onAccountChange={setPlatformAccountId}
+        platformIcon={<FacebookIcon className="h-4 w-4 text-blue-500" />}
+        platformColor="text-blue-500"
+      />
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="bg-white/[0.03] border border-white/[0.06] backdrop-blur-sm p-0.5 rounded-lg gap-0.5 flex flex-wrap w-full">
           {TABS.map(t => (

@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import PlatformAccountSelector from "./PlatformAccountSelector";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -8,7 +9,7 @@ import {
   Hash, ShoppingBag, CalendarDays, Users, Briefcase, Zap,
   Target, TrendingUp, MessageSquare, DollarSign, Activity, Brain,
   Shield, Sparkles, Heart, Inbox, Bot, Flame, GitBranch, Clock,
-  Palette, Radar, Eye,
+  Palette, Radar, Eye, Instagram,
 } from "lucide-react";
 import IGAutoScheduler from "./IGAutoScheduler";
 import IGAdsManager from "./IGAdsManager";
@@ -86,7 +87,10 @@ const SECTIONS = [
 
 const CATEGORIES = ["AI Platform", "Growth", "Ads", "Commerce", "Platform", "Outreach AI", "Intelligence"];
 
-const IGAutomationSuite = ({ selectedAccount }: Props) => {
+const IGAutomationSuite = ({ selectedAccount: parentAccount }: Props) => {
+  const [platformAccountId, setPlatformAccountId] = useState(parentAccount);
+  useEffect(() => { setPlatformAccountId(parentAccount); }, [parentAccount]);
+  const selectedAccount = platformAccountId || parentAccount;
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(["leads"]));
 
   const toggleSection = (id: string) => {
@@ -138,6 +142,14 @@ const IGAutomationSuite = ({ selectedAccount }: Props) => {
 
   return (
     <div className="space-y-3">
+      {/* Per-platform account selector */}
+      <PlatformAccountSelector
+        platform="instagram"
+        selectedAccountId={selectedAccount}
+        onAccountChange={setPlatformAccountId}
+        platformIcon={<Instagram className="h-4 w-4 text-pink-400" />}
+        platformColor="text-pink-400"
+      />
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Zap className="h-5 w-5 text-primary" />

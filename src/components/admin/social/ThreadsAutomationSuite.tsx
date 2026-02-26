@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
+import PlatformAccountSelector from "./PlatformAccountSelector";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -33,9 +34,12 @@ interface Props {
   onSubTabChange?: (subTab: string) => void;
 }
 
-const ThreadsAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSubTab, onSubTabChange }: Props) => {
+const ThreadsAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect, subTab: urlSubTab, onSubTabChange }: Props) => {
   const [activeTab, setActiveTabInternal] = useState(urlSubTab || "dashboard");
   const setActiveTab = (v: string) => { setActiveTabInternal(v); onSubTabChange?.(v); };
+  const [platformAccountId, setPlatformAccountId] = useState(parentAccount);
+  useEffect(() => { setPlatformAccountId(parentAccount); }, [parentAccount]);
+  const selectedAccount = platformAccountId || parentAccount;
   useEffect(() => { if (urlSubTab && urlSubTab !== activeTab) setActiveTabInternal(urlSubTab); }, [urlSubTab]);
   const [loading, setLoading] = useState(false);
   const [threadsConnected, setThreadsConnected] = useState<boolean | null>(null);
@@ -741,6 +745,7 @@ const ThreadsAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: 
         </div>
       </TabsContent>
     </Tabs>
+    </div>
   );
 };
 
