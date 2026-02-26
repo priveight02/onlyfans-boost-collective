@@ -2129,7 +2129,7 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
                       <MoreVertical className="h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="text-xs bg-[hsl(222,35%,8%)] border-white/10 text-foreground min-w-[220px]">
+                  <DropdownMenuContent align="end" className="text-xs bg-[hsl(222,35%,8%)] border-white/10 text-white min-w-[220px]">
                     <DropdownMenuItem className="focus:bg-white/[0.06] text-foreground" onClick={() => {
                       const newFolder = selectedConvoData?.folder === "primary" ? "general" : "primary";
                       supabase.from("ai_dm_conversations").update({ folder: newFolder }).eq("id", selectedConvo!).then(() => {
