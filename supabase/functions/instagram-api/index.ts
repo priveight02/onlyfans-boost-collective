@@ -156,14 +156,42 @@ function classifyGender(fullName: string): "female" | "male" | "unknown" {
   return "unknown";
 }
 
-async function getConnection(supabase: any, accountId: string) {
-  const { data } = await supabase
-    .from("social_connections")
-    .select("*")
-    .eq("account_id", accountId)
-    .eq("platform", "instagram")
-    .eq("is_connected", true)
-    .single();
+async function getConnection(supabase: any, accountId?: string, userId?: string) {
+  let data: any = null;
+
+  if (accountId) {
+    const { data: byAccount } = await supabase
+      .from("social_connections")
+      .select("*")
+      .eq("account_id", accountId)
+      .eq("platform", "instagram")
+      .eq("is_connected", true)
+      .maybeSingle();
+
+    if (byAccount?.access_token) {
+      data = byAccount;
+    }
+  }
+
+  if (!data && userId) {
+    const { data: byUser } = await supabase
+      .from("social_connections")
+      .select("*")
+      .eq("user_id", userId)
+      .eq("platform", "instagram")
+      .eq("is_connected", true)
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (byUser?.access_token) {
+      data = byUser;
+      if (accountId && byUser.account_id !== accountId) {
+        console.log(`IG connection fallback: requested account ${accountId}, using connected account ${byUser.account_id}`);
+      }
+    }
+  }
+
   if (!data?.access_token) throw new Error("Instagram not connected for this account");
   return data;
 }
@@ -467,6 +495,25 @@ async function fbFetch(endpoint: string, token: string, method = "GET", body?: a
   return data;
 }
 
+function getAuthUserId(req: Request): string | null {
+  const authHeader = req.headers.get("authorization") || req.headers.get("Authorization");
+  if (!authHeader?.startsWith("Bearer ")) return null;
+
+  try {
+    const token = authHeader.slice(7);
+    const [, payload] = token.split(".");
+    if (!payload) return null;
+
+    const base64 = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = base64 + "=".repeat((4 - (base64.length % 4)) % 4);
+    const decoded = atob(padded);
+    const parsed = JSON.parse(decoded);
+    return parsed?.sub || null;
+  } catch {
+    return null;
+  }
+}
+
 const IG_WEBHOOK_VERIFY_TOKEN = "uplyze_ig_wh_v3r1fy_2025_s3cur3";
 
 serve(async (req) => {
@@ -513,6 +560,7 @@ serve(async (req) => {
 
     // ===== NORMAL API REQUEST HANDLER =====
     const { action, account_id, params } = parsedBody;
+    const authUserId = getAuthUserId(req);
     
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -780,7 +828,7 @@ Analyze every character in the name and username for any gender signal at all. L
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    const conn = await getConnection(supabase, account_id);
+    const conn = await getConnection(supabase, account_id, authUserId);
     const token = conn.access_token;
     let igUserId = conn.platform_user_id;
     
