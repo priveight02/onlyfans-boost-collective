@@ -2001,14 +2001,30 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
         } catch {}
         // Step 1: Navigate to TikTok logout (clears session cookies)
         popup.location.href = "https://www.tiktok.com/logout";
-        // Step 2: After logout completes (~2.5s), redirect to the OAuth auth URL
-        setTimeout(() => {
+        // Step 2: Poll until logout completes (lands on tiktok.com/login or similar), then immediately redirect to OAuth URL.
+        // This prevents showing the ugly tiktok.com/login page and goes straight to the proper OAuth authorization screen.
+        const redirectInterval = setInterval(() => {
           try {
+            if (!popup || popup.closed) { clearInterval(redirectInterval); return; }
+            const currentUrl = popup.location.href;
+            // Once TikTok logout finishes and redirects away from /logout, immediately go to OAuth
+            if (currentUrl && !currentUrl.includes("/logout") && !currentUrl.includes("about:blank")) {
+              clearInterval(redirectInterval);
+              popup.location.href = authUrl;
+            }
+          } catch {
+            // Cross-origin — means TikTok page loaded, session cleared, safe to redirect
+            clearInterval(redirectInterval);
             if (popup && !popup.closed) {
               popup.location.href = authUrl;
             }
-          } catch {}
-        }, 2500);
+          }
+        }, 200);
+        // Fallback: if nothing fires within 4s, force redirect anyway
+        setTimeout(() => {
+          clearInterval(redirectInterval);
+          try { if (popup && !popup.closed) popup.location.href = authUrl; } catch {}
+        }, 4000);
       }
     } else {
       popup = window.open(authUrl, `tt_login_popup_${Date.now()}`, `width=${w},height=${h},left=${left},top=${top},toolbar=no,menubar=no,scrollbars=yes,resizable=yes`);
