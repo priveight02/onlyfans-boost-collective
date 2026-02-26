@@ -3317,10 +3317,10 @@ Analyze every character in the name and username for any gender signal at all. L
 
         // Paginate through all messages in the thread
         let allMsgIds: string[] = [];
-        let url = `${IG_GRAPH_URL}/${convId}/messages?limit=${Math.min(msgLimit, 500)}&fields=id`;
+        let url = `${IG_GRAPH_URL}/${convId}/messages?limit=${Math.min(msgLimit, 500)}&fields=id&access_token=${token}`;
         let pages = 0;
         while (url && pages < 10) {
-          const resp = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+          const resp = await fetch(url);
           const json = await resp.json();
           if (json.error) throw new Error(json.error?.message || "Failed to fetch conversation messages");
           const msgs = json.data || [];
