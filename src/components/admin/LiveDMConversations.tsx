@@ -522,21 +522,25 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
       let changed = false;
 
       // BATCH: detect deleted messages only inside fetched window (avoid false positives on older history)
-      // CRITICAL: Only check FAN messages for deletion. AI/creator-sent messages often don't appear
-      // in the IG conversation fetch (API quirk) and get falsely flagged as deleted.
+      // Check ALL message types (fan, ai, manual) — if a message has a platform_message_id and
+      // is within the fetched window but no longer appears in IG, it was deleted/unsent.
+      // Guard against false positives: only flag messages created >30s ago (avoids race with just-sent messages)
       const toMarkDeleted: string[] = [];
+      const nowMs = Date.now();
       for (const dbMsg of cached) {
-        // Skip AI/creator messages — they're sent via API and may not appear in IG fetch
-        if (dbMsg.sender_type !== "fan") continue;
+        // Skip messages without platform IDs (can't verify against IG)
+        if (!dbMsg.platform_message_id) continue;
 
+        // Skip messages sent in the last 30s — API may not have propagated yet (prevents false positives for our own messages)
         const dbMsgTs = new Date(dbMsg.created_at).getTime();
+        if (nowMs - dbMsgTs < 30000) continue;
+
         const isInFetchedWindow = oldestFetchedMs
           ? Number.isFinite(dbMsgTs) && dbMsgTs >= (oldestFetchedMs - 120000) // 2 min tolerance
           : false;
 
         if (
           isInFetchedWindow &&
-          dbMsg.platform_message_id &&
           !dbMsg.id.startsWith("temp-") &&
           dbMsg.status !== "deleted" &&
           !igMessageIds.has(dbMsg.platform_message_id) &&
