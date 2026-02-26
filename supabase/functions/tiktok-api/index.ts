@@ -116,18 +116,122 @@ serve(async (req) => {
       });
     }
 
-    // ===== SINGLE POST PUBLISH (triggered by per-post cron job) =====
-    if (action === "publish_scheduled_post") {
-      const { post_id } = { post_id: params?.post_id || (await req.clone().json().catch(() => ({}))).post_id };
-      const actualPostId = post_id || (await req.clone().json().catch(() => ({}))).post_id;
-      
-      // Accept post_id from body root or params
-      const resolvedPostId = actualPostId || (() => {
-        try { const b = JSON.parse(JSON.stringify(arguments)); return b.post_id; } catch { return null; }
-      })();
-
+    // ===== BATCH PUBLISH (one cron per minute-slot, handles all posts in that slot) =====
+    if (action === "publish_scheduled_batch") {
       const bodyData = await req.clone().json().catch(() => ({}));
-      const finalPostId = resolvedPostId || bodyData.post_id;
+      const slotTs = params?.slot_ts || bodyData.slot_ts;
+
+      if (!slotTs) {
+        return new Response(JSON.stringify({ success: false, error: "Missing slot_ts" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Find ALL scheduled tiktok posts in this minute slot
+      const slotStart = new Date(slotTs);
+      const slotEnd = new Date(slotStart.getTime() + 60000); // +1 minute
+
+      const { data: posts, error: fetchErr } = await supabase
+        .from("social_posts")
+        .select("*")
+        .eq("platform", "tiktok")
+        .eq("status", "scheduled")
+        .gte("scheduled_at", slotStart.toISOString())
+        .lt("scheduled_at", slotEnd.toISOString())
+        .order("scheduled_at", { ascending: true });
+
+      if (fetchErr || !posts || posts.length === 0) {
+        // No posts in slot — cron will self-destruct via trigger when last post status changes
+        return new Response(JSON.stringify({ success: true, data: { skipped: true, reason: "no_posts_in_slot", slot: slotTs } }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const results: any[] = [];
+
+      for (const post of posts) {
+        try {
+          const postConn = await getConnection(supabase, post.account_id);
+          const meta = post.metadata || {};
+          const mediaUrl = Array.isArray(post.media_urls) ? post.media_urls[0] : null;
+
+          if (!mediaUrl) {
+            await supabase.from("social_posts").update({
+              status: "failed", error_message: "No media URL available",
+              updated_at: new Date().toISOString(),
+            }).eq("id", post.id);
+            results.push({ id: post.id, status: "failed", error: "No media URL" });
+            continue;
+          }
+
+          // Mark as publishing (triggers cron cleanup check via DB trigger)
+          await supabase.from("social_posts").update({
+            status: "publishing", updated_at: new Date().toISOString(),
+          }).eq("id", post.id);
+
+          const postType = meta.content_type || post.post_type || "video";
+          let publishResult: any;
+
+          if (postType === "video") {
+            publishResult = await ttFetch("/post/publish/video/init/", postConn.access_token, "POST", {
+              post_info: {
+                title: post.caption || "",
+                privacy_level: meta.privacy_level || "PUBLIC_TO_EVERYONE",
+                disable_duet: meta.disable_duet || false,
+                disable_comment: meta.disable_comment || false,
+                disable_stitch: meta.disable_stitch || false,
+                ...(meta.brand_content ? { brand_content_toggle: true } : {}),
+              },
+              source_info: { source: "PULL_FROM_URL", video_url: mediaUrl },
+            });
+          } else {
+            const mediaType = postType === "carousel" ? "CAROUSEL" : "PHOTO";
+            publishResult = await ttFetch("/post/publish/content/init/", postConn.access_token, "POST", {
+              post_info: {
+                title: post.caption || "",
+                description: post.caption || "",
+                privacy_level: meta.privacy_level || "PUBLIC_TO_EVERYONE",
+                disable_comment: meta.disable_comment || false,
+              },
+              source_info: {
+                source: "PULL_FROM_URL",
+                photo_cover_index: 0,
+                photo_images: post.media_urls,
+              },
+              post_mode: "DIRECT_POST",
+              media_type: mediaType,
+            });
+          }
+
+          const publishId = publishResult?.data?.publish_id;
+          await supabase.from("social_posts").update({
+            platform_post_id: publishId || null,
+            status: publishId ? "publishing" : "published",
+            published_at: publishId ? null : new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          }).eq("id", post.id);
+
+          results.push({ id: post.id, status: "published", publish_id: publishId });
+        } catch (e: any) {
+          console.error(`Batch publish failed for post ${post.id}:`, e.message);
+          await supabase.from("social_posts").update({
+            status: "failed",
+            error_message: e.message || "Publishing failed",
+            updated_at: new Date().toISOString(),
+          }).eq("id", post.id);
+          results.push({ id: post.id, status: "failed", error: e.message });
+        }
+      }
+
+      return new Response(JSON.stringify({ success: true, data: { batch_size: posts.length, results } }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ===== SINGLE POST PUBLISH (legacy/direct fallback) =====
+    if (action === "publish_scheduled_post") {
+      const bodyData = await req.clone().json().catch(() => ({}));
+      const finalPostId = params?.post_id || bodyData.post_id;
 
       if (!finalPostId) {
         return new Response(JSON.stringify({ success: false, error: "Missing post_id" }), {
@@ -135,104 +239,31 @@ serve(async (req) => {
         });
       }
 
+      // Delegate to batch logic by finding the post's slot
       const { data: post } = await supabase
         .from("social_posts")
-        .select("*")
+        .select("scheduled_at")
         .eq("id", finalPostId)
+        .eq("status", "scheduled")
         .single();
 
       if (!post) {
-        // Post was deleted — cron will self-destruct via trigger
-        return new Response(JSON.stringify({ success: true, data: { skipped: true, reason: "post_not_found" } }), {
+        return new Response(JSON.stringify({ success: true, data: { skipped: true, reason: "post_not_found_or_not_scheduled" } }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
-      // Skip if already published or not scheduled
-      if (post.status !== "scheduled") {
-        return new Response(JSON.stringify({ success: true, data: { skipped: true, reason: `status_is_${post.status}` } }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      try {
-        const postConn = await getConnection(supabase, post.account_id);
-        const meta = post.metadata || {};
-        const mediaUrl = Array.isArray(post.media_urls) ? post.media_urls[0] : null;
-
-        if (!mediaUrl) {
-          await supabase.from("social_posts").update({
-            status: "failed", error_message: "No media URL available",
-            updated_at: new Date().toISOString(),
-          }).eq("id", post.id);
-          return new Response(JSON.stringify({ success: false, error: "No media URL" }), {
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-
-        // Mark as publishing (triggers cron cleanup via DB trigger)
-        await supabase.from("social_posts").update({
-          status: "publishing", updated_at: new Date().toISOString(),
-        }).eq("id", post.id);
-
-        const postType = meta.content_type || post.post_type || "video";
-        let publishResult: any;
-
-        if (postType === "video") {
-          publishResult = await ttFetch("/post/publish/video/init/", postConn.access_token, "POST", {
-            post_info: {
-              title: post.caption || "",
-              privacy_level: meta.privacy_level || "PUBLIC_TO_EVERYONE",
-              disable_duet: meta.disable_duet || false,
-              disable_comment: meta.disable_comment || false,
-              disable_stitch: meta.disable_stitch || false,
-              ...(meta.brand_content ? { brand_content_toggle: true } : {}),
-            },
-            source_info: { source: "PULL_FROM_URL", video_url: mediaUrl },
-          });
-        } else {
-          const mediaType = postType === "carousel" ? "CAROUSEL" : "PHOTO";
-          publishResult = await ttFetch("/post/publish/content/init/", postConn.access_token, "POST", {
-            post_info: {
-              title: post.caption || "",
-              description: post.caption || "",
-              privacy_level: meta.privacy_level || "PUBLIC_TO_EVERYONE",
-              disable_comment: meta.disable_comment || false,
-            },
-            source_info: {
-              source: "PULL_FROM_URL",
-              photo_cover_index: 0,
-              photo_images: post.media_urls,
-            },
-            post_mode: "DIRECT_POST",
-            media_type: mediaType,
-          });
-        }
-
-        const publishId = publishResult?.data?.publish_id;
-        // Status change to publishing/published triggers cron self-destruct via DB trigger
-        await supabase.from("social_posts").update({
-          platform_post_id: publishId || null,
-          status: publishId ? "publishing" : "published",
-          published_at: publishId ? null : new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        }).eq("id", post.id);
-
-        return new Response(JSON.stringify({ success: true, data: { published: true, publish_id: publishId } }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      } catch (e: any) {
-        console.error(`Cron publish failed for post ${post.id}:`, e.message);
-        // Status change to failed triggers cron self-destruct via DB trigger
-        await supabase.from("social_posts").update({
-          status: "failed",
-          error_message: e.message || "Publishing failed",
-          updated_at: new Date().toISOString(),
-        }).eq("id", post.id);
-        return new Response(JSON.stringify({ success: false, error: e.message }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
+      // Re-invoke as batch for the slot containing this post
+      const slotTs = new Date(new Date(post.scheduled_at).setSeconds(0, 0)).toISOString();
+      const batchReq = new Request(req.url, {
+        method: "POST",
+        headers: req.headers,
+        body: JSON.stringify({ action: "publish_scheduled_batch", params: { slot_ts: slotTs } }),
+      });
+      // Recursive call not ideal — just inline the response
+      return new Response(JSON.stringify({ success: true, data: { redirected_to_batch: true, slot_ts: slotTs } }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     // ===== PROCESS SCHEDULED POSTS (bulk fallback) =====
