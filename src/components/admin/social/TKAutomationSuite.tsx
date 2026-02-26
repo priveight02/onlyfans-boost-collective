@@ -439,9 +439,8 @@ const TKAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSu
   const loadTkConversations = useCallback(async () => {
     if (!selectedAccount) return;
     setTkScanning(true);
-    // First try to sync from TikTok API
-    await callApi("get_conversations", { limit: 50 });
-    // Then load from local DB
+    // DM API scopes not yet approved — skip TikTok API call, load from local DB only
+    // await callApi("get_conversations", { limit: 50 });
     const { data } = await supabase.from("ai_dm_conversations")
       .select("*")
       .eq("account_id", selectedAccount)
@@ -450,7 +449,7 @@ const TKAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSu
       .limit(100);
     if (data) setTkConversations(data);
     setTkScanning(false);
-  }, [selectedAccount, callApi]);
+  }, [selectedAccount]);
 
   const loadTkMessages = useCallback(async (convoId: string) => {
     setTkSelectedConvo(convoId);
@@ -461,20 +460,8 @@ const TKAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSu
       .order("created_at", { ascending: true })
       .limit(100);
     if (data) setTkMessages(data);
-    // Also try to fetch from TikTok API for latest
-    const convo = tkConversations.find(c => c.id === convoId);
-    if (convo?.platform_conversation_id) {
-      await callApi("get_messages", { conversation_id: convo.platform_conversation_id, limit: 50 });
-      // Reload from DB
-      const { data: fresh } = await supabase.from("ai_dm_messages")
-        .select("*")
-        .eq("conversation_id", convoId)
-        .eq("account_id", selectedAccount)
-        .order("created_at", { ascending: true })
-        .limit(100);
-      if (fresh) setTkMessages(fresh);
-    }
-  }, [selectedAccount, callApi, tkConversations]);
+    // DM API scopes not yet approved — skip TikTok API fetch
+  }, [selectedAccount]);
 
   const sendTkDm = useCallback(async () => {
     if (!tkDmInput.trim() || !tkSelectedConvo) return;
