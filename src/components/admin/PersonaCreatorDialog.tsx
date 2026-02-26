@@ -12,7 +12,7 @@ import {
 import {
   Brain, Sparkles, Plus, Loader2, ChevronRight, ChevronLeft,
   Save, User, Heart, Shield, Volume2, Zap, Check,
-  Crown, FileText, Target,
+  Crown, FileText, Target, GitBranch, Pencil, Trash2,
 } from "lucide-react";
 
 interface PersonaCreatorDialogProps {
@@ -24,6 +24,46 @@ interface PersonaCreatorDialogProps {
 const TONES = ["sweet", "dominant", "playful", "mysterious", "bratty", "innocent", "seductive", "nurturing", "edgy", "sophisticated"];
 const VOCAB_STYLES = ["casual", "flirty", "intellectual", "street", "elegant", "cutesy", "confident", "poetic"];
 const EMOTIONAL_RANGES = ["low", "medium", "high", "volatile"];
+
+interface FlowPhase {
+  phase_number: number;
+  name: string;
+  goal: string;
+  ai_instructions: string;
+  transition_trigger: string;
+  example_messages: string;
+  redirect_url: string;
+  is_active: boolean;
+}
+
+const DEFAULT_PHASE_NAMES = [
+  "Hook & Engage",
+  "Build Rapport",
+  "Create Desire",
+  "Soft Pitch",
+  "Close & Convert",
+  "Follow Up",
+];
+
+const DEFAULT_PHASE_GOALS = [
+  "Capture attention and start a genuine conversation. Make the prospect feel seen.",
+  "Establish trust and emotional connection. Learn about their interests and desires.",
+  "Build anticipation and curiosity about exclusive content. Tease without giving too much.",
+  "Introduce your offer naturally. Frame it as something special, not a sales pitch.",
+  "Guide them to take action — subscribe, purchase, or visit your link.",
+  "Re-engage prospects who didn't convert. Use callbacks to previous conversation points.",
+];
+
+const createDefaultPhase = (num: number): FlowPhase => ({
+  phase_number: num,
+  name: DEFAULT_PHASE_NAMES[num - 1] || `Phase ${num}`,
+  goal: DEFAULT_PHASE_GOALS[num - 1] || "",
+  ai_instructions: "",
+  transition_trigger: "",
+  example_messages: "",
+  redirect_url: "",
+  is_active: true,
+});
 
 interface PersonaData {
   name: string;
@@ -59,6 +99,7 @@ interface PersonaData {
   mystery: number;
   dominance: number;
   systemPrompt: string;
+  flowPhases: FlowPhase[];
 }
 
 const STEPS = [
@@ -66,6 +107,7 @@ const STEPS = [
   { id: "voice", label: "Voice & Tone", icon: Volume2, color: "text-purple-400" },
   { id: "personality", label: "Personality", icon: Heart, color: "text-pink-400" },
   { id: "strategy", label: "Strategy", icon: Zap, color: "text-amber-400" },
+  { id: "flow", label: "Conversion Flow", icon: GitBranch, color: "text-orange-400" },
   { id: "advanced", label: "Advanced", icon: Target, color: "text-cyan-400" },
   { id: "boundaries", label: "Boundaries", icon: Shield, color: "text-emerald-400" },
   { id: "review", label: "Save", icon: Check, color: "text-green-400" },
@@ -81,6 +123,7 @@ const defaultPersona: PersonaData = {
   contentThemes: "", pricingMentality: "premium", competitorMention: "ignore",
   recoveryStyle: "playful", warmth: 70, mystery: 50, dominance: 40,
   systemPrompt: "",
+  flowPhases: [],
 };
 
 const PersonaCreatorDialog = ({ accountId, open, onOpenChange }: PersonaCreatorDialogProps) => {
@@ -92,10 +135,27 @@ const PersonaCreatorDialog = ({ accountId, open, onOpenChange }: PersonaCreatorD
   const [loading, setLoading] = useState(false);
   const [activePersonaId, setActivePersonaId] = useState<string | null>(null);
   const [defaultPersonaType, setDefaultPersonaType] = useState<string>("male");
+  const [editingPersonaId, setEditingPersonaId] = useState<string | null>(null);
+  const [activeFlowPhase, setActiveFlowPhase] = useState(0);
 
   useEffect(() => {
-    if (open) { loadPersonas(); loadActivePersona(); setStep(0); setPersona({ ...defaultPersona }); }
+    if (open) { loadPersonas(); loadActivePersona(); resetForm(); }
   }, [open, accountId]);
+
+  // Realtime sync
+  useEffect(() => {
+    const ch = supabase.channel("persona-dialog-rt")
+      .on("postgres_changes", { event: "*", schema: "public", table: "persona_profiles", filter: `account_id=eq.${accountId}` }, () => loadPersonas())
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [accountId]);
+
+  const resetForm = () => {
+    setStep(0);
+    setPersona({ ...defaultPersona });
+    setEditingPersonaId(null);
+    setActiveFlowPhase(0);
+  };
 
   const loadActivePersona = async () => {
     const { data } = await supabase.from("managed_accounts").select("active_persona_id, default_persona_type").eq("id", accountId).single();
@@ -127,9 +187,52 @@ const PersonaCreatorDialog = ({ accountId, open, onOpenChange }: PersonaCreatorD
   const addTrait = () => { if (newTrait.trim() && !persona.traits.includes(newTrait.trim())) { update("traits", [...persona.traits, newTrait.trim()]); setNewTrait(""); } };
   const removeTrait = (i: number) => update("traits", persona.traits.filter((_, j) => j !== i));
 
-  const savePersona = async () => {
-    if (!persona.name.trim()) { toast.error("Give your persona a name"); return; }
-    setSaving(true);
+  const loadPersonaForEditing = (p: any) => {
+    const commRules = (p.communication_rules || {}) as any;
+    const rawPhases = (p.conversion_flow_phases as any) || [];
+    const phases: FlowPhase[] = Array.isArray(rawPhases) ? rawPhases : [];
+    setPersona({
+      name: p.brand_identity?.match(/^\[(.*?)\]/)?.[1] || p.tone || "",
+      tone: p.tone || "playful",
+      secondaryTone: commRules.secondary_tone || "",
+      vocabStyle: p.vocabulary_style || "casual",
+      emotionalRange: p.emotional_range || "medium",
+      brandIdentity: (p.brand_identity?.replace(/^\[.*?\]\s*/, "") || ""),
+      boundaries: p.boundaries || "",
+      traits: (p.personality_traits as string[]) || [],
+      ageRange: commRules.age_range || "early 20s",
+      interests: commRules.interests || "",
+      flirtLevel: commRules.flirt_level ?? 70,
+      redirectAggressiveness: commRules.redirect_aggressiveness ?? 60,
+      emojiUsage: commRules.emoji_usage || "minimal",
+      messageLength: commRules.message_length || "short",
+      responseSpeed: commRules.response_speed || "natural",
+      hookStyle: commRules.hook_style || "curiosity",
+      objectionHandling: commRules.objection_handling || "soft deflect",
+      additionalInfo: commRules.additional_info || "",
+      backstory: commRules.backstory || "",
+      turnOns: commRules.turn_ons || "",
+      turnOffs: commRules.turn_offs || "",
+      catchphrases: commRules.catchphrases || "",
+      languageStyle: commRules.language_style || "",
+      humor: commRules.humor || "witty",
+      attachmentStyle: commRules.attachment_style || "secure-playful",
+      contentThemes: commRules.content_themes || "",
+      pricingMentality: commRules.pricing_mentality || "premium",
+      competitorMention: commRules.competitor_mention || "ignore",
+      recoveryStyle: commRules.recovery_style || "playful",
+      warmth: commRules.warmth ?? 70,
+      mystery: commRules.mystery ?? 50,
+      dominance: commRules.dominance ?? 40,
+      systemPrompt: p.system_prompt || "",
+      flowPhases: phases,
+    });
+    setEditingPersonaId(p.id);
+    setStep(0);
+    setActiveFlowPhase(0);
+  };
+
+  const buildPayload = () => {
     const commRules = {
       emoji_usage: persona.emojiUsage, message_length: persona.messageLength,
       response_speed: persona.responseSpeed, hook_style: persona.hookStyle,
@@ -144,7 +247,7 @@ const PersonaCreatorDialog = ({ accountId, open, onOpenChange }: PersonaCreatorD
       warmth: persona.warmth, mystery: persona.mystery, dominance: persona.dominance,
       additional_info: persona.additionalInfo,
     };
-    const payload = {
+    return {
       account_id: accountId, tone: persona.tone, vocabulary_style: persona.vocabStyle,
       emotional_range: persona.emotionalRange,
       brand_identity: `[${persona.name}] ${persona.brandIdentity}`,
@@ -152,16 +255,54 @@ const PersonaCreatorDialog = ({ accountId, open, onOpenChange }: PersonaCreatorD
       communication_rules: commRules, motivation_level: 70, stress_level: 30,
       burnout_risk: 20, mood: "neutral", last_mood_update: new Date().toISOString(),
       system_prompt: persona.systemPrompt || null,
+      conversion_flow_phases: persona.flowPhases.length > 0 ? persona.flowPhases : [],
     };
-    const { error } = await supabase.from("persona_profiles").insert(payload);
-    if (error) toast.error(error.message);
-    else { toast.success(`Persona "${persona.name}" created!`); await loadPersonas(); setPersona({ ...defaultPersona }); setStep(0); }
+  };
+
+  const savePersona = async () => {
+    if (!persona.name.trim()) { toast.error("Give your persona a name"); return; }
+    setSaving(true);
+    const payload = buildPayload();
+
+    if (editingPersonaId) {
+      const { error } = await supabase.from("persona_profiles").update(payload as any).eq("id", editingPersonaId);
+      if (error) toast.error(error.message);
+      else { toast.success(`Persona "${persona.name}" updated!`); await loadPersonas(); }
+    } else {
+      const { error } = await supabase.from("persona_profiles").insert(payload as any);
+      if (error) toast.error(error.message);
+      else { toast.success(`Persona "${persona.name}" created!`); await loadPersonas(); resetForm(); }
+    }
     setSaving(false);
   };
 
   const deletePersona = async (id: string) => {
+    if (editingPersonaId === id) resetForm();
     await supabase.from("persona_profiles").delete().eq("id", id);
+    if (activePersonaId === id) {
+      await supabase.from("managed_accounts").update({ active_persona_id: null } as any).eq("id", accountId);
+      setActivePersonaId(null);
+    }
     toast.success("Persona deleted"); loadPersonas();
+  };
+
+  // Flow phase helpers
+  const updatePhase = (idx: number, key: keyof FlowPhase, value: any) => {
+    const phases = [...persona.flowPhases];
+    phases[idx] = { ...phases[idx], [key]: value };
+    update("flowPhases", phases);
+  };
+
+  const addPhase = () => {
+    if (persona.flowPhases.length >= 6) { toast.error("Maximum 6 phases"); return; }
+    update("flowPhases", [...persona.flowPhases, createDefaultPhase(persona.flowPhases.length + 1)]);
+    setActiveFlowPhase(persona.flowPhases.length);
+  };
+
+  const removePhase = (idx: number) => {
+    const phases = persona.flowPhases.filter((_, i) => i !== idx).map((p, i) => ({ ...p, phase_number: i + 1 }));
+    update("flowPhases", phases);
+    if (activeFlowPhase >= phases.length) setActiveFlowPhase(Math.max(0, phases.length - 1));
   };
 
   const chip = (active: boolean) =>
@@ -187,6 +328,7 @@ const PersonaCreatorDialog = ({ accountId, open, onOpenChange }: PersonaCreatorD
               <Brain className="h-3.5 w-3.5 text-purple-300" />
             </div>
             Persona Studio
+            {editingPersonaId && <Badge variant="outline" className="text-[9px] ml-1 text-amber-400 border-amber-500/30 font-normal">EDITING</Badge>}
             <Badge variant="outline" className="text-[9px] ml-1 text-white/40 border-white/[0.12] font-normal">
               {personas.length} active
             </Badge>
@@ -219,9 +361,6 @@ const PersonaCreatorDialog = ({ accountId, open, onOpenChange }: PersonaCreatorD
                     <p>• Young businessman, late 20s — professional, friendly, direct</p>
                     <p>• No emojis, no fluff, concise answers</p>
                     <p>• Business-oriented, answers product questions directly</p>
-                    <p>• No small talk or seductive phases</p>
-                    <p>• Transparent about products/services</p>
-                    <p>• Clean redirect to bio link for details</p>
                   </div>
                 </div>
               </button>
@@ -243,26 +382,34 @@ const PersonaCreatorDialog = ({ accountId, open, onOpenChange }: PersonaCreatorD
                   <div className="space-y-0 text-[8px] text-white/50 leading-[1.5] text-left">
                     <p>• Young woman, early 20s — chill, warm, subtly seductive</p>
                     <p>• No emojis, no apostrophes, minimal punctuation</p>
-                    <p>• Messages 3-5 words, quick fire replies</p>
                     <p>• Subtle psychological redirection to bio link</p>
-                    <p>• Closes convo after successful redirect</p>
                   </div>
                 </div>
               </button>
             </div>
 
-            {/* Persona List — select & apply */}
+            {/* Persona List — select, edit & apply */}
             <div className="p-3 border-b border-white/[0.06] flex-shrink-0 max-h-[220px] overflow-y-auto">
               <p className="text-[9px] text-white/30 mb-2 tracking-widest uppercase font-medium">Custom Personas</p>
               <div className="space-y-1.5">
                 {personas.map(p => {
                   const pName = p.brand_identity?.match(/^\[(.*?)\]/)?.[1] || p.tone;
                   const isActive = activePersonaId === p.id;
+                  const isEditing = editingPersonaId === p.id;
+                  const phases = Array.isArray(p.conversion_flow_phases) ? p.conversion_flow_phases : [];
                   return (
                     <div key={p.id} className={`p-2 rounded-lg relative group transition-all ${
+                      isEditing ? "bg-gradient-to-r from-amber-500/15 to-orange-500/10 border border-amber-400/30" :
                       isActive ? "bg-gradient-to-r from-purple-500/15 to-blue-500/10 border border-purple-400/30" : "bg-white/[0.03] border border-white/[0.08] hover:border-white/15"
                     }`}>
-                      <button onClick={() => deletePersona(p.id)} className="absolute top-1 right-1.5 text-red-400/0 group-hover:text-red-400/70 text-xs hover:text-red-300 transition-all">×</button>
+                      <div className="absolute top-1 right-1.5 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onClick={() => loadPersonaForEditing(p)} className="text-amber-400/70 hover:text-amber-300 text-xs" title="Edit">
+                          <Pencil className="h-3 w-3" />
+                        </button>
+                        <button onClick={() => deletePersona(p.id)} className="text-red-400/70 hover:text-red-300 text-xs" title="Delete">
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      </div>
                       <button onClick={() => activatePersona(p.id)} className="w-full text-left">
                         <div className="flex items-center gap-1.5">
                           <User className="h-3 w-3 text-white/30" />
@@ -272,6 +419,11 @@ const PersonaCreatorDialog = ({ accountId, open, onOpenChange }: PersonaCreatorD
                         <div className="flex flex-wrap gap-1 mt-1">
                           <span className="text-[7px] px-1 py-0.5 rounded-full bg-white/5 text-white/35 capitalize">{p.tone}</span>
                           <span className="text-[7px] px-1 py-0.5 rounded-full bg-white/5 text-white/35 capitalize">{p.vocabulary_style}</span>
+                          {phases.length > 0 && (
+                            <span className="text-[7px] px-1 py-0.5 rounded-full bg-orange-500/10 text-orange-400/70">
+                              <GitBranch className="h-2 w-2 inline mr-0.5" />{phases.length} phases
+                            </span>
+                          )}
                         </div>
                       </button>
                     </div>
@@ -283,7 +435,16 @@ const PersonaCreatorDialog = ({ accountId, open, onOpenChange }: PersonaCreatorD
 
             {/* Step Navigation — vertical */}
             <div className="p-3 flex-1">
-              <p className="text-[9px] text-white/30 mb-2 tracking-widest uppercase font-medium">Create New</p>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-[9px] text-white/30 tracking-widest uppercase font-medium">
+                  {editingPersonaId ? "Edit Persona" : "Create New"}
+                </p>
+                {editingPersonaId && (
+                  <button onClick={resetForm} className="text-[8px] text-amber-400/60 hover:text-amber-300 underline">
+                    Cancel Edit
+                  </button>
+                )}
+              </div>
               <div className="space-y-0.5">
                 {STEPS.map((s, i) => {
                   const Icon = s.icon;
@@ -539,8 +700,153 @@ const PersonaCreatorDialog = ({ accountId, open, onOpenChange }: PersonaCreatorD
                   </div>
                 )}
 
-                {/* STEP 4: ADVANCED */}
+                {/* STEP 4: CONVERSION FLOW PHASES */}
                 {step === 4 && (
+                  <div className="space-y-4">
+                    {sectionTitle(<GitBranch className="h-4 w-4 text-orange-400" />, "Conversion Flow Phases", "Define up to 6 phases the AI follows to convert prospects")}
+                    
+                    <div className="p-3 rounded-xl bg-orange-500/[0.04] border border-orange-500/15">
+                      <p className="text-[10px] text-orange-400/70 flex items-start gap-2">
+                        <GitBranch className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
+                        <span>Each phase defines a stage in the conversation funnel. The AI will naturally progress through phases based on <strong className="text-orange-300">transition triggers</strong> you define. This interconnects with your persona's tone, hook style, and redirect settings to create a cohesive conversion strategy.</span>
+                      </p>
+                    </div>
+
+                    {/* Phase tabs */}
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {persona.flowPhases.map((phase, idx) => (
+                        <button key={idx} onClick={() => setActiveFlowPhase(idx)}
+                          className={`px-3 py-1.5 rounded-lg text-[10px] font-medium transition-all flex items-center gap-1.5 ${
+                            activeFlowPhase === idx
+                              ? "bg-gradient-to-r from-orange-500/25 to-amber-500/15 text-orange-300 border border-orange-400/40 shadow-[0_0_10px_rgba(251,146,60,0.1)]"
+                              : "bg-white/[0.04] text-white/40 border border-white/[0.08] hover:text-white/60 hover:border-white/15"
+                          }`}>
+                          <span className="w-4 h-4 rounded-full bg-white/10 flex items-center justify-center text-[8px] font-bold">{idx + 1}</span>
+                          {phase.name || `Phase ${idx + 1}`}
+                          {!phase.is_active && <span className="text-[7px] text-red-400/60">OFF</span>}
+                        </button>
+                      ))}
+                      {persona.flowPhases.length < 6 && (
+                        <button onClick={addPhase}
+                          className="px-3 py-1.5 rounded-lg text-[10px] font-medium bg-orange-500/10 text-orange-400/70 border border-orange-500/20 hover:bg-orange-500/20 hover:text-orange-300 transition-all flex items-center gap-1">
+                          <Plus className="h-3 w-3" /> Add Phase
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Active phase editor */}
+                    {persona.flowPhases.length > 0 && persona.flowPhases[activeFlowPhase] && (
+                      <div className="space-y-3 p-4 rounded-xl bg-white/[0.02] border border-white/[0.08]">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="w-6 h-6 rounded-full bg-gradient-to-br from-orange-500/30 to-amber-500/20 flex items-center justify-center text-[10px] font-bold text-orange-300">
+                              {activeFlowPhase + 1}
+                            </span>
+                            <span className="text-[12px] font-semibold text-white/70">Phase {activeFlowPhase + 1} of {persona.flowPhases.length}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <label className="flex items-center gap-1.5 cursor-pointer">
+                              <span className="text-[9px] text-white/30">Active</span>
+                              <button onClick={() => updatePhase(activeFlowPhase, "is_active", !persona.flowPhases[activeFlowPhase].is_active)}
+                                className={`w-8 h-4 rounded-full transition-all ${persona.flowPhases[activeFlowPhase].is_active ? "bg-emerald-500/40" : "bg-white/10"}`}>
+                                <div className={`w-3 h-3 rounded-full bg-white transition-all ${persona.flowPhases[activeFlowPhase].is_active ? "ml-4.5 translate-x-0.5" : "ml-0.5"}`} />
+                              </button>
+                            </label>
+                            <button onClick={() => removePhase(activeFlowPhase)} className="text-red-400/50 hover:text-red-400 transition-colors" title="Remove phase">
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="text-[10px] text-white/35 mb-1 block font-medium">Phase Name *</label>
+                            <Input value={persona.flowPhases[activeFlowPhase].name}
+                              onChange={e => updatePhase(activeFlowPhase, "name", e.target.value)}
+                              placeholder="e.g. Hook & Engage"
+                              className="bg-white/[0.04] border-white/[0.08] text-white text-xs h-8 placeholder:text-white/20" />
+                          </div>
+                          <div>
+                            <label className="text-[10px] text-white/35 mb-1 block font-medium">Redirect URL <span className="text-white/20">(optional)</span></label>
+                            <Input value={persona.flowPhases[activeFlowPhase].redirect_url}
+                              onChange={e => updatePhase(activeFlowPhase, "redirect_url", e.target.value)}
+                              placeholder="https://onlyfans.com/..."
+                              className="bg-white/[0.04] border-white/[0.08] text-white text-xs h-8 placeholder:text-white/20" />
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="text-[10px] text-white/35 mb-1 block font-medium">
+                            Phase Goal <span className="text-white/20">— What is the AI trying to achieve in this phase?</span>
+                          </label>
+                          <Textarea value={persona.flowPhases[activeFlowPhase].goal}
+                            onChange={e => updatePhase(activeFlowPhase, "goal", e.target.value)}
+                            placeholder="e.g. Capture attention and start a genuine conversation. Make the prospect feel special and seen."
+                            className="bg-white/[0.04] border-white/[0.08] text-white text-xs min-h-[50px] placeholder:text-white/20 resize-none" />
+                        </div>
+
+                        <div>
+                          <label className="text-[10px] text-white/35 mb-1 block font-medium">
+                            AI Instructions <span className="text-white/20">— Exactly how the AI should behave in this phase</span>
+                          </label>
+                          <Textarea value={persona.flowPhases[activeFlowPhase].ai_instructions}
+                            onChange={e => updatePhase(activeFlowPhase, "ai_instructions", e.target.value)}
+                            placeholder={`e.g. Be warm and curious. Ask open-ended questions about their interests.\nDon't mention any products or links yet.\nMirror their energy level.\nUse the persona's hook style to open.`}
+                            className="bg-white/[0.04] border-white/[0.08] text-white text-xs min-h-[80px] placeholder:text-white/20 resize-y font-mono" />
+                        </div>
+
+                        <div>
+                          <label className="text-[10px] text-white/35 mb-1 block font-medium">
+                            Transition Trigger <span className="text-white/20">— When should the AI move to the next phase?</span>
+                          </label>
+                          <Textarea value={persona.flowPhases[activeFlowPhase].transition_trigger}
+                            onChange={e => updatePhase(activeFlowPhase, "transition_trigger", e.target.value)}
+                            placeholder={`e.g. Move to next phase when:\n- Prospect has responded 3+ times\n- They express curiosity about content\n- They ask "what do you do?"\n- Conversation feels warm and engaged`}
+                            className="bg-white/[0.04] border-white/[0.08] text-white text-xs min-h-[60px] placeholder:text-white/20 resize-none font-mono" />
+                        </div>
+
+                        <div>
+                          <label className="text-[10px] text-white/35 mb-1 block font-medium">
+                            Example Messages <span className="text-white/20">— Sample responses the AI can draw from</span>
+                          </label>
+                          <Textarea value={persona.flowPhases[activeFlowPhase].example_messages}
+                            onChange={e => updatePhase(activeFlowPhase, "example_messages", e.target.value)}
+                            placeholder={`e.g.\n"hey you seem interesting, whats your story"\n"i like your vibe, you seem different from most guys here"\n"so what are you into? like hobbies and stuff"`}
+                            className="bg-white/[0.04] border-white/[0.08] text-white text-xs min-h-[60px] placeholder:text-white/20 resize-y font-mono" />
+                        </div>
+
+                        {/* Phase flow visualization */}
+                        <div className="mt-2 p-2.5 rounded-lg bg-orange-500/[0.04] border border-orange-500/10">
+                          <p className="text-[9px] text-orange-400/50 font-medium mb-1.5">FLOW PROGRESSION</p>
+                          <div className="flex items-center gap-1 flex-wrap">
+                            {persona.flowPhases.map((p, i) => (
+                              <div key={i} className="flex items-center gap-1">
+                                <span className={`text-[8px] px-1.5 py-0.5 rounded ${i === activeFlowPhase ? "bg-orange-500/20 text-orange-300 font-bold" : p.is_active ? "bg-white/5 text-white/30" : "bg-red-500/5 text-red-400/30 line-through"}`}>
+                                  {p.name || `P${i + 1}`}
+                                </span>
+                                {i < persona.flowPhases.length - 1 && <ChevronRight className="h-2.5 w-2.5 text-white/15" />}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {persona.flowPhases.length === 0 && (
+                      <div className="text-center py-8 px-4">
+                        <GitBranch className="h-8 w-8 text-white/10 mx-auto mb-3" />
+                        <p className="text-[11px] text-white/30 mb-1">No conversion phases defined yet</p>
+                        <p className="text-[9px] text-white/20 mb-3">Add phases to create a structured AI sales funnel that guides prospects from first message to conversion.</p>
+                        <Button size="sm" onClick={addPhase} className="h-7 text-[10px] bg-orange-500/20 text-orange-400 hover:bg-orange-500/30 border border-orange-500/20">
+                          <Plus className="h-3 w-3 mr-1" /> Add First Phase
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* STEP 5: ADVANCED */}
+                {step === 5 && (
                   <div className="space-y-4">
                     {sectionTitle(<Target className="h-4 w-4 text-cyan-400" />, "Advanced Configuration", "Fine-tune behavior & context")}
                     <div className="grid grid-cols-2 gap-4">
@@ -570,7 +876,7 @@ const PersonaCreatorDialog = ({ accountId, open, onOpenChange }: PersonaCreatorD
                       </label>
                       <p className="text-[9px] text-white/25 mb-1.5">When set, this completely replaces the default AI system prompt. Define the persona's character, tone, behavior, rules, and response style here.</p>
                       <Textarea value={persona.systemPrompt} onChange={e => update("systemPrompt", e.target.value)}
-                        placeholder={`You are a chill young entrepreneur in your 20s chatting on Instagram DMs.\n\nYour personality:\n- Friendly but professional\n- Casual texting style, no emojis\n- Answer questions directly, never dodge\n- Keep messages short (under 30 words)\n- Never use "ngl" or corporate language\n- Sound real, not like a bot\n\nRules:\n- Always answer what they ask\n- Be warm but not desperate\n- If they ask what you do, say you're in tech/digital business`}
+                        placeholder={`You are a chill young entrepreneur in your 20s chatting on Instagram DMs.\n\nYour personality:\n- Friendly but professional\n- Casual texting style, no emojis\n- Answer questions directly, never dodge\n- Keep messages short (under 30 words)\n- Never use "ngl" or corporate language\n- Sound real, not like a bot`}
                         className="bg-white/[0.03] border-white/[0.08] text-white text-xs min-h-[160px] placeholder:text-white/15 resize-y focus:border-purple-500/30 font-mono leading-relaxed"
                         maxLength={50000} />
                       <div className="flex justify-between mt-1">
@@ -596,8 +902,8 @@ const PersonaCreatorDialog = ({ accountId, open, onOpenChange }: PersonaCreatorD
                   </div>
                 )}
 
-                {/* STEP 5: BOUNDARIES */}
-                {step === 5 && (
+                {/* STEP 6: BOUNDARIES */}
+                {step === 6 && (
                   <div className="space-y-4">
                     {sectionTitle(<Shield className="h-4 w-4 text-emerald-400" />, "Hard Limits & Rules", "These are never broken")}
                     <div>
@@ -615,12 +921,13 @@ const PersonaCreatorDialog = ({ accountId, open, onOpenChange }: PersonaCreatorD
                   </div>
                 )}
 
-                {/* STEP 6: REVIEW */}
-                {step === 6 && (
+                {/* STEP 7: REVIEW */}
+                {step === 7 && (
                   <div className="space-y-4">
                     <div className="p-4 rounded-xl bg-gradient-to-br from-purple-500/10 via-blue-500/5 to-cyan-500/5 border border-purple-400/20 backdrop-blur-sm">
                       <h3 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
                         <Sparkles className="h-4 w-4 text-purple-400" /> {persona.name || "Unnamed Persona"}
+                        {editingPersonaId && <Badge variant="outline" className="text-[8px] text-amber-400 border-amber-500/30">EDITING</Badge>}
                       </h3>
                       <div className="grid grid-cols-3 gap-x-4 gap-y-1.5 text-[11px]">
                         {[
@@ -660,6 +967,24 @@ const PersonaCreatorDialog = ({ accountId, open, onOpenChange }: PersonaCreatorD
                           ))}
                         </div>
                       )}
+                      {/* Flow phases summary */}
+                      {persona.flowPhases.length > 0 && (
+                        <div className="mt-3 p-2.5 rounded-lg bg-orange-500/[0.06] border border-orange-500/15">
+                          <p className="text-[9px] text-orange-400/60 flex items-center gap-1 mb-1.5 font-medium">
+                            <GitBranch className="h-2.5 w-2.5" /> {persona.flowPhases.filter(p => p.is_active).length} Conversion Phases Active
+                          </p>
+                          <div className="flex items-center gap-1 flex-wrap">
+                            {persona.flowPhases.map((p, i) => (
+                              <div key={i} className="flex items-center gap-1">
+                                <span className={`text-[8px] px-1.5 py-0.5 rounded ${p.is_active ? "bg-orange-500/15 text-orange-300" : "bg-white/5 text-white/20 line-through"}`}>
+                                  {p.name}
+                                </span>
+                                {i < persona.flowPhases.length - 1 && <ChevronRight className="h-2 w-2 text-white/15" />}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                       {persona.brandIdentity && <p className="text-[11px] text-white/30 mt-2 italic">"{persona.brandIdentity}"</p>}
                       {persona.systemPrompt && (
                         <div className="mt-2 p-2 rounded-lg bg-purple-500/5 border border-purple-500/10">
@@ -675,7 +1000,7 @@ const PersonaCreatorDialog = ({ accountId, open, onOpenChange }: PersonaCreatorD
                     <Button onClick={savePersona} disabled={saving || !persona.name.trim()}
                       className="w-full h-10 bg-gradient-to-r from-purple-600 via-blue-600 to-cyan-600 hover:from-purple-500 hover:via-blue-500 hover:to-cyan-500 text-white font-semibold shadow-lg shadow-purple-500/20 border-0">
                       {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
-                      Create Persona
+                      {editingPersonaId ? "Update Persona" : "Create Persona"}
                     </Button>
                   </div>
                 )}

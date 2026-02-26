@@ -2581,6 +2581,7 @@ export type Database = {
           brand_identity: string | null
           burnout_risk: number | null
           communication_rules: Json | null
+          conversion_flow_phases: Json | null
           created_at: string
           created_by: string | null
           emotional_range: string
@@ -2601,6 +2602,7 @@ export type Database = {
           brand_identity?: string | null
           burnout_risk?: number | null
           communication_rules?: Json | null
+          conversion_flow_phases?: Json | null
           created_at?: string
           created_by?: string | null
           emotional_range?: string
@@ -2621,6 +2623,7 @@ export type Database = {
           brand_identity?: string | null
           burnout_risk?: number | null
           communication_rules?: Json | null
+          conversion_flow_phases?: Json | null
           created_at?: string
           created_by?: string | null
           emotional_range?: string

@@ -718,6 +718,24 @@ const getAccountPersona = async (supabaseClient: any, accountId: string | null):
         fullPrompt += `\n\n=== PERSONA PARAMETERS (follow these strictly) ===\n${paramBlock.join("\n")}`;
       }
       
+      // Inject conversion flow phases if defined
+      const flowPhases = persona.conversion_flow_phases;
+      if (flowPhases && Array.isArray(flowPhases) && flowPhases.length > 0) {
+        const activePhases = flowPhases.filter((p: any) => p.is_active !== false);
+        if (activePhases.length > 0) {
+          fullPrompt += `\n\n=== CONVERSION FLOW PHASES ===\nYou must follow these phases in order to guide the prospect through a natural conversion funnel.\nAnalyze the conversation history to determine which phase you are currently in based on the transition triggers.\nNever skip phases — progress naturally.\n`;
+          for (const phase of activePhases) {
+            fullPrompt += `\n--- PHASE ${phase.phase_number}: ${phase.name} ---`;
+            if (phase.goal) fullPrompt += `\nGOAL: ${phase.goal}`;
+            if (phase.ai_instructions) fullPrompt += `\nINSTRUCTIONS: ${phase.ai_instructions}`;
+            if (phase.transition_trigger) fullPrompt += `\nMOVE TO NEXT PHASE WHEN: ${phase.transition_trigger}`;
+            if (phase.example_messages) fullPrompt += `\nEXAMPLE MESSAGES:\n${phase.example_messages}`;
+            if (phase.redirect_url) fullPrompt += `\nREDIRECT URL FOR THIS PHASE: ${phase.redirect_url}`;
+            fullPrompt += `\n`;
+          }
+        }
+      }
+      
       if (commRules.additional_info && commRules.additional_info.trim()) {
         fullPrompt += `\n\n--- ADDITIONAL CONTEXT ---\n${commRules.additional_info.trim()}`;
       }
@@ -738,6 +756,23 @@ ${persona.boundaries ? `Hard Boundaries: ${persona.boundaries}` : ""}
 ${persona.brand_identity ? `Brand Identity: ${persona.brand_identity}` : ""}
 ${persona.communication_rules ? `Communication Rules: ${JSON.stringify(persona.communication_rules)}` : ""}
 Follow these persona settings strictly. They override any conflicting defaults above.`;
+      // Inject flow phases for non-system-prompt personas too
+      const flowPhasesOverlay = persona.conversion_flow_phases;
+      if (flowPhasesOverlay && Array.isArray(flowPhasesOverlay) && flowPhasesOverlay.length > 0) {
+        const activePhasesOverlay = flowPhasesOverlay.filter((p: any) => p.is_active !== false);
+        if (activePhasesOverlay.length > 0) {
+          base += `\n\n=== CONVERSION FLOW PHASES ===\nFollow these phases in order to guide the prospect through a natural conversion funnel.\nAnalyze the conversation history to determine which phase you are in based on the transition triggers.\n`;
+          for (const phase of activePhasesOverlay) {
+            base += `\n--- PHASE ${phase.phase_number}: ${phase.name} ---`;
+            if (phase.goal) base += `\nGOAL: ${phase.goal}`;
+            if (phase.ai_instructions) base += `\nINSTRUCTIONS: ${phase.ai_instructions}`;
+            if (phase.transition_trigger) base += `\nMOVE TO NEXT WHEN: ${phase.transition_trigger}`;
+            if (phase.example_messages) base += `\nEXAMPLES:\n${phase.example_messages}`;
+            if (phase.redirect_url) base += `\nREDIRECT URL: ${phase.redirect_url}`;
+            base += `\n`;
+          }
+        }
+      }
       return { personaInfo: base, isCustomOverride: false };
     }
   }
