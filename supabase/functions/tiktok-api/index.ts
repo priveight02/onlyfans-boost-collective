@@ -7,6 +7,17 @@ const corsHeaders = {
 };
 
 const TT_API_URL = "https://open.tiktokapis.com/v2";
+const DEFAULT_TIKTOK_OAUTH_SCOPES = "user.info.basic,video.list,video.upload,video.publish";
+
+function normalizeTikTokScopes(rawScopes?: string | null) {
+  const normalized = (rawScopes || DEFAULT_TIKTOK_OAUTH_SCOPES)
+    .split(",")
+    .map((scope) => scope.trim())
+    .filter(Boolean)
+    .join(",");
+
+  return normalized || DEFAULT_TIKTOK_OAUTH_SCOPES;
+}
 
 async function getConnection(supabase: any, accountId: string) {
   const { data } = await supabase
@@ -65,7 +76,8 @@ serve(async (req) => {
     // Return client key for frontend use (like IG's get_app_id)
     if (action === "get_client_key") {
       const clientKey = (Deno.env.get("TIKTOK_CLIENT_KEY") || "").trim();
-      return new Response(JSON.stringify({ success: true, client_key: clientKey || null }), {
+      const scopes = normalizeTikTokScopes(Deno.env.get("TIKTOK_OAUTH_SCOPES"));
+      return new Response(JSON.stringify({ success: true, client_key: clientKey || null, scopes }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
