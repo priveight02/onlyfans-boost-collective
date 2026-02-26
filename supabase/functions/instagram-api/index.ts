@@ -1259,9 +1259,9 @@ Analyze every character in the name and username for any gender signal at all. L
         const period = params?.period || "day";
         const since = params?.since ? `&since=${params.since}` : "";
         const until = params?.until ? `&until=${params.until}` : "";
-        const dayMetrics = "reach,impressions,total_interactions,likes,comments,shares,saved,replies,follows,profile_visits,profile_activity,navigation";
-        const weekMetrics = "reach,impressions,total_interactions,likes,comments,shares,saved,replies,follows,profile_visits,profile_activity,navigation";
-        const monthMetrics = "reach,impressions,total_interactions,likes,comments,shares,saved,replies,follows,profile_visits,profile_activity,navigation";
+        const dayMetrics = "reach,follower_count,profile_views,website_clicks,accounts_engaged,total_interactions,likes,comments,shares,saves,replies";
+        const weekMetrics = "reach,follower_count,profile_views,website_clicks,accounts_engaged,total_interactions,likes,comments,shares,saves,replies";
+        const monthMetrics = "reach,follower_count,profile_views,website_clicks,accounts_engaged,total_interactions,likes,comments,shares,saves,replies";
         const metrics = period === "day" ? dayMetrics : period === "week" ? weekMetrics : monthMetrics;
         result = await igFetch(`/${igUserId}/insights?metric=${metrics}&period=${period}${since}${until}`, token);
         if (result.data) {
@@ -1292,11 +1292,11 @@ Analyze every character in the name and username for any gender signal at all. L
         break;
 
       case "get_media_insights":
-        result = await igFetch(`/${params.media_id}/insights?metric=reach,likes,comments,shares,saves,total_interactions`, token);
+        result = await igFetch(`/${params.media_id}/insights?metric=reach,likes,comments,shares,saved,total_interactions`, token);
         break;
 
       case "get_reel_insights":
-        result = await igFetch(`/${params.media_id}/insights?metric=clips_replays_count,ig_reels_aggregated_all_plays_count,ig_reels_avg_watch_time,ig_reels_video_view_total_time,likes,comments,shares,saves,reach,total_interactions`, token);
+        result = await igFetch(`/${params.media_id}/insights?metric=clips_replays_count,ig_reels_aggregated_all_plays_count,ig_reels_avg_watch_time,ig_reels_video_view_total_time,likes,comments,shares,saved,reach,total_interactions`, token);
         break;
 
       case "get_story_insights":
