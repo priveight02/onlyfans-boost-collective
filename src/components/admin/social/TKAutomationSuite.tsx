@@ -21,6 +21,7 @@ import {
   CheckCircle2, AlertCircle, Bot, Sparkles, ArrowRight,
   MapPin, FileVideo, FileImage, X, Trash2, Edit3, Filter,
   CalendarDays, LayoutGrid, Save, MoreHorizontal,
+  Flame, RotateCcw, TrendingDown, Percent, MousePointerClick,
 } from "lucide-react";
 // TikTok-native DM conversations — no Instagram dependency
 
@@ -478,8 +479,25 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
     }
   };
 
+  // === PRODUCTION: Auto-poll publish status ===
+  const pollPublishStatus = useCallback(async (postId: string, publishId: string, attempts = 0) => {
+    if (attempts > 20) return; // Max 20 attempts (~2 min)
+    const d = await callApi("check_publish_status", { publish_id: publishId, post_id: postId });
+    const status = d?.data?.status;
+    if (status === "PUBLISH_COMPLETE") {
+      toast.success("Video published successfully on TikTok!");
+      loadScheduledPosts();
+    } else if (status === "FAILED") {
+      toast.error(`Publishing failed: ${d?.data?.fail_reason || "Unknown error"}`);
+      loadScheduledPosts();
+    } else {
+      // Still processing, poll again in 6 seconds
+      setTimeout(() => pollPublishStatus(postId, publishId, attempts + 1), 6000);
+    }
+  }, [callApi, loadScheduledPosts]);
+
   const publishPost = async (post: any) => {
-    toast.info("Publishing...");
+    toast.info("Publishing to TikTok...");
     const meta = post.metadata || {};
     const mediaUrl = Array.isArray(post.media_urls) ? post.media_urls[0] : null;
     if (!mediaUrl) { toast.error("No media URL available"); return; }
@@ -504,10 +522,79 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
       });
     }
     if (result) {
-      toast.success("Published!");
+      const pubId = result?.data?.publish_id;
+      if (pubId && post.id) {
+        // Auto-poll status until complete
+        pollPublishStatus(post.id, pubId);
+      } else {
+        toast.success("Published!");
+      }
       loadScheduledPosts();
     }
   };
+
+  // === PRODUCTION: Sync all publishing statuses ===
+  const syncPublishStatuses = useCallback(async () => {
+    const d = await callApi("sync_publish_statuses", {});
+    if (d?.synced > 0) toast.success(`${d.synced} post(s) status updated`);
+    loadScheduledPosts();
+  }, [callApi, loadScheduledPosts]);
+
+  // === PRODUCTION: Process scheduled posts (trigger auto-publish) ===
+  const triggerAutoPublish = useCallback(async () => {
+    const d = await callApi("process_scheduled", {});
+    if (d?.processed > 0) toast.success(`${d.processed} scheduled post(s) auto-published!`);
+    else if (d?.processed === 0) toast.info("No posts due for publishing");
+    if (d?.failed > 0) toast.error(`${d.failed} post(s) failed to publish`);
+    loadScheduledPosts();
+  }, [callApi, loadScheduledPosts]);
+
+  // === PRODUCTION: Sync engagement data ===
+  const syncEngagement = useCallback(async () => {
+    const d = await callApi("get_post_engagement", {});
+    if (d) toast.success("Engagement data synced from TikTok");
+    loadScheduledPosts();
+  }, [callApi, loadScheduledPosts]);
+
+  // === NEW FEATURE: AI A/B Caption Testing ===
+  const [abCaptions, setAbCaptions] = useState<{ a: string; b: string } | null>(null);
+  const [abGenerating, setAbGenerating] = useState(false);
+  const generateAbCaptions = async (topic: string) => {
+    if (!topic) { toast.error("Add a topic first"); return; }
+    setAbGenerating(true);
+    try {
+      const [resA, resB] = await Promise.all([
+        supabase.functions.invoke("social-ai-responder", {
+          body: { action: "generate_caption", account_id: selectedAccount, params: { topic, platform: "tiktok", include_cta: true, style: "viral_hook" } },
+        }),
+        supabase.functions.invoke("social-ai-responder", {
+          body: { action: "generate_caption", account_id: selectedAccount, params: { topic, platform: "tiktok", include_cta: true, style: "storytelling" } },
+        }),
+      ]);
+      setAbCaptions({
+        a: resA.data?.data?.caption || "Caption A failed",
+        b: resB.data?.data?.caption || "Caption B failed",
+      });
+    } catch (e: any) { toast.error(e.message); }
+    setAbGenerating(false);
+  };
+
+  // === NEW FEATURE: CTA Optimizer ===
+  const [ctaLink, setCtaLink] = useState("");
+  const [ctaText, setCtaText] = useState("🔗 Link in bio");
+  const injectCta = (caption: string) => {
+    const cta = ctaLink ? `\n\n${ctaText} → ${ctaLink}` : `\n\n${ctaText}`;
+    return caption + cta;
+  };
+
+  // === PRODUCTION: Auto-poll for publishing posts on mount ===
+  useEffect(() => {
+    if (!selectedAccount) return;
+    const publishingPosts = scheduledPosts.filter(p => p.status === "publishing" && p.platform_post_id);
+    publishingPosts.forEach(p => {
+      pollPublishStatus(p.id, p.platform_post_id, 0);
+    });
+  }, [selectedAccount]); // Only on mount, not on scheduledPosts change
 
   const deletePost = async (id: string) => {
     await supabase.from("social_posts").delete().eq("id", id);
@@ -1059,9 +1146,15 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
               </div>
               Content Studio
             </h3>
-            <p className="text-xs text-muted-foreground mt-0.5">Create, upload, schedule, and manage your TikTok content</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Create, upload, publish & track — synced with TikTok API</p>
           </div>
           <div className="flex items-center gap-2">
+            <Button size="sm" variant="outline" className="h-7 text-[10px] gap-1" onClick={syncPublishStatuses}>
+              <RefreshCw className="h-3 w-3" /> Sync Statuses
+            </Button>
+            <Button size="sm" variant="outline" className="h-7 text-[10px] gap-1" onClick={syncEngagement}>
+              <BarChart3 className="h-3 w-3" /> Sync Engagement
+            </Button>
             <Badge className="bg-cyan-500/10 text-cyan-400 border-cyan-500/20 text-[10px]">
               {scheduledPosts.filter(p => p.status === "scheduled").length} Scheduled
             </Badge>
@@ -1072,12 +1165,13 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
         </div>
 
         {/* Quick Stats Row */}
-        <div className="grid grid-cols-4 gap-2">
+        <div className="grid grid-cols-5 gap-2">
           {[
             { label: "Total Videos", value: videos.length, icon: Video, color: "text-cyan-400", bg: "bg-cyan-500/10" },
             { label: "Scheduled", value: scheduledPosts.filter(p => p.status === "scheduled").length, icon: Clock, color: "text-amber-400", bg: "bg-amber-500/10" },
+            { label: "Publishing", value: scheduledPosts.filter(p => p.status === "publishing").length, icon: Loader2, color: "text-blue-400", bg: "bg-blue-500/10" },
             { label: "Published", value: scheduledPosts.filter(p => p.status === "published").length, icon: CheckCircle2, color: "text-green-400", bg: "bg-green-500/10" },
-            { label: "Drafts", value: scheduledPosts.filter(p => p.status === "draft").length, icon: FolderOpen, color: "text-violet-400", bg: "bg-violet-500/10" },
+            { label: "Failed", value: scheduledPosts.filter(p => p.status === "failed" || p.error_message).length, icon: AlertCircle, color: "text-red-400", bg: "bg-red-500/10" },
           ].map(s => (
             <Card key={s.label} className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm">
               <CardContent className="p-3">
@@ -1094,6 +1188,90 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
             </Card>
           ))}
         </div>
+
+        {/* ===== NEW FEATURE 1: A/B Caption Testing ===== */}
+        <Card className="bg-gradient-to-r from-violet-500/5 to-pink-500/5 border-violet-500/10">
+          <div className="h-1 bg-gradient-to-r from-violet-500 to-pink-500" />
+          <CardContent className="p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
+                <div className="h-7 w-7 rounded-full bg-gradient-to-br from-violet-400 to-pink-500 flex items-center justify-center">
+                  <Target className="h-3.5 w-3.5 text-white" />
+                </div>
+                A/B Caption Tester
+                <Badge className="bg-violet-500/10 text-violet-400 border-violet-500/20 text-[9px]">CONVERSION</Badge>
+              </h4>
+            </div>
+            <p className="text-[10px] text-muted-foreground">Generate two AI caption variants and pick the highest-converting one</p>
+            <div className="flex gap-2">
+              <Input value={newPostCaption} onChange={e => setNewPostCaption(e.target.value)} placeholder="Enter topic to A/B test..." className="text-sm flex-1 bg-muted/20 border-border/40" />
+              <Button size="sm" onClick={() => generateAbCaptions(newPostCaption)} disabled={abGenerating || !newPostCaption} className="bg-violet-500 hover:bg-violet-600 text-white gap-1">
+                {abGenerating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Target className="h-3 w-3" />}
+                Generate A/B
+              </Button>
+            </div>
+            {abCaptions && (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-white/[0.03] rounded-lg p-3 border border-violet-500/20">
+                  <div className="flex items-center justify-between mb-2">
+                    <Badge className="bg-violet-500/10 text-violet-400 border-violet-500/20 text-[9px]">VARIANT A — Viral Hook</Badge>
+                    <Button size="sm" variant="ghost" className="h-6 text-[10px]" onClick={() => { setNewPostCaption(abCaptions.a); toast.success("Caption A selected"); }}>
+                      <CheckCircle2 className="h-3 w-3 mr-1" /> Use
+                    </Button>
+                  </div>
+                  <p className="text-xs text-foreground whitespace-pre-wrap">{abCaptions.a}</p>
+                </div>
+                <div className="bg-white/[0.03] rounded-lg p-3 border border-pink-500/20">
+                  <div className="flex items-center justify-between mb-2">
+                    <Badge className="bg-pink-500/10 text-pink-400 border-pink-500/20 text-[9px]">VARIANT B — Storytelling</Badge>
+                    <Button size="sm" variant="ghost" className="h-6 text-[10px]" onClick={() => { setNewPostCaption(abCaptions.b); toast.success("Caption B selected"); }}>
+                      <CheckCircle2 className="h-3 w-3 mr-1" /> Use
+                    </Button>
+                  </div>
+                  <p className="text-xs text-foreground whitespace-pre-wrap">{abCaptions.b}</p>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* ===== NEW FEATURE 2: CTA Optimizer ===== */}
+        <Card className="bg-gradient-to-r from-emerald-500/5 to-teal-500/5 border-emerald-500/10">
+          <CardContent className="p-4 space-y-3">
+            <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
+              <div className="h-7 w-7 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center">
+                <MousePointerClick className="h-3.5 w-3.5 text-white" />
+              </div>
+              CTA Optimizer
+              <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 text-[9px]">CONVERSION</Badge>
+            </h4>
+            <p className="text-[10px] text-muted-foreground">Auto-inject conversion-optimized CTAs into every post caption</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-[10px] text-muted-foreground mb-1 block">CTA Text</label>
+                <Input value={ctaText} onChange={e => setCtaText(e.target.value)} placeholder="🔗 Link in bio" className="text-sm bg-muted/20 border-border/40" />
+              </div>
+              <div>
+                <label className="text-[10px] text-muted-foreground mb-1 block">CTA Link (optional)</label>
+                <Input value={ctaLink} onChange={e => setCtaLink(e.target.value)} placeholder="https://yourlink.com" className="text-sm bg-muted/20 border-border/40" />
+              </div>
+            </div>
+            <div className="flex gap-1 flex-wrap">
+              {["🔗 Link in bio", "⬇️ DM me for more", "👉 Follow for Part 2", "🎁 Free gift in bio", "💰 Limited time offer"].map(t => (
+                <Button key={t} size="sm" variant="outline" className="text-[10px] h-6" onClick={() => setCtaText(t)}>{t}</Button>
+              ))}
+            </div>
+            {newPostCaption && (
+              <div className="bg-white/[0.03] rounded-lg p-3 border border-emerald-500/20">
+                <p className="text-[10px] text-muted-foreground mb-1">Preview with CTA:</p>
+                <p className="text-xs text-foreground whitespace-pre-wrap">{injectCta(newPostCaption)}</p>
+                <Button size="sm" variant="ghost" className="h-6 text-[10px] mt-2 text-emerald-400" onClick={() => { setNewPostCaption(injectCta(newPostCaption)); toast.success("CTA injected!"); }}>
+                  <MousePointerClick className="h-3 w-3 mr-1" /> Apply CTA
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* ===== MEGA SCHEDULER — Full TikTok Posting Form ===== */}
         <Card className="bg-white/[0.03] border-cyan-500/20 backdrop-blur-sm overflow-hidden">
@@ -1121,7 +1299,6 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
               {/* Left Column — Caption & Media */}
               <div className="space-y-4">
-                {/* Caption with AI Generate */}
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
                     <label className="text-xs font-medium text-muted-foreground">Caption / Title</label>
@@ -1132,8 +1309,6 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
                   </div>
                   <Textarea value={newPostCaption} onChange={e => setNewPostCaption(e.target.value)} placeholder="Write an engaging caption... or click AI Generate" rows={4} className="text-sm bg-muted/20 border-border/40 focus:border-cyan-500/40" />
                 </div>
-
-                {/* Hashtags */}
                 <div>
                   <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Hashtags (comma separated)</label>
                   <Input value={schedHashtags} onChange={e => setSchedHashtags(e.target.value)} placeholder="trending, fyp, viral, dance..." className="text-sm bg-muted/20 border-border/40 focus:border-cyan-500/40" />
@@ -1145,12 +1320,8 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
                     </div>
                   )}
                 </div>
-
-                {/* File Upload Area */}
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
-                    Media — Upload Files or Paste URL
-                  </label>
+                  <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Media — Upload Files or Paste URL</label>
                   <input ref={fileInputRef} type="file" multiple accept={schedContentType === "video" ? "video/*" : "image/*,video/*"} className="hidden" onChange={e => handleFileUpload(e.target.files)} />
                   <div
                     className="border-2 border-dashed border-white/[0.08] rounded-xl p-6 text-center cursor-pointer hover:border-cyan-500/30 hover:bg-cyan-500/[0.02] transition-all"
@@ -1175,8 +1346,6 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
                       </div>
                     )}
                   </div>
-
-                  {/* Uploaded files preview */}
                   {uploadedFiles.length > 0 && (
                     <div className="flex gap-2 flex-wrap mt-3">
                       {uploadedFiles.map((f, i) => (
@@ -1194,8 +1363,6 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
                       ))}
                     </div>
                   )}
-
-                  {/* OR URL input */}
                   <div className="mt-3">
                     <div className="flex items-center gap-2 mb-1.5">
                       <div className="h-px flex-1 bg-border/30" />
@@ -1209,7 +1376,6 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
 
               {/* Right Column — Settings & Schedule */}
               <div className="space-y-4">
-                {/* Privacy */}
                 <div>
                   <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Privacy Level</label>
                   <select value={schedPrivacy} onChange={e => setSchedPrivacy(e.target.value)} className="w-full bg-muted/20 border border-border/40 text-foreground rounded-lg px-3 py-2 text-sm focus:border-cyan-500/40 outline-none">
@@ -1219,16 +1385,12 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
                     <option value="SELF_ONLY">🔐 Private — Self Only</option>
                   </select>
                 </div>
-
-                {/* Location */}
                 <div>
                   <label className="text-xs font-medium text-muted-foreground mb-1.5 block flex items-center gap-1">
                     <MapPin className="h-3 w-3" />Location (optional)
                   </label>
                   <Input value={schedLocation} onChange={e => setSchedLocation(e.target.value)} placeholder="New York, USA" className="text-sm bg-muted/20 border-border/40 focus:border-cyan-500/40" />
                 </div>
-
-                {/* Interaction Settings */}
                 <div className="space-y-2">
                   <label className="text-xs font-medium text-muted-foreground block">Interaction Settings</label>
                   <div className="grid grid-cols-1 gap-2">
@@ -1245,8 +1407,6 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
                     ))}
                   </div>
                 </div>
-
-                {/* Schedule Date & Time */}
                 <div>
                   <label className="text-xs font-medium text-muted-foreground mb-1.5 block flex items-center gap-1">
                     <Calendar className="h-3 w-3" />Schedule Date & Time
@@ -1254,8 +1414,6 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
                   <Input type="datetime-local" value={newPostScheduledAt} onChange={e => setNewPostScheduledAt(e.target.value)} className="text-sm bg-muted/20 border-border/40 focus:border-cyan-500/40" />
                   <p className="text-[10px] text-muted-foreground mt-1">Leave empty to save as draft</p>
                 </div>
-
-                {/* Action Buttons */}
                 <div className="flex gap-2 pt-1">
                   <Button onClick={schedulePost} disabled={(!newPostCaption && !newPostMediaUrl && uploadedFiles.length === 0)} className="flex-1 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white gap-2">
                     {newPostScheduledAt ? <Calendar className="h-4 w-4" /> : <FolderOpen className="h-4 w-4" />}
@@ -1310,6 +1468,85 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
                   <span className="text-xs font-medium text-foreground">{publishStatus?.data?.status || "Unknown"}</span>
                 </div>
                 <pre className="text-[10px] text-muted-foreground overflow-auto max-h-24">{JSON.stringify(publishStatus, null, 2)}</pre>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* ===== NEW FEATURE 3: Performance Leaderboard ===== */}
+        <Card className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm overflow-hidden">
+          <div className="h-1 bg-gradient-to-r from-green-500 to-emerald-500" />
+          <CardContent className="p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
+                <div className="h-7 w-7 rounded-full bg-gradient-to-br from-green-400 to-emerald-600 flex items-center justify-center">
+                  <TrendingUp className="h-3.5 w-3.5 text-white" />
+                </div>
+                Post Performance Tracker
+                <Badge className="bg-green-500/10 text-green-400 border-green-500/20 text-[9px]">LIVE</Badge>
+              </h4>
+              <Button size="sm" variant="outline" className="h-7 text-[10px] gap-1" onClick={syncEngagement}>
+                <RefreshCw className="h-3 w-3" /> Refresh
+              </Button>
+            </div>
+            {scheduledPosts.filter(p => p.status === "published" && p.engagement_data).length > 0 ? (
+              <div className="space-y-2">
+                <div className="grid grid-cols-4 gap-2 text-center">
+                  {(() => {
+                    const published = scheduledPosts.filter(p => p.engagement_data);
+                    const totalViews = published.reduce((s, p) => s + ((p.engagement_data as any)?.views || 0), 0);
+                    const totalLikes = published.reduce((s, p) => s + ((p.engagement_data as any)?.likes || 0), 0);
+                    const totalComments = published.reduce((s, p) => s + ((p.engagement_data as any)?.comments || 0), 0);
+                    const totalShares = published.reduce((s, p) => s + ((p.engagement_data as any)?.shares || 0), 0);
+                    return [
+                      { label: "Views", value: totalViews, icon: Eye, color: "text-cyan-400" },
+                      { label: "Likes", value: totalLikes, icon: Heart, color: "text-red-400" },
+                      { label: "Comments", value: totalComments, icon: MessageSquare, color: "text-amber-400" },
+                      { label: "Shares", value: totalShares, icon: Share2, color: "text-green-400" },
+                    ].map(m => (
+                      <div key={m.label} className="bg-white/[0.04] rounded-lg p-2">
+                        <m.icon className={`h-3.5 w-3.5 mx-auto mb-1 ${m.color}`} />
+                        <p className="text-sm font-bold text-foreground">{m.value.toLocaleString()}</p>
+                        <p className="text-[9px] text-muted-foreground">{m.label}</p>
+                      </div>
+                    ));
+                  })()}
+                </div>
+                <ScrollArea className="max-h-[300px]">
+                  <div className="space-y-1.5">
+                    {scheduledPosts
+                      .filter(p => p.engagement_data)
+                      .sort((a, b) => ((b.engagement_data as any)?.views || 0) - ((a.engagement_data as any)?.views || 0))
+                      .slice(0, 10)
+                      .map((p, i) => {
+                        const eng = p.engagement_data as any;
+                        return (
+                          <div key={p.id} className="bg-white/[0.02] rounded-lg p-2.5 flex items-center gap-3">
+                            <span className="text-xs font-bold text-cyan-400 w-5">#{i + 1}</span>
+                            {eng?.cover_url && <img src={eng.cover_url} className="h-10 w-10 rounded object-cover flex-shrink-0" />}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs text-foreground line-clamp-1">{p.caption || "Untitled"}</p>
+                              <div className="flex gap-2 text-[10px] text-muted-foreground mt-0.5">
+                                <span>{(eng?.views || 0).toLocaleString()} views</span>
+                                <span>{(eng?.likes || 0).toLocaleString()} likes</span>
+                                <span className="text-green-400 font-medium">{eng?.engagement_rate || 0}% eng</span>
+                              </div>
+                            </div>
+                            {eng?.share_url && (
+                              <a href={eng.share_url} target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:text-cyan-300">
+                                <ExternalLink className="h-3.5 w-3.5" />
+                              </a>
+                            )}
+                          </div>
+                        );
+                      })}
+                  </div>
+                </ScrollArea>
+              </div>
+            ) : (
+              <div className="text-center py-6 text-muted-foreground">
+                <BarChart3 className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                <p className="text-xs">Click "Sync Engagement" to pull performance data from TikTok</p>
               </div>
             )}
           </CardContent>
@@ -1375,33 +1612,27 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
                     const meta = p.metadata || {};
                     return (
                       <div key={p.id} className="bg-white/[0.02] rounded-lg p-3 flex items-center gap-3 border border-white/[0.04] hover:border-amber-500/30 transition-colors">
-                        <div className={`h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0 ${p.status === "published" ? "bg-green-500/10" : p.status === "scheduled" ? "bg-amber-500/10" : p.status === "publishing" ? "bg-blue-500/10" : "bg-muted/30"}`}>
-                          {p.status === "published" ? <CheckCircle2 className="h-4 w-4 text-green-400" /> : p.status === "scheduled" ? <Clock className="h-4 w-4 text-amber-400" /> : p.status === "publishing" ? <Loader2 className="h-4 w-4 text-blue-400 animate-spin" /> : <FolderOpen className="h-4 w-4 text-muted-foreground" />}
+                        <div className={`h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0 ${p.status === "published" ? "bg-green-500/10" : p.status === "scheduled" ? "bg-amber-500/10" : p.status === "publishing" ? "bg-blue-500/10" : p.status === "failed" ? "bg-red-500/10" : "bg-muted/30"}`}>
+                          {p.status === "published" ? <CheckCircle2 className="h-4 w-4 text-green-400" /> : p.status === "scheduled" ? <Clock className="h-4 w-4 text-amber-400" /> : p.status === "publishing" ? <Loader2 className="h-4 w-4 text-blue-400 animate-spin" /> : p.status === "failed" ? <AlertCircle className="h-4 w-4 text-red-400" /> : <FolderOpen className="h-4 w-4 text-muted-foreground" />}
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-xs font-medium text-foreground line-clamp-1">{p.caption || "No caption"}</p>
                           <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                            <Badge variant="outline" className={`text-[9px] ${p.status === "published" ? "border-green-500/30 text-green-400" : p.status === "scheduled" ? "border-amber-500/30 text-amber-400" : "border-border text-muted-foreground"}`}>
+                            <Badge variant="outline" className={`text-[9px] ${p.status === "published" ? "border-green-500/30 text-green-400" : p.status === "scheduled" ? "border-amber-500/30 text-amber-400" : p.status === "failed" ? "border-red-500/30 text-red-400" : "border-border text-muted-foreground"}`}>
                               {p.status}
                             </Badge>
                             <Badge variant="outline" className="text-[9px] border-border text-muted-foreground capitalize">
                               {meta.content_type || p.post_type || "video"}
                             </Badge>
-                            {meta.privacy_level && (
-                              <Badge variant="outline" className="text-[9px] border-border text-muted-foreground">
-                                {meta.privacy_level === "PUBLIC_TO_EVERYONE" ? "🌍 Public" : meta.privacy_level === "SELF_ONLY" ? "🔐 Private" : "🔒 Limited"}
+                            {p.engagement_data && (
+                              <Badge variant="outline" className="text-[9px] border-green-500/30 text-green-400">
+                                {((p.engagement_data as any)?.views || 0).toLocaleString()} views
                               </Badge>
                             )}
                             <span className="text-[10px] text-muted-foreground">
                               {p.scheduled_at ? new Date(p.scheduled_at).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "No schedule"}
                             </span>
-                            {meta.location && <span className="text-[10px] text-muted-foreground flex items-center gap-0.5"><MapPin className="h-2.5 w-2.5" />{meta.location}</span>}
                           </div>
-                          {p.hashtags?.length > 0 && (
-                            <div className="flex gap-1 flex-wrap mt-1">
-                              {p.hashtags.map((h: string) => <Badge key={h} variant="outline" className="text-[8px] border-cyan-500/20 text-cyan-400">#{h}</Badge>)}
-                            </div>
-                          )}
                         </div>
                         <div className="flex gap-1 flex-shrink-0">
                           {p.status !== "published" && (
