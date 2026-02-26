@@ -18,10 +18,10 @@ serve(async (req) => {
 
     console.log("[AI-DM-CRON] Starting scheduled AI DM processing cycle...");
 
-    // Find all accounts with auto-respond active and NOT in cooldown
+    // Find all accounts with auto-respond active
     const { data: activeAccounts, error: accErr } = await supabase
       .from("auto_respond_state")
-      .select("account_id, daily_sent_count, daily_limit, cooldown_until, cooldown_hours, daily_reset_at")
+      .select("account_id, daily_sent_count, daily_limit, daily_reset_at")
       .eq("is_active", true);
 
     if (accErr) {
@@ -49,13 +49,7 @@ serve(async (req) => {
     for (const account of activeAccounts) {
       const { account_id } = account;
 
-      // Skip if in cooldown
-      if (account.cooldown_until && new Date(account.cooldown_until).getTime() > Date.now()) {
-        const remainMin = Math.round((new Date(account.cooldown_until).getTime() - Date.now()) / 60000);
-        console.log(`[AI-DM-CRON] Account ${account_id}: in cooldown (${remainMin}min remaining), skipping`);
-        results.push({ account_id, platform: "all", status: "cooldown", error: `${remainMin}min remaining` });
-        continue;
-      }
+      // No cooldown checks — process all active accounts
 
       // Skip if daily limit already reached
       const dailyLimit = account.daily_limit || 500;
