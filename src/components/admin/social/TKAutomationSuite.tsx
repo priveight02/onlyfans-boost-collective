@@ -560,7 +560,7 @@ const TKAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSu
 
   return (
     <Tabs value={activeTab} onValueChange={setActiveTab}>
-      <TabsList className="bg-muted/50 border border-border p-0.5 rounded-lg gap-0.5 flex flex-wrap w-full">
+      <TabsList className="bg-white/[0.03] border border-white/[0.06] backdrop-blur-sm p-0.5 rounded-lg gap-0.5 flex flex-wrap w-full">
         {[
           { v: "dashboard", icon: LayoutDashboard, l: "Dashboard" },
           { v: "auto-dm", icon: Brain, l: "Auto-DM" },
@@ -572,7 +572,7 @@ const TKAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSu
           { v: "analytics", icon: BarChart3, l: "Analytics" },
           { v: "automation", icon: Zap, l: "Automation" },
         ].map(t => (
-          <TabsTrigger key={t.v} value={t.v} className="data-[state=active]:bg-background data-[state=active]:text-foreground text-muted-foreground rounded-md gap-1 text-xs px-2 py-1.5 whitespace-nowrap">
+          <TabsTrigger key={t.v} value={t.v} className="data-[state=active]:bg-white/[0.08] data-[state=active]:text-foreground text-muted-foreground rounded-md gap-1 text-xs px-2 py-1.5 whitespace-nowrap">
             <t.icon className="h-3.5 w-3.5" />{t.l}
           </TabsTrigger>
         ))}
@@ -593,7 +593,7 @@ const TKAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSu
         {!selectedAccount && tiktokConnected && <p className="text-xs text-destructive">No account selected — connect TikTok first via the Connect tab.</p>}
 
         {profile && (
-          <Card className="border-cyan-500/20">
+          <Card className="bg-white/[0.03] border-cyan-500/20 backdrop-blur-sm">
             <CardContent className="p-4">
               <div className="flex items-center gap-3 mb-3">
                 {(profile.avatar_url || profile.avatar_url_100) && <img src={profile.avatar_url || profile.avatar_url_100} className="h-12 w-12 rounded-full object-cover" />}
@@ -608,10 +608,10 @@ const TKAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSu
                 <TikTokIcon className="h-5 w-5 text-cyan-400" />
               </div>
               <div className="grid grid-cols-4 gap-2 text-center">
-                <div className="bg-muted/50 rounded p-2"><p className="text-sm font-bold text-foreground">{(profile.follower_count || 0).toLocaleString()}</p><p className="text-[10px] text-muted-foreground">Followers</p></div>
-                <div className="bg-muted/50 rounded p-2"><p className="text-sm font-bold text-foreground">{(profile.following_count || 0).toLocaleString()}</p><p className="text-[10px] text-muted-foreground">Following</p></div>
-                <div className="bg-muted/50 rounded p-2"><p className="text-sm font-bold text-foreground">{(profile.likes_count || 0).toLocaleString()}</p><p className="text-[10px] text-muted-foreground">Likes</p></div>
-                <div className="bg-muted/50 rounded p-2"><p className="text-sm font-bold text-foreground">{(profile.video_count || 0).toLocaleString()}</p><p className="text-[10px] text-muted-foreground">Videos</p></div>
+                <div className="bg-white/[0.04] rounded p-2"><p className="text-sm font-bold text-foreground">{(profile.follower_count || 0).toLocaleString()}</p><p className="text-[10px] text-muted-foreground">Followers</p></div>
+                <div className="bg-white/[0.04] rounded p-2"><p className="text-sm font-bold text-foreground">{(profile.following_count || 0).toLocaleString()}</p><p className="text-[10px] text-muted-foreground">Following</p></div>
+                <div className="bg-white/[0.04] rounded p-2"><p className="text-sm font-bold text-foreground">{(profile.likes_count || 0).toLocaleString()}</p><p className="text-[10px] text-muted-foreground">Likes</p></div>
+                <div className="bg-white/[0.04] rounded p-2"><p className="text-sm font-bold text-foreground">{(profile.video_count || 0).toLocaleString()}</p><p className="text-[10px] text-muted-foreground">Videos</p></div>
               </div>
               {profile.profile_deep_link && (
                 <a href={profile.profile_deep_link} target="_blank" rel="noreferrer" className="text-[10px] text-cyan-400 hover:underline mt-2 inline-flex items-center gap-1">
@@ -624,21 +624,21 @@ const TKAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSu
 
         {/* Stats Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-          <Card><CardContent className="p-3 text-center"><p className="text-xl font-bold text-foreground">{videos.length}</p><p className="text-[10px] text-muted-foreground">Videos Loaded</p></CardContent></Card>
-          <Card><CardContent className="p-3 text-center"><p className="text-xl font-bold text-foreground">{scheduledPosts.filter(p => p.status === "scheduled").length}</p><p className="text-[10px] text-muted-foreground">Scheduled</p></CardContent></Card>
-          <Card><CardContent className="p-3 text-center"><p className="text-xl font-bold text-foreground">{scheduledPosts.filter(p => p.status === "published").length}</p><p className="text-[10px] text-muted-foreground">Published</p></CardContent></Card>
-          <Card><CardContent className="p-3 text-center"><p className="text-xl font-bold text-foreground">{playlists.length}</p><p className="text-[10px] text-muted-foreground">Playlists</p></CardContent></Card>
+          <Card className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm"><CardContent className="p-3 text-center"><p className="text-xl font-bold text-foreground">{videos.length}</p><p className="text-[10px] text-muted-foreground">Videos Loaded</p></CardContent></Card>
+          <Card className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm"><CardContent className="p-3 text-center"><p className="text-xl font-bold text-foreground">{scheduledPosts.filter(p => p.status === "scheduled").length}</p><p className="text-[10px] text-muted-foreground">Scheduled</p></CardContent></Card>
+          <Card className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm"><CardContent className="p-3 text-center"><p className="text-xl font-bold text-foreground">{scheduledPosts.filter(p => p.status === "published").length}</p><p className="text-[10px] text-muted-foreground">Published</p></CardContent></Card>
+          <Card className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm"><CardContent className="p-3 text-center"><p className="text-xl font-bold text-foreground">{playlists.length}</p><p className="text-[10px] text-muted-foreground">Playlists</p></CardContent></Card>
         </div>
 
         {/* Recent Videos */}
         {videos.length > 0 && (
-          <Card>
+          <Card className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm">
             <CardContent className="p-4">
               <h4 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2"><Video className="h-4 w-4 text-cyan-400" />Recent Videos</h4>
               <ScrollArea className="max-h-[300px]">
                 <div className="space-y-2">
                   {videos.slice(0, 5).map((v: any) => (
-                    <div key={v.id} className="bg-muted/30 rounded-lg p-3 flex gap-3">
+                    <div key={v.id} className="bg-white/[0.03] rounded-lg p-3 flex gap-3">
                       {v.cover_image_url && <img src={v.cover_image_url} className="h-16 w-12 rounded object-cover flex-shrink-0" />}
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-semibold text-foreground line-clamp-1">{v.title || v.video_description || "Untitled"}</p>
@@ -660,7 +660,7 @@ const TKAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSu
 
       {/* ===== AUTO-DM ===== */}
       <TabsContent value="auto-dm" className="space-y-4 mt-4">
-        <Card className={`border-2 transition-colors ${autoRespondActive ? "border-red-500/50 bg-red-500/5" : "border-border"}`}>
+        <Card className={`border-2 transition-colors backdrop-blur-sm ${autoRespondActive ? "border-red-500/50 bg-red-500/5" : "bg-white/[0.03] border-white/[0.06]"}`}>
           <CardContent className="p-5">
             <div className="flex items-center justify-between mb-4">
               <div>
@@ -699,7 +699,7 @@ const TKAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSu
         </Card>
 
         {/* Test AI */}
-        <Card>
+        <Card className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm">
           <CardContent className="p-4 space-y-3">
             <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><Zap className="h-4 w-4 text-yellow-400" />Test AI Responder</h4>
             <div className="grid grid-cols-3 gap-2">
@@ -708,13 +708,13 @@ const TKAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSu
             </div>
             <Button onClick={generateAiDmReply} disabled={loading || aiTyping || aiLifePause || !aiTestMessage} size="sm"><Brain className="h-3.5 w-3.5 mr-1.5" />Generate Reply</Button>
             {aiLifePause && (
-              <div className="bg-muted/50 rounded-lg p-3 border border-border flex items-center gap-2">
+                <div className="bg-white/[0.04] rounded-lg p-3 border border-white/[0.06] flex items-center gap-2">
                 <Clock className="h-4 w-4 text-muted-foreground animate-pulse" />
                 <p className="text-sm text-muted-foreground italic">away for {aiTypingDelay}s... (simulating natural pause)</p>
               </div>
             )}
             {aiTyping && !aiLifePause && (
-              <div className="bg-muted/50 rounded-lg p-3 border border-border flex items-center gap-2">
+              <div className="bg-white/[0.04] rounded-lg p-3 border border-white/[0.06] flex items-center gap-2">
                 <div className="flex gap-1">
                   <span className="w-1.5 h-1.5 bg-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
                   <span className="w-1.5 h-1.5 bg-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
@@ -724,7 +724,7 @@ const TKAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSu
               </div>
             )}
             {aiTestReply && !aiTyping && !aiLifePause && (
-              <div className="bg-muted/50 rounded-lg p-3 border border-border">
+                <div className="bg-white/[0.04] rounded-lg p-3 border border-white/[0.06]">
                 <p className="text-xs text-muted-foreground mb-1">AI Reply:</p>
                 <p className="text-sm text-foreground">{aiTestReply}</p>
                 <div className="flex gap-2 mt-2">
@@ -738,7 +738,7 @@ const TKAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSu
 
         {/* TikTok-Native Live Conversations */}
         {!tiktokConnected ? <ConnectTikTokCTA /> : (
-        <Card>
+        <Card className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm">
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-3">
               <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
@@ -779,7 +779,7 @@ const TKAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSu
                     <button
                       key={c.id}
                       onClick={() => loadTkMessages(c.id)}
-                      className={`w-full text-left p-2.5 rounded-lg text-xs transition-all ${tkSelectedConvo === c.id ? "bg-cyan-500/10 border border-cyan-500/30" : "bg-muted/30 hover:bg-muted/50 border border-transparent"}`}
+                      className={`w-full text-left p-2.5 rounded-lg text-xs transition-all ${tkSelectedConvo === c.id ? "bg-cyan-500/10 border border-cyan-500/30" : "bg-white/[0.03] hover:bg-white/[0.06] border border-transparent"}`}
                     >
                       <div className="flex items-center gap-2">
                         {c.participant_avatar_url ? (
@@ -820,7 +820,7 @@ const TKAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSu
                       <ScrollArea className="flex-1 max-h-[420px] mb-2">
                         <div className="space-y-1.5 p-1">
                           {tkMessages.map(m => (
-                            <div key={m.id} className={`p-2.5 rounded-lg text-xs max-w-[85%] ${m.sender_type === "fan" || m.sender_type === "user" ? "bg-muted/30 mr-auto" : "bg-cyan-500/10 ml-auto"}`}>
+                            <div key={m.id} className={`p-2.5 rounded-lg text-xs max-w-[85%] ${m.sender_type === "fan" || m.sender_type === "user" ? "bg-white/[0.03] mr-auto" : "bg-cyan-500/10 ml-auto"}`}>
                               <div className="flex items-center gap-1.5 mb-0.5">
                                 {m.sender_type === "ai" && <Bot className="h-3 w-3 text-cyan-400" />}
                                 <span className="text-[10px] text-muted-foreground font-medium">{m.sender_name || m.sender_type}</span>
@@ -846,7 +846,7 @@ const TKAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSu
                     </>
                   ) : (
                     <div className="flex flex-col items-center justify-center h-full py-12 text-center">
-                      <div className="h-16 w-16 rounded-full bg-muted/30 border border-border/30 flex items-center justify-center mb-3">
+                      <div className="h-16 w-16 rounded-full bg-white/[0.03] border border-white/[0.06] flex items-center justify-center mb-3">
                         <TikTokIcon className="h-8 w-8 text-muted-foreground/30" />
                       </div>
                       <h3 className="text-sm font-semibold text-foreground">Your TikTok messages</h3>
@@ -895,7 +895,7 @@ const TKAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSu
             { label: "Published", value: scheduledPosts.filter(p => p.status === "published").length, icon: CheckCircle2, color: "text-green-400", bg: "bg-green-500/10" },
             { label: "Playlists", value: playlists.length, icon: ListVideo, color: "text-violet-400", bg: "bg-violet-500/10" },
           ].map(s => (
-            <Card key={s.label} className="border-border/50">
+            <Card key={s.label} className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm">
               <CardContent className="p-3">
                 <div className="flex items-center gap-2">
                   <div className={`h-8 w-8 rounded-lg ${s.bg} flex items-center justify-center`}>
@@ -912,7 +912,7 @@ const TKAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSu
         </div>
 
         {/* Publish Video — Hero Card */}
-        <Card className="border-cyan-500/20 overflow-hidden">
+        <Card className="bg-white/[0.03] border-cyan-500/20 backdrop-blur-sm overflow-hidden">
           <div className="h-1 bg-gradient-to-r from-cyan-500 via-blue-500 to-violet-500" />
           <CardContent className="p-5 space-y-4">
             <div className="flex items-center justify-between">
@@ -1007,7 +1007,7 @@ const TKAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSu
         </Card>
 
         {/* Publish Photo / Carousel */}
-        <Card className="border-border/50">
+        <Card className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm">
           <CardContent className="p-5 space-y-4">
             <div className="flex items-center justify-between">
               <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
@@ -1061,7 +1061,7 @@ const TKAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSu
         </Card>
 
         {/* Playlist Manager */}
-        <Card className="border-border/50">
+        <Card className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm">
           <CardContent className="p-5 space-y-3">
             <div className="flex items-center justify-between">
               <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
@@ -1083,7 +1083,7 @@ const TKAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSu
             {playlists.length > 0 ? (
               <div className="grid grid-cols-2 gap-2">
                 {playlists.map((p: any, i: number) => (
-                  <div key={i} className="bg-muted/20 rounded-lg p-3 flex items-center gap-3 border border-border/20 hover:border-violet-500/30 transition-colors">
+                  <div key={i} className="bg-white/[0.02] rounded-lg p-3 flex items-center gap-3 border border-white/[0.04] hover:border-violet-500/30 transition-colors">
                     <div className="h-9 w-9 rounded-lg bg-violet-500/10 flex items-center justify-center flex-shrink-0">
                       <ListVideo className="h-4 w-4 text-violet-400" />
                     </div>
@@ -1104,7 +1104,7 @@ const TKAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSu
         </Card>
 
         {/* Video Manager */}
-        <Card className="border-border/50">
+        <Card className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm">
           <CardContent className="p-5 space-y-3">
             <div className="flex items-center justify-between">
               <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
@@ -1128,7 +1128,7 @@ const TKAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSu
               <ScrollArea className="max-h-[400px]">
                 <div className="grid grid-cols-1 gap-2">
                   {videos.map((v: any) => (
-                    <div key={v.id} className="bg-muted/20 rounded-lg p-3 flex gap-3 border border-border/20 hover:border-cyan-500/30 transition-colors group">
+                    <div key={v.id} className="bg-white/[0.02] rounded-lg p-3 flex gap-3 border border-white/[0.04] hover:border-cyan-500/30 transition-colors group">
                       {v.cover_image_url ? (
                         <img src={v.cover_image_url} className="h-[72px] w-[54px] rounded-lg object-cover flex-shrink-0 ring-1 ring-border/20" />
                       ) : (
@@ -1166,7 +1166,7 @@ const TKAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSu
         </Card>
 
         {/* Schedule & Queue */}
-        <Card className="border-border/50">
+        <Card className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm">
           <div className="h-1 bg-gradient-to-r from-orange-400 to-amber-500" />
           <CardContent className="p-5 space-y-4">
             <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
@@ -1209,7 +1209,7 @@ const TKAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSu
                 <ScrollArea className="max-h-[280px]">
                   <div className="space-y-2">
                     {scheduledPosts.map(p => (
-                      <div key={p.id} className="bg-muted/20 rounded-lg p-3 flex items-center gap-3 border border-border/20 hover:border-amber-500/30 transition-colors">
+                      <div key={p.id} className="bg-white/[0.02] rounded-lg p-3 flex items-center gap-3 border border-white/[0.04] hover:border-amber-500/30 transition-colors">
                         <div className={`h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0 ${p.status === "published" ? "bg-green-500/10" : p.status === "scheduled" ? "bg-amber-500/10" : "bg-muted/30"}`}>
                           {p.status === "published" ? <CheckCircle2 className="h-4 w-4 text-green-400" /> : p.status === "scheduled" ? <Clock className="h-4 w-4 text-amber-400" /> : <FolderOpen className="h-4 w-4 text-muted-foreground" />}
                         </div>
@@ -1246,7 +1246,7 @@ const TKAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSu
 
       {/* ===== COMMENTS ===== */}
       <TabsContent value="comments" className="space-y-4 mt-4">
-        <Card>
+        <Card className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm">
           <CardContent className="p-4 space-y-3">
             <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><MessageSquare className="h-4 w-4 text-amber-400" />Comments Manager</h4>
             <div className="flex gap-2">
@@ -1266,7 +1266,7 @@ const TKAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSu
               <ScrollArea className="max-h-[400px]">
                 <div className="space-y-2">
                   {comments.map((c: any) => (
-                    <div key={c.id} className="bg-muted/30 rounded-lg p-2.5">
+                    <div key={c.id} className="bg-white/[0.03] rounded-lg p-2.5">
                       <p className="text-xs text-foreground">{c.text}</p>
                       <div className="flex items-center gap-3 mt-1 text-[10px] text-muted-foreground">
                         <span><Heart className="h-3 w-3 inline" /> {c.like_count || 0}</span>
@@ -1295,7 +1295,7 @@ const TKAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSu
 
       {/* ===== DMs ===== */}
       <TabsContent value="dms" className="space-y-4 mt-4">
-        <Card>
+        <Card className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm">
           <CardContent className="p-4 space-y-3">
             <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><Send className="h-4 w-4 text-pink-400" />Direct Messages</h4>
             <Button size="sm" onClick={fetchConversations} disabled={loading || !selectedAccount}><RefreshCw className="h-3.5 w-3.5 mr-1" />Load Conversations</Button>
@@ -1336,7 +1336,7 @@ const TKAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSu
       {/* ===== SEARCH ===== */}
       <TabsContent value="search" className="space-y-4 mt-4">
         {/* User Research */}
-        <Card>
+        <Card className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm">
           <CardContent className="p-4 space-y-3">
             <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><Users className="h-4 w-4 text-purple-400" />User Research</h4>
             <div className="flex gap-2">
@@ -1344,7 +1344,7 @@ const TKAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSu
               <Button size="sm" onClick={researchUser} disabled={loading || !researchUsername}><Search className="h-3.5 w-3.5 mr-1" />Lookup</Button>
             </div>
             {researchUserResult && (
-              <Card className="border-cyan-500/20">
+              <Card className="bg-white/[0.03] border-cyan-500/20 backdrop-blur-sm">
                 <CardContent className="p-3">
                   <div className="flex items-center gap-3 mb-2">
                     {researchUserResult.avatar_url && <img src={researchUserResult.avatar_url} className="h-10 w-10 rounded-full" />}
@@ -1354,10 +1354,10 @@ const TKAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSu
                     </div>
                   </div>
                   <div className="grid grid-cols-4 gap-1.5 text-center">
-                    <div className="bg-muted/50 rounded p-1.5"><p className="text-sm font-bold text-foreground">{(researchUserResult.follower_count || 0).toLocaleString()}</p><p className="text-[9px] text-muted-foreground">Followers</p></div>
-                    <div className="bg-muted/50 rounded p-1.5"><p className="text-sm font-bold text-foreground">{(researchUserResult.following_count || 0).toLocaleString()}</p><p className="text-[9px] text-muted-foreground">Following</p></div>
-                    <div className="bg-muted/50 rounded p-1.5"><p className="text-sm font-bold text-foreground">{(researchUserResult.likes_count || 0).toLocaleString()}</p><p className="text-[9px] text-muted-foreground">Likes</p></div>
-                    <div className="bg-muted/50 rounded p-1.5"><p className="text-sm font-bold text-foreground">{(researchUserResult.video_count || 0).toLocaleString()}</p><p className="text-[9px] text-muted-foreground">Videos</p></div>
+                    <div className="bg-white/[0.04] rounded p-1.5"><p className="text-sm font-bold text-foreground">{(researchUserResult.follower_count || 0).toLocaleString()}</p><p className="text-[9px] text-muted-foreground">Followers</p></div>
+                    <div className="bg-white/[0.04] rounded p-1.5"><p className="text-sm font-bold text-foreground">{(researchUserResult.following_count || 0).toLocaleString()}</p><p className="text-[9px] text-muted-foreground">Following</p></div>
+                    <div className="bg-white/[0.04] rounded p-1.5"><p className="text-sm font-bold text-foreground">{(researchUserResult.likes_count || 0).toLocaleString()}</p><p className="text-[9px] text-muted-foreground">Likes</p></div>
+                    <div className="bg-white/[0.04] rounded p-1.5"><p className="text-sm font-bold text-foreground">{(researchUserResult.video_count || 0).toLocaleString()}</p><p className="text-[9px] text-muted-foreground">Videos</p></div>
                   </div>
                 </CardContent>
               </Card>
@@ -1366,7 +1366,7 @@ const TKAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSu
         </Card>
 
         {/* Video Research */}
-        <Card>
+        <Card className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm">
           <CardContent className="p-4 space-y-3">
             <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><Video className="h-4 w-4 text-lime-400" />Video Search</h4>
             <div className="flex gap-2">
@@ -1377,7 +1377,7 @@ const TKAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSu
               <ScrollArea className="max-h-[350px]">
                 <div className="space-y-1.5">
                   {researchVideoResults.map((v: any, i: number) => (
-                    <div key={i} className="bg-muted/30 rounded p-2.5">
+                    <div key={i} className="bg-white/[0.03] rounded p-2.5">
                       <p className="text-xs text-foreground line-clamp-2">{v.video_description || "No description"}</p>
                       <div className="flex gap-3 mt-1 text-[10px] text-muted-foreground">
                         <span><Eye className="h-3 w-3 inline" /> {(v.view_count || 0).toLocaleString()}</span>
@@ -1400,7 +1400,7 @@ const TKAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSu
         </Card>
 
         {/* Hashtag Research */}
-        <Card>
+        <Card className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm">
           <CardContent className="p-4 space-y-3">
             <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><Hash className="h-4 w-4 text-rose-400" />Hashtag Research</h4>
             <div className="flex gap-2">
@@ -1410,7 +1410,7 @@ const TKAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSu
             {researchHashtagResults.length > 0 && (
               <div className="space-y-1.5">
                 {researchHashtagResults.map((h: any, i: number) => (
-                  <div key={i} className="bg-muted/30 rounded p-3 flex items-center justify-between">
+                  <div key={i} className="bg-white/[0.03] rounded p-3 flex items-center justify-between">
                     <div>
                       <p className="text-sm font-semibold text-foreground">#{h.name}</p>
                       <p className="text-[10px] text-muted-foreground">{(h.video_count || h.publish_count || 0).toLocaleString()} videos · {(h.view_count || 0).toLocaleString()} views</p>
@@ -1424,7 +1424,7 @@ const TKAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSu
         </Card>
 
         {/* Comment Research */}
-        <Card>
+        <Card className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm">
           <CardContent className="p-4 space-y-3">
             <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><Eye className="h-4 w-4 text-orange-400" />Comment Research</h4>
             <div className="flex gap-2">
@@ -1435,7 +1435,7 @@ const TKAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSu
               <ScrollArea className="max-h-[350px]">
                 <div className="space-y-1.5">
                   {researchComments.map((c: any, i: number) => (
-                    <div key={i} className="bg-muted/30 rounded p-2">
+                    <div key={i} className="bg-white/[0.03] rounded p-2">
                       <p className="text-xs text-foreground">{c.text}</p>
                       <div className="flex gap-2 mt-1 text-[10px] text-muted-foreground">
                         <span><Heart className="h-3 w-3 inline" /> {c.like_count || 0}</span>
@@ -1452,13 +1452,13 @@ const TKAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSu
 
       {/* ===== AI TOOLS ===== */}
       <TabsContent value="ai-tools" className="space-y-4 mt-4">
-        <Card>
+        <Card className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm">
           <CardContent className="p-4 space-y-3">
             <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><Sparkles className="h-4 w-4 text-yellow-400" />AI Caption Generator</h4>
             <Input value={aiCaptionTopic} onChange={e => setAiCaptionTopic(e.target.value)} placeholder="Topic or theme for TikTok caption..." className="text-sm" />
             <Button size="sm" onClick={generateCaption} disabled={loading || !aiCaptionTopic}><Wand2 className="h-3.5 w-3.5 mr-1" />Generate TikTok Caption</Button>
             {aiCaptionResult && (
-              <div className="bg-muted/50 rounded-lg p-3 border border-border">
+              <div className="bg-white/[0.04] rounded-lg p-3 border border-white/[0.06]">
                 <p className="text-sm text-foreground whitespace-pre-wrap">{aiCaptionResult}</p>
                 <Button size="sm" variant="outline" className="mt-2" onClick={() => { navigator.clipboard.writeText(aiCaptionResult); toast.success("Copied"); }}><Copy className="h-3 w-3 mr-1" />Copy</Button>
               </div>
@@ -1466,13 +1466,13 @@ const TKAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSu
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm">
           <CardContent className="p-4 space-y-3">
             <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><Brain className="h-4 w-4 text-purple-400" />Content Analyzer</h4>
             <Textarea value={aiAnalyzeCaption} onChange={e => setAiAnalyzeCaption(e.target.value)} placeholder="Paste your TikTok caption or script to analyze..." rows={3} className="text-sm" />
             <Button size="sm" onClick={analyzeContent} disabled={loading || !aiAnalyzeCaption}><BarChart3 className="h-3.5 w-3.5 mr-1" />Analyze</Button>
             {aiAnalyzeResult && (
-              <div className="bg-muted/50 rounded-lg p-3 border border-border">
+              <div className="bg-white/[0.04] rounded-lg p-3 border border-white/[0.06]">
                 <p className="text-sm text-foreground whitespace-pre-wrap">{aiAnalyzeResult}</p>
               </div>
             )}
@@ -1482,23 +1482,23 @@ const TKAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSu
 
       {/* ===== ANALYTICS ===== */}
       <TabsContent value="analytics" className="space-y-4 mt-4">
-        <Card>
+        <Card className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm">
           <CardContent className="p-4 space-y-3">
             <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><BarChart3 className="h-4 w-4 text-cyan-400" />Video Performance</h4>
             <Button size="sm" onClick={() => fetchVideos()} disabled={loading || !selectedAccount}><RefreshCw className="h-3.5 w-3.5 mr-1" />Load Analytics</Button>
             {videos.length > 0 ? (
               <div className="space-y-2">
                 <div className="grid grid-cols-4 gap-2 text-center">
-                  <div className="bg-muted/50 rounded p-2"><p className="text-sm font-bold text-foreground">{videos.reduce((sum, v) => sum + (v.view_count || 0), 0).toLocaleString()}</p><p className="text-[10px] text-muted-foreground">Total Views</p></div>
-                  <div className="bg-muted/50 rounded p-2"><p className="text-sm font-bold text-foreground">{videos.reduce((sum, v) => sum + (v.like_count || 0), 0).toLocaleString()}</p><p className="text-[10px] text-muted-foreground">Total Likes</p></div>
-                  <div className="bg-muted/50 rounded p-2"><p className="text-sm font-bold text-foreground">{videos.reduce((sum, v) => sum + (v.comment_count || 0), 0).toLocaleString()}</p><p className="text-[10px] text-muted-foreground">Total Comments</p></div>
-                  <div className="bg-muted/50 rounded p-2"><p className="text-sm font-bold text-foreground">{videos.reduce((sum, v) => sum + (v.share_count || 0), 0).toLocaleString()}</p><p className="text-[10px] text-muted-foreground">Total Shares</p></div>
+                  <div className="bg-white/[0.04] rounded p-2"><p className="text-sm font-bold text-foreground">{videos.reduce((sum, v) => sum + (v.view_count || 0), 0).toLocaleString()}</p><p className="text-[10px] text-muted-foreground">Total Views</p></div>
+                  <div className="bg-white/[0.04] rounded p-2"><p className="text-sm font-bold text-foreground">{videos.reduce((sum, v) => sum + (v.like_count || 0), 0).toLocaleString()}</p><p className="text-[10px] text-muted-foreground">Total Likes</p></div>
+                  <div className="bg-white/[0.04] rounded p-2"><p className="text-sm font-bold text-foreground">{videos.reduce((sum, v) => sum + (v.comment_count || 0), 0).toLocaleString()}</p><p className="text-[10px] text-muted-foreground">Total Comments</p></div>
+                  <div className="bg-white/[0.04] rounded p-2"><p className="text-sm font-bold text-foreground">{videos.reduce((sum, v) => sum + (v.share_count || 0), 0).toLocaleString()}</p><p className="text-[10px] text-muted-foreground">Total Shares</p></div>
                 </div>
                 <h5 className="text-xs font-semibold text-foreground mt-3">Top Performing Videos</h5>
                 <ScrollArea className="max-h-[300px]">
                   <div className="space-y-1.5">
                     {[...videos].sort((a, b) => (b.view_count || 0) - (a.view_count || 0)).slice(0, 10).map((v, i) => (
-                      <div key={v.id} className="bg-muted/30 rounded p-2 flex items-center gap-3">
+                      <div key={v.id} className="bg-white/[0.03] rounded p-2 flex items-center gap-3">
                         <span className="text-xs font-bold text-cyan-400 w-5">#{i + 1}</span>
                         <div className="flex-1 min-w-0">
                           <p className="text-xs text-foreground line-clamp-1">{v.title || v.video_description || "Untitled"}</p>
@@ -1520,11 +1520,11 @@ const TKAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSu
         </Card>
 
         {/* Creator Info */}
-        <Card>
+        <Card className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm">
           <CardContent className="p-4 space-y-3">
             <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><Star className="h-4 w-4 text-yellow-400" />Creator Info & Posting Rules</h4>
             <Button size="sm" onClick={fetchCreatorInfo} disabled={loading || !selectedAccount}><Star className="h-3.5 w-3.5 mr-1" />Fetch Creator Info</Button>
-            {creatorInfo && <pre className="text-[10px] bg-muted/50 rounded p-3 overflow-auto max-h-[300px] text-foreground">{JSON.stringify(creatorInfo, null, 2)}</pre>}
+            {creatorInfo && <pre className="text-[10px] bg-white/[0.04] rounded p-3 overflow-auto max-h-[300px] text-foreground">{JSON.stringify(creatorInfo, null, 2)}</pre>}
           </CardContent>
         </Card>
       </TabsContent>
@@ -1532,7 +1532,7 @@ const TKAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSu
       {/* ===== AUTOMATION ===== */}
       <TabsContent value="automation" className="space-y-4 mt-4">
         {/* Token Management */}
-        <Card>
+        <Card className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm">
           <CardContent className="p-4 space-y-3">
             <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><Shield className="h-4 w-4 text-amber-400" />Connection Health</h4>
             <p className="text-[10px] text-muted-foreground">Manage your TikTok API connection. Refresh tokens before they expire, or revoke access entirely.</p>
@@ -1544,7 +1544,7 @@ const TKAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSu
         </Card>
 
         {/* Data Portability */}
-        <Card>
+        <Card className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm">
           <CardContent className="p-4 space-y-3">
             <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><Download className="h-4 w-4 text-blue-400" />Data Export</h4>
             <p className="text-[10px] text-muted-foreground">Export your TikTok data including videos, comments, and analytics.</p>
@@ -1561,7 +1561,7 @@ const TKAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSu
         </Card>
 
         {/* Webhook Status */}
-        <Card>
+        <Card className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm">
           <CardContent className="p-4 space-y-3">
             <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><Globe className="h-4 w-4 text-green-400" />Webhook Status</h4>
             <p className="text-[10px] text-muted-foreground">Your TikTok webhook endpoint is active and listening for events.</p>
@@ -1569,7 +1569,7 @@ const TKAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSu
               <div className="h-2 w-2 rounded-full bg-green-400 animate-pulse" />
               <span className="text-xs text-green-400">Active</span>
             </div>
-            <div className="bg-muted/30 rounded p-2">
+            <div className="bg-white/[0.03] rounded p-2">
               <p className="text-[10px] text-muted-foreground">Callback URL:</p>
               <p className="text-[10px] text-foreground font-mono break-all">https://ufsnuobtvkciydftsyff.supabase.co/functions/v1/tiktok-webhook</p>
             </div>
@@ -1578,7 +1578,7 @@ const TKAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSu
         </Card>
 
         {/* Share Kit */}
-        <Card>
+        <Card className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm">
           <CardContent className="p-4 space-y-3">
             <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><Share2 className="h-4 w-4 text-cyan-400" />Share Kit</h4>
             <p className="text-[10px] text-muted-foreground">Share content directly to TikTok from your platform using the Share Kit API.</p>
