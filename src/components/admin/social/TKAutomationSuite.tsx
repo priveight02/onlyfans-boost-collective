@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import PlatformAccountSelector from "./PlatformAccountSelector";
 import {
   Music2, Video, Upload, Eye, MessageSquare, Search, Hash,
   ListVideo, Send, RefreshCw, TrendingUp, BarChart3, Users,
@@ -35,10 +36,14 @@ const TikTokIcon = ({ className = "h-4 w-4" }: { className?: string }) => (
   </svg>
 );
 
-const TKAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSubTab, onSubTabChange }: Props) => {
+const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect, subTab: urlSubTab, onSubTabChange }: Props) => {
   const [activeTab, setActiveTabInternal] = useState(urlSubTab || "dashboard");
   const setActiveTab = (v: string) => { setActiveTabInternal(v); onSubTabChange?.(v); };
   useEffect(() => { if (urlSubTab && urlSubTab !== activeTab) setActiveTabInternal(urlSubTab); }, [urlSubTab]);
+  // Multi-account: allow overriding via per-platform selector
+  const [platformAccountId, setPlatformAccountId] = useState(parentAccount);
+  useEffect(() => { setPlatformAccountId(parentAccount); }, [parentAccount]);
+  const selectedAccount = platformAccountId || parentAccount;
   const [loading, setLoading] = useState(false);
   const [tiktokConnected, setTiktokConnected] = useState<boolean | null>(null); // null = loading
 
@@ -655,12 +660,22 @@ const TKAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSu
   }
 
   return (
+    <div className="space-y-3">
+      {/* Per-platform account selector */}
+      <PlatformAccountSelector
+        platform="tiktok"
+        selectedAccountId={selectedAccount}
+        onAccountChange={setPlatformAccountId}
+        platformIcon={<TikTokIcon className="h-4 w-4 text-cyan-400" />}
+        platformColor="text-cyan-400"
+      />
     <Tabs value={activeTab} onValueChange={setActiveTab}>
       <TabsList className="bg-white/[0.03] border border-white/[0.06] backdrop-blur-sm p-0.5 rounded-lg gap-0.5 flex flex-wrap w-full">
         {[
           { v: "dashboard", icon: LayoutDashboard, l: "Dashboard" },
           { v: "auto-dm", icon: Brain, l: "Auto-DM" },
           { v: "content", icon: Layers, l: "Content" },
+          { v: "schedule", icon: Calendar, l: "Schedule" },
           { v: "comments", icon: MessageSquare, l: "Comments" },
           { v: "dms", icon: Send, l: "DMs" },
           { v: "search", icon: Search, l: "Search" },
@@ -1683,7 +1698,217 @@ const TKAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSu
           </CardContent>
         </Card>
       </TabsContent>
+
+      {/* ===== SCHEDULE SUBTAB ===== */}
+      <TabsContent value="schedule" className="space-y-4 mt-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-base font-bold text-foreground flex items-center gap-2">
+              <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center">
+                <Calendar className="h-4 w-4 text-white" />
+              </div>
+              Schedule Manager
+            </h3>
+            <p className="text-xs text-muted-foreground mt-0.5">Plan up to 50 scheduled posts — AI-managed & synced in real-time</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/20 text-[10px]">
+              {scheduledPosts.filter(p => p.status === "scheduled").length}/50 Scheduled
+            </Badge>
+          </div>
+        </div>
+
+        {/* Quick Stats */}
+        <div className="grid grid-cols-4 gap-2">
+          {[
+            { label: "Scheduled", value: scheduledPosts.filter(p => p.status === "scheduled").length, color: "text-amber-400", bg: "bg-amber-500/10", icon: Clock },
+            { label: "Publishing", value: scheduledPosts.filter(p => p.status === "publishing").length, color: "text-blue-400", bg: "bg-blue-500/10", icon: Loader2 },
+            { label: "Published", value: scheduledPosts.filter(p => p.status === "published").length, color: "text-green-400", bg: "bg-green-500/10", icon: CheckCircle2 },
+            { label: "Drafts", value: scheduledPosts.filter(p => p.status === "draft").length, color: "text-violet-400", bg: "bg-violet-500/10", icon: FolderOpen },
+          ].map(s => (
+            <Card key={s.label} className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm">
+              <CardContent className="p-3">
+                <div className="flex items-center gap-2">
+                  <div className={`h-8 w-8 rounded-lg ${s.bg} flex items-center justify-center`}>
+                    <s.icon className={`h-4 w-4 ${s.color}`} />
+                  </div>
+                  <div>
+                    <p className="text-lg font-bold text-foreground leading-none">{s.value}</p>
+                    <p className="text-[10px] text-muted-foreground">{s.label}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        {/* Batch Create */}
+        <Card className="bg-white/[0.03] border-amber-500/20 backdrop-blur-sm overflow-hidden">
+          <div className="h-1 bg-gradient-to-r from-amber-500 via-orange-500 to-red-500" />
+          <CardContent className="p-5 space-y-5">
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
+                <Upload className="h-4 w-4 text-amber-400" />
+                Quick Schedule Post
+              </h4>
+              <div className="flex gap-1.5">
+                {(["video", "photo", "carousel"] as const).map(ct => (
+                  <Button key={ct} size="sm" variant={schedContentType === ct ? "default" : "outline"}
+                    onClick={() => setSchedContentType(ct)}
+                    className={`text-xs h-7 capitalize ${schedContentType === ct ? "bg-amber-500 hover:bg-amber-600" : ""}`}>
+                    {ct === "video" ? <FileVideo className="h-3 w-3 mr-1" /> : ct === "photo" ? <FileImage className="h-3 w-3 mr-1" /> : <Layers className="h-3 w-3 mr-1" />}
+                    {ct}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+              <div className="space-y-4">
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-medium text-muted-foreground">Caption / Title</label>
+                    <Button size="sm" variant="ghost" className="h-6 text-[10px] gap-1 text-amber-400 hover:text-amber-300" onClick={generateScheduleCaption} disabled={schedAiGenerating}>
+                      {schedAiGenerating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                      AI Generate
+                    </Button>
+                  </div>
+                  <Textarea value={newPostCaption} onChange={e => setNewPostCaption(e.target.value)} placeholder="Write an engaging caption..." rows={3} className="text-sm bg-muted/20 border-border/40" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Hashtags</label>
+                  <Input value={schedHashtags} onChange={e => setSchedHashtags(e.target.value)} placeholder="trending, fyp, viral..." className="text-sm bg-muted/20 border-border/40" />
+                </div>
+                <input ref={fileInputRef} type="file" multiple accept={schedContentType === "video" ? "video/*" : "image/*,video/*"} className="hidden" onChange={e => handleFileUpload(e.target.files)} />
+                <div
+                  className="border-2 border-dashed border-white/[0.08] rounded-xl p-4 text-center cursor-pointer hover:border-amber-500/30 transition-all"
+                  onClick={() => fileInputRef.current?.click()}
+                  onDragOver={e => { e.preventDefault(); }}
+                  onDrop={e => { e.preventDefault(); handleFileUpload(e.dataTransfer.files); }}
+                >
+                  {fileUploading ? <Loader2 className="h-6 w-6 text-amber-400 animate-spin mx-auto" /> : (
+                    <div className="flex flex-col items-center gap-1">
+                      <Upload className="h-5 w-5 text-amber-400" />
+                      <p className="text-xs text-foreground">Drop files or click to browse</p>
+                    </div>
+                  )}
+                </div>
+                {uploadedFiles.length > 0 && (
+                  <div className="flex gap-2 flex-wrap">
+                    {uploadedFiles.map((f, i) => (
+                      <div key={i} className="relative group">
+                        {f.file.type.startsWith("video") ? (
+                          <video src={f.preview} className="h-16 w-16 object-cover rounded-lg border border-white/[0.06]" />
+                        ) : (
+                          <img src={f.preview} className="h-16 w-16 object-cover rounded-lg border border-white/[0.06]" />
+                        )}
+                        <button onClick={() => removeUploadedFile(i)} className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-red-500 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                          <X className="h-3 w-3 text-white" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <Input value={newPostMediaUrl} onChange={e => setNewPostMediaUrl(e.target.value)} placeholder="Or paste media URL..." className="text-sm bg-muted/20 border-border/40" />
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Schedule Date & Time</label>
+                  <Input type="datetime-local" value={newPostScheduledAt} onChange={e => setNewPostScheduledAt(e.target.value)} className="text-sm bg-muted/20 border-border/40" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Privacy Level</label>
+                  <select value={schedPrivacy} onChange={e => setSchedPrivacy(e.target.value)} className="w-full bg-white/[0.06] text-foreground border border-white/[0.08] rounded-lg px-3 py-2 text-sm outline-none">
+                    <option value="PUBLIC_TO_EVERYONE">🌍 Public</option>
+                    <option value="MUTUAL_FOLLOW_FRIENDS">🤝 Friends</option>
+                    <option value="FOLLOWER_OF_CREATOR">👥 Followers Only</option>
+                    <option value="SELF_ONLY">🔐 Private</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Location</label>
+                  <Input value={schedLocation} onChange={e => setSchedLocation(e.target.value)} placeholder="City, Country..." className="text-sm bg-muted/20 border-border/40" />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex items-center gap-2"><Switch checked={schedDisableDuet} onCheckedChange={setSchedDisableDuet} /><span className="text-xs text-muted-foreground">Disable Duet</span></div>
+                  <div className="flex items-center gap-2"><Switch checked={schedDisableStitch} onCheckedChange={setSchedDisableStitch} /><span className="text-xs text-muted-foreground">Disable Stitch</span></div>
+                  <div className="flex items-center gap-2"><Switch checked={schedDisableComment} onCheckedChange={setSchedDisableComment} /><span className="text-xs text-muted-foreground">Disable Comments</span></div>
+                  <div className="flex items-center gap-2"><Switch checked={schedBrandContent} onCheckedChange={setSchedBrandContent} /><span className="text-xs text-muted-foreground">Brand Content</span></div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <Button onClick={schedulePost} size="sm" className="bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0 gap-1.5" disabled={scheduledPosts.filter(p => p.status === "scheduled").length >= 50}>
+                {newPostScheduledAt ? <><Calendar className="h-3.5 w-3.5" />Schedule</> : <><FolderOpen className="h-3.5 w-3.5" />Save Draft</>}
+              </Button>
+              {newPostCaption && (
+                <Button size="sm" variant="outline" onClick={() => publishPost({ caption: newPostCaption, media_urls: uploadedFiles.filter(f => f.url).map(f => f.url!), metadata: { privacy_level: schedPrivacy, content_type: schedContentType, disable_duet: schedDisableDuet, disable_comment: schedDisableComment, disable_stitch: schedDisableStitch, brand_content: schedBrandContent, location: schedLocation }, post_type: schedContentType })} disabled={loading} className="gap-1.5">
+                  <Zap className="h-3.5 w-3.5" />Publish Now
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Post Queue — Full Schedule View */}
+        <Card className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm">
+          <div className="h-1 bg-gradient-to-r from-orange-400 to-amber-500" />
+          <CardContent className="p-5 space-y-4">
+            <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
+              <Clock className="h-4 w-4 text-amber-400" />
+              Post Queue ({scheduledPosts.length}/50)
+            </h4>
+            {scheduledPosts.length > 0 ? (
+              <ScrollArea className="max-h-[500px]">
+                <div className="space-y-2">
+                  {scheduledPosts.map(p => {
+                    const meta = p.metadata || {};
+                    return (
+                      <div key={p.id} className="bg-white/[0.02] rounded-lg p-3 flex items-center gap-3 border border-white/[0.04] hover:border-amber-500/30 transition-colors">
+                        <div className={`h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0 ${p.status === "published" ? "bg-green-500/10" : p.status === "scheduled" ? "bg-amber-500/10" : p.status === "publishing" ? "bg-blue-500/10" : "bg-muted/30"}`}>
+                          {p.status === "published" ? <CheckCircle2 className="h-4 w-4 text-green-400" /> : p.status === "scheduled" ? <Clock className="h-4 w-4 text-amber-400" /> : p.status === "publishing" ? <Loader2 className="h-4 w-4 text-blue-400 animate-spin" /> : <FolderOpen className="h-4 w-4 text-muted-foreground" />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium text-foreground line-clamp-1">{p.caption || "No caption"}</p>
+                          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                            <Badge variant="outline" className={`text-[9px] ${p.status === "published" ? "border-green-500/30 text-green-400" : p.status === "scheduled" ? "border-amber-500/30 text-amber-400" : "border-border text-muted-foreground"}`}>
+                              {p.status}
+                            </Badge>
+                            <Badge variant="outline" className="text-[9px] border-border text-muted-foreground capitalize">{meta.content_type || p.post_type || "video"}</Badge>
+                            <span className="text-[10px] text-muted-foreground">
+                              {p.scheduled_at ? new Date(p.scheduled_at).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "No schedule"}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex gap-1 flex-shrink-0">
+                          {p.status !== "published" && (
+                            <Button size="sm" variant="ghost" className="h-7 w-7 p-0 hover:bg-green-500/10" onClick={() => publishPost(p)} title="Publish now">
+                              <Play className="h-3.5 w-3.5 text-green-400" />
+                            </Button>
+                          )}
+                          <Button size="sm" variant="ghost" className="h-7 w-7 p-0 hover:bg-red-500/10" onClick={() => deletePost(p.id)} title="Delete">
+                            <Trash2 className="h-3.5 w-3.5 text-red-400" />
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </ScrollArea>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <Calendar className="h-10 w-10 mx-auto mb-2 opacity-20" />
+                <p className="text-xs font-medium">No posts yet</p>
+                <p className="text-[10px] mt-1 opacity-60">Create your first scheduled post above</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </TabsContent>
     </Tabs>
+    </div>
   );
 };
 
