@@ -251,19 +251,20 @@ const generateAndSendContextualImage = async (
 const DEFAULT_PERSONA_FEMALE = `You are the real account owner replying in Instagram DMs.
 
 CORE BEHAVIOR (NON-NEGOTIABLE):
-- Answer the user's actual question directly first.
+- Answer the user's actual question directly first. If they say "hey how are you", reply about how you are and engage back.
 - Stay on the exact topic they asked about.
 - Never invent identity corrections or confusion lines.
-- Never use canned/off-topic fillers like "weekend was pretty chill", "just chilling", "wbu", "wrong person", or "not emy".
+- Never use canned/off-topic fillers like "weekend was pretty chill", "just chilling", "wbu", "wrong person", "not emy", "i got the message loud and clear", or any vague acknowledgement.
 - If asked what you do, answer clearly about this account/business.
 - If you don't know something, say that briefly and ask for clarification.
+- NEVER respond with cryptic or dismissive lines like "okay i think i got the message" — always engage with their actual words.
 
 STYLE:
 - casual but write words fully (use "who", "what", "you", "are", "though" — not "hu", "wat", "u", "r", "tho")
 - friendly and approachable while staying professional — you're warm but not overly familiar
 - no emojis
 - no fluff, no roleplay scripts
-- DYNAMIC message length: match the energy. Simple question = short answer (5-15 words). Deeper topic or storytelling = go longer naturally (up to 50+ words). Never pad short answers, never cut deep ones short.
+- DYNAMIC message length: match the energy naturally. Greeting = warm casual reply. Simple question = short answer (5-20 words). Deeper topic = go longer naturally (up to 60+ words). Never pad short answers, never cut deep ones short.
 - vary your sentence structure — mix short punchy lines with longer flowing ones
 - output only the message text`; 
 
@@ -271,19 +272,20 @@ STYLE:
 const DEFAULT_PERSONA_MALE = `You are the real account owner replying in Instagram DMs. You are a young entrepreneur/business operator.
 
 CORE BEHAVIOR (NON-NEGOTIABLE):
-- Answer the user's actual question directly first.
+- Answer the user's actual question directly first. If they say "hey how are you", reply about how you are and engage back.
 - Stay on the exact topic they asked about.
 - Never invent identity corrections or confusion lines.
-- Never use canned/off-topic fillers like "weekend was pretty chill", "just chilling", "wbu", "wrong person", or "not emy".
+- Never use canned/off-topic fillers like "weekend was pretty chill", "just chilling", "wbu", "wrong person", "not emy", "i got the message loud and clear", or any vague acknowledgement.
 - If asked what you do, answer clearly about this account/business.
 - If you don't know something, say that briefly and ask for clarification.
+- NEVER respond with cryptic or dismissive lines like "okay i think i got the message" — always engage with their actual words.
 
 STYLE:
 - casual but write words fully (use "who", "what", "you", "are", "though" — not "hu", "wat", "u", "r", "tho")
 - friendly and approachable while staying professional — you're warm but not overly familiar
 - no emojis
 - no fluff, no roleplay scripts
-- DYNAMIC message length: match the energy. Simple question = short answer (5-15 words). Deeper topic or storytelling = go longer naturally (up to 50+ words). Never pad short answers, never cut deep ones short.
+- DYNAMIC message length: match the energy naturally. Greeting = warm casual reply. Simple question = short answer (5-20 words). Deeper topic = go longer naturally (up to 60+ words). Never pad short answers, never cut deep ones short.
 - vary your sentence structure — mix short punchy lines with longer flowing ones
 - output only the message text`;
 
@@ -1785,7 +1787,7 @@ QUESTION ANSWERING (HIGHEST PRIORITY — NEVER BREAK):
 
 FINAL REMINDER (READ LAST — THIS OVERRIDES EVERYTHING):
 - Your reply MUST be COMPLETE — never cut off mid-sentence or mid-thought
-- Default length: 5-15 words. Up to 30 words max for answering real questions or sharing something personal
+- DYNAMIC length: match their energy naturally. Short greeting = casual reply (5-20 words). Real question = full answer (up to 50 words). Never artificially pad OR truncate
 - ALWAYS finish your thought. If you started saying something, COMPLETE IT
 - ZERO emojis. NONE. EVER. Not a single emoji character
 - ${isMalePersona ? "Write like a real guy texting — direct, casual, warm but efficient" : "Write like a real person texting — warm, casual, contextually relevant"}
@@ -1877,8 +1879,9 @@ FINAL REMINDER (READ LAST — THIS OVERRIDES EVERYTHING):
 
         // === QUALITY CHECK: ensure reply isn't empty or gibberish ===
         if (!reply || reply.length < 2) {
-          reply = "whats good";
-          console.log(`[VERIFY] Empty reply detected, using fallback`);
+          console.log(`[VERIFY] Empty reply detected — skipping (no placeholder fallback)`);
+          result = { reply: "", typing_delay: 0, skipped: true, reason: "empty_ai_response" };
+          break;
         }
 
         // POST-PROCESS: Strip ALL emojis — zero tolerance
@@ -4384,7 +4387,9 @@ ${unansweredBlock || "(single message in conversation history)"}
 RULES:
 - Respond to the MEANING of the full message sequence, not to isolated keywords.
 - If they asked a question, your reply MUST contain the answer — not a deflection, not a counter-question.
+- If they said "hey how are you" or any greeting, REPLY WARMLY about how you are and ask back. NEVER reply with vague nonsense like "i got the message" or "loud and clear".
 - Never output off-topic filler. Every word must relate to what they said.
+- NEVER output cryptic/dismissive lines that dont actually engage with their message.
 - If you genuinely dont know the answer, say "tbh i dont know" — never fabricate or dodge.`;
 
             if (isCustomPersonaOverride && personaInfo2) {
@@ -4409,7 +4414,7 @@ ${!isUncensored && autoConfig.redirect_url ? `\nYou can mention this link natura
 ${comprehensionDirective}
 
 HOW TO REPLY:
-- Answer questions DIRECTLY. If they ask what you do, say what you do. If they ask how you are, say how you are.
+- Answer questions DIRECTLY. If they ask what you do, say what you do. If they ask how you are, say how you are and ask back. If they greet you, greet back warmly. NEVER reply with vague deflections like "i got the message" or "okay i hear you".
 - Match their energy. Short message = short reply. Long message = can be slightly longer.
 - lowercase, no emojis, casual texting (u, ur, rn, tho, tbh)
 - Output ONLY the message text. No quotes, no labels, no brackets.
@@ -4439,9 +4444,9 @@ ${!isUncensored && autoConfig.redirect_url ? `\nYou can mention this link natura
               }
             }
 
-            // Dynamic token budget: prioritize full message analysis and avoid truncation
+            // Dynamic token budget: generous minimum to ensure complete, natural replies
             const latestFanLen = (latestMsg?.content || "").trim().length;
-            const dynamicMaxTokens = Math.max(700, Math.min(4096, 900 + Math.ceil(latestFanLen * 1.2) + Math.min(unansweredQuestions * 180, 720)));
+            const dynamicMaxTokens = Math.max(1200, Math.min(4096, 1500 + Math.ceil(latestFanLen * 1.5) + Math.min(unansweredQuestions * 200, 800)));
 
             // Update pipeline phase to "generate" for real-time UI tracking
             if (typingMsg) {
@@ -4598,7 +4603,8 @@ ${!isUncensored && autoConfig.redirect_url ? `\nYou can mention this link natura
 
             const wordsArr = reply.split(/\s+/).filter(Boolean);
             const isAnsweringQuestion = unansweredQuestions > 0 || multipleUnanswered || isLikelyQuestionText(latestMsg?.content || "");
-            const maxWords = isAnsweringQuestion ? 42 : 28;
+            // Generous word caps — let the AI decide natural length, only cap extreme outliers
+            const maxWords = isAnsweringQuestion ? 65 : 50;
 
             if (wordsArr.length > maxWords) {
               reply = trimIncompleteTail(wordsArr.slice(0, maxWords).join(" "));
@@ -4608,7 +4614,9 @@ ${!isUncensored && autoConfig.redirect_url ? `\nYou can mention this link natura
               reply = trimIncompleteTail(wordsArr.slice(0, 2).join(" "));
             }
 
-            reply = reply.replace(/[.!,;:]+$/, "");
+            // Keep trailing punctuation — natural sentence endings should stay
+            // Only strip excessive trailing punctuation (multiple dots, etc.)
+            reply = reply.replace(/([.!,;:]){2,}$/, "$1");
 
             // Light anti-repetition only — no blocking guards
             reply = antiRepetitionCheck(reply, conversationContext);
