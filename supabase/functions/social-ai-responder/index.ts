@@ -4846,8 +4846,9 @@ Answer it directly like a real human would. Do not talk about anything else.` })
               }
             }
 
-            // Dynamic tokens
-            const dynamicMaxTokens = Math.min(8192, Math.max(512, Math.ceil(aiMessages.map((m: any) => String(m.content || "").length).join(" ").length / 2)));
+            // Production-ready token limit: replies are 3-42 words, so 200 tokens is MORE than enough
+            // Higher values waste latency generating text that gets truncated anyway
+            const dynamicMaxTokens = 200;
 
             // Update pipeline phase to "generate" for real-time UI tracking
             if (typingMsg) {
@@ -4995,7 +4996,7 @@ Answer it directly like a real human would. Do not talk about anything else.` })
                   body: JSON.stringify({
                     model: LIVE_CHAT_RETRY_MODEL,
                     messages: aiMessages,
-                    max_tokens: 320,
+                    max_tokens: 200,
                     temperature: 0.75,
                   }),
                 });
