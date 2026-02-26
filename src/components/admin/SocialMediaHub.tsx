@@ -1036,22 +1036,37 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
           toast.info("Fetching Threads profile...");
           const profileRes = await fetch(`https://graph.threads.net/v1.0/me?fields=id,username,name,threads_profile_picture_url,threads_biography,is_verified&access_token=${accessToken}`);
           const profile = await profileRes.json();
-          const username = profile.username || "threads_user";
-          const threadsProfilePic = profile.threads_profile_picture_url || null;
-          let accountId = selectedAccount;
-          if (!accountId) {
-            const { data: newAcct, error: err } = await supabase.from("managed_accounts").insert({ username, display_name: profile.name || username, platform: "threads", status: "active", avatar_url: threadsProfilePic, bio: profile.threads_biography || null, user_id: user?.id }).select("id").single();
-            if (err || !newAcct) { toast.error(err?.message || "Failed to create account"); setAutoConnectLoading(null); return; }
-            accountId = newAcct.id; setSelectedAccount(accountId);
-          }
-          await supabase.from("social_connections").upsert({ account_id: accountId, platform: "threads", platform_user_id: profile.id || "", platform_username: username, access_token: accessToken, is_connected: true, scopes: [], metadata: { name: profile.name, username: profile.username, threads_profile_picture_url: threadsProfilePic, profile_picture_url: threadsProfilePic, threads_biography: profile.threads_biography, is_verified: profile.is_verified, connected_via: "threads_oauth_popup" }, user_id: user?.id }, { onConflict: "account_id,platform,user_id" });
-          await supabase.from("managed_accounts").update({ avatar_url: threadsProfilePic || undefined, display_name: profile.name || username, bio: profile.threads_biography || undefined, last_activity_at: new Date().toISOString() }).eq("id", accountId);
-          // Invalidate cache so fresh data loads
-          if (accountId) invalidateAccount(accountId);
-          invalidateNamespace("global", "smh_accounts");
-          setAutoSyncDone(false);
-          await loadAccounts(); await loadData(accountId);
-         toast.success(`✅ @${username} Threads connected!`);
+           const username = profile.username || "threads_user";
+           const threadsProfilePic = profile.threads_profile_picture_url || null;
+           const threadsPuid = profile.id || "";
+           let accountId = selectedAccount;
+           
+           // Multi-account: check if this Threads user is already connected
+           const { data: existingThreads } = await supabase.from("social_connections").select("id, account_id").eq("platform", "threads").eq("platform_user_id", threadsPuid).eq("user_id", user?.id!).maybeSingle();
+           if (existingThreads) {
+             accountId = existingThreads.account_id;
+           } else {
+             const { count: thCount } = await supabase.from("social_connections").select("id", { count: "exact", head: true }).eq("platform", "threads").eq("is_connected", true).eq("user_id", user?.id!);
+             if ((thCount || 0) >= 5) { toast.error("Maximum 5 Threads accounts reached"); setAutoConnectLoading(null); return; }
+             if (accountId && (thCount || 0) > 0) {
+               const { data: newAcct, error: err } = await supabase.from("managed_accounts").insert({ username, display_name: profile.name || username, platform: "threads", status: "active", avatar_url: threadsProfilePic, bio: profile.threads_biography || null, user_id: user?.id }).select("id").single();
+               if (err || !newAcct) { toast.error(err?.message || "Failed to create account"); setAutoConnectLoading(null); return; }
+               accountId = newAcct.id;
+               toast.success(`Additional Threads @${username} created`);
+             } else if (!accountId) {
+               const { data: newAcct, error: err } = await supabase.from("managed_accounts").insert({ username, display_name: profile.name || username, platform: "threads", status: "active", avatar_url: threadsProfilePic, bio: profile.threads_biography || null, user_id: user?.id }).select("id").single();
+               if (err || !newAcct) { toast.error(err?.message || "Failed to create account"); setAutoConnectLoading(null); return; }
+               accountId = newAcct.id;
+             }
+           }
+           setSelectedAccount(accountId);
+           await supabase.from("social_connections").upsert({ account_id: accountId, platform: "threads", platform_user_id: threadsPuid, platform_username: username, access_token: accessToken, is_connected: true, scopes: [], metadata: { name: profile.name, username: profile.username, threads_profile_picture_url: threadsProfilePic, profile_picture_url: threadsProfilePic, threads_biography: profile.threads_biography, is_verified: profile.is_verified, connected_via: "threads_oauth_popup" }, user_id: user?.id }, { onConflict: "account_id,platform,user_id" });
+           await supabase.from("managed_accounts").update({ avatar_url: threadsProfilePic || undefined, display_name: profile.name || username, bio: profile.threads_biography || undefined, last_activity_at: new Date().toISOString() }).eq("id", accountId);
+           if (accountId) invalidateAccount(accountId);
+           invalidateNamespace("global", "smh_accounts");
+           setAutoSyncDone(false);
+           await loadAccounts(); await loadData(accountId);
+          toast.success(`✅ @${username} Threads connected!`);
        } catch (err: any) { toast.error(err.message || "Threads connection failed"); }
        setAutoConnectLoading(null);
      };
@@ -1291,40 +1306,55 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
              console.warn("Could not fetch Facebook pages:", pageErr);
            }
 
-           const username = profile.name || "facebook_user";
-           let accountId = selectedAccount;
-           if (!accountId) {
-             const { data: newAcct, error: err } = await supabase.from("managed_accounts").insert({ username, display_name: profile.name, platform: "facebook", status: "active", avatar_url: profile.picture?.data?.url || null, user_id: user?.id }).select("id").single();
-             if (err || !newAcct) { toast.error(err?.message || "Failed"); setAutoConnectLoading(null); return; }
-             accountId = newAcct.id; setSelectedAccount(accountId);
-           }
-           const igLinkedToPage = fbPages.some(p => p.instagram_business_account?.id);
-           const fbMetadata: any = {
-             name: profile.name,
-             picture_url: profile.picture?.data?.url,
-             email: profile.email,
-             connected_via: "facebook_oauth_popup",
-             fb_pages: fbPages.map(p => ({ id: p.id, name: p.name, category: p.category, fan_count: p.fan_count, has_ig: !!p.instagram_business_account?.id })),
-             ig_linked: igLinkedToPage,
-           };
-           if (primaryPageToken) {
-             fbMetadata.fb_page_token = primaryPageToken;
-             fbMetadata.fb_page_id = primaryPageId;
-             fbMetadata.fb_page_name = primaryPageName;
-           }
-          await supabase.from("social_connections").upsert({
-            account_id: accountId, platform: "facebook", platform_user_id: profile.id || "",
-            platform_username: username, access_token: accessToken, is_connected: true,
-            scopes: ["public_profile","email","pages_show_list","pages_read_engagement","pages_manage_posts","pages_manage_metadata","pages_read_user_content","pages_messaging","publish_video","business_management"],
-            metadata: fbMetadata, user_id: user?.id,
-          }, { onConflict: "account_id,platform,user_id" });
-          await supabase.from("managed_accounts").update({ avatar_url: profile.picture?.data?.url || undefined, display_name: profile.name || username, last_activity_at: new Date().toISOString() }).eq("id", accountId);
+            const username = profile.name || "facebook_user";
+            const fbPuid = profile.id || "";
+            let accountId = selectedAccount;
+            
+            // Multi-account: check if this Facebook user is already connected
+            const { data: existingFb } = await supabase.from("social_connections").select("id, account_id").eq("platform", "facebook").eq("platform_user_id", fbPuid).eq("user_id", user?.id!).maybeSingle();
+            if (existingFb) {
+              accountId = existingFb.account_id;
+            } else {
+              const { count: fbCount } = await supabase.from("social_connections").select("id", { count: "exact", head: true }).eq("platform", "facebook").eq("is_connected", true).eq("user_id", user?.id!);
+              if ((fbCount || 0) >= 5) { toast.error("Maximum 5 Facebook accounts reached"); setAutoConnectLoading(null); return; }
+              if (accountId && (fbCount || 0) > 0) {
+                const { data: newAcct, error: err } = await supabase.from("managed_accounts").insert({ username, display_name: profile.name, platform: "facebook", status: "active", avatar_url: profile.picture?.data?.url || null, user_id: user?.id }).select("id").single();
+                if (err || !newAcct) { toast.error(err?.message || "Failed"); setAutoConnectLoading(null); return; }
+                accountId = newAcct.id;
+                toast.success(`Additional Facebook ${username} created`);
+              } else if (!accountId) {
+                const { data: newAcct, error: err } = await supabase.from("managed_accounts").insert({ username, display_name: profile.name, platform: "facebook", status: "active", avatar_url: profile.picture?.data?.url || null, user_id: user?.id }).select("id").single();
+                if (err || !newAcct) { toast.error(err?.message || "Failed"); setAutoConnectLoading(null); return; }
+                accountId = newAcct.id;
+              }
+            }
+            setSelectedAccount(accountId);
+            const igLinkedToPage = fbPages.some(p => p.instagram_business_account?.id);
+            const fbMetadata: any = {
+              name: profile.name,
+              picture_url: profile.picture?.data?.url,
+              email: profile.email,
+              connected_via: "facebook_oauth_popup",
+              fb_pages: fbPages.map(p => ({ id: p.id, name: p.name, category: p.category, fan_count: p.fan_count, has_ig: !!p.instagram_business_account?.id })),
+              ig_linked: igLinkedToPage,
+            };
+            if (primaryPageToken) {
+              fbMetadata.fb_page_token = primaryPageToken;
+              fbMetadata.fb_page_id = primaryPageId;
+              fbMetadata.fb_page_name = primaryPageName;
+            }
+           await supabase.from("social_connections").upsert({
+             account_id: accountId, platform: "facebook", platform_user_id: fbPuid,
+             platform_username: username, access_token: accessToken, is_connected: true,
+             scopes: ["public_profile","email","pages_show_list","pages_read_engagement","pages_manage_posts","pages_manage_metadata","pages_read_user_content","pages_messaging","publish_video","business_management"],
+             metadata: fbMetadata, user_id: user?.id,
+           }, { onConflict: "account_id,platform,user_id" });
+           await supabase.from("managed_accounts").update({ avatar_url: profile.picture?.data?.url || undefined, display_name: profile.name || username, last_activity_at: new Date().toISOString() }).eq("id", accountId);
 
-          // Invalidate caches so fresh data loads in UI
-          invalidateNamespace(accountId, "social_connections");
-          invalidateNamespace("global", "smh_accounts");
-          await loadAccounts(); await loadData(accountId);
-          toast.success(`✅ ${username} Facebook connected!${primaryPageName ? ` Page: ${primaryPageName}` : ""}`);
+           invalidateNamespace(accountId, "social_connections");
+           invalidateNamespace("global", "smh_accounts");
+           await loadAccounts(); await loadData(accountId);
+           toast.success(`✅ ${username} Facebook connected!${primaryPageName ? ` Page: ${primaryPageName}` : ""}`);
         } catch (err: any) { toast.error(err.message || "Facebook connection failed"); }
         setAutoConnectLoading(null);
      };
