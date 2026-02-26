@@ -64,7 +64,7 @@ serve(async (req) => {
 
     // Return client key for frontend use (like IG's get_app_id)
     if (action === "get_client_key") {
-      const clientKey = Deno.env.get("TIKTOK_CLIENT_KEY");
+      const clientKey = (Deno.env.get("TIKTOK_CLIENT_KEY") || "").trim();
       return new Response(JSON.stringify({ success: true, client_key: clientKey || null }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
