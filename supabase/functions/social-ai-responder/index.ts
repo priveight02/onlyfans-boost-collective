@@ -2266,7 +2266,7 @@ serve(async (req) => {
 CRITICAL FORMATTING RULES (always apply regardless of persona):
 - Output ONLY the message text. No quotes, no labels, no brackets, no annotations.
 - NEVER repeat something you already said in the conversation.
-- Read their LAST message. Reply to EXACTLY what they said.
+- Read their LAST message in full and answer the full intent, not just keywords.
 - Your reply MUST be COMPLETE — never cut off mid-sentence.
 ${auto_redirect_url ? `\nYou can mention this link naturally if relevant: ${auto_redirect_url}` : ""}
 ${keywords_trigger ? `If they mention any of these: ${keywords_trigger}, redirect them to the link.` : ""}`;
@@ -2281,7 +2281,7 @@ ${auto_redirect_url ? `\nIMPORTANT: when it makes sense, naturally guide toward 
 ${keywords_trigger ? `if they mention any of these: ${keywords_trigger}, redirect them to the link` : ""}
 
 CONTEXT AWARENESS (CRITICAL — READ BEFORE REPLYING):
-- Read ALL messages above carefully. Your reply MUST directly relate to what the fan just said
+- Read ALL messages above carefully. Your reply MUST directly relate to the full meaning of what the fan just said
 - If they sent [photo] or [video]: react to it warmly. ask about it. show genuine curiosity
 - If they shared something personal (their country, life, feelings): acknowledge it with interest
 - If they were sweet or affectionate: be warm back, not dismissive
@@ -2335,7 +2335,7 @@ FINAL REMINDER (READ LAST — THIS OVERRIDES EVERYTHING):
           body: JSON.stringify({
             model: LIVE_CHAT_PRIMARY_MODEL,
             messages,
-            max_tokens: 700,
+            max_tokens: 2048,
             temperature: 0.8,
           }),
         });
@@ -2370,7 +2370,7 @@ FINAL REMINDER (READ LAST — THIS OVERRIDES EVERYTHING):
                   { role: "assistant", content: reply },
                   { role: "user", content: "Your last reply got cut off. Rewrite it as ONE complete thought. Keep it short and natural. Output ONLY the final message:" },
                 ],
-                max_tokens: 700,
+                max_tokens: 2048,
                 temperature: 0.7,
               }),
             });
@@ -4779,8 +4779,8 @@ CRITICAL FORMATTING RULES (always apply regardless of persona):
 - lowercase, casual texting style (u, ur, rn, tho, tbh, wbu, hbu, nm)
 - Output ONLY the message text. No quotes, no labels, no brackets.
 - NEVER repeat something you already said in the conversation.
-- Read their LAST message. Reply to EXACTLY what they said.
-${fanMemoryBlock}
+- Read their LAST message in full and answer the full intent, not just keywords.
+- Reply to EXACTLY what they said.
 ${aiModesDirective}
 ${!isUncensored && autoConfig.redirect_url ? `\nYou can mention this link naturally if relevant: ${autoConfig.redirect_url}` : ""}`;
               console.log(`[SYSTEM PROMPT] Using CUSTOM persona system_prompt override (${systemPrompt.length} chars)`);
@@ -4793,8 +4793,8 @@ ${!isUncensored && autoConfig.redirect_url ? `\nYou can mention this link natura
               systemPrompt = `${corePersona}
 
 HOW TO REPLY:
-- Read their LAST message. Reply to EXACTLY what they said. Nothing else.
-- "hey how you doing" → "im good wbu" or "doing alright hbu"
+- Read their LAST message in full. Reply to EXACTLY what they said.
+- Answer the full intent of their message, not isolated keywords.
 - "whats up" → "nm just chilling u"  
 - "where are you from" → answer where you're from
 - "do you like X" → answer yes or no with a short reason
@@ -4812,8 +4812,8 @@ ${!isUncensored && autoConfig.redirect_url ? `\nYou can mention this link natura
 
             const aiMessages: any[] = [{ role: "system", content: systemPrompt }];
             
-            // Send LAST 3 messages for conversation flow context
-            const recentContext = conversationContext.slice(-3);
+            // Send richer recent context for better intent understanding
+            const recentContext = conversationContext.slice(-12);
             for (const ctx of recentContext) {
               aiMessages.push({ role: ctx.role === "creator" ? "assistant" : "user", content: ctx.text });
             }
@@ -4831,7 +4831,7 @@ ${!isUncensored && autoConfig.redirect_url ? `\nYou can mention this link natura
             // Inject the LATEST fan message as the primary focus
             if (unansweredFanMsgs.length > 0) {
               const latestOnly = unansweredFanMsgs[unansweredFanMsgs.length - 1];
-              const latestText = (latestOnly.content || "").substring(0, 200);
+              const latestText = String(latestOnly.content || "").trim();
               
               aiMessages.push({ role: "system", content: `REPLY TO THIS MESSAGE: "${latestText}"
 Answer it directly like a real human would. Do not talk about anything else.` });
@@ -4847,7 +4847,7 @@ Answer it directly like a real human would. Do not talk about anything else.` })
             }
 
             // Dynamic tokens
-            const dynamicMaxTokens = multipleUnanswered ? 400 : (unansweredQuestions > 0 ? 300 : 200);
+            const dynamicMaxTokens = Math.min(8192, Math.max(512, Math.ceil(aiMessages.map((m: any) => String(m.content || "").length).join(" ").length / 2)));
 
             // Update pipeline phase to "generate" for real-time UI tracking
             if (typingMsg) {
@@ -5016,7 +5016,7 @@ Answer it directly like a real human would. Do not talk about anything else.` })
 
             const wordsArr = reply.split(/\s+/).filter(Boolean);
             const isAnsweringQuestion = unansweredQuestions > 0 || multipleUnanswered || isLikelyQuestionText(latestMsg?.content || "");
-            const maxWords = isAnsweringQuestion ? 50 : 35;
+            const maxWords = isAnsweringQuestion ? 42 : 28;
 
             if (wordsArr.length > maxWords) {
               reply = trimIncompleteTail(wordsArr.slice(0, maxWords).join(" "));
@@ -5041,42 +5041,22 @@ Answer it directly like a real human would. Do not talk about anything else.` })
             const latestFanTextNow = (latestMsg?.content || "").trim();
             const latestIsQuestionNow = isLikelyQuestionText(latestFanTextNow);
             if (latestIsQuestionNow) {
-              const fanLower = latestFanTextNow.toLowerCase();
-              // Detect topic-specific questions that need topic-relevant answers
-              const asksAboutJobNow = /(sales|job|work|business|profession|do for a living|what do you do|what do u do|are you in)/i.test(fanLower);
               const replyLower = reply.toLowerCase();
 
-              // Detect follow-up questions — these should NOT trigger the deflection guard
+              // Detect follow-up questions — these should NOT trigger deflection handling
               const isFollowUpQuestion = /(what else|how does it work|how does that work|tell me more|explain|elaborate|what exactly|more about|specifics|like what|such as|for example|how do you|but what do you|and what|what kind of|what type of|how it work|on it how)/i.test(fanLower);
-              const priorAssistantMsgs = conversationContext
-                .filter((m: any) => m.role === "creator" || m.role === "assistant")
-                .map((m: any) => (m.text || m.content || "").toLowerCase());
-              const alreadyAnsweredJobBefore = priorAssistantMsgs.some((t: string) =>
-                /\b(i run|i do|i manage|i handle|business|digital|services|products|entrepreneur|online business|my thing|my lane|page and business)\b/i.test(t)
-              );
 
               let looksLikeDeflection = false;
 
-              // If it's a follow-up and we already answered, trust the AI's reply
-              if (isFollowUpQuestion && alreadyAnsweredJobBefore) {
+              if (isFollowUpQuestion) {
                 looksLikeDeflection = false;
                 console.log(`[DEFLECT GUARD] Follow-up question detected, trusting AI reply: "${reply}"`);
-              } else if (asksAboutJobNow && alreadyAnsweredJobBefore) {
-                // They're re-asking about job but we already answered — let AI elaborate
-                looksLikeDeflection = false;
-                console.log(`[DEFLECT GUARD] Job re-asked but already answered, letting AI elaborate: "${reply}"`);
-              } else if (asksAboutJobNow) {
-                // First time job question — require job-relevant words in reply
-                const hasJobRelevantAnswer = /\b(sales|business|entrepreneur|sell|selling|digital|services|products|online|marketing|agency|freelance|consulting|run|manage|own|build|create|tech|software|saas|ecommerce|i do|i work|my thing)\b/i.test(replyLower);
-                if (!hasJobRelevantAnswer) {
-                  looksLikeDeflection = true;
-                  console.log(`[DEFLECT GUARD] Job question detected but reply has no job-relevant words: "${reply}"`);
-                }
               } else {
-                // General question deflection check (original logic)
+                // General deflection check only (intent-level, not keyword-level)
                 looksLikeDeflection =
-                  (replyLower.includes("?") && !/\b(im|i am|i do|i run|my|yes|no|yea|nah|from|in|at|its|it is|rn|work|business)\b/i.test(replyLower)) ||
-                  /\b(hows yours|how's yours|wbu|hbu)\b/i.test(replyLower);
+                  !replyLower ||
+                  ((replyLower.includes("?") || /\b(wbu|hbu|hows yours|how's yours)\b/i.test(replyLower)) &&
+                    !/\b(im|i am|i do|i run|my|yes|no|yea|nah|from|in|at|its|it is|rn)\b/i.test(replyLower));
               }
 
               if (looksLikeDeflection) {
@@ -5090,20 +5070,8 @@ Answer it directly like a real human would. Do not talk about anything else.` })
 
                 if (deterministicDirect) {
                   reply = deterministicDirect;
-                } else {
-                  const jobFallbacks = [
-                    "yeah im actually in digital marketing and online business wby",
-                    "yea i run an online business mostly digital services hbu",
-                    "yeah im in tech and digital services what about you",
-                    "yea i do online business and marketing wbu whats your thing",
-                    "yeah im into digital business and services what do you do",
-                  ];
-                  const genericFallbacks = [
-                    "yeah im in online business rn what about you",
-                    "yea i run a digital business wby",
-                  ];
-                  const pool = asksAboutJobNow ? jobFallbacks : genericFallbacks;
-                  reply = pool[Math.floor(Math.random() * pool.length)];
+                } else if (!reply || reply.trim().length < 2) {
+                  reply = "my bad can u say that again in one line";
                 }
                 console.log(`[DEFLECT GUARD] Replaced deflection with: "${reply}"`);
               }
