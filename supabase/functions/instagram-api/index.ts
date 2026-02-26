@@ -3309,6 +3309,33 @@ Analyze every character in the name and username for any gender signal at all. L
         break;
       }
 
+      case "fetch_conversation_messages": {
+        // Fetch all message IDs from a specific IG conversation thread
+        const convId = params?.conversation_id;
+        const msgLimit = params?.limit || 100;
+        if (!convId) throw new Error("conversation_id required");
+
+        // Paginate through all messages in the thread
+        let allMsgIds: string[] = [];
+        let url = `${IG_GRAPH_URL}/${convId}/messages?limit=${Math.min(msgLimit, 500)}&fields=id`;
+        let pages = 0;
+        while (url && pages < 10) {
+          const resp = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+          const json = await resp.json();
+          if (json.error) throw new Error(json.error?.message || "Failed to fetch conversation messages");
+          const msgs = json.data || [];
+          for (const m of msgs) {
+            if (m.id) allMsgIds.push(m.id);
+          }
+          pages++;
+          if (allMsgIds.length >= msgLimit) break;
+          url = json.paging?.next || "";
+        }
+        console.log(`fetch_conversation_messages: ${allMsgIds.length} IDs from convo ${convId}`);
+        result = { messages: allMsgIds.map((id: string) => ({ id })), total: allMsgIds.length };
+        break;
+      }
+
       default:
         throw new Error(`Unknown action: ${action}`);
     }
