@@ -139,10 +139,14 @@ serve(async (req) => {
       });
     }
 
-    // All other actions need connection
+    // All other actions need connection (unless access_token_override is provided)
     if (action !== "exchange_code") {
-      conn = await getConnection(supabase, account_id);
-      token = conn.access_token;
+      if (params?.access_token_override) {
+        token = params.access_token_override;
+      } else {
+        conn = await getConnection(supabase, account_id);
+        token = conn.access_token;
+      }
     }
 
     switch (action) {
