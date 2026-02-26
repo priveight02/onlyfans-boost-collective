@@ -74,6 +74,7 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
   const [accounts, setAccounts] = useState<any[]>([]);
   const [selectedAccount, setSelectedAccount] = useState("");
   const [connections, setConnections] = useState<any[]>([]);
+  const [globalConnections, setGlobalConnections] = useState<any[]>([]);
   const [posts, setPosts] = useState<any[]>([]);
   const [bioLinks, setBioLinks] = useState<any[]>([]);
   const [analytics, setAnalytics] = useState<any[]>([]);
@@ -444,7 +445,7 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
     const acctId = overrideAccountId || selectedAccount;
     if (!acctId) return;
     setLoading(true);
-    const [connsData, socialPostsData, linksData, statsData, repliesData] = await Promise.all([
+    const [connsData, socialPostsData, linksData, statsData, repliesData, globalConnsData] = await Promise.all([
       cachedFetch(acctId, "social_connections", async () => {
         const { data } = await supabase.from("social_connections").select("*").eq("account_id", acctId);
         return data || [];
@@ -465,8 +466,17 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
         const { data } = await supabase.from("social_comment_replies").select("*").eq("account_id", acctId).order("created_at", { ascending: false }).limit(50);
         return data || [];
       }, undefined, { ttlMs: 2 * 60 * 1000 }),
+      cachedFetch("global", `smh_global_connections_${user?.id || "anon"}`, async () => {
+        if (!user?.id) return [];
+        const { data } = await supabase
+          .from("social_connections")
+          .select("id, account_id, platform, is_connected")
+          .eq("user_id", user.id);
+        return data || [];
+      }, undefined, { ttlMs: 30 * 1000 }),
     ]);
     setConnections(connsData);
+    setGlobalConnections(globalConnsData as any[]);
     setPosts(socialPostsData);
     setBioLinks(linksData);
     setAnalytics(statsData);
@@ -1013,7 +1023,7 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
      if (!appId) { toast.error("Configure THREADS_APP_ID in backend secrets"); return; }
      const threadsRedirectUri = "https://uplyze.ai/threads-login";
      const scopes = "threads_basic,threads_content_publish,threads_delete,threads_keyword_search,threads_location_tagging,threads_manage_insights,threads_manage_mentions,threads_manage_replies,threads_profile_discovery,threads_read_replies";
-     const authUrl = `https://threads.net/oauth/authorize?client_id=${appId}&redirect_uri=${encodeURIComponent(threadsRedirectUri)}&scope=${scopes}&response_type=code&state=${addMode ? "add_account" : "connect"}`;
+     const authUrl = `https://threads.net/oauth/authorize?client_id=${appId}&redirect_uri=${encodeURIComponent(threadsRedirectUri)}&scope=${scopes}&response_type=code&state=${addMode ? `add_account_${crypto.randomUUID()}` : "connect"}${addMode ? "&prompt=select_account" : ""}`;
      const w = 520, h = 620;
      const left = Math.round(window.screenX + (window.outerWidth - w) / 2);
      const top = Math.round(window.screenY + (window.outerHeight - h) / 2);
@@ -1051,10 +1061,12 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
               .maybeSingle();
 
             if (existingThreads) {
-              accountId = existingThreads.account_id;
               if (addMode) {
-                toast.info("This Threads account is already connected. Switched to the existing account.");
+                toast.error("This Threads account is already connected. Select a different Threads account in the popup.");
+                setAutoConnectLoading(null);
+                return;
               }
+              accountId = existingThreads.account_id;
             } else {
               const { count: thCount } = await supabase.from("social_connections").select("id", { count: "exact", head: true }).eq("platform", "threads").eq("is_connected", true).eq("user_id", user?.id!);
               if ((thCount || 0) >= 5) { toast.error("Maximum 5 Threads accounts reached"); setAutoConnectLoading(null); return; }
@@ -1241,7 +1253,7 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
      if (!appId) { toast.error("Configure FACEBOOK_APP_ID in backend secrets"); return; }
      const fbRedirectUri = "https://uplyze.ai/fb-login";
      const scopes = "public_profile,email,pages_show_list,pages_read_engagement,pages_manage_posts,pages_manage_metadata,pages_read_user_content,pages_messaging,publish_video,business_management";
-     const authUrl = `https://www.facebook.com/v24.0/dialog/oauth?client_id=${appId}&redirect_uri=${encodeURIComponent(fbRedirectUri)}&scope=${scopes}&response_type=code&auth_type=${addMode ? "rerequest" : "reauthenticate"}&display=popup&state=${addMode ? "add_account" : "connect"}`;
+     const authUrl = `https://www.facebook.com/v24.0/dialog/oauth?client_id=${appId}&redirect_uri=${encodeURIComponent(fbRedirectUri)}&scope=${scopes}&response_type=code&auth_type=${addMode ? "reauthenticate" : "rerequest"}&display=popup&state=${addMode ? `add_account_${crypto.randomUUID()}` : "connect"}&auth_nonce=${encodeURIComponent(crypto.randomUUID())}${addMode ? "&prompt=select_account" : ""}`;
      const w = 520, h = 620;
      const left = Math.round(window.screenX + (window.outerWidth - w) / 2);
      const top = Math.round(window.screenY + (window.outerHeight - h) / 2);
@@ -1323,10 +1335,12 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
             // Multi-account: check if this Facebook user is already connected
             const { data: existingFb } = await supabase.from("social_connections").select("id, account_id").eq("platform", "facebook").eq("platform_user_id", fbPuid).eq("user_id", user?.id!).maybeSingle();
             if (existingFb) {
-              accountId = existingFb.account_id;
               if (addMode) {
-                toast.info("This Facebook account is already connected. Switched to the existing account.");
+                toast.error("This Facebook account is already connected. Select a different Facebook account in the popup.");
+                setAutoConnectLoading(null);
+                return;
               }
+              accountId = existingFb.account_id;
             } else {
               const { count: fbCount } = await supabase.from("social_connections").select("id", { count: "exact", head: true }).eq("platform", "facebook").eq("is_connected", true).eq("user_id", user?.id!);
               if ((fbCount || 0) >= 5) { toast.error("Maximum 5 Facebook accounts reached"); setAutoConnectLoading(null); return; }
@@ -1596,6 +1610,14 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
   const pinterestConnected = connections.some(c => c.platform === "pinterest" && c.is_connected);
   const discordConnected = connections.some(c => c.platform === "discord" && c.is_connected);
   const facebookConnected = connections.some(c => c.platform === "facebook" && c.is_connected);
+
+  const isPlatformConnectedAnywhere = (platform: string) =>
+    globalConnections.some((c: any) => c.platform === platform && c.is_connected);
+
+  const igConnectedAny = igConnected || isPlatformConnectedAnywhere("instagram");
+  const ttConnectedAny = ttConnected || isPlatformConnectedAnywhere("tiktok");
+  const facebookConnectedAny = facebookConnected || isPlatformConnectedAnywhere("facebook");
+  const threadsConnectedAny = threadsConnected || isPlatformConnectedAnywhere("threads");
   // Check if FB page is actually linked to the IG account (ig_linked flag or page has instagram_business_account)
   const igFbPageLinked = (() => {
     if (!igConnected || !facebookConnected) return false;
@@ -1697,7 +1719,7 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
     setIgLoginPopupLoading(true);
     const redirectUri = "https://uplyze.ai/ig-login";
     const scope = "instagram_business_basic,instagram_business_manage_messages,instagram_business_manage_comments,instagram_business_content_publish,instagram_business_manage_insights";
-    const authUrl = `https://www.instagram.com/oauth/authorize?force_reauth=true&client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent(scope)}&state=${addMode ? "add_account" : "connect"}`;
+    const authUrl = `https://www.instagram.com/oauth/authorize?force_reauth=true&client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent(scope)}&state=${addMode ? `add_account_${crypto.randomUUID()}` : "connect"}${addMode ? "&prompt=select_account" : ""}`;
     
     // Open as a centered popup window
     const w = 520, h = 620;
@@ -1747,11 +1769,11 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
             .maybeSingle();
           
           if (existingByPuid) {
-            // Re-connecting an existing account — update in place
-            accountId = existingByPuid.account_id;
             if (addMode) {
-              toast.info("This Instagram account is already connected. Switched to the existing account.");
+              toast.error("This Instagram account is already connected. Select a different Instagram in the login popup.");
+              return;
             }
+            accountId = existingByPuid.account_id;
           } else {
             // Check how many IG accounts this user already has
             const { count } = await supabase
@@ -2005,10 +2027,12 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
           .maybeSingle();
 
         if (existingTT) {
-          accountId = existingTT.account_id;
           if (addMode) {
-            toast.info("This TikTok account is already connected. Switched to the existing account.");
+            toast.error("This TikTok account is already connected. Select a different TikTok account in the popup.");
+            setAutoConnectLoading(null);
+            return;
           }
+          accountId = existingTT.account_id;
         } else {
           const { count: ttCount } = await supabase
             .from("social_connections")
@@ -2952,16 +2976,24 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
                 {/* 1. Instagram - available */}
                 {(() => {
                   const isLoading = igLoginPopupLoading;
+                  const platformConnected = igConnectedAny;
                   const cardDisabled = isLoading;
                   return (
                     <div className="group/wrap relative" id="instagram-connect-card">
-                      <button
-                        onClick={() => { if (!igConnected) openIgLoginPopup(false); }}
-                        disabled={cardDisabled}
-                        className={`group/cube relative flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl border bg-card/50 backdrop-blur-sm transition-all duration-300 hover:border-pink-500/40 hover:bg-pink-500/5 hover:shadow-[0_0_24px_-5px] hover:shadow-pink-500/20 disabled:opacity-50 disabled:pointer-events-none aspect-square w-full ${highlightInstagram ? "border-pink-500/60 animate-connect-highlight" : "border-border/50"}`}
+                      <div
+                        role="button"
+                        tabIndex={cardDisabled ? -1 : 0}
+                        onClick={() => { if (!cardDisabled && !platformConnected) openIgLoginPopup(false); }}
+                        onKeyDown={(e) => {
+                          if ((e.key === "Enter" || e.key === " ") && !cardDisabled && !platformConnected) {
+                            e.preventDefault();
+                            openIgLoginPopup(false);
+                          }
+                        }}
+                        className={`group/cube relative flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl border bg-card/50 backdrop-blur-sm transition-all duration-300 hover:border-pink-500/40 hover:bg-pink-500/5 hover:shadow-[0_0_24px_-5px] hover:shadow-pink-500/20 aspect-square w-full ${cardDisabled ? "opacity-50 pointer-events-none" : ""} ${platformConnected ? "cursor-default" : "cursor-pointer"} ${highlightInstagram ? "border-pink-500/60 animate-connect-highlight" : "border-border/50"}`}
                         style={highlightInstagram ? { '--highlight-color': 'rgba(236,72,153,0.4)' } as React.CSSProperties : undefined}
                       >
-                        {igConnected && <div className="absolute top-2 right-2 h-2 w-2 rounded-full bg-green-400 shadow-[0_0_6px] shadow-green-400/60" />}
+                        {platformConnected && <div className="absolute top-2 right-2 h-2 w-2 rounded-full bg-green-400 shadow-[0_0_6px] shadow-green-400/60" />}
                         {/* Disconnect button */}
                         {igConnected && (() => {
                           const igConn = connections.find(c => c.platform === "instagram" && c.is_connected);
@@ -2986,7 +3018,7 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
                           {isLoading ? <Loader2 className="h-8 w-8 text-pink-400 animate-spin" /> : <Instagram className="h-8 w-8 text-pink-400 transition-all duration-300 group-hover/cube:text-pink-300 group-hover/cube:drop-shadow-[0_0_12px_rgba(236,72,153,0.5)]" />}
                         </div>
                         <span className="text-[10px] font-semibold text-muted-foreground group-hover/cube:text-foreground transition-colors leading-tight text-center">Connect Instagram</span>
-                      </button>
+                      </div>
                     </div>
                   );
                 })()}
@@ -2994,16 +3026,24 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
                 {/* 2. TikTok - available (one-click like Instagram) */}
                 {(() => {
                   const isLoading = autoConnectLoading === "tiktok" || ttLoginPopupLoading;
+                  const platformConnected = ttConnectedAny;
                   const cardDisabled = isLoading;
                   return (
                     <div className="group/wrap relative" id="tiktok-connect-card">
-                      <button
-                        onClick={() => { if (!ttConnected) openTtLoginPopup(false); }}
-                        disabled={cardDisabled}
-                        className={`group/cube relative flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl border bg-card/50 backdrop-blur-sm transition-all duration-300 hover:border-cyan-400/40 hover:bg-cyan-400/5 hover:shadow-[0_0_24px_-5px] hover:shadow-cyan-400/20 disabled:opacity-50 disabled:pointer-events-none aspect-square w-full ${highlightTiktok ? "border-cyan-400/60 animate-connect-highlight" : "border-border/50"}`}
+                      <div
+                        role="button"
+                        tabIndex={cardDisabled ? -1 : 0}
+                        onClick={() => { if (!cardDisabled && !platformConnected) openTtLoginPopup(false); }}
+                        onKeyDown={(e) => {
+                          if ((e.key === "Enter" || e.key === " ") && !cardDisabled && !platformConnected) {
+                            e.preventDefault();
+                            openTtLoginPopup(false);
+                          }
+                        }}
+                        className={`group/cube relative flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl border bg-card/50 backdrop-blur-sm transition-all duration-300 hover:border-cyan-400/40 hover:bg-cyan-400/5 hover:shadow-[0_0_24px_-5px] hover:shadow-cyan-400/20 aspect-square w-full ${cardDisabled ? "opacity-50 pointer-events-none" : ""} ${platformConnected ? "cursor-default" : "cursor-pointer"} ${highlightTiktok ? "border-cyan-400/60 animate-connect-highlight" : "border-border/50"}`}
                         style={highlightTiktok ? { '--highlight-color': 'rgba(34,211,238,0.4)' } as React.CSSProperties : undefined}
                       >
-                        {ttConnected && <div className="absolute top-2 right-2 h-2 w-2 rounded-full bg-green-400 shadow-[0_0_6px] shadow-green-400/60" />}
+                        {platformConnected && <div className="absolute top-2 right-2 h-2 w-2 rounded-full bg-green-400 shadow-[0_0_6px] shadow-green-400/60" />}
                         {ttConnected && (() => {
                           const ttConn = connections.find(c => c.platform === "tiktok" && c.is_connected);
                           return ttConn ? (
@@ -3027,7 +3067,7 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
                           {isLoading ? <Loader2 className="h-8 w-8 text-cyan-400 animate-spin" /> : <svg viewBox="0 0 24 24" className="h-8 w-8 transition-all duration-300 group-hover/cube:drop-shadow-[0_0_12px_rgba(34,211,238,0.5)]" fill="#00f2ea"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.27 6.27 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.34-6.34V8.75a8.18 8.18 0 0 0 4.76 1.52V6.84a4.84 4.84 0 0 1-1-.15z"/></svg>}
                         </div>
                         <span className="text-[10px] font-semibold text-muted-foreground group-hover/cube:text-foreground transition-colors leading-tight text-center">Connect TikTok</span>
-                      </button>
+                      </div>
                     </div>
                   );
                 })()}
@@ -3035,16 +3075,24 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
                 {/* 3. Facebook - available */}
                 {(() => {
                   const isLoading = autoConnectLoading === "facebook";
+                  const platformConnected = facebookConnectedAny;
                   const cardDisabled = isLoading;
                   return (
                     <div className="group/wrap relative" id="facebook-connect-card">
-                      <button
-                        onClick={() => { if (!facebookConnected) automatedFacebookConnect(false); }}
-                        disabled={cardDisabled}
-                        className={`group/cube relative flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl border bg-card/50 backdrop-blur-sm transition-all duration-300 hover:border-blue-500/40 hover:bg-blue-500/5 hover:shadow-[0_0_24px_-5px] hover:shadow-blue-500/20 disabled:opacity-50 disabled:pointer-events-none aspect-square w-full ${highlightFacebook ? "border-blue-500/60 animate-connect-highlight" : "border-border/50"}`}
+                      <div
+                        role="button"
+                        tabIndex={cardDisabled ? -1 : 0}
+                        onClick={() => { if (!cardDisabled && !platformConnected) automatedFacebookConnect(false); }}
+                        onKeyDown={(e) => {
+                          if ((e.key === "Enter" || e.key === " ") && !cardDisabled && !platformConnected) {
+                            e.preventDefault();
+                            automatedFacebookConnect(false);
+                          }
+                        }}
+                        className={`group/cube relative flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl border bg-card/50 backdrop-blur-sm transition-all duration-300 hover:border-blue-500/40 hover:bg-blue-500/5 hover:shadow-[0_0_24px_-5px] hover:shadow-blue-500/20 aspect-square w-full ${cardDisabled ? "opacity-50 pointer-events-none" : ""} ${platformConnected ? "cursor-default" : "cursor-pointer"} ${highlightFacebook ? "border-blue-500/60 animate-connect-highlight" : "border-border/50"}`}
                         style={highlightFacebook ? { '--highlight-color': 'rgba(59,130,246,0.4)' } as React.CSSProperties : undefined}
                       >
-                        {facebookConnected && <div className="absolute top-2 right-2 h-2 w-2 rounded-full bg-green-400 shadow-[0_0_6px] shadow-green-400/60" />}
+                        {platformConnected && <div className="absolute top-2 right-2 h-2 w-2 rounded-full bg-green-400 shadow-[0_0_6px] shadow-green-400/60" />}
                         {facebookConnected && (() => {
                           const fbConn = connections.find(c => c.platform === "facebook" && c.is_connected);
                           return fbConn ? (
@@ -3070,7 +3118,7 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
                           )}
                         </div>
                         <span className="text-[10px] font-semibold text-muted-foreground group-hover/cube:text-foreground transition-colors leading-tight text-center">Connect Facebook</span>
-                      </button>
+                      </div>
                     </div>
                   );
                 })()}
@@ -3079,17 +3127,25 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
                 {(() => {
                   const p = { id: "threads", label: "Connect Threads", svgIcon: <svg viewBox="0 0 192 192" className="h-8 w-8 transition-all duration-300 group-hover/cube:drop-shadow-[0_0_12px_rgba(192,132,252,0.5)]" fill="currentColor"><path d="M141.537 88.9883C140.71 88.5919 139.87 88.2104 139.019 87.8451C137.537 60.5382 122.616 44.905 97.5619 44.745C97.4484 44.7443 97.3355 44.7443 97.222 44.745C82.2364 44.745 69.7731 51.1399 62.1022 62.6747L75.7727 71.3821C81.1761 63.5292 89.268 59.6122 97.222 59.6122L97.278 59.6122C106.338 59.6665 113.17 62.4629 117.586 67.8906C120.755 71.7552 122.829 76.9676 123.793 83.4466C117.929 82.4062 111.534 81.9825 104.665 82.1792C82.4856 82.8102 68.1467 94.7389 69.0766 111.163C69.5497 119.502 73.5604 126.721 80.3757 131.552C86.1847 135.684 93.6258 137.742 101.379 137.363C111.344 136.866 119.239 132.871 124.654 125.607C128.641 120.289 131.219 113.485 132.553 104.854C137.467 107.83 141.145 111.752 143.251 116.533C146.886 124.647 147.068 138.247 136.398 148.917C127.051 158.265 115.818 162.697 97.364 162.837C76.7819 162.681 61.5251 156.296 51.2819 143.763C41.6667 131.989 36.6012 115.282 36.4329 94C36.6012 72.7178 41.6667 56.0107 51.2819 44.2365C61.5251 31.7035 76.7819 25.3185 97.364 25.1627C118.093 25.3197 133.627 31.7688 144.198 44.3827C149.359 50.5355 153.27 58.165 155.89 66.9742L170.186 63.0565C167.07 52.5024 162.307 43.4419 156.056 35.9973C142.95 20.4105 124.452 12.4483 97.406 12.2617L97.322 12.2617C70.4367 12.4471 52.17 20.4758 39.3082 36.0914C27.0166 51.012 20.7267 71.2753 20.5331 94.0419L20.5331 94.0419C20.7267 116.725 27.0166 136.988 39.3082 151.909C52.17 167.524 70.4367 175.553 97.322 175.738L97.406 175.738C119.394 175.572 133.776 169.793 145.684 157.885C161.961 141.608 161.496 121.068 156.384 109.483C152.716 101.175 146.059 94.3498 141.537 88.9883ZM100.885 123.532C90.3552 124.072 82.5765 118.403 82.1001 108.85C81.7364 101.638 86.6254 93.2956 104.962 92.7273C107.887 92.6432 110.734 92.7217 113.491 92.957C112.222 107.725 107.531 123.194 100.885 123.532Z"/></svg>, hoverBorder: "hover:border-purple-400/40", hoverBg: "hover:bg-purple-400/5", hoverShadow: "hover:shadow-purple-400/20", connected: threadsConnected, action: automatedThreadsConnect };
                   const isLoading = autoConnectLoading === p.id;
+                  const platformConnected = threadsConnectedAny;
                   const cardDisabled = isLoading;
                   return (
                     <div className="group/wrap relative" id="threads-connect-card">
-                      <button
-                        onClick={() => { if (!p.connected) p.action(false); }}
-                        disabled={cardDisabled}
-                        className={`group/cube relative flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl border bg-card/50 backdrop-blur-sm transition-all duration-300 ${p.hoverBorder} ${p.hoverBg} hover:shadow-[0_0_24px_-5px] ${p.hoverShadow} disabled:opacity-50 disabled:pointer-events-none aspect-square w-full ${highlightThreads ? "border-purple-400/60 animate-connect-highlight" : "border-border/50"}`}
+                      <div
+                        role="button"
+                        tabIndex={cardDisabled ? -1 : 0}
+                        onClick={() => { if (!cardDisabled && !platformConnected) p.action(false); }}
+                        onKeyDown={(e) => {
+                          if ((e.key === "Enter" || e.key === " ") && !cardDisabled && !platformConnected) {
+                            e.preventDefault();
+                            p.action(false);
+                          }
+                        }}
+                        className={`group/cube relative flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl border bg-card/50 backdrop-blur-sm transition-all duration-300 ${p.hoverBorder} ${p.hoverBg} hover:shadow-[0_0_24px_-5px] ${p.hoverShadow} aspect-square w-full ${cardDisabled ? "opacity-50 pointer-events-none" : ""} ${platformConnected ? "cursor-default" : "cursor-pointer"} ${highlightThreads ? "border-purple-400/60 animate-connect-highlight" : "border-border/50"}`}
                         style={highlightThreads ? { '--highlight-color': 'rgba(192,132,252,0.4)' } as React.CSSProperties : undefined}
                       >
-                        {p.connected && <div className="absolute top-2 right-2 h-2 w-2 rounded-full bg-green-400 shadow-[0_0_6px] shadow-green-400/60" />}
-                        {p.connected && (() => {
+                        {platformConnected && <div className="absolute top-2 right-2 h-2 w-2 rounded-full bg-green-400 shadow-[0_0_6px] shadow-green-400/60" />}
+                        {threadsConnected && (() => {
                           const thConn = connections.find(c => c.platform === "threads" && c.is_connected);
                           return thConn ? (
                             <button
@@ -3110,7 +3166,7 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
                         />
                         <div className="relative">{isLoading ? <Loader2 className="h-8 w-8 animate-spin opacity-60" /> : p.svgIcon}</div>
                         <span className="text-[10px] font-semibold text-muted-foreground group-hover/cube:text-foreground transition-colors leading-tight text-center">{p.label}</span>
-                      </button>
+                      </div>
                     </div>
                   );
                 })()}

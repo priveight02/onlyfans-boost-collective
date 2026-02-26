@@ -114,7 +114,7 @@ const ConnectCardAccountManager = ({
       )}
 
       {/* Settings wheel bottom-right: account management (when 2+ connected) */}
-      {activeCount >= 2 && (
+      {allAccounts.length >= 1 && (
         <div className="absolute bottom-1.5 right-1.5 z-10" ref={settingsRef}>
           <button
             className="h-4 w-4 rounded-full bg-white/[0.08] border border-white/[0.15] flex items-center justify-center hover:bg-white/[0.15] hover:border-white/[0.25] transition-all group/settings"
@@ -220,7 +220,7 @@ const ConnectCardAccountManager = ({
       )}
 
       {/* Account count badge (when 2+) */}
-      {activeCount >= 2 && (
+      {allAccounts.length >= 2 && (
         <div className="absolute top-1.5 right-5 z-[5]">
           <Badge variant="outline" className="text-[7px] px-1 py-0 border-white/[0.12] text-muted-foreground bg-white/[0.04]">
             {activeCount}
