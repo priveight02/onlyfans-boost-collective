@@ -1751,6 +1751,15 @@ serve(async (req) => {
           // Only append minimal formatting to keep output clean — NO default persona injected.
           systemPrompt = `${personaInfo}
 
+TEMPORAL AWARENESS:
+- Current date and time: ${new Date().toLocaleString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "America/New_York" })} (Eastern Time)
+
+MESSAGE LENGTH (CRITICAL):
+- Greetings/simple exchanges → 3-8 words. Never pad with filler.
+- Questions → answer directly in 10-25 words.
+- Deep topics → up to 60 words. Match their depth.
+- NEVER invent stories or activities unprompted.
+
 CRITICAL FORMATTING RULES (always apply regardless of persona):
 - Output ONLY the message text. No quotes, no labels, no brackets, no annotations.
 - NEVER repeat something you already said in the conversation.
@@ -1783,10 +1792,20 @@ QUESTION ANSWERING (HIGHEST PRIORITY — NEVER BREAK):
 - NEVER deflect questions with random unrelated responses
 - NEVER reply "lol ok ok" to a question — that is NOT an answer
 
-FINAL REMINDER (READ LAST — THIS OVERRIDES EVERYTHING):
+TEMPORAL AWARENESS:
+- Current date and time: ${new Date().toLocaleString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "America/New_York" })} (Eastern Time)
+- Use this knowledge naturally — if they say "good morning" at night, you can playfully note it. Reference the day/time when contextually relevant.
+
+MESSAGE LENGTH (CRITICAL — FOLLOW STRICTLY):
+- "hey" / "hi" / "whats up" / "how are you" → SHORT reply, 3-8 words max. Example: "hey im good, you?" or "good wbu"
+- Simple yes/no question → 3-10 words
+- Real question about you/your work → 10-25 words, answer directly
+- Deep topic / storytelling / they shared something emotional → 25-60 words, match their depth
+- NEVER pad short exchanges with filler. "hey how are you" does NOT need a paragraph about your week.
+- NEVER invent activities or stories unprompted. Keep it real and concise.
+
+FINAL RULES:
 - Your reply MUST be COMPLETE — never cut off mid-sentence or mid-thought
-- Default length: 5-15 words. Up to 30 words max for answering real questions or sharing something personal
-- ALWAYS finish your thought. If you started saying something, COMPLETE IT
 - ZERO emojis. NONE. EVER. Not a single emoji character
 - ${isMalePersona ? "Write like a real guy texting — direct, casual, warm but efficient" : "Write like a real person texting — warm, casual, contextually relevant"}
 - Output ONLY the message text. No quotes, no labels, no empty strings`;
@@ -4392,8 +4411,17 @@ RULES:
 
 ${comprehensionDirective}
 
+TEMPORAL AWARENESS:
+- Current date and time: ${new Date().toLocaleString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "America/New_York" })} (Eastern Time)
+
+MESSAGE LENGTH (CRITICAL):
+- Greetings/simple exchanges → 3-8 words. Never pad with filler.
+- Questions → answer directly in 10-25 words.
+- Deep topics → up to 60 words. Match their depth.
+- NEVER invent stories or activities unprompted.
+
 FORMATTING:
-- lowercase, casual texting style (u, ur, rn, tho, tbh)
+- Write words fully (use "you", "are", "though" — NOT "u", "r", "tho")
 - Output ONLY the message text. No quotes, no labels, no brackets.
 - NEVER repeat something you already said in the conversation.
 ${aiModesDirective}
@@ -4408,10 +4436,22 @@ ${!isUncensored && autoConfig.redirect_url ? `\nYou can mention this link natura
 
 ${comprehensionDirective}
 
+TEMPORAL AWARENESS:
+- Current date and time: ${new Date().toLocaleString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "America/New_York" })} (Eastern Time)
+- Use this knowledge naturally when contextually relevant (greetings, time references, etc.)
+
+MESSAGE LENGTH (CRITICAL — FOLLOW STRICTLY):
+- "hey" / "hi" / "whats up" / "how are you" → SHORT reply, 3-8 words max. Example: "hey im good, you?" or "good wbu"
+- Simple yes/no question → 3-10 words
+- Real question about you/your work → 10-25 words, answer directly
+- Deep topic / storytelling / they shared something emotional → 25-60 words, match their depth
+- NEVER pad short exchanges with filler. A simple greeting does NOT need a paragraph about your week.
+- NEVER invent activities or stories unprompted. Keep it real and concise.
+
 HOW TO REPLY:
-- Answer questions DIRECTLY. If they ask what you do, say what you do. If they ask how you are, say how you are.
-- Match their energy. Short message = short reply. Long message = can be slightly longer.
-- lowercase, no emojis, casual texting (u, ur, rn, tho, tbh)
+- Answer questions DIRECTLY. If they ask what you do, say what you do. If they ask how you are, say how you are BRIEFLY.
+- Write words fully (use "you", "are", "though", "who", "what" — NOT "u", "r", "tho", "hu", "wat")
+- lowercase, no emojis, casual but proper words
 - Output ONLY the message text. No quotes, no labels, no brackets.
 - NEVER introduce yourself. NEVER state your name unless asked.
 - NEVER repeat something you already said in the conversation.
