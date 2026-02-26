@@ -1985,10 +1985,14 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
 
     let popup: Window | null = null;
     if (addMode) {
+      // Larger popup for add-account flow so TikTok login UI is fully visible
+      const addW = 600, addH = 750;
+      const addLeft = Math.round(window.screenX + (window.outerWidth - addW) / 2);
+      const addTop = Math.round(window.screenY + (window.outerHeight - addH) / 2);
       // Force fresh TikTok login: open popup, navigate to TikTok logout to clear session cookies,
       // then after a short delay redirect to the OAuth authorization URL.
       // This does NOT affect the existing Uplyze connection — stored tokens in DB are independent of browser cookies.
-      popup = window.open("about:blank", `tt_login_popup_${Date.now()}`, `width=${w},height=${h},left=${left},top=${top},toolbar=no,menubar=no,scrollbars=yes,resizable=yes`);
+      popup = window.open("about:blank", `tt_login_popup_${Date.now()}`, `width=${addW},height=${addH},left=${addLeft},top=${addTop},toolbar=no,menubar=no,scrollbars=yes,resizable=yes`);
       if (popup) {
         // Write a loading screen while we clear the TikTok session
         try {
