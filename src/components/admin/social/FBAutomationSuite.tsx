@@ -116,6 +116,14 @@ const FBAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
   const [aiAnalyzeText, setAiAnalyzeText] = useState("");
   const [aiAnalyzeResult, setAiAnalyzeResult] = useState("");
 
+  // Schedule
+  const [fbScheduledPosts, setFbScheduledPosts] = useState<any[]>([]);
+  const [fbSchedCaption, setFbSchedCaption] = useState("");
+  const [fbSchedMediaUrl, setFbSchedMediaUrl] = useState("");
+  const [fbSchedDateTime, setFbSchedDateTime] = useState("");
+  const [fbSchedPostType, setFbSchedPostType] = useState<"text" | "photo" | "video">("text");
+  const [fbSchedAiGenerating, setFbSchedAiGenerating] = useState(false);
+
   // Check connection
   useEffect(() => {
     if (!selectedAccount) { setFbConnected(false); return; }
@@ -129,6 +137,47 @@ const FBAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [selectedAccount]);
+
+  // Load scheduled posts
+  useEffect(() => {
+    if (!selectedAccount) return;
+    supabase.from("social_posts").select("*").eq("account_id", selectedAccount).eq("platform", "facebook").order("created_at", { ascending: false }).limit(50)
+      .then(({ data }) => { if (data) setFbScheduledPosts(data); });
+  }, [selectedAccount]);
+
+  const scheduleFbPost = async () => {
+    if (!fbSchedCaption && !fbSchedMediaUrl) { toast.error("Add caption or media"); return; }
+    const { error } = await supabase.from("social_posts").insert({
+      account_id: selectedAccount, platform: "facebook", post_type: fbSchedPostType,
+      caption: fbSchedCaption, media_urls: fbSchedMediaUrl ? [fbSchedMediaUrl] : [],
+      scheduled_at: fbSchedDateTime || null, status: fbSchedDateTime ? "scheduled" : "draft",
+      metadata: { post_type: fbSchedPostType, page_id: selectedPage?.id },
+    });
+    if (error) toast.error(error.message);
+    else {
+      toast.success("Post scheduled!"); setFbSchedCaption(""); setFbSchedMediaUrl(""); setFbSchedDateTime("");
+      const { data } = await supabase.from("social_posts").select("*").eq("account_id", selectedAccount).eq("platform", "facebook").order("created_at", { ascending: false }).limit(50);
+      if (data) setFbScheduledPosts(data);
+    }
+  };
+
+  const generateFbScheduleCaption = async () => {
+    if (!fbSchedCaption) { toast.error("Add a topic first"); return; }
+    setFbSchedAiGenerating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("social-ai-responder", {
+        body: { action: "generate_caption", account_id: selectedAccount, params: { topic: fbSchedCaption, platform: "facebook", include_cta: true } },
+      });
+      if (error) throw error;
+      if (data?.success && data.data?.caption) { setFbSchedCaption(data.data.caption); toast.success("AI caption generated!"); }
+    } catch (e: any) { toast.error(e.message); }
+    setFbSchedAiGenerating(false);
+  };
+
+  const deleteFbScheduledPost = async (id: string) => {
+    await supabase.from("social_posts").delete().eq("id", id);
+    toast.success("Deleted"); setFbScheduledPosts(prev => prev.filter(p => p.id !== id));
+  };
 
   const callApi = useCallback(async (action: string, params?: any) => {
     setLoading(true);
@@ -312,6 +361,7 @@ const FBAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
     { v: "dashboard", icon: LayoutDashboard, l: "Dashboard" },
     { v: "pages", icon: FileText, l: "Pages" },
     { v: "posts", icon: Layers, l: "Posts" },
+    { v: "schedule", icon: Calendar, l: "Schedule" },
     { v: "comments", icon: MessageSquare, l: "Comments" },
     { v: "groups", icon: Users, l: "Groups" },
     { v: "events", icon: Calendar, l: "Events" },
@@ -808,6 +858,60 @@ const FBAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
         {/* ===== BUSINESS MANAGER ===== */}
         <TabsContent value="business" className="mt-4">
           <FBBusinessManager selectedAccount={selectedAccount} />
+        </TabsContent>
+
+        {/* ===== SCHEDULE ===== */}
+        <TabsContent value="schedule" className="space-y-4 mt-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-base font-bold text-foreground flex items-center gap-2"><Calendar className="h-5 w-5 text-blue-400" />Schedule Manager</h3>
+            <Badge variant="outline" className="text-[10px] border-blue-500/20 text-blue-400">{fbScheduledPosts.filter(p => p.status === "scheduled").length}/50</Badge>
+          </div>
+          <Card className="bg-white/[0.03] border-blue-500/20 backdrop-blur-sm">
+            <CardContent className="p-5 space-y-4">
+              <div className="flex items-center justify-between"><h4 className="text-sm font-bold text-foreground">Create Scheduled Post</h4>
+                <Button size="sm" variant="ghost" className="h-6 text-[10px] gap-1 text-blue-400" onClick={generateFbScheduleCaption} disabled={fbSchedAiGenerating}>
+                  {fbSchedAiGenerating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}AI Generate
+                </Button>
+              </div>
+              <div className="flex gap-1.5 mb-2">
+                {(["text", "photo", "video"] as const).map(ct => (
+                  <Button key={ct} size="sm" variant={fbSchedPostType === ct ? "default" : "outline"} onClick={() => setFbSchedPostType(ct)} className="text-xs h-7 capitalize">{ct}</Button>
+                ))}
+              </div>
+              <Textarea value={fbSchedCaption} onChange={e => setFbSchedCaption(e.target.value)} placeholder="Write your post..." rows={3} className="text-sm" />
+              {fbSchedPostType !== "text" && <Input value={fbSchedMediaUrl} onChange={e => setFbSchedMediaUrl(e.target.value)} placeholder={`${fbSchedPostType === "photo" ? "Image" : "Video"} URL`} className="text-sm" />}
+              <div><label className="text-xs text-muted-foreground mb-1 block">Schedule</label><Input type="datetime-local" value={fbSchedDateTime} onChange={e => setFbSchedDateTime(e.target.value)} className="text-sm" /></div>
+              <Button onClick={scheduleFbPost} className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white" disabled={!fbSchedCaption && !fbSchedMediaUrl}>
+                {fbSchedDateTime ? <><Calendar className="h-4 w-4 mr-2" />Schedule</> : <><FileText className="h-4 w-4 mr-2" />Save Draft</>}
+              </Button>
+            </CardContent>
+          </Card>
+          {fbScheduledPosts.length > 0 && (
+            <Card className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm">
+              <CardContent className="p-4 space-y-3">
+                <h4 className="text-sm font-bold text-foreground">Post Queue ({fbScheduledPosts.length})</h4>
+                <ScrollArea className="max-h-[400px]">
+                  <div className="space-y-2">
+                    {fbScheduledPosts.map(p => (
+                      <div key={p.id} className="bg-white/[0.02] rounded-lg p-3 flex items-center gap-3 border border-white/[0.04]">
+                        <div className={`h-8 w-8 rounded-full flex items-center justify-center ${p.status === "published" ? "bg-green-500/10" : p.status === "scheduled" ? "bg-amber-500/10" : "bg-muted/30"}`}>
+                          {p.status === "published" ? <CheckCircle2 className="h-4 w-4 text-green-400" /> : p.status === "scheduled" ? <Clock className="h-4 w-4 text-amber-400" /> : <FileText className="h-4 w-4 text-muted-foreground" />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium text-foreground line-clamp-1">{p.caption || "No caption"}</p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <Badge variant="outline" className="text-[9px]">{p.status}</Badge>
+                            <span className="text-[10px] text-muted-foreground">{p.scheduled_at ? new Date(p.scheduled_at).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "No schedule"}</span>
+                          </div>
+                        </div>
+                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0 hover:bg-red-500/10" onClick={() => deleteFbScheduledPost(p.id)}><Trash2 className="h-3.5 w-3.5 text-red-400" /></Button>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         {/* ===== AI TOOLS ===== */}
