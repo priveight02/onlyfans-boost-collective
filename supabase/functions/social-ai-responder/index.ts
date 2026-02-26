@@ -58,6 +58,16 @@ function trimIncompleteTail(text: string): string {
   return words.join(" ").trim();
 }
 
+// Keep fan context even when a sync glitch flags fan messages as deleted.
+// We still exclude failed messages from all AI reasoning paths.
+const isContextEligibleMessage = (msg: any): boolean => {
+  if (!msg) return false;
+  if (msg.status === "failed") return false;
+  if (msg.status === "deleted" && msg.sender_type !== "fan") return false;
+  const content = String(msg.content || "").trim();
+  return content.length > 0;
+};
+
 // === STRATEGIC IMAGE GENERATION ENGINE ===
 // Decides whether to generate and send an ultra-realistic image during conversation
 // RARE (~5% of messages) and only when contextually impactful
@@ -3676,7 +3686,7 @@ Rules:
               .eq("conversation_id", dbConvo.id)
               .order("created_at", { ascending: true })
               .limit(50);
-            const dbMessages = (dbMessagesRaw || []).filter(m => m.status !== "failed" && m.status !== "deleted");
+            const dbMessages = (dbMessagesRaw || []).filter(isContextEligibleMessage);
 
             // === RANDOMIZED HARD CAP (39-45) — FINAL SEDUCTIVE REDIRECT + 24H PAUSE ===
             // If conversation was manually unpaused, only count messages AFTER the unpause timestamp
@@ -5752,7 +5762,7 @@ Follow these persona settings strictly. They override any conflicting defaults a
               .eq("conversation_id", uc.id)
               .order("created_at", { ascending: true })
               .limit(50);
-            const fullHistory = (fullHistoryRaw || []).filter(m => m.status !== "failed" && m.status !== "deleted");
+            const fullHistory = (fullHistoryRaw || []).filter(isContextEligibleMessage);
 
             if (!fullHistory || fullHistory.length === 0) continue;
 
@@ -6058,7 +6068,7 @@ Follow these persona settings strictly.`;
               .eq("conversation_id", tc.id)
               .order("created_at", { ascending: true })
               .limit(50);
-            const fullHist = (fullHistRaw || []).filter(m => m.status !== "failed" && m.status !== "deleted");
+            const fullHist = (fullHistRaw || []).filter(isContextEligibleMessage);
 
             if (!fullHist || fullHist.length === 0) continue;
 
@@ -6344,7 +6354,7 @@ ${personaDataRS.brand_identity ? `Brand Identity: ${personaDataRS.brand_identity
         if (!convoRS) { result = { error: "Conversation not found" }; break; }
 
         const { data: fullHistRSRaw } = await supabase.from("ai_dm_messages").select("*").eq("conversation_id", conversation_id).order("created_at", { ascending: true }).limit(50);
-        const fullHistRS = (fullHistRSRaw || []).filter(m => m.status !== "failed" && m.status !== "deleted");
+        const fullHistRS = (fullHistRSRaw || []).filter(isContextEligibleMessage);
         if (!fullHistRS || fullHistRS.length === 0) { result = { error: "No messages in conversation" }; break; }
 
         const lastMsgRS = fullHistRS[fullHistRS.length - 1];
