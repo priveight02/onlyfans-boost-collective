@@ -6,9 +6,8 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// Live DM chat model policy: reliable conversational model first
-const LIVE_CHAT_PRIMARY_MODEL = "google/gemini-2.5-flash";
-const LIVE_CHAT_RETRY_MODEL = "openai/gpt-5-mini";
+// Live DM chat model policy: single-pass best conversational model (no fallback chain)
+const LIVE_CHAT_PRIMARY_MODEL = "google/gemini-3-pro-preview";
 
 // === HUMAN TYPING DELAY ENGINE ===
 // Simulates realistic human typing speed with randomness
@@ -4259,9 +4258,25 @@ RULES:
             // understand the full context and intent, then craft ONE coherent answer.
             let systemPrompt: string;
 
+            // Build unresolved fan thread = all fan messages since last AI message
+            const convoTimeline = (dbMessages || []).filter((m: any) => m && (m.sender_type === "fan" || m.sender_type === "ai"));
+            const lastAiIdx = [...convoTimeline].map((m: any) => m.sender_type).lastIndexOf("ai");
+            const unresolvedTail = lastAiIdx >= 0 ? convoTimeline.slice(lastAiIdx + 1) : convoTimeline;
+            const unresolvedFans = unresolvedTail
+              .filter((m: any) => m.sender_type === "fan")
+              .filter((m: any) => String(m.content || "").trim().length > 0);
+
+            const unansweredFanMsgs = unresolvedFans.length > 0
+              ? unresolvedFans
+              : (latestMsg?.sender_type === "fan" && String(latestMsg?.content || "").trim().length > 0 ? [latestMsg] : []);
+            const latestFanTextNow = String(unansweredFanMsgs[unansweredFanMsgs.length - 1]?.content || latestMsg?.content || "").trim();
+            const unansweredQuestions = unansweredFanMsgs.filter((m: any) => isLikelyQuestionText(String(m.content || ""))).length;
+            const latestIsQuestionNow = isLikelyQuestionText(latestFanTextNow);
+            const multipleUnanswered = unansweredFanMsgs.length > 1;
+
             // Gather the full unanswered sequence as a single block for comprehension
             const unansweredBlock = unansweredFanMsgs
-              .map(m => String(m.content || "").trim())
+              .map((m: any) => String(m.content || "").trim())
               .filter(Boolean)
               .join("\n");
 
@@ -4428,75 +4443,63 @@ ${!isUncensored && autoConfig.redirect_url ? `\nYou can mention this link natura
               const primaryErrorBody = await aiResponse.text().catch(() => "");
               console.error(`[AI PRIMARY FAIL] @${dbConvo.participant_username} status=${aiResponse.status} body=${primaryErrorBody.slice(0, 300)}`);
 
-              // Hard fallback: if primary fails, immediately try retry model instead of failing the convo
-              const fallbackResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-                method: "POST",
-                headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  model: LIVE_CHAT_RETRY_MODEL,
-                  messages: aiMessages,
-                  max_tokens: dynamicMaxTokens,
-                  temperature: 0.7,
-                }),
-              });
-
-              if (fallbackResp.ok) {
-                aiResponse = fallbackResp;
-                aiModelUsed = LIVE_CHAT_RETRY_MODEL;
-                console.log(`[AI FALLBACK OK] @${dbConvo.participant_username}: switched to ${LIVE_CHAT_RETRY_MODEL}`);
-              } else {
-                const fallbackErrorBody = await fallbackResp.text().catch(() => "");
-                console.error(`[AI FALLBACK FAIL] @${dbConvo.participant_username} status=${fallbackResp.status} body=${fallbackErrorBody.slice(0, 300)}`);
-
-                if (typingMsg) {
-                  await supabase
-                    .from("ai_dm_messages")
-                    .update({
-                      status: "failed",
-                      content: "AI generation failed",
-                      metadata: {
-                        ...(typingMsg.metadata || {}),
-                        error: `primary:${aiResponse.status} fallback:${fallbackResp.status}`,
-                        primary_error: primaryErrorBody.slice(0, 300),
-                        fallback_error: fallbackErrorBody.slice(0, 300),
-                      },
-                    })
-                    .eq("id", typingMsg.id);
-                }
-                // RESTORE LOCK so this convo can be retried on next cycle
-                await supabase.from("ai_dm_conversations").update({ last_ai_reply_at: latestMsg?.created_at ? new Date(new Date(latestMsg.created_at).getTime() - 1000).toISOString() : null }).eq("id", dbConvo.id);
-                console.log(`[LOCK RESTORE] @${dbConvo.participant_username}: AI failed on primary+fallback, lock restored for retry`);
-                continue;
+              if (typingMsg) {
+                await supabase
+                  .from("ai_dm_messages")
+                  .update({
+                    status: "failed",
+                    content: "AI generation failed",
+                    metadata: {
+                      ...(typingMsg.metadata || {}),
+                      error: `primary:${aiResponse.status}`,
+                      primary_error: primaryErrorBody.slice(0, 300),
+                    },
+                  })
+                  .eq("id", typingMsg.id);
               }
+              await supabase
+                .from("ai_dm_conversations")
+                .update({
+                  last_ai_reply_at: latestMsg?.created_at
+                    ? new Date(new Date(latestMsg.created_at).getTime() - 1000).toISOString()
+                    : null,
+                })
+                .eq("id", dbConvo.id);
+              console.log(`[LOCK RESTORE] @${dbConvo.participant_username}: AI failed on primary model, lock restored for retry`);
+              continue;
             }
 
             const aiResult = await aiResponse.json();
             aiModelUsed = aiResult?.model || LIVE_CHAT_PRIMARY_MODEL;
-            reply = (aiResult.choices?.[0]?.message?.content || "").replace(/\[.*?\]/g, "").replace(/^["']|["']$/g, "").trim();
+            reply = (aiResult.choices?.[0]?.message?.content || "")
+              .replace(/\[.*?\]/g, "")
+              .replace(/^["']|["']$/g, "")
+              .trim();
 
-            // NEVER leave empty — retry once, then deterministic fallback
             if (!reply) {
-              console.log("Empty AI response, retrying...");
-              try {
-                const retryResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-                  method: "POST",
-                  headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    model: LIVE_CHAT_RETRY_MODEL,
-                    messages: aiMessages,
-                    max_tokens: dynamicMaxTokens,
-                    temperature: 0.75,
-                  }),
-                });
-                if (retryResp.ok) {
-                  const retryResult = await retryResp.json();
-                  aiModelUsed = retryResult?.model || LIVE_CHAT_RETRY_MODEL;
-                  reply = (retryResult.choices?.[0]?.message?.content || "").replace(/\[.*?\]/g, "").replace(/^["']|["']$/g, "").trim();
-                }
-              } catch {}
-              if (!reply) {
-                reply = "got u tell me more";
+              if (typingMsg) {
+                await supabase
+                  .from("ai_dm_messages")
+                  .update({
+                    status: "failed",
+                    content: "AI returned empty reply",
+                    metadata: {
+                      ...(typingMsg.metadata || {}),
+                      error: "empty_primary_reply",
+                    },
+                  })
+                  .eq("id", typingMsg.id);
               }
+              await supabase
+                .from("ai_dm_conversations")
+                .update({
+                  last_ai_reply_at: latestMsg?.created_at
+                    ? new Date(new Date(latestMsg.created_at).getTime() - 1000).toISOString()
+                    : null,
+                })
+                .eq("id", dbConvo.id);
+              console.log(`[LOCK RESTORE] @${dbConvo.participant_username}: empty primary reply, lock restored for retry`);
+              continue;
             }
 
             // POST-PROCESS: keep it clean and human (no emoji, no aggressive truncation)
@@ -4515,73 +4518,12 @@ ${!isUncensored && autoConfig.redirect_url ? `\nYou can mention this link natura
               reply = trimIncompleteTail(wordsArr.slice(0, 2).join(" "));
             }
 
-            if (!reply) {
-              reply = "say more";
-            }
-
             reply = reply.replace(/[.!,;:]+$/, "");
 
             // Light anti-repetition only — no blocking guards
-
             reply = antiRepetitionCheck(reply, conversationContext);
 
-            // No double-check pass — trust the primary model's first response.
-            // Full conversation context + persona + memory already ensures quality.
-            const verifyFanContext = unansweredFanMsgs
-              .map(m => String(m.content || "").trim())
-              .filter(Boolean)
-              .join(" | ");
-
-            // HARD NO-REPEAT GUARD: if draft echoes older assistant text,
-            // regenerate once with strict focus on the latest message only.
-            let repetitionCheck = detectRepetitionIssue(reply, conversationContext);
-            if (repetitionCheck.issue !== "none") {
-              console.log(`[NO-REPEAT] @${dbConvo.participant_username}: detected ${repetitionCheck.issue}, regenerating`);
-              try {
-                const recentAssistant = conversationContext
-                  .filter((m: any) => m.role === "creator")
-                  .map((m: any) => (m.text || "").trim())
-                  .filter(Boolean)
-                  .slice(-6);
-
-                const repairResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-                  method: "POST",
-                  headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    model: LIVE_CHAT_PRIMARY_MODEL,
-                    temperature: 0.85,
-                    max_tokens: 512,
-                    messages: [
-                      {
-                        role: "system",
-                        content: "Write one natural DM reply that directly answers the fan. Never repeat older assistant lines. No emojis. No placeholders.",
-                      },
-                      {
-                        role: "user",
-                        content: `FAN MESSAGES:\n${verifyFanContext || latestFanTextNow}\n\nDO NOT REUSE THESE:\n${recentAssistant.join("\n- ")}`,
-                      },
-                    ],
-                  }),
-                });
-
-                if (repairResp.ok) {
-                  const repairJson = await repairResp.json();
-                  const repaired = (repairJson?.choices?.[0]?.message?.content || "")
-                    .replace(/\[.*?\]/g, "").replace(/^['"]|['"]$/g, "").trim();
-                  if (repaired) {
-                    reply = antiRepetitionCheck(repaired, conversationContext);
-                    aiModelUsed = repairJson?.model || aiModelUsed;
-                  }
-                }
-              } catch (repairErr) {
-                console.log("[NO-REPEAT] Repair failed (non-blocking):", repairErr);
-              }
-
-              if (!reply || reply.trim().length < 2) {
-                reply = "tell me more about that";
-              }
-            }
-
+            // Single-pass only: no repair/verification second call.
             // Final per-question uniqueness pass
             if (latestIsQuestionNow) {
               reply = enforceQuestionUniqueness(reply, latestFanTextNow, conversationContext);
