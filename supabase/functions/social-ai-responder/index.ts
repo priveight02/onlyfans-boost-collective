@@ -2370,7 +2370,7 @@ FINAL REMINDER (READ LAST — THIS OVERRIDES EVERYTHING):
                   { role: "assistant", content: reply },
                   { role: "user", content: "Your last reply got cut off. Rewrite it as ONE complete thought. Keep it short and natural. Output ONLY the final message:" },
                 ],
-                max_tokens: 600,
+                max_tokens: 2048,
                 temperature: 0.7,
               }),
             });
