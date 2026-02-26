@@ -712,8 +712,8 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
      const csrfState = Math.random().toString(36).substring(2);
      sessionStorage.setItem("tt_csrf", csrfState);
      const ttRedirectUri = "https://uplyze.ai/tt-login";
-     const scopes = "user.info.basic,user.info.profile,user.info.stats,video.list,video.publish,video.upload";
-     const authUrl = `https://www.tiktok.com/v2/auth/authorize/?client_key=${ttClientKey}&scope=${scopes}&response_type=code&redirect_uri=${encodeURIComponent(ttRedirectUri)}&state=${csrfState}`;
+      const scopes = "user.info.basic,user.info.profile,user.info.stats,video.list";
+      const authUrl = `https://www.tiktok.com/v2/auth/authorize/?client_key=${ttClientKey}&scope=${scopes}&response_type=code&redirect_uri=${encodeURIComponent(ttRedirectUri)}&state=${csrfState}`;
      const authWindow = window.open(authUrl, "tiktok_oauth", "width=600,height=700,scrollbars=yes");
      setAutoConnectLoading("tiktok");
      toast.info("Authenticate with TikTok in the popup...");
@@ -1821,7 +1821,7 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
     const csrfState = Math.random().toString(36).substring(2);
     sessionStorage.setItem("tt_csrf", csrfState);
     const ttRedirectUri = "https://uplyze.ai/tt-login";
-    const scopes = "user.info.basic,user.info.profile,user.info.stats,video.list,video.publish,video.upload";
+    const scopes = "user.info.basic,user.info.profile,user.info.stats,video.list";
     const authUrl = `https://www.tiktok.com/v2/auth/authorize/?client_key=${clientKey}&scope=${scopes}&response_type=code&redirect_uri=${encodeURIComponent(ttRedirectUri)}&state=${csrfState}`;
     const w = 520, h = 620;
     const left = Math.round(window.screenX + (window.outerWidth - w) / 2);
