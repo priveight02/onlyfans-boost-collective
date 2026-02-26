@@ -253,6 +253,15 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
     }
   }, [selectedAccount]);
 
+  // Auto-switch selectedAccount when platformTab changes to match the correct managed account
+  useEffect(() => {
+    if (!accounts.length) return;
+    const platformMatch = accounts.find((a: any) => a.platform === platformTab);
+    if (platformMatch && platformMatch.id !== selectedAccount) {
+      setSelectedAccount(platformMatch.id);
+    }
+  }, [platformTab, accounts]);
+
   // Restore profile data and session from stored connection metadata on session load
   useEffect(() => {
     if (connections.length > 0) {
@@ -429,14 +438,16 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
     const uid = user?.id;
     if (!uid) return;
     const data = await cachedFetch("global", `smh_accounts_${uid}`, async () => {
-      const { data } = await supabase.from("managed_accounts").select("id, username, display_name, avatar_url").eq("user_id", uid).order("created_at", { ascending: false });
+      const { data } = await supabase.from("managed_accounts").select("id, username, display_name, avatar_url, platform, social_links").eq("user_id", uid).order("created_at", { ascending: false });
       return data || [];
     }, undefined, { ttlMs: 5 * 60 * 1000 });
     setAccounts(data);
     if (data?.length) {
+      // Try to select the account matching the current platform tab
+      const platformMatch = data.find((a: any) => a.platform === platformTab);
       const currentExists = data.some((a: any) => a.id === selectedAccount);
       if (!selectedAccount || !currentExists) {
-        setSelectedAccount(data[0].id);
+        setSelectedAccount(platformMatch?.id || data[0].id);
       }
     }
   };
@@ -647,12 +658,18 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
       invalidateAccount(selectedAccount);
     }
     invalidateNamespace("global", "smh_accounts");
+    invalidateNamespace("global", "smh_global_connections");
     
     // Force fresh DB fetch (bypass cache entirely)
     const acctId = selectedAccount;
     if (acctId) {
       const { data: freshConns } = await supabase.from("social_connections").select("*").eq("account_id", acctId);
       setConnections(freshConns || []);
+    }
+    // Also refresh globalConnections immediately
+    if (user?.id) {
+      const { data: freshGlobal } = await supabase.from("social_connections").select("id, account_id, platform, is_connected").eq("user_id", user.id);
+      setGlobalConnections(freshGlobal || []);
     }
     
     toast.success("Disconnected & credentials wiped");
@@ -2620,10 +2637,14 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
                 onNavigateToSession={navigateToSessionCard}
                 igSessionId={igSessionId}
                 igSessionStatus={igSessionStatus}
-                igPlatformUserId={connections.find(c => c.platform === "instagram" && c.is_connected)?.platform_user_id || ""}
+                igPlatformUserId={
+                  connections.find(c => c.platform === "instagram" && c.is_connected)?.platform_user_id || 
+                  (accounts.find((a: any) => a.id === selectedAccount)?.social_links as any)?.ig_user_id || ""
+                }
                 platformUserId={
                   connections.find(c => c.platform === platformTab && c.is_connected)?.platform_user_id || 
-                  connections.find(c => c.platform === "instagram" && c.is_connected)?.platform_user_id || ""
+                  connections.find(c => c.platform === "instagram" && c.is_connected)?.platform_user_id ||
+                  (accounts.find((a: any) => a.id === selectedAccount)?.social_links as any)?.ig_user_id || ""
                 }
                 platform={platformTab || "instagram"}
               />
