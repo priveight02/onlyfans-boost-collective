@@ -1978,16 +1978,27 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
       redirect_uri: ttRedirectUri,
       state: uniqueState,
     };
-    // Force fresh login when adding a new account — prevent TikTok session reuse
-    if (addMode) {
-      authParams.prompt = "login";
-      authParams.disable_auto_login = "1";
-    }
     const authUrl = `https://www.tiktok.com/v2/auth/authorize/?${new URLSearchParams(authParams).toString()}`;
     const w = 520, h = 620;
     const left = Math.round(window.screenX + (window.outerWidth - w) / 2);
     const top = Math.round(window.screenY + (window.outerHeight - h) / 2);
-    const popup = window.open(authUrl, `tt_login_popup_${Date.now()}`, `width=${w},height=${h},left=${left},top=${top},toolbar=no,menubar=no,scrollbars=yes,resizable=yes`);
+
+    let popup: Window | null = null;
+    if (addMode) {
+      // Force fresh TikTok login: open popup to TikTok logout first, then redirect to auth
+      // This clears TikTok's session cookies so the user gets a fresh login screen
+      popup = window.open("about:blank", `tt_login_popup_${Date.now()}`, `width=${w},height=${h},left=${left},top=${top},toolbar=no,menubar=no,scrollbars=yes,resizable=yes`);
+      if (popup) {
+        // Navigate to TikTok logout, which clears the session, then redirect to OAuth
+        popup.location.href = "https://www.tiktok.com/logout?redirect_url=" + encodeURIComponent(authUrl);
+        // Fallback: if logout doesn't redirect properly, force-navigate after 3s
+        setTimeout(() => {
+          try { if (popup && !popup.closed) popup.location.href = authUrl; } catch {}
+        }, 3000);
+      }
+    } else {
+      popup = window.open(authUrl, `tt_login_popup_${Date.now()}`, `width=${w},height=${h},left=${left},top=${top},toolbar=no,menubar=no,scrollbars=yes,resizable=yes`);
+    }
     if (!popup) {
       toast.info("Popup blocked — opening in current tab.");
       window.location.href = authUrl;
