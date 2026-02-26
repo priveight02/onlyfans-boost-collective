@@ -116,7 +116,126 @@ serve(async (req) => {
       });
     }
 
-    // ===== PROCESS SCHEDULED POSTS (server-side auto-publish) =====
+    // ===== SINGLE POST PUBLISH (triggered by per-post cron job) =====
+    if (action === "publish_scheduled_post") {
+      const { post_id } = { post_id: params?.post_id || (await req.clone().json().catch(() => ({}))).post_id };
+      const actualPostId = post_id || (await req.clone().json().catch(() => ({}))).post_id;
+      
+      // Accept post_id from body root or params
+      const resolvedPostId = actualPostId || (() => {
+        try { const b = JSON.parse(JSON.stringify(arguments)); return b.post_id; } catch { return null; }
+      })();
+
+      const bodyData = await req.clone().json().catch(() => ({}));
+      const finalPostId = resolvedPostId || bodyData.post_id;
+
+      if (!finalPostId) {
+        return new Response(JSON.stringify({ success: false, error: "Missing post_id" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const { data: post } = await supabase
+        .from("social_posts")
+        .select("*")
+        .eq("id", finalPostId)
+        .single();
+
+      if (!post) {
+        // Post was deleted — cron will self-destruct via trigger
+        return new Response(JSON.stringify({ success: true, data: { skipped: true, reason: "post_not_found" } }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Skip if already published or not scheduled
+      if (post.status !== "scheduled") {
+        return new Response(JSON.stringify({ success: true, data: { skipped: true, reason: `status_is_${post.status}` } }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      try {
+        const postConn = await getConnection(supabase, post.account_id);
+        const meta = post.metadata || {};
+        const mediaUrl = Array.isArray(post.media_urls) ? post.media_urls[0] : null;
+
+        if (!mediaUrl) {
+          await supabase.from("social_posts").update({
+            status: "failed", error_message: "No media URL available",
+            updated_at: new Date().toISOString(),
+          }).eq("id", post.id);
+          return new Response(JSON.stringify({ success: false, error: "No media URL" }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        // Mark as publishing (triggers cron cleanup via DB trigger)
+        await supabase.from("social_posts").update({
+          status: "publishing", updated_at: new Date().toISOString(),
+        }).eq("id", post.id);
+
+        const postType = meta.content_type || post.post_type || "video";
+        let publishResult: any;
+
+        if (postType === "video") {
+          publishResult = await ttFetch("/post/publish/video/init/", postConn.access_token, "POST", {
+            post_info: {
+              title: post.caption || "",
+              privacy_level: meta.privacy_level || "PUBLIC_TO_EVERYONE",
+              disable_duet: meta.disable_duet || false,
+              disable_comment: meta.disable_comment || false,
+              disable_stitch: meta.disable_stitch || false,
+              ...(meta.brand_content ? { brand_content_toggle: true } : {}),
+            },
+            source_info: { source: "PULL_FROM_URL", video_url: mediaUrl },
+          });
+        } else {
+          const mediaType = postType === "carousel" ? "CAROUSEL" : "PHOTO";
+          publishResult = await ttFetch("/post/publish/content/init/", postConn.access_token, "POST", {
+            post_info: {
+              title: post.caption || "",
+              description: post.caption || "",
+              privacy_level: meta.privacy_level || "PUBLIC_TO_EVERYONE",
+              disable_comment: meta.disable_comment || false,
+            },
+            source_info: {
+              source: "PULL_FROM_URL",
+              photo_cover_index: 0,
+              photo_images: post.media_urls,
+            },
+            post_mode: "DIRECT_POST",
+            media_type: mediaType,
+          });
+        }
+
+        const publishId = publishResult?.data?.publish_id;
+        // Status change to publishing/published triggers cron self-destruct via DB trigger
+        await supabase.from("social_posts").update({
+          platform_post_id: publishId || null,
+          status: publishId ? "publishing" : "published",
+          published_at: publishId ? null : new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }).eq("id", post.id);
+
+        return new Response(JSON.stringify({ success: true, data: { published: true, publish_id: publishId } }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      } catch (e: any) {
+        console.error(`Cron publish failed for post ${post.id}:`, e.message);
+        // Status change to failed triggers cron self-destruct via DB trigger
+        await supabase.from("social_posts").update({
+          status: "failed",
+          error_message: e.message || "Publishing failed",
+          updated_at: new Date().toISOString(),
+        }).eq("id", post.id);
+        return new Response(JSON.stringify({ success: false, error: e.message }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
+    // ===== PROCESS SCHEDULED POSTS (bulk fallback) =====
     if (action === "process_scheduled") {
       const now = new Date().toISOString();
       const { data: duePosts } = await supabase
@@ -150,7 +269,6 @@ serve(async (req) => {
             continue;
           }
 
-          // Mark as publishing
           await supabase.from("social_posts").update({
             status: "publishing", updated_at: new Date().toISOString(),
           }).eq("id", post.id);
