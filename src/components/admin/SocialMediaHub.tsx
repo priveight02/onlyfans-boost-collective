@@ -9,6 +9,7 @@ import TKAutomationSuite from "./social/TKAutomationSuite";
 import ThreadsAutomationSuite from "./social/ThreadsAutomationSuite";
 import FBAutomationSuite from "./social/FBAutomationSuite";
 import SocialNetworksTab from "./social/SocialNetworksTab";
+import IGInsightsDashboard from "./social/IGInsightsDashboard";
 import BioLinksManager from "./social/BioLinksManager";
 import AIMassDMOutreach from "./social/AIMassDMOutreach";
 import SearchDiscoveryHub from "./social/SearchDiscoveryHub";
@@ -2625,6 +2626,11 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
             <Card className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm"><CardContent className="p-3.5 text-center"><p className="text-xl font-bold text-foreground">{bioLinks.length}</p><p className="text-[10px] text-muted-foreground mt-0.5">Bio Links</p></CardContent></Card>
             <Card className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm"><CardContent className="p-3.5 text-center"><p className="text-xl font-bold text-foreground">{commentReplies.length}</p><p className="text-[10px] text-muted-foreground mt-0.5">Replies</p></CardContent></Card>
           </div>
+
+          {/* ===== IG FULL INSIGHTS DASHBOARD ===== */}
+          {selectedAccount && (
+            <IGInsightsDashboard selectedAccount={selectedAccount} />
+          )}
         </TabsContent>
 
        {/* ===== AI AUTO-DM (Play/Pause) ===== */}
