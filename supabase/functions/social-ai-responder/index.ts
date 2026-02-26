@@ -2335,7 +2335,7 @@ FINAL REMINDER (READ LAST — THIS OVERRIDES EVERYTHING):
           body: JSON.stringify({
             model: LIVE_CHAT_PRIMARY_MODEL,
             messages,
-            max_tokens: Math.min(100 + Math.ceil(message_text.length / 2), 600),
+            max_tokens: Math.max(700, Math.min(2200, 900 + Math.ceil(message_text.length * 1.2))),
             temperature: 0.8,
           }),
         });
@@ -4815,7 +4815,8 @@ ${!isUncensored && autoConfig.redirect_url ? `\nYou can mention this link natura
             const aiMessages: any[] = [{ role: "system", content: systemPrompt }];
             
             // Send richer recent context for better intent understanding
-            const recentContext = conversationContext.slice(-12);
+            const contextWindow = Math.min(conversationContext.length, 50);
+            const recentContext = conversationContext.slice(-contextWindow);
             for (const ctx of recentContext) {
               aiMessages.push({ role: ctx.role === "creator" ? "assistant" : "user", content: ctx.text });
             }
@@ -4835,8 +4836,8 @@ ${!isUncensored && autoConfig.redirect_url ? `\nYou can mention this link natura
               const latestOnly = unansweredFanMsgs[unansweredFanMsgs.length - 1];
               const latestText = String(latestOnly.content || "").trim();
               
-              aiMessages.push({ role: "system", content: `REPLY TO THIS MESSAGE: "${latestText}"
-Answer it directly like a real human would. Do not talk about anything else.` });
+              aiMessages.push({ role: "system", content: `REPLY TO THIS MESSAGE EXACTLY AS WRITTEN: "${latestText}"
+Read the full message, answer the full intent directly, and do not skip any part of their question.` });
             }
             
             // Reply-to targeting for IG
@@ -4848,9 +4849,9 @@ Answer it directly like a real human would. Do not talk about anything else.` })
               }
             }
 
-            // Dynamic token budget: analyze full fan message while keeping production latency tight
+            // Dynamic token budget: prioritize full message analysis and avoid truncation
             const latestFanLen = (latestMsg?.content || "").trim().length;
-            const dynamicMaxTokens = Math.min(180 + Math.ceil(latestFanLen * 0.5) + Math.min(unansweredQuestions * 40, 120), 600);
+            const dynamicMaxTokens = Math.max(700, Math.min(4096, 900 + Math.ceil(latestFanLen * 1.2) + Math.min(unansweredQuestions * 180, 720)));
 
             // Update pipeline phase to "generate" for real-time UI tracking
             if (typingMsg) {
@@ -4998,7 +4999,7 @@ Answer it directly like a real human would. Do not talk about anything else.` })
                   body: JSON.stringify({
                     model: LIVE_CHAT_RETRY_MODEL,
                     messages: aiMessages,
-                    max_tokens: 200,
+                    max_tokens: dynamicMaxTokens,
                     temperature: 0.75,
                   }),
                 });
@@ -5100,7 +5101,7 @@ Answer it directly like a real human would. Do not talk about anything else.` })
                   body: JSON.stringify({
                     model: LIVE_CHAT_PRIMARY_MODEL,
                     temperature: 0.85,
-                    max_tokens: 140,
+                    max_tokens: 512,
                     messages: [
                       {
                         role: "system",
