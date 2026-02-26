@@ -49,7 +49,21 @@ serve(async (req) => {
     for (const account of activeAccounts) {
       const { account_id } = account;
 
-      // Cooldown and daily limit checks removed — AI responds freely
+      // Skip if in cooldown
+      if (account.cooldown_until && new Date(account.cooldown_until).getTime() > Date.now()) {
+        const remainMin = Math.round((new Date(account.cooldown_until).getTime() - Date.now()) / 60000);
+        console.log(`[AI-DM-CRON] Account ${account_id}: in cooldown (${remainMin}min remaining), skipping`);
+        results.push({ account_id, platform: "all", status: "cooldown", error: `${remainMin}min remaining` });
+        continue;
+      }
+
+      // Skip if daily limit already reached
+      const dailyLimit = account.daily_limit || 500;
+      if ((account.daily_sent_count || 0) >= dailyLimit) {
+        console.log(`[AI-DM-CRON] Account ${account_id}: daily limit reached (${account.daily_sent_count}/${dailyLimit}), skipping`);
+        results.push({ account_id, platform: "all", status: "limit_reached" });
+        continue;
+      }
 
       // Check each platform for connected accounts and process DMs
       for (const platform of DM_PLATFORMS) {
