@@ -253,14 +253,27 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
     }
   }, [selectedAccount]);
 
+  const getPreferredAccountForPlatform = (platform: string) => {
+    const platformAccounts = accounts.filter((a: any) => a.platform === platform);
+    if (!platformAccounts.length) return null;
+
+    const activeConnection = globalConnections.find((c: any) => c.platform === platform && c.is_connected);
+    if (activeConnection) {
+      const connectedAccount = platformAccounts.find((a: any) => a.id === activeConnection.account_id);
+      if (connectedAccount) return connectedAccount;
+    }
+
+    return platformAccounts[0];
+  };
+
   // Auto-switch selectedAccount when platformTab changes to match the correct managed account
   useEffect(() => {
-    if (!accounts.length) return;
-    const platformMatch = accounts.find((a: any) => a.platform === platformTab);
-    if (platformMatch && platformMatch.id !== selectedAccount) {
-      setSelectedAccount(platformMatch.id);
+    if (!accounts.length || platformTab === "connect") return;
+    const preferred = getPreferredAccountForPlatform(platformTab);
+    if (preferred && preferred.id !== selectedAccount) {
+      setSelectedAccount(preferred.id);
     }
-  }, [platformTab, accounts]);
+  }, [platformTab, accounts, globalConnections, selectedAccount]);
 
   // Restore profile data and session from stored connection metadata on session load
   useEffect(() => {
@@ -617,8 +630,9 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
   };
 
   const disconnectPlatform = async (id: string) => {
-    const conn = connections.find(c => c.id === id);
+    const conn = connections.find(c => c.id === id) || globalConnections.find((c: any) => c.id === id);
     const platform = conn?.platform;
+    if (!conn) { toast.error("Connection not found"); return; }
     
     // Revoke token on platform side before deleting
     if (platform === "tiktok" && conn?.access_token) {
@@ -1772,9 +1786,15 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
             : null;
           const savedAt = new Date().toISOString();
           
-          // Auto-create managed account if none selected (same as main connect form)
-          let accountId = selectedAccount;
+          // Auto-create/use a managed IG account (avoid attaching IG tokens to a non-IG account)
+          const selectedManaged = accounts.find((a: any) => a.id === selectedAccount);
+          let accountId = selectedManaged?.platform === "instagram" ? selectedAccount : "";
           const newPlatformUserId = String(user_id || ds_user_id);
+
+          if (!accountId && !addMode) {
+            const firstIgAccount = accounts.find((a: any) => a.platform === "instagram");
+            if (firstIgAccount) accountId = firstIgAccount.id;
+          }
           
           // Check if this exact platform_user_id is already connected (multi-account aware)
           const { data: existingByPuid } = await supabase
@@ -3066,8 +3086,9 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
                       >
                         {platformConnected && <div className="absolute top-2 right-2 h-2 w-2 rounded-full bg-green-400 shadow-[0_0_6px] shadow-green-400/60" />}
                         {/* Disconnect button */}
-                        {igConnected && (() => {
-                          const igConn = connections.find(c => c.platform === "instagram" && c.is_connected);
+                        {igConnectedAny && (() => {
+                          const igConn = connections.find(c => c.platform === "instagram" && c.is_connected)
+                            || globalConnections.find((c: any) => c.platform === "instagram" && c.is_connected);
                           return igConn ? (
                             <button
                               className="absolute bottom-1.5 left-1.5 text-red-400/60 hover:text-red-400 transition-colors z-10"
