@@ -763,8 +763,12 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
          const profileRes = await supabase.functions.invoke("tiktok-api", {
            body: { action: "get_user_info", account_id: selectedAccount || "temp", params: { access_token_override: accessToken } },
          });
-         const ttUser = profileRes.data?.data?.data?.user || profileRes.data?.data?.user || {};
-         const username = ttUser.username || ttUser.display_name || "tiktok_user";
+          const ttUser = profileRes.data?.data?.data?.user || profileRes.data?.data?.user || profileRes.data?.data || {};
+          console.log("TT profile response:", JSON.stringify(profileRes.data));
+          const username = ttUser.username || ttUser.display_name || openId || "unknown";
+          if (!ttUser.display_name && !ttUser.username) {
+            console.warn("TikTok profile returned no display_name or username:", ttUser);
+          }
          let accountId = selectedAccount;
          if (!accountId) {
            const { data: newAcct, error: err } = await supabase.from("managed_accounts").insert({
@@ -775,9 +779,10 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
          }
          await supabase.from("social_connections").upsert({
            account_id: accountId, platform: "tiktok", platform_user_id: openId || "", platform_username: username, access_token: accessToken,
-           refresh_token: tokenData?.refresh_token || null, is_connected: true, scopes: [],
-           metadata: { avatar_url: ttUser.avatar_url, display_name: ttUser.display_name, connected_via: "automated_oauth" },
-           user_id: user?.id,
+            refresh_token: tokenData?.refresh_token || null, is_connected: true,
+            scopes: tokenData?.scope ? tokenData.scope.split(",") : [],
+            metadata: { avatar_url: ttUser.avatar_url, display_name: ttUser.display_name, follower_count: ttUser.follower_count, following_count: ttUser.following_count, likes_count: ttUser.likes_count, video_count: ttUser.video_count, bio_description: ttUser.bio_description, is_verified: ttUser.is_verified, connected_via: "automated_oauth", open_id: openId },
+            user_id: user?.id,
          }, { onConflict: "account_id,platform,user_id" });
          await supabase.from("managed_accounts").update({
            avatar_url: ttUser.avatar_url || undefined, display_name: ttUser.display_name || username, last_activity_at: new Date().toISOString(),
@@ -1898,8 +1903,12 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
         const profileRes = await supabase.functions.invoke("tiktok-api", {
           body: { action: "get_user_info", account_id: selectedAccount || "temp", params: { access_token_override: accessToken } },
         });
-        const ttUser = profileRes.data?.data?.data?.user || profileRes.data?.data?.user || {};
-        const username = ttUser.username || ttUser.display_name || "tiktok_user";
+        const ttUser = profileRes.data?.data?.data?.user || profileRes.data?.data?.user || profileRes.data?.data || {};
+        console.log("TT profile response (popup):", JSON.stringify(profileRes.data));
+        const username = ttUser.username || ttUser.display_name || openId || "unknown";
+        if (!ttUser.display_name && !ttUser.username) {
+          console.warn("TikTok profile returned no display_name or username:", ttUser);
+        }
         let accountId = selectedAccount;
         if (!accountId) {
            const { data: newAcct, error: err } = await supabase.from("managed_accounts").insert({
@@ -1910,12 +1919,13 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
         }
          await supabase.from("social_connections").upsert({
            account_id: accountId, platform: "tiktok", platform_user_id: openId || "", platform_username: username, access_token: accessToken,
-           refresh_token: tokenData?.refresh_token || null, is_connected: true, scopes: [],
-           metadata: { avatar_url: ttUser.avatar_url, display_name: ttUser.display_name, connected_via: "tt_oauth_popup" },
+           refresh_token: tokenData?.refresh_token || null, is_connected: true,
+           scopes: tokenData?.scope ? tokenData.scope.split(",") : [],
+           metadata: { avatar_url: ttUser.avatar_url, display_name: ttUser.display_name, follower_count: ttUser.follower_count, following_count: ttUser.following_count, likes_count: ttUser.likes_count, video_count: ttUser.video_count, bio_description: ttUser.bio_description, is_verified: ttUser.is_verified, connected_via: "tt_oauth_popup", open_id: openId },
            user_id: user?.id,
          }, { onConflict: "account_id,platform,user_id" });
         await supabase.from("managed_accounts").update({
-          avatar_url: ttUser.avatar_url || undefined, display_name: ttUser.display_name || username, last_activity_at: new Date().toISOString(),
+          avatar_url: ttUser.avatar_url || undefined, display_name: ttUser.display_name || username, subscriber_count: ttUser.follower_count || 0, content_count: ttUser.video_count || 0, last_activity_at: new Date().toISOString(),
         }).eq("id", accountId);
         setTtProfile(ttUser); await loadAccounts(); await loadData(accountId);
         toast.success(`✅ @${username} TikTok connected!`);
