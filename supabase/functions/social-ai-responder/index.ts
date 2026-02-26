@@ -1096,6 +1096,35 @@ const antiRepetitionCheck = (reply: string, conversationHistory: any[]): string 
   return cleaned;
 };
 
+const enforceQuestionUniqueness = (
+  reply: string,
+  latestFanText: string,
+  conversationHistory: any[],
+): string => {
+  const cleaned = (reply || "").replace(/\s+/g, " ").trim();
+  if (!cleaned || !isLikelyQuestionText(latestFanText)) return cleaned;
+
+  const latestAssistant = [...conversationHistory]
+    .reverse()
+    .find((m) => m?.role === "creator" || m?.role === "assistant");
+
+  const latestAssistantNorm = normalizeForSimilarity(latestAssistant?.text || latestAssistant?.content || "");
+  const cleanedNorm = normalizeForSimilarity(cleaned);
+  if (!latestAssistantNorm || !cleanedNorm) return cleaned;
+
+  const tooSimilar =
+    cleanedNorm === latestAssistantNorm ||
+    tokenJaccard(cleanedNorm, latestAssistantNorm) >= 0.78;
+
+  if (!tooSimilar) return cleaned;
+
+  const fresh = pickFreshCandidate(
+    buildQuestionNoRepeatVariants((latestFanText || "").toLowerCase(), cleaned),
+    conversationHistory,
+  );
+  return fresh || cleaned;
+};
+
 const QUESTION_PREFIX_RX = /^(who|what|whats|what's|where|when|why|how|do|does|did|is|are|can|could|would|will|tell me|name|age)\b/i;
 const QUESTION_INTENT_RX = /(who are you|whats your name|what is your name|latest post|last post|recent post|how old|what do you do|do for a living|where are you from)/i;
 const isLikelyQuestionText = (text?: string): boolean => {
@@ -2256,10 +2285,21 @@ FINAL REMINDER (READ LAST — THIS OVERRIDES EVERYTHING):
 
         const messages: any[] = [{ role: "system", content: systemPrompt }];
 
-        if (conversation_context && Array.isArray(conversation_context)) {
-          for (const msg of conversation_context) {
-            messages.push({ role: msg.role === "creator" ? "assistant" : "user", content: msg.text });
-          }
+        const normalizedConversationContext = (conversation_context && Array.isArray(conversation_context)
+          ? conversation_context
+          : []
+        ).map((msg: any) => {
+          const roleRaw = String(msg?.role || msg?.sender_type || "").toLowerCase();
+          const isCreator = roleRaw === "creator" || roleRaw === "assistant" || roleRaw === "ai" || roleRaw === "bot" || roleRaw === "model";
+          const text = String(msg?.text || msg?.content || "").trim();
+          return {
+            role: isCreator ? "creator" : "fan",
+            text,
+          };
+        }).filter((msg: any) => msg.text.length > 0);
+
+        for (const msg of normalizedConversationContext) {
+          messages.push({ role: msg.role === "creator" ? "assistant" : "user", content: msg.text });
         }
 
         messages.push({ role: "user", content: `${sender_name ? `[From: ${sender_name}] ` : ""}${message_text}` });
@@ -2334,6 +2374,14 @@ FINAL REMINDER (READ LAST — THIS OVERRIDES EVERYTHING):
         // POST-PROCESS: Strip ALL emojis — zero tolerance
         const emojiRx2 = /[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{200D}\u{20E3}\u{FE0F}]/gu;
         reply = reply.replace(emojiRx2, "").replace(/\s{2,}/g, " ").trim();
+
+        const requestContext = [
+          ...normalizedConversationContext,
+          { role: "fan", text: `${sender_name ? `${sender_name}: ` : ""}${message_text}`.trim() },
+        ];
+
+        reply = antiRepetitionCheck(reply, requestContext);
+        reply = enforceQuestionUniqueness(reply, message_text || "", requestContext);
 
         // Calculate natural typing delay based on reply length
         const wordCount = reply.split(/\s+/).length;
@@ -5087,6 +5135,11 @@ Answer it directly like a real human would. Do not talk about anything else.` })
 
                 reply = antiRepetitionCheck(reply, conversationContext);
               }
+            }
+
+            // Final per-question uniqueness pass against the immediately previous assistant message
+            if (latestIsQuestionNow) {
+              reply = enforceQuestionUniqueness(reply, latestFanTextNow, conversationContext);
             }
 
             // Detect flowing conversation: if fan replied within 90s of last AI reply, convo is active
