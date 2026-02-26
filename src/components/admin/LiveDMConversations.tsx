@@ -14,7 +14,7 @@ import {
   Download, Search, MoreVertical, Info,
   Check, CheckCheck, Clock, AlertCircle, Pencil, Trash2,
   Smile, Image as ImageIcon, Heart, ChevronLeft, Zap,
-  Brain, Eye, Sparkles, ArrowRight, Shield, WifiOff,
+  Brain, Eye, EyeOff, Sparkles, ArrowRight, Shield, WifiOff,
   CircleDot, MessageSquare, Inbox, SendHorizonal, Lock, Unlock,
   Play, Pause, Plus, Crown, Settings2, Flame, GitBranch,
   Palette, Radar, Target, TrendingUp, Activity, DollarSign,
@@ -290,6 +290,7 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
   const [contentProfileSync, setContentProfileSync] = useState(true);
   const [uncensoredMode, setUncensoredMode] = useState(false);
   const [showAdvancedPanel, setShowAdvancedPanel] = useState(false);
+  const [hideDeleted, setHideDeleted] = useState(false);
   // Pending review messages (review-before-send)
   const [pendingReviewMsgs, setPendingReviewMsgs] = useState<Map<string, { content: string; convoId: string; generatedAt: string }>>(new Map());
   const followAIRef = useRef(false);
@@ -1552,9 +1553,12 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
 
   const selectedConvoData = conversations.find(c => c.id === selectedConvo);
 
+  // Filter out deleted messages when hideDeleted is active
+  const displayMessages = hideDeleted ? messages.filter(m => m.status !== "deleted") : messages;
+
   // Virtualizer for messages
   const msgVirtualizer = useVirtualizer({
-    count: messages.length,
+    count: displayMessages.length,
     getScrollElement: () => messagesParentRef.current,
     estimateSize: () => 80,
     overscan: 20,
@@ -2155,7 +2159,30 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
                         loadConversations();
                       });
                     }}>
-                      {selectedConvoData?.redirect_sent ? "Clear redirect flag" : "Mark as redirected"}
+                     {selectedConvoData?.redirect_sent ? "Clear redirect flag" : "Mark as redirected"}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setHideDeleted(h => !h)}>
+                      {hideDeleted ? (
+                        <><Eye className="h-3.5 w-3.5 mr-2" />Show deleted messages</>
+                      ) : (
+                        <><EyeOff className="h-3.5 w-3.5 mr-2" />Hide deleted messages</>
+                      )}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="text-red-400 focus:text-red-400"
+                      onClick={async () => {
+                        if (!selectedConvo) return;
+                        const deletedMsgs = messages.filter(m => m.status === "deleted");
+                        if (deletedMsgs.length === 0) { toast.info("No deleted messages to clear"); return; }
+                        const { error } = await supabase.from("ai_dm_messages").delete().in("id", deletedMsgs.map(m => m.id));
+                        if (error) { toast.error("Failed to clear"); return; }
+                        setMessages(prev => prev.filter(m => m.status !== "deleted"));
+                        const cached = messageCacheRef.current.get(selectedConvo);
+                        if (cached) messageCacheRef.current.set(selectedConvo, cached.filter(m => m.status !== "deleted"));
+                        toast.success(`Cleared ${deletedMsgs.length} deleted message(s) permanently`);
+                      }}
+                    >
+                      <Trash2 className="h-3.5 w-3.5 mr-2" />Clear deleted permanently
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -2168,7 +2195,7 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
                 <div className="h-full flex items-center justify-center">
                   <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                 </div>
-              ) : messages.length === 0 ? (
+              ) : displayMessages.length === 0 ? (
                 <div className="h-full flex items-center justify-center text-muted-foreground">
                   <div className="text-center">
                     <MessageCircle className="h-8 w-8 mx-auto mb-2 opacity-20" />
@@ -2178,12 +2205,12 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
               ) : (
                 <div style={{ height: `${msgVirtualizer.getTotalSize()}px`, width: '100%', position: 'relative' }}>
                   {msgVirtualizer.getVirtualItems().map((virtualRow) => {
-                    const idx = virtualRow.index;
-                    const msg = messages[idx];
+                     const idx = virtualRow.index;
+                    const msg = displayMessages[idx];
                     const isMe = msg.sender_type !== "fan";
                     const isDeleted = msg.status === "deleted";
                     const showTime = idx === 0 ||
-                      (new Date(msg.created_at).getTime() - new Date(messages[idx - 1].created_at).getTime() > 3600000);
+                      (new Date(msg.created_at).getTime() - new Date(displayMessages[idx - 1].created_at).getTime() > 3600000);
 
                     return (
                       <div key={msg.id} data-index={idx} ref={msgVirtualizer.measureElement} style={{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${virtualRow.start}px)` }}>
