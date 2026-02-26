@@ -1259,9 +1259,9 @@ Analyze every character in the name and username for any gender signal at all. L
         const period = params?.period || "day";
         const since = params?.since ? `&since=${params.since}` : "";
         const until = params?.until ? `&until=${params.until}` : "";
-        const dayMetrics = "reach,follower_count,profile_views,website_clicks,accounts_engaged,total_interactions,likes,comments,shares,saves,replies";
-        const weekMetrics = "reach,follower_count,profile_views,website_clicks,accounts_engaged,total_interactions,likes,comments,shares,saves,replies";
-        const monthMetrics = "reach,follower_count,profile_views,website_clicks,accounts_engaged,total_interactions,likes,comments,shares,saves,replies";
+        const dayMetrics = "reach,impressions,total_interactions,likes,comments,shares,saved,replies,follows,profile_visits,profile_activity,navigation";
+        const weekMetrics = "reach,impressions,total_interactions,likes,comments,shares,saved,replies,follows,profile_visits,profile_activity,navigation";
+        const monthMetrics = "reach,impressions,total_interactions,likes,comments,shares,saved,replies,follows,profile_visits,profile_activity,navigation";
         const metrics = period === "day" ? dayMetrics : period === "week" ? weekMetrics : monthMetrics;
         result = await igFetch(`/${igUserId}/insights?metric=${metrics}&period=${period}${since}${until}`, token);
         if (result.data) {

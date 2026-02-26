@@ -117,15 +117,16 @@ const IGInsightsDashboard = ({ selectedAccount }: Props) => {
 
   const METRIC_CARDS = [
     { key: "reach", label: "Reach", icon: Eye, color: "text-blue-400", desc: "Unique accounts that saw your content" },
-    { key: "accounts_engaged", label: "Accounts Engaged", icon: Users, color: "text-emerald-400", desc: "Unique accounts that interacted" },
-    { key: "total_interactions", label: "Total Interactions", icon: Activity, color: "text-purple-400", desc: "Likes + comments + shares + saves + replies" },
-    { key: "follower_count", label: "Followers", icon: UserPlus, color: "text-pink-400", desc: "Current follower count" },
-    { key: "profile_views", label: "Profile Views", icon: Eye, color: "text-cyan-400", desc: "Profile visits" },
-    { key: "website_clicks", label: "Website Clicks", icon: MousePointerClick, color: "text-amber-400", desc: "Bio link taps" },
+    { key: "impressions", label: "Impressions", icon: Globe, color: "text-emerald-400", desc: "Total times your content was shown" },
+    { key: "total_interactions", label: "Interactions", icon: Activity, color: "text-purple-400", desc: "Likes + comments + shares + saves + replies" },
+    { key: "follows", label: "New Follows", icon: UserPlus, color: "text-pink-400", desc: "New followers gained" },
+    { key: "profile_visits", label: "Profile Visits", icon: Eye, color: "text-cyan-400", desc: "Times your profile was viewed" },
+    { key: "profile_activity", label: "Profile Activity", icon: MousePointerClick, color: "text-amber-400", desc: "Actions taken on your profile" },
+    { key: "navigation", label: "Navigation", icon: Link2, color: "text-teal-400", desc: "Taps on links in your profile" },
     { key: "likes", label: "Likes", icon: Heart, color: "text-red-400", desc: "Total likes on all content" },
     { key: "comments", label: "Comments", icon: MessageSquare, color: "text-sky-400", desc: "Total comments received" },
     { key: "shares", label: "Shares", icon: Share2, color: "text-green-400", desc: "Total shares" },
-    { key: "saves", label: "Saves", icon: Bookmark, color: "text-yellow-400", desc: "Total saves" },
+    { key: "saved", label: "Saves", icon: Bookmark, color: "text-yellow-400", desc: "Total saves" },
     { key: "replies", label: "Replies", icon: MailOpen, color: "text-violet-400", desc: "Story replies" },
   ];
 
@@ -187,7 +188,9 @@ const IGInsightsDashboard = ({ selectedAccount }: Props) => {
   const renderOnlineHours = () => {
     if (!onlineFollowers?.data?.[0]?.values?.[0]?.value) return null;
     const hourData = onlineFollowers.data[0].values[0].value;
+    if (!hourData || typeof hourData !== "object") return null;
     const entries = Object.entries(hourData).sort(([a], [b]) => parseInt(a) - parseInt(b));
+    if (entries.length === 0) return null;
     const max = Math.max(...entries.map(([, v]) => v as number), 1);
     const peakHour = entries.reduce((best, curr) => (curr[1] as number) > (best[1] as number) ? curr : best, entries[0]);
 
@@ -357,7 +360,7 @@ const IGInsightsDashboard = ({ selectedAccount }: Props) => {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
           {[
             { label: "Engagement Rate", value: metricsMap["total_interactions"]?.value && metricsMap["reach"]?.value ? ((metricsMap["total_interactions"].value / metricsMap["reach"].value) * 100).toFixed(2) + "%" : "—", color: "text-emerald-400", icon: TrendingUp },
-            { label: "Save Rate", value: metricsMap["saves"]?.value && metricsMap["reach"]?.value ? ((metricsMap["saves"].value / metricsMap["reach"].value) * 100).toFixed(2) + "%" : "—", color: "text-yellow-400", icon: Bookmark },
+            { label: "Save Rate", value: metricsMap["saved"]?.value && metricsMap["reach"]?.value ? ((metricsMap["saved"].value / metricsMap["reach"].value) * 100).toFixed(2) + "%" : "—", color: "text-yellow-400", icon: Bookmark },
             { label: "Share Rate", value: metricsMap["shares"]?.value && metricsMap["reach"]?.value ? ((metricsMap["shares"].value / metricsMap["reach"].value) * 100).toFixed(2) + "%" : "—", color: "text-green-400", icon: Share2 },
             { label: "Comment Rate", value: metricsMap["comments"]?.value && metricsMap["reach"]?.value ? ((metricsMap["comments"].value / metricsMap["reach"].value) * 100).toFixed(2) + "%" : "—", color: "text-sky-400", icon: MessageSquare },
           ].map(s => (
