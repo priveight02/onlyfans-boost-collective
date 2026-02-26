@@ -38,7 +38,7 @@ function interMessageDelay(isFlowing = false): number {
   return 200 + Math.random() * 500;
 }
 
-const INCOMPLETE_TAIL_WORDS = new Set(["and", "but", "so", "just", "actually", "like", "the", "a", "to", "in", "is", "was"]);
+const INCOMPLETE_TAIL_WORDS = new Set(["and", "but", "so", "just", "actually", "like", "the", "a", "to", "in", "is", "was", "for", "with", "that", "this", "or", "if", "at", "by", "of"]);
 
 function looksLikeCutOffReply(text: string): boolean {
   const normalized = text.trim().toLowerCase();
@@ -1824,7 +1824,7 @@ FINAL REMINDER (READ LAST — THIS OVERRIDES EVERYTHING):
           body: JSON.stringify({
             model: LIVE_CHAT_PRIMARY_MODEL,
             messages,
-            max_tokens: Math.max(700, Math.min(2200, 900 + Math.ceil(message_text.length * 1.2))),
+            max_tokens: Math.max(1200, Math.min(4096, 1500 + Math.ceil(message_text.length * 2))),
             temperature: 0.8,
           }),
         });
