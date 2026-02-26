@@ -4847,7 +4847,7 @@ Answer it directly like a real human would. Do not talk about anything else.` })
             }
 
             // Dynamic tokens
-            const dynamicMaxTokens = multipleUnanswered ? 120 : (unansweredQuestions > 0 ? 100 : 80);
+            const dynamicMaxTokens = multipleUnanswered ? 400 : (unansweredQuestions > 0 ? 300 : 200);
 
             // Update pipeline phase to "generate" for real-time UI tracking
             if (typingMsg) {
@@ -5016,7 +5016,7 @@ Answer it directly like a real human would. Do not talk about anything else.` })
 
             const wordsArr = reply.split(/\s+/).filter(Boolean);
             const isAnsweringQuestion = unansweredQuestions > 0 || multipleUnanswered || isLikelyQuestionText(latestMsg?.content || "");
-            const maxWords = isAnsweringQuestion ? 38 : 20;
+            const maxWords = isAnsweringQuestion ? 50 : 35;
 
             if (wordsArr.length > maxWords) {
               reply = trimIncompleteTail(wordsArr.slice(0, maxWords).join(" "));
