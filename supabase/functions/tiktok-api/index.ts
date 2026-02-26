@@ -157,20 +157,21 @@ serve(async (req) => {
       }
 
       // ===== VIDEO LIST =====
-      case "get_videos":
-        result = await ttFetch("/video/list/", token!, "POST", {
-          max_count: params?.limit || 20,
-          cursor: params?.cursor || undefined,
-          fields: "id,title,video_description,duration,cover_image_url,share_url,create_time,like_count,comment_count,share_count,view_count",
-        });
+      case "get_videos": {
+        const videoFields = "id,title,video_description,duration,cover_image_url,share_url,create_time,like_count,comment_count,share_count,view_count";
+        const videoBody: any = { max_count: params?.limit || 20 };
+        if (params?.cursor) videoBody.cursor = params.cursor;
+        result = await ttFetch(`/video/list/?fields=${videoFields}`, token!, "POST", videoBody);
         break;
+      }
 
-      case "get_video_details":
-        result = await ttFetch("/video/query/", token!, "POST", {
+      case "get_video_details": {
+        const detailFields = "id,title,video_description,duration,cover_image_url,share_url,create_time,like_count,comment_count,share_count,view_count,embed_link,embed_html,height,width";
+        result = await ttFetch(`/video/query/?fields=${detailFields}`, token!, "POST", {
           filters: { video_ids: params.video_ids },
-          fields: "id,title,video_description,duration,cover_image_url,share_url,create_time,like_count,comment_count,share_count,view_count,embed_link,embed_html,height,width",
         });
         break;
+      }
 
       // ===== PUBLISHING: VIDEO =====
       case "init_video_upload":
