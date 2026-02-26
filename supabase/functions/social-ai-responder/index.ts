@@ -6,9 +6,9 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// Live DM chat model policy: best conversational model first
-const LIVE_CHAT_PRIMARY_MODEL = "google/gemini-3-pro-preview";
-const LIVE_CHAT_RETRY_MODEL = "openai/gpt-5.2";
+// Live DM chat model policy: reliable conversational model first
+const LIVE_CHAT_PRIMARY_MODEL = "google/gemini-2.5-flash";
+const LIVE_CHAT_RETRY_MODEL = "openai/gpt-5-mini";
 
 // === HUMAN TYPING DELAY ENGINE ===
 // Simulates realistic human typing speed with randomness
@@ -4525,70 +4525,12 @@ ${!isUncensored && autoConfig.redirect_url ? `\nYou can mention this link natura
 
             reply = antiRepetitionCheck(reply, conversationContext);
 
-            // === SEMANTIC VERIFICATION PASS (DOUBLE-CHECK BEFORE SENDING) ===
-            // Instead of keyword-matching guards, use a fast model call to verify
-            // the reply actually answers the fan's message sequence.
-            const latestFanTextNow = (latestMsg?.content || "").trim();
-            const latestIsQuestionNow = isLikelyQuestionText(latestFanTextNow);
-
-            // Build the full unanswered context for verification
+            // No double-check pass — trust the primary model's first response.
+            // Full conversation context + persona + memory already ensures quality.
             const verifyFanContext = unansweredFanMsgs
               .map(m => String(m.content || "").trim())
               .filter(Boolean)
               .join(" | ");
-
-            // Banned off-topic patterns that should never appear unless fan said them
-            const replyLowerCheck = reply.toLowerCase();
-            const fanLowerCheck = (verifyFanContext || latestFanTextNow).toLowerCase();
-            const containsBannedPhrase = [
-              /\bwrong person\b/i, /\bnot\s+emy\b/i, /\bliam\b/i,
-              /\bweekend\b/i, /\bchill(?:ing)?\b/i,
-            ].some((rx) => rx.test(replyLowerCheck) && !rx.test(fanLowerCheck));
-
-            const needsVerification = latestIsQuestionNow || containsBannedPhrase || unansweredFanMsgs.length >= 2;
-
-            if (needsVerification) {
-              try {
-                const verifyResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-                  method: "POST",
-                  headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    model: "google/gemini-2.5-flash-lite",
-                    temperature: 0,
-                    max_tokens: 300,
-                    messages: [
-                      {
-                        role: "system",
-                        content: `You are a quality checker for DM replies. Given the fan's message(s) and a draft reply, output ONLY one of:
-- "PASS" if the reply directly addresses the fan's actual message/question
-- A corrected reply (just the message text, nothing else) if the draft is off-topic, ignores their question, contains irrelevant filler, or doesn't answer what was asked
-
-Rules: the corrected reply must be lowercase casual texting, no emojis, 8-35 words, and directly answer what the fan said.`,
-                      },
-                      {
-                        role: "user",
-                        content: `FAN SAID: "${verifyFanContext || latestFanTextNow}"\n\nDRAFT REPLY: "${reply}"`,
-                      },
-                    ],
-                  }),
-                });
-
-                if (verifyResp.ok) {
-                  const verifyJson = await verifyResp.json();
-                  const verdict = (verifyJson?.choices?.[0]?.message?.content || "").replace(/\[.*?\]/g, "").replace(/^['"]|['"]$/g, "").trim();
-                  
-                  if (verdict && verdict.toUpperCase() !== "PASS") {
-                    console.log(`[VERIFY] Reply failed check. Original: "${reply}" → Corrected: "${verdict}"`);
-                    reply = antiRepetitionCheck(verdict, conversationContext);
-                    aiModelUsed = verifyJson?.model || aiModelUsed;
-                  } else {
-                    console.log(`[VERIFY] Reply passed check: "${reply}"`);
-                  }
-                }
-              } catch (verifyErr) {
-                console.log("[VERIFY] Verification pass failed (non-blocking):", verifyErr);
-              }
-            }
 
             // HARD NO-REPEAT GUARD: if draft echoes older assistant text,
             // regenerate once with strict focus on the latest message only.
