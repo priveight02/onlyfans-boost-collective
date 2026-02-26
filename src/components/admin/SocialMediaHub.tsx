@@ -1969,13 +1969,21 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
     const csrfState = Math.random().toString(36).substring(2);
     sessionStorage.setItem("tt_csrf", csrfState);
     const ttRedirectUri = "https://uplyze.ai/tt-login";
-    const authUrl = `https://www.tiktok.com/v2/auth/authorize/?${new URLSearchParams({
+    // Build auth URL — use unique state per request to avoid CSRF reuse
+    const uniqueState = `${addMode ? "add_account" : "connect"}_${csrfState}_${Date.now()}`;
+    const authParams: Record<string, string> = {
       client_key: clientKey,
       scope: resolvedScopes,
       response_type: "code",
       redirect_uri: ttRedirectUri,
-      state: `${addMode ? "add_account" : "connect"}_${csrfState}`,
-    }).toString()}`;
+      state: uniqueState,
+    };
+    // Force fresh login when adding a new account — prevent TikTok session reuse
+    if (addMode) {
+      authParams.prompt = "login";
+      authParams.disable_auto_login = "1";
+    }
+    const authUrl = `https://www.tiktok.com/v2/auth/authorize/?${new URLSearchParams(authParams).toString()}`;
     const w = 520, h = 620;
     const left = Math.round(window.screenX + (window.outerWidth - w) / 2);
     const top = Math.round(window.screenY + (window.outerHeight - h) / 2);
