@@ -1985,8 +1985,9 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
 
     let popup: Window | null = null;
     if (addMode) {
-      // Larger popup for add-account flow so TikTok login UI is fully visible
-      const addW = 600, addH = 750;
+      // Responsive larger popup for add-account flow so TikTok login/OAuth UI is fully visible
+      const addW = Math.max(620, Math.min(860, window.screen.availWidth - 80));
+      const addH = Math.max(700, Math.min(980, window.screen.availHeight - 80));
       const addLeft = Math.round(window.screenX + (window.outerWidth - addW) / 2);
       const addTop = Math.round(window.screenY + (window.outerHeight - addH) / 2);
       // Force fresh TikTok login: open popup, navigate to TikTok logout to clear session cookies,
