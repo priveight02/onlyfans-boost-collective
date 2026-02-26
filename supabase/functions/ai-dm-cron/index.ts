@@ -63,13 +63,19 @@ serve(async (req) => {
       }
 
       // Verify Instagram is connected
-      const { data: igConn } = await supabase
+      const { data: igConn, error: igConnErr } = await supabase
         .from("social_connections")
-        .select("platform_user_id")
+        .select("platform_user_id, is_connected")
         .eq("account_id", account_id)
         .eq("platform", "instagram")
-        .eq("status", "connected")
-        .single();
+        .eq("is_connected", true)
+        .maybeSingle();
+
+      if (igConnErr) {
+        console.log(`[AI-DM-CRON] Account ${account_id}: IG connection lookup failed (${igConnErr.message}), skipping`);
+        results.push({ account_id, status: "no_ig_connection", error: igConnErr.message });
+        continue;
+      }
 
       if (!igConn?.platform_user_id) {
         console.log(`[AI-DM-CRON] Account ${account_id}: no IG connection, skipping`);
