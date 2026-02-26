@@ -19,7 +19,8 @@ import {
   MessageCircle, LayoutDashboard, Wand2, Megaphone, Copy,
   Target, Radio, Calendar, Download, Link2, FolderOpen,
   CheckCircle2, AlertCircle, Bot, Sparkles, ArrowRight,
-  MapPin, FileVideo, FileImage, X, Trash2,
+  MapPin, FileVideo, FileImage, X, Trash2, Edit3, Filter,
+  CalendarDays, LayoutGrid, Save, MoreHorizontal,
 } from "lucide-react";
 // TikTok-native DM conversations — no Instagram dependency
 
@@ -155,6 +156,14 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
   const [newPostScheduledAt, setNewPostScheduledAt] = useState("");
   const [newPostType, setNewPostType] = useState("video");
 
+  // Schedule tab upgraded state
+  const [schedFilterStatus, setSchedFilterStatus] = useState<string>("all");
+  const [editingPostId, setEditingPostId] = useState<string | null>(null);
+  const [editCaption, setEditCaption] = useState("");
+  const [editScheduledAt, setEditScheduledAt] = useState("");
+  const [schedBulkSelected, setSchedBulkSelected] = useState<Set<string>>(new Set());
+  const [schedViewMode, setSchedViewMode] = useState<"list" | "calendar">("list");
+
   // === Upgraded Content Center State ===
   const [uploadedFiles, setUploadedFiles] = useState<{ file: File; preview: string; url?: string }[]>([]);
   const [fileUploading, setFileUploading] = useState(false);
@@ -196,12 +205,24 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
     return () => { supabase.removeChannel(channel); };
   }, [selectedAccount]);
 
-  // Load scheduled posts
+  const loadScheduledPosts = useCallback(async () => {
+    if (!selectedAccount) return;
+    const { data } = await supabase.from("social_posts").select("*").eq("account_id", selectedAccount).eq("platform", "tiktok").order("created_at", { ascending: false }).limit(50);
+    if (data) setScheduledPosts(data);
+  }, [selectedAccount]);
+
+  // Load scheduled posts + realtime sync
   useEffect(() => {
     if (!selectedAccount) return;
-    supabase.from("social_posts").select("*").eq("account_id", selectedAccount).eq("platform", "tiktok").order("created_at", { ascending: false }).limit(50)
-      .then(({ data }) => { if (data) setScheduledPosts(data); });
-  }, [selectedAccount]);
+    loadScheduledPosts();
+    const channel = supabase
+      .channel(`tk-sched-posts-${selectedAccount}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "social_posts", filter: `account_id=eq.${selectedAccount}` }, () => {
+        loadScheduledPosts();
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [selectedAccount, loadScheduledPosts]);
 
   const callApi = useCallback(async (action: string, params?: any) => {
     setLoading(true);
@@ -453,8 +474,7 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
       setSchedPrivacy("PUBLIC_TO_EVERYONE"); setSchedDisableDuet(false);
       setSchedDisableComment(false); setSchedDisableStitch(false);
       setSchedBrandContent(false); setSchedContentType("video");
-      const { data } = await supabase.from("social_posts").select("*").eq("account_id", selectedAccount).eq("platform", "tiktok").order("created_at", { ascending: false }).limit(50);
-      if (data) setScheduledPosts(data);
+      loadScheduledPosts();
     }
   };
 
@@ -485,8 +505,7 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
     }
     if (result) {
       toast.success("Published!");
-      const { data } = await supabase.from("social_posts").select("*").eq("account_id", selectedAccount).eq("platform", "tiktok").order("created_at", { ascending: false }).limit(50);
-      if (data) setScheduledPosts(data);
+      loadScheduledPosts();
     }
   };
 
@@ -494,6 +513,60 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
     await supabase.from("social_posts").delete().eq("id", id);
     toast.success("Deleted");
     setScheduledPosts(prev => prev.filter(p => p.id !== id));
+    setSchedBulkSelected(prev => { const n = new Set(prev); n.delete(id); return n; });
+  };
+
+  // Edit post inline
+  const startEditPost = (post: any) => {
+    setEditingPostId(post.id);
+    setEditCaption(post.caption || "");
+    setEditScheduledAt(post.scheduled_at ? new Date(post.scheduled_at).toISOString().slice(0, 16) : "");
+  };
+
+  const saveEditPost = async () => {
+    if (!editingPostId) return;
+    const { error } = await supabase.from("social_posts").update({
+      caption: editCaption,
+      scheduled_at: editScheduledAt || null,
+      status: editScheduledAt ? "scheduled" : "draft",
+      updated_at: new Date().toISOString(),
+    }).eq("id", editingPostId);
+    if (error) toast.error(error.message);
+    else { toast.success("Post updated!"); setEditingPostId(null); loadScheduledPosts(); }
+  };
+
+  // Duplicate post
+  const duplicatePost = async (post: any) => {
+    const { id, created_at, updated_at, platform_post_id, published_at, error_message, engagement_data, ...rest } = post;
+    const { error } = await supabase.from("social_posts").insert({ ...rest, status: "draft", scheduled_at: null });
+    if (error) toast.error(error.message);
+    else { toast.success("Post duplicated as draft!"); loadScheduledPosts(); }
+  };
+
+  // Bulk delete
+  const bulkDeletePosts = async () => {
+    if (schedBulkSelected.size === 0) return;
+    const ids = Array.from(schedBulkSelected);
+    const { error } = await supabase.from("social_posts").delete().in("id", ids);
+    if (error) toast.error(error.message);
+    else { toast.success(`${ids.length} posts deleted`); setSchedBulkSelected(new Set()); loadScheduledPosts(); }
+  };
+
+  // Bulk publish
+  const bulkPublishPosts = async () => {
+    if (schedBulkSelected.size === 0) return;
+    const posts = scheduledPosts.filter(p => schedBulkSelected.has(p.id) && p.status !== "published");
+    for (const p of posts) await publishPost(p);
+    setSchedBulkSelected(new Set());
+  };
+
+  // Toggle bulk selection
+  const toggleBulkSelect = (id: string) => {
+    setSchedBulkSelected(prev => {
+      const n = new Set(prev);
+      if (n.has(id)) n.delete(id); else n.add(id);
+      return n;
+    });
   };
 
   // File upload handler — uploads to social-media storage bucket
@@ -1709,9 +1782,12 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
               </div>
               Schedule Manager
             </h3>
-            <p className="text-xs text-muted-foreground mt-0.5">Plan up to 50 scheduled posts — AI-managed & synced in real-time</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Real-time synced · AI-managed · up to 50 scheduled posts</p>
           </div>
           <div className="flex items-center gap-2">
+            <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={loadScheduledPosts}>
+              <RefreshCw className="h-3 w-3" /> Sync
+            </Button>
             <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/20 text-[10px]">
               {scheduledPosts.filter(p => p.status === "scheduled").length}/50 Scheduled
             </Badge>
@@ -1719,14 +1795,15 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
         </div>
 
         {/* Quick Stats */}
-        <div className="grid grid-cols-4 gap-2">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
           {[
             { label: "Scheduled", value: scheduledPosts.filter(p => p.status === "scheduled").length, color: "text-amber-400", bg: "bg-amber-500/10", icon: Clock },
             { label: "Publishing", value: scheduledPosts.filter(p => p.status === "publishing").length, color: "text-blue-400", bg: "bg-blue-500/10", icon: Loader2 },
             { label: "Published", value: scheduledPosts.filter(p => p.status === "published").length, color: "text-green-400", bg: "bg-green-500/10", icon: CheckCircle2 },
             { label: "Drafts", value: scheduledPosts.filter(p => p.status === "draft").length, color: "text-violet-400", bg: "bg-violet-500/10", icon: FolderOpen },
+            { label: "Failed", value: scheduledPosts.filter(p => p.status === "failed" || p.error_message).length, color: "text-red-400", bg: "bg-red-500/10", icon: AlertCircle },
           ].map(s => (
-            <Card key={s.label} className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm">
+            <Card key={s.label} className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm cursor-pointer hover:border-amber-500/20 transition-colors" onClick={() => setSchedFilterStatus(s.label.toLowerCase())}>
               <CardContent className="p-3">
                 <div className="flex items-center gap-2">
                   <div className={`h-8 w-8 rounded-lg ${s.bg} flex items-center justify-center`}>
@@ -1741,6 +1818,33 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
             </Card>
           ))}
         </div>
+
+        {/* Best Time to Post Suggestion */}
+        <Card className="bg-gradient-to-r from-amber-500/5 to-orange-500/5 border-amber-500/10">
+          <CardContent className="p-3 flex items-center gap-3">
+            <div className="h-9 w-9 rounded-lg bg-amber-500/10 flex items-center justify-center flex-shrink-0">
+              <Sparkles className="h-4 w-4 text-amber-400" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold text-foreground">Best Time to Post</p>
+              <p className="text-[10px] text-muted-foreground">Based on TikTok engagement patterns: <span className="text-amber-400 font-medium">Tue/Thu 7-9 PM</span> and <span className="text-amber-400 font-medium">Sat 11 AM-1 PM</span> get the highest engagement</p>
+            </div>
+            <Button size="sm" variant="outline" className="text-[10px] h-7 flex-shrink-0" onClick={() => {
+              const next = new Date();
+              const day = next.getDay();
+              // Find next Tue/Thu
+              const daysUntilTue = (2 - day + 7) % 7 || 7;
+              const daysUntilThu = (4 - day + 7) % 7 || 7;
+              const targetDay = daysUntilTue <= daysUntilThu ? daysUntilTue : daysUntilThu;
+              next.setDate(next.getDate() + targetDay);
+              next.setHours(19, 0, 0, 0);
+              setNewPostScheduledAt(next.toISOString().slice(0, 16));
+              toast.success("Optimal time set!");
+            }}>
+              <Calendar className="h-3 w-3 mr-1" /> Use Optimal
+            </Button>
+          </CardContent>
+        </Card>
 
         {/* Batch Create */}
         <Card className="bg-white/[0.03] border-amber-500/20 backdrop-blur-sm overflow-hidden">
@@ -1800,7 +1904,7 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
                         {f.file.type.startsWith("video") ? (
                           <video src={f.preview} className="h-16 w-16 object-cover rounded-lg border border-white/[0.06]" />
                         ) : (
-                          <img src={f.preview} className="h-16 w-16 object-cover rounded-lg border border-white/[0.06]" />
+                          <img src={f.preview} className="h-16 w-16 object-cover rounded-lg border border-white/[0.06]" alt="" />
                         )}
                         <button onClick={() => removeUploadedFile(i)} className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-red-500 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                           <X className="h-3 w-3 text-white" />
@@ -1856,56 +1960,153 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
         <Card className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm">
           <div className="h-1 bg-gradient-to-r from-orange-400 to-amber-500" />
           <CardContent className="p-5 space-y-4">
-            <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
-              <Clock className="h-4 w-4 text-amber-400" />
-              Post Queue ({scheduledPosts.length}/50)
-            </h4>
-            {scheduledPosts.length > 0 ? (
-              <ScrollArea className="max-h-[500px]">
-                <div className="space-y-2">
-                  {scheduledPosts.map(p => {
-                    const meta = p.metadata || {};
-                    return (
-                      <div key={p.id} className="bg-white/[0.02] rounded-lg p-3 flex items-center gap-3 border border-white/[0.04] hover:border-amber-500/30 transition-colors">
-                        <div className={`h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0 ${p.status === "published" ? "bg-green-500/10" : p.status === "scheduled" ? "bg-amber-500/10" : p.status === "publishing" ? "bg-blue-500/10" : "bg-muted/30"}`}>
-                          {p.status === "published" ? <CheckCircle2 className="h-4 w-4 text-green-400" /> : p.status === "scheduled" ? <Clock className="h-4 w-4 text-amber-400" /> : p.status === "publishing" ? <Loader2 className="h-4 w-4 text-blue-400 animate-spin" /> : <FolderOpen className="h-4 w-4 text-muted-foreground" />}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-medium text-foreground line-clamp-1">{p.caption || "No caption"}</p>
-                          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                            <Badge variant="outline" className={`text-[9px] ${p.status === "published" ? "border-green-500/30 text-green-400" : p.status === "scheduled" ? "border-amber-500/30 text-amber-400" : "border-border text-muted-foreground"}`}>
-                              {p.status}
-                            </Badge>
-                            <Badge variant="outline" className="text-[9px] border-border text-muted-foreground capitalize">{meta.content_type || p.post_type || "video"}</Badge>
-                            <span className="text-[10px] text-muted-foreground">
-                              {p.scheduled_at ? new Date(p.scheduled_at).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "No schedule"}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="flex gap-1 flex-shrink-0">
-                          {p.status !== "published" && (
-                            <Button size="sm" variant="ghost" className="h-7 w-7 p-0 hover:bg-green-500/10" onClick={() => publishPost(p)} title="Publish now">
-                              <Play className="h-3.5 w-3.5 text-green-400" />
-                            </Button>
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
+                <Clock className="h-4 w-4 text-amber-400" />
+                Post Queue ({(schedFilterStatus === "all" ? scheduledPosts : scheduledPosts.filter(p => p.status === schedFilterStatus)).length})
+              </h4>
+              <div className="flex items-center gap-2">
+                {/* Filter */}
+                <select value={schedFilterStatus} onChange={e => setSchedFilterStatus(e.target.value)} className="bg-white/[0.06] text-foreground border border-white/[0.08] rounded-lg px-2 py-1 text-[10px] outline-none">
+                  <option value="all">All Statuses</option>
+                  <option value="scheduled">Scheduled</option>
+                  <option value="draft">Drafts</option>
+                  <option value="published">Published</option>
+                  <option value="publishing">Publishing</option>
+                  <option value="failed">Failed</option>
+                </select>
+                {/* Bulk actions */}
+                {schedBulkSelected.size > 0 && (
+                  <div className="flex gap-1">
+                    <Button size="sm" variant="outline" className="h-7 text-[10px] gap-1 text-green-400 border-green-500/20" onClick={bulkPublishPosts}>
+                      <Play className="h-3 w-3" /> Publish {schedBulkSelected.size}
+                    </Button>
+                    <Button size="sm" variant="outline" className="h-7 text-[10px] gap-1 text-red-400 border-red-500/20" onClick={bulkDeletePosts}>
+                      <Trash2 className="h-3 w-3" /> Delete {schedBulkSelected.size}
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {(() => {
+              const filtered = schedFilterStatus === "all" ? scheduledPosts : scheduledPosts.filter(p => {
+                if (schedFilterStatus === "failed") return p.status === "failed" || p.error_message;
+                return p.status === schedFilterStatus;
+              });
+              return filtered.length > 0 ? (
+                <ScrollArea className="max-h-[500px]">
+                  <div className="space-y-2">
+                    {filtered.map(p => {
+                      const meta = p.metadata || {};
+                      const isEditing = editingPostId === p.id;
+                      const isOverdue = p.status === "scheduled" && p.scheduled_at && new Date(p.scheduled_at) < new Date();
+                      return (
+                        <div key={p.id} className={`bg-white/[0.02] rounded-lg p-3 border transition-colors ${isOverdue ? "border-red-500/30" : schedBulkSelected.has(p.id) ? "border-amber-500/40 bg-amber-500/5" : "border-white/[0.04] hover:border-amber-500/30"}`}>
+                          {isEditing ? (
+                            <div className="space-y-2">
+                              <Textarea value={editCaption} onChange={e => setEditCaption(e.target.value)} rows={2} className="text-sm bg-muted/20 border-border/40" />
+                              <div className="flex gap-2 items-center">
+                                <Input type="datetime-local" value={editScheduledAt} onChange={e => setEditScheduledAt(e.target.value)} className="text-sm bg-muted/20 border-border/40 flex-1" />
+                                <Button size="sm" onClick={saveEditPost} className="h-7 bg-green-500 hover:bg-green-600 text-white gap-1">
+                                  <Save className="h-3 w-3" /> Save
+                                </Button>
+                                <Button size="sm" variant="ghost" onClick={() => setEditingPostId(null)} className="h-7">Cancel</Button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-3">
+                              {/* Bulk checkbox */}
+                              <input type="checkbox" checked={schedBulkSelected.has(p.id)} onChange={() => toggleBulkSelect(p.id)} className="h-3.5 w-3.5 rounded accent-amber-500 cursor-pointer flex-shrink-0" />
+                              <div className={`h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0 ${p.status === "published" ? "bg-green-500/10" : p.status === "scheduled" ? (isOverdue ? "bg-red-500/10" : "bg-amber-500/10") : p.status === "publishing" ? "bg-blue-500/10" : p.status === "failed" ? "bg-red-500/10" : "bg-muted/30"}`}>
+                                {p.status === "published" ? <CheckCircle2 className="h-4 w-4 text-green-400" /> : p.status === "scheduled" ? (isOverdue ? <AlertCircle className="h-4 w-4 text-red-400" /> : <Clock className="h-4 w-4 text-amber-400" />) : p.status === "publishing" ? <Loader2 className="h-4 w-4 text-blue-400 animate-spin" /> : p.status === "failed" ? <AlertCircle className="h-4 w-4 text-red-400" /> : <FolderOpen className="h-4 w-4 text-muted-foreground" />}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-medium text-foreground line-clamp-1">{p.caption || "No caption"}</p>
+                                <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                                  <Badge variant="outline" className={`text-[9px] ${p.status === "published" ? "border-green-500/30 text-green-400" : p.status === "scheduled" ? (isOverdue ? "border-red-500/30 text-red-400" : "border-amber-500/30 text-amber-400") : p.status === "failed" ? "border-red-500/30 text-red-400" : "border-border text-muted-foreground"}`}>
+                                    {isOverdue ? "overdue" : p.status}
+                                  </Badge>
+                                  <Badge variant="outline" className="text-[9px] border-border text-muted-foreground capitalize">{meta.content_type || p.post_type || "video"}</Badge>
+                                  {p.error_message && <Badge variant="outline" className="text-[9px] border-red-500/30 text-red-400 line-clamp-1">{p.error_message}</Badge>}
+                                  <span className="text-[10px] text-muted-foreground">
+                                    {p.scheduled_at ? new Date(p.scheduled_at).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "No schedule"}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="flex gap-1 flex-shrink-0">
+                                {p.status !== "published" && (
+                                  <Button size="sm" variant="ghost" className="h-7 w-7 p-0 hover:bg-amber-500/10" onClick={() => startEditPost(p)} title="Edit">
+                                    <Edit3 className="h-3.5 w-3.5 text-amber-400" />
+                                  </Button>
+                                )}
+                                <Button size="sm" variant="ghost" className="h-7 w-7 p-0 hover:bg-violet-500/10" onClick={() => duplicatePost(p)} title="Duplicate">
+                                  <Copy className="h-3.5 w-3.5 text-violet-400" />
+                                </Button>
+                                {p.status !== "published" && (
+                                  <Button size="sm" variant="ghost" className="h-7 w-7 p-0 hover:bg-green-500/10" onClick={() => publishPost(p)} title="Publish now">
+                                    <Play className="h-3.5 w-3.5 text-green-400" />
+                                  </Button>
+                                )}
+                                <Button size="sm" variant="ghost" className="h-7 w-7 p-0 hover:bg-red-500/10" onClick={() => deletePost(p.id)} title="Delete">
+                                  <Trash2 className="h-3.5 w-3.5 text-red-400" />
+                                </Button>
+                              </div>
+                            </div>
                           )}
-                          <Button size="sm" variant="ghost" className="h-7 w-7 p-0 hover:bg-red-500/10" onClick={() => deletePost(p.id)} title="Delete">
-                            <Trash2 className="h-3.5 w-3.5 text-red-400" />
-                          </Button>
                         </div>
+                      );
+                    })}
+                  </div>
+                </ScrollArea>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Calendar className="h-10 w-10 mx-auto mb-2 opacity-20" />
+                  <p className="text-xs font-medium">{schedFilterStatus === "all" ? "No posts yet" : `No ${schedFilterStatus} posts`}</p>
+                  <p className="text-[10px] mt-1 opacity-60">{schedFilterStatus !== "all" && <button className="text-amber-400 underline" onClick={() => setSchedFilterStatus("all")}>Show all</button>}</p>
+                </div>
+              );
+            })()}
+          </CardContent>
+        </Card>
+
+        {/* Calendar Mini View */}
+        {scheduledPosts.filter(p => p.scheduled_at).length > 0 && (
+          <Card className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm">
+            <CardContent className="p-5 space-y-3">
+              <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
+                <CalendarDays className="h-4 w-4 text-amber-400" />
+                Upcoming Timeline
+              </h4>
+              <div className="space-y-1.5">
+                {scheduledPosts
+                  .filter(p => p.scheduled_at && (p.status === "scheduled" || p.status === "draft"))
+                  .sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime())
+                  .slice(0, 10)
+                  .map(p => {
+                    const dt = new Date(p.scheduled_at);
+                    const isOverdue = dt < new Date();
+                    return (
+                      <div key={p.id} className="flex items-center gap-3 py-1.5 border-b border-white/[0.04] last:border-0">
+                        <div className={`text-center w-12 flex-shrink-0 ${isOverdue ? "text-red-400" : "text-amber-400"}`}>
+                          <p className="text-[10px] font-medium uppercase">{dt.toLocaleDateString([], { weekday: "short" })}</p>
+                          <p className="text-sm font-bold leading-none">{dt.getDate()}</p>
+                        </div>
+                        <div className={`w-0.5 h-8 rounded-full ${isOverdue ? "bg-red-500/40" : "bg-amber-500/40"}`} />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs text-foreground line-clamp-1">{p.caption || "No caption"}</p>
+                          <p className="text-[10px] text-muted-foreground">{dt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} · {(p.metadata as any)?.content_type || p.post_type}</p>
+                        </div>
+                        <Badge variant="outline" className={`text-[9px] ${isOverdue ? "border-red-500/30 text-red-400" : "border-amber-500/30 text-amber-400"}`}>
+                          {isOverdue ? "overdue" : p.status}
+                        </Badge>
                       </div>
                     );
                   })}
-                </div>
-              </ScrollArea>
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                <Calendar className="h-10 w-10 mx-auto mb-2 opacity-20" />
-                <p className="text-xs font-medium">No posts yet</p>
-                <p className="text-[10px] mt-1 opacity-60">Create your first scheduled post above</p>
               </div>
-            )}
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
       </TabsContent>
     </Tabs>
     </div>
