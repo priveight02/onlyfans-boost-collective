@@ -57,12 +57,11 @@ function trimIncompleteTail(text: string): string {
   return words.join(" ").trim();
 }
 
-// Keep fan context even when a sync glitch flags fan messages as deleted.
-// We still exclude failed messages from all AI reasoning paths.
+// Exclude ALL deleted and failed messages from AI reasoning paths.
 const isContextEligibleMessage = (msg: any): boolean => {
   if (!msg) return false;
   if (msg.status === "failed") return false;
-  if (msg.status === "deleted" && msg.sender_type !== "fan") return false;
+  if (msg.status === "deleted") return false;
   const content = String(msg.content || "").trim();
   return content.length > 0;
 };
@@ -3032,7 +3031,7 @@ Rules:
           break;
         }
 
-        // === DAILY COUNTER (tracking only — NO cooldown, NO limit enforcement) ===
+        // === DAILY COUNTER (tracking only — no cooldowns) ===
         const now = Date.now();
         const dailyResetAt = autoConfig.daily_reset_at ? new Date(autoConfig.daily_reset_at).getTime() : 0;
 
@@ -3041,7 +3040,6 @@ Rules:
           await supabase.from("auto_respond_state").update({
             daily_sent_count: 0,
             daily_reset_at: new Date().toISOString(),
-            cooldown_until: null,
           }).eq("account_id", account_id);
           console.log(`[DAILY COUNTER] Account ${account_id}: daily counter reset (stats only)`);
         }
@@ -3207,23 +3205,7 @@ Rules:
               continue;
             }
 
-            // === 24H PAUSE CHECK — skip conversations that hit the 30-msg hard cap ===
-            const pauseMeta = (dbConvo.metadata as any) || {};
-            if (!isUncensored && pauseMeta?.paused_until) {
-              const pausedUntil = new Date(pauseMeta.paused_until).getTime();
-              if (Date.now() < pausedUntil) {
-                console.log(`[30-MSG CAP] @${dbConvo.participant_username}: paused until ${pauseMeta.paused_until}, skipping (${Math.round((pausedUntil - Date.now()) / 60000)}min remaining)`);
-                // Just update the lock so we don't re-check
-                await supabase.from("ai_dm_conversations").update({ last_ai_reply_at: new Date().toISOString(), is_read: true }).eq("id", dbConvo.id);
-                continue;
-              } else {
-                // Pause expired — clear it and let conversation resume
-                console.log(`[30-MSG CAP] @${dbConvo.participant_username}: 24h pause expired, resuming`);
-                await supabase.from("ai_dm_conversations").update({
-                  metadata: { ...pauseMeta, paused_until: null },
-                }).eq("id", dbConvo.id);
-              }
-            }
+            // (24h pause system removed — no cooldowns)
 
             // Build conversation context from DB — select ALL fields including metadata
             // Filter out failed/deleted messages so they don't pollute AI context
@@ -3379,17 +3361,16 @@ Rules:
                 console.log("[30-MSG CAP] Send failed:", capErr);
               }
               
-              // Set 24h pause in metadata
-              const pauseUntil = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+              // No pause — conversation continues normally after hard cap redirect
               const existingMeta = (dbConvo.metadata as any) || {};
               await supabase.from("ai_dm_conversations").update({
-                metadata: { ...existingMeta, paused_until: pauseUntil, paused_reason: "30_msg_hard_cap", unpaused_at: null },
+                metadata: { ...existingMeta, unpaused_at: new Date().toISOString() },
                 last_ai_reply_at: new Date().toISOString(),
                 last_message_preview: `You: ${finalMsg.substring(0, 80)}`,
                 is_read: true,
               }).eq("id", dbConvo.id);
               
-              console.log(`[30-MSG CAP] @${dbConvo.participant_username}: paused until ${pauseUntil}`);
+              console.log(`[30-MSG CAP] @${dbConvo.participant_username}: hard cap redirect sent, counter reset`);
               processed++;
               processedConvos.push({
                 conversation_id: dbConvo.id,
