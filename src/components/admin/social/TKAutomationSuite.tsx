@@ -879,107 +879,289 @@ const TKAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSu
 
       {/* ===== CONTENT ===== */}
       <TabsContent value="content" className="space-y-4 mt-4">
-        {/* Publish Video */}
-        <Card>
-          <CardContent className="p-4 space-y-3">
-            <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><Upload className="h-4 w-4 text-green-400" />Publish Video</h4>
-            <Input value={publishVideoTitle} onChange={e => setPublishVideoTitle(e.target.value)} placeholder="Video title / caption" className="text-sm" />
-            <Input value={publishVideoUrl} onChange={e => setPublishVideoUrl(e.target.value)} placeholder="Video URL (pull from URL)" className="text-sm" />
-            <select value={publishPrivacy} onChange={e => setPublishPrivacy(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] text-foreground rounded-lg px-2 py-1.5 text-sm focus:border-[hsl(217,91%,60%)]/30 outline-none">
-              <option value="PUBLIC_TO_EVERYONE">Public</option>
-              <option value="MUTUAL_FOLLOW_FRIENDS">Friends Only</option>
-              <option value="FOLLOWER_OF_CREATOR">Followers Only</option>
-              <option value="SELF_ONLY">Private (Self Only)</option>
-            </select>
-            <div className="flex gap-4 text-xs text-muted-foreground">
-              <label className="flex items-center gap-1.5"><Switch checked={disableDuet} onCheckedChange={setDisableDuet} className="scale-75" />Disable Duet</label>
-              <label className="flex items-center gap-1.5"><Switch checked={disableComment} onCheckedChange={setDisableComment} className="scale-75" />Disable Comments</label>
-              <label className="flex items-center gap-1.5"><Switch checked={disableStitch} onCheckedChange={setDisableStitch} className="scale-75" />Disable Stitch</label>
-            </div>
-            <Button size="sm" onClick={publishVideoByUrl} disabled={loading || !selectedAccount || !publishVideoUrl}><Upload className="h-3.5 w-3.5 mr-1" />Publish Video</Button>
-            <div className="border-t border-border pt-3 space-y-2">
-              <h5 className="text-xs font-semibold text-foreground">Check Publish Status</h5>
-              <div className="flex gap-2">
-                <Input value={publishId} onChange={e => setPublishId(e.target.value)} placeholder="Publish ID" className="text-sm flex-1" />
-                <Button size="sm" variant="outline" onClick={checkPublishStatus} disabled={loading || !publishId}>Check</Button>
+        {/* Content Studio Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-base font-bold text-foreground flex items-center gap-2">
+              <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
+                <Layers className="h-4 w-4 text-white" />
               </div>
-              {publishStatus && <pre className="text-[10px] bg-muted/50 rounded p-2 overflow-auto max-h-32">{JSON.stringify(publishStatus, null, 2)}</pre>}
+              Content Studio
+            </h3>
+            <p className="text-xs text-muted-foreground mt-0.5">Create, schedule, and manage your TikTok content</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Badge className="bg-cyan-500/10 text-cyan-400 border-cyan-500/20 text-[10px]">
+              {scheduledPosts.filter(p => p.status === "scheduled").length} Scheduled
+            </Badge>
+            <Badge className="bg-green-500/10 text-green-400 border-green-500/20 text-[10px]">
+              {scheduledPosts.filter(p => p.status === "published").length} Published
+            </Badge>
+          </div>
+        </div>
+
+        {/* Quick Stats Row */}
+        <div className="grid grid-cols-4 gap-2">
+          {[
+            { label: "Total Videos", value: videos.length, icon: Video, color: "text-cyan-400", bg: "bg-cyan-500/10" },
+            { label: "Scheduled", value: scheduledPosts.filter(p => p.status === "scheduled").length, icon: Clock, color: "text-amber-400", bg: "bg-amber-500/10" },
+            { label: "Published", value: scheduledPosts.filter(p => p.status === "published").length, icon: CheckCircle2, color: "text-green-400", bg: "bg-green-500/10" },
+            { label: "Playlists", value: playlists.length, icon: ListVideo, color: "text-violet-400", bg: "bg-violet-500/10" },
+          ].map(s => (
+            <Card key={s.label} className="border-border/50">
+              <CardContent className="p-3">
+                <div className="flex items-center gap-2">
+                  <div className={`h-8 w-8 rounded-lg ${s.bg} flex items-center justify-center`}>
+                    <s.icon className={`h-4 w-4 ${s.color}`} />
+                  </div>
+                  <div>
+                    <p className="text-lg font-bold text-foreground leading-none">{s.value}</p>
+                    <p className="text-[10px] text-muted-foreground">{s.label}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        {/* Publish Video — Hero Card */}
+        <Card className="border-cyan-500/20 overflow-hidden">
+          <div className="h-1 bg-gradient-to-r from-cyan-500 via-blue-500 to-violet-500" />
+          <CardContent className="p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
+                <div className="h-7 w-7 rounded-full bg-gradient-to-br from-green-400 to-emerald-600 flex items-center justify-center">
+                  <Upload className="h-3.5 w-3.5 text-white" />
+                </div>
+                Publish Video to TikTok
+              </h4>
+              <Badge variant="outline" className="text-[10px] border-green-500/30 text-green-400">Content Posting API</Badge>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-3">
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Video Title / Caption</label>
+                  <Textarea value={publishVideoTitle} onChange={e => setPublishVideoTitle(e.target.value)} placeholder="Write an engaging caption with hashtags..." rows={3} className="text-sm bg-muted/20 border-border/40 focus:border-cyan-500/40" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Video URL</label>
+                  <Input value={publishVideoUrl} onChange={e => setPublishVideoUrl(e.target.value)} placeholder="https://example.com/video.mp4" className="text-sm bg-muted/20 border-border/40 focus:border-cyan-500/40" />
+                  <p className="text-[10px] text-muted-foreground mt-1">Publicly accessible MP4 URL — TikTok will pull the video from this link</p>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Privacy Level</label>
+                  <select value={publishPrivacy} onChange={e => setPublishPrivacy(e.target.value)} className="w-full bg-muted/20 border border-border/40 text-foreground rounded-lg px-3 py-2 text-sm focus:border-cyan-500/40 outline-none">
+                    <option value="PUBLIC_TO_EVERYONE">🌍 Public — Everyone</option>
+                    <option value="MUTUAL_FOLLOW_FRIENDS">👥 Friends — Mutual Follows</option>
+                    <option value="FOLLOWER_OF_CREATOR">🔒 Followers Only</option>
+                    <option value="SELF_ONLY">🔐 Private — Self Only</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-muted-foreground block">Interaction Settings</label>
+                  <div className="grid grid-cols-1 gap-2">
+                    <label className="flex items-center justify-between p-2 rounded-lg bg-muted/20 border border-border/30 cursor-pointer hover:bg-muted/30 transition-colors">
+                      <span className="text-xs text-foreground flex items-center gap-2"><Users className="h-3.5 w-3.5 text-muted-foreground" />Allow Duets</span>
+                      <Switch checked={!disableDuet} onCheckedChange={v => setDisableDuet(!v)} className="scale-75" />
+                    </label>
+                    <label className="flex items-center justify-between p-2 rounded-lg bg-muted/20 border border-border/30 cursor-pointer hover:bg-muted/30 transition-colors">
+                      <span className="text-xs text-foreground flex items-center gap-2"><MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />Allow Comments</span>
+                      <Switch checked={!disableComment} onCheckedChange={v => setDisableComment(!v)} className="scale-75" />
+                    </label>
+                    <label className="flex items-center justify-between p-2 rounded-lg bg-muted/20 border border-border/30 cursor-pointer hover:bg-muted/30 transition-colors">
+                      <span className="text-xs text-foreground flex items-center gap-2"><Layers className="h-3.5 w-3.5 text-muted-foreground" />Allow Stitches</span>
+                      <Switch checked={!disableStitch} onCheckedChange={v => setDisableStitch(!v)} className="scale-75" />
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 pt-1">
+              <Button onClick={publishVideoByUrl} disabled={loading || !selectedAccount || !publishVideoUrl} className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white gap-2 px-6">
+                <Upload className="h-4 w-4" />Publish to TikTok
+              </Button>
+              <p className="text-[10px] text-muted-foreground">Videos are processed by TikTok and may take a few moments to appear</p>
+            </div>
+
+            {/* Publish Status Checker */}
+            <div className="border-t border-border/30 pt-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Activity className="h-4 w-4 text-amber-400" />
+                <h5 className="text-xs font-semibold text-foreground">Check Publish Status</h5>
+              </div>
+              <div className="flex gap-2">
+                <Input value={publishId} onChange={e => setPublishId(e.target.value)} placeholder="Enter publish_id to track status..." className="text-sm flex-1 bg-muted/20 border-border/40" />
+                <Button size="sm" variant="outline" onClick={checkPublishStatus} disabled={loading || !publishId} className="gap-1.5">
+                  <RefreshCw className="h-3.5 w-3.5" />Track
+                </Button>
+              </div>
+              {publishStatus && (
+                <div className="mt-2 bg-muted/30 rounded-lg p-3 border border-border/30">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    {publishStatus?.data?.status === "PUBLISH_COMPLETE" ? (
+                      <CheckCircle2 className="h-4 w-4 text-green-400" />
+                    ) : publishStatus?.data?.status === "FAILED" ? (
+                      <AlertCircle className="h-4 w-4 text-red-400" />
+                    ) : (
+                      <Loader2 className="h-4 w-4 text-amber-400 animate-spin" />
+                    )}
+                    <span className="text-xs font-medium text-foreground">{publishStatus?.data?.status || "Unknown"}</span>
+                  </div>
+                  <pre className="text-[10px] text-muted-foreground overflow-auto max-h-24">{JSON.stringify(publishStatus, null, 2)}</pre>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
 
         {/* Publish Photo / Carousel */}
-        <Card>
-          <CardContent className="p-4 space-y-3">
-            <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><Image className="h-4 w-4 text-blue-400" />Publish Photo / Carousel</h4>
-            <div className="flex gap-2">
-              <Button size="sm" variant={mediaType === "PHOTO" ? "default" : "outline"} onClick={() => setMediaType("PHOTO")}><Image className="h-3.5 w-3.5 mr-1" />Single Photo</Button>
-              <Button size="sm" variant={mediaType === "CAROUSEL" ? "default" : "outline"} onClick={() => setMediaType("CAROUSEL")}><Layers className="h-3.5 w-3.5 mr-1" />Carousel</Button>
+        <Card className="border-border/50">
+          <CardContent className="p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
+                <div className="h-7 w-7 rounded-full bg-gradient-to-br from-blue-400 to-indigo-600 flex items-center justify-center">
+                  <Image className="h-3.5 w-3.5 text-white" />
+                </div>
+                Photo & Carousel Publisher
+              </h4>
+              <div className="flex gap-1.5">
+                <Button size="sm" variant={mediaType === "PHOTO" ? "default" : "outline"} onClick={() => setMediaType("PHOTO")} className={`text-xs h-7 ${mediaType === "PHOTO" ? "bg-blue-500 hover:bg-blue-600" : ""}`}>
+                  <Image className="h-3 w-3 mr-1" />Single
+                </Button>
+                <Button size="sm" variant={mediaType === "CAROUSEL" ? "default" : "outline"} onClick={() => setMediaType("CAROUSEL")} className={`text-xs h-7 ${mediaType === "CAROUSEL" ? "bg-indigo-500 hover:bg-indigo-600" : ""}`}>
+                  <Layers className="h-3 w-3 mr-1" />Carousel
+                </Button>
+              </div>
             </div>
-            <Input value={photoTitle} onChange={e => setPhotoTitle(e.target.value)} placeholder="Title" className="text-sm" />
-            <Input value={photoDesc} onChange={e => setPhotoDesc(e.target.value)} placeholder="Description" className="text-sm" />
-            <Textarea value={photoUrls} onChange={e => setPhotoUrls(e.target.value)} placeholder="Image URLs (one per line)" rows={3} className="text-sm" />
-            <select value={photoPrivacy} onChange={e => setPhotoPrivacy(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] text-foreground rounded-lg px-2 py-1.5 text-sm focus:border-[hsl(217,91%,60%)]/30 outline-none">
-              <option value="PUBLIC_TO_EVERYONE">Public</option>
-              <option value="MUTUAL_FOLLOW_FRIENDS">Friends Only</option>
-              <option value="FOLLOWER_OF_CREATOR">Followers Only</option>
-              <option value="SELF_ONLY">Private</option>
-            </select>
-            <Button size="sm" onClick={publishPhoto} disabled={loading || !selectedAccount || !photoUrls}><Upload className="h-3.5 w-3.5 mr-1" />Publish {mediaType === "CAROUSEL" ? "Carousel" : "Photo"}</Button>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-3">
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Title</label>
+                  <Input value={photoTitle} onChange={e => setPhotoTitle(e.target.value)} placeholder="Give your post a title..." className="text-sm bg-muted/20 border-border/40" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Description</label>
+                  <Input value={photoDesc} onChange={e => setPhotoDesc(e.target.value)} placeholder="Add a description with #hashtags..." className="text-sm bg-muted/20 border-border/40" />
+                </div>
+              </div>
+              <div className="space-y-3">
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Image URLs {mediaType === "CAROUSEL" ? "(one per line, up to 35)" : "(one URL)"}</label>
+                  <Textarea value={photoUrls} onChange={e => setPhotoUrls(e.target.value)} placeholder={mediaType === "CAROUSEL" ? "https://example.com/image1.jpg\nhttps://example.com/image2.jpg\nhttps://example.com/image3.jpg" : "https://example.com/image.jpg"} rows={3} className="text-sm bg-muted/20 border-border/40 font-mono text-[11px]" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Privacy</label>
+                  <select value={photoPrivacy} onChange={e => setPhotoPrivacy(e.target.value)} className="w-full bg-muted/20 border border-border/40 text-foreground rounded-lg px-3 py-2 text-sm outline-none">
+                    <option value="PUBLIC_TO_EVERYONE">🌍 Public</option>
+                    <option value="MUTUAL_FOLLOW_FRIENDS">👥 Friends</option>
+                    <option value="FOLLOWER_OF_CREATOR">🔒 Followers</option>
+                    <option value="SELF_ONLY">🔐 Private</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <Button onClick={publishPhoto} disabled={loading || !selectedAccount || !photoUrls} className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white gap-2">
+              <Upload className="h-4 w-4" />Publish {mediaType === "CAROUSEL" ? "Carousel" : "Photo"}
+            </Button>
           </CardContent>
         </Card>
 
-        {/* Playlists */}
-        <Card>
-          <CardContent className="p-4 space-y-3">
-            <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><ListVideo className="h-4 w-4 text-violet-400" />Playlist Manager</h4>
-            <div className="flex gap-2">
-              <Button size="sm" onClick={fetchPlaylists} disabled={loading || !selectedAccount}><RefreshCw className="h-3.5 w-3.5 mr-1" />Load</Button>
+        {/* Playlist Manager */}
+        <Card className="border-border/50">
+          <CardContent className="p-5 space-y-3">
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
+                <div className="h-7 w-7 rounded-full bg-gradient-to-br from-violet-400 to-purple-600 flex items-center justify-center">
+                  <ListVideo className="h-3.5 w-3.5 text-white" />
+                </div>
+                Playlist Manager
+              </h4>
+              <Button size="sm" variant="ghost" onClick={fetchPlaylists} disabled={loading || !selectedAccount} className="gap-1 text-xs h-7">
+                <RefreshCw className={`h-3 w-3 ${loading ? "animate-spin" : ""}`} />Refresh
+              </Button>
             </div>
             <div className="flex gap-2">
-              <Input value={newPlaylistName} onChange={e => setNewPlaylistName(e.target.value)} placeholder="New playlist name" className="text-sm flex-1" />
-              <Button size="sm" onClick={createPlaylist} disabled={loading || !newPlaylistName}>Create</Button>
+              <Input value={newPlaylistName} onChange={e => setNewPlaylistName(e.target.value)} placeholder="New playlist name..." className="text-sm flex-1 bg-muted/20 border-border/40" onKeyDown={e => e.key === "Enter" && createPlaylist()} />
+              <Button size="sm" onClick={createPlaylist} disabled={loading || !newPlaylistName} className="bg-violet-500 hover:bg-violet-600 text-white gap-1">
+                <FolderOpen className="h-3.5 w-3.5" />Create
+              </Button>
             </div>
-            {playlists.length > 0 && (
-              <div className="space-y-1.5">
+            {playlists.length > 0 ? (
+              <div className="grid grid-cols-2 gap-2">
                 {playlists.map((p: any, i: number) => (
-                  <div key={i} className="bg-muted/30 rounded p-2 flex items-center justify-between">
-                    <span className="text-xs text-foreground">{p.playlist_name || p.name || `Playlist ${i + 1}`}</span>
-                    <Badge variant="outline" className="text-[10px]">{p.video_count || 0} videos</Badge>
+                  <div key={i} className="bg-muted/20 rounded-lg p-3 flex items-center gap-3 border border-border/20 hover:border-violet-500/30 transition-colors">
+                    <div className="h-9 w-9 rounded-lg bg-violet-500/10 flex items-center justify-center flex-shrink-0">
+                      <ListVideo className="h-4 w-4 text-violet-400" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium text-foreground truncate">{p.playlist_name || p.name || `Playlist ${i + 1}`}</p>
+                      <p className="text-[10px] text-muted-foreground">{p.video_count || 0} videos</p>
+                    </div>
                   </div>
                 ))}
+              </div>
+            ) : (
+              <div className="text-center py-6 text-muted-foreground">
+                <ListVideo className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                <p className="text-xs">No playlists yet — create one above</p>
               </div>
             )}
           </CardContent>
         </Card>
 
         {/* Video Manager */}
-        <Card>
-          <CardContent className="p-4 space-y-3">
-            <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><Video className="h-4 w-4 text-teal-400" />Video Manager</h4>
-            <div className="flex gap-2">
-              <Button size="sm" onClick={() => fetchVideos()} disabled={loading || !selectedAccount}><RefreshCw className="h-3.5 w-3.5 mr-1" />Load Videos</Button>
-              {videosHasMore && videosCursor && <Button size="sm" variant="outline" onClick={() => fetchVideos(videosCursor)} disabled={loading}>Load More</Button>}
+        <Card className="border-border/50">
+          <CardContent className="p-5 space-y-3">
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
+                <div className="h-7 w-7 rounded-full bg-gradient-to-br from-teal-400 to-cyan-600 flex items-center justify-center">
+                  <Video className="h-3.5 w-3.5 text-white" />
+                </div>
+                Video Library
+              </h4>
+              <div className="flex gap-1.5">
+                <Button size="sm" variant="outline" onClick={() => fetchVideos()} disabled={loading || !selectedAccount} className="gap-1 text-xs h-7">
+                  <RefreshCw className={`h-3 w-3 ${loading ? "animate-spin" : ""}`} />Load
+                </Button>
+                {videosHasMore && videosCursor && (
+                  <Button size="sm" variant="outline" onClick={() => fetchVideos(videosCursor)} disabled={loading} className="text-xs h-7">
+                    Load More
+                  </Button>
+                )}
+              </div>
             </div>
             {videos.length > 0 ? (
               <ScrollArea className="max-h-[400px]">
-                <div className="space-y-2">
+                <div className="grid grid-cols-1 gap-2">
                   {videos.map((v: any) => (
-                    <div key={v.id} className="bg-muted/30 rounded-lg p-3 flex gap-3">
-                      {v.cover_image_url && <img src={v.cover_image_url} className="h-16 w-12 rounded object-cover flex-shrink-0" />}
+                    <div key={v.id} className="bg-muted/20 rounded-lg p-3 flex gap-3 border border-border/20 hover:border-cyan-500/30 transition-colors group">
+                      {v.cover_image_url ? (
+                        <img src={v.cover_image_url} className="h-[72px] w-[54px] rounded-lg object-cover flex-shrink-0 ring-1 ring-border/20" />
+                      ) : (
+                        <div className="h-[72px] w-[54px] rounded-lg bg-muted/40 flex items-center justify-center flex-shrink-0">
+                          <Video className="h-5 w-5 text-muted-foreground/40" />
+                        </div>
+                      )}
                       <div className="flex-1 min-w-0">
-                        <p className="text-xs font-semibold text-foreground line-clamp-1">{v.title || v.video_description || "Untitled"}</p>
-                        <p className="text-[10px] text-muted-foreground line-clamp-1">{v.video_description}</p>
-                        <div className="flex gap-3 mt-1.5 text-[10px] text-muted-foreground">
+                        <p className="text-xs font-semibold text-foreground line-clamp-1">{v.title || v.video_description || "Untitled Video"}</p>
+                        {v.video_description && v.title && <p className="text-[10px] text-muted-foreground line-clamp-1 mt-0.5">{v.video_description}</p>}
+                        <div className="flex gap-3 mt-2 text-[10px] text-muted-foreground">
                           <span className="flex items-center gap-0.5"><Eye className="h-3 w-3" />{(v.view_count || 0).toLocaleString()}</span>
                           <span className="flex items-center gap-0.5"><Heart className="h-3 w-3" />{(v.like_count || 0).toLocaleString()}</span>
                           <span className="flex items-center gap-0.5"><MessageSquare className="h-3 w-3" />{(v.comment_count || 0).toLocaleString()}</span>
                           <span className="flex items-center gap-0.5"><Share2 className="h-3 w-3" />{(v.share_count || 0).toLocaleString()}</span>
-                          {v.duration && <span><Clock className="h-3 w-3 inline" /> {v.duration}s</span>}
+                          {v.duration && <span className="flex items-center gap-0.5"><Clock className="h-3 w-3" />{v.duration}s</span>}
                         </div>
-                        <div className="flex gap-2 mt-1">
-                          {v.share_url && <a href={v.share_url} target="_blank" rel="noreferrer" className="text-[10px] text-cyan-400 hover:underline flex items-center gap-0.5"><ExternalLink className="h-3 w-3" />View</a>}
-                          <button onClick={() => { setCommentsVideoId(v.id); setActiveTab("comments"); }} className="text-[10px] text-amber-400 hover:underline flex items-center gap-0.5"><MessageSquare className="h-3 w-3" />Comments</button>
+                        <div className="flex gap-2 mt-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                          {v.share_url && <a href={v.share_url} target="_blank" rel="noreferrer" className="text-[10px] text-cyan-400 hover:underline flex items-center gap-0.5"><ExternalLink className="h-3 w-3" />View on TikTok</a>}
+                          <button onClick={() => { setCommentsVideoId(v.id); setActiveTab("comments"); }} className="text-[10px] text-amber-400 hover:underline flex items-center gap-0.5"><MessageSquare className="h-3 w-3" />View Comments</button>
                         </div>
                       </div>
                     </div>
@@ -987,36 +1169,89 @@ const TKAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSu
                 </div>
               </ScrollArea>
             ) : (
-              <p className="text-xs text-muted-foreground text-center py-4">No videos loaded yet</p>
+              <div className="text-center py-8 text-muted-foreground">
+                <Video className="h-10 w-10 mx-auto mb-2 opacity-20" />
+                <p className="text-xs font-medium">No videos loaded</p>
+                <p className="text-[10px] mt-1 opacity-60">Click "Load" to pull your TikTok videos</p>
+              </div>
             )}
           </CardContent>
         </Card>
 
-        {/* Scheduled Posts */}
-        <Card>
-          <CardContent className="p-4 space-y-3">
-            <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><Calendar className="h-4 w-4 text-orange-400" />Schedule Post</h4>
-            <Input value={newPostCaption} onChange={e => setNewPostCaption(e.target.value)} placeholder="Caption" className="text-sm" />
-            <Input value={newPostMediaUrl} onChange={e => setNewPostMediaUrl(e.target.value)} placeholder="Media URL" className="text-sm" />
-            <Input type="datetime-local" value={newPostScheduledAt} onChange={e => setNewPostScheduledAt(e.target.value)} className="text-sm" />
-            <Button size="sm" onClick={schedulePost} disabled={!newPostCaption && !newPostMediaUrl}><Calendar className="h-3.5 w-3.5 mr-1" />Schedule</Button>
-            {scheduledPosts.length > 0 && (
-              <ScrollArea className="max-h-[250px]">
-                <div className="space-y-1.5">
-                  {scheduledPosts.map(p => (
-                    <div key={p.id} className="bg-muted/30 rounded p-2 flex items-center justify-between">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs text-foreground line-clamp-1">{p.caption || "No caption"}</p>
-                        <p className="text-[10px] text-muted-foreground">{p.status} · {p.scheduled_at ? new Date(p.scheduled_at).toLocaleString() : "No schedule"}</p>
-                      </div>
-                      <div className="flex gap-1">
-                        {p.status !== "published" && <Button size="sm" variant="ghost" className="h-6 text-[10px]" onClick={() => publishPost(p)}><Play className="h-3 w-3" /></Button>}
-                        <Button size="sm" variant="ghost" className="h-6 text-[10px] text-destructive" onClick={() => deletePost(p.id)}>×</Button>
-                      </div>
-                    </div>
-                  ))}
+        {/* Schedule & Queue */}
+        <Card className="border-border/50">
+          <div className="h-1 bg-gradient-to-r from-orange-400 to-amber-500" />
+          <CardContent className="p-5 space-y-4">
+            <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
+              <div className="h-7 w-7 rounded-full bg-gradient-to-br from-orange-400 to-amber-600 flex items-center justify-center">
+                <Calendar className="h-3.5 w-3.5 text-white" />
+              </div>
+              Schedule & Queue
+            </h4>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-3">
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Caption</label>
+                  <Textarea value={newPostCaption} onChange={e => setNewPostCaption(e.target.value)} placeholder="Write your post caption..." rows={3} className="text-sm bg-muted/20 border-border/40" />
                 </div>
-              </ScrollArea>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Media URL</label>
+                  <Input value={newPostMediaUrl} onChange={e => setNewPostMediaUrl(e.target.value)} placeholder="https://example.com/video.mp4" className="text-sm bg-muted/20 border-border/40" />
+                </div>
+              </div>
+              <div className="space-y-3">
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Schedule Date & Time</label>
+                  <Input type="datetime-local" value={newPostScheduledAt} onChange={e => setNewPostScheduledAt(e.target.value)} className="text-sm bg-muted/20 border-border/40" />
+                  <p className="text-[10px] text-muted-foreground mt-1">Leave empty to save as draft</p>
+                </div>
+                <Button onClick={schedulePost} disabled={!newPostCaption && !newPostMediaUrl} className="w-full bg-gradient-to-r from-orange-400 to-amber-500 hover:from-orange-500 hover:to-amber-600 text-white gap-2 mt-2">
+                  <Calendar className="h-4 w-4" />{newPostScheduledAt ? "Schedule Post" : "Save as Draft"}
+                </Button>
+              </div>
+            </div>
+
+            {/* Scheduled Posts Queue */}
+            {scheduledPosts.length > 0 && (
+              <div className="border-t border-border/30 pt-4 space-y-2">
+                <h5 className="text-xs font-semibold text-foreground flex items-center gap-2">
+                  <Clock className="h-3.5 w-3.5 text-amber-400" />
+                  Post Queue ({scheduledPosts.length})
+                </h5>
+                <ScrollArea className="max-h-[280px]">
+                  <div className="space-y-2">
+                    {scheduledPosts.map(p => (
+                      <div key={p.id} className="bg-muted/20 rounded-lg p-3 flex items-center gap-3 border border-border/20 hover:border-amber-500/30 transition-colors">
+                        <div className={`h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0 ${p.status === "published" ? "bg-green-500/10" : p.status === "scheduled" ? "bg-amber-500/10" : "bg-muted/30"}`}>
+                          {p.status === "published" ? <CheckCircle2 className="h-4 w-4 text-green-400" /> : p.status === "scheduled" ? <Clock className="h-4 w-4 text-amber-400" /> : <FolderOpen className="h-4 w-4 text-muted-foreground" />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium text-foreground line-clamp-1">{p.caption || "No caption"}</p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <Badge variant="outline" className={`text-[9px] ${p.status === "published" ? "border-green-500/30 text-green-400" : p.status === "scheduled" ? "border-amber-500/30 text-amber-400" : "border-border text-muted-foreground"}`}>
+                              {p.status}
+                            </Badge>
+                            <span className="text-[10px] text-muted-foreground">
+                              {p.scheduled_at ? new Date(p.scheduled_at).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "No schedule"}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex gap-1 flex-shrink-0">
+                          {p.status !== "published" && (
+                            <Button size="sm" variant="ghost" className="h-7 w-7 p-0 hover:bg-green-500/10" onClick={() => publishPost(p)} title="Publish now">
+                              <Play className="h-3.5 w-3.5 text-green-400" />
+                            </Button>
+                          )}
+                          <Button size="sm" variant="ghost" className="h-7 w-7 p-0 hover:bg-red-500/10" onClick={() => deletePost(p.id)} title="Delete">
+                            <AlertCircle className="h-3.5 w-3.5 text-red-400" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </div>
             )}
           </CardContent>
         </Card>
