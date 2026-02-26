@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -18,6 +18,7 @@ import {
   MessageCircle, LayoutDashboard, Wand2, Megaphone, Copy,
   Target, Radio, Calendar, Download, Link2, FolderOpen,
   CheckCircle2, AlertCircle, Bot, Sparkles, ArrowRight,
+  MapPin, FileVideo, FileImage, X, Trash2,
 } from "lucide-react";
 // TikTok-native DM conversations — no Instagram dependency
 
@@ -148,6 +149,21 @@ const TKAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSu
   const [newPostMediaUrl, setNewPostMediaUrl] = useState("");
   const [newPostScheduledAt, setNewPostScheduledAt] = useState("");
   const [newPostType, setNewPostType] = useState("video");
+
+  // === Upgraded Content Center State ===
+  const [uploadedFiles, setUploadedFiles] = useState<{ file: File; preview: string; url?: string }[]>([]);
+  const [fileUploading, setFileUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  // Schedule form — full TikTok fields
+  const [schedPrivacy, setSchedPrivacy] = useState("PUBLIC_TO_EVERYONE");
+  const [schedDisableDuet, setSchedDisableDuet] = useState(false);
+  const [schedDisableComment, setSchedDisableComment] = useState(false);
+  const [schedDisableStitch, setSchedDisableStitch] = useState(false);
+  const [schedHashtags, setSchedHashtags] = useState("");
+  const [schedLocation, setSchedLocation] = useState("");
+  const [schedBrandContent, setSchedBrandContent] = useState(false);
+  const [schedAiGenerating, setSchedAiGenerating] = useState(false);
+  const [schedContentType, setSchedContentType] = useState<"video" | "photo" | "carousel">("video");
 
   // Load auto-respond state
   useEffect(() => {
@@ -408,16 +424,30 @@ const TKAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSu
 
   // Scheduled posts
   const schedulePost = async () => {
-    if (!newPostCaption && !newPostMediaUrl) { toast.error("Add caption or media"); return; }
+    if (!newPostCaption && !newPostMediaUrl && uploadedFiles.length === 0) { toast.error("Add caption or media"); return; }
+    const mediaUrls = uploadedFiles.filter(f => f.url).map(f => f.url!);
+    if (newPostMediaUrl) mediaUrls.unshift(newPostMediaUrl);
+    const fullCaption = schedHashtags ? `${newPostCaption}\n\n${schedHashtags.split(",").map(h => `#${h.trim()}`).join(" ")}` : newPostCaption;
     const { error } = await supabase.from("social_posts").insert({
-      account_id: selectedAccount, platform: "tiktok", post_type: newPostType,
-      caption: newPostCaption, media_urls: newPostMediaUrl ? [newPostMediaUrl] : [],
+      account_id: selectedAccount, platform: "tiktok", post_type: schedContentType,
+      caption: fullCaption, media_urls: mediaUrls.length > 0 ? mediaUrls : [],
+      hashtags: schedHashtags ? schedHashtags.split(",").map(h => h.trim()).filter(Boolean) : null,
       scheduled_at: newPostScheduledAt || null, status: newPostScheduledAt ? "scheduled" : "draft",
+      metadata: {
+        privacy_level: schedPrivacy, disable_duet: schedDisableDuet,
+        disable_comment: schedDisableComment, disable_stitch: schedDisableStitch,
+        location: schedLocation || null, brand_content: schedBrandContent,
+        content_type: schedContentType,
+      },
     });
     if (error) toast.error(error.message);
     else {
       toast.success("Post created!");
       setNewPostCaption(""); setNewPostMediaUrl(""); setNewPostScheduledAt("");
+      setUploadedFiles([]); setSchedHashtags(""); setSchedLocation("");
+      setSchedPrivacy("PUBLIC_TO_EVERYONE"); setSchedDisableDuet(false);
+      setSchedDisableComment(false); setSchedDisableStitch(false);
+      setSchedBrandContent(false); setSchedContentType("video");
       const { data } = await supabase.from("social_posts").select("*").eq("account_id", selectedAccount).eq("platform", "tiktok").order("created_at", { ascending: false }).limit(50);
       if (data) setScheduledPosts(data);
     }
@@ -425,14 +455,80 @@ const TKAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSu
 
   const publishPost = async (post: any) => {
     toast.info("Publishing...");
-    const result = await callApi("publish_video_by_url", { video_url: post.media_urls?.[0], title: post.caption, privacy_level: "PUBLIC_TO_EVERYONE", post_id: post.id });
-    if (result) { toast.success("Published!"); const { data } = await supabase.from("social_posts").select("*").eq("account_id", selectedAccount).eq("platform", "tiktok").order("created_at", { ascending: false }).limit(50); if (data) setScheduledPosts(data); }
+    const meta = post.metadata || {};
+    const mediaUrl = Array.isArray(post.media_urls) ? post.media_urls[0] : null;
+    if (!mediaUrl) { toast.error("No media URL available"); return; }
+    const postType = meta.content_type || post.post_type || "video";
+    let result;
+    if (postType === "video") {
+      result = await callApi("publish_video_by_url", {
+        video_url: mediaUrl, title: post.caption,
+        privacy_level: meta.privacy_level || "PUBLIC_TO_EVERYONE",
+        disable_duet: meta.disable_duet || false,
+        disable_comment: meta.disable_comment || false,
+        disable_stitch: meta.disable_stitch || false,
+        brand_content_toggle: meta.brand_content || false,
+        post_id: post.id,
+      });
+    } else {
+      const action = postType === "carousel" ? "publish_carousel" : "publish_photo";
+      result = await callApi(action, {
+        image_urls: post.media_urls, title: post.caption,
+        privacy_level: meta.privacy_level || "PUBLIC_TO_EVERYONE",
+        disable_comment: meta.disable_comment || false,
+      });
+    }
+    if (result) {
+      toast.success("Published!");
+      const { data } = await supabase.from("social_posts").select("*").eq("account_id", selectedAccount).eq("platform", "tiktok").order("created_at", { ascending: false }).limit(50);
+      if (data) setScheduledPosts(data);
+    }
   };
 
   const deletePost = async (id: string) => {
     await supabase.from("social_posts").delete().eq("id", id);
     toast.success("Deleted");
     setScheduledPosts(prev => prev.filter(p => p.id !== id));
+  };
+
+  // File upload handler — uploads to social-media storage bucket
+  const handleFileUpload = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    setFileUploading(true);
+    const newFiles: { file: File; preview: string; url?: string }[] = [];
+    for (const file of Array.from(files)) {
+      const preview = URL.createObjectURL(file);
+      const ext = file.name.split(".").pop() || "mp4";
+      const path = `${selectedAccount}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+      const { data, error } = await supabase.storage.from("social-media").upload(path, file, { contentType: file.type });
+      if (error) { toast.error(`Upload failed: ${error.message}`); continue; }
+      const { data: urlData } = supabase.storage.from("social-media").getPublicUrl(data.path);
+      newFiles.push({ file, preview, url: urlData.publicUrl });
+    }
+    setUploadedFiles(prev => [...prev, ...newFiles]);
+    setFileUploading(false);
+    if (newFiles.length > 0) toast.success(`${newFiles.length} file(s) uploaded`);
+  };
+
+  const removeUploadedFile = (idx: number) => {
+    setUploadedFiles(prev => { URL.revokeObjectURL(prev[idx].preview); return prev.filter((_, i) => i !== idx); });
+  };
+
+  // AI caption generator for scheduler
+  const generateScheduleCaption = async () => {
+    if (!newPostCaption && !schedHashtags) { toast.error("Add a topic or hashtags first"); return; }
+    setSchedAiGenerating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("social-ai-responder", {
+        body: { action: "generate_caption", account_id: selectedAccount, params: { topic: newPostCaption || schedHashtags, platform: "tiktok", include_cta: true, content_type: schedContentType } },
+      });
+      if (error) throw error;
+      if (data?.success && data.data?.caption) {
+        setNewPostCaption(data.data.caption);
+        toast.success("AI caption generated!");
+      }
+    } catch (e: any) { toast.error(e.message); }
+    setSchedAiGenerating(false);
   };
 
   // TikTok-native DM functions
@@ -875,7 +971,7 @@ const TKAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSu
               </div>
               Content Studio
             </h3>
-            <p className="text-xs text-muted-foreground mt-0.5">Create, schedule, and manage your TikTok content</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Create, upload, schedule, and manage your TikTok content</p>
           </div>
           <div className="flex items-center gap-2">
             <Badge className="bg-cyan-500/10 text-cyan-400 border-cyan-500/20 text-[10px]">
@@ -893,7 +989,7 @@ const TKAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSu
             { label: "Total Videos", value: videos.length, icon: Video, color: "text-cyan-400", bg: "bg-cyan-500/10" },
             { label: "Scheduled", value: scheduledPosts.filter(p => p.status === "scheduled").length, icon: Clock, color: "text-amber-400", bg: "bg-amber-500/10" },
             { label: "Published", value: scheduledPosts.filter(p => p.status === "published").length, icon: CheckCircle2, color: "text-green-400", bg: "bg-green-500/10" },
-            { label: "Playlists", value: playlists.length, icon: ListVideo, color: "text-violet-400", bg: "bg-violet-500/10" },
+            { label: "Drafts", value: scheduledPosts.filter(p => p.status === "draft").length, icon: FolderOpen, color: "text-violet-400", bg: "bg-violet-500/10" },
           ].map(s => (
             <Card key={s.label} className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm">
               <CardContent className="p-3">
@@ -911,152 +1007,223 @@ const TKAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSu
           ))}
         </div>
 
-        {/* Publish Video — Hero Card */}
+        {/* ===== MEGA SCHEDULER — Full TikTok Posting Form ===== */}
         <Card className="bg-white/[0.03] border-cyan-500/20 backdrop-blur-sm overflow-hidden">
           <div className="h-1 bg-gradient-to-r from-cyan-500 via-blue-500 to-violet-500" />
-          <CardContent className="p-5 space-y-4">
+          <CardContent className="p-5 space-y-5">
             <div className="flex items-center justify-between">
               <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
-                <div className="h-7 w-7 rounded-full bg-gradient-to-br from-green-400 to-emerald-600 flex items-center justify-center">
+                <div className="h-7 w-7 rounded-full bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center">
                   <Upload className="h-3.5 w-3.5 text-white" />
                 </div>
-                Publish Video to TikTok
+                Create & Schedule Post
               </h4>
-              <Badge variant="outline" className="text-[10px] border-green-500/30 text-green-400">Content Posting API</Badge>
+              <div className="flex gap-1.5">
+                {(["video", "photo", "carousel"] as const).map(ct => (
+                  <Button key={ct} size="sm" variant={schedContentType === ct ? "default" : "outline"}
+                    onClick={() => setSchedContentType(ct)}
+                    className={`text-xs h-7 capitalize ${schedContentType === ct ? (ct === "video" ? "bg-cyan-500 hover:bg-cyan-600" : ct === "photo" ? "bg-blue-500 hover:bg-blue-600" : "bg-indigo-500 hover:bg-indigo-600") : ""}`}>
+                    {ct === "video" ? <FileVideo className="h-3 w-3 mr-1" /> : ct === "photo" ? <FileImage className="h-3 w-3 mr-1" /> : <Layers className="h-3 w-3 mr-1" />}
+                    {ct}
+                  </Button>
+                ))}
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-3">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+              {/* Left Column — Caption & Media */}
+              <div className="space-y-4">
+                {/* Caption with AI Generate */}
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Video Title / Caption</label>
-                  <Textarea value={publishVideoTitle} onChange={e => setPublishVideoTitle(e.target.value)} placeholder="Write an engaging caption with hashtags..." rows={3} className="text-sm bg-muted/20 border-border/40 focus:border-cyan-500/40" />
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-medium text-muted-foreground">Caption / Title</label>
+                    <Button size="sm" variant="ghost" className="h-6 text-[10px] gap-1 text-cyan-400 hover:text-cyan-300" onClick={generateScheduleCaption} disabled={schedAiGenerating}>
+                      {schedAiGenerating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                      AI Generate
+                    </Button>
+                  </div>
+                  <Textarea value={newPostCaption} onChange={e => setNewPostCaption(e.target.value)} placeholder="Write an engaging caption... or click AI Generate" rows={4} className="text-sm bg-muted/20 border-border/40 focus:border-cyan-500/40" />
                 </div>
+
+                {/* Hashtags */}
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Video URL</label>
-                  <Input value={publishVideoUrl} onChange={e => setPublishVideoUrl(e.target.value)} placeholder="https://example.com/video.mp4" className="text-sm bg-muted/20 border-border/40 focus:border-cyan-500/40" />
-                  <p className="text-[10px] text-muted-foreground mt-1">Publicly accessible MP4 URL — TikTok will pull the video from this link</p>
+                  <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Hashtags (comma separated)</label>
+                  <Input value={schedHashtags} onChange={e => setSchedHashtags(e.target.value)} placeholder="trending, fyp, viral, dance..." className="text-sm bg-muted/20 border-border/40 focus:border-cyan-500/40" />
+                  {schedHashtags && (
+                    <div className="flex gap-1 flex-wrap mt-1.5">
+                      {schedHashtags.split(",").map(h => h.trim()).filter(Boolean).map(h => (
+                        <Badge key={h} variant="outline" className="text-[9px] border-cyan-500/20 text-cyan-400">#{h}</Badge>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* File Upload Area */}
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
+                    Media — Upload Files or Paste URL
+                  </label>
+                  <input ref={fileInputRef} type="file" multiple accept={schedContentType === "video" ? "video/*" : "image/*,video/*"} className="hidden" onChange={e => handleFileUpload(e.target.files)} />
+                  <div
+                    className="border-2 border-dashed border-white/[0.08] rounded-xl p-6 text-center cursor-pointer hover:border-cyan-500/30 hover:bg-cyan-500/[0.02] transition-all"
+                    onClick={() => fileInputRef.current?.click()}
+                    onDragOver={e => { e.preventDefault(); e.stopPropagation(); }}
+                    onDrop={e => { e.preventDefault(); e.stopPropagation(); handleFileUpload(e.dataTransfer.files); }}
+                  >
+                    {fileUploading ? (
+                      <div className="flex flex-col items-center gap-2">
+                        <Loader2 className="h-8 w-8 text-cyan-400 animate-spin" />
+                        <p className="text-xs text-muted-foreground">Uploading...</p>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center gap-2">
+                        <div className="h-12 w-12 rounded-full bg-cyan-500/10 flex items-center justify-center">
+                          <Upload className="h-5 w-5 text-cyan-400" />
+                        </div>
+                        <p className="text-xs font-medium text-foreground">Drop files here or click to browse</p>
+                        <p className="text-[10px] text-muted-foreground">
+                          {schedContentType === "video" ? "MP4, MOV, WebM — max 500MB" : "JPG, PNG, WebP — up to 35 images for carousel"}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Uploaded files preview */}
+                  {uploadedFiles.length > 0 && (
+                    <div className="flex gap-2 flex-wrap mt-3">
+                      {uploadedFiles.map((f, i) => (
+                        <div key={i} className="relative group">
+                          {f.file.type.startsWith("video/") ? (
+                            <video src={f.preview} className="h-20 w-20 rounded-lg object-cover ring-1 ring-border/20" />
+                          ) : (
+                            <img src={f.preview} className="h-20 w-20 rounded-lg object-cover ring-1 ring-border/20" />
+                          )}
+                          <button onClick={() => removeUploadedFile(i)} className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <X className="h-3 w-3" />
+                          </button>
+                          {f.url && <CheckCircle2 className="absolute bottom-1 right-1 h-3.5 w-3.5 text-green-400" />}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* OR URL input */}
+                  <div className="mt-3">
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <div className="h-px flex-1 bg-border/30" />
+                      <span className="text-[10px] text-muted-foreground">OR paste URL</span>
+                      <div className="h-px flex-1 bg-border/30" />
+                    </div>
+                    <Input value={newPostMediaUrl} onChange={e => setNewPostMediaUrl(e.target.value)} placeholder="https://example.com/video.mp4" className="text-sm bg-muted/20 border-border/40 focus:border-cyan-500/40 font-mono text-[11px]" />
+                  </div>
                 </div>
               </div>
 
-              <div className="space-y-3">
+              {/* Right Column — Settings & Schedule */}
+              <div className="space-y-4">
+                {/* Privacy */}
                 <div>
                   <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Privacy Level</label>
-                  <select value={publishPrivacy} onChange={e => setPublishPrivacy(e.target.value)} className="w-full bg-muted/20 border border-border/40 text-foreground rounded-lg px-3 py-2 text-sm focus:border-cyan-500/40 outline-none">
+                  <select value={schedPrivacy} onChange={e => setSchedPrivacy(e.target.value)} className="w-full bg-muted/20 border border-border/40 text-foreground rounded-lg px-3 py-2 text-sm focus:border-cyan-500/40 outline-none">
                     <option value="PUBLIC_TO_EVERYONE">🌍 Public — Everyone</option>
                     <option value="MUTUAL_FOLLOW_FRIENDS">👥 Friends — Mutual Follows</option>
                     <option value="FOLLOWER_OF_CREATOR">🔒 Followers Only</option>
                     <option value="SELF_ONLY">🔐 Private — Self Only</option>
                   </select>
                 </div>
+
+                {/* Location */}
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1.5 block flex items-center gap-1">
+                    <MapPin className="h-3 w-3" />Location (optional)
+                  </label>
+                  <Input value={schedLocation} onChange={e => setSchedLocation(e.target.value)} placeholder="New York, USA" className="text-sm bg-muted/20 border-border/40 focus:border-cyan-500/40" />
+                </div>
+
+                {/* Interaction Settings */}
                 <div className="space-y-2">
                   <label className="text-xs font-medium text-muted-foreground block">Interaction Settings</label>
                   <div className="grid grid-cols-1 gap-2">
-                    <label className="flex items-center justify-between p-2 rounded-lg bg-muted/20 border border-border/30 cursor-pointer hover:bg-muted/30 transition-colors">
-                      <span className="text-xs text-foreground flex items-center gap-2"><Users className="h-3.5 w-3.5 text-muted-foreground" />Allow Duets</span>
-                      <Switch checked={!disableDuet} onCheckedChange={v => setDisableDuet(!v)} className="scale-75" />
-                    </label>
-                    <label className="flex items-center justify-between p-2 rounded-lg bg-muted/20 border border-border/30 cursor-pointer hover:bg-muted/30 transition-colors">
-                      <span className="text-xs text-foreground flex items-center gap-2"><MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />Allow Comments</span>
-                      <Switch checked={!disableComment} onCheckedChange={v => setDisableComment(!v)} className="scale-75" />
-                    </label>
-                    <label className="flex items-center justify-between p-2 rounded-lg bg-muted/20 border border-border/30 cursor-pointer hover:bg-muted/30 transition-colors">
-                      <span className="text-xs text-foreground flex items-center gap-2"><Layers className="h-3.5 w-3.5 text-muted-foreground" />Allow Stitches</span>
-                      <Switch checked={!disableStitch} onCheckedChange={v => setDisableStitch(!v)} className="scale-75" />
-                    </label>
+                    {[
+                      { label: "Allow Duets", icon: Users, checked: !schedDisableDuet, onChange: (v: boolean) => setSchedDisableDuet(!v) },
+                      { label: "Allow Comments", icon: MessageSquare, checked: !schedDisableComment, onChange: (v: boolean) => setSchedDisableComment(!v) },
+                      { label: "Allow Stitches", icon: Layers, checked: !schedDisableStitch, onChange: (v: boolean) => setSchedDisableStitch(!v) },
+                      { label: "Branded Content", icon: Megaphone, checked: schedBrandContent, onChange: setSchedBrandContent },
+                    ].map(s => (
+                      <label key={s.label} className="flex items-center justify-between p-2 rounded-lg bg-muted/20 border border-border/30 cursor-pointer hover:bg-muted/30 transition-colors">
+                        <span className="text-xs text-foreground flex items-center gap-2"><s.icon className="h-3.5 w-3.5 text-muted-foreground" />{s.label}</span>
+                        <Switch checked={s.checked} onCheckedChange={s.onChange} className="scale-75" />
+                      </label>
+                    ))}
                   </div>
                 </div>
-              </div>
-            </div>
 
-            <div className="flex items-center gap-3 pt-1">
-              <Button onClick={publishVideoByUrl} disabled={loading || !selectedAccount || !publishVideoUrl} className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white gap-2 px-6">
-                <Upload className="h-4 w-4" />Publish to TikTok
-              </Button>
-              <p className="text-[10px] text-muted-foreground">Videos are processed by TikTok and may take a few moments to appear</p>
-            </div>
-
-            {/* Publish Status Checker */}
-            <div className="border-t border-border/30 pt-4">
-              <div className="flex items-center gap-2 mb-2">
-                <Activity className="h-4 w-4 text-amber-400" />
-                <h5 className="text-xs font-semibold text-foreground">Check Publish Status</h5>
-              </div>
-              <div className="flex gap-2">
-                <Input value={publishId} onChange={e => setPublishId(e.target.value)} placeholder="Enter publish_id to track status..." className="text-sm flex-1 bg-muted/20 border-border/40" />
-                <Button size="sm" variant="outline" onClick={checkPublishStatus} disabled={loading || !publishId} className="gap-1.5">
-                  <RefreshCw className="h-3.5 w-3.5" />Track
-                </Button>
-              </div>
-              {publishStatus && (
-                <div className="mt-2 bg-muted/30 rounded-lg p-3 border border-border/30">
-                  <div className="flex items-center gap-2 mb-1.5">
-                    {publishStatus?.data?.status === "PUBLISH_COMPLETE" ? (
-                      <CheckCircle2 className="h-4 w-4 text-green-400" />
-                    ) : publishStatus?.data?.status === "FAILED" ? (
-                      <AlertCircle className="h-4 w-4 text-red-400" />
-                    ) : (
-                      <Loader2 className="h-4 w-4 text-amber-400 animate-spin" />
-                    )}
-                    <span className="text-xs font-medium text-foreground">{publishStatus?.data?.status || "Unknown"}</span>
-                  </div>
-                  <pre className="text-[10px] text-muted-foreground overflow-auto max-h-24">{JSON.stringify(publishStatus, null, 2)}</pre>
+                {/* Schedule Date & Time */}
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1.5 block flex items-center gap-1">
+                    <Calendar className="h-3 w-3" />Schedule Date & Time
+                  </label>
+                  <Input type="datetime-local" value={newPostScheduledAt} onChange={e => setNewPostScheduledAt(e.target.value)} className="text-sm bg-muted/20 border-border/40 focus:border-cyan-500/40" />
+                  <p className="text-[10px] text-muted-foreground mt-1">Leave empty to save as draft</p>
                 </div>
-              )}
+
+                {/* Action Buttons */}
+                <div className="flex gap-2 pt-1">
+                  <Button onClick={schedulePost} disabled={(!newPostCaption && !newPostMediaUrl && uploadedFiles.length === 0)} className="flex-1 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white gap-2">
+                    {newPostScheduledAt ? <Calendar className="h-4 w-4" /> : <FolderOpen className="h-4 w-4" />}
+                    {newPostScheduledAt ? "Schedule Post" : "Save as Draft"}
+                  </Button>
+                  {(newPostMediaUrl || uploadedFiles.some(f => f.url)) && !newPostScheduledAt && (
+                    <Button variant="outline" onClick={async () => {
+                      const mediaUrl = uploadedFiles.find(f => f.url)?.url || newPostMediaUrl;
+                      if (!mediaUrl) return;
+                      if (schedContentType === "video") {
+                        await callApi("publish_video_by_url", {
+                          video_url: mediaUrl, title: newPostCaption,
+                          privacy_level: schedPrivacy, disable_duet: schedDisableDuet,
+                          disable_comment: schedDisableComment, disable_stitch: schedDisableStitch,
+                        });
+                      } else {
+                        const urls = uploadedFiles.filter(f => f.url).map(f => f.url!);
+                        if (newPostMediaUrl) urls.unshift(newPostMediaUrl);
+                        await callApi(schedContentType === "carousel" ? "publish_carousel" : "publish_photo", {
+                          image_urls: urls, title: newPostCaption, description: newPostCaption,
+                          privacy_level: schedPrivacy, disable_comment: schedDisableComment,
+                        });
+                      }
+                      toast.success("Published!");
+                    }} disabled={loading} className="gap-2">
+                      <Upload className="h-4 w-4" />Publish Now
+                    </Button>
+                  )}
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Publish Photo / Carousel */}
+        {/* Publish Status Checker */}
         <Card className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm">
-          <CardContent className="p-5 space-y-4">
-            <div className="flex items-center justify-between">
-              <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
-                <div className="h-7 w-7 rounded-full bg-gradient-to-br from-blue-400 to-indigo-600 flex items-center justify-center">
-                  <Image className="h-3.5 w-3.5 text-white" />
-                </div>
-                Photo & Carousel Publisher
-              </h4>
-              <div className="flex gap-1.5">
-                <Button size="sm" variant={mediaType === "PHOTO" ? "default" : "outline"} onClick={() => setMediaType("PHOTO")} className={`text-xs h-7 ${mediaType === "PHOTO" ? "bg-blue-500 hover:bg-blue-600" : ""}`}>
-                  <Image className="h-3 w-3 mr-1" />Single
-                </Button>
-                <Button size="sm" variant={mediaType === "CAROUSEL" ? "default" : "outline"} onClick={() => setMediaType("CAROUSEL")} className={`text-xs h-7 ${mediaType === "CAROUSEL" ? "bg-indigo-500 hover:bg-indigo-600" : ""}`}>
-                  <Layers className="h-3 w-3 mr-1" />Carousel
-                </Button>
-              </div>
+          <CardContent className="p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <Activity className="h-4 w-4 text-amber-400" />
+              <h5 className="text-xs font-semibold text-foreground">Check Publish Status</h5>
             </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-3">
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Title</label>
-                  <Input value={photoTitle} onChange={e => setPhotoTitle(e.target.value)} placeholder="Give your post a title..." className="text-sm bg-muted/20 border-border/40" />
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Description</label>
-                  <Input value={photoDesc} onChange={e => setPhotoDesc(e.target.value)} placeholder="Add a description with #hashtags..." className="text-sm bg-muted/20 border-border/40" />
-                </div>
-              </div>
-              <div className="space-y-3">
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Image URLs {mediaType === "CAROUSEL" ? "(one per line, up to 35)" : "(one URL)"}</label>
-                  <Textarea value={photoUrls} onChange={e => setPhotoUrls(e.target.value)} placeholder={mediaType === "CAROUSEL" ? "https://example.com/image1.jpg\nhttps://example.com/image2.jpg\nhttps://example.com/image3.jpg" : "https://example.com/image.jpg"} rows={3} className="text-sm bg-muted/20 border-border/40 font-mono text-[11px]" />
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Privacy</label>
-                  <select value={photoPrivacy} onChange={e => setPhotoPrivacy(e.target.value)} className="w-full bg-muted/20 border border-border/40 text-foreground rounded-lg px-3 py-2 text-sm outline-none">
-                    <option value="PUBLIC_TO_EVERYONE">🌍 Public</option>
-                    <option value="MUTUAL_FOLLOW_FRIENDS">👥 Friends</option>
-                    <option value="FOLLOWER_OF_CREATOR">🔒 Followers</option>
-                    <option value="SELF_ONLY">🔐 Private</option>
-                  </select>
-                </div>
-              </div>
+            <div className="flex gap-2">
+              <Input value={publishId} onChange={e => setPublishId(e.target.value)} placeholder="Enter publish_id to track status..." className="text-sm flex-1 bg-muted/20 border-border/40" />
+              <Button size="sm" variant="outline" onClick={checkPublishStatus} disabled={loading || !publishId} className="gap-1.5">
+                <RefreshCw className="h-3.5 w-3.5" />Track
+              </Button>
             </div>
-
-            <Button onClick={publishPhoto} disabled={loading || !selectedAccount || !photoUrls} className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white gap-2">
-              <Upload className="h-4 w-4" />Publish {mediaType === "CAROUSEL" ? "Carousel" : "Photo"}
-            </Button>
+            {publishStatus && (
+              <div className="bg-muted/30 rounded-lg p-3 border border-border/30">
+                <div className="flex items-center gap-2 mb-1.5">
+                  {publishStatus?.data?.status === "PUBLISH_COMPLETE" ? <CheckCircle2 className="h-4 w-4 text-green-400" /> : publishStatus?.data?.status === "FAILED" ? <AlertCircle className="h-4 w-4 text-red-400" /> : <Loader2 className="h-4 w-4 text-amber-400 animate-spin" />}
+                  <span className="text-xs font-medium text-foreground">{publishStatus?.data?.status || "Unknown"}</span>
+                </div>
+                <pre className="text-[10px] text-muted-foreground overflow-auto max-h-24">{JSON.stringify(publishStatus, null, 2)}</pre>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -1103,126 +1270,50 @@ const TKAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSu
           </CardContent>
         </Card>
 
-        {/* Video Manager */}
-        <Card className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm">
-          <CardContent className="p-5 space-y-3">
-            <div className="flex items-center justify-between">
-              <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
-                <div className="h-7 w-7 rounded-full bg-gradient-to-br from-teal-400 to-cyan-600 flex items-center justify-center">
-                  <Video className="h-3.5 w-3.5 text-white" />
-                </div>
-                Video Library
-              </h4>
-              <div className="flex gap-1.5">
-                <Button size="sm" variant="outline" onClick={() => fetchVideos()} disabled={loading || !selectedAccount} className="gap-1 text-xs h-7">
-                  <RefreshCw className={`h-3 w-3 ${loading ? "animate-spin" : ""}`} />Load
-                </Button>
-                {videosHasMore && videosCursor && (
-                  <Button size="sm" variant="outline" onClick={() => fetchVideos(videosCursor)} disabled={loading} className="text-xs h-7">
-                    Load More
-                  </Button>
-                )}
-              </div>
-            </div>
-            {videos.length > 0 ? (
-              <ScrollArea className="max-h-[400px]">
-                <div className="grid grid-cols-1 gap-2">
-                  {videos.map((v: any) => (
-                    <div key={v.id} className="bg-white/[0.02] rounded-lg p-3 flex gap-3 border border-white/[0.04] hover:border-cyan-500/30 transition-colors group">
-                      {v.cover_image_url ? (
-                        <img src={v.cover_image_url} className="h-[72px] w-[54px] rounded-lg object-cover flex-shrink-0 ring-1 ring-border/20" />
-                      ) : (
-                        <div className="h-[72px] w-[54px] rounded-lg bg-muted/40 flex items-center justify-center flex-shrink-0">
-                          <Video className="h-5 w-5 text-muted-foreground/40" />
-                        </div>
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-semibold text-foreground line-clamp-1">{v.title || v.video_description || "Untitled Video"}</p>
-                        {v.video_description && v.title && <p className="text-[10px] text-muted-foreground line-clamp-1 mt-0.5">{v.video_description}</p>}
-                        <div className="flex gap-3 mt-2 text-[10px] text-muted-foreground">
-                          <span className="flex items-center gap-0.5"><Eye className="h-3 w-3" />{(v.view_count || 0).toLocaleString()}</span>
-                          <span className="flex items-center gap-0.5"><Heart className="h-3 w-3" />{(v.like_count || 0).toLocaleString()}</span>
-                          <span className="flex items-center gap-0.5"><MessageSquare className="h-3 w-3" />{(v.comment_count || 0).toLocaleString()}</span>
-                          <span className="flex items-center gap-0.5"><Share2 className="h-3 w-3" />{(v.share_count || 0).toLocaleString()}</span>
-                          {v.duration && <span className="flex items-center gap-0.5"><Clock className="h-3 w-3" />{v.duration}s</span>}
-                        </div>
-                        <div className="flex gap-2 mt-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                          {v.share_url && <a href={v.share_url} target="_blank" rel="noreferrer" className="text-[10px] text-cyan-400 hover:underline flex items-center gap-0.5"><ExternalLink className="h-3 w-3" />View on TikTok</a>}
-                          <button onClick={() => { setCommentsVideoId(v.id); setActiveTab("comments"); }} className="text-[10px] text-amber-400 hover:underline flex items-center gap-0.5"><MessageSquare className="h-3 w-3" />View Comments</button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </ScrollArea>
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                <Video className="h-10 w-10 mx-auto mb-2 opacity-20" />
-                <p className="text-xs font-medium">No videos loaded</p>
-                <p className="text-[10px] mt-1 opacity-60">Click "Load" to pull your TikTok videos</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Schedule & Queue */}
+        {/* Post Queue */}
         <Card className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm">
           <div className="h-1 bg-gradient-to-r from-orange-400 to-amber-500" />
           <CardContent className="p-5 space-y-4">
             <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
               <div className="h-7 w-7 rounded-full bg-gradient-to-br from-orange-400 to-amber-600 flex items-center justify-center">
-                <Calendar className="h-3.5 w-3.5 text-white" />
+                <Clock className="h-3.5 w-3.5 text-white" />
               </div>
-              Schedule & Queue
+              Post Queue ({scheduledPosts.length})
             </h4>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-3">
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Caption</label>
-                  <Textarea value={newPostCaption} onChange={e => setNewPostCaption(e.target.value)} placeholder="Write your post caption..." rows={3} className="text-sm bg-muted/20 border-border/40" />
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Media URL</label>
-                  <Input value={newPostMediaUrl} onChange={e => setNewPostMediaUrl(e.target.value)} placeholder="https://example.com/video.mp4" className="text-sm bg-muted/20 border-border/40" />
-                </div>
-              </div>
-              <div className="space-y-3">
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Schedule Date & Time</label>
-                  <Input type="datetime-local" value={newPostScheduledAt} onChange={e => setNewPostScheduledAt(e.target.value)} className="text-sm bg-muted/20 border-border/40" />
-                  <p className="text-[10px] text-muted-foreground mt-1">Leave empty to save as draft</p>
-                </div>
-                <Button onClick={schedulePost} disabled={!newPostCaption && !newPostMediaUrl} className="w-full bg-gradient-to-r from-orange-400 to-amber-500 hover:from-orange-500 hover:to-amber-600 text-white gap-2 mt-2">
-                  <Calendar className="h-4 w-4" />{newPostScheduledAt ? "Schedule Post" : "Save as Draft"}
-                </Button>
-              </div>
-            </div>
-
-            {/* Scheduled Posts Queue */}
-            {scheduledPosts.length > 0 && (
-              <div className="border-t border-border/30 pt-4 space-y-2">
-                <h5 className="text-xs font-semibold text-foreground flex items-center gap-2">
-                  <Clock className="h-3.5 w-3.5 text-amber-400" />
-                  Post Queue ({scheduledPosts.length})
-                </h5>
-                <ScrollArea className="max-h-[280px]">
-                  <div className="space-y-2">
-                    {scheduledPosts.map(p => (
+            {scheduledPosts.length > 0 ? (
+              <ScrollArea className="max-h-[400px]">
+                <div className="space-y-2">
+                  {scheduledPosts.map(p => {
+                    const meta = p.metadata || {};
+                    return (
                       <div key={p.id} className="bg-white/[0.02] rounded-lg p-3 flex items-center gap-3 border border-white/[0.04] hover:border-amber-500/30 transition-colors">
-                        <div className={`h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0 ${p.status === "published" ? "bg-green-500/10" : p.status === "scheduled" ? "bg-amber-500/10" : "bg-muted/30"}`}>
-                          {p.status === "published" ? <CheckCircle2 className="h-4 w-4 text-green-400" /> : p.status === "scheduled" ? <Clock className="h-4 w-4 text-amber-400" /> : <FolderOpen className="h-4 w-4 text-muted-foreground" />}
+                        <div className={`h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0 ${p.status === "published" ? "bg-green-500/10" : p.status === "scheduled" ? "bg-amber-500/10" : p.status === "publishing" ? "bg-blue-500/10" : "bg-muted/30"}`}>
+                          {p.status === "published" ? <CheckCircle2 className="h-4 w-4 text-green-400" /> : p.status === "scheduled" ? <Clock className="h-4 w-4 text-amber-400" /> : p.status === "publishing" ? <Loader2 className="h-4 w-4 text-blue-400 animate-spin" /> : <FolderOpen className="h-4 w-4 text-muted-foreground" />}
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-xs font-medium text-foreground line-clamp-1">{p.caption || "No caption"}</p>
-                          <div className="flex items-center gap-2 mt-0.5">
+                          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                             <Badge variant="outline" className={`text-[9px] ${p.status === "published" ? "border-green-500/30 text-green-400" : p.status === "scheduled" ? "border-amber-500/30 text-amber-400" : "border-border text-muted-foreground"}`}>
                               {p.status}
                             </Badge>
+                            <Badge variant="outline" className="text-[9px] border-border text-muted-foreground capitalize">
+                              {meta.content_type || p.post_type || "video"}
+                            </Badge>
+                            {meta.privacy_level && (
+                              <Badge variant="outline" className="text-[9px] border-border text-muted-foreground">
+                                {meta.privacy_level === "PUBLIC_TO_EVERYONE" ? "🌍 Public" : meta.privacy_level === "SELF_ONLY" ? "🔐 Private" : "🔒 Limited"}
+                              </Badge>
+                            )}
                             <span className="text-[10px] text-muted-foreground">
                               {p.scheduled_at ? new Date(p.scheduled_at).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "No schedule"}
                             </span>
+                            {meta.location && <span className="text-[10px] text-muted-foreground flex items-center gap-0.5"><MapPin className="h-2.5 w-2.5" />{meta.location}</span>}
                           </div>
+                          {p.hashtags?.length > 0 && (
+                            <div className="flex gap-1 flex-wrap mt-1">
+                              {p.hashtags.map((h: string) => <Badge key={h} variant="outline" className="text-[8px] border-cyan-500/20 text-cyan-400">#{h}</Badge>)}
+                            </div>
+                          )}
                         </div>
                         <div className="flex gap-1 flex-shrink-0">
                           {p.status !== "published" && (
@@ -1231,13 +1322,19 @@ const TKAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSu
                             </Button>
                           )}
                           <Button size="sm" variant="ghost" className="h-7 w-7 p-0 hover:bg-red-500/10" onClick={() => deletePost(p.id)} title="Delete">
-                            <AlertCircle className="h-3.5 w-3.5 text-red-400" />
+                            <Trash2 className="h-3.5 w-3.5 text-red-400" />
                           </Button>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                </ScrollArea>
+                    );
+                  })}
+                </div>
+              </ScrollArea>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <Calendar className="h-10 w-10 mx-auto mb-2 opacity-20" />
+                <p className="text-xs font-medium">No posts yet</p>
+                <p className="text-[10px] mt-1 opacity-60">Create your first post above</p>
               </div>
             )}
           </CardContent>
