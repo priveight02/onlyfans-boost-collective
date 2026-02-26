@@ -2719,35 +2719,50 @@ Rules:
         const isContentProfileSync = !!aiModes.content_profile_sync;
         const isUncensored = !!aiModes.uncensored_mode;
         console.log(`[AI MODES] Active: ${Object.entries(aiModes).filter(([,v]) => v).map(([k]) => k).join(", ") || "none"}`);
-        // Lightweight pipeline: skip heavy IG re-scan, just check DB for unanswered fan messages and reply
-        const igFuncUrl2 = `${Deno.env.get("SUPABASE_URL")}/functions/v1/instagram-api`;
+
+        // === MULTI-PLATFORM SUPPORT ===
+        // Determine which platform to process (defaults to instagram for backward compat)
+        const livePlatform = (params?.platform || "instagram") as string;
+        const platformApiMap: Record<string, string> = {
+          instagram: "instagram-api",
+          tiktok: "tiktok-api",
+          facebook: "facebook-api",
+        };
+        const platformEdgeFunc = platformApiMap[livePlatform] || "instagram-api";
+        console.log(`[PLATFORM] Processing DMs for platform: ${livePlatform} (edge func: ${platformEdgeFunc})`);
+
+        // Platform-aware API caller — routes to the right edge function
+        const platformFuncUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/${platformEdgeFunc}`;
         const serviceKey2 = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
         
         const callIG2 = async (igAction: string, igParams: any = {}) => {
-          const resp = await fetch(igFuncUrl2, {
+          const resp = await fetch(platformFuncUrl, {
             method: "POST",
             headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey2}` },
             body: JSON.stringify({ action: igAction, account_id, params: igParams }),
           });
           const d = await resp.json();
-          if (!d.success) throw new Error(d.error || `IG API ${igAction} failed`);
+          if (!d.success) throw new Error(d.error || `${livePlatform} API ${igAction} failed`);
           return d.data;
         };
 
-        // Quick IG check: only fetch latest messages for conversations we already have in DB
-        // This is MUCH faster than scanning all 50 conversations
+        // Quick scan: fetch latest messages for conversations we already have in DB
+        // For Instagram: scan all folders. For TikTok/Facebook: simpler scan.
         try {
           const { data: igConnQuick } = await supabase
             .from("social_connections")
             .select("platform_user_id, platform_username")
             .eq("account_id", account_id)
-            .eq("platform", "instagram")
+            .eq("platform", livePlatform)
             .single();
           
           if (igConnQuick?.platform_user_id) {
             const ourIdQuick = igConnQuick.platform_user_id;
             const ourUsernameQuick = igConnQuick.platform_username?.toLowerCase() || "";
             
+            // Instagram: scan all folders for new messages
+            // TikTok/Facebook: simpler single-folder scan
+            if (livePlatform === "instagram") {
             // Scan all folders for new messages (not just inbox)
             const allQuickConvos: any[] = [];
             for (const folder of ["inbox", "general", "other"]) {
@@ -2911,7 +2926,85 @@ Rules:
                 });
               }
             }
-            console.log(`Quick scan: checked ${quickConvoList.length} convos for new messages`);
+            console.log(`Quick scan (${livePlatform}): checked ${quickConvoList.length} convos for new messages`);
+            } else {
+              // TikTok/Facebook: simple scan — just fetch conversations and import new messages
+              try {
+                const scanResult = await callIG2("get_conversations", { limit: 50 });
+                const convos = scanResult?.data?.conversations || scanResult?.data || scanResult?.conversations || [];
+                console.log(`[${livePlatform.toUpperCase()} SCAN] Found ${convos.length} conversations from API`);
+                
+                for (const sc of convos) {
+                  const convoId = sc.conversation_id || sc.id;
+                  if (!convoId) continue;
+                  
+                  // Check if we already have this conversation
+                  const { data: existingConvo } = await supabase
+                    .from("ai_dm_conversations")
+                    .select("id, ai_enabled")
+                    .eq("account_id", account_id)
+                    .eq("platform_conversation_id", convoId)
+                    .single();
+                  
+                  // Get participant info
+                  const participants = sc.participants?.data || sc.participants || [];
+                  const fan = participants.find((p: any) => p.id !== ourIdQuick) || participants[0];
+                  if (!fan) continue;
+                  
+                  const latestMsg = sc.messages?.data?.[0] || sc.latest_message || null;
+                  const latestPreview = latestMsg?.message || latestMsg?.text || latestMsg?.content || "[media]";
+                  
+                  const upsertData: any = {
+                    account_id,
+                    platform: livePlatform,
+                    platform_conversation_id: convoId,
+                    platform_user_id: ourIdQuick,
+                    participant_id: fan.id || fan.user_id || "unknown",
+                    participant_username: fan.username || fan.name || fan.display_name || fan.id || "User",
+                    participant_name: fan.name || fan.display_name || fan.username || "Unknown",
+                    participant_avatar_url: fan.avatar_url || fan.profile_picture_url || null,
+                    status: "active",
+                    folder: "primary",
+                    last_message_at: sc.updated_time || sc.update_time ? new Date(sc.updated_time || sc.update_time).toISOString() : new Date().toISOString(),
+                    last_message_preview: latestPreview.substring(0, 80),
+                  };
+                  if (!existingConvo) upsertData.ai_enabled = true;
+                  
+                  const { data: scDbConvo } = await supabase
+                    .from("ai_dm_conversations")
+                    .upsert(upsertData, { onConflict: "account_id,platform_conversation_id" })
+                    .select("id")
+                    .single();
+                  if (!scDbConvo) continue;
+                  
+                  // Import messages if available
+                  const msgs = sc.messages?.data || [];
+                  for (const msg of [...msgs].reverse()) {
+                    const msgId = msg.id || msg.message_id;
+                    if (!msgId) continue;
+                    const { data: existing } = await supabase.from("ai_dm_messages").select("id").eq("platform_message_id", msgId).limit(1);
+                    if (existing && existing.length > 0) continue;
+                    
+                    const fromId = msg.from?.id || msg.sender_id || msg.user_id;
+                    const isFromUs = fromId === ourIdQuick;
+                    const msgContent = msg.message || msg.text || msg.content || "";
+                    
+                    await supabase.from("ai_dm_messages").insert({
+                      conversation_id: scDbConvo.id,
+                      account_id,
+                      platform_message_id: msgId,
+                      sender_type: isFromUs ? "ai" : "fan",
+                      sender_name: isFromUs ? (ourUsernameQuick || "creator") : (fan.username || fan.name || "fan"),
+                      content: msgContent || "[media]",
+                      status: "sent",
+                      created_at: msg.created_time || msg.timestamp || msg.create_time ? new Date(msg.created_time || msg.timestamp || msg.create_time).toISOString() : new Date().toISOString(),
+                    });
+                  }
+                }
+              } catch (tkFbScanErr) {
+                console.log(`[${livePlatform.toUpperCase()} SCAN] Scan failed (non-blocking):`, tkFbScanErr);
+              }
+            }
           }
         } catch (scanErr) {
           console.error("Quick scan failed:", scanErr);
@@ -2949,26 +3042,26 @@ Rules:
         const isCustomPersonaOverride = personaResult.isCustomOverride;
         console.log(`[PERSONA] Account ${account_id}: ${isCustomPersonaOverride ? "CUSTOM system_prompt override active" : "using default persona"} in live DM pipeline`);
 
-        // Get connection info
+        // Get connection info (platform-aware)
         const { data: igConn2 } = await supabase
           .from("social_connections")
           .select("platform_user_id, platform_username")
           .eq("account_id", account_id)
-          .eq("platform", "instagram")
+          .eq("platform", livePlatform)
           .single();
         
         if (!igConn2?.platform_user_id) {
-          result = { processed: 0, error: "Instagram not connected" };
+          result = { processed: 0, error: `${livePlatform} not connected` };
           break;
         }
 
-        // 2. Find conversations with unanswered fan messages
+        // 2. Find conversations with unanswered fan messages (platform-aware)
         // Get all active conversations from DB
         const { data: activeConvos } = await supabase
           .from("ai_dm_conversations")
           .select("*")
           .eq("account_id", account_id)
-          .eq("platform_user_id", igConn2.platform_user_id)
+          .eq("platform", livePlatform)
           .eq("ai_enabled", true)
           .eq("status", "active");
 
@@ -3298,7 +3391,7 @@ Rules:
               continue; // Skip normal processing
             }
 
-            // === FAN PROFILE SCAN — fetch their IG bio, posts, reels for context ===
+            // === FAN PROFILE SCAN — fetch their bio, posts for context (IG-only for now) ===
             let fanProfileCtx = "";
             try {
               // Check if we already have a recent scan (cache for 1 hour)
@@ -3316,8 +3409,8 @@ Rules:
                 // Use cached scan
                 fanProfileCtx = cachedScan.context || "";
                 console.log(`[FAN SCAN] @${dbConvo.participant_username}: using cached profile scan (${Math.round(scanAge)}s old)`);
-              } else if (dbConvo.participant_username) {
-                // Fetch fresh profile via business_discovery
+              } else if (dbConvo.participant_username && livePlatform === "instagram") {
+                // Fetch fresh profile via business_discovery (IG-only)
                 const scanResult = await callIG2("discover_user", { username: dbConvo.participant_username, media_limit: 6 });
                 const bd = scanResult?.business_discovery || scanResult;
                 if (bd && (bd.biography || bd.media)) {
@@ -3397,8 +3490,10 @@ Rules:
               .eq("fan_identifier", dbConvo.participant_id)
               .single();
             
-            const freePicPreCheck = detectFreePicRequest(dbMessages || [], fanProfileForPicPreCheck?.tags || [], latestMsg?.content || "");
-            console.log(`[FREE PIC PRE-CHECK] @${dbConvo.participant_username}: isRequesting=${freePicPreCheck.isRequesting}, alreadySent=${freePicPreCheck.alreadySent}, isEligible=${freePicPreCheck.isEligible}, insistCount=${freePicPreCheck.insistCount}, fanMsgs=${(dbMessages || []).filter(m => m.sender_type === "fan").length}, latestContent="${(latestMsg?.content || "").substring(0, 50)}"`);
+            const freePicPreCheck = livePlatform === "instagram" 
+              ? detectFreePicRequest(dbMessages || [], fanProfileForPicPreCheck?.tags || [], latestMsg?.content || "")
+              : { isRequesting: false, alreadySent: false, isEligible: false, insistCount: 0 };
+            if (livePlatform === "instagram") console.log(`[FREE PIC PRE-CHECK] @${dbConvo.participant_username}: isRequesting=${freePicPreCheck.isRequesting}, alreadySent=${freePicPreCheck.alreadySent}, isEligible=${freePicPreCheck.isEligible}, insistCount=${freePicPreCheck.insistCount}, fanMsgs=${(dbMessages || []).filter(m => m.sender_type === "fan").length}, latestContent="${(latestMsg?.content || "").substring(0, 50)}"`);
 
             // === POST-REDIRECT DETECTION (auto-responder) ===
             // SKIP post-redirect block if fan is requesting a free pic (free pic overrides redirect)
