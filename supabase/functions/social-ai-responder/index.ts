@@ -1223,12 +1223,34 @@ const buildDeterministicPersonaReply = (
   const text = (latestFanText || "").toLowerCase().trim();
   if (!isLikelyQuestionText(text)) return null;
 
+  // Detect if this is a FOLLOW-UP question (we already answered job/topic before)
+  const priorAssistant = conversationHistory
+    .filter(m => m.role === "creator" || m.role === "assistant")
+    .map(m => (m.text || m.content || "").toLowerCase());
+  const alreadyAnsweredJob = priorAssistant.some(t =>
+    /\b(i run|i do|i manage|i handle|business|digital|services|products|entrepreneur|online business|my thing|my lane)\b/i.test(t)
+  );
+
+  // Follow-up patterns: questions that ask for MORE detail about something already discussed
+  const isFollowUp = /(what else|how does it work|how does that work|tell me more|explain|elaborate|what exactly|more about|specifics|like what|such as|for example|how do you|but what do you|and what|what kind of|what type of|how it work|on it how)/i.test(text);
+
   const asksName = /(who are you|whats your name|what is your name|your name|ur name|name\b)/i.test(text);
   const asksLatestPost = /(latest|last|recent)\s+(post|upload|content|title)|what did you post|whats your latest/i.test(text);
   const asksAge = /(how old|your age|ur age|\bage\b)/i.test(text);
   const asksJob = /(what do you do|what do u do|do for a living|what is your job|whats your job|what's your job|your job|in sales|do sales|are you in sales|you do sales|your profession|what kind of work|what work do you|what u do for|are you in .{2,15} right now)/i.test(text);
   const asksMoneyPath = /(how can i make money|make money like you|money like you|how do i make money|how to make money|how can i start|how do i start|how to start a business|start a business)/i.test(text);
   const asksPostMedia = /(what(?:'s| is)?\s+in\s+(?:the\s+)?(?:image|photo|pic|media)|describe\s+(?:the\s+)?(?:image|photo|pic|media))/i.test(text);
+
+  // If it's a follow-up about a topic we already answered, let the AI model handle it naturally
+  if (isFollowUp && alreadyAnsweredJob) {
+    console.log(`[DETERMINISTIC] Skipping — follow-up question detected, letting AI model answer naturally`);
+    return null;
+  }
+  // If we already gave a job answer and they ask again, also skip to let AI elaborate
+  if (asksJob && alreadyAnsweredJob && !asksName && !asksAge && !asksLatestPost) {
+    console.log(`[DETERMINISTIC] Skipping — job already answered, letting AI elaborate`);
+    return null;
+  }
 
   if (!asksName && !asksLatestPost && !asksAge && !asksJob && !asksMoneyPath && !asksPostMedia) return null;
 
@@ -5024,10 +5046,27 @@ Answer it directly like a real human would. Do not talk about anything else.` })
               const asksAboutJobNow = /(sales|job|work|business|profession|do for a living|what do you do|what do u do|are you in)/i.test(fanLower);
               const replyLower = reply.toLowerCase();
 
+              // Detect follow-up questions — these should NOT trigger the deflection guard
+              const isFollowUpQuestion = /(what else|how does it work|how does that work|tell me more|explain|elaborate|what exactly|more about|specifics|like what|such as|for example|how do you|but what do you|and what|what kind of|what type of|how it work|on it how)/i.test(fanLower);
+              const priorAssistantMsgs = conversationContext
+                .filter((m: any) => m.role === "creator" || m.role === "assistant")
+                .map((m: any) => (m.text || m.content || "").toLowerCase());
+              const alreadyAnsweredJobBefore = priorAssistantMsgs.some((t: string) =>
+                /\b(i run|i do|i manage|i handle|business|digital|services|products|entrepreneur|online business|my thing|my lane|page and business)\b/i.test(t)
+              );
+
               let looksLikeDeflection = false;
 
-              if (asksAboutJobNow) {
-                // For job/sales/work questions, require job-relevant words in reply — generic filler like "just relaxing" is NOT an answer
+              // If it's a follow-up and we already answered, trust the AI's reply
+              if (isFollowUpQuestion && alreadyAnsweredJobBefore) {
+                looksLikeDeflection = false;
+                console.log(`[DEFLECT GUARD] Follow-up question detected, trusting AI reply: "${reply}"`);
+              } else if (asksAboutJobNow && alreadyAnsweredJobBefore) {
+                // They're re-asking about job but we already answered — let AI elaborate
+                looksLikeDeflection = false;
+                console.log(`[DEFLECT GUARD] Job re-asked but already answered, letting AI elaborate: "${reply}"`);
+              } else if (asksAboutJobNow) {
+                // First time job question — require job-relevant words in reply
                 const hasJobRelevantAnswer = /\b(sales|business|entrepreneur|sell|selling|digital|services|products|online|marketing|agency|freelance|consulting|run|manage|own|build|create|tech|software|saas|ecommerce|i do|i work|my thing)\b/i.test(replyLower);
                 if (!hasJobRelevantAnswer) {
                   looksLikeDeflection = true;
