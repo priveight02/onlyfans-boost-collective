@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { Loader2, CheckCircle2, AlertTriangle, Music2 } from "lucide-react";
 
 const TikTokLoginPopup = () => {
@@ -16,7 +15,15 @@ const TikTokLoginPopup = () => {
     const state = params.get("state");
 
     if (errorParam) {
-      setError(params.get("error_description") || "TikTok login was denied.");
+      const errorMessage = params.get("error_description") || "TikTok login was denied.";
+      setError(errorMessage);
+      if (window.opener) {
+        window.opener.postMessage({
+          type: "TT_OAUTH_RESULT",
+          payload: { error: errorMessage, redirect_uri: redirectUri },
+        }, "*");
+        setTimeout(() => window.close(), 1200);
+      }
       return;
     }
 
@@ -24,7 +31,15 @@ const TikTokLoginPopup = () => {
     if (state) {
       const savedState = sessionStorage.getItem("tt_csrf");
       if (savedState && savedState !== state) {
-        setError("Security check failed. Please try again.");
+        const securityError = "Security check failed. Please try again.";
+        setError(securityError);
+        if (window.opener) {
+          window.opener.postMessage({
+            type: "TT_OAUTH_RESULT",
+            payload: { error: securityError, redirect_uri: redirectUri },
+          }, "*");
+          setTimeout(() => window.close(), 1200);
+        }
         return;
       }
     }

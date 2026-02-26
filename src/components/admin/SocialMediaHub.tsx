@@ -47,6 +47,18 @@ const VerifiedBadge = ({ size = 12 }: { size?: number }) => (
   </svg>
 );
 
+const DEFAULT_TIKTOK_OAUTH_SCOPES = "user.info.basic,video.list,video.upload,video.publish";
+
+const normalizeTikTokScopes = (rawScopes?: string | null) => {
+  const normalized = (rawScopes || DEFAULT_TIKTOK_OAUTH_SCOPES)
+    .split(",")
+    .map((scope) => scope.trim())
+    .filter(Boolean)
+    .join(",");
+
+  return normalized || DEFAULT_TIKTOK_OAUTH_SCOPES;
+};
+
 const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlatformChange }: { subTab?: string; onSubTabChange?: (subTab: string) => void; urlPlatform?: string; onPlatformChange?: (platform: string) => void }) => {
   const { user } = useAuth();
   const [activeSubTab, setActiveSubTabInternal] = useState(urlSubTab || "dashboard");
@@ -712,8 +724,14 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
      const csrfState = Math.random().toString(36).substring(2);
      sessionStorage.setItem("tt_csrf", csrfState);
      const ttRedirectUri = "https://uplyze.ai/tt-login";
-      const scopes = "user.info.basic,user.info.profile,user.info.stats,video.list,video.publish,video.upload,dm.manage,dm.read";
-      const authUrl = `https://www.tiktok.com/v2/auth/authorize/?client_key=${ttClientKey}&scope=${scopes}&response_type=code&redirect_uri=${encodeURIComponent(ttRedirectUri)}&state=${csrfState}`;
+      const scopes = normalizeTikTokScopes(cachedTtScopes);
+      const authUrl = `https://www.tiktok.com/v2/auth/authorize/?${new URLSearchParams({
+        client_key: ttClientKey,
+        scope: scopes,
+        response_type: "code",
+        redirect_uri: ttRedirectUri,
+        state: csrfState,
+      }).toString()}`;
      const authWindow = window.open(authUrl, "tiktok_oauth", "width=600,height=700,scrollbars=yes");
      setAutoConnectLoading("tiktok");
      toast.info("Authenticate with TikTok in the popup...");
@@ -721,8 +739,9 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
      const handleTTMessage = async (event: MessageEvent) => {
        if (event.data?.type !== "TT_OAUTH_RESULT") return;
        window.removeEventListener("message", handleTTMessage);
-       const { code, redirect_uri } = event.data.payload;
-       if (!code) { setAutoConnectLoading(null); toast.error("No auth code received"); return; }
+       const payload = event.data?.payload || {};
+       const { code, redirect_uri, error: oauthError } = payload;
+       if (!code) { setAutoConnectLoading(null); toast.error(oauthError || "No auth code received"); return; }
        toast.info("Auth code captured! Exchanging for token...");
        try {
          const { data, error } = await supabase.functions.invoke("tiktok-api", {
@@ -1577,6 +1596,7 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
   const [cachedIgAppId, setCachedIgAppId] = useState<string | null>(null);
   const [ttLoginPopupLoading, setTtLoginPopupLoading] = useState(false);
   const [cachedTtClientKey, setCachedTtClientKey] = useState<string | null>(null);
+  const [cachedTtScopes, setCachedTtScopes] = useState<string>(DEFAULT_TIKTOK_OAUTH_SCOPES);
    const [cachedThreadsAppId, setCachedThreadsAppId] = useState<string | null>(null);
    const [cachedFbAppId, setCachedFbAppId] = useState<string | null>(null);
 
@@ -1586,7 +1606,10 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
        .then(({ data }) => { if (data?.app_id) setCachedIgAppId(data.app_id); })
        .catch(() => {});
      supabase.functions.invoke("tiktok-api", { body: { action: "get_client_key" } })
-       .then(({ data }) => { if (data?.client_key) setCachedTtClientKey(data.client_key); })
+       .then(({ data }) => {
+         if (data?.client_key) setCachedTtClientKey(data.client_key);
+         if (data?.scopes) setCachedTtScopes(normalizeTikTokScopes(data.scopes));
+       })
        .catch(() => {});
      supabase.functions.invoke("threads-api", { body: { action: "get_app_id" } })
        .then(({ data }) => { if (data?.app_id) { setCachedThreadsAppId(data.app_id); setThreadsAppId(data.app_id); } })
@@ -1809,20 +1832,32 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
   // Open TikTok login popup — mirrors the Instagram one-click flow
   const openTtLoginPopup = async () => {
     let clientKey = ttClientKey || cachedTtClientKey;
+    let resolvedScopes = normalizeTikTokScopes(cachedTtScopes);
+
     // If not cached yet, try fetching on-demand
     if (!clientKey) {
       try {
         const { data } = await supabase.functions.invoke("tiktok-api", { body: { action: "get_client_key" } });
         if (data?.client_key) { clientKey = data.client_key; setCachedTtClientKey(data.client_key); }
+        if (data?.scopes) {
+          resolvedScopes = normalizeTikTokScopes(data.scopes);
+          setCachedTtScopes(resolvedScopes);
+        }
       } catch {}
     }
+
     if (!clientKey) { toast.error("Configure TIKTOK_CLIENT_KEY in backend secrets or enter your Client Key"); return; }
     setTtLoginPopupLoading(true);
     const csrfState = Math.random().toString(36).substring(2);
     sessionStorage.setItem("tt_csrf", csrfState);
     const ttRedirectUri = "https://uplyze.ai/tt-login";
-    const scopes = "user.info.basic,user.info.profile,user.info.stats,video.list,video.publish,video.upload,dm.manage,dm.read";
-    const authUrl = `https://www.tiktok.com/v2/auth/authorize/?client_key=${clientKey}&scope=${scopes}&response_type=code&redirect_uri=${encodeURIComponent(ttRedirectUri)}&state=${csrfState}`;
+    const authUrl = `https://www.tiktok.com/v2/auth/authorize/?${new URLSearchParams({
+      client_key: clientKey,
+      scope: resolvedScopes,
+      response_type: "code",
+      redirect_uri: ttRedirectUri,
+      state: csrfState,
+    }).toString()}`;
     const w = 520, h = 620;
     const left = Math.round(window.screenX + (window.outerWidth - w) / 2);
     const top = Math.round(window.screenY + (window.outerHeight - h) / 2);
@@ -1839,8 +1874,9 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
       if (event.data?.type !== "TT_OAUTH_RESULT") return;
       window.removeEventListener("message", handleTTMessage);
       setTtLoginPopupLoading(false);
-      const { code, redirect_uri } = event.data.payload;
-      if (!code) { setAutoConnectLoading(null); toast.error("No auth code received"); return; }
+      const payload = event.data?.payload || {};
+      const { code, redirect_uri, error: oauthError } = payload;
+      if (!code) { setAutoConnectLoading(null); toast.error(oauthError || "No auth code received"); return; }
       toast.info("Auth code captured! Exchanging for token...");
       try {
         const { data, error } = await supabase.functions.invoke("tiktok-api", {
