@@ -2129,8 +2129,8 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
                       <MoreVertical className="h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="text-xs">
-                    <DropdownMenuItem onClick={() => {
+                  <DropdownMenuContent align="end" className="text-xs bg-[hsl(222,35%,8%)] border-white/10 text-foreground min-w-[220px]">
+                    <DropdownMenuItem className="focus:bg-white/[0.06] text-foreground" onClick={() => {
                       const newFolder = selectedConvoData?.folder === "primary" ? "general" : "primary";
                       supabase.from("ai_dm_conversations").update({ folder: newFolder }).eq("id", selectedConvo!).then(() => {
                         loadConversations();
@@ -2139,13 +2139,13 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
                     }}>
                       Move to {selectedConvoData?.folder === "primary" ? "General" : "Primary"}
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => {
+                    <DropdownMenuItem className="focus:bg-white/[0.06] text-foreground" onClick={() => {
                       supabase.from("ai_dm_conversations").update({ folder: "requests" }).eq("id", selectedConvo!).then(() => {
                         loadConversations();
                         toast.success("Moved to Requests");
                       });
                     }}>Move to Requests</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => {
+                    <DropdownMenuItem className="focus:bg-white/[0.06] text-foreground" onClick={() => {
                       const newAi = !selectedConvoData?.ai_enabled;
                       supabase.from("ai_dm_conversations").update({ ai_enabled: newAi }).eq("id", selectedConvo!).then(() => {
                         loadConversations();
@@ -2154,14 +2154,14 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
                     }}>
                       {selectedConvoData?.ai_enabled ? "⏸ Disable AI" : "▶ Enable AI"}
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => {
+                    <DropdownMenuItem className="focus:bg-white/[0.06] text-foreground" onClick={() => {
                       supabase.from("ai_dm_conversations").update({ redirect_sent: !selectedConvoData?.redirect_sent }).eq("id", selectedConvo!).then(() => {
                         loadConversations();
                       });
                     }}>
                      {selectedConvoData?.redirect_sent ? "Clear redirect flag" : "Mark as redirected"}
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setHideDeleted(h => !h)}>
+                    <DropdownMenuItem className="focus:bg-white/[0.06] text-foreground" onClick={() => setHideDeleted(h => !h)}>
                       {hideDeleted ? (
                         <><Eye className="h-3.5 w-3.5 mr-2" />Show deleted messages</>
                       ) : (
@@ -2169,7 +2169,58 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
                       )}
                     </DropdownMenuItem>
                     <DropdownMenuItem
-                      className="text-red-400 focus:text-red-400"
+                      className="text-amber-400 focus:text-amber-400 focus:bg-amber-500/10"
+                      onClick={async () => {
+                        if (!selectedConvo || !selectedConvoData?.platform_conversation_id) {
+                          toast.error("No platform conversation linked — cannot verify");
+                          return;
+                        }
+                        toast.info("Running full conversation check against Instagram...");
+                        try {
+                          // Fetch live messages from IG for this conversation
+                          const { data, error } = await supabase.functions.invoke("instagram-api", {
+                            body: {
+                              action: "fetch_conversation_messages",
+                              account_id: accountId,
+                              params: { conversation_id: selectedConvoData.platform_conversation_id, limit: 100 },
+                            },
+                          });
+                          if (error) throw error;
+                          const liveMessages: Array<{ id: string }> = data?.data?.messages || data?.messages || [];
+                          const livePlatformIds = new Set(liveMessages.map((m: any) => m.id));
+
+                          // Find all our DB messages with platform_message_id that are NOT in IG anymore
+                          const dbMsgs = messages.filter(m => m.platform_message_id && m.sender_type === "fan");
+                          const ghostMsgs = dbMsgs.filter(m => !livePlatformIds.has(m.platform_message_id!));
+
+                          if (ghostMsgs.length === 0) {
+                            toast.success("All messages verified — no ghosts found");
+                            return;
+                          }
+
+                          // Delete ghost messages permanently from DB
+                          const { error: delErr } = await supabase
+                            .from("ai_dm_messages")
+                            .delete()
+                            .in("id", ghostMsgs.map(m => m.id));
+                          if (delErr) { toast.error("Failed to remove ghost messages"); return; }
+
+                          // Update local state
+                          const ghostIds = new Set(ghostMsgs.map(m => m.id));
+                          setMessages(prev => prev.filter(m => !ghostIds.has(m.id)));
+                          const cached = messageCacheRef.current.get(selectedConvo);
+                          if (cached) messageCacheRef.current.set(selectedConvo, cached.filter(m => !ghostIds.has(m.id)));
+
+                          toast.success(`Removed ${ghostMsgs.length} ghost message(s) not found in Instagram`);
+                        } catch (e: any) {
+                          toast.error(`Check failed: ${e.message || "Unknown error"}`);
+                        }
+                      }}
+                    >
+                      <Radar className="h-3.5 w-3.5 mr-2" />Full conversation check
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="text-red-400 focus:text-red-400 focus:bg-red-500/10"
                       onClick={async () => {
                         if (!selectedConvo) return;
                         const deletedMsgs = messages.filter(m => m.status === "deleted");
