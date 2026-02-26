@@ -112,6 +112,14 @@ const ThreadsAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToCo
   const [aiAnalyzeText, setAiAnalyzeText] = useState("");
   const [aiAnalyzeResult, setAiAnalyzeResult] = useState("");
 
+  // Schedule
+  const [scheduledPosts, setScheduledPosts] = useState<any[]>([]);
+  const [schedCaption, setSchedCaption] = useState("");
+  const [schedMediaUrl, setSchedMediaUrl] = useState("");
+  const [schedDateTime, setSchedDateTime] = useState("");
+  const [schedReplyControl, setSchedReplyControl] = useState("everyone");
+  const [schedAiGenerating, setSchedAiGenerating] = useState(false);
+
   // Check connection
   useEffect(() => {
     if (!selectedAccount) { setThreadsConnected(false); return; }
@@ -125,6 +133,47 @@ const ThreadsAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToCo
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [selectedAccount]);
+
+  // Load scheduled posts
+  useEffect(() => {
+    if (!selectedAccount) return;
+    supabase.from("social_posts").select("*").eq("account_id", selectedAccount).eq("platform", "threads").order("created_at", { ascending: false }).limit(50)
+      .then(({ data }) => { if (data) setScheduledPosts(data); });
+  }, [selectedAccount]);
+
+  const scheduleThreadsPost = async () => {
+    if (!schedCaption) { toast.error("Add a caption"); return; }
+    const { error } = await supabase.from("social_posts").insert({
+      account_id: selectedAccount, platform: "threads", post_type: "text",
+      caption: schedCaption, media_urls: schedMediaUrl ? [schedMediaUrl] : [],
+      scheduled_at: schedDateTime || null, status: schedDateTime ? "scheduled" : "draft",
+      metadata: { reply_control: schedReplyControl },
+    });
+    if (error) toast.error(error.message);
+    else {
+      toast.success("Post scheduled!"); setSchedCaption(""); setSchedMediaUrl(""); setSchedDateTime("");
+      const { data } = await supabase.from("social_posts").select("*").eq("account_id", selectedAccount).eq("platform", "threads").order("created_at", { ascending: false }).limit(50);
+      if (data) setScheduledPosts(data);
+    }
+  };
+
+  const generateThreadsScheduleCaption = async () => {
+    if (!schedCaption) { toast.error("Add a topic first"); return; }
+    setSchedAiGenerating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("social-ai-responder", {
+        body: { action: "generate_caption", account_id: selectedAccount, params: { topic: schedCaption, platform: "threads", include_cta: true } },
+      });
+      if (error) throw error;
+      if (data?.success && data.data?.caption) { setSchedCaption(data.data.caption); toast.success("AI caption generated!"); }
+    } catch (e: any) { toast.error(e.message); }
+    setSchedAiGenerating(false);
+  };
+
+  const deleteScheduledPost = async (id: string) => {
+    await supabase.from("social_posts").delete().eq("id", id);
+    toast.success("Deleted"); setScheduledPosts(prev => prev.filter(p => p.id !== id));
+  };
 
   const callApi = useCallback(async (action: string, params?: any) => {
     setLoading(true);
@@ -257,6 +306,7 @@ const ThreadsAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToCo
     { v: "publish", icon: Send, l: "Publish" },
     { v: "threads", icon: MessageCircle, l: "My Threads" },
     { v: "replies", icon: MessageSquare, l: "Replies" },
+    { v: "schedule", icon: Calendar, l: "Schedule" },
     { v: "mentions", icon: AtSign, l: "Mentions" },
     { v: "search", icon: Search, l: "Search" },
     { v: "discover", icon: Globe, l: "Discover" },
@@ -321,6 +371,13 @@ const ThreadsAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToCo
   );
 
   return (
+    <div className="space-y-3">
+      <PlatformAccountSelector
+        platform="threads"
+        selectedAccountId={selectedAccount}
+        onAccountChange={setPlatformAccountId}
+        platformColor="text-purple-400"
+      />
     <Tabs value={activeTab} onValueChange={setActiveTab}>
       <TabsList className="w-full justify-start overflow-x-auto bg-white/[0.03] border border-white/[0.06] backdrop-blur-sm p-1 rounded-lg flex-wrap">
         {TABS.map(t => (
@@ -714,6 +771,62 @@ const ThreadsAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToCo
             )}
           </CardContent>
         </Card>
+      </TabsContent>
+
+      {/* ===== SCHEDULE ===== */}
+      <TabsContent value="schedule" className="space-y-4 mt-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-base font-bold text-foreground flex items-center gap-2"><Calendar className="h-5 w-5 text-purple-400" />Schedule Manager</h3>
+          <Badge variant="outline" className="text-[10px] border-purple-500/20 text-purple-400">{scheduledPosts.filter(p => p.status === "scheduled").length}/50</Badge>
+        </div>
+        <Card className="bg-white/[0.03] border-purple-500/20 backdrop-blur-sm">
+          <CardContent className="p-5 space-y-4">
+            <div className="flex items-center justify-between"><h4 className="text-sm font-bold text-foreground">Create Scheduled Post</h4>
+              <Button size="sm" variant="ghost" className="h-6 text-[10px] gap-1 text-purple-400" onClick={generateThreadsScheduleCaption} disabled={schedAiGenerating}>
+                {schedAiGenerating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}AI Generate
+              </Button>
+            </div>
+            <Textarea value={schedCaption} onChange={e => setSchedCaption(e.target.value)} placeholder="Write your thread..." rows={3} className="text-sm" />
+            <Input value={schedMediaUrl} onChange={e => setSchedMediaUrl(e.target.value)} placeholder="Media URL (optional)" className="text-sm" />
+            <div className="grid grid-cols-2 gap-3">
+              <div><label className="text-xs text-muted-foreground mb-1 block">Schedule</label><Input type="datetime-local" value={schedDateTime} onChange={e => setSchedDateTime(e.target.value)} className="text-sm" /></div>
+              <div><label className="text-xs text-muted-foreground mb-1 block">Reply Control</label>
+                <select value={schedReplyControl} onChange={e => setSchedReplyControl(e.target.value)} className="w-full bg-white/[0.06] text-foreground border border-white/[0.08] rounded-lg px-3 py-2 text-sm outline-none">
+                  <option value="everyone">Everyone</option><option value="accounts_you_follow">Following</option><option value="mentioned_only">Mentioned Only</option>
+                </select>
+              </div>
+            </div>
+            <Button onClick={scheduleThreadsPost} className="w-full bg-gradient-to-r from-purple-500 to-violet-600 text-white" disabled={!schedCaption}>
+              {schedDateTime ? <><Calendar className="h-4 w-4 mr-2" />Schedule</> : <><FileText className="h-4 w-4 mr-2" />Save Draft</>}
+            </Button>
+          </CardContent>
+        </Card>
+        {scheduledPosts.length > 0 && (
+          <Card className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm">
+            <CardContent className="p-4 space-y-3">
+              <h4 className="text-sm font-bold text-foreground">Post Queue ({scheduledPosts.length})</h4>
+              <ScrollArea className="max-h-[400px]">
+                <div className="space-y-2">
+                  {scheduledPosts.map(p => (
+                    <div key={p.id} className="bg-white/[0.02] rounded-lg p-3 flex items-center gap-3 border border-white/[0.04]">
+                      <div className={`h-8 w-8 rounded-full flex items-center justify-center ${p.status === "published" ? "bg-green-500/10" : p.status === "scheduled" ? "bg-amber-500/10" : "bg-muted/30"}`}>
+                        {p.status === "published" ? <CheckCircle2 className="h-4 w-4 text-green-400" /> : p.status === "scheduled" ? <Clock className="h-4 w-4 text-amber-400" /> : <FileText className="h-4 w-4 text-muted-foreground" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium text-foreground line-clamp-1">{p.caption || "No caption"}</p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <Badge variant="outline" className="text-[9px]">{p.status}</Badge>
+                          <span className="text-[10px] text-muted-foreground">{p.scheduled_at ? new Date(p.scheduled_at).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "No schedule"}</span>
+                        </div>
+                      </div>
+                      <Button size="sm" variant="ghost" className="h-7 w-7 p-0 hover:bg-red-500/10" onClick={() => deleteScheduledPost(p.id)}><Trash2 className="h-3.5 w-3.5 text-red-400" /></Button>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            </CardContent>
+          </Card>
+        )}
       </TabsContent>
 
       {/* ===== AI TOOLS ===== */}
