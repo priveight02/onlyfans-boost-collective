@@ -273,83 +273,19 @@ serve(async (req) => {
         result = await ttFetch("/post/publish/creator_info/", token!, "POST", {});
         break;
 
-      // ===== COMMENTS =====
+      // ===== COMMENTS (requires unapproved scopes) =====
       case "get_comments":
-        result = await ttFetch("/comment/list/", token!, "POST", {
-          video_id: params.video_id,
-          max_count: params?.limit || 50,
-          cursor: params?.cursor || undefined,
-          fields: "id,text,create_time,like_count,reply_count,parent_comment_id",
-        });
-        break;
-
       case "get_comment_replies":
-        result = await ttFetch("/comment/reply/list/", token!, "POST", {
-          video_id: params.video_id,
-          comment_id: params.comment_id,
-          max_count: params?.limit || 20,
-          cursor: params?.cursor || undefined,
-          fields: "id,text,create_time,like_count,parent_comment_id",
-        });
-        break;
-
       case "reply_to_comment":
-        result = await ttFetch("/comment/reply/", token!, "POST", {
-          video_id: params.video_id,
-          comment_id: params.comment_id,
-          text: params.message,
-        });
-        await supabase.from("social_comment_replies").insert({
-          account_id: account_id,
-          platform: "tiktok",
-          post_id: params.video_id,
-          comment_id: params.comment_id,
-          comment_text: params.comment_text || "",
-          comment_author: params.comment_author || "",
-          reply_text: params.message,
-          reply_sent_at: new Date().toISOString(),
-          status: "sent",
-        });
+        result = { data: { comments: [] }, _unavailable: true, message: "Comment API requires additional TikTok scopes not yet approved." };
         break;
 
-      // ===== RESEARCH API =====
+      // ===== RESEARCH API (requires unapproved scopes) =====
       case "research_user":
-        result = await ttFetch("/research/user/info/", token!, "POST", {
-          username: params.username,
-          fields: "display_name,bio_description,avatar_url,is_verified,follower_count,following_count,likes_count,video_count",
-        });
-        break;
-
       case "research_videos":
-        result = await ttFetch("/research/video/query/", token!, "POST", {
-          query: {
-            and: params.conditions || [
-              { field_name: "keyword", operation: "IN", field_values: params.keywords || [] }
-            ],
-          },
-          max_count: params?.limit || 20,
-          cursor: params?.cursor || undefined,
-          start_date: params?.start_date || undefined,
-          end_date: params?.end_date || undefined,
-          search_id: params?.search_id || undefined,
-          fields: "id,video_description,create_time,region_code,share_count,view_count,like_count,comment_count,music_id,hashtag_names,username,effect_ids,playlist_id,voice_to_text",
-        });
-        break;
-
       case "research_hashtag":
-        result = await ttFetch("/research/hashtag/query/", token!, "POST", {
-          query: { names: params.hashtags },
-          fields: "id,name,publish_count,video_count,view_count",
-        });
-        break;
-
       case "research_comments":
-        result = await ttFetch("/research/video/comment/list/", token!, "POST", {
-          video_id: params.video_id,
-          max_count: params?.limit || 100,
-          cursor: params?.cursor || undefined,
-          fields: "id,text,like_count,reply_count,create_time,video_id",
-        });
+        result = { data: {}, _unavailable: true, message: "Research API requires additional TikTok scopes not yet approved." };
         break;
 
       // ===== PLAYLIST MANAGEMENT =====
@@ -366,26 +302,18 @@ serve(async (req) => {
         });
         break;
 
-      // ===== DIRECT MESSAGES =====
+      // ===== DIRECT MESSAGES (requires unapproved DM scopes) =====
       case "get_conversations":
-        result = await ttFetch("/dm/conversation/list/", token!, "POST", {
-          cursor: params?.cursor || 0,
-        });
+        result = { data: { conversations: [] }, _unavailable: true, message: "Direct Messages API requires additional TikTok scopes not yet approved." };
         break;
 
       case "get_messages":
-        result = await ttFetch("/dm/message/list/", token!, "POST", {
-          conversation_id: params.conversation_id,
-          cursor: params?.cursor || 0,
-          max_count: params?.limit || 20,
-        });
+        result = { data: { messages: [] }, _unavailable: true, message: "Direct Messages API requires additional TikTok scopes not yet approved." };
         break;
 
       case "send_dm":
-        result = await ttFetch("/dm/message/send/", token!, "POST", {
-          conversation_id: params.conversation_id,
-          content: { text: params.message },
-        });
+      case "send_message":
+        result = { data: {}, _unavailable: true, message: "Direct Messages API requires additional TikTok scopes not yet approved." };
         break;
 
       // ===== TOKEN REFRESH =====
@@ -436,9 +364,9 @@ serve(async (req) => {
         break;
       }
 
-      // ===== CREATOR INSIGHTS (Research) =====
+      // ===== CREATOR INSIGHTS (Research — requires unapproved scopes) =====
       case "get_creator_insights":
-        result = await ttFetch(`/research/user/info/?fields=display_name,follower_count,following_count,likes_count,video_count&username=${params.username}`, token!);
+        result = { data: {}, _unavailable: true, message: "Research API requires additional TikTok scopes not yet approved." };
         break;
 
       default:
