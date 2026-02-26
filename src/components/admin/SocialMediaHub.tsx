@@ -50,10 +50,6 @@ const VerifiedBadge = ({ size = 12 }: { size?: number }) => (
 const DEFAULT_TIKTOK_OAUTH_SCOPES = [
   "user.info.basic","user.info.profile","user.info.stats",
   "video.list","video.publish","video.upload",
-  "portability.all.single","portability.all.ongoing",
-  "portability.postsandprofile.single","portability.postsandprofile.ongoing",
-  "portability.directmessages.single","portability.directmessages.ongoing",
-  "portability.activity.single","portability.activity.ongoing",
 ].join(",");
 
 const normalizeTikTokScopes = (rawScopes?: string | null) => {

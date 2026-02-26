@@ -16,15 +16,6 @@ const DEFAULT_TIKTOK_OAUTH_SCOPES = [
   "video.list",
   "video.publish",
   "video.upload",
-  // Data Portability API (under audit — TikTok silently ignores unapproved scopes)
-  "portability.all.single",
-  "portability.all.ongoing",
-  "portability.postsandprofile.single",
-  "portability.postsandprofile.ongoing",
-  "portability.directmessages.single",
-  "portability.directmessages.ongoing",
-  "portability.activity.single",
-  "portability.activity.ongoing",
 ].join(",");
 
 function normalizeTikTokScopes(rawScopes?: string | null) {
