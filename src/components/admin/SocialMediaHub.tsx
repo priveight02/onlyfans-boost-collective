@@ -13,6 +13,7 @@ import BioLinksManager from "./social/BioLinksManager";
 import AIMassDMOutreach from "./social/AIMassDMOutreach";
 import SearchDiscoveryHub from "./social/SearchDiscoveryHub";
 import CommentsHub from "./social/CommentsHub";
+import ConnectCardAccountManager from "./social/ConnectCardAccountManager";
 import { toast } from "sonner";
 import CreditCostBadge from "./CreditCostBadge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -765,21 +766,35 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
           if (!ttUser.display_name && !ttUser.username) {
             console.warn("TikTok profile returned no display_name or username:", ttUser);
           }
-         let accountId = selectedAccount;
-         if (!accountId) {
-           const { data: newAcct, error: err } = await supabase.from("managed_accounts").insert({
-              username, display_name: ttUser.display_name || username, platform: "tiktok", status: "active", avatar_url: ttUser.avatar_url || null, user_id: user?.id,
-            }).select("id").single();
-           if (err || !newAcct) { toast.error(err?.message || "Failed to create account"); setAutoConnectLoading(null); return; }
-           accountId = newAcct.id; setSelectedAccount(accountId);
-         }
-         await supabase.from("social_connections").upsert({
-           account_id: accountId, platform: "tiktok", platform_user_id: openId || "", platform_username: username, access_token: accessToken,
-            refresh_token: tokenData?.refresh_token || null, is_connected: true,
-            scopes: tokenData?.scope ? tokenData.scope.split(",") : [],
-            metadata: { avatar_url: ttUser.avatar_url, display_name: ttUser.display_name, follower_count: ttUser.follower_count, following_count: ttUser.following_count, likes_count: ttUser.likes_count, video_count: ttUser.video_count, bio_description: ttUser.bio_description, is_verified: ttUser.is_verified, connected_via: "automated_oauth", open_id: openId },
-            user_id: user?.id,
-         }, { onConflict: "account_id,platform,user_id" });
+          let accountId = selectedAccount;
+          const ttPuid = openId || "";
+          // Multi-account: check if this TikTok user is already connected
+          const { data: existingTT } = await supabase.from("social_connections").select("id, account_id").eq("platform", "tiktok").eq("platform_user_id", ttPuid).eq("user_id", user?.id!).maybeSingle();
+          if (existingTT) {
+            accountId = existingTT.account_id;
+          } else {
+            const { count: ttCount } = await supabase.from("social_connections").select("id", { count: "exact", head: true }).eq("platform", "tiktok").eq("is_connected", true).eq("user_id", user?.id!);
+            if ((ttCount || 0) >= 5) { toast.error("Maximum 5 TikTok accounts reached"); setAutoConnectLoading(null); return; }
+            // Create new managed account for additional TT connection
+            if (accountId && (ttCount || 0) > 0) {
+              const { data: newAcct, error: err } = await supabase.from("managed_accounts").insert({ username, display_name: ttUser.display_name || username, platform: "tiktok", status: "active", avatar_url: ttUser.avatar_url || null, user_id: user?.id }).select("id").single();
+              if (err || !newAcct) { toast.error(err?.message || "Failed"); setAutoConnectLoading(null); return; }
+              accountId = newAcct.id;
+              toast.success(`Additional TikTok @${username} created`);
+            } else if (!accountId) {
+              const { data: newAcct, error: err } = await supabase.from("managed_accounts").insert({ username, display_name: ttUser.display_name || username, platform: "tiktok", status: "active", avatar_url: ttUser.avatar_url || null, user_id: user?.id }).select("id").single();
+              if (err || !newAcct) { toast.error(err?.message || "Failed to create account"); setAutoConnectLoading(null); return; }
+              accountId = newAcct.id;
+            }
+          }
+          setSelectedAccount(accountId);
+          await supabase.from("social_connections").upsert({
+            account_id: accountId, platform: "tiktok", platform_user_id: ttPuid, platform_username: username, access_token: accessToken,
+             refresh_token: tokenData?.refresh_token || null, is_connected: true,
+             scopes: tokenData?.scope ? tokenData.scope.split(",") : [],
+             metadata: { avatar_url: ttUser.avatar_url, display_name: ttUser.display_name, follower_count: ttUser.follower_count, following_count: ttUser.following_count, likes_count: ttUser.likes_count, video_count: ttUser.video_count, bio_description: ttUser.bio_description, is_verified: ttUser.is_verified, connected_via: "automated_oauth", open_id: openId },
+             user_id: user?.id,
+          }, { onConflict: "account_id,platform,user_id" });
          await supabase.from("managed_accounts").update({
            avatar_url: ttUser.avatar_url || undefined, display_name: ttUser.display_name || username, last_activity_at: new Date().toISOString(),
          }).eq("id", accountId);
@@ -1677,46 +1692,74 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
           
           // Auto-create managed account if none selected (same as main connect form)
           let accountId = selectedAccount;
-          if (!accountId) {
-             const { data: newAccount, error: createErr } = await supabase.from("managed_accounts").insert({
-               username: username || "instagram_user",
-               display_name: name || username || "Instagram User",
-               platform: "instagram",
-               status: "active",
-               avatar_url: profile_picture_url || null,
-               subscriber_count: 0,
-               content_count: 0,
-               user_id: user?.id,
-             }).select("id").single();
-            if (createErr || !newAccount) { toast.error(createErr?.message || "Failed to create account"); return; }
-            accountId = newAccount.id;
-            setSelectedAccount(accountId);
-            toast.success(`Account @${username} created`);
-          }
+          const newPlatformUserId = String(user_id || ds_user_id);
           
-           // Get existing connection to check if IG account changed (different platform_user_id = different IG account)
-           const { data: existingConn } = await supabase
-             .from("social_connections")
-             .select("metadata, platform_user_id")
-             .eq("account_id", accountId)
-             .eq("platform", "instagram")
-             .maybeSingle();
+          // Check if this exact platform_user_id is already connected (multi-account aware)
+          const { data: existingByPuid } = await supabase
+            .from("social_connections")
+            .select("id, account_id, metadata, platform_user_id")
+            .eq("platform", "instagram")
+            .eq("platform_user_id", newPlatformUserId)
+            .eq("user_id", user?.id!)
+            .maybeSingle();
+          
+          if (existingByPuid) {
+            // Re-connecting an existing account — update in place
+            accountId = existingByPuid.account_id;
+          } else {
+            // Check how many IG accounts this user already has
+            const { count } = await supabase
+              .from("social_connections")
+              .select("id", { count: "exact", head: true })
+              .eq("platform", "instagram")
+              .eq("is_connected", true)
+              .eq("user_id", user?.id!);
+            
+            if ((count || 0) >= 5) {
+              toast.error("Maximum 5 Instagram accounts reached");
+              return;
+            }
+            
+            // New IG account — always create a fresh managed_account
+            if (accountId && (count || 0) > 0) {
+              const { data: newAcct, error: err } = await supabase.from("managed_accounts").insert({
+                username: username || "instagram_user",
+                display_name: name || username || "Instagram User",
+                platform: "instagram",
+                status: "active",
+                avatar_url: profile_picture_url || null,
+                subscriber_count: followers_count || 0,
+                content_count: media_count || 0,
+                user_id: user?.id,
+              }).select("id").single();
+              if (err || !newAcct) { toast.error(err?.message || "Failed to create account"); return; }
+              accountId = newAcct.id;
+              toast.success(`Additional IG account @${username} created`);
+            } else if (!accountId) {
+              const { data: newAccount, error: createErr } = await supabase.from("managed_accounts").insert({
+                username: username || "instagram_user",
+                display_name: name || username || "Instagram User",
+                platform: "instagram",
+                status: "active",
+                avatar_url: profile_picture_url || null,
+                subscriber_count: 0,
+                content_count: 0,
+                user_id: user?.id,
+              }).select("id").single();
+              if (createErr || !newAccount) { toast.error(createErr?.message || "Failed to create account"); return; }
+              accountId = newAccount.id;
+              toast.success(`Account @${username} created`);
+            }
+          }
+          setSelectedAccount(accountId);
            
-           const existingMeta = (existingConn?.metadata as any) || {};
-           const newPlatformUserId = String(user_id || ds_user_id);
-           
-           // DM data is preserved — platform_user_id filtering handles isolation
-           if (existingConn?.platform_user_id && existingConn.platform_user_id !== newPlatformUserId) {
-             console.log(`IG account changed: ${existingConn.platform_user_id} → ${newPlatformUserId} — old DM data preserved, filtering by platform_user_id`);
-             toast.info("Switched IG account — previous account's DM history preserved");
-           }
+          const existingMeta = (existingByPuid?.metadata as any) || {};
           
           const updatedMeta = {
             ...existingMeta,
             profile_picture_url: profile_picture_url || existingMeta.profile_picture_url,
             name: name || existingMeta.name,
             connected_via: "ig_oauth_popup",
-            // OAuth data
             ...(access_token && {
               ig_access_token: access_token,
               ig_account_type: payload.account_type,
@@ -1725,7 +1768,6 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
               ig_token_expires_at: tokenExpiresAt,
               ig_oauth_connected_at: savedAt,
             }),
-            // Session data (for private API features)
             ...(session_id && {
               ig_session_id: session_id,
               ig_session_saved_at: savedAt,
@@ -1734,12 +1776,12 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
             ig_ds_user_id: ds_user_id || String(user_id) || existingMeta.ig_ds_user_id,
           };
 
-          // Upsert social connection (same as main connect form)
+          // Upsert by account_id+platform+user_id — safe for both update and new insert
            await supabase.from("social_connections").upsert({
              account_id: accountId,
              platform: "instagram",
              access_token: access_token || existingMeta.ig_access_token || null,
-             platform_user_id: String(user_id || ds_user_id),
+             platform_user_id: newPlatformUserId,
              platform_username: username,
              is_connected: true,
              connected_at: savedAt,
@@ -2816,11 +2858,11 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
                 {(() => {
                   const isLoading = igLoginPopupLoading;
                   return (
+                    <div className="group/wrap relative" id="instagram-connect-card">
                     <button
-                      id="instagram-connect-card"
                       onClick={openIgLoginPopup}
                       disabled={isLoading}
-                      className={`group/cube relative flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl border bg-card/50 backdrop-blur-sm transition-all duration-300 hover:border-pink-500/40 hover:bg-pink-500/5 hover:shadow-[0_0_24px_-5px] hover:shadow-pink-500/20 disabled:opacity-50 disabled:pointer-events-none aspect-square ${highlightInstagram ? "border-pink-500/60 animate-connect-highlight" : "border-border/50"}`}
+                      className={`group/cube relative flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl border bg-card/50 backdrop-blur-sm transition-all duration-300 hover:border-pink-500/40 hover:bg-pink-500/5 hover:shadow-[0_0_24px_-5px] hover:shadow-pink-500/20 disabled:opacity-50 disabled:pointer-events-none aspect-square w-full ${highlightInstagram ? "border-pink-500/60 animate-connect-highlight" : "border-border/50"}`}
                       style={highlightInstagram ? { '--highlight-color': 'rgba(236,72,153,0.4)' } as React.CSSProperties : undefined}
                     >
                       {igConnected && <div className="absolute top-2 right-2 h-2 w-2 rounded-full bg-green-400 shadow-[0_0_6px] shadow-green-400/60" />}
@@ -2837,11 +2879,19 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
                           </button>
                         ) : null;
                       })()}
+                      <ConnectCardAccountManager
+                        platform="instagram"
+                        connections={connections}
+                        onAddAccount={openIgLoginPopup}
+                        onDisconnect={disconnectPlatform}
+                        onReconnect={() => openIgLoginPopup()}
+                      />
                       <div className="relative">
                         {isLoading ? <Loader2 className="h-8 w-8 text-pink-400 animate-spin" /> : <Instagram className="h-8 w-8 text-pink-400 transition-all duration-300 group-hover/cube:text-pink-300 group-hover/cube:drop-shadow-[0_0_12px_rgba(236,72,153,0.5)]" />}
                       </div>
                       <span className="text-[10px] font-semibold text-muted-foreground group-hover/cube:text-foreground transition-colors leading-tight text-center">Connect Instagram</span>
                     </button>
+                    </div>
                   );
                 })()}
 
@@ -2849,11 +2899,11 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
                 {(() => {
                   const isLoading = autoConnectLoading === "tiktok" || ttLoginPopupLoading;
                   return (
+                    <div className="group/wrap relative" id="tiktok-connect-card">
                     <button
-                      id="tiktok-connect-card"
                       onClick={openTtLoginPopup}
                       disabled={isLoading}
-                      className={`group/cube relative flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl border bg-card/50 backdrop-blur-sm transition-all duration-300 hover:border-cyan-400/40 hover:bg-cyan-400/5 hover:shadow-[0_0_24px_-5px] hover:shadow-cyan-400/20 disabled:opacity-50 disabled:pointer-events-none aspect-square ${highlightTiktok ? "border-cyan-400/60 animate-connect-highlight" : "border-border/50"}`}
+                      className={`group/cube relative flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl border bg-card/50 backdrop-blur-sm transition-all duration-300 hover:border-cyan-400/40 hover:bg-cyan-400/5 hover:shadow-[0_0_24px_-5px] hover:shadow-cyan-400/20 disabled:opacity-50 disabled:pointer-events-none aspect-square w-full ${highlightTiktok ? "border-cyan-400/60 animate-connect-highlight" : "border-border/50"}`}
                       style={highlightTiktok ? { '--highlight-color': 'rgba(34,211,238,0.4)' } as React.CSSProperties : undefined}
                     >
                       {ttConnected && <div className="absolute top-2 right-2 h-2 w-2 rounded-full bg-green-400 shadow-[0_0_6px] shadow-green-400/60" />}
@@ -2869,11 +2919,19 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
                           </button>
                         ) : null;
                       })()}
+                      <ConnectCardAccountManager
+                        platform="tiktok"
+                        connections={connections}
+                        onAddAccount={openTtLoginPopup}
+                        onDisconnect={disconnectPlatform}
+                        onReconnect={() => openTtLoginPopup()}
+                      />
                       <div className="relative">
                         {isLoading ? <Loader2 className="h-8 w-8 text-cyan-400 animate-spin" /> : <svg viewBox="0 0 24 24" className="h-8 w-8 transition-all duration-300 group-hover/cube:drop-shadow-[0_0_12px_rgba(34,211,238,0.5)]" fill="#00f2ea"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.27 6.27 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.34-6.34V8.75a8.18 8.18 0 0 0 4.76 1.52V6.84a4.84 4.84 0 0 1-1-.15z"/></svg>}
                       </div>
                       <span className="text-[10px] font-semibold text-muted-foreground group-hover/cube:text-foreground transition-colors leading-tight text-center">Connect TikTok</span>
                     </button>
+                    </div>
                   );
                 })()}
 
@@ -2889,7 +2947,6 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
                         style={highlightFacebook ? { '--highlight-color': 'rgba(59,130,246,0.4)' } as React.CSSProperties : undefined}
                       >
                         {facebookConnected && <div className="absolute top-2 right-2 h-2 w-2 rounded-full bg-green-400 shadow-[0_0_6px] shadow-green-400/60" />}
-                        {/* Disconnect button */}
                         {facebookConnected && (() => {
                           const fbConn = connections.find(c => c.platform === "facebook" && c.is_connected);
                           return fbConn ? (
@@ -2902,6 +2959,13 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
                             </button>
                           ) : null;
                         })()}
+                        <ConnectCardAccountManager
+                          platform="facebook"
+                          connections={connections}
+                          onAddAccount={() => automatedFacebookConnect()}
+                          onDisconnect={disconnectPlatform}
+                          onReconnect={() => automatedFacebookConnect()}
+                        />
                         <div className="relative">
                           {isLoading ? <Loader2 className="h-8 w-8 text-blue-500 animate-spin" /> : (
                             <svg viewBox="0 0 24 24" className="h-8 w-8 transition-all duration-300 group-hover/cube:drop-shadow-[0_0_12px_rgba(59,130,246,0.5)]" fill="#1877F2"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
@@ -2938,6 +3002,13 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
                             </button>
                           ) : null;
                         })()}
+                        <ConnectCardAccountManager
+                          platform="threads"
+                          connections={connections}
+                          onAddAccount={() => automatedThreadsConnect()}
+                          onDisconnect={disconnectPlatform}
+                          onReconnect={() => automatedThreadsConnect()}
+                        />
                         <div className="relative">{isLoading ? <Loader2 className="h-8 w-8 animate-spin opacity-60" /> : p.svgIcon}</div>
                         <span className="text-[10px] font-semibold text-muted-foreground group-hover/cube:text-foreground transition-colors leading-tight text-center">{p.label}</span>
                       </button>
