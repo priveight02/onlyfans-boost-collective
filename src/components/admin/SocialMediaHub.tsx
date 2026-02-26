@@ -1024,7 +1024,7 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
      const threadsRedirectUri = "https://uplyze.ai/threads-login";
      const scopes = "threads_basic,threads_content_publish,threads_delete,threads_keyword_search,threads_location_tagging,threads_manage_insights,threads_manage_mentions,threads_manage_replies,threads_profile_discovery,threads_read_replies";
      const authUrl = `https://threads.net/oauth/authorize?client_id=${appId}&redirect_uri=${encodeURIComponent(threadsRedirectUri)}&scope=${scopes}&response_type=code&state=${addMode ? `add_account_${crypto.randomUUID()}` : "connect"}${addMode ? "&prompt=select_account" : ""}`;
-      const w = Math.max(620, Math.min(860, window.screen.availWidth - 80)), h = Math.max(700, Math.min(980, window.screen.availHeight - 80));
+     const w = 520, h = 620;
      const left = Math.round(window.screenX + (window.outerWidth - w) / 2);
      const top = Math.round(window.screenY + (window.outerHeight - h) / 2);
      const popup = window.open(authUrl, `threads_login_popup_${Date.now()}`, `width=${w},height=${h},left=${left},top=${top},toolbar=no,menubar=no,scrollbars=yes,resizable=yes`);
@@ -1254,7 +1254,7 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
      const fbRedirectUri = "https://uplyze.ai/fb-login";
      const scopes = "public_profile,email,pages_show_list,pages_read_engagement,pages_manage_posts,pages_manage_metadata,pages_read_user_content,pages_messaging,publish_video,business_management";
      const authUrl = `https://www.facebook.com/v24.0/dialog/oauth?client_id=${appId}&redirect_uri=${encodeURIComponent(fbRedirectUri)}&scope=${scopes}&response_type=code&auth_type=${addMode ? "reauthenticate" : "rerequest"}&display=popup&state=${addMode ? `add_account_${crypto.randomUUID()}` : "connect"}&auth_nonce=${encodeURIComponent(crypto.randomUUID())}${addMode ? "&prompt=select_account" : ""}`;
-      const w = Math.max(620, Math.min(860, window.screen.availWidth - 80)), h = Math.max(700, Math.min(980, window.screen.availHeight - 80));
+     const w = 520, h = 620;
      const left = Math.round(window.screenX + (window.outerWidth - w) / 2);
      const top = Math.round(window.screenY + (window.outerHeight - h) / 2);
      const popup = window.open(authUrl, `fb_login_popup_${Date.now()}`, `width=${w},height=${h},left=${left},top=${top},toolbar=no,menubar=no,scrollbars=yes,resizable=yes`);
@@ -1722,7 +1722,7 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
     const authUrl = `https://www.instagram.com/oauth/authorize?force_reauth=true&client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent(scope)}&state=${addMode ? `add_account_${crypto.randomUUID()}` : "connect"}${addMode ? "&prompt=select_account" : ""}`;
     
     // Open as a centered popup window
-    const w = Math.max(620, Math.min(860, window.screen.availWidth - 80)), h = Math.max(700, Math.min(980, window.screen.availHeight - 80));
+    const w = 520, h = 620;
     const left = Math.round(window.screenX + (window.outerWidth - w) / 2);
     const top = Math.round(window.screenY + (window.outerHeight - h) / 2);
     const popup = window.open(authUrl, `ig_login_popup_${Date.now()}`, `width=${w},height=${h},left=${left},top=${top},toolbar=no,menubar=no,scrollbars=yes,resizable=yes`);
