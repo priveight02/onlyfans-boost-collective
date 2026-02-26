@@ -318,9 +318,9 @@ const ThreadsAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: 
 
   return (
     <Tabs value={activeTab} onValueChange={setActiveTab}>
-      <TabsList className="w-full justify-start overflow-x-auto bg-muted/50 p-1 rounded-lg border border-border/50 flex-wrap">
+      <TabsList className="w-full justify-start overflow-x-auto bg-white/[0.03] border border-white/[0.06] backdrop-blur-sm p-1 rounded-lg flex-wrap">
         {TABS.map(t => (
-          <TabsTrigger key={t.v} value={t.v} className="data-[state=active]:bg-background data-[state=active]:text-foreground text-muted-foreground rounded-md gap-1 text-xs px-2 py-1.5 whitespace-nowrap">
+          <TabsTrigger key={t.v} value={t.v} className="data-[state=active]:bg-white/[0.08] data-[state=active]:text-foreground text-muted-foreground rounded-md gap-1 text-xs px-2 py-1.5 whitespace-nowrap">
             <t.icon className="h-3.5 w-3.5" />{t.l}
           </TabsTrigger>
         ))}
@@ -334,7 +334,7 @@ const ThreadsAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: 
           <Button size="sm" variant="outline" onClick={fetchPublishingLimit} disabled={loading} className="text-foreground"><Activity className="h-3.5 w-3.5 mr-1" />Check Limits</Button>
         </div>
         {profile && (
-          <Card className="border-purple-500/20"><CardContent className="p-4">
+           <Card className="bg-white/[0.03] border-purple-500/20 backdrop-blur-sm"><CardContent className="p-4">
             <div className="flex items-center gap-3 mb-3">
               {profile.threads_profile_picture_url && <img src={profile.threads_profile_picture_url} className="h-12 w-12 rounded-full" alt="avatar" />}
               <div className="flex-1 min-w-0">
@@ -473,7 +473,7 @@ const ThreadsAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: 
 
       {/* ===== REPLIES ===== */}
       <TabsContent value="replies" className="space-y-4 mt-4">
-        <Card><CardContent className="p-4 space-y-3">
+         <Card className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm"><CardContent className="p-4 space-y-3">
           <h4 className="text-sm font-semibold text-foreground">Manage Replies</h4>
           <p className="text-xs text-muted-foreground">View, reply, hide/unhide, and manage reply approvals. Threads is public — no DMs.</p>
           <div className="flex gap-2">
@@ -553,7 +553,7 @@ const ThreadsAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: 
 
       {/* ===== SEARCH ===== */}
       <TabsContent value="search" className="space-y-4 mt-4">
-        <Card><CardContent className="p-4 space-y-3">
+         <Card className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm"><CardContent className="p-4 space-y-3">
           <h4 className="text-sm font-semibold text-foreground">Keyword & Topic Search</h4>
           <p className="text-xs text-muted-foreground">Search public threads by keyword or topic tag. 2,200 queries/24h limit.</p>
           <div className="flex gap-2">
@@ -598,7 +598,7 @@ const ThreadsAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: 
 
       {/* ===== DISCOVER (Profile Lookup) ===== */}
       <TabsContent value="discover" className="space-y-4 mt-4">
-        <Card><CardContent className="p-4 space-y-3">
+         <Card className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm"><CardContent className="p-4 space-y-3">
           <h4 className="text-sm font-semibold text-foreground">Profile Discovery</h4>
           <p className="text-xs text-muted-foreground">Look up any public Threads profile by username. Requires 100+ followers. 1,000 lookups/24h.</p>
           <div className="flex gap-2">
@@ -633,7 +633,7 @@ const ThreadsAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: 
       {/* ===== INSIGHTS ===== */}
       <TabsContent value="insights" className="space-y-4 mt-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Card><CardContent className="p-4 space-y-3">
+           <Card className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm"><CardContent className="p-4 space-y-3">
             <h4 className="text-sm font-semibold text-foreground">Account Insights</h4>
             <p className="text-xs text-muted-foreground">Metrics: views, likes, replies, reposts, quotes, followers_count, follower_demographics, clicks</p>
             <Input value={insightsMetric} onChange={e => setInsightsMetric(e.target.value)} placeholder="Metrics (comma-separated)" className="text-xs" />
@@ -657,7 +657,7 @@ const ThreadsAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: 
             )}
           </CardContent></Card>
 
-          <Card><CardContent className="p-4 space-y-3">
+           <Card className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm"><CardContent className="p-4 space-y-3">
             <h4 className="text-sm font-semibold text-foreground">Thread Insights</h4>
             <p className="text-xs text-muted-foreground">views, likes, replies, reposts, quotes, shares</p>
             <div className="flex gap-2">
@@ -680,7 +680,7 @@ const ThreadsAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: 
 
       {/* ===== BUSINESS ===== */}
       <TabsContent value="business" className="space-y-4 mt-4">
-        <Card className="border-border/50">
+           <Card className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm">
           <CardContent className="p-4 space-y-3">
             <h4 className="text-sm font-bold text-foreground flex items-center gap-2"><Activity className="h-4 w-4 text-purple-400" />Threads Business Account Lookup</h4>
             <p className="text-xs text-muted-foreground">Look up the Threads account associated with an Instagram Business account via <code className="text-[10px]">threads_business_basic</code> permission.</p>
@@ -715,7 +715,7 @@ const ThreadsAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: 
       {/* ===== AI TOOLS ===== */}
       <TabsContent value="ai-tools" className="space-y-4 mt-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Card><CardContent className="p-4 space-y-3">
+           <Card className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm"><CardContent className="p-4 space-y-3">
             <div className="flex items-center gap-2"><Sparkles className="h-4 w-4 text-purple-400" /><h4 className="text-sm font-semibold text-foreground">AI Thread Generator</h4></div>
             <p className="text-xs text-muted-foreground">Generate thread text optimized for Threads' 500-char limit.</p>
             <Input value={aiCaptionTopic} onChange={e => setAiCaptionTopic(e.target.value)} placeholder="Topic or idea..." className="text-xs" />
@@ -731,7 +731,7 @@ const ThreadsAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: 
             )}
           </CardContent></Card>
 
-          <Card><CardContent className="p-4 space-y-3">
+           <Card className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm"><CardContent className="p-4 space-y-3">
             <div className="flex items-center gap-2"><Brain className="h-4 w-4 text-purple-400" /><h4 className="text-sm font-semibold text-foreground">Content Analyzer</h4></div>
             <p className="text-xs text-muted-foreground">Analyze thread text for engagement potential.</p>
             <Textarea value={aiAnalyzeText} onChange={e => setAiAnalyzeText(e.target.value)} placeholder="Paste your thread text..." className="text-xs min-h-[60px]" />

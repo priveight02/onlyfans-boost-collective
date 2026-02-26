@@ -329,9 +329,9 @@ const FBAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSu
   return (
     <div className="space-y-3">
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="bg-muted/50 border border-border p-0.5 rounded-lg gap-0.5 flex flex-wrap w-full">
+        <TabsList className="bg-white/[0.03] border border-white/[0.06] backdrop-blur-sm p-0.5 rounded-lg gap-0.5 flex flex-wrap w-full">
           {TABS.map(t => (
-            <TabsTrigger key={t.v} value={t.v} className="data-[state=active]:bg-background data-[state=active]:text-foreground text-muted-foreground rounded-md gap-1 text-xs px-2 py-1.5 whitespace-nowrap">
+            <TabsTrigger key={t.v} value={t.v} className="data-[state=active]:bg-white/[0.08] data-[state=active]:text-foreground text-muted-foreground rounded-md gap-1 text-xs px-2 py-1.5 whitespace-nowrap">
               <t.icon className="h-3.5 w-3.5" />{t.l}
             </TabsTrigger>
           ))}
@@ -344,7 +344,7 @@ const FBAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSu
             <Button size="sm" variant="outline" onClick={fetchPages} disabled={loading}><FileText className="h-3.5 w-3.5 mr-1" />Load Pages</Button>
           </div>
           {profile && (
-            <Card className="border-blue-500/20">
+            <Card className="bg-white/[0.03] border-blue-500/20 backdrop-blur-sm">
               <CardContent className="p-4">
                 <div className="flex items-center gap-3 mb-3">
                   {profile.picture?.data?.url && <img src={profile.picture.data.url} className="h-10 w-10 rounded-full" alt="" />}
@@ -416,7 +416,7 @@ const FBAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSu
           {selectedPage && <Badge variant="outline" className="border-blue-500/30 text-blue-400 mb-2">Posting as: {selectedPage.name}</Badge>}
           
           {/* Create Post */}
-          <Card className="border-border/50">
+           <Card className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm">
             <CardContent className="p-4 space-y-3">
               <h4 className="text-xs font-bold text-foreground">Create Post</h4>
               <Textarea placeholder="What's on your mind?" value={postMessage} onChange={e => setPostMessage(e.target.value)} className="min-h-[80px] text-sm" />
@@ -426,7 +426,7 @@ const FBAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSu
           </Card>
 
           {/* Photo Post */}
-          <Card className="border-border/50">
+           <Card className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm">
             <CardContent className="p-4 space-y-3">
               <h4 className="text-xs font-bold text-foreground">Photo Post</h4>
               <Input placeholder="Image URL" value={photoUrl} onChange={e => setPhotoUrl(e.target.value)} className="text-sm" />
@@ -436,7 +436,7 @@ const FBAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSu
           </Card>
 
           {/* Video Post */}
-          <Card className="border-border/50">
+           <Card className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm">
             <CardContent className="p-4 space-y-3">
               <h4 className="text-xs font-bold text-foreground">Video Post</h4>
               <Input placeholder="Video URL" value={videoUrl} onChange={e => setVideoUrl(e.target.value)} className="text-sm" />
@@ -681,7 +681,7 @@ const FBAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSu
           {selectedPage && (
             <>
               {/* Page Insights */}
-              <Card className="border-border/50">
+               <Card className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm">
                 <CardContent className="p-4 space-y-3">
                   <h4 className="text-xs font-bold text-foreground">Page Insights: {selectedPage.name}</h4>
                   <div className="flex gap-2 items-center">
@@ -706,7 +706,7 @@ const FBAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSu
               </Card>
 
               {/* Post Insights */}
-              <Card className="border-border/50">
+               <Card className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm">
                 <CardContent className="p-4 space-y-3">
                   <h4 className="text-xs font-bold text-foreground">Post Insights</h4>
                   <div className="flex gap-2">
@@ -731,7 +731,7 @@ const FBAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSu
 
         {/* ===== SEARCH ===== */}
         <TabsContent value="search" className="space-y-4 mt-4">
-          <Card className="border-border/50">
+           <Card className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm">
             <CardContent className="p-4 space-y-3">
               <h4 className="text-xs font-bold text-foreground">Search Facebook Pages</h4>
               <div className="flex gap-2">
@@ -802,7 +802,7 @@ const FBAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSu
         {/* ===== AI TOOLS ===== */}
         <TabsContent value="ai-tools" className="space-y-4 mt-4">
           {/* Caption Generator */}
-          <Card className="border-border/50">
+           <Card className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm">
             <CardContent className="p-4 space-y-3">
               <h4 className="text-xs font-bold text-foreground flex items-center gap-1.5"><Wand2 className="h-3.5 w-3.5 text-blue-400" />AI Caption Generator</h4>
               <Input placeholder="Topic or theme..." value={aiCaptionTopic} onChange={e => setAiCaptionTopic(e.target.value)} className="text-sm" />
@@ -817,7 +817,7 @@ const FBAutomationSuite = ({ selectedAccount, onNavigateToConnect, subTab: urlSu
           </Card>
 
           {/* Content Analyzer */}
-          <Card className="border-border/50">
+           <Card className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm">
             <CardContent className="p-4 space-y-3">
               <h4 className="text-xs font-bold text-foreground flex items-center gap-1.5"><Brain className="h-3.5 w-3.5 text-blue-400" />Content Analyzer</h4>
               <Textarea placeholder="Paste your post content..." value={aiAnalyzeText} onChange={e => setAiAnalyzeText(e.target.value)} className="min-h-[60px] text-sm" />
