@@ -1985,16 +1985,26 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
 
     let popup: Window | null = null;
     if (addMode) {
-      // Force fresh TikTok login: open popup to TikTok logout first, then redirect to auth
-      // This clears TikTok's session cookies so the user gets a fresh login screen
+      // Force fresh TikTok login: open popup, navigate to TikTok logout to clear session cookies,
+      // then after a short delay redirect to the OAuth authorization URL.
+      // This does NOT affect the existing Uplyze connection — stored tokens in DB are independent of browser cookies.
       popup = window.open("about:blank", `tt_login_popup_${Date.now()}`, `width=${w},height=${h},left=${left},top=${top},toolbar=no,menubar=no,scrollbars=yes,resizable=yes`);
       if (popup) {
-        // Navigate to TikTok logout, which clears the session, then redirect to OAuth
-        popup.location.href = "https://www.tiktok.com/logout?redirect_url=" + encodeURIComponent(authUrl);
-        // Fallback: if logout doesn't redirect properly, force-navigate after 3s
+        // Write a loading screen while we clear the TikTok session
+        try {
+          popup.document.write(`<!DOCTYPE html><html><head><style>body{margin:0;background:#0f0f23;display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;color:#fff;flex-direction:column;gap:16px}@keyframes spin{to{transform:rotate(360deg)}}.spinner{width:32px;height:32px;border:3px solid rgba(255,255,255,0.15);border-top-color:#25F4EE;border-radius:50%;animation:spin .8s linear infinite}</style></head><body><div class="spinner"></div><p style="opacity:.7;font-size:14px">Preparing fresh login…</p></body></html>`);
+          popup.document.close();
+        } catch {}
+        // Step 1: Navigate to TikTok logout (clears session cookies)
+        popup.location.href = "https://www.tiktok.com/logout";
+        // Step 2: After logout completes (~2.5s), redirect to the OAuth auth URL
         setTimeout(() => {
-          try { if (popup && !popup.closed) popup.location.href = authUrl; } catch {}
-        }, 3000);
+          try {
+            if (popup && !popup.closed) {
+              popup.location.href = authUrl;
+            }
+          } catch {}
+        }, 2500);
       }
     } else {
       popup = window.open(authUrl, `tt_login_popup_${Date.now()}`, `width=${w},height=${h},left=${left},top=${top},toolbar=no,menubar=no,scrollbars=yes,resizable=yes`);
