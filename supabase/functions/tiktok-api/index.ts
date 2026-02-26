@@ -8,11 +8,9 @@ const corsHeaders = {
 
 const TT_API_URL = "https://open.tiktokapis.com/v2";
 const DEFAULT_TIKTOK_OAUTH_SCOPES = [
-  // Login Kit (approved)
   "user.info.basic",
   "user.info.profile",
   "user.info.stats",
-  // Content Posting API (approved)
   "video.list",
   "video.publish",
   "video.upload",
@@ -24,7 +22,6 @@ function normalizeTikTokScopes(rawScopes?: string | null) {
     .map((scope) => scope.trim())
     .filter(Boolean)
     .join(",");
-
   return normalized || DEFAULT_TIKTOK_OAUTH_SCOPES;
 }
 
@@ -82,7 +79,7 @@ serve(async (req) => {
     let conn: any;
     let token: string;
 
-    // Return client key for frontend use (like IG's get_app_id)
+    // Return client key for frontend use
     if (action === "get_client_key") {
       const clientKey = (Deno.env.get("TIKTOK_CLIENT_KEY") || "").trim();
       const scopes = normalizeTikTokScopes(Deno.env.get("TIKTOK_OAUTH_SCOPES"));
@@ -98,15 +95,6 @@ serve(async (req) => {
       const finalClientSecret = (client_secret || Deno.env.get("TIKTOK_CLIENT_SECRET") || "").trim();
       if (!code || !finalClientKey || !finalClientSecret) throw new Error("Missing code, client_key, or client_secret");
 
-      console.log("TT exchange_code debug:", {
-        clientKeyLen: finalClientKey.length,
-        clientKeyPrefix: finalClientKey.substring(0, 6),
-        secretLen: finalClientSecret.length,
-        secretPrefix: finalClientSecret.substring(0, 4),
-        codeLen: code.length,
-        redirect_uri: redirect_uri || "(empty)",
-      });
-
       const bodyParams = new URLSearchParams({
         client_key: finalClientKey,
         client_secret: finalClientSecret,
@@ -114,7 +102,6 @@ serve(async (req) => {
         grant_type: "authorization_code",
         redirect_uri: redirect_uri || "",
       });
-      console.log("TT token request body:", bodyParams.toString());
 
       const tokenRes = await fetch("https://open.tiktokapis.com/v2/oauth/token/", {
         method: "POST",
@@ -122,7 +109,6 @@ serve(async (req) => {
         body: bodyParams.toString(),
       });
       const tokenData = await tokenRes.json();
-      console.log("TT token response:", JSON.stringify(tokenData));
       if (tokenData.error) throw new Error(`Token exchange failed: ${tokenData.error_description || tokenData.error}`);
       result = { success: true, data: tokenData.data || tokenData };
       return new Response(JSON.stringify(result), {
@@ -130,7 +116,211 @@ serve(async (req) => {
       });
     }
 
-    // All other actions need connection (unless access_token_override is provided)
+    // ===== PROCESS SCHEDULED POSTS (server-side auto-publish) =====
+    if (action === "process_scheduled") {
+      const now = new Date().toISOString();
+      const { data: duePosts } = await supabase
+        .from("social_posts")
+        .select("*")
+        .eq("platform", "tiktok")
+        .eq("status", "scheduled")
+        .lte("scheduled_at", now)
+        .limit(10);
+
+      if (!duePosts || duePosts.length === 0) {
+        return new Response(JSON.stringify({ success: true, data: { processed: 0 } }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      let processed = 0;
+      let failed = 0;
+
+      for (const post of duePosts) {
+        try {
+          const postConn = await getConnection(supabase, post.account_id);
+          const meta = post.metadata || {};
+          const mediaUrl = Array.isArray(post.media_urls) ? post.media_urls[0] : null;
+          if (!mediaUrl) {
+            await supabase.from("social_posts").update({
+              status: "failed", error_message: "No media URL available",
+              updated_at: new Date().toISOString(),
+            }).eq("id", post.id);
+            failed++;
+            continue;
+          }
+
+          // Mark as publishing
+          await supabase.from("social_posts").update({
+            status: "publishing", updated_at: new Date().toISOString(),
+          }).eq("id", post.id);
+
+          const postType = meta.content_type || post.post_type || "video";
+          let publishResult: any;
+
+          if (postType === "video") {
+            publishResult = await ttFetch("/post/publish/video/init/", postConn.access_token, "POST", {
+              post_info: {
+                title: post.caption || "",
+                privacy_level: meta.privacy_level || "PUBLIC_TO_EVERYONE",
+                disable_duet: meta.disable_duet || false,
+                disable_comment: meta.disable_comment || false,
+                disable_stitch: meta.disable_stitch || false,
+                ...(meta.brand_content ? { brand_content_toggle: true } : {}),
+              },
+              source_info: { source: "PULL_FROM_URL", video_url: mediaUrl },
+            });
+          } else {
+            const mediaType = postType === "carousel" ? "CAROUSEL" : "PHOTO";
+            publishResult = await ttFetch("/post/publish/content/init/", postConn.access_token, "POST", {
+              post_info: {
+                title: post.caption || "",
+                description: post.caption || "",
+                privacy_level: meta.privacy_level || "PUBLIC_TO_EVERYONE",
+                disable_comment: meta.disable_comment || false,
+              },
+              source_info: {
+                source: "PULL_FROM_URL",
+                photo_cover_index: 0,
+                photo_images: post.media_urls,
+              },
+              post_mode: "DIRECT_POST",
+              media_type: mediaType,
+            });
+          }
+
+          const publishId = publishResult?.data?.publish_id;
+          await supabase.from("social_posts").update({
+            platform_post_id: publishId || null,
+            status: publishId ? "publishing" : "published",
+            published_at: publishId ? null : new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          }).eq("id", post.id);
+
+          processed++;
+        } catch (e: any) {
+          console.error(`Failed to publish post ${post.id}:`, e.message);
+          await supabase.from("social_posts").update({
+            status: "failed",
+            error_message: e.message || "Publishing failed",
+            updated_at: new Date().toISOString(),
+          }).eq("id", post.id);
+          failed++;
+        }
+      }
+
+      return new Response(JSON.stringify({ success: true, data: { processed, failed, total: duePosts.length } }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ===== CHECK & UPDATE ALL PUBLISHING POSTS =====
+    if (action === "sync_publish_statuses") {
+      const { data: publishingPosts } = await supabase
+        .from("social_posts")
+        .select("*")
+        .eq("platform", "tiktok")
+        .eq("status", "publishing")
+        .not("platform_post_id", "is", null)
+        .limit(20);
+
+      if (!publishingPosts || publishingPosts.length === 0) {
+        return new Response(JSON.stringify({ success: true, data: { synced: 0 } }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      let synced = 0;
+      for (const post of publishingPosts) {
+        try {
+          const postConn = await getConnection(supabase, post.account_id);
+          const statusResult = await ttFetch("/post/publish/status/fetch/", postConn.access_token, "POST", {
+            publish_id: post.platform_post_id,
+          });
+          const pubStatus = statusResult?.data?.status;
+          if (pubStatus === "PUBLISH_COMPLETE") {
+            await supabase.from("social_posts").update({
+              status: "published",
+              published_at: new Date().toISOString(),
+              error_message: null,
+              updated_at: new Date().toISOString(),
+            }).eq("id", post.id);
+            synced++;
+          } else if (pubStatus === "FAILED") {
+            const failReason = statusResult?.data?.fail_reason || "TikTok publishing failed";
+            await supabase.from("social_posts").update({
+              status: "failed",
+              error_message: failReason,
+              updated_at: new Date().toISOString(),
+            }).eq("id", post.id);
+            synced++;
+          }
+        } catch (e: any) {
+          console.error(`Status check failed for post ${post.id}:`, e.message);
+        }
+      }
+
+      return new Response(JSON.stringify({ success: true, data: { synced, total: publishingPosts.length } }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ===== GET POST ENGAGEMENT DATA =====
+    if (action === "get_post_engagement") {
+      conn = await getConnection(supabase, account_id);
+      token = conn.access_token;
+      
+      // Get video IDs from published posts
+      const { data: publishedPosts } = await supabase
+        .from("social_posts")
+        .select("id, platform_post_id, caption")
+        .eq("account_id", account_id)
+        .eq("platform", "tiktok")
+        .eq("status", "published")
+        .not("platform_post_id", "is", null)
+        .order("published_at", { ascending: false })
+        .limit(20);
+
+      if (!publishedPosts || publishedPosts.length === 0) {
+        return new Response(JSON.stringify({ success: true, data: { posts: [] } }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Fetch video details for engagement data
+      const videoFields = "id,title,video_description,duration,cover_image_url,share_url,create_time,like_count,comment_count,share_count,view_count";
+      const videoList = await ttFetch(`/video/list/?fields=${videoFields}`, token, "POST", { max_count: 20 });
+      const apiVideos = videoList?.data?.videos || [];
+
+      // Update engagement data on posts
+      for (const post of publishedPosts) {
+        const matchedVideo = apiVideos.find((v: any) => v.id === post.platform_post_id);
+        if (matchedVideo) {
+          await supabase.from("social_posts").update({
+            engagement_data: {
+              views: matchedVideo.view_count || 0,
+              likes: matchedVideo.like_count || 0,
+              comments: matchedVideo.comment_count || 0,
+              shares: matchedVideo.share_count || 0,
+              engagement_rate: matchedVideo.view_count > 0
+                ? ((matchedVideo.like_count + matchedVideo.comment_count + matchedVideo.share_count) / matchedVideo.view_count * 100).toFixed(2)
+                : "0",
+              cover_url: matchedVideo.cover_image_url || null,
+              share_url: matchedVideo.share_url || null,
+              duration: matchedVideo.duration || 0,
+              synced_at: new Date().toISOString(),
+            },
+            updated_at: new Date().toISOString(),
+          }).eq("id", post.id);
+        }
+      }
+
+      return new Response(JSON.stringify({ success: true, data: { posts: publishedPosts.length, videos_matched: apiVideos.length } }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // All other actions need connection
     if (action !== "exchange_code") {
       if (params?.access_token_override) {
         token = params.access_token_override;
@@ -144,7 +334,6 @@ serve(async (req) => {
       // ===== USER INFO =====
       case "get_user_info": {
         const useToken = params?.access_token_override || token!;
-        // Try full fields first (requires user.info.profile + user.info.stats)
         const fullFields = "open_id,union_id,avatar_url,avatar_url_100,avatar_large_url,display_name,bio_description,profile_deep_link,is_verified,follower_count,following_count,likes_count,video_count,username";
         const basicFields = "open_id,union_id,avatar_url,avatar_url_100,avatar_large_url,display_name";
         try {
@@ -203,6 +392,7 @@ serve(async (req) => {
             disable_duet: params.disable_duet || false,
             disable_comment: params.disable_comment || false,
             disable_stitch: params.disable_stitch || false,
+            ...(params.brand_content_toggle ? { brand_content_toggle: true } : {}),
           },
           source_info: {
             source: "PULL_FROM_URL",
@@ -306,11 +496,9 @@ serve(async (req) => {
       case "get_conversations":
         result = { data: { conversations: [] }, _unavailable: true, message: "Direct Messages API requires additional TikTok scopes not yet approved." };
         break;
-
       case "get_messages":
         result = { data: { messages: [] }, _unavailable: true, message: "Direct Messages API requires additional TikTok scopes not yet approved." };
         break;
-
       case "send_dm":
       case "send_message":
         result = { data: {}, _unavailable: true, message: "Direct Messages API requires additional TikTok scopes not yet approved." };
@@ -318,10 +506,10 @@ serve(async (req) => {
 
       // ===== TOKEN REFRESH =====
       case "refresh_token": {
-        const clientKey = params.client_key;
-        const clientSecret = params.client_secret;
-        const refreshToken = conn!.refresh_token;
-        if (!refreshToken) throw new Error("No refresh token available");
+        const clientKey = params.client_key || Deno.env.get("TIKTOK_CLIENT_KEY") || "";
+        const clientSecret = params.client_secret || Deno.env.get("TIKTOK_CLIENT_SECRET") || "";
+        const refreshTok = conn!.refresh_token;
+        if (!refreshTok) throw new Error("No refresh token available");
         const resp = await fetch("https://open.tiktokapis.com/v2/oauth/token/", {
           method: "POST",
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -329,14 +517,14 @@ serve(async (req) => {
             client_key: clientKey,
             client_secret: clientSecret,
             grant_type: "refresh_token",
-            refresh_token: refreshToken,
+            refresh_token: refreshTok,
           }),
         });
         result = await resp.json();
         if (result.data?.access_token) {
           await supabase.from("social_connections").update({
             access_token: result.data.access_token,
-            refresh_token: result.data.refresh_token || refreshToken,
+            refresh_token: result.data.refresh_token || refreshTok,
             token_expires_at: new Date(Date.now() + (result.data.expires_in || 86400) * 1000).toISOString(),
             updated_at: new Date().toISOString(),
           }).eq("id", conn!.id);
@@ -353,7 +541,6 @@ serve(async (req) => {
           body: new URLSearchParams({ client_key: clientKey, token: token! }),
         });
         result = await result.json();
-        // Always mark as disconnected in DB regardless of TikTok response
         await supabase.from("social_connections").update({
           is_connected: false,
           access_token: null,
