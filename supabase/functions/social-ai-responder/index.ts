@@ -3207,23 +3207,7 @@ Rules:
               continue;
             }
 
-            // === 24H PAUSE CHECK — skip conversations that hit the 30-msg hard cap ===
-            const pauseMeta = (dbConvo.metadata as any) || {};
-            if (!isUncensored && pauseMeta?.paused_until) {
-              const pausedUntil = new Date(pauseMeta.paused_until).getTime();
-              if (Date.now() < pausedUntil) {
-                console.log(`[30-MSG CAP] @${dbConvo.participant_username}: paused until ${pauseMeta.paused_until}, skipping (${Math.round((pausedUntil - Date.now()) / 60000)}min remaining)`);
-                // Just update the lock so we don't re-check
-                await supabase.from("ai_dm_conversations").update({ last_ai_reply_at: new Date().toISOString(), is_read: true }).eq("id", dbConvo.id);
-                continue;
-              } else {
-                // Pause expired — clear it and let conversation resume
-                console.log(`[30-MSG CAP] @${dbConvo.participant_username}: 24h pause expired, resuming`);
-                await supabase.from("ai_dm_conversations").update({
-                  metadata: { ...pauseMeta, paused_until: null },
-                }).eq("id", dbConvo.id);
-              }
-            }
+            // 24H PAUSE CHECK removed — AI responds freely without pause restrictions
 
             // Build conversation context from DB — select ALL fields including metadata
             // Filter out failed/deleted messages so they don't pollute AI context
@@ -3235,19 +3219,9 @@ Rules:
               .limit(50);
             const dbMessages = (dbMessagesRaw || []).filter(isContextEligibleMessage);
 
-            // === RANDOMIZED HARD CAP (39-45) — FINAL SEDUCTIVE REDIRECT + 24H PAUSE ===
-            // If conversation was manually unpaused, only count messages AFTER the unpause timestamp
-            const hardCapMeta = (dbConvo.metadata as any) || {};
-            const unpausedAt = hardCapMeta.unpaused_at ? new Date(hardCapMeta.unpaused_at).getTime() : 0;
-            const relevantMessages = unpausedAt > 0
-              ? (dbMessages || []).filter((m: any) => new Date(m.created_at).getTime() > unpausedAt)
-              : (dbMessages || []);
-            const totalMsgCount = relevantMessages.length;
-            // Randomize the cap per conversation — feels natural, never exceeds 45
-            const convoSeed = dbConvo.id.charCodeAt(0) + dbConvo.id.charCodeAt(1);
-            const hardCapThreshold = 39 + (convoSeed % 7); // 39-45 range, deterministic per convo
-            if (!isUncensored && totalMsgCount >= hardCapThreshold) {
-              console.log(`[HARD CAP] @${dbConvo.participant_username}: ${totalMsgCount}/${hardCapThreshold} messages — triggering final redirect + 24h pause`);
+            // HARD CAP + 24H PAUSE removed — AI responds freely without message limits
+            if (false) {
+              console.log("hard cap disabled");
               
               // Check persona type for appropriate closers
               const isMalePersonaHC = personaInfo2.includes("businessman") || personaInfo2.includes("entrepreneur");

@@ -194,39 +194,7 @@ const FreePicCountdown = ({ deliverAt }: { deliverAt: string }) => {
   );
 };
 
-// 24h Pause Countdown Component — shown on conversations that hit the 30-msg cap
-const ConvoPauseCountdown = ({ pausedUntil }: { pausedUntil: string }) => {
-  const [remaining, setRemaining] = useState<number>(() => {
-    const diff = new Date(pausedUntil).getTime() - Date.now();
-    return Math.max(0, Math.ceil(diff / 1000));
-  });
-
-  useEffect(() => {
-    if (remaining <= 0) return;
-    const interval = setInterval(() => {
-      const diff = new Date(pausedUntil).getTime() - Date.now();
-      const secs = Math.max(0, Math.ceil(diff / 1000));
-      setRemaining(secs);
-      if (secs <= 0) clearInterval(interval);
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [pausedUntil, remaining]);
-
-  if (remaining <= 0) return null;
-
-  const hours = Math.floor(remaining / 3600);
-  const mins = Math.floor((remaining % 3600) / 60);
-  const secs = remaining % 60;
-
-  return (
-    <div className="mt-1 flex items-center gap-1.5 px-2 py-1 rounded-md border border-orange-500/30 bg-orange-500/10 max-w-fit">
-      <Pause className="h-2.5 w-2.5 text-orange-400 flex-shrink-0" />
-      <span className="text-[9px] font-medium text-orange-400">
-        Paused {hours}h {mins.toString().padStart(2, "0")}m {secs.toString().padStart(2, "0")}s
-      </span>
-    </div>
-  );
-};
+// ConvoPauseCountdown removed — no more 24h pause system
 
 // Pipeline Delay Countdown — shows remaining delay time in pipeline
 const PipelineDelayCountdown = ({ delay_ms, started_at }: { delay_ms: number; started_at: string }) => {
@@ -2073,28 +2041,6 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
                       {!convo.is_read && <div className="h-2.5 w-2.5 rounded-full bg-blue-500" />}
                     </div>
                   </div>
-                  {/* 24h Pause Countdown + Manual Unpause */}
-                  {convo.metadata?.paused_until && new Date(convo.metadata.paused_until).getTime() > Date.now() && (
-                    <div className="flex items-center gap-1.5 mt-1">
-                      <ConvoPauseCountdown pausedUntil={convo.metadata.paused_until} />
-                      <button
-                        onClick={async (e) => {
-                          e.stopPropagation();
-                          const newMeta = { ...(convo.metadata || {}), paused_until: null, paused_reason: null, free_pic_delivered: null, free_pic_pending_at: null, free_pic_deliver_at: null, unpaused_at: new Date().toISOString() };
-                          // Optimistic update
-                          setConversations(prev => prev.map(c => c.id === convo.id ? { ...c, metadata: newMeta } : c));
-                          // Clear pause + set unpaused_at so hard cap only counts messages after this point
-                          await supabase.from("ai_dm_conversations").update({ metadata: newMeta, message_count: 0 }).eq("id", convo.id);
-                          toast.success(`Unpaused @${convo.participant_username} — message count reset to 0`);
-                          addLog(`@${convo.participant_username}`, "Manual unpause — 24h timeout cleared + messages reset to 0", "info");
-                        }}
-                        className="p-1 rounded-md border border-orange-500/30 bg-orange-500/10 hover:bg-orange-500/20 transition-colors"
-                        title="Remove 24h pause — resume AI immediately"
-                      >
-                        <Play className="h-2.5 w-2.5 text-orange-400" />
-                      </button>
-                    </div>
-                  )}
                 </div>
               </button>
             ))
@@ -2106,10 +2052,8 @@ const LiveDMConversations = ({ accountId, autoRespondActive, onToggleAutoRespond
           <span>{conversations.length} conversations</span>
           <div className="flex items-center gap-2">
             {dailyStats && (
-              <span className={dailyStats.cooldownUntil && new Date(dailyStats.cooldownUntil).getTime() > Date.now() ? "text-orange-400" : "text-muted-foreground"}>
-                {dailyStats.cooldownUntil && new Date(dailyStats.cooldownUntil).getTime() > Date.now()
-                  ? `⏸ Cooldown (${dailyStats.sent}/${dailyStats.limit})`
-                  : `📤 ${dailyStats.sent}/${dailyStats.limit} today`}
+              <span className="text-muted-foreground">
+                📤 {dailyStats.sent}/{dailyStats.limit} today
               </span>
             )}
             {scanning && <span className="text-blue-400 animate-pulse">Syncing...</span>}
