@@ -1433,7 +1433,8 @@ Analyze every character in the name and username for any gender signal at all. L
         
         // Per docs: GET /me/conversations?platform=instagram with folder param
         const fetchFolder = async (folderName: string): Promise<any[]> => {
-          const url = `${IG_GRAPH_URL}/me/conversations?platform=instagram&limit=${allLimit}&folder=${folderName}&access_token=${token}`;
+          const msgLimit = params?.messages_limit || 10;
+          const url = `${IG_GRAPH_URL}/me/conversations?platform=instagram&limit=${allLimit}&folder=${folderName}&fields=id,updated_time,participants,messages.limit(${msgLimit}){id,message,created_time,from}&access_token=${token}`;
           return await fetchWithPagination(url);
         };
         
