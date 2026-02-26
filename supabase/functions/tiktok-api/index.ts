@@ -153,7 +153,15 @@ serve(async (req) => {
       // ===== USER INFO =====
       case "get_user_info": {
         const useToken = params?.access_token_override || token!;
-        result = await ttFetch("/user/info/?fields=open_id,union_id,avatar_url,avatar_url_100,avatar_large_url,display_name,bio_description,profile_deep_link,is_verified,follower_count,following_count,likes_count,video_count,username", useToken);
+        // Try full fields first (requires user.info.profile + user.info.stats)
+        const fullFields = "open_id,union_id,avatar_url,avatar_url_100,avatar_large_url,display_name,bio_description,profile_deep_link,is_verified,follower_count,following_count,likes_count,video_count,username";
+        const basicFields = "open_id,union_id,avatar_url,avatar_url_100,avatar_large_url,display_name";
+        try {
+          result = await ttFetch(`/user/info/?fields=${fullFields}`, useToken);
+        } catch (fullErr: any) {
+          console.log("Full fields failed, falling back to basic:", fullErr.message);
+          result = await ttFetch(`/user/info/?fields=${basicFields}`, useToken);
+        }
         break;
       }
 
