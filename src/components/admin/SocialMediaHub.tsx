@@ -415,6 +415,17 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
     syncSilently();
   }, [connections, selectedAccount, autoSyncDone]);
 
+  // Helper: refresh globalConnections from DB (no cache)
+  const refreshGlobalConnections = useCallback(async () => {
+    if (!user?.id) return;
+    invalidateNamespace("global", "smh_global_connections");
+    const { data } = await supabase
+      .from("social_connections")
+      .select("id, account_id, platform, is_connected")
+      .eq("user_id", user.id);
+    setGlobalConnections(data || []);
+  }, [user?.id]);
+
   // Real-time sync for social_connections (instant UI update on connect/disconnect)
   useEffect(() => {
     if (!selectedAccount) return;
@@ -426,10 +437,24 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
         const { data: freshConns } = await supabase.from("social_connections").select("*").eq("account_id", selectedAccount);
         setConnections(freshConns || []);
         setAutoSyncDone(false);
+        // Also refresh global connections to stay in sync across all tabs
+        await refreshGlobalConnections();
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [selectedAccount]);
+  }, [selectedAccount, refreshGlobalConnections]);
+
+  // User-level realtime sync for ALL social_connections (handles cross-account changes)
+  useEffect(() => {
+    if (!user?.id) return;
+    const channel = supabase
+      .channel(`global-connections-rt-${user.id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "social_connections", filter: `user_id=eq.${user.id}` }, async () => {
+        await refreshGlobalConnections();
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [user?.id, refreshGlobalConnections]);
 
   // Real-time sync for auto_respond_state
   useEffect(() => {
@@ -490,14 +515,14 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
         const { data } = await supabase.from("social_comment_replies").select("*").eq("account_id", acctId).order("created_at", { ascending: false }).limit(50);
         return data || [];
       }, undefined, { ttlMs: 2 * 60 * 1000 }),
-      cachedFetch("global", `smh_global_connections_${user?.id || "anon"}`, async () => {
+      (async () => {
         if (!user?.id) return [];
         const { data } = await supabase
           .from("social_connections")
           .select("id, account_id, platform, is_connected")
           .eq("user_id", user.id);
         return data || [];
-      }, undefined, { ttlMs: 30 * 1000 }),
+      })(),
     ]);
     setConnections(connsData);
     setGlobalConnections(globalConnsData as any[]);
