@@ -3533,6 +3533,7 @@ Rules:
         const processedConvos: any[] = [];
 
         for (const dbConvo of (activeConvos || [])) {
+          let typingMsgId: string | null = null;
           try {
             // Get the latest message in this conversation
             const { data: latestMsgs } = await supabase
@@ -4420,6 +4421,7 @@ Rules:
               })
               .select("id")
               .single();
+            typingMsgId = typingMsg?.id || null;
 
             const emojiDir = "\n\nEMOJI DIRECTIVE: ZERO emojis. Text only. Never output emoji characters.";
             const behaviorCtxLive = `\n\n=== PERSON BEHAVIOR: ${behavior.type.toUpperCase()} ===\n${behavior.context}`;
@@ -4846,9 +4848,9 @@ Answer it directly like a real human would. Do not talk about anything else.` })
               }
             }
 
-            // Production-ready token limit: replies are 3-42 words, so 200 tokens is MORE than enough
-            // Higher values waste latency generating text that gets truncated anyway
-            const dynamicMaxTokens = 200;
+            // Dynamic token budget: analyze full fan message while keeping production latency tight
+            const latestFanLen = (latestMsg?.content || "").trim().length;
+            const dynamicMaxTokens = Math.min(180 + Math.ceil(latestFanLen * 0.5) + Math.min(unansweredQuestions * 40, 120), 600);
 
             // Update pipeline phase to "generate" for real-time UI tracking
             if (typingMsg) {
@@ -5043,6 +5045,7 @@ Answer it directly like a real human would. Do not talk about anything else.` })
             const latestIsQuestionNow = isLikelyQuestionText(latestFanTextNow);
             if (latestIsQuestionNow) {
               const replyLower = reply.toLowerCase();
+              const fanLower = latestFanTextNow.toLowerCase();
 
               // Detect follow-up questions — these should NOT trigger deflection handling
               const isFollowUpQuestion = /(what else|how does it work|how does that work|tell me more|explain|elaborate|what exactly|more about|specifics|like what|such as|for example|how do you|but what do you|and what|what kind of|what type of|how it work|on it how)/i.test(fanLower);
@@ -5612,6 +5615,21 @@ Answer it directly like a real human would. Do not talk about anything else.` })
             }
           } catch (convoErr) {
             console.error("Error processing conversation:", convoErr);
+            if (typingMsgId) {
+              try {
+                await supabase
+                  .from("ai_dm_messages")
+                  .update({
+                    status: "failed",
+                    metadata: {
+                      pipeline_phase: "failed",
+                      failed_at: new Date().toISOString(),
+                      error: String(convoErr?.message || convoErr || "unknown error").slice(0, 300),
+                    },
+                  })
+                  .eq("id", typingMsgId);
+              } catch {}
+            }
             // RESTORE LOCK on any error so convo isn't stuck forever
             try {
               await supabase.from("ai_dm_conversations").update({ last_ai_reply_at: null }).eq("id", dbConvo.id);
