@@ -2619,6 +2619,43 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
                 </CardContent>
               </Card>
             )}
+            {/* Quick Stats card fills empty space when only one profile is connected */}
+            {!ttProfile && igProfile && (
+              <Card className="border-purple-500/15 bg-white/[0.03] backdrop-blur-sm shadow-[0_0_20px_-8px] shadow-purple-500/10">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Activity className="h-4 w-4 text-purple-400" />
+                    <p className="text-sm font-semibold text-foreground">Quick Overview</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="bg-white/[0.04] rounded-lg p-2.5 border border-white/[0.06]">
+                      <p className="text-lg font-bold text-foreground">{posts.filter(p => p.status === "published").length}</p>
+                      <p className="text-[10px] text-muted-foreground">Published Posts</p>
+                    </div>
+                    <div className="bg-white/[0.04] rounded-lg p-2.5 border border-white/[0.06]">
+                      <p className="text-lg font-bold text-foreground">{posts.filter(p => p.status === "scheduled").length}</p>
+                      <p className="text-[10px] text-muted-foreground">Scheduled</p>
+                    </div>
+                    <div className="bg-white/[0.04] rounded-lg p-2.5 border border-white/[0.06]">
+                      <p className="text-lg font-bold text-foreground">{connections.filter(c => c.is_connected).length}</p>
+                      <p className="text-[10px] text-muted-foreground">Connected</p>
+                    </div>
+                    <div className="bg-white/[0.04] rounded-lg p-2.5 border border-white/[0.06]">
+                      <p className="text-lg font-bold text-foreground">{bioLinks.length}</p>
+                      <p className="text-[10px] text-muted-foreground">Bio Links</p>
+                    </div>
+                    <div className="bg-white/[0.04] rounded-lg p-2.5 border border-white/[0.06]">
+                      <p className="text-lg font-bold text-foreground">{commentReplies.length}</p>
+                      <p className="text-[10px] text-muted-foreground">AI Replies</p>
+                    </div>
+                    <div className="bg-white/[0.04] rounded-lg p-2.5 border border-white/[0.06]">
+                      <p className="text-lg font-bold text-foreground">{igProfile.media_count || 0}</p>
+                      <p className="text-[10px] text-muted-foreground">Total Media</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <Card className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm"><CardContent className="p-3.5 text-center"><p className="text-xl font-bold text-foreground">{posts.filter(p => p.status === "published").length}</p><p className="text-[10px] text-muted-foreground mt-0.5">Published</p></CardContent></Card>

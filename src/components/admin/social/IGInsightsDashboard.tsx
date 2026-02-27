@@ -15,6 +15,9 @@ import {
   MailOpen, PieChart, Repeat, Video, FileText, Zap,
   Target, Percent, ThumbsUp, Flame, Star, Trophy,
   BarChart2, Timer, Crown, Sparkles, TrendingDown,
+  Ratio, Gauge, Megaphone, CircleDot, Radar,
+  Footprints, Antenna, Signal, Waypoints, GitFork,
+  Maximize2, Minimize2, Crosshair, ScanLine, Scan,
 } from "lucide-react";
 
 interface Props {
@@ -146,10 +149,10 @@ const IGInsightsDashboard = ({ selectedAccount }: Props) => {
     return ((m.value - m.prevValue) / m.prevValue * 100);
   };
 
-  // Computed insights from content
+  // ===== Comprehensive content stats =====
   const contentStats = useMemo(() => {
     const allMedia = [...reelInsights, ...mediaInsights];
-    if (allMedia.length === 0) return null;
+    if (allMedia.length === 0 && storyInsights.length === 0) return null;
 
     const getInsight = (m: any, name: string) => {
       const ins = (m.insights || []).find((i: any) => i.name === name);
@@ -157,8 +160,11 @@ const IGInsightsDashboard = ({ selectedAccount }: Props) => {
     };
 
     let totalLikes = 0, totalComments = 0, totalShares = 0, totalSaves = 0;
-    let totalReach = 0, totalPlays = 0, totalInteractions = 0;
+    let totalReach = 0, totalPlays = 0, totalInteractions = 0, totalImpressions = 0;
     let bestPost: any = null, bestEngagement = 0;
+    let worstPost: any = null, worstEngagement = Infinity;
+    let totalReplays = 0, totalProfileActions = 0;
+    let maxLikes = 0, maxComments = 0, maxReach = 0;
 
     for (const m of allMedia) {
       const likes = getInsight(m, "likes") || m.like_count || 0;
@@ -167,7 +173,10 @@ const IGInsightsDashboard = ({ selectedAccount }: Props) => {
       const saves = getInsight(m, "saved") || getInsight(m, "saves") || 0;
       const reach = getInsight(m, "reach") || 0;
       const plays = getInsight(m, "ig_reels_aggregated_all_plays_count") || getInsight(m, "video_views") || 0;
+      const impressions = getInsight(m, "impressions") || 0;
       const interactions = getInsight(m, "total_interactions") || (likes + comments + shares + saves);
+      const replays = getInsight(m, "clips_replays_count") || 0;
+      const profileActs = getInsight(m, "profile_activity") || 0;
 
       totalLikes += likes;
       totalComments += comments;
@@ -176,25 +185,52 @@ const IGInsightsDashboard = ({ selectedAccount }: Props) => {
       totalReach += reach;
       totalPlays += plays;
       totalInteractions += interactions;
+      totalImpressions += impressions;
+      totalReplays += replays;
+      totalProfileActions += profileActs;
+
+      if (likes > maxLikes) maxLikes = likes;
+      if (comments > maxComments) maxComments = comments;
+      if (reach > maxReach) maxReach = reach;
 
       const eng = reach > 0 ? (interactions / reach) * 100 : 0;
       if (eng > bestEngagement) { bestEngagement = eng; bestPost = m; }
+      if (eng < worstEngagement && reach > 0) { worstEngagement = eng; worstPost = m; }
     }
 
-    const avgLikes = allMedia.length > 0 ? Math.round(totalLikes / allMedia.length) : 0;
-    const avgComments = allMedia.length > 0 ? Math.round(totalComments / allMedia.length) : 0;
-    const avgReach = allMedia.length > 0 ? Math.round(totalReach / allMedia.length) : 0;
+    const count = allMedia.length || 1;
+    const avgLikes = Math.round(totalLikes / count);
+    const avgComments = Math.round(totalComments / count);
+    const avgShares = Math.round(totalShares / count);
+    const avgSaves = Math.round(totalSaves / count);
+    const avgReach = Math.round(totalReach / count);
+    const avgImpressions = Math.round(totalImpressions / count);
     const overallEngRate = totalReach > 0 ? ((totalInteractions / totalReach) * 100) : 0;
     const likeToCommentRatio = totalComments > 0 ? (totalLikes / totalComments) : 0;
     const viralityScore = totalReach > 0 ? ((totalShares / totalReach) * 100) : 0;
     const saveRate = totalReach > 0 ? ((totalSaves / totalReach) * 100) : 0;
+    const shareRate = totalReach > 0 ? ((totalShares / totalReach) * 100) : 0;
+    const commentRate = totalReach > 0 ? ((totalComments / totalReach) * 100) : 0;
+    const reachToImpressionsRatio = totalImpressions > 0 ? ((totalReach / totalImpressions) * 100) : 0;
+    const avgInteractionsPerPost = Math.round(totalInteractions / count);
+    const contentVelocity = count; // posts in period
+    const interactionDensity = totalReach > 0 ? (totalInteractions / totalReach) : 0;
 
     // Reel-specific
     const avgReelPlays = reelInsights.length > 0 ? Math.round(totalPlays / reelInsights.length) : 0;
+    const avgReplays = reelInsights.length > 0 ? Math.round(totalReplays / reelInsights.length) : 0;
     const reelCompletionRate = reelInsights.length > 0 ? reelInsights.reduce((sum, r) => {
       const avgWatch = getInsight(r, "ig_reels_avg_watch_time");
       return sum + (typeof avgWatch === "number" ? Math.min(avgWatch / 15 * 100, 100) : 50);
     }, 0) / reelInsights.length : 0;
+    const reelShareRate = reelInsights.length > 0 ? (() => {
+      let rShares = 0, rReach = 0;
+      for (const r of reelInsights) {
+        rShares += getInsight(r, "shares") || 0;
+        rReach += getInsight(r, "reach") || 0;
+      }
+      return rReach > 0 ? (rShares / rReach) * 100 : 0;
+    })() : 0;
 
     // Story-specific
     const storyExitRate = storyInsights.length > 0 ? storyInsights.reduce((sum, s) => {
@@ -207,17 +243,47 @@ const IGInsightsDashboard = ({ selectedAccount }: Props) => {
       const replies = getInsight(s, "replies") || 0;
       return sum + (replies / reach) * 100;
     }, 0) / storyInsights.length : 0;
+    const storyCompletionRate = storyInsights.length > 0 ? storyInsights.reduce((sum, s) => {
+      const impressions = getInsight(s, "impressions") || 1;
+      const exits = getInsight(s, "exits") || 0;
+      return sum + ((1 - exits / impressions) * 100);
+    }, 0) / storyInsights.length : 0;
+    const avgStoryReach = storyInsights.length > 0 ? Math.round(storyInsights.reduce((sum, s) => sum + (getInsight(s, "reach") || 0), 0) / storyInsights.length) : 0;
+    const storyTapForwardRate = storyInsights.length > 0 ? storyInsights.reduce((sum, s) => {
+      const imp = getInsight(s, "impressions") || 1;
+      return sum + ((getInsight(s, "taps_forward") || 0) / imp) * 100;
+    }, 0) / storyInsights.length : 0;
+    const storyTapBackRate = storyInsights.length > 0 ? storyInsights.reduce((sum, s) => {
+      const imp = getInsight(s, "impressions") || 1;
+      return sum + ((getInsight(s, "taps_back") || 0) / imp) * 100;
+    }, 0) / storyInsights.length : 0;
+
+    // Engagement health score (0-100)
+    const healthFactors = [
+      Math.min(overallEngRate / 5 * 100, 100) * 0.3,
+      Math.min(saveRate / 2 * 100, 100) * 0.2,
+      Math.min(viralityScore / 3 * 100, 100) * 0.2,
+      reelCompletionRate * 0.15,
+      (100 - storyExitRate) * 0.15,
+    ];
+    const engagementHealthScore = Math.round(healthFactors.reduce((a, b) => a + b, 0));
 
     return {
       totalPosts: allMedia.length, totalReels: reelInsights.length, totalStories: storyInsights.length,
       totalLikes, totalComments, totalShares, totalSaves, totalReach, totalPlays, totalInteractions,
-      avgLikes, avgComments, avgReach, overallEngRate, likeToCommentRatio, viralityScore, saveRate,
-      avgReelPlays, reelCompletionRate, storyExitRate, storyReplyRate,
-      bestPost, bestEngagement,
+      totalImpressions, totalReplays, totalProfileActions,
+      avgLikes, avgComments, avgShares, avgSaves, avgReach, avgImpressions, avgInteractionsPerPost,
+      overallEngRate, likeToCommentRatio, viralityScore, saveRate, shareRate, commentRate,
+      reachToImpressionsRatio, contentVelocity, interactionDensity,
+      maxLikes, maxComments, maxReach,
+      avgReelPlays, avgReplays, reelCompletionRate, reelShareRate,
+      storyExitRate, storyReplyRate, storyCompletionRate, avgStoryReach, storyTapForwardRate, storyTapBackRate,
+      bestPost, bestEngagement, worstPost, worstEngagement: worstEngagement === Infinity ? 0 : worstEngagement,
+      engagementHealthScore,
     };
   }, [reelInsights, mediaInsights, storyInsights]);
 
-  // PRIMARY METRICS (from API)
+  // ===== PRIMARY METRICS =====
   const PRIMARY_METRICS = [
     { key: "reach", label: "Reach", icon: Eye, color: "text-blue-400" },
     { key: "accounts_engaged", label: "Engaged", icon: Users, color: "text-emerald-400" },
@@ -233,40 +299,75 @@ const IGInsightsDashboard = ({ selectedAccount }: Props) => {
     { key: "impressions", label: "Impressions", icon: Layers, color: "text-indigo-400" },
   ];
 
-  // COMPUTED RATE CARDS
+  // ===== RATE CARDS (from account metrics) =====
   const RATE_CARDS = useMemo(() => {
     if (!contentStats && !accountMetrics?.data) return [];
     const reach = mv("reach");
     const interactions = mv("total_interactions");
     const followers = mv("follower_count");
+    const impressions = mv("impressions");
     return [
       { label: "Engagement Rate", value: reach > 0 ? ((interactions / reach) * 100).toFixed(2) + "%" : contentStats ? contentStats.overallEngRate.toFixed(2) + "%" : "—", icon: TrendingUp, color: "text-emerald-400" },
       { label: "Save Rate", value: reach > 0 ? ((mv("saves") / reach) * 100).toFixed(2) + "%" : contentStats ? contentStats.saveRate.toFixed(2) + "%" : "—", icon: Bookmark, color: "text-yellow-400" },
-      { label: "Share Rate", value: reach > 0 ? ((mv("shares") / reach) * 100).toFixed(2) + "%" : contentStats ? contentStats.viralityScore.toFixed(2) + "%" : "—", icon: Share2, color: "text-green-400" },
-      { label: "Comment Rate", value: reach > 0 ? ((mv("comments") / reach) * 100).toFixed(2) + "%" : "—", icon: MessageSquare, color: "text-sky-400" },
+      { label: "Share Rate", value: reach > 0 ? ((mv("shares") / reach) * 100).toFixed(2) + "%" : contentStats ? contentStats.shareRate.toFixed(2) + "%" : "—", icon: Share2, color: "text-green-400" },
+      { label: "Comment Rate", value: reach > 0 ? ((mv("comments") / reach) * 100).toFixed(2) + "%" : contentStats ? contentStats.commentRate.toFixed(2) + "%" : "—", icon: MessageSquare, color: "text-sky-400" },
       { label: "Profile Visit Rate", value: reach > 0 ? ((mv("profile_views") / reach) * 100).toFixed(2) + "%" : "—", icon: Eye, color: "text-cyan-400" },
       { label: "Click-Through Rate", value: mv("profile_views") > 0 ? ((mv("website_clicks") / mv("profile_views")) * 100).toFixed(2) + "%" : "—", icon: MousePointerClick, color: "text-amber-400" },
       { label: "Follower Conversion", value: reach > 0 && followers > 0 ? ((followers / reach) * 100).toFixed(2) + "%" : "—", icon: UserPlus, color: "text-pink-400" },
       { label: "Like:Comment Ratio", value: contentStats ? contentStats.likeToCommentRatio.toFixed(1) + ":1" : "—", icon: ThumbsUp, color: "text-red-400" },
+      { label: "Reach/Impressions", value: impressions > 0 ? ((reach / impressions) * 100).toFixed(1) + "%" : contentStats ? contentStats.reachToImpressionsRatio.toFixed(1) + "%" : "—", icon: Radar, color: "text-indigo-400" },
+      { label: "Interactions/Post", value: contentStats ? contentStats.avgInteractionsPerPost.toLocaleString() : "—", icon: Zap, color: "text-orange-400" },
     ];
   }, [accountMetrics, contentStats]);
 
-  // CONTENT PERFORMANCE METRICS
+  // ===== CONTENT PERFORMANCE METRICS (30+ cards) =====
   const CONTENT_STATS_CARDS = useMemo(() => {
     if (!contentStats) return [];
     return [
       { label: "Avg Likes/Post", value: contentStats.avgLikes.toLocaleString(), icon: Heart, color: "text-red-400" },
       { label: "Avg Comments/Post", value: contentStats.avgComments.toLocaleString(), icon: MessageSquare, color: "text-sky-400" },
+      { label: "Avg Shares/Post", value: contentStats.avgShares.toLocaleString(), icon: Share2, color: "text-green-400" },
+      { label: "Avg Saves/Post", value: contentStats.avgSaves.toLocaleString(), icon: Bookmark, color: "text-yellow-400" },
       { label: "Avg Reach/Post", value: contentStats.avgReach.toLocaleString(), icon: Eye, color: "text-blue-400" },
-      { label: "Total Content Reach", value: contentStats.totalReach.toLocaleString(), icon: Globe, color: "text-indigo-400" },
+      { label: "Avg Impressions/Post", value: contentStats.avgImpressions.toLocaleString(), icon: Layers, color: "text-indigo-400" },
+      { label: "Total Content Reach", value: contentStats.totalReach.toLocaleString(), icon: Globe, color: "text-teal-400" },
+      { label: "Total Impressions", value: contentStats.totalImpressions.toLocaleString(), icon: Layers, color: "text-indigo-400" },
+      { label: "Total Likes", value: contentStats.totalLikes.toLocaleString(), icon: Heart, color: "text-red-400" },
+      { label: "Total Comments", value: contentStats.totalComments.toLocaleString(), icon: MessageSquare, color: "text-sky-400" },
       { label: "Total Saves", value: contentStats.totalSaves.toLocaleString(), icon: Bookmark, color: "text-yellow-400" },
       { label: "Total Shares", value: contentStats.totalShares.toLocaleString(), icon: Share2, color: "text-green-400" },
       { label: "Virality Score", value: contentStats.viralityScore.toFixed(2) + "%", icon: Flame, color: "text-orange-400" },
       { label: "Content Eng. Rate", value: contentStats.overallEngRate.toFixed(2) + "%", icon: Target, color: "text-purple-400" },
+      { label: "Peak Likes (Single)", value: contentStats.maxLikes.toLocaleString(), icon: Crown, color: "text-amber-400" },
+      { label: "Peak Comments (Single)", value: contentStats.maxComments.toLocaleString(), icon: Trophy, color: "text-amber-400" },
+      { label: "Peak Reach (Single)", value: contentStats.maxReach.toLocaleString(), icon: Star, color: "text-amber-400" },
+      { label: "Content Velocity", value: contentStats.contentVelocity + " posts", icon: Zap, color: "text-orange-400" },
+    ];
+  }, [contentStats]);
+
+  // ===== REEL-SPECIFIC METRICS =====
+  const REEL_METRICS = useMemo(() => {
+    if (!contentStats || contentStats.totalReels === 0) return [];
+    return [
       { label: "Avg Reel Plays", value: contentStats.avgReelPlays.toLocaleString(), icon: Play, color: "text-pink-400" },
-      { label: "Reel Completion", value: contentStats.reelCompletionRate.toFixed(1) + "%", icon: Timer, color: "text-teal-400" },
+      { label: "Total Reel Plays", value: contentStats.totalPlays.toLocaleString(), icon: Video, color: "text-pink-400" },
+      { label: "Avg Replays", value: contentStats.avgReplays.toLocaleString(), icon: Repeat, color: "text-cyan-400" },
+      { label: "Completion Rate", value: contentStats.reelCompletionRate.toFixed(1) + "%", icon: Timer, color: "text-teal-400" },
+      { label: "Reel Share Rate", value: contentStats.reelShareRate.toFixed(2) + "%", icon: Share2, color: "text-green-400" },
+      { label: "Total Replays", value: contentStats.totalReplays.toLocaleString(), icon: Repeat, color: "text-violet-400" },
+    ];
+  }, [contentStats]);
+
+  // ===== STORY-SPECIFIC METRICS =====
+  const STORY_METRICS = useMemo(() => {
+    if (!contentStats || contentStats.totalStories === 0) return [];
+    return [
+      { label: "Avg Story Reach", value: contentStats.avgStoryReach.toLocaleString(), icon: Eye, color: "text-blue-400" },
+      { label: "Story Completion", value: contentStats.storyCompletionRate.toFixed(1) + "%", icon: Timer, color: "text-teal-400" },
       { label: "Story Exit Rate", value: contentStats.storyExitRate.toFixed(1) + "%", icon: TrendingDown, color: "text-red-400" },
       { label: "Story Reply Rate", value: contentStats.storyReplyRate.toFixed(2) + "%", icon: MailOpen, color: "text-violet-400" },
+      { label: "Tap Forward Rate", value: contentStats.storyTapForwardRate.toFixed(1) + "%", icon: ArrowUp, color: "text-amber-400" },
+      { label: "Tap Back Rate", value: contentStats.storyTapBackRate.toFixed(1) + "%", icon: ArrowDown, color: "text-emerald-400" },
     ];
   }, [contentStats]);
 
@@ -280,7 +381,6 @@ const IGInsightsDashboard = ({ selectedAccount }: Props) => {
   const renderDemoBreakdown = (metricName: string) => {
     const data = getDemoValue(metricName);
     if (!data) return null;
-
     const items = Array.isArray(data)
       ? [...data].sort((a: any, b: any) => (b.value || 0) - (a.value || 0)).slice(0, 12).map((item: any, i: number) => ({
           label: item.dimension_values?.join(", ") || `Item ${i}`, value: item.value || 0,
@@ -290,10 +390,8 @@ const IGInsightsDashboard = ({ selectedAccount }: Props) => {
             label: key, value: val as number,
           }))
         : null;
-
     if (!items || items.length === 0) return null;
     const max = Math.max(...items.map(d => d.value), 1);
-
     return (
       <div className="space-y-1.5">
         {items.map((item, i) => (
@@ -319,7 +417,6 @@ const IGInsightsDashboard = ({ selectedAccount }: Props) => {
     if (entries.length === 0) return null;
     const max = Math.max(...entries.map(([, v]) => (typeof v === "number" ? v : 0)), 1);
     const peakHour = entries.reduce((best, curr) => ((curr[1] as number) > (best[1] as number) ? curr : best), entries[0]);
-
     return (
       <div>
         <div className="flex items-end gap-[2px] h-24 mb-2">
@@ -350,13 +447,11 @@ const IGInsightsDashboard = ({ selectedAccount }: Props) => {
   const renderMediaCard = (m: any, type: "post" | "reel" | "story") => {
     const iMap: Record<string, number> = {};
     (m.insights || []).forEach((ins: any) => { iMap[ins.name] = ins.values?.[0]?.value ?? 0; });
-
     const metrics = type === "story"
       ? [{ k: "impressions", icon: Eye, l: "Views" }, { k: "reach", icon: Users, l: "Reach" }, { k: "taps_forward", icon: ArrowUp, l: "Skip" }, { k: "taps_back", icon: ArrowDown, l: "Back" }, { k: "exits", icon: Activity, l: "Exits" }, { k: "replies", icon: MessageSquare, l: "Replies" }]
       : type === "reel"
       ? [{ k: "ig_reels_aggregated_all_plays_count", icon: Play, l: "Plays" }, { k: "reach", icon: Users, l: "Reach" }, { k: "ig_reels_avg_watch_time", icon: Clock, l: "Avg Watch" }, { k: "clips_replays_count", icon: Repeat, l: "Replays" }, { k: "likes", icon: Heart, l: "Likes" }, { k: "comments", icon: MessageSquare, l: "Comments" }, { k: "shares", icon: Share2, l: "Shares" }, { k: "saved", icon: Bookmark, l: "Saves" }]
       : [{ k: "reach", icon: Users, l: "Reach" }, { k: "likes", icon: Heart, l: "Likes" }, { k: "comments", icon: MessageSquare, l: "Comments" }, { k: "shares", icon: Share2, l: "Shares" }, { k: "saved", icon: Bookmark, l: "Saves" }, { k: "total_interactions", icon: Activity, l: "Interactions" }];
-
     return (
       <div key={m.id} className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-3">
         <div className="flex items-start gap-3">
@@ -407,6 +502,26 @@ const IGInsightsDashboard = ({ selectedAccount }: Props) => {
     </div>
   );
 
+  // Engagement Health Gauge
+  const HealthGauge = ({ score }: { score: number }) => {
+    const color = score >= 75 ? "text-emerald-400" : score >= 50 ? "text-amber-400" : "text-red-400";
+    const bg = score >= 75 ? "from-emerald-500/20 to-emerald-500/5" : score >= 50 ? "from-amber-500/20 to-amber-500/5" : "from-red-500/20 to-red-500/5";
+    const label = score >= 75 ? "Excellent" : score >= 50 ? "Good" : score >= 25 ? "Needs Work" : "Critical";
+    return (
+      <div className={`bg-gradient-to-br ${bg} border border-white/[0.06] rounded-xl p-4`}>
+        <div className="flex items-center gap-2 mb-2">
+          <Gauge className={`h-4 w-4 ${color}`} />
+          <span className="text-xs font-semibold text-foreground">Engagement Health</span>
+        </div>
+        <div className="flex items-end gap-3">
+          <span className={`text-3xl font-black ${color}`}>{score}</span>
+          <span className="text-xs text-muted-foreground mb-1">/100 — {label}</span>
+        </div>
+        <Progress value={score} className="mt-2 h-2" />
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-3">
       {/* Header */}
@@ -450,19 +565,24 @@ const IGInsightsDashboard = ({ selectedAccount }: Props) => {
         </div>
       )}
 
-      {/* ===== PRIMARY METRICS GRID ===== */}
+      {/* ===== ENGAGEMENT HEALTH + PRIMARY METRICS ===== */}
       {accountMetrics?.data && (
         <>
-          <div className="flex items-center gap-2 mb-0">
-            <Crown className="h-3.5 w-3.5 text-amber-400" />
-            <span className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Account Metrics</span>
-          </div>
-          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
-            {PRIMARY_METRICS.map(({ key, label, icon, color }) => {
-              const val = metricsMap[key]?.value;
-              if (val == null) return null;
-              return <MetricCard key={key} label={label} value={val} icon={icon} color={color} change={getChange(key)} />;
-            })}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {contentStats && <HealthGauge score={contentStats.engagementHealthScore} />}
+            <div className={`${contentStats ? "md:col-span-2" : "md:col-span-3"}`}>
+              <div className="flex items-center gap-2 mb-2">
+                <Crown className="h-3.5 w-3.5 text-amber-400" />
+                <span className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Account Metrics</span>
+              </div>
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
+                {PRIMARY_METRICS.map(({ key, label, icon, color }) => {
+                  const val = metricsMap[key]?.value;
+                  if (val == null) return null;
+                  return <MetricCard key={key} label={label} value={val} icon={icon} color={color} change={getChange(key)} />;
+                })}
+              </div>
+            </div>
           </div>
         </>
       )}
@@ -474,7 +594,7 @@ const IGInsightsDashboard = ({ selectedAccount }: Props) => {
             <Percent className="h-3.5 w-3.5 text-emerald-400" />
             <span className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Performance Rates</span>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
             {RATE_CARDS.map(s => (
               <div key={s.label} className="bg-gradient-to-br from-white/[0.04] to-transparent border border-white/[0.06] rounded-xl p-3">
                 <div className="flex items-center gap-1.5 mb-1">
@@ -498,7 +618,7 @@ const IGInsightsDashboard = ({ selectedAccount }: Props) => {
               {contentStats.totalPosts} posts · {contentStats.totalReels} reels · {contentStats.totalStories} stories
             </Badge>
           </div>
-          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
             {CONTENT_STATS_CARDS.map(s => (
               <MetricCard key={s.label} label={s.label} value={s.value} icon={s.icon} color={s.color} />
             ))}
@@ -506,15 +626,59 @@ const IGInsightsDashboard = ({ selectedAccount }: Props) => {
         </>
       )}
 
-      {/* ===== BEST PERFORMING POST ===== */}
-      {contentStats?.bestPost && (
-        <div className="bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20 rounded-xl p-3">
-          <div className="flex items-center gap-2 mb-2">
-            <Trophy className="h-4 w-4 text-amber-400" />
-            <span className="text-xs font-semibold text-foreground">Top Performing Content</span>
-            <Badge variant="outline" className="text-[8px] border-amber-500/30 text-amber-400">{contentStats.bestEngagement.toFixed(1)}% eng. rate</Badge>
+      {/* ===== REEL METRICS ===== */}
+      {REEL_METRICS.length > 0 && (
+        <>
+          <div className="flex items-center gap-2">
+            <Video className="h-3.5 w-3.5 text-pink-400" />
+            <span className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Reel Performance</span>
+            <Badge variant="outline" className="text-[8px] border-pink-500/20 text-pink-400">{contentStats?.totalReels} reels</Badge>
           </div>
-          {renderMediaCard(contentStats.bestPost, contentStats.bestPost.media_type === "VIDEO" ? "reel" : "post")}
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+            {REEL_METRICS.map(s => (
+              <MetricCard key={s.label} label={s.label} value={s.value} icon={s.icon} color={s.color} />
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* ===== STORY METRICS ===== */}
+      {STORY_METRICS.length > 0 && (
+        <>
+          <div className="flex items-center gap-2">
+            <Layers className="h-3.5 w-3.5 text-violet-400" />
+            <span className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Story Performance</span>
+            <Badge variant="outline" className="text-[8px] border-violet-500/20 text-violet-400">{contentStats?.totalStories} stories</Badge>
+          </div>
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+            {STORY_METRICS.map(s => (
+              <MetricCard key={s.label} label={s.label} value={s.value} icon={s.icon} color={s.color} />
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* ===== BEST + WORST PERFORMING POST ===== */}
+      {contentStats?.bestPost && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20 rounded-xl p-3">
+            <div className="flex items-center gap-2 mb-2">
+              <Trophy className="h-4 w-4 text-amber-400" />
+              <span className="text-xs font-semibold text-foreground">Top Performing</span>
+              <Badge variant="outline" className="text-[8px] border-amber-500/30 text-amber-400">{contentStats.bestEngagement.toFixed(1)}% eng</Badge>
+            </div>
+            {renderMediaCard(contentStats.bestPost, contentStats.bestPost.media_type === "VIDEO" ? "reel" : "post")}
+          </div>
+          {contentStats.worstPost && contentStats.worstEngagement < contentStats.bestEngagement && (
+            <div className="bg-gradient-to-r from-red-500/5 to-orange-500/5 border border-red-500/15 rounded-xl p-3">
+              <div className="flex items-center gap-2 mb-2">
+                <TrendingDown className="h-4 w-4 text-red-400" />
+                <span className="text-xs font-semibold text-foreground">Lowest Performing</span>
+                <Badge variant="outline" className="text-[8px] border-red-500/30 text-red-400">{contentStats.worstEngagement.toFixed(1)}% eng</Badge>
+              </div>
+              {renderMediaCard(contentStats.worstPost, contentStats.worstPost.media_type === "VIDEO" ? "reel" : "post")}
+            </div>
+          )}
         </div>
       )}
 
@@ -532,7 +696,6 @@ const IGInsightsDashboard = ({ selectedAccount }: Props) => {
             )}
           </CardContent>
         </Card>
-
         <Card className="bg-white/[0.03] border-white/[0.06]">
           <CardContent className="p-3">
             <h4 className="text-xs font-semibold text-foreground mb-2 flex items-center gap-1.5">
@@ -545,7 +708,6 @@ const IGInsightsDashboard = ({ selectedAccount }: Props) => {
             )}
           </CardContent>
         </Card>
-
         <Card className="bg-white/[0.03] border-white/[0.06]">
           <CardContent className="p-3">
             <h4 className="text-xs font-semibold text-foreground mb-2 flex items-center gap-1.5">
@@ -558,7 +720,6 @@ const IGInsightsDashboard = ({ selectedAccount }: Props) => {
             )}
           </CardContent>
         </Card>
-
         <Card className="bg-white/[0.03] border-white/[0.06]">
           <CardContent className="p-3">
             <h4 className="text-xs font-semibold text-foreground mb-2 flex items-center gap-1.5">
@@ -588,7 +749,6 @@ const IGInsightsDashboard = ({ selectedAccount }: Props) => {
                   <TabsTrigger value="stories" className="text-[10px] h-5 px-2 gap-1"><Layers className="h-3 w-3" />Stories ({storyInsights.length})</TabsTrigger>
                 </TabsList>
               </div>
-
               <TabsContent value="reels">
                 <ScrollArea className="max-h-[400px]">
                   <div className="space-y-2">
@@ -596,7 +756,6 @@ const IGInsightsDashboard = ({ selectedAccount }: Props) => {
                   </div>
                 </ScrollArea>
               </TabsContent>
-
               <TabsContent value="posts">
                 <ScrollArea className="max-h-[400px]">
                   <div className="space-y-2">
@@ -604,7 +763,6 @@ const IGInsightsDashboard = ({ selectedAccount }: Props) => {
                   </div>
                 </ScrollArea>
               </TabsContent>
-
               <TabsContent value="stories">
                 <ScrollArea className="max-h-[400px]">
                   <div className="space-y-2">
