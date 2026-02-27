@@ -1322,9 +1322,107 @@ Analyze every character in the name and username for any gender signal at all. L
         break;
       }
 
-      case "get_account_insights_demographics":
-        result = await igFetch(`/${igUserId}/insights?metric=follower_demographics,reached_audience_demographics,engaged_audience_demographics&period=lifetime&metric_type=total_value&timeframe=last_90_days`, token);
+      case "get_account_insights_demographics": {
+        const demographicMetrics = [
+          "follower_demographics",
+          "reached_audience_demographics",
+          "engaged_audience_demographics",
+        ];
+
+        const normalizeDemographicRow = (metricName: string, row: any) => {
+          const breakdowns = row?.total_value?.breakdowns;
+          const results = Array.isArray(breakdowns)
+            ? breakdowns.flatMap((b: any) => (Array.isArray(b?.results) ? b.results : []))
+            : [];
+
+          if (results.length > 0) {
+            const valueObject = results.reduce((acc: Record<string, number>, item: any, idx: number) => {
+              const key = Array.isArray(item?.dimension_values)
+                ? item.dimension_values.join(" · ")
+                : item?.dimension_values || item?.name || `segment_${idx}`;
+              const rawValue = item?.value;
+              acc[String(key)] = typeof rawValue === "number" ? rawValue : 0;
+              return acc;
+            }, {});
+
+            return {
+              ...row,
+              name: metricName,
+              values: [{ value: valueObject, end_time: new Date().toISOString() }],
+            };
+          }
+
+          return { ...row, name: metricName };
+        };
+
+        const hasUsableValues = (row: any) => {
+          if (!row) return false;
+          const values = Array.isArray(row?.values) ? row.values : [];
+          const usableValue = values.find((v: any) => {
+            if (!v) return false;
+            if (typeof v.value === "number") return true;
+            if (v.value && typeof v.value === "object") return Object.keys(v.value).length > 0;
+            return false;
+          });
+
+          if (usableValue) return true;
+
+          const breakdowns = row?.total_value?.breakdowns;
+          return Array.isArray(breakdowns)
+            ? breakdowns.some((b: any) => Array.isArray(b?.results) && b.results.length > 0)
+            : false;
+        };
+
+        let baseRows: any[] = [];
+        try {
+          const base = await igFetch(
+            `/${igUserId}/insights?metric=follower_demographics,reached_audience_demographics,engaged_audience_demographics&period=lifetime&metric_type=total_value&timeframe=last_90_days`,
+            token,
+          );
+          baseRows = (base?.data || []).map((row: any) => normalizeDemographicRow(row?.name, row));
+        } catch (err: any) {
+          console.log("[get_account_insights_demographics] bulk fetch failed:", err?.message || err);
+        }
+
+        const missingMetrics = demographicMetrics.filter((metricName) => {
+          const existing = baseRows.find((row: any) => row?.name === metricName);
+          return !hasUsableValues(existing);
+        });
+
+        const fallbackRows = await Promise.all(
+          missingMetrics.map(async (metricName) => {
+            const queries = [
+              `metric=${metricName}&period=lifetime&metric_type=total_value&breakdown=age,gender&timeframe=last_90_days`,
+              `metric=${metricName}&period=lifetime&metric_type=total_value&breakdown=age,gender`,
+              `metric=${metricName}&period=lifetime`,
+            ];
+
+            for (const q of queries) {
+              try {
+                const res = await igFetch(`/${igUserId}/insights?${q}`, token);
+                const row = res?.data?.[0];
+                if (row) {
+                  const normalized = normalizeDemographicRow(metricName, row);
+                  if (hasUsableValues(normalized)) return normalized;
+                }
+              } catch (err: any) {
+                console.log(`[get_account_insights_demographics] metric=${metricName} query=${q} failed:`, err?.message || err);
+              }
+            }
+
+            return null;
+          }),
+        );
+
+        const merged = Array.from(
+          new Map(
+            [...baseRows, ...fallbackRows.filter(Boolean)].map((row: any) => [row.name, row]),
+          ).values(),
+        );
+
+        result = { data: merged };
         break;
+      }
 
       case "get_account_insights_online_followers":
         result = await igFetch(`/${igUserId}/insights?metric=online_followers&period=lifetime`, token);
