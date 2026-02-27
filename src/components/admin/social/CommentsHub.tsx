@@ -19,6 +19,7 @@ import {
   Trophy, Shield, BarChart3, Download, Filter, TrendingUp, Users, Flame,
   UserPlus, Zap, Key, Link2, AlertTriangle, CheckCircle2,
   Play, Pause, HeartHandshake, MessageCircle, Reply, Star, Pin, BellRing,
+  Target, Megaphone, UserCheck, Mail, HelpCircle, Magnet,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import CreditCostBadge from "../CreditCostBadge";
@@ -180,10 +181,22 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading, onNavigateTo
   const [autoPinTopComment, setAutoPinTopComment] = useState(false);
   const [autoThankNewFollower, setAutoThankNewFollower] = useState(false);
   const [autoHideNegative, setAutoHideNegative] = useState(false);
+  const [autoDmCommenters, setAutoDmCommenters] = useState(false);
+  const [autoFollowCommenters, setAutoFollowCommenters] = useState(false);
+  const [autoCtaInject, setAutoCtaInject] = useState(false);
+  const [autoBoostEngagement, setAutoBoostEngagement] = useState(false);
+  const [autoQuestionResponder, setAutoQuestionResponder] = useState(false);
+  const [autoLeadCapture, setAutoLeadCapture] = useState(false);
   const autoReplyRef = useRef(false);
   const autoLikeRef = useRef(false);
   const autoLikeRepliesRef = useRef(false);
-  const [autoReplyStats, setAutoReplyStats] = useState({ replied: 0, liked: 0, likedReplies: 0, hidden: 0, pinned: 0 });
+  const autoDmRef = useRef(false);
+  const autoFollowRef = useRef(false);
+  const autoCtaRef = useRef(false);
+  const autoBoostRef = useRef(false);
+  const autoQuestionRef = useRef(false);
+  const autoLeadRef = useRef(false);
+  const [autoReplyStats, setAutoReplyStats] = useState({ replied: 0, liked: 0, likedReplies: 0, hidden: 0, pinned: 0, dmd: 0, followed: 0, ctas: 0, boosted: 0, questions: 0, leads: 0 });
   const autoIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [likingCommentId, setLikingCommentId] = useState<string | null>(null);
 
@@ -1062,12 +1075,305 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading, onNavigateTo
     } catch { toast.error("Auto-hide failed"); }
   };
 
+  // === Auto-DM Commenters (buying signal commenters get a DM) ===
+  const toggleAutoDmCommenters = () => {
+    if (autoDmCommenters) {
+      autoDmRef.current = false;
+      setAutoDmCommenters(false);
+      toast.info("Auto-DM Commenters paused");
+    } else {
+      if (!selectedPostId) { toast.error("Select a post first"); return; }
+      autoDmRef.current = true;
+      setAutoDmCommenters(true);
+      toast.success("Auto-DM activated — buying-signal commenters get a DM");
+      runAutoDmLoop();
+    }
+  };
+
+  const runAutoDmLoop = async () => {
+    const dmdUsers = new Set<string>();
+    while (autoDmRef.current) {
+      try {
+        const funcName = selectedPlatform === "instagram" ? "instagram-api" : "tiktok-api";
+        const d = await callApi(funcName, { action: "get_comments", params: selectedPlatform === "instagram" ? { media_id: selectedPostId, limit: 50 } : { video_id: selectedPostId, limit: 50 } });
+        const comments = d?.data || [];
+        const buyingKeywords = ["price", "how much", "link", "buy", "order", "cost", "where", "available", "ship", "dm me", "interested"];
+        for (const c of comments) {
+          if (!autoDmRef.current) break;
+          const username = c.username || c.from?.username || "";
+          if (dmdUsers.has(username) || !username) continue;
+          const text = (c.text || "").toLowerCase();
+          const isBuying = buyingKeywords.some(kw => text.includes(kw));
+          if (!isBuying) continue;
+          dmdUsers.add(username);
+          try {
+            const aiResult = await callApi("social-ai-responder", {
+              action: "generate_dm_from_comment",
+              params: { comment_text: c.text, comment_author: username, redirect_url: aiRedirectUrl },
+            });
+            const dmText = aiResult?.dm || `hey ${username}! saw your comment — check your DMs for something special 💕`;
+            await callApi(funcName, { action: "send_message", params: { recipient_id: username, message: dmText } });
+            setAutoReplyStats(prev => ({ ...prev, dmd: prev.dmd + 1 }));
+          } catch { /* skip */ }
+          await new Promise(r => setTimeout(r, 3000));
+        }
+      } catch { /* polling error */ }
+      await new Promise(r => setTimeout(r, 20000));
+    }
+  };
+
+  // === Auto-Follow Commenters (follow back engaged fans) ===
+  const toggleAutoFollowCommenters = () => {
+    if (autoFollowCommenters) {
+      autoFollowRef.current = false;
+      setAutoFollowCommenters(false);
+      toast.info("Auto-Follow paused");
+    } else {
+      if (!selectedPostId) { toast.error("Select a post first"); return; }
+      autoFollowRef.current = true;
+      setAutoFollowCommenters(true);
+      toast.success("Auto-Follow activated — engaged commenters will be followed");
+      runAutoFollowLoop();
+    }
+  };
+
+  const runAutoFollowLoop = async () => {
+    const followedUsers = new Set<string>();
+    while (autoFollowRef.current) {
+      try {
+        const funcName = selectedPlatform === "instagram" ? "instagram-api" : "tiktok-api";
+        const d = await callApi(funcName, { action: "get_comments", params: selectedPlatform === "instagram" ? { media_id: selectedPostId, limit: 50 } : { video_id: selectedPostId, limit: 50 } });
+        const comments = d?.data || [];
+        for (const c of comments) {
+          if (!autoFollowRef.current) break;
+          const userId = c.from?.id || c.user_id || c.id;
+          if (followedUsers.has(userId)) continue;
+          followedUsers.add(userId);
+          try {
+            await callApi(funcName, { action: "follow_user", params: { user_id: userId } });
+            setAutoReplyStats(prev => ({ ...prev, followed: prev.followed + 1 }));
+          } catch { /* skip */ }
+          await new Promise(r => setTimeout(r, 4000));
+        }
+      } catch { /* polling error */ }
+      await new Promise(r => setTimeout(r, 30000));
+    }
+  };
+
+  // === Auto-CTA Inject (add CTA reply to high-engagement comments) ===
+  const toggleAutoCtaInject = () => {
+    if (autoCtaInject) {
+      autoCtaRef.current = false;
+      setAutoCtaInject(false);
+      toast.info("Auto-CTA paused");
+    } else {
+      if (!selectedPostId) { toast.error("Select a post first"); return; }
+      autoCtaRef.current = true;
+      setAutoCtaInject(true);
+      toast.success("Auto-CTA activated — high-engagement comments get a CTA reply");
+      runAutoCtaLoop();
+    }
+  };
+
+  const runAutoCtaLoop = async () => {
+    const ctaIds = new Set<string>();
+    while (autoCtaRef.current) {
+      try {
+        const funcName = selectedPlatform === "instagram" ? "instagram-api" : "tiktok-api";
+        const d = await callApi(funcName, { action: "get_comments", params: selectedPlatform === "instagram" ? { media_id: selectedPostId, limit: 50 } : { video_id: selectedPostId, limit: 50 } });
+        const comments = d?.data || [];
+        const sorted = [...comments].sort((a: any, b: any) => (b.like_count || 0) - (a.like_count || 0));
+        for (const c of sorted.slice(0, 10)) {
+          if (!autoCtaRef.current) break;
+          if (ctaIds.has(c.id)) continue;
+          if ((c.like_count || 0) < 2) continue;
+          ctaIds.add(c.id);
+          try {
+            const aiResult = await callApi("social-ai-responder", {
+              action: "generate_cta_reply",
+              params: { comment_text: c.text, comment_author: c.username || "fan", redirect_url: aiRedirectUrl },
+            });
+            const ctaReply = aiResult?.reply || `thanks for the love! 🔥 link in bio for more`;
+            const replyParams = selectedPlatform === "instagram"
+              ? { comment_id: c.id, media_id: selectedPostId, message: ctaReply, comment_text: c.text, comment_author: c.username }
+              : { video_id: selectedPostId, comment_id: c.id, message: ctaReply };
+            await callApi(funcName, { action: "reply_to_comment", params: replyParams });
+            setAutoReplyStats(prev => ({ ...prev, ctas: prev.ctas + 1 }));
+          } catch { /* skip */ }
+          await new Promise(r => setTimeout(r, 3000));
+        }
+      } catch { /* polling error */ }
+      await new Promise(r => setTimeout(r, 25000));
+    }
+  };
+
+  // === Auto-Boost Engagement (like + reply combo to maximize algorithm) ===
+  const toggleAutoBoostEngagement = () => {
+    if (autoBoostEngagement) {
+      autoBoostRef.current = false;
+      setAutoBoostEngagement(false);
+      toast.info("Auto-Boost paused");
+    } else {
+      if (!selectedPostId) { toast.error("Select a post first"); return; }
+      autoBoostRef.current = true;
+      setAutoBoostEngagement(true);
+      toast.success("Auto-Boost activated — like + reply to maximize reach");
+      runAutoBoostLoop();
+    }
+  };
+
+  const runAutoBoostLoop = async () => {
+    const boostedIds = new Set<string>();
+    while (autoBoostRef.current) {
+      try {
+        const funcName = selectedPlatform === "instagram" ? "instagram-api" : "tiktok-api";
+        const d = await callApi(funcName, { action: "get_comments", params: selectedPlatform === "instagram" ? { media_id: selectedPostId, limit: 50 } : { video_id: selectedPostId, limit: 50 } });
+        const comments = d?.data || [];
+        for (const c of comments) {
+          if (!autoBoostRef.current) break;
+          if (boostedIds.has(c.id)) continue;
+          boostedIds.add(c.id);
+          try {
+            // Like the comment first
+            await callApi(funcName, { action: "like_comment", params: { comment_id: c.id } });
+            await new Promise(r => setTimeout(r, 1500));
+            // Then reply with engagement-boosting message
+            const aiResult = await callApi("social-ai-responder", {
+              action: "generate_comment_reply",
+              params: { comment_text: c.text, comment_author: c.username || "fan", redirect_url: aiRedirectUrl },
+            });
+            if (aiResult?.reply) {
+              const replyParams = selectedPlatform === "instagram"
+                ? { comment_id: c.id, media_id: selectedPostId, message: aiResult.reply, comment_text: c.text, comment_author: c.username }
+                : { video_id: selectedPostId, comment_id: c.id, message: aiResult.reply };
+              await callApi(funcName, { action: "reply_to_comment", params: replyParams });
+            }
+            setAutoReplyStats(prev => ({ ...prev, boosted: prev.boosted + 1 }));
+          } catch { /* skip */ }
+          await new Promise(r => setTimeout(r, 3000));
+        }
+      } catch { /* polling error */ }
+      await new Promise(r => setTimeout(r, 20000));
+    }
+  };
+
+  // === Auto-Question Responder (detect questions and answer with AI) ===
+  const toggleAutoQuestionResponder = () => {
+    if (autoQuestionResponder) {
+      autoQuestionRef.current = false;
+      setAutoQuestionResponder(false);
+      toast.info("Auto-Question Responder paused");
+    } else {
+      if (!selectedPostId) { toast.error("Select a post first"); return; }
+      autoQuestionRef.current = true;
+      setAutoQuestionResponder(true);
+      toast.success("Auto-Question Responder activated — questions get instant answers");
+      runAutoQuestionLoop();
+    }
+  };
+
+  const runAutoQuestionLoop = async () => {
+    const answeredIds = new Set<string>();
+    while (autoQuestionRef.current) {
+      try {
+        const funcName = selectedPlatform === "instagram" ? "instagram-api" : "tiktok-api";
+        const d = await callApi(funcName, { action: "get_comments", params: selectedPlatform === "instagram" ? { media_id: selectedPostId, limit: 50 } : { video_id: selectedPostId, limit: 50 } });
+        const comments = d?.data || [];
+        for (const c of comments) {
+          if (!autoQuestionRef.current) break;
+          if (answeredIds.has(c.id)) continue;
+          const text = (c.text || "").trim();
+          const isQuestion = text.includes("?") || /^(how|what|when|where|why|who|can|do|does|is|are|will|would|should|could)\b/i.test(text);
+          if (!isQuestion) continue;
+          answeredIds.add(c.id);
+          try {
+            const aiResult = await callApi("social-ai-responder", {
+              action: "generate_comment_reply",
+              params: { comment_text: c.text, comment_author: c.username || "fan", redirect_url: aiRedirectUrl },
+            });
+            if (aiResult?.reply) {
+              const replyParams = selectedPlatform === "instagram"
+                ? { comment_id: c.id, media_id: selectedPostId, message: aiResult.reply, comment_text: c.text, comment_author: c.username }
+                : { video_id: selectedPostId, comment_id: c.id, message: aiResult.reply };
+              await callApi(funcName, { action: "reply_to_comment", params: replyParams });
+              setAutoReplyStats(prev => ({ ...prev, questions: prev.questions + 1 }));
+            }
+          } catch { /* skip */ }
+          await new Promise(r => setTimeout(r, 3000));
+        }
+      } catch { /* polling error */ }
+      await new Promise(r => setTimeout(r, 18000));
+    }
+  };
+
+  // === Auto-Lead Capture (DM users showing buying intent + log them) ===
+  const toggleAutoLeadCapture = () => {
+    if (autoLeadCapture) {
+      autoLeadRef.current = false;
+      setAutoLeadCapture(false);
+      toast.info("Auto-Lead Capture paused");
+    } else {
+      if (!selectedPostId) { toast.error("Select a post first"); return; }
+      autoLeadRef.current = true;
+      setAutoLeadCapture(true);
+      toast.success("Auto-Lead Capture activated — hot leads get DM'd & logged");
+      runAutoLeadLoop();
+    }
+  };
+
+  const runAutoLeadLoop = async () => {
+    const capturedLeads = new Set<string>();
+    const leadKeywords = ["price", "how much", "buy", "order", "link", "website", "store", "shop", "purchase", "cost", "dm", "interested", "want this", "need this", "where can i"];
+    while (autoLeadRef.current) {
+      try {
+        const funcName = selectedPlatform === "instagram" ? "instagram-api" : "tiktok-api";
+        const d = await callApi(funcName, { action: "get_comments", params: selectedPlatform === "instagram" ? { media_id: selectedPostId, limit: 50 } : { video_id: selectedPostId, limit: 50 } });
+        const comments = d?.data || [];
+        for (const c of comments) {
+          if (!autoLeadRef.current) break;
+          const username = c.username || c.from?.username || "";
+          if (capturedLeads.has(username) || !username) continue;
+          const text = (c.text || "").toLowerCase();
+          const isLead = leadKeywords.some(kw => text.includes(kw));
+          if (!isLead) continue;
+          capturedLeads.add(username);
+          try {
+            // Reply to comment with CTA
+            const aiResult = await callApi("social-ai-responder", {
+              action: "generate_cta_reply",
+              params: { comment_text: c.text, comment_author: username, redirect_url: aiRedirectUrl },
+            });
+            if (aiResult?.reply) {
+              const replyParams = selectedPlatform === "instagram"
+                ? { comment_id: c.id, media_id: selectedPostId, message: aiResult.reply, comment_text: c.text, comment_author: username }
+                : { video_id: selectedPostId, comment_id: c.id, message: aiResult.reply };
+              await callApi(funcName, { action: "reply_to_comment", params: replyParams });
+            }
+            await new Promise(r => setTimeout(r, 2000));
+            // DM the lead
+            const dmText = aiResult?.dm || `hey ${username}! thanks for the interest 💕 check this out: ${aiRedirectUrl || "link in bio"}`;
+            await callApi(funcName, { action: "send_message", params: { recipient_id: username, message: dmText } });
+            setAutoReplyStats(prev => ({ ...prev, leads: prev.leads + 1 }));
+          } catch { /* skip */ }
+          await new Promise(r => setTimeout(r, 4000));
+        }
+      } catch { /* polling error */ }
+      await new Promise(r => setTimeout(r, 20000));
+    }
+  };
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
       autoReplyRef.current = false;
       autoLikeRef.current = false;
       autoLikeRepliesRef.current = false;
+      autoDmRef.current = false;
+      autoFollowRef.current = false;
+      autoCtaRef.current = false;
+      autoBoostRef.current = false;
+      autoQuestionRef.current = false;
+      autoLeadRef.current = false;
       if (autoIntervalRef.current) clearInterval(autoIntervalRef.current);
     };
   }, []);
@@ -1140,11 +1446,11 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading, onNavigateTo
                 <div className="flex items-center gap-2 mb-1">
                   <Bot className="h-3.5 w-3.5 text-primary" />
                   <span className="text-[10px] font-bold text-foreground">AI Comment Automation Engine</span>
-                  {(autoReplyActive || autoLikeCommentsActive || autoLikeRepliesActive) && (
+                  {(autoReplyActive || autoLikeCommentsActive || autoLikeRepliesActive || autoDmCommenters || autoFollowCommenters || autoCtaInject || autoBoostEngagement || autoQuestionResponder || autoLeadCapture) && (
                     <Badge className="bg-emerald-500/15 text-emerald-400 border-emerald-500/30 text-[8px] animate-pulse">LIVE</Badge>
                   )}
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-1.5">
                   {/* Auto AI Reply */}
                   <button onClick={toggleAutoReply}
                     className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-[9px] font-medium transition-all border ${autoReplyActive ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-400" : "bg-white/[0.03] border-white/[0.06] text-muted-foreground hover:text-foreground hover:bg-white/[0.06]"}`}>
@@ -1187,16 +1493,64 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading, onNavigateTo
                     <Star className="h-3 w-3" />
                     Auto-Thank Fans
                   </button>
+                  {/* Auto-DM Commenters */}
+                  <button onClick={toggleAutoDmCommenters}
+                    className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-[9px] font-medium transition-all border ${autoDmCommenters ? "bg-violet-500/15 border-violet-500/30 text-violet-400" : "bg-white/[0.03] border-white/[0.06] text-muted-foreground hover:text-foreground hover:bg-white/[0.06]"}`}>
+                    {autoDmCommenters ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
+                    <Mail className="h-3 w-3" />
+                    Auto-DM Buyers
+                  </button>
+                  {/* Auto-Follow Commenters */}
+                  <button onClick={toggleAutoFollowCommenters}
+                    className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-[9px] font-medium transition-all border ${autoFollowCommenters ? "bg-teal-500/15 border-teal-500/30 text-teal-400" : "bg-white/[0.03] border-white/[0.06] text-muted-foreground hover:text-foreground hover:bg-white/[0.06]"}`}>
+                    {autoFollowCommenters ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
+                    <UserCheck className="h-3 w-3" />
+                    Auto-Follow Fans
+                  </button>
+                  {/* Auto-CTA Inject */}
+                  <button onClick={toggleAutoCtaInject}
+                    className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-[9px] font-medium transition-all border ${autoCtaInject ? "bg-amber-500/15 border-amber-500/30 text-amber-400" : "bg-white/[0.03] border-white/[0.06] text-muted-foreground hover:text-foreground hover:bg-white/[0.06]"}`}>
+                    {autoCtaInject ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
+                    <Megaphone className="h-3 w-3" />
+                    Auto-CTA Inject
+                  </button>
+                  {/* Auto-Boost Engagement */}
+                  <button onClick={toggleAutoBoostEngagement}
+                    className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-[9px] font-medium transition-all border ${autoBoostEngagement ? "bg-fuchsia-500/15 border-fuchsia-500/30 text-fuchsia-400" : "bg-white/[0.03] border-white/[0.06] text-muted-foreground hover:text-foreground hover:bg-white/[0.06]"}`}>
+                    {autoBoostEngagement ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
+                    <TrendingUp className="h-3 w-3" />
+                    Auto-Boost
+                  </button>
+                  {/* Auto-Question Responder */}
+                  <button onClick={toggleAutoQuestionResponder}
+                    className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-[9px] font-medium transition-all border ${autoQuestionResponder ? "bg-sky-500/15 border-sky-500/30 text-sky-400" : "bg-white/[0.03] border-white/[0.06] text-muted-foreground hover:text-foreground hover:bg-white/[0.06]"}`}>
+                    {autoQuestionResponder ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
+                    <HelpCircle className="h-3 w-3" />
+                    Auto-Answer Q's
+                  </button>
+                  {/* Auto-Lead Capture */}
+                  <button onClick={toggleAutoLeadCapture}
+                    className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-[9px] font-medium transition-all border ${autoLeadCapture ? "bg-lime-500/15 border-lime-500/30 text-lime-400" : "bg-white/[0.03] border-white/[0.06] text-muted-foreground hover:text-foreground hover:bg-white/[0.06]"}`}>
+                    {autoLeadCapture ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
+                    <Magnet className="h-3 w-3" />
+                    Auto-Lead Capture
+                  </button>
                 </div>
                 {/* Live stats */}
-                {(autoReplyStats.replied > 0 || autoReplyStats.liked > 0 || autoReplyStats.likedReplies > 0 || autoReplyStats.hidden > 0) && (
-                  <div className="flex items-center gap-3 text-[9px] pt-1 border-t border-white/[0.06]">
+                {(autoReplyStats.replied > 0 || autoReplyStats.liked > 0 || autoReplyStats.likedReplies > 0 || autoReplyStats.hidden > 0 || autoReplyStats.dmd > 0 || autoReplyStats.followed > 0 || autoReplyStats.ctas > 0 || autoReplyStats.boosted > 0 || autoReplyStats.questions > 0 || autoReplyStats.leads > 0) && (
+                  <div className="flex items-center gap-3 text-[9px] pt-1 border-t border-white/[0.06] flex-wrap">
                     <span className="text-muted-foreground">Session stats:</span>
                     {autoReplyStats.replied > 0 && <span className="text-emerald-400">💬 {autoReplyStats.replied} replied</span>}
                     {autoReplyStats.liked > 0 && <span className="text-pink-400">❤️ {autoReplyStats.liked} liked</span>}
                     {autoReplyStats.likedReplies > 0 && <span className="text-orange-400">🧡 {autoReplyStats.likedReplies} reply likes</span>}
                     {autoReplyStats.hidden > 0 && <span className="text-red-400">🛡️ {autoReplyStats.hidden} hidden</span>}
-                    <button onClick={() => setAutoReplyStats({ replied: 0, liked: 0, likedReplies: 0, hidden: 0, pinned: 0 })}
+                    {autoReplyStats.dmd > 0 && <span className="text-violet-400">📩 {autoReplyStats.dmd} DM'd</span>}
+                    {autoReplyStats.followed > 0 && <span className="text-teal-400">👤 {autoReplyStats.followed} followed</span>}
+                    {autoReplyStats.ctas > 0 && <span className="text-amber-400">📣 {autoReplyStats.ctas} CTAs</span>}
+                    {autoReplyStats.boosted > 0 && <span className="text-fuchsia-400">🚀 {autoReplyStats.boosted} boosted</span>}
+                    {autoReplyStats.questions > 0 && <span className="text-sky-400">❓ {autoReplyStats.questions} answered</span>}
+                    {autoReplyStats.leads > 0 && <span className="text-lime-400">🧲 {autoReplyStats.leads} leads</span>}
+                    <button onClick={() => setAutoReplyStats({ replied: 0, liked: 0, likedReplies: 0, hidden: 0, pinned: 0, dmd: 0, followed: 0, ctas: 0, boosted: 0, questions: 0, leads: 0 })}
                       className="text-muted-foreground hover:text-foreground ml-auto"><X className="h-2.5 w-2.5" /></button>
                   </div>
                 )}
