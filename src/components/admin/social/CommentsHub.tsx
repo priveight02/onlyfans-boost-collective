@@ -18,6 +18,7 @@ import {
   Bookmark, MoreHorizontal, ThumbsUp, Repeat2, Check, Square, CheckSquare,
   Trophy, Shield, BarChart3, Download, Filter, TrendingUp, Users, Flame,
   UserPlus, Zap, Key, Link2, AlertTriangle, CheckCircle2,
+  Play, Pause, HeartHandshake, MessageCircle, Reply, Star, Pin, BellRing,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import CreditCostBadge from "../CreditCostBadge";
@@ -171,6 +172,20 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading, onNavigateTo
   const [sessionSavedAt, setSessionSavedAt] = useState<string | null>(null);
   const [sessionLoading, setSessionLoading] = useState(false);
   const [sessionStatus, setSessionStatus] = useState<"unknown" | "valid" | "expired">("unknown");
+
+  // === AI COMMENT AUTOMATION ENGINE ===
+  const [autoReplyActive, setAutoReplyActive] = useState(false);
+  const [autoLikeCommentsActive, setAutoLikeCommentsActive] = useState(false);
+  const [autoLikeRepliesActive, setAutoLikeRepliesActive] = useState(false);
+  const [autoPinTopComment, setAutoPinTopComment] = useState(false);
+  const [autoThankNewFollower, setAutoThankNewFollower] = useState(false);
+  const [autoHideNegative, setAutoHideNegative] = useState(false);
+  const autoReplyRef = useRef(false);
+  const autoLikeRef = useRef(false);
+  const autoLikeRepliesRef = useRef(false);
+  const [autoReplyStats, setAutoReplyStats] = useState({ replied: 0, liked: 0, likedReplies: 0, hidden: 0, pinned: 0 });
+  const autoIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [likingCommentId, setLikingCommentId] = useState<string | null>(null);
 
   // Load existing session on mount
   useEffect(() => {
@@ -865,7 +880,199 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading, onNavigateTo
     toast.success(`Followed ${done} users (${failed} failed)`);
   };
 
-  const connectedPlatforms = connections.filter((c: any) => c.is_connected && ["instagram", "tiktok"].includes(c.platform));
+  // === Like a single comment ===
+  const likeComment = async (commentId: string) => {
+    setLikingCommentId(commentId);
+    try {
+      const funcName = selectedPlatform === "instagram" ? "instagram-api" : "tiktok-api";
+      await callApi(funcName, { action: "like_comment", params: { comment_id: commentId } });
+      toast.success("Comment liked");
+    } catch { toast.error("Like comment failed"); }
+    setLikingCommentId(null);
+  };
+
+  // === AI AUTOMATION: Auto-reply to comments ===
+  const toggleAutoReply = () => {
+    if (autoReplyActive) {
+      autoReplyRef.current = false;
+      setAutoReplyActive(false);
+      toast.info("AI Auto-Reply paused");
+    } else {
+      if (!selectedPostId) { toast.error("Select a post first"); return; }
+      autoReplyRef.current = true;
+      setAutoReplyActive(true);
+      toast.success("AI Auto-Reply activated — will reply to new comments");
+      runAutoReplyLoop();
+    }
+  };
+
+  const runAutoReplyLoop = async () => {
+    const processedIds = new Set(commentsList.map(c => c.id));
+    while (autoReplyRef.current) {
+      await new Promise(r => setTimeout(r, 15000)); // check every 15s
+      if (!autoReplyRef.current) break;
+      try {
+        const funcName = selectedPlatform === "instagram" ? "instagram-api" : "tiktok-api";
+        const params = selectedPlatform === "instagram"
+          ? { media_id: selectedPostId, limit: 50 }
+          : { video_id: selectedPostId, limit: 50 };
+        const d = await callApi(funcName, { action: "get_comments", params });
+        const freshComments = (d?.data || d?.data?.comments || []).map((c: any) => ({
+          id: c.id, text: c.text || "", username: c.username || c.from?.username || c.user?.unique_id || "user",
+        }));
+        const newComments = freshComments.filter((c: any) => !processedIds.has(c.id));
+        for (const nc of newComments) {
+          if (!autoReplyRef.current) break;
+          processedIds.add(nc.id);
+          try {
+            const aiResult = await callApi("social-ai-responder", {
+              action: "generate_comment_reply",
+              params: { comment_text: nc.text, comment_author: nc.username, redirect_url: aiRedirectUrl },
+            });
+            if (aiResult?.reply) {
+              const replyParams = selectedPlatform === "instagram"
+                ? { comment_id: nc.id, media_id: selectedPostId, message: aiResult.reply, comment_text: nc.text, comment_author: nc.username }
+                : { video_id: selectedPostId, comment_id: nc.id, message: aiResult.reply };
+              await callApi(funcName, { action: "reply_to_comment", params: replyParams });
+              setAutoReplyStats(prev => ({ ...prev, replied: prev.replied + 1 }));
+            }
+          } catch { /* skip failed reply */ }
+          await new Promise(r => setTimeout(r, 3000));
+        }
+      } catch { /* polling error, retry */ }
+    }
+  };
+
+  // === AI AUTOMATION: Auto-like comments ===
+  const toggleAutoLikeComments = () => {
+    if (autoLikeCommentsActive) {
+      autoLikeRef.current = false;
+      setAutoLikeCommentsActive(false);
+      toast.info("Auto-Like Comments paused");
+    } else {
+      if (!selectedPostId) { toast.error("Select a post first"); return; }
+      autoLikeRef.current = true;
+      setAutoLikeCommentsActive(true);
+      toast.success("Auto-Like Comments activated");
+      runAutoLikeLoop();
+    }
+  };
+
+  const runAutoLikeLoop = async () => {
+    const likedIds = new Set<string>();
+    while (autoLikeRef.current) {
+      try {
+        const funcName = selectedPlatform === "instagram" ? "instagram-api" : "tiktok-api";
+        const params = selectedPlatform === "instagram"
+          ? { media_id: selectedPostId, limit: 50 }
+          : { video_id: selectedPostId, limit: 50 };
+        const d = await callApi(funcName, { action: "get_comments", params });
+        const freshComments = (d?.data || d?.data?.comments || []);
+        for (const c of freshComments) {
+          if (!autoLikeRef.current) break;
+          const cId = c.id;
+          if (likedIds.has(cId)) continue;
+          likedIds.add(cId);
+          try {
+            await callApi(funcName, { action: "like_comment", params: { comment_id: cId } });
+            setAutoReplyStats(prev => ({ ...prev, liked: prev.liked + 1 }));
+          } catch { /* skip */ }
+          await new Promise(r => setTimeout(r, 2000));
+        }
+      } catch { /* polling error */ }
+      await new Promise(r => setTimeout(r, 20000));
+    }
+  };
+
+  // === AI AUTOMATION: Auto-like replies ===
+  const toggleAutoLikeReplies = () => {
+    if (autoLikeRepliesActive) {
+      autoLikeRepliesRef.current = false;
+      setAutoLikeRepliesActive(false);
+      toast.info("Auto-Like Replies paused");
+    } else {
+      if (!selectedPostId) { toast.error("Select a post first"); return; }
+      autoLikeRepliesRef.current = true;
+      setAutoLikeRepliesActive(true);
+      toast.success("Auto-Like Replies activated");
+      runAutoLikeRepliesLoop();
+    }
+  };
+
+  const runAutoLikeRepliesLoop = async () => {
+    const likedReplyIds = new Set<string>();
+    while (autoLikeRepliesRef.current) {
+      try {
+        const funcName = selectedPlatform === "instagram" ? "instagram-api" : "tiktok-api";
+        const params = selectedPlatform === "instagram"
+          ? { media_id: selectedPostId, limit: 50 }
+          : { video_id: selectedPostId, limit: 50 };
+        const d = await callApi(funcName, { action: "get_comments", params });
+        const freshComments = (d?.data || d?.data?.comments || []);
+        for (const c of freshComments) {
+          if (!autoLikeRepliesRef.current) break;
+          const replies = c.replies?.data || [];
+          for (const r of replies) {
+            if (!autoLikeRepliesRef.current) break;
+            if (likedReplyIds.has(r.id)) continue;
+            likedReplyIds.add(r.id);
+            try {
+              await callApi(funcName, { action: "like_comment", params: { comment_id: r.id } });
+              setAutoReplyStats(prev => ({ ...prev, likedReplies: prev.likedReplies + 1 }));
+            } catch { /* skip */ }
+            await new Promise(r2 => setTimeout(r2, 2000));
+          }
+        }
+      } catch { /* polling error */ }
+      await new Promise(r => setTimeout(r, 25000));
+    }
+  };
+
+  // === Auto-hide negative comments ===
+  const toggleAutoHideNegative = () => {
+    setAutoHideNegative(!autoHideNegative);
+    if (!autoHideNegative) {
+      toast.success("Auto-Hide Negative activated — negative comments will be hidden");
+      runAutoHidePass();
+    } else {
+      toast.info("Auto-Hide Negative paused");
+    }
+  };
+
+  const runAutoHidePass = async () => {
+    if (commentsList.length === 0) return;
+    try {
+      const d = await callApi("social-ai-responder", {
+        action: "filter_comments",
+        params: { comments: commentsList.slice(0, 50).map(c => ({ id: c.id, text: c.text, username: c.username })), filter_type: "negative" },
+      });
+      if (d?.filtered_ids?.length > 0) {
+        const funcName = selectedPlatform === "instagram" ? "instagram-api" : "tiktok-api";
+        for (const id of d.filtered_ids) {
+          try {
+            await callApi(funcName, { action: "hide_comment", params: { comment_id: id } });
+            setAutoReplyStats(prev => ({ ...prev, hidden: prev.hidden + 1 }));
+          } catch { /* skip */ }
+          await new Promise(r => setTimeout(r, 1500));
+        }
+        toast.success(`Hidden ${d.filtered_ids.length} negative comments`);
+      } else {
+        toast.info("No negative comments detected");
+      }
+    } catch { toast.error("Auto-hide failed"); }
+  };
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      autoReplyRef.current = false;
+      autoLikeRef.current = false;
+      autoLikeRepliesRef.current = false;
+      if (autoIntervalRef.current) clearInterval(autoIntervalRef.current);
+    };
+  }, []);
+
+
 
   const PostThumbnail = ({ url, size = "h-12 w-12" }: { url?: string; size?: string }) => (
     url ? (
@@ -876,6 +1083,8 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading, onNavigateTo
       </div>
     )
   );
+
+  const connectedPlatforms = connections.filter((c: any) => c.is_connected && ["instagram", "tiktok"].includes(c.platform));
 
   return (
     <div className="space-y-4">
@@ -924,7 +1133,78 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading, onNavigateTo
             )}
           </div>
 
-          {/* AI Suite toolbar */}
+          {/* AI Comment Automation Engine */}
+          {selectedPostId && (
+            <Card className="border-primary/20 bg-primary/[0.03]">
+              <CardContent className="p-2.5 space-y-2">
+                <div className="flex items-center gap-2 mb-1">
+                  <Bot className="h-3.5 w-3.5 text-primary" />
+                  <span className="text-[10px] font-bold text-foreground">AI Comment Automation Engine</span>
+                  {(autoReplyActive || autoLikeCommentsActive || autoLikeRepliesActive) && (
+                    <Badge className="bg-emerald-500/15 text-emerald-400 border-emerald-500/30 text-[8px] animate-pulse">LIVE</Badge>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                  {/* Auto AI Reply */}
+                  <button onClick={toggleAutoReply}
+                    className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-[9px] font-medium transition-all border ${autoReplyActive ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-400" : "bg-white/[0.03] border-white/[0.06] text-muted-foreground hover:text-foreground hover:bg-white/[0.06]"}`}>
+                    {autoReplyActive ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
+                    <Reply className="h-3 w-3" />
+                    AI Auto-Reply
+                  </button>
+                  {/* Auto Like Comments */}
+                  <button onClick={toggleAutoLikeComments}
+                    className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-[9px] font-medium transition-all border ${autoLikeCommentsActive ? "bg-pink-500/15 border-pink-500/30 text-pink-400" : "bg-white/[0.03] border-white/[0.06] text-muted-foreground hover:text-foreground hover:bg-white/[0.06]"}`}>
+                    {autoLikeCommentsActive ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
+                    <Heart className="h-3 w-3" />
+                    Auto-Like Comments
+                  </button>
+                  {/* Auto Like Replies */}
+                  <button onClick={toggleAutoLikeReplies}
+                    className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-[9px] font-medium transition-all border ${autoLikeRepliesActive ? "bg-orange-500/15 border-orange-500/30 text-orange-400" : "bg-white/[0.03] border-white/[0.06] text-muted-foreground hover:text-foreground hover:bg-white/[0.06]"}`}>
+                    {autoLikeRepliesActive ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
+                    <HeartHandshake className="h-3 w-3" />
+                    Auto-Like Replies
+                  </button>
+                  {/* Auto Hide Negative */}
+                  <button onClick={toggleAutoHideNegative}
+                    className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-[9px] font-medium transition-all border ${autoHideNegative ? "bg-red-500/15 border-red-500/30 text-red-400" : "bg-white/[0.03] border-white/[0.06] text-muted-foreground hover:text-foreground hover:bg-white/[0.06]"}`}>
+                    {autoHideNegative ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
+                    <Shield className="h-3 w-3" />
+                    Auto-Hide Negative
+                  </button>
+                  {/* Auto Pin Top Comment */}
+                  <button onClick={() => { setAutoPinTopComment(!autoPinTopComment); toast.info(autoPinTopComment ? "Auto-Pin paused" : "Auto-Pin: top-liked comment will be pinned"); }}
+                    className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-[9px] font-medium transition-all border ${autoPinTopComment ? "bg-yellow-500/15 border-yellow-500/30 text-yellow-400" : "bg-white/[0.03] border-white/[0.06] text-muted-foreground hover:text-foreground hover:bg-white/[0.06]"}`}>
+                    {autoPinTopComment ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
+                    <Pin className="h-3 w-3" />
+                    Auto-Pin Best
+                  </button>
+                  {/* Auto Thank Follower */}
+                  <button onClick={() => { setAutoThankNewFollower(!autoThankNewFollower); toast.info(autoThankNewFollower ? "Auto-Thank paused" : "Auto-Thank: new followers get a thank-you reply"); }}
+                    className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-[9px] font-medium transition-all border ${autoThankNewFollower ? "bg-cyan-500/15 border-cyan-500/30 text-cyan-400" : "bg-white/[0.03] border-white/[0.06] text-muted-foreground hover:text-foreground hover:bg-white/[0.06]"}`}>
+                    {autoThankNewFollower ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
+                    <Star className="h-3 w-3" />
+                    Auto-Thank Fans
+                  </button>
+                </div>
+                {/* Live stats */}
+                {(autoReplyStats.replied > 0 || autoReplyStats.liked > 0 || autoReplyStats.likedReplies > 0 || autoReplyStats.hidden > 0) && (
+                  <div className="flex items-center gap-3 text-[9px] pt-1 border-t border-white/[0.06]">
+                    <span className="text-muted-foreground">Session stats:</span>
+                    {autoReplyStats.replied > 0 && <span className="text-emerald-400">💬 {autoReplyStats.replied} replied</span>}
+                    {autoReplyStats.liked > 0 && <span className="text-pink-400">❤️ {autoReplyStats.liked} liked</span>}
+                    {autoReplyStats.likedReplies > 0 && <span className="text-orange-400">🧡 {autoReplyStats.likedReplies} reply likes</span>}
+                    {autoReplyStats.hidden > 0 && <span className="text-red-400">🛡️ {autoReplyStats.hidden} hidden</span>}
+                    <button onClick={() => setAutoReplyStats({ replied: 0, liked: 0, likedReplies: 0, hidden: 0, pinned: 0 })}
+                      className="text-muted-foreground hover:text-foreground ml-auto"><X className="h-2.5 w-2.5" /></button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+
           {selectedPostId && commentsList.length > 0 && (
             <Card>
               <CardContent className="p-2.5 space-y-2">
@@ -1173,6 +1453,10 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading, onNavigateTo
                           {comment.like_count != null && <span className="text-[9px] text-muted-foreground flex items-center gap-0.5"><Heart className="h-2 w-2" /> {comment.like_count}</span>}
                         </div>
                         <div className="flex items-center gap-0.5">
+                          <button onClick={() => likeComment(comment.id)} disabled={likingCommentId === comment.id}
+                            className="p-1 rounded hover:bg-pink-500/20 transition-colors" title="Like Comment">
+                            {likingCommentId === comment.id ? <Loader2 className="h-3 w-3 animate-spin text-pink-400" /> : <Heart className="h-3 w-3 text-pink-400" />}
+                          </button>
                           <button onClick={() => generateAiReplyForComment(comment)} disabled={aiGenerating}
                             className="p-1 rounded hover:bg-purple-500/20 transition-colors" title="AI Reply">
                             {aiGenerating && replyingTo === comment.id ? <Loader2 className="h-3 w-3 animate-spin text-purple-400" /> : <Brain className="h-3 w-3 text-purple-400" />}
