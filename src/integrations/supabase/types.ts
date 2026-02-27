@@ -1332,6 +1332,81 @@ export type Database = {
         }
         Relationships: []
       }
+      comment_automation_state: {
+        Row: {
+          account_id: string
+          auto_boost: boolean
+          auto_cta_inject: boolean
+          auto_dm_buyers: boolean
+          auto_follow_fans: boolean
+          auto_hide_negative: boolean
+          auto_lead_capture: boolean
+          auto_like_comments: boolean
+          auto_like_replies: boolean
+          auto_pin_best: boolean
+          auto_question_responder: boolean
+          auto_reply: boolean
+          auto_thank_fans: boolean
+          created_at: string
+          id: string
+          last_run_at: string | null
+          platform: string
+          post_id: string
+          processed_comment_ids: string[] | null
+          redirect_url: string | null
+          stats: Json | null
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          auto_boost?: boolean
+          auto_cta_inject?: boolean
+          auto_dm_buyers?: boolean
+          auto_follow_fans?: boolean
+          auto_hide_negative?: boolean
+          auto_lead_capture?: boolean
+          auto_like_comments?: boolean
+          auto_like_replies?: boolean
+          auto_pin_best?: boolean
+          auto_question_responder?: boolean
+          auto_reply?: boolean
+          auto_thank_fans?: boolean
+          created_at?: string
+          id?: string
+          last_run_at?: string | null
+          platform?: string
+          post_id: string
+          processed_comment_ids?: string[] | null
+          redirect_url?: string | null
+          stats?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          auto_boost?: boolean
+          auto_cta_inject?: boolean
+          auto_dm_buyers?: boolean
+          auto_follow_fans?: boolean
+          auto_hide_negative?: boolean
+          auto_lead_capture?: boolean
+          auto_like_comments?: boolean
+          auto_like_replies?: boolean
+          auto_pin_best?: boolean
+          auto_question_responder?: boolean
+          auto_reply?: boolean
+          auto_thank_fans?: boolean
+          created_at?: string
+          id?: string
+          last_run_at?: string | null
+          platform?: string
+          post_id?: string
+          processed_comment_ids?: string[] | null
+          redirect_url?: string | null
+          stats?: Json | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       content_calendar: {
         Row: {
           account_id: string | null

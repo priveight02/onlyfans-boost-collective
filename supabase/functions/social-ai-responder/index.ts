@@ -1952,15 +1952,22 @@ FINAL RULES:
       case "generate_comment_reply": {
         const { comment_text, comment_author, post_caption, reply_style, redirect_url } = params;
 
-        const systemPrompt = `You are a young woman replying to comments on social media. No emojis. Use casual texting style (u, ur, lol, tbh).
-${reply_style ? `Style: ${reply_style}` : "Be warm and casual like texting a friend"}
-${redirect_url ? `When relevant, casually mention checking bio/link` : ""}
+        // Use the same persona system as live DM conversations
+        const { personaInfo: commentPersona } = await getAccountPersona(supabaseClient, account_id);
+        
+        const systemPrompt = `${commentPersona}
+
+COMMENT REPLY CONTEXT:
+You are replying to a comment on your social media post. Keep the same persona as in DMs but adapt for public comment replies.
+${reply_style ? `Style override: ${reply_style}` : ""}
+${redirect_url ? `When relevant, casually mention checking bio/link for more` : ""}
 Rules:
-- 1 sentence max
-- No emojis ever
-- Sound real, not like a brand
+- 1 sentence max, keep it short and punchy
+- Sound real, not like a brand or bot
 - If compliment, be sweet but brief
-- If question, answer casually and redirect to bio if relevant`;
+- If question, answer casually and redirect to bio if relevant
+- Match your persona's tone and style exactly
+- output only the reply text`;
 
         const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: "POST",
@@ -1994,6 +2001,15 @@ Rules:
         const { comments, reply_style, redirect_url } = params;
         const replies: any[] = [];
 
+        // Use account persona for bulk replies too
+        const { personaInfo: bulkPersona } = await getAccountPersona(supabaseClient, account_id);
+        const bulkSystemPrompt = `${bulkPersona}
+
+COMMENT REPLY CONTEXT:
+You are replying to a comment on your social media post. Keep the same persona as in DMs but adapt for public comment replies.
+${redirect_url ? "Sometimes mention checking bio." : ""}
+Rules: 1 sentence max. Sound real. Match your persona exactly. Output ONLY the reply text.`;
+
         for (const comment of (comments || []).slice(0, 20)) {
           try {
             const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -2005,7 +2021,7 @@ Rules:
               body: JSON.stringify({
                 model: "google/gemini-2.5-flash-lite",
                 messages: [
-                  { role: "system", content: `Reply to this comment as a young woman. No emojis. Use casual texting (u, ur, lol, tbh). 1 sentence max. Sound real. ${redirect_url ? "Sometimes mention checking bio." : ""} Reply ONLY with the text.` },
+                  { role: "system", content: bulkSystemPrompt },
                   { role: "user", content: `@${comment.username}: "${comment.text}"` },
                 ],
                 max_tokens: 60,
