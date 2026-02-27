@@ -936,16 +936,37 @@ Analyze every character in the name and username for any gender signal at all. L
 
       // ===== PUBLISHING =====
       case "create_photo_post": {
-        const container = await igFetch(`/${igUserId}/media`, token, "POST", {
+        if (!params.image_url) throw new Error("image_url is required for photo posts");
+        console.log("Creating photo post with image_url:", params.image_url?.substring(0, 120));
+        const containerBody: any = {
           image_url: params.image_url,
           caption: params.caption || "",
           ...(params.location_id ? { location_id: params.location_id } : {}),
           ...(params.user_tags ? { user_tags: params.user_tags } : {}),
           ...(params.alt_text ? { alt_text: params.alt_text } : {}),
-        });
+        };
+        const container = await igFetch(`/${igUserId}/media`, token, "POST", containerBody);
+        console.log("Container response:", JSON.stringify(container).substring(0, 300));
+        if (!container.id) throw new Error("Failed to create media container. Ensure the image URL is publicly accessible.");
+        // Poll for container readiness (images are usually instant but can take a moment)
+        let containerStatus = "IN_PROGRESS";
+        let pollAttempts = 0;
+        while (containerStatus === "IN_PROGRESS" && pollAttempts < 10) {
+          await new Promise(r => setTimeout(r, 2000));
+          try {
+            const check = await igFetch(`/${container.id}?fields=status_code,status`, token);
+            containerStatus = check.status_code || "FINISHED";
+            console.log(`Container poll ${pollAttempts}: ${containerStatus}`);
+          } catch {
+            containerStatus = "FINISHED"; // If status check fails, try publishing anyway
+          }
+          pollAttempts++;
+        }
+        if (containerStatus === "ERROR") throw new Error("Media container processing failed. Check image URL accessibility.");
         result = await igFetch(`/${igUserId}/media_publish`, token, "POST", {
           creation_id: container.id,
         });
+        console.log("Publish result:", JSON.stringify(result).substring(0, 200));
         if (params.post_id) {
           await supabase.from("social_posts").update({ 
             platform_post_id: result.id, status: "published", published_at: new Date().toISOString() 
@@ -983,12 +1004,15 @@ Analyze every character in the name and username for any gender signal at all. L
       }
 
       case "create_carousel": {
+        if (!params.items || !Array.isArray(params.items) || params.items.length < 2) throw new Error("Carousel requires at least 2 media items");
         const children: string[] = [];
         for (const item of params.items) {
+          if (!item.image_url && !item.video_url) throw new Error("Each carousel item needs image_url or video_url");
           const child = await igFetch(`/${igUserId}/media`, token, "POST", {
             ...(item.video_url ? { video_url: item.video_url, media_type: "VIDEO" } : { image_url: item.image_url }),
             is_carousel_item: true,
           });
+          if (!child.id) throw new Error("Failed to create carousel item container");
           children.push(child.id);
         }
         const carousel = await igFetch(`/${igUserId}/media`, token, "POST", {
@@ -996,6 +1020,7 @@ Analyze every character in the name and username for any gender signal at all. L
           caption: params.caption || "",
           children: children.join(","),
         });
+        if (!carousel.id) throw new Error("Failed to create carousel container");
         result = await igFetch(`/${igUserId}/media_publish`, token, "POST", { creation_id: carousel.id });
         if (params.post_id) {
           await supabase.from("social_posts").update({ 
@@ -1008,8 +1033,21 @@ Analyze every character in the name and username for any gender signal at all. L
       case "create_story": {
         const storyBody: any = { media_type: "STORIES" };
         if (params.video_url) storyBody.video_url = params.video_url;
-        else storyBody.image_url = params.image_url;
+        else if (params.image_url) storyBody.image_url = params.image_url;
+        else throw new Error("image_url or video_url is required for stories");
         const container = await igFetch(`/${igUserId}/media`, token, "POST", storyBody);
+        if (!container.id) throw new Error("Failed to create story container. Ensure the media URL is publicly accessible.");
+        // Poll for readiness
+        let storyStatus = "IN_PROGRESS";
+        let storyAttempts = 0;
+        while (storyStatus === "IN_PROGRESS" && storyAttempts < 10) {
+          await new Promise(r => setTimeout(r, 2000));
+          try {
+            const check = await igFetch(`/${container.id}?fields=status_code,status`, token);
+            storyStatus = check.status_code || "FINISHED";
+          } catch { storyStatus = "FINISHED"; }
+          storyAttempts++;
+        }
         result = await igFetch(`/${igUserId}/media_publish`, token, "POST", { creation_id: container.id });
         break;
       }
