@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { cachedFetch, invalidateNamespace, invalidateAccount } from "@/lib/supabaseCache";
@@ -141,6 +141,10 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
 
   // Post form
   const [newPost, setNewPost] = useState({ platform: "instagram", post_type: "feed", caption: "", media_url: "", scheduled_at: "", auto_reply_enabled: false, auto_reply_message: "", redirect_url: "", alt_text: "" });
+  const [postMediaFiles, setPostMediaFiles] = useState<File[]>([]);
+  const [postMediaPreviews, setPostMediaPreviews] = useState<string[]>([]);
+  const [uploadingPostMedia, setUploadingPostMedia] = useState(false);
+  const postFileRef = useRef<HTMLInputElement>(null);
 
   // Bio link form
   const [newBioLink, setNewBioLink] = useState({ slug: "", title: "", bio: "", of_link: "", theme: "dark", links: [{ title: "", url: "", enabled: true }], social_links: { instagram: "", tiktok: "", twitter: "" } });
@@ -1452,16 +1456,39 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
 
 
   const schedulePost = async () => {
-    if (!newPost.caption && !newPost.media_url) { toast.error("Add caption or media"); return; }
+    if (!newPost.caption && !newPost.media_url && postMediaFiles.length === 0) { toast.error("Add caption or media"); return; }
+    
+    // Upload files first if any
+    let mediaUrls: string[] = [];
+    if (postMediaFiles.length > 0) {
+      setUploadingPostMedia(true);
+      for (const file of postMediaFiles) {
+        const ext = file.name.split('.').pop();
+        const path = `posts/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+        const { error: uploadErr } = await supabase.storage.from("social-media").upload(path, file);
+        if (uploadErr) { toast.error(`Upload failed: ${uploadErr.message}`); setUploadingPostMedia(false); return; }
+        const { data: urlData } = supabase.storage.from("social-media").getPublicUrl(path);
+        mediaUrls.push(urlData.publicUrl);
+      }
+      setUploadingPostMedia(false);
+    } else if (newPost.media_url) {
+      mediaUrls = [newPost.media_url];
+    }
+
     const { error } = await supabase.from("social_posts").insert({
       account_id: selectedAccount, platform: newPost.platform, post_type: newPost.post_type,
-      caption: newPost.caption, media_urls: newPost.media_url ? [newPost.media_url] : [],
+      caption: newPost.caption, media_urls: mediaUrls.length > 0 ? mediaUrls : [],
       scheduled_at: newPost.scheduled_at || null, status: newPost.scheduled_at ? "scheduled" : "draft",
       auto_reply_enabled: newPost.auto_reply_enabled, auto_reply_message: newPost.auto_reply_message || null,
       redirect_url: newPost.redirect_url || null,
     });
     if (error) toast.error(error.message);
-    else { toast.success("Post created!"); setNewPost({ platform: "instagram", post_type: "feed", caption: "", media_url: "", scheduled_at: "", auto_reply_enabled: false, auto_reply_message: "", redirect_url: "", alt_text: "" }); loadData(); }
+    else {
+      toast.success(newPost.scheduled_at ? "Post scheduled!" : "Draft saved!");
+      setNewPost({ platform: "instagram", post_type: "feed", caption: "", media_url: "", scheduled_at: "", auto_reply_enabled: false, auto_reply_message: "", redirect_url: "", alt_text: "" });
+      setPostMediaFiles([]); setPostMediaPreviews([]);
+      invalidateAccount(selectedAccount); loadData();
+    }
   };
 
   const publishPost = async (post: any) => {
@@ -1479,7 +1506,13 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
     if (result) { toast.success("Published!"); loadData(); }
   };
 
-  const deletePost = async (id: string) => { await supabase.from("social_posts").delete().eq("id", id); toast.success("Deleted"); loadData(); };
+  const deletePost = async (id: string) => {
+    const { error } = await supabase.from("social_posts").delete().eq("id", id);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Deleted");
+    setPosts(prev => prev.filter(p => p.id !== id));
+    invalidateAccount(selectedAccount);
+  };
 
   const createBioLink = async () => {
     if (!newBioLink.slug || !newBioLink.title) { toast.error("Fill slug and title"); return; }
@@ -2859,9 +2892,43 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
                 </div>
               </div>
               <Textarea value={newPost.caption} onChange={e => setNewPost(p => ({ ...p, caption: e.target.value }))} placeholder="Write your caption... (or use AI above)" rows={3} className="text-xs" />
-              <div className="grid grid-cols-2 gap-2">
-                <Input value={newPost.media_url} onChange={e => setNewPost(p => ({ ...p, media_url: e.target.value }))} placeholder="Media URL (image/video link)..." className="text-xs h-8" />
-                <Input value={newPost.redirect_url} onChange={e => setNewPost(p => ({ ...p, redirect_url: e.target.value }))} placeholder="Redirect URL (optional)..." className="text-xs h-8" />
+              {/* Media Upload (primary) + URL fallback */}
+              <div className="space-y-2">
+                <input ref={postFileRef} type="file" accept="image/*,video/*" multiple className="hidden"
+                  onChange={(e) => {
+                    const files = Array.from(e.target.files || []);
+                    if (files.length + postMediaFiles.length > 10) { toast.error("Max 10 files"); return; }
+                    setPostMediaFiles(prev => [...prev, ...files]);
+                    setPostMediaPreviews(prev => [...prev, ...files.map(f => URL.createObjectURL(f))]);
+                    e.target.value = '';
+                  }} />
+                <div className="flex gap-2">
+                  <Button type="button" size="sm" variant="outline" onClick={() => postFileRef.current?.click()}
+                    className="h-8 text-xs border-border text-muted-foreground flex-1">
+                    <Image className="h-3 w-3 mr-1" /> Upload from Device
+                  </Button>
+                  <Input value={newPost.media_url} onChange={e => setNewPost(p => ({ ...p, media_url: e.target.value }))}
+                    placeholder="...or paste media URL" className="text-xs h-8 flex-1" />
+                  <Input value={newPost.redirect_url} onChange={e => setNewPost(p => ({ ...p, redirect_url: e.target.value }))}
+                    placeholder="Redirect URL (optional)..." className="text-xs h-8 flex-1" />
+                </div>
+                {postMediaPreviews.length > 0 && (
+                  <div className="flex gap-1.5 flex-wrap">
+                    {postMediaPreviews.map((url, i) => (
+                      <div key={i} className="relative group">
+                        {postMediaFiles[i]?.type.startsWith("video") ? (
+                          <video src={url} className="h-16 w-16 object-cover rounded-md border border-border" muted />
+                        ) : (
+                          <img src={url} alt="" className="h-16 w-16 object-cover rounded-md border border-border" />
+                        )}
+                        <button onClick={() => {
+                          setPostMediaFiles(prev => prev.filter((_, idx) => idx !== i));
+                          setPostMediaPreviews(prev => prev.filter((_, idx) => idx !== i));
+                        }} className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground rounded-full h-4 w-4 flex items-center justify-center text-[8px] opacity-0 group-hover:opacity-100 transition-opacity">×</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
               <Input value={newPost.alt_text} onChange={e => setNewPost(p => ({ ...p, alt_text: e.target.value }))} placeholder="Alt text for accessibility..." className="text-xs h-8" />
               <div className="flex items-center gap-4 flex-wrap">
@@ -2872,8 +2939,8 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
                 <Input value={newPost.auto_reply_message} onChange={e => setNewPost(p => ({ ...p, auto_reply_message: e.target.value }))} placeholder="Auto-reply message for comments..." className="text-xs h-8" />
               )}
               <div className="flex gap-2">
-                <Button onClick={schedulePost} size="sm" className="bg-gradient-to-r from-blue-500 to-purple-500 text-white border-0 h-8 text-xs">
-                  {newPost.scheduled_at ? <><Calendar className="h-3 w-3 mr-1" />Schedule</> : <><Send className="h-3 w-3 mr-1" />Save Draft</>}
+                <Button onClick={schedulePost} size="sm" disabled={uploadingPostMedia} className="bg-gradient-to-r from-blue-500 to-purple-500 text-white border-0 h-8 text-xs">
+                  {uploadingPostMedia ? <><Loader2 className="h-3 w-3 mr-1 animate-spin" />Uploading...</> : newPost.scheduled_at ? <><Calendar className="h-3 w-3 mr-1" />Schedule</> : <><Send className="h-3 w-3 mr-1" />Save Draft</>}
                 </Button>
                 {newPost.caption && <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => publishPost({ ...newPost, media_urls: newPost.media_url ? [newPost.media_url] : [] })} disabled={apiLoading}><Zap className="h-3 w-3 mr-1" />Publish Now</Button>}
               </div>
