@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,12 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  Popover, PopoverContent, PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   MessageSquare, Send, Trash2, RefreshCw, Bot, Sparkles, Brain,
   Loader2, Instagram, Music2, Heart, Clock, CheckCheck,
   Compass, Image, Eye, ArrowRight, Search, X, Share2,
@@ -20,6 +26,7 @@ import {
   UserPlus, Zap, Key, Link2, AlertTriangle, CheckCircle2,
   Play, Pause, HeartHandshake, MessageCircle, Reply, Star, Pin, BellRing,
   Target, Megaphone, UserCheck, Mail, HelpCircle, Magnet,
+  User, Crown, Settings, ChevronDown, Calendar, ThumbsDown, AtSign, Hash,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import CreditCostBadge from "../CreditCostBadge";
@@ -200,9 +207,69 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading, onNavigateTo
   const autoIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [likingCommentId, setLikingCommentId] = useState<string | null>(null);
 
+  // === PERSONA SYSTEM (same as DM conversations) ===
+  const [personas, setPersonas] = useState<any[]>([]);
+  const [activePersonaId, setActivePersonaId] = useState<string | null>(null);
+  const [defaultPersonaType, setDefaultPersonaType] = useState<"male" | "female">("male");
+  const [commentDetailId, setCommentDetailId] = useState<string | null>(null);
+  const [expandedReplies, setExpandedReplies] = useState<Set<string>>(new Set());
+
+  // Load personas
+  const loadPersonas = useCallback(async () => {
+    const { data } = await supabase.from("persona_profiles").select("*").eq("account_id", accountId).order("created_at");
+    setPersonas(data || []);
+    const { data: acc } = await supabase.from("managed_accounts").select("active_persona_id, default_persona_type").eq("id", accountId).single();
+    setActivePersonaId((acc as any)?.active_persona_id || null);
+    setDefaultPersonaType((acc as any)?.default_persona_type || "male");
+  }, [accountId]);
+
+  const switchPersona = useCallback(async (personaId: string | null) => {
+    await supabase.from("managed_accounts").update({ active_persona_id: personaId } as any).eq("id", accountId);
+    setActivePersonaId(personaId);
+    toast.success(personaId ? "Persona switched — AI comments will use this persona" : "Switched to default persona");
+  }, [accountId]);
+
+  const switchDefaultType = useCallback(async (type: "male" | "female") => {
+    await supabase.from("managed_accounts").update({ active_persona_id: null, default_persona_type: type } as any).eq("id", accountId);
+    setActivePersonaId(null);
+    setDefaultPersonaType(type);
+    toast.success(`Switched to ${type} default persona`);
+  }, [accountId]);
+
+  // Sync automation state to server for cron-based execution
+  const syncAutomationToServer = useCallback(async (postId: string) => {
+    if (!postId) return;
+    try {
+      await supabase.from("comment_automation_state" as any).upsert({
+        account_id: accountId,
+        post_id: postId,
+        platform: selectedPlatform,
+        auto_reply: autoReplyActive,
+        auto_like_comments: autoLikeCommentsActive,
+        auto_like_replies: autoLikeRepliesActive,
+        auto_hide_negative: autoHideNegative,
+        auto_pin_best: autoPinTopComment,
+        auto_thank_fans: autoThankNewFollower,
+        auto_dm_buyers: autoDmCommenters,
+        auto_follow_fans: autoFollowCommenters,
+        auto_cta_inject: autoCtaInject,
+        auto_boost: autoBoostEngagement,
+        auto_question_responder: autoQuestionResponder,
+        auto_lead_capture: autoLeadCapture,
+        redirect_url: aiRedirectUrl || null,
+      } as any, { onConflict: "account_id,post_id,platform" });
+    } catch { /* ignore sync errors */ }
+  }, [accountId, selectedPlatform, autoReplyActive, autoLikeCommentsActive, autoLikeRepliesActive, autoHideNegative, autoPinTopComment, autoThankNewFollower, autoDmCommenters, autoFollowCommenters, autoCtaInject, autoBoostEngagement, autoQuestionResponder, autoLeadCapture, aiRedirectUrl]);
+
+  // Sync to server whenever automation state changes
+  useEffect(() => {
+    if (selectedPostId) syncAutomationToServer(selectedPostId);
+  }, [autoReplyActive, autoLikeCommentsActive, autoLikeRepliesActive, autoHideNegative, autoPinTopComment, autoThankNewFollower, autoDmCommenters, autoFollowCommenters, autoCtaInject, autoBoostEngagement, autoQuestionResponder, autoLeadCapture, selectedPostId]);
+
   // Load existing session on mount
   useEffect(() => {
     if (accountId && selectedPlatform === "instagram") loadSessionData();
+    if (accountId) loadPersonas();
   }, [accountId, selectedPlatform]);
 
   const loadSessionData = async () => {
@@ -1441,7 +1508,7 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading, onNavigateTo
 
           {/* AI Comment Automation Engine */}
           {selectedPostId && (
-            <Card className="border-primary/20 bg-primary/[0.03]">
+            <Card className="border-white/[0.08] bg-white/[0.02] backdrop-blur-sm">
               <CardContent className="p-2.5 space-y-2">
                 <div className="flex items-center gap-2 mb-1">
                   <Bot className="h-3.5 w-3.5 text-primary" />
@@ -1449,6 +1516,44 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading, onNavigateTo
                   {(autoReplyActive || autoLikeCommentsActive || autoLikeRepliesActive || autoDmCommenters || autoFollowCommenters || autoCtaInject || autoBoostEngagement || autoQuestionResponder || autoLeadCapture) && (
                     <Badge className="bg-emerald-500/15 text-emerald-400 border-emerald-500/30 text-[8px] animate-pulse">LIVE</Badge>
                   )}
+                  <span className="text-[8px] text-muted-foreground ml-auto">runs server-side 24/7</span>
+                  {/* Persona Selector */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button size="sm" variant="outline" className="h-6 text-[9px] gap-1 border-purple-500/30 text-purple-300 hover:bg-purple-500/10 max-w-[140px]">
+                        <User className="h-2.5 w-2.5 flex-shrink-0" />
+                        <span className="truncate">
+                          {activePersonaId
+                            ? (personas.find(p => p.id === activePersonaId)?.brand_identity?.match(/^\[(.*?)\]/)?.[1] || "Custom")
+                            : `${defaultPersonaType === "male" ? "♂" : "♀"} Default`}
+                        </span>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-48">
+                      <p className="px-2 py-1 text-[9px] text-muted-foreground uppercase tracking-wider font-medium">Default Personas</p>
+                      <DropdownMenuItem onClick={() => switchDefaultType("male")} className="text-xs gap-2">
+                        <Crown className="h-3 w-3 text-blue-400" />
+                        Male (Default)
+                        {!activePersonaId && defaultPersonaType === "male" && <Check className="h-3 w-3 ml-auto text-emerald-400" />}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => switchDefaultType("female")} className="text-xs gap-2">
+                        <Crown className="h-3 w-3 text-pink-400" />
+                        Female (Default)
+                        {!activePersonaId && defaultPersonaType === "female" && <Check className="h-3 w-3 ml-auto text-emerald-400" />}
+                      </DropdownMenuItem>
+                      {personas.length > 0 && <p className="px-2 py-1 text-[9px] text-muted-foreground uppercase tracking-wider font-medium mt-1">Custom Personas</p>}
+                      {personas.map(p => {
+                        const pName = p.brand_identity?.match(/^\[(.*?)\]/)?.[1] || p.tone;
+                        return (
+                          <DropdownMenuItem key={p.id} onClick={() => switchPersona(p.id)} className="text-xs gap-2">
+                            <User className="h-3 w-3 text-purple-400" />
+                            <span className="truncate">{pName}</span>
+                            {activePersonaId === p.id && <Check className="h-3 w-3 ml-auto text-purple-400" />}
+                          </DropdownMenuItem>
+                        );
+                      })}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-1.5">
                   {/* Auto AI Reply */}
@@ -1560,7 +1665,7 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading, onNavigateTo
 
 
           {selectedPostId && commentsList.length > 0 && (
-            <Card>
+            <Card className="border-white/[0.06] bg-white/[0.02] backdrop-blur-sm">
               <CardContent className="p-2.5 space-y-2">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-[10px] font-semibold text-foreground mr-1">AI Suite:</span>
@@ -1728,7 +1833,7 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading, onNavigateTo
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
             {/* Posts list */}
-            <Card>
+            <Card className="border-white/[0.06] bg-white/[0.02] backdrop-blur-sm">
               <CardContent className="p-3">
                 <p className="text-xs font-semibold text-foreground mb-2">Select a post ({myPosts.length})</p>
                 <div className="overflow-y-auto max-h-[700px] pr-1">
@@ -1765,7 +1870,7 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading, onNavigateTo
             </Card>
 
             {/* Comments panel */}
-            <Card>
+            <Card className="border-white/[0.06] bg-white/[0.02] backdrop-blur-sm">
               <CardContent className="p-3">
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-xs font-semibold text-foreground">Comments</p>
@@ -1797,55 +1902,169 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading, onNavigateTo
                     </div>
                   )}
 
-                  {/* Individual comments */}
+                  {/* Individual comments — Instagram-style with glassmorphism */}
                   {!bulkAiReplies.length && (commentFilter !== "all" && filteredComments.length > 0 ? filteredComments : commentsList).map(comment => (
-                    <div key={comment.id} className="bg-white/[0.03] rounded-lg p-2.5 mb-1.5 border border-white/[0.06]">
-                      <div className="flex items-center justify-between mb-1">
-                        <div className="flex items-center gap-2">
-                          <span className="text-[11px] font-semibold text-foreground">@{comment.username}</span>
-                          {comment.timestamp && <span className="text-[9px] text-muted-foreground">{new Date(comment.timestamp).toLocaleDateString()}</span>}
-                          {comment.like_count != null && <span className="text-[9px] text-muted-foreground flex items-center gap-0.5"><Heart className="h-2 w-2" /> {comment.like_count}</span>}
+                    <div key={comment.id} className="bg-white/[0.02] rounded-xl p-3 mb-2 border border-white/[0.06] backdrop-blur-sm hover:bg-white/[0.04] transition-all duration-200">
+                      <div className="flex items-start gap-2.5">
+                        {/* Avatar */}
+                        <div className="h-8 w-8 rounded-full bg-gradient-to-br from-pink-500/80 to-purple-500/80 flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0 mt-0.5">
+                          {comment.username[0]?.toUpperCase() || "?"}
                         </div>
-                        <div className="flex items-center gap-0.5">
-                          <button onClick={() => likeComment(comment.id)} disabled={likingCommentId === comment.id}
-                            className="p-1 rounded hover:bg-pink-500/20 transition-colors" title="Like Comment">
-                            {likingCommentId === comment.id ? <Loader2 className="h-3 w-3 animate-spin text-pink-400" /> : <Heart className="h-3 w-3 text-pink-400" />}
-                          </button>
-                          <button onClick={() => generateAiReplyForComment(comment)} disabled={aiGenerating}
-                            className="p-1 rounded hover:bg-purple-500/20 transition-colors" title="AI Reply">
-                            {aiGenerating && replyingTo === comment.id ? <Loader2 className="h-3 w-3 animate-spin text-purple-400" /> : <Brain className="h-3 w-3 text-purple-400" />}
-                          </button>
-                          <button onClick={() => { setReplyingTo(replyingTo === comment.id ? null : comment.id); setReplyText(""); }}
-                            className="p-1 rounded hover:bg-blue-500/20 transition-colors" title="Reply">
-                            <ArrowRight className="h-3 w-3 text-blue-400" />
-                          </button>
-                          <button onClick={() => deleteComment(comment.id)} disabled={deletingId === comment.id}
-                            className="p-1 rounded hover:bg-destructive/20 transition-colors" title="Delete">
-                            {deletingId === comment.id ? <Loader2 className="h-3 w-3 animate-spin text-destructive" /> : <Trash2 className="h-3 w-3 text-destructive/60" />}
-                          </button>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <span className="text-[11px] font-semibold text-foreground">@{comment.username}</span>
+                              {comment.timestamp && (
+                                <span className="text-[9px] text-muted-foreground">
+                                  {(() => {
+                                    const d = new Date(comment.timestamp!);
+                                    const now = new Date();
+                                    const diff = now.getTime() - d.getTime();
+                                    const mins = Math.floor(diff / 60000);
+                                    if (mins < 60) return `${mins}m`;
+                                    const hrs = Math.floor(mins / 60);
+                                    if (hrs < 24) return `${hrs}h`;
+                                    const days = Math.floor(hrs / 24);
+                                    if (days < 7) return `${days}d`;
+                                    return d.toLocaleDateString();
+                                  })()}
+                                </span>
+                              )}
+                              {comment.like_count != null && comment.like_count > 0 && (
+                                <span className="text-[9px] text-muted-foreground flex items-center gap-0.5">
+                                  <Heart className="h-2 w-2 text-pink-400" /> {comment.like_count}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-0.5">
+                              <button onClick={() => likeComment(comment.id)} disabled={likingCommentId === comment.id}
+                                className="p-1 rounded-md hover:bg-pink-500/15 transition-colors" title="Like">
+                                {likingCommentId === comment.id ? <Loader2 className="h-3 w-3 animate-spin text-pink-400" /> : <Heart className="h-3 w-3 text-pink-400/70 hover:text-pink-400" />}
+                              </button>
+                              <button onClick={() => generateAiReplyForComment(comment)} disabled={aiGenerating}
+                                className="p-1 rounded-md hover:bg-purple-500/15 transition-colors" title="AI Reply">
+                                {aiGenerating && replyingTo === comment.id ? <Loader2 className="h-3 w-3 animate-spin text-purple-400" /> : <Brain className="h-3 w-3 text-purple-400/70 hover:text-purple-400" />}
+                              </button>
+                              <button onClick={() => { setReplyingTo(replyingTo === comment.id ? null : comment.id); setReplyText(""); }}
+                                className="p-1 rounded-md hover:bg-blue-500/15 transition-colors" title="Reply">
+                                <Reply className="h-3 w-3 text-blue-400/70 hover:text-blue-400" />
+                              </button>
+                              {/* Comment Detail Wheel */}
+                              <Popover open={commentDetailId === comment.id} onOpenChange={(open) => setCommentDetailId(open ? comment.id : null)}>
+                                <PopoverTrigger asChild>
+                                  <button className="p-1 rounded-md hover:bg-white/[0.08] transition-colors" title="Details">
+                                    <Settings className="h-3 w-3 text-muted-foreground hover:text-foreground" />
+                                  </button>
+                                </PopoverTrigger>
+                                <PopoverContent align="end" className="w-56 p-0 border-white/[0.08] bg-background/95 backdrop-blur-lg">
+                                  <div className="p-3 space-y-2">
+                                    <p className="text-[10px] font-semibold text-foreground flex items-center gap-1.5">
+                                      <Settings className="h-3 w-3 text-primary" /> Comment Details
+                                    </p>
+                                    <div className="space-y-1.5 text-[10px]">
+                                      <div className="flex items-center justify-between">
+                                        <span className="text-muted-foreground flex items-center gap-1"><AtSign className="h-2.5 w-2.5" /> Author</span>
+                                        <span className="text-foreground font-medium">@{comment.username}</span>
+                                      </div>
+                                      <div className="flex items-center justify-between">
+                                        <span className="text-muted-foreground flex items-center gap-1"><Calendar className="h-2.5 w-2.5" /> Date</span>
+                                        <span className="text-foreground">{comment.timestamp ? new Date(comment.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "N/A"}</span>
+                                      </div>
+                                      <div className="flex items-center justify-between">
+                                        <span className="text-muted-foreground flex items-center gap-1"><Clock className="h-2.5 w-2.5" /> Time</span>
+                                        <span className="text-foreground">{comment.timestamp ? new Date(comment.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : "N/A"}</span>
+                                      </div>
+                                      <div className="flex items-center justify-between">
+                                        <span className="text-muted-foreground flex items-center gap-1"><Heart className="h-2.5 w-2.5" /> Likes</span>
+                                        <span className="text-foreground font-medium">{comment.like_count ?? 0}</span>
+                                      </div>
+                                      <div className="flex items-center justify-between">
+                                        <span className="text-muted-foreground flex items-center gap-1"><MessageSquare className="h-2.5 w-2.5" /> Replies</span>
+                                        <span className="text-foreground font-medium">{comment.replies?.length ?? 0}</span>
+                                      </div>
+                                      <div className="flex items-center justify-between">
+                                        <span className="text-muted-foreground flex items-center gap-1"><Hash className="h-2.5 w-2.5" /> Length</span>
+                                        <span className="text-foreground">{comment.text.length} chars</span>
+                                      </div>
+                                      <div className="flex items-center justify-between">
+                                        <span className="text-muted-foreground flex items-center gap-1"><BarChart3 className="h-2.5 w-2.5" /> Sentiment</span>
+                                        <span className={`font-medium ${comment.text.match(/[?]/) ? "text-yellow-400" : comment.text.match(/love|amazing|great|best|fire|perfect/i) ? "text-emerald-400" : comment.text.match(/bad|terrible|worst|hate|ugly/i) ? "text-red-400" : "text-foreground"}`}>
+                                          {comment.text.match(/[?]/) ? "Question" : comment.text.match(/love|amazing|great|best|fire|perfect/i) ? "Positive" : comment.text.match(/bad|terrible|worst|hate|ugly/i) ? "Negative" : "Neutral"}
+                                        </span>
+                                      </div>
+                                    </div>
+                                    <div className="pt-1.5 border-t border-white/[0.06] flex gap-1">
+                                      <Button size="sm" variant="outline" className="h-6 text-[9px] flex-1 gap-1" onClick={() => { navigator.clipboard.writeText(comment.text); toast.success("Copied"); setCommentDetailId(null); }}>
+                                        Copy Text
+                                      </Button>
+                                      <Button size="sm" variant="outline" className="h-6 text-[9px] flex-1 gap-1 text-destructive border-destructive/30" onClick={() => { deleteComment(comment.id); setCommentDetailId(null); }}>
+                                        <Trash2 className="h-2.5 w-2.5" /> Delete
+                                      </Button>
+                                    </div>
+                                  </div>
+                                </PopoverContent>
+                              </Popover>
+                              <button onClick={() => deleteComment(comment.id)} disabled={deletingId === comment.id}
+                                className="p-1 rounded-md hover:bg-destructive/15 transition-colors" title="Delete">
+                                {deletingId === comment.id ? <Loader2 className="h-3 w-3 animate-spin text-destructive" /> : <Trash2 className="h-3 w-3 text-destructive/50 hover:text-destructive" />}
+                              </button>
+                            </div>
+                          </div>
+                          <p className="text-[11px] text-foreground mt-1 leading-relaxed">{comment.text}</p>
+                          
+                          {/* Reply input */}
+                          {replyingTo === comment.id && (
+                            <div className="flex gap-1 mt-2">
+                              <Input value={replyText} onChange={e => setReplyText(e.target.value)}
+                                placeholder="Write reply..." className="text-[11px] h-7 flex-1 bg-white/[0.03] border-white/[0.08]" autoFocus
+                                onKeyDown={e => e.key === "Enter" && replyToComment(comment.id, comment.text, comment.username)} />
+                              <Button size="sm" variant="outline" className="h-7 px-2 border-white/[0.08]" onClick={() => replyToComment(comment.id, comment.text, comment.username)} disabled={!replyText.trim()}>
+                                <Send className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          )}
+                          
+                          {/* Instagram-style inline replies */}
+                          {comment.replies && comment.replies.length > 0 && (
+                            <div className="mt-2">
+                              <button
+                                onClick={() => setExpandedReplies(prev => {
+                                  const next = new Set(prev);
+                                  next.has(comment.id) ? next.delete(comment.id) : next.add(comment.id);
+                                  return next;
+                                })}
+                                className="text-[9px] text-muted-foreground hover:text-foreground flex items-center gap-1 mb-1"
+                              >
+                                <div className="w-6 h-px bg-muted-foreground/30" />
+                                {expandedReplies.has(comment.id)
+                                  ? `Hide ${comment.replies.length} ${comment.replies.length === 1 ? "reply" : "replies"}`
+                                  : `View ${comment.replies.length} ${comment.replies.length === 1 ? "reply" : "replies"}`}
+                              </button>
+                              {expandedReplies.has(comment.id) && (
+                                <div className="pl-4 border-l border-white/[0.06] space-y-2 mt-1">
+                                  {comment.replies.map((r: any) => (
+                                    <div key={r.id} className="flex items-start gap-2">
+                                      <div className="h-5 w-5 rounded-full bg-white/[0.06] flex items-center justify-center text-[8px] font-bold text-foreground flex-shrink-0 mt-0.5">
+                                        {(r.username || "?")[0]?.toUpperCase()}
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-[10px]">
+                                          <span className="font-semibold text-foreground">@{r.username}</span>
+                                          <span className="text-foreground ml-1">{r.text}</span>
+                                        </p>
+                                        <div className="flex items-center gap-2 mt-0.5">
+                                          {r.timestamp && <span className="text-[8px] text-muted-foreground">{new Date(r.timestamp).toLocaleDateString()}</span>}
+                                          {r.like_count != null && r.like_count > 0 && <span className="text-[8px] text-muted-foreground flex items-center gap-0.5"><Heart className="h-1.5 w-1.5" /> {r.like_count}</span>}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </div>
-                      <p className="text-[11px] text-foreground">{comment.text}</p>
-                      {replyingTo === comment.id && (
-                        <div className="flex gap-1 mt-2">
-                          <Input value={replyText} onChange={e => setReplyText(e.target.value)}
-                            placeholder="Write reply..." className="text-[11px] h-7 flex-1" autoFocus
-                            onKeyDown={e => e.key === "Enter" && replyToComment(comment.id, comment.text, comment.username)} />
-                          <Button size="sm" variant="outline" className="h-7 px-2" onClick={() => replyToComment(comment.id, comment.text, comment.username)} disabled={!replyText.trim()}>
-                            <Send className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      )}
-                      {comment.replies && comment.replies.length > 0 && (
-                        <div className="mt-1.5 pl-3 border-l border-white/[0.06] space-y-1">
-                          {comment.replies.map((r: any) => (
-                            <div key={r.id} className="text-[10px]">
-                              <span className="font-semibold text-foreground">@{r.username}</span>
-                              <span className="text-foreground ml-1">{r.text}</span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
                     </div>
                   ))}
                 </ScrollArea>
