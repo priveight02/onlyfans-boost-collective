@@ -107,7 +107,13 @@ const IGInsightsDashboard = ({ selectedAccount }: Props) => {
       const vals = m.values || [];
       const latest = vals[vals.length - 1]?.value ?? 0;
       const prev = vals.length > 1 ? vals[vals.length - 2]?.value ?? 0 : 0;
-      metricsMap[m.name] = { value: typeof latest === "number" ? latest : 0, prevValue: typeof prev === "number" ? prev : 0 };
+      const normalizedName = m.name === "profile_links_taps" ? "website_clicks" : m.name;
+      const value = typeof latest === "number" ? latest : 0;
+      const prevValue = typeof prev === "number" ? prev : 0;
+      const existing = metricsMap[normalizedName];
+      if (!existing || value >= existing.value) {
+        metricsMap[normalizedName] = { value, prevValue };
+      }
     }
   }
 
@@ -187,28 +193,40 @@ const IGInsightsDashboard = ({ selectedAccount }: Props) => {
   };
 
   const renderOnlineHours = () => {
-    if (!onlineFollowers?.data?.[0]?.values?.[0]?.value) return null;
-    const hourData = onlineFollowers.data[0].values[0].value;
-    if (!hourData || typeof hourData !== "object") return null;
+    const values = onlineFollowers?.data?.[0]?.values;
+    if (!Array.isArray(values) || values.length === 0) return null;
+
+    const latestWithData = [...values].reverse().find((v: any) => {
+      const value = v?.value;
+      return value && typeof value === "object" && Object.keys(value).length > 0;
+    });
+
+    if (!latestWithData?.value || typeof latestWithData.value !== "object") return null;
+
+    const hourData = latestWithData.value as Record<string, number>;
     const entries = Object.entries(hourData).sort(([a], [b]) => parseInt(a) - parseInt(b));
     if (entries.length === 0) return null;
-    const max = Math.max(...entries.map(([, v]) => v as number), 1);
-    const peakHour = entries.reduce((best, curr) => (curr[1] as number) > (best[1] as number) ? curr : best, entries[0]);
+
+    const max = Math.max(...entries.map(([, v]) => (typeof v === "number" ? v : 0)), 1);
+    const peakHour = entries.reduce((best, curr) =>
+      ((curr[1] as number) > (best[1] as number) ? curr : best), entries[0]
+    );
 
     return (
       <div>
         <div className="flex items-end gap-[2px] h-20 mb-2">
           {entries.map(([hour, val]) => {
+            const numericVal = typeof val === "number" ? val : 0;
             const isPeak = hour === peakHour[0];
             return (
               <div key={hour} className="flex-1 flex flex-col items-center gap-0.5 group relative">
                 <div
                   className={`w-full rounded-t transition-all ${isPeak ? "bg-gradient-to-t from-amber-500 to-yellow-400" : "bg-gradient-to-t from-blue-500 to-cyan-400"}`}
-                  style={{ height: `${((val as number) / max) * 100}%`, minHeight: "2px" }}
+                  style={{ height: `${(numericVal / max) * 100}%`, minHeight: "2px" }}
                 />
                 {parseInt(hour) % 3 === 0 && <span className="text-[7px] text-muted-foreground">{hour}h</span>}
                 <div className="absolute -top-6 bg-background border border-border rounded px-1 py-0.5 text-[8px] opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-                  {(val as number).toLocaleString()}
+                  {numericVal.toLocaleString()}
                 </div>
               </div>
             );
@@ -386,7 +404,9 @@ const IGInsightsDashboard = ({ selectedAccount }: Props) => {
               <Badge variant="outline" className="text-[8px] border-white/10">Age & Gender</Badge>
             </h4>
             {renderDemoBreakdown("follower_demographics", "Followers") || (
-              <p className="text-xs text-muted-foreground text-center py-4">Click "Sync Insights" to load</p>
+              <p className="text-xs text-muted-foreground text-center py-4">
+                {lastSynced ? "Instagram returned no follower-demographic breakdown yet." : 'Click "Sync Insights" to load'}
+              </p>
             )}
           </CardContent>
         </Card>
@@ -399,7 +419,9 @@ const IGInsightsDashboard = ({ selectedAccount }: Props) => {
               <Badge variant="outline" className="text-[8px] border-white/10">Last 90 days</Badge>
             </h4>
             {renderDemoBreakdown("reached_audience_demographics", "Reached") || (
-              <p className="text-xs text-muted-foreground text-center py-4">Click "Sync Insights" to load</p>
+              <p className="text-xs text-muted-foreground text-center py-4">
+                {lastSynced ? "Instagram returned no reached-audience breakdown yet." : 'Click "Sync Insights" to load'}
+              </p>
             )}
           </CardContent>
         </Card>
@@ -412,7 +434,9 @@ const IGInsightsDashboard = ({ selectedAccount }: Props) => {
               <Badge variant="outline" className="text-[8px] border-white/10">Last 90 days</Badge>
             </h4>
             {renderDemoBreakdown("engaged_audience_demographics", "Engaged") || (
-              <p className="text-xs text-muted-foreground text-center py-4">Click "Sync Insights" to load</p>
+              <p className="text-xs text-muted-foreground text-center py-4">
+                {lastSynced ? "Instagram returned no engaged-audience breakdown yet." : 'Click "Sync Insights" to load'}
+              </p>
             )}
           </CardContent>
         </Card>
@@ -425,7 +449,9 @@ const IGInsightsDashboard = ({ selectedAccount }: Props) => {
               <Badge variant="outline" className="text-[8px] border-white/10">Followers Online</Badge>
             </h4>
             {renderOnlineHours() || (
-              <p className="text-xs text-muted-foreground text-center py-4">Click "Sync Insights" to load</p>
+              <p className="text-xs text-muted-foreground text-center py-4">
+                {lastSynced ? "Instagram returned no follower-online histogram yet." : 'Click "Sync Insights" to load'}
+              </p>
             )}
           </CardContent>
         </Card>
