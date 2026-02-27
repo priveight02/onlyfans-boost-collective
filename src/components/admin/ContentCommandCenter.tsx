@@ -199,6 +199,22 @@ const ContentCommandCenter = () => {
   const [storyboardScenes, setStoryboardScenes] = useState<any[]>([]);
   const [generatingStoryboard, setGeneratingStoryboard] = useState(false);
 
+  // ── Production-grade features ──
+  const [showContentBrief, setShowContentBrief] = useState(false);
+  const [contentBrief, setContentBrief] = useState<any>(null);
+  const [generatingBrief, setGeneratingBrief] = useState(false);
+  const [briefTopic, setBriefTopic] = useState("");
+  const [batchGenerating, setBatchGenerating] = useState(false);
+  const [batchProgress, setBatchProgress] = useState<{done: number; total: number} | null>(null);
+  const [showHashtagBank, setShowHashtagBank] = useState(false);
+  const [hashtagSets, setHashtagSets] = useState<{name: string; tags: string[]; platform: string}[]>([]);
+  const [newSetName, setNewSetName] = useState("");
+  const [showCaptionLibrary, setShowCaptionLibrary] = useState(false);
+  const [savedCaptions, setSavedCaptions] = useState<{id: string; text: string; platform: string; label: string; created_at: string}[]>([]);
+  const [showHeatmap, setShowHeatmap] = useState(false);
+  const [showApprovalQueue, setShowApprovalQueue] = useState(false);
+  const [generatingBatchCaptions, setGeneratingBatchCaptions] = useState(false);
+
   // Create form
   const [formTitle, setFormTitle] = useState("");
   const [formPlatform, setFormPlatform] = useState("");
@@ -972,6 +988,213 @@ Respond ONLY with JSON array.`);
     });
   };
 
+  // ════════════════════════════════════════════════════════
+  // FEATURE 21: AI Content Brief Generator
+  // ════════════════════════════════════════════════════════
+  const generateContentBrief = async () => {
+    if (!briefTopic.trim()) { toast.error("Enter a topic for the brief"); return; }
+    const platform = formPlatform || platformFilter !== "all" ? (formPlatform || platformFilter) : "instagram";
+    await performAction('ai_generate_ideas', async () => {
+      setGeneratingBrief(true);
+      try {
+        const content = await callAI(`Create a detailed content brief for a ${platformConf(platform).label} campaign.
+Topic: "${briefTopic}"
+Platform: ${platformConf(platform).label}
+Existing content count: ${items.length}
+Connected platforms: ${connections.map(c => c.platform).join(", ") || "none"}
+
+Generate a comprehensive production brief with:
+- campaign_name: catchy name
+- objective: primary goal (awareness/engagement/conversion/community)
+- target_audience: demographics, interests, pain points
+- key_messages: array of 3-5 core messages
+- content_mix: array of {type, quantity, platform, description}
+- tone_guidelines: voice, dos and donts
+- visual_direction: style, colors, mood
+- hashtag_strategy: primary (3), secondary (5), campaign-specific (2)
+- posting_schedule: recommended cadence per platform
+- success_metrics: KPIs to track
+- competitor_angles: 3 ways to differentiate
+- hook_templates: 5 scroll-stopping first lines
+- cta_options: 5 call-to-action variations
+
+Respond ONLY with JSON object.`);
+        const jsonMatch = content.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          setContentBrief(JSON.parse(jsonMatch[0]));
+          toast.success("Content brief generated — ready for execution");
+        }
+      } catch (e: any) { toast.error(e.message); }
+      setGeneratingBrief(false);
+    });
+  };
+
+  const executeBrief = async (brief: any) => {
+    if (!brief?.content_mix) return;
+    await performAction('ai_generate_ideas', async () => {
+      setGenerating(true);
+      let created = 0;
+      for (const mix of brief.content_mix) {
+        for (let i = 0; i < Math.min(mix.quantity || 1, 3); i++) {
+          try {
+            const caption = await callAI(`Create a ${mix.platform || "instagram"} ${mix.type || "post"} caption.
+Brief context: Campaign "${brief.campaign_name}", objective: ${brief.objective}.
+Key message: ${brief.key_messages?.[i % brief.key_messages.length] || mix.description}
+Tone: ${brief.tone_guidelines || "engaging"}
+Hook: Use one of these styles: ${brief.hook_templates?.slice(0, 2).join(" | ") || "curiosity hook"}
+CTA: ${brief.cta_options?.[i % (brief.cta_options?.length || 1)] || "engage"}
+Respond ONLY with the caption text.`);
+            if (caption.trim()) {
+              await supabase.from("content_calendar").insert({
+                title: `${brief.campaign_name} — ${mix.type} ${i + 1}`,
+                caption: caption.trim(),
+                platform: mix.platform || "instagram",
+                content_type: mix.type || "post",
+                hashtags: [...(brief.hashtag_strategy?.primary || []), ...(brief.hashtag_strategy?.secondary || [])].slice(0, 15),
+                cta: brief.cta_options?.[0] || "",
+                description: `Campaign: ${brief.campaign_name} | ${mix.description || ""}`,
+                status: "draft",
+                viral_score: 0,
+              });
+              created++;
+            }
+          } catch { /* skip */ }
+        }
+      }
+      toast.success(`${created} content pieces created from brief`);
+      setGenerating(false);
+      setShowContentBrief(false);
+    });
+  };
+
+  // ════════════════════════════════════════════════════════
+  // FEATURE 22: Batch AI Caption Generation for Drafts
+  // ════════════════════════════════════════════════════════
+  const batchGenerateCaptions = async () => {
+    const drafts = items.filter(i => i.status === "draft" && (!i.caption || i.caption.length < 20));
+    if (drafts.length === 0) { toast.error("No drafts needing captions"); return; }
+    await performAction('ai_rewrite_caption', async () => {
+      setGeneratingBatchCaptions(true);
+      setBatchProgress({ done: 0, total: drafts.length });
+      for (let i = 0; i < drafts.length; i++) {
+        const item = drafts[i];
+        try {
+          const conf = platformConf(item.platform || "instagram");
+          const caption = await callAI(`Generate a perfect ${conf.label} ${item.content_type || "post"} caption.
+Title: "${item.title}"
+Notes: "${item.description || "none"}"
+Platform: ${conf.label} (max ${conf.maxCaption} chars)
+Has media: ${item.media_urls ? "yes" : "no"}
+Rules: Hook first line, natural emojis, strong CTA, optimized for ${conf.label} algorithm.
+Respond ONLY with the caption text.`);
+          if (caption.trim()) {
+            await supabase.from("content_calendar").update({ caption: caption.trim().substring(0, conf.maxCaption) }).eq("id", item.id);
+          }
+        } catch { /* skip */ }
+        setBatchProgress({ done: i + 1, total: drafts.length });
+      }
+      toast.success(`Captions generated for ${drafts.length} drafts`);
+      setGeneratingBatchCaptions(false);
+      setBatchProgress(null);
+    });
+  };
+
+  // ════════════════════════════════════════════════════════
+  // FEATURE 23: Hashtag Bank (save/reuse sets)
+  // ════════════════════════════════════════════════════════
+  const saveHashtagSet = () => {
+    if (!newSetName.trim() || !formHashtags.trim()) { toast.error("Enter a name and hashtags"); return; }
+    const tags = formHashtags.split(",").map(h => h.trim()).filter(Boolean);
+    setHashtagSets(prev => [...prev, { name: newSetName.trim(), tags, platform: formPlatform || "all" }]);
+    setNewSetName("");
+    toast.success(`Hashtag set "${newSetName}" saved`);
+  };
+
+  const applyHashtagSet = (set: {name: string; tags: string[]}) => {
+    setFormHashtags(set.tags.join(", "));
+    setShowHashtagBank(false);
+    toast.success(`Applied "${set.name}" hashtags`);
+  };
+
+  // ════════════════════════════════════════════════════════
+  // FEATURE 24: Caption Library (save best captions)
+  // ════════════════════════════════════════════════════════
+  const saveCaptionToLibrary = (text: string, platform: string, label?: string) => {
+    if (!text.trim()) return;
+    setSavedCaptions(prev => [...prev, {
+      id: Date.now().toString(),
+      text: text.trim(),
+      platform,
+      label: label || `Saved ${new Date().toLocaleDateString()}`,
+      created_at: new Date().toISOString(),
+    }]);
+    toast.success("Caption saved to library");
+  };
+
+  const applySavedCaption = (caption: {text: string}) => {
+    setFormCaption(caption.text);
+    setShowCaptionLibrary(false);
+    toast.success("Caption applied");
+  };
+
+  // ════════════════════════════════════════════════════════
+  // FEATURE 25: Quick Repost (one-click republish)
+  // ════════════════════════════════════════════════════════
+  const quickRepost = async (item: any) => {
+    await performAction('create_content', async () => {
+      const { error } = await supabase.from("content_calendar").insert({
+        title: `${item.title} (Repost)`,
+        caption: item.caption,
+        platform: item.platform,
+        content_type: item.content_type,
+        hashtags: item.hashtags || [],
+        cta: item.cta || "",
+        media_urls: item.media_urls || null,
+        account_id: item.account_id || null,
+        description: `Reposted from ${item.published_at ? format(new Date(item.published_at), "MMM d") : "original"}`,
+        status: "draft",
+        viral_score: item.viral_score || 0,
+        metadata: { ...(item.metadata || {}), reposted_from: item.id, original_published: item.published_at },
+      });
+      if (error) toast.error(error.message);
+      else toast.success("Content duplicated as draft for reposting");
+    });
+  };
+
+  // ════════════════════════════════════════════════════════
+  // FEATURE 26: Content Approval Workflow
+  // ════════════════════════════════════════════════════════
+  const approvalItems = useMemo(() => items.filter(i => i.status === "planned"), [items]);
+  const moveToReview = async (id: string) => {
+    await supabase.from("content_calendar").update({ status: "planned" }).eq("id", id);
+    toast.success("Moved to review queue");
+  };
+  const approveContent = async (id: string) => {
+    await supabase.from("content_calendar").update({ status: "scheduled" }).eq("id", id);
+    toast.success("Approved → Scheduled");
+  };
+  const rejectContent = async (id: string) => {
+    await supabase.from("content_calendar").update({ status: "draft" }).eq("id", id);
+    toast.info("Sent back to drafts");
+  };
+
+  // ════════════════════════════════════════════════════════
+  // FEATURE 27: Weekly Posting Heatmap
+  // ════════════════════════════════════════════════════════
+  const heatmapData = useMemo(() => {
+    const grid: Record<string, number> = {};
+    const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const hours = Array.from({ length: 24 }, (_, i) => i);
+    days.forEach(d => hours.forEach(h => { grid[`${d}-${h}`] = 0; }));
+    for (const item of items) {
+      if (!item.scheduled_at && !item.published_at) continue;
+      const d = new Date(item.scheduled_at || item.published_at);
+      const key = `${days[d.getDay()]}-${d.getHours()}`;
+      grid[key] = (grid[key] || 0) + 1;
+    }
+    return { grid, days, hours };
+  }, [items]);
+
   // ─── Apply template ───
   const applyTemplate = (template: typeof CONTENT_TEMPLATES[0]) => {
     setFormPlatform(template.platform);
@@ -1330,17 +1553,37 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
           <p className="text-xs text-muted-foreground">Create, schedule, and publish across all platforms</p>
         </div>
         <div className="flex gap-1.5 flex-wrap">
+          <Button size="sm" variant="outline" onClick={() => setShowContentBrief(true)}
+            className="border-border text-muted-foreground text-xs h-8">
+            <FileText className="h-3.5 w-3.5 mr-1" /> Brief
+          </Button>
           <Button size="sm" variant="outline" onClick={() => setShowPerformance(true)}
             className="border-border text-muted-foreground text-xs h-8">
             <BarChart3 className="h-3.5 w-3.5 mr-1" /> Analytics
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => setShowHeatmap(true)}
+            className="border-border text-muted-foreground text-xs h-8">
+            <Flame className="h-3.5 w-3.5 mr-1" /> Heatmap
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => setShowApprovalQueue(true)}
+            className="border-border text-muted-foreground text-xs h-8">
+            <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Review{approvalItems.length > 0 ? ` (${approvalItems.length})` : ""}
           </Button>
           <Button size="sm" variant="outline" onClick={() => setShowRecycler(true)}
             className="border-border text-muted-foreground text-xs h-8">
             <Repeat className="h-3.5 w-3.5 mr-1" /> Recycle
           </Button>
+          <Button size="sm" variant="outline" onClick={() => setShowHashtagBank(true)}
+            className="border-border text-muted-foreground text-xs h-8">
+            <Hash className="h-3.5 w-3.5 mr-1" /> Hashtags
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => setShowCaptionLibrary(true)}
+            className="border-border text-muted-foreground text-xs h-8">
+            <BookOpen className="h-3.5 w-3.5 mr-1" /> Captions
+          </Button>
           <Button size="sm" variant="outline" onClick={() => setShowSeriesPlanner(true)}
             className="border-border text-muted-foreground text-xs h-8">
-            <BookOpen className="h-3.5 w-3.5 mr-1" /> Series
+            <Layers className="h-3.5 w-3.5 mr-1" /> Series
           </Button>
           <Button size="sm" variant="outline" onClick={() => setShowThreadBuilder(true)}
             className="border-border text-muted-foreground text-xs h-8">
@@ -1364,6 +1607,11 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
             className="border-border text-muted-foreground text-xs h-8">
             {generatingTrends ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <TrendingUp className="h-3.5 w-3.5 mr-1" />}
             Trends
+          </Button>
+          <Button size="sm" variant="outline" onClick={batchGenerateCaptions} disabled={generatingBatchCaptions}
+            className="border-amber-500/20 text-amber-400 text-xs h-8">
+            {generatingBatchCaptions ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Wand2 className="h-3.5 w-3.5 mr-1" />}
+            Batch AI{batchProgress ? ` ${batchProgress.done}/${batchProgress.total}` : ""}
           </Button>
           <Button size="sm" onClick={generateRandomPosts} disabled={generating}
             className="bg-gradient-to-r from-purple-600 to-pink-600 text-white text-xs h-8">
@@ -1718,6 +1966,24 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
 
               {/* Actions */}
               <div className="flex gap-2 pt-2 border-t border-border flex-wrap">
+                {showDetail.status === "draft" && (
+                  <Button size="sm" variant="outline" onClick={() => moveToReview(showDetail.id)}
+                    className="border-primary/20 text-primary text-xs h-9">
+                    <CheckCircle2 className="h-3 w-3 mr-1" /> Submit for Review
+                  </Button>
+                )}
+                {showDetail.status === "published" && (
+                  <Button size="sm" variant="outline" onClick={() => quickRepost(showDetail)}
+                    className="border-amber-500/20 text-amber-400 text-xs h-9">
+                    <Repeat className="h-3 w-3 mr-1" /> Repost
+                  </Button>
+                )}
+                {showDetail.caption && (
+                  <Button size="sm" variant="outline" onClick={() => saveCaptionToLibrary(showDetail.caption, showDetail.platform, showDetail.title)}
+                    className="border-border text-muted-foreground text-xs h-9">
+                    <BookOpen className="h-3 w-3 mr-1" /> Save Caption
+                  </Button>
+                )}
                 {showDetail.status !== "published" && connForPlatform(showDetail.platform) && (
                   <Button onClick={() => publishToNetwork(showDetail)} disabled={publishing}
                     className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white text-xs h-9">
@@ -2454,6 +2720,285 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
                   <span className="text-[8px] text-muted-foreground/60">→ {scene.transition}</span>
                 </div>
               </div>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ========== CONTENT BRIEF DIALOG ========== */}
+      <Dialog open={showContentBrief} onOpenChange={setShowContentBrief}>
+        <DialogContent className="bg-popover border-border text-foreground max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-foreground flex items-center gap-2"><FileText className="h-4 w-4 text-primary" /> AI Content Brief Generator</DialogTitle>
+          </DialogHeader>
+          {!contentBrief ? (
+            <div className="space-y-3">
+              <p className="text-xs text-muted-foreground">Generate a comprehensive campaign brief with target audience, content mix, hashtag strategy, and auto-create all content pieces.</p>
+              <Input value={briefTopic} onChange={e => setBriefTopic(e.target.value)}
+                placeholder="Campaign topic (e.g., 'Summer Launch', 'Brand Awareness')" className="bg-card/50 border-border text-foreground text-xs" />
+              <Select value={formPlatform || "instagram"} onValueChange={v => setFormPlatform(v)}>
+                <SelectTrigger className="bg-card/50 border-border text-foreground text-xs h-8"><SelectValue placeholder="Primary Platform" /></SelectTrigger>
+                <SelectContent className="bg-popover border-border">
+                  {availablePlatforms.map(p => <SelectItem key={p} value={p} className="text-xs capitalize">{p}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Button onClick={generateContentBrief} disabled={generatingBrief || !briefTopic.trim()}
+                className="w-full bg-primary text-primary-foreground text-xs">
+                {generatingBrief ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Sparkles className="h-3.5 w-3.5 mr-1" />}
+                Generate Campaign Brief
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="bg-primary/10 border border-primary/20 rounded-lg p-3">
+                <h3 className="text-sm font-bold text-foreground">{contentBrief.campaign_name}</h3>
+                <p className="text-[10px] text-muted-foreground mt-0.5">Objective: {contentBrief.objective}</p>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="bg-muted/30 rounded-lg p-2">
+                  <p className="text-[9px] text-muted-foreground uppercase tracking-wider mb-1">🎯 Target Audience</p>
+                  <p className="text-[10px] text-foreground">{contentBrief.target_audience}</p>
+                </div>
+                <div className="bg-muted/30 rounded-lg p-2">
+                  <p className="text-[9px] text-muted-foreground uppercase tracking-wider mb-1">🎨 Visual Direction</p>
+                  <p className="text-[10px] text-foreground">{contentBrief.visual_direction}</p>
+                </div>
+              </div>
+              {contentBrief.key_messages && (
+                <div className="bg-muted/30 rounded-lg p-2">
+                  <p className="text-[9px] text-muted-foreground uppercase tracking-wider mb-1">💬 Key Messages</p>
+                  {contentBrief.key_messages.map((msg: string, i: number) => (
+                    <p key={i} className="text-[10px] text-foreground">• {msg}</p>
+                  ))}
+                </div>
+              )}
+              {contentBrief.content_mix && (
+                <div className="bg-muted/30 rounded-lg p-2">
+                  <p className="text-[9px] text-muted-foreground uppercase tracking-wider mb-1">📋 Content Mix</p>
+                  {contentBrief.content_mix.map((mix: any, i: number) => (
+                    <div key={i} className="flex items-center gap-2 text-[10px] text-foreground py-0.5">
+                      <Badge variant="outline" className="text-[8px] border-border text-muted-foreground capitalize">{mix.type}</Badge>
+                      <span>×{mix.quantity}</span>
+                      <span className="text-muted-foreground">— {mix.description}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {contentBrief.hook_templates && (
+                <div className="bg-muted/30 rounded-lg p-2">
+                  <p className="text-[9px] text-muted-foreground uppercase tracking-wider mb-1">🎣 Hook Templates</p>
+                  {contentBrief.hook_templates.map((h: string, i: number) => (
+                    <p key={i} className="text-[10px] text-foreground/80">"{h}"</p>
+                  ))}
+                </div>
+              )}
+              {contentBrief.hashtag_strategy && (
+                <div className="bg-muted/30 rounded-lg p-2">
+                  <p className="text-[9px] text-muted-foreground uppercase tracking-wider mb-1"># Hashtag Strategy</p>
+                  {Object.entries(contentBrief.hashtag_strategy).map(([cat, tags]: [string, any]) => (
+                    <div key={cat} className="flex gap-1 items-center flex-wrap mt-0.5">
+                      <span className="text-[9px] text-muted-foreground capitalize w-16">{cat}:</span>
+                      {(Array.isArray(tags) ? tags : []).map((t: string, i: number) => (
+                        <span key={i} className="text-[9px] text-primary/70">#{t}</span>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {contentBrief.success_metrics && (
+                <div className="bg-muted/30 rounded-lg p-2">
+                  <p className="text-[9px] text-muted-foreground uppercase tracking-wider mb-1">📊 Success Metrics</p>
+                  <p className="text-[10px] text-foreground">{typeof contentBrief.success_metrics === 'string' ? contentBrief.success_metrics : JSON.stringify(contentBrief.success_metrics)}</p>
+                </div>
+              )}
+              <div className="flex gap-2">
+                <Button onClick={() => executeBrief(contentBrief)} disabled={generating}
+                  className="flex-1 bg-primary text-primary-foreground text-xs">
+                  {generating ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Zap className="h-3.5 w-3.5 mr-1" />}
+                  Execute Brief → Create All Content
+                </Button>
+                <Button variant="outline" onClick={() => setContentBrief(null)} className="text-xs border-border text-muted-foreground">
+                  New Brief
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* ========== WEEKLY HEATMAP DIALOG ========== */}
+      <Dialog open={showHeatmap} onOpenChange={setShowHeatmap}>
+        <DialogContent className="bg-popover border-border text-foreground max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-foreground flex items-center gap-2"><Flame className="h-4 w-4 text-primary" /> Weekly Posting Heatmap</DialogTitle>
+          </DialogHeader>
+          <p className="text-xs text-muted-foreground">Your posting density by day and hour — find gaps and optimize cadence.</p>
+          <div className="overflow-x-auto">
+            <div className="min-w-[600px]">
+              <div className="flex">
+                <div className="w-10" />
+                {heatmapData.hours.filter(h => h % 3 === 0).map(h => (
+                  <div key={h} className="flex-1 text-center text-[8px] text-muted-foreground">
+                    {h === 0 ? "12a" : h < 12 ? `${h}a` : h === 12 ? "12p" : `${h-12}p`}
+                  </div>
+                ))}
+              </div>
+              {heatmapData.days.map(day => (
+                <div key={day} className="flex items-center gap-0.5 mb-0.5">
+                  <span className="w-10 text-[9px] text-muted-foreground text-right pr-1">{day}</span>
+                  {heatmapData.hours.map(h => {
+                    const count = heatmapData.grid[`${day}-${h}`] || 0;
+                    const intensity = count === 0 ? "bg-muted/20" : count === 1 ? "bg-emerald-500/30" : count === 2 ? "bg-emerald-500/50" : "bg-emerald-500/80";
+                    return (
+                      <div key={h} className={`flex-1 h-5 rounded-sm ${intensity} border border-border/30`} title={`${day} ${h}:00 — ${count} posts`} />
+                    );
+                  })}
+                </div>
+              ))}
+              <div className="flex items-center gap-2 mt-2 justify-end">
+                <span className="text-[8px] text-muted-foreground">Less</span>
+                <div className="h-3 w-3 rounded-sm bg-muted/20 border border-border/30" />
+                <div className="h-3 w-3 rounded-sm bg-emerald-500/30 border border-border/30" />
+                <div className="h-3 w-3 rounded-sm bg-emerald-500/50 border border-border/30" />
+                <div className="h-3 w-3 rounded-sm bg-emerald-500/80 border border-border/30" />
+                <span className="text-[8px] text-muted-foreground">More</span>
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ========== APPROVAL QUEUE DIALOG ========== */}
+      <Dialog open={showApprovalQueue} onOpenChange={setShowApprovalQueue}>
+        <DialogContent className="bg-popover border-border text-foreground max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-foreground flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-primary" /> Content Approval Queue</DialogTitle>
+          </DialogHeader>
+          <p className="text-xs text-muted-foreground">Review content before scheduling. Drafts → Submit for Review → Approve → Schedule.</p>
+          <div className="space-y-3">
+            {/* Pending Review */}
+            <div>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">📋 Pending Review ({approvalItems.length})</p>
+              {approvalItems.length === 0 ? (
+                <p className="text-xs text-muted-foreground/60 text-center py-4">No content awaiting review</p>
+              ) : approvalItems.map(item => (
+                <Card key={item.id} className="bg-card/50 border-border mb-2">
+                  <CardContent className="p-3">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Badge variant="outline" className={`text-[9px] capitalize gap-0.5 ${platformConf(item.platform).color}`}>
+                        {platformIcon(item.platform)} {item.platform}
+                      </Badge>
+                      <span className="text-xs text-foreground flex-1 truncate">{item.title}</span>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground line-clamp-2 mb-2">{item.caption}</p>
+                    <div className="flex gap-1.5">
+                      <Button size="sm" onClick={() => approveContent(item.id)}
+                        className="flex-1 text-[10px] h-6 bg-emerald-600 text-white">
+                        <CheckCircle2 className="h-2.5 w-2.5 mr-0.5" /> Approve
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => rejectContent(item.id)}
+                        className="flex-1 text-[10px] h-6 border-destructive/30 text-destructive">
+                        <X className="h-2.5 w-2.5 mr-0.5" /> Reject
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => { setShowDetail(item); setShowApprovalQueue(false); }}
+                        className="text-[10px] h-6 border-border text-muted-foreground">
+                        <Eye className="h-2.5 w-2.5" />
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+            {/* Quick submit drafts */}
+            <div>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">📝 Drafts to Submit</p>
+              {items.filter(i => i.status === "draft").slice(0, 5).map(item => (
+                <div key={item.id} className="flex items-center gap-2 py-1 border-b border-border/30 last:border-0">
+                  <span className="text-[10px] text-foreground flex-1 truncate">{item.title}</span>
+                  <Badge variant="outline" className={`text-[8px] capitalize gap-0.5 ${platformConf(item.platform).color}`}>{item.platform}</Badge>
+                  <Button size="sm" variant="outline" onClick={() => moveToReview(item.id)}
+                    className="text-[9px] h-5 px-2 border-primary/20 text-primary">Submit</Button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ========== HASHTAG BANK DIALOG ========== */}
+      <Dialog open={showHashtagBank} onOpenChange={setShowHashtagBank}>
+        <DialogContent className="bg-popover border-border text-foreground max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-foreground flex items-center gap-2"><Hash className="h-4 w-4 text-primary" /> Hashtag Bank</DialogTitle>
+          </DialogHeader>
+          <p className="text-xs text-muted-foreground">Save and reuse your best hashtag sets across content.</p>
+          <div className="space-y-3">
+            {formHashtags.trim() && (
+              <div className="flex gap-1.5 items-center">
+                <Input value={newSetName} onChange={e => setNewSetName(e.target.value)}
+                  placeholder="Set name..." className="bg-card/50 border-border text-foreground text-xs flex-1" />
+                <Button size="sm" onClick={saveHashtagSet} className="text-xs h-8 bg-primary text-primary-foreground">
+                  <Plus className="h-3 w-3 mr-0.5" /> Save Current
+                </Button>
+              </div>
+            )}
+            {hashtagSets.length === 0 ? (
+              <p className="text-xs text-muted-foreground/60 text-center py-6">No saved hashtag sets yet. Generate hashtags in the create dialog, then save them here.</p>
+            ) : hashtagSets.map((set, i) => (
+              <Card key={i} className="bg-card/50 border-border">
+                <CardContent className="p-2">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-medium text-foreground">{set.name}</span>
+                    <div className="flex gap-1">
+                      <Badge variant="outline" className="text-[8px] border-border text-muted-foreground capitalize">{set.platform}</Badge>
+                      <Button size="sm" variant="outline" onClick={() => applyHashtagSet(set)}
+                        className="text-[9px] h-5 px-2 border-primary/20 text-primary">Use</Button>
+                      <Button size="sm" variant="outline" onClick={() => setHashtagSets(prev => prev.filter((_, j) => j !== i))}
+                        className="text-[9px] h-5 px-1 border-destructive/20 text-destructive"><X className="h-2.5 w-2.5" /></Button>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {set.tags.slice(0, 10).map((t, j) => <span key={j} className="text-[9px] text-primary/60">#{t}</span>)}
+                    {set.tags.length > 10 && <span className="text-[9px] text-muted-foreground">+{set.tags.length - 10}</span>}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ========== CAPTION LIBRARY DIALOG ========== */}
+      <Dialog open={showCaptionLibrary} onOpenChange={setShowCaptionLibrary}>
+        <DialogContent className="bg-popover border-border text-foreground max-w-md max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-foreground flex items-center gap-2"><BookOpen className="h-4 w-4 text-primary" /> Caption Library</DialogTitle>
+          </DialogHeader>
+          <p className="text-xs text-muted-foreground">Save your best captions for quick reuse. Click to apply.</p>
+          {formCaption.trim() && (
+            <Button size="sm" variant="outline" onClick={() => saveCaptionToLibrary(formCaption, formPlatform || "all")}
+              className="text-xs h-8 border-primary/20 text-primary w-full">
+              <Plus className="h-3 w-3 mr-1" /> Save Current Caption to Library
+            </Button>
+          )}
+          <div className="space-y-2">
+            {savedCaptions.length === 0 ? (
+              <p className="text-xs text-muted-foreground/60 text-center py-6">No saved captions yet. Write a great caption and save it here for reuse.</p>
+            ) : savedCaptions.map(cap => (
+              <Card key={cap.id} className="bg-card/50 border-border hover:border-primary/30 transition-all cursor-pointer"
+                onClick={() => applySavedCaption(cap)}>
+                <CardContent className="p-2">
+                  <div className="flex items-center justify-between mb-0.5">
+                    <span className="text-[10px] font-medium text-foreground">{cap.label}</span>
+                    <div className="flex gap-1 items-center">
+                      <Badge variant="outline" className="text-[8px] border-border text-muted-foreground capitalize">{cap.platform}</Badge>
+                      <button onClick={(e) => { e.stopPropagation(); setSavedCaptions(prev => prev.filter(c => c.id !== cap.id)); }}
+                        className="p-0.5 rounded hover:bg-destructive/15"><X className="h-2.5 w-2.5 text-destructive/50" /></button>
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground line-clamp-3">{cap.text}</p>
+                </CardContent>
+              </Card>
             ))}
           </div>
         </DialogContent>
