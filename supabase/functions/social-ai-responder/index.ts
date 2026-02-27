@@ -1953,7 +1953,7 @@ FINAL RULES:
         const { comment_text, comment_author, post_caption, reply_style, redirect_url } = params;
 
         // Use the same persona system as live DM conversations
-        const { personaInfo: commentPersona } = await getAccountPersona(supabaseClient, account_id);
+        const { personaInfo: commentPersona } = await getAccountPersona(supabase, account_id);
         
         const systemPrompt = `${commentPersona}
 
@@ -1999,7 +1999,7 @@ Rules:
 
       case "generate_cta_reply": {
         const { comment_text, comment_author, post_caption, redirect_url } = params;
-        const { personaInfo } = await getAccountPersona(supabaseClient, account_id);
+const { personaInfo } = await getAccountPersona(supabase, account_id);
 
         const systemPrompt = `${personaInfo}
 
@@ -2040,7 +2040,7 @@ Rules:
 
       case "generate_dm_from_comment": {
         const { comment_text, comment_author, post_caption, redirect_url } = params;
-        const { personaInfo } = await getAccountPersona(supabaseClient, account_id);
+        const { personaInfo } = await getAccountPersona(supabase, account_id);
 
         const systemPrompt = `${personaInfo}
 
@@ -2166,7 +2166,7 @@ ${redirect_url ? `- include this link when it makes sense: ${redirect_url}` : "-
         const replies: any[] = [];
 
         // Use account persona for bulk replies too
-        const { personaInfo: bulkPersona } = await getAccountPersona(supabaseClient, account_id);
+        const { personaInfo: bulkPersona } = await getAccountPersona(supabase, account_id);
         const bulkSystemPrompt = `${bulkPersona}
 
 COMMENT REPLY CONTEXT:
