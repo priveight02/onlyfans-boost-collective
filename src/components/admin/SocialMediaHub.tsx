@@ -2815,7 +2815,7 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
                       <option value="instagram">IG</option><option value="tiktok">TT</option><option value="twitter">X</option>
                     </select>
                     <Button size="sm" onClick={generateAiCaption} disabled={apiLoading || !aiCaptionTopic} className="bg-gradient-to-r from-purple-500 to-pink-500 text-white border-0 h-8 text-xs">
-                      <Sparkles className="h-3 w-3 mr-1" />Generate
+                      <Wand2 className="h-3 w-3 mr-1" />Generate
                     </Button>
                   </div>
                 </div>
@@ -2856,7 +2856,7 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
                   <div className="text-[9px] text-muted-foreground">
                     {aiAnalyzeCaption.length > 0 && <span>{aiAnalyzeCaption.length} chars · ~{Math.ceil(aiAnalyzeCaption.length / 5)} words</span>}
                   </div>
-                  <Button size="sm" className="h-7 text-[10px]" onClick={analyzeContent} disabled={apiLoading || !aiAnalyzeCaption}><Brain className="h-3 w-3 mr-1" />Analyze</Button>
+                  <Button size="sm" className="h-7 text-[10px]" onClick={analyzeContent} disabled={apiLoading || !aiAnalyzeCaption}><TrendingUp className="h-3 w-3 mr-1" />Analyze</Button>
                 </div>
                 {aiAnalyzeResult && (
                   <div className="bg-white/[0.04] rounded-lg p-2.5 border border-white/[0.08] max-h-48 overflow-y-auto">

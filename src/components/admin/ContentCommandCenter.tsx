@@ -367,21 +367,21 @@ const ContentCommandCenter = () => {
           storytelling: "narrative-driven with a beginning, middle, and end. Use suspense and emotional hooks",
           controversial: "bold hot take that sparks debate. Polarizing but not offensive. Gets people commenting",
         };
-        const content = await callAI(`Rewrite this ${formPlatform || "social media"} caption in a ${style} style. Make it ${styleGuide[style]}.
+        const content = await callAI(`Rewrite this caption in a ${style} style: ${styleGuide[style]}.
 
-Platform: ${formPlatform || "instagram"} (character limit: ${platformConf(formPlatform || "instagram").maxCaption})
-Content type: ${formType}
-Original caption: "${formCaption}"
+Caption: "${formCaption}"
+Platform: ${formPlatform || "instagram"}
 
 Rules:
-- Keep within ${platformConf(formPlatform || "instagram").maxCaption} characters
-- Include line breaks for readability
-- Add relevant emojis naturally
-- End with a clear CTA or engagement hook
-- Don't include hashtags (those are separate)
-- Optimize specifically for ${platformConf(formPlatform || "instagram").label} algorithm
+- Keep it SHORT: 10-15 words max
+- Every word must earn its place
+- Play on emotion: curiosity, desire, FOMO, urgency
+- 1-2 emojis max, naturally placed
+- End with a hook or CTA
+- No hashtags
+- Think punchy copywriting, not paragraphs
 
-Respond ONLY with the rewritten caption text, nothing else.`);
+Respond ONLY with the rewritten caption.`);
         if (content.trim()) {
           setFormCaption(content.trim());
           toast.success(`Caption rewritten (${style} style)`);
@@ -580,23 +580,25 @@ Respond ONLY with the new caption, nothing else.`);
     await performAction('ai_generate_ideas', async () => {
       setGeneratingFromImage(true);
       try {
-        const content = await callAI(`Generate a perfect ${formPlatform || "instagram"} ${formType} caption.
+        const content = await callAI(`Generate a short, sharp, emotionally punchy ${formPlatform || "instagram"} caption in under 15 words. 
 
-Platform: ${formPlatform || "instagram"} (max ${platformConf(formPlatform || "instagram").maxCaption} chars)
+Platform: ${formPlatform || "instagram"}
 Content type: ${formType}
-Context: User has uploaded ${formMediaFiles.length + formExistingMedia.length} media file(s)
-Current title: "${formTitle || "no title"}"
+Context: ${formMediaFiles.length + formExistingMedia.length} media file(s) uploaded
+Title: "${formTitle || "no title"}"
 Notes: "${formDesc || "none"}"
 
-Create a caption that:
-- Hooks the reader in the first line (pattern interrupt)
-- Creates curiosity about the media
-- Has natural emoji placement
-- Ends with a strong CTA
-- Is optimized for ${platformConf(formPlatform || "instagram").label}'s algorithm
-- Matches the ${formType} content type style
+Rules:
+- Maximum 10-15 words. Be concise, punchy, emotional
+- Play on curiosity, desire, FOMO, or raw emotion
+- No fluff, no filler words
+- Use 1-2 emojis max, placed naturally
+- Include a subtle CTA or engagement hook
+- Make every single word count
+- Think like a copywriter, not a blogger
+- DO NOT include hashtags (those are added separately)
 
-Respond ONLY with the caption text.`);
+Respond ONLY with the caption text, nothing else.`);
         if (content.trim()) {
           setFormCaption(content.trim());
           toast.success("AI caption generated from content context");
