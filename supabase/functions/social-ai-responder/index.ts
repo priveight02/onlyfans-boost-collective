@@ -1997,6 +1997,170 @@ Rules:
         break;
       }
 
+      case "generate_cta_reply": {
+        const { comment_text, comment_author, post_caption, redirect_url } = params;
+        const { personaInfo } = await getAccountPersona(supabaseClient, account_id);
+
+        const systemPrompt = `${personaInfo}
+
+COMMENT CTA REPLY CONTEXT:
+You are replying publicly to a comment. Your goal is to convert interest into a click/DM without sounding like a bot.
+${redirect_url ? `If relevant, mention: ${redirect_url} (casual, not spammy)` : "If relevant, mention checking bio/link"}
+Rules:
+- 1 sentence max
+- no emojis
+- keep it human and confident
+- if they ask price/link/where to buy, give a direct next step (bio/link/DM)
+- output only the reply text`;
+
+        const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: "google/gemini-3-flash-preview",
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: `Post: "${post_caption || "N/A"}"\nComment by @${comment_author || "user"}: "${comment_text}"\n\nReply:` },
+            ],
+            max_tokens: 80,
+            temperature: 0.7,
+          }),
+        });
+
+        if (!response.ok) {
+          if (response.status === 429) throw new Error("Rate limited - try again");
+          if (response.status === 402) throw new Error("AI credits exhausted");
+          throw new Error(`AI gateway error: ${response.status}`);
+        }
+
+        const aiResult = await response.json();
+        result = { reply: aiResult.choices?.[0]?.message?.content || "" };
+        break;
+      }
+
+      case "generate_dm_from_comment": {
+        const { comment_text, comment_author, post_caption, redirect_url } = params;
+        const { personaInfo } = await getAccountPersona(supabaseClient, account_id);
+
+        const systemPrompt = `${personaInfo}
+
+DM FROM COMMENT CONTEXT:
+You are sending a private DM because they commented.
+Rules:
+- 1 to 2 short sentences
+- no emojis
+- be warm and direct
+- if they show buying intent, give an easy next step
+${redirect_url ? `- include this link when it makes sense: ${redirect_url}` : "- if relevant, mention bio/link"}
+- output only the DM text`;
+
+        const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: "google/gemini-3-flash-preview",
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: `Post: "${post_caption || "N/A"}"\nComment by @${comment_author || "user"}: "${comment_text}"\n\nDM:` },
+            ],
+            max_tokens: 120,
+            temperature: 0.75,
+          }),
+        });
+
+        if (!response.ok) {
+          if (response.status === 429) throw new Error("Rate limited - try again");
+          if (response.status === 402) throw new Error("AI credits exhausted");
+          throw new Error(`AI gateway error: ${response.status}`);
+        }
+
+        const aiResult = await response.json();
+        result = { dm: aiResult.choices?.[0]?.message?.content || "" };
+        break;
+      }
+
+      case "summarize_comments": {
+        const { comments } = params;
+        const list = Array.isArray(comments) ? comments.slice(0, 80) : [];
+        const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: "google/gemini-2.5-flash",
+            messages: [
+              { role: "system", content: "You summarize comment sections for creators. Be concise, actionable, and specific. No emojis." },
+              { role: "user", content: `Summarize these comments and give: 1) overall sentiment (pos/neu/neg), 2) top themes (3-6), 3) best replies to write (3 bullets).\n\nCOMMENTS:\n${list.map((c: any) => `@${c.username || "user"}: ${c.text || ""}`).join("\n")}` },
+            ],
+            max_tokens: 350,
+            temperature: 0.4,
+          }),
+        });
+        if (!response.ok) throw new Error(`AI gateway error: ${response.status}`);
+        const aiResult = await response.json();
+        result = { summary: aiResult.choices?.[0]?.message?.content || "" };
+        break;
+      }
+
+      case "analyze_sentiment": {
+        const { comments } = params;
+        const list = Array.isArray(comments) ? comments.slice(0, 120) : [];
+        const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: "google/gemini-2.5-flash-lite",
+            messages: [
+              { role: "system", content: "You analyze sentiment of social comments. Return STRICT JSON only. No markdown." },
+              { role: "user", content: `Return JSON with keys: positive (0-100), neutral (0-100), negative (0-100), top_themes (array of 3-8 strings).\n\nCOMMENTS:\n${list.map((c: any) => `@${c.username || "user"}: ${c.text || ""}`).join("\n")}` },
+            ],
+            max_tokens: 220,
+            temperature: 0.2,
+          }),
+        });
+        if (!response.ok) throw new Error(`AI gateway error: ${response.status}`);
+        const aiResult = await response.json();
+        const raw = String(aiResult.choices?.[0]?.message?.content || "");
+        let parsed: any = null;
+        try {
+          const match = raw.match(/\{[\s\S]*\}/);
+          if (match) parsed = JSON.parse(match[0]);
+        } catch {
+          parsed = null;
+        }
+        result = parsed || { positive: 0, neutral: 0, negative: 0, top_themes: [] };
+        break;
+      }
+
+      case "filter_comments": {
+        const { comments, filter_type } = params;
+        const list = Array.isArray(comments) ? comments.slice(0, 120) : [];
+        const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: "google/gemini-2.5-flash-lite",
+            messages: [
+              { role: "system", content: "You filter social comments. Return STRICT JSON only with key filtered_ids: string[]. No markdown." },
+              { role: "user", content: `Filter type: ${filter_type}. Return JSON: {"filtered_ids": ["..."]}.\n\nCOMMENTS:\n${list.map((c: any) => `ID:${c.id} @${c.username || "user"}: ${c.text || ""}`).join("\n")}` },
+            ],
+            max_tokens: 260,
+            temperature: 0.2,
+          }),
+        });
+        if (!response.ok) throw new Error(`AI gateway error: ${response.status}`);
+        const aiResult = await response.json();
+        const raw = String(aiResult.choices?.[0]?.message?.content || "");
+        let parsed: any = null;
+        try {
+          const match = raw.match(/\{[\s\S]*\}/);
+          if (match) parsed = JSON.parse(match[0]);
+        } catch {
+          parsed = null;
+        }
+        result = parsed || { filtered_ids: [] };
+        break;
+      }
+
       case "bulk_generate_replies": {
         const { comments, reply_style, redirect_url } = params;
         const replies: any[] = [];
@@ -2007,8 +2171,14 @@ Rules:
 
 COMMENT REPLY CONTEXT:
 You are replying to a comment on your social media post. Keep the same persona as in DMs but adapt for public comment replies.
-${redirect_url ? "Sometimes mention checking bio." : ""}
-Rules: 1 sentence max. Sound real. Match your persona exactly. Output ONLY the reply text.`;
+${reply_style ? `Style override: ${reply_style}` : ""}
+${redirect_url ? "When relevant, casually mention checking bio/link for more." : ""}
+Rules:
+- 1 sentence max
+- no emojis
+- sound real, not like a brand
+- match your persona exactly
+- output ONLY the reply text`;
 
         for (const comment of (comments || []).slice(0, 20)) {
           try {

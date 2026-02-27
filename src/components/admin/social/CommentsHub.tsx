@@ -979,10 +979,8 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading, onNavigateTo
       toast.info("AI Auto-Reply paused");
     } else {
       if (!selectedPostId) { toast.error("Select a post first"); return; }
-      autoReplyRef.current = true;
       setAutoReplyActive(true);
-      toast.success("AI Auto-Reply activated — will reply to new comments");
-      runAutoReplyLoop();
+      toast.success("AI Auto-Reply activated (server-side)");
     }
   };
 
@@ -1031,10 +1029,8 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading, onNavigateTo
       toast.info("Auto-Like Comments paused");
     } else {
       if (!selectedPostId) { toast.error("Select a post first"); return; }
-      autoLikeRef.current = true;
       setAutoLikeCommentsActive(true);
-      toast.success("Auto-Like Comments activated");
-      runAutoLikeLoop();
+      toast.success("Auto-Like Comments activated (server-side)");
     }
   };
 
@@ -1072,10 +1068,8 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading, onNavigateTo
       toast.info("Auto-Like Replies paused");
     } else {
       if (!selectedPostId) { toast.error("Select a post first"); return; }
-      autoLikeRepliesRef.current = true;
       setAutoLikeRepliesActive(true);
-      toast.success("Auto-Like Replies activated");
-      runAutoLikeRepliesLoop();
+      toast.success("Auto-Like Replies activated (server-side)");
     }
   };
 
@@ -1150,10 +1144,8 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading, onNavigateTo
       toast.info("Auto-DM Commenters paused");
     } else {
       if (!selectedPostId) { toast.error("Select a post first"); return; }
-      autoDmRef.current = true;
       setAutoDmCommenters(true);
-      toast.success("Auto-DM activated — buying-signal commenters get a DM");
-      runAutoDmLoop();
+      toast.success("Auto-DM activated (server-side)");
     }
   };
 
@@ -1197,10 +1189,8 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading, onNavigateTo
       toast.info("Auto-Follow paused");
     } else {
       if (!selectedPostId) { toast.error("Select a post first"); return; }
-      autoFollowRef.current = true;
       setAutoFollowCommenters(true);
-      toast.success("Auto-Follow activated — engaged commenters will be followed");
-      runAutoFollowLoop();
+      toast.success("Auto-Follow activated (server-side)");
     }
   };
 
@@ -1235,10 +1225,8 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading, onNavigateTo
       toast.info("Auto-CTA paused");
     } else {
       if (!selectedPostId) { toast.error("Select a post first"); return; }
-      autoCtaRef.current = true;
       setAutoCtaInject(true);
-      toast.success("Auto-CTA activated — high-engagement comments get a CTA reply");
-      runAutoCtaLoop();
+      toast.success("Auto-CTA activated (server-side)");
     }
   };
 
@@ -1282,10 +1270,8 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading, onNavigateTo
       toast.info("Auto-Boost paused");
     } else {
       if (!selectedPostId) { toast.error("Select a post first"); return; }
-      autoBoostRef.current = true;
       setAutoBoostEngagement(true);
-      toast.success("Auto-Boost activated — like + reply to maximize reach");
-      runAutoBoostLoop();
+      toast.success("Auto-Boost activated (server-side)");
     }
   };
 
@@ -1332,10 +1318,8 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading, onNavigateTo
       toast.info("Auto-Question Responder paused");
     } else {
       if (!selectedPostId) { toast.error("Select a post first"); return; }
-      autoQuestionRef.current = true;
       setAutoQuestionResponder(true);
-      toast.success("Auto-Question Responder activated — questions get instant answers");
-      runAutoQuestionLoop();
+      toast.success("Auto-Question Responder activated (server-side)");
     }
   };
 
@@ -1381,10 +1365,8 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading, onNavigateTo
       toast.info("Auto-Lead Capture paused");
     } else {
       if (!selectedPostId) { toast.error("Select a post first"); return; }
-      autoLeadRef.current = true;
       setAutoLeadCapture(true);
-      toast.success("Auto-Lead Capture activated — hot leads get DM'd & logged");
-      runAutoLeadLoop();
+      toast.success("Auto-Lead Capture activated (server-side)");
     }
   };
 
