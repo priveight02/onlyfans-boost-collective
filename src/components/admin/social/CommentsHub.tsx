@@ -194,17 +194,7 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading, onNavigateTo
   const [autoBoostEngagement, setAutoBoostEngagement] = useState(false);
   const [autoQuestionResponder, setAutoQuestionResponder] = useState(false);
   const [autoLeadCapture, setAutoLeadCapture] = useState(false);
-  const autoReplyRef = useRef(false);
-  const autoLikeRef = useRef(false);
-  const autoLikeRepliesRef = useRef(false);
-  const autoDmRef = useRef(false);
-  const autoFollowRef = useRef(false);
-  const autoCtaRef = useRef(false);
-  const autoBoostRef = useRef(false);
-  const autoQuestionRef = useRef(false);
-  const autoLeadRef = useRef(false);
   const [autoReplyStats, setAutoReplyStats] = useState({ replied: 0, liked: 0, likedReplies: 0, hidden: 0, pinned: 0, dmd: 0, followed: 0, ctas: 0, boosted: 0, questions: 0, leads: 0 });
-  const autoIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [likingCommentId, setLikingCommentId] = useState<string | null>(null);
 
   // === PERSONA SYSTEM (same as DM conversations) ===
@@ -265,6 +255,20 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading, onNavigateTo
   useEffect(() => {
     if (selectedPostId) syncAutomationToServer(selectedPostId);
   }, [autoReplyActive, autoLikeCommentsActive, autoLikeRepliesActive, autoHideNegative, autoPinTopComment, autoThankNewFollower, autoDmCommenters, autoFollowCommenters, autoCtaInject, autoBoostEngagement, autoQuestionResponder, autoLeadCapture, selectedPostId]);
+
+  // Poll server stats from comment_automation_state (only when automations active)
+  const anyAutoActive = autoReplyActive || autoLikeCommentsActive || autoLikeRepliesActive || autoDmCommenters || autoFollowCommenters || autoCtaInject || autoBoostEngagement || autoQuestionResponder || autoLeadCapture || autoHideNegative || autoPinTopComment || autoThankNewFollower;
+  useEffect(() => {
+    if (!anyAutoActive || !selectedPostId) return;
+    let cancelled = false;
+    const poll = async () => {
+      const { data } = await supabase.from("comment_automation_state" as any).select("stats").eq("account_id", accountId).eq("post_id", selectedPostId).eq("platform", selectedPlatform).maybeSingle();
+      if (!cancelled && (data as any)?.stats) setAutoReplyStats((data as any).stats);
+    };
+    poll();
+    const iv = setInterval(poll, 30000);
+    return () => { cancelled = true; clearInterval(iv); };
+  }, [anyAutoActive, selectedPostId, accountId, selectedPlatform]);
 
   // Load existing session on mount
   useEffect(() => {
@@ -971,462 +975,78 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading, onNavigateTo
     setLikingCommentId(null);
   };
 
-  // === AI AUTOMATION: Auto-reply to comments ===
+  // === AI AUTOMATION TOGGLES (all server-side via cron) ===
   const toggleAutoReply = () => {
-    if (autoReplyActive) {
-      autoReplyRef.current = false;
-      setAutoReplyActive(false);
-      toast.info("AI Auto-Reply paused");
-    } else {
-      if (!selectedPostId) { toast.error("Select a post first"); return; }
-      setAutoReplyActive(true);
-      toast.success("AI Auto-Reply activated (server-side)");
-    }
+    if (autoReplyActive) { setAutoReplyActive(false); toast.info("AI Auto-Reply paused"); }
+    else { if (!selectedPostId) { toast.error("Select a post first"); return; } setAutoReplyActive(true); toast.success("AI Auto-Reply activated (server-side)"); }
   };
 
-  const runAutoReplyLoop = async () => {
-    const processedIds = new Set(commentsList.map(c => c.id));
-    while (autoReplyRef.current) {
-      await new Promise(r => setTimeout(r, 15000)); // check every 15s
-      if (!autoReplyRef.current) break;
-      try {
-        const funcName = selectedPlatform === "instagram" ? "instagram-api" : "tiktok-api";
-        const params = selectedPlatform === "instagram"
-          ? { media_id: selectedPostId, limit: 50 }
-          : { video_id: selectedPostId, limit: 50 };
-        const d = await callApi(funcName, { action: "get_comments", params });
-        const freshComments = (d?.data || d?.data?.comments || []).map((c: any) => ({
-          id: c.id, text: c.text || "", username: c.username || c.from?.username || c.user?.unique_id || "user",
-        }));
-        const newComments = freshComments.filter((c: any) => !processedIds.has(c.id));
-        for (const nc of newComments) {
-          if (!autoReplyRef.current) break;
-          processedIds.add(nc.id);
-          try {
-            const aiResult = await callApi("social-ai-responder", {
-              action: "generate_comment_reply",
-              params: { comment_text: nc.text, comment_author: nc.username, redirect_url: aiRedirectUrl },
-            });
-            if (aiResult?.reply) {
-              const replyParams = selectedPlatform === "instagram"
-                ? { comment_id: nc.id, media_id: selectedPostId, message: aiResult.reply, comment_text: nc.text, comment_author: nc.username }
-                : { video_id: selectedPostId, comment_id: nc.id, message: aiResult.reply };
-              await callApi(funcName, { action: "reply_to_comment", params: replyParams });
-              setAutoReplyStats(prev => ({ ...prev, replied: prev.replied + 1 }));
-            }
-          } catch { /* skip failed reply */ }
-          await new Promise(r => setTimeout(r, 3000));
-        }
-      } catch { /* polling error, retry */ }
-    }
-  };
-
-  // === AI AUTOMATION: Auto-like comments ===
   const toggleAutoLikeComments = () => {
-    if (autoLikeCommentsActive) {
-      autoLikeRef.current = false;
-      setAutoLikeCommentsActive(false);
-      toast.info("Auto-Like Comments paused");
-    } else {
-      if (!selectedPostId) { toast.error("Select a post first"); return; }
-      setAutoLikeCommentsActive(true);
-      toast.success("Auto-Like Comments activated (server-side)");
-    }
+    if (autoLikeCommentsActive) { setAutoLikeCommentsActive(false); toast.info("Auto-Like Comments paused"); }
+    else { if (!selectedPostId) { toast.error("Select a post first"); return; } setAutoLikeCommentsActive(true); toast.success("Auto-Like Comments activated (server-side)"); }
   };
 
-  const runAutoLikeLoop = async () => {
-    const likedIds = new Set<string>();
-    while (autoLikeRef.current) {
-      try {
-        const funcName = selectedPlatform === "instagram" ? "instagram-api" : "tiktok-api";
-        const params = selectedPlatform === "instagram"
-          ? { media_id: selectedPostId, limit: 50 }
-          : { video_id: selectedPostId, limit: 50 };
-        const d = await callApi(funcName, { action: "get_comments", params });
-        const freshComments = (d?.data || d?.data?.comments || []);
-        for (const c of freshComments) {
-          if (!autoLikeRef.current) break;
-          const cId = c.id;
-          if (likedIds.has(cId)) continue;
-          likedIds.add(cId);
-          try {
-            await callApi(funcName, { action: "like_comment", params: { comment_id: cId } });
-            setAutoReplyStats(prev => ({ ...prev, liked: prev.liked + 1 }));
-          } catch { /* skip */ }
-          await new Promise(r => setTimeout(r, 2000));
-        }
-      } catch { /* polling error */ }
-      await new Promise(r => setTimeout(r, 20000));
-    }
-  };
-
-  // === AI AUTOMATION: Auto-like replies ===
   const toggleAutoLikeReplies = () => {
-    if (autoLikeRepliesActive) {
-      autoLikeRepliesRef.current = false;
-      setAutoLikeRepliesActive(false);
-      toast.info("Auto-Like Replies paused");
-    } else {
-      if (!selectedPostId) { toast.error("Select a post first"); return; }
-      setAutoLikeRepliesActive(true);
-      toast.success("Auto-Like Replies activated (server-side)");
-    }
+    if (autoLikeRepliesActive) { setAutoLikeRepliesActive(false); toast.info("Auto-Like Replies paused"); }
+    else { if (!selectedPostId) { toast.error("Select a post first"); return; } setAutoLikeRepliesActive(true); toast.success("Auto-Like Replies activated (server-side)"); }
   };
 
-  const runAutoLikeRepliesLoop = async () => {
-    const likedReplyIds = new Set<string>();
-    while (autoLikeRepliesRef.current) {
-      try {
-        const funcName = selectedPlatform === "instagram" ? "instagram-api" : "tiktok-api";
-        const params = selectedPlatform === "instagram"
-          ? { media_id: selectedPostId, limit: 50 }
-          : { video_id: selectedPostId, limit: 50 };
-        const d = await callApi(funcName, { action: "get_comments", params });
-        const freshComments = (d?.data || d?.data?.comments || []);
-        for (const c of freshComments) {
-          if (!autoLikeRepliesRef.current) break;
-          const replies = c.replies?.data || [];
-          for (const r of replies) {
-            if (!autoLikeRepliesRef.current) break;
-            if (likedReplyIds.has(r.id)) continue;
-            likedReplyIds.add(r.id);
-            try {
-              await callApi(funcName, { action: "like_comment", params: { comment_id: r.id } });
-              setAutoReplyStats(prev => ({ ...prev, likedReplies: prev.likedReplies + 1 }));
-            } catch { /* skip */ }
-            await new Promise(r2 => setTimeout(r2, 2000));
-          }
-        }
-      } catch { /* polling error */ }
-      await new Promise(r => setTimeout(r, 25000));
-    }
-  };
-
-  // === Auto-hide negative comments ===
   const toggleAutoHideNegative = () => {
-    setAutoHideNegative(!autoHideNegative);
-    if (!autoHideNegative) {
+    if (autoHideNegative) { setAutoHideNegative(false); toast.info("Auto-Hide Negative paused"); }
+    else {
+      setAutoHideNegative(true);
       toast.success("Auto-Hide Negative activated — negative comments will be hidden");
-      runAutoHidePass();
-    } else {
-      toast.info("Auto-Hide Negative paused");
-    }
-  };
-
-  const runAutoHidePass = async () => {
-    if (commentsList.length === 0) return;
-    try {
-      const d = await callApi("social-ai-responder", {
-        action: "filter_comments",
-        params: { comments: commentsList.slice(0, 50).map(c => ({ id: c.id, text: c.text, username: c.username })), filter_type: "negative" },
-      });
-      if (d?.filtered_ids?.length > 0) {
-        const funcName = selectedPlatform === "instagram" ? "instagram-api" : "tiktok-api";
-        for (const id of d.filtered_ids) {
+      // One-time pass on currently loaded comments
+      if (commentsList.length > 0) {
+        (async () => {
           try {
-            await callApi(funcName, { action: "hide_comment", params: { comment_id: id } });
-            setAutoReplyStats(prev => ({ ...prev, hidden: prev.hidden + 1 }));
-          } catch { /* skip */ }
-          await new Promise(r => setTimeout(r, 1500));
-        }
-        toast.success(`Hidden ${d.filtered_ids.length} negative comments`);
-      } else {
-        toast.info("No negative comments detected");
+            const d = await callApi("social-ai-responder", {
+              action: "filter_comments",
+              params: { comments: commentsList.slice(0, 50).map(c => ({ id: c.id, text: c.text, username: c.username })), filter_type: "negative" },
+            });
+            if (d?.filtered_ids?.length > 0) {
+              const funcName = selectedPlatform === "instagram" ? "instagram-api" : "tiktok-api";
+              for (const id of d.filtered_ids) {
+                try { await callApi(funcName, { action: "hide_comment", params: { comment_id: id } }); } catch {}
+                await new Promise(r => setTimeout(r, 1500));
+              }
+              toast.success(`Hidden ${d.filtered_ids.length} negative comments`);
+            } else { toast.info("No negative comments detected"); }
+          } catch { toast.error("Auto-hide failed"); }
+        })();
       }
-    } catch { toast.error("Auto-hide failed"); }
+    }
   };
 
-  // === Auto-DM Commenters (buying signal commenters get a DM) ===
   const toggleAutoDmCommenters = () => {
-    if (autoDmCommenters) {
-      autoDmRef.current = false;
-      setAutoDmCommenters(false);
-      toast.info("Auto-DM Commenters paused");
-    } else {
-      if (!selectedPostId) { toast.error("Select a post first"); return; }
-      setAutoDmCommenters(true);
-      toast.success("Auto-DM activated (server-side)");
-    }
+    if (autoDmCommenters) { setAutoDmCommenters(false); toast.info("Auto-DM Commenters paused"); }
+    else { if (!selectedPostId) { toast.error("Select a post first"); return; } setAutoDmCommenters(true); toast.success("Auto-DM activated (server-side)"); }
   };
 
-  const runAutoDmLoop = async () => {
-    const dmdUsers = new Set<string>();
-    while (autoDmRef.current) {
-      try {
-        const funcName = selectedPlatform === "instagram" ? "instagram-api" : "tiktok-api";
-        const d = await callApi(funcName, { action: "get_comments", params: selectedPlatform === "instagram" ? { media_id: selectedPostId, limit: 50 } : { video_id: selectedPostId, limit: 50 } });
-        const comments = d?.data || [];
-        const buyingKeywords = ["price", "how much", "link", "buy", "order", "cost", "where", "available", "ship", "dm me", "interested"];
-        for (const c of comments) {
-          if (!autoDmRef.current) break;
-          const username = c.username || c.from?.username || "";
-          if (dmdUsers.has(username) || !username) continue;
-          const text = (c.text || "").toLowerCase();
-          const isBuying = buyingKeywords.some(kw => text.includes(kw));
-          if (!isBuying) continue;
-          dmdUsers.add(username);
-          try {
-            const aiResult = await callApi("social-ai-responder", {
-              action: "generate_dm_from_comment",
-              params: { comment_text: c.text, comment_author: username, redirect_url: aiRedirectUrl },
-            });
-            const dmText = aiResult?.dm || `hey ${username}! saw your comment — check your DMs for something special 💕`;
-            await callApi(funcName, { action: "send_message", params: { recipient_id: username, message: dmText } });
-            setAutoReplyStats(prev => ({ ...prev, dmd: prev.dmd + 1 }));
-          } catch { /* skip */ }
-          await new Promise(r => setTimeout(r, 3000));
-        }
-      } catch { /* polling error */ }
-      await new Promise(r => setTimeout(r, 20000));
-    }
-  };
-
-  // === Auto-Follow Commenters (follow back engaged fans) ===
   const toggleAutoFollowCommenters = () => {
-    if (autoFollowCommenters) {
-      autoFollowRef.current = false;
-      setAutoFollowCommenters(false);
-      toast.info("Auto-Follow paused");
-    } else {
-      if (!selectedPostId) { toast.error("Select a post first"); return; }
-      setAutoFollowCommenters(true);
-      toast.success("Auto-Follow activated (server-side)");
-    }
+    if (autoFollowCommenters) { setAutoFollowCommenters(false); toast.info("Auto-Follow paused"); }
+    else { if (!selectedPostId) { toast.error("Select a post first"); return; } setAutoFollowCommenters(true); toast.success("Auto-Follow activated (server-side)"); }
   };
 
-  const runAutoFollowLoop = async () => {
-    const followedUsers = new Set<string>();
-    while (autoFollowRef.current) {
-      try {
-        const funcName = selectedPlatform === "instagram" ? "instagram-api" : "tiktok-api";
-        const d = await callApi(funcName, { action: "get_comments", params: selectedPlatform === "instagram" ? { media_id: selectedPostId, limit: 50 } : { video_id: selectedPostId, limit: 50 } });
-        const comments = d?.data || [];
-        for (const c of comments) {
-          if (!autoFollowRef.current) break;
-          const userId = c.from?.id || c.user_id || c.id;
-          if (followedUsers.has(userId)) continue;
-          followedUsers.add(userId);
-          try {
-            await callApi(funcName, { action: "follow_user", params: { user_id: userId } });
-            setAutoReplyStats(prev => ({ ...prev, followed: prev.followed + 1 }));
-          } catch { /* skip */ }
-          await new Promise(r => setTimeout(r, 4000));
-        }
-      } catch { /* polling error */ }
-      await new Promise(r => setTimeout(r, 30000));
-    }
-  };
-
-  // === Auto-CTA Inject (add CTA reply to high-engagement comments) ===
   const toggleAutoCtaInject = () => {
-    if (autoCtaInject) {
-      autoCtaRef.current = false;
-      setAutoCtaInject(false);
-      toast.info("Auto-CTA paused");
-    } else {
-      if (!selectedPostId) { toast.error("Select a post first"); return; }
-      setAutoCtaInject(true);
-      toast.success("Auto-CTA activated (server-side)");
-    }
+    if (autoCtaInject) { setAutoCtaInject(false); toast.info("Auto-CTA paused"); }
+    else { if (!selectedPostId) { toast.error("Select a post first"); return; } setAutoCtaInject(true); toast.success("Auto-CTA activated (server-side)"); }
   };
 
-  const runAutoCtaLoop = async () => {
-    const ctaIds = new Set<string>();
-    while (autoCtaRef.current) {
-      try {
-        const funcName = selectedPlatform === "instagram" ? "instagram-api" : "tiktok-api";
-        const d = await callApi(funcName, { action: "get_comments", params: selectedPlatform === "instagram" ? { media_id: selectedPostId, limit: 50 } : { video_id: selectedPostId, limit: 50 } });
-        const comments = d?.data || [];
-        const sorted = [...comments].sort((a: any, b: any) => (b.like_count || 0) - (a.like_count || 0));
-        for (const c of sorted.slice(0, 10)) {
-          if (!autoCtaRef.current) break;
-          if (ctaIds.has(c.id)) continue;
-          if ((c.like_count || 0) < 2) continue;
-          ctaIds.add(c.id);
-          try {
-            const aiResult = await callApi("social-ai-responder", {
-              action: "generate_cta_reply",
-              params: { comment_text: c.text, comment_author: c.username || "fan", redirect_url: aiRedirectUrl },
-            });
-            const ctaReply = aiResult?.reply || `thanks for the love! 🔥 link in bio for more`;
-            const replyParams = selectedPlatform === "instagram"
-              ? { comment_id: c.id, media_id: selectedPostId, message: ctaReply, comment_text: c.text, comment_author: c.username }
-              : { video_id: selectedPostId, comment_id: c.id, message: ctaReply };
-            await callApi(funcName, { action: "reply_to_comment", params: replyParams });
-            setAutoReplyStats(prev => ({ ...prev, ctas: prev.ctas + 1 }));
-          } catch { /* skip */ }
-          await new Promise(r => setTimeout(r, 3000));
-        }
-      } catch { /* polling error */ }
-      await new Promise(r => setTimeout(r, 25000));
-    }
-  };
-
-  // === Auto-Boost Engagement (like + reply combo to maximize algorithm) ===
   const toggleAutoBoostEngagement = () => {
-    if (autoBoostEngagement) {
-      autoBoostRef.current = false;
-      setAutoBoostEngagement(false);
-      toast.info("Auto-Boost paused");
-    } else {
-      if (!selectedPostId) { toast.error("Select a post first"); return; }
-      setAutoBoostEngagement(true);
-      toast.success("Auto-Boost activated (server-side)");
-    }
+    if (autoBoostEngagement) { setAutoBoostEngagement(false); toast.info("Auto-Boost paused"); }
+    else { if (!selectedPostId) { toast.error("Select a post first"); return; } setAutoBoostEngagement(true); toast.success("Auto-Boost activated (server-side)"); }
   };
 
-  const runAutoBoostLoop = async () => {
-    const boostedIds = new Set<string>();
-    while (autoBoostRef.current) {
-      try {
-        const funcName = selectedPlatform === "instagram" ? "instagram-api" : "tiktok-api";
-        const d = await callApi(funcName, { action: "get_comments", params: selectedPlatform === "instagram" ? { media_id: selectedPostId, limit: 50 } : { video_id: selectedPostId, limit: 50 } });
-        const comments = d?.data || [];
-        for (const c of comments) {
-          if (!autoBoostRef.current) break;
-          if (boostedIds.has(c.id)) continue;
-          boostedIds.add(c.id);
-          try {
-            // Like the comment first
-            await callApi(funcName, { action: "like_comment", params: { comment_id: c.id } });
-            await new Promise(r => setTimeout(r, 1500));
-            // Then reply with engagement-boosting message
-            const aiResult = await callApi("social-ai-responder", {
-              action: "generate_comment_reply",
-              params: { comment_text: c.text, comment_author: c.username || "fan", redirect_url: aiRedirectUrl },
-            });
-            if (aiResult?.reply) {
-              const replyParams = selectedPlatform === "instagram"
-                ? { comment_id: c.id, media_id: selectedPostId, message: aiResult.reply, comment_text: c.text, comment_author: c.username }
-                : { video_id: selectedPostId, comment_id: c.id, message: aiResult.reply };
-              await callApi(funcName, { action: "reply_to_comment", params: replyParams });
-            }
-            setAutoReplyStats(prev => ({ ...prev, boosted: prev.boosted + 1 }));
-          } catch { /* skip */ }
-          await new Promise(r => setTimeout(r, 3000));
-        }
-      } catch { /* polling error */ }
-      await new Promise(r => setTimeout(r, 20000));
-    }
-  };
-
-  // === Auto-Question Responder (detect questions and answer with AI) ===
   const toggleAutoQuestionResponder = () => {
-    if (autoQuestionResponder) {
-      autoQuestionRef.current = false;
-      setAutoQuestionResponder(false);
-      toast.info("Auto-Question Responder paused");
-    } else {
-      if (!selectedPostId) { toast.error("Select a post first"); return; }
-      setAutoQuestionResponder(true);
-      toast.success("Auto-Question Responder activated (server-side)");
-    }
+    if (autoQuestionResponder) { setAutoQuestionResponder(false); toast.info("Auto-Question Responder paused"); }
+    else { if (!selectedPostId) { toast.error("Select a post first"); return; } setAutoQuestionResponder(true); toast.success("Auto-Question Responder activated (server-side)"); }
   };
 
-  const runAutoQuestionLoop = async () => {
-    const answeredIds = new Set<string>();
-    while (autoQuestionRef.current) {
-      try {
-        const funcName = selectedPlatform === "instagram" ? "instagram-api" : "tiktok-api";
-        const d = await callApi(funcName, { action: "get_comments", params: selectedPlatform === "instagram" ? { media_id: selectedPostId, limit: 50 } : { video_id: selectedPostId, limit: 50 } });
-        const comments = d?.data || [];
-        for (const c of comments) {
-          if (!autoQuestionRef.current) break;
-          if (answeredIds.has(c.id)) continue;
-          const text = (c.text || "").trim();
-          const isQuestion = text.includes("?") || /^(how|what|when|where|why|who|can|do|does|is|are|will|would|should|could)\b/i.test(text);
-          if (!isQuestion) continue;
-          answeredIds.add(c.id);
-          try {
-            const aiResult = await callApi("social-ai-responder", {
-              action: "generate_comment_reply",
-              params: { comment_text: c.text, comment_author: c.username || "fan", redirect_url: aiRedirectUrl },
-            });
-            if (aiResult?.reply) {
-              const replyParams = selectedPlatform === "instagram"
-                ? { comment_id: c.id, media_id: selectedPostId, message: aiResult.reply, comment_text: c.text, comment_author: c.username }
-                : { video_id: selectedPostId, comment_id: c.id, message: aiResult.reply };
-              await callApi(funcName, { action: "reply_to_comment", params: replyParams });
-              setAutoReplyStats(prev => ({ ...prev, questions: prev.questions + 1 }));
-            }
-          } catch { /* skip */ }
-          await new Promise(r => setTimeout(r, 3000));
-        }
-      } catch { /* polling error */ }
-      await new Promise(r => setTimeout(r, 18000));
-    }
-  };
-
-  // === Auto-Lead Capture (DM users showing buying intent + log them) ===
   const toggleAutoLeadCapture = () => {
-    if (autoLeadCapture) {
-      autoLeadRef.current = false;
-      setAutoLeadCapture(false);
-      toast.info("Auto-Lead Capture paused");
-    } else {
-      if (!selectedPostId) { toast.error("Select a post first"); return; }
-      setAutoLeadCapture(true);
-      toast.success("Auto-Lead Capture activated (server-side)");
-    }
+    if (autoLeadCapture) { setAutoLeadCapture(false); toast.info("Auto-Lead Capture paused"); }
+    else { if (!selectedPostId) { toast.error("Select a post first"); return; } setAutoLeadCapture(true); toast.success("Auto-Lead Capture activated (server-side)"); }
   };
-
-  const runAutoLeadLoop = async () => {
-    const capturedLeads = new Set<string>();
-    const leadKeywords = ["price", "how much", "buy", "order", "link", "website", "store", "shop", "purchase", "cost", "dm", "interested", "want this", "need this", "where can i"];
-    while (autoLeadRef.current) {
-      try {
-        const funcName = selectedPlatform === "instagram" ? "instagram-api" : "tiktok-api";
-        const d = await callApi(funcName, { action: "get_comments", params: selectedPlatform === "instagram" ? { media_id: selectedPostId, limit: 50 } : { video_id: selectedPostId, limit: 50 } });
-        const comments = d?.data || [];
-        for (const c of comments) {
-          if (!autoLeadRef.current) break;
-          const username = c.username || c.from?.username || "";
-          if (capturedLeads.has(username) || !username) continue;
-          const text = (c.text || "").toLowerCase();
-          const isLead = leadKeywords.some(kw => text.includes(kw));
-          if (!isLead) continue;
-          capturedLeads.add(username);
-          try {
-            // Reply to comment with CTA
-            const aiResult = await callApi("social-ai-responder", {
-              action: "generate_cta_reply",
-              params: { comment_text: c.text, comment_author: username, redirect_url: aiRedirectUrl },
-            });
-            if (aiResult?.reply) {
-              const replyParams = selectedPlatform === "instagram"
-                ? { comment_id: c.id, media_id: selectedPostId, message: aiResult.reply, comment_text: c.text, comment_author: username }
-                : { video_id: selectedPostId, comment_id: c.id, message: aiResult.reply };
-              await callApi(funcName, { action: "reply_to_comment", params: replyParams });
-            }
-            await new Promise(r => setTimeout(r, 2000));
-            // DM the lead
-            const dmText = aiResult?.dm || `hey ${username}! thanks for the interest 💕 check this out: ${aiRedirectUrl || "link in bio"}`;
-            await callApi(funcName, { action: "send_message", params: { recipient_id: username, message: dmText } });
-            setAutoReplyStats(prev => ({ ...prev, leads: prev.leads + 1 }));
-          } catch { /* skip */ }
-          await new Promise(r => setTimeout(r, 4000));
-        }
-      } catch { /* polling error */ }
-      await new Promise(r => setTimeout(r, 20000));
-    }
-  };
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      autoReplyRef.current = false;
-      autoLikeRef.current = false;
-      autoLikeRepliesRef.current = false;
-      autoDmRef.current = false;
-      autoFollowRef.current = false;
-      autoCtaRef.current = false;
-      autoBoostRef.current = false;
-      autoQuestionRef.current = false;
-      autoLeadRef.current = false;
-      if (autoIntervalRef.current) clearInterval(autoIntervalRef.current);
-    };
-  }, []);
-
 
 
   const PostThumbnail = ({ url, size = "h-12 w-12" }: { url?: string; size?: string }) => (
