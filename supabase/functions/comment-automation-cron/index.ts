@@ -37,7 +37,7 @@ serve(async (req) => {
   const supabase = createClient(supabaseUrl, serviceKey);
 
   try {
-    const { data: activeJobs } = await supabase
+    const { data: activeJobs, error: jobErr } = await supabase
       .from("comment_automation_state")
       .select("*")
       .or(
@@ -58,7 +58,7 @@ serve(async (req) => {
       );
 
     if (!activeJobs || activeJobs.length === 0) {
-      return new Response(JSON.stringify({ success: true, message: "No active automations" }), {
+      return new Response(JSON.stringify({ success: true, message: "No active automations", ts: new Date().toISOString() }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
