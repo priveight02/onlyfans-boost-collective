@@ -1258,11 +1258,10 @@ Analyze every character in the name and username for any gender signal at all. L
       case "get_account_insights": {
         const requestedPeriod = params?.period || "day";
         const period = requestedPeriod === "month" ? "days_28" : requestedPeriod;
-        const metricCandidates = [
+
+        const rangedMetrics = [
           "reach",
           "follower_count",
-          "profile_views",
-          "website_clicks",
           "accounts_engaged",
           "total_interactions",
           "likes",
@@ -1271,41 +1270,58 @@ Analyze every character in the name and username for any gender signal at all. L
           "saves",
           "replies",
         ];
+        const lifetimeMetrics = ["profile_views", "website_clicks"];
 
         const buildRangeQuery = (p: string) =>
           p === "lifetime"
             ? ""
             : `${params?.since ? `&since=${params.since}` : ""}${params?.until ? `&until=${params.until}` : ""}`;
 
-        const periodFallbacks =
-          period === "days_28"
-            ? ["days_28", "week", "day", "lifetime"]
-            : period === "week"
-            ? ["week", "day", "lifetime"]
-            : ["day", "week", "lifetime"];
+        const metricErrors: Array<{ metric: string; endpoint: string; error: string }> = [];
+        const metricRows: any[] = [];
 
-        const fetchMetricWithFallback = async (metric: string) => {
-          for (const p of periodFallbacks) {
-            try {
-              const data = await igFetch(`/${igUserId}/insights?metric=${metric}&period=${p}${buildRangeQuery(p)}`, token);
-              const metricRow = data?.data?.[0];
-              if (metricRow) return metricRow;
-            } catch (err: any) {
-              console.log(`[get_account_insights] metric=${metric} period=${p} failed:`, err?.message || err);
+        const fetchMetricGroup = async (metrics: string[], groupPeriod: string, includeRange: boolean) => {
+          if (!metrics.length) return;
+
+          const query = `/${igUserId}/insights?metric=${metrics.join(",")}&period=${groupPeriod}${includeRange ? buildRangeQuery(groupPeriod) : ""}`;
+
+          try {
+            const data = await igFetch(query, token);
+            const rows = Array.isArray(data?.data) ? data.data : [];
+            metricRows.push(...rows);
+          } catch (err: any) {
+            const message = err?.message || "Unknown Instagram API error";
+            for (const metric of metrics) {
+              metricErrors.push({
+                metric,
+                endpoint: `/insights?period=${groupPeriod}`,
+                error: message,
+              });
             }
           }
-          return null;
         };
 
-        const metricRows = (await Promise.all(metricCandidates.map((metric) => fetchMetricWithFallback(metric))))
-          .filter(Boolean) as any[];
+        await Promise.all([
+          fetchMetricGroup(rangedMetrics, period, true),
+          fetchMetricGroup(lifetimeMetrics, "lifetime", false),
+        ]);
 
         const deduped = Array.from(new Map(metricRows.map((row: any) => [row.name, row])).values());
-        result = { data: deduped };
+        const expectedMetrics = [...rangedMetrics, ...lifetimeMetrics];
+        const returnedMetrics = new Set(deduped.map((row: any) => row?.name).filter(Boolean));
+        const missingMetrics = expectedMetrics.filter((metric) => !returnedMetrics.has(metric));
+
+        result = {
+          data: deduped,
+          missing_metrics: missingMetrics,
+          metric_errors: metricErrors,
+          sync_mode: "strict_live_no_fallback",
+        };
 
         if (deduped.length) {
           for (const metric of deduped) {
-            const latestValue = metric.values?.[metric.values.length - 1];
+            const values = Array.isArray(metric.values) ? metric.values : [];
+            const latestValue = values[values.length - 1];
             if (latestValue) {
               await supabase.from("social_analytics").upsert({
                 account_id: account_id,
@@ -1373,54 +1389,52 @@ Analyze every character in the name and username for any gender signal at all. L
             : false;
         };
 
-        let baseRows: any[] = [];
-        try {
-          const base = await igFetch(
-            `/${igUserId}/insights?metric=follower_demographics,reached_audience_demographics,engaged_audience_demographics&period=lifetime&metric_type=total_value&timeframe=last_90_days`,
-            token,
-          );
-          baseRows = (base?.data || []).map((row: any) => normalizeDemographicRow(row?.name, row));
-        } catch (err: any) {
-          console.log("[get_account_insights_demographics] bulk fetch failed:", err?.message || err);
-        }
+        const demographicResults = await Promise.all(
+          demographicMetrics.map(async (metricName) => {
+            const query = `/${igUserId}/insights?metric=${metricName}&period=lifetime&metric_type=total_value&breakdown=age,gender&timeframe=last_90_days`;
 
-        const missingMetrics = demographicMetrics.filter((metricName) => {
-          const existing = baseRows.find((row: any) => row?.name === metricName);
-          return !hasUsableValues(existing);
-        });
-
-        const fallbackRows = await Promise.all(
-          missingMetrics.map(async (metricName) => {
-            const queries = [
-              `metric=${metricName}&period=lifetime&metric_type=total_value&breakdown=age,gender&timeframe=last_90_days`,
-              `metric=${metricName}&period=lifetime&metric_type=total_value&breakdown=age,gender`,
-              `metric=${metricName}&period=lifetime`,
-            ];
-
-            for (const q of queries) {
-              try {
-                const res = await igFetch(`/${igUserId}/insights?${q}`, token);
-                const row = res?.data?.[0];
-                if (row) {
-                  const normalized = normalizeDemographicRow(metricName, row);
-                  if (hasUsableValues(normalized)) return normalized;
-                }
-              } catch (err: any) {
-                console.log(`[get_account_insights_demographics] metric=${metricName} query=${q} failed:`, err?.message || err);
-              }
+            try {
+              const response = await igFetch(query, token);
+              const rawRow = response?.data?.[0];
+              const normalized = rawRow ? normalizeDemographicRow(metricName, rawRow) : null;
+              return {
+                metric: metricName,
+                row: normalized,
+                error: null as string | null,
+              };
+            } catch (err: any) {
+              return {
+                metric: metricName,
+                row: null,
+                error: err?.message || "Unknown Instagram API error",
+              };
             }
-
-            return null;
           }),
         );
 
-        const merged = Array.from(
-          new Map(
-            [...baseRows, ...fallbackRows.filter(Boolean)].map((row: any) => [row.name, row]),
-          ).values(),
-        );
+        const rows = demographicResults
+          .map((entry) => entry.row)
+          .filter((row) => hasUsableValues(row));
 
-        result = { data: merged };
+        const metricErrors = demographicResults
+          .filter((entry) => entry.error)
+          .map((entry) => ({
+            metric: entry.metric,
+            endpoint: "/insights?period=lifetime&metric_type=total_value&breakdown=age,gender&timeframe=last_90_days",
+            error: entry.error,
+          }));
+
+        const missingMetrics = demographicMetrics.filter((metricName) => {
+          const row = rows.find((candidate: any) => candidate?.name === metricName);
+          return !hasUsableValues(row);
+        });
+
+        result = {
+          data: rows,
+          missing_metrics: missingMetrics,
+          metric_errors: metricErrors,
+          sync_mode: "strict_live_no_fallback",
+        };
         break;
       }
 

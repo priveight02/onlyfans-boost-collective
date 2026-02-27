@@ -30,6 +30,7 @@ const IGInsightsDashboard = ({ selectedAccount }: Props) => {
   const [reelInsights, setReelInsights] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [lastSynced, setLastSynced] = useState<string | null>(null);
+  const [syncIssues, setSyncIssues] = useState<string[]>([]);
 
   const callApi = useCallback(async (body: any) => {
     if (!selectedAccount) return null;
@@ -49,6 +50,7 @@ const IGInsightsDashboard = ({ selectedAccount }: Props) => {
   const fetchAllInsights = useCallback(async () => {
     if (!selectedAccount) return;
     setLoading(true);
+    setSyncIssues([]);
     toast.info("Pulling real-time Instagram insights...");
 
     const now = Math.floor(Date.now() / 1000);
@@ -69,6 +71,22 @@ const IGInsightsDashboard = ({ selectedAccount }: Props) => {
     if (demo) setDemographics(demo);
     if (online) setOnlineFollowers(online);
 
+    const nextIssues: string[] = [];
+
+    if (Array.isArray(metrics?.missing_metrics) && metrics.missing_metrics.length) {
+      nextIssues.push(`Account metrics unavailable: ${metrics.missing_metrics.join(", ")}`);
+    }
+    if (Array.isArray(metrics?.metric_errors) && metrics.metric_errors.length) {
+      nextIssues.push(...metrics.metric_errors.map((e: any) => `Metric ${e.metric}: ${e.error}`));
+    }
+
+    if (Array.isArray(demo?.missing_metrics) && demo.missing_metrics.length) {
+      nextIssues.push(`Demographics unavailable: ${demo.missing_metrics.join(", ")}`);
+    }
+    if (Array.isArray(demo?.metric_errors) && demo.metric_errors.length) {
+      nextIssues.push(...demo.metric_errors.map((e: any) => `Demographic ${e.metric}: ${e.error}`));
+    }
+
     // Fetch per-story insights
     if (stories?.data?.length) {
       const storyResults: any[] = [];
@@ -77,6 +95,8 @@ const IGInsightsDashboard = ({ selectedAccount }: Props) => {
         storyResults.push({ ...s, insights: ins?.data || [] });
       }
       setStoryInsights(storyResults);
+    } else {
+      setStoryInsights([]);
     }
 
     // Fetch per-media insights (reels vs posts)
@@ -93,23 +113,53 @@ const IGInsightsDashboard = ({ selectedAccount }: Props) => {
       }
       setReelInsights(reels);
       setMediaInsights(posts);
+    } else {
+      setReelInsights([]);
+      setMediaInsights([]);
     }
 
+    const onlineValues = online?.data?.[0]?.values;
+    const hasOnlineHistogram = Array.isArray(onlineValues)
+      ? onlineValues.some((entry: any) => entry?.value && typeof entry.value === "object" && Object.keys(entry.value).length > 0)
+      : false;
+
+    if (!hasOnlineHistogram) {
+      nextIssues.push("Followers-online histogram not returned by Instagram for this account yet.");
+    }
+
+    setSyncIssues(nextIssues);
     setLastSynced(new Date().toLocaleTimeString());
     setLoading(false);
-    toast.success("Insights synced from Instagram API!");
+
+    const hasAnyCoreData = Boolean(metrics?.data?.length || demo?.data?.length || media?.data?.length || stories?.data?.length);
+
+    if (!hasAnyCoreData) {
+      toast.error("Instagram returned no live insights for this account/period.");
+      return;
+    }
+
+    if (nextIssues.length > 0) {
+      toast.warning("Synced live data, but some fields are unavailable from Instagram for this account/period.");
+    } else {
+      toast.success("Insights synced from Instagram API.");
+    }
   }, [selectedAccount, period, callApi]);
 
   // Build metric lookup from API response
   const metricsMap: Record<string, { value: number; prevValue: number }> = {};
   if (accountMetrics?.data) {
     for (const m of accountMetrics.data) {
-      const vals = m.values || [];
-      const latest = vals[vals.length - 1]?.value ?? 0;
-      const prev = vals.length > 1 ? vals[vals.length - 2]?.value ?? 0 : 0;
+      const vals = Array.isArray(m.values) ? m.values : [];
+      const numericValues = vals.map((v: any) => (typeof v?.value === "number" ? v.value : 0));
+      if (numericValues.length === 0) continue;
+
+      const latest = numericValues[numericValues.length - 1] ?? 0;
+      const prev = numericValues.length > 1 ? numericValues[numericValues.length - 2] ?? 0 : 0;
+      const latestNonZero = [...numericValues].reverse().find((v) => v > 0);
       const normalizedName = m.name === "profile_links_taps" ? "website_clicks" : m.name;
-      const value = typeof latest === "number" ? latest : 0;
-      const prevValue = typeof prev === "number" ? prev : 0;
+
+      const value = latest === 0 && latestNonZero !== undefined ? latestNonZero : latest;
+      const prevValue = prev;
       const existing = metricsMap[normalizedName];
       if (!existing || value >= existing.value) {
         metricsMap[normalizedName] = { value, prevValue };
@@ -345,6 +395,19 @@ const IGInsightsDashboard = ({ selectedAccount }: Props) => {
           <Loader2 className="h-6 w-6 animate-spin text-pink-400 mr-2" />
           <span className="text-sm text-muted-foreground">Fetching from Instagram API...</span>
         </div>
+      )}
+
+      {!loading && syncIssues.length > 0 && (
+        <Card className="bg-white/[0.03] border-amber-500/20">
+          <CardContent className="p-3">
+            <p className="text-[11px] text-amber-400 font-medium mb-1">Some live insight fields are unavailable</p>
+            <ul className="list-disc pl-4 space-y-0.5">
+              {syncIssues.slice(0, 6).map((issue, idx) => (
+                <li key={`${issue}-${idx}`} className="text-[10px] text-muted-foreground">{issue}</li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
       )}
 
       {/* ===== ACCOUNT METRICS GRID ===== */}
