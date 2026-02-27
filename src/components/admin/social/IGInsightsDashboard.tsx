@@ -54,9 +54,11 @@ const IGInsightsDashboard = ({ selectedAccount }: Props) => {
     const now = Math.floor(Date.now() / 1000);
     const dayAgo = now - 86400 * 2;
     const weekAgo = now - 86400 * 8;
+    const monthAgo = now - 86400 * 32;
+    const since = period === "day" ? dayAgo : period === "week" ? weekAgo : monthAgo;
 
     const [metrics, demo, online, stories, media] = await Promise.all([
-      callApi({ action: "get_account_insights", params: { period, since: period === "day" ? dayAgo : weekAgo, until: now } }),
+      callApi({ action: "get_account_insights", params: { period, since, until: now } }),
       callApi({ action: "get_account_insights_demographics" }),
       callApi({ action: "get_account_insights_online_followers" }),
       callApi({ action: "get_stories" }),

@@ -1256,16 +1256,55 @@ Analyze every character in the name and username for any gender signal at all. L
 
       // ===== INSIGHTS =====
       case "get_account_insights": {
-        const period = params?.period || "day";
-        const since = params?.since ? `&since=${params.since}` : "";
-        const until = params?.until ? `&until=${params.until}` : "";
-        const dayMetrics = "reach,follower_count,profile_views,website_clicks,accounts_engaged,total_interactions,likes,comments,shares,saves,replies";
-        const weekMetrics = "reach,follower_count,profile_views,website_clicks,accounts_engaged,total_interactions,likes,comments,shares,saves,replies";
-        const monthMetrics = "reach,follower_count,profile_views,website_clicks,accounts_engaged,total_interactions,likes,comments,shares,saves,replies";
-        const metrics = period === "day" ? dayMetrics : period === "week" ? weekMetrics : monthMetrics;
-        result = await igFetch(`/${igUserId}/insights?metric=${metrics}&period=${period}${since}${until}`, token);
-        if (result.data) {
-          for (const metric of result.data) {
+        const requestedPeriod = params?.period || "day";
+        const period = requestedPeriod === "month" ? "days_28" : requestedPeriod;
+        const metricCandidates = [
+          "reach",
+          "follower_count",
+          "profile_views",
+          "website_clicks",
+          "accounts_engaged",
+          "total_interactions",
+          "likes",
+          "comments",
+          "shares",
+          "saves",
+          "replies",
+        ];
+
+        const buildRangeQuery = (p: string) =>
+          p === "lifetime"
+            ? ""
+            : `${params?.since ? `&since=${params.since}` : ""}${params?.until ? `&until=${params.until}` : ""}`;
+
+        const periodFallbacks =
+          period === "days_28"
+            ? ["days_28", "week", "day", "lifetime"]
+            : period === "week"
+            ? ["week", "day", "lifetime"]
+            : ["day", "week", "lifetime"];
+
+        const fetchMetricWithFallback = async (metric: string) => {
+          for (const p of periodFallbacks) {
+            try {
+              const data = await igFetch(`/${igUserId}/insights?metric=${metric}&period=${p}${buildRangeQuery(p)}`, token);
+              const metricRow = data?.data?.[0];
+              if (metricRow) return metricRow;
+            } catch (err: any) {
+              console.log(`[get_account_insights] metric=${metric} period=${p} failed:`, err?.message || err);
+            }
+          }
+          return null;
+        };
+
+        const metricRows = (await Promise.all(metricCandidates.map((metric) => fetchMetricWithFallback(metric))))
+          .filter(Boolean) as any[];
+
+        const deduped = Array.from(new Map(metricRows.map((row: any) => [row.name, row])).values());
+        result = { data: deduped };
+
+        if (deduped.length) {
+          for (const metric of deduped) {
             const latestValue = metric.values?.[metric.values.length - 1];
             if (latestValue) {
               await supabase.from("social_analytics").upsert({
@@ -1276,7 +1315,7 @@ Analyze every character in the name and username for any gender signal at all. L
                 period_start: latestValue.end_time,
                 raw_data: metric,
                 fetched_at: new Date().toISOString(),
-              }, { onConflict: "account_id,platform,metric_type" }).select();
+              }, { onConflict: "account_id,platform,metric_type" });
             }
           }
         }
