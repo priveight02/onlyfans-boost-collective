@@ -1982,11 +1982,11 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading, onNavigateTo
 
       {/* ===== POST VIEWER DIALOG (Instagram-style) ===== */}
       <Dialog open={!!viewingPost} onOpenChange={(open) => { if (!open) setViewingPost(null); }}>
-        <DialogContent className="max-w-3xl p-0 overflow-hidden bg-background border-border">
+        <DialogContent className="max-w-4xl p-0 overflow-hidden bg-background border-border">
           {viewingPost && (
-            <div className="flex flex-col md:flex-row h-[80vh] max-h-[700px]">
-              {/* Media side */}
-              <div className="md:w-1/2 bg-black flex items-center justify-center min-h-[200px] relative">
+            <div className="flex flex-col md:flex-row h-[85vh] max-h-[800px]">
+              {/* Media side — full size */}
+              <div className="md:w-3/5 bg-black flex items-center justify-center min-h-[300px] relative">
                 {viewingPost.media_url ? (
                   viewingPost.media_type === "VIDEO" ? (
                     <video src={viewingPost.media_url} controls className="w-full h-full object-contain" />
@@ -2005,7 +2005,7 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading, onNavigateTo
               </div>
 
               {/* Comments side */}
-              <div className="md:w-1/2 flex flex-col border-l border-border">
+              <div className="md:w-2/5 flex flex-col border-l border-border">
                 {/* Header */}
                 <div className="p-3 border-b border-border flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -2060,7 +2060,7 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading, onNavigateTo
                       <p className="text-xs text-muted-foreground text-center py-6">No comments yet</p>
                     )}
                     {viewerComments.map(c => (
-                      <div key={c.id} className="flex gap-2">
+                      <div key={c.id} className="flex gap-2 group">
                         <div className="h-7 w-7 rounded-full bg-white/[0.06] flex items-center justify-center text-[10px] font-bold text-foreground flex-shrink-0">
                           {c.username[0]?.toUpperCase() || "?"}
                         </div>
@@ -2073,6 +2073,40 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading, onNavigateTo
                             {c.timestamp && <span className="text-[9px] text-muted-foreground">{new Date(c.timestamp).toLocaleDateString()}</span>}
                             {c.like_count != null && <span className="text-[9px] text-muted-foreground flex items-center gap-0.5"><Heart className="h-2 w-2" /> {c.like_count}</span>}
                           </div>
+                          {/* 5 quick actions */}
+                          <div className="flex items-center gap-0.5 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button onClick={() => likeComment(c.id)} disabled={likingCommentId === c.id}
+                              className="p-1 rounded-md hover:bg-pink-500/15 transition-colors" title="Like">
+                              {likingCommentId === c.id ? <Loader2 className="h-3 w-3 animate-spin text-pink-400" /> : <Heart className="h-3 w-3 text-pink-400/70 hover:text-pink-400" />}
+                            </button>
+                            <button onClick={() => generateAiReplyForComment(c)} disabled={aiGenerating}
+                              className="p-1 rounded-md hover:bg-purple-500/15 transition-colors" title="AI Reply">
+                              <Brain className="h-3 w-3 text-purple-400/70 hover:text-purple-400" />
+                            </button>
+                            <button onClick={() => { setReplyingTo(replyingTo === c.id ? null : c.id); setReplyText(""); }}
+                              className="p-1 rounded-md hover:bg-blue-500/15 transition-colors" title="Reply">
+                              <Reply className="h-3 w-3 text-blue-400/70 hover:text-blue-400" />
+                            </button>
+                            <button onClick={() => { navigator.clipboard.writeText(c.text); toast.success("Copied"); }}
+                              className="p-1 rounded-md hover:bg-white/[0.08] transition-colors" title="Copy">
+                              <Download className="h-3 w-3 text-muted-foreground hover:text-foreground" />
+                            </button>
+                            <button onClick={() => deleteComment(c.id)} disabled={deletingId === c.id}
+                              className="p-1 rounded-md hover:bg-destructive/15 transition-colors" title="Delete">
+                              {deletingId === c.id ? <Loader2 className="h-3 w-3 animate-spin text-destructive" /> : <Trash2 className="h-3 w-3 text-destructive/50 hover:text-destructive" />}
+                            </button>
+                          </div>
+                          {/* Inline reply input */}
+                          {replyingTo === c.id && (
+                            <div className="flex gap-1 mt-1.5">
+                              <Input value={replyText} onChange={e => setReplyText(e.target.value)}
+                                placeholder="Write reply..." className="text-[11px] h-7 flex-1 bg-white/[0.03] border-white/[0.08]" autoFocus
+                                onKeyDown={e => e.key === "Enter" && replyToComment(c.id, c.text, c.username)} />
+                              <Button size="sm" variant="outline" className="h-7 px-2 border-white/[0.08]" onClick={() => replyToComment(c.id, c.text, c.username)} disabled={!replyText.trim()}>
+                                <Send className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          )}
                           {c.replies && c.replies.length > 0 && (
                             <div className="mt-1 pl-2 border-l border-border/30 space-y-1">
                               {c.replies.map((r: any) => (
