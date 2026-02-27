@@ -1725,7 +1725,7 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
                         )}
                       </div>
                       <p className="text-xs font-medium text-foreground truncate">{item.title}</p>
-                      {item.caption && <p className="text-[10px] text-muted-foreground line-clamp-2">{item.caption}</p>}
+                      {item.caption && <p className="text-[10px] text-muted-foreground truncate">{item.caption.length > 40 ? item.caption.substring(0, 40) + "…" : item.caption}</p>}
                       {item.hashtags?.length > 0 && (
                         <div className="flex gap-0.5 flex-wrap">
                           {item.hashtags.slice(0, 4).map((h: string, i: number) => (
@@ -1931,7 +1931,7 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
                   )}
                 </div>
                 <p className="text-xs font-medium text-foreground mb-1 line-clamp-1">{item.title}</p>
-                {item.caption && <p className="text-[10px] text-muted-foreground line-clamp-2 mb-2">{item.caption}</p>}
+                {item.caption && <p className="text-[10px] text-muted-foreground truncate mb-2">{item.caption.length > 40 ? item.caption.substring(0, 40) + "…" : item.caption}</p>}
                 {item.hashtags?.length > 0 && (
                   <div className="flex flex-wrap gap-1 mb-1">
                     {(item.hashtags as string[]).slice(0, 4).map((h, i) => (
